@@ -23,7 +23,7 @@ extension INPerson {
     }
 
     static func from(shipName: String, withImage: Bool = false) async -> Self {
-        var contact: Contact? = nil
+        var contact: Contact?
         do {
             contact = try await ContactStore.sharedInstance.getOrFetchItem(shipName)
         } catch {

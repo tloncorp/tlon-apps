@@ -9,13 +9,18 @@ import Alamofire
 import Foundation
 
 class PocketAPI {
-    static func fetchDecodable<T: Decodable>(_ path: String, timeoutInterval: TimeInterval = 10, retries: Int = 0) async throws -> T {
-        guard let shipURL = UrbitModule.shipUrl else {
+    static let shared = PocketAPI()
+
+    private let loginStore = LoginStore()
+    private let session = Session.withSharedCookieStorage()
+
+    func fetchDecodable<T: Decodable>(_ path: String, timeoutInterval: TimeInterval = 10, retries: Int = 0) async throws -> T {
+        guard let shipURL = try? loginStore.read()?.shipUrl else {
             throw APIError.unknownShip
         }
 
         do {
-            let dataTask = AF.request(shipURL + path + ".json") { $0.timeoutInterval = timeoutInterval }
+            let dataTask = session.request(shipURL + path + ".json") { $0.timeoutInterval = timeoutInterval }
                 .serializingDecodable(T.self, automaticallyCancelling: true)
             return try await UrbitAPI.shared.processDataTask(dataTask)
         } catch {
@@ -27,13 +32,13 @@ class PocketAPI {
         }
     }
 
-    static func fetchData(_ path: String, timeoutInterval: TimeInterval = 10, retries: Int = 0) async throws -> Data {
-        guard let shipURL = UrbitModule.shipUrl else {
+    func fetchData(_ path: String, timeoutInterval: TimeInterval = 10, retries: Int = 0) async throws -> Data {
+        guard let shipURL = try? loginStore.read()?.shipUrl else {
             throw APIError.unknownShip
         }
 
         do {
-            let dataTask = AF.request(shipURL + path + ".json") { $0.timeoutInterval = timeoutInterval }
+            let dataTask = session.request(shipURL + path + ".json") { $0.timeoutInterval = timeoutInterval }
                 .serializingData(automaticallyCancelling: true)
             return try await UrbitAPI.shared.processDataTask(dataTask)
         } catch {

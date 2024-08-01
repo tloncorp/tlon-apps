@@ -8,5 +8,5 @@
 import Foundation
 
 final class ContactStore: UserDefaultsStore<Contact> {
-    static let sharedInstance = ContactStore(storageKey: "store.contacts", fetchItems: PocketUserAPI.fetchContacts)
+    static let sharedInstance = ContactStore(storageKey: "store.contacts", fetchItems: PocketAPI.shared.fetchContacts)
 }

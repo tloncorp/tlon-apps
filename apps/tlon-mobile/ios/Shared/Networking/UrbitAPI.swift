@@ -36,6 +36,8 @@ extension APIError: LocalizedError {
 final class UrbitAPI {
     static let shared = UrbitAPI()
 
+    let session = Session.withSharedCookieStorage()
+
     private enum State {
         case closed
         case open
@@ -61,7 +63,7 @@ final class UrbitAPI {
 
         var parameters = parameters
         parameters.updateValue(eventId, forKey: "id")
-        if let shipName = UrbitModule.shipName {
+        if let shipName = try? LoginStore().read()?.shipName {
             parameters.updateValue(shipName.replacingOccurrences(of: "~", with: ""), forKey: "ship")
         }
 
@@ -70,7 +72,7 @@ final class UrbitAPI {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: [parameters])
         request.timeoutInterval = 30
-        let dataTask = AF.request(request).serializingData(automaticallyCancelling: true)
+        let dataTask = session.request(request).serializingData(automaticallyCancelling: true)
         return try await (eventId, processDataTask(dataTask))
     }
 

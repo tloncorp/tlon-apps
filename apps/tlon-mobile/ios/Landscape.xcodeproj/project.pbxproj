@@ -11,11 +11,80 @@
 		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
 		3DC46BC1B669DF8F5F059CA8 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ACB38DC4FF4D6377774BF5F /* ExpoModulesProvider.swift */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		630DE0B72C51A0F80053603B /* Error+isAFTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */; };
+		630DE0C52C51A8780053603B /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
+		630DE0C62C51A8780053603B /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
+		630DE0C72C51A8780053603B /* Club.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709FC0EC2AC1E25D00B0644D /* Club.swift */; };
+		630DE0C82C51A8780053603B /* UrbitAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386552A609BFC00AFB46E /* UrbitAPI.swift */; };
+		630DE0C92C51A8780053603B /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D3866A2A60A38400AFB46E /* Group.swift */; };
+		630DE0CA2C51A8780053603B /* TlonError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7083A16B2AFB01A30022404A /* TlonError.swift */; };
+		630DE0CB2C51A8780053603B /* Error+isAFTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */; };
+		630DE0CC2C51A8780053603B /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386532A609BFC00AFB46E /* PushNotificationManager.swift */; };
+		630DE0CD2C51A8780053603B /* Yarn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386692A60A38400AFB46E /* Yarn.swift */; };
+		630DE0CE2C51A8780053603B /* GroupChannelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */; };
+		630DE0CF2C51A8780053603B /* PocketUserAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635A2A71DF860017F40F /* PocketUserAPI.swift */; };
+		630DE0D02C51A8780053603B /* UserDefaultsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */; };
+		630DE0D12C51A8780053603B /* ContactStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B63612A71E0D70017F40F /* ContactStore.swift */; };
+		630DE0D22C51A8780053603B /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACE12C49DA9600E637C0 /* NotificationService.swift */; };
+		630DE0D32C51A8780053603B /* ClubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3552ACD17600020A9FB /* ClubStore.swift */; };
+		630DE0D42C51A8780053603B /* PocketChatAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386612A609CE100AFB46E /* PocketChatAPI.swift */; };
+		630DE0D52C51A8780053603B /* LoginStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACF82C4ACD5000E637C0 /* LoginStore.swift */; };
+		630DE0D62C51A8780053603B /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635F2A71E0810017F40F /* SettingsStore.swift */; };
+		630DE0D72C51A8780053603B /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACFC2C4ACD7500E637C0 /* Login.swift */; };
+		630DE0D82C51A8780053603B /* PocketAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386572A609BFC00AFB46E /* PocketAPI.swift */; };
+		630DE0D92C51A8780053603B /* PocketNotificationsAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386562A609BFC00AFB46E /* PocketNotificationsAPI.swift */; };
+		630DE0DB2C51A8780053603B /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 630DE0C22C51A8780053603B /* UrsusSigil */; };
+		630DE0DC2C51A8780053603B /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 630DE0C02C51A8780053603B /* Alamofire */; };
+		630DE0E62C51A9D30053603B /* Notifications-preview.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 630DE0E22C51A8790053603B /* Notifications-preview.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		630DE0E72C51AA0C0053603B /* Notifications.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6374ACDF2C49DA9600E637C0 /* Notifications.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		630DE0EC2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */; };
+		630DE0ED2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */; };
+		630DE0EE2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */; };
+		630DE0EF2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */; };
+		632793B62C4ADE9800F942B1 /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386532A609BFC00AFB46E /* PushNotificationManager.swift */; };
+		632793B72C4ADEAC00F942B1 /* PocketNotificationsAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386562A609BFC00AFB46E /* PocketNotificationsAPI.swift */; };
+		632793B82C4ADEED00F942B1 /* PocketAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386572A609BFC00AFB46E /* PocketAPI.swift */; };
+		632793B92C4ADEF100F942B1 /* LoginStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACF82C4ACD5000E637C0 /* LoginStore.swift */; };
+		632793BA2C4AE01B00F942B1 /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACFC2C4ACD7500E637C0 /* Login.swift */; };
+		632793BB2C4AE49600F942B1 /* UrbitAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386552A609BFC00AFB46E /* UrbitAPI.swift */; };
+		632793BE2C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */; };
+		632793BF2C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */; };
+		632793C02C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */; };
+		632793C22C4AE4FA00F942B1 /* Yarn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386692A60A38400AFB46E /* Yarn.swift */; };
+		632793C32C4AE53500F942B1 /* ContactStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B63612A71E0D70017F40F /* ContactStore.swift */; };
+		632793C42C4AE53A00F942B1 /* UserDefaultsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */; };
+		632793C52C4AE56500F942B1 /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
+		632793C62C4AE56F00F942B1 /* PocketUserAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635A2A71DF860017F40F /* PocketUserAPI.swift */; };
+		632793C72C4AE69A00F942B1 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635F2A71E0810017F40F /* SettingsStore.swift */; };
+		632793C82C4AE78400F942B1 /* TlonError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7083A16B2AFB01A30022404A /* TlonError.swift */; };
+		632793C92C4AE7C900F942B1 /* GroupChannelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */; };
+		632793CA2C4AE7CD00F942B1 /* PocketChatAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386612A609CE100AFB46E /* PocketChatAPI.swift */; };
+		632793CB2C4AE7D900F942B1 /* ClubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3552ACD17600020A9FB /* ClubStore.swift */; };
+		632793CC2C4AE7E500F942B1 /* Club.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709FC0EC2AC1E25D00B0644D /* Club.swift */; };
+		632793CD2C4AE7EC00F942B1 /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D3866A2A60A38400AFB46E /* Group.swift */; };
+		632793CE2C4AE81E00F942B1 /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
+		632793D22C4AEA6400F942B1 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 632793D12C4AEA6400F942B1 /* Alamofire */; };
+		632793D42C4AEA6800F942B1 /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 632793D32C4AEA6800F942B1 /* UrsusSigil */; };
+		63566D1C2C530A370048E3C4 /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
+		63566D1D2C530A370048E3C4 /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
+		6374ACE22C49DA9600E637C0 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACE12C49DA9600E637C0 /* NotificationService.swift */; };
+		6374ACF92C4ACD5100E637C0 /* LoginStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACF82C4ACD5000E637C0 /* LoginStore.swift */; };
+		6374ACFA2C4ACD5100E637C0 /* LoginStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACF82C4ACD5000E637C0 /* LoginStore.swift */; };
+		6374ACFB2C4ACD5100E637C0 /* LoginStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACF82C4ACD5000E637C0 /* LoginStore.swift */; };
+		6374ACFD2C4ACD7500E637C0 /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACFC2C4ACD7500E637C0 /* Login.swift */; };
+		6374ACFE2C4ACD7500E637C0 /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACFC2C4ACD7500E637C0 /* Login.swift */; };
+		6374ACFF2C4ACD7500E637C0 /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACFC2C4ACD7500E637C0 /* Login.swift */; };
+		63E27E0B2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */; };
+		63E27E0C2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */; };
+		63E27E0D2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */; };
+		63E27E0E2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */; };
+		63E27E132C5AF5B9008ACB45 /* HTTPCookieStorage+forwardChanges.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E122C5AF5B8008ACB45 /* HTTPCookieStorage+forwardChanges.swift */; };
+		63E27E142C5AF5B9008ACB45 /* HTTPCookieStorage+forwardChanges.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E122C5AF5B8008ACB45 /* HTTPCookieStorage+forwardChanges.swift */; };
 		700B635B2A71DF860017F40F /* PocketUserAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635A2A71DF860017F40F /* PocketUserAPI.swift */; };
 		700B635D2A71DFE90017F40F /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
 		700B63602A71E0810017F40F /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635F2A71E0810017F40F /* SettingsStore.swift */; };
 		700B63622A71E0D70017F40F /* ContactStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B63612A71E0D70017F40F /* ContactStore.swift */; };
-		701A09B02B03081300D8F710 /* Error+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701A09AF2B03081300D8F710 /* Error+Extension.swift */; };
+		701A09B02B03081300D8F710 /* Error+logWithDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701A09AF2B03081300D8F710 /* Error+logWithDomain.swift */; };
 		7036E3522ACD08E30020A9FB /* GroupChannelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */; };
 		7036E3542ACD0FC90020A9FB /* UserDefaultsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */; };
 		7036E3562ACD17600020A9FB /* ClubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3552ACD17600020A9FB /* ClubStore.swift */; };
@@ -23,7 +92,6 @@
 		705D26482B7ECE5400F98AD6 /* Images-preview.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 705D26472B7ECE5400F98AD6 /* Images-preview.xcassets */; };
 		7083A16C2AFB01A30022404A /* TlonError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7083A16B2AFB01A30022404A /* TlonError.swift */; };
 		709FC0ED2AC1E25D00B0644D /* Club.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709FC0EC2AC1E25D00B0644D /* Club.swift */; };
-		70A62C612A5A6B1A00EBED16 /* SimpleKeychain in Frameworks */ = {isa = PBXBuildFile; productRef = 70A62C602A5A6B1A00EBED16 /* SimpleKeychain */; };
 		70D386482A6098F800AFB46E /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 70D386472A6098F800AFB46E /* Alamofire */; };
 		70D386582A609BFC00AFB46E /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386532A609BFC00AFB46E /* PushNotificationManager.swift */; };
 		70D386592A609BFC00AFB46E /* UrbitAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386552A609BFC00AFB46E /* UrbitAPI.swift */; };
@@ -46,7 +114,7 @@
 		70DBBFF12B7C60B50021EA96 /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
 		70DBBFF22B7C60B50021EA96 /* UrbitModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB62A57AAF200FE96E4 /* UrbitModule.m */; };
 		70DBBFF32B7C60B50021EA96 /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
-		70DBBFF42B7C60B50021EA96 /* Error+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701A09AF2B03081300D8F710 /* Error+Extension.swift */; };
+		70DBBFF42B7C60B50021EA96 /* Error+logWithDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701A09AF2B03081300D8F710 /* Error+logWithDomain.swift */; };
 		70DBBFF52B7C60B50021EA96 /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D3866A2A60A38400AFB46E /* Group.swift */; };
 		70DBBFF62B7C60B50021EA96 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635F2A71E0810017F40F /* SettingsStore.swift */; };
 		70DBBFF72B7C60B50021EA96 /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
@@ -61,7 +129,6 @@
 		70DBC0012B7C60B50021EA96 /* Yarn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386692A60A38400AFB46E /* Yarn.swift */; };
 		70DBC0032B7C60B50021EA96 /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 70DBBFE42B7C60B50021EA96 /* UrsusSigil */; };
 		70DBC0042B7C60B50021EA96 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 70DBBFE22B7C60B50021EA96 /* Alamofire */; };
-		70DBC0052B7C60B50021EA96 /* SimpleKeychain in Frameworks */ = {isa = PBXBuildFile; productRef = 70DBBFE02B7C60B50021EA96 /* SimpleKeychain */; };
 		70DBC0082B7C60B50021EA96 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		70DBC00B2B7C60B50021EA96 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		70DBC00C2B7C60B50021EA96 /* main.jsbundle in Resources */ = {isa = PBXBuildFile; fileRef = 008F07F21AC5B25A0029DE68 /* main.jsbundle */; };
@@ -73,7 +140,7 @@
 		70F99A9A2B2D333300D77256 /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386532A609BFC00AFB46E /* PushNotificationManager.swift */; };
 		70F99A9B2B2D336500D77256 /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
 		70F99A9C2B2D336500D77256 /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
-		70F99A9D2B2D336500D77256 /* Error+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701A09AF2B03081300D8F710 /* Error+Extension.swift */; };
+		70F99A9D2B2D336500D77256 /* Error+logWithDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701A09AF2B03081300D8F710 /* Error+logWithDomain.swift */; };
 		70F99A9E2B2D336800D77256 /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
 		70F99A9F2B2D336800D77256 /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D3866A2A60A38400AFB46E /* Group.swift */; };
 		70F99AA02B2D336800D77256 /* Club.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709FC0EC2AC1E25D00B0644D /* Club.swift */; };
@@ -97,6 +164,20 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		630DE0E82C51AA0D0053603B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6374ACDE2C49DA9600E637C0;
+			remoteInfo = Notifications;
+		};
+		6374ACED2C49DB6500E637C0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6374ACDE2C49DA9600E637C0;
+			remoteInfo = Notifications;
+		};
 		70F99A922B2D2B5700D77256 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
@@ -105,6 +186,31 @@
 			remoteInfo = Landscape;
 		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		630DE0EA2C51AA0D0053603B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				630DE0E72C51AA0C0053603B /* Notifications.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6374ACEF2C49DB6500E637C0 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				630DE0E62C51A9D30053603B /* Notifications-preview.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		008F07F21AC5B25A0029DE68 /* main.jsbundle */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = main.jsbundle; sourceTree = "<group>"; };
@@ -115,12 +221,25 @@
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Landscape/Info.plist; sourceTree = "<group>"; };
 		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = Landscape/main.m; sourceTree = "<group>"; };
 		3B0B210E999A7E0E1A345468 /* Pods-Landscape-preview.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape-preview.release.xcconfig"; path = "Target Support Files/Pods-Landscape-preview/Pods-Landscape-preview.release.xcconfig"; sourceTree = "<group>"; };
+		630DE0B82C51A1500053603B /* LandscapePreview-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "LandscapePreview-Bridging-Header.h"; path = "Landscape/LandscapePreview-Bridging-Header.h"; sourceTree = "<group>"; };
+		630DE0E22C51A8790053603B /* Notifications-preview.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Notifications-preview.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserDefaults+appGroup.swift"; sourceTree = "<group>"; };
+		630DE0F02C51AE870053603B /* Info-preview.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-preview.plist"; sourceTree = "<group>"; };
+		632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Error+isAFTimeout.swift"; sourceTree = "<group>"; };
+		6374ACDF2C49DA9600E637C0 /* Notifications.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Notifications.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		6374ACE12C49DA9600E637C0 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		6374ACE32C49DA9600E637C0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		6374ACEB2C49DAB600E637C0 /* Notifications.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Notifications.entitlements; sourceTree = "<group>"; };
+		6374ACF82C4ACD5000E637C0 /* LoginStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginStore.swift; sourceTree = "<group>"; };
+		6374ACFC2C4ACD7500E637C0 /* Login.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Login.swift; sourceTree = "<group>"; };
+		63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Alamofire+sessionWithSharedCookieStorage.swift"; sourceTree = "<group>"; };
+		63E27E122C5AF5B8008ACB45 /* HTTPCookieStorage+forwardChanges.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = "HTTPCookieStorage+forwardChanges.swift"; path = "Landscape/HTTPCookieStorage+forwardChanges.swift"; sourceTree = "<group>"; };
 		6C2E3173556A471DD304B334 /* Pods-Landscape.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape.debug.xcconfig"; path = "Target Support Files/Pods-Landscape/Pods-Landscape.debug.xcconfig"; sourceTree = "<group>"; };
 		700B635A2A71DF860017F40F /* PocketUserAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PocketUserAPI.swift; sourceTree = "<group>"; };
 		700B635C2A71DFE90017F40F /* Contact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contact.swift; sourceTree = "<group>"; };
 		700B635F2A71E0810017F40F /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		700B63612A71E0D70017F40F /* ContactStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactStore.swift; sourceTree = "<group>"; };
-		701A09AF2B03081300D8F710 /* Error+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Error+Extension.swift"; sourceTree = "<group>"; };
+		701A09AF2B03081300D8F710 /* Error+logWithDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Error+logWithDomain.swift"; sourceTree = "<group>"; };
 		7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupChannelStore.swift; sourceTree = "<group>"; };
 		7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsStore.swift; sourceTree = "<group>"; };
 		7036E3552ACD17600020A9FB /* ClubStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClubStore.swift; sourceTree = "<group>"; };
@@ -166,8 +285,25 @@
 			files = (
 				70D3866F2A60A3B300AFB46E /* UrsusSigil in Frameworks */,
 				70D386482A6098F800AFB46E /* Alamofire in Frameworks */,
-				70A62C612A5A6B1A00EBED16 /* SimpleKeychain in Frameworks */,
 				E757508CA162BD3456643B33 /* Pods_Landscape.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		630DE0DA2C51A8780053603B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				630DE0DB2C51A8780053603B /* UrsusSigil in Frameworks */,
+				630DE0DC2C51A8780053603B /* Alamofire in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6374ACDC2C49DA9600E637C0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				632793D42C4AEA6800F942B1 /* UrsusSigil in Frameworks */,
+				632793D22C4AEA6400F942B1 /* Alamofire in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -177,7 +313,6 @@
 			files = (
 				70DBC0032B7C60B50021EA96 /* UrsusSigil in Frameworks */,
 				70DBC0042B7C60B50021EA96 /* Alamofire in Frameworks */,
-				70DBC0052B7C60B50021EA96 /* SimpleKeychain in Frameworks */,
 				F901307AF87F28F061D5E649 /* Pods_Landscape_preview.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -206,13 +341,11 @@
 				13B07FB71A68108700A75B9A /* main.m */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
 				70EAEAB72A57AB8400FE96E4 /* Landscape-Bridging-Header.h */,
+				630DE0B82C51A1500053603B /* LandscapePreview-Bridging-Header.h */,
 				70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */,
 				70EAEAB62A57AAF200FE96E4 /* UrbitModule.m */,
+				63E27E122C5AF5B8008ACB45 /* HTTPCookieStorage+forwardChanges.swift */,
 				70D386652A60A37000AFB46E /* Extensions */,
-				70D386682A60A38400AFB46E /* Models */,
-				70D386542A609BFC00AFB46E /* Networking */,
-				70D386522A609BFC00AFB46E /* Notifications */,
-				700B635E2A71E06E0017F40F /* Storage */,
 			);
 			name = Landscape;
 			sourceTree = "<group>";
@@ -235,12 +368,61 @@
 			name = "Landscape-preview";
 			sourceTree = "<group>";
 		};
+		6374ACE02C49DA9600E637C0 /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				6374ACEB2C49DAB600E637C0 /* Notifications.entitlements */,
+				6374ACE12C49DA9600E637C0 /* NotificationService.swift */,
+				6374ACE32C49DA9600E637C0 /* Info.plist */,
+				630DE0F02C51AE870053603B /* Info-preview.plist */,
+			);
+			path = Notifications;
+			sourceTree = "<group>";
+		};
+		63E7040B2C540F30006CF214 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				63E7040C2C540F96006CF214 /* Extensions */,
+				63E7040D2C540FD6006CF214 /* Models */,
+				70D386542A609BFC00AFB46E /* Networking */,
+				70D386522A609BFC00AFB46E /* Notifications */,
+				700B635E2A71E06E0017F40F /* Storage */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		63E7040C2C540F96006CF214 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */,
+				70D386662A60A37000AFB46E /* INPerson+Extension.swift */,
+				70D386702A60A3E600AFB46E /* UIColor+Extension.swift */,
+				630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */,
+				63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+		63E7040D2C540FD6006CF214 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				709FC0EC2AC1E25D00B0644D /* Club.swift */,
+				700B635C2A71DFE90017F40F /* Contact.swift */,
+				70D3866A2A60A38400AFB46E /* Group.swift */,
+				6374ACFC2C4ACD7500E637C0 /* Login.swift */,
+				7083A16B2AFB01A30022404A /* TlonError.swift */,
+				70D386692A60A38400AFB46E /* Yarn.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
 		700B635E2A71E06E0017F40F /* Storage */ = {
 			isa = PBXGroup;
 			children = (
 				7036E3552ACD17600020A9FB /* ClubStore.swift */,
 				700B63612A71E0D70017F40F /* ContactStore.swift */,
 				7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */,
+				6374ACF82C4ACD5000E637C0 /* LoginStore.swift */,
 				700B635F2A71E0810017F40F /* SettingsStore.swift */,
 				7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */,
 			);
@@ -252,8 +434,7 @@
 			children = (
 				70D386532A609BFC00AFB46E /* PushNotificationManager.swift */,
 			);
-			name = Notifications;
-			path = Landscape/Notifications;
+			path = Notifications;
 			sourceTree = "<group>";
 		};
 		70D386542A609BFC00AFB46E /* Networking */ = {
@@ -265,32 +446,16 @@
 				700B635A2A71DF860017F40F /* PocketUserAPI.swift */,
 				70D386552A609BFC00AFB46E /* UrbitAPI.swift */,
 			);
-			name = Networking;
-			path = Landscape/Networking;
+			path = Networking;
 			sourceTree = "<group>";
 		};
 		70D386652A60A37000AFB46E /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
-				701A09AF2B03081300D8F710 /* Error+Extension.swift */,
-				70D386662A60A37000AFB46E /* INPerson+Extension.swift */,
-				70D386702A60A3E600AFB46E /* UIColor+Extension.swift */,
+				701A09AF2B03081300D8F710 /* Error+logWithDomain.swift */,
 			);
 			name = Extensions;
 			path = Landscape/Extensions;
-			sourceTree = "<group>";
-		};
-		70D386682A60A38400AFB46E /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				709FC0EC2AC1E25D00B0644D /* Club.swift */,
-				700B635C2A71DFE90017F40F /* Contact.swift */,
-				70D3866A2A60A38400AFB46E /* Group.swift */,
-				7083A16B2AFB01A30022404A /* TlonError.swift */,
-				70D386692A60A38400AFB46E /* Yarn.swift */,
-			);
-			name = Models;
-			path = Landscape/Models;
 			sourceTree = "<group>";
 		};
 		70F99A8F2B2D2B5700D77256 /* LandscapeTests */ = {
@@ -315,7 +480,9 @@
 				70DBC0172B7C61130021EA96 /* GoogleService-Info-io.tlon.groups.preview.plist */,
 				13B07FAE1A68108700A75B9A /* Landscape */,
 				70F99A8F2B2D2B5700D77256 /* LandscapeTests */,
+				63E7040B2C540F30006CF214 /* Shared */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
+				6374ACE02C49DA9600E637C0 /* Notifications */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				D65327D7A22EEC0BE12398D9 /* Pods */,
@@ -332,6 +499,8 @@
 				13B07F961A680F5B00A75B9A /* Landscape.app */,
 				70F99A8E2B2D2B5700D77256 /* LandscapeTests.xctest */,
 				70DBC0152B7C60B50021EA96 /* Landscape-preview.app */,
+				6374ACDF2C49DA9600E637C0 /* Notifications.appex */,
+				630DE0E22C51A8790053603B /* Notifications-preview.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -392,6 +561,7 @@
 				70DBC01A2B7C61690021EA96 /* Copy GoogleService-Info.plist */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
+				630DE0EA2C51AA0D0053603B /* Embed Foundation Extensions */,
 				A8F420A9D9FA89D6A8CAB3CB /* [CP] Embed Pods Frameworks */,
 				590BC56CB01851B48360848A /* [CP-User] [RNFB] Core Configuration */,
 				30592FA2D112F0273F698291 /* [CP-User] [RNFB] Crashlytics Configuration */,
@@ -399,16 +569,58 @@
 			buildRules = (
 			);
 			dependencies = (
+				630DE0E92C51AA0D0053603B /* PBXTargetDependency */,
 			);
 			name = Landscape;
 			packageProductDependencies = (
-				70A62C602A5A6B1A00EBED16 /* SimpleKeychain */,
 				70D386472A6098F800AFB46E /* Alamofire */,
 				70D3866E2A60A3B300AFB46E /* UrsusSigil */,
 			);
 			productName = Landscape;
 			productReference = 13B07F961A680F5B00A75B9A /* Landscape.app */;
 			productType = "com.apple.product-type.application";
+		};
+		630DE0BD2C51A8780053603B /* Notifications-preview */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 630DE0DF2C51A8780053603B /* Build configuration list for PBXNativeTarget "Notifications-preview" */;
+			buildPhases = (
+				630DE0C42C51A8780053603B /* Sources */,
+				630DE0DA2C51A8780053603B /* Frameworks */,
+				630DE0DE2C51A8780053603B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Notifications-preview";
+			packageProductDependencies = (
+				630DE0C02C51A8780053603B /* Alamofire */,
+				630DE0C22C51A8780053603B /* UrsusSigil */,
+			);
+			productName = Notifications;
+			productReference = 630DE0E22C51A8790053603B /* Notifications-preview.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		6374ACDE2C49DA9600E637C0 /* Notifications */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6374ACEA2C49DA9600E637C0 /* Build configuration list for PBXNativeTarget "Notifications" */;
+			buildPhases = (
+				6374ACDB2C49DA9600E637C0 /* Sources */,
+				6374ACDC2C49DA9600E637C0 /* Frameworks */,
+				6374ACDD2C49DA9600E637C0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Notifications;
+			packageProductDependencies = (
+				632793D12C4AEA6400F942B1 /* Alamofire */,
+				632793D32C4AEA6800F942B1 /* UrsusSigil */,
+			);
+			productName = Notifications;
+			productReference = 6374ACDF2C49DA9600E637C0 /* Notifications.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		70DBBFDF2B7C60B50021EA96 /* Landscape-preview */ = {
 			isa = PBXNativeTarget;
@@ -423,6 +635,7 @@
 				70DBC01B2B7C61A20021EA96 /* Copy GoogleService-Info.plist */,
 				70DBC00D2B7C60B50021EA96 /* Bundle React Native code and images */,
 				70DBC00E2B7C60B50021EA96 /* [CP] Copy Pods Resources */,
+				6374ACEF2C49DB6500E637C0 /* Embed Foundation Extensions */,
 				70DBC00F2B7C60B50021EA96 /* [CP] Embed Pods Frameworks */,
 				BB7267E200EDB0AE50913E9C /* [CP-User] [RNFB] Core Configuration */,
 				9FD3A78FD12DFC986E134E73 /* [CP-User] [RNFB] Crashlytics Configuration */,
@@ -430,10 +643,10 @@
 			buildRules = (
 			);
 			dependencies = (
+				6374ACEE2C49DB6500E637C0 /* PBXTargetDependency */,
 			);
 			name = "Landscape-preview";
 			packageProductDependencies = (
-				70DBBFE02B7C60B50021EA96 /* SimpleKeychain */,
 				70DBBFE22B7C60B50021EA96 /* Alamofire */,
 				70DBBFE42B7C60B50021EA96 /* UrsusSigil */,
 			);
@@ -471,6 +684,9 @@
 					13B07F861A680F5B00A75B9A = {
 						LastSwiftMigration = 1250;
 					};
+					6374ACDE2C49DA9600E637C0 = {
+						CreatedOnToolsVersion = 15.0;
+					};
 					70F99A8D2B2D2B5700D77256 = {
 						CreatedOnToolsVersion = 15.0.1;
 						TestTargetID = 13B07F861A680F5B00A75B9A;
@@ -487,7 +703,6 @@
 			);
 			mainGroup = 83CBB9F61A601CBA00E9B192;
 			packageReferences = (
-				70A62C5F2A5A6B1A00EBED16 /* XCRemoteSwiftPackageReference "SimpleKeychain" */,
 				70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */,
 				70D3866D2A60A3B300AFB46E /* XCRemoteSwiftPackageReference "UrsusSigil" */,
 			);
@@ -498,6 +713,8 @@
 				13B07F861A680F5B00A75B9A /* Landscape */,
 				70DBBFDF2B7C60B50021EA96 /* Landscape-preview */,
 				70F99A8D2B2D2B5700D77256 /* LandscapeTests */,
+				6374ACDE2C49DA9600E637C0 /* Notifications */,
+				630DE0BD2C51A8780053603B /* Notifications-preview */,
 			);
 		};
 /* End PBXProject section */
@@ -512,6 +729,20 @@
 				C184662C2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
 				70D386722A61F2E400AFB46E /* main.jsbundle in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		630DE0DE2C51A8780053603B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6374ACDD2C49DA9600E637C0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -919,18 +1150,21 @@
 				70D386592A609BFC00AFB46E /* UrbitAPI.swift in Sources */,
 				709FC0ED2AC1E25D00B0644D /* Club.swift in Sources */,
 				7083A16C2AFB01A30022404A /* TlonError.swift in Sources */,
+				632793BE2C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */,
 				7036E3542ACD0FC90020A9FB /* UserDefaultsStore.swift in Sources */,
 				70D3865A2A609BFC00AFB46E /* PocketNotificationsAPI.swift in Sources */,
 				70D3865B2A609BFC00AFB46E /* PocketAPI.swift in Sources */,
 				70D386582A609BFC00AFB46E /* PushNotificationManager.swift in Sources */,
+				63E27E0B2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				700B635D2A71DFE90017F40F /* Contact.swift in Sources */,
 				70EAEAB92A57CE2A00FE96E4 /* UrbitModule.m in Sources */,
 				70D386672A60A37000AFB46E /* INPerson+Extension.swift in Sources */,
-				701A09B02B03081300D8F710 /* Error+Extension.swift in Sources */,
+				701A09B02B03081300D8F710 /* Error+logWithDomain.swift in Sources */,
 				70D3866C2A60A38400AFB46E /* Group.swift in Sources */,
 				700B63602A71E0810017F40F /* SettingsStore.swift in Sources */,
 				70D386712A60A3E600AFB46E /* UIColor+Extension.swift in Sources */,
 				700B635B2A71DF860017F40F /* PocketUserAPI.swift in Sources */,
+				6374ACFD2C4ACD7500E637C0 /* Login.swift in Sources */,
 				7036E3562ACD17600020A9FB /* ClubStore.swift in Sources */,
 				70D386622A609CE100AFB46E /* PocketChatAPI.swift in Sources */,
 				7036E3522ACD08E30020A9FB /* GroupChannelStore.swift in Sources */,
@@ -938,8 +1172,73 @@
 				13B07FC11A68108700A75B9A /* main.m in Sources */,
 				70EAEAB52A57A99100FE96E4 /* UrbitModule.swift in Sources */,
 				700B63622A71E0D70017F40F /* ContactStore.swift in Sources */,
+				63E27E132C5AF5B9008ACB45 /* HTTPCookieStorage+forwardChanges.swift in Sources */,
+				6374ACF92C4ACD5100E637C0 /* LoginStore.swift in Sources */,
+				630DE0EC2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */,
 				70D3866B2A60A38400AFB46E /* Yarn.swift in Sources */,
 				D0A57BA86BAF5327C2EECEE4 /* ExpoModulesProvider.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		630DE0C42C51A8780053603B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				630DE0C52C51A8780053603B /* UIColor+Extension.swift in Sources */,
+				630DE0C62C51A8780053603B /* Contact.swift in Sources */,
+				630DE0C72C51A8780053603B /* Club.swift in Sources */,
+				630DE0C82C51A8780053603B /* UrbitAPI.swift in Sources */,
+				630DE0C92C51A8780053603B /* Group.swift in Sources */,
+				630DE0CA2C51A8780053603B /* TlonError.swift in Sources */,
+				630DE0CB2C51A8780053603B /* Error+isAFTimeout.swift in Sources */,
+				630DE0CC2C51A8780053603B /* PushNotificationManager.swift in Sources */,
+				630DE0CD2C51A8780053603B /* Yarn.swift in Sources */,
+				630DE0CE2C51A8780053603B /* GroupChannelStore.swift in Sources */,
+				63E27E0E2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
+				630DE0CF2C51A8780053603B /* PocketUserAPI.swift in Sources */,
+				630DE0D02C51A8780053603B /* UserDefaultsStore.swift in Sources */,
+				630DE0D12C51A8780053603B /* ContactStore.swift in Sources */,
+				630DE0D22C51A8780053603B /* NotificationService.swift in Sources */,
+				630DE0D32C51A8780053603B /* ClubStore.swift in Sources */,
+				63566D1D2C530A370048E3C4 /* INPerson+Extension.swift in Sources */,
+				630DE0D42C51A8780053603B /* PocketChatAPI.swift in Sources */,
+				630DE0D52C51A8780053603B /* LoginStore.swift in Sources */,
+				630DE0EF2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */,
+				630DE0D62C51A8780053603B /* SettingsStore.swift in Sources */,
+				630DE0D72C51A8780053603B /* Login.swift in Sources */,
+				630DE0D82C51A8780053603B /* PocketAPI.swift in Sources */,
+				630DE0D92C51A8780053603B /* PocketNotificationsAPI.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6374ACDB2C49DA9600E637C0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				632793CE2C4AE81E00F942B1 /* UIColor+Extension.swift in Sources */,
+				632793C52C4AE56500F942B1 /* Contact.swift in Sources */,
+				632793CC2C4AE7E500F942B1 /* Club.swift in Sources */,
+				632793BB2C4AE49600F942B1 /* UrbitAPI.swift in Sources */,
+				632793CD2C4AE7EC00F942B1 /* Group.swift in Sources */,
+				632793C82C4AE78400F942B1 /* TlonError.swift in Sources */,
+				630DE0B72C51A0F80053603B /* Error+isAFTimeout.swift in Sources */,
+				632793B62C4ADE9800F942B1 /* PushNotificationManager.swift in Sources */,
+				632793C22C4AE4FA00F942B1 /* Yarn.swift in Sources */,
+				632793C92C4AE7C900F942B1 /* GroupChannelStore.swift in Sources */,
+				63E27E0D2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
+				632793C62C4AE56F00F942B1 /* PocketUserAPI.swift in Sources */,
+				632793C42C4AE53A00F942B1 /* UserDefaultsStore.swift in Sources */,
+				632793C32C4AE53500F942B1 /* ContactStore.swift in Sources */,
+				6374ACE22C49DA9600E637C0 /* NotificationService.swift in Sources */,
+				632793CB2C4AE7D900F942B1 /* ClubStore.swift in Sources */,
+				63566D1C2C530A370048E3C4 /* INPerson+Extension.swift in Sources */,
+				632793CA2C4AE7CD00F942B1 /* PocketChatAPI.swift in Sources */,
+				632793B92C4ADEF100F942B1 /* LoginStore.swift in Sources */,
+				630DE0EE2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */,
+				632793C72C4AE69A00F942B1 /* SettingsStore.swift in Sources */,
+				632793BA2C4AE01B00F942B1 /* Login.swift in Sources */,
+				632793B82C4ADEED00F942B1 /* PocketAPI.swift in Sources */,
+				632793B72C4ADEAC00F942B1 /* PocketNotificationsAPI.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -950,18 +1249,21 @@
 				70DBBFEA2B7C60B50021EA96 /* UrbitAPI.swift in Sources */,
 				70DBBFEB2B7C60B50021EA96 /* Club.swift in Sources */,
 				70DBBFEC2B7C60B50021EA96 /* TlonError.swift in Sources */,
+				632793BF2C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */,
 				70DBBFED2B7C60B50021EA96 /* UserDefaultsStore.swift in Sources */,
 				70DBBFEE2B7C60B50021EA96 /* PocketNotificationsAPI.swift in Sources */,
 				70DBBFEF2B7C60B50021EA96 /* PocketAPI.swift in Sources */,
 				70DBBFF02B7C60B50021EA96 /* PushNotificationManager.swift in Sources */,
+				63E27E0C2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				70DBBFF12B7C60B50021EA96 /* Contact.swift in Sources */,
 				70DBBFF22B7C60B50021EA96 /* UrbitModule.m in Sources */,
 				70DBBFF32B7C60B50021EA96 /* INPerson+Extension.swift in Sources */,
-				70DBBFF42B7C60B50021EA96 /* Error+Extension.swift in Sources */,
+				70DBBFF42B7C60B50021EA96 /* Error+logWithDomain.swift in Sources */,
 				70DBBFF52B7C60B50021EA96 /* Group.swift in Sources */,
 				70DBBFF62B7C60B50021EA96 /* SettingsStore.swift in Sources */,
 				70DBBFF72B7C60B50021EA96 /* UIColor+Extension.swift in Sources */,
 				70DBBFF82B7C60B50021EA96 /* PocketUserAPI.swift in Sources */,
+				6374ACFE2C4ACD7500E637C0 /* Login.swift in Sources */,
 				70DBBFF92B7C60B50021EA96 /* ClubStore.swift in Sources */,
 				70DBBFFA2B7C60B50021EA96 /* PocketChatAPI.swift in Sources */,
 				70DBBFFB2B7C60B50021EA96 /* GroupChannelStore.swift in Sources */,
@@ -969,6 +1271,9 @@
 				70DBBFFD2B7C60B50021EA96 /* main.m in Sources */,
 				70DBBFFF2B7C60B50021EA96 /* UrbitModule.swift in Sources */,
 				70DBC0002B7C60B50021EA96 /* ContactStore.swift in Sources */,
+				63E27E142C5AF5B9008ACB45 /* HTTPCookieStorage+forwardChanges.swift in Sources */,
+				6374ACFA2C4ACD5100E637C0 /* LoginStore.swift in Sources */,
+				630DE0ED2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */,
 				70DBC0012B7C60B50021EA96 /* Yarn.swift in Sources */,
 				3DC46BC1B669DF8F5F059CA8 /* ExpoModulesProvider.swift in Sources */,
 			);
@@ -981,11 +1286,13 @@
 				70F99AA52B2D336E00D77256 /* PocketAPI.swift in Sources */,
 				70F99AA82B2D337600D77256 /* ContactStore.swift in Sources */,
 				70F99A9A2B2D333300D77256 /* PushNotificationManager.swift in Sources */,
+				6374ACFB2C4ACD5100E637C0 /* LoginStore.swift in Sources */,
 				70F99AA42B2D336E00D77256 /* PocketNotificationsAPI.swift in Sources */,
 				70F99AA02B2D336800D77256 /* Club.swift in Sources */,
 				70F99A9B2B2D336500D77256 /* INPerson+Extension.swift in Sources */,
 				70F99AAB2B2D337600D77256 /* UserDefaultsStore.swift in Sources */,
 				70F99A982B2D2B6E00D77256 /* YarnTests.swift in Sources */,
+				632793C02C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */,
 				70F99AA92B2D337600D77256 /* GroupChannelStore.swift in Sources */,
 				70F99A9F2B2D336800D77256 /* Group.swift in Sources */,
 				70F99AA32B2D336E00D77256 /* PocketUserAPI.swift in Sources */,
@@ -993,7 +1300,8 @@
 				70F99AAA2B2D337600D77256 /* SettingsStore.swift in Sources */,
 				70F99AA62B2D336E00D77256 /* PocketChatAPI.swift in Sources */,
 				70F99A992B2D319400D77256 /* Yarn.swift in Sources */,
-				70F99A9D2B2D336500D77256 /* Error+Extension.swift in Sources */,
+				70F99A9D2B2D336500D77256 /* Error+logWithDomain.swift in Sources */,
+				6374ACFF2C4ACD7500E637C0 /* Login.swift in Sources */,
 				70F99AA12B2D336800D77256 /* TlonError.swift in Sources */,
 				70F99AA72B2D337600D77256 /* ClubStore.swift in Sources */,
 				70F99AAC2B2D338E00D77256 /* UrbitModule.swift in Sources */,
@@ -1005,6 +1313,16 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		630DE0E92C51AA0D0053603B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6374ACDE2C49DA9600E637C0 /* Notifications */;
+			targetProxy = 630DE0E82C51AA0D0053603B /* PBXContainerItemProxy */;
+		};
+		6374ACEE2C49DB6500E637C0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6374ACDE2C49DA9600E637C0 /* Notifications */;
+			targetProxy = 6374ACED2C49DB6500E637C0 /* PBXContainerItemProxy */;
+		};
 		70F99A932B2D2B5700D77256 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 13B07F861A680F5B00A75B9A /* Landscape */;
@@ -1017,6 +1335,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = B35AC6CF758CAFC9D112A69F /* Pods-Landscape.debug.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
 				CLANG_ENABLE_MODULES = YES;
@@ -1057,6 +1376,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 74633B6584F10A6AA2FEE339 /* Pods-Landscape.release.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
 				CLANG_ENABLE_MODULES = YES;
@@ -1084,6 +1404,188 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		630DE0E02C51A8780053603B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = Notifications/Notifications.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = XU9PR2N722;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Notifications/Info-preview.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Notifications-preview";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
+				PRODUCT_BUNDLE_IDENTIFIER = io.tlon.groups.preview.Notifications;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		630DE0E12C51A8780053603B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = Notifications/Notifications.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = XU9PR2N722;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Notifications/Info-preview.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Notifications-preview";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_FAST_MATH = YES;
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
+				PRODUCT_BUNDLE_IDENTIFIER = io.tlon.groups.preview.Notifications;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		6374ACE82C49DA9600E637C0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = Notifications/Notifications.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = XU9PR2N722;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Notifications/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Notifications;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
+				PRODUCT_BUNDLE_IDENTIFIER = io.tlon.groups.Notifications;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		6374ACE92C49DA9600E637C0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = Notifications/Notifications.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = XU9PR2N722;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Notifications/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Notifications;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_FAST_MATH = YES;
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
+				PRODUCT_BUNDLE_IDENTIFIER = io.tlon.groups.Notifications;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -1335,7 +1837,11 @@
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_CPLUSPLUSFLAGS = "$(inherited)";
-				OTHER_LDFLAGS = "$(inherited)";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-Wl",
+					"-ld_classic",
+				);
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				USE_HERMES = true;
@@ -1428,7 +1934,11 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_CPLUSPLUSFLAGS = "$(inherited)";
-				OTHER_LDFLAGS = "$(inherited)";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-Wl",
+					"-ld_classic",
+				);
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				USE_HERMES = true;
@@ -1444,6 +1954,24 @@
 			buildConfigurations = (
 				13B07F941A680F5B00A75B9A /* Debug */,
 				13B07F951A680F5B00A75B9A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		630DE0DF2C51A8780053603B /* Build configuration list for PBXNativeTarget "Notifications-preview" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				630DE0E02C51A8780053603B /* Debug */,
+				630DE0E12C51A8780053603B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6374ACEA2C49DA9600E637C0 /* Build configuration list for PBXNativeTarget "Notifications" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6374ACE82C49DA9600E637C0 /* Debug */,
+				6374ACE92C49DA9600E637C0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -1478,9 +2006,17 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		70A62C5F2A5A6B1A00EBED16 /* XCRemoteSwiftPackageReference "SimpleKeychain" */ = {
+		630DE0C12C51A8780053603B /* XCRemoteSwiftPackageReference "Alamofire" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/auth0/SimpleKeychain";
+			repositoryURL = "https://github.com/Alamofire/Alamofire.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.0;
+			};
+		};
+		630DE0C32C51A8780053603B /* XCRemoteSwiftPackageReference "UrsusSigil" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/alecananian/UrsusSigil";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 1.0.0;
@@ -1497,14 +2033,6 @@
 		70D3866D2A60A3B300AFB46E /* XCRemoteSwiftPackageReference "UrsusSigil" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/alecananian/UrsusSigil";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
-			};
-		};
-		70DBBFE12B7C60B50021EA96 /* XCRemoteSwiftPackageReference "SimpleKeychain" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/auth0/SimpleKeychain";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 1.0.0;
@@ -1529,10 +2057,25 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		70A62C602A5A6B1A00EBED16 /* SimpleKeychain */ = {
+		630DE0C02C51A8780053603B /* Alamofire */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 70A62C5F2A5A6B1A00EBED16 /* XCRemoteSwiftPackageReference "SimpleKeychain" */;
-			productName = SimpleKeychain;
+			package = 630DE0C12C51A8780053603B /* XCRemoteSwiftPackageReference "Alamofire" */;
+			productName = Alamofire;
+		};
+		630DE0C22C51A8780053603B /* UrsusSigil */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 630DE0C32C51A8780053603B /* XCRemoteSwiftPackageReference "UrsusSigil" */;
+			productName = UrsusSigil;
+		};
+		632793D12C4AEA6400F942B1 /* Alamofire */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */;
+			productName = Alamofire;
+		};
+		632793D32C4AEA6800F942B1 /* UrsusSigil */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 70D3866D2A60A3B300AFB46E /* XCRemoteSwiftPackageReference "UrsusSigil" */;
+			productName = UrsusSigil;
 		};
 		70D386472A6098F800AFB46E /* Alamofire */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -1543,11 +2086,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 70D3866D2A60A3B300AFB46E /* XCRemoteSwiftPackageReference "UrsusSigil" */;
 			productName = UrsusSigil;
-		};
-		70DBBFE02B7C60B50021EA96 /* SimpleKeychain */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 70DBBFE12B7C60B50021EA96 /* XCRemoteSwiftPackageReference "SimpleKeychain" */;
-			productName = SimpleKeychain;
 		};
 		70DBBFE22B7C60B50021EA96 /* Alamofire */ = {
 			isa = XCSwiftPackageProductDependency;
