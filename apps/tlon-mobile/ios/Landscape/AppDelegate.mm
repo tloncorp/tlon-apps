@@ -4,11 +4,7 @@
 #import <React/RCTBundleURLProvider.h>
 #import <React/RCTLinkingManager.h>
 #import "ExpoModulesCore-Swift.h"
-#if __has_include("Landscape-Swift.h")
 #import "Landscape-Swift.h"
-#else
-#import "LandscapePreview-Swift.h"
-#endif
 #import <RNBranch/RNBranch.h>
 
 @implementation AppDelegate
