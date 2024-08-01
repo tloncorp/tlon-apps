@@ -11,8 +11,8 @@ import Foundation
 class UrbitModule: NSObject {
     private static let loginStore = LoginStore()
 
-    @objc(setUrbit:shipUrl:)
-    func setUrbit(shipName: String, shipUrl: String) {
+    @objc(setUrbit:shipUrl:authCookie:)
+    func setUrbit(shipName: String, shipUrl: String, authCookie _: String) {
         try? UrbitModule.loginStore.save(Login(shipName: shipName, shipUrl: shipUrl))
 
         Task {

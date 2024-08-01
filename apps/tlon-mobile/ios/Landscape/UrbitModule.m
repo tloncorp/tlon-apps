@@ -10,7 +10,7 @@
 
 @interface RCT_EXTERN_MODULE(UrbitModule, NSObject)
 
-RCT_EXTERN_METHOD(setUrbit:(NSString *)shipName shipUrl:(NSString *)shipUrl)
+RCT_EXTERN_METHOD(setUrbit:(NSString *)shipName shipUrl:(NSString *)shipUrl authCookie:(NSString *)authCookie)
 RCT_EXTERN_METHOD(clearUrbit)
 
 + (BOOL)requiresMainQueueSetup
