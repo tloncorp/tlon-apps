@@ -215,7 +215,7 @@ export const pins = sqliteTable(
   'pins',
   {
     type: text('type').$type<PinType>().notNull(),
-    index: integer('index').notNull(),
+    index: integer('pin_index').notNull(),
     itemId: text('item_id').notNull(),
   },
   (table) => {

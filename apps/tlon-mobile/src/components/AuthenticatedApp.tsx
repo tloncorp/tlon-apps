@@ -31,6 +31,7 @@ function AuthenticatedApp({
 }: AuthenticatedAppProps) {
   const { ship, shipUrl } = useShip();
   const currentUserId = useCurrentUserId();
+  const session = store.useCurrentSession();
   useNotificationListener(notificationListenerProps);
   useDeepLinkListener();
   useNavigationLogging(logNavigationChange);
@@ -55,7 +56,12 @@ function AuthenticatedApp({
   }, [currentUserId, ship, shipUrl]);
 
   useAppForegrounded(() => {
-    sync.syncUnreads({ priority: sync.SyncPriority.High });
+    // only run these updates if we've initialized the session
+    // (i.e. first startSync has completed)
+    if (session) {
+      sync.syncUnreads({ priority: sync.SyncPriority.High });
+      sync.syncPinnedItems({ priority: sync.SyncPriority.High });
+    }
   });
 
   return (

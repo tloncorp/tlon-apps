@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "97f10bf1-b7ef-46e2-9186-38eb82d307b2",
+  "id": "74c8411b-620b-418d-a547-c57f710604a9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -1315,8 +1315,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "index": {
-          "name": "index",
+        "pin_index": {
+          "name": "pin_index",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
