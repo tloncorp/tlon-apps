@@ -98,7 +98,7 @@ export function getPostActions({
         { id: 'startThread', label: 'Comment on post' },
         { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
         { id: 'copyRef', label: 'Copy link to post' },
-        { id: 'edit', label: 'Edit message' },
+        { id: 'edit', label: 'Edit post' },
         { id: 'report', label: 'Report post' },
         { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
@@ -108,7 +108,7 @@ export function getPostActions({
         { id: 'startThread', label: 'Comment on post' },
         { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
         { id: 'copyRef', label: 'Copy link to post' },
-        { id: 'edit', label: 'Edit message' },
+        { id: 'edit', label: 'Edit post' },
         { id: 'report', label: 'Report post' },
         { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
@@ -139,7 +139,7 @@ export function getPostActions({
   }
 }
 
-async function handleAction({
+export async function handleAction({
   id,
   post,
   userId,

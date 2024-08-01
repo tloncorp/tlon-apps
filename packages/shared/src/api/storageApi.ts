@@ -68,7 +68,7 @@ export type StorageUpdate =
 export const subscribeToStorageUpdates = async (
   eventHandler: (update: StorageUpdate) => void
 ) => {
-  subscribe<ub.StorageUpdate>({ app: 'channels', path: '/v1' }, (e) => {
+  subscribe<ub.StorageUpdate>({ app: 'storage', path: '/all' }, (e) => {
     eventHandler(toStorageUpdate(e));
   });
 };

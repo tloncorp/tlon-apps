@@ -232,6 +232,16 @@ export function Channel({
     setIsUploadingGalleryImage(false);
   }, []);
 
+  const handleSetEditingPost = useCallback(
+    (post: db.Post | undefined) => {
+      setEditingPost?.(post);
+      if (channel.type === 'gallery' || channel.type === 'notebook') {
+        setShowBigInput(true);
+      }
+    },
+    [setEditingPost, channel.type]
+  );
+
   return (
     <ScrollContextProvider>
       <CalmProvider calmSettings={calmSettings}>
@@ -341,7 +351,7 @@ export function Channel({
                                       hasNewerPosts={hasNewerPosts}
                                       hasOlderPosts={hasOlderPosts}
                                       editingPost={editingPost}
-                                      setEditingPost={setEditingPost}
+                                      setEditingPost={handleSetEditingPost}
                                       editPost={editPost}
                                       channelType={channel.type}
                                       channelId={channel.id}

@@ -1,7 +1,7 @@
 import { makePrettyShortDate } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
-import { ImagePickerAsset } from 'expo-image-picker';
+import { getChannelType } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo, useState } from 'react';
 import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import { getTokenValue, withStaticProperties } from 'tamagui';
 import { Text, View, YStack } from '../../core';
 import { useStickyUnread } from '../../hooks/useStickyUnread';
 import AuthorRow from '../AuthorRow';
+import { BigInput } from '../BigInput';
 import Scroller from '../Channel/Scroller';
 import { ChatMessage } from '../ChatMessage';
 import { MessageInput } from '../MessageInput';
@@ -20,7 +21,12 @@ export interface DetailViewProps {
   children?: JSX.Element;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (post: db.Post, content: urbit.Story) => Promise<void>;
+  editPost?: (
+    post: db.Post,
+    content: urbit.Story,
+    parentId?: string,
+    metadata?: db.PostMetadata
+  ) => Promise<void>;
   sendReply: (content: urbit.Story, channelId: string) => Promise<void>;
   groupMembers: db.ChatMember[];
   posts?: db.Post[];
@@ -111,6 +117,29 @@ const DetailViewFrameComponent = ({
   const threadUnread = useStickyUnread(post?.threadUnread);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const { bottom } = useSafeAreaInsets();
+  const isEditingParent = useMemo(() => {
+    return editingPost?.id === post.id;
+  }, [editingPost, post]);
+
+  if (isEditingParent) {
+    return (
+      <BigInput
+        channelType={getChannelType(post.channelId)}
+        channelId={post.channelId}
+        editingPost={editingPost}
+        setEditingPost={setEditingPost}
+        editPost={editPost}
+        shouldBlur={inputShouldBlur}
+        setShouldBlur={setInputShouldBlur}
+        send={async () => {}}
+        getDraft={getDraft}
+        storeDraft={storeDraft}
+        clearDraft={clearDraft}
+        groupMembers={groupMembers}
+      />
+    );
+  }
+
   return (
     <View flex={1} backgroundColor="$background">
       <FlatList

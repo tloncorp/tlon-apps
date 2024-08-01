@@ -1,10 +1,13 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { Dots, Search } from '../../assets/icons';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { ActionSheet } from '../ActionSheet';
-import { getPostActions } from '../ChatMessage/ChatMessageActions/MessageActions';
+import {
+  getPostActions,
+  handleAction,
+} from '../ChatMessage/ChatMessageActions/MessageActions';
 import { GenericHeader } from '../GenericHeader';
 import { IconButton } from '../IconButton';
 import { BaubleHeader } from './BaubleHeader';
@@ -20,6 +23,7 @@ export function ChannelHeader({
   showSearchButton = true,
   showMenuButton = false,
   post,
+  setEditingPost,
   channelType,
 }: {
   title: string;
@@ -32,6 +36,7 @@ export function ChannelHeader({
   showSearchButton?: boolean;
   showMenuButton?: boolean;
   post?: db.Post;
+  setEditingPost?: (post: db.Post) => void;
   channelType?: db.ChannelType;
 }) {
   const [showActionSheet, setShowActionSheet] = useState(false);
@@ -53,6 +58,23 @@ export function ChannelHeader({
       }
     });
   }, [post, channelType, currentUserId]);
+
+  const actionHandler = useCallback(
+    (actionId: string) => {
+      if (!post || !setEditingPost) return;
+
+      handleAction({
+        id: actionId,
+        post,
+        userId: currentUserId,
+        channel,
+        dismiss: () => setShowActionSheet(false),
+        addAttachment: () => {},
+        onEdit: () => setEditingPost(post),
+      });
+    },
+    [post, currentUserId, channel, setEditingPost]
+  );
 
   if (mode === 'next') {
     return <BaubleHeader channel={channel} group={group} />;
@@ -86,7 +108,10 @@ export function ChannelHeader({
         snapPoints={[60]}
       >
         {postActions.map((action) => (
-          <ActionSheet.Action key={action.id} action={() => ({})}>
+          <ActionSheet.Action
+            key={action.id}
+            action={() => actionHandler(action.id)}
+          >
             <ActionSheet.ActionTitle>{action.label}</ActionSheet.ActionTitle>
           </ActionSheet.Action>
         ))}
