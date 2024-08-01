@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { addBreadcrumb } from '@tloncorp/shared/dist';
+import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
@@ -22,6 +22,8 @@ import type { RootStackParamList } from '../types';
 import { useChannelContext } from './useChannelContext';
 
 type ChannelScreenProps = NativeStackScreenProps<RootStackParamList, 'Channel'>;
+
+const logger = createDevLogger('ChannelScreen', false);
 
 export default function ChannelScreen(props: ChannelScreenProps) {
   useFocusEffect(
@@ -107,10 +109,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
 
   useEffect(() => {
     if (channel?.id) {
-      addBreadcrumb('ChannelScreen', null, {
-        channelId: channel?.id,
-        cursor,
-      });
+      logger.sensitiveCrumb(`channelId: ${channel?.id}`, `cursor: ${cursor}`);
     }
   }, [channel?.id, cursor]);
 

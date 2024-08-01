@@ -5,12 +5,12 @@ import * as api from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger } from '../debug';
-import { ErrorReporter } from '../logic';
 import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
+import { ErrorReporter } from './errorReporting';
 import { updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
@@ -864,7 +864,8 @@ export async function syncChannelMessageDelivery({
     const syncPromise = syncChannelWithBackoff({ channelId });
     currentPendingMessageSyncs.set(channelId, syncPromise);
     await syncPromise;
-    logger.log(`all messages in ${channelId} are delivered`);
+    logger.crumb(`all messages in channel are delivered`);
+    logger.sensitiveCrumb(`channelId: ${channelId}`);
   } catch (e) {
     logger.error(
       `some messages in ${channelId} still undelivered, is the channel offline?`

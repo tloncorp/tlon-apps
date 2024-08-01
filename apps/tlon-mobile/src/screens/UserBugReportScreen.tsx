@@ -1,7 +1,6 @@
 import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ErrorReporter } from '@tloncorp/shared/dist';
-import * as store from '@tloncorp/shared/dist/store';
 import {
   Button,
   Circle,

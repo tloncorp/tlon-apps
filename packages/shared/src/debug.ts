@@ -7,11 +7,14 @@ const customLoggers = new Set<string>();
 
 interface Breadcrumb {
   tag: string;
-  message: string | null;
-  additionalContext?: any;
+  message?: string | null;
+  sensitive?: string | null;
 }
 
-export type Logger = Console & { crumb: (...args: unknown[]) => void };
+export type Logger = Console & {
+  crumb: (...args: unknown[]) => void;
+  sensitiveCrumb: (...args: unknown[]) => void;
+};
 
 const debugBreadcrumbs: Breadcrumb[] = [];
 const BREADCRUMB_LIMIT = 100;
@@ -23,26 +26,17 @@ export function logNavigationChange(from: string, to: string) {
   });
 }
 
-export function addBreadcrumb(
-  tag: string,
-  message: string | null,
-  additionalContext?: any
-) {
-  const newCrumb = { tag, message, additionalContext };
-  debugBreadcrumbs.push(newCrumb);
+function addBreadcrumb(crumb: Breadcrumb) {
+  debugBreadcrumbs.push(crumb);
   if (debugBreadcrumbs.length >= BREADCRUMB_LIMIT) {
     debugBreadcrumbs.shift();
   }
 }
 
 export function getCurrentBreadcrumbs() {
+  const includeSensitiveContext = true; // TODO: handle accordingly
   return debugBreadcrumbs.map((crumb) => {
-    const context = crumb.additionalContext
-      ? typeof crumb.additionalContext === 'object'
-        ? JSON.stringify(crumb.additionalContext)
-        : crumb.additionalContext.toString()
-      : '';
-    return `[${crumb.tag}] ${crumb.message} ${crumb ? `(${context})` : ''}`;
+    return `[${crumb.tag}] ${crumb.message ?? ''}${includeSensitiveContext && crumb.sensitive ? crumb.sensitive : ''}`;
   });
 }
 
@@ -53,28 +47,38 @@ export function addCustomEnabledLoggers(loggers: string[]) {
 export function createDevLogger(tag: string, enabled: boolean) {
   const proxy = new Proxy(console, {
     get(target: Console, prop: string | symbol, receiver) {
-      if (prop === 'crumb') {
-        return (...args: unknown[]) => {
-          // Run the same logic as logger.log
-          if (
-            (enabled || customLoggers.has(tag)) &&
-            process.env.NODE_ENV !== 'production'
-          ) {
-            const prefix = `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`;
-            console.log(prefix, ...args);
-          }
-
-          // Special handling for the crumb
-          addBreadcrumb(tag, args.toString());
-        };
-      }
-
       return (...args: unknown[]) => {
+        let resolvedProp = prop;
+
+        if (prop === 'crumb') {
+          addBreadcrumb({
+            tag,
+            message: args.length > 0 ? args.join(' ') : null,
+          });
+          resolvedProp = 'log';
+        }
+
+        if (prop === 'sensitiveCrumb') {
+          addBreadcrumb({
+            tag,
+            sensitive: args.length > 0 ? args.join(' ') : null,
+          });
+          resolvedProp = 'log';
+        }
+
+        if (prop === 'error') {
+          // TODO: feel like it might be revealing too much to always log the message?
+          addBreadcrumb({
+            tag,
+            message: 'error logged',
+          });
+        }
+
         if (
           (enabled || customLoggers.has(tag)) &&
           process.env.NODE_ENV !== 'production'
         ) {
-          const val = Reflect.get(target, prop, receiver);
+          const val = Reflect.get(target, resolvedProp, receiver);
           const prefix = `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`;
           val(prefix, ...args);
         }

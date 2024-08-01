@@ -5,7 +5,7 @@ import {
   sync,
 } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
-import * as logic from '@tloncorp/shared/dist/logic';
+import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
@@ -48,7 +48,7 @@ function AuthenticatedApp({
 
     // TODO: remove, for use in Beta testing only
     if (currentUserId) {
-      logic.setErrorTrackingUserId(currentUserId);
+      store.setErrorTrackingUserId(currentUserId);
     }
 
     sync.syncStart();
