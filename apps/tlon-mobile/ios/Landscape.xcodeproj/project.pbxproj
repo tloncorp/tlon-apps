@@ -171,12 +171,12 @@
 			remoteGlobalIDString = 6374ACDE2C49DA9600E637C0;
 			remoteInfo = Notifications;
 		};
-		6374ACED2C49DB6500E637C0 /* PBXContainerItemProxy */ = {
+		63A26F812C5C49530049EC5A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 6374ACDE2C49DA9600E637C0;
-			remoteInfo = Notifications;
+			remoteGlobalIDString = 630DE0BD2C51A8780053603B;
+			remoteInfo = "Notifications-preview";
 		};
 		70F99A922B2D2B5700D77256 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -643,7 +643,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				6374ACEE2C49DB6500E637C0 /* PBXTargetDependency */,
+				63A26F822C5C49530049EC5A /* PBXTargetDependency */,
 			);
 			name = "Landscape-preview";
 			packageProductDependencies = (
@@ -1318,10 +1318,10 @@
 			target = 6374ACDE2C49DA9600E637C0 /* Notifications */;
 			targetProxy = 630DE0E82C51AA0D0053603B /* PBXContainerItemProxy */;
 		};
-		6374ACEE2C49DB6500E637C0 /* PBXTargetDependency */ = {
+		63A26F822C5C49530049EC5A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 6374ACDE2C49DA9600E637C0 /* Notifications */;
-			targetProxy = 6374ACED2C49DB6500E637C0 /* PBXContainerItemProxy */;
+			target = 630DE0BD2C51A8780053603B /* Notifications-preview */;
+			targetProxy = 63A26F812C5C49530049EC5A /* PBXContainerItemProxy */;
 		};
 		70F99A932B2D2B5700D77256 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
