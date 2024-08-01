@@ -19,13 +19,6 @@ export type Logger = Console & {
 const debugBreadcrumbs: Breadcrumb[] = [];
 const BREADCRUMB_LIMIT = 100;
 
-export function logNavigationChange(from: string, to: string) {
-  debugBreadcrumbs.push({
-    tag: 'navigation',
-    message: `to: ${to}, from: ${from}`,
-  });
-}
-
 function addBreadcrumb(crumb: Breadcrumb) {
   debugBreadcrumbs.push(crumb);
   if (debugBreadcrumbs.length >= BREADCRUMB_LIMIT) {

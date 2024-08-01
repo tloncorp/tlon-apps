@@ -1,15 +1,14 @@
 import { useNavigation } from '@react-navigation/native';
+import { createDevLogger } from '@tloncorp/shared/dist';
 import { useEffect, useRef } from 'react';
 
-export function useNavigationLogging(
-  logger: (from: string, to: string) => void
-) {
+const logger = createDevLogger('navigation', false);
+
+export function useNavigationLogging() {
   const navigation = useNavigation();
   const routeNameRef = useRef<string | undefined>();
 
   useEffect(() => {
-    console.log('Setting up navigation logging');
-
     // Set initial route
     const state = navigation.getState();
     routeNameRef.current = state ? state.routes[state.index].name : '';
@@ -24,7 +23,7 @@ export function useNavigationLogging(
         currentRouteName &&
         previousRouteName !== currentRouteName
       ) {
-        logger(previousRouteName, currentRouteName);
+        logger.crumb(`to: ${currentRouteName}, from: ${previousRouteName}`);
       }
 
       // Update the route name ref

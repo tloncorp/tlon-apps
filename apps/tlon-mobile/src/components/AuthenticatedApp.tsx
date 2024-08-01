@@ -1,9 +1,5 @@
 import crashlytics from '@react-native-firebase/crashlytics';
-import {
-  initializeCrashReporter,
-  logNavigationChange,
-  sync,
-} from '@tloncorp/shared';
+import { initializeCrashReporter, sync } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
@@ -34,7 +30,7 @@ function AuthenticatedApp({
   const session = store.useCurrentSession();
   useNotificationListener(notificationListenerProps);
   useDeepLinkListener();
-  useNavigationLogging(logNavigationChange);
+  useNavigationLogging();
   useNetworkLogger();
 
   useEffect(() => {
