@@ -93,7 +93,7 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
     // be stored on successful login.
     if (authCookie) {
       // Save to native storage
-      UrbitModule.setUrbit(ship, normalizedShipUrl);
+      UrbitModule.setUrbit(ship, normalizedShipUrl, authCookie);
     } else {
       // Run this in the background
       (async () => {
