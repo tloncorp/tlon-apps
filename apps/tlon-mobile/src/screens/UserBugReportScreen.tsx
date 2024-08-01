@@ -12,7 +12,7 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/ui';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,10 +22,31 @@ import { RootStackParamList } from '../types';
 type Props = NativeStackScreenProps<RootStackParamList, 'WompWomp'>;
 
 export function UserBugReportScreen(props: Props) {
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const isFocused = useIsFocused();
   const isFocusedRef = useRef(isFocused);
   const insets = useSafeAreaInsets();
   const [state, setState] = useState<'initial' | 'sent'>('initial');
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardWillShow',
+      () => {
+        setKeyboardVisible(true);
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardWillHide',
+      () => {
+        setKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      keyboardDidHideListener.remove();
+      keyboardDidShowListener.remove();
+    };
+  }, []);
 
   const onGoBack = useCallback(() => {
     props.navigation.goBack();
@@ -59,46 +80,48 @@ export function UserBugReportScreen(props: Props) {
   );
 
   return (
-    <View style={{ flex: 1 }}>
-      <GenericHeader goBack={onGoBack} />
-      <KeyboardAvoidingView style={{ flex: 1 }}>
-        <YStack
-          marginTop="$m"
-          marginBottom={insets.bottom + 40}
-          flex={1}
-          marginHorizontal="$2xl"
-          justifyContent="space-between"
-          onPress={() => Keyboard.dismiss()}
-        >
-          <YStack
-            backgroundColor="$secondaryBackground"
-            padding="$l"
-            alignItems="center"
-            borderRadius="$l"
-          >
-            <Circle marginBottom="$s">
-              <Icon type="Send" />
-            </Circle>
-            <SizableText fontSize="$xl">Send a bug report</SizableText>
-            <SizableText
-              marginHorizontal="$2xl"
-              marginTop="$l"
-              fontSize="$s"
-              color="$secondaryText"
-              textAlign="center"
+    <KeyboardAvoidingView style={{ flex: 1 }}>
+      <GenericHeader goBack={state === 'initial' ? onGoBack : undefined} />
+      <YStack
+        marginTop="$m"
+        flex={1}
+        marginHorizontal="$2xl"
+        justifyContent={keyboardVisible ? 'unset' : 'space-between'}
+        onPress={() => Keyboard.dismiss()}
+      >
+        <YStack>
+          {!keyboardVisible && (
+            <YStack
+              backgroundColor="$secondaryBackground"
+              padding="$l"
+              alignItems="center"
+              borderRadius="$l"
             >
-              If you experienced an issue, let us know! Sending reports helps us
-              improve the app for everyone.
-            </SizableText>
-          </YStack>
-
-          <View paddingTop="$2xl" flex={1}>
+              <Circle marginBottom="$s">
+                <Icon type="Send" />
+              </Circle>
+              <SizableText fontSize="$xl">Send a bug report</SizableText>
+              <SizableText
+                marginHorizontal="$2xl"
+                marginTop="$l"
+                fontSize="$s"
+                lineHeight="$s"
+                color="$secondaryText"
+                textAlign="center"
+              >
+                If you experienced an issue, let us know! Sending reports helps
+                us improve the app for everyone.
+              </SizableText>
+            </YStack>
+          )}
+          <View paddingTop="$2xl">
             {state === 'initial' ? (
               <>
                 <SizableText
                   marginHorizontal="$m"
                   marginBottom="$l"
                   fontSize="$s"
+                  lineHeight="$s"
                   color="$tertiaryText"
                 >
                   Information to help us diagnose the issue will be
@@ -154,16 +177,17 @@ export function UserBugReportScreen(props: Props) {
               </YStack>
             )}
           </View>
-
-          <Button
-            hero
-            onPress={handleSubmit(sendBugReport)}
-            disabled={state === 'sent'}
-          >
-            <Button.Text>Send Report</Button.Text>
-          </Button>
         </YStack>
-      </KeyboardAvoidingView>
-    </View>
+        <Button
+          hero
+          onPress={handleSubmit(sendBugReport)}
+          disabled={state === 'sent'}
+          marginBottom={insets.bottom + 40}
+          marginTop={keyboardVisible ? '$l' : 'unset'}
+        >
+          <Button.Text>Send Report</Button.Text>
+        </Button>
+      </YStack>
+    </KeyboardAvoidingView>
   );
 }
