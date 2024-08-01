@@ -231,6 +231,10 @@ export default function ChatListScreen(
     [navigation]
   );
 
+  const handleGotoErrorReporter = useCallback(() => {
+    props.navigation.navigate('WompWomp');
+  }, [props.navigation]);
+
   const { pinned, unpinned } = resolvedChats;
   const allChats = [...pinned, ...unpinned];
   const isTlonEmployee = !!allChats.find(

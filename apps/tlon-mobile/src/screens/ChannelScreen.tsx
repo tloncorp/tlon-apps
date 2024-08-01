@@ -1,5 +1,6 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
@@ -16,12 +17,14 @@ import {
   GroupOptionsProvider,
   INITIAL_POSTS_PER_PAGE,
 } from '@tloncorp/ui';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 
 import type { GroupSettingsStackParamList, RootStackParamList } from '../types';
 import { useChannelContext } from './useChannelContext';
 
 type ChannelScreenProps = NativeStackScreenProps<RootStackParamList, 'Channel'>;
+
+const logger = createDevLogger('ChannelScreen', false);
 
 export default function ChannelScreen(props: ChannelScreenProps) {
   useFocusEffect(
@@ -104,6 +107,13 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     // the selected post route param changes
     // eslint-disable-next-line
   }, [!!channel, selectedPostId]);
+
+  useEffect(() => {
+    if (channel?.id) {
+      logger.sensitiveCrumb(`channelId: ${channel?.id}`, `cursor: ${cursor}`);
+    }
+  }, [channel?.id, cursor]);
+
   const {
     posts,
     query: postsQuery,

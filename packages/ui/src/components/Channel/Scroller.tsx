@@ -439,7 +439,7 @@ const Scroller = forwardRef(
       ) : null} */}
         {posts && (
           <Animated.FlatList<db.Post>
-            ref={flatListRef}
+            ref={flatListRef as React.RefObject<Animated.FlatList<db.Post>>}
             // This is needed so that we can force a refresh of the list when
             // we need to switch from 1 to 2 columns or vice versa.
             key={channelType}

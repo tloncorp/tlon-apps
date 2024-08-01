@@ -16,6 +16,7 @@ interface Props {
   onAppSettingsPressed?: () => void;
   onEditProfilePressed?: () => void;
   onLogoutPressed: () => void;
+  onSendBugReportPressed?: () => void;
   dmLink?: string;
 }
 
@@ -118,6 +119,11 @@ export function Wrapped(props: Props) {
             title="App Settings"
             icon="Settings"
             onPress={props.onAppSettingsPressed}
+          />
+          <ProfileAction
+            title="Report a bug"
+            icon="Send"
+            onPress={props.onSendBugReportPressed}
           />
           <ProfileAction
             title="Log Out"

@@ -23,6 +23,8 @@ export default defineConfig({
     'expo-image-picker',
     'expo-file-system',
     '@react-native-firebase/crashlytics',
+    '@react-native-community/netinfo',
+    'expo-battery',
   ],
   ignoreWatch: ['**/node_modules/**', '**/.git/**'],
   loader: {
