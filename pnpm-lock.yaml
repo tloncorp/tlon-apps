@@ -168,8 +168,8 @@ importers:
         specifier: ~13.10.5
         version: 13.10.6(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
       expo-battery:
-        specifier: ^8.0.1
-        version: 8.0.1(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
+        specifier: ^7.7.2
+        version: 7.7.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
       expo-clipboard:
         specifier: ~5.0.1
         version: 5.0.1(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
@@ -7201,8 +7201,8 @@ packages:
     peerDependencies:
       expo: '*'
 
-  expo-battery@8.0.1:
-    resolution: {integrity: sha512-4lpwvKPCKzXn91UYJu/tYDgN1mLMb678P6H9M61t6Asmp8B8FpRi/AAhs2FhLatw1iM3Jz6lIREUNkrW0Cn3nQ==}
+  expo-battery@7.7.2:
+    resolution: {integrity: sha512-Bo4X10m04oPS1B7g78EWO2KHIMaO9ZHNEgoD0C/8YpjkdJmbDkfVwO2i/uVtzV74zpV3M6TlAnWRPNsKMUMxZQ==}
     peerDependencies:
       expo: '*'
 
@@ -20556,7 +20556,7 @@ snapshots:
     dependencies:
       expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
 
-  expo-battery@8.0.1(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)):
+  expo-battery@7.7.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)):
     dependencies:
       expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
 
