@@ -103,8 +103,7 @@ export function UserBugReportScreen(props: Props) {
               <SizableText
                 marginHorizontal="$2xl"
                 marginTop="$l"
-                fontSize="$s"
-                lineHeight="$s"
+                size="$s"
                 color="$secondaryText"
                 textAlign="center"
               >
@@ -119,8 +118,7 @@ export function UserBugReportScreen(props: Props) {
                 <SizableText
                   marginHorizontal="$m"
                   marginBottom="$l"
-                  fontSize="$s"
-                  lineHeight="$s"
+                  size="$s"
                   color="$tertiaryText"
                 >
                   Information to help us diagnose the issue will be
