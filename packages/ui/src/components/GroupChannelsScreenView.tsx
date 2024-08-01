@@ -1,8 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useGroupOptions } from '../contexts/groupOptions';
 import { ScrollView, View } from '../core';
 import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
@@ -23,37 +23,20 @@ const ChannelSortOptions = ({
   );
 };
 
-export function GroupChannelsScreenView({
-  group,
-  channels,
-  onChannelPressed,
-  onBackPressed,
-  currentUser,
-  pinned,
-  useGroup,
-  onPressGroupMeta,
-  onPressGroupMembers,
-  onPressManageChannels,
-  onPressInvitesAndPrivacy,
-  onPressRoles,
-  onPressLeave,
-  onTogglePinned,
-}: {
-  group: db.Group | undefined | null;
-  channels: db.Channel[] | undefined | null;
+type GroupChannelsScreenViewProps = {
   onChannelPressed: (channel: db.Channel) => void;
   onBackPressed: () => void;
   currentUser: string;
-  pinned: db.Channel[];
-  useGroup: typeof store.useGroup;
-  onPressGroupMeta: (groupId: string) => void;
-  onPressGroupMembers: (groupId: string) => void;
-  onPressManageChannels: (groupId: string) => void;
-  onPressInvitesAndPrivacy: (groupId: string) => void;
-  onPressRoles: (groupId: string) => void;
-  onPressLeave: () => void;
-  onTogglePinned: () => void;
-}) {
+};
+
+export function GroupChannelsScreenView({
+  onChannelPressed,
+  onBackPressed,
+  currentUser,
+}: GroupChannelsScreenViewProps) {
+  const groupOptions = useGroupOptions();
+  const group = groupOptions?.group;
+
   const [showChatOptions, setShowChatOptions] = useState(false);
   const [showSortOptions, setShowSortOptions] = useState(false);
   const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
@@ -107,10 +90,10 @@ export function GroupChannelsScreenView({
           paddingBottom: insets.bottom,
         }}
       >
-        {group && channels ? (
+        {group && groupOptions.groupChannels ? (
           <ChannelNavSections
             group={group}
-            channels={channels}
+            channels={groupOptions.groupChannels}
             onSelect={onChannelPressed}
             sortBy={sortBy}
           />
@@ -136,29 +119,23 @@ export function GroupChannelsScreenView({
           <ActionSheet.ActionTitle>Sort by arrangement</ActionSheet.ActionTitle>
         </ActionSheet.Action>
       </ActionSheet>
-      <ChatOptionsSheet
-        open={showChatOptions}
-        onOpenChange={handleChatOptionsOpenChange}
-        currentUser={currentUser}
-        pinned={pinned}
-        group={group ?? undefined}
-        useGroup={useGroup}
-        onPressGroupMeta={(groupId) =>
-          handleAction(() => onPressGroupMeta(groupId))
-        }
-        onPressGroupMembers={(groupId) =>
-          handleAction(() => onPressGroupMembers(groupId))
-        }
-        onPressManageChannels={(groupId) =>
-          handleAction(() => onPressManageChannels(groupId))
-        }
-        onPressInvitesAndPrivacy={(groupId) =>
-          handleAction(() => onPressInvitesAndPrivacy(groupId))
-        }
-        onPressRoles={(groupId) => handleAction(() => onPressRoles(groupId))}
-        onPressLeave={() => handleAction(onPressLeave)}
-        onTogglePinned={() => handleAction(onTogglePinned)}
-      />
+      {groupOptions && (
+        <ChatOptionsSheet
+          open={showChatOptions}
+          onOpenChange={handleChatOptionsOpenChange}
+          currentUser={currentUser}
+          pinned={groupOptions.pinned}
+          group={group!}
+          useGroup={groupOptions.useGroup}
+          onPressGroupMeta={groupOptions.onPressGroupMeta}
+          onPressGroupMembers={groupOptions.onPressGroupMembers}
+          onPressManageChannels={groupOptions.onPressManageChannels}
+          onPressInvitesAndPrivacy={groupOptions.onPressInvitesAndPrivacy}
+          onPressRoles={groupOptions.onPressRoles}
+          onPressLeave={groupOptions.onPressLeave}
+          onTogglePinned={groupOptions.onTogglePinned}
+        />
+      )}
     </View>
   );
 }

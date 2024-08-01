@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { BlurView } from 'expo-blur';
+import { useCallback, useState } from 'react';
 import { OpaqueColorValue } from 'react-native';
 import Animated, {
   Easing,
@@ -15,9 +16,12 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 
+import { useCurrentUserId } from '../../contexts/appDataContext';
+import { useGroupOptions } from '../../contexts/groupOptions';
 import { useScrollContext } from '../../contexts/scroll';
 import { Image, LinearGradient, Spinner, Text, View } from '../../core';
 import { ContactAvatar } from '../Avatar';
+import { ChatOptionsSheet } from '../GroupOptionsSheet';
 import { Icon } from '../Icon';
 
 export function BaubleHeader({
@@ -34,6 +38,10 @@ export function BaubleHeader({
   const [scrollValue] = useScrollContext();
   const insets = useSafeAreaInsets();
   const frame = useSafeAreaFrame();
+  const currentUser = useCurrentUserId();
+  const [showChatOptions, setShowChatOptions] = useState(false);
+  const groupOptions = useGroupOptions();
+  const isGroupContext = !!group && !!groupOptions;
 
   const easedValue = useDerivedValue(
     () => Easing.ease(scrollValue.value),
@@ -56,6 +64,15 @@ export function BaubleHeader({
       opacity: opacity,
     };
   }, [easedValue, insets.top]);
+
+  const handleChatOptionsOpenChange = useCallback((open: boolean) => {
+    setShowChatOptions(open);
+  }, []);
+
+  const handleAction = useCallback((action: () => void) => {
+    setShowChatOptions(false);
+    action();
+  }, []);
 
   return (
     <View
@@ -85,6 +102,7 @@ export function BaubleHeader({
             borderColor={'$border'}
             borderRadius="$l"
             overflow="hidden"
+            onPress={() => setShowChatOptions(true)}
           >
             <BlurView intensity={32}>
               {showSpinner ? (
@@ -163,6 +181,33 @@ export function BaubleHeader({
             </BlurView>
           </View>
         </Animated.View>
+      )}
+      {isGroupContext && groupOptions && (
+        <ChatOptionsSheet
+          open={showChatOptions}
+          onOpenChange={handleChatOptionsOpenChange}
+          currentUser={currentUser}
+          pinned={groupOptions.pinned}
+          group={group!}
+          useGroup={groupOptions.useGroup}
+          onPressGroupMeta={(groupId) =>
+            handleAction(() => groupOptions.onPressGroupMeta(groupId))
+          }
+          onPressGroupMembers={(groupId) =>
+            handleAction(() => groupOptions.onPressGroupMembers(groupId))
+          }
+          onPressManageChannels={(groupId) =>
+            handleAction(() => groupOptions.onPressManageChannels(groupId))
+          }
+          onPressInvitesAndPrivacy={(groupId) =>
+            handleAction(() => groupOptions.onPressInvitesAndPrivacy(groupId))
+          }
+          onPressRoles={(groupId) =>
+            handleAction(() => groupOptions.onPressRoles(groupId))
+          }
+          onPressLeave={() => handleAction(groupOptions.onPressLeave)}
+          onTogglePinned={() => handleAction(groupOptions.onTogglePinned)}
+        />
       )}
     </View>
   );
