@@ -90,7 +90,7 @@ PODS:
     - glog
     - RCT-Folly (= 2022.05.16.00)
     - React-Core
-  - ExpoBattery (8.0.1):
+  - ExpoBattery (7.7.2):
     - ExpoModulesCore
   - ExpoBlur (12.9.2):
     - ExpoModulesCore
@@ -1717,7 +1717,7 @@ SPEC CHECKSUMS:
   expo-dev-launcher: fcdb0f3e91c34778f0816b0f590c7a57f052a87c
   expo-dev-menu: 166fc9c7b82641cdead1dc26d958d20a127ee97b
   expo-dev-menu-interface: 7ba029c9d1a82ac22b9b584c00514860b060553e
-  ExpoBattery: 4b21f628f2b70af3af66e83c566949ba9cc65eb1
+  ExpoBattery: 60bf880aea8f769fe39f709a920442542c1bfd62
   ExpoBlur: e832d874bd94afc0645daddbd3162ec1ce172080
   ExpoClipboard: b597982124f067ff9f5b89093eb3d97898d5d877
   ExpoDevice: d204395e17fffdcefa7470bdef33b07719ac41b1
