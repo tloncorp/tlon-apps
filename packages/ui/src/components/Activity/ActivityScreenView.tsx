@@ -9,17 +9,20 @@ import { SizableText, View } from '../../core';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { ActivityHeader } from './ActivityHeader';
 import { ChannelActivitySummary } from './ChannelActivitySummary';
+import { GroupActivitySummary } from './GroupActivitySummary';
 
 export function ActivityScreenView({
   isFocused,
   goToChannel,
   goToThread,
+  goToGroup,
   bucketFetchers,
   refresh,
 }: {
   isFocused: boolean;
   goToChannel: (channel: db.Channel, selectedPostId?: string) => void;
   goToThread: (post: db.Post) => void;
+  goToGroup: (group: db.Group) => void;
   bucketFetchers: store.BucketFetchers;
   refresh: () => Promise<void>;
 }) {
@@ -76,6 +79,13 @@ export function ActivityScreenView({
             goToThread(parentPost);
           } else {
             console.warn('No parent found for reply', event);
+          }
+          break;
+        case 'group-ask':
+          if (event.group) {
+            goToGroup(event.group);
+          } else {
+            console.warn('No group found for group-ask', event);
           }
           break;
         default:
@@ -164,6 +174,18 @@ function ActivityEventRaw({
 }) {
   const event = sourceActivity.newest;
   const handlePress = useCallback(() => onPress(event), [event, onPress]);
+
+  if (db.isGroupEvent(event)) {
+    return (
+      <View onPress={handlePress}>
+        <GroupActivitySummary
+          summary={sourceActivity}
+          seenMarker={seenMarker}
+          pressHandler={handlePress}
+        />
+      </View>
+    );
+  }
 
   if (
     event.type === 'post' ||

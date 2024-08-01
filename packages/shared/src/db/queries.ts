@@ -56,6 +56,7 @@ import {
   contactGroups as $contactGroups,
   contacts as $contacts,
   groupFlaggedPosts as $groupFlaggedPosts,
+  groupJoinRequests as $groupJoinRequests,
   groupMemberBans as $groupMemberBans,
   groupMemberInvites as $groupMemberInvites,
   groupNavSectionChannels as $groupNavSectionChannels,
@@ -96,7 +97,7 @@ import {
   VolumeSettings,
 } from './types';
 
-const logger = createDevLogger('queries', false);
+const logger = createDevLogger('queries', true);
 
 const GROUP_META_COLUMNS = {
   id: true,
@@ -493,6 +494,18 @@ export const insertGroups = createWriteQuery(
             )
             .onConflictDoNothing();
         }
+
+        if (group.joinRequests?.length) {
+          await txCtx.db
+            .insert($groupJoinRequests)
+            .values(
+              group.joinRequests.map((m) => ({
+                groupId: group.id,
+                contactId: m.contactId,
+              }))
+            )
+            .onConflictDoNothing();
+        }
       }
       await setLastPosts(null, txCtx);
     });
@@ -768,6 +781,53 @@ export const deleteGroupInvites = createWriteQuery(
       );
   },
   ['groupMemberInvites']
+);
+
+export const addGroupJoinRequests = createWriteQuery(
+  'addGroupJoinRequest',
+  async (
+    requests: { groupId: string; contactIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .insert($groupJoinRequests)
+      .values(
+        requests.contactIds.map((contactId) => ({
+          groupId: requests.groupId,
+          contactId,
+        }))
+      )
+      .onConflictDoNothing();
+  },
+  ['groupJoinRequests']
+);
+
+export const getGroupJoinRequests = createReadQuery(
+  'getGroupJoinRequests',
+  async (groupId: string, ctx: QueryCtx) => {
+    return ctx.db.query.groupJoinRequests.findMany({
+      where: eq($groupJoinRequests.groupId, groupId),
+    });
+  },
+  ['groupJoinRequests']
+);
+
+export const deleteGroupJoinRequests = createWriteQuery(
+  'deleteGroupJoinRequests',
+  async (
+    requests: { groupId: string; contactIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .delete($groupJoinRequests)
+      .where(
+        and(
+          eq($groupJoinRequests.groupId, requests.groupId),
+          inArray($groupJoinRequests.contactId, requests.contactIds)
+        )
+      );
+  },
+  ['groupJoinRequests']
 );
 
 export const addGroupMemberBans = createWriteQuery(
@@ -1076,6 +1136,17 @@ export const getChannelUnread = createReadQuery(
     });
   },
   ['channelUnreads']
+);
+
+export const getGroupUnread = createReadQuery(
+  'getGroupUnread',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    if (!groupId) return Promise.resolve(null);
+    return ctx.db.query.groupUnreads.findFirst({
+      where: and(eq($groupUnreads.groupId, groupId)),
+    });
+  },
+  ['groupUnreads']
 );
 
 export const getThreadActivity = createReadQuery(
@@ -2295,6 +2366,7 @@ export const getGroup = createReadQuery(
               roles: true,
             },
           },
+          joinRequests: true,
           bannedMembers: true,
           navSections: {
             with: {
@@ -2867,6 +2939,7 @@ export const getAllOrRepliesPage = createReadQuery(
                 threadUnread: true,
               },
             },
+            groupEventUser: true,
           },
         });
       } else {
@@ -2874,11 +2947,13 @@ export const getAllOrRepliesPage = createReadQuery(
       }
 
       let allEvents: ActivityEvent[];
-      if (bucket === 'all') {
+      if (sourceEvents.length === 0) {
+        return [];
+      } else if (bucket === 'all') {
         // the set of source events doesn't necessarily encompass all mentions,
         // but we need them all to accurately represent an "all" timeline so we
         // grab separately
-        const stopCursor = sourceEvents[sourceEvents.length - 1].timestamp;
+        const stopCursor = sourceEvents[sourceEvents.length - 1]?.timestamp;
         const mentionEvents = await getMentionEvents({
           startCursor,
           stopCursor,

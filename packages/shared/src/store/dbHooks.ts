@@ -209,6 +209,28 @@ export const useLiveChannelUnread = (unread: db.ChannelUnread | null) => {
   });
 };
 
+export const useLiveGroupUnread = (unread: db.GroupUnread | null) => {
+  const depsKey = useMemo(
+    () => (unread ? keyFromQueryDeps(db.getGroupUnread) : null),
+    [unread]
+  );
+
+  return useQuery({
+    queryKey: [
+      'liveUnreadCount',
+      depsKey,
+      'group',
+      unread ? unread.groupId : null,
+    ],
+    queryFn: async () => {
+      if (unread) {
+        return db.getGroupUnread({ groupId: unread.groupId ?? '' });
+      }
+      return null;
+    },
+  });
+};
+
 export const useLiveUnread = (
   unread: db.ChannelUnread | db.ThreadUnreadState | null
 ) => {

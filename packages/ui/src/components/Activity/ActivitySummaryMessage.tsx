@@ -153,6 +153,10 @@ function SummaryMessageRaw({
     );
   }
 
+  if (relevancy === 'groupJoinRequest') {
+    return <SummaryMessageWrapper>test</SummaryMessageWrapper>;
+  }
+
   if (summary.all.length === 1) {
     return (
       <SizableText color="$secondaryText">

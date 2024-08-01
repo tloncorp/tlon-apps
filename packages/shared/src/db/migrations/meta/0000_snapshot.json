@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "97f10bf1-b7ef-46e2-9186-38eb82d307b2",
+  "id": "b13d7102-35f8-47af-af64-8eb37b3b8036",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -100,6 +100,13 @@
         },
         "content": {
           "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "group_event_user_id": {
+          "name": "group_event_user_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -735,6 +742,58 @@
             "post_id"
           ],
           "name": "group_flagged_posts_group_id_post_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "group_join_requests": {
+      "name": "group_join_requests",
+      "columns": {
+        "group_id": {
+          "name": "group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "requested_at": {
+          "name": "requested_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "group_join_requests_group_id_groups_id_fk": {
+          "name": "group_join_requests_group_id_groups_id_fk",
+          "tableFrom": "group_join_requests",
+          "tableTo": "groups",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "group_join_requests_group_id_contact_id_pk": {
+          "columns": [
+            "contact_id",
+            "group_id"
+          ],
+          "name": "group_join_requests_group_id_contact_id_pk"
         }
       },
       "uniqueConstraints": {}

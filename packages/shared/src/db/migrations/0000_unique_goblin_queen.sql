@@ -13,6 +13,7 @@ CREATE TABLE `activity_events` (
 	`is_mention` integer,
 	`should_notify` integer,
 	`content` text,
+	`group_event_user_id` text,
 	PRIMARY KEY(`bucket_id`, `id`)
 );
 --> statement-breakpoint
@@ -109,6 +110,14 @@ CREATE TABLE `group_flagged_posts` (
 	`flagged_by_contact_id` text NOT NULL,
 	`flagged_at` integer,
 	PRIMARY KEY(`group_id`, `post_id`),
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `group_join_requests` (
+	`group_id` text NOT NULL,
+	`contact_id` text NOT NULL,
+	`requested_at` integer,
+	PRIMARY KEY(`contact_id`, `group_id`),
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint

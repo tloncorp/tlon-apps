@@ -20,6 +20,9 @@ export function GroupMembersScreen(props: GroupMembersScreenProps) {
     unbanUser,
     kickUser,
     bannedUsers,
+    acceptUserJoin,
+    rejectUserJoin,
+    joinRequests,
     groupPrivacyType,
   } = useGroupContext({
     groupId,
@@ -35,8 +38,11 @@ export function GroupMembersScreen(props: GroupMembersScreenProps) {
       currentUserId={currentUserId}
       onPressBan={banUser}
       onPressUnban={unbanUser}
+      onPressAccept={acceptUserJoin}
+      onPressReject={rejectUserJoin}
       onPressKick={kickUser}
       bannedUsers={bannedUsers}
+      joinRequests={joinRequests}
       groupPrivacyType={groupPrivacyType}
     />
   );

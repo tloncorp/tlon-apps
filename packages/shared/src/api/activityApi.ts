@@ -275,6 +275,15 @@ function toActivityEvent({
     };
   }
 
+  if ('group-ask' in event) {
+    return {
+      ...baseFields,
+      type: 'group-ask',
+      groupId: event['group-ask'].group,
+      groupEventUserId: event['group-ask'].ship,
+    };
+  }
+
   return null;
 }
 

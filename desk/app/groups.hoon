@@ -170,18 +170,10 @@
   ::
       %group-join
     =+  !<(=join:g vase)
-    =/  =gang:g  (~(gut by xeno) flag.join [~ ~ ~])
-    =/  =claim:g  [join-all.join %adding]
-    =.  cam.gang  `claim
-    =.  xeno  (~(put by xeno) flag.join gang)
     ga-abet:ga-start-join:(ga-abed:gang-core flag.join)
   ::
       %group-knock
     =+  !<(=flag:g vase)
-    =/  =gang:g  (~(gut by xeno) flag [~ ~ ~])
-    =/  =claim:g  [| %knocking]
-    =.  cam.gang  `claim
-    =.  xeno  (~(put by xeno) flag gang)
     ga-abet:ga-knock:(ga-abed:gang-core flag)
   ::
       %group-rescind
@@ -1941,6 +1933,7 @@
     --
   ++  ga-start-join
     ^+  ga-core
+    =.  cam.gang  `[& %adding]
     =.  cor  (emit add-self:ga-pass)
     ga-core
   ::
@@ -1952,6 +1945,7 @@
   ::
   ++  ga-knock
     ^+  ga-core
+    =.  cam.gang  `[| %knocking]
     =.  cor  (emit knock:ga-pass)
     ga-core
   ++  ga-rescind
@@ -2061,6 +2055,8 @@
   ::
   ++  ga-invite
     |=  =invite:g
+    ?:  &(?=(^ cam.gang) ?=(%knocking progress.u.cam.gang))
+      ga-start-join
     =.  vit.gang  `invite
     =.  cor  get-preview:ga-pass
     =.  cor  ga-give-update

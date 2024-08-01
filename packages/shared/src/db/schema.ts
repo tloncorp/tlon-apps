@@ -175,6 +175,7 @@ export const activityEvents = sqliteTable(
     isMention: boolean('is_mention'),
     shouldNotify: boolean('should_notify'),
     content: text('content', { mode: 'json' }),
+    groupEventUserId: text('group_event_user_id'),
   },
   (table) => {
     return {
@@ -206,6 +207,10 @@ export const activityRelations = relations(activityEvents, ({ one, many }) => ({
   }),
   parentAuthor: one(contacts, {
     fields: [activityEvents.parentAuthorId],
+    references: [contacts.id],
+  }),
+  groupEventUser: one(contacts, {
+    fields: [activityEvents.groupEventUserId],
     references: [contacts.id],
   }),
 }));
@@ -258,6 +263,7 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   pin: one(pins),
   roles: many(groupRoles),
   members: many(chatMembers),
+  joinRequests: many(groupJoinRequests),
   bannedMembers: many(groupMemberBans),
   navSections: many(groupNavSections),
   flaggedPosts: many(groupFlaggedPosts),
@@ -392,6 +398,38 @@ export const groupMemberInviteRelations = relations(
     }),
     contact: one(contacts, {
       fields: [groupMemberInvites.contactId],
+      references: [contacts.id],
+    }),
+  })
+);
+
+export const groupJoinRequests = sqliteTable(
+  'group_join_requests',
+  {
+    groupId: text('group_id')
+      .references(() => groups.id, { onDelete: 'cascade' })
+      .notNull(),
+    contactId: text('contact_id').notNull(),
+    requestedAt: timestamp('requested_at'),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.groupId, table.contactId],
+      }),
+    };
+  }
+);
+
+export const groupJoinRequestRelations = relations(
+  groupJoinRequests,
+  ({ one }) => ({
+    group: one(groups, {
+      fields: [groupJoinRequests.groupId],
+      references: [groups.id],
+    }),
+    contact: one(contacts, {
+      fields: [groupJoinRequests.contactId],
       references: [contacts.id],
     }),
   })

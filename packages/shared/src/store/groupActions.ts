@@ -767,6 +767,127 @@ export async function unbanUserFromGroup({
   }
 }
 
+export async function acceptUserJoin({
+  groupId,
+  contactId,
+}: {
+  groupId: string;
+  contactId: string;
+}) {
+  logger.log('accepting user request to join group', groupId, contactId);
+
+  const existingGroup = await db.getGroup({ id: groupId });
+
+  if (!existingGroup) {
+    console.error('Group not found', groupId);
+    return;
+  }
+
+  if (!existingGroup.members) {
+    console.error('Group members not found', groupId);
+    return;
+  }
+
+  if (existingGroup.members.find((member) => member.contactId === contactId)) {
+    console.error('User already in group', groupId, contactId);
+    return;
+  }
+
+  if (!existingGroup.joinRequests) {
+    console.error('Group join requests not found', groupId);
+    return;
+  }
+
+  if (
+    !existingGroup.joinRequests.find((member) => member.contactId === contactId)
+  ) {
+    console.error('User not found in join requests', groupId, contactId);
+    return;
+  }
+
+  if (existingGroup.privacy !== 'private') {
+    console.error('Group is not private', groupId);
+    return;
+  }
+  // optimistic update
+  await db.addChatMembers({
+    chatId: groupId,
+    type: 'group',
+    contactIds: [contactId],
+  });
+
+  await db.deleteGroupJoinRequests({
+    groupId,
+    contactIds: [contactId],
+  });
+
+  try {
+    await api.acceptGroupJoin({ groupId: groupId, contactIds: [contactId] });
+  } catch (e) {
+    console.error('Failed to accept user join request', e);
+    // rollback optimistic update
+    await db.removeChatMembers({
+      chatId: groupId,
+      contactIds: [contactId],
+    });
+
+    await db.addGroupJoinRequests({
+      groupId,
+      contactIds: [contactId],
+    });
+  }
+}
+
+export async function rejectUserJoin({
+  groupId,
+  contactId,
+}: {
+  groupId: string;
+  contactId: string;
+}) {
+  logger.log('reject user request to join group', groupId, contactId);
+
+  const existingGroup = await db.getGroup({ id: groupId });
+
+  if (!existingGroup) {
+    console.error('Group not found', groupId);
+    return;
+  }
+
+  if (!existingGroup.joinRequests) {
+    console.error('Group join requests not found', groupId);
+    return;
+  }
+
+  if (
+    !existingGroup.joinRequests.find((member) => member.contactId === contactId)
+  ) {
+    console.error('User not found in join requests', groupId, contactId);
+    return;
+  }
+
+  if (existingGroup.privacy !== 'private') {
+    console.error('Group is not private', groupId);
+    return;
+  }
+  // optimistic update
+  await db.deleteGroupJoinRequests({
+    groupId,
+    contactIds: [contactId],
+  });
+
+  try {
+    await api.rejectGroupJoin({ groupId: groupId, contactIds: [contactId] });
+  } catch (e) {
+    console.error('Failed to accept user join request', e);
+    // rollback optimistic update
+    await db.addGroupJoinRequests({
+      groupId,
+      contactIds: [contactId],
+    });
+  }
+}
+
 export async function leaveGroup(groupId: string) {
   logger.log('leaving group', groupId);
 
