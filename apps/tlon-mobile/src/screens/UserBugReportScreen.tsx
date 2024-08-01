@@ -14,7 +14,7 @@ import {
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Keyboard, KeyboardAvoidingView } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RootStackParamList } from '../types';
@@ -29,18 +29,17 @@ export function UserBugReportScreen(props: Props) {
   const [state, setState] = useState<'initial' | 'sent'>('initial');
 
   useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener(
-      'keyboardWillShow',
-      () => {
-        setKeyboardVisible(true);
-      }
-    );
-    const keyboardDidHideListener = Keyboard.addListener(
-      'keyboardWillHide',
-      () => {
-        setKeyboardVisible(false);
-      }
-    );
+    const showEvent =
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent =
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const keyboardDidShowListener = Keyboard.addListener(showEvent, () => {
+      setKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener(hideEvent, () => {
+      setKeyboardVisible(false);
+    });
 
     return () => {
       keyboardDidHideListener.remove();
@@ -154,6 +153,7 @@ export function UserBugReportScreen(props: Props) {
                       multiline: true,
                       fontSize: '$s',
                       lineHeight: '$xs',
+                      textAlignVertical: 'top',
                     }}
                   />
                 </FormTextInput>
