@@ -41,18 +41,6 @@ export function GroupSelector(props: Props) {
   const handleSelect = useCallback(
     (group: db.Group) => {
       props.onSelect?.(group);
-      // if (props.multiSelect) {
-      //   const selected = props.selected ?? [];
-      //   if (selected.includes(groupId)) {
-      //     const newSelected = selected.filter((id) => id !== groupId);
-      //     props.onSelectedChange?.(newSelected);
-      //   } else {
-      //     const newSelected = [...selected, groupId];
-      //     props.onSelectedChange?.(newSelected);
-      //   }
-      // } else {
-      //   props.onSelect?.(groupId);
-      // }
     },
     [props]
   );
