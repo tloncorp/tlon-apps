@@ -139,6 +139,7 @@
     "react-hook-form": "^7.30.0",
     "react-image-size": "^2.0.0",
     "react-intersection-observer": "^9.4.0",
+    "react-native-web": "0.19.12",
     "react-oembed-container": "github:stefkampen/react-oembed-container",
     "react-qr-code": "^2.0.12",
     "react-router": "^6.22.1",

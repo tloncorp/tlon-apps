@@ -181,7 +181,7 @@ export function ChatList({
           onLongPress={onLongPressItem}
         />
       );
-      return logic.isChannel(itemModel) ? (
+      return logic.isChannel(itemModel) && Platform.OS !== 'web' ? (
         <SwipableChatListItem model={itemModel}>
           {baseListItem}
         </SwipableChatListItem>

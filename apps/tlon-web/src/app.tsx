@@ -72,6 +72,7 @@ import EditCurioModal from '@/heap/EditCurioModal';
 import HeapChannel from '@/heap/HeapChannel';
 import HeapDetail from '@/heap/HeapDetail';
 import { DragAndDropProvider } from '@/logic/DragAndDropContext';
+import OldSafeAreaProvider from '@/logic/SafeAreaContext';
 import {
   ANALYTICS_DEFAULT_PROPERTIES,
   captureAnalyticsEvent,
@@ -133,7 +134,9 @@ import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
 import Notification from './notifications/Notification';
 import ShareDMLure from './profiles/ShareDMLure';
 import { ActivityScreen } from './screens/ActivityScreen';
+import ChannelScreen from './screens/ChannelScreen';
 import ChatListScreen from './screens/ChatListScreen';
+import { GroupChannelsScreen } from './screens/GroupChannelsScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import { useActivityFirehose } from './state/activity';
 import { useChannelsFirehose } from './state/channel/channel';
@@ -635,6 +638,11 @@ function NewAppRoutes() {
       <Route path="/" element={<ChatListScreen />} />
       <Route path="/activity" element={<ActivityScreen />} />
       <Route path="/profile" element={<ProfileScreen />} />
+      <Route
+        path="/group/:ship/:name/channel/:chType/:chShip/:chName/:postId?"
+        element={<ChannelScreen />}
+      />
+      <Route path="/group/:ship/:name" element={<GroupChannelsScreen />} />
     </Routes>
   );
 }
@@ -708,18 +716,20 @@ const App = React.memo(() => {
   }
 
   return (
-    <div className="flex h-full w-full flex-col">
-      <DisconnectNotice />
-      <Firehose />
-      <LeapProvider>
-        <ChatInputFocusProvider>
-          <DragAndDropProvider>
-            <GroupsRoutes isMobile={isMobile} isSmall={isSmall} />
-          </DragAndDropProvider>
-        </ChatInputFocusProvider>
-        <Leap />
-      </LeapProvider>
-    </div>
+    <OldSafeAreaProvider>
+      <div className="flex h-full w-full flex-col">
+        <DisconnectNotice />
+        <Firehose />
+        <LeapProvider>
+          <ChatInputFocusProvider>
+            <DragAndDropProvider>
+              <GroupsRoutes isMobile={isMobile} isSmall={isSmall} />
+            </DragAndDropProvider>
+          </ChatInputFocusProvider>
+          <Leap />
+        </LeapProvider>
+      </div>
+    </OldSafeAreaProvider>
   );
 });
 

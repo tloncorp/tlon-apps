@@ -3,7 +3,6 @@ import { tamaguiPlugin } from '@tamagui/vite-plugin';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
 import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
@@ -17,10 +16,10 @@ import {
 import { VitePWA } from 'vite-plugin-pwa';
 import svgr from 'vite-plugin-svgr';
 
+import injectExternalResourceScript from './externalResourceScript';
+import injectCrossOriginScript from './injectCrossOriginScript';
 import packageJson from './package.json';
 import reactNativeWeb from './reactNativeWebPlugin';
-import injectCrossOriginScript from './injectCrossOriginScript';
-import injectExternalResourceScript from './externalResourceScript';
 import manifest from './src/manifest';
 
 // https://vitejs.dev/config/
@@ -119,9 +118,12 @@ export default ({ mode }: { mode: string }) => {
         : // TODO: find workaround for issues with @tamagui/react-native-svg
           [
             '@urbit/sigil-js/dist/core',
-            'react-native-svg',
+            // 'react-native-svg',
             '@tloncorp/editor/dist/editorHtml',
             '@tloncorp/editor/src/bridges',
+            'react-native-device-info',
+            '@react-navigation/bottom-tabs',
+            '@react-navigation/native-stack',
           ],
     output: {
       hashCharacters: 'base36' as any,
@@ -133,6 +135,7 @@ export default ({ mode }: { mode: string }) => {
         'urbit/sigil-js': ['@urbit/sigil-js'],
         'any-ascii': ['any-ascii'],
         'react-beautiful-dnd': ['react-beautiful-dnd'],
+        'react-native-safe-area-context': ['react-native-safe-area-context'],
         'emoji-mart': ['emoji-mart'],
         'tiptap/core': ['@tiptap/core'],
         'tiptap/extension-placeholder': ['@tiptap/extension-placeholder'],
@@ -185,6 +188,10 @@ export default ({ mode }: { mode: string }) => {
           },
         },
       },
+      headers: {
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+        'Cross-Origin-Opener-Policy': 'same-origin',
+      },
     },
     build:
       mode !== 'profile'
@@ -203,6 +210,13 @@ export default ({ mode }: { mode: string }) => {
               ],
             },
           } as BuildOptions),
+    worker: {
+      rollupOptions: {
+        output: {
+          hashCharacters: 'base36' as any,
+        },
+      },
+    },
     plugins: plugins(mode),
     resolve: {
       dedupe: ['@tanstack/react-query'],

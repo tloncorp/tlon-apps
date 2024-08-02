@@ -1,8 +1,10 @@
+import { Platform } from 'react-native';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChevronLeft } from '../assets/icons';
 import { SizableText, View, XStack } from '../core';
+import { Icon } from './Icon';
 import { IconButton } from './IconButton';
 
 export function GenericHeader({
@@ -36,24 +38,38 @@ export function GenericHeader({
         >
           {goBack && (
             <IconButton onPress={goBack}>
-              <ChevronLeft />
+              <Icon type="ChevronLeft" size="$xl" />
             </IconButton>
           )}
-          <Animated.View
-            entering={FadeInDown}
-            exiting={FadeOutUp}
-            style={{ flex: 1 }}
-          >
-            <SizableText
-              flexShrink={1}
-              numberOfLines={1}
-              color="$primaryText"
-              size="$m"
-              fontWeight="$xl"
+          {Platform.OS === 'web' ? (
+            <View flex={1}>
+              <SizableText
+                flexShrink={1}
+                numberOfLines={1}
+                color="$primaryText"
+                size="$m"
+                fontWeight="$xl"
+              >
+                {showSpinner ? 'Loading…' : title}
+              </SizableText>
+            </View>
+          ) : (
+            <Animated.View
+              entering={FadeInDown}
+              exiting={FadeOutUp}
+              style={{ flex: 1 }}
             >
-              {showSpinner ? 'Loading…' : title}
-            </SizableText>
-          </Animated.View>
+              <SizableText
+                flexShrink={1}
+                numberOfLines={1}
+                color="$primaryText"
+                size="$m"
+                fontWeight="$xl"
+              >
+                {showSpinner ? 'Loading…' : title}
+              </SizableText>
+            </Animated.View>
+          )}
         </XStack>
         <XStack gap="$m" alignItems="center">
           {rightContent}

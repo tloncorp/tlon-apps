@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
+import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   AppDataContextProvider,
@@ -26,7 +27,7 @@ import useIsFocused from '@/hooks/useIsFocused';
 // import { TLON_EMPLOYEE_GROUP } from '../constants';
 import { useCalmSettings } from '../hooks/useCalmSettings';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
-// import * as featureFlags from '../lib/featureFlags';
+import * as featureFlags from '../lib/featureFlags';
 import NavBar from '../navigation/NavBarView';
 // import { RootStackParamList } from '../types';
 // import { identifyTlonEmployee } from '../utils/posthog';
@@ -88,30 +89,13 @@ export default function ChatListScreen() {
     }, [])
   );
 
-  // useEffect(() => {
-  // // if (!isInitialFocus.current) {
-  // store.syncPinnedItems({ priority: store.SyncPriority.High });
-  // // }
-  // // isInitialFocus.current = false;
-  // }, []);
-
-  // useFocusEffect(
-  // useCallback(() => {
-  // if (!isInitialFocus) {
-  // store.syncPinnedItems({ priority: store.SyncPriority.High });
-  // }
-  // isInitialFocus.current = false;
-  // }, [])
-  // );
-
   const goToDm = useCallback(
     async (participants: string[]) => {
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
       setStartDmOpen(false);
-      // props.navigation.push('Channel', { channel: dmChannel });
-      navigate('/channel/' + dmChannel.id);
+      navigate('/dm/' + dmChannel.id);
     },
     [navigate]
   );
@@ -121,9 +105,7 @@ export default function ChatListScreen() {
       setStartDmOpen(false);
       setAddGroupOpen(false);
       setTimeout(
-        () =>
-          // props.navigation.navigate('Channel', { channel })
-          navigate('/channel/' + channel.id),
+        () => navigate('/group/' + channel.groupId + '/channel/' + channel.id),
         150
       );
     },
@@ -136,7 +118,7 @@ export default function ChatListScreen() {
         setSelectedGroup(item);
       } else if (
         item.group &&
-        // !featureFlags.isEnabled('channelSwitcher') &&
+        !featureFlags.isEnabled('channelSwitcher') &&
         // Should navigate to channel if it's pinned as a channel
         (!item.pin || item.pin.type === 'group')
       ) {
@@ -147,7 +129,12 @@ export default function ChatListScreen() {
         // channel: item,
         // selectedPostId: item.firstUnreadPostId,
         // });
-        navigate('/channel/' + item.id);
+
+        if (isDmChannelId(item.id) || isGroupDmChannelId(item.id)) {
+          navigate('/dm/' + item.id);
+        } else {
+          navigate('/group/' + item.groupId + '/channel/' + item.id);
+        }
       }
     },
     [navigate, setSelectedGroup]
@@ -401,6 +388,7 @@ export default function ChatListScreen() {
             onPressLeave={handleLeaveGroup}
             onTogglePinned={handleTogglePinned}
           />
+          {/*
           <StartDmSheet
             goToDm={goToDm}
             open={startDmOpen}
@@ -412,12 +400,12 @@ export default function ChatListScreen() {
             onOpenChange={handleAddGroupOpenChange}
             onCreatedGroup={handleGroupCreated}
           />
-          */}
           <GroupPreviewSheet
             open={selectedGroup !== null}
             onOpenChange={handleGroupPreviewSheetOpenChange}
             group={selectedGroup ?? undefined}
           />
+          */}
         </View>
         <NavBar />
       </AppDataContextProvider>

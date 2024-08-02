@@ -96,7 +96,7 @@ const baseProps: ComponentProps<typeof Channel> = {
   usePostReference: usePostReference,
   useChannel: useChannel,
   useGroup: useGroupPreview,
-  onGroupAction: () => {},
+  onGroupAction: async () => {},
   getDraft: async () => ({}),
   storeDraft: () => {},
   clearDraft: () => {},

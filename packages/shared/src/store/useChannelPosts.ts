@@ -17,7 +17,7 @@ import { useCurrentSession } from './session';
 import * as sync from './sync';
 import { SyncPriority } from './syncQueue';
 
-const postsLogger = createDevLogger('useChannelPosts', false);
+const postsLogger = createDevLogger('useChannelPosts', true);
 
 type UseChannelPostsPageParams = db.GetChannelPostsOptions;
 type PostQueryData = InfiniteData<db.Post[], unknown>;
@@ -55,7 +55,11 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     queryFn: async (ctx): Promise<db.Post[]> => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log('loading posts', queryOptions);
-      if (queryOptions.mode === 'newest' && !options.hasCachedNewest) {
+      if (
+        queryOptions &&
+        queryOptions.mode === 'newest' &&
+        !options.hasCachedNewest
+      ) {
         await sync.syncPosts(queryOptions, { priority: SyncPriority.High });
       }
       const cached = await db.getChannelPosts(queryOptions);
@@ -115,7 +119,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       const firstPageIsEmpty = !firstPage[0]?.id;
       if (
         firstPageIsEmpty ||
-        (firstPageParam.mode === 'newest' && options.hasCachedNewest)
+        (firstPageParam?.mode === 'newest' && options.hasCachedNewest)
       ) {
         return undefined;
       }

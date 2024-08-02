@@ -31,6 +31,7 @@ export function IconButton({
   } & ButtonProps
 >) {
   const theme = useTheme();
+  const iconColor = theme[color]?.get();
   return (
     <Button
       size={size}
@@ -46,7 +47,7 @@ export function IconButton({
       borderWidth="unset"
       {...rest}
     >
-      <Button.Icon color={theme[color]?.get()}>{children}</Button.Icon>
+      <Button.Icon color={iconColor}>{children}</Button.Icon>
     </Button>
   );
 }
