@@ -28,15 +28,14 @@ export function EditFavoriteGroupsScreenView(props: Props) {
   );
   const alphaSegmentedGroups = useAlphabeticallySegmentedGroups(titledGroups);
   const savedFavoriteGroups = useMemo(
-    () =>
-      contact?.pinnedGroups?.map((pg) => pg.group).filter((group) => !!group) ??
-      [],
+    () => contact?.pinnedGroups?.map((pg) => pg.group).filter(Boolean) ?? [],
     [contact]
   );
 
   // leverage local state for quicker optimistic updates
-  const [favoriteGroups, setFavoriteGroups] =
-    useState<db.Group[]>(savedFavoriteGroups);
+  const [favoriteGroups, setFavoriteGroups] = useState<db.Group[]>(
+    (savedFavoriteGroups as db.Group[]) ?? []
+  );
 
   const handleFavoriteGroupsChange = useCallback(
     (group: db.Group) => {
