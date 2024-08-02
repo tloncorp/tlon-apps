@@ -1,9 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo } from 'react';
-import { Use } from 'react-native-svg';
 
 import { useContact } from '../contexts';
-import { ScrollView, View, XStack, YStack } from '../core';
+import { ScrollView, SizableText, View, XStack, YStack } from '../core';
 import { ContactAvatar } from './Avatar';
 import { BioDisplay } from './BioDisplay';
 import { Button } from './Button';
@@ -29,7 +28,10 @@ export function UserProfileScreenView(props: Props) {
       <ScrollView flex={1}>
         <YStack marginTop="$2xl">
           <View marginHorizontal="$2xl" marginBottom="$3xl">
-            <UserInfoRow userId={props.userId} />
+            <UserInfoRow
+              userId={props.userId}
+              hasNickname={!!userContact?.nickname?.length}
+            />
           </View>
 
           <View marginHorizontal="$l" marginBottom="$xl">
@@ -37,24 +39,37 @@ export function UserProfileScreenView(props: Props) {
           </View>
 
           <YStack marginHorizontal="$l" gap="$l">
-            {hasBio && <BioDisplay bio={userContact?.bio ?? ''} />}
-            {favoriteGroups.length && (
+            {hasBio ? <BioDisplay bio={userContact?.bio ?? ''} /> : null}
+            {favoriteGroups.length ? (
               <FavoriteGroupsDisplay groups={favoriteGroups as db.Group[]} />
-            )}
+            ) : null}
           </YStack>
+          {!hasBio && !favoriteGroups.length ? (
+            <XStack justifyContent="center" marginTop={120}>
+              <SizableText color="$tertiaryText">
+                Nothing to see here...
+              </SizableText>
+            </XStack>
+          ) : null}
         </YStack>
       </ScrollView>
     </View>
   );
 }
 
-function UserInfoRow(props: { userId: string }) {
+function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
   return (
     <XStack alignItems="center">
       <ContactAvatar contactId={props.userId} size="$5xl" marginRight="$xl" />
       <YStack flexGrow={1}>
-        <ContactName userId={props.userId} showNickname size="$xl" />
-        <ContactName userId={props.userId} color="$secondaryText" />
+        {props.hasNickname ? (
+          <>
+            <ContactName userId={props.userId} showNickname size="$xl" />
+            <ContactName userId={props.userId} color="$secondaryText" />
+          </>
+        ) : (
+          <ContactName userId={props.userId} size="$xl" />
+        )}
       </YStack>
     </XStack>
   );
