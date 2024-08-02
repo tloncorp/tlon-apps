@@ -26,7 +26,7 @@ export interface ProfileUpdate {
   coverImage?: string;
 }
 export const updateCurrentUserProfile = async (update: ProfileUpdate) => {
-  const editedFields = [];
+  const editedFields: ub.ContactEditField[] = [];
   if (update.nickname !== undefined) {
     editedFields.push({ nickname: update.nickname });
   }
@@ -51,6 +51,24 @@ export const updateCurrentUserProfile = async (update: ProfileUpdate) => {
     app: 'contacts',
     mark: 'contact-action',
     json: action,
+  });
+};
+
+export const addCurrentUserPinnedGroup = async (groupId: string) => {
+  const update: ub.ContactEdit = { edit: [{ 'add-group': groupId }] };
+  return poke({
+    app: 'contacts',
+    mark: 'contact-action',
+    json: update,
+  });
+};
+
+export const removeCurrentUserPinnedGroup = async (groupId: string) => {
+  const update: ub.ContactEdit = { edit: [{ 'del-group': groupId }] };
+  return poke({
+    app: 'contacts',
+    mark: 'contact-action',
+    json: update,
   });
 };
 

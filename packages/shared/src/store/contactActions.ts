@@ -25,3 +25,29 @@ export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
     await db.updateContact({ id: currentUserId, ...startingValues });
   }
 }
+
+export async function addCurrentUserPinnedGroup(groupId: string) {
+  // Optimistic update
+  await db.addCurrentUserPinnedGroup({ groupId });
+
+  try {
+    await api.addCurrentUserPinnedGroup(groupId);
+  } catch (e) {
+    console.error('Error adding pinned group', e);
+    // Rollback the update
+    await db.removeCurrentUserPinnedGroup({ groupId });
+  }
+}
+
+export async function removeCurrentUserPinnedGroup(groupId: string) {
+  // Optimistic update
+  await db.removeCurrentUserPinnedGroup({ groupId });
+
+  try {
+    await api.removeCurrentUserPinnedGroup(groupId);
+  } catch (e) {
+    console.error('Error removing pinned group', e);
+    // Rollback the update
+    await db.addCurrentUserPinnedGroup({ groupId });
+  }
+}

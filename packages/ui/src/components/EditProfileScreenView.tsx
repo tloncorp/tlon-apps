@@ -12,11 +12,14 @@ import { EditablePofileImages } from './EditableProfileImages';
 import { FormTextInput } from './FormInput';
 import { GenericHeader } from './GenericHeader';
 import { SaveButton } from './GroupMetaScreenView';
+import { Icon } from './Icon';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
+import { ListItem } from './ListItem';
 
 interface Props {
   onGoBack: () => void;
   onSaveProfile: (update: api.ProfileUpdate) => void;
+  onEditFavoriteGroups: () => void;
   uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
   canUpload: boolean;
 }
@@ -113,6 +116,21 @@ export function EditProfileScreenView(props: Props) {
                   }}
                 />
               </FormTextInput>
+
+              <ListItem marginTop="$l" onPress={props.onEditFavoriteGroups}>
+                <ListItem.SystemIcon icon="Home" />
+                <ListItem.MainContent>
+                  <ListItem.Title>Favorite groups</ListItem.Title>
+                  <ListItem.Subtitle>
+                    {userContact?.pinnedGroups?.length ?? 0 > 0
+                      ? `${userContact?.pinnedGroups?.length} selected`
+                      : 'None selected'}
+                  </ListItem.Subtitle>
+                </ListItem.MainContent>
+                <ListItem.EndContent>
+                  <Icon type="ChevronRight" />
+                </ListItem.EndContent>
+              </ListItem>
             </YStack>
           </ScrollView>
         </KeyboardAvoidingView>

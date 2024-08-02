@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import React from 'react';
-import { getTokenValue, styled, useStyle } from 'tamagui';
+import { ColorTokens, getTokenValue, styled, useStyle } from 'tamagui';
 
 import { useContact } from '../contexts';
 import { useCalm } from '../contexts/calm';
@@ -165,9 +165,11 @@ export const ChannelTypeAvatar = React.memo(
 
 export const SystemIconAvatar = React.memo(function SystemIconAvatarComponent({
   icon,
+  color,
   ...props
 }: {
   icon: IconType;
+  color?: ColorTokens;
 } & ComponentProps<typeof AvatarFrame>) {
   return (
     <AvatarFrame
@@ -176,7 +178,7 @@ export const SystemIconAvatar = React.memo(function SystemIconAvatarComponent({
     >
       <Icon
         type={icon}
-        color={'$secondaryText'}
+        color={color ?? '$secondaryText'}
         width={'100%'}
         height={'100%'}
       />

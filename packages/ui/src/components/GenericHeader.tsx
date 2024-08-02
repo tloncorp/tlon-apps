@@ -35,7 +35,7 @@ export function GenericHeader({
           flex={1}
         >
           {goBack && (
-            <IconButton onPress={goBack}>
+            <IconButton onPress={goBack} backgroundColor="unset">
               <ChevronLeft />
             </IconButton>
           )}

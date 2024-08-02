@@ -2404,6 +2404,13 @@ export const getContact = createReadQuery(
     return ctx.db.query.contacts
       .findFirst({
         where: (contacts, { eq }) => eq(contacts.id, id),
+        with: {
+          pinnedGroups: {
+            with: {
+              group: true,
+            },
+          },
+        },
       })
       .then(returnNullIfUndefined);
   },
@@ -2419,6 +2426,30 @@ export const updateContact = createWriteQuery(
       .where(eq($contacts.id, contact.id));
   },
   ['contacts']
+);
+
+export const addCurrentUserPinnedGroup = createWriteQuery(
+  'addCurrentUserPinnedGroup',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    return ctx.db.insert($contactGroups).values({
+      contactId: currentUserId,
+      groupId,
+    });
+  },
+  ['contactGroups', 'contacts']
+);
+
+export const removeCurrentUserPinnedGroup = createWriteQuery(
+  'addCurrentUserPinnedGroup',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    return ctx.db.delete($contactGroups).values({
+      contactId: currentUserId,
+      groupId,
+    });
+  },
+  ['contactGroups', 'contacts']
 );
 
 export const insertContact = createWriteQuery(
