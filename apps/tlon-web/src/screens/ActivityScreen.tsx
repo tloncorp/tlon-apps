@@ -25,16 +25,23 @@ export function ActivityScreen() {
     };
   }, [allFetcher, mentionsFetcher, repliesFetcher]);
 
-  console.log('ActivityScreen', { bucketedActivity });
-
   const handleRefreshActivity = useCallback(async () => {
     return store.resetActivity();
   }, []);
 
   const handleGoToChannel = useCallback(
     (channel: db.Channel, selectedPostId?: string) => {
-      // props.navigation.navigate('Channel', { channel, selectedPostId });
-      navigate('/channel/' + channel.id + '/' + (selectedPostId ?? ''));
+      navigate('/group/' + channel.groupId + '/channel/' + channel.id);
+      if (selectedPostId) {
+        navigate(
+          '/group/' +
+            channel.groupId +
+            '/channel/' +
+            channel.id +
+            '/' +
+            selectedPostId
+        );
+      }
     },
     [navigate]
   );
@@ -44,8 +51,16 @@ export function ActivityScreen() {
   const handleGoToThread = useCallback(
     (post: db.Post) => {
       // TODO: we have no way to route to specific thread message rn
-      // props.navigation.navigate('Post', { post });
-      navigate('/post/' + post.id);
+      navigate(
+        '/group/' +
+          post.groupId +
+          '/channel/' +
+          post.channelId +
+          '/post/' +
+          post.authorId +
+          '/' +
+          post.id
+      );
     },
     [navigate]
   );

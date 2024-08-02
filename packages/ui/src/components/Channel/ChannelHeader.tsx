@@ -58,8 +58,6 @@ export function ChannelHeader({
     return <BaubleHeader channel={channel} group={group} />;
   }
 
-  console.log('ChannelHeader.tsx');
-
   return (
     <>
       <GenericHeader

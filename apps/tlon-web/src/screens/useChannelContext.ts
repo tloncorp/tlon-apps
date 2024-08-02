@@ -106,13 +106,14 @@ export const useChannelContext = ({
 
   const navigateToPost = useCallback(
     (post: db.Post) => {
-      // navigation.push('Post', { post });
       navigate(
         '/group/' +
           post.groupId +
           '/channel/' +
           post.channelId +
           '/post/' +
+          post.authorId +
+          '/' +
           post.id
       );
     },

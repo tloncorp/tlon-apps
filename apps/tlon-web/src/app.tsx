@@ -137,6 +137,7 @@ import { ActivityScreen } from './screens/ActivityScreen';
 import ChannelScreen from './screens/ChannelScreen';
 import ChatListScreen from './screens/ChatListScreen';
 import { GroupChannelsScreen } from './screens/GroupChannelsScreen';
+import PostScreen from './screens/PostScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import { useActivityFirehose } from './state/activity';
 import { useChannelsFirehose } from './state/channel/channel';
@@ -643,6 +644,10 @@ function NewAppRoutes() {
         element={<ChannelScreen />}
       />
       <Route path="/group/:ship/:name" element={<GroupChannelsScreen />} />
+      <Route
+        path="/group/:ship/:name/channel/:chType/:chShip/:chName/post/:authorId/:postId"
+        element={<PostScreen />}
+      />
     </Routes>
   );
 }
