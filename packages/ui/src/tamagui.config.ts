@@ -63,11 +63,15 @@ export const tokens = createTokens({
     l: 12,
     xl: 16,
     true: 16,
+    'xl.5': 20,
     '2xl': 24,
     '3xl': 32,
+    '3.5xl': 36,
     '4xl': 48,
+    '4.5xl': 56,
     '5xl': 64,
     '6xl': 72,
+    '7xl': 80,
     '9xl': 96, // TODO: worth leaving room between?
   },
   radius: {
@@ -250,7 +254,10 @@ export const systemFont = createFont({
     '3xl': 44,
   },
   lineHeight: {
+    '2xs': 12,
     xs: 16,
+    'xs.33': 18,
+    'xs.66': 20,
     s: 22,
     m: 24,
     true: 24,

@@ -1,8 +1,6 @@
 import type * as db from '@tloncorp/shared/dist/db';
-import { useMemo } from 'react';
 
 import * as utils from '../../utils';
-import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
 import { ListItem, type ListItemProps } from './ListItem';
 import { isMuted } from './isMuted';
@@ -19,27 +17,13 @@ export function ChannelListItem({
 } & ListItemProps<db.Channel>) {
   const unreadCount = model.unread?.count ?? 0;
   const title = utils.getChannelTitle(model);
-  const firstMemberId = model.members?.[0]?.contactId ?? '';
-  const memberCount = model.members?.length ?? 0;
 
-  const { subtitle, subtitleIcon } = useMemo(() => {
-    if (model.type === 'dm' || model.type === 'groupDm') {
-      return {
-        subtitle: [
-          firstMemberId,
-          memberCount > 2 && `and ${memberCount - 1} others`,
-        ]
-          .filter((v) => !!v)
-          .join(' '),
-        subtitleIcon: memberCount > 2 ? 'ChannelMultiDM' : 'ChannelDM',
-      } as const;
-    } else {
-      return {
-        subtitle: capitalize(model.type),
-        subtitleIcon: utils.getChannelTypeIcon(model.type),
-      } as const;
+  const multiLine = () => {
+    if (model.lastPost && model.lastPost.textContent) {
+      return model.lastPost.textContent.length > 32 ? true : false;
     }
-  }, [model, firstMemberId, memberCount]);
+    return false;
+  };
 
   return (
     <ListItem
@@ -49,6 +33,7 @@ export function ChannelListItem({
     >
       <ListItem.ChannelIcon
         model={model}
+        size="$4.5xl"
         useTypeIcon={useTypeIcon}
         opacity={isMuted(model) ? 0.2 : 1}
       />
@@ -56,18 +41,16 @@ export function ChannelListItem({
         <ListItem.Title color={isMuted(model) ? '$tertiaryText' : undefined}>
           {title}
         </ListItem.Title>
-        <ListItem.SubtitleWithIcon icon={subtitleIcon}>
-          {subtitle}
-        </ListItem.SubtitleWithIcon>
         {model.lastPost && (
           <ListItem.PostPreview
             post={model.lastPost}
+            multiline={multiLine()}
             showAuthor={model.type !== 'dm'}
           />
         )}
       </ListItem.MainContent>
 
-      <ListItem.EndContent>
+      <ListItem.EndContent alignTop={multiLine()}>
         {model.lastPost?.receivedAt ? (
           <ListItem.Time time={model.lastPost.receivedAt} />
         ) : null}

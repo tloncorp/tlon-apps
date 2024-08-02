@@ -27,7 +27,11 @@ export const GroupListItem = ({
       onPress={useBoundHandler(model, onPress)}
       onLongPress={useBoundHandler(model, onLongPress)}
     >
-      <ListItem.GroupIcon model={model} opacity={isMuted(model) ? 0.2 : 1} />
+      <ListItem.GroupIcon
+        model={model}
+        size="$4.5xl"
+        opacity={isMuted(model) ? 0.2 : 1}
+      />
       <ListItem.MainContent>
         <ListItem.Title color={isMuted(model) ? '$tertiaryText' : undefined}>
           {title}

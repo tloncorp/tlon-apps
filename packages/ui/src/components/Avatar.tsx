@@ -45,6 +45,11 @@ const AvatarFrame = styled(View, {
         width: '$4xl',
         borderRadius: '$s',
       },
+      '$4.5xl': {
+        height: '$4.5xl',
+        width: '$4.5xl',
+        borderRadius: '$s',
+      },
       $5xl: {
         height: '$5xl',
         width: '$5xl',
@@ -230,6 +235,7 @@ export const TextAvatar = React.memo(function TextAvatarComponent({
     $2xl: 14,
     $3xl: 16,
     $4xl: 16,
+    '$4.5xl': 18,
     $5xl: 24,
     $9xl: 32,
     // TODO: could be nice to implement some scaling logic? But also might be

@@ -29,6 +29,7 @@ export type ListItemProps<T> = BaseListItemProps<T> &
 
 export const ListItemFrame = styled(XStack, {
   name: 'ListItemFrame',
+  height: '$7xl',
   padding: '$l',
   borderRadius: '$xl',
   flexDirection: 'row',
@@ -53,8 +54,8 @@ export const ListItemFrame = styled(XStack, {
 
 const ListItemIconContainer = styled(View, {
   backgroundColor: '$secondaryBackground',
-  width: '$4xl',
-  height: '$4xl',
+  width: '$4.5xl',
+  height: '$4.5xl',
   borderRadius: '$s',
   overflow: 'hidden',
   flex: 0,
@@ -81,13 +82,16 @@ const ListItemSystemIcon = SystemIconAvatar;
 
 const ListItemMainContent = styled(YStack, {
   flex: 1,
-  justifyContent: 'space-evenly',
-  height: '$4xl',
+  height: '$4.5xl',
+  justifyContent: 'center',
 });
 
 const ListItemTitle = styled(SizableText, {
   color: '$primaryText',
+  size: '$m',
   numberOfLines: 1,
+  height: '$xl',
+  lineHeight: '$xs',
 });
 
 const ListItemSubtitleWithIcon = XStack.styleable<{ icon?: IconType }>(
@@ -109,15 +113,34 @@ const ListItemSubtitleIcon = styled(Icon, {
 });
 
 const ListItemSubtitle = styled(SizableText, {
-  numberOfLines: 1,
   size: '$s',
   color: '$tertiaryText',
+  variants: {
+    multiline: {
+      true: {
+        numberOfLines: 2,
+        height: '$3.5xl',
+        marginTop: '$xs',
+        lineHeight: '$xs.33',
+      },
+      false: {
+        numberOfLines: 1,
+        height: '$xl.5',
+        lineHeight: '$xs.66',
+      },
+    },
+  } as const,
+
+  defaultVariants: {
+    multiline: false,
+  },
 });
 
 export const ListItemTimeText = styled(SizableText, {
-  numberOfLines: 1,
   color: '$tertiaryText',
   size: '$s',
+  numberOfLines: 1,
+  height: '$xl',
   lineHeight: '$xs',
 });
 
@@ -197,12 +220,14 @@ const ListItemComponent = ({
 export const ListItemPostPreview = ({
   post,
   showAuthor = true,
+  multiline = false,
 }: {
   post: db.Post;
   showAuthor?: boolean;
+  multiline?: boolean;
 }) => {
   return (
-    <ListItemSubtitle>
+    <ListItemSubtitle multiline={multiline}>
       {showAuthor ? (
         <>
           <ContactName
@@ -210,6 +235,7 @@ export const ListItemPostPreview = ({
             showNickname
             color={'$tertiaryText'}
             size={'$s'}
+            lineHeight={multiline ? '$xs.33' : 'unset'}
           />
           {': '}
         </>
@@ -229,10 +255,21 @@ const Dragger = () => {
 
 const ListItemEndContent = styled(YStack, {
   flex: 0,
-  paddingTop: '$xs',
   gap: '$2xs',
-  justifyContent: 'center',
   alignItems: 'flex-end',
+  variants: {
+    alignTop: {
+      true: {
+        justifyContent: 'flex-start',
+      },
+      false: {
+        justifyContent: 'center',
+      },
+    },
+  } as const,
+  defaultVariants: {
+    alignTop: true,
+  },
 });
 
 export type ListItem = typeof ListItemComponent;
