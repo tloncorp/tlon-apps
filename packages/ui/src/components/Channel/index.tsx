@@ -64,6 +64,7 @@ export function Channel({
   goToImageViewer,
   goToPost,
   goToDm,
+  goToUserProfile,
   messageSender,
   onScrollEndReached,
   onScrollStartReached,
@@ -104,6 +105,7 @@ export function Channel({
   goToDm: (participants: string[]) => void;
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
+  goToUserProfile: (userId: string) => void;
   messageSender: (content: Story, channelId: string) => Promise<void>;
   uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
   onScrollEndReached?: () => void;
@@ -263,6 +265,7 @@ export function Channel({
                   onPressRef={handleRefPress}
                   onPressGroupRef={onPressGroupRef}
                   onPressGoToDm={goToDm}
+                  onGoToUserProfile={goToUserProfile}
                 >
                   <AttachmentProvider
                     canUpload={canUpload}

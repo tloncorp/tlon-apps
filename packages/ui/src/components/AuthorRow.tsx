@@ -3,6 +3,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { GestureResponderEvent } from 'react-native';
 
+import { useNavigation } from '../contexts';
 import { SizableText, View, XStack } from '../core';
 import { ContactAvatar } from './Avatar';
 import ContactName from './ContactName';
@@ -36,15 +37,17 @@ type AuthorRowProps = ComponentProps<typeof XStack> & {
 
 export default function AuthorRow({ onPress, ...props }: AuthorRowProps) {
   const [showProfile, setShowProfile] = useState(false);
+  const navContext = useNavigation();
 
   const handlePress = useCallback(
     (e: GestureResponderEvent) => {
       if (props.type !== 'block') {
-        setShowProfile(true);
+        // setShowProfile(true);
+        navContext.onGoToUserProfile(props.authorId);
         onPress?.(e);
       }
     },
-    [props.type, onPress]
+    [props.type, props.authorId, navContext, onPress]
   );
 
   return (

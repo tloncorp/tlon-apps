@@ -264,6 +264,13 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     [navigateToGroupSettings]
   );
 
+  const handleGoToUserProfile = useCallback(
+    (userId: string) => {
+      props.navigation.push('UserProfile', { userId });
+    },
+    [props.navigation]
+  );
+
   if (!channel) {
     return null;
   }
@@ -298,6 +305,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         goToChannels={handleChannelNavButtonPressed}
         goToSearch={navigateToSearch}
         goToDm={handleGoToDm}
+        goToUserProfile={handleGoToUserProfile}
         uploadAsset={store.uploadAsset}
         onScrollEndReached={loadOlder}
         onScrollStartReached={loadNewer}

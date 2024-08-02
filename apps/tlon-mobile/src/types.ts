@@ -52,6 +52,9 @@ export type RootStackParamList = {
   BlockedUsers: undefined;
   AppInfo: undefined;
   PushNotificationSettings: undefined;
+  UserProfile: {
+    userId: string;
+  };
   EditProfile: undefined;
   EditFavoriteGroups: undefined;
   WompWomp: undefined;

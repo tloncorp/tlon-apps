@@ -20,6 +20,7 @@ import { ManageAccountScreen } from '../screens/ManageAccountScreen';
 import PostScreen from '../screens/PostScreen';
 import { PushNotificationSettingsScreen } from '../screens/PushNotificationSettingsScreen';
 import { UserBugReportScreen } from '../screens/UserBugReportScreen';
+import UserProfileScreen from '../screens/UserProfileScreen';
 import type { RootStackParamList } from '../types';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { SettingsStack } from './SettingsStack';
@@ -89,6 +90,7 @@ export function RootStack() {
         name="PushNotificationSettings"
         component={PushNotificationSettingsScreen}
       />
+      <Root.Screen name="UserProfile" component={UserProfileScreen} />
       <Root.Screen name="EditProfile" component={EditProfileScreen} />
       <Root.Screen
         name="EditFavoriteGroups"
