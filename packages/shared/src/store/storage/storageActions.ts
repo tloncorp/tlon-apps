@@ -103,6 +103,7 @@ const performUpload = async (asset: ImagePickerAsset) => {
     await uploadFile(signedUrl, resizedAsset.uri, {
       'Content-Type': asset.mimeType ?? 'application/octet-stream',
       'Cache-Control': 'public, max-age=3600',
+      'x-amz-acl': 'public-read', // necessary for digital ocean spaces
     });
     return config.publicUrlBase
       ? new URL(fileKey, config.publicUrlBase).toString()
