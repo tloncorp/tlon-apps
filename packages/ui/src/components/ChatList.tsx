@@ -3,8 +3,16 @@ import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  LayoutChangeEvent,
   NativeScrollEvent,
   NativeSyntheticEvent,
   SectionList,
@@ -15,29 +23,29 @@ import {
   ViewToken,
 } from 'react-native';
 import Animated, {
-  Extrapolation,
-  interpolate,
-  useAnimatedScrollHandler,
+  Easing,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, View, YStack, getTokenValue, useStyle } from 'tamagui';
+import { Text, View, YStack, useStyle } from 'tamagui';
 
+import { interactionWithTiming } from '../utils/animation';
 import { Icon } from './Icon';
 import { Input } from './Input';
-import { SwipableChatListItem } from './ListItem';
-import { ChatListItem } from './ListItem/ChatListItem';
+import { ChatListItem, SwipableChatListItem } from './ListItem';
 import Pressable from './Pressable';
 import { SectionListHeader } from './SectionList';
 import { Tabs } from './Tabs';
 
-const DEBOUNCE_DELAY = 200;
-
 export type Chat = db.Channel | db.Group;
 
-const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
+export type TabName = 'all' | 'groups' | 'messages';
+
+type ChatListItemData = Chat;
+type ChatListSectionData = SectionListData<
+  Chat,
+  { title: string; data: ChatListItemData[] }
+>;
 
 export function ChatList({
   pinned,
@@ -53,113 +61,18 @@ export function ChatList({
   onPressItem?: (chat: Chat) => void;
   onLongPressItem?: (chat: Chat) => void;
   onSectionChange?: (title: string) => void;
-  activeTab: 'all' | 'groups' | 'messages';
-  setActiveTab: (tab: 'all' | 'groups' | 'messages') => void;
+  activeTab: TabName;
+  setActiveTab: (tab: TabName) => void;
   showFilters: boolean;
 }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const scrollY = useSharedValue(0);
-  const filterVisible = useSharedValue(false);
-  const filteredData = useMemo(() => {
-    const filteredPinned = pinned.filter((c) => {
-      if (logic.isGroupChannelId(c.id)) {
-        return activeTab === 'all' || activeTab === 'groups';
-      }
-      return activeTab === 'all' || activeTab === 'messages';
-    });
-
-    const filteredUnpinned = unpinned.filter((c) => {
-      if (logic.isGroupChannelId(c.id)) {
-        return activeTab === 'all' || activeTab === 'groups';
-      }
-      return activeTab === 'all' || activeTab === 'messages';
-    });
-
-    return {
-      filteredPinned,
-      filteredUnpinned,
-    };
-  }, [activeTab, pinned, unpinned]);
-
-  const sectionedData = useMemo(() => {
-    const { filteredPinned, filteredUnpinned } = filteredData;
-    if (filteredPinned.length === 0) {
-      return [{ title: 'All', data: [...pendingChats, ...filteredUnpinned] }];
-    }
-
-    return [
-      { title: 'Pinned', data: filteredPinned },
-      { title: 'All', data: [...pendingChats, ...filteredUnpinned] },
-    ];
-  }, [filteredData, pendingChats]);
-
-  const getFuseOptions = useCallback(() => {
-    return {
-      keys: [
-        'id',
-        'group.title',
-        'contact.nickname',
-        'members.contact.nickname',
-        'members.contact.id',
-      ],
-      threshold: 0.3,
-    };
-  }, []);
-
-  const fuse = useMemo(() => {
-    const allData = [...pinned, ...unpinned];
-    return new Fuse(allData, getFuseOptions());
-  }, [pinned, unpinned, getFuseOptions]);
-
-  const performSearch = useCallback(
-    (query: string) => {
-      if (query.trim() === '') {
-        return [];
-      }
-      return fuse.search(query).map((result) => result.item);
-    },
-    [fuse]
-  );
-
-  const debouncedSearch = useMemo(
-    () =>
-      debounce((query: string, callback: (results: Chat[]) => void) => {
-        const results = performSearch(query);
-        callback(results);
-      }, DEBOUNCE_DELAY),
-    [performSearch]
-  );
-
-  const [searchResults, setSearchResults] = useState<Chat[]>([]);
-
-  useEffect(() => {
-    if (searchQuery.trim() !== '') {
-      debouncedSearch(searchQuery, setSearchResults);
-    } else {
-      setSearchResults([]);
-    }
-    return () => {
-      debouncedSearch.cancel();
-    };
-  }, [searchQuery, debouncedSearch]);
-
-  const filteredSearchResults = useMemo(() => {
-    return searchResults.filter((chat) => {
-      if (logic.isGroupChannelId(chat.id)) {
-        return activeTab === 'all' || activeTab === 'groups';
-      }
-      return activeTab === 'all' || activeTab === 'messages';
-    });
-  }, [searchResults, activeTab]);
-
-  const displayData = useMemo(() => {
-    if (searchQuery.trim() === '') {
-      return sectionedData;
-    }
-    return filteredSearchResults.length > 0
-      ? [{ title: 'Search', data: filteredSearchResults }]
-      : [{ title: 'Search', data: [] }];
-  }, [searchQuery, sectionedData, filteredSearchResults]);
+  const displayData = useFilteredChats({
+    pinned,
+    unpinned,
+    pending: pendingChats,
+    searchQuery,
+    activeTab,
+  });
 
   const contentContainerStyle = useStyle(
     {
@@ -171,7 +84,9 @@ export function ChatList({
   ) as StyleProp<ViewStyle>;
 
   const renderItem = useCallback(
-    ({ item }: SectionListRenderItemInfo<unknown, unknown>) => {
+    ({
+      item,
+    }: SectionListRenderItemInfo<ChatListItemData, ChatListSectionData>) => {
       const itemModel = item as Chat;
 
       if (logic.isChannel(itemModel)) {
@@ -196,22 +111,15 @@ export function ChatList({
   );
 
   const renderSectionHeader = useCallback(
-    ({ section }: { section: SectionListData<unknown, unknown> }) => {
-      const sectionItem = section as SectionListData<Chat, { title: string }>;
+    ({ section }: { section: ChatListSectionData }) => {
       return (
         <SectionListHeader>
-          <SectionListHeader.Text>{sectionItem.title}</SectionListHeader.Text>
+          <SectionListHeader.Text>{section.title}</SectionListHeader.Text>
         </SectionListHeader>
       );
     },
     []
   );
-
-  const viewabilityConfig = {
-    minimumViewTime: 0,
-    itemVisiblePercentThreshold: 0,
-    waitForInteraction: false,
-  };
 
   const isAtTopRef = useRef(true);
 
@@ -242,164 +150,273 @@ export function ChatList({
     }
   ).current;
 
-  const FILTER_HEIGHT =
-    getTokenValue('$6xl', 'size') + getTokenValue('$4xl', 'size');
-  const HEADER_HEIGHT = getTokenValue('$4xl', 'size');
-  const SNAP_THRESHOLD = FILTER_HEIGHT / 2;
+  const handlePressTryAll = useCallback(() => {
+    setActiveTab('all');
+  }, [setActiveTab]);
 
-  const { top } = useSafeAreaInsets();
-  const filterStyle = useAnimatedStyle(() => {
-    const translateY = interpolate(
-      scrollY.value,
-      [-FILTER_HEIGHT, 0],
-      [0, -FILTER_HEIGHT],
-      Extrapolation.CLAMP
-    );
-
-    return {
-      height: FILTER_HEIGHT,
-      transform: [{ translateY: filterVisible.value ? 0 : translateY }],
-      position: 'absolute',
-      top: top + HEADER_HEIGHT,
-      left: 0,
-      right: 0,
-      zIndex: 40,
-    };
-  });
-
-  const listStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: filterVisible.value ? FILTER_HEIGHT : 0 }],
-    };
-  });
-
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      if (!filterVisible.value) {
-        scrollY.value = event.contentOffset.y;
-      }
-    },
-    onEndDrag: (event) => {
-      if (event.contentOffset.y < -SNAP_THRESHOLD && !filterVisible.value) {
-        filterVisible.value = true;
-        scrollY.value = withSpring(-FILTER_HEIGHT);
-      } else if (
-        event.contentOffset.y > -SNAP_THRESHOLD &&
-        filterVisible.value
-      ) {
-        filterVisible.value = false;
-        scrollY.value = withSpring(0);
-      }
-    },
-  });
-
-  useEffect(() => {
-    if (showFilters) {
-      filterVisible.value = true;
-      scrollY.value = withSpring(-FILTER_HEIGHT);
-    } else {
-      filterVisible.value = false;
-      scrollY.value = withSpring(0);
-    }
-  }, [showFilters, filterVisible, scrollY, FILTER_HEIGHT]);
-
-  const getChannelKey = useCallback((item: unknown) => {
-    const chatItem = item as Chat;
-
-    if (!chatItem || typeof chatItem !== 'object' || !chatItem.id) {
-      return 'invalid-item';
-    }
-
-    if (logic.isGroup(chatItem)) {
-      return chatItem.id;
-    }
-    return `${chatItem.id}-${chatItem.pin?.itemId ?? ''}`;
+  const handlePressClear = useCallback(() => {
+    setSearchQuery('');
   }, []);
 
   return (
     <>
-      <Animated.View style={filterStyle}>
-        <YStack backgroundColor="$background" gap="$m">
-          <View paddingHorizontal="$l">
-            <Input>
-              <Input.Icon>
-                <Icon type="Search" />
-              </Input.Icon>
-              <Input.Area
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Find by name"
-                spellCheck={false}
-                autoCorrect={false}
-                autoCapitalize="none"
-              />
-            </Input>
-          </View>
-          <Tabs>
-            <Tabs.Tab
-              name="all"
-              activeTab={activeTab}
-              onTabPress={() => setActiveTab('all')}
-            >
-              <Tabs.Title active={activeTab === 'all'}>All</Tabs.Title>
-            </Tabs.Tab>
-            <Tabs.Tab
-              name="groups"
-              activeTab={activeTab}
-              onTabPress={() => setActiveTab('groups')}
-            >
-              <Tabs.Title active={activeTab === 'groups'}>Groups</Tabs.Title>
-            </Tabs.Tab>
-            <Tabs.Tab
-              name="messages"
-              activeTab={activeTab}
-              onTabPress={() => setActiveTab('messages')}
-            >
-              <Tabs.Title active={activeTab === 'messages'}>
-                Messages
-              </Tabs.Title>
-            </Tabs.Tab>
-          </Tabs>
-        </YStack>
-      </Animated.View>
-      <Animated.View style={listStyle}>
-        {searchQuery !== '' && filteredSearchResults.length === 0 ? (
-          <YStack
-            gap="$l"
-            alignItems="center"
-            justifyContent="center"
-            paddingHorizontal="$l"
-            paddingVertical="$m"
-          >
-            <Text>No results found.</Text>
-            {activeTab !== 'all' && (
-              <Pressable onPress={() => setActiveTab('all')}>
-                <Text textDecorationLine="underline">Try in All?</Text>
-              </Pressable>
-            )}
-            <Pressable onPress={() => setSearchQuery('')}>
-              <Text color="$positiveActionText">Clear search</Text>
-            </Pressable>
-          </YStack>
-        ) : (
-          <AnimatedSectionList
-            sections={displayData}
-            contentContainerStyle={contentContainerStyle}
-            keyExtractor={getChannelKey}
-            stickySectionHeadersEnabled={false}
-            renderItem={renderItem}
-            maxToRenderPerBatch={6}
-            initialNumToRender={11}
-            windowSize={2}
-            viewabilityConfig={viewabilityConfig}
-            renderSectionHeader={renderSectionHeader}
-            onViewableItemsChanged={onViewableItemsChanged}
-            onScroll={scrollHandler}
-            onMomentumScrollEnd={activeTab === 'all' ? handleScroll : undefined}
-            scrollEventThrottle={16}
-          />
-        )}
-      </Animated.View>
+      <ChatListFilters
+        query={searchQuery}
+        onQueryChange={setSearchQuery}
+        activeTab={activeTab}
+        onPressTab={setActiveTab}
+        isOpen={showFilters}
+      />
+      {searchQuery !== '' && !displayData[0]?.data.length ? (
+        <SearchResultsEmpty
+          activeTab={activeTab}
+          onPressClear={handlePressClear}
+          onPressTryAll={handlePressTryAll}
+        />
+      ) : (
+        <SectionList
+          sections={displayData}
+          contentContainerStyle={contentContainerStyle}
+          keyExtractor={getChatKey}
+          stickySectionHeadersEnabled={false}
+          renderItem={renderItem}
+          maxToRenderPerBatch={6}
+          initialNumToRender={11}
+          windowSize={2}
+          viewabilityConfig={{
+            minimumViewTime: 0,
+            itemVisiblePercentThreshold: 0,
+            waitForInteraction: false,
+          }}
+          renderSectionHeader={renderSectionHeader}
+          onViewableItemsChanged={onViewableItemsChanged}
+          onMomentumScrollEnd={activeTab === 'all' ? handleScroll : undefined}
+        />
+      )}
     </>
+  );
+}
+
+function getChatKey(item: unknown) {
+  const chatItem = item as Chat;
+
+  if (!chatItem || typeof chatItem !== 'object' || !chatItem.id) {
+    return 'invalid-item';
+  }
+
+  if (logic.isGroup(chatItem)) {
+    return chatItem.id;
+  }
+  return `${chatItem.id}-${chatItem.pin?.itemId ?? ''}`;
+}
+
+function ChatListFilters({
+  activeTab,
+  onPressTab,
+  isOpen,
+  query,
+  onQueryChange,
+}: {
+  query: string;
+  onQueryChange: (query: string) => void;
+  isOpen: boolean;
+  activeTab: TabName;
+  onPressTab: (tab: TabName) => void;
+}) {
+  const [contentHeight, setContentHeight] = useState(0);
+
+  const openProgress = useSharedValue(isOpen ? 1 : 0);
+
+  useEffect(() => {
+    if (isOpen) {
+      openProgress.value = interactionWithTiming(1, {
+        easing: Easing.inOut(Easing.quad),
+        duration: 200,
+      });
+    } else {
+      openProgress.value = interactionWithTiming(0, {
+        easing: Easing.inOut(Easing.quad),
+        duration: 200,
+      });
+    }
+  }, [isOpen, openProgress]);
+
+  const containerStyle = useAnimatedStyle(() => {
+    return {
+      overflow: 'hidden',
+      height: contentHeight * openProgress.value,
+      opacity: openProgress.value,
+    };
+  });
+
+  const handleContentLayout = useCallback((e: LayoutChangeEvent) => {
+    setContentHeight(e.nativeEvent.layout.height);
+  }, []);
+
+  return (
+    <Animated.View style={containerStyle}>
+      <YStack
+        onLayout={handleContentLayout}
+        flexShrink={0}
+        backgroundColor="$background"
+        gap="$m"
+        position="absolute"
+        top={0}
+        left={0}
+        right={0}
+      >
+        <View paddingHorizontal="$l">
+          <Input>
+            <Input.Icon>
+              <Icon type="Search" />
+            </Input.Icon>
+            <Input.Area
+              value={query}
+              onChangeText={onQueryChange}
+              placeholder="Find by name"
+              spellCheck={false}
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+          </Input>
+        </View>
+        <Tabs>
+          <Tabs.Tab name="all" activeTab={activeTab} onTabPress={onPressTab}>
+            <Tabs.Title active={activeTab === 'all'}>All</Tabs.Title>
+          </Tabs.Tab>
+          <Tabs.Tab name="groups" activeTab={activeTab} onTabPress={onPressTab}>
+            <Tabs.Title active={activeTab === 'groups'}>Groups</Tabs.Title>
+          </Tabs.Tab>
+          <Tabs.Tab
+            name="messages"
+            activeTab={activeTab}
+            onTabPress={onPressTab}
+          >
+            <Tabs.Title active={activeTab === 'messages'}>Messages</Tabs.Title>
+          </Tabs.Tab>
+        </Tabs>
+      </YStack>
+    </Animated.View>
+  );
+}
+
+function useFilteredChats({
+  pinned,
+  unpinned,
+  pending,
+  searchQuery,
+  activeTab,
+}: {
+  pinned: Chat[];
+  unpinned: Chat[];
+  pending: Chat[];
+  searchQuery: string;
+  activeTab: TabName;
+}) {
+  const performSearch = useChatSearch({ pinned, unpinned });
+  const debouncedQuery = useDebouncedValue(searchQuery, 200);
+  const searchResults = useMemo(
+    () => performSearch(debouncedQuery),
+    [debouncedQuery, performSearch]
+  );
+
+  return useMemo(() => {
+    const isSearching = searchQuery.trim() !== '';
+    if (!isSearching) {
+      const pinnedSection = {
+        title: 'Pinned',
+        data: filterChats(pinned, activeTab),
+      };
+      const allSection = {
+        title: 'All',
+        data: [...pending, ...filterChats(unpinned, activeTab)],
+      };
+      return pinnedSection.data.length
+        ? [pinnedSection, allSection]
+        : [allSection];
+    } else {
+      return [{ title: 'Search', data: filterChats(searchResults, activeTab) }];
+    }
+  }, [activeTab, pending, searchQuery, searchResults, unpinned, pinned]);
+}
+
+function filterChats(chats: Chat[], activeTab: TabName) {
+  if (activeTab === 'all') return chats;
+  return chats.filter((chat) => {
+    const isGroupChannel = logic.isGroupChannelId(chat.id);
+    return activeTab === 'groups' ? isGroupChannel : !isGroupChannel;
+  });
+}
+
+function useChatSearch({
+  pinned,
+  unpinned,
+}: {
+  pinned: Chat[];
+  unpinned: Chat[];
+}) {
+  const fuse = useMemo(() => {
+    const allData = [...pinned, ...unpinned];
+    return new Fuse(allData, {
+      keys: [
+        'id',
+        'group.title',
+        'contact.nickname',
+        'members.contact.nickname',
+        'members.contact.id',
+      ],
+      threshold: 0.3,
+    });
+  }, [pinned, unpinned]);
+
+  const performSearch = useCallback(
+    (query: string) => {
+      return fuse.search(query).map((result) => result.item);
+    },
+    [fuse]
+  );
+
+  return performSearch;
+}
+
+function useDebouncedValue<T>(input: T, delay: number) {
+  const [value, setValue] = useState<T>(input);
+  const debouncedSetValue = useMemo(
+    () => debounce(setValue, delay, { leading: true }),
+    [delay]
+  );
+  useLayoutEffect(() => {
+    debouncedSetValue(input);
+  }, [debouncedSetValue, input]);
+  return value;
+}
+
+function SearchResultsEmpty({
+  activeTab,
+  onPressClear,
+  onPressTryAll,
+}: {
+  activeTab: TabName;
+  onPressTryAll: () => void;
+  onPressClear: () => void;
+}) {
+  return (
+    <YStack
+      gap="$l"
+      alignItems="center"
+      justifyContent="center"
+      paddingHorizontal="$l"
+      paddingVertical="$m"
+    >
+      <Text>No results found.</Text>
+      {activeTab !== 'all' && (
+        <Pressable onPress={onPressTryAll}>
+          <Text textDecorationLine="underline">Try in All?</Text>
+        </Pressable>
+      )}
+      <Pressable onPress={onPressClear}>
+        <Text color="$positiveActionText">Clear search</Text>
+      </Pressable>
+    </YStack>
   );
 }
