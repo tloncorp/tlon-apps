@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { styled, withStaticProperties } from 'tamagui';
+import { SizableText, XStack } from 'tamagui';
 
-import { SizableText, XStack } from '../core';
 import Pressable from './Pressable';
 
 const TabsWrapper = styled(XStack, {

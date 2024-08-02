@@ -1,10 +1,11 @@
 import { ImageLoadEventData } from 'expo-image';
 import { useCallback, useState } from 'react';
+import { ScrollView, Spinner, View } from 'tamagui';
 
 import { Attachment, useAttachmentContext } from '../../contexts/attachment';
-import { Image, ScrollView, Spinner, View } from '../../core';
 import { ContentReferenceLoader } from '../ContentReference';
 import { Icon } from '../Icon';
+import { Image } from '../Image';
 
 export const AttachmentPreviewList = () => {
   const { attachments } = useAttachmentContext();

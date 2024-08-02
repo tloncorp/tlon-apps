@@ -49,13 +49,13 @@ import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebViewMessageEvent } from 'react-native-webview';
 import { YStack, getToken, useWindowDimensions } from 'tamagui';
+import { XStack } from 'tamagui';
 
 import {
   Attachment,
   UploadedImageAttachment,
   useAttachmentContext,
 } from '../../contexts/attachment';
-import { XStack } from '../../core';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 

@@ -3,8 +3,8 @@ import { useCallback, useMemo } from 'react';
 import React from 'react';
 import { FlatList, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SizableText, Stack, View, XStack, YStack } from 'tamagui';
 
-import { SizableText, Stack, View, XStack, YStack } from '../../core';
 import { ChatMessage } from '../ChatMessage';
 import { SearchStatus } from './SearchStatus';
 import { SearchState } from './types';

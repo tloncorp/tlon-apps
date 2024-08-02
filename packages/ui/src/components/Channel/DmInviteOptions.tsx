@@ -1,8 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback } from 'react';
+import { YStack } from 'tamagui';
 
-import { YStack } from '../../core';
 import { Button } from '../Button';
 
 export function DmInviteOptions({

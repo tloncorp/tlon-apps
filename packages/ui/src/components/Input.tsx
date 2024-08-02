@@ -10,8 +10,7 @@ import {
   styled,
   withStaticProperties,
 } from 'tamagui';
-
-import { View } from '../core';
+import { View } from 'tamagui';
 
 type InputSize = '$s' | '$m' | '$l';
 

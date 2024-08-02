@@ -6,8 +6,8 @@ import {
   Platform,
   TouchableOpacity,
 } from 'react-native';
+import { View } from 'tamagui';
 
-import { View } from '../../core';
 import { Icon } from '../Icon';
 import { EditLinkBar } from './EditLinkBar';
 import {

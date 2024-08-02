@@ -2,8 +2,8 @@ import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps, ReactElement, useMemo } from 'react';
 import { styled, withStaticProperties } from 'tamagui';
+import { SizableText, Stack, View, XStack, YStack } from 'tamagui';
 
-import { SizableText, Stack, View, XStack, YStack } from '../../core';
 import { numberWithMax } from '../../utils';
 import {
   ChannelAvatar,

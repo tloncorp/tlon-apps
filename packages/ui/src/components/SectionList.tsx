@@ -8,8 +8,7 @@ import {
   SectionListRenderItemInfo,
 } from 'react-native';
 import { View, styled, withStaticProperties } from 'tamagui';
-
-import { SizableText } from '../core';
+import { SizableText } from 'tamagui';
 
 const SectionListHeaderFrame = styled(View, {
   paddingHorizontal: '$l',

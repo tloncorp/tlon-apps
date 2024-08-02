@@ -2,9 +2,9 @@ import * as db from '@tloncorp/shared/dist/db';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { View, YStack } from 'tamagui';
 
 import { AttachmentProvider } from '../contexts/attachment';
-import { View, YStack } from '../core';
 import { Button } from './Button';
 import { DeleteSheet } from './DeleteSheet';
 import { EditablePofileImages } from './EditableProfileImages';

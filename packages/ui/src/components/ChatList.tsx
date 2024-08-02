@@ -23,12 +23,12 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getTokenValue } from 'tamagui';
+import { Text, View, YStack, getTokenValue, useStyle } from 'tamagui';
 
-import { Text, View, YStack, useStyle } from '../core';
 import { Icon } from './Icon';
 import { Input } from './Input';
-import { ChatListItem, SwipableChatListItem } from './ListItem';
+import { SwipableChatListItem } from './ListItem';
+import { ChatListItem } from './ListItem/ChatListItem';
 import Pressable from './Pressable';
 import { SectionListHeader } from './SectionList';
 import { Tabs } from './Tabs';
@@ -173,20 +173,24 @@ export function ChatList({
   const renderItem = useCallback(
     ({ item }: SectionListRenderItemInfo<unknown, unknown>) => {
       const itemModel = item as Chat;
-      const baseListItem = (
-        <ChatListItem
-          model={itemModel}
-          onPress={onPressItem}
-          onLongPress={onLongPressItem}
-        />
-      );
-      return logic.isChannel(itemModel) ? (
-        <SwipableChatListItem model={itemModel}>
-          {baseListItem}
-        </SwipableChatListItem>
-      ) : (
-        baseListItem
-      );
+
+      if (logic.isChannel(itemModel)) {
+        return (
+          <SwipableChatListItem
+            model={itemModel}
+            onPress={onPressItem}
+            onLongPress={onLongPressItem}
+          />
+        );
+      } else {
+        return (
+          <ChatListItem
+            model={itemModel}
+            onPress={onPressItem}
+            onLongPress={onLongPressItem}
+          />
+        );
+      }
     },
     [onPressItem, onLongPressItem]
   );

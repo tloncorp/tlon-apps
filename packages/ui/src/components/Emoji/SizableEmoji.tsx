@@ -1,6 +1,6 @@
 import { FontSizeTokens, SizableTextProps, getFontSize } from 'tamagui';
+import { SizableText } from 'tamagui';
 
-import { SizableText } from '../../core';
 import { getNativeEmoji } from './data';
 
 // unclear what this should be (or how it should be calculated), but seems

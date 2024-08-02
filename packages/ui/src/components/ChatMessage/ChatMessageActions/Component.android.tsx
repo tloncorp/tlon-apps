@@ -4,8 +4,8 @@ import { MotiView } from 'moti';
 import { RefObject, useEffect, useState } from 'react';
 import { Dimensions, LayoutChangeEvent, View as RNView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, YStack } from 'tamagui';
 
-import { View, YStack } from '../../../core';
 import { EmojiToolbar } from './EmojiToolbar';
 import MessageActions from './MessageActions';
 import { MessageContainer } from './MessageContainer';

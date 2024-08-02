@@ -1,7 +1,7 @@
 import { AVPlaybackStatus, Video as ExpoVideo, ResizeMode } from 'expo-av';
 import { useEffect, useRef, useState } from 'react';
+import { Text } from 'tamagui';
 
-import { Text } from '../../core';
 import { Icon } from '../Icon';
 import { Embed } from './Embed';
 

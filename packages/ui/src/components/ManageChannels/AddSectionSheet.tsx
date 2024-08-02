@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useForm } from 'react-hook-form';
+import { YStack } from 'tamagui';
 
-import { YStack } from '../../core';
 import { ActionSheet } from '../ActionSheet';
 import { Button } from '../Button';
 import { FormInput } from '../FormInput';

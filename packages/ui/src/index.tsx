@@ -59,7 +59,40 @@ export * from './components/TamaguiProvider';
 export * from './components/UrbitSigil';
 export * from './components/View';
 export * from './components/WelcomeSheet';
+export * from './components/Modal';
 export * from './contexts';
 export * from './tamagui.config';
 export * from './types';
 export * from './utils';
+
+export {
+  Circle,
+  useTheme,
+  useStyle,
+  View,
+  isWeb,
+  ZStack,
+  YStack,
+  XStack,
+  Stack,
+  setupDev,
+  ScrollView,
+  YGroup,
+  SizableText,
+  Spinner,
+  TextArea,
+  Text,
+  Dialog,
+  Theme,
+} from 'tamagui';
+
+export { LinearGradient } from 'tamagui/linear-gradient';
+
+export type {
+  ViewProps,
+  SizeTokens,
+  FontSizeTokens,
+  ColorTokens,
+  ThemeTokens,
+  RadiusTokens,
+} from 'tamagui';

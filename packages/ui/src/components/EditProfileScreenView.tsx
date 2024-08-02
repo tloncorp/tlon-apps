@@ -4,10 +4,10 @@ import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
+import { ScrollView, View, YStack } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts';
 import { AttachmentProvider } from '../contexts/attachment';
-import { ScrollView, View, YStack } from '../core';
 import { EditablePofileImages } from './EditableProfileImages';
 import { FormTextInput } from './FormInput';
 import { GenericHeader } from './GenericHeader';
