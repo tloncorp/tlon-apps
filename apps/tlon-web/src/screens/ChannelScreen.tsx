@@ -14,7 +14,7 @@ import {
   INITIAL_POSTS_PER_PAGE,
 } from '@tloncorp/ui';
 import React, { useCallback, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 
 import useFocusEffect from '@/hooks/useFocusEffect';
 
@@ -22,9 +22,11 @@ import { useChannelContext } from './useChannelContext';
 
 export default function ChannelScreen() {
   const { ship, name, chShip, chType, chName, postId } = useParams();
+  const location = useLocation();
+  const isDm = location.pathname.includes('/dm/');
   const navigate = useNavigate();
   const groupId = `${ship}/${name}`;
-  const channelId = `${chType}/${chShip}/${chName}`;
+  const channelId = isDm ? chShip : `${chType}/${chShip}/${chName}`;
   const selectedPostId = postId;
   // const { data: groupData } = store.useGroup({ id: groupId });
   // const { data: channel } = store.useChannel({ id: channelId });

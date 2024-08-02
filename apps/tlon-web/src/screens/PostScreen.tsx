@@ -3,13 +3,15 @@ import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { PostScreenView } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 
 import { useChannelContext } from './useChannelContext';
 
 export default function PostScreen() {
   const { chShip, chType, chName, authorId, postId } = useParams();
-  const channelId = `${chType}/${chShip}/${chName}`;
+  const location = useLocation();
+  const isDm = location.pathname.includes('/dm/');
+  const channelId = isDm ? chShip : `${chType}/${chShip}/${chName}`;
   const navigate = useNavigate();
 
   const {

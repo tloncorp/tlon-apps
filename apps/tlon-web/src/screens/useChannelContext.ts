@@ -1,3 +1,4 @@
+import { isGroupChannelId } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
@@ -106,16 +107,20 @@ export const useChannelContext = ({
 
   const navigateToPost = useCallback(
     (post: db.Post) => {
-      navigate(
-        '/group/' +
-          post.groupId +
-          '/channel/' +
-          post.channelId +
-          '/post/' +
-          post.authorId +
-          '/' +
-          post.id
-      );
+      isGroupChannelId(post.channelId)
+        ? navigate(
+            '/group/' +
+              post.groupId +
+              '/channel/' +
+              post.channelId +
+              '/post/' +
+              post.authorId +
+              '/' +
+              post.id
+          )
+        : navigate(
+            '/dm/' + post.channelId + '/post/' + post.authorId + '/' + post.id
+          );
     },
     [navigate]
   );

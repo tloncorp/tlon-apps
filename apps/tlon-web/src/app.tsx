@@ -643,9 +643,14 @@ function NewAppRoutes() {
         path="/group/:ship/:name/channel/:chType/:chShip/:chName/:postId?"
         element={<ChannelScreen />}
       />
+      <Route path="/dm/:chShip" element={<ChannelScreen />} />
       <Route path="/group/:ship/:name" element={<GroupChannelsScreen />} />
       <Route
         path="/group/:ship/:name/channel/:chType/:chShip/:chName/post/:authorId/:postId"
+        element={<PostScreen />}
+      />
+      <Route
+        path="/dm/:chShip/post/:authorId/:postId"
         element={<PostScreen />}
       />
     </Routes>
