@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
-import { useContact } from '../contexts';
+import { useContact, useCurrentUserId, useNavigation } from '../contexts';
 import { ScrollView, SizableText, View, XStack, YStack } from '../core';
 import { ContactAvatar } from './Avatar';
 import { BioDisplay } from './BioDisplay';
@@ -16,6 +16,7 @@ interface Props {
 }
 
 export function UserProfileScreenView(props: Props) {
+  const currentUserId = useCurrentUserId();
   const userContact = useContact(props.userId);
   const hasBio = !!userContact?.bio?.length;
   const favoriteGroups = useMemo(() => {
@@ -34,9 +35,11 @@ export function UserProfileScreenView(props: Props) {
             />
           </View>
 
-          <View marginHorizontal="$l" marginBottom="$xl">
-            <ProfileButtons />
-          </View>
+          {currentUserId !== props.userId ? (
+            <View marginHorizontal="$l" marginBottom="$xl">
+              <ProfileButtons userId={props.userId} />
+            </View>
+          ) : null}
 
           <YStack marginHorizontal="$l" gap="$l">
             {hasBio ? <BioDisplay bio={userContact?.bio ?? ''} /> : null}
@@ -75,24 +78,29 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
   );
 }
 
-function ProfileButtons() {
-  // TODO: implement dynamically, no op for now
+function ProfileButtons(props: { userId: string }) {
+  const navContext = useNavigation();
+  const handleMessageUser = useCallback(() => {
+    navContext.onPressGoToDm?.([props.userId]);
+  }, [navContext, props.userId]);
+
   return (
     <XStack gap="$m">
-      <ProfileButton title="Message" />
-      <ProfileButton title="Add pal" />
+      <ProfileButton title="Message" onPress={handleMessageUser} />
+      {/* <ProfileButton title="Add pal" onPress={() => {}} /> */}
     </XStack>
   );
 }
 
-function ProfileButton(props: { title: string }) {
+function ProfileButton(props: { title: string; onPress: () => void }) {
   return (
     <Button
-      borderWidth={0}
+      // borderWidth={0}
       flexGrow={1}
       paddingVertical={14} // that extra 2px tho
       paddingHorizontal="$2xl"
       borderRadius="$xl"
+      onPress={props.onPress}
     >
       <Button.Text size="$l">{props.title}</Button.Text>
     </Button>

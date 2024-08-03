@@ -17,7 +17,7 @@ import { useCurrentSession } from './session';
 import * as sync from './sync';
 import { SyncPriority } from './syncQueue';
 
-const postsLogger = createDevLogger('useChannelPosts', false);
+const postsLogger = createDevLogger('useChannelPosts', true);
 
 type UseChannelPostsPageParams = db.GetChannelPostsOptions;
 type PostQueryData = InfiniteData<db.Post[], unknown>;
@@ -25,6 +25,7 @@ type SubscriptionPost = [db.Post, string | undefined];
 
 type UseChanelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
+  fetchingEnabled: boolean;
   firstPageCount?: number;
   hasCachedNewest?: boolean;
 };
@@ -38,7 +39,12 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     return Date.now();
   }, []);
 
-  const { enabled, firstPageCount, ...pageParam } = options;
+  const {
+    enabled,
+    fetchingEnabled = true,
+    firstPageCount,
+    ...pageParam
+  } = options;
 
   const queryKey = useMemo(
     () => [['channelPosts', options.channelId, options.cursor, mountTime]],
@@ -55,7 +61,11 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     queryFn: async (ctx): Promise<db.Post[]> => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log('loading posts', queryOptions);
-      if (queryOptions.mode === 'newest' && !options.hasCachedNewest) {
+      if (
+        queryOptions.mode === 'newest' &&
+        !options.hasCachedNewest &&
+        fetchingEnabled
+      ) {
         await sync.syncPosts(queryOptions, { priority: SyncPriority.High });
       }
       const cached = await db.getChannelPosts(queryOptions);
@@ -63,6 +73,14 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
         postsLogger.log('returning', cached.length, 'posts from db');
         return cached;
       }
+
+      if (!fetchingEnabled) {
+        postsLogger.log(
+          'fetching disabled and nothing found locally, returning empty'
+        );
+        return [];
+      }
+
       postsLogger.log('no posts found in database, loading from api...');
       const res = await sync.syncPosts(
         {
@@ -86,6 +104,9 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       _allPages,
       lastPageParam
     ): UseChannelPostsPageParams | undefined => {
+      if (!fetchingEnabled) {
+        return undefined;
+      }
       const lastPageIsEmpty = !lastPage[lastPage.length - 1]?.id;
       if (lastPageIsEmpty) {
         // If we've only tried to get newer posts + that's failed, try using the
@@ -112,6 +133,9 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       _allPages,
       firstPageParam
     ): UseChannelPostsPageParams | undefined => {
+      if (!fetchingEnabled) {
+        return undefined;
+      }
       const firstPageIsEmpty = !firstPage[0]?.id;
       if (
         firstPageIsEmpty ||

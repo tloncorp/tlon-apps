@@ -42,8 +42,7 @@ export default function AuthorRow({ onPress, ...props }: AuthorRowProps) {
   const handlePress = useCallback(
     (e: GestureResponderEvent) => {
       if (props.type !== 'block') {
-        // setShowProfile(true);
-        navContext.onGoToUserProfile(props.authorId);
+        navContext.onGoToUserProfile?.(props.authorId);
         onPress?.(e);
       }
     },

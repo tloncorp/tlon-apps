@@ -32,9 +32,12 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       if (props.route.params.channel.group?.isNew) {
         store.markGroupVisited(props.route.params.channel.group);
       }
-      store.syncChannelThreadUnreads(props.route.params.channel.id, {
-        priority: store.SyncPriority.High,
-      });
+
+      if (!props.route.params.channel.isPendingChannel) {
+        store.syncChannelThreadUnreads(props.route.params.channel.id, {
+          priority: store.SyncPriority.High,
+        });
+      }
     }, [props.route.params.channel])
   );
   useFocusEffect(
@@ -122,6 +125,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     isLoading: isLoadingPosts,
   } = store.useChannelPosts({
     enabled: !!channel,
+    fetchingEnabled: !channel?.isPendingChannel,
     channelId: currentChannelId,
     count: 50,
     hasCachedNewest,
@@ -198,7 +202,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   );
 
   const handleMarkRead = useCallback(() => {
-    if (channel) {
+    if (channel && !channel.isPendingChannel) {
       store.markChannelRead(channel);
     }
   }, [channel]);

@@ -74,7 +74,7 @@ export function PostReferenceLoader({
   const { onPressRef } = useNavigation();
   const handlePress = useCallback(() => {
     if (channel && postQuery.data) {
-      onPressRef(channel, postQuery.data);
+      onPressRef?.(channel, postQuery.data);
     }
   }, [channel, onPressRef, postQuery.data]);
 
@@ -202,7 +202,7 @@ export function GroupReferenceLoader({
 
   const onPress = useCallback(() => {
     if (group) {
-      onPressGroupRef(group);
+      onPressGroupRef?.(group);
     }
   }, [group, onPressGroupRef]);
 
