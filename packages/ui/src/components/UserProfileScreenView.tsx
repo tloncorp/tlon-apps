@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useMemo } from 'react';
 
 import { useContact, useCurrentUserId, useNavigation } from '../contexts';
@@ -37,7 +38,7 @@ export function UserProfileScreenView(props: Props) {
 
           {currentUserId !== props.userId ? (
             <View marginHorizontal="$l" marginBottom="$xl">
-              <ProfileButtons userId={props.userId} />
+              <ProfileButtons userId={props.userId} contact={userContact} />
             </View>
           ) : null}
 
@@ -78,16 +79,31 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
   );
 }
 
-function ProfileButtons(props: { userId: string }) {
+function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   const navContext = useNavigation();
   const handleMessageUser = useCallback(() => {
     navContext.onPressGoToDm?.([props.userId]);
   }, [navContext, props.userId]);
 
+  const handleBlock = useCallback(() => {
+    if (props.contact && props.contact.isBlocked) {
+      store.unblockUser(props.userId);
+    } else {
+      store.blockUser(props.userId);
+    }
+  }, [props]);
+
+  const isBlocked = useMemo(() => {
+    return props.contact?.isBlocked ?? false;
+  }, [props.contact]);
+
   return (
     <XStack gap="$m">
       <ProfileButton title="Message" onPress={handleMessageUser} />
-      {/* <ProfileButton title="Add pal" onPress={() => {}} /> */}
+      <ProfileButton
+        title={isBlocked ? 'Unblock' : 'Block'}
+        onPress={handleBlock}
+      />
     </XStack>
   );
 }
