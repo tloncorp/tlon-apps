@@ -125,8 +125,8 @@
   (emit %pass /migrate %agent [our.bowl dap.bowl] %poke noun+!>(%migrate))
 ::
 ++  load
-  |=  =vase
-  |^  ^+  cor
+  |^  |=  =vase
+  ^+  cor
   ?:  ?=([%0 *] q.vase)  init
   =+  !<(old=versioned-state vase)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
@@ -276,6 +276,23 @@
       %read     (read source.action read-action.action |)
       %adjust   (adjust +.action)
       %allow-notifications  (allow +.action)
+    ==
+  ::
+      %egg-any
+    =+  !<(=egg-any:gall vase)
+    ?-  -.egg-any
+        ?(%15 %16)
+      ?.  ?=(%live +<.egg-any)
+        ~&  [dap.bowl %egg-any-not-live]
+        cor
+      =/  bak
+        ::TODO  test
+        (load -:!>(*versioned-state:load) +>.old-state.egg-any)
+      ::  restore volume settings, but keep any we've explicitly set ourselves
+      ::
+      =.  allowed  allowed:bak  ::REVIEW
+      =.  volume-settings  (~(uni by volume-settings:bak) volume-settings)
+      cor
     ==
   ==
 ::

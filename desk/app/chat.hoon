@@ -113,8 +113,8 @@
 ++  init  cor
 ::  +load: load next state
 ++  load
-  |=  =vase
-  |^  ^+  cor
+  |^  |=  =vase
+  ^+  cor
   =+  !<([old=versioned-state cool=@ud] vase)
   |-
   ?-  -.old
@@ -468,6 +468,55 @@
     =+  !<(=action:club:old vase)
     ?.  ?=(%writ -.q.q.action)  action
     action(diff.q.q (new-diff diff.q.q.action))
+  ::
+      %egg-any
+    =+  !<(=egg-any:gall vase)
+    ?-  -.egg-any
+        ?(%15 %16)
+      ?.  ?=(%live +<.egg-any)
+        ~&  [dap.bowl %egg-any-not-live]
+        cor
+      =/  bak
+        ::TODO  test
+        (load -:!>(*versioned-state:load) +>.old-state.egg-any)
+      ::  restore previous data, doing a "deep merge" where possible
+      ::
+      =.  dms
+        %+  roll  ~(tap by dms:bak)
+        |=  [[=ship =dm:c] =_dms]
+        %+  ~(put by dms)  ship
+        ?.  (~(has by dms) ship)
+          dm
+        =/  hav  (~(got by dms) ship)
+        :*  :-  (uni:on:writs:c wit.pact.dm wit.pact.hav)
+            (~(uni by dex.pact.dm) dex.pact.hav)
+          ::
+            remark.hav
+            net.hav  ::REVIEW
+            |(pin.hav pin.dm)
+        ==
+      =.  clubs
+        %+  roll  ~(tap by clubs:bak)
+        |=  [[=id:club:c =club:c] =_clubs]
+        %+  ~(put by clubs)  id
+        ?.  (~(has by clubs) id)
+          club
+        =/  hav  (~(got by clubs) id)
+        :*  (~(uni in heard.club) heard.hav)
+            remark.hav
+          ::
+            :-  (uni:on:writs:c wit.pact.club wit.pact.hav)
+            (~(uni by dex.pact.club) dex.pact.hav)
+          ::
+            crew.hav
+        ==
+      ::REVIEW  bad and inv not used?
+      =.  pins             pins:bak
+      =.  blocked          (~(uni in blocked:bak) blocked)
+      =.  blocked-by       (~(uni in blocked-by:bak) blocked-by)
+      =.  hidden-messages  (~(uni in hidden-messages:bak) hidden-messages)
+      cor
+    ==
   ==
   ++  pin
     |=  ps=(list whom:c)

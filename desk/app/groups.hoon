@@ -20,13 +20,14 @@
   +$  card  card:agent:gall
   ++  import-epoch  ~2022.10.11
   +$  current-state
-    $:  %3
+    $:  %4
         groups=net-groups:g
         =volume:v
         xeno=gangs:g
         ::  graph -> agent
         shoal=(map flag:g dude:gall)
         =^subs:s
+        pimp=(unit (each ~ egg-any:gall))  ::  pending import, awaiting c-s
     ==
   ::
   --
@@ -111,6 +112,13 @@
       %noun
     ?+  q.vase  !!
       %reset-all-perms  reset-all-perms
+    ::
+        %pimp-ready
+      ?-  pimp
+        ~         cor(pimp `&+~)
+        [~ %& *]  cor
+        [~ %| *]  (run-import p.u.pimp)
+      ==
     ==
   ::
       %reset-group-perms
@@ -216,7 +224,65 @@
         (~(del by chan.volume) +.scope)
       (~(put by chan.volume) +.scope value)
     ==
+  ::
+      %egg-any
+    =+  !<(=egg-any:gall vase)
+    ?-  pimp
+      ~         cor(pimp `|+egg-any)
+      [~ %& *]  (run-import egg-any)
+      [~ %| *]  ~&  [dap.bowl %overwriting-pending-import]
+                cor(pimp `|+egg-any)
+    ==
   ==
+::
+++  run-import
+  |=  =egg-any:gall
+  ^+  cor
+  =.  pimp  ~
+  ?-  -.egg-any
+      ?(%15 %16)
+    ?.  ?=(%live +<.egg-any)
+      ~&  [dap.bowl %egg-any-not-live]
+      cor
+    =/  bak
+      ::TODO  test
+      (load -:!>(*versioned-state:load) +>.old-state.egg-any)
+    ::  restore any previews & invites we might've had
+    ::
+    =.  xeno
+      %+  roll  ~(tap by xeno:bak)
+      |=  [[=flag:g =gang:g] =_xeno]
+      %+  ~(put by xeno)  flag
+      ?.  (~(has by xeno) flag)
+        gang(cam ~)
+      =/  hav  (~(got by xeno) flag)
+      :+  cam.hav
+        ?~(pev.hav pev.gang pev.hav)
+      ?~(vit.hav vit.gang vit.hav)
+    ::  join groups we were previously in,
+    ::  and restore groups we hosted,
+    ::  but no-op for existing groups.
+    ::
+    =.  cor
+      %+  roll  ~(tap by groups:bak)
+      |=  [[=flag:g gr=[=net:g =group:g]] =_cor]
+      ?:  (~(has by groups.cor) flag)
+        cor
+      =?  groups.cor  =(our.bowl p.flag)
+        (~(put by groups.cor) flag gr)
+      ::REVIEW  sane to do even for locally hosted groups, right?
+      ::NOTE  doing joins here is why we need to wait for channels-server to
+      ::      run its import first
+      (poke:cor %group-join !>(`join:g`[flag &]))
+    =.  volume
+      :+  base.volume:bak
+        (~(uni by area.volume:bak) area.volume)
+      (~(uni by chan.volume:bak) chan.volume)
+    ::  tell the channels-server we're ready for it to run its import
+    ::
+    (emit %pass /egg-any %agent [our.bowl %channels-server] %poke %noun !>(%pimp-ready))
+  ==
+::
 ++  channel-scry
   |=  =nest:g
   ^-  path
@@ -256,17 +322,17 @@
 ::
 ::  +load: load next state
 ++  load
-  |=  =vase
-  |^  ^+  cor
+  |^  |=  =vase
+  ^+  cor
   =+  !<([old=versioned-state cool=epic:e] vase)
   |-
   ?-  -.old
       %0  $(old (state-0-to-1 old))
       %1  $(old (state-1-to-2 old))
       %2  $(old (state-2-to-3 old))
-    ::
+  ::
       %3
-    =.  state  old
+    =.  state  (state-3-to-4 old)
     =.  cor  restore-missing-subs
     =.  cor  (watch-contact |)
     ?:  =(okay:g cool)  cor
@@ -278,8 +344,10 @@
     =.  cor
       go-abet:go-upgrade:(go-abed:group-core i.groups)
     $(groups t.groups)
+  ::
+      %4  cor(state old)
   ==
-  +$  versioned-state  $%(current-state state-2 state-1 state-0)
+  +$  versioned-state  $%(current-state state-3 state-2 state-1 state-0)
   +$  state-0
     $:  %0
         groups=net-groups:zero
@@ -316,6 +384,16 @@
         ::  graph -> agent
         shoal=(map flag:g dude:gall)
     ==
+  ::
+  +$  state-3
+    $:  %3
+        groups=net-groups:g
+        =volume:v
+        xeno=gangs:g
+        ::  graph -> agent
+        shoal=(map flag:g dude:gall)
+        =^subs:s
+    ==
   ++  state-0-to-1
     |=  state-0
     ^-  state-1
@@ -328,8 +406,13 @@
   ::
   ++  state-2-to-3
     |=  state-2
-    ^-  current-state
+    ^-  state-3
     [%3 groups volume xeno shoal *^subs:s]
+  ::
+  ++  state-3-to-4
+    |=  state-3
+    ^-  current-state
+    [%4 groups volume xeno shoal subs ~]
   ::
   ++  groups-1-to-2
     |=  groups=net-groups:zero
@@ -1575,10 +1658,14 @@
               ?-  -.cordon
                   ?(%open %afar)  &
                   %shut
+                ::REVIEW  need this for re-join-during-import to work...
+                ::        is that just adding an "or user-join" clause here?
+                =.  pend.cordon  (~(uni in pend.cordon) ~(key by fleet.group))
                 =/  cross  (~(int in pend.cordon) ships)
                 =(~(wyt in ships) ~(wyt in cross))
               ==
           ==
+      ::REVIEW  looks like this line might give invites if host rejoins its own group?
       =?  cor  &(!user-join am-host)  (give-invites flag ships)
       =.  fleet.group
         %-  ~(uni by fleet.group)

@@ -81,8 +81,8 @@
   (emit %pass wire %agent dock %watch path)
 ::
 ++  load
-  |=  =vase
-  |^  ^+  cor
+  |^  |=  =vase
+  ^+  cor
   =+  !<(old=versioned-state vase)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
@@ -274,6 +274,25 @@
     %+  roll  ~(tap by v-channels)
     |=  [[=nest:c =v-channel:c] cr=_cor]
     ca-abet:ca-migrate:(ca-abed:ca-core:cr nest)
+  ::
+      %egg-any
+    =+  !<(=egg-any:gall vase)
+    ?-  -.egg-any
+        ?(%15 %16)
+      ?.  ?=(%live +<.egg-any)
+        ~&  [dap.bowl %egg-any-not-live]
+        cor
+      =/  bak
+        ::TODO  test
+        (load -:!>(*versioned-state:load) +>.old-state.egg-any)
+      ::  if both the backup and our latest have a channel, keep only our
+      ::  version. we could do a "deep merge" but presently unclear how that
+      ::  would affect existing subscribers/what would be the correct behavior
+      ::  wrt them.
+      ::
+      =.  v-channels  (~(uni by v-channels:bak) v-channels)
+      (emit %pass /pimp %agent [our.bowl %groups] %poke %noun !>(%pimp-ready))
+    ==
   ==
 ::
 ++  watch
@@ -327,6 +346,8 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
+    [%pimp ~]  cor
+  ::
       [=kind:c *]
     ?+    -.sign  !!
         %poke-ack

@@ -112,8 +112,8 @@
   (emil caz)
 ::
 ++  load
-  |=  =vase
-  |^  ^+  cor
+  |^  |=  =vase
+  ^+  cor
   =+  !<(old=versioned-state vase)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
@@ -463,6 +463,24 @@
       ::NOTE  %chat-migrate-refs, etc
       (cat 3 kind '-migrate-refs')
     !>([host name])
+  ::
+      %egg-any
+    =+  !<(=egg-any:gall vase)
+    ?-  -.egg-any
+        ?(%15 %16)
+      ?.  ?=(%live +<.egg-any)
+        ~&  [dap.bowl %egg-any-not-live]
+        cor
+      =/  bak
+        ::TODO  test
+        (load -:!>(*versioned-state:load) +>.old-state.egg-any)
+      ::  we only restore miscellanea. groups' import should prompt us to
+      ::  re-join channels, we won't bother pre-loading their content for now.
+      ::
+      =.  voc           (~(uni by voc:bak) voc)
+      =.  hidden-posts  (~(uni in hidden-posts:bak) hidden-posts)
+      cor
+    ==
   ==
   ++  toggle-post
     |=  toggle=post-toggle:c
