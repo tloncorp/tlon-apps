@@ -801,7 +801,10 @@
       ?^  time.action  u.time.action
       =/  latest=(unit [=time event:a])
         (ram:on-event:a stream.index)
-      ?~(latest now.bowl time.u.latest)
+      ::  if we don't have an event, then this is read anyway so we can
+      ::  just reuse the floor. likely if a recursive read is happening
+      ::  from one of our parents
+      ?~(latest floor.reads.index time.u.latest)
     ::  if we're marking deeply we need to recursively read all
     ::  children
     =/  children  (get-children:src indices source)
