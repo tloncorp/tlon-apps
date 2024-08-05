@@ -1658,14 +1658,11 @@
               ?-  -.cordon
                   ?(%open %afar)  &
                   %shut
-                ::REVIEW  need this for re-join-during-import to work...
-                ::        is that just adding an "or user-join" clause here?
                 =.  pend.cordon  (~(uni in pend.cordon) ~(key by fleet.group))
                 =/  cross  (~(int in pend.cordon) ships)
                 =(~(wyt in ships) ~(wyt in cross))
               ==
           ==
-      ::REVIEW  looks like this line might give invites if host rejoins its own group?
       =?  cor  &(!user-join am-host)  (give-invites flag ships)
       =.  fleet.group
         %-  ~(uni by fleet.group)

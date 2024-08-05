@@ -36,8 +36,8 @@
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
         pins=(list whom:c)
-        bad=(set ship)
-        inv=(set ship)
+        bad=(set ship)  ::TODO  vestigial, remove me
+        inv=(set ship)  ::TODO  vestigial, remove me
         blocked=(set ship)
         blocked-by=(set ship)
         hidden-messages=(set id:c)
@@ -492,7 +492,7 @@
             (~(uni by dex.pact.dm) dex.pact.hav)
           ::
             remark.hav
-            net.hav  ::REVIEW
+            net.hav
             |(pin.hav pin.dm)
         ==
       =.  clubs
@@ -510,7 +510,6 @@
           ::
             crew.hav
         ==
-      ::REVIEW  bad and inv not used?
       =.  pins             pins:bak
       =.  blocked          (~(uni in blocked:bak) blocked)
       =.  blocked-by       (~(uni in blocked-by:bak) blocked-by)

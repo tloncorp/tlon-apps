@@ -290,7 +290,7 @@
         (load -:!>(*versioned-state:load) +>.old-state.egg-any)
       ::  restore volume settings, but keep any we've explicitly set ourselves
       ::
-      =.  allowed  allowed:bak  ::REVIEW
+      =.  allowed  allowed:bak
       =.  volume-settings  (~(uni by volume-settings:bak) volume-settings)
       cor
     ==
