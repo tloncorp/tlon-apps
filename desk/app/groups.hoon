@@ -268,19 +268,19 @@
       |=  [[=flag:g gr=[=net:g =group:g]] =_cor]
       ?:  (~(has by groups.cor) flag)
         cor
-      =?  groups.cor  =(our.bowl p.flag)
-        (~(put by groups.cor) flag gr)
-      ::REVIEW  sane to do even for locally hosted groups, right?
-      ::NOTE  doing joins here is why we need to wait for channels-server to
-      ::      run its import first
-      (poke:cor %group-join !>(`join:g`[flag &]))
+      ?.  =(our.bowl p.flag)
+        ::NOTE  doing joins here is why we need to wait for channels-server
+        ::      to run its import first
+        (poke:cor %group-join !>(`join:g`[flag &]))
+      =.  groups.cor  (~(put by groups.cor) flag gr)
+      %-  emil
+      %-  join-channels:go-pass:(go-abed:group-core:cor flag)
+      ~(tap in ~(key by channels.group.gr))
     =.  volume
       :+  base.volume:bak
         (~(uni by area.volume:bak) area.volume)
       (~(uni by chan.volume:bak) chan.volume)
-    ::  tell the channels-server we're ready for it to run its import
-    ::
-    (emit %pass /egg-any %agent [our.bowl %channels-server] %poke %noun !>(%pimp-ready))
+    cor
   ==
 ::
 ++  channel-scry
