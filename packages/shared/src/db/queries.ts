@@ -148,7 +148,7 @@ export const getGroupPreviews = createReadQuery(
       where: inArray($groups.id, groupIds),
     });
   },
-  []
+  ['groups']
 );
 
 export const getGroups = createReadQuery(
@@ -2414,7 +2414,7 @@ export const getContact = createReadQuery(
       })
       .then(returnNullIfUndefined);
   },
-  ['contacts']
+  ['contacts', 'groups']
 );
 
 export const updateContact = createWriteQuery(
