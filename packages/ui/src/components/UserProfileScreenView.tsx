@@ -1,15 +1,19 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useMemo } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useContact, useCurrentUserId, useNavigation } from '../contexts';
 import { ScrollView, SizableText, View, XStack, YStack } from '../core';
+import { useCopy } from '../hooks/useCopy';
+import { triggerHaptic } from '../utils';
 import { ContactAvatar } from './Avatar';
 import { BioDisplay } from './BioDisplay';
 import { Button } from './Button';
 import ContactName from './ContactName';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
 import { GenericHeader } from './GenericHeader';
+import { Icon } from './Icon';
 
 interface Props {
   userId: string;
@@ -17,6 +21,7 @@ interface Props {
 }
 
 export function UserProfileScreenView(props: Props) {
+  const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
   const userContact = useContact(props.userId);
   const hasBio = !!userContact?.bio?.length;
@@ -28,7 +33,7 @@ export function UserProfileScreenView(props: Props) {
     <View flex={1}>
       <GenericHeader goBack={props.onBack} />
       <ScrollView flex={1}>
-        <YStack marginTop="$2xl">
+        <YStack marginTop="$2xl" paddingBottom={insets.bottom}>
           <View marginHorizontal="$2xl" marginBottom="$3xl">
             <UserInfoRow
               userId={props.userId}
@@ -62,14 +67,35 @@ export function UserProfileScreenView(props: Props) {
 }
 
 function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
+  const { didCopy, doCopy } = useCopy(props.userId);
+
+  const handleCopy = useCallback(() => {
+    doCopy();
+    triggerHaptic('success');
+  }, [doCopy]);
+
   return (
-    <XStack alignItems="center">
+    <XStack alignItems="center" onPress={handleCopy}>
       <ContactAvatar contactId={props.userId} size="$5xl" marginRight="$xl" />
       <YStack flexGrow={1}>
         {props.hasNickname ? (
           <>
             <ContactName userId={props.userId} showNickname size="$xl" />
-            <ContactName userId={props.userId} color="$secondaryText" />
+            <XStack alignItems="center">
+              <ContactName
+                userId={props.userId}
+                color="$secondaryText"
+                marginRight="$s"
+              />
+              {didCopy ? (
+                <Icon
+                  type="Checkmark"
+                  customSize={[14, 14]}
+                  position="relative"
+                  top={1}
+                />
+              ) : null}
+            </XStack>
           </>
         ) : (
           <ContactName userId={props.userId} size="$xl" />
