@@ -54,6 +54,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     runtimeVersion: '4.0.1',
   },
   plugins: [
+    'expo-asset',
+    'expo-localization',
+    'expo-secure-store',
     '@react-native-firebase/app',
     '@react-native-firebase/crashlytics',
     '@react-native-firebase/perf',
