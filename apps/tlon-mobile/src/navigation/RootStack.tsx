@@ -18,6 +18,7 @@ import ImageViewerScreen from '../screens/ImageViewerScreen';
 import { ManageAccountScreen } from '../screens/ManageAccountScreen';
 import PostScreen from '../screens/PostScreen';
 import { PushNotificationSettingsScreen } from '../screens/PushNotificationSettingsScreen';
+import { UserBugReportScreen } from '../screens/UserBugReportScreen';
 import type { RootStackParamList } from '../types';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { SettingsStack } from './SettingsStack';
@@ -88,6 +89,7 @@ export function RootStack() {
         component={PushNotificationSettingsScreen}
       />
       <Root.Screen name="EditProfile" component={EditProfileScreen} />
+      <Root.Screen name="WompWomp" component={UserBugReportScreen} />
     </Root.Navigator>
   );
 }

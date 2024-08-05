@@ -47,7 +47,12 @@ export const useChannelContext = ({
   const [editingPost, setEditingPost] = useState<db.Post>();
 
   const editPost = useCallback(
-    async (post: db.Post, content: urbit.Story, parentId?: string) => {
+    async (
+      post: db.Post,
+      content: urbit.Story,
+      parentId?: string,
+      metadata?: db.PostMetadata
+    ) => {
       if (!channelQuery.data) {
         return;
       }
@@ -56,6 +61,7 @@ export const useChannelContext = ({
         post,
         content,
         parentId,
+        metadata,
       });
       setEditingPost(undefined);
     },

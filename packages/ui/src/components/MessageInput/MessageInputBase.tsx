@@ -33,7 +33,8 @@ export interface MessageInputProps {
   editPost?: (
     post: db.Post,
     content: Story,
-    parentId?: string
+    parentId?: string,
+    metadata?: db.PostMetadata
   ) => Promise<void>;
   setShowBigInput?: (showBigInput: boolean) => void;
   showAttachmentButton?: boolean;

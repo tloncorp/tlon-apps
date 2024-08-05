@@ -210,7 +210,7 @@ CREATE TABLE `groups` (
 --> statement-breakpoint
 CREATE TABLE `pins` (
 	`type` text NOT NULL,
-	`index` integer NOT NULL,
+	`pin_index` integer NOT NULL,
 	`item_id` text PRIMARY KEY NOT NULL
 );
 --> statement-breakpoint

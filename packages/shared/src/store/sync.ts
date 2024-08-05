@@ -5,12 +5,12 @@ import * as api from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger } from '../debug';
-import { ErrorReporter } from '../logic';
 import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
+import { ErrorReporter } from './errorReporting';
 import { updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
@@ -41,49 +41,64 @@ const joinedGroupsAndChannels = new Set<string>();
 
 export const syncInitData = async (
   reporter?: ErrorReporter,
-  syncCtx?: SyncCtx
-) => {
+  syncCtx?: SyncCtx,
+  queryCtx?: QueryCtx,
+  yieldWriter?: boolean
+): Promise<() => Promise<void>> => {
   const initData = await syncQueue.add('init', syncCtx, () =>
     api.getInitData()
   );
   reporter?.log('got init data from api');
   initializeJoinedSet(initData.unreads);
-  return batchEffects('init sync', async (ctx) => {
-    return await Promise.all([
-      db
-        .insertPinnedItems(initData.pins, ctx)
-        .then(() => reporter?.log('inserted pinned items')),
-      db
-        .insertGroups({ groups: initData.groups }, ctx)
-        .then(() => reporter?.log('inserted groups')),
-      db
-        .insertUnjoinedGroups(initData.unjoinedGroups, ctx)
-        .then(() => reporter?.log('inserted unjoined groups')),
-      db
-        .insertChannels(initData.channels, ctx)
-        .then(() => reporter?.log('inserted channels')),
-      persistUnreads({
-        unreads: initData.unreads,
-        ctx,
-        includesAllUnreads: true,
-      }).then(() => reporter?.log('persisted unreads')),
-      db
-        .resetHiddenPosts(initData.hiddenPostIds, ctx)
-        .then(() => reporter?.log('handled hidden posts')),
-      db
-        .insertBlockedContacts({ blockedIds: initData.blockedUsers }, ctx)
-        .then(() => reporter?.log('inserted blocked users')),
-      db
-        .insertChannelPerms(initData.channelPerms, ctx)
-        .then(() => reporter?.log('inserted channel perms')),
-      db
-        .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, ctx)
-        .then(() => reporter?.log('set left groups')),
-      db
-        .setLeftGroupChannels({ joinedChannelIds: initData.joinedGroups }, ctx)
-        .then(() => reporter?.log('set left channels')),
-    ]);
-  });
+
+  const writer = async () => {
+    await db
+      .insertGroups({ groups: initData.groups }, queryCtx)
+      .then(() => reporter?.log('inserted groups'));
+    await db
+      .insertUnjoinedGroups(initData.unjoinedGroups, queryCtx)
+      .then(() => reporter?.log('inserted unjoined groups'));
+
+    await db
+      .insertChannels(initData.channels, queryCtx)
+      .then(() => reporter?.log('inserted channels'));
+    await persistUnreads({
+      unreads: initData.unreads,
+      ctx: queryCtx,
+      includesAllUnreads: true,
+    }).then(() => reporter?.log('persisted unreads'));
+
+    await db
+      .insertPinnedItems(initData.pins, queryCtx)
+      .then(() => reporter?.log('inserted pinned items'));
+
+    await db
+      .resetHiddenPosts(initData.hiddenPostIds, queryCtx)
+      .then(() => reporter?.log('handled hidden posts'));
+    await db
+      .insertBlockedContacts({ blockedIds: initData.blockedUsers }, queryCtx)
+      .then(() => reporter?.log('inserted blocked users'));
+
+    await db
+      .insertChannelPerms(initData.channelPerms, queryCtx)
+      .then(() => reporter?.log('inserted channel perms'));
+    await db
+      .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, queryCtx)
+      .then(() => reporter?.log('set left groups'));
+    await db
+      .setLeftGroupChannels(
+        { joinedChannelIds: initData.joinedChannels },
+        queryCtx
+      )
+      .then(() => reporter?.log('set left channels'));
+  };
+
+  if (yieldWriter) {
+    return writer;
+  } else {
+    await writer();
+    return () => Promise.resolve();
+  }
 };
 
 function initializeJoinedSet({
@@ -136,15 +151,26 @@ export const syncBlockedUsers = async (ctx?: SyncCtx) => {
 
 export const syncLatestPosts = async (
   reporter?: ErrorReporter,
-  ctx?: SyncCtx
-) => {
+  ctx?: SyncCtx,
+  queryCtx?: QueryCtx,
+  yieldWriter?: boolean
+): Promise<() => Promise<void>> => {
   const result = await syncQueue.add('latestPosts', ctx, () =>
     api.getLatestPosts({})
   );
   reporter?.log('got latest posts from api');
   const allPosts = result.map((p) => p.latestPost);
-  allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
-  await db.insertLatestPosts(allPosts);
+  const writer = async (): Promise<void> => {
+    allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
+    await db.insertLatestPosts(allPosts, queryCtx);
+  };
+
+  if (yieldWriter) {
+    return writer;
+  } else {
+    await writer();
+    return () => Promise.resolve();
+  }
 };
 
 export const syncSettings = async (ctx?: SyncCtx) => {
@@ -876,7 +902,8 @@ export async function syncChannelMessageDelivery({
     const syncPromise = syncChannelWithBackoff({ channelId });
     currentPendingMessageSyncs.set(channelId, syncPromise);
     await syncPromise;
-    logger.log(`all messages in ${channelId} are delivered`);
+    logger.crumb(`all messages in channel are delivered`);
+    logger.sensitiveCrumb(`channelId: ${channelId}`);
   } catch (e) {
     logger.error(
       `some messages in ${channelId} still undelivered, is the channel offline?`
@@ -949,15 +976,48 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   const reporter = new ErrorReporter('sync start', logger);
   reporter.log(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
-  const sessionInitPromises = [
-    syncInitData(reporter, { priority: SyncPriority.High, retry: true }),
-    syncLatestPosts(reporter, { priority: SyncPriority.High, retry: true }),
-    alreadySubscribed
+  batchEffects('sync start (high)', async (ctx) => {
+    // this allows us to run the api calls first in parallel but handle
+    // writing the data in a specific order
+    const yieldWriter = true;
+
+    // first kickoff the fetching
+    const syncInitPromise = syncInitData(
+      reporter,
+      { priority: SyncPriority.High, retry: true },
+      ctx,
+      yieldWriter
+    );
+    const syncLatestPostsPromise = syncLatestPosts(
+      reporter,
+      {
+        priority: SyncPriority.High,
+        retry: true,
+      },
+      ctx,
+      yieldWriter
+    );
+    const subsPromise = alreadySubscribed
       ? Promise.resolve()
       : setupHighPrioritySubscriptions({
           priority: SyncPriority.High - 1,
-        }).then(() => reporter.log('subscribed high priority')),
-  ];
+        }).then(() => reporter.log('subscribed high priority'));
+
+    // then enforce the ordering of writes to avoid race conditions
+    const initWriter = await syncInitPromise;
+    await initWriter();
+    reporter.log('finished writing init data');
+
+    const latestPostsWriter = await syncLatestPostsPromise;
+    await latestPostsWriter();
+    reporter.log('finished writing latest posts');
+
+    await subsPromise;
+    reporter.log('finished initializing high priority subs');
+
+    reporter.log(`finished high priority init sync`);
+    updateSession({ startTime: Date.now() });
+  });
 
   const lowPriorityPromises = [
     alreadySubscribed
@@ -987,15 +1047,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       reporter.log(`finished syncing app info`);
     }),
   ];
-
-  Promise.all(sessionInitPromises)
-    .then(() => {
-      reporter.log(`finished init sync`);
-      updateSession({ startTime: Date.now() });
-    })
-    .catch((e) => {
-      reporter.report(e);
-    });
 
   Promise.all(lowPriorityPromises)
     .then(() => {

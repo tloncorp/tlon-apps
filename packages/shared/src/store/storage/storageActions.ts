@@ -20,14 +20,17 @@ import {
 const logger = createDevLogger('storageActions', true);
 
 export const uploadAsset = async (asset: ImagePickerAsset) => {
-  logger.log('uploading asset', asset);
+  logger.crumb('uploading asset', asset.mimeType, asset.fileSize);
+  logger.log('full asset', asset);
   setUploadState(asset.uri, { status: 'uploading', localUri: asset.uri });
   try {
     const remoteUri = await performUpload(asset);
-    logger.log('upload succeeded', remoteUri);
+    logger.crumb('upload succeeded');
+    logger.log('final uri', remoteUri);
     setUploadState(asset.uri, { status: 'success', remoteUri });
   } catch (e) {
-    console.error('upload failed', e);
+    logger.crumb('upload failed');
+    console.error(e);
     setUploadState(asset.uri, { status: 'error', errorMessage: e.message });
   }
 };
@@ -100,6 +103,7 @@ const performUpload = async (asset: ImagePickerAsset) => {
     await uploadFile(signedUrl, resizedAsset.uri, {
       'Content-Type': asset.mimeType ?? 'application/octet-stream',
       'Cache-Control': 'public, max-age=3600',
+      'x-amz-acl': 'public-read', // necessary for digital ocean spaces
     });
     return config.publicUrlBase
       ? new URL(fileKey, config.publicUrlBase).toString()

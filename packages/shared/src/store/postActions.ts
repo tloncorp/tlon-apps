@@ -19,9 +19,11 @@ export async function sendPost({
   content: urbit.Story;
   metadata?: db.PostMetadata;
 }) {
+  logger.crumb('sending post', `channel type: ${channel.type}`);
   // if first message of a pending group dm, we need to first create
   // it on the backend
   if (channel.type === 'groupDm' && channel.isPendingChannel) {
+    logger.crumb('is pending multi DM, need to create first');
     await api.createGroupDm({
       id: channel.id,
       members:
@@ -44,6 +46,7 @@ export async function sendPost({
   });
   sync.handleAddPost(cachePost);
   try {
+    logger.crumb('sending post to backend');
     await api.sendPost({
       channelId: channel.id,
       authorId,
@@ -53,6 +56,7 @@ export async function sendPost({
     });
     await sync.syncChannelMessageDelivery({ channelId: channel.id });
   } catch (e) {
+    logger.crumb('failed to send post');
     console.error('Failed to send post', e);
     await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
   }
@@ -163,6 +167,7 @@ export async function sendReply({
   authorId: string;
   content: urbit.Story;
 }) {
+  logger.crumb('sending reply', channel.type);
   // optimistic update
   // TODO: make author available more efficiently
   const author = await db.getContact({ id: authorId });
@@ -181,6 +186,7 @@ export async function sendReply({
   });
 
   try {
+    logger.crumb('sending reply to backend');
     api.sendReply({
       channelId: channel.id,
       parentId,
@@ -191,6 +197,7 @@ export async function sendReply({
     });
     sync.syncChannelMessageDelivery({ channelId: channel.id });
   } catch (e) {
+    logger.crumb('failed to send reply');
     console.error('Failed to send reply', e);
     await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
   }
@@ -225,6 +232,7 @@ export async function showPost({ post }: { post: db.Post }) {
 }
 
 export async function deletePost({ post }: { post: db.Post }) {
+  logger.crumb('deleting post');
   const existingPost = await db.getPost({ postId: post.id });
 
   // optimistic update

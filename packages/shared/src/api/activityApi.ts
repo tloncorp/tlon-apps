@@ -15,7 +15,7 @@ import {
 } from './apiUtils';
 import { poke, scry, subscribe } from './urbit';
 
-const logger = createDevLogger('activityApi', true);
+const logger = createDevLogger('activityApi', false);
 
 export async function getGroupAndChannelUnreads() {
   const activity = await scry<ub.Activity>({

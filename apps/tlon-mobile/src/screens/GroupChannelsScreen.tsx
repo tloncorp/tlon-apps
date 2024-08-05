@@ -2,12 +2,15 @@ import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { AppDataContextProvider, GroupChannelsScreenView } from '@tloncorp/ui';
+import {
+  AppDataContextProvider,
+  GroupChannelsScreenView,
+  GroupOptionsProvider,
+} from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import type { GroupSettingsStackParamList, RootStackParamList } from '../types';
-import { useGroupContext } from './GroupSettings/useGroupContext';
 
 type GroupChannelsScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -19,7 +22,6 @@ export function GroupChannelsScreen({
   navigation,
 }: GroupChannelsScreenProps) {
   const groupParam = route.params.group;
-  const groupQuery = store.useGroup({ id: groupParam.id });
   const currentUser = useCurrentUserId();
   const isFocused = useIsFocused();
   const { data: chats } = store.useCurrentChats({
@@ -38,15 +40,12 @@ export function GroupChannelsScreen({
     },
     [navigation]
   );
+
   const handleGoBackPressed = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
 
   const contactsQuery = store.useContacts();
-
-  const { leaveGroup, togglePinned } = useGroupContext({
-    groupId: groupParam.id,
-  });
 
   const navigateToGroupSettings = useCallback(
     <T extends keyof GroupSettingsStackParamList>(
@@ -96,33 +95,24 @@ export function GroupChannelsScreen({
     [navigateToGroupSettings]
   );
 
-  const handleLeaveGroup = useCallback(async () => {
-    leaveGroup();
-    navigation.goBack();
-  }, [leaveGroup, navigation]);
-
-  const handleTogglePinned = useCallback(() => {
-    togglePinned();
-  }, [togglePinned]);
-
   return (
     <AppDataContextProvider contacts={contactsQuery.data ?? null}>
-      <GroupChannelsScreenView
-        onChannelPressed={handleChannelSelected}
-        onBackPressed={handleGoBackPressed}
-        group={groupQuery.data ?? route.params.group}
-        channels={groupQuery.data?.channels ?? route.params.group.channels}
-        currentUser={currentUser}
-        pinned={pinnedItems ?? []}
+      <GroupOptionsProvider
+        groupId={groupParam.id}
+        pinned={pinnedItems}
         useGroup={store.useGroup}
         onPressGroupMeta={handleGoToGroupMeta}
         onPressGroupMembers={handleGoToGroupMembers}
         onPressManageChannels={handleGoToManageChannels}
         onPressInvitesAndPrivacy={handleGoToInvitesAndPrivacy}
         onPressRoles={handleGoToRoles}
-        onPressLeave={handleLeaveGroup}
-        onTogglePinned={handleTogglePinned}
-      />
+      >
+        <GroupChannelsScreenView
+          onChannelPressed={handleChannelSelected}
+          onBackPressed={handleGoBackPressed}
+          currentUser={currentUser}
+        />
+      </GroupOptionsProvider>
     </AppDataContextProvider>
   );
 }

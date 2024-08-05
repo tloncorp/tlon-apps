@@ -42,7 +42,7 @@ sdk.dir = /Users/<user>/Library/Android/sdk
 Create a keystore file for Android
 
 ```sh
-cd android/app
+cd apps/tlon-mobile/android/app
 keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000
 ```
 
@@ -88,6 +88,20 @@ If your Metro bundler is running the `io.tlon.groups` package instead, you can e
 pnpm bundler --dev-client --scheme io.tlon.groups.preview
 ```
 
+#### Troubleshooting
+
+If you see this while trying to run on an Android device
+
+```
+INSTALL_FAILED_UPDATE_INCOMPATIBLE: Package io.tlon.groups signatures do not match the previously installed version; ignoring!
+```
+
+you first need to uninstall the existing app from the device using `adb`:
+
+```sh
+adb uninstall io.tlon.groups
+```
+
 ## Debugging
 
 ### Dev tools
@@ -114,7 +128,7 @@ See `.env.sample` for other configurable env variables.
 Update environment variables to use one of the following debug notify services for testing push notifications when building to devices:
 
 ```
-# Preview Debug
+# Preview Debug (preferred for now)
 NOTIFY_PROVIDER=wannec-dozzod-marnus
 NOTIFY_SERVICE=tlon-preview-debug
 ```

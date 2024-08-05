@@ -106,7 +106,7 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
           setShipInfo({ ...nextShipInfo, authCookie: fetchedAuthCookie });
           saveShipInfo({ ...nextShipInfo, authCookie: fetchedAuthCookie });
           // Save to native storage
-          UrbitModule.setUrbit(ship, normalizedShipUrl, fetchedAuthCookie);
+          UrbitModule.setUrbit(ship, normalizedShipUrl);
         }
       })();
     }

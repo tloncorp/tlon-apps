@@ -10,13 +10,20 @@ import rawAfterNewestPostData from '../test/channelPostsAfterNewest.json';
 import rawContactsData from '../test/contacts.json';
 import rawGroupsData from '../test/groups.json';
 import rawGroupsInitData from '../test/groupsInit.json';
+import rawHeadsData from '../test/heads.json';
 import {
   getClient,
   setScryOutput,
   setScryOutputs,
   setupDatabaseTestSuite,
 } from '../test/helpers';
-import { GroupsInit, PagedPosts, PostDataResponse } from '../urbit';
+import rawGroupsInit2 from '../test/init.json';
+import {
+  CombinedHeads,
+  GroupsInit,
+  PagedPosts,
+  PostDataResponse,
+} from '../urbit';
 import { Contact as UrbitContact } from '../urbit/contact';
 import { Group as UrbitGroup } from '../urbit/groups';
 import {
@@ -24,6 +31,7 @@ import {
   syncDms,
   syncGroups,
   syncInitData,
+  syncLatestPosts,
   syncPinnedItems,
   syncPosts,
   syncThreadPosts,
@@ -34,6 +42,8 @@ const channelPostWithRepliesData =
 const contactsData = rawContactsData as unknown as Record<string, UrbitContact>;
 const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
 const groupsInitData = rawGroupsInitData as unknown as GroupsInit;
+const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit;
+const headsData = rawHeadsData as unknown as CombinedHeads;
 
 setupDatabaseTestSuite();
 
@@ -308,7 +318,6 @@ test('deletes removed posts', async () => {
   expect(posts.length).toEqual(0);
 });
 
-// TODO: fix once test init data added
 test('syncs init data', async () => {
   setScryOutput(rawGroupsInitData);
   await syncInitData();
@@ -329,20 +338,18 @@ test('syncs init data', async () => {
     groupsInitData.chat.dms.length +
       Object.keys(groupsInitData.chat.clubs).length
   );
-  //   // TODO: fix once activity integrated
-  //   // const staleChannels = await db.getStaleChannels();
-  //   // expect(staleChannels.slice(0, 10).map((c) => [c.id])).toEqual([
-  //   //   ['chat/~bolbex-fogdys/watercooler-4926'],
-  //   //   ['chat/~dabben-larbet/hosting-6173'],
-  //   //   ['chat/~bolbex-fogdys/tlon-general'],
-  //   //   ['chat/~bolbex-fogdys/marcom'],
-  //   //   ['heap/~bolbex-fogdys/design-1761'],
-  //   //   ['chat/~bitpyx-dildus/interface'],
-  //   //   ['chat/~bolbex-fogdys/ops'],
-  //   //   ['heap/~dabben-larbet/fanmail-3976'],
-  //   //   ['diary/~bolbex-fogdys/bulletins'],
-  //   //   ['chat/~nocsyx-lassul/bongtable'],
-  //   // ]);
+});
+
+test('syncs last posts', async () => {
+  setScryOutputs([groupsInitData2, headsData]);
+  await syncInitData();
+  await syncLatestPosts();
+  const chats = await db.getChats();
+  const NUM_EMPTY_TEST_GROUPS = 6;
+  const chatsWithLatestPosts = chats.filter((c) => c.lastPost);
+  expect(chatsWithLatestPosts.length).toEqual(
+    chats.length - NUM_EMPTY_TEST_GROUPS
+  );
 });
 
 test('syncs thread posts', async () => {

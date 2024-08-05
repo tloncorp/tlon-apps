@@ -81,17 +81,6 @@ export default function ChatListScreen(
     };
   }, [chats]);
 
-  const isInitialFocus = useRef(true);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!isInitialFocus) {
-        store.syncPinnedItems({ priority: store.SyncPriority.High });
-      }
-      isInitialFocus.current = false;
-    }, [])
-  );
-
   const goToDm = useCallback(
     async (participants: string[]) => {
       const dmChannel = await store.upsertDmChannel({
@@ -241,6 +230,10 @@ export default function ChatListScreen(
     },
     [navigation]
   );
+
+  const handleGotoErrorReporter = useCallback(() => {
+    props.navigation.navigate('WompWomp');
+  }, [props.navigation]);
 
   const { pinned, unpinned } = resolvedChats;
   const allChats = [...pinned, ...unpinned];

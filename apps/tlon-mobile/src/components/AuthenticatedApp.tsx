@@ -1,7 +1,7 @@
 import crashlytics from '@react-native-firebase/crashlytics';
-import { setCrashReporter, sync } from '@tloncorp/shared';
+import { initializeCrashReporter, sync } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
-import * as logic from '@tloncorp/shared/dist/logic';
+import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
@@ -9,10 +9,13 @@ import { useShip } from '../contexts/ship';
 import useAppForegrounded from '../hooks/useAppForegrounded';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
+import { useNavigationLogging } from '../hooks/useNavigationLogger';
+import { useNetworkLogger } from '../hooks/useNetworkLogger';
 import useNotificationListener, {
   type Props as NotificationListenerProps,
 } from '../hooks/useNotificationListener';
 import { configureClient } from '../lib/api';
+import { PlatformState } from '../lib/platformHelpers';
 import { RootStack } from '../navigation/RootStack';
 
 export interface AuthenticatedAppProps {
@@ -24,8 +27,11 @@ function AuthenticatedApp({
 }: AuthenticatedAppProps) {
   const { ship, shipUrl } = useShip();
   const currentUserId = useCurrentUserId();
+  const session = store.useCurrentSession();
   useNotificationListener(notificationListenerProps);
   useDeepLinkListener();
+  useNavigationLogging();
+  useNetworkLogger();
 
   useEffect(() => {
     configureClient({
@@ -35,18 +41,23 @@ function AuthenticatedApp({
       onChannelReset: () => sync.handleDiscontinuity(),
     });
 
-    setCrashReporter(crashlytics());
+    initializeCrashReporter(crashlytics(), PlatformState);
 
     // TODO: remove, for use in Beta testing only
     if (currentUserId) {
-      logic.setErrorTrackingUserId(currentUserId);
+      store.setErrorTrackingUserId(currentUserId);
     }
 
     sync.syncStart();
   }, [currentUserId, ship, shipUrl]);
 
   useAppForegrounded(() => {
-    sync.syncUnreads({ priority: sync.SyncPriority.High });
+    // only run these updates if we've initialized the session
+    // (i.e. first startSync has completed)
+    if (session) {
+      sync.syncUnreads({ priority: sync.SyncPriority.High });
+      sync.syncPinnedItems({ priority: sync.SyncPriority.High });
+    }
   });
 
   return (

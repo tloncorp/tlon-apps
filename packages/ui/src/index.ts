@@ -55,6 +55,7 @@ export * from './components/EditProfileScreenView';
 export * from './components/AppSetting';
 export * from './components/GroupChannelsScreenView';
 export * from './components/FeatureFlagScreenView';
+export * from './components/FormInput';
 export * from './tamagui.config';
 export * from './contexts';
 export * from './components/Input';
