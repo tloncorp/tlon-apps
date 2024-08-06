@@ -33,7 +33,7 @@ export function EditProfileScreen(props: Props) {
         store.updateCurrentUserProfile(update.profile);
       }
       if (update.pinnedGroups) {
-        store.updateCurrentUserPinnedGroups(update.pinnedGroups);
+        store.updatePinnedGroups(update.pinnedGroups);
       }
       props.navigation.goBack();
     },

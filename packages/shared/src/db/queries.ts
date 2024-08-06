@@ -2428,8 +2428,8 @@ export const updateContact = createWriteQuery(
   ['contacts']
 );
 
-export const addCurrentUserPinnedGroup = createWriteQuery(
-  'addCurrentUserPinnedGroup',
+export const addPinnedGroup = createWriteQuery(
+  'addPinnedGroup',
   async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
     const currentUserId = getCurrentUserId();
     return ctx.db.insert($contactGroups).values({
@@ -2440,8 +2440,8 @@ export const addCurrentUserPinnedGroup = createWriteQuery(
   ['contactGroups', 'contacts']
 );
 
-export const removeCurrentUserPinnedGroup = createWriteQuery(
-  'addCurrentUserPinnedGroup',
+export const removePinnedGroup = createWriteQuery(
+  'removePinnedGroup',
   async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
     const currentUserId = getCurrentUserId();
     return ctx.db.delete($contactGroups).values({

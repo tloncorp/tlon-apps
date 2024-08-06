@@ -28,7 +28,7 @@ export default function ProfileScreen(props: Props) {
     props.navigation.navigate('WompWomp');
   }, [props.navigation]);
 
-  const onViewProfile = useCallback(() => {
+  const onViewProfilePressed = useCallback(() => {
     props.navigation.navigate('UserProfile', { userId: currentUserId });
   }, [currentUserId, props.navigation]);
 
@@ -43,7 +43,7 @@ export default function ProfileScreen(props: Props) {
         onEditProfilePressed={onEditProfilePressed}
         onLogoutPressed={handleLogout}
         onSendBugReportPressed={onSendBugReportPressed}
-        onViewProfile={onViewProfile}
+        onViewProfile={onViewProfilePressed}
         dmLink={dmLink}
       />
       <NavBar navigation={props.navigation} />

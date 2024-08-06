@@ -29,33 +29,33 @@ export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
   }
 }
 
-export async function addCurrentUserPinnedGroup(groupId: string) {
+export async function addPinnedGroup(groupId: string) {
   // Optimistic update
-  await db.addCurrentUserPinnedGroup({ groupId });
+  await db.addPinnedGroup({ groupId });
 
   try {
-    await api.addCurrentUserPinnedGroup(groupId);
+    await api.addPinnedGroup(groupId);
   } catch (e) {
     console.error('Error adding pinned group', e);
     // Rollback the update
-    await db.removeCurrentUserPinnedGroup({ groupId });
+    await db.removePinnedGroup({ groupId });
   }
 }
 
-export async function removeCurrentUserPinnedGroup(groupId: string) {
+export async function removePinnedGroup(groupId: string) {
   // Optimistic update
-  await db.removeCurrentUserPinnedGroup({ groupId });
+  await db.removePinnedGroup({ groupId });
 
   try {
-    await api.removeCurrentUserPinnedGroup(groupId);
+    await api.removePinnedGroup(groupId);
   } catch (e) {
     console.error('Error removing pinned group', e);
     // Rollback the update
-    await db.addCurrentUserPinnedGroup({ groupId });
+    await db.addPinnedGroup({ groupId });
   }
 }
 
-export async function updateCurrentUserPinnedGroups(newPinned: db.Group[]) {
+export async function updatePinnedGroups(newPinned: db.Group[]) {
   const currentUserId = api.getCurrentUserId();
   const currentUserContact = await db.getContact({ id: currentUserId });
   const startingPinnedIds =
@@ -82,11 +82,9 @@ export async function updateCurrentUserPinnedGroups(newPinned: db.Group[]) {
     deletions
   );
 
-  const additionPromises = additions.map((groupId) =>
-    addCurrentUserPinnedGroup(groupId)
-  );
+  const additionPromises = additions.map((groupId) => addPinnedGroup(groupId));
   const deletionPromises = deletions.map((groupId) =>
-    removeCurrentUserPinnedGroup(groupId)
+    removePinnedGroup(groupId)
   );
 
   return Promise.all([...additionPromises, ...deletionPromises]);

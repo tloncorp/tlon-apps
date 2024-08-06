@@ -54,7 +54,7 @@ export const updateCurrentUserProfile = async (update: ProfileUpdate) => {
   });
 };
 
-export const addCurrentUserPinnedGroup = async (groupId: string) => {
+export const addPinnedGroup = async (groupId: string) => {
   const update: ub.ContactEdit = { edit: [{ 'add-group': groupId }] };
   return poke({
     app: 'contacts',
@@ -63,7 +63,7 @@ export const addCurrentUserPinnedGroup = async (groupId: string) => {
   });
 };
 
-export const removeCurrentUserPinnedGroup = async (groupId: string) => {
+export const removePinnedGroup = async (groupId: string) => {
   const update: ub.ContactEdit = { edit: [{ 'del-group': groupId }] };
   return poke({
     app: 'contacts',
