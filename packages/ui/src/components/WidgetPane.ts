@@ -1,6 +1,5 @@
 import { SizableText, styled, withStaticProperties } from 'tamagui';
-
-import { YStack } from '../core';
+import { YStack } from 'tamagui';
 
 const WidgetPaneFrame = styled(YStack, {
   backgroundColor: '$background',

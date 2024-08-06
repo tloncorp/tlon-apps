@@ -1,8 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { View, YStack } from 'tamagui';
 
-import { View, YStack } from '../../core';
 import { Button } from '../Button';
 import { DeleteSheet } from '../DeleteSheet';
 import { FormInput } from '../FormInput';

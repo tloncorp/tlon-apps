@@ -1,5 +1,6 @@
+import type * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
-import React from 'react';
+import React, { useMemo } from 'react';
 
 import { Chat } from '../ChatList';
 import { ChannelListItem } from './ChannelListItem';
@@ -22,9 +23,7 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
       <GroupListItem
         onPress={handlePress}
         onLongPress={handleLongPress}
-        model={{
-          ...model,
-        }}
+        model={model}
         {...props}
       />
     );
@@ -46,15 +45,11 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
       );
     } else if (model.group) {
       return (
-        <GroupListItem
+        <GroupListItemAdapter
+          model={model}
+          groupModel={model.group}
           onPress={handlePress}
           onLongPress={handleLongPress}
-          model={{
-            ...model.group,
-            unreadCount: model.unread?.count,
-            lastPost: model.lastPost,
-            lastChannel: model.title,
-          }}
           {...props}
         />
       );
@@ -64,3 +59,32 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
   console.warn('unable to render chat list item', model.id, model);
   return null;
 });
+
+function GroupListItemAdapter({
+  model,
+  groupModel,
+  onPress,
+  onLongPress,
+  ...props
+}: ListItemProps<Chat> & {
+  groupModel: db.Group;
+  onPress: () => void;
+  onLongPress: () => void;
+}) {
+  const resolvedModel = useMemo(() => {
+    return {
+      ...groupModel,
+      unreadCount: model.unread?.count,
+      lastPost: model.lastPost,
+      lastChannel: model.title,
+    };
+  }, [model, groupModel]);
+  return (
+    <GroupListItem
+      onPress={onPress}
+      onLongPress={onLongPress}
+      model={resolvedModel}
+      {...props}
+    />
+  );
+}

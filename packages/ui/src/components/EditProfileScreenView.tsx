@@ -5,10 +5,10 @@ import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, View, YStack } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts';
 import { AttachmentProvider } from '../contexts/attachment';
-import { ScrollView, View, YStack } from '../core';
 import { EditablePofileImages } from './EditableProfileImages';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
 import { FormTextInput } from './FormInput';

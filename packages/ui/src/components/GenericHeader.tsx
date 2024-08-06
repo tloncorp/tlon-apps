@@ -1,8 +1,8 @@
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SizableText, View, XStack } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
-import { SizableText, View, XStack } from '../core';
 import { IconButton } from './IconButton';
 
 export function GenericHeader({

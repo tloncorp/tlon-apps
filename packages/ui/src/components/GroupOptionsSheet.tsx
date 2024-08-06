@@ -3,8 +3,8 @@ import type * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo } from 'react';
+import { Text, View, XStack, YStack } from 'tamagui';
 
-import { Text, View, XStack, YStack } from '../core';
 import { useCopy } from '../hooks/useCopy';
 import { ActionSheet } from './ActionSheet';
 import { GroupAvatar } from './Avatar';

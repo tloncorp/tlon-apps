@@ -3,9 +3,9 @@ import { useFeatureFlag } from 'posthog-react-native';
 import { Alert, Dimensions, Share, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, SizableText, getTokens } from 'tamagui';
+import { Stack, View, YStack } from 'tamagui';
 
 import { AppDataContextProvider, useContact } from '../contexts';
-import { Stack, View, YStack } from '../core';
 import { IconType } from './Icon';
 import { ListItem } from './ListItem';
 import ProfileCover from './ProfileCover';

@@ -8,8 +8,8 @@ import {
   styled,
   withStaticProperties,
 } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
-import { View, XStack, YStack } from '../../core';
 import { PostViewMode } from '../ContentRenderer';
 import { Icon, IconType } from '../Icon';
 

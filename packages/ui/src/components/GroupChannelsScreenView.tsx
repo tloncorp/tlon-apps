@@ -1,9 +1,9 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, View } from 'tamagui';
 
 import { useGroupOptions } from '../contexts/groupOptions';
-import { ScrollView, View } from '../core';
 import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
 import ChannelNavSections from './ChannelNavSections';

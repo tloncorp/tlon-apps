@@ -2,8 +2,7 @@ import * as Application from 'expo-application';
 import { PropsWithChildren, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { Alert } from 'react-native';
-
-import { View } from '../core';
+import { View } from 'tamagui';
 
 const KONAMI_CLICKS = 5;
 const KONAMI_TIME_WINDOW = 2000;

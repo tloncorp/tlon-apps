@@ -5,8 +5,8 @@ import {
   NativeSyntheticEvent,
   SectionListRenderItemInfo,
 } from 'react-native';
+import { Stack, View, YStack } from 'tamagui';
 
-import { Stack, View, YStack } from '../core';
 import { AlphaSegmentedGroups } from '../hooks/groupsSorters';
 import { triggerHaptic } from '../utils';
 import { Icon } from './Icon';

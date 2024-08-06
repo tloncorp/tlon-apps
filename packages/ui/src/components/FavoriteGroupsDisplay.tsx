@@ -2,9 +2,9 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TouchableOpacity } from 'react-native';
+import { SizableText, XStack } from 'tamagui';
 
 import { useGroups } from '../contexts';
-import { SizableText, XStack } from '../core';
 import { useAlphabeticallySegmentedGroups } from '../hooks/groupsSorters';
 import { GroupPreviewSheet } from './GroupPreviewSheet';
 import { GroupSelectorSheet } from './GroupSelectorSheet';

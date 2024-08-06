@@ -1,15 +1,22 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import React from 'react';
-import { ColorTokens, getTokenValue, styled, useStyle } from 'tamagui';
+import {
+  ColorTokens,
+  Text,
+  View,
+  getTokenValue,
+  styled,
+  useStyle,
+} from 'tamagui';
 
 import { useContact } from '../contexts';
 import { useCalm } from '../contexts/calm';
-import { Image, Text, View } from '../core';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
 import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
 import { Icon, IconType } from './Icon';
+import { Image } from './Image';
 import UrbitSigil from './UrbitSigil';
 
 const AvatarFrame = styled(View, {
@@ -186,7 +193,7 @@ export const SystemIconAvatar = React.memo(function SystemIconAvatarComponent({
   );
 });
 
-export const ImageAvatar = React.memo(function ImageAvatarComponent({
+export const ImageAvatar = function ImageAvatarComponent({
   imageUrl,
   fallback,
   ...props
@@ -208,7 +215,6 @@ export const ImageAvatar = React.memo(function ImageAvatarComponent({
       <Image
         width={'100%'}
         height={'100%'}
-        contentFit="cover"
         onError={handleLoadError}
         source={{
           uri: imageUrl,
@@ -218,7 +224,7 @@ export const ImageAvatar = React.memo(function ImageAvatarComponent({
   ) : (
     fallback ?? null
   );
-});
+};
 
 export const TextAvatar = React.memo(function TextAvatarComponent({
   text,

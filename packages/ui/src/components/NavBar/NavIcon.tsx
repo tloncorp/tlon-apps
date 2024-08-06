@@ -1,4 +1,5 @@
-import { Circle } from '../../core/tamagui';
+import { Circle } from 'tamagui';
+
 import { ContactAvatar } from '../Avatar';
 import { Icon, IconType } from '../Icon';
 import { View } from '../View';

@@ -2,9 +2,9 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, SizableText, View, XStack, YStack } from 'tamagui';
 
 import { useContact, useCurrentUserId, useNavigation } from '../contexts';
-import { ScrollView, SizableText, View, XStack, YStack } from '../core';
 import { useCopy } from '../hooks/useCopy';
 import { triggerHaptic } from '../utils';
 import { ContactAvatar } from './Avatar';

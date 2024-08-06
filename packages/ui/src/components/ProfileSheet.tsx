@@ -4,10 +4,10 @@ import * as store from '@tloncorp/shared/dist/store';
 import { useCallback } from 'react';
 import { Dimensions } from 'react-native';
 import { getTokens } from 'tamagui';
+import { Text, View, YStack } from 'tamagui';
 
 import { useNavigation } from '../contexts';
 import { useCurrentUserId } from '../contexts/appDataContext';
-import { Text, View, YStack } from '../core';
 import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
 import ProfileCover from './ProfileCover';

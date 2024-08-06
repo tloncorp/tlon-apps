@@ -1,13 +1,13 @@
 import { PropsWithChildren } from 'react';
-
-import { Button, ButtonProps } from '../components/Button';
 import {
   ColorTokens,
   RadiusTokens,
   SizeTokens,
   ThemeTokens,
   useTheme,
-} from '../core';
+} from 'tamagui';
+
+import { Button, ButtonProps } from '../components/Button';
 
 export function IconButton({
   children,

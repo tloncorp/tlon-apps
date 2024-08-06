@@ -1,7 +1,7 @@
 import { makePrettyShortDate } from '@tloncorp/shared/src/logic/utils';
 import { ColorTokens } from 'tamagui';
+import { SizableText, View, XStack, YStack } from 'tamagui';
 
-import { SizableText, View, XStack, YStack } from '../../core';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { SearchState } from './types';
 

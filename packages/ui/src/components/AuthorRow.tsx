@@ -2,9 +2,9 @@ import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { GestureResponderEvent } from 'react-native';
+import { SizableText, View, XStack } from 'tamagui';
 
 import { useNavigation } from '../contexts';
-import { SizableText, View, XStack } from '../core';
 import { ContactAvatar } from './Avatar';
 import ContactName from './ContactName';
 import { ProfileSheet } from './ProfileSheet';

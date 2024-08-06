@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, View, XStack, YStack } from 'tamagui';
 
-import { Text, View, XStack, YStack } from '../core';
 import { Icon } from './Icon';
 import { Sheet } from './Sheet';
 
