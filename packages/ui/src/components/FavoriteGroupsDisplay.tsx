@@ -1,57 +1,93 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TouchableOpacity } from 'react-native';
 
+import { useGroups } from '../contexts';
 import { SizableText, XStack } from '../core';
+import { useAlphabeticallySegmentedGroups } from '../hooks/groupsSorters';
 import { GroupPreviewSheet } from './GroupPreviewSheet';
+import { GroupSelectorSheet } from './GroupSelectorSheet';
 import { GroupListItem, ListItem } from './ListItem';
 import { WidgetPane } from './WidgetPane';
 
 export function FavoriteGroupsDisplay(props: {
   groups: db.Group[];
   editable?: boolean;
-  onRemove?: (group: db.Group) => void;
+  altColors?: boolean;
+  onUpdate?: (groups: db.Group[]) => void;
 }) {
+  const [selectorOpen, setSelectorOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
+
+  // if editable, get sorted groups to pass to the selector
+  const allGroups = useGroups();
+  const titledGroups = useMemo(() => {
+    if (!props.editable) return [];
+    return allGroups?.filter((g) => !!g.title) ?? [];
+  }, [allGroups, props.editable]);
+  const alphaSegmentedGroups = useAlphabeticallySegmentedGroups({
+    groups: titledGroups,
+    enabled: props.editable,
+  });
 
   // first, make sure we grab group previews. We have no guarantee that our
   // Urbit has ever heard about these
   useEffect(() => {
-    if (props.groups.length) {
+    if (props.groups.length && !props.editable) {
       const groupIds = props.groups
         .map((g) => g && g.id)
         .filter(Boolean) as string[];
       store.syncGroupPreviews(groupIds);
     }
-  }, [props.groups]);
-
-  // then, make sure we load up to date groups since the passed in ones
-  // may not include table deps on updates to the group metadata
-  const { data: previews } = store.useGroupPreviews(
-    props.groups.map((g) => g.id)
-  );
+  }, [props.editable, props.groups]);
 
   // finally, make sure what we display is the up to date values, falling back
   // to what was passed in
   const compositeGroups = useMemo(() => {
     const result: Map<string, db.Group> = new Map();
     props.groups.forEach((g) => {
-      const preview = previews?.find((p) => p.id === g.id);
+      const preview = allGroups?.find((p) => p.id === g.id);
       result.set(g.id, preview ?? g);
     });
     return Array.from(result.values());
-  }, [props.groups, previews]);
+  }, [props.groups, allGroups]);
+
+  const SheetTopContent = useMemo(() => {
+    return (
+      <XStack justifyContent="center">
+        <SizableText size="$s" color="$tertiaryText">
+          {props.groups.length >= 5
+            ? `No more groups can be selected (max 5)`
+            : `Choose up to ${5 - props.groups.length} more groups`}
+        </SizableText>
+      </XStack>
+    );
+  }, [props.groups.length]);
+
+  const handleFavoriteGroupsChange = useCallback(
+    (group: db.Group) => {
+      const currentFaves = props.groups.map((g) => g.id);
+      if (currentFaves.includes(group.id)) {
+        props.onUpdate?.(props.groups.filter((g) => g.id !== group.id));
+      } else {
+        if (currentFaves.length >= 5) {
+          // too many!
+          return;
+        }
+        props.onUpdate?.([...props.groups, group]);
+      }
+    },
+    [props]
+  );
 
   return (
-    <WidgetPane>
+    <WidgetPane altColors={props.altColors}>
       <WidgetPane.Title marginLeft="$s" marginBottom="$s">
         Favorite Groups
       </WidgetPane.Title>
       {compositeGroups.length === 0 ? (
-        <XStack marginVertical="$2xl" justifyContent="center">
-          <SizableText color="$tertiaryText">No favorites</SizableText>
-        </XStack>
+        <></>
       ) : (
         compositeGroups.map((group) => {
           return (
@@ -63,7 +99,9 @@ export function FavoriteGroupsDisplay(props: {
               onPress={() => setSelectedGroup(group)}
               EndContent={
                 props.editable ? (
-                  <TouchableOpacity onPress={() => props.onRemove?.(group)}>
+                  <TouchableOpacity
+                    onPress={() => handleFavoriteGroupsChange(group)}
+                  >
                     <ListItem.EndContent>
                       <ListItem.SystemIcon
                         icon="Close"
@@ -77,6 +115,39 @@ export function FavoriteGroupsDisplay(props: {
             />
           );
         })
+      )}
+      {props.editable && (
+        <>
+          <ListItem
+            padding="$m"
+            onPress={() => setSelectorOpen(true)}
+            backgroundColor="unset"
+          >
+            <ListItem.SystemIcon
+              icon="Add"
+              backgroundColor="unset"
+              color="$tertiaryText"
+            />
+            <ListItem.MainContent>
+              <ListItem.Title>Add a group</ListItem.Title>
+            </ListItem.MainContent>
+            <ListItem.EndContent backgroundColor="unset">
+              <ListItem.SystemIcon
+                icon="ChevronRight"
+                backgroundColor="unset"
+                color="$tertiaryText"
+              />
+            </ListItem.EndContent>
+          </ListItem>
+          <GroupSelectorSheet
+            open={selectorOpen}
+            onOpenChange={setSelectorOpen}
+            alphaSegmentedGroups={alphaSegmentedGroups}
+            selected={props.groups.map((g) => g.id)}
+            onSelect={handleFavoriteGroupsChange}
+            TopContent={SheetTopContent}
+          />
+        </>
       )}
       {selectedGroup && (
         <GroupPreviewSheet

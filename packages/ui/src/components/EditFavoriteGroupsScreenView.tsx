@@ -26,7 +26,9 @@ export function EditFavoriteGroupsScreenView(props: Props) {
     () => groups?.filter((g) => !!g.title) ?? [],
     [groups]
   );
-  const alphaSegmentedGroups = useAlphabeticallySegmentedGroups(titledGroups);
+  const alphaSegmentedGroups = useAlphabeticallySegmentedGroups({
+    groups: titledGroups,
+  });
   const savedFavoriteGroups = useMemo(
     () => contact?.pinnedGroups?.map((pg) => pg.group).filter(Boolean) ?? [],
     [contact]
@@ -78,7 +80,7 @@ export function EditFavoriteGroupsScreenView(props: Props) {
         <FavoriteGroupsDisplay
           groups={favoriteGroups}
           editable
-          onRemove={handleFavoriteGroupsChange}
+          // onRemove={handleFavoriteGroupsChange}
         />
       </ScrollView>
       <Stack flex={1} justifyContent="flex-end">

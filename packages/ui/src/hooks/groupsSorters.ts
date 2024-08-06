@@ -16,10 +16,15 @@ export type AlphaSegmentedGroups = AlphaGroupsSegment[];
 
 const logger = createDevLogger('groupSorter', false);
 
-export function useAlphabeticallySegmentedGroups(
-  groups: db.Group[]
-): AlphaSegmentedGroups {
+export function useAlphabeticallySegmentedGroups({
+  groups,
+  enabled,
+}: {
+  groups: db.Group[];
+  enabled?: boolean;
+}): AlphaSegmentedGroups {
   const segmentedContacts = useMemo(() => {
+    if (!enabled) return [];
     return logSyncDuration('useAlphabeticallySegmentedContacts', logger, () => {
       const segmented: Record<
         string,
