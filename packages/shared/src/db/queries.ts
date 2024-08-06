@@ -2377,7 +2377,13 @@ export const getGroup = createReadQuery(
       })
       .then(returnNullIfUndefined);
   },
-  ['groups', 'channelUnreads', 'volumeSettings', 'channels']
+  [
+    'groups',
+    'channelUnreads',
+    'volumeSettings',
+    'channels',
+    'groupJoinRequests',
+  ]
 );
 
 export const getGroupByChannel = createReadQuery(
@@ -2603,6 +2609,17 @@ export const updateGroupUnreadCount = createWriteQuery(
   ['groupUnreads']
 );
 
+export const clearGroupUnread = createWriteQuery(
+  'clearGroupUnread',
+  async (groupId: string, ctx: QueryCtx) => {
+    return ctx.db
+      .update($groupUnreads)
+      .set({ notifyCount: 0, count: 0, notify: false })
+      .where(eq($groupUnreads.groupId, groupId));
+  },
+  ['groupUnreads']
+);
+
 export const insertChannelUnreads = createWriteQuery(
   'insertChannelUnreads',
   async (unreads: ChannelUnread[], ctx: QueryCtx) => {
@@ -2755,13 +2772,25 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
         $threadUnreads,
         eq($threadUnreads.threadId, $activityEvents.parentId)
       )
+      .leftJoin(
+        $groupUnreads,
+        eq($activityEvents.groupId, $groupUnreads.groupId)
+      )
       .where(
         and(
           gt($activityEvents.timestamp, seenMarker),
           eq($activityEvents.shouldNotify, true),
           or(
             and(eq($activityEvents.type, 'reply'), gt($threadUnreads.count, 0)),
-            and(eq($activityEvents.type, 'post'), gt($channelUnreads.count, 0))
+            and(eq($activityEvents.type, 'post'), gt($channelUnreads.count, 0)),
+            and(
+              gt($groupUnreads.notifyCount, 0),
+              or(
+                eq($activityEvents.type, 'group-ask'),
+                eq($activityEvents.type, 'flag-post'),
+                eq($activityEvents.type, 'flag-reply')
+              )
+            )
           )
         )
       );
@@ -2927,7 +2956,11 @@ export const getAllOrRepliesPage = createReadQuery(
           ),
           orderBy: desc($activityEvents.timestamp),
           with: {
-            group: true,
+            group: {
+              with: {
+                unread: true,
+              },
+            },
             post: true,
             channel: {
               with: {

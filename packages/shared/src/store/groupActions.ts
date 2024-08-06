@@ -909,3 +909,21 @@ export async function leaveGroup(groupId: string) {
     await db.insertGroups({ groups: [existingGroup] });
   }
 }
+
+export async function markGroupRead(group: db.Group) {
+  // optimistic update
+  const existingUnread = await db.getGroupUnread({ groupId: group.id });
+  if (existingUnread) {
+    await db.clearGroupUnread(group.id);
+  }
+
+  try {
+    await api.readGroup(group);
+  } catch (e) {
+    console.error('Failed to read channel', e);
+    // rollback optimistic update
+    if (existingUnread) {
+      await db.insertGroupUnreads([existingUnread]);
+    }
+  }
+}

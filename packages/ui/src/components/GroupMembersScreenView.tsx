@@ -212,6 +212,7 @@ export function GroupMembersScreenView({
         <GroupJoinRequestSheet
           contact={contacts.find((c) => c.id === selectedContact)}
           contactId={selectedContact}
+          currentUserIsAdmin={currentUserIsAdmin}
           open={true}
           onOpenChange={(open) => {
             if (!open) {

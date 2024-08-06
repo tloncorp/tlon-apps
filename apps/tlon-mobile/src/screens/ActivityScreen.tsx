@@ -58,6 +58,10 @@ export function ActivityScreen(props: Props) {
     [props.navigation]
   );
 
+  const handleMarkGroupRead = useCallback((group: db.Group) => {
+    store.markGroupRead(group);
+  }, []);
+
   return (
     <AppDataContextProvider contacts={contacts ?? []}>
       <View backgroundColor="$background" flex={1}>
@@ -68,6 +72,7 @@ export function ActivityScreen(props: Props) {
             goToChannel={handleGoToChannel}
             goToThread={handleGoToThread}
             goToGroup={handleGoToGroup}
+            markGroupRead={handleMarkGroupRead}
             refresh={handleRefreshActivity}
           />
         </ErrorBoundary>

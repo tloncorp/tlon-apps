@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "9f89547c-b6c3-4ed0-91b3-6ed4b9b02d89",
+  "id": "3d371fd9-81ce-42f7-80cb-12d0ed9a4eb0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -1202,8 +1202,8 @@
     "group_unreads": {
       "name": "group_unreads",
       "columns": {
-        "channel_id": {
-          "name": "channel_id",
+        "group_id": {
+          "name": "group_id",
           "type": "text",
           "primaryKey": true,
           "notNull": true,
@@ -1218,6 +1218,13 @@
         },
         "count": {
           "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "notify_count": {
+          "name": "notify_count",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

@@ -16,6 +16,7 @@ export function ActivityScreenView({
   goToChannel,
   goToThread,
   goToGroup,
+  markGroupRead,
   bucketFetchers,
   refresh,
 }: {
@@ -23,6 +24,7 @@ export function ActivityScreenView({
   goToChannel: (channel: db.Channel, selectedPostId?: string) => void;
   goToThread: (post: db.Post) => void;
   goToGroup: (group: db.Group) => void;
+  markGroupRead: (group: db.Group) => void;
   bucketFetchers: store.BucketFetchers;
   refresh: () => Promise<void>;
 }) {
@@ -83,6 +85,7 @@ export function ActivityScreenView({
           break;
         case 'group-ask':
           if (event.group) {
+            markGroupRead(event.group);
             goToGroup(event.group);
           } else {
             console.warn('No group found for group-ask', event);

@@ -1,3 +1,4 @@
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
@@ -7,6 +8,8 @@ import { SizableText, View, XStack, YStack } from '../../core';
 import { ContactAvatar, GroupAvatar } from '../Avatar';
 import ContactName from '../ContactName';
 import { UnreadDot } from '../UnreadDot';
+
+const logger = createDevLogger('GroupActivitySummary', true);
 
 export function GroupActivitySummary({
   summary,
@@ -21,7 +24,8 @@ export function GroupActivitySummary({
   const group = newest.group ?? undefined;
   const modelUnread = newest.group?.unread ?? null;
   const { data: unread } = store.useLiveGroupUnread(modelUnread);
-  const unreadCount = useMemo(() => unread?.count ?? 0, [unread]);
+  logger.log('unread', JSON.stringify(unread));
+  const unreadCount = useMemo(() => unread?.notifyCount ?? 0, [unread]);
   const otherSet = new Set<string>();
   summary.all.forEach((event) => {
     if (

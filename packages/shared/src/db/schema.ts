@@ -144,9 +144,10 @@ export const threadUnreadsRelations = relations(threadUnreads, ({ one }) => ({
 }));
 
 export const groupUnreads = sqliteTable('group_unreads', {
-  groupId: text('channel_id').primaryKey(),
+  groupId: text('group_id').primaryKey(),
   notify: boolean('notify'),
   count: integer('count'),
+  notifyCount: integer('notify_count'),
   updatedAt: timestamp('updated_at').notNull(),
 });
 

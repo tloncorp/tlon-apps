@@ -182,9 +182,10 @@ CREATE TABLE `group_roles` (
 );
 --> statement-breakpoint
 CREATE TABLE `group_unreads` (
-	`channel_id` text PRIMARY KEY NOT NULL,
+	`group_id` text PRIMARY KEY NOT NULL,
 	`notify` integer,
 	`count` integer,
+	`notify_count` integer,
 	`updated_at` integer NOT NULL
 );
 --> statement-breakpoint
