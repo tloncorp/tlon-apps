@@ -14,7 +14,7 @@ import { WidgetPane } from './WidgetPane';
 export function FavoriteGroupsDisplay(props: {
   groups: db.Group[];
   editable?: boolean;
-  altColors?: boolean;
+  secondaryColors?: boolean;
   onUpdate?: (groups: db.Group[]) => void;
 }) {
   const [selectorOpen, setSelectorOpen] = useState(false);
@@ -82,8 +82,16 @@ export function FavoriteGroupsDisplay(props: {
   );
 
   return (
-    <WidgetPane altColors={props.altColors}>
-      <WidgetPane.Title marginLeft="$s" marginBottom="$s">
+    <WidgetPane
+      backgroundColor={
+        props.secondaryColors ? '$secondaryBackground' : '$background'
+      }
+    >
+      <WidgetPane.Title
+        marginLeft="$s"
+        marginBottom="$s"
+        color={props.secondaryColors ? '$secondaryText' : '$tertiaryText'}
+      >
         Favorite Groups
       </WidgetPane.Title>
       {compositeGroups.length === 0 ? (
@@ -97,6 +105,11 @@ export function FavoriteGroupsDisplay(props: {
               key={group.id}
               backgroundColor="unset"
               onPress={() => setSelectedGroup(group)}
+              pressStyle={{
+                backgroundColor: props.secondaryColors
+                  ? '$gray100'
+                  : '$secondaryBackground',
+              }}
               EndContent={
                 props.editable ? (
                   <TouchableOpacity
@@ -106,7 +119,11 @@ export function FavoriteGroupsDisplay(props: {
                       <ListItem.SystemIcon
                         icon="Close"
                         backgroundColor="unset"
-                        color="$tertiaryText"
+                        color={
+                          props.secondaryColors
+                            ? '$secondaryText'
+                            : '$tertiaryText'
+                        }
                       />
                     </ListItem.EndContent>
                   </TouchableOpacity>
@@ -122,11 +139,16 @@ export function FavoriteGroupsDisplay(props: {
             padding="$m"
             onPress={() => setSelectorOpen(true)}
             backgroundColor="unset"
+            pressStyle={{
+              backgroundColor: props.secondaryColors
+                ? '$gray100'
+                : '$secondaryBackground',
+            }}
           >
             <ListItem.SystemIcon
               icon="Add"
               backgroundColor="unset"
-              color="$tertiaryText"
+              color={props.secondaryColors ? '$secondaryText' : '$tertiaryText'}
             />
             <ListItem.MainContent>
               <ListItem.Title>Add a group</ListItem.Title>
@@ -135,7 +157,9 @@ export function FavoriteGroupsDisplay(props: {
               <ListItem.SystemIcon
                 icon="ChevronRight"
                 backgroundColor="unset"
-                color="$tertiaryText"
+                color={
+                  props.secondaryColors ? '$secondaryText' : '$tertiaryText'
+                }
               />
             </ListItem.EndContent>
           </ListItem>

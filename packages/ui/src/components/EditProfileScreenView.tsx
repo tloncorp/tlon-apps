@@ -158,6 +158,7 @@ export function EditProfileScreenView(props: Props) {
 
               <View marginTop="$2xl">
                 <FavoriteGroupsDisplay
+                  secondaryColors
                   groups={pinnedGroups}
                   editable
                   onUpdate={setPinnedGroups}
