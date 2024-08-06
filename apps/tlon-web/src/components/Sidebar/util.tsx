@@ -77,8 +77,8 @@ export function useNavWithinTab() {
         ? {
             ...options,
             state: {
-              ...(options?.state ?? location.state),
               backgroundLocation: location,
+              ...(options?.state ?? location.state),
             },
           }
         : options;
