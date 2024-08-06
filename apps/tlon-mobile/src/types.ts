@@ -56,7 +56,6 @@ export type RootStackParamList = {
     userId: string;
   };
   EditProfile: undefined;
-  EditFavoriteGroups: undefined;
   WompWomp: undefined;
 };
 
