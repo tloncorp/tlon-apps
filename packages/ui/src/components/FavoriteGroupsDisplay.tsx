@@ -107,7 +107,7 @@ export function FavoriteGroupsDisplay(props: {
               onPress={() => setSelectedGroup(group)}
               pressStyle={{
                 backgroundColor: props.secondaryColors
-                  ? '$gray100'
+                  ? '$border'
                   : '$secondaryBackground',
               }}
               EndContent={
@@ -141,7 +141,7 @@ export function FavoriteGroupsDisplay(props: {
             backgroundColor="unset"
             pressStyle={{
               backgroundColor: props.secondaryColors
-                ? '$gray100'
+                ? '$border'
                 : '$secondaryBackground',
             }}
           >
