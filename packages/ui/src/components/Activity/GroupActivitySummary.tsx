@@ -9,8 +9,6 @@ import { ContactAvatar, GroupAvatar } from '../Avatar';
 import ContactName from '../ContactName';
 import { UnreadDot } from '../UnreadDot';
 
-const logger = createDevLogger('GroupActivitySummary', true);
-
 export function GroupActivitySummary({
   summary,
   seenMarker,
@@ -24,7 +22,6 @@ export function GroupActivitySummary({
   const group = newest.group ?? undefined;
   const modelUnread = newest.group?.unread ?? null;
   const { data: unread } = store.useLiveGroupUnread(modelUnread);
-  logger.log('unread', JSON.stringify(unread));
   const unreadCount = useMemo(() => unread?.notifyCount ?? 0, [unread]);
   const otherSet = new Set<string>();
   summary.all.forEach((event) => {
