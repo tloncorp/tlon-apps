@@ -1,3 +1,4 @@
+import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/dist/store';
 import {
@@ -22,7 +23,15 @@ export default function UserProfileScreen(props: Props) {
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
-      props.navigation.push('Channel', { channel: dmChannel });
+      props.navigation.dispatch(
+        CommonActions.reset({
+          index: 1,
+          routes: [
+            { name: 'ChatList' },
+            { name: 'Channel', params: { channel: dmChannel } },
+          ],
+        })
+      );
     },
     [props.navigation]
   );
