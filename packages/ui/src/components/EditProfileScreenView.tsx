@@ -1,7 +1,7 @@
 import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { ImagePickerAsset } from 'expo-image-picker';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,9 +14,7 @@ import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
 import { FormTextInput } from './FormInput';
 import { GenericHeader } from './GenericHeader';
 import { SaveButton } from './GroupMetaScreenView';
-import { Icon } from './Icon';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
-import { ListItem } from './ListItem';
 
 interface Props {
   onGoBack: () => void;
@@ -24,7 +22,6 @@ interface Props {
     profile: api.ProfileUpdate | null;
     pinnedGroups?: db.Group[] | null;
   }) => void;
-  onEditFavoriteGroups: () => void;
   uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
   canUpload: boolean;
 }
@@ -164,21 +161,6 @@ export function EditProfileScreenView(props: Props) {
                   onUpdate={setPinnedGroups}
                 />
               </View>
-
-              {/* <ListItem marginTop="$l" onPress={props.onEditFavoriteGroups}>
-                <ListItem.SystemIcon icon="Home" />
-                <ListItem.MainContent>
-                  <ListItem.Title>Favorite groups</ListItem.Title>
-                  <ListItem.Subtitle>
-                    {userContact?.pinnedGroups?.length ?? 0 > 0
-                      ? `${userContact?.pinnedGroups?.length} selected`
-                      : 'None selected'}
-                  </ListItem.Subtitle>
-                </ListItem.MainContent>
-                <ListItem.EndContent>
-                  <Icon type="ChevronRight" />
-                </ListItem.EndContent>
-              </ListItem> */}
             </YStack>
           </ScrollView>
         </KeyboardAvoidingView>

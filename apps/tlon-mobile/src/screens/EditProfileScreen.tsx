@@ -40,10 +40,6 @@ export function EditProfileScreen(props: Props) {
     [props.navigation]
   );
 
-  const onEditFavoriteGroups = useCallback(() => {
-    props.navigation.navigate('EditFavoriteGroups');
-  }, [props.navigation]);
-
   const canUpload = store.useCanUpload();
 
   return (
@@ -58,7 +54,6 @@ export function EditProfileScreen(props: Props) {
             uploadAsset={store.uploadAsset}
             onGoBack={onGoBack}
             onSaveProfile={onSaveProfile}
-            onEditFavoriteGroups={onEditFavoriteGroups}
           />
         </View>
       </GroupsProvider>
