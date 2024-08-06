@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo } from 'react';
+import { SizableText, YStack } from 'tamagui';
 
-import { SizableText, YStack } from '../core';
 import ChannelNavSection from './ChannelNavSection';
 import { ChannelListItem } from './ListItem';
 

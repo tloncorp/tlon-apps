@@ -2,8 +2,7 @@ import { BlurTint, BlurView } from 'expo-blur';
 import { MotiView } from 'moti';
 import { ComponentProps } from 'react';
 import { Platform } from 'react-native';
-
-import { View, useTheme } from './tamagui';
+import { View, useTheme } from 'tamagui';
 
 export function Overlay(props: ComponentProps<typeof View>) {
   return (

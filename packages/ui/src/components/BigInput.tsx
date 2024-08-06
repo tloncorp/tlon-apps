@@ -5,12 +5,12 @@ import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // TODO: replace input with our own input component
-import { Image, Input, getToken } from 'tamagui';
+import { Input, ScrollView, View, YStack, getToken } from 'tamagui';
 
 import { ImageAttachment, useAttachmentContext } from '../contexts/attachment';
-import { ScrollView, View, YStack } from '../core';
 import AttachmentSheet from './AttachmentSheet';
 import { Icon } from './Icon';
+import { Image } from './Image';
 import { MessageInput } from './MessageInput';
 import { InputToolbar } from './MessageInput/InputToolbar';
 import { MessageInputProps } from './MessageInput/MessageInputBase';

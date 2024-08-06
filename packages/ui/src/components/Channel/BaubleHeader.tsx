@@ -1,3 +1,4 @@
+import { LinearGradient } from '@tamagui/linear-gradient';
 import * as db from '@tloncorp/shared/dist/db';
 import { BlurView } from 'expo-blur';
 import { useCallback, useState } from 'react';
@@ -15,14 +16,15 @@ import {
   useSafeAreaFrame,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
+import { Spinner, Text, View } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useGroupOptions } from '../../contexts/groupOptions';
 import { useScrollContext } from '../../contexts/scroll';
-import { Image, LinearGradient, Spinner, Text, View } from '../../core';
 import { ContactAvatar } from '../Avatar';
 import { ChatOptionsSheet } from '../GroupOptionsSheet';
 import { Icon } from '../Icon';
+import { Image } from '../Image';
 
 export function BaubleHeader({
   showSpinner,

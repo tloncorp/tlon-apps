@@ -2,8 +2,8 @@ import React from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getToken } from 'tamagui';
+import { XStack } from 'tamagui';
 
-import { XStack } from '../../core';
 import { View } from '../View';
 
 const NavBar = React.memo(function NavBar(props: {

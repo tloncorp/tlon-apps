@@ -1,8 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { formatDistanceToNow } from 'date-fns';
 import React, { useMemo } from 'react';
+import { SizableText, View, XStack } from 'tamagui';
 
-import { SizableText, View, XStack } from '../../core';
 import { ContactAvatar } from '../Avatar';
 import { UnreadDot } from '../UnreadDot';
 

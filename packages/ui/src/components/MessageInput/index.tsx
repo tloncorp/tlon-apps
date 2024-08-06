@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import { TextArea } from 'tamagui';
 
-import { TextArea } from '../../core';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 
 export function MessageInput({

@@ -3,8 +3,8 @@ import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
+import { Text, View, XStack, YStack } from 'tamagui';
 
-import { Text, View, XStack, YStack } from '../../core';
 import { ActionSheet } from '../ActionSheet';
 import AuthorRow from '../AuthorRow';
 import { Button } from '../Button';

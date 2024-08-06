@@ -1,8 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import { useMemo } from 'react';
+import { ScrollView, View } from 'tamagui';
 
-import { ScrollView, View } from '../../core';
 import ContentRenderer from '../ContentRenderer';
 import { GalleryPost } from '../GalleryPost';
 import { NotebookPost } from '../NotebookPost';

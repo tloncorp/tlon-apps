@@ -1,4 +1,5 @@
-import { Text } from '../core';
+import { Text } from 'tamagui';
+
 import { ActionSheet } from './ActionSheet';
 
 export function DeleteSheet({

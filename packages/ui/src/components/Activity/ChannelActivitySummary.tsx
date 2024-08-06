@@ -2,8 +2,8 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import { useMemo } from 'react';
+import { SizableText, View, XStack, YStack } from 'tamagui';
 
-import { SizableText, View, XStack, YStack } from '../../core';
 import { getChannelTitle } from '../../utils';
 import { ChannelAvatar, ContactAvatar } from '../Avatar';
 import { UnreadDot } from '../UnreadDot';

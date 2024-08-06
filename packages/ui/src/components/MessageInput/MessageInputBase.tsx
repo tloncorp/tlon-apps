@@ -4,10 +4,10 @@ import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { PropsWithChildren } from 'react';
 import { SpaceTokens } from 'tamagui';
+import { ThemeTokens, View, XStack, YStack } from 'tamagui';
 
 import { ArrowUp, Checkmark, ChevronLeft, Close } from '../../assets/icons';
 import { useAttachmentContext } from '../../contexts/attachment';
-import { ThemeTokens, View, XStack, YStack } from '../../core';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
 import { IconButton } from '../IconButton';

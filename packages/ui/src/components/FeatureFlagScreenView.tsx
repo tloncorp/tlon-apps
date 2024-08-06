@@ -1,7 +1,7 @@
 import { Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, SizableText, View, XStack } from 'tamagui';
 
-import { ScrollView, SizableText, View, XStack } from '../core';
 import { GenericHeader } from './GenericHeader';
 
 export function FeatureFlagScreenView({

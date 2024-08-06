@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import React from 'react';
+import { View } from 'tamagui';
 
-import { View } from '../../core';
 import { ScreenHeader } from '../ScreenHeader';
 import { Tabs } from '../Tabs';
 
