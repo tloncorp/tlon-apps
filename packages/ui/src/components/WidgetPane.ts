@@ -3,7 +3,7 @@ import { SizableText, styled, withStaticProperties } from 'tamagui';
 import { YStack } from '../core';
 
 const WidgetPaneFrame = styled(YStack, {
-  backgroundColor: '$secondaryBackground',
+  backgroundColor: '$background',
   borderRadius: '$3xl',
   padding: '$2xl',
 });

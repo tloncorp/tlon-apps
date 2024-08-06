@@ -25,7 +25,6 @@ type SubscriptionPost = [db.Post, string | undefined];
 
 type UseChanelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
-  fetchingEnabled: boolean;
   firstPageCount?: number;
   hasCachedNewest?: boolean;
 };
@@ -39,12 +38,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     return Date.now();
   }, []);
 
-  const {
-    enabled,
-    fetchingEnabled = true,
-    firstPageCount,
-    ...pageParam
-  } = options;
+  const { enabled, firstPageCount, ...pageParam } = options;
 
   const queryKey = useMemo(
     () => [['channelPosts', options.channelId, options.cursor, mountTime]],
@@ -61,24 +55,13 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     queryFn: async (ctx): Promise<db.Post[]> => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log('loading posts', queryOptions);
-      if (
-        queryOptions.mode === 'newest' &&
-        !options.hasCachedNewest &&
-        fetchingEnabled
-      ) {
+      if (queryOptions.mode === 'newest' && !options.hasCachedNewest) {
         await sync.syncPosts(queryOptions, { priority: SyncPriority.High });
       }
       const cached = await db.getChannelPosts(queryOptions);
       if (cached?.length) {
         postsLogger.log('returning', cached.length, 'posts from db');
         return cached;
-      }
-
-      if (!fetchingEnabled) {
-        postsLogger.log(
-          'fetching disabled and nothing found locally, returning empty'
-        );
-        return [];
       }
 
       postsLogger.log('no posts found in database, loading from api...');
@@ -104,9 +87,6 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       _allPages,
       lastPageParam
     ): UseChannelPostsPageParams | undefined => {
-      if (!fetchingEnabled) {
-        return undefined;
-      }
       const lastPageIsEmpty = !lastPage[lastPage.length - 1]?.id;
       if (lastPageIsEmpty) {
         // If we've only tried to get newer posts + that's failed, try using the
@@ -133,9 +113,6 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       _allPages,
       firstPageParam
     ): UseChannelPostsPageParams | undefined => {
-      if (!fetchingEnabled) {
-        return undefined;
-      }
       const firstPageIsEmpty = !firstPage[0]?.id;
       if (
         firstPageIsEmpty ||
@@ -181,10 +158,11 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
   useRefreshPosts(options.channelId, posts);
 
   const isLoading = useDebouncedValue(
-    query.isPending ||
-      query.isPaused ||
-      query.isFetchingNextPage ||
-      query.isFetchingPreviousPage,
+    enabled &&
+      (query.isPending ||
+        query.isPaused ||
+        query.isFetchingNextPage ||
+        query.isFetchingPreviousPage),
     100
   );
 

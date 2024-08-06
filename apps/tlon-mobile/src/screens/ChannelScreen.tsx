@@ -124,8 +124,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     loadOlder,
     isLoading: isLoadingPosts,
   } = store.useChannelPosts({
-    enabled: !!channel,
-    fetchingEnabled: !channel?.isPendingChannel,
+    enabled: !!channel && !channel?.isPendingChannel,
     channelId: currentChannelId,
     count: 50,
     hasCachedNewest,
