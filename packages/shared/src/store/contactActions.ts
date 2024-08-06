@@ -2,7 +2,7 @@ import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 
-const logger = createDevLogger('ContactActions', true);
+const logger = createDevLogger('ContactActions', false);
 
 export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
   const currentUserId = api.getCurrentUserId();
@@ -29,7 +29,7 @@ export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
   }
 }
 
-export async function addPinnedGroup(groupId: string) {
+export async function addPinnedGroupToProfile(groupId: string) {
   // Optimistic update
   await db.addPinnedGroup({ groupId });
 
@@ -42,7 +42,7 @@ export async function addPinnedGroup(groupId: string) {
   }
 }
 
-export async function removePinnedGroup(groupId: string) {
+export async function removePinnedGroupFromProfile(groupId: string) {
   // Optimistic update
   await db.removePinnedGroup({ groupId });
 
@@ -55,7 +55,7 @@ export async function removePinnedGroup(groupId: string) {
   }
 }
 
-export async function updatePinnedGroups(newPinned: db.Group[]) {
+export async function updateProfilePinnedGroups(newPinned: db.Group[]) {
   const currentUserId = api.getCurrentUserId();
   const currentUserContact = await db.getContact({ id: currentUserId });
   const startingPinnedIds =
@@ -82,9 +82,11 @@ export async function updatePinnedGroups(newPinned: db.Group[]) {
     deletions
   );
 
-  const additionPromises = additions.map((groupId) => addPinnedGroup(groupId));
+  const additionPromises = additions.map((groupId) =>
+    addPinnedGroupToProfile(groupId)
+  );
   const deletionPromises = deletions.map((groupId) =>
-    removePinnedGroup(groupId)
+    removePinnedGroupFromProfile(groupId)
   );
 
   return Promise.all([...additionPromises, ...deletionPromises]);
