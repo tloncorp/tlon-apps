@@ -127,7 +127,9 @@ export function FavoriteGroupsDisplay(props: {
                       />
                     </ListItem.EndContent>
                   </TouchableOpacity>
-                ) : null
+                ) : (
+                  <></>
+                )
               }
             />
           );
