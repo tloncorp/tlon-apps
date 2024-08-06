@@ -44,16 +44,21 @@ export const GroupListItem = ({
         ) : null}
       </ListItem.MainContent>
 
-      <ListItem.EndContent>
-        {statusLabel ? (
-          <Badge text={statusLabel} type={isErrored ? 'warning' : 'positive'} />
-        ) : (
-          <>
-            <ListItem.Time time={model.lastPostAt} />
-            <ListItem.Count count={unreadCount} muted={isMuted(model)} />
-          </>
-        )}
-      </ListItem.EndContent>
+      {props.EndContent ?? (
+        <ListItem.EndContent>
+          {statusLabel ? (
+            <Badge
+              text={statusLabel}
+              type={isErrored ? 'warning' : 'positive'}
+            />
+          ) : (
+            <>
+              <ListItem.Time time={model.lastPostAt} />
+              <ListItem.Count count={unreadCount} muted={isMuted(model)} />
+            </>
+          )}
+        </ListItem.EndContent>
+      )}
     </ListItem>
   );
 };

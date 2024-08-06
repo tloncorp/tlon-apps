@@ -63,6 +63,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
         postsLogger.log('returning', cached.length, 'posts from db');
         return cached;
       }
+
       postsLogger.log('no posts found in database, loading from api...');
       const res = await sync.syncPosts(
         {
@@ -157,10 +158,11 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
   useRefreshPosts(options.channelId, posts);
 
   const isLoading = useDebouncedValue(
-    query.isPending ||
-      query.isPaused ||
-      query.isFetchingNextPage ||
-      query.isFetchingPreviousPage,
+    enabled &&
+      (query.isPending ||
+        query.isPaused ||
+        query.isFetchingNextPage ||
+        query.isFetchingPreviousPage),
     100
   );
 

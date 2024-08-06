@@ -75,7 +75,7 @@ export function ProfileSheet({
   }, [contact, contactId, onOpenChange]);
 
   const handleGoToDm = useCallback(async () => {
-    onPressGoToDm([contactId]);
+    onPressGoToDm?.([contactId]);
     onOpenChange(false);
   }, [contactId, onPressGoToDm, onOpenChange]);
 

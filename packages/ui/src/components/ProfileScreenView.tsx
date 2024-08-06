@@ -15,6 +15,7 @@ interface Props {
   currentUserId: string;
   onAppSettingsPressed?: () => void;
   onEditProfilePressed?: () => void;
+  onViewProfile?: () => void;
   onLogoutPressed: () => void;
   onSendBugReportPressed?: () => void;
   dmLink?: string;
@@ -75,16 +76,18 @@ export function Wrapped(props: Props) {
     <ScrollView>
       <YStack flex={1} paddingHorizontal="$xl" paddingTop={top}>
         <View marginTop="$l">
-          {contact ? (
-            <ProfileDisplayWidget
-              contact={contact}
-              contactId={props.currentUserId}
-            />
-          ) : (
-            <View backgroundColor="$secondaryBackground" borderRadius="$m">
-              <ProfileRow dark contactId={props.currentUserId} />
-            </View>
-          )}
+          <View onPress={props.onViewProfile}>
+            {contact ? (
+              <ProfileDisplayWidget
+                contact={contact}
+                contactId={props.currentUserId}
+              />
+            ) : (
+              <View backgroundColor="$secondaryBackground" borderRadius="$m">
+                <ProfileRow dark contactId={props.currentUserId} />
+              </View>
+            )}
+          </View>
           <View position="absolute" top="$l" right="$l">
             <TouchableOpacity
               activeOpacity={0.7}

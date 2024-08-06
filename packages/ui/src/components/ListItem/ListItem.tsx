@@ -18,6 +18,7 @@ export interface BaseListItemProps<T> {
   model: T;
   StartIcon?: ReactElement | null;
   EndIcon?: ReactElement | null;
+  EndContent?: ReactElement | null;
   onPress?: (model: T) => void;
   onLongPress?: (model: T) => void;
   unreadCount?: number;

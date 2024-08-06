@@ -20,20 +20,23 @@ export async function sendPost({
   metadata?: db.PostMetadata;
 }) {
   logger.crumb('sending post', `channel type: ${channel.type}`);
-  // if first message of a pending group dm, we need to first create
-  // it on the backend
-  if (channel.type === 'groupDm' && channel.isPendingChannel) {
-    logger.crumb('is pending multi DM, need to create first');
-    await api.createGroupDm({
-      id: channel.id,
-      members:
-        channel.members
-          ?.map((m) => m.contactId)
-          .filter((m) => m !== authorId) ?? [],
-    });
+  if (channel.isPendingChannel) {
+    // if first message of a pending group dm, we need to first create
+    // it on the backend
+    if (channel.type === 'groupDm') {
+      logger.crumb('is pending multi DM, need to create first');
+      await api.createGroupDm({
+        id: channel.id,
+        members:
+          channel.members
+            ?.map((m) => m.contactId)
+            .filter((m) => m !== authorId) ?? [],
+      });
+    }
+
+    // either way, we have to mark it as non-pending
     await db.updateChannel({ id: channel.id, isPendingChannel: false });
   }
-
   // optimistic update
   // TODO: make author available more efficiently
   const author = await db.getContact({ id: authorId });

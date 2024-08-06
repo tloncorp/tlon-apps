@@ -4,6 +4,7 @@ import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { GestureResponderEvent } from 'react-native';
 import { SizableText, View, XStack } from 'tamagui';
 
+import { useNavigation } from '../contexts';
 import { ContactAvatar } from './Avatar';
 import ContactName from './ContactName';
 import { ProfileSheet } from './ProfileSheet';
@@ -36,15 +37,16 @@ type AuthorRowProps = ComponentProps<typeof XStack> & {
 
 export default function AuthorRow({ onPress, ...props }: AuthorRowProps) {
   const [showProfile, setShowProfile] = useState(false);
+  const navContext = useNavigation();
 
   const handlePress = useCallback(
     (e: GestureResponderEvent) => {
       if (props.type !== 'block') {
-        setShowProfile(true);
+        navContext.onGoToUserProfile?.(props.authorId);
         onPress?.(e);
       }
     },
-    [props.type, onPress]
+    [props.type, props.authorId, navContext, onPress]
   );
 
   return (

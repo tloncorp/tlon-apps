@@ -4,6 +4,8 @@ import { createDevLogger } from '../debug';
 import * as logic from '../logic';
 import { GroupChannel, getChannelKindFromType } from '../urbit';
 
+const logger = createDevLogger('ChannelActions', false);
+
 export async function createChannel({
   groupId,
   channelId,
@@ -112,8 +114,6 @@ export async function updateChannel({
     await db.updateChannel(channel);
   }
 }
-
-const logger = createDevLogger('channelActions', false);
 
 export async function pinItem(channel: db.Channel) {
   // optimistic update
@@ -230,9 +230,11 @@ export async function upsertDmChannel({
 }: {
   participants: string[];
 }): Promise<db.Channel> {
+  logger.log(`upserting dm channel`, participants);
   const currentUserId = api.getCurrentUserId();
   // if it's a group dm
   if (participants.length > 1) {
+    logger.log(`its a multi dm`);
     // see if any existing group dm has the exact same participant set
     const multiDms = await db.getAllMultiDms();
     const fullParticipantSet = [...participants, currentUserId];
@@ -267,16 +269,20 @@ export async function upsertDmChannel({
   }
 
   // check for existing single dm
+  logger.log(`its a single dm`);
   const dmPartner = participants[0];
   const dms = await db.getAllSingleDms();
   const existingDm = dms.find((dm) => dm.id === dmPartner);
   if (existingDm) {
+    logger.log(`found it, returning existing dm`, existingDm);
     return existingDm;
   }
 
   // if it doesn't exist, we create a new one but don't need to juggle
   // any pending state
+  logger.log(`creating pending dm, no existing one found`);
   const newDm = db.buildPendingSingleDmChannel(dmPartner);
   await db.insertChannels([newDm]);
+  logger.log(`returning new pending dm`, newDm);
   return newDm;
 }
