@@ -4,7 +4,7 @@ import { createDevLogger } from '../debug';
 import * as logic from '../logic';
 import { GroupChannel, getChannelKindFromType } from '../urbit';
 
-const logger = createDevLogger('ChannelActions', true);
+const logger = createDevLogger('ChannelActions', false);
 
 export async function createChannel({
   groupId,
