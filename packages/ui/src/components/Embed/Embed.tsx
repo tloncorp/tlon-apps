@@ -3,9 +3,10 @@ import { PropsWithChildren, useState } from 'react';
 import { DimensionValue, Dimensions, LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YStackProps, styled, withStaticProperties } from 'tamagui';
+import { Text, View, XStack, YStack } from 'tamagui';
 
-import { Modal, Text, View, XStack, YStack } from '../../core';
 import { Icon } from '../Icon';
+import { Modal } from '../Modal';
 import Pressable from '../Pressable';
 
 const EmbedTitle = styled(Text, {

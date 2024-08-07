@@ -1,12 +1,12 @@
 import { useCallback } from 'react';
 import { ImageBackground } from 'react-native';
+import { Spinner, View, XStack } from 'tamagui';
 
 import { Close } from '../../assets/icons';
 import {
   ImageAttachment,
   useAttachmentContext,
 } from '../../contexts/attachment';
-import { Spinner, View, XStack } from '../../core';
 import { Button } from '../Button';
 
 export default function GalleryImagePreview({

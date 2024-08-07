@@ -2,9 +2,9 @@ import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { XStack, YStack, ZStack } from 'tamagui';
 
 import { AppDataContextProvider, useContacts } from '../../contexts';
-import { XStack, YStack, ZStack } from '../../core';
 import { triggerHaptic } from '../../utils';
 import { Button } from '../Button';
 import { ContactBook } from '../ContactBook';

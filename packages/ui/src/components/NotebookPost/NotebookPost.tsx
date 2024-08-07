@@ -1,12 +1,13 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useState } from 'react';
+import { Text, XStack, YStack } from 'tamagui';
 
-import { Image, Text, XStack, YStack } from '../../core';
 import { ActionSheet } from '../ActionSheet';
 import AuthorRow from '../AuthorRow';
 import { Button } from '../Button';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
 import ContentRenderer from '../ContentRenderer';
+import { Image } from '../Image';
 import Pressable from '../Pressable';
 
 const IMAGE_HEIGHT = 268;

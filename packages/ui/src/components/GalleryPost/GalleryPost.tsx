@@ -1,15 +1,15 @@
 import { usePostMeta } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import { PropsWithChildren, useCallback, useState } from 'react';
-import { SizableText, styled } from 'tamagui';
+import { SizableText, Text, View, XStack, styled } from 'tamagui';
 
-import { ImageWithFallback, Text, View, XStack } from '../../core';
 import { ActionSheet } from '../ActionSheet';
 import AuthorRow from '../AuthorRow';
 import { Button } from '../Button';
 import { ContentReferenceLoader } from '../ContentReference/ContentReference';
 import ContentRenderer from '../ContentRenderer';
 import { Icon } from '../Icon';
+import { ImageWithFallback } from '../Image';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 
 const GalleryPostFrame = styled(View, {

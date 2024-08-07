@@ -20,6 +20,9 @@
     "postinstall": "pnpm run build:all",
     "lint:all": "pnpm -r lint"
   },
+  "dependencies": {
+    "@tloncorp/ui": "workspace:*"
+  },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",
     "@typescript-eslint/eslint-plugin": "^7.7.1",

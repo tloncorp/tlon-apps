@@ -2,9 +2,9 @@ import * as db from '@tloncorp/shared/dist/db';
 import { GroupPrivacy } from '@tloncorp/shared/dist/db/schema';
 import { useCallback, useMemo, useState } from 'react';
 import { SectionList } from 'react-native';
+import { View } from 'tamagui';
 
 import { AppDataContextProvider } from '../contexts/appDataContext';
-import { View } from '../core';
 import { ContactList } from './ContactList';
 import { GenericHeader } from './GenericHeader';
 import { GroupJoinRequestSheet } from './GroupJoinRequestSheet';

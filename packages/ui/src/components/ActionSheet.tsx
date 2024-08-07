@@ -6,8 +6,8 @@ import {
   styled,
   withStaticProperties,
 } from 'tamagui';
+import { Stack, Text, View } from 'tamagui';
 
-import { Stack, Text, View } from '../core';
 import Pressable from './Pressable';
 import { Sheet } from './Sheet';
 

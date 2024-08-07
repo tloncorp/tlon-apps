@@ -1,3 +1,4 @@
+// tamagui-ignore
 import {
   ImageAvatar,
   SigilAvatar,

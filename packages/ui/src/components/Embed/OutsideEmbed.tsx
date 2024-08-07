@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import { Text } from 'tamagui';
 
-import { Text } from '../../core';
 import { Icon } from '../Icon';
 import { Embed } from './Embed';
 

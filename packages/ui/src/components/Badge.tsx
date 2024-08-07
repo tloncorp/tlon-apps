@@ -1,4 +1,4 @@
-import { ColorTokens, SizableText, View } from '../core';
+import { ColorTokens, SizableText, View } from 'tamagui';
 
 type BadgeType = 'positive' | 'warning' | 'neutral';
 

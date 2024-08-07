@@ -1,7 +1,6 @@
 import { ImageBackground } from 'expo-image';
 import { PropsWithChildren } from 'react';
-
-import { View } from '../core';
+import { View } from 'tamagui';
 
 export default function ProfileCover({
   uri,

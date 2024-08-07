@@ -2,9 +2,9 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useState } from 'react';
+import { XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../contexts';
-import { XStack } from '../../../core';
 import { ReactionDetails, useReactionDetails } from '../../../utils/postUtils';
 import { Button } from '../../Button';
 import { EmojiPickerSheet } from '../../Emoji/EmojiPickerSheet';

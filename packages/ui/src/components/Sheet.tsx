@@ -10,8 +10,7 @@ import {
   useSheet,
   withStaticProperties,
 } from 'tamagui';
-
-import { SizableText } from '../core';
+import { SizableText } from 'tamagui';
 
 const Overlay = styled(YStack, {
   name: 'SheetOverlay',

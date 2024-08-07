@@ -7,8 +7,8 @@ import {
 } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useState } from 'react';
+import { Text, View } from 'tamagui';
 
-import { Text, View } from '../../core';
 import { Icon } from '../Icon';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { Embed } from './Embed';

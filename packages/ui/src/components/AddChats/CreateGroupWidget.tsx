@@ -4,8 +4,8 @@ import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useState } from 'react';
 import { TextInput } from 'react-native';
 import { getTokenValue } from 'tamagui';
+import { SizableText, XStack, YStack, useTheme } from 'tamagui';
 
-import { SizableText, XStack, YStack, useTheme } from '../../core';
 import { triggerHaptic } from '../../utils';
 import { PrimaryButton } from '../Buttons';
 import { Icon } from '../Icon';

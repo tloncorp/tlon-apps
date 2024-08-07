@@ -4,8 +4,8 @@ import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import React from 'react';
 import { FlatList, RefreshControl } from 'react-native';
+import { SizableText, View } from 'tamagui';
 
-import { SizableText, View } from '../../core';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { ActivityHeader } from './ActivityHeader';
 import { ChannelActivitySummary } from './ChannelActivitySummary';
