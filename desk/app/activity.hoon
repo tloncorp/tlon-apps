@@ -548,8 +548,9 @@
   =/  collapsed
     (~(gas in collapsed.acc) (turn top head))
   :-  (~(put by sources.acc) source src-info(added &))
-  =/  happening  [source (head (head top)) top]
-  [(sub limit.acc 1) (snoc happenings.acc happening) collapsed]
+  ?~  top  +.acc
+  =/  latest=^time  -<.top
+  [(sub limit.acc 1) (snoc happenings.acc [source latest top]) collapsed]
   +$  out
     $:  sources=(map source:a [latest=time-id:a added=?])
         limit=@ud
