@@ -2,14 +2,16 @@ import { sync } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
-import { useCallback, useEffect, useMemo } from 'react';
-import { Text, View, XStack, YStack } from 'tamagui';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { SizableText, Text, View, XStack, YStack } from 'tamagui';
 
 import { useCopy } from '../hooks/useCopy';
 import { ActionSheet } from './ActionSheet';
 import { GroupAvatar } from './Avatar';
 import { Button } from './Button';
+import { GroupNotificationsPane } from './GroupNotificationsPane';
 import { Icon } from './Icon';
+import { RadioGroup } from './RadioGroup';
 
 interface Props {
   open: boolean;
@@ -44,6 +46,7 @@ export function ChatOptionsSheet({
   onPressInvitesAndPrivacy,
   onPressRoles,
 }: Props) {
+  const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
   const { data: groupData } = useGroup({
     id: group?.id ?? channel?.groupId ?? '',
   });
@@ -123,7 +126,7 @@ export function ChatOptionsSheet({
 
     actions.push({
       title: 'Notifications',
-      action: () => {},
+      action: () => setPane('notifications'),
       icon: 'ChevronRight',
     });
 
@@ -166,68 +169,85 @@ export function ChatOptionsSheet({
 
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
-      <ActionSheet.Header>
-        <View
-          backgroundColor="$secondaryBackground"
-          borderRadius="$xl"
-          paddingVertical="$3xl"
-          paddingHorizontal="$4xl"
-          alignItems="center"
-        >
-          <YStack alignItems="center" space="$m">
-            {groupData && <GroupAvatar model={groupData} />}
-
-            <Text fontSize="$l">{title}</Text>
-            {description && (
-              <Text fontSize="$s" color="$tertiaryText">
-                {description}
-              </Text>
-            )}
-            <Button onPress={handleOnPressGroupMembers}>
-              <Button.Text fontSize="$s" color="$tertiaryText">
-                {memberCount} members
-              </Button.Text>
-            </Button>
-          </YStack>
-          {currentUserIsAdmin && (
+      {pane === 'initial' ? (
+        <>
+          <ActionSheet.Header>
             <View
-              position="absolute"
-              top="$space.m"
-              right="$space.m"
-              padding="$m"
+              backgroundColor="$secondaryBackground"
+              borderRadius="$xl"
+              paddingVertical="$3xl"
+              paddingHorizontal="$4xl"
+              alignItems="center"
             >
-              <Button
-                onPress={handleOnPressGroupMeta}
-                backgroundColor="unset"
-                borderWidth="unset"
-              >
-                <Button.Text fontSize="$l">Edit</Button.Text>
-              </Button>
+              <YStack alignItems="center" space="$m">
+                {groupData && <GroupAvatar model={groupData} />}
+
+                <Text fontSize="$l">{title}</Text>
+                {description && (
+                  <Text fontSize="$s" color="$tertiaryText">
+                    {description}
+                  </Text>
+                )}
+                <Button onPress={handleOnPressGroupMembers}>
+                  <Button.Text fontSize="$s" color="$tertiaryText">
+                    {memberCount} members
+                  </Button.Text>
+                </Button>
+              </YStack>
+              {currentUserIsAdmin && (
+                <View
+                  position="absolute"
+                  top="$space.m"
+                  right="$space.m"
+                  padding="$m"
+                >
+                  <Button
+                    onPress={handleOnPressGroupMeta}
+                    backgroundColor="unset"
+                    borderWidth="unset"
+                  >
+                    <Button.Text fontSize="$l">Edit</Button.Text>
+                  </Button>
+                </View>
+              )}
             </View>
-          )}
-        </View>
-      </ActionSheet.Header>
-      {actions.map((action, index) => (
-        <ActionSheet.Action
-          key={index}
-          action={action.action}
-          destructive={action.variant === 'destructive'}
-        >
-          <XStack space="$s" alignItems="center" justifyContent="space-between">
-            <ActionSheet.ActionTitle>{action.title}</ActionSheet.ActionTitle>
-            {action.icon && (
-              <Icon
-                // @ts-expect-error string type is fine here
-                type={action.icon}
-                size="$l"
-                color={
-                  action.variant === 'destructive' ? '$red' : '$primaryText'
-                }
-              />
-            )}
-          </XStack>
-        </ActionSheet.Action>
-      ))}
+          </ActionSheet.Header>
+          {actions.map((action, index) => (
+            <ActionSheet.Action
+              key={index}
+              action={action.action}
+              destructive={action.variant === 'destructive'}
+            >
+              <XStack
+                space="$s"
+                alignItems="center"
+                justifyContent="space-between"
+              >
+                <ActionSheet.ActionTitle>
+                  {action.title}
+                </ActionSheet.ActionTitle>
+                {action.icon && (
+                  <Icon
+                    // @ts-expect-error string type is fine here
+                    type={action.icon}
+                    size="$l"
+                    color={
+                      action.variant === 'destructive' ? '$red' : '$primaryText'
+                    }
+                  />
+                )}
+              </XStack>
+            </ActionSheet.Action>
+          ))}
+        </>
+      ) : (
+        <ActionSheet.Header>
+          <GroupNotificationsPane
+            group={group}
+            onBack={() => setPane('initial')}
+          />
+        </ActionSheet.Header>
+      )}
     </ActionSheet>
   );
 }

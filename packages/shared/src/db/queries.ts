@@ -1057,6 +1057,31 @@ export const getVolumeSetting = createReadQuery(
   ['volumeSettings']
 );
 
+// TODO: is this the right place to locate recursive volumes? Not sure, but expedient for now
+export const getGroupVolumeSetting = createReadQuery(
+  'getGroupVolumeSetting',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    const groupSetting = await ctx.db.query.volumeSettings.findFirst({
+      where: and(
+        eq($volumeSettings.itemId, groupId),
+        eq($volumeSettings.itemType, 'group')
+      ),
+    });
+
+    // if we have a group level, return it
+    if (groupSetting) {
+      return groupSetting.level;
+    }
+
+    // otherwise, fallback to base
+    const baseSetting = await ctx.db.query.volumeSettings.findFirst({
+      where: and(eq($volumeSettings.itemType, 'base')),
+    });
+    return baseSetting?.level ?? 'medium';
+  },
+  ['volumeSettings']
+);
+
 export const clearVolumeSetting = createWriteQuery(
   'clearVolumeSettings',
   (itemId: string, ctx: QueryCtx) => {
@@ -2301,6 +2326,7 @@ export const getGroup = createReadQuery(
               channels: true,
             },
           },
+          volumeSettings: true,
         },
       })
       .then(returnNullIfUndefined);

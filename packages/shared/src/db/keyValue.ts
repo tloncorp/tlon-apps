@@ -22,6 +22,7 @@ export const PUSH_NOTIFICATIONS_SETTING_QUERY_KEY = [
 
 export const IS_TLON_EMPLOYEE_QUERY_KEY = ['settings', 'isTlonEmployee'];
 export const APP_INFO_QUERY_KEY = ['settings', 'appInfo'];
+export const BASE_VOLUME_SETTING_QUERY_KEY = ['volume', 'base'];
 
 export type ChannelSortPreference = 'recency' | 'arranged';
 export async function storeChannelSortPreference(
@@ -184,3 +185,16 @@ export async function getAppInfoSettings(): Promise<AppInfo | null> {
   const appInfo = storedAppInfo ? (JSON.parse(storedAppInfo) as AppInfo) : null;
   return appInfo;
 }
+
+// export async function getBaseVolumeSetting(): Promise<ub.NotificationLevel> {
+//   const volumeSetting = await AsyncStorage.getItem('baseVolumeSetting');
+//   return (volumeSetting ?? 'soft') as ub.NotificationLevel;
+// }
+
+// export async function setBaseVolumeSetting(
+//   volumeSetting: ub.NotificationLevel
+// ) {
+//   await AsyncStorage.setItem('baseVolumeSetting', volumeSetting);
+//   queryClient.invalidateQueries({ queryKey: BASE_VOLUME_SETTING_QUERY_KEY });
+//   logger.log('stored base volume setting', volumeSetting);
+// }

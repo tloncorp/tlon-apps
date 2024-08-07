@@ -153,6 +153,14 @@ export const useUnreadsCount = () => {
   });
 };
 
+export const useGroupVolumeLevel = (groupId: string) => {
+  const deps = useKeyFromQueryDeps(db.getGroupVolumeSetting);
+  return useQuery({
+    queryKey: ['groupVolumeLevel', deps, groupId],
+    queryFn: () => db.getGroupVolumeSetting({ groupId }),
+  });
+};
+
 export const useHaveUnreadUnseenActivity = () => {
   const depsKey = useKeyFromQueryDeps(db.getUnreadUnseenActivityEvents);
   const { data: seenMarker } = useActivitySeenMarker();

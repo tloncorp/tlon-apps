@@ -1,9 +1,9 @@
 import type * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 
 import { Badge } from '../Badge';
 import type { ListItemProps } from './ListItem';
 import { ListItem } from './ListItem';
-import { isMuted } from './isMuted';
 import {
   getGroupStatus,
   getPostTypeIcon,
@@ -27,9 +27,18 @@ export const GroupListItem = ({
       onPress={useBoundHandler(model, onPress)}
       onLongPress={useBoundHandler(model, onLongPress)}
     >
-      <ListItem.GroupIcon model={model} opacity={isMuted(model) ? 0.2 : 1} />
+      <ListItem.GroupIcon
+        model={model}
+        opacity={logic.isMuted(model.volumeSettings?.level) ? 0.2 : 1}
+      />
       <ListItem.MainContent>
-        <ListItem.Title color={isMuted(model) ? '$tertiaryText' : undefined}>
+        <ListItem.Title
+          color={
+            logic.isMuted(model.volumeSettings?.level)
+              ? '$tertiaryText'
+              : undefined
+          }
+        >
           {title}
         </ListItem.Title>
         {model.lastPost && (
@@ -54,7 +63,10 @@ export const GroupListItem = ({
           ) : (
             <>
               <ListItem.Time time={model.lastPostAt} />
-              <ListItem.Count count={unreadCount} muted={isMuted(model)} />
+              <ListItem.Count
+                count={unreadCount}
+                muted={logic.isMuted(model.volumeSettings?.level)}
+              />
             </>
           )}
         </ListItem.EndContent>

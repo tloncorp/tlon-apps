@@ -12,8 +12,7 @@ export async function muteChat(channel: db.Channel) {
     {
       itemId: channel.groupId ?? channel.id,
       itemType: channel.groupId ? 'group' : 'channel',
-      isMuted: true,
-      isNoisy: false,
+      level: 'soft',
     },
   ]);
 
@@ -37,8 +36,7 @@ export async function unmuteChat(channel: db.Channel) {
     {
       itemId: channel.groupId ?? channel.id,
       itemType: channel.groupId ? 'group' : 'channel',
-      isMuted: false,
-      isNoisy: false,
+      level: 'default',
     },
   ]);
 
@@ -73,9 +71,7 @@ export async function muteThread({
 }) {
   const initialSettings = await db.getVolumeSetting(thread.id);
 
-  db.setVolumes([
-    { itemId: thread.id, itemType: 'thread', isMuted: true, isNoisy: false },
-  ]);
+  db.setVolumes([{ itemId: thread.id, itemType: 'thread', level: 'soft' }]);
 
   try {
     const { source } = api.getThreadSource({ channel, post: thread });
@@ -100,9 +96,7 @@ export async function unmuteThread({
 }) {
   const initialSettings = await db.getVolumeSetting(thread.id);
 
-  db.setVolumes([
-    { itemId: thread.id, itemType: 'thread', isMuted: false, isNoisy: false },
-  ]);
+  db.setVolumes([{ itemId: thread.id, itemType: 'thread', level: 'default' }]);
 
   try {
     const { source } = api.getThreadSource({ channel, post: thread });
@@ -137,5 +131,29 @@ export async function advanceActivitySeenMarker(timestamp: number) {
   const existingMarker = await db.getActivitySeenMarker();
   if (timestamp > existingMarker) {
     db.storeActivitySeenMarker(timestamp);
+  }
+}
+
+export async function setGroupVolumeLevel(params: {
+  group: db.Group;
+  level: ub.NotificationLevel;
+}) {
+  logger.log(`setting group volume level`, params.group, params.level);
+  const existingGroup = await db.getGroup({ id: params.group.id });
+  const source: ub.Source = { group: params.group.id };
+
+  // optimistic update
+  await db.setVolumes([
+    { itemId: params.group.id, itemType: 'group', level: params.level },
+  ]);
+
+  try {
+    await api.adjustVolumeSetting(source, ub.getVolumeMap(params.level, true));
+  } catch (e) {
+    // rollback
+    logger.log(`failed to set volume level`, e);
+    if (existingGroup?.volumeSettings) {
+      await db.setVolumes([existingGroup.volumeSettings]);
+    }
   }
 }
