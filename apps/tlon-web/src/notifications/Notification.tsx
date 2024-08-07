@@ -75,18 +75,6 @@ function Notification({ bundle, summary }: NotificationProps) {
   const time = daToUnix(parseUd(bundle.latest));
   const content = getContent(top);
   const unread = summary.count > 0 || summary['notify-count'] > 0;
-  console.log('Notification', {
-    bundle,
-    summary,
-    top,
-    source,
-    author,
-    relevancy,
-    path,
-    time,
-    content,
-    unread,
-  });
   const { mutate } = useMarkReadMutation();
   const onClick = useCallback(() => {
     mutate({ source });
