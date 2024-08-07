@@ -133,3 +133,27 @@ export async function advanceActivitySeenMarker(timestamp: number) {
     db.storeActivitySeenMarker(timestamp);
   }
 }
+
+export async function setGroupVolumeLevel(params: {
+  group: db.Group;
+  level: ub.NotificationLevel;
+}) {
+  logger.log(`setting group volume level`, params.group, params.level);
+  const existingGroup = await db.getGroup({ id: params.group.id });
+  const source: ub.Source = { group: params.group.id };
+
+  // optimistic update
+  await db.setVolumes([
+    { itemId: params.group.id, itemType: 'group', level: params.level },
+  ]);
+
+  try {
+    await api.adjustVolumeSetting(source, ub.getVolumeMap(params.level, true));
+  } catch (e) {
+    // rollback
+    logger.log(`failed to set volume level`, e);
+    if (existingGroup?.volumeSettings) {
+      await db.setVolumes([existingGroup.volumeSettings]);
+    }
+  }
+}

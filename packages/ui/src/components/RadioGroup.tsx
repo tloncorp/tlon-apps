@@ -6,6 +6,7 @@ import { ListItem } from './ListItem';
 
 const RadioGroupFrame = styled(YStack);
 
+// TODO: i'm not sure this is right. selected and onSelect should probably be set at the top level vs per option
 function RadioGroupOption(props: {
   label: string;
   value: string;

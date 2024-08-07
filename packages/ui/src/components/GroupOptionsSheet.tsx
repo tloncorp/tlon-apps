@@ -9,6 +9,7 @@ import { useCopy } from '../hooks/useCopy';
 import { ActionSheet } from './ActionSheet';
 import { GroupAvatar } from './Avatar';
 import { Button } from './Button';
+import { GroupNotificationsPane } from './GroupNotificationsPane';
 import { Icon } from './Icon';
 import { RadioGroup } from './RadioGroup';
 
@@ -45,9 +46,7 @@ export function ChatOptionsSheet({
   onPressInvitesAndPrivacy,
   onPressRoles,
 }: Props) {
-  const [pane, setPane] = useState<'initial' | 'notifications'>(
-    'notifications'
-  );
+  const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
   const { data: groupData } = useGroup({
     id: group?.id ?? channel?.groupId ?? '',
   });
@@ -243,37 +242,10 @@ export function ChatOptionsSheet({
         </>
       ) : (
         <ActionSheet.Header>
-          <XStack flex={1}>
-            <Icon type="ChevronLeft" size="$m" />
-            <SizableText>Group notification settings</SizableText>
-            <Icon type="ChevronRight" size="$m" opacity={0} />
-          </XStack>
-          <RadioGroup>
-            <RadioGroup.Option
-              label="All activity"
-              value="all"
-              onSelect={() => {}}
-              selected={true}
-            />
-            <RadioGroup.Option
-              label="Posts, mentions, and replies"
-              value="pmr"
-              onSelect={() => {}}
-              selected={false}
-            />
-            <RadioGroup.Option
-              label="Only mentions and replies"
-              value="normal"
-              onSelect={() => {}}
-              selected={false}
-            />
-            <RadioGroup.Option
-              label="Fully muted"
-              value="fullMute"
-              onSelect={() => {}}
-              selected={false}
-            />
-          </RadioGroup>
+          <GroupNotificationsPane
+            group={group}
+            onBack={() => setPane('initial')}
+          />
         </ActionSheet.Header>
       )}
     </ActionSheet>
