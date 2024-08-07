@@ -789,6 +789,7 @@ export const addGroupJoinRequests = createWriteQuery(
     requests: { groupId: string; contactIds: string[] },
     ctx: QueryCtx
   ) => {
+    if (requests.contactIds.length === 0) return;
     return ctx.db
       .insert($groupJoinRequests)
       .values(
@@ -818,6 +819,7 @@ export const deleteGroupJoinRequests = createWriteQuery(
     requests: { groupId: string; contactIds: string[] },
     ctx: QueryCtx
   ) => {
+    if (requests.contactIds.length === 0) return;
     return ctx.db
       .delete($groupJoinRequests)
       .where(
@@ -833,6 +835,7 @@ export const deleteGroupJoinRequests = createWriteQuery(
 export const addGroupMemberBans = createWriteQuery(
   'addGroupMemberBans',
   async (bans: { groupId: string; contactIds: string[] }, ctx: QueryCtx) => {
+    if (bans.contactIds.length === 0) return;
     return ctx.db
       .insert($groupMemberBans)
       .values(
@@ -859,6 +862,7 @@ export const getGroupMemberBans = createReadQuery(
 export const deleteGroupMemberBans = createWriteQuery(
   'deleteGroupMemberBans',
   async (bans: { groupId: string; contactIds: string[] }, ctx: QueryCtx) => {
+    if (bans.contactIds.length === 0) return;
     return ctx.db
       .delete($groupMemberBans)
       .where(
@@ -874,6 +878,7 @@ export const deleteGroupMemberBans = createWriteQuery(
 export const addGroupRankBans = createWriteQuery(
   'addGroupRankBans',
   async (bans: { groupId: string; ranks: Rank[] }, ctx: QueryCtx) => {
+    if (bans.ranks.length === 0) return;
     return ctx.db
       .insert($groupRankBans)
       .values(
@@ -900,6 +905,7 @@ export const getGroupRankBans = createReadQuery(
 export const deleteGroupRankBans = createWriteQuery(
   'deleteGroupRankBans',
   async (bans: { groupId: string; ranks: Rank[] }, ctx: QueryCtx) => {
+    if (bans.ranks.length === 0) return;
     return ctx.db
       .delete($groupRankBans)
       .where(
