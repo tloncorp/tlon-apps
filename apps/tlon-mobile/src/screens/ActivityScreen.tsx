@@ -49,6 +49,7 @@ export function ActivityScreen(props: Props) {
 
   const handleGoToGroup = useCallback(
     (group: db.Group) => {
+      store.markGroupRead(group);
       props.navigation.navigate('GroupSettings', {
         // @ts-expect-error TODO fix nested navigator types
         screen: 'GroupMembers',
@@ -57,10 +58,6 @@ export function ActivityScreen(props: Props) {
     },
     [props.navigation]
   );
-
-  const handleMarkGroupRead = useCallback((group: db.Group) => {
-    store.markGroupRead(group);
-  }, []);
 
   return (
     <AppDataContextProvider contacts={contacts ?? []}>
@@ -72,7 +69,6 @@ export function ActivityScreen(props: Props) {
             goToChannel={handleGoToChannel}
             goToThread={handleGoToThread}
             goToGroup={handleGoToGroup}
-            markGroupRead={handleMarkGroupRead}
             refresh={handleRefreshActivity}
           />
         </ErrorBoundary>
