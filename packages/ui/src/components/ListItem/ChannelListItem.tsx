@@ -1,11 +1,11 @@
 import type * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 import { useMemo } from 'react';
 
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
 import { ListItem, type ListItemProps } from './ListItem';
-import { isMuted } from './isMuted';
 import { useBoundHandler } from './listItemUtils';
 
 export function ChannelListItem({
@@ -50,10 +50,16 @@ export function ChannelListItem({
       <ListItem.ChannelIcon
         model={model}
         useTypeIcon={useTypeIcon}
-        opacity={isMuted(model) ? 0.2 : 1}
+        opacity={logic.isMuted(model.volumeSettings?.level) ? 0.2 : 1}
       />
       <ListItem.MainContent>
-        <ListItem.Title color={isMuted(model) ? '$tertiaryText' : undefined}>
+        <ListItem.Title
+          color={
+            logic.isMuted(model.volumeSettings?.level)
+              ? '$tertiaryText'
+              : undefined
+          }
+        >
           {title}
         </ListItem.Title>
         <ListItem.SubtitleWithIcon icon={subtitleIcon}>
@@ -75,7 +81,10 @@ export function ChannelListItem({
         {model.isDmInvite ? (
           <Badge text="Invite" />
         ) : (
-          <ListItem.Count count={unreadCount} muted={isMuted(model)} />
+          <ListItem.Count
+            count={unreadCount}
+            muted={logic.isMuted(model.volumeSettings?.level)}
+          />
         )}
       </ListItem.EndContent>
     </ListItem>

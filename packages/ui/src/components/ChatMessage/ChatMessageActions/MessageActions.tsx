@@ -29,7 +29,7 @@ export default function MessageActions({
     return getPostActions({
       post,
       channelType,
-      isMuted: post.volumeSettings?.isMuted ?? false,
+      isMuted: logic.isMuted(post.volumeSettings?.level),
     }).filter((action) => {
       switch (action.id) {
         case 'startThread':
@@ -60,7 +60,7 @@ export default function MessageActions({
               post,
               userId: currentUserId,
               channel,
-              isMuted: post.volumeSettings?.isMuted ?? false,
+              isMuted: logic.isMuted(post.volumeSettings?.level),
               dismiss,
               onReply,
               onEdit,

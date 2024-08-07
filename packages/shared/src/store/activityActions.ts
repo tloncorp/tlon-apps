@@ -12,8 +12,7 @@ export async function muteChat(channel: db.Channel) {
     {
       itemId: channel.groupId ?? channel.id,
       itemType: channel.groupId ? 'group' : 'channel',
-      isMuted: true,
-      isNoisy: false,
+      level: 'soft',
     },
   ]);
 
@@ -37,8 +36,7 @@ export async function unmuteChat(channel: db.Channel) {
     {
       itemId: channel.groupId ?? channel.id,
       itemType: channel.groupId ? 'group' : 'channel',
-      isMuted: false,
-      isNoisy: false,
+      level: 'default',
     },
   ]);
 
@@ -73,9 +71,7 @@ export async function muteThread({
 }) {
   const initialSettings = await db.getVolumeSetting(thread.id);
 
-  db.setVolumes([
-    { itemId: thread.id, itemType: 'thread', isMuted: true, isNoisy: false },
-  ]);
+  db.setVolumes([{ itemId: thread.id, itemType: 'thread', level: 'soft' }]);
 
   try {
     const { source } = api.getThreadSource({ channel, post: thread });
@@ -100,9 +96,7 @@ export async function unmuteThread({
 }) {
   const initialSettings = await db.getVolumeSetting(thread.id);
 
-  db.setVolumes([
-    { itemId: thread.id, itemType: 'thread', isMuted: false, isNoisy: false },
-  ]);
+  db.setVolumes([{ itemId: thread.id, itemType: 'thread', level: 'default' }]);
 
   try {
     const { source } = api.getThreadSource({ channel, post: thread });

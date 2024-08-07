@@ -3,7 +3,6 @@ import { backOff } from 'exponential-backoff';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { extractClientVolume } from '../logic/activity';
 import * as ub from '../urbit';
 import {
   formatUd,
@@ -353,19 +352,23 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
         const sourceId = ub.sourceToString(source);
 
         if ('group' in source) {
-          const clientVolume = extractClientVolume(volume);
+          const level: ub.NotificationLevel = volume
+            ? ub.getLevelFromVolumeMap(volume)
+            : 'default';
           return handler({
             type: 'updateItemVolume',
             volumeUpdate: {
               itemId: source.group,
               itemType: 'group',
-              ...clientVolume,
+              level,
             },
           });
         }
 
         if ('channel' in source || 'dm' in source) {
-          const clientVolume = extractClientVolume(volume, 'channel' in source);
+          const level: ub.NotificationLevel = volume
+            ? ub.getLevelFromVolumeMap(volume)
+            : 'default';
           const channelId =
             'channel' in source
               ? source.channel.nest
@@ -377,20 +380,22 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
             volumeUpdate: {
               itemId: channelId,
               itemType: 'channel',
-              ...clientVolume,
+              level,
             },
           });
         }
 
         if ('thread' in source || 'dm-thread' in source) {
-          const clientVolume = extractClientVolume(volume);
+          const level: ub.NotificationLevel = volume
+            ? ub.getLevelFromVolumeMap(volume)
+            : 'default';
           const postId = getPostIdFromSource(source);
           return handler({
             type: 'updateItemVolume',
             volumeUpdate: {
               itemId: postId,
               itemType: 'thread',
-              ...clientVolume,
+              level,
             },
           });
         }
