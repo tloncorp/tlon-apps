@@ -38,8 +38,8 @@ export function GroupMembersScreen(props: GroupMembersScreenProps) {
       currentUserId={currentUserId}
       onPressBan={banUser}
       onPressUnban={unbanUser}
-      onPressAccept={acceptUserJoin}
-      onPressReject={rejectUserJoin}
+      onPressAcceptJoinRequest={acceptUserJoin}
+      onPressRejectJoinRequest={rejectUserJoin}
       onPressKick={kickUser}
       bannedUsers={bannedUsers}
       joinRequests={joinRequests}

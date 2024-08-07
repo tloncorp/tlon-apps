@@ -22,8 +22,8 @@ export function GroupMembersScreenView({
   onPressKick,
   onPressBan,
   onPressUnban,
-  onPressAccept,
-  onPressReject,
+  onPressAcceptJoinRequest,
+  onPressRejectJoinRequest,
 }: {
   goBack: () => void;
   members: db.ChatMember[];
@@ -35,8 +35,8 @@ export function GroupMembersScreenView({
   onPressKick: (contactId: string) => void;
   onPressBan: (contactId: string) => void;
   onPressUnban: (contactId: string) => void;
-  onPressAccept: (contactId: string) => void;
-  onPressReject: (contactId: string) => void;
+  onPressAcceptJoinRequest: (contactId: string) => void;
+  onPressRejectJoinRequest: (contactId: string) => void;
 }) {
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const contacts = useMemo(
@@ -219,8 +219,8 @@ export function GroupMembersScreenView({
               setSelectedContact(null);
             }
           }}
-          onPressAccept={() => onPressAccept(selectedContact)}
-          onPressReject={() => onPressReject(selectedContact)}
+          onPressAccept={() => onPressAcceptJoinRequest(selectedContact)}
+          onPressReject={() => onPressRejectJoinRequest(selectedContact)}
         />
       )}
     </AppDataContextProvider>
