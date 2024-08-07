@@ -16,10 +16,13 @@ export function GroupNotificationsPane(props: {
   );
 
   const handleVolumeUpdate = useCallback(
-    (newLevel: ub.NotificationLevel) => {
+    (newLevel: string) => {
       console.log(`component setting volume`, newLevel);
       if (props.group) {
-        store.setGroupVolumeLevel({ group: props.group, level: newLevel });
+        store.setGroupVolumeLevel({
+          group: props.group,
+          level: newLevel as ub.NotificationLevel,
+        });
       }
     },
     [props.group]
