@@ -1,14 +1,16 @@
 import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { ImagePickerAsset } from 'expo-image-picker';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, View, YStack } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts';
 import { AttachmentProvider } from '../contexts/attachment';
-import { ScrollView, View, YStack } from '../core';
 import { EditablePofileImages } from './EditableProfileImages';
+import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
 import { FormTextInput } from './FormInput';
 import { GenericHeader } from './GenericHeader';
 import { SaveButton } from './GroupMetaScreenView';
@@ -16,18 +18,28 @@ import KeyboardAvoidingView from './KeyboardAvoidingView';
 
 interface Props {
   onGoBack: () => void;
-  onSaveProfile: (update: api.ProfileUpdate) => void;
+  onSaveProfile: (update: {
+    profile: api.ProfileUpdate | null;
+    pinnedGroups?: db.Group[] | null;
+  }) => void;
   uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
   canUpload: boolean;
 }
 
 export function EditProfileScreenView(props: Props) {
+  const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
   const userContact = useContact(currentUserId);
+  const [pinnedGroups, setPinnedGroups] = useState<db.Group[]>(
+    (userContact?.pinnedGroups
+      ?.map((pin) => pin.group)
+      .filter(Boolean) as db.Group[]) ?? []
+  );
+
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     setValue,
   } = useForm({
     defaultValues: {
@@ -38,6 +50,34 @@ export function EditProfileScreenView(props: Props) {
     },
   });
 
+  const onSavePressed = useCallback(() => {
+    // only pass pins to the save handler if changes were made
+    const initialPinnedIds = userContact?.pinnedGroups
+      ?.map((pin) => pin.group?.id)
+      .filter(Boolean) as string[];
+    const newPinnedIds = pinnedGroups.map((group) => group.id);
+    const didEditPinnedGroups =
+      initialPinnedIds.length !== newPinnedIds.length ||
+      !initialPinnedIds.every((id) => newPinnedIds.includes(id));
+
+    if (isDirty) {
+      console.log(`form is dirty, handling submit?`);
+      return handleSubmit((formData) => {
+        props.onSaveProfile({
+          profile: formData,
+          pinnedGroups: didEditPinnedGroups ? pinnedGroups : undefined,
+        });
+      })();
+    }
+
+    if (didEditPinnedGroups) {
+      return props.onSaveProfile({
+        profile: null,
+        pinnedGroups,
+      });
+    }
+  }, [handleSubmit, isDirty, pinnedGroups, props, userContact?.pinnedGroups]);
+
   return (
     <AttachmentProvider
       canUpload={props.canUpload}
@@ -47,9 +87,7 @@ export function EditProfileScreenView(props: Props) {
         <GenericHeader
           title="Edit Profile"
           goBack={props.onGoBack}
-          rightContent={
-            <SaveButton onPress={handleSubmit(props.onSaveProfile)} />
-          }
+          rightContent={<SaveButton onPress={onSavePressed} />}
         />
         <KeyboardAvoidingView>
           <ScrollView>
@@ -57,6 +95,7 @@ export function EditProfileScreenView(props: Props) {
               onTouchStart={Keyboard.dismiss}
               marginTop="$l"
               marginHorizontal="$xl"
+              paddingBottom={insets.bottom}
             >
               <EditablePofileImages
                 contact={userContact ?? db.getFallbackContact(currentUserId)}
@@ -113,6 +152,15 @@ export function EditProfileScreenView(props: Props) {
                   }}
                 />
               </FormTextInput>
+
+              <View marginTop="$2xl">
+                <FavoriteGroupsDisplay
+                  secondaryColors
+                  groups={pinnedGroups}
+                  editable
+                  onUpdate={setPinnedGroups}
+                />
+              </View>
             </YStack>
           </ScrollView>
         </KeyboardAvoidingView>

@@ -1,9 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { isToday, makePrettyDay } from '@tloncorp/shared/dist/logic';
-import { useCallback, useMemo } from 'react';
-import { useWindowDimensions } from 'tamagui';
-
-import { SizableText, View, XStack } from '../../core';
+import { useMemo } from 'react';
+import { SizableText, View, XStack, useWindowDimensions } from 'tamagui';
 
 export function ChannelDivider({
   post,

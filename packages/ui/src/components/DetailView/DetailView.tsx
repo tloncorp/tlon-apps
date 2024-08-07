@@ -5,9 +5,14 @@ import { getChannelType } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo, useState } from 'react';
 import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getTokenValue, withStaticProperties } from 'tamagui';
+import {
+  Text,
+  View,
+  YStack,
+  getTokenValue,
+  withStaticProperties,
+} from 'tamagui';
 
-import { Text, View, YStack } from '../../core';
 import { useStickyUnread } from '../../hooks/useStickyUnread';
 import AuthorRow from '../AuthorRow';
 import { BigInput } from '../BigInput';

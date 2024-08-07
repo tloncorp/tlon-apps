@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
+import { View, XStack, YStack } from 'tamagui';
 
-import { View, XStack, YStack } from '../core';
 import { ContactAvatar } from './Avatar';
 import ContactName from './ContactName';
 import { DebugInfo } from './DebugInfo';

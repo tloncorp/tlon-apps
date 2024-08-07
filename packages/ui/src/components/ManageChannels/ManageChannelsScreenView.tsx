@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LayoutRectangle } from 'react-native';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, View, XStack, YStack } from 'tamagui';
 
-import { Text, View, XStack, YStack } from '../../core';
 import { Button } from '../Button';
 import { DraggableItem } from '../DraggableItem';
 import { GenericHeader } from '../GenericHeader';

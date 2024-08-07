@@ -1,6 +1,6 @@
 import { ComponentProps, PropsWithChildren } from 'react';
+import { View } from 'tamagui';
 
-import { View } from '../../core';
 import { triggerHaptic } from '../../utils';
 import { Button } from '../Button';
 import { LoadingSpinner } from '../LoadingSpinner';

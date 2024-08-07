@@ -1,6 +1,5 @@
+import { YStack } from 'tamagui';
 import { BigPlayButton, Player } from 'video-react';
-
-import { YStack } from '../../core';
 
 export default function Video({ url }: { url: string }) {
   // TODO: Implement mobile detection

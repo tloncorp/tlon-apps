@@ -87,6 +87,7 @@ const baseProps: ComponentProps<typeof Channel> = {
   goToDm: () => {},
   goToPost: () => {},
   goToImageViewer: () => {},
+  goToUserProfile: () => {},
   messageSender: async () => {},
   markRead: () => {},
   editPost: async () => {},

@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatePresence } from 'tamagui';
+import { SizableText, View, YStack } from 'tamagui';
 
 import {
   AppDataContextProvider,
@@ -24,7 +25,6 @@ import {
 import { Attachment, AttachmentProvider } from '../../contexts/attachment';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
-import { SizableText, View, YStack } from '../../core';
 import { useStickyUnread } from '../../hooks/useStickyUnread';
 import * as utils from '../../utils';
 import AddGalleryPost from '../AddGalleryPost';
@@ -64,6 +64,7 @@ export function Channel({
   goToImageViewer,
   goToPost,
   goToDm,
+  goToUserProfile,
   messageSender,
   onScrollEndReached,
   onScrollStartReached,
@@ -104,6 +105,7 @@ export function Channel({
   goToDm: (participants: string[]) => void;
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
+  goToUserProfile: (userId: string) => void;
   messageSender: (content: Story, channelId: string) => Promise<void>;
   uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
   onScrollEndReached?: () => void;
@@ -263,6 +265,7 @@ export function Channel({
                   onPressRef={handleRefPress}
                   onPressGroupRef={onPressGroupRef}
                   onPressGoToDm={goToDm}
+                  onGoToUserProfile={goToUserProfile}
                 >
                   <AttachmentProvider
                     canUpload={canUpload}

@@ -11,12 +11,12 @@ import {
 } from 'react';
 import { TouchableOpacity } from 'react-native';
 import { Circle, Stack, ZStack, useTheme } from 'tamagui';
+import { View } from 'tamagui';
 
 import {
   useAttachmentContext,
   useMappedImageAttachments,
 } from '../contexts/attachment';
-import { View } from '../core';
 import AttachmentSheet from './AttachmentSheet';
 import { AvatarProps, ContactAvatar, GroupAvatar } from './Avatar';
 import { Icon } from './Icon';

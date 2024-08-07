@@ -229,6 +229,14 @@ export const useGroups = (options: db.GetGroupsOptions) => {
   });
 };
 
+export const useGroupPreviews = (groupIds: string[]) => {
+  const depsKey = useKeyFromQueryDeps(db.getGroupPreviews);
+  return useQuery({
+    queryKey: ['groupPreviews', depsKey, groupIds],
+    queryFn: () => db.getGroupPreviews(groupIds),
+  });
+};
+
 export const useGroup = (options: { id?: string }) => {
   return useQuery({
     enabled: !!options.id,

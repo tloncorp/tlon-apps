@@ -40,20 +40,13 @@ import { StyleSheet, TextStyle, TouchableOpacity } from 'react-native';
 import hoon from 'refractor/lang/hoon';
 import { refractor } from 'refractor/lib/common.js';
 import { SizableText } from 'tamagui';
+import { ColorTokens, ScrollView, Text, View, XStack, YStack } from 'tamagui';
 
-import {
-  ColorTokens,
-  Image,
-  ScrollView,
-  Text,
-  View,
-  XStack,
-  YStack,
-} from '../core';
 import ChatEmbedContent from './ChatMessage/ChatEmbedContent';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import ContactName from './ContactName';
 import { ContentReferenceLoader } from './ContentReference/ContentReference';
+import { Image } from './Image';
 
 refractor.register(hoon);
 

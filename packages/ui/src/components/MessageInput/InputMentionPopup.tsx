@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
+import { View, YStack } from 'tamagui';
 
-import { View, YStack } from '../../core';
 import MentionPopup from '../MentionPopup';
 
 export default function InputMentionPopup({
