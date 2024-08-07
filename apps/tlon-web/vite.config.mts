@@ -16,6 +16,8 @@ import {
 import { VitePWA } from 'vite-plugin-pwa';
 import svgr from 'vite-plugin-svgr';
 
+import injectExternalResourceScript from './externalResourceScript';
+import injectCrossOriginScript from './injectCrossOriginScript';
 import packageJson from './package.json';
 import manifest from './src/manifest';
 
@@ -58,6 +60,8 @@ export default ({ mode }: { mode: string }) => {
 
     return [
       process.env.SSL === 'true' ? (basicSsl() as PluginOption) : null,
+      injectCrossOriginScript(),
+      injectExternalResourceScript(),
       urbitPlugin({
         base: 'groups',
         target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
@@ -92,6 +96,16 @@ export default ({ mode }: { mode: string }) => {
           maximumFileSizeToCacheInBytes: 100000000,
         },
       }),
+      {
+        name: 'configure-response-headers',
+        configureServer: (server) => {
+          server.middlewares.use((req, res, next) => {
+            res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+            res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+            next();
+          });
+        },
+      },
     ];
   };
 
@@ -162,6 +176,10 @@ export default ({ mode }: { mode: string }) => {
             });
           },
         },
+      },
+      headers: {
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+        'Cross-Origin-Opener-Policy': 'same-origin',
       },
     },
     build:
