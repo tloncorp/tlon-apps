@@ -20,7 +20,12 @@ import GroupNotification from './GroupNotification';
 
 function getPath(source: Source, event: ActivityEvent): string {
   if ('group' in source) {
-    return `/groups/${source.group}`;
+    const group = `/groups/${source.group}`;
+    if ('group-ask' in event) {
+      return `${group}/edit/members`;
+    }
+
+    return group;
   }
 
   if ('dm' in source) {

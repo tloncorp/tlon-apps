@@ -14,6 +14,7 @@
 ::  performance, keep warm
 /+  groups-json
 /*  desk-bill  %bill  /desk/bill
+=/  verbose  |
 ^-  agent:gall
 =>
   |%
@@ -89,6 +90,10 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+++  log
+  |=  msg=(trap tape)
+  ?.  verbose  same
+  (slog leaf+"%{(trip dap.bowl)} {(msg)}" ~)
 ::
 ++  submit-activity
   |=  =action:activity
@@ -123,10 +128,12 @@
   ::
       %group-leave
     =+  !<(=flag:g vase)
+    ?>  from-self
     ?<  =(our.bowl p.flag)
     go-abet:go-leave:(go-abed:group-core flag)
   ::
       %group-create
+    ?>  from-self
     =+  !<(=create:g vase)
     ?>  ((sane %tas) name.create)
     =/  =flag:g  [our.bowl name.create]
@@ -169,30 +176,27 @@
     (emit [%pass /gangs/invite %agent [q.invite dap.bowl] %poke cage])
   ::
       %group-join
+    ?>  from-self
     =+  !<(=join:g vase)
-    =/  =gang:g  (~(gut by xeno) flag.join [~ ~ ~])
-    =/  =claim:g  [join-all.join %adding]
-    =.  cam.gang  `claim
-    =.  xeno  (~(put by xeno) flag.join gang)
-    ga-abet:ga-start-join:(ga-abed:gang-core flag.join)
+    ga-abet:(ga-start-join:(ga-abed:gang-core flag.join) join-all.join)
   ::
       %group-knock
+    ?>  from-self
     =+  !<(=flag:g vase)
-    =/  =gang:g  (~(gut by xeno) flag [~ ~ ~])
-    =/  =claim:g  [| %knocking]
-    =.  cam.gang  `claim
-    =.  xeno  (~(put by xeno) flag gang)
     ga-abet:ga-knock:(ga-abed:gang-core flag)
   ::
       %group-rescind
+    ?>  from-self
     =+  !<(=flag:g vase)
     ga-abet:ga-rescind:(ga-abed:gang-core flag)
   ::
       %group-cancel
+    ?>  from-self
     =+  !<(=flag:g vase)
     ga-abet:ga-cancel:(ga-abed:gang-core flag)
   ::
       %invite-decline
+    ?>  from-self
     =+  !<(=flag:g vase)
     ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
   ::
@@ -550,6 +554,12 @@
       [%hi ship=@ ~]
     =/  =ship  (slav %p ship.pole)
     (take-hi ship sign)
+  ::
+      [%gangs %invite ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %.  cor
+    (slog leaf/"Error giving invite" u.p.sign)
   ::
       [%groups ship=@ name=@ rest=?(%proxy %leave-channels) ~]
     ?>  ?=(%poke-ack -.sign)
@@ -1488,7 +1498,8 @@
                   [%emph title.meta.group]
               ==
           ==
-        =?  cor  go-is-our-bloc
+        ?.  go-is-our-bloc  go-core
+        =.  cor
           (emit (pass-hark new-yarn))
         =+  ships=~(tap in ships)
         |-
@@ -1913,7 +1924,6 @@
       ^-  card
       [%pass (welp ga-area wire) %agent [p.flag dap.bowl] task]
     ++  add-self
-      ?>  =(src.bowl our.bowl)
       =/  =vessel:fleet:g  [~ now.bowl]
       =/  =action:g  [flag now.bowl %fleet (silt ~[our.bowl]) %add ~]
       (poke-host /join/add act:mar:g !>(action))
@@ -1939,7 +1949,9 @@
       ==
     --
   ++  ga-start-join
+    |=  join-all=?
     ^+  ga-core
+    =.  cam.gang  `[join-all %adding]
     =.  cor  (emit add-self:ga-pass)
     ga-core
   ::
@@ -1951,6 +1963,7 @@
   ::
   ++  ga-knock
     ^+  ga-core
+    =.  cam.gang  `[| %knocking]
     =.  cor  (emit knock:ga-pass)
     ga-core
   ++  ga-rescind
@@ -2060,6 +2073,13 @@
   ::
   ++  ga-invite
     |=  =invite:g
+    ^+  ga-core
+    %-  (log |.("received invite: {<invite>}"))
+    ?:  &(?=(^ cam.gang) ?=(%knocking progress.u.cam.gang))
+      %-  (log |.("was knocking: {<gang>}"))
+      ::  we only allow adding ourselves if this poke came from the host
+      ?>  =(p.flag src.bowl)
+      (ga-start-join join-all.u.cam.gang)
     =.  vit.gang  `invite
     =.  cor  get-preview:ga-pass
     =.  cor  ga-give-update

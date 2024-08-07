@@ -157,14 +157,13 @@ export function interleaveActivityEvents(
     bIndex++;
   }
 
-  return filterDupeEvents(results);
+  return results;
 }
 
 export function filterDupeEvents(events: ActivityEvent[]): ActivityEvent[] {
   const seen = new Set<string>();
   return events.filter((event) => {
-    if (!event.postId) return false; // shouldn't happen
-    if (seen.has(event.postId)) {
+    if (seen.has(event.id)) {
       return false;
     }
     seen.add(event.id);

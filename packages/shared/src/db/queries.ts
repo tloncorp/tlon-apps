@@ -56,6 +56,7 @@ import {
   contactGroups as $contactGroups,
   contacts as $contacts,
   groupFlaggedPosts as $groupFlaggedPosts,
+  groupJoinRequests as $groupJoinRequests,
   groupMemberBans as $groupMemberBans,
   groupMemberInvites as $groupMemberInvites,
   groupNavSectionChannels as $groupNavSectionChannels,
@@ -493,6 +494,18 @@ export const insertGroups = createWriteQuery(
             )
             .onConflictDoNothing();
         }
+
+        if (group.joinRequests?.length) {
+          await txCtx.db
+            .insert($groupJoinRequests)
+            .values(
+              group.joinRequests.map((m) => ({
+                groupId: group.id,
+                contactId: m.contactId,
+              }))
+            )
+            .onConflictDoNothing();
+        }
       }
       await setLastPosts(null, txCtx);
     });
@@ -770,9 +783,59 @@ export const deleteGroupInvites = createWriteQuery(
   ['groupMemberInvites']
 );
 
+export const addGroupJoinRequests = createWriteQuery(
+  'addGroupJoinRequest',
+  async (
+    requests: { groupId: string; contactIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    if (requests.contactIds.length === 0) return;
+    return ctx.db
+      .insert($groupJoinRequests)
+      .values(
+        requests.contactIds.map((contactId) => ({
+          groupId: requests.groupId,
+          contactId,
+        }))
+      )
+      .onConflictDoNothing();
+  },
+  ['groupJoinRequests']
+);
+
+export const getGroupJoinRequests = createReadQuery(
+  'getGroupJoinRequests',
+  async (groupId: string, ctx: QueryCtx) => {
+    return ctx.db.query.groupJoinRequests.findMany({
+      where: eq($groupJoinRequests.groupId, groupId),
+    });
+  },
+  ['groupJoinRequests']
+);
+
+export const deleteGroupJoinRequests = createWriteQuery(
+  'deleteGroupJoinRequests',
+  async (
+    requests: { groupId: string; contactIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    if (requests.contactIds.length === 0) return;
+    return ctx.db
+      .delete($groupJoinRequests)
+      .where(
+        and(
+          eq($groupJoinRequests.groupId, requests.groupId),
+          inArray($groupJoinRequests.contactId, requests.contactIds)
+        )
+      );
+  },
+  ['groupJoinRequests']
+);
+
 export const addGroupMemberBans = createWriteQuery(
   'addGroupMemberBans',
   async (bans: { groupId: string; contactIds: string[] }, ctx: QueryCtx) => {
+    if (bans.contactIds.length === 0) return;
     return ctx.db
       .insert($groupMemberBans)
       .values(
@@ -799,6 +862,7 @@ export const getGroupMemberBans = createReadQuery(
 export const deleteGroupMemberBans = createWriteQuery(
   'deleteGroupMemberBans',
   async (bans: { groupId: string; contactIds: string[] }, ctx: QueryCtx) => {
+    if (bans.contactIds.length === 0) return;
     return ctx.db
       .delete($groupMemberBans)
       .where(
@@ -814,6 +878,7 @@ export const deleteGroupMemberBans = createWriteQuery(
 export const addGroupRankBans = createWriteQuery(
   'addGroupRankBans',
   async (bans: { groupId: string; ranks: Rank[] }, ctx: QueryCtx) => {
+    if (bans.ranks.length === 0) return;
     return ctx.db
       .insert($groupRankBans)
       .values(
@@ -840,6 +905,7 @@ export const getGroupRankBans = createReadQuery(
 export const deleteGroupRankBans = createWriteQuery(
   'deleteGroupRankBans',
   async (bans: { groupId: string; ranks: Rank[] }, ctx: QueryCtx) => {
+    if (bans.ranks.length === 0) return;
     return ctx.db
       .delete($groupRankBans)
       .where(
@@ -1076,6 +1142,17 @@ export const getChannelUnread = createReadQuery(
     });
   },
   ['channelUnreads']
+);
+
+export const getGroupUnread = createReadQuery(
+  'getGroupUnread',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    if (!groupId) return Promise.resolve(null);
+    return ctx.db.query.groupUnreads.findFirst({
+      where: and(eq($groupUnreads.groupId, groupId)),
+    });
+  },
+  ['groupUnreads']
 );
 
 export const getThreadActivity = createReadQuery(
@@ -2295,6 +2372,7 @@ export const getGroup = createReadQuery(
               roles: true,
             },
           },
+          joinRequests: true,
           bannedMembers: true,
           navSections: {
             with: {
@@ -2305,7 +2383,13 @@ export const getGroup = createReadQuery(
       })
       .then(returnNullIfUndefined);
   },
-  ['groups', 'channelUnreads', 'volumeSettings', 'channels']
+  [
+    'groups',
+    'channelUnreads',
+    'volumeSettings',
+    'channels',
+    'groupJoinRequests',
+  ]
 );
 
 export const getGroupByChannel = createReadQuery(
@@ -2562,6 +2646,17 @@ export const updateGroupUnreadCount = createWriteQuery(
   ['groupUnreads']
 );
 
+export const clearGroupUnread = createWriteQuery(
+  'clearGroupUnread',
+  async (groupId: string, ctx: QueryCtx) => {
+    return ctx.db
+      .update($groupUnreads)
+      .set({ notifyCount: 0, count: 0, notify: false })
+      .where(eq($groupUnreads.groupId, groupId));
+  },
+  ['groupUnreads']
+);
+
 export const insertChannelUnreads = createWriteQuery(
   'insertChannelUnreads',
   async (unreads: ChannelUnread[], ctx: QueryCtx) => {
@@ -2714,13 +2809,25 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
         $threadUnreads,
         eq($threadUnreads.threadId, $activityEvents.parentId)
       )
+      .leftJoin(
+        $groupUnreads,
+        eq($activityEvents.groupId, $groupUnreads.groupId)
+      )
       .where(
         and(
           gt($activityEvents.timestamp, seenMarker),
           eq($activityEvents.shouldNotify, true),
           or(
             and(eq($activityEvents.type, 'reply'), gt($threadUnreads.count, 0)),
-            and(eq($activityEvents.type, 'post'), gt($channelUnreads.count, 0))
+            and(eq($activityEvents.type, 'post'), gt($channelUnreads.count, 0)),
+            and(
+              gt($groupUnreads.notifyCount, 0),
+              or(
+                eq($activityEvents.type, 'group-ask'),
+                eq($activityEvents.type, 'flag-post'),
+                eq($activityEvents.type, 'flag-reply')
+              )
+            )
           )
         )
       );
@@ -2886,7 +2993,11 @@ export const getAllOrRepliesPage = createReadQuery(
           ),
           orderBy: desc($activityEvents.timestamp),
           with: {
-            group: true,
+            group: {
+              with: {
+                unread: true,
+              },
+            },
             post: true,
             channel: {
               with: {
@@ -2898,6 +3009,7 @@ export const getAllOrRepliesPage = createReadQuery(
                 threadUnread: true,
               },
             },
+            groupEventUser: true,
           },
         });
       } else {
@@ -2905,11 +3017,13 @@ export const getAllOrRepliesPage = createReadQuery(
       }
 
       let allEvents: ActivityEvent[];
-      if (bucket === 'all') {
+      if (sourceEvents.length === 0) {
+        return [];
+      } else if (bucket === 'all') {
         // the set of source events doesn't necessarily encompass all mentions,
         // but we need them all to accurately represent an "all" timeline so we
         // grab separately
-        const stopCursor = sourceEvents[sourceEvents.length - 1].timestamp;
+        const stopCursor = sourceEvents[sourceEvents.length - 1]?.timestamp;
         const mentionEvents = await getMentionEvents({
           startCursor,
           stopCursor,

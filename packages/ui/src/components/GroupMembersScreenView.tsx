@@ -7,6 +7,7 @@ import { View } from 'tamagui';
 import { AppDataContextProvider } from '../contexts/appDataContext';
 import { ContactList } from './ContactList';
 import { GenericHeader } from './GenericHeader';
+import { GroupJoinRequestSheet } from './GroupJoinRequestSheet';
 import { ProfileSheet } from './ProfileSheet';
 import { SectionListHeader } from './SectionList';
 
@@ -15,21 +16,27 @@ export function GroupMembersScreenView({
   members,
   roles,
   bannedUsers,
+  joinRequests,
   groupPrivacyType,
   currentUserId,
   onPressKick,
   onPressBan,
   onPressUnban,
+  onPressAcceptJoinRequest,
+  onPressRejectJoinRequest,
 }: {
   goBack: () => void;
   members: db.ChatMember[];
   roles: db.GroupRole[];
   currentUserId: string;
   bannedUsers: db.GroupMemberBan[];
+  joinRequests: db.GroupJoinRequest[];
   groupPrivacyType: GroupPrivacy;
   onPressKick: (contactId: string) => void;
   onPressBan: (contactId: string) => void;
   onPressUnban: (contactId: string) => void;
+  onPressAcceptJoinRequest: (contactId: string) => void;
+  onPressRejectJoinRequest: (contactId: string) => void;
 }) {
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const contacts = useMemo(
@@ -71,6 +78,20 @@ export function GroupMembersScreenView({
     [bannedUsers, contacts]
   );
 
+  const joinRequestData: db.ChatMember[] = useMemo(
+    () =>
+      joinRequests.map((r) => ({
+        contactId: r.contactId,
+        roles: null,
+        contact: contacts.find((c) => c.id === r.contactId),
+        membershipType: 'group',
+      })),
+    [joinRequests, contacts]
+  );
+  const selectedIsRequest = joinRequests.some(
+    (request) => request.contactId === selectedContact
+  );
+
   const sectionedData = useMemo(
     () =>
       Object.keys(membersByRole)
@@ -78,6 +99,16 @@ export function GroupMembersScreenView({
           title: role,
           data: membersByRole[role],
         }))
+        .concat(
+          joinRequestData.length > 0
+            ? [
+                {
+                  title: 'Join Requests',
+                  data: joinRequestData,
+                },
+              ]
+            : []
+        )
         .concat(
           bannedUserData.length > 0
             ? [
@@ -157,7 +188,7 @@ export function GroupMembersScreenView({
           />
         </View>
       </View>
-      {selectedContact !== null && (
+      {selectedContact !== null && !selectedIsRequest && (
         <ProfileSheet
           open={true}
           currentUserIsAdmin={currentUserIsAdmin}
@@ -175,6 +206,21 @@ export function GroupMembersScreenView({
           onPressKick={() => onPressKick(selectedContact)}
           onPressBan={() => onPressBan(selectedContact)}
           onPressUnban={() => onPressUnban(selectedContact)}
+        />
+      )}
+      {selectedContact !== null && selectedIsRequest && (
+        <GroupJoinRequestSheet
+          contact={contacts.find((c) => c.id === selectedContact)}
+          contactId={selectedContact}
+          currentUserIsAdmin={currentUserIsAdmin}
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedContact(null);
+            }
+          }}
+          onPressAccept={() => onPressAcceptJoinRequest(selectedContact)}
+          onPressReject={() => onPressRejectJoinRequest(selectedContact)}
         />
       )}
     </AppDataContextProvider>
