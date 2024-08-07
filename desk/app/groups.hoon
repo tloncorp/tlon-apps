@@ -178,7 +178,7 @@
       %group-join
     ?>  from-self
     =+  !<(=join:g vase)
-    ga-abet:ga-start-join:(ga-abed:gang-core flag.join)
+    ga-abet:(ga-start-join:(ga-abed:gang-core flag.join) join-all.join)
   ::
       %group-knock
     ?>  from-self
@@ -1949,9 +1949,9 @@
       ==
     --
   ++  ga-start-join
+    |=  join-all=?
     ^+  ga-core
-    %-  (log |.("claim: {<cam.gang>}"))
-    =.  cam.gang  `[& %adding]
+    =.  cam.gang  `[join-all %adding]
     =.  cor  (emit add-self:ga-pass)
     ga-core
   ::
@@ -2073,12 +2073,13 @@
   ::
   ++  ga-invite
     |=  =invite:g
+    ^+  ga-core
     %-  (log |.("received invite: {<invite>}"))
     ?:  &(?=(^ cam.gang) ?=(%knocking progress.u.cam.gang))
       %-  (log |.("was knocking: {<gang>}"))
       ::  we only allow adding ourselves if this poke came from the host
       ?>  =(p.flag src.bowl)
-      ga-start-join
+      (ga-start-join join-all.u.cam.gang)
     =.  vit.gang  `invite
     =.  cor  get-preview:ga-pass
     =.  cor  ga-give-update
