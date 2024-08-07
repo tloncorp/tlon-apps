@@ -245,8 +245,7 @@
       ~&  [dap.bowl %egg-any-not-live]
       cor
     =/  bak
-      ::TODO  test
-      (load -:!>(*versioned-state:load) +>.old-state.egg-any)
+      (load -:!>(*[versioned-state:load _okay:g]) +>.old-state.egg-any)
     ::  restore any previews & invites we might've had
     ::
     =.  xeno
@@ -273,7 +272,7 @@
         ::      to run its import first
         (poke:cor %group-join !>(`join:g`[flag &]))
       =.  groups.cor  (~(put by groups.cor) flag gr)
-      %-  emil
+      %-  emil:cor
       %-  join-channels:go-pass:(go-abed:group-core:cor flag)
       ~(tap in ~(key by channels.group.gr))
     =.  volume

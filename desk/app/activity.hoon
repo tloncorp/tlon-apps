@@ -286,12 +286,13 @@
         ~&  [dap.bowl %egg-any-not-live]
         cor
       =/  bak
-        ::TODO  test
         (load -:!>(*versioned-state:load) +>.old-state.egg-any)
-      ::  restore volume settings, but keep any we've explicitly set ourselves
+      ::  restore volume settings, but keep any we've explicitly set ourselves,
+      ::  and restore activity summaries  ::REVIEW  for unintended side-effects
       ::
       =.  allowed  allowed:bak
       =.  volume-settings  (~(uni by volume-settings:bak) volume-settings)
+      =.  activity         (~(uni by activity:bak) activity)
       cor
     ==
   ==

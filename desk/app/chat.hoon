@@ -476,9 +476,8 @@
       ?.  ?=(%live +<.egg-any)
         ~&  [dap.bowl %egg-any-not-live]
         cor
-      =/  bak
-        ::TODO  test
-        (load -:!>(*versioned-state:load) +>.old-state.egg-any)
+      =/  bak=_cor
+        (load -:!>(*[versioned-state:load @ud]) q.old-state.egg-any)
       ::  restore previous data, doing a "deep merge" where possible
       ::
       =.  dms
