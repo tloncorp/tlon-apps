@@ -1,4 +1,3 @@
-import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import { useMemo } from 'react';
@@ -6,7 +5,7 @@ import { SizableText, View, XStack, YStack } from 'tamagui';
 
 import { ContactAvatar, GroupAvatar } from '../Avatar';
 import ContactName from '../ContactName';
-import { UnreadDot } from '../UnreadDot';
+import { ActivitySummaryHeader } from './ActivitySummaryHeader';
 
 export function GroupActivitySummary({
   summary,
@@ -84,11 +83,13 @@ export function GroupActivitySummary({
         />
         <YStack marginLeft="$m">
           {group && (
-            <GroupIndicator
+            <ActivitySummaryHeader
               unreadCount={unreadCount}
-              group={group}
+              title={group.title ?? ''}
               sentTime={newest.timestamp}
-            />
+            >
+              <GroupAvatar size="$xl" model={group} />
+            </ActivitySummaryHeader>
           )}
           <View>
             <SizableText color="$secondaryText" size="$s" marginRight="$xl">
@@ -99,34 +100,5 @@ export function GroupActivitySummary({
         </YStack>
       </XStack>
     </View>
-  );
-}
-
-export function GroupIndicator({
-  group,
-  unreadCount,
-  sentTime,
-}: {
-  group: db.Group;
-  unreadCount: number;
-  sentTime?: number;
-}) {
-  return (
-    <XStack alignItems="center" gap="$s">
-      {unreadCount || group ? (
-        <XStack alignItems="center" gap="$s">
-          {unreadCount ? <UnreadDot /> : null}
-          {group && <GroupAvatar size="$xl" model={group} />}
-        </XStack>
-      ) : null}
-      <SizableText fontSize="$s" color="$secondaryText">
-        {group.title}
-      </SizableText>
-      {sentTime && (
-        <SizableText fontSize="$s" color="$secondaryText">
-          {logic.makePrettyTime(new Date(sentTime))}
-        </SizableText>
-      )}
-    </XStack>
   );
 }

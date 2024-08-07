@@ -2,12 +2,12 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import { useMemo } from 'react';
-import { SizableText, View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
 import { getChannelTitle } from '../../utils';
 import { ChannelAvatar, ContactAvatar } from '../Avatar';
-import { UnreadDot } from '../UnreadDot';
 import { ActivitySourceContent } from './ActivitySourceContent';
+import { ActivitySummaryHeader } from './ActivitySummaryHeader';
 import { SummaryMessage } from './ActivitySummaryMessage';
 
 export function ChannelActivitySummary({
@@ -32,6 +32,13 @@ export function ChannelActivitySummary({
   const newestIsBlockOrNote =
     (summary.type === 'post' && newestPost.channel?.type === 'gallery') ||
     newestPost.channel?.type === 'notebook';
+  const title = !channel
+    ? ''
+    : channel.type === 'dm'
+      ? 'DM'
+      : channel.type === 'groupDm'
+        ? 'Group chat'
+        : getChannelTitle(channel);
 
   return (
     <View
@@ -53,12 +60,15 @@ export function ChannelActivitySummary({
         />
         <YStack marginLeft="$m">
           {channel && (
-            <ChannelIndicator
+            <ActivitySummaryHeader
               unreadCount={unreadCount}
-              channel={channel}
-              group={group}
+              title={title}
               sentTime={newestPost.timestamp}
-            />
+            >
+              {group && (
+                <ChannelAvatar size="$xl" model={{ ...channel, group }} />
+              )}
+            </ActivitySummaryHeader>
           )}
           <View>
             <SummaryMessage summary={summary} />
@@ -70,43 +80,5 @@ export function ChannelActivitySummary({
         </YStack>
       </XStack>
     </View>
-  );
-}
-
-export function ChannelIndicator({
-  channel,
-  group,
-  unreadCount,
-  sentTime,
-}: {
-  channel: db.Channel;
-  group?: db.Group;
-  unreadCount: number;
-  sentTime?: number;
-}) {
-  const title =
-    channel.type === 'dm'
-      ? 'DM'
-      : channel.type === 'groupDm'
-        ? 'Group chat'
-        : getChannelTitle(channel);
-
-  return (
-    <XStack alignItems="center" gap="$s">
-      {unreadCount || group ? (
-        <XStack alignItems="center" gap="$s">
-          {unreadCount ? <UnreadDot /> : null}
-          {group && <ChannelAvatar size="$xl" model={{ ...channel, group }} />}
-        </XStack>
-      ) : null}
-      <SizableText fontSize="$s" color="$secondaryText">
-        {title}
-      </SizableText>
-      {sentTime && (
-        <SizableText fontSize="$s" color="$secondaryText">
-          {logic.makePrettyTime(new Date(sentTime))}
-        </SizableText>
-      )}
-    </XStack>
   );
 }
