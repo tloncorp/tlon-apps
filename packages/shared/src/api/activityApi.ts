@@ -351,6 +351,20 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
         const { source, volume } = update.adjust;
         const sourceId = ub.sourceToString(source);
 
+        if (sourceId === 'base') {
+          const level: ub.NotificationLevel = volume
+            ? ub.getLevelFromVolumeMap(volume)
+            : 'default';
+          return handler({
+            type: 'updateItemVolume',
+            volumeUpdate: {
+              itemId: 'base',
+              itemType: 'base',
+              level,
+            },
+          });
+        }
+
         if ('group' in source) {
           const level: ub.NotificationLevel = volume
             ? ub.getLevelFromVolumeMap(volume)

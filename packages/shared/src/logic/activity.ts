@@ -3,7 +3,6 @@ import { ActivityEvent } from '../db';
 import {
   ExtendedEventType,
   NotificationLevel,
-  VolumeMap,
   VolumeSettings,
   getLevelFromVolumeMap,
 } from '../urbit';
@@ -15,8 +14,14 @@ export function extractClientVolumes(
 
   Object.entries(volume).forEach(([sourceId, volumeMap]) => {
     if (!volumeMap) return;
+    const isBase = sourceId === 'base';
     const [sourceType, ...rest] = sourceId.split('/');
     const entityId = rest.join('/');
+
+    if (isBase) {
+      const level = getLevelFromVolumeMap(volumeMap);
+      settings.push({ itemId: 'base', itemType: 'base', level });
+    }
 
     if (sourceType === 'group') {
       const level = getLevelFromVolumeMap(volumeMap);
@@ -49,32 +54,6 @@ export function isMuted(volume: NotificationLevel | null | undefined) {
 
   return false;
 }
-
-// export function extractClientVolume(
-//   volume: VolumeMap | null,
-//   isGroupChannel?: boolean
-// ): {
-//   isMuted: boolean;
-//   isNoisy: boolean;
-// } {
-//   if (!volume) return { isMuted: false, isNoisy: false };
-
-//   const clientVolume = getClientVolume(volume, isGroupChannel);
-//   return clientVolume;
-// }
-
-// function getClientVolume(volumeMap: VolumeMap, isGroupChannel?: boolean) {
-//   const level = getLevelFromVolumeMap(volumeMap);
-//   return {
-//     // NOTE: channels are muted (in mobile app terms) by default — only mentions & replies. But we don't
-//     // want them to all show up as muted visually. Do we want a way to support "muting" a channel in the App
-//     // to hide it's count from the UI?
-//     isMuted: isGroupChannel
-//       ? level === 'hush'
-//       : level === 'soft' || level === 'hush',
-//     isNoisy: level === 'loud' || level === 'medium',
-//   };
-// }
 
 // Aggregates events from the same source into a shape that we can use
 // to display
