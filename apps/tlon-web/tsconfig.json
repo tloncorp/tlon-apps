@@ -1,12 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ESNext",
-      "WebWorker"
-    ],
+    "lib": ["DOM", "DOM.Iterable", "ESNext", "WebWorker"],
     "experimentalDecorators": true,
     "strict": true,
     "module": "ESNext",
@@ -22,9 +17,7 @@
     ],
     "composite": true,
     "paths": {
-      "@/*": [
-        "./apps/tlon-web/src/*"
-      ]
+      "@/*": ["./apps/tlon-web/src/*"]
     }
   },
   "include": [
@@ -35,6 +28,8 @@
     "./*.setup.ts",
     "./rube",
     "cosmos/setup.ts",
-    "vite.config.mts"
+    "vite.config.mts",
+    "externalResourceScript.ts",
+    "injectCrossOriginScript.ts"
   ]
 }
