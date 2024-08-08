@@ -258,20 +258,18 @@
       :+  cam.hav
         ?~(pev.hav pev.gang pev.hav)
       ?~(vit.hav vit.gang vit.hav)
-    ::  join groups we were previously in,
-    ::  and restore groups we hosted,
-    ::  but no-op for existing groups.
+    ::  restore the groups we were in, taking care to re-establish
+    ::  subscriptions to the group, and to tell %channels to re-establish
+    ::  its subscriptions to the groups' channels as well.
     ::
     =.  cor
       %+  roll  ~(tap by groups:bak)
       |=  [[=flag:g gr=[=net:g =group:g]] =_cor]
       ?:  (~(has by groups.cor) flag)
         cor
-      ?.  =(our.bowl p.flag)
-        ::NOTE  doing joins here is why we need to wait for channels-server
-        ::      to run its import first
-        (poke:cor %group-join !>(`join:g`[flag &]))
       =.  groups.cor  (~(put by groups.cor) flag gr)
+      =.  cor
+        go-abet:(go-safe-sub:(go-abed:group-core:cor flag) |)
       %-  emil:cor
       %-  join-channels:go-pass:(go-abed:group-core:cor flag)
       ~(tap in ~(key by channels.group.gr))
