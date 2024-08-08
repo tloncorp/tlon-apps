@@ -38,7 +38,7 @@ export function GenericHeader({
         >
           {goBack && (
             <IconButton onPress={goBack}>
-              <Icon type="ChevronLeft" size="$xl" />
+              <Icon type="ChevronLeft" />
             </IconButton>
           )}
           {Platform.OS === 'web' ? (

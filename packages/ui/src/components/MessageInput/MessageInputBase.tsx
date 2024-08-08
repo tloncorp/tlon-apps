@@ -112,14 +112,14 @@ export const MessageInputContainer = ({
         {goBack ? (
           <View paddingBottom="$xs">
             <IconButton backgroundColor="unset" onPress={goBack}>
-              <ChevronLeft />
+              <Icon type="ChevronLeft" />
             </IconButton>
           </View>
         ) : null}
         {isEditing ? (
           <View paddingBottom="$xs">
             <IconButton backgroundColor="unset" onPress={cancelEditing}>
-              <Close />
+              <Icon type="Close" />
             </IconButton>
           </View>
         ) : null}
@@ -158,9 +158,9 @@ export const MessageInputContainer = ({
                     <LoadingSpinner size="small" color="$secondaryText" />
                   </View>
                 ) : isEditing ? (
-                  <Checkmark />
+                  <Icon type="Checkmark" />
                 ) : (
-                  <ArrowUp />
+                  <Icon type="ArrowUp" />
                 )}
               </IconButton>
             )}

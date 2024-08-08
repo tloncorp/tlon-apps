@@ -37,6 +37,7 @@ export async function setupDb() {
     // await sqlocal.sql('PRAGMA journal_mode=MEMORY');
     await sqlocal.sql('PRAGMA synchronous=OFF');
     await sqlocal.sql('PRAGMA journal_mode=WAL');
+    // await sqlocal.sql(TRIGGER_SETUP);
 
     const { driver } = sqlocal;
 
@@ -67,7 +68,7 @@ let isPolling = false;
 function startChangePolling() {
   if (isPolling) return;
   isPolling = true;
-  // pollChanges();
+  pollChanges();
 }
 
 const changeLogTable = sqliteTable('__change_log', {
@@ -160,7 +161,6 @@ async function runMigrations() {
   try {
     logger.log('runMigrations: starting migration');
     await migrate<Schema>(client, migrations, sqlocal);
-    await sqlocal.sql(TRIGGER_SETUP);
     logger.log('runMigrations: migrations succeeded');
     return;
   } catch (e) {

@@ -1,10 +1,8 @@
-import {
-  MessageAttachments,
-  Upload,
-  UploadInfo,
-} from '@tloncorp/shared/dist/api';
+import { useEffect, useState } from 'react';
 
-import { Attachment } from '../../assets/icons';
+import { useAttachmentContext } from '../../contexts/attachment';
+import AttachmentSheet from '../AttachmentSheet';
+import { Icon } from '../Icon';
 import { IconButton } from '../IconButton';
 
 export default function AttachmentButton({
@@ -12,9 +10,29 @@ export default function AttachmentButton({
 }: {
   setShouldBlur: (shouldBlur: boolean) => void;
 }) {
+  const [showInputSelector, setShowInputSelector] = useState(false);
+
+  useEffect(() => {
+    if (showInputSelector) {
+      setShouldBlur(true);
+    }
+  }, [showInputSelector, setShouldBlur]);
+
+  const { attachAssets } = useAttachmentContext();
+
   return (
-    <IconButton onPress={() => {}}>
-      <Attachment />
-    </IconButton>
+    <>
+      <IconButton
+        backgroundColor="unset"
+        onPress={() => setShowInputSelector(true)}
+      >
+        <Icon type="Add" />
+      </IconButton>
+      <AttachmentSheet
+        showAttachmentSheet={showInputSelector}
+        setShowAttachmentSheet={setShowInputSelector}
+        setImage={attachAssets}
+      />
+    </>
   );
 }

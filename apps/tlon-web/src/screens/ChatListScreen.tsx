@@ -29,15 +29,9 @@ import { useCalmSettings } from '../hooks/useCalmSettings';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import * as featureFlags from '../lib/featureFlags';
 import NavBar from '../navigation/NavBarView';
-// import { RootStackParamList } from '../types';
 // import { identifyTlonEmployee } from '../utils/posthog';
 // import { isSplashDismissed, setSplashDismissed } from '../utils/splash';
 import { useGroupContext } from './GroupSettings/useGroupContext';
-
-// type ChatListScreenProps = NativeStackScreenProps<
-// RootStackParamList,
-// 'ChatList'
-// >;
 
 const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
   return (

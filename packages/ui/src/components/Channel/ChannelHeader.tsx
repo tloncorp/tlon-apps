@@ -6,6 +6,7 @@ import { useCurrentUserId } from '../../contexts/appDataContext';
 import { ActionSheet } from '../ActionSheet';
 import { getPostActions } from '../ChatMessage/ChatMessageActions/MessageActions';
 import { GenericHeader } from '../GenericHeader';
+import { Icon } from '../Icon';
 import { IconButton } from '../IconButton';
 import { BaubleHeader } from './BaubleHeader';
 
@@ -68,12 +69,12 @@ export function ChannelHeader({
           <>
             {showSearchButton && (
               <IconButton onPress={goToSearch}>
-                <Search />
+                <Icon type="Search" />
               </IconButton>
             )}
             {showMenuButton && (
               <IconButton onPress={() => setShowActionSheet(true)}>
-                <Dots />
+                <Icon type="Dots" />
               </IconButton>
             )}
           </>

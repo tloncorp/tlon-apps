@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 
-import { Add } from '../../assets/icons';
 import { useAttachmentContext } from '../../contexts/attachment';
 import AttachmentSheet from '../AttachmentSheet';
+import { Icon } from '../Icon';
 import { IconButton } from '../IconButton';
 
 export default function AttachmentButton({
@@ -26,7 +26,7 @@ export default function AttachmentButton({
         backgroundColor="unset"
         onPress={() => setShowInputSelector(true)}
       >
-        <Add />
+        <Icon type="Add" />
       </IconButton>
       <AttachmentSheet
         showAttachmentSheet={showInputSelector}

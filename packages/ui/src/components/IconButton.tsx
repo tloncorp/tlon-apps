@@ -47,7 +47,7 @@ export function IconButton({
       borderWidth="unset"
       {...rest}
     >
-      <Button.Icon color={iconColor}>{children}</Button.Icon>
+      {children}
     </Button>
   );
 }
