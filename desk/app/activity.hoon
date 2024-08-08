@@ -290,7 +290,7 @@
       ::  restore volume settings, but keep any we've explicitly set ourselves,
       ::  and restore activity summaries  ::REVIEW  for unintended side-effects
       ::
-      =.  allowed  allowed:bak
+      =.  allowed          allowed:bak
       =.  volume-settings  (~(uni by volume-settings:bak) volume-settings)
       =.  activity         (~(uni by activity:bak) activity)
       cor
