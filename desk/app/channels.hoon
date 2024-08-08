@@ -477,6 +477,7 @@
       ::  we only restore miscellanea. groups' import should prompt us to
       ::  re-join channels, we won't bother pre-loading their content for now.
       ::
+      =.  v-channels    (~(uni by v-channels:bak) v-channels)
       =.  voc           (~(uni by voc:bak) voc)
       =.  hidden-posts  (~(uni in hidden-posts:bak) hidden-posts)
       cor
@@ -890,8 +891,13 @@
   ++  ca-join
     |=  [n=nest:c group=flag:g]
     =.  nest  n
-    ?<  (~(has by v-channels) nest)
     ?>  |(=(p.group src.bowl) from-self)
+    ?:  (~(has by v-channels) nest)
+      ::  we should already be in, but make sure our subscriptions still exist
+      ::  just in case
+      ::
+      =.  channel  (~(got by v-channels) nest)
+      (ca-safe-sub |)
     =.  channel  *v-channel:c
     =.  group.perm.perm.channel  group
     =.  last-read.remark.channel  now.bowl
