@@ -300,10 +300,16 @@ export function ChannelOptions({ channel }: { channel: db.Channel }) {
                 : store.pinItem(channel);
             },
           },
-          ...(channel.type === 'groupDm'
-            ? [
+        ],
+      },
+      ...(channel.type === 'groupDm'
+        ? [
+            {
+              accent: 'neutral',
+              actions: [
                 {
                   title: 'Members',
+                  icon: 'ChevronRight',
                   action: () => {
                     if (!channel) {
                       return;
@@ -314,6 +320,7 @@ export function ChannelOptions({ channel }: { channel: db.Channel }) {
                 },
                 {
                   title: 'Edit metadata',
+                  icon: 'ChevronRight',
                   action: () => {
                     if (!channel) {
                       return;
@@ -322,10 +329,10 @@ export function ChannelOptions({ channel }: { channel: db.Channel }) {
                     sheetRef.current.setOpen(false);
                   },
                 },
-              ]
-            : []),
-        ],
-      },
+              ],
+            } as ActionGroup,
+          ]
+        : []),
       {
         accent: 'negative',
         actions: [

@@ -28,10 +28,10 @@ import { Icon } from './Icon';
 import { LoadingSpinner } from './LoadingSpinner';
 
 interface Props {
-  contact?: db.Contact;
-  group?: db.Group;
+  contact?: db.Contact | null;
+  group?: db.Group | null;
+  channel?: db.Channel | null;
   iconProps?: AvatarProps;
-  channel?: db.Channel;
   uploadInfo?: api.UploadInfo;
   onSetCoverUrl: (url: string) => void;
   onSetIconUrl: (url: string) => void;
