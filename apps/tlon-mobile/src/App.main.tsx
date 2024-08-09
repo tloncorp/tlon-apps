@@ -10,8 +10,8 @@ import {
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
-import { TamaguiProvider } from '@tloncorp/ui';
 import { usePreloadedEmojis } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
 import type { PropsWithChildren } from 'react';
@@ -21,7 +21,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTailwind } from 'tailwind-rn';
 
-import { config as tamaguiConfig } from '../tamagui.config';
 import ErrorBoundary from './ErrorBoundary';
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { LoadingSpinner } from './components/LoadingSpinner';
@@ -213,10 +212,7 @@ export default function ConnectedApp(props: Props) {
 
   return (
     <ErrorBoundary>
-      <TamaguiProvider
-        defaultTheme={isDarkMode ? 'dark' : 'light'}
-        config={tamaguiConfig}
-      >
+      <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
         <ShipProvider>
           <NavigationContainer
             theme={isDarkMode ? DarkTheme : DefaultTheme}

@@ -1,0 +1,13 @@
+{
+  "name": "@tloncorp/app",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "private": true,
+  "dependencies": {
+    "@tloncorp/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.55",
+    "@types/react-native": "0.73.0"
+  }
+}
