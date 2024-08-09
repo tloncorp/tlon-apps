@@ -18,7 +18,12 @@ import {
   useMappedImageAttachments,
 } from '../contexts/attachment';
 import AttachmentSheet from './AttachmentSheet';
-import { AvatarProps, ContactAvatar, GroupAvatar } from './Avatar';
+import {
+  AvatarProps,
+  ChannelAvatar,
+  ContactAvatar,
+  GroupAvatar,
+} from './Avatar';
 import { Icon } from './Icon';
 import { LoadingSpinner } from './LoadingSpinner';
 
@@ -26,6 +31,7 @@ interface Props {
   contact?: db.Contact;
   group?: db.Group;
   iconProps?: AvatarProps;
+  channel?: db.Channel;
   uploadInfo?: api.UploadInfo;
   onSetCoverUrl: (url: string) => void;
   onSetIconUrl: (url: string) => void;
@@ -40,10 +46,16 @@ export function EditablePofileImages({
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const [attachingTo, setAttachingTo] = useState<null | 'cover' | 'icon'>(null);
   const [localIconUrl, setLocalIconUrl] = useState(
-    props.contact?.avatarImage ?? props.group?.iconImage ?? ''
+    props.contact?.avatarImage ??
+      props.group?.iconImage ??
+      props.channel?.iconImage ??
+      ''
   );
   const [localCoverUrl, setLocalCoverUrl] = useState(
-    props.contact?.coverImage ?? props.group?.coverImage ?? ''
+    props.contact?.coverImage ??
+      props.group?.coverImage ??
+      props.channel?.coverImage ??
+      ''
   );
   const { attachAssets, canUpload } = useAttachmentContext();
   const { coverAttachment, iconAttachment } = useMappedImageAttachments({
@@ -170,6 +182,9 @@ export function EditablePofileImages({
                 size="$9xl"
                 {...props.iconProps}
               />
+            )}
+            {props.channel && (
+              <ChannelAvatar model={props.channel} size="$9xl" />
             )}
             <EditableImageIndicator
               position="absolute"

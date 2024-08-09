@@ -1,6 +1,5 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import { initializeCrashReporter, sync } from '@tloncorp/shared';
-import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
@@ -70,9 +69,5 @@ function AuthenticatedApp({
 export default function ConnectedAuthenticatedApp(
   props: AuthenticatedAppProps
 ) {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AuthenticatedApp {...props} />
-    </QueryClientProvider>
-  );
+  return <AuthenticatedApp {...props} />;
 }

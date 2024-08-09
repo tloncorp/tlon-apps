@@ -11,7 +11,7 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
-import { TamaguiProvider } from '@tloncorp/ui';
+import { PortalProvider, TamaguiProvider } from '@tloncorp/ui';
 import { usePreloadedEmojis } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
 import type { PropsWithChildren } from 'react';
@@ -228,7 +228,9 @@ export default function ConnectedApp(props: Props) {
                   <SafeAreaProvider>
                     <MigrationCheck>
                       <QueryClientProvider client={queryClient}>
-                        <App {...props} />
+                        <PortalProvider>
+                          <App {...props} />
+                        </PortalProvider>
 
                         {__DEV__ && (
                           <DevTools

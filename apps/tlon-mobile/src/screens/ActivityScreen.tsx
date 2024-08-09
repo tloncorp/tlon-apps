@@ -51,7 +51,6 @@ export function ActivityScreen(props: Props) {
     (group: db.Group) => {
       store.markGroupRead(group);
       props.navigation.navigate('GroupSettings', {
-        // @ts-expect-error TODO fix nested navigator types
         screen: 'GroupMembers',
         params: { groupId: group.id },
       });

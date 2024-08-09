@@ -117,7 +117,6 @@ export function PostScreenView({
                 goBack={goBack}
                 showSearchButton={false}
                 post={parentPost ?? undefined}
-                channelType={channel.type}
                 mode={headerMode}
                 setEditingPost={setEditingPost}
               />

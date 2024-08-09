@@ -1,8 +1,8 @@
-import React, { ComponentProps, useRef } from 'react';
+import { ComponentProps, useRef } from 'react';
 import {
+  SizableText,
   Stack,
-  StackProps,
-  TamaguiElement,
+  Sheet as TamaguiSheet,
   XStack,
   YStack,
   createSheet,
@@ -10,13 +10,12 @@ import {
   useSheet,
   withStaticProperties,
 } from 'tamagui';
-import { SizableText } from 'tamagui';
 
 const Overlay = styled(YStack, {
   name: 'SheetOverlay',
   enterStyle: { opacity: 0 },
   exitStyle: { opacity: 0 },
-  backgroundColor: '$translucentBlack',
+  backgroundColor: '$shadow',
   fullscreen: true,
   position: 'absolute',
   zIndex: 100_000 - 1,
@@ -37,8 +36,8 @@ const Overlay = styled(YStack, {
 
 const Frame = styled(YStack, {
   name: 'SheetFrame',
-  borderTopLeftRadius: '$3xl',
-  borderTopRightRadius: '$3xl',
+  borderTopLeftRadius: '$3.5xl',
+  borderTopRightRadius: '$3.5xl',
   backgroundColor: '$background',
   zIndex: '$modalSheet',
 });
@@ -46,26 +45,29 @@ const Frame = styled(YStack, {
 const HandleIndicator = styled(YStack, {
   name: 'HandleIndicator',
   backgroundColor: '$border',
-  height: 5,
-  width: 32,
+  height: 4,
+  width: '$3xl',
   borderRadius: 100,
 });
 
-const HandleBase = React.forwardRef<TamaguiElement>(function (
-  props: StackProps,
-  ref
-) {
+const HandleFrame = Stack.styleable((props, ref) => {
   return (
-    <Stack width={'100%'} alignItems="center" padding="$m" ref={ref} {...props}>
+    <Stack
+      width={'100%'}
+      alignItems="center"
+      paddingVertical="$l"
+      ref={ref}
+      {...props}
+    >
       <HandleIndicator />
     </Stack>
   );
 });
 
-HandleBase.displayName = 'HandleBase';
+HandleFrame.displayName = 'HandleFrame';
 
-const Handle = styled(HandleBase, {
-  name: 'StyledHandle',
+const Handle = styled(HandleFrame, {
+  name: 'Handle',
 });
 
 // Something weird going on with typing here? This works when sheet components
@@ -146,4 +148,5 @@ export const SheetHeader = withStaticProperties(HeaderFrame, {
   RightControls: HeaderRightControls,
   Button: HeaderButton,
   ButtonText: HeaderButtonText,
+  ScrollView: TamaguiSheet.ScrollView,
 });

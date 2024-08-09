@@ -1,7 +1,7 @@
 import { LinearGradient } from '@tamagui/linear-gradient';
 import * as db from '@tloncorp/shared/dist/db';
 import { BlurView } from 'expo-blur';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef } from 'react';
 import { OpaqueColorValue } from 'react-native';
 import Animated, {
   Easing,
@@ -18,11 +18,10 @@ import {
 } from 'react-native-safe-area-context';
 import { Spinner, Text, View } from 'tamagui';
 
-import { useCurrentUserId } from '../../contexts/appDataContext';
-import { useGroupOptions } from '../../contexts/groupOptions';
+import { useChatOptions } from '../../contexts/chatOptions';
 import { useScrollContext } from '../../contexts/scroll';
 import { ContactAvatar } from '../Avatar';
-import { ChatOptionsSheet } from '../GroupOptionsSheet';
+import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
 import { Icon } from '../Icon';
 import { Image } from '../Image';
 
@@ -40,10 +39,9 @@ export function BaubleHeader({
   const [scrollValue] = useScrollContext();
   const insets = useSafeAreaInsets();
   const frame = useSafeAreaFrame();
-  const currentUser = useCurrentUserId();
-  const [showChatOptions, setShowChatOptions] = useState(false);
-  const groupOptions = useGroupOptions();
+  const groupOptions = useChatOptions();
   const isGroupContext = !!group && !!groupOptions;
+  const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
 
   const easedValue = useDerivedValue(
     () => Easing.ease(scrollValue.value),
@@ -67,14 +65,13 @@ export function BaubleHeader({
     };
   }, [easedValue, insets.top]);
 
-  const handleChatOptionsOpenChange = useCallback((open: boolean) => {
-    setShowChatOptions(open);
-  }, []);
-
-  const handleAction = useCallback((action: () => void) => {
-    setShowChatOptions(false);
-    action();
-  }, []);
+  const handlePress = useCallback(() => {
+    if (group && groupOptions) {
+      chatOptionsSheetRef.current?.open(group.id, 'group');
+    } else {
+      chatOptionsSheetRef.current?.open(channel.id, channel.type);
+    }
+  }, [channel.id, channel.type, group, groupOptions]);
 
   return (
     <View
@@ -104,7 +101,7 @@ export function BaubleHeader({
             borderColor={'$border'}
             borderRadius="$l"
             overflow="hidden"
-            onPress={() => setShowChatOptions(true)}
+            onPress={handlePress}
           >
             <BlurView intensity={32}>
               {showSpinner ? (
@@ -185,31 +182,7 @@ export function BaubleHeader({
         </Animated.View>
       )}
       {isGroupContext && groupOptions && (
-        <ChatOptionsSheet
-          open={showChatOptions}
-          onOpenChange={handleChatOptionsOpenChange}
-          currentUser={currentUser}
-          pinned={groupOptions.pinned}
-          group={group!}
-          useGroup={groupOptions.useGroup}
-          onPressGroupMeta={(groupId) =>
-            handleAction(() => groupOptions.onPressGroupMeta(groupId))
-          }
-          onPressGroupMembers={(groupId) =>
-            handleAction(() => groupOptions.onPressGroupMembers(groupId))
-          }
-          onPressManageChannels={(groupId) =>
-            handleAction(() => groupOptions.onPressManageChannels(groupId))
-          }
-          onPressInvitesAndPrivacy={(groupId) =>
-            handleAction(() => groupOptions.onPressInvitesAndPrivacy(groupId))
-          }
-          onPressRoles={(groupId) =>
-            handleAction(() => groupOptions.onPressRoles(groupId))
-          }
-          onPressLeave={() => handleAction(groupOptions.onPressLeave)}
-          onTogglePinned={() => handleAction(groupOptions.onTogglePinned)}
-        />
+        <ChatOptionsSheet ref={chatOptionsSheetRef} />
       )}
     </View>
   );

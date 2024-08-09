@@ -11,8 +11,7 @@ import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AnimatePresence } from 'tamagui';
-import { SizableText, View, YStack } from 'tamagui';
+import { AnimatePresence, SizableText, View, YStack } from 'tamagui';
 
 import {
   AppDataContextProvider,
@@ -21,6 +20,7 @@ import {
   ChannelProvider,
   GroupsProvider,
   NavigationProvider,
+  useCalm,
 } from '../../contexts';
 import { Attachment, AttachmentProvider } from '../../contexts/attachment';
 import { RequestsProvider } from '../../contexts/requests';
@@ -137,7 +137,8 @@ export function Channel({
   const [showBigInput, setShowBigInput] = useState(false);
   const [showAddGalleryPost, setShowAddGalleryPost] = useState(false);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
-  const title = channel ? utils.getChannelTitle(channel) : '';
+  const { disableNicknames } = useCalm();
+  const title = channel ? utils.getChannelTitle(channel, disableNicknames) : '';
   const groups = useMemo(() => (group ? [group] : null), [group]);
   const canWrite = utils.useCanWrite(channel, currentUserId);
 
@@ -297,6 +298,7 @@ export function Channel({
                           showSearchButton={isChatChannel}
                           goToSearch={goToSearch}
                           showSpinner={isLoadingPosts}
+                          showMenuButton={false}
                         />
                         <KeyboardAvoidingView enabled={!activeMessage}>
                           <YStack alignItems="center" flex={1}>
