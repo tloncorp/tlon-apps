@@ -231,7 +231,7 @@ export function ChannelOptionsSheetLoader({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const channelQuery = store.useChannelWithLastPostAndMembers({
+  const channelQuery = store.useChannelWithRelations({
     id: channelId,
   });
   return channelQuery.data ? (
@@ -368,11 +368,11 @@ export function ChannelOptions({ channel }: { channel: db.Channel }) {
       },
     ];
   }, [channel, onPressChannelMembers, onPressChannelMeta, title]);
-
+  console.log(channel);
   return (
     <ChatOptionsSheetContent
       actionGroups={actionGroups}
-      title="title"
+      title={title}
       subtitle={subtitle}
       icon={<ListItem.ChannelIcon model={channel} />}
     />

@@ -231,7 +231,7 @@ export default function ChatListScreen(
       >
         <RequestsProvider
           usePostReference={store.usePostReference}
-          useChannel={store.useChannelWithLastPostAndMembers}
+          useChannel={store.useChannelWithRelations}
           usePost={store.usePostWithRelations}
           useApp={store.useAppInfo}
           useGroup={store.useGroupPreview}

@@ -12,7 +12,7 @@ type ChannelMembersScreenProps = NativeStackScreenProps<
 
 export function ChannelMembersScreen(props: ChannelMembersScreenProps) {
   const { channelId } = props.route.params;
-  const channelQuery = store.useChannelWithLastPostAndMembers({
+  const channelQuery = store.useChannelWithRelations({
     id: channelId,
   });
 
