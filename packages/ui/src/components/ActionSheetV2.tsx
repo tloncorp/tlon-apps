@@ -63,6 +63,25 @@ const ActionSheetHeader = ActionSheetHeaderFrame.styleable(
   }
 );
 
+/**
+ * Convenience wrapper for rendering default-style actions
+ */
+export const ActionSheetActionGroupList = ({
+  actionGroups,
+}: {
+  actionGroups: ActionGroup[];
+}) => {
+  return actionGroups.map((group, i) => {
+    return (
+      <ActionSheet.ActionGroup key={i} accent={group.accent}>
+        {group.actions.map((action, index) => (
+          <ActionSheet.Action key={index} action={action} />
+        ))}
+      </ActionSheet.ActionGroup>
+    );
+  });
+};
+
 const ActionSheetActionGroupFrame = styled(View, {
   name: 'ActionSheetActionGroupFrame',
   context: ActionSheetActionGroupContext,
@@ -309,5 +328,6 @@ export const ActionSheet = withStaticProperties(ActionSheetFrameComponent, {
   ActionTitle: ActionSheetActionTitle,
   ActionDescription: ActionSheetActionDescription,
   ActionGroup: ActionSheetActionGroup,
+  ActionGroupList: ActionSheetActionGroupList,
   ScrollView: ActionSheetScrollView,
 });

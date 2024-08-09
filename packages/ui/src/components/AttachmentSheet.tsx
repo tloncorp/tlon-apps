@@ -99,15 +99,7 @@ export default function AttachmentSheet({
         </ListItem.MainContent>
       </ActionSheet.Header>
       <ActionSheet.ScrollView>
-        {actionGroups.map((group, i) => {
-          return (
-            <ActionSheet.ActionGroup key={i} accent={group.accent}>
-              {group.actions.map((action, index) => (
-                <ActionSheet.Action key={index} action={action} />
-              ))}
-            </ActionSheet.ActionGroup>
-          );
-        })}
+        <ActionSheet.ActionGroupList actionGroups={actionGroups} />
       </ActionSheet.ScrollView>
     </ActionSheet>
   );

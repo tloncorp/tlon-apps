@@ -3,6 +3,7 @@ import type * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import React, {
+  ReactElement,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -194,30 +195,13 @@ export function GroupOptions({ group }: { group: db.Group }) {
 
   const memberCount = group?.members?.length ?? 0;
   const title = group?.title ?? 'Loading…';
-
+  const subtitle = memberCount ? `Group with ${memberCount} members` : '';
   return (
-    <>
-      <ActionSheet.Header>
-        {group && <ListItem.GroupIcon model={group} />}
-        <ListItem.MainContent>
-          <ListItem.Title>{title}</ListItem.Title>
-          <ListItem.Subtitle>
-            Group with {memberCount} members
-          </ListItem.Subtitle>
-        </ListItem.MainContent>
-      </ActionSheet.Header>
-      <ActionSheet.ScrollView>
-        {actionGroups.map((group, i) => {
-          return (
-            <ActionSheet.ActionGroup key={i} accent={group.accent}>
-              {group.actions.map((action, index) => (
-                <ActionSheet.Action key={index} action={action} />
-              ))}
-            </ActionSheet.ActionGroup>
-          );
-        })}
-      </ActionSheet.ScrollView>
-    </>
+    <ChatOptionsSheetContent
+      actionGroups={actionGroups}
+      title={title}
+      subtitle={subtitle}
+    />
   );
 }
 
@@ -369,24 +353,37 @@ export function ChannelOptions({ channel }: { channel: db.Channel }) {
   }, [channel, onPressChannelMembers, onPressChannelMeta, title]);
 
   return (
+    <ChatOptionsSheetContent
+      actionGroups={actionGroups}
+      title="title"
+      subtitle={subtitle}
+      icon={<ListItem.ChannelIcon model={channel} />}
+    />
+  );
+}
+
+function ChatOptionsSheetContent({
+  actionGroups,
+  title,
+  subtitle,
+  icon,
+}: {
+  actionGroups: ActionGroup[];
+  title: string;
+  subtitle: string;
+  icon?: ReactElement;
+}) {
+  return (
     <>
       <ActionSheet.Header>
-        {channel && <ListItem.ChannelIcon model={channel} />}
+        {icon}
         <ListItem.MainContent>
           <ListItem.Title>{title}</ListItem.Title>
           <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
         </ListItem.MainContent>
       </ActionSheet.Header>
       <ActionSheet.ScrollView>
-        {actionGroups.map((group, i) => {
-          return (
-            <ActionSheet.ActionGroup key={i} accent={group.accent}>
-              {group.actions.map((action, index) => (
-                <ActionSheet.Action key={index} action={action} />
-              ))}
-            </ActionSheet.ActionGroup>
-          );
-        })}
+        <ActionSheet.ActionGroupList actionGroups={actionGroups} />
       </ActionSheet.ScrollView>
     </>
   );
