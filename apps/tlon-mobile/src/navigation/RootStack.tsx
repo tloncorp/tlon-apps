@@ -4,13 +4,13 @@ import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useTheme } from '@tloncorp/ui';
 import { Platform, StatusBar } from 'react-native';
 
-import { ChatListController } from '../controllers/ChatListController';
-import { ActivityScreen } from '../screens/ActivityScreen';
+import { ActivityScreenController } from '../controllers/ActivityScreenController';
 import { AppInfoScreen } from '../screens/AppInfo';
 import { AppSettingsScreen } from '../screens/AppSettingsScreen';
 import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
 import ChannelScreen from '../screens/ChannelScreen';
 import ChannelSearch from '../screens/ChannelSearchScreen';
+import ChatListScreen from '../screens/ChatListScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { FeatureFlagScreen } from '../screens/FeatureFlagScreen';
 import { GroupChannelsScreen } from '../screens/GroupChannelsScreen';
@@ -50,12 +50,12 @@ export function RootStack() {
       {/* top level tabs */}
       <Root.Screen
         name="ChatList"
-        component={ChatListController}
+        component={ChatListScreen}
         options={{ animation: 'none', gestureEnabled: false }}
       />
       <Root.Screen
         name="Activity"
-        component={ActivityScreen}
+        component={ActivityScreenController}
         options={{ animation: 'none', gestureEnabled: false }}
       />
       <Root.Screen

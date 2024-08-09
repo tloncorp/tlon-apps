@@ -1,5 +1,3 @@
-import { useIsFocused } from '@react-navigation/native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
@@ -10,12 +8,24 @@ import {
 } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
-import ErrorBoundary from '../ErrorBoundary';
-import { RootStackParamList } from '../types';
+import ErrorBoundary from '../../ErrorBoundary';
+import { useIsFocused } from '../../hooks/useIsFocused';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
-
-export function ActivityScreen(props: Props) {
+export function ActivityScreen({
+  navigateToChannel,
+  navigateToThread,
+  navigateToGroup,
+  navigateToChatList,
+  navigateToActivity,
+  navigateToProfile,
+}: {
+  navigateToChannel: (channel: db.Channel, selectedPostId?: string) => void;
+  navigateToThread: (post: db.Post) => void;
+  navigateToGroup: (group: db.Group) => void;
+  navigateToChatList: () => void;
+  navigateToActivity: () => void;
+  navigateToProfile: () => void;
+}) {
   const { data: contacts } = store.useContacts();
   const isFocused = useIsFocused();
 
@@ -36,9 +46,9 @@ export function ActivityScreen(props: Props) {
 
   const handleGoToChannel = useCallback(
     (channel: db.Channel, selectedPostId?: string) => {
-      props.navigation.navigate('Channel', { channel, selectedPostId });
+      navigateToChannel(channel, selectedPostId);
     },
-    [props.navigation]
+    [navigateToChannel]
   );
 
   // TODO: if diary or gallery, figure out a way to pop open the comment
@@ -46,21 +56,17 @@ export function ActivityScreen(props: Props) {
   const handleGoToThread = useCallback(
     (post: db.Post) => {
       // TODO: we have no way to route to specific thread message rn
-      props.navigation.navigate('Post', { post });
+      navigateToThread(post);
     },
-    [props.navigation]
+    [navigateToThread]
   );
 
   const handleGoToGroup = useCallback(
     (group: db.Group) => {
       store.markGroupRead(group);
-      props.navigation.navigate('GroupSettings', {
-        // @ts-expect-error TODO fix nested navigator types
-        screen: 'GroupMembers',
-        params: { groupId: group.id },
-      });
+      navigateToGroup(group);
     },
-    [props.navigation]
+    [navigateToGroup]
   );
 
   return (
@@ -78,13 +84,13 @@ export function ActivityScreen(props: Props) {
         </ErrorBoundary>
         <NavBarView
           navigateToHome={() => {
-            props.navigation.navigate('ChatList');
+            navigateToChatList();
           }}
           navigateToNotifications={() => {
-            props.navigation.navigate('Activity');
+            navigateToActivity();
           }}
           navigateToProfile={() => {
-            props.navigation.navigate('Profile');
+            navigateToProfile();
           }}
           currentRoute="Activity"
         />

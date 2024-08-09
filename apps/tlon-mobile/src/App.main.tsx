@@ -10,6 +10,7 @@ import {
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider, useBranch } from '@tloncorp/app/contexts/branch';
 import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
@@ -27,7 +28,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTailwind } from 'tailwind-rn';
 
-import ErrorBoundary from './ErrorBoundary';
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
