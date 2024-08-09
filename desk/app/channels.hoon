@@ -27,7 +27,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %5
+    $:  %6
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         hidden-posts=(set id-post:c)
@@ -121,12 +121,30 @@
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
-  ?>  ?=(%5 -.old)
+  =?  old  ?=(%5 -.old)  (state-5-to-6 old)
+  ?>  ?=(%6 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-5 state-4 state-3 state-2 state-1 state-0)
-  +$  state-5  current-state
+  +$  versioned-state  $%(state-6 state-5 state-4 state-3 state-2 state-1 state-0)
+  +$  state-6  current-state
+  +$  state-5
+    $:  %5
+        =v-channels:c
+        voc=(map [nest:c plan:c] (unit said:c))
+        hidden-posts=(set id-post:c)
+      ::
+        ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
+        ::
+        pending-ref-edits=(jug ship [=kind:c name=term])
+        :: delayed resubscribes
+        =^subs:s
+    ==
+  ::
+  ++  state-5-to-6
+    |=  state-5
+    ^-  state-6
+    [%6 v-channels voc hidden-posts pending-ref-edits subs *pimp:imp]
   ::
   +$  state-4
     $:  %4
@@ -141,7 +159,7 @@
   ++  state-4-to-5
     |=  state-4
     ^-  state-5
-    [%5 v-channels voc hidden-posts pending-ref-edits subs *pimp:imp]
+    [%5 v-channels voc hidden-posts pending-ref-edits subs]
   ::
   +$  state-3
     $:  %3
