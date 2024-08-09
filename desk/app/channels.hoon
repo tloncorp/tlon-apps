@@ -10,7 +10,7 @@
 ::
 /-  c=channels, g=groups, ha=hark, activity
 /-  meta
-/+  default-agent, verb, dbug, sparse, neg=negotiate
+/+  default-agent, verb, dbug, sparse, neg=negotiate, imp=import-aid
 /+  utils=channel-utils, volume, s=subscriber
 ::  performance, keep warm
 /+  channel-json
@@ -37,6 +37,7 @@
         pending-ref-edits=(jug ship [=kind:c name=term])
         :: delayed resubscribes
         =^subs:s
+        =pimp:imp
     ==
   --
 =|  current-state
@@ -140,7 +141,7 @@
   ++  state-4-to-5
     |=  state-4
     ^-  state-5
-    [%5 v-channels voc hidden-posts pending-ref-edits subs]
+    [%5 v-channels voc hidden-posts pending-ref-edits subs *pimp:imp]
   ::
   +$  state-3
     $:  %3
@@ -386,6 +387,16 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-poke+mark !!)
+      %noun
+    ?+  q.vase  !!
+        %pimp-ready
+      ?-  pimp
+        ~         cor(pimp `&+~)
+        [~ %& *]  cor
+        [~ %| *]  (run-import p.u.pimp)
+      ==
+    ==
+  ::
     :: TODO: add transfer/import channels
       %channel-action
     =+  !<(=a-channels:c vase)
@@ -466,21 +477,11 @@
   ::
       %egg-any
     =+  !<(=egg-any:gall vase)
-    ?-  -.egg-any
-        ?(%15 %16)
-      ?.  ?=(%live +<.egg-any)
-        ~&  [dap.bowl %egg-any-not-live]
-        cor
-      =/  bak
-        ::TODO  test
-        (load -:!>(*versioned-state:load) +>.old-state.egg-any)
-      ::  we only restore miscellanea. groups' import should prompt us to
-      ::  re-join channels, we won't bother pre-loading their content for now.
-      ::
-      =.  v-channels    (~(uni by v-channels:bak) v-channels)
-      =.  voc           (~(uni by voc:bak) voc)
-      =.  hidden-posts  (~(uni in hidden-posts:bak) hidden-posts)
-      cor
+    ?-  pimp
+      ~         cor(pimp `|+egg-any)
+      [~ %& *]  (run-import egg-any)
+      [~ %| *]  ~&  [dap.bowl %overwriting-pending-import]
+                cor(pimp `|+egg-any)
     ==
   ==
   ++  toggle-post
@@ -493,6 +494,27 @@
       ==
     (give %fact ~[/ /v0 /v1] toggle-post+!>(toggle))
   ::
+::
+++  run-import
+  |=  =egg-any:gall
+  ^+  cor
+  =.  pimp  ~
+  ?-  -.egg-any
+      ?(%15 %16)
+    ?.  ?=(%live +<.egg-any)
+      ~&  [dap.bowl %egg-any-not-live]
+      cor
+    =/  bak
+      ::TODO  test
+      (load -:!>(*versioned-state:load) +>.old-state.egg-any)
+    ::  we only restore miscellanea. groups' import should prompt us to
+    ::  re-join channels, we won't bother pre-loading their content for now.
+    ::
+    =.  v-channels    (~(uni by v-channels:bak) v-channels)
+    =.  voc           (~(uni by voc:bak) voc)
+    =.  hidden-posts  (~(uni in hidden-posts:bak) hidden-posts)
+    (emil (prod-next:imp [our dap]:bowl))
+  ==
 ::
 ++  watch
   |=  =(pole knot)

@@ -3,7 +3,7 @@
 ::    this is the server-side from which /app/channels gets its data.
 ::
 /-  c=channels, g=groups
-/+  utils=channel-utils
+/+  utils=channel-utils, imp=import-aid
 /+  default-agent, verb, dbug, neg=negotiate
 ::
 %-  %-  agent:neg
@@ -16,8 +16,9 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %4
+    $:  %5
         =v-channels:c
+        =pimp:imp
     ==
   --
 =|  current-state
@@ -89,12 +90,22 @@
   =?  cor  ?=(%2 -.old)  (emit %pass /trim %agent [our.bowl %chat] %poke %chat-trim !>(~))
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
-  ?>  ?=(%4 -.old)
+  =?  old  ?=(%4 -.old)  (state-4-to-5 old)
+  ?>  ?=(%5 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-4 state-3 state-2 state-1 state-0)
-  +$  state-4  current-state
+  +$  versioned-state  $%(state-5 state-4 state-3 state-2 state-1 state-0)
+  +$  state-5  current-state
+  +$  state-4
+    $:  %4
+        =v-channels:c
+    ==
+  ++  state-4-to-5
+    |=  state-4
+    ^-  state-5
+    [%5 v-channels *pimp:imp]
+  ::
   ++  state-3-to-4
     |=  s=state-3
     ^-  state-4
@@ -254,6 +265,16 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-poke+mark !!)
+      %noun
+    ?+  q.vase  !!
+        %pimp-ready
+      ?-  pimp
+        ~         cor(pimp `&+~)
+        [~ %& *]  cor
+        [~ %| *]  (run-import p.u.pimp)
+      ==
+    ==
+  ::
       %channel-command
     =+  !<(=c-channels:c vase)
     ?-    -.c-channels
@@ -277,22 +298,31 @@
   ::
       %egg-any
     =+  !<(=egg-any:gall vase)
-    ?-  -.egg-any
-        ?(%15 %16)
-      ?.  ?=(%live +<.egg-any)
-        ~&  [dap.bowl %egg-any-not-live]
-        cor
-      =/  bak
-        ::TODO  test
-        (load -:!>(*versioned-state:load) +>.old-state.egg-any)
-      ::  if both the backup and our latest have a channel, keep only our
-      ::  version. we could do a "deep merge" but presently unclear how that
-      ::  would affect existing subscribers/what would be the correct behavior
-      ::  wrt them.
-      ::
-      =.  v-channels  (~(uni by v-channels:bak) v-channels)
-      (emit %pass /pimp %agent [our.bowl %groups] %poke %noun !>(%pimp-ready))
+    ?-  pimp
+      ~         cor(pimp `|+egg-any)
+      [~ %& *]  (run-import egg-any)
+      [~ %| *]  ~&  [dap.bowl %overwriting-pending-import]
+                cor(pimp `|+egg-any)
     ==
+  ==
+::
+++  run-import
+  |=  =egg-any:gall
+  =.  pimp  ~
+  ?-  -.egg-any
+      ?(%15 %16)
+    ?.  ?=(%live +<.egg-any)
+      ~&  [dap.bowl %egg-any-not-live]
+      cor
+    =/  bak
+      (load -:!>(*versioned-state:load) +>.old-state.egg-any)
+    ::  if both the backup and our latest have a channel, keep only our
+    ::  version. we could do a "deep merge" but presently unclear how that
+    ::  would affect existing subscribers/what would be the correct behavior
+    ::  wrt them.
+    ::
+    =.  v-channels  (~(uni by v-channels:bak) v-channels)
+    (emil (prod-next:imp [our dap]:bowl))
   ==
 ::
 ++  watch

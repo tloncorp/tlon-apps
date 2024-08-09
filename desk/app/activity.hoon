@@ -39,7 +39,8 @@
 ::
 ::
 /-  a=activity, c=channels, ch=chat, g=groups
-/+  *activity, ch-utils=channel-utils, v=volume, aj=activity-json
+/+  *activity, ch-utils=channel-utils, v=volume, aj=activity-json,
+    imp=import-aid
 /+  default-agent, verb, dbug
 ::
 =/  verbose  |
@@ -293,7 +294,7 @@
       =.  allowed          allowed:bak
       =.  volume-settings  (~(uni by volume-settings:bak) volume-settings)
       =.  activity         (~(uni by activity:bak) activity)
-      cor
+      (emil (prod-next:imp [our dap]:bowl))
     ==
   ==
 ::

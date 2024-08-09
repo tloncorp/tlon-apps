@@ -8,7 +8,7 @@
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
-/+  v=volume, s=subscriber
+/+  v=volume, s=subscriber, imp=import-aid
 /+  of
 /+  epos-lib=saga
 ::  performance, keep warm
@@ -27,7 +27,7 @@
         ::  graph -> agent
         shoal=(map flag:g dude:gall)
         =^subs:s
-        pimp=(unit (each ~ egg-any:gall))  ::  pending import, awaiting c-s
+        =pimp:imp
     ==
   ::
   --
