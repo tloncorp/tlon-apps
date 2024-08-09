@@ -116,7 +116,6 @@ export function PostScreenView({
                 title={headerTitle}
                 goBack={goBack}
                 showSearchButton={false}
-                showMenuButton={!isChatChannel}
                 post={parentPost ?? undefined}
                 channelType={channel.type}
                 mode={headerMode}
