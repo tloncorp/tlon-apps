@@ -1,13 +1,21 @@
-import { useNavigationState } from '@react-navigation/native';
 import * as store from '@tloncorp/shared/dist/store';
-import { AvatarNavIcon, NavBar, NavIcon } from '@tloncorp/ui';
 
-import { useCurrentUserId } from '../hooks/useCurrentUser';
+import { useCurrentUserId } from '../contexts';
+import { AvatarNavIcon, NavBar, NavIcon } from './NavBar';
 
-const NavBarView = (props: { navigation: any }) => {
-  const state = useNavigationState((state) => state);
+export const NavBarView = ({
+  navigateToHome,
+  navigateToNotifications,
+  navigateToProfile,
+  currentRoute,
+}: {
+  navigateToHome: () => void;
+  navigateToNotifications: () => void;
+  navigateToProfile: () => void;
+  currentRoute: string;
+}) => {
   const isRouteActive = (routeName: string) => {
-    return state.routes[state.index].name === routeName;
+    return currentRoute === routeName;
   };
   const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
   const currentUserId = useCurrentUserId();
@@ -21,22 +29,20 @@ const NavBarView = (props: { navigation: any }) => {
         // hasUnreads={(unreadCount?.channels ?? 0) > 0}
         // intentionally leave undotted for now
         hasUnreads={false}
-        onPress={() => props.navigation.navigate('ChatList')}
+        onPress={() => navigateToHome()}
       />
       <NavIcon
         type="Notifications"
         activeType="NotificationsFilled"
         hasUnreads={haveUnreadUnseenActivity}
         isActive={isRouteActive('Activity')}
-        onPress={() => props.navigation.navigate('Activity')}
+        onPress={() => navigateToNotifications()}
       />
       <AvatarNavIcon
         id={currentUserId}
         focused={isRouteActive('Profile')}
-        onPress={() => props.navigation.navigate('Profile')}
+        onPress={() => navigateToProfile()}
       />
     </NavBar>
   );
 };
-
-export default NavBarView;

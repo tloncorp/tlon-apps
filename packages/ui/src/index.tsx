@@ -47,6 +47,7 @@ export * from './components/MessageInput';
 export * from './components/MessageInput/AttachmentPreviewList';
 export * from './components/MessageInput/InputToolbar';
 export * from './components/MessageInput/toolbarActions';
+export * from './components/NavBarView';
 export * from './components/NavBar';
 export * from './components/PostScreenView';
 export * from './components/ProfileScreenView';

@@ -7,10 +7,11 @@ import { Alert } from 'react-native';
 import { useBranch } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
 import { inviteShipWithLure } from '../lib/hostingApi';
-import type { RootStackParamList } from '../types';
+// import type { RootStackParamList } from '../types';
 import { trackError } from '../utils/posthog';
 
 export const useDeepLinkListener = () => {
+  // @ts-expect-error - TODO: pass navigation handler to hook
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { ship } = useShip();
   const { lure, deepLinkPath, clearLure, clearDeepLink } = useBranch();

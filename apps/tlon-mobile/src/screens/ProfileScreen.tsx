@@ -1,12 +1,11 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useDMLureLink } from '@tloncorp/app/hooks/useBranchLink';
+import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
+import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import * as store from '@tloncorp/shared/dist/store';
-import { ProfileScreenView, View } from '@tloncorp/ui';
+import { NavBarView, ProfileScreenView, View } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
-import { useDMLureLink } from '../hooks/useBranchLink';
-import { useCurrentUserId } from '../hooks/useCurrentUser';
-import { useHandleLogout } from '../hooks/useHandleLogout';
-import NavBar from '../navigation/NavBarView';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
@@ -46,7 +45,18 @@ export default function ProfileScreen(props: Props) {
         onViewProfile={onViewProfilePressed}
         dmLink={dmLink}
       />
-      <NavBar navigation={props.navigation} />
+      <NavBarView
+        navigateToHome={() => {
+          props.navigation.navigate('ChatList');
+        }}
+        navigateToNotifications={() => {
+          props.navigation.navigate('Activity');
+        }}
+        navigateToProfile={() => {
+          props.navigation.navigate('Profile');
+        }}
+        currentRoute="Profile"
+      />
     </View>
   );
 }

@@ -10,7 +10,13 @@ import {
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { BranchProvider, useBranch } from '@tloncorp/app/contexts/branch';
+import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { useScreenOptions } from '@tloncorp/app/hooks/useScreenOptions';
+import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
+import { posthogAsync } from '@tloncorp/app/utils/posthog';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import { usePreloadedEmojis } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
@@ -24,11 +30,6 @@ import { useTailwind } from 'tailwind-rn';
 import ErrorBoundary from './ErrorBoundary';
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { LoadingSpinner } from './components/LoadingSpinner';
-import { BranchProvider, useBranch } from './contexts/branch';
-import { ShipProvider, useShip } from './contexts/ship';
-import { useIsDarkMode } from './hooks/useIsDarkMode';
-import { useScreenOptions } from './hooks/useScreenOptions';
-import { useMigrations } from './lib/nativeDb';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
 import { JoinWaitListScreen } from './screens/JoinWaitListScreen';
@@ -44,7 +45,6 @@ import { SignUpPasswordScreen } from './screens/SignUpPasswordScreen';
 import { TlonLoginScreen } from './screens/TlonLoginScreen';
 import { WelcomeScreen } from './screens/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
-import { posthogAsync } from './utils/posthog';
 
 type Props = {
   wer?: string;

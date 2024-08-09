@@ -15,7 +15,7 @@ import type {
   ReservableShip,
   ReservedShip,
   User,
-} from '../types';
+} from '../types/hosting';
 import {
   getHostingUserId,
   setHostingToken,

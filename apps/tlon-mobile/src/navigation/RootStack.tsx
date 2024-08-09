@@ -1,16 +1,16 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useTheme } from '@tloncorp/ui';
 import { Platform, StatusBar } from 'react-native';
 
-import { useIsDarkMode } from '../hooks/useIsDarkMode';
+import { ChatListController } from '../controllers/ChatListController';
 import { ActivityScreen } from '../screens/ActivityScreen';
 import { AppInfoScreen } from '../screens/AppInfo';
 import { AppSettingsScreen } from '../screens/AppSettingsScreen';
 import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
 import ChannelScreen from '../screens/ChannelScreen';
 import ChannelSearch from '../screens/ChannelSearchScreen';
-import ChatListScreen from '../screens/ChatListScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { FeatureFlagScreen } from '../screens/FeatureFlagScreen';
 import { GroupChannelsScreen } from '../screens/GroupChannelsScreen';
@@ -50,7 +50,7 @@ export function RootStack() {
       {/* top level tabs */}
       <Root.Screen
         name="ChatList"
-        component={ChatListScreen}
+        component={ChatListController}
         options={{ animation: 'none', gestureEnabled: false }}
       />
       <Root.Screen

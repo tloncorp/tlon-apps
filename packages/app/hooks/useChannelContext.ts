@@ -10,7 +10,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import * as featureFlags from '../lib/featureFlags';
 import storage from '../lib/storage';
-import { RootStackParamList } from '../types';
 
 export const useChannelContext = ({
   channelId,
@@ -112,6 +111,7 @@ export const useChannelContext = ({
 
   const navigation =
     useNavigation<
+    // @ts-expect-error - TODO: pass navigation handlers into context
       NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
     >();
 

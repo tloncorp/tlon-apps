@@ -923,6 +923,9 @@ importers:
 
   packages/app:
     dependencies:
+      '@tloncorp/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@tloncorp/ui':
         specifier: workspace:*
         version: link:../ui

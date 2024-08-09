@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useChannelSearch } from '@tloncorp/shared/dist';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
@@ -13,7 +14,6 @@ import {
 import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useCurrentUserId } from '../hooks/useCurrentUser';
 import type { RootStackParamList } from '../types';
 
 type ChannelSearchProps = NativeStackScreenProps<

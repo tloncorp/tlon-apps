@@ -1,5 +1,6 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useChannelContext } from '@tloncorp/app/hooks/useChannelContext';
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
@@ -20,7 +21,6 @@ import {
 import React, { useCallback, useEffect, useMemo } from 'react';
 
 import type { GroupSettingsStackParamList, RootStackParamList } from '../types';
-import { useChannelContext } from './useChannelContext';
 
 type ChannelScreenProps = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 

@@ -1,21 +1,21 @@
 import crashlytics from '@react-native-firebase/crashlytics';
+import { useShip } from '@tloncorp/app/contexts/ship';
+import useAppForegrounded from '@tloncorp/app/hooks/useAppForegrounded';
+import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
+import { useDeepLinkListener } from '@tloncorp/app/hooks/useDeepLinkListener';
+import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
+import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
+import useNotificationListener, {
+  type Props as NotificationListenerProps,
+} from '@tloncorp/app/hooks/useNotificationListener';
+import { configureClient } from '@tloncorp/app/lib/api';
+import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { initializeCrashReporter, sync } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
-import { useShip } from '../contexts/ship';
-import useAppForegrounded from '../hooks/useAppForegrounded';
-import { useCurrentUserId } from '../hooks/useCurrentUser';
-import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
-import { useNavigationLogging } from '../hooks/useNavigationLogger';
-import { useNetworkLogger } from '../hooks/useNetworkLogger';
-import useNotificationListener, {
-  type Props as NotificationListenerProps,
-} from '../hooks/useNotificationListener';
-import { configureClient } from '../lib/api';
-import { PlatformState } from '../lib/platformHelpers';
 import { RootStack } from '../navigation/RootStack';
 
 export interface AuthenticatedAppProps {

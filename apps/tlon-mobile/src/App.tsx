@@ -1,4 +1,4 @@
-import { IGNORE_COSMOS } from './constants';
+import { IGNORE_COSMOS } from '@tloncorp/app/constants';
 
 module.exports =
   (global as any).__DEV__ && !IGNORE_COSMOS

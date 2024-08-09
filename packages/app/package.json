@@ -4,7 +4,8 @@
   "main": "index.ts",
   "private": true,
   "dependencies": {
-    "@tloncorp/ui": "workspace:*"
+    "@tloncorp/ui": "workspace:*",
+    "@tloncorp/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^18.2.55",

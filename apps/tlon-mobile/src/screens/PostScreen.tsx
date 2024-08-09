@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useChannelContext } from '@tloncorp/app/hooks/useChannelContext';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
@@ -6,7 +7,6 @@ import { PostScreenView } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
 import type { RootStackParamList } from '../types';
-import { useChannelContext } from './useChannelContext';
 
 type PostScreenProps = NativeStackScreenProps<RootStackParamList, 'Post'>;
 

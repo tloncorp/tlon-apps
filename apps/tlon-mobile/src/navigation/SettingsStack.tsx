@@ -1,9 +1,9 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useScreenOptions } from '@tloncorp/app/hooks/useScreenOptions';
 import { useContacts } from '@tloncorp/shared/dist';
 import { AppDataContextProvider } from '@tloncorp/ui';
 
-import { useScreenOptions } from '../hooks/useScreenOptions';
 import { FeatureFlagScreen } from '../screens/FeatureFlagScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { RootStackParamList, SettingsStackParamList } from '../types';

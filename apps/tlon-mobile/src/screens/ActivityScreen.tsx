@@ -2,11 +2,15 @@ import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { ActivityScreenView, AppDataContextProvider, View } from '@tloncorp/ui';
+import {
+  ActivityScreenView,
+  AppDataContextProvider,
+  NavBarView,
+  View,
+} from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
 import ErrorBoundary from '../ErrorBoundary';
-import NavBarView from '../navigation/NavBarView';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
@@ -72,7 +76,18 @@ export function ActivityScreen(props: Props) {
             refresh={handleRefreshActivity}
           />
         </ErrorBoundary>
-        <NavBarView navigation={props.navigation} />
+        <NavBarView
+          navigateToHome={() => {
+            props.navigation.navigate('ChatList');
+          }}
+          navigateToNotifications={() => {
+            props.navigation.navigate('Activity');
+          }}
+          navigateToProfile={() => {
+            props.navigation.navigate('Profile');
+          }}
+          currentRoute="Activity"
+        />
       </View>
     </AppDataContextProvider>
   );
