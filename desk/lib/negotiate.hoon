@@ -435,39 +435,46 @@
     ::
     ++  inner-bowl
       %_  bowl
-          sup
-        ::  hide subscriptions coming in to this library
-        ::
-        %-  ~(gas by *bitt:gall)
-        %+  skip  ~(tap by sup.bowl)
-        |=  [* * =path]
-        ?=([%~.~ %negotiate *] path)
-      ::
-          wex
-        %-  ~(gas by *boat:gall)
-        %+  weld
-          ::  make sure all the desired subscriptions are in the bowl,
-          ::  even if that means we have to simulate an un-acked state
-          ::
-          ^-  (list [[wire ship term] ? path])
-          %-  zing
-          %+  turn  ~(tap by want)
-          |=  [=gill:gall m=(map wire path)]
-          %+  turn  ~(tap by m)
-          |=  [=wire =path]
-          :-  [wire gill]
-          (~(gut by wex.bowl) [wire gill] [| path])
-        ::  hide subscriptions going out from this library.
-        ::  because these go into the +gas:by call _after_ the faked entries
-        ::  generated above, these (the originals) take precedence in the
-        ::  resulting bowl.
-        ::
-        %+  murn  ~(tap by wex.bowl)
-        |=  a=[[=wire gill:gall] ? path]
-        =^  g  wire.a  (trim-wire wire.a)
-        ?^  g  (some a)
-        ?:(?=([%~.~ %negotiate *] wire.a) ~ (some a))
+        sup  (inner-bitt sup.bowl)
+        wex  (inner-boat wex.bowl want)
       ==
+    ::  +inner-bitt: hide subscriptions coming in to this library
+    ::
+    ++  inner-bitt
+      |=  sup=bitt:gall
+      ^+  sup
+      %-  ~(gas by *bitt:gall)
+      %+  skip  ~(tap by sup)
+      |=  [* * =path]
+      ?=([%~.~ %negotiate *] path)
+    ::  +inner-boat: hide/simulate subscriptions managed by the library
+    ::
+    ++  inner-boat
+      |=  [wex=boat:gall want=(map gill:gall (map wire path))]
+      ^+  wex
+      %-  ~(gas by *boat:gall)
+      %+  weld
+        ::  make sure all the desired subscriptions are in the bowl,
+        ::  even if that means we have to simulate an un-acked state
+        ::
+        ^-  (list [[wire ship term] ? path])
+        %-  zing
+        %+  turn  ~(tap by want)
+        |=  [=gill:gall m=(map wire path)]
+        %+  turn  ~(tap by m)
+        |=  [=wire =path]
+        :-  [wire gill]
+        (~(gut by wex) [wire gill] [| path])
+      ::  hide subscriptions going out from this library.
+      ::  because these go into the +gas:by call _after_ the faked entries
+      ::  generated above, these (the originals) take precedence in the
+      ::  resulting bowl.
+      ::
+      %+  murn  ~(tap by wex.bowl)
+      |=  a=[[=wire gill:gall] ? path]
+      =^  g  wire.a  (trim-wire wire.a)
+      ?^  g  (some a)
+      ?:(?=([%~.~ %negotiate *] wire.a) ~ (some a))
     --
   ::
   ++  agent
@@ -488,6 +495,7 @@
       =^  cards  state  (play-cards:up cards)
       [cards this]
     ::
+    ::TODO  this should've been doing +slop instead
     ++  on-save  !>([[%negotiate state] on-save:og])
     ++  on-load
       |=  ole=vase
@@ -772,7 +780,30 @@
     ++  on-poke
       |=  [=mark =vase]
       ^-  (quip card _this)
-      =^  cards  inner  (on-poke:og +<)  !:
+      ?.  ?&  ?=(%egg-any mark)
+            !:
+              =+  !<(=egg-any:gall vase)
+          ?&  ?=(%live +<.egg-any)
+              ?=([[%negotiate *] *] q.old-state.egg-any)
+          ==  ==
+        =^  cards  inner  (on-poke:og mark vase)  !:
+        =^  cards  state  (play-cards:up cards)
+        [cards this]
+      ::  strip the negotiate state out of the egg, tidy up its bitt/boat,
+      ::  and pass it on to the inner agent
+      ::
+      =/  =cage  !:
+        :-  mark
+        !>  ^-  egg-any:gall
+        =+  !<(=egg-any:gall vase)
+        ?>  ?=(%live +<.egg-any)
+        %_  egg-any
+          +.old-state  [-:!>(**) q:(slot 7 +.old-state.egg-any)]
+          bitt         (inner-bitt:up bitt.egg-any)
+          boat         (inner-boat:up boat.egg-any want)
+          boar         (~(run by boat.egg-any) |=(* *@))
+        ==
+      =^  cards  inner  (on-poke:og cage)  !:
       =^  cards  state  (play-cards:up cards)
       [cards this]
     ::

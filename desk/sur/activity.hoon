@@ -5,7 +5,9 @@
 ::  $stream: the activity stream comprised of events from various agents
 +$  stream  ((mop time event) lte)
 ::  $indices: the stream and its read data split into various indices
-+$  indices  (map source index)
++$  indices
+  $~  [[[%base ~] *index] ~ ~]
+  (map source index)
 ::  $volume-settings: the volume settings for each source
 +$  volume-settings  (map source volume-map)
 ::  $activity: the current state of activity for each source
