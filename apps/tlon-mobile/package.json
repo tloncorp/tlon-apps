@@ -21,7 +21,6 @@
     "lint:format:js": "prettier --write .",
     "lint:format:swift": "swiftformat **/*.swift --exclude ./ios/Pods, ./node_modules",
     "lint:staged": "lint-staged",
-    "test": "vitest --watch false",
     "tsc": "tsc --noEmit",
     "build": "pnpm generate",
     "cosmos": "cosmos-native"

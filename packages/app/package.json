@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "main": "index.ts",
   "private": true,
+  "scripts": {
+    "test": "vitest --watch false"
+  },
   "dependencies": {
     "@tloncorp/ui": "workspace:*",
     "@tloncorp/shared": "workspace:*"
