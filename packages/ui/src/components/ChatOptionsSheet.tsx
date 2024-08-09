@@ -273,8 +273,6 @@ export function ChannelOptions({ channel }: { channel: db.Channel }) {
     }
   }, [channel, group]);
 
-  console.log(channel.type);
-
   const actionGroups: ActionGroup[] = useMemo(() => {
     return [
       {

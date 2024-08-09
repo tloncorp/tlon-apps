@@ -136,7 +136,7 @@ export default function ChatListScreen(
   );
 
   const onLongPressChat = useCallback((item: db.Channel | db.Group) => {
-    if (logic.isChannel(item)) {
+    if (logic.isChannel(item) && !item.isDmInvite) {
       setLongPressedChat(item);
       if (item.pin?.type === 'channel' || !item.group) {
         chatOptionsSheetRef.current?.open(item.id, item.type);

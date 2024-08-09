@@ -121,6 +121,7 @@ export {
   Text,
   Dialog,
   Theme,
+  PortalProvider,
 } from 'tamagui';
 
 export { LinearGradient } from 'tamagui/linear-gradient';

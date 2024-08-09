@@ -8,9 +8,9 @@ export const animations = createAnimations({
   },
   quick: {
     type: 'spring',
-    damping: 30,
+    damping: 25,
     mass: 1,
-    stiffness: 250,
+    stiffness: 300,
   },
 });
 
