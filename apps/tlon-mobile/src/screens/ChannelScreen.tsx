@@ -14,12 +14,13 @@ import { Story } from '@tloncorp/shared/dist/urbit';
 import {
   Channel,
   ChannelSwitcherSheet,
-  GroupOptionsProvider,
+  ChatOptionsProvider,
   INITIAL_POSTS_PER_PAGE,
 } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 
-import type { GroupSettingsStackParamList, RootStackParamList } from '../types';
+import { useChatSettingsNavigation } from '../hooks/useChatSettingsNavigation';
+import type { RootStackParamList } from '../types';
 import { useChannelContext } from './useChannelContext';
 
 type ChannelScreenProps = NativeStackScreenProps<RootStackParamList, 'Channel'>;
@@ -219,53 +220,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     return chats?.pinned ?? [];
   }, [chats]);
 
-  const navigateToGroupSettings = useCallback(
-    <T extends keyof GroupSettingsStackParamList>(
-      screen: T,
-      params: GroupSettingsStackParamList[T]
-    ) => {
-      props.navigation.navigate('GroupSettings', {
-        screen,
-        params,
-      } as any);
-    },
-    [props.navigation]
-  );
-
-  const handleGoToGroupMeta = useCallback(
-    (groupId: string) => {
-      navigateToGroupSettings('GroupMeta', { groupId });
-    },
-    [navigateToGroupSettings]
-  );
-
-  const handleGoToGroupMembers = useCallback(
-    (groupId: string) => {
-      navigateToGroupSettings('GroupMembers', { groupId });
-    },
-    [navigateToGroupSettings]
-  );
-
-  const handleGoToManageChannels = useCallback(
-    (groupId: string) => {
-      navigateToGroupSettings('ManageChannels', { groupId });
-    },
-    [navigateToGroupSettings]
-  );
-
-  const handleGoToInvitesAndPrivacy = useCallback(
-    (groupId: string) => {
-      navigateToGroupSettings('InvitesAndPrivacy', { groupId });
-    },
-    [navigateToGroupSettings]
-  );
-
-  const handleGoToRoles = useCallback(
-    (groupId: string) => {
-      navigateToGroupSettings('GroupRoles', { groupId });
-    },
-    [navigateToGroupSettings]
-  );
+  const chatOptionsNavProps = useChatSettingsNavigation();
 
   const handleGoToUserProfile = useCallback(
     (userId: string) => {
@@ -279,15 +234,11 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   }
 
   return (
-    <GroupOptionsProvider
+    <ChatOptionsProvider
       groupId={groupParam?.id}
       pinned={pinnedItems}
       useGroup={store.useGroup}
-      onPressGroupMeta={handleGoToGroupMeta}
-      onPressGroupMembers={handleGoToGroupMembers}
-      onPressManageChannels={handleGoToManageChannels}
-      onPressInvitesAndPrivacy={handleGoToInvitesAndPrivacy}
-      onPressRoles={handleGoToRoles}
+      {...chatOptionsNavProps}
     >
       <Channel
         headerMode={headerMode}
@@ -340,6 +291,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           onSelect={handleChannelSelected}
         />
       )}
-    </GroupOptionsProvider>
+    </ChatOptionsProvider>
   );
 }

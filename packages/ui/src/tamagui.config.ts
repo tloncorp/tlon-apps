@@ -80,6 +80,7 @@ export const tokens = createTokens({
     true: 16,
     '2xl': 24,
     '3xl': 32,
+    '3.5xl': 36,
     '4xl': 48,
   },
   zIndex: {

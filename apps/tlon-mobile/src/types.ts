@@ -43,9 +43,7 @@ export type RootStackParamList = {
     post: db.Post;
     uri?: string;
   };
-  GroupSettings: {
-    group: db.Group;
-  };
+  GroupSettings: NavigatorScreenParams<GroupSettingsStackParamList>;
   AppSettings: undefined;
   FeatureFlags: undefined;
   ManageAccount: undefined;
@@ -57,6 +55,12 @@ export type RootStackParamList = {
   };
   EditProfile: undefined;
   WompWomp: undefined;
+  ChannelMembers: {
+    channelId: string;
+  };
+  ChannelMeta: {
+    channelId: string;
+  };
 };
 
 export type GroupSettingsStackParamList = {

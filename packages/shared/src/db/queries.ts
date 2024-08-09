@@ -1234,6 +1234,8 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
             contact: true,
           },
         },
+        volumeSettings: true,
+        pin: true,
         unread: true,
         writerRoles: {
           with: {
@@ -1244,7 +1246,7 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
     });
     return returnNullIfUndefined(result);
   },
-  ['channels']
+  ['channels', 'volumeSettings', 'pins']
 );
 
 export const getStaleChannels = createReadQuery(

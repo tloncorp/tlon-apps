@@ -33,7 +33,7 @@ export * from './components/GenericHeader';
 export * from './components/GroupChannelsScreenView';
 export * from './components/GroupMembersScreenView';
 export * from './components/GroupMetaScreenView';
-export * from './components/GroupOptionsSheet';
+export * from './components/ChatOptionsSheet';
 export * from './components/GroupPreviewSheet';
 export * from './components/Icon';
 export * from './components/IconButton';
@@ -94,10 +94,13 @@ export * from './components/FeatureFlagScreenView';
 export * from './components/FormInput';
 export * from './tamagui.config';
 export * from './components/Modal';
+export { default as ContactName } from './components/ContactName';
+export { default as KeyboardAvoidingView } from './components/KeyboardAvoidingView';
 export * from './contexts';
 export * from './tamagui.config';
 export * from './types';
 export * from './utils';
+export * from './components/EditableProfileImages';
 
 export {
   Circle,
