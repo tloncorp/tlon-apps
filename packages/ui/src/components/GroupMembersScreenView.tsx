@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { GroupPrivacy } from '@tloncorp/shared/dist/db/schema';
 import { useCallback, useMemo, useState } from 'react';
 import { SectionList } from 'react-native';
-import { View } from 'tamagui';
+import { View, getTokenValue } from 'tamagui';
 
 import { AppDataContextProvider } from '../contexts/appDataContext';
 import { ContactList } from './ContactList';
@@ -140,9 +140,7 @@ export function GroupMembersScreenView({
         contactId={item.contactId}
         showNickname
         size="$4xl"
-        onPress={() => {
-          setSelectedContact(item.contactId);
-        }}
+        onPress={setSelectedContact}
       />
     ),
     []
@@ -175,18 +173,19 @@ export function GroupMembersScreenView({
     <AppDataContextProvider contacts={contacts} currentUserId={currentUserId}>
       <View backgroundColor="$background" flex={1}>
         <GenericHeader title="Members" goBack={goBack} />
-        <View padding="$l">
-          <SectionList
-            sections={sectionedData}
-            keyExtractor={keyExtractor}
-            maxToRenderPerBatch={6}
-            initialNumToRender={11}
-            windowSize={2}
-            renderItem={renderItem}
-            renderSectionHeader={renderSectionHeader}
-            stickySectionHeadersEnabled={false}
-          />
-        </View>
+        <SectionList
+          sections={sectionedData}
+          keyExtractor={keyExtractor}
+          maxToRenderPerBatch={6}
+          initialNumToRender={11}
+          contentContainerStyle={{
+            paddingHorizontal: getTokenValue('$l', 'size'),
+          }}
+          windowSize={2}
+          renderItem={renderItem}
+          renderSectionHeader={renderSectionHeader}
+          stickySectionHeadersEnabled={false}
+        />
       </View>
       {selectedContact !== null && !selectedIsRequest && (
         <ProfileSheet

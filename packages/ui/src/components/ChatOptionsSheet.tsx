@@ -16,7 +16,7 @@ import { useSheet } from 'tamagui';
 import { useCalm, useChatOptions, useCurrentUserId } from '../contexts';
 import { useCopy } from '../hooks/useCopy';
 import * as utils from '../utils';
-import { ActionGroup, ActionSheet } from './ActionSheetV2';
+import { Action, ActionGroup, ActionSheet } from './ActionSheetV2';
 import { ListItem } from './ListItem';
 
 export type ChatType = 'group' | db.ChannelType;
@@ -97,6 +97,7 @@ export function GroupOptions({ group }: { group: db.Group }) {
   sheetRef.current = sheet;
 
   const {
+    onPressGroupMembers,
     onPressGroupMeta,
     onPressManageChannels,
     onPressLeave,
@@ -141,29 +142,43 @@ export function GroupOptions({ group }: { group: db.Group }) {
       },
     ];
 
-    if (group && currentUserIsAdmin) {
-      actionGroups.push({
-        accent: 'neutral',
-        actions: [
-          {
-            title: 'Manage channels',
-            action: () => {
-              sheetRef.current.setOpen(false);
-              onPressManageChannels?.(group.id);
-            },
-            icon: 'ChevronRight',
-          },
-          {
-            title: 'Edit metadata',
-            action: () => {
-              sheetRef.current.setOpen(false);
-              onPressGroupMeta?.(group.id);
-            },
-            icon: 'ChevronRight',
-          },
-        ],
-      });
-    }
+    const manageChannelsAction: Action = {
+      title: 'Manage channels',
+      action: () => {
+        sheetRef.current.setOpen(false);
+        onPressManageChannels?.(group.id);
+      },
+      icon: 'ChevronRight',
+    };
+
+    const goToMembersAction: Action = {
+      title: 'Members',
+      icon: 'ChevronRight',
+      action: () => {
+        if (!group) {
+          return;
+        }
+        onPressGroupMembers?.(group.id);
+        sheetRef.current.setOpen(false);
+      },
+    };
+
+    const metadataAction: Action = {
+      title: 'Edit metadata',
+      action: () => {
+        sheetRef.current.setOpen(false);
+        onPressGroupMeta?.(group.id);
+      },
+      icon: 'ChevronRight',
+    };
+
+    actionGroups.push({
+      accent: 'neutral',
+      actions:
+        group && currentUserIsAdmin
+          ? [manageChannelsAction, goToMembersAction, metadataAction]
+          : [goToMembersAction],
+    });
 
     if (group && !group.currentUserIsHost) {
       actionGroups.push({
@@ -189,6 +204,7 @@ export function GroupOptions({ group }: { group: db.Group }) {
     currentUserIsAdmin,
     copyRef,
     onPressManageChannels,
+    onPressGroupMembers,
     onPressGroupMeta,
     onPressLeave,
   ]);
@@ -201,6 +217,7 @@ export function GroupOptions({ group }: { group: db.Group }) {
       actionGroups={actionGroups}
       title={title}
       subtitle={subtitle}
+      icon={<ListItem.GroupIcon model={group} />}
     />
   );
 }
