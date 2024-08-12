@@ -1215,14 +1215,14 @@ export const getAllSingleDms = createReadQuery(
   []
 );
 
-export interface GetChannelWithLastPostAndMembersOptions {
+export interface GetChannelWithRelations {
   id: string;
 }
 
-export const getChannelWithLastPostAndMembers = createReadQuery(
-  'getChannelWithLastPostAndMembers',
+export const getChannelWithRelations = createReadQuery(
+  'getChannelWithRelations',
   async (
-    { id }: GetChannelWithLastPostAndMembersOptions,
+    { id }: GetChannelWithRelations,
     ctx: QueryCtx
   ): Promise<Channel | null> => {
     const result = await ctx.db.query.channels.findFirst({
@@ -1234,7 +1234,11 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
             contact: true,
           },
         },
+        volumeSettings: true,
+        pin: true,
         unread: true,
+        group: true,
+        contact: true,
         writerRoles: {
           with: {
             role: true,
@@ -1244,7 +1248,7 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
     });
     return returnNullIfUndefined(result);
   },
-  ['channels']
+  ['channels', 'volumeSettings', 'pins', 'groups', 'contacts']
 );
 
 export const getStaleChannels = createReadQuery(

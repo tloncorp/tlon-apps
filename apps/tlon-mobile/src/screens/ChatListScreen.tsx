@@ -1,9 +1,5 @@
-import {
-  useFocusEffect,
-  useIsFocused,
-  useNavigation,
-} from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useIsFocused } from '@react-navigation/native';
+import { type NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
@@ -12,10 +8,13 @@ import {
   Button,
   CalmProvider,
   ChatList,
+  ChatOptionsProvider,
   ChatOptionsSheet,
+  ChatOptionsSheetMethods,
   FloatingActionButton,
   GroupPreviewSheet,
   Icon,
+  RequestsProvider,
   ScreenHeader,
   StartDmSheet,
   View,
@@ -27,13 +26,13 @@ import ContextMenu from 'react-native-context-menu-view';
 import AddGroupSheet from '../components/AddGroupSheet';
 import { TLON_EMPLOYEE_GROUP } from '../constants';
 import { useCalmSettings } from '../hooks/useCalmSettings';
+import { useChatSettingsNavigation } from '../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import * as featureFlags from '../lib/featureFlags';
 import NavBar from '../navigation/NavBarView';
 import { RootStackParamList } from '../types';
 import { identifyTlonEmployee } from '../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../utils/splash';
-import { useGroupContext } from './GroupSettings/useGroupContext';
 
 type ChatListScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -51,13 +50,27 @@ const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
 export default function ChatListScreen(
   props: ChatListScreenProps & { contacts: db.Contact[] }
 ) {
-  const navigation = useNavigation();
   const [screenTitle, setScreenTitle] = useState('Home');
-  const [longPressedChannel, setLongPressedChannel] =
-    useState<db.Channel | null>(null);
-  const [longPressedGroup, setLongPressedGroup] = useState<db.Group | null>(
-    null
-  );
+  const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
+  const [longPressedChat, setLongPressedChat] = useState<
+    db.Channel | db.Group | null
+  >(null);
+  const chatOptionsGroupId = useMemo(() => {
+    if (!longPressedChat) {
+      return;
+    }
+    return logic.isGroup(longPressedChat)
+      ? longPressedChat.id
+      : longPressedChat.group?.id;
+  }, [longPressedChat]);
+
+  const chatOptionsChannelId = useMemo(() => {
+    if (!longPressedChat || logic.isGroup(longPressedChat)) {
+      return;
+    }
+    return longPressedChat.id;
+  }, [longPressedChat]);
+
   const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
     'all'
   );
@@ -122,13 +135,13 @@ export default function ChatListScreen(
     [props.navigation]
   );
 
-  const onLongPressItem = useCallback((item: db.Channel | db.Group) => {
-    // noop for now
-    if (logic.isChannel(item)) {
-      if (item.pin?.type === 'channel') {
-        setLongPressedChannel(item);
-      } else if (item.group) {
-        setLongPressedGroup(item.group);
+  const onLongPressChat = useCallback((item: db.Channel | db.Group) => {
+    if (logic.isChannel(item) && !item.isDmInvite) {
+      setLongPressedChat(item);
+      if (item.pin?.type === 'channel' || !item.group) {
+        chatOptionsSheetRef.current?.open(item.id, item.type);
+      } else {
+        chatOptionsSheetRef.current?.open(item.group.id, 'group');
       }
     }
   }, []);
@@ -151,89 +164,10 @@ export default function ChatListScreen(
     }
   }, []);
 
-  const handleChatOptionsOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open) {
-        setLongPressedChannel(null);
-        setLongPressedGroup(null);
-      }
-    },
-    [setLongPressedChannel]
-  );
-
   const handleGroupCreated = useCallback(
     ({ channel }: { channel: db.Channel }) => goToChannel({ channel }),
     [goToChannel]
   );
-
-  const handleGoToGroupMeta = useCallback(
-    (groupId: string) => {
-      // @ts-expect-error TODO fix nested navigator types
-      navigation.navigate('GroupSettings', {
-        screen: 'GroupMeta',
-        params: { groupId },
-      });
-
-      setLongPressedGroup(null);
-    },
-    [navigation]
-  );
-
-  const handleGoToGroupMembers = useCallback(
-    (groupId: string) => {
-      // @ts-expect-error TODO fix nested navigator types
-      navigation.navigate('GroupSettings', {
-        screen: 'GroupMembers',
-        params: { groupId },
-      });
-
-      setLongPressedGroup(null);
-    },
-    [navigation]
-  );
-
-  const handleGoToManageChannels = useCallback(
-    (groupId: string) => {
-      // @ts-expect-error TODO fix nested navigator types
-      navigation.navigate('GroupSettings', {
-        screen: 'ManageChannels',
-        params: { groupId },
-      });
-
-      setLongPressedGroup(null);
-    },
-    [navigation]
-  );
-
-  const handleGoToInvitesAndPrivacy = useCallback(
-    (groupId: string) => {
-      // @ts-expect-error TODO fix nested navigator types
-      navigation.navigate('GroupSettings', {
-        screen: 'InvitesAndPrivacy',
-        params: { groupId },
-      });
-
-      setLongPressedGroup(null);
-    },
-    [navigation]
-  );
-
-  const handleGoToRoles = useCallback(
-    (groupId: string) => {
-      // @ts-expect-error TODO fix nested navigator types
-      navigation.navigate('GroupSettings', {
-        screen: 'GroupRoles',
-        params: { groupId },
-      });
-
-      setLongPressedGroup(null);
-    },
-    [navigation]
-  );
-
-  const handleGotoErrorReporter = useCallback(() => {
-    props.navigation.navigate('WompWomp');
-  }, [props.navigation]);
 
   const { pinned, unpinned } = resolvedChats;
   const allChats = [...pinned, ...unpinned];
@@ -283,23 +217,10 @@ export default function ChatListScreen(
     }
   }, []);
 
-  const { leaveGroup, togglePinned } = useGroupContext({
-    groupId: longPressedGroup?.id ?? '',
-  });
-
-  const handleLeaveGroup = useCallback(async () => {
-    setLongPressedGroup(null);
-    leaveGroup();
-  }, [leaveGroup]);
-
-  const handleTogglePinned = useCallback(() => {
-    togglePinned();
-    setLongPressedGroup(null);
-  }, [togglePinned]);
-
-  const handleDismissOptionsSheet = useCallback(() => {
-    setLongPressedGroup(null);
-    setLongPressedChannel(null);
+  const headerControls = useMemo(() => {
+    return (
+      <ShowFiltersButton onPress={() => setShowFilters((prev) => !prev)} />
+    );
   }, []);
 
   return (
@@ -308,100 +229,95 @@ export default function ChatListScreen(
         currentUserId={currentUser}
         contacts={contacts ?? []}
       >
-        <View backgroundColor="$background" flex={1}>
-          <ScreenHeader
-            title={
-              !chats || (!chats.unpinned.length && !chats.pinned.length)
-                ? 'Loading…'
-                : screenTitle
-            }
-            rightControls={
-              <ShowFiltersButton
-                onPress={() => setShowFilters((prev) => !prev)}
-              />
-            }
-          />
-          {chats && chats.unpinned.length ? (
-            <ChatList
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              pinned={resolvedChats.pinned}
-              unpinned={resolvedChats.unpinned}
-              pendingChats={resolvedChats.pendingChats}
-              onLongPressItem={onLongPressItem}
-              onPressItem={onPressChat}
-              onSectionChange={handleSectionChange}
-              showFilters={showFilters}
-            />
-          ) : null}
-          <View
-            zIndex={50}
-            position="absolute"
-            bottom="$s"
-            alignItems="center"
-            width={'100%'}
-            pointerEvents="box-none"
+        <RequestsProvider
+          usePostReference={store.usePostReference}
+          useChannel={store.useChannelWithRelations}
+          usePost={store.usePostWithRelations}
+          useApp={store.useAppInfo}
+          useGroup={store.useGroupPreview}
+        >
+          <ChatOptionsProvider
+            channelId={chatOptionsChannelId}
+            groupId={chatOptionsGroupId}
+            {...useChatSettingsNavigation()}
           >
-            <ContextMenu
-              dropdownMenuMode={true}
-              actions={[
-                { title: 'Create or join a group' },
-                { title: 'Start a direct message' },
-              ]}
-              onPress={(event) => {
-                const { index } = event.nativeEvent;
-                if (index === 0) {
-                  setAddGroupOpen(true);
+            <View backgroundColor="$background" flex={1}>
+              <ScreenHeader
+                title={
+                  !chats || (!chats.unpinned.length && !chats.pinned.length)
+                    ? 'Loading…'
+                    : screenTitle
                 }
-                if (index === 1) {
-                  setStartDmOpen(true);
-                }
-              }}
-            >
-              <FloatingActionButton
-                icon={<Icon type="Add" size="$s" marginRight="$s" />}
-                label={'Add'}
-                onPress={() => {}}
+                rightControls={headerControls}
               />
-            </ContextMenu>
-          </View>
-          <WelcomeSheet
-            open={splashVisible}
-            onOpenChange={handleWelcomeOpenChange}
-          />
-          <ChatOptionsSheet
-            open={longPressedChannel !== null || longPressedGroup !== null}
-            onOpenChange={handleChatOptionsOpenChange}
-            currentUser={currentUser}
-            pinned={pinned}
-            channel={longPressedChannel ?? undefined}
-            group={longPressedGroup ?? undefined}
-            useGroup={store.useGroup}
-            onPressGroupMeta={handleGoToGroupMeta}
-            onPressGroupMembers={handleGoToGroupMembers}
-            onPressManageChannels={handleGoToManageChannels}
-            onPressInvitesAndPrivacy={handleGoToInvitesAndPrivacy}
-            onPressRoles={handleGoToRoles}
-            onPressLeave={handleLeaveGroup}
-            onTogglePinned={handleTogglePinned}
-          />
-          <StartDmSheet
-            goToDm={goToDm}
-            open={startDmOpen}
-            onOpenChange={handleDmOpenChange}
-          />
-          <AddGroupSheet
-            open={addGroupOpen}
-            onOpenChange={handleAddGroupOpenChange}
-            onCreatedGroup={handleGroupCreated}
-          />
-          <GroupPreviewSheet
-            open={selectedGroup !== null}
-            onOpenChange={handleGroupPreviewSheetOpenChange}
-            group={selectedGroup ?? undefined}
-          />
-        </View>
-        <NavBar navigation={props.navigation} />
+              {chats && chats.unpinned.length ? (
+                <ChatList
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  pinned={resolvedChats.pinned}
+                  unpinned={resolvedChats.unpinned}
+                  pendingChats={resolvedChats.pendingChats}
+                  onLongPressItem={onLongPressChat}
+                  onPressItem={onPressChat}
+                  onSectionChange={handleSectionChange}
+                  showFilters={showFilters}
+                />
+              ) : null}
+              <View
+                zIndex={50}
+                position="absolute"
+                bottom="$s"
+                alignItems="center"
+                width={'100%'}
+                pointerEvents="box-none"
+              >
+                <ContextMenu
+                  dropdownMenuMode={true}
+                  actions={[
+                    { title: 'Create or join a group' },
+                    { title: 'Start a direct message' },
+                  ]}
+                  onPress={(event) => {
+                    const { index } = event.nativeEvent;
+                    if (index === 0) {
+                      setAddGroupOpen(true);
+                    }
+                    if (index === 1) {
+                      setStartDmOpen(true);
+                    }
+                  }}
+                >
+                  <FloatingActionButton
+                    icon={<Icon type="Add" size="$s" marginRight="$s" />}
+                    label={'Add'}
+                    onPress={() => {}}
+                  />
+                </ContextMenu>
+              </View>
+              <WelcomeSheet
+                open={splashVisible}
+                onOpenChange={handleWelcomeOpenChange}
+              />
+              <ChatOptionsSheet ref={chatOptionsSheetRef} />
+              <StartDmSheet
+                goToDm={goToDm}
+                open={startDmOpen}
+                onOpenChange={handleDmOpenChange}
+              />
+              <AddGroupSheet
+                open={addGroupOpen}
+                onOpenChange={handleAddGroupOpenChange}
+                onCreatedGroup={handleGroupCreated}
+              />
+              <GroupPreviewSheet
+                open={selectedGroup !== null}
+                onOpenChange={handleGroupPreviewSheetOpenChange}
+                group={selectedGroup ?? undefined}
+              />
+            </View>
+            <NavBar navigation={props.navigation} />
+          </ChatOptionsProvider>
+        </RequestsProvider>
       </AppDataContextProvider>
     </CalmProvider>
   );

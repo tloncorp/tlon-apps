@@ -1,3 +1,4 @@
+// tamagui-ignore
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist';
 import type { ColorProp } from '@tloncorp/ui';
 import { Theme, View } from '@tloncorp/ui';
@@ -70,3 +71,5 @@ export const FixtureWrapper = ({
     </QueryClientProvider>
   );
 };
+
+FixtureWrapper.displayName = 'FixtureWrapper';

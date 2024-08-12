@@ -4,6 +4,7 @@ import * as store from '@tloncorp/shared/dist/store';
 import { useMemo } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
+import { useCalm } from '../../contexts';
 import { getChannelTitle } from '../../utils';
 import { ChannelAvatar, ContactAvatar } from '../Avatar';
 import { ActivitySourceContent } from './ActivitySourceContent';
@@ -19,6 +20,7 @@ export function ChannelActivitySummary({
   seenMarker: number;
   pressHandler?: () => void;
 }) {
+  const calm = useCalm();
   const newestPost = summary.newest;
   const group = newestPost.group ?? undefined;
   const channel: db.Channel | undefined = newestPost.channel ?? undefined;
@@ -38,7 +40,7 @@ export function ChannelActivitySummary({
       ? 'DM'
       : channel.type === 'groupDm'
         ? 'Group chat'
-        : getChannelTitle(channel);
+        : getChannelTitle(channel, calm.disableNicknames);
 
   return (
     <View
