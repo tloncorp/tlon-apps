@@ -5,14 +5,14 @@ import { useTheme } from '@tloncorp/ui';
 import { Platform, StatusBar } from 'react-native';
 
 import { ActivityScreenController } from '../controllers/ActivityScreenController';
+import { ChannelScreenController } from '../controllers/ChannelScreenController';
+import { ChannelSearchScreenController } from '../controllers/ChannelSearchScreenController';
 import { ChatListScreenController } from '../controllers/ChatListScreenController';
 import { AppInfoScreen } from '../screens/AppInfo';
 import { AppSettingsScreen } from '../screens/AppSettingsScreen';
 import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
 import { ChannelMembersScreen } from '../screens/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../screens/ChannelMetaScreen';
-import ChannelScreen from '../screens/ChannelScreen';
-import ChannelSearch from '../screens/ChannelSearchScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { FeatureFlagScreen } from '../screens/FeatureFlagScreen';
 import { GroupChannelsScreen } from '../screens/GroupChannelsScreen';
@@ -68,8 +68,11 @@ export function RootStack() {
 
       {/* individual screens */}
       <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
-      <Root.Screen name="Channel" component={ChannelScreen} />
-      <Root.Screen name="ChannelSearch" component={ChannelSearch} />
+      <Root.Screen name="Channel" component={ChannelScreenController} />
+      <Root.Screen
+        name="ChannelSearch"
+        component={ChannelSearchScreenController}
+      />
       <Root.Screen name="Post" component={PostScreen} />
       <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />
       <Root.Screen

@@ -1,7 +1,3 @@
-import { useFocusEffect, useIsFocused } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useChannelContext } from '@tloncorp/app/hooks/useChannelContext';
-import { useChatSettingsNavigation } from '@tloncorp/app/hooks/useChatSettingsNavigation';
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
@@ -21,40 +17,54 @@ import {
 } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 
-import type { RootStackParamList } from '../types';
-
-type ChannelScreenProps = NativeStackScreenProps<RootStackParamList, 'Channel'>;
+import { useChannelContext } from '../../hooks/useChannelContext';
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useFocusEffect } from '../../hooks/useFocusEffect';
+import { useIsFocused } from '../../hooks/useIsFocused';
 
 const logger = createDevLogger('ChannelScreen', false);
 
-export default function ChannelScreen(props: ChannelScreenProps) {
+export default function ChannelScreen({
+  channelFromParams,
+  navigateToDm,
+  navigateToUserProfile,
+  goBack,
+  selectedPostId,
+}: {
+  channelFromParams: db.Channel;
+  navigateToDm: (channel: db.Channel) => void;
+  goBack: () => void;
+  navigateToUserProfile: (userId: string) => void;
+  groupFromParams?: db.Group | null;
+  selectedPostId?: string | null;
+}) {
   useFocusEffect(
     useCallback(() => {
-      if (props.route.params.channel.group?.isNew) {
-        store.markGroupVisited(props.route.params.channel.group);
+      if (channelFromParams.group?.isNew) {
+        store.markGroupVisited(channelFromParams.group);
       }
 
-      if (!props.route.params.channel.isPendingChannel) {
-        store.syncChannelThreadUnreads(props.route.params.channel.id, {
+      if (!channelFromParams.isPendingChannel) {
+        store.syncChannelThreadUnreads(channelFromParams.id, {
           priority: store.SyncPriority.High,
         });
       }
-    }, [props.route.params.channel])
+    }, [channelFromParams])
   );
   useFocusEffect(
     useCallback(
       () =>
         // Mark the channel as visited when we unfocus/leave this screen
         () => {
-          store.markChannelVisited(props.route.params.channel);
+          store.markChannelVisited(channelFromParams);
         },
-      [props.route.params.channel]
+      [channelFromParams]
     )
   );
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
   const [currentChannelId, setCurrentChannelId] = React.useState(
-    props.route.params.channel.id
+    channelFromParams.id
   );
 
   const {
@@ -96,7 +106,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     return false;
   }, [channel, session]);
 
-  const selectedPostId = props.route.params.selectedPostId;
   const cursor = useMemo(() => {
     if (!channel) {
       return undefined;
@@ -196,9 +205,9 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
-      props.navigation.push('Channel', { channel: dmChannel });
+      navigateToDm(dmChannel);
     },
-    [props.navigation]
+    [navigateToDm]
   );
 
   const handleMarkRead = useCallback(() => {
@@ -209,7 +218,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
 
   const canUpload = useCanUpload();
 
-  const groupParam = props.route.params.channel.group;
   const isFocused = useIsFocused();
 
   const { data: chats } = store.useCurrentChats({
@@ -224,9 +232,9 @@ export default function ChannelScreen(props: ChannelScreenProps) {
 
   const handleGoToUserProfile = useCallback(
     (userId: string) => {
-      props.navigation.push('UserProfile', { userId });
+      navigateToUserProfile(userId);
     },
-    [props.navigation]
+    [navigateToUserProfile]
   );
 
   if (!channel) {
@@ -235,7 +243,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
 
   return (
     <ChatOptionsProvider
-      groupId={groupParam?.id}
+      groupId={channelFromParams?.id}
       pinned={pinnedItems}
       useGroup={store.useGroup}
       {...chatOptionsNavProps}
@@ -252,7 +260,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         contacts={contacts}
         posts={posts}
         selectedPostId={selectedPostId}
-        goBack={props.navigation.goBack}
+        goBack={goBack}
         messageSender={sendPost}
         goToPost={navigateToPost}
         goToImageViewer={navigateToImage}

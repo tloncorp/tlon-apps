@@ -1,5 +1,3 @@
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useChannelSearch } from '@tloncorp/shared/dist';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
@@ -14,20 +12,35 @@ import {
 import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { RootStackParamList } from '../types';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
 
-type ChannelSearchProps = NativeStackScreenProps<
-  RootStackParamList,
-  'ChannelSearch'
->;
-
-export default function ChannelSearch({
-  route,
-  navigation,
-}: ChannelSearchProps) {
+export default function ChannelSearchScreen({
+  channel,
+  navigateToChannel,
+  navigateToReply,
+  cancelSearch,
+}: {
+  channel: db.Channel;
+  navigateToChannel: ({
+    channel,
+    selectedPostId,
+  }: {
+    channel: db.Channel;
+    selectedPostId?: string;
+  }) => void;
+  navigateToReply: ({
+    id,
+    authorId,
+    channelId,
+  }: {
+    id: string;
+    authorId: string;
+    channelId: string;
+  }) => void;
+  cancelSearch: () => void;
+}) {
   const currentUserId = useCurrentUserId();
   const { data: contacts } = store.useContacts();
-  const { channel } = route.params;
   const [query, setQuery] = useState('');
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
     useChannelSearch(channel, query);
@@ -35,21 +48,19 @@ export default function ChannelSearch({
   const navigateToPost = useCallback(
     (post: db.Post) => {
       if (post.parentId) {
-        navigation.replace('Post', {
-          post: {
-            id: post.parentId,
-            channelId: channel.id,
-            authorId: post.authorId,
-          },
+        navigateToReply({
+          id: post.parentId,
+          authorId: post.authorId,
+          channelId: channel.id,
         });
       } else {
-        navigation.navigate('Channel', {
+        navigateToChannel({
           channel,
           selectedPostId: post.id,
         });
       }
     },
-    [channel, navigation]
+    [channel, navigateToChannel, navigateToReply]
   );
 
   return (
@@ -64,7 +75,7 @@ export default function ChannelSearch({
               onChangeQuery={setQuery}
               placeholder={`Search ${channel.title}`}
             />
-            <Button minimal onPress={() => navigation.pop()}>
+            <Button minimal onPress={() => cancelSearch()}>
               <Button.Text>Cancel</Button.Text>
             </Button>
           </XStack>
