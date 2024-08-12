@@ -104,10 +104,13 @@ export async function retrySendPost({
       channelId: post.channelId,
       authorId: post.authorId,
       content: story,
-      metadata: {
-        title: post.title,
-        image: post.image,
-      },
+      metadata:
+        post.image || post.title
+          ? {
+              title: post.title,
+              image: post.image,
+            }
+          : undefined,
       sentAt: post.sentAt,
     });
     await sync.syncChannelMessageDelivery({ channelId: post.channelId });
