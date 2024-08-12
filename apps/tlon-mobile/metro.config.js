@@ -60,6 +60,7 @@ module.exports = mergeConfig(config, {
       path.resolve(workspaceRoot, 'node_modules/tamagui/node_modules'),
     ],
     sourceExts: [...config.resolver.sourceExts, 'svg', 'sql'],
+    unstable_enablePackageExports: true,
   },
 });
 
