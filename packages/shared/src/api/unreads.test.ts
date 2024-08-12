@@ -168,6 +168,7 @@ const expectedGroupUnread = {
   updatedAt: 946684800000,
   count: 6,
   notify: true,
+  notifyCount: 0,
 };
 
 test('converts a group unread from server to client format', () => {

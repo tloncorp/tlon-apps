@@ -1,14 +1,14 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, View } from 'tamagui';
 
-import { useGroupOptions } from '../contexts/groupOptions';
-import { ScrollView, View } from '../core';
+import { useChatOptions } from '../contexts/chatOptions';
 import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
 import ChannelNavSections from './ChannelNavSections';
+import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
 import { GenericHeader } from './GenericHeader';
-import { ChatOptionsSheet } from './GroupOptionsSheet';
 import { Icon } from './Icon';
 
 const ChannelSortOptions = ({
@@ -32,12 +32,11 @@ type GroupChannelsScreenViewProps = {
 export function GroupChannelsScreenView({
   onChannelPressed,
   onBackPressed,
-  currentUser,
 }: GroupChannelsScreenViewProps) {
-  const groupOptions = useGroupOptions();
+  const groupOptions = useChatOptions();
   const group = groupOptions?.group;
+  const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
 
-  const [showChatOptions, setShowChatOptions] = useState(false);
   const [showSortOptions, setShowSortOptions] = useState(false);
   const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
   const insets = useSafeAreaInsets();
@@ -59,14 +58,11 @@ export function GroupChannelsScreenView({
     []
   );
 
-  const handleChatOptionsOpenChange = useCallback((open: boolean) => {
-    setShowChatOptions(open);
-  }, []);
-
-  const handleAction = useCallback((action: () => void) => {
-    setShowChatOptions(false);
-    action();
-  }, []);
+  const handlePressOverflowButton = useCallback(() => {
+    if (group) {
+      chatOptionsSheetRef.current?.open(group.id, 'group');
+    }
+  }, [group]);
 
   return (
     <View flex={1}>
@@ -76,7 +72,7 @@ export function GroupChannelsScreenView({
         rightContent={
           <View flexDirection="row" gap="$s">
             <ChannelSortOptions setShowSortOptions={setShowSortOptions} />
-            <Button borderWidth={0} onPress={() => setShowChatOptions(true)}>
+            <Button borderWidth={0} onPress={handlePressOverflowButton}>
               <Icon type="Overflow" />
             </Button>
           </View>
@@ -119,23 +115,7 @@ export function GroupChannelsScreenView({
           <ActionSheet.ActionTitle>Sort by arrangement</ActionSheet.ActionTitle>
         </ActionSheet.Action>
       </ActionSheet>
-      {groupOptions && (
-        <ChatOptionsSheet
-          open={showChatOptions}
-          onOpenChange={handleChatOptionsOpenChange}
-          currentUser={currentUser}
-          pinned={groupOptions.pinned}
-          group={group!}
-          useGroup={groupOptions.useGroup}
-          onPressGroupMeta={groupOptions.onPressGroupMeta}
-          onPressGroupMembers={groupOptions.onPressGroupMembers}
-          onPressManageChannels={groupOptions.onPressManageChannels}
-          onPressInvitesAndPrivacy={groupOptions.onPressInvitesAndPrivacy}
-          onPressRoles={groupOptions.onPressRoles}
-          onPressLeave={groupOptions.onPressLeave}
-          onTogglePinned={groupOptions.onTogglePinned}
-        />
-      )}
+      <ChatOptionsSheet ref={chatOptionsSheetRef} />
     </View>
   );
 }

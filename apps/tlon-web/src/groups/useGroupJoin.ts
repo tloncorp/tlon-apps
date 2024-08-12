@@ -145,7 +145,7 @@ export default function useGroupJoin(
     if (inModal) {
       navigate(`/gangs/${flag}/reject`, true);
     } else {
-      navigate(`/gangs/${flag}/reject`);
+      navigate(`/gangs/${flag}/reject`, true);
     }
   }, [
     flag,

@@ -1,5 +1,5 @@
 //
-//  Error+Extension.swift
+//  Error+logWithDomain.swift
 //  Landscape
 //
 //  Created by Alec Ananian on 11/13/23.

@@ -385,6 +385,18 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
         contactIds: update.ships,
       });
       break;
+    case 'groupJoinRequest':
+      await db.addGroupJoinRequests({
+        groupId: update.groupId,
+        contactIds: update.ships,
+      });
+      break;
+    case 'revokeGroupJoinRequests':
+      await db.deleteGroupJoinRequests({
+        groupId: update.groupId,
+        contactIds: update.ships,
+      });
+      break;
     case 'banGroupMembers':
       await db.addGroupMemberBans({
         groupId: update.groupId,
@@ -873,6 +885,21 @@ export async function syncPosts(
   }
 
   return response;
+}
+
+export async function syncGroupPreviews(groupIds: string[]) {
+  const promises = groupIds.map(async (groupId) => {
+    const group = await db.getGroup({ id: groupId });
+    if (group?.currentUserIsMember) {
+      return group;
+    }
+
+    const groupPreview = await api.getGroupPreview(groupId);
+    await db.insertUnjoinedGroups([groupPreview]);
+    return groupPreview;
+  });
+
+  return Promise.all(promises);
 }
 
 const currentPendingMessageSyncs = new Map<string, Promise<boolean>>();

@@ -1,11 +1,12 @@
 import { useEmbed, utils, validOembedCheck } from '@tloncorp/shared';
 import { Linking, TouchableOpacity } from 'react-native';
+import { SizableText, View } from 'tamagui';
 
 import { useCalm } from '../../contexts';
-import { ImageWithFallback, SizableText, View } from '../../core';
 import { PostViewMode } from '../ContentRenderer';
 import { AudioEmbed, OutsideEmbed, VideoEmbed } from '../Embed';
 import { Icon } from '../Icon';
+import { ImageWithFallback } from '../Image';
 
 const trustedProviders = [
   {

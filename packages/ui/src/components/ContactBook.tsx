@@ -6,9 +6,9 @@ import {
   NativeSyntheticEvent,
   SectionListRenderItemInfo,
 } from 'react-native';
+import { View } from 'tamagui';
 
 import { useContactIndex, useContacts } from '../contexts';
-import { View } from '../core';
 import {
   useAlphabeticallySegmentedContacts,
   useSortedContacts,

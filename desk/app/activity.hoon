@@ -533,7 +533,10 @@
   ::  after the start so we always get "new" sources when paging
   ?.  ?&  notified.event
           (lth latest.src-info start)
-          ?=(?(%post %reply %dm-post %dm-reply %flag-post) -<.event)
+          ?=  $?  %post  %reply  %dm-post  %dm-reply
+                  %flag-post  %flag-reply  %group-ask
+              ==
+            -<.event
       ==
     acc
   =/  mention=(unit activity-bundle:a)
@@ -567,7 +570,8 @@
   =/  collapsed
     (~(gas in collapsed.acc) (turn top head))
   :-  (~(put by sources.acc) source src-info(added &))
-  [(sub limit.acc 1) (snoc happenings.acc [source time top]) collapsed]
+  ?~  top  +.acc
+  [(sub limit.acc 1) (snoc happenings.acc [source time.i.top top]) collapsed]
   +$  out
     $:  sources=(map source:a [latest=time-id:a added=?])
         limit=@ud
@@ -585,7 +589,10 @@
   |=  [acc=out [=time =event:a]]
   ?:  =(limit.acc 0)  [~ & acc]
   ?:  child.event  [~ | acc]
-  ?.  ?=(?(%post %reply %dm-post %dm-reply %flag-post) -<.event)
+  ?.  ?=  $?  %post  %reply  %dm-post  %dm-reply
+              %flag-post  %flag-reply  %group-ask
+          ==
+        -<.event
     [~ | acc]
   =/  is-mention
     ?+  -<.event  |
@@ -790,7 +797,9 @@
 ++  bump
   |=  =source:a
   ^+  cor
-  =/  =index:a  (~(got by indices) source)
+  ::  we use get-index here because this source may not exist especially
+  ::  if it was a post we created and then commented on w/o any other activity
+  =/  =index:a  (get-index source)
   =/  new=index:a  index(bump now.bowl)
   =.  indices
     (~(put by indices) source new)
@@ -820,7 +829,10 @@
       ?^  time.action  u.time.action
       =/  latest=(unit [=time event:a])
         (ram:on-event:a stream.index)
-      ?~(latest now.bowl time.u.latest)
+      ::  if we don't have an event, then this is read anyway so we can
+      ::  just reuse the floor. likely if a recursive read is happening
+      ::  from one of our parents
+      ?~(latest floor.reads.index time.u.latest)
     ::  if we're marking deeply we need to recursively read all
     ::  children
     =/  children  (get-children:src indices source)

@@ -8,6 +8,8 @@ import { ActivityScreen } from '../screens/ActivityScreen';
 import { AppInfoScreen } from '../screens/AppInfo';
 import { AppSettingsScreen } from '../screens/AppSettingsScreen';
 import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
+import { ChannelMembersScreen } from '../screens/ChannelMembersScreen';
+import { ChannelMetaScreen } from '../screens/ChannelMetaScreen';
 import ChannelScreen from '../screens/ChannelScreen';
 import ChannelSearch from '../screens/ChannelSearchScreen';
 import ChatListScreen from '../screens/ChatListScreen';
@@ -19,6 +21,7 @@ import { ManageAccountScreen } from '../screens/ManageAccountScreen';
 import PostScreen from '../screens/PostScreen';
 import { PushNotificationSettingsScreen } from '../screens/PushNotificationSettingsScreen';
 import { UserBugReportScreen } from '../screens/UserBugReportScreen';
+import UserProfileScreen from '../screens/UserProfileScreen';
 import type { RootStackParamList } from '../types';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { SettingsStack } from './SettingsStack';
@@ -88,8 +91,11 @@ export function RootStack() {
         name="PushNotificationSettings"
         component={PushNotificationSettingsScreen}
       />
+      <Root.Screen name="UserProfile" component={UserProfileScreen} />
       <Root.Screen name="EditProfile" component={EditProfileScreen} />
       <Root.Screen name="WompWomp" component={UserBugReportScreen} />
+      <Root.Screen name="ChannelMembers" component={ChannelMembersScreen} />
+      <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
     </Root.Navigator>
   );
 }

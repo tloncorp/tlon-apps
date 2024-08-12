@@ -194,3 +194,27 @@ export function useSendPosts(
     };
   }, [channelId, initialDelay, interval, senderRef, session]);
 }
+
+export const useLogChange = (label: string, value: unknown) => {
+  const isFirst = useRef(true);
+  useEffect(() => {
+    if (isFirst.current) {
+      isFirst.current = false;
+      return;
+    }
+    console.log(label, 'changed', value);
+  }, [label, value]);
+};
+
+export const useLogLifecycleEvents = (
+  label: string,
+  includeRender?: boolean
+) => {
+  if (includeRender) {
+    console.log('label', 'rendered');
+  }
+  return useEffect(() => {
+    console.log(label, 'mounted');
+    return () => console.log(label, 'unmounted');
+  }, []);
+};

@@ -5,10 +5,10 @@ import { Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, View, YStack } from 'tamagui';
 
 import { AppDataContextProvider, CalmProvider, CalmState } from '../contexts';
 import { AttachmentProvider } from '../contexts/attachment';
-import { Text, View, YStack } from '../core';
 import { useStickyUnread } from '../hooks/useStickyUnread';
 import * as utils from '../utils';
 import { ChannelFooter } from './Channel/ChannelFooter';
@@ -116,9 +116,7 @@ export function PostScreenView({
                 title={headerTitle}
                 goBack={goBack}
                 showSearchButton={false}
-                showMenuButton={!isChatChannel}
                 post={parentPost ?? undefined}
-                channelType={channel.type}
                 mode={headerMode}
                 setEditingPost={setEditingPost}
               />

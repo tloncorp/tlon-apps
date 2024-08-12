@@ -3,8 +3,8 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import { PropsWithChildren, useMemo } from 'react';
 import React from 'react';
+import { SizableText } from 'tamagui';
 
-import { SizableText } from '../../core';
 import ContactName from '../ContactName';
 
 function SummaryMessageRaw({
@@ -151,6 +151,10 @@ function SummaryMessageRaw({
         {message}
       </SummaryMessageWrapper>
     );
+  }
+
+  if (relevancy === 'groupJoinRequest') {
+    return <SummaryMessageWrapper>test</SummaryMessageWrapper>;
   }
 
   if (summary.all.length === 1) {

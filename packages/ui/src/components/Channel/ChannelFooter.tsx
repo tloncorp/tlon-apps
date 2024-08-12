@@ -6,10 +6,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SizableText, Spinner, XStack } from 'tamagui';
 
 import { ChevronLeft, Search } from '../../assets/icons';
 import { useScrollContext } from '../../contexts/scroll';
-import { SizableText, Spinner, XStack } from '../../core';
 import { Button } from '../Button';
 import { Icon } from '../Icon';
 import { IconButton } from '../IconButton';

@@ -11,20 +11,26 @@ import {
 } from 'react';
 import { TouchableOpacity } from 'react-native';
 import { Circle, Stack, ZStack, useTheme } from 'tamagui';
+import { View } from 'tamagui';
 
 import {
   useAttachmentContext,
   useMappedImageAttachments,
 } from '../contexts/attachment';
-import { View } from '../core';
 import AttachmentSheet from './AttachmentSheet';
-import { AvatarProps, ContactAvatar, GroupAvatar } from './Avatar';
+import {
+  AvatarProps,
+  ChannelAvatar,
+  ContactAvatar,
+  GroupAvatar,
+} from './Avatar';
 import { Icon } from './Icon';
 import { LoadingSpinner } from './LoadingSpinner';
 
 interface Props {
-  contact?: db.Contact;
-  group?: db.Group;
+  contact?: db.Contact | null;
+  group?: db.Group | null;
+  channel?: db.Channel | null;
   iconProps?: AvatarProps;
   uploadInfo?: api.UploadInfo;
   onSetCoverUrl: (url: string) => void;
@@ -40,10 +46,16 @@ export function EditablePofileImages({
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const [attachingTo, setAttachingTo] = useState<null | 'cover' | 'icon'>(null);
   const [localIconUrl, setLocalIconUrl] = useState(
-    props.contact?.avatarImage ?? props.group?.iconImage ?? ''
+    props.contact?.avatarImage ??
+      props.group?.iconImage ??
+      props.channel?.iconImage ??
+      ''
   );
   const [localCoverUrl, setLocalCoverUrl] = useState(
-    props.contact?.coverImage ?? props.group?.coverImage ?? ''
+    props.contact?.coverImage ??
+      props.group?.coverImage ??
+      props.channel?.coverImage ??
+      ''
   );
   const { attachAssets, canUpload } = useAttachmentContext();
   const { coverAttachment, iconAttachment } = useMappedImageAttachments({
@@ -170,6 +182,9 @@ export function EditablePofileImages({
                 size="$9xl"
                 {...props.iconProps}
               />
+            )}
+            {props.channel && (
+              <ChannelAvatar model={props.channel} size="$9xl" />
             )}
             <EditableImageIndicator
               position="absolute"

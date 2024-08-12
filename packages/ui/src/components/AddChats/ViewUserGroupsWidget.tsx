@@ -6,8 +6,8 @@ import {
   NativeSyntheticEvent,
   ScrollView,
 } from 'react-native';
+import { SizableText, View, XStack, YStack } from 'tamagui';
 
-import { SizableText, View, XStack, YStack } from '../../core';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
 import { ListItem, ListItemProps } from '../ListItem';

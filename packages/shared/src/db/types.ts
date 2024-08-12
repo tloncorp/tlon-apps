@@ -56,6 +56,7 @@ export type ClientMeta = Pick<
 >;
 export type GroupMemberInvite = BaseModel<'groupMemberInvites'>;
 export type GroupMemberBan = BaseModel<'groupMemberBans'>;
+export type GroupJoinRequest = BaseModel<'groupJoinRequests'>;
 export type GroupRankBan = BaseModel<'groupRankBans'>;
 export type GroupFlaggedPosts = BaseModel<'groupFlaggedPosts'>;
 export type ChatMember = BaseModel<'chatMembers'>;
@@ -90,3 +91,17 @@ export type PinType = schema.PinType;
 export type Settings = BaseModel<'settings'>;
 export type PostWindow = BaseModel<'postWindows'>;
 export type VolumeSettings = BaseModel<'volumeSettings'>;
+
+export interface GroupEvent extends ActivityEvent {
+  type: 'group-ask';
+  group: Group;
+  groupId: string;
+  groupEventUserId: string;
+  groupEventUser: Contact;
+}
+
+export function isGroupEvent(event: ActivityEvent): event is GroupEvent {
+  return Boolean(
+    event.type === 'group-ask' && event.groupEventUserId && event.groupId
+  );
+}

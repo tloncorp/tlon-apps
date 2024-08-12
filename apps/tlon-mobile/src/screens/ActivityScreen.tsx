@@ -47,6 +47,17 @@ export function ActivityScreen(props: Props) {
     [props.navigation]
   );
 
+  const handleGoToGroup = useCallback(
+    (group: db.Group) => {
+      store.markGroupRead(group);
+      props.navigation.navigate('GroupSettings', {
+        screen: 'GroupMembers',
+        params: { groupId: group.id },
+      });
+    },
+    [props.navigation]
+  );
+
   return (
     <AppDataContextProvider contacts={contacts ?? []}>
       <View backgroundColor="$background" flex={1}>
@@ -56,6 +67,7 @@ export function ActivityScreen(props: Props) {
             isFocused={isFocused}
             goToChannel={handleGoToChannel}
             goToThread={handleGoToThread}
+            goToGroup={handleGoToGroup}
             refresh={handleRefreshActivity}
           />
         </ErrorBoundary>

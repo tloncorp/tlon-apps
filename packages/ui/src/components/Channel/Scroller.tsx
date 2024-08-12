@@ -29,13 +29,14 @@ import {
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStyle, useTheme } from 'tamagui';
+import { View, XStack } from 'tamagui';
 
 import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
-import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { Icon } from '../Icon';
+import { Modal } from '../Modal';
 import { ChannelDivider } from './ChannelDivider';
 
 type RenderItemFunction = (props: {

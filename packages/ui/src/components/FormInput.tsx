@@ -7,8 +7,8 @@ import {
   RegisterOptions,
 } from 'react-hook-form';
 import { createStyledContext, styled, withStaticProperties } from 'tamagui';
+import { SizableText, Text, View, YStack } from 'tamagui';
 
-import { SizableText, Text, View, YStack } from '../core';
 import { Input } from './Input';
 
 export function FormInput({

@@ -5,30 +5,45 @@ import { useMemo } from 'react';
 import type { IconType } from '../components/Icon';
 import { useCalm } from '../contexts/calm';
 
-export function useChannelMemberName(member: db.ChatMember) {
-  const { disableNicknames } = useCalm();
+export function getChannelMemberName(
+  member: db.ChatMember,
+  disableNicknames: boolean
+) {
   if (disableNicknames) {
     return member.contactId;
   }
   return member.contact?.nickname ? member.contact.nickname : member.contactId;
 }
 
-export function getChannelTitle(channel: db.Channel) {
-  const getChannelMemberName = useChannelMemberName;
+export function useChannelMemberName(member: db.ChatMember) {
+  const { disableNicknames } = useCalm();
+  return getChannelMemberName(member, disableNicknames);
+}
 
+export function getChannelTitle(
+  channel: db.Channel,
+  disableNicknames: boolean
+) {
   if (channel.type === 'dm') {
     const member = channel.members?.[0];
     if (!member) {
       return channel.id;
     }
-    return getChannelMemberName(member);
+    return getChannelMemberName(member, disableNicknames);
   } else if (channel.type === 'groupDm') {
     return channel.title
       ? channel.title
-      : channel.members?.map(getChannelMemberName).join(', ') ?? 'No title';
+      : channel.members
+          ?.map((member) => getChannelMemberName(member, disableNicknames))
+          .join(', ') ?? 'No title';
   } else {
     return channel.title ?? 'Untitled channel';
   }
+}
+
+export function useChannelTitle(channel: db.Channel) {
+  const { disableNicknames } = useCalm();
+  return getChannelTitle(channel, disableNicknames);
 }
 
 export function isDmChannel(channel: db.Channel): boolean {

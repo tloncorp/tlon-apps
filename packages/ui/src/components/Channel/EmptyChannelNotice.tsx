@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useState } from 'react';
+import { SizableText, View } from 'tamagui';
 
-import { SizableText, View } from '../../core';
 import { useIsAdmin } from '../../utils';
 
 export function EmptyChannelNotice({

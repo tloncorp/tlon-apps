@@ -275,6 +275,15 @@ function toActivityEvent({
     };
   }
 
+  if ('group-ask' in event) {
+    return {
+      ...baseFields,
+      type: 'group-ask',
+      groupId: event['group-ask'].group,
+      groupEventUserId: event['group-ask'].ship,
+    };
+  }
+
   return null;
 }
 
@@ -457,6 +466,20 @@ export function activityAction(action: ub.ActivityAction) {
     json: action,
   };
 }
+
+export const readGroup = async (group: db.Group) => {
+  const source: ub.Source = { group: group.id };
+  const action = activityAction({
+    read: { source, action: { all: { time: null, deep: false } } },
+  });
+  logger.log(`reading group ${group.id}`, action);
+
+  return backOff(() => poke(action), {
+    delayFirstAttempt: false,
+    startingDelay: 2000,
+    numOfAttempts: 4,
+  });
+};
 
 export const readChannel = async (channel: db.Channel) => {
   let source: ub.Source;
@@ -841,6 +864,7 @@ export const toGroupUnread = (
     count: summary.count,
     notify: summary.notify,
     updatedAt: summary.recency,
+    notifyCount: summary['notify-count'],
   };
 };
 

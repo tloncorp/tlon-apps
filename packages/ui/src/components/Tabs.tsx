@@ -1,8 +1,7 @@
 import { ReactNode } from 'react';
-import { styled, withStaticProperties } from 'tamagui';
+import { SizableText, XStack, styled, withStaticProperties } from 'tamagui';
 
-import { SizableText, XStack } from '../core';
-import Pressable from './Pressable';
+import { useBoundHandler } from './ListItem/listItemUtils';
 
 const TabsWrapper = styled(XStack, {
   width: '100%',
@@ -24,26 +23,35 @@ const TabTitleComponent = styled(SizableText, {
   } as const,
 });
 
-const TabComponent = ({
+const TabFrame = styled(XStack, {
+  flexGrow: 1,
+  justifyContent: 'center',
+  borderColor: '$primaryText',
+  variants: {
+    active: {
+      true: {
+        borderBottomWidth: 1,
+      },
+    },
+  },
+});
+
+const TabComponent = <T extends string>({
   onTabPress,
   children,
   name,
   activeTab,
 }: {
-  onTabPress: () => void;
+  onTabPress: (name: T) => void;
   children: ReactNode;
-  name: string;
+  name: T;
   activeTab: string;
 }) => {
+  const handlePress = useBoundHandler(name, onTabPress);
   return (
-    <XStack
-      flexGrow={1}
-      borderBottomWidth={activeTab === name ? 1 : 0}
-      borderColor="$primaryText"
-      justifyContent="center"
-    >
-      <Pressable onPress={() => onTabPress()}>{children}</Pressable>
-    </XStack>
+    <TabFrame active={activeTab === name} onPress={handlePress}>
+      {children}
+    </TabFrame>
   );
 };
 

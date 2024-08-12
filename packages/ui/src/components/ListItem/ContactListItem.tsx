@@ -4,6 +4,7 @@ import { ComponentProps } from 'react';
 import { AvatarProps } from '../Avatar';
 import ContactName from '../ContactName';
 import { ListItem } from './ListItem';
+import { useBoundHandler } from './listItemUtils';
 
 export const ContactListItem = ({
   contactId,
@@ -20,8 +21,8 @@ export const ContactListItem = ({
   ...props
 }: {
   contactId: string;
-  onPress?: () => void;
-  onLongPress?: () => void;
+  onPress?: (contactId: string) => void;
+  onLongPress?: (contactId: string) => void;
   showNickname?: boolean;
   showUserId?: boolean;
   full?: boolean;
@@ -29,30 +30,36 @@ export const ContactListItem = ({
   showEndContent?: boolean;
   endContent?: React.ReactNode;
   matchText?: string;
-} & ComponentProps<typeof ListItem> &
-  Pick<AvatarProps, 'size'>) => (
-  <ListItem
-    onPress={() => onPress?.()}
-    onLongPress={onLongPress}
-    alignItems="center"
-    justifyContent="flex-start"
-    padding="$s"
-    {...props}
-  >
-    {showIcon && <ListItem.ContactIcon size={size} contactId={contactId} />}
-    <ListItem.Title>
-      <ContactName
-        matchText={matchText}
-        showNickname={showNickname}
-        showUserId={showUserId}
-        full={full}
-        userId={contactId}
-      />
-    </ListItem.Title>
-    {showEndContent && (
-      <ListItem.EndContent flexGrow={1} justifyContent="flex-end">
-        {endContent}
-      </ListItem.EndContent>
-    )}
-  </ListItem>
-);
+} & Omit<ComponentProps<typeof ListItem>, 'onPress' | 'onLongPress'> &
+  Pick<AvatarProps, 'size'>) => {
+  const handlePress = useBoundHandler(contactId, onPress);
+  const handleLongPress = useBoundHandler(contactId, onLongPress);
+
+  return (
+    <ListItem
+      onPress={handlePress}
+      onLongPress={handleLongPress}
+      alignItems="center"
+      justifyContent="flex-start"
+      {...props}
+    >
+      {showIcon && <ListItem.ContactIcon size={size} contactId={contactId} />}
+      <ListItem.MainContent>
+        <ListItem.Title>
+          <ContactName
+            matchText={matchText}
+            showNickname={showNickname}
+            showUserId={showUserId}
+            full={full}
+            userId={contactId}
+          />
+        </ListItem.Title>
+      </ListItem.MainContent>
+      {showEndContent && (
+        <ListItem.EndContent flexGrow={1} justifyContent="flex-end">
+          {endContent}
+        </ListItem.EndContent>
+      )}
+    </ListItem>
+  );
+};

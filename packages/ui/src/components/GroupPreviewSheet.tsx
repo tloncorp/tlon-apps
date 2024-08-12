@@ -1,8 +1,9 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import React from 'react';
+import { View } from 'tamagui';
 
-import { View } from '../core';
 import { triggerHaptic } from '../utils';
 import { ActionSheet } from './ActionSheet';
 import { GroupAvatar } from './Avatar';
@@ -27,7 +28,7 @@ interface JoinStatus {
 
 export type GroupPreviewAction = 'goTo' | 'joined' | 'other';
 
-export function GroupPreviewSheet({
+function GroupPreviewSheetComponent({
   open,
   onOpenChange,
   group,
@@ -174,6 +175,8 @@ export function GroupPreviewPane({
     </>
   );
 }
+
+export const GroupPreviewSheet = React.memo(GroupPreviewSheetComponent);
 
 export function GroupActions({
   status,

@@ -13,6 +13,7 @@ CREATE TABLE `activity_events` (
 	`is_mention` integer,
 	`should_notify` integer,
 	`content` text,
+	`group_event_user_id` text,
 	PRIMARY KEY(`bucket_id`, `id`)
 );
 --> statement-breakpoint
@@ -112,6 +113,14 @@ CREATE TABLE `group_flagged_posts` (
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE TABLE `group_join_requests` (
+	`group_id` text NOT NULL,
+	`contact_id` text NOT NULL,
+	`requested_at` integer,
+	PRIMARY KEY(`contact_id`, `group_id`),
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
 CREATE TABLE `group_member_bans` (
 	`group_id` text NOT NULL,
 	`contact_id` text NOT NULL,
@@ -173,9 +182,10 @@ CREATE TABLE `group_roles` (
 );
 --> statement-breakpoint
 CREATE TABLE `group_unreads` (
-	`channel_id` text PRIMARY KEY NOT NULL,
+	`group_id` text PRIMARY KEY NOT NULL,
 	`notify` integer,
 	`count` integer,
+	`notify_count` integer,
 	`updated_at` integer NOT NULL
 );
 --> statement-breakpoint

@@ -8,6 +8,7 @@ import {
   getRelevancy,
   getSource,
   getTop,
+  nestToFlag,
 } from '@tloncorp/shared/dist/urbit';
 import { daToUnix, parseUd } from '@urbit/aura';
 import _ from 'lodash';
@@ -20,7 +21,12 @@ import GroupNotification from './GroupNotification';
 
 function getPath(source: Source, event: ActivityEvent): string {
   if ('group' in source) {
-    return `/groups/${source.group}`;
+    const group = `/groups/${source.group}`;
+    if ('group-ask' in event) {
+      return `${group}/edit/members`;
+    }
+
+    return group;
   }
 
   if ('dm' in source) {
@@ -39,7 +45,10 @@ function getPath(source: Source, event: ActivityEvent): string {
       'reply' in event
         ? `?reply=${parseUd(event.reply.key.time).toString()}`
         : '';
-    return `/groups/${source.thread.group}/channels/${source.thread.channel}/message/${parseUd(source.thread.key.time).toString()}${suffix}`;
+    const [app] = nestToFlag(source.thread.channel);
+    const postType =
+      app === 'chat' ? 'message' : app === 'diary' ? 'note' : 'curio';
+    return `/groups/${source.thread.group}/channels/${source.thread.channel}/${postType}/${parseUd(source.thread.key.time).toString()}${suffix}`;
   }
 
   if ('dm-thread' in source) {

@@ -1,9 +1,9 @@
 import { getSize } from '@tamagui/get-token';
 import * as db from '@tloncorp/shared/dist/db';
 import { Dimensions } from 'react-native';
+import { ScrollView, View } from 'tamagui';
 
 import { ChatMessage } from '..';
-import { ScrollView, View } from '../../../core';
 import AuthorRow from '../../AuthorRow';
 import { NotebookPost } from '../../NotebookPost';
 

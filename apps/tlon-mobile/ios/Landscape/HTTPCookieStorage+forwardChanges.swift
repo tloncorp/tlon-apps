@@ -13,7 +13,7 @@ extension HTTPCookieStorage {
         copy(to: otherCookieStorage)
         NotificationCenter.default.addObserver(forName: .NSHTTPCookieManagerCookiesChanged, object: nil, queue: nil) { [weak self] _ in
             guard let self else { return }
-            self.copy(to: otherCookieStorage)
+            copy(to: otherCookieStorage)
         }
     }
 }
