@@ -8,6 +8,8 @@ import { ActivityScreenController } from '../controllers/ActivityScreenControlle
 import { ChannelScreenController } from '../controllers/ChannelScreenController';
 import { ChannelSearchScreenController } from '../controllers/ChannelSearchScreenController';
 import { ChatListScreenController } from '../controllers/ChatListScreenController';
+import { GroupChannelsScreenController } from '../controllers/GroupChannelsScreenController';
+import { PostScreenController } from '../controllers/PostScreenController';
 import { AppInfoScreen } from '../screens/AppInfo';
 import { AppSettingsScreen } from '../screens/AppSettingsScreen';
 import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
@@ -15,10 +17,8 @@ import { ChannelMembersScreen } from '../screens/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../screens/ChannelMetaScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { FeatureFlagScreen } from '../screens/FeatureFlagScreen';
-import { GroupChannelsScreen } from '../screens/GroupChannelsScreen';
 import ImageViewerScreen from '../screens/ImageViewerScreen';
 import { ManageAccountScreen } from '../screens/ManageAccountScreen';
-import PostScreen from '../screens/PostScreen';
 import { PushNotificationSettingsScreen } from '../screens/PushNotificationSettingsScreen';
 import { UserBugReportScreen } from '../screens/UserBugReportScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
@@ -73,8 +73,11 @@ export function RootStack() {
         name="ChannelSearch"
         component={ChannelSearchScreenController}
       />
-      <Root.Screen name="Post" component={PostScreen} />
-      <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />
+      <Root.Screen name="Post" component={PostScreenController} />
+      <Root.Screen
+        name="GroupChannels"
+        component={GroupChannelsScreenController}
+      />
       <Root.Screen
         name="ImageViewer"
         component={ImageViewerScreen}
