@@ -69,10 +69,12 @@ export default function useNotificationListener({
           // https://linear.app/tlon/issue/TLON-2551/multiple-notifications-that-lead-to-nowhere-crash-app
           // We're seeing cases where `data` is null here - not sure why this is happening.
           // Log the notification and don't try to navigate.
-          posthog.trackError({
-            message: 'Failed to get notification payload',
-            properties: response.notification.request,
-          });
+          if (isTlonEmployee) {
+            posthog.trackError({
+              message: 'Failed to get notification payload',
+              properties: response.notification.request,
+            });
+          }
           return;
         }
         const postInfo = api.getPostInfoFromWer(data.wer);
@@ -96,7 +98,7 @@ export default function useNotificationListener({
       // Clean up listeners
       notificationTapListener.remove();
     };
-  }, [navigation]);
+  }, [navigation, isTlonEmployee]);
 
   // If notification tapped, push channel on stack
   useEffect(() => {
