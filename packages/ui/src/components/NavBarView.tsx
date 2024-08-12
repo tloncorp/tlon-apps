@@ -8,17 +8,20 @@ export const NavBarView = ({
   navigateToNotifications,
   navigateToProfile,
   currentRoute,
+  currentUserId,
 }: {
   navigateToHome: () => void;
   navigateToNotifications: () => void;
   navigateToProfile: () => void;
   currentRoute: string;
+  currentUserId: string;
 }) => {
   const isRouteActive = (routeName: string) => {
     return currentRoute === routeName;
   };
   const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
-  const currentUserId = useCurrentUserId();
+  // const currentUserId = useCurrentUserId();
+  console.log('NavBarView', currentUserId);
 
   return (
     <NavBar>

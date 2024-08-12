@@ -4,8 +4,8 @@ import { useScreenOptions } from '@tloncorp/app/hooks/useScreenOptions';
 import { useContacts } from '@tloncorp/shared/dist';
 import { AppDataContextProvider } from '@tloncorp/ui';
 
+import { ProfileScreenController } from '../controllers/ProfileScreenController';
 import { FeatureFlagScreen } from '../screens/FeatureFlagScreen';
-import ProfileScreen from '../screens/ProfileScreen';
 import { RootStackParamList, SettingsStackParamList } from '../types';
 
 // import type { SettingsStackParamList, TabParamList } from '../types';
@@ -28,7 +28,7 @@ export const SettingsStack = ({ navigation }: Props) => {
         initialRouteName="Settings"
         screenOptions={screenOptions}
       >
-        <Stack.Screen name="Settings" component={ProfileScreen} />
+        <Stack.Screen name="Settings" component={ProfileScreenController} />
         <Stack.Screen name="FeatureFlags" component={FeatureFlagScreen} />
       </Stack.Navigator>
     </AppDataContextProvider>

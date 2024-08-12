@@ -333,6 +333,7 @@ export default function ChatListScreen({
                 navigateToProfile();
               }}
               currentRoute="ChatList"
+              currentUserId={currentUser}
             />
           </ChatOptionsProvider>
         </RequestsProvider>

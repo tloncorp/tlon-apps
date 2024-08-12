@@ -9,6 +9,7 @@ import {
 import { useCallback, useMemo } from 'react';
 
 import ErrorBoundary from '../../ErrorBoundary';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useIsFocused } from '../../hooks/useIsFocused';
 
 export function ActivityScreen({
@@ -28,6 +29,7 @@ export function ActivityScreen({
 }) {
   const { data: contacts } = store.useContacts();
   const isFocused = useIsFocused();
+  const currentUserId = useCurrentUserId();
 
   const allFetcher = store.useInfiniteBucketedActivity('all');
   const mentionsFetcher = store.useInfiniteBucketedActivity('mentions');
@@ -93,6 +95,7 @@ export function ActivityScreen({
             navigateToProfile();
           }}
           currentRoute="Activity"
+          currentUserId={currentUserId}
         />
       </View>
     </AppDataContextProvider>

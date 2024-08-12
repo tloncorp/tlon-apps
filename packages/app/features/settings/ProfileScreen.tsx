@@ -1,35 +1,47 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useDMLureLink } from '@tloncorp/app/hooks/useBranchLink';
-import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
-import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import * as store from '@tloncorp/shared/dist/store';
 import { NavBarView, ProfileScreenView, View } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
-import { RootStackParamList } from '../types';
+import { useDMLureLink } from '../../hooks/useBranchLink';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useHandleLogout } from '../../hooks/useHandleLogout';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
-
-export default function ProfileScreen(props: Props) {
+export default function ProfileScreen({
+  navigateToAppSettings,
+  navigateToEditProfile,
+  navigateToErrorReport,
+  navigateToProfile,
+  navigateToHome,
+  navigateToNotifications,
+  navigateToSettings,
+}: {
+  navigateToAppSettings: () => void;
+  navigateToEditProfile: () => void;
+  navigateToErrorReport: () => void;
+  navigateToProfile: (userId: string) => void;
+  navigateToHome: () => void;
+  navigateToNotifications: () => void;
+  navigateToSettings: () => void;
+}) {
   const currentUserId = useCurrentUserId();
   const { data: contacts } = store.useContacts();
   const handleLogout = useHandleLogout();
 
   const onAppSettingsPressed = useCallback(() => {
-    props.navigation.navigate('AppSettings');
-  }, [props.navigation]);
+    navigateToAppSettings();
+  }, [navigateToAppSettings]);
 
   const onEditProfilePressed = useCallback(() => {
-    props.navigation.navigate('EditProfile');
-  }, [props.navigation]);
+    navigateToEditProfile();
+  }, [navigateToEditProfile]);
 
   const onSendBugReportPressed = useCallback(() => {
-    props.navigation.navigate('WompWomp');
-  }, [props.navigation]);
+    navigateToErrorReport();
+  }, [navigateToErrorReport]);
 
   const onViewProfilePressed = useCallback(() => {
-    props.navigation.navigate('UserProfile', { userId: currentUserId });
-  }, [currentUserId, props.navigation]);
+    navigateToProfile(currentUserId);
+  }, [currentUserId, navigateToProfile]);
 
   const { dmLink } = useDMLureLink();
 
@@ -47,15 +59,16 @@ export default function ProfileScreen(props: Props) {
       />
       <NavBarView
         navigateToHome={() => {
-          props.navigation.navigate('ChatList');
+          navigateToHome();
         }}
         navigateToNotifications={() => {
-          props.navigation.navigate('Activity');
+          navigateToNotifications();
         }}
         navigateToProfile={() => {
-          props.navigation.navigate('Profile');
+          navigateToSettings();
         }}
         currentRoute="Profile"
+        currentUserId={currentUserId}
       />
     </View>
   );
