@@ -11,8 +11,9 @@ import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useEffect, useState } from 'react';
 
 import { connectNotifications } from '../lib/notifications';
-import type { RootStackParamList } from '../types';
 import * as posthog from '../utils/posthog';
+
+// import type { RootStackParamList } from '../types';
 
 interface NotificationData {
   channelId: string;
@@ -28,6 +29,7 @@ export default function useNotificationListener({
   notificationPath,
   notificationChannelId,
 }: Props) {
+  // @ts-expect-error - TODO: pass navigation handlers to this hook
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { data: isTlonEmployee } = store.useIsTlonEmployee();
 

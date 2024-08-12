@@ -1,18 +1,22 @@
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { PostScreenView } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
-import type { RootStackParamList } from '../types';
-import { useChannelContext } from './useChannelContext';
+import { useChannelContext } from '../../hooks/useChannelContext';
 
-type PostScreenProps = NativeStackScreenProps<RootStackParamList, 'Post'>;
-
-export default function PostScreen(props: PostScreenProps) {
-  const postParam = props.route.params.post;
-
+export default function PostScreen({
+  postParam,
+  goBack,
+}: {
+  postParam: {
+    id: string;
+    authorId: string;
+    channelId: string;
+  };
+  goBack: () => void;
+}) {
   const {
     currentUserId,
     group,
@@ -105,7 +109,7 @@ export default function PostScreen(props: PostScreenProps) {
       parentPost={post}
       posts={posts}
       channel={channel}
-      goBack={props.navigation.goBack}
+      goBack={goBack}
       sendReply={sendReply}
       groupMembers={group?.members ?? []}
       uploadAsset={store.uploadAsset}

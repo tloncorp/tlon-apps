@@ -10,7 +10,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import * as featureFlags from '../lib/featureFlags';
 import storage from '../lib/storage';
-import { RootStackParamList } from '../types';
 
 export const useChannelContext = ({
   channelId,
@@ -110,10 +109,10 @@ export const useChannelContext = ({
 
   // Navigation
 
-  const navigation =
-    useNavigation<
-      NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
-    >();
+  const navigation = useNavigation<
+    // @ts-expect-error - TODO: pass navigation handlers into context
+    NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
+  >();
 
   const navigateToPost = useCallback(
     (post: db.Post) => {
@@ -144,6 +143,7 @@ export const useChannelContext = ({
     if (!channelQuery.data) {
       return;
     }
+    console.log('navigateToSearch, channelQuery.data:', channelQuery.data);
     navigation.push('ChannelSearch', {
       channel: channelQuery.data ?? null,
     });

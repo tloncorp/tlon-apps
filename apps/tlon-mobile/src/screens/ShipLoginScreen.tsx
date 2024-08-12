@@ -1,4 +1,13 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import {
+  ACCESS_CODE_REGEX,
+  DEFAULT_SHIP_LOGIN_ACCESS_CODE,
+  DEFAULT_SHIP_LOGIN_URL,
+} from '@tloncorp/app/constants';
+import { useShip } from '@tloncorp/app/contexts/ship';
+import { isEulaAgreed } from '@tloncorp/app/utils/eula';
+import { getShipFromCookie } from '@tloncorp/app/utils/ship';
+import { transformShipURL } from '@tloncorp/app/utils/string';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -7,16 +16,7 @@ import { useTailwind } from 'tailwind-rn';
 
 import { HeaderButton } from '../components/HeaderButton';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import {
-  ACCESS_CODE_REGEX,
-  DEFAULT_SHIP_LOGIN_ACCESS_CODE,
-  DEFAULT_SHIP_LOGIN_URL,
-} from '../constants';
-import { useShip } from '../contexts/ship';
 import type { OnboardingStackParamList } from '../types';
-import { isEulaAgreed } from '../utils/eula';
-import { getShipFromCookie } from '../utils/ship';
-import { transformShipURL } from '../utils/string';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ShipLogin'>;
 

@@ -1,7 +1,28 @@
 import { useNavigation } from '@react-navigation/native';
 import { useCallback } from 'react';
+import { Platform } from 'react-native';
 
-import { GroupSettingsStackParamList } from '../types';
+type GroupSettingsStackParamList = {
+  EditChannel: {
+    channelId: string;
+    groupId: string;
+  };
+  GroupMeta: {
+    groupId: string;
+  };
+  GroupMembers: {
+    groupId: string;
+  };
+  ManageChannels: {
+    groupId: string;
+  };
+  InvitesAndPrivacy: {
+    groupId: string;
+  };
+  GroupRoles: {
+    groupId: string;
+  };
+};
 
 export const useChatSettingsNavigation = () => {
   const navigation = useNavigation();
@@ -11,10 +32,14 @@ export const useChatSettingsNavigation = () => {
       screen: T,
       params: GroupSettingsStackParamList[T]
     ) => {
-      navigation.navigate('GroupSettings', {
-        screen,
-        params,
-      } as any);
+      if (Platform.OS !== 'web') {
+        navigation.navigate('GroupSettings', {
+          screen,
+          params,
+        } as any);
+      } else {
+        console.log('web navigation not implemented');
+      }
     },
     [navigation]
   );

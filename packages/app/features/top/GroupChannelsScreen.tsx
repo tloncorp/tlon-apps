@@ -1,5 +1,3 @@
-import { useIsFocused } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
@@ -9,20 +7,19 @@ import {
 } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
-import { useChatSettingsNavigation } from '../hooks/useChatSettingsNavigation';
-import { useCurrentUserId } from '../hooks/useCurrentUser';
-import type { RootStackParamList } from '../types';
-
-type GroupChannelsScreenProps = NativeStackScreenProps<
-  RootStackParamList,
-  'GroupChannels'
->;
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useIsFocused } from '../../hooks/useIsFocused';
 
 export function GroupChannelsScreen({
-  route,
-  navigation,
-}: GroupChannelsScreenProps) {
-  const groupParam = route.params.group;
+  groupParam,
+  navigateToChannel,
+  goBack,
+}: {
+  groupParam: db.Group;
+  navigateToChannel: (channel: db.Channel) => void;
+  goBack: () => void;
+}) {
   const currentUser = useCurrentUserId();
   const isFocused = useIsFocused();
   const { data: chats } = store.useCurrentChats({
@@ -35,16 +32,14 @@ export function GroupChannelsScreen({
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
-      navigation.navigate('Channel', {
-        channel: channel,
-      });
+      navigateToChannel(channel);
     },
-    [navigation]
+    [navigateToChannel]
   );
 
   const handleGoBackPressed = useCallback(() => {
-    navigation.goBack();
-  }, [navigation]);
+    goBack();
+  }, [goBack]);
 
   const contactsQuery = store.useContacts();
 

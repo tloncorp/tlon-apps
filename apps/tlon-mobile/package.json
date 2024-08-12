@@ -21,7 +21,6 @@
     "lint:format:js": "prettier --write .",
     "lint:format:swift": "swiftformat **/*.swift --exclude ./ios/Pods, ./node_modules",
     "lint:staged": "lint-staged",
-    "test": "vitest --watch false",
     "tsc": "tsc --noEmit",
     "build": "pnpm generate",
     "cosmos": "cosmos-native"
@@ -57,6 +56,7 @@
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
+    "@tloncorp/app": "workspace:*",
     "@urbit/aura": "^1.0.0",
     "@urbit/http-api": "^3.1.0-dev-3",
     "classnames": "^2.3.2",

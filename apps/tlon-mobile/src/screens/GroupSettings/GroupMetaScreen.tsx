@@ -1,4 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useGroupContext } from '@tloncorp/app/hooks/useGroupContext';
 import * as db from '@tloncorp/shared/dist/db';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/dist/store';
 import {
@@ -10,7 +11,6 @@ import {
 import { useCallback, useState } from 'react';
 
 import { GroupSettingsStackParamList } from '../../types';
-import { useGroupContext } from './useGroupContext';
 
 type GroupMetaScreenProps = NativeStackScreenProps<
   GroupSettingsStackParamList,
