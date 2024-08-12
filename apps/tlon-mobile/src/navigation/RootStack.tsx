@@ -8,6 +8,8 @@ import { ActivityScreenController } from '../controllers/ActivityScreenControlle
 import { AppInfoScreen } from '../screens/AppInfo';
 import { AppSettingsScreen } from '../screens/AppSettingsScreen';
 import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
+import { ChannelMembersScreen } from '../screens/ChannelMembersScreen';
+import { ChannelMetaScreen } from '../screens/ChannelMetaScreen';
 import ChannelScreen from '../screens/ChannelScreen';
 import ChannelSearch from '../screens/ChannelSearchScreen';
 import ChatListScreen from '../screens/ChatListScreen';
@@ -92,6 +94,8 @@ export function RootStack() {
       <Root.Screen name="UserProfile" component={UserProfileScreen} />
       <Root.Screen name="EditProfile" component={EditProfileScreen} />
       <Root.Screen name="WompWomp" component={UserBugReportScreen} />
+      <Root.Screen name="ChannelMembers" component={ChannelMembersScreen} />
+      <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
     </Root.Navigator>
   );
 }

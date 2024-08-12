@@ -27,7 +27,7 @@ export const useChannelContext = ({
   });
 
   // Model context
-  const channelQuery = store.useChannelWithLastPostAndMembers({
+  const channelQuery = store.useChannelWithRelations({
     id: channelId,
   });
   const groupQuery = store.useGroup({

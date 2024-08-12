@@ -125,6 +125,8 @@ export const ChannelAvatar = React.memo(function ChannelAvatarComponent({
   model: db.Channel;
   useTypeIcon?: boolean;
 } & AvatarProps) {
+  const channelTitle = utils.useChannelTitle(model);
+
   if (useTypeIcon) {
     return <ChannelTypeAvatar channel={model} {...props} />;
   } else if (model.type === 'dm') {
@@ -140,7 +142,7 @@ export const ChannelAvatar = React.memo(function ChannelAvatarComponent({
         backgroundColor={
           model.iconImageColor ?? model.group?.iconImageColor ?? undefined
         }
-        text={utils.getChannelTitle(model)}
+        text={channelTitle}
         {...props}
       />
     );
