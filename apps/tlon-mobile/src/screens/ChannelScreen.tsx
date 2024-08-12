@@ -1,6 +1,7 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChannelContext } from '@tloncorp/app/hooks/useChannelContext';
+import { useChatSettingsNavigation } from '@tloncorp/app/hooks/useChatSettingsNavigation';
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
@@ -20,7 +21,6 @@ import {
 } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 
-import { useChatSettingsNavigation } from '../hooks/useChatSettingsNavigation';
 import type { RootStackParamList } from '../types';
 
 type ChannelScreenProps = NativeStackScreenProps<RootStackParamList, 'Channel'>;

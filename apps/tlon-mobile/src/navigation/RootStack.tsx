@@ -5,6 +5,7 @@ import { useTheme } from '@tloncorp/ui';
 import { Platform, StatusBar } from 'react-native';
 
 import { ActivityScreenController } from '../controllers/ActivityScreenController';
+import { ChatListScreenController } from '../controllers/ChatListScreenController';
 import { AppInfoScreen } from '../screens/AppInfo';
 import { AppSettingsScreen } from '../screens/AppSettingsScreen';
 import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
@@ -12,7 +13,6 @@ import { ChannelMembersScreen } from '../screens/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../screens/ChannelMetaScreen';
 import ChannelScreen from '../screens/ChannelScreen';
 import ChannelSearch from '../screens/ChannelSearchScreen';
-import ChatListScreen from '../screens/ChatListScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { FeatureFlagScreen } from '../screens/FeatureFlagScreen';
 import { GroupChannelsScreen } from '../screens/GroupChannelsScreen';
@@ -52,7 +52,7 @@ export function RootStack() {
       {/* top level tabs */}
       <Root.Screen
         name="ChatList"
-        component={ChatListScreen}
+        component={ChatListScreenController}
         options={{ animation: 'none', gestureEnabled: false }}
       />
       <Root.Screen
