@@ -94,6 +94,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     }
   }, [group]);
 
+  const { data: pendingChats } = store.usePendingChats();
   const { data: currentChatData } = store.useCurrentChats();
 
   const createChannel = useCallback(
@@ -110,6 +111,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
         title,
         channelType,
         currentChatData,
+        pendingChats,
         currentUserId,
       });
 

@@ -69,6 +69,9 @@ export default function ChatListScreen(
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
   });
+  const { data: pendingChats } = store.usePendingChats({
+    enabled: isFocused,
+  });
 
   const currentUser = useCurrentUserId();
 
@@ -77,7 +80,7 @@ export default function ChatListScreen(
     return {
       pinned: chats?.pinned ?? [],
       unpinned: chats?.unpinned ?? [],
-      pendingChats: chats?.pendingChats ?? [],
+      pendingChats: pendingChats ?? [],
     };
   }, [chats]);
 
