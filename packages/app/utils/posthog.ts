@@ -43,9 +43,16 @@ export const trackOnboardingAction = (properties: OnboardingProperties) =>
   capture('Onboarding Action', properties);
 
 export const trackError = (
-  { message }: { message: string },
+  {
+    message,
+    properties,
+  }: {
+    message: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    properties?: { [key: string]: any };
+  },
   event = 'app_error'
-) => capture(event, { message });
+) => capture(event, { message, properties });
 
 export const identifyTlonEmployee = () => {
   if (!posthog) {
