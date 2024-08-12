@@ -1,19 +1,35 @@
-import { useIsFocused } from '@react-navigation/native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { ActivityScreenView, AppDataContextProvider, View } from '@tloncorp/ui';
+import {
+  ActivityScreenView,
+  AppDataContextProvider,
+  NavBarView,
+  View,
+} from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
-import ErrorBoundary from '../ErrorBoundary';
-import NavBarView from '../navigation/NavBarView';
-import { RootStackParamList } from '../types';
+import ErrorBoundary from '../../ErrorBoundary';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useIsFocused } from '../../hooks/useIsFocused';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
-
-export function ActivityScreen(props: Props) {
+export function ActivityScreen({
+  navigateToChannel,
+  navigateToThread,
+  navigateToGroup,
+  navigateToChatList,
+  navigateToActivity,
+  navigateToProfile,
+}: {
+  navigateToChannel: (channel: db.Channel, selectedPostId?: string) => void;
+  navigateToThread: (post: db.Post) => void;
+  navigateToGroup: (group: db.Group) => void;
+  navigateToChatList: () => void;
+  navigateToActivity: () => void;
+  navigateToProfile: () => void;
+}) {
   const { data: contacts } = store.useContacts();
   const isFocused = useIsFocused();
+  const currentUserId = useCurrentUserId();
 
   const allFetcher = store.useInfiniteBucketedActivity('all');
   const mentionsFetcher = store.useInfiniteBucketedActivity('mentions');
@@ -32,9 +48,9 @@ export function ActivityScreen(props: Props) {
 
   const handleGoToChannel = useCallback(
     (channel: db.Channel, selectedPostId?: string) => {
-      props.navigation.navigate('Channel', { channel, selectedPostId });
+      navigateToChannel(channel, selectedPostId);
     },
-    [props.navigation]
+    [navigateToChannel]
   );
 
   // TODO: if diary or gallery, figure out a way to pop open the comment
@@ -42,20 +58,17 @@ export function ActivityScreen(props: Props) {
   const handleGoToThread = useCallback(
     (post: db.Post) => {
       // TODO: we have no way to route to specific thread message rn
-      props.navigation.navigate('Post', { post });
+      navigateToThread(post);
     },
-    [props.navigation]
+    [navigateToThread]
   );
 
   const handleGoToGroup = useCallback(
     (group: db.Group) => {
       store.markGroupRead(group);
-      props.navigation.navigate('GroupSettings', {
-        screen: 'GroupMembers',
-        params: { groupId: group.id },
-      });
+      navigateToGroup(group);
     },
-    [props.navigation]
+    [navigateToGroup]
   );
 
   return (
@@ -71,7 +84,19 @@ export function ActivityScreen(props: Props) {
             refresh={handleRefreshActivity}
           />
         </ErrorBoundary>
-        <NavBarView navigation={props.navigation} />
+        <NavBarView
+          navigateToHome={() => {
+            navigateToChatList();
+          }}
+          navigateToNotifications={() => {
+            navigateToActivity();
+          }}
+          navigateToProfile={() => {
+            navigateToProfile();
+          }}
+          currentRoute="Activity"
+          currentUserId={currentUserId}
+        />
       </View>
     </AppDataContextProvider>
   );

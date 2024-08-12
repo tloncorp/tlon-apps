@@ -1,8 +1,8 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import * as store from '@tloncorp/shared/dist/store';
 import { AppDataContextProvider, ChannelMembersScreenView } from '@tloncorp/ui';
 
-import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { RootStackParamList } from '../types';
 
 type ChannelMembersScreenProps = NativeStackScreenProps<

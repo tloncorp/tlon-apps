@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { requestPasswordReset } from '@tloncorp/app/lib/hostingApi';
 import { useLayoutEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Text, TextInput, View } from 'react-native';
@@ -6,7 +7,6 @@ import { useTailwind } from 'tailwind-rn';
 
 import { HeaderButton } from '../components/HeaderButton';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { requestPasswordReset } from '../lib/hostingApi';
 import type { OnboardingStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ResetPassword'>;

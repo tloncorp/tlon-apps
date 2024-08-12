@@ -1,5 +1,6 @@
 import BottomSheet from '@gorhom/bottom-sheet';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import cn from 'classnames';
 import { useRef } from 'react';
 import {
@@ -13,7 +14,6 @@ import {
 import { useTailwind } from 'tailwind-rn';
 
 import { TlonButton } from '../components/TlonButton';
-import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import type { OnboardingStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Welcome'>;

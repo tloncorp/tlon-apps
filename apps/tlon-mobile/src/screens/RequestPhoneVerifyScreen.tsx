@@ -1,4 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { requestPhoneVerify } from '@tloncorp/app/lib/hostingApi';
+import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Text, View } from 'react-native';
@@ -8,10 +11,7 @@ import { useTailwind } from 'tailwind-rn';
 
 import { HeaderButton } from '../components/HeaderButton';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { useIsDarkMode } from '../hooks/useIsDarkMode';
-import { requestPhoneVerify } from '../lib/hostingApi';
 import type { OnboardingStackParamList } from '../types';
-import { trackError, trackOnboardingAction } from '../utils/posthog';
 
 type Props = NativeStackScreenProps<
   OnboardingStackParamList,

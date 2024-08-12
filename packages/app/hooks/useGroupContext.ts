@@ -4,7 +4,7 @@ import { assembleNewChannelIdAndName } from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo } from 'react';
 
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useCurrentUserId } from './useCurrentUser';
 
 export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const currentUserId = useCurrentUserId();

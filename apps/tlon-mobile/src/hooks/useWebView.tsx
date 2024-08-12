@@ -1,3 +1,4 @@
+import { IS_ANDROID } from '@tloncorp/app/constants';
 import { type Ref, useCallback, useEffect, useRef } from 'react';
 import { Alert, BackHandler, View } from 'react-native';
 import type WebView from 'react-native-webview';
@@ -5,7 +6,6 @@ import type { WebViewProps } from 'react-native-webview';
 import { useTailwind } from 'tailwind-rn';
 
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { IS_ANDROID } from '../constants';
 
 export const useWebView = (): WebViewProps & {
   ref: Ref<WebView>;
