@@ -113,16 +113,13 @@
     ?+  q.vase  !!
       %reset-all-perms  reset-all-perms
     ::
-        [%group-wake *]
+        [%group-wake flag:g]
       =+  ;;(=flag:g +.q.vase)
       ?.  |(=(our src):bowl =(p.flag src.bowl))
         cor
       ?~  g=(~(get by groups) flag)
         cor
-      =/  goc  (go-abed:group-core:cor flag)
-      %-  emil:go-abet:(go-safe-sub:goc |)
-      %-  join-channels:go-pass:goc
-      ~(tap in ~(key by channels.u.g))
+      go-abet:(go-safe-sub:(go-abed:group-core:cor flag) |)
     ::
         %pimp-ready
       ?-  pimp

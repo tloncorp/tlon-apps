@@ -407,6 +407,12 @@
   ?+    mark  ~|(bad-poke+mark !!)
       %noun
     ?+  q.vase  !!
+        [%channel-wake @ @]
+      =+  ;;([=kind:c name=term] +.q.vase)
+      =/  =nest:c  [kind src.bowl name]
+      ?.  (~(has by v-channels) nest)  cor
+      ca-abet:(ca-safe-sub:(ca-abed:ca-core nest) |)
+    ::
         %pimp-ready
       ?-  pimp
         ~         cor(pimp `&+~)
