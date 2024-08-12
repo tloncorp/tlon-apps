@@ -596,6 +596,7 @@
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
       ~          cor
+      [%pimp ~]  cor
       [%hark ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor

@@ -113,6 +113,17 @@
     ?+  q.vase  !!
       %reset-all-perms  reset-all-perms
     ::
+        [%group-wake *]
+      =+  ;;(=flag:g +.q.vase)
+      ?.  |(=(our src):bowl =(p.flag src.bowl))
+        cor
+      ?~  g=(~(get by groups) flag)
+        cor
+      =/  goc  (go-abed:group-core:cor flag)
+      %-  emil:go-abet:(go-safe-sub:goc |)
+      %-  join-channels:go-pass:goc
+      ~(tap in ~(key by channels.u.g))
+    ::
         %pimp-ready
       ?-  pimp
         ~         cor(pimp `&+~)
@@ -268,10 +279,13 @@
       ?:  (~(has by groups.cor) flag)
         cor
       =.  groups.cor  (~(put by groups.cor) flag gr)
-      =.  cor
-        go-abet:(go-safe-sub:(go-abed:group-core:cor flag) |)
+      =/  goc  (go-abed:group-core:cor flag)
+      =.  goc  (go-safe-sub:goc |)
+      =.  cor  go-abet:goc
+      =?  cor  =(p.flag our.bowl)
+        (emil:cor go-wake-members:go-pass:goc)
       %-  emil:cor
-      %-  join-channels:go-pass:(go-abed:group-core:cor flag)
+      %-  join-channels:go-pass:goc
       ~(tap in ~(key by channels.group.gr))
     =.  volume
       :+  base.volume:bak
@@ -997,6 +1011,16 @@
       =/  =cage  ['channel-action' !>(action)]
       =/  =wire  (snoc go-area %join-channels)
       `[%pass wire %agent dock %poke cage]
+    ::
+    ++  go-wake-members
+      ^-  (list card)
+      %+  turn
+        ~(tap in (~(del in ~(key by fleet.group)) our.bowl))
+      |=  who=ship
+      ^-  card
+      =/  =wire  (snoc go-area %wake)
+      =/  =cage  noun+!>([%group-wake flag])
+      [%pass wire %agent [who dap.bowl] %poke cage]
     --
   ::
   ++  go-leave
@@ -1173,6 +1197,7 @@
     ^+  go-core
     ?+  wire  !!
         [%updates ~]  (go-take-update sign)
+        [%wake ~]     go-core
     ::
         [%join-channels ~]
       ?>  ?=(%poke-ack -.sign)
