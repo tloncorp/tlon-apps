@@ -172,17 +172,11 @@ export async function withCtxOrDefault<T>(
       predicate: (query) => {
         const tableKey = query.queryKey[1];
         const shouldInvalidate =
-          !query.isDisabled &&
-          tableKey instanceof Set &&
-          setsOverlap(tableKey, pendingEffects);
+          tableKey instanceof Set && setsOverlap(tableKey, pendingEffects);
         if (shouldInvalidate) {
           logger.log(
             `${meta.label} attempting invalidation`,
-            JSON.stringify([
-              query.queryHash,
-              query.state.status,
-              query.isActive(),
-            ])
+            JSON.stringify([query.queryHash, query.isActive()])
           );
           invalidated.push(query.queryHash);
         }
