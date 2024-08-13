@@ -8,8 +8,7 @@ import {
   ChatList,
   ChatOptionsProvider,
   ChatOptionsSheet,
-  ChatOptionsSheetMethods,
-  FloatingActionButton,
+  ChatOptionsSheetMethods, // FloatingActionButton,
   GroupPreviewSheet,
   Icon,
   NavBarView,
@@ -17,18 +16,18 @@ import {
   ScreenHeader,
   StartDmSheet,
   View,
-  WelcomeSheet,
+  // WelcomeSheet,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import ContextMenu from 'react-native-context-menu-view';
 
-import { TLON_EMPLOYEE_GROUP } from '../../constants';
+// import ContextMenu from 'react-native-context-menu-view';
+// import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useCalmSettings } from '../../hooks/useCalmSettings';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useIsFocused } from '../../hooks/useIsFocused';
 import * as featureFlags from '../../lib/featureFlags';
-import { identifyTlonEmployee } from '../../utils/posthog';
+// import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 
 const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
@@ -181,14 +180,14 @@ export default function ChatListScreen({
   // [goToChannel]
   // );
 
-  const { pinned, unpinned } = resolvedChats;
-  const allChats = [...pinned, ...unpinned];
-  const isTlonEmployee = !!allChats.find(
-    (obj) => obj.groupId === TLON_EMPLOYEE_GROUP
-  );
-  if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
-    identifyTlonEmployee();
-  }
+  // const { pinned, unpinned } = resolvedChats;
+  // const allChats = [...pinned, ...unpinned];
+  // const isTlonEmployee = !!allChats.find(
+  // (obj) => obj.groupId === TLON_EMPLOYEE_GROUP
+  // );
+  // if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
+  // // identifyTlonEmployee();
+  // }
 
   const { calmSettings } = useCalmSettings();
 
@@ -283,6 +282,7 @@ export default function ChatListScreen({
                 width={'100%'}
                 pointerEvents="box-none"
               >
+                {/*
                 <ContextMenu
                   dropdownMenuMode={true}
                   actions={[
@@ -305,11 +305,14 @@ export default function ChatListScreen({
                     onPress={() => {}}
                   />
                 </ContextMenu>
+                */}
               </View>
+              {/*
               <WelcomeSheet
                 open={splashVisible}
                 onOpenChange={handleWelcomeOpenChange}
               />
+              */}
               <ChatOptionsSheet ref={chatOptionsSheetRef} />
               <StartDmSheet
                 goToDm={goToDm}

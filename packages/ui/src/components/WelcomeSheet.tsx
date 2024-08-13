@@ -41,7 +41,7 @@ function WelcomeSheetComponent({
               <Image
                 style={{ width: '100%', height: 188 }}
                 resizeMode={'cover'}
-                source={require('../assets/raster/welcome_flowers.jpg')}
+                // source={require('../assets/raster/welcome_flowers.jpg')}
               />
             </View>
             <YStack gap="$xs">

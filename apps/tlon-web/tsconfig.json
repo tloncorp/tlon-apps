@@ -17,7 +17,8 @@
     ],
     "composite": true,
     "paths": {
-      "@/*": ["./apps/tlon-web/src/*"]
+      "@/*": ["./apps/tlon-web/src/*"],
+      "sqlocal/drizzle": ["node_modules/sqlocal/dist/drizzle"]
     }
   },
   "include": [
@@ -29,7 +30,6 @@
     "./rube",
     "cosmos/setup.ts",
     "vite.config.mts",
-    "externalResourceScript.ts",
-    "injectCrossOriginScript.ts"
+    "reactNativeWebPlugin.ts"
   ]
 }

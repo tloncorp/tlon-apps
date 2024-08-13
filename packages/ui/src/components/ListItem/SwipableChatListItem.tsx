@@ -118,7 +118,7 @@ function BaseRightActions({
     width: Math.abs(drag.value),
     flexDirection: 'row',
     overflow: 'hidden',
-  }));
+  }), [drag]);
 
   return (
     <View width={160} justifyContent="flex-end" flexDirection="row">

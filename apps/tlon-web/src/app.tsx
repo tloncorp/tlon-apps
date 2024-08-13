@@ -1,10 +1,20 @@
 // Copyright 2022, Tlon Corporation
 import { TooltipProvider } from '@radix-ui/react-tooltip';
+import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
+import { sync } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/dist/api';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
-import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import React, {
+  PropsWithChildren,
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Helmet } from 'react-helmet';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   Location,
   Navigate,
@@ -63,6 +73,7 @@ import EditCurioModal from '@/heap/EditCurioModal';
 import HeapChannel from '@/heap/HeapChannel';
 import HeapDetail from '@/heap/HeapDetail';
 import { DragAndDropProvider } from '@/logic/DragAndDropContext';
+import OldSafeAreaProvider from '@/logic/SafeAreaContext';
 import {
   ANALYTICS_DEFAULT_PROPERTIES,
   captureAnalyticsEvent,
@@ -84,7 +95,13 @@ import EditProfile from '@/profiles/EditProfile/EditProfile';
 import Profile from '@/profiles/Profile';
 import ProfileModal from '@/profiles/ProfileModal';
 import bootstrap from '@/state/bootstrap';
-import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
+import {
+  toggleDevTools,
+  toggleNewApp,
+  useLocalState,
+  useNewApp,
+  useShowDevTools,
+} from '@/state/local';
 import { useScheduler } from '@/state/scheduler';
 import {
   useAnalyticsId,
@@ -102,6 +119,9 @@ import ReportContent from './components/ReportContent';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
 import UpdateNoticeSheet from './components/UpdateNotices';
+import { ActivityScreenController } from './controllers/ActivityScreenController';
+import { ChannelScreenController } from './controllers/ChannelScreenController';
+import { ChatListScreenController } from './controllers/ChatListScreenController';
 import BroadcastDm from './dms/BroadcastDm';
 import DMThread from './dms/DMThread';
 import MobileDmSearch from './dms/MobileDmSearch';
@@ -111,6 +131,7 @@ import { JoinGroupDialog } from './groups/AddGroup/JoinGroup';
 import GroupVolumeDialog from './groups/GroupVolumeDialog';
 import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
+import { useMigrations } from './lib/webDb';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
 import Notification from './notifications/Notification';
@@ -610,12 +631,50 @@ function Firehose() {
   return null;
 }
 
+function NewAppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<ChatListScreenController />} />
+      <Route path="/activity" element={<ActivityScreenController />} />
+      <Route
+        path="/group/:ship/:name/channel/:chType/:chShip/:chName/:postId?"
+        element={<ChannelScreenController />}
+      />
+      <Route path="/dm/:chShip" element={<ChannelScreenController />} />
+    </Routes>
+  );
+}
+
+// <Route path="/profile" element={<ProfileScreen />} />
+// <Route path="/group/:ship/:name" element={<GroupChannelsScreen />} />
+// <Route
+// path="/group/:ship/:name/channel/:chType/:chShip/:chName/post/:authorId/:postId"
+// element={<PostScreen />}
+// />
+// <Route
+// path="/dm/:chShip/post/:authorId/:postId"
+// element={<PostScreen />}
+// />
+
+function MigrationCheck({ children }: PropsWithChildren) {
+  const { success, error } = useMigrations();
+  if (!success && !error) {
+    return null;
+  }
+  if (error) {
+    throw error;
+  }
+  return <>{children}</>;
+}
+
 const App = React.memo(function AppComponent() {
   useNativeBridge();
   const navigate = useNavigate();
+  const newApp = true; // useNewApp();
   const handleError = useErrorHandler();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
+  const isDarkMode = useIsDark();
 
   useEffect(() => {
     if (isNativeApp()) {
@@ -632,23 +691,51 @@ const App = React.memo(function AppComponent() {
 
   useEffect(() => {
     handleError(() => {
-      bootstrap();
+      if (!newApp) {
+        bootstrap();
+      }
     })();
-  }, [handleError]);
+  }, [handleError, newApp]);
+
+  useEffect(() => {
+    api.configureClient({
+      shipName: window.our,
+      shipUrl: '',
+      onReset: () => sync.syncStart(),
+      onChannelReset: () => sync.handleDiscontinuity(),
+    });
+    sync.syncStart();
+  }, []);
+
+  if (newApp) {
+    return (
+      <div className="flex h-full w-full flex-col">
+        <MigrationCheck>
+          <SafeAreaProvider>
+            <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
+              <NewAppRoutes />
+            </TamaguiProvider>
+          </SafeAreaProvider>
+        </MigrationCheck>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-full w-full flex-col">
-      <DisconnectNotice />
-      <Firehose />
-      <LeapProvider>
-        <ChatInputFocusProvider>
-          <DragAndDropProvider>
-            <GroupsRoutes isMobile={isMobile} isSmall={isSmall} />
-          </DragAndDropProvider>
-        </ChatInputFocusProvider>
-        <Leap />
-      </LeapProvider>
-    </div>
+    <OldSafeAreaProvider>
+      <div className="flex h-full w-full flex-col">
+        <DisconnectNotice />
+        <Firehose />
+        <LeapProvider>
+          <ChatInputFocusProvider>
+            <DragAndDropProvider>
+              <GroupsRoutes isMobile={isMobile} isSmall={isSmall} />
+            </DragAndDropProvider>
+          </ChatInputFocusProvider>
+          <Leap />
+        </LeapProvider>
+      </div>
+    </OldSafeAreaProvider>
   );
 });
 

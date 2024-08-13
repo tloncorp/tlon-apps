@@ -8,7 +8,7 @@ import {
 } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
-import ErrorBoundary from '../../ErrorBoundary';
+// import ErrorBoundary from '../../ErrorBoundary';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useIsFocused } from '../../hooks/useIsFocused';
 
@@ -74,16 +74,14 @@ export function ActivityScreen({
   return (
     <AppDataContextProvider contacts={contacts ?? []}>
       <View backgroundColor="$background" flex={1}>
-        <ErrorBoundary message="Try navigating away and coming back">
-          <ActivityScreenView
-            bucketFetchers={bucketedActivity}
-            isFocused={isFocused}
-            goToChannel={handleGoToChannel}
-            goToThread={handleGoToThread}
-            goToGroup={handleGoToGroup}
-            refresh={handleRefreshActivity}
-          />
-        </ErrorBoundary>
+        <ActivityScreenView
+          bucketFetchers={bucketedActivity}
+          isFocused={isFocused}
+          goToChannel={handleGoToChannel}
+          goToThread={handleGoToThread}
+          goToGroup={handleGoToGroup}
+          refresh={handleRefreshActivity}
+        />
         <NavBarView
           navigateToHome={() => {
             navigateToChatList();

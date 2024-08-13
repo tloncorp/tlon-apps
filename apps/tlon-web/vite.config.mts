@@ -17,6 +17,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import svgr from 'vite-plugin-svgr';
 
 import packageJson from './package.json';
+import reactNativeWeb from './reactNativeWebPlugin';
 import manifest from './src/manifest';
 
 // https://vitejs.dev/config/
@@ -57,6 +58,7 @@ export default ({ mode }: { mode: string }) => {
     }
 
     return [
+      reactNativeWeb(),
       process.env.SSL === 'true' ? (basicSsl() as PluginOption) : null,
       urbitPlugin({
         base: 'groups',
@@ -100,7 +102,19 @@ export default ({ mode }: { mode: string }) => {
       mode === 'mock' || mode === 'staging'
         ? ['virtual:pwa-register/react']
         : // TODO: find workaround for issues with @tamagui/react-native-svg
-          ['@urbit/sigil-js/dist/core', 'react-native-svg'],
+          [
+            '@urbit/sigil-js/dist/core',
+            // 'react-native-svg',
+            '@tloncorp/editor/dist/editorHtml',
+            '@tloncorp/editor/src/bridges',
+            'react-native-device-info',
+            '@react-navigation/bottom-tabs',
+            '@react-navigation/native-stack',
+            '@react-native-firebase/app',
+            '@react-native-firebase/crashlytics',
+            // 'react-native-gesture-handler',
+            'react-native-context-menu-view',
+          ],
     output: {
       hashCharacters: 'base36' as any,
       manualChunks: {
@@ -181,20 +195,78 @@ export default ({ mode }: { mode: string }) => {
               ],
             },
           } as BuildOptions),
+    worker: {
+      rollupOptions: {
+        output: {
+          hashCharacters: 'base36' as any,
+        },
+      },
+    },
     plugins: plugins(mode),
     resolve: {
       dedupe: ['@tanstack/react-query'],
-      alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url)),
-      },
+      alias: [
+        {
+          find: '@',
+          replacement: fileURLToPath(new URL('./src', import.meta.url)),
+        },
+        {
+          find: 'react-native/Libraries/vendor/emitter/EventEmitter',
+          replacement: fileURLToPath(
+            new URL('./src/mocks/EventEmitter.js', import.meta.url)
+          ),
+        },
+        {
+          find: 'react-native/Libraries/Utilities/binaryToBase64',
+          replacement: fileURLToPath(
+            new URL('./src/mocks/binaryToBase64.js', import.meta.url)
+          ),
+        },
+        {
+          find: '@react-native-firebase/app',
+          replacement: fileURLToPath(
+            new URL('./src/mocks/react-native-firebase-app.js', import.meta.url)
+          ),
+        },
+        {
+          find: '@react-native-firebase/crashlytics',
+          replacement: fileURLToPath(
+            new URL(
+              './src/mocks/react-native-firebase-crashlytics.js',
+              import.meta.url
+            )
+          ),
+        },
+        {
+          find: '@react-native-firebase/app/lib/common',
+          replacement: fileURLToPath(
+            new URL(
+              './src/mocks/react-native-firebase-app-common.js',
+              import.meta.url
+            )
+          ),
+        },
+        // {
+        // find: 'react-native-gesture-handler',
+        // replacement: fileURLToPath(
+        // new URL('./src/mocks/react-native-gesture-handler', import.meta.url)
+        // ),
+        // },
+      ],
     },
     optimizeDeps: {
-      esbuildOptions: {
-        // Fix for polyfill issue with @tamagui/animations-moti
-        define: {
-          global: 'globalThis',
-        },
-      },
+      exclude: [
+        'sqlocal',
+        '@react-native-firebase/app',
+        '@react-native-firebase/crashlytics',
+        // 'react-native-gesture-handler',
+        'react-native-context-menu-view',
+      ],
+      include: [
+        'react-native-web',
+        'react-native-web/dist/index',
+        // 'hoist-non-react-statics',
+      ],
     },
     test: {
       globals: true,
