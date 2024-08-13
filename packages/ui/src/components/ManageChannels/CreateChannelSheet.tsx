@@ -86,7 +86,7 @@ export function CreateChannelSheet({
             name="description"
             label="Description"
             inputProps={{ placeholder: 'Channel description' }}
-            rules={{ required: 'Channel title is required' }}
+            rules={{ required: 'Channel description is required' }}
           />
         </ActionSheet.FormBlock>
         <ActionSheet.FormBlock>
