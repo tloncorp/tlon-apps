@@ -1,14 +1,21 @@
+import type { Schema } from '@tloncorp/shared/dist/db';
+import type { AnySqliteDatabase } from '@tloncorp/shared/dist/db/client';
+import { migrations } from '@tloncorp/shared/dist/db/migrations';
 import type { Database } from 'better-sqlite3';
+import BetterSqlite3Database from 'better-sqlite3';
 import type { DrizzleConfig } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import type { Schema } from 'packages/shared/dist/db';
-import type { AnySqliteDatabase } from 'packages/shared/dist/db/client';
 
 import type { SQLiteConnection } from '../sqliteConnection';
 
+// We swap out better-sqlite3 for op-sqlite for the test enviroment.
 class BetterSqlite3$SQLiteConnection implements SQLiteConnection {
-  constructor(private connection: Database) {
-    console.debug('Creating BetterSqlite3$SQLiteConnection');
+  connection: Database;
+
+  constructor() {
+    // The normal constructor gets a connection to the database as part of the
+    // constructor args, but we just want to use an in-memory DB:
+    this.connection = new BetterSqlite3Database();
   }
 
   execute(query: string): void {
@@ -26,9 +33,12 @@ class BetterSqlite3$SQLiteConnection implements SQLiteConnection {
         }) => void)
       | null
   ): void {
+    console.warn(
+      'BetterSqlite3$SQLiteConnection::updateHook() is not implemented'
+    );
     // TODO
     // https://github.com/WiseLibs/better-sqlite3/issues/62#issuecomment-325797335
-    throw new Error('Not implemented');
+    return;
   }
 
   getDbPath(): string {
@@ -40,11 +50,18 @@ class BetterSqlite3$SQLiteConnection implements SQLiteConnection {
   }
 
   delete(): void {
-    throw new Error('Not implemented');
+    console.warn('BetterSqlite3$SQLiteConnection::delete() is not implemented');
+    return;
   }
 
-  migrateClient(_client: AnySqliteDatabase): Promise<void> {
-    throw new Error('Not implemented');
+  async migrateClient(_client: AnySqliteDatabase): Promise<void> {
+    Object.entries(migrations.migrations)
+      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+      .forEach(([_key, migration]) => {
+        // @ts-expect-error - migration is an SQL import
+        this.execute(migration);
+      });
+    return;
   }
 
   createClient(opts: DrizzleConfig<Schema>): AnySqliteDatabase {

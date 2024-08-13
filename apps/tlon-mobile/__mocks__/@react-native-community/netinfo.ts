@@ -24,3 +24,10 @@ export const fetch: Fetch = async (_requestedInterface) => {
     },
   };
 };
+
+export const addEventListener = jest.fn(() => {
+  const unsubscribe = () => {};
+  return unsubscribe;
+});
+
+export default { addEventListener };

@@ -2,9 +2,10 @@ module.exports = {
   moduleNameMapper: {
     // mock react-native-svg-transformer
     // https://github.com/kristerkari/react-native-svg-transformer?tab=readme-ov-file#usage-with-jest
-    '\\.svg': '<rootDir>/__mocks__/svgMock.ts',
+    '\\.svg': '<rootDir>/src/test/reactNativeSvgTransformerMock.ts',
   },
   preset: 'jest-expo',
+  setupFiles: ['./src/test/jestSetup.tsx'],
   transform: {
     // from babel-jest-preset
     '^.+\\.(js|ts|tsx)$': 'babel-jest',

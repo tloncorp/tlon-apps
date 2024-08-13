@@ -125,6 +125,7 @@
     "@types/tmp": "^0.2.6",
     "babel-plugin-inline-import": "^3.0.0",
     "babel-preset-expo": "^10.0.0",
+    "better-sqlite3": "~9.4.3",
     "concurrently": "^8.0.1",
     "connect": "^3.7.0",
     "cross-env": "^7.0.3",
