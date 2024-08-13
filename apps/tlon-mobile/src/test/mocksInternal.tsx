@@ -16,7 +16,7 @@ jest.mock('../components/AuthenticatedApp', () => {
 
 jest.mock('@tloncorp/app/lib/opsqliteConnection', () => {
   const {
-    OPSQLite$SQLiteConnection,
-  } = require('@tloncorp/app/lib/__mocks__/opsqliteConnection');
-  return { OPSQLite$SQLiteConnection };
+    BetterSqlite3$SQLiteConnection,
+  } = require('@tloncorp/app/lib/betterSqlite3Connection');
+  return { OPSQLite$SQLiteConnection: BetterSqlite3$SQLiteConnection };
 });

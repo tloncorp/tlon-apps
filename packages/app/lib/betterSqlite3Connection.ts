@@ -5,10 +5,9 @@ import type { Database } from 'better-sqlite3';
 import type { DrizzleConfig } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 
-import type { SQLiteConnection } from '../sqliteConnection';
+import type { SQLiteConnection } from './sqliteConnection';
 
-// We swap out better-sqlite3 for op-sqlite for the test enviroment.
-class BetterSqlite3$SQLiteConnection implements SQLiteConnection {
+export class BetterSqlite3$SQLiteConnection implements SQLiteConnection {
   constructor(private connection: Database) {}
 
   execute(query: string): void {
@@ -63,6 +62,3 @@ class BetterSqlite3$SQLiteConnection implements SQLiteConnection {
     return drizzle(this.connection, opts) as unknown as AnySqliteDatabase;
   }
 }
-
-// Mock module to use better-sqlite3 instead of OPSQLite in a test environment.
-export const OPSQLite$SQLiteConnection = BetterSqlite3$SQLiteConnection;
