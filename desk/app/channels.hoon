@@ -529,10 +529,9 @@
       ~&  [dap.bowl %egg-any-not-live]
       cor
     =/  bak
-      ::TODO  test
       (load -:!>(*versioned-state:load) +>.old-state.egg-any)
-    ::  we only restore miscellanea. groups' import should prompt us to
-    ::  re-join channels, we won't bother pre-loading their content for now.
+    ::  restore as much data as we can. we don't restart subscriptions here,
+    ::  we wait for the groups agent to tell us which ones to re-join.
     ::
     =.  v-channels    (~(uni by v-channels:bak) v-channels)
     =.  voc           (~(uni by voc:bak) voc)
