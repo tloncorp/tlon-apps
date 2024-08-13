@@ -161,6 +161,14 @@ export const useGroupVolumeLevel = (groupId: string) => {
   });
 };
 
+export const useChannelVolumeLevel = (channelId: string) => {
+  const deps = useKeyFromQueryDeps(db.getChannelVolumeSetting);
+  return useQuery({
+    queryKey: ['channelVolumeLevel', deps, channelId],
+    queryFn: () => db.getChannelVolumeSetting({ channelId }),
+  });
+};
+
 export const useHaveUnreadUnseenActivity = () => {
   const depsKey = useKeyFromQueryDeps(db.getUnreadUnseenActivityEvents);
   const { data: seenMarker } = useActivitySeenMarker();
@@ -211,6 +219,28 @@ export const useLiveChannelUnread = (unread: db.ChannelUnread | null) => {
     queryFn: async () => {
       if (unread) {
         return db.getChannelUnread({ channelId: unread.channelId ?? '' });
+      }
+      return null;
+    },
+  });
+};
+
+export const useLiveGroupUnread = (unread: db.GroupUnread | null) => {
+  const depsKey = useMemo(
+    () => (unread ? keyFromQueryDeps(db.getGroupUnread) : null),
+    [unread]
+  );
+
+  return useQuery({
+    queryKey: [
+      'liveUnreadCount',
+      depsKey,
+      'group',
+      unread ? unread.groupId : null,
+    ],
+    queryFn: async () => {
+      if (unread) {
+        return db.getGroupUnread({ groupId: unread.groupId ?? '' });
       }
       return null;
     },
@@ -353,14 +383,14 @@ export const useChannelSearchResults = (
   });
 };
 
-export const useChannelWithLastPostAndMembers = (
-  options: db.GetChannelWithLastPostAndMembersOptions
+export const useChannelWithRelations = (
+  options: db.GetChannelWithRelations
 ) => {
-  const tableDeps = useKeyFromQueryDeps(db.getChannelWithLastPostAndMembers);
+  const tableDeps = useKeyFromQueryDeps(db.getChannelWithRelations);
   return useQuery({
-    queryKey: ['channelWithLastPostAndMembers', tableDeps, options],
+    queryKey: ['channelWithRelations', tableDeps, options],
     queryFn: async () => {
-      const channel = await db.getChannelWithLastPostAndMembers(options);
+      const channel = await db.getChannelWithRelations(options);
       return channel ?? null;
     },
   });
@@ -369,7 +399,7 @@ export const useChannelWithLastPostAndMembers = (
 export const useChannel = (options: { id: string }) => {
   return useQuery({
     queryKey: [['channel', options]],
-    queryFn: () => db.getChannelWithLastPostAndMembers(options),
+    queryFn: () => db.getChannelWithRelations(options),
   });
 };
 

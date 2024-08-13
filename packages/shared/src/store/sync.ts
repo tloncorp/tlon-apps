@@ -385,6 +385,18 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
         contactIds: update.ships,
       });
       break;
+    case 'groupJoinRequest':
+      await db.addGroupJoinRequests({
+        groupId: update.groupId,
+        contactIds: update.ships,
+      });
+      break;
+    case 'revokeGroupJoinRequests':
+      await db.deleteGroupJoinRequests({
+        groupId: update.groupId,
+        contactIds: update.ships,
+      });
+      break;
     case 'banGroupMembers':
       await db.addGroupMemberBans({
         groupId: update.groupId,

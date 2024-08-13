@@ -1,4 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
@@ -10,7 +11,6 @@ import {
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 
-import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BlockedUsers'>;

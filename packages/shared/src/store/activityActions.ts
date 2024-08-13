@@ -1,7 +1,9 @@
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { isGroupChannelId } from '../logic';
 import * as ub from '../urbit';
+import { whomIsMultiDm } from '../urbit';
 
 const logger = createDevLogger('activityActions', false);
 
@@ -154,6 +156,57 @@ export async function setGroupVolumeLevel(params: {
     logger.log(`failed to set volume level`, e);
     if (existingGroup?.volumeSettings) {
       await db.setVolumes([existingGroup.volumeSettings]);
+    }
+  }
+}
+
+export async function setChannelVolumeLevel(params: {
+  channel: db.Channel;
+  level: ub.NotificationLevel;
+}) {
+  logger.log(`setting channel volume level`, params.channel, params.level);
+  const existingVolumeSetting = await db.getChannelVolumeSetting({
+    channelId: params.channel.id,
+  });
+  const isGroupChannel = isGroupChannelId(params.channel.id);
+  const isMultiDm = whomIsMultiDm(params.channel.id);
+  const source: ub.Source = isGroupChannel
+    ? {
+        channel: {
+          nest: params.channel.id,
+          group: params.channel.groupId ?? '',
+        },
+      }
+    : isMultiDm
+      ? {
+          dm: {
+            club: params.channel.id,
+          },
+        }
+      : {
+          dm: {
+            ship: params.channel.id,
+          },
+        };
+
+  // optimistic update
+  await db.setVolumes([
+    { itemId: params.channel.id, itemType: 'channel', level: params.level },
+  ]);
+
+  try {
+    await api.adjustVolumeSetting(source, ub.getVolumeMap(params.level, true));
+  } catch (e) {
+    // rollback
+    logger.log(`failed to set volume level`, e);
+    if (existingVolumeSetting) {
+      await db.setVolumes([
+        {
+          itemId: params.channel.id,
+          itemType: 'channel',
+          level: existingVolumeSetting,
+        },
+      ]);
     }
   }
 }

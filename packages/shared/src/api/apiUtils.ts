@@ -2,7 +2,7 @@ import { daToUnix, decToUd, unixToDa } from '@urbit/api';
 import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
 import bigInt from 'big-integer';
 
-import type * as db from '../db/types';
+import * as db from '../db/types';
 import type * as ub from '../urbit';
 import { BadResponseError } from './urbit';
 
@@ -36,6 +36,15 @@ export function toClientMeta(meta: ub.GroupMeta): db.ClientMeta {
     coverImage: coverImageData.coverImage ?? null,
     coverImageColor: coverImageData.coverImageColor ?? null,
     description: meta.description,
+  };
+}
+
+export function fromClientMeta(meta: db.ClientMeta): ub.GroupMeta {
+  return {
+    title: meta.title ?? '',
+    image: meta.iconImage ?? meta.iconImageColor ?? '',
+    cover: meta.coverImage ?? meta.coverImageColor ?? '',
+    description: meta.description ?? '',
   };
 }
 

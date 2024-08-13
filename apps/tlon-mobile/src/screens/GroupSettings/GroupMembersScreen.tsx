@@ -1,9 +1,9 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
+import { useGroupContext } from '@tloncorp/app/hooks/useGroupContext';
 import { GroupMembersScreenView } from '@tloncorp/ui';
 
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { GroupSettingsStackParamList } from '../../types';
-import { useGroupContext } from './useGroupContext';
 
 type GroupMembersScreenProps = NativeStackScreenProps<
   GroupSettingsStackParamList,
@@ -20,6 +20,9 @@ export function GroupMembersScreen(props: GroupMembersScreenProps) {
     unbanUser,
     kickUser,
     bannedUsers,
+    acceptUserJoin,
+    rejectUserJoin,
+    joinRequests,
     groupPrivacyType,
   } = useGroupContext({
     groupId,
@@ -35,8 +38,11 @@ export function GroupMembersScreen(props: GroupMembersScreenProps) {
       currentUserId={currentUserId}
       onPressBan={banUser}
       onPressUnban={unbanUser}
+      onPressAcceptJoinRequest={acceptUserJoin}
+      onPressRejectJoinRequest={rejectUserJoin}
       onPressKick={kickUser}
       bannedUsers={bannedUsers}
+      joinRequests={joinRequests}
       groupPrivacyType={groupPrivacyType}
     />
   );

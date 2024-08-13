@@ -18,7 +18,7 @@ export function ChannelListItem({
   useTypeIcon?: boolean;
 } & ListItemProps<db.Channel>) {
   const unreadCount = model.unread?.count ?? 0;
-  const title = utils.getChannelTitle(model);
+  const title = utils.useChannelTitle(model);
   const firstMemberId = model.members?.[0]?.contactId ?? '';
   const memberCount = model.members?.length ?? 0;
 
