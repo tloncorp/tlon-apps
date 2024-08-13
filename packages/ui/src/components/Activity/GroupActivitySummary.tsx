@@ -67,7 +67,7 @@ export function GroupActivitySummary({
     <View
       padding="$m"
       backgroundColor={
-        newest.timestamp > seenMarker && unreadCount > 0
+        newest.timestamp > seenMarker || unreadCount > 0
           ? '$positiveBackground'
           : 'unset'
       }
