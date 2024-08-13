@@ -2,7 +2,6 @@ import type { Schema } from '@tloncorp/shared/dist/db';
 import type { AnySqliteDatabase } from '@tloncorp/shared/dist/db/client';
 import { migrations } from '@tloncorp/shared/dist/db/migrations';
 import type { Database } from 'better-sqlite3';
-import BetterSqlite3Database from 'better-sqlite3';
 import type { DrizzleConfig } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 
