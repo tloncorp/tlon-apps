@@ -211,13 +211,13 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const groupParam = props.route.params.channel.group;
   const isFocused = useIsFocused();
 
-  const { data: chats } = store.useCurrentChats({
+  const { data: pins } = store.usePins({
     enabled: isFocused,
   });
 
   const pinnedItems = useMemo(() => {
-    return chats?.pinned ?? [];
-  }, [chats]);
+    return pins ?? [];
+  }, [pins]);
 
   const navigateToGroupSettings = useCallback(
     <T extends keyof GroupSettingsStackParamList>(

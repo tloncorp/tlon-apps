@@ -72,6 +72,18 @@ export const usePendingChats = (
   });
 };
 
+export const usePins = (
+  queryConfig?: CustomQueryConfig<db.Pin[]>
+): UseQueryResult<db.Pin[] | null> => {
+  return useQuery({
+    queryFn: async () => {
+      return db.getPins();
+    },
+    queryKey: ['pins', useKeyFromQueryDeps(db.getPins)],
+    ...queryConfig,
+  });
+};
+
 export const useCalmSettings = (options: { userId: string }) => {
   return useQuery({
     queryKey: ['calmSettings'],

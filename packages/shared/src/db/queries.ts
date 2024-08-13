@@ -222,6 +222,14 @@ export const getPendingChats = createReadQuery(
   ['groups', 'channels']
 );
 
+export const getPins = createReadQuery(
+  'getPins',
+  async (ctx: QueryCtx): Promise<Pin[]> => {
+    return ctx.db.query.pins.findMany();
+  },
+  ['pins']
+);
+
 export const getChats = createReadQuery(
   'getChats',
   async (ctx: QueryCtx): Promise<Channel[]> => {

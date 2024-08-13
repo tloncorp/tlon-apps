@@ -7,8 +7,8 @@ import { useGroupOptions } from '../contexts/groupOptions';
 import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
 import ChannelNavSections from './ChannelNavSections';
+import { ChatOptionsSheet } from './ChatOptionsSheet';
 import { GenericHeader } from './GenericHeader';
-import { ChatOptionsSheet } from './GroupOptionsSheet';
 import { Icon } from './Icon';
 
 const ChannelSortOptions = ({

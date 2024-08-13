@@ -9,7 +9,7 @@ import {
 } from 'react';
 
 export type GroupOptionsContextValue = {
-  pinned: db.Channel[];
+  pinned: db.Pin[];
   useGroup: typeof store.useGroup;
   group: db.Group | null;
   groupChannels: db.Channel[];
@@ -31,7 +31,7 @@ export const useGroupOptions = () => {
 type GroupOptionsProviderProps = {
   children: ReactNode;
   groupId?: string;
-  pinned?: db.Channel[];
+  pinned?: db.Pin[];
   useGroup?: typeof store.useGroup;
   onPressGroupMeta?: (groupId: string) => void;
   onPressGroupMembers?: (groupId: string) => void;

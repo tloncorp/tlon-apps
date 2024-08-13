@@ -66,6 +66,9 @@ export default function ChatListScreen(
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const isFocused = useIsFocused();
+  const { data: pins } = store.usePins({
+    enabled: isFocused,
+  });
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
   });
@@ -83,6 +86,10 @@ export default function ChatListScreen(
       pendingChats: pendingChats ?? [],
     };
   }, [chats]);
+
+  const pinned = useMemo(() => {
+    return pins ?? [];
+  }, [pins]);
 
   const goToDm = useCallback(
     async (participants: string[]) => {
@@ -238,8 +245,8 @@ export default function ChatListScreen(
     props.navigation.navigate('WompWomp');
   }, [props.navigation]);
 
-  const { pinned, unpinned } = resolvedChats;
-  const allChats = [...pinned, ...unpinned];
+  const { pinned: pinnedChats, unpinned } = resolvedChats;
+  const allChats = [...pinnedChats, ...unpinned];
   const isTlonEmployee = !!allChats.find(
     (obj) => obj.groupId === TLON_EMPLOYEE_GROUP
   );

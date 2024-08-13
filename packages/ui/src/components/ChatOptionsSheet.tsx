@@ -15,7 +15,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentUser: string;
-  pinned: db.Channel[];
+  pinned: db.Pin[];
   channel?: db.Channel;
   group?: db.Group;
   useGroup: typeof store.useGroup;
@@ -62,15 +62,17 @@ export function ChatOptionsSheet({
     }
   }, [group?.id, channel?.groupId]);
 
-  const isPinned = useMemo(
-    () =>
-      channel
-        ? pinned.some((p) => p.id === channel.id)
-        : groupData
-          ? pinned.some((p) => p.groupId === groupData.id)
-          : false,
-    [channel, pinned, groupData]
-  );
+  const isPinned = useMemo(() => {
+    if (channel) {
+      return pinned.some((p) => p.itemId === channel.id);
+    }
+
+    if (group) {
+      return pinned.some((p) => p.itemId === group.id);
+    }
+
+    return false;
+  }, [channel, pinned, groupData]);
 
   const currentUserIsAdmin = useMemo(
     () =>

@@ -33,7 +33,7 @@ export * from './components/GenericHeader';
 export * from './components/GroupChannelsScreenView';
 export * from './components/GroupMembersScreenView';
 export * from './components/GroupMetaScreenView';
-export * from './components/GroupOptionsSheet';
+export * from './components/ChatOptionsSheet';
 export * from './components/GroupPreviewSheet';
 export * from './components/Icon';
 export * from './components/IconButton';

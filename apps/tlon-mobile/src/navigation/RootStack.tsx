@@ -45,6 +45,7 @@ export function RootStack() {
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: theme.background.val },
+        freezeOnBlur: true,
       }}
     >
       {/* top level tabs */}

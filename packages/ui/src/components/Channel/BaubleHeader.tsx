@@ -22,7 +22,7 @@ import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useGroupOptions } from '../../contexts/groupOptions';
 import { useScrollContext } from '../../contexts/scroll';
 import { ContactAvatar } from '../Avatar';
-import { ChatOptionsSheet } from '../GroupOptionsSheet';
+import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { Icon } from '../Icon';
 import { Image } from '../Image';
 
