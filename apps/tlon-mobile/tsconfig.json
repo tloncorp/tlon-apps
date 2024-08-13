@@ -10,6 +10,12 @@
     "svg.d.ts"
   ],
   "compilerOptions": {
-    "composite": true
+    "composite": true,
+
+    "//": "Configuration for Jest",
+    "types": ["node", "jest"],
+    "paths": {
+      "@tloncorp/shared/dist/*": ["../../packages/shared/src/*"]
+    }
   }
 }
