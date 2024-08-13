@@ -1,4 +1,7 @@
-const originalModule = jest.requireActual('react-native');
+import { jest } from '@jest/globals';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const originalModule = jest.requireActual('react-native') as any;
 
 originalModule.NativeModules.SettingsManager = {
   settings: {

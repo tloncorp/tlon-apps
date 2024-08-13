@@ -1,4 +1,5 @@
 // Mocks for Tlon modules
+import { jest } from '@jest/globals';
 
 // HACK: `AuthenticatedApp` triggers a lot of setup that is hard to mock. We'll
 // need to remove this mock to test anything within `AuthenticatedApp`.

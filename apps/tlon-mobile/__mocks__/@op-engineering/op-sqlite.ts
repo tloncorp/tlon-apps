@@ -1,5 +1,7 @@
+import { jest } from '@jest/globals';
 // Mock OPSQLite modules to use better-sqlite3 instead.
-const Database = require('better-sqlite3');
+import Database from 'better-sqlite3';
+
 module.exports = {
   // Disregard requested database name; use an in-memory database
   open: () => new Database(),

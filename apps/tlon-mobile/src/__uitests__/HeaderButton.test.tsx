@@ -1,3 +1,11 @@
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
 import { render, screen, userEvent } from '@testing-library/react-native';
 
 import { HeaderButton } from '../components/HeaderButton';
@@ -11,7 +19,7 @@ describe('HeaderButton', () => {
     jest.useRealTimers();
   });
 
-  test('renders', async () => {
+  it('renders', async () => {
     const user = userEvent.setup();
 
     const onPress = jest.fn();

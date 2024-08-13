@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { View } from 'react-native';
 
 export const enableScreens = jest.fn();

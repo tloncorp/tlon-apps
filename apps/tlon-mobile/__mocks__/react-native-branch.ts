@@ -1,3 +1,5 @@
+import { jest } from '@jest/globals';
+
 export default {
   subscribe: jest.fn(() => {
     // return an unsubscribe mock

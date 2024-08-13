@@ -1,4 +1,5 @@
 // Mocks for third-party dependencies which do not work as __mocks__/* files
+import { jest } from '@jest/globals';
 import 'react-native-gesture-handler/jestSetup';
 import RNSafeAreaContextMock from 'react-native-safe-area-context/jest/mock';
 

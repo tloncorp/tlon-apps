@@ -12,7 +12,6 @@
   "compilerOptions": {
     "composite": true,
 
-    "types": ["node", "jest"],
     "paths": {
       "@tloncorp/shared/dist/*": ["../../packages/shared/src/*"]
     }
