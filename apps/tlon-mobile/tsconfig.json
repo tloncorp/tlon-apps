@@ -10,10 +10,6 @@
     "svg.d.ts"
   ],
   "compilerOptions": {
-    "composite": true,
-
-    "paths": {
-      "@tloncorp/shared/dist/*": ["../../packages/shared/src/*"]
-    }
+    "composite": true
   }
 }
