@@ -1,10 +1,9 @@
+import { IS_ANDROID, IS_IOS } from '@tloncorp/app/constants';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import classNames from 'classnames';
 import React, { useEffect, useRef } from 'react';
 import { ActivityIndicator, Animated, Easing, View } from 'react-native';
 import { useTailwind } from 'tailwind-rn';
-
-import { IS_ANDROID, IS_IOS } from '../constants';
-import { useIsDarkMode } from '../hooks/useIsDarkMode';
 
 type Props = {
   height?: number;

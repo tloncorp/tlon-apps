@@ -1,10 +1,10 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { getHostingToken, getHostingUserId } from '@tloncorp/app/utils/hosting';
 import { GenericHeader, IconType, ListItem, View, YStack } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView } from 'react-native-gesture-handler';
 
 import { RootStackParamList } from '../types';
-import { getHostingToken, getHostingUserId } from '../utils/hosting';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AppSettings'>;
 

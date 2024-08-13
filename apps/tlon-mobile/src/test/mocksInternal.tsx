@@ -13,9 +13,9 @@ jest.mock('../components/AuthenticatedApp', () => {
   };
 });
 
-jest.mock('../lib/opsqliteConnection', () => {
+jest.mock('@tloncorp/app/lib/opsqliteConnection', () => {
   const {
     OPSQLite$SQLiteConnection,
-  } = require('../lib/__mocks__/opsqliteConnection');
+  } = require('@tloncorp/app/lib/__mocks__/opsqliteConnection');
   return { OPSQLite$SQLiteConnection };
 });

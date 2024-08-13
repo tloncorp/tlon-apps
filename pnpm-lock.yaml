@@ -107,7 +107,7 @@ importers:
         version: 18.4.0(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@gorhom/bottom-sheet':
         specifier: ^4.5.1
-        version: 4.6.0(@types/react@18.2.55)(react-native-gesture-handler@2.18.1(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+        version: 4.6.0(@types/react-native@0.73.0(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(@types/react@18.2.55)(react-native-gesture-handler@2.18.1(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@op-engineering/op-sqlite':
         specifier: 5.0.5
         version: 5.0.5(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
@@ -138,6 +138,9 @@ importers:
       '@tanstack/react-query':
         specifier: ~5.32.1
         version: 5.32.1(react@18.2.0)
+      '@tloncorp/app':
+        specifier: workspace:*
+        version: link:../../packages/app
       '@tloncorp/editor':
         specifier: workspace:*
         version: link:../../packages/editor
@@ -538,6 +541,9 @@ importers:
       '@tiptap/suggestion':
         specifier: ^2.0.3
         version: 2.0.3(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.0.3(@tiptap/core@2.0.3))
+      '@tloncorp/app':
+        specifier: workspace:*
+        version: link:../../packages/app
       '@tloncorp/mock-http-api':
         specifier: ^1.2.0
         version: 1.2.0
@@ -935,6 +941,22 @@ importers:
       workbox-window:
         specifier: ^7.0.0
         version: 7.0.0
+
+  packages/app:
+    dependencies:
+      '@tloncorp/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@tloncorp/ui':
+        specifier: workspace:*
+        version: link:../ui
+    devDependencies:
+      '@types/react':
+        specifier: ^18.2.55
+        version: 18.2.55
+      '@types/react-native':
+        specifier: 0.73.0
+        version: 0.73.0(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0)
 
   packages/editor:
     dependencies:
@@ -5451,6 +5473,10 @@ packages:
 
   '@types/react-helmet@6.1.11':
     resolution: {integrity: sha512-0QcdGLddTERotCXo3VFlUSWO3ztraw8nZ6e3zJSgG7apwV5xt+pJUS8ewPBqT4NYB1optGLprNQzFleIY84u/g==}
+
+  '@types/react-native@0.73.0':
+    resolution: {integrity: sha512-6ZRPQrYM72qYKGWidEttRe6M5DZBEV5F+MHMHqd4TTYx0tfkcdrUFGdef6CCxY0jXU7wldvd/zA/b0A/kTeJmA==}
+    deprecated: This is a stub types definition. react-native provides its own type definitions, so you do not need this installed.
 
   '@types/react-redux@7.1.24':
     resolution: {integrity: sha512-7FkurKcS1k0FHZEtdbbgN8Oc6b+stGSfZYjQGicofJ0j4U0qIn/jaSvnP2pLwZKiai3/17xqqxkkrxTgN8UNbQ==}
@@ -15994,7 +16020,7 @@ snapshots:
       react: 18.2.0
       react-native: 0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0)
 
-  '@gorhom/bottom-sheet@4.6.0(@types/react@18.2.55)(react-native-gesture-handler@2.18.1(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
+  '@gorhom/bottom-sheet@4.6.0(@types/react-native@0.73.0(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(@types/react@18.2.55)(react-native-gesture-handler@2.18.1(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@gorhom/portal': 1.0.14(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       invariant: 2.2.4
@@ -16004,6 +16030,7 @@ snapshots:
       react-native-reanimated: 3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
     optionalDependencies:
       '@types/react': 18.2.55
+      '@types/react-native': 0.73.0(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0)
 
   '@gorhom/portal@1.0.14(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
     dependencies:
@@ -19739,6 +19766,18 @@ snapshots:
   '@types/react-helmet@6.1.11':
     dependencies:
       '@types/react': 18.2.55
+
+  '@types/react-native@0.73.0(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0)':
+    dependencies:
+      react-native: 0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0)
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@babel/preset-env'
+      - bufferutil
+      - encoding
+      - react
+      - supports-color
+      - utf-8-validate
 
   '@types/react-redux@7.1.24':
     dependencies:

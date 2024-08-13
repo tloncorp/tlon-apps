@@ -551,7 +551,8 @@
   =/  collapsed
     (~(gas in collapsed.acc) (turn top head))
   :-  (~(put by sources.acc) source src-info(added &))
-  [(sub limit.acc 1) (snoc happenings.acc [source time top]) collapsed]
+  ?~  top  +.acc
+  [(sub limit.acc 1) (snoc happenings.acc [source time.i.top top]) collapsed]
   +$  out
     $:  sources=(map source:a [latest=time-id:a added=?])
         limit=@ud
@@ -777,7 +778,9 @@
 ++  bump
   |=  =source:a
   ^+  cor
-  =/  =index:a  (~(got by indices) source)
+  ::  we use get-index here because this source may not exist especially
+  ::  if it was a post we created and then commented on w/o any other activity
+  =/  =index:a  (get-index source)
   =/  new=index:a  index(bump now.bowl)
   =.  indices
     (~(put by indices) source new)

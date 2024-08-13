@@ -4,6 +4,7 @@ import {
   userEvent,
   waitFor,
 } from '@testing-library/react-native';
+import { setupDb } from '@tloncorp/app/lib/nativeDb';
 import fetchMock from 'jest-fetch-mock';
 import {
   SafeAreaProvider,
@@ -12,7 +13,6 @@ import {
 import { act } from 'react-test-renderer';
 
 import App from '../App.main';
-import { setupDb } from '../lib/nativeDb';
 
 describe('App', () => {
   beforeAll(() => {

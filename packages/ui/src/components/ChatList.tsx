@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import React from 'react';
 import {
   LayoutChangeEvent,
   NativeScrollEvent,
@@ -47,7 +48,7 @@ type ChatListSectionData = SectionListData<
   { title: string; data: ChatListItemData[] }
 >;
 
-export function ChatList({
+function ChatListComponent({
   pinned,
   unpinned,
   pendingChats,
@@ -197,6 +198,8 @@ export function ChatList({
   );
 }
 
+export const ChatList = React.memo(ChatListComponent);
+
 function getChatKey(item: unknown) {
   const chatItem = item as Chat;
 
@@ -210,7 +213,7 @@ function getChatKey(item: unknown) {
   return `${chatItem.id}-${chatItem.pin?.itemId ?? ''}`;
 }
 
-function ChatListFilters({
+function ChatListFiltersComponent({
   activeTab,
   onPressTab,
   isOpen,
@@ -299,6 +302,8 @@ function ChatListFilters({
     </Animated.View>
   );
 }
+
+const ChatListFilters = React.memo(ChatListFiltersComponent);
 
 function useFilteredChats({
   pinned,

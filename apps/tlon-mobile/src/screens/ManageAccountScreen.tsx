@@ -1,13 +1,13 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
+import { checkIfAccountDeleted } from '@tloncorp/app/lib/hostingApi';
+import { getHostingToken, getHostingUserId } from '@tloncorp/app/utils/hosting';
 import { LoadingSpinner, ScreenHeader, View, YStack } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { WebView } from 'react-native-webview';
 
-import { useHandleLogout } from '../hooks/useHandleLogout';
 import { useWebView } from '../hooks/useWebView';
-import { checkIfAccountDeleted } from '../lib/hostingApi';
 import { RootStackParamList } from '../types';
-import { getHostingToken, getHostingUserId } from '../utils/hosting';
 
 const MANAGE_ACCOUNT_URL = 'https://tlon.network/account';
 

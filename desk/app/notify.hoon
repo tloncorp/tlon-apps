@@ -325,6 +325,7 @@
     ++  handle-http-request
       |=  [eyre-id=@ta inbound-request:eyre]
       ^-  (quip card _state)
+      ?>  authenticated
       ?.  ?=(%'GET' method.request)
         [~ state]
       =/  [[ext=(unit @ta) site=(pole @t)] args=*]

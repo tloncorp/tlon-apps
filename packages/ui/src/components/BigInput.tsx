@@ -74,16 +74,12 @@ export function BigInput({
     <YStack height="100%" width="100%">
       {channelType === 'notebook' && (
         <View
-          style={[
-            {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: imageButtonHeight,
-              zIndex: 10,
-            },
-          ]}
+          position="absolute"
+          top={0}
+          left={0}
+          width="100%"
+          height={imageButtonHeight}
+          zIndex={10}
         >
           <TouchableOpacity
             onPress={() => {
@@ -94,7 +90,7 @@ export function BigInput({
             {imageAttachment ? (
               <Image
                 source={{ uri: imageAttachment.file.uri }}
-                resizeMode="cover"
+                contentFit="cover"
                 style={{
                   width: '100%',
                   height: '100%',
@@ -118,19 +114,17 @@ export function BigInput({
               </View>
             )}
           </TouchableOpacity>
-          {channelType === 'notebook' && (
-            <View backgroundColor="$background" width="100%">
-              <Input
-                size="$xl"
-                height={titleInputHeight}
-                backgroundColor="$background"
-                borderColor="transparent"
-                placeholder="New Title"
-                onChangeText={setTitle}
-                value={title}
-              />
-            </View>
-          )}
+          <View backgroundColor="$background" width="100%">
+            <Input
+              size="$xl"
+              height={titleInputHeight}
+              backgroundColor="$background"
+              borderColor="transparent"
+              placeholder="New Title"
+              onChangeText={setTitle}
+              value={title}
+            />
+          </View>
         </View>
       )}
       <ScrollView
