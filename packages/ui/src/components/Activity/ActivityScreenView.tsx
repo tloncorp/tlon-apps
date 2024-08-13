@@ -98,13 +98,11 @@ export function ActivityScreenView({
   const renderItem = useCallback(
     ({ item }: { item: logic.SourceActivityEvents }) => {
       return (
-        <View marginHorizontal="$l">
-          <SourceActivityDisplay
-            sourceActivity={item}
-            onPress={handlePressEvent}
-            seenMarker={activitySeenMarker ?? Date.now()}
-          />
-        </View>
+        <SourceActivityDisplay
+          sourceActivity={item}
+          onPress={handlePressEvent}
+          seenMarker={activitySeenMarker ?? Date.now()}
+        />
       );
     },
     [activitySeenMarker, handlePressEvent]
@@ -149,7 +147,7 @@ export function ActivityScreenView({
           data={events}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
-          contentContainerStyle={{ paddingTop: 16 }}
+          contentContainerStyle={{ paddingTop: 16, paddingHorizontal: 16 }}
           onEndReached={handleEndReached}
           ListFooterComponent={
             currentFetcher.isFetching ? <LoadingSpinner /> : null
@@ -177,7 +175,7 @@ function ActivityEventRaw({
 
   if (db.isGroupEvent(event)) {
     return (
-      <View onPress={handlePress}>
+      <View onPress={handlePress} marginBottom="$xl">
         <GroupActivitySummary
           summary={sourceActivity}
           seenMarker={seenMarker}
@@ -194,7 +192,7 @@ function ActivityEventRaw({
     event.type === 'flag-reply'
   ) {
     return (
-      <View onPress={handlePress}>
+      <View onPress={handlePress} marginBottom="$xl">
         <ChannelActivitySummary
           summary={sourceActivity}
           seenMarker={seenMarker}
