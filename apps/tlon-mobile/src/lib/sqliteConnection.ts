@@ -21,6 +21,7 @@ export interface SQLiteConnection<
   close(): void;
   delete(): void;
   migrateClient(client: Client): Promise<void>;
-  // hardcode `Schema` to match `AnySqliteDatabase`
+  // `Schema` is hardcoded here to match `AnySqliteDatabase`, which also
+  // hardcodes `Schema`
   createClient(opts: DrizzleConfig<Schema>): Client;
 }
