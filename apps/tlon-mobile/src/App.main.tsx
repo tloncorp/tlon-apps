@@ -223,7 +223,13 @@ export default function ConnectedApp(props: Props) {
             ref={navigationContainerRef}
           >
             <BranchProvider>
-              <PostHogProvider client={posthogAsync} autocapture>
+              <PostHogProvider
+                client={posthogAsync}
+                autocapture
+                options={{
+                  enable: process.env.NODE_ENV !== 'test',
+                }}
+              >
                 <GestureHandlerRootView style={tailwind('flex-1')}>
                   <SafeAreaProvider>
                     <MigrationCheck>
