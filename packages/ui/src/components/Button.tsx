@@ -43,7 +43,7 @@ export const ButtonFrame = styled(Stack, {
   },
   borderColor: '$border',
   borderWidth: 1,
-  borderRadius: '$m',
+  borderRadius: '$l',
   paddingVertical: '$s',
   paddingHorizontal: '$l',
   variants: {
@@ -100,6 +100,15 @@ export const ButtonFrame = styled(Stack, {
         },
       },
     } as const,
+    shadow: {
+      true: {
+        shadowColor: '$shadow',
+        shadowOffset: { width: 0, height: 15 },
+        shadowOpacity: 0.35,
+        shadowRadius: 35,
+        elevation: 4,
+      },
+    },
     secondary: {
       true: {
         backgroundColor: '$border',
@@ -145,7 +154,7 @@ export const ButtonText = styled(Text, {
         color: '$white',
         width: '100%',
         textAlign: 'center',
-        fontWeight: '500',
+        fontWeight: '400',
       },
     },
     heroDestructive: {

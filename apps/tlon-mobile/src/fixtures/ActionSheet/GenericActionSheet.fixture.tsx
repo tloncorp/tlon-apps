@@ -2,9 +2,9 @@ import { ListItem } from '@tloncorp/ui';
 import {
   ActionGroup,
   ActionSheet,
-} from '@tloncorp/ui/src/components/ActionSheetV2';
+} from '@tloncorp/ui/src/components/ActionSheet';
 
-import { FixtureWrapper } from './FixtureWrapper';
+import { FixtureWrapper } from '../FixtureWrapper';
 
 const ActionSheetFixture = () => {
   const actionGroups: ActionGroup[] = [
@@ -76,7 +76,7 @@ const ActionSheetFixture = () => {
             <ListItem.Subtitle>Action sheet description</ListItem.Subtitle>
           </ListItem.MainContent>
         </ActionSheet.Header>
-        <ActionSheet.ScrollView>
+        <ActionSheet.ScrollableContent>
           {actionGroups.map((group, index) => (
             <ActionSheet.ActionGroup key={index} accent={group.accent}>
               {group.actions.map((action, index) => (
@@ -84,7 +84,7 @@ const ActionSheetFixture = () => {
               ))}
             </ActionSheet.ActionGroup>
           ))}
-        </ActionSheet.ScrollView>
+        </ActionSheet.ScrollableContent>
       </ActionSheet>
     </FixtureWrapper>
   );

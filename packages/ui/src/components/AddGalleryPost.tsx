@@ -2,7 +2,7 @@ import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useState } from 'react';
 
 import { useAttachmentContext } from '../contexts/attachment';
-import { ActionSheet } from './ActionSheet';
+import { SimpleActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 
 export default function AddGalleryPost({
@@ -46,16 +46,11 @@ export default function AddGalleryPost({
 
   return (
     <>
-      <ActionSheet
+      <SimpleActionSheet
         open={showAddGalleryPost}
-        onOpenChange={(open: boolean) => setShowAddGalleryPost(open)}
-      >
-        {actions.map((action, index) => (
-          <ActionSheet.Action key={index} action={action.action}>
-            <ActionSheet.ActionTitle>{action.title}</ActionSheet.ActionTitle>
-          </ActionSheet.Action>
-        ))}
-      </ActionSheet>
+        onOpenChange={setShowAddGalleryPost}
+        actions={actions}
+      />
       <AttachmentSheet
         showAttachmentSheet={showAttachmentSheet}
         setShowAttachmentSheet={setShowAttachmentSheet}

@@ -2,13 +2,12 @@ import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useState } from 'react';
 import { Text, XStack, YStack } from 'tamagui';
 
-import { ActionSheet } from '../ActionSheet';
 import AuthorRow from '../AuthorRow';
-import { Button } from '../Button';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
 import ContentRenderer from '../ContentRenderer';
 import { Image } from '../Image';
 import Pressable from '../Pressable';
+import { SendPostRetrySheet } from '../SendPostRetrySheet';
 
 const IMAGE_HEIGHT = 268;
 
@@ -65,7 +64,7 @@ export default function NotebookPost({
     }
 
     onPress?.(post);
-  }, [onPress, post.isDeleted, post.hidden, post.deliveryStatus]);
+  }, [post, onPress]);
 
   if (!post) {
     return null;
@@ -151,17 +150,12 @@ export default function NotebookPost({
                 </Text>
               </XStack>
             ) : null}
-            <ActionSheet open={showRetrySheet} onOpenChange={setShowRetrySheet}>
-              <ActionSheet.ActionTitle>
-                Message failed to send
-              </ActionSheet.ActionTitle>
-              <Button hero onPress={handleRetryPressed}>
-                <Button.Text>Retry</Button.Text>
-              </Button>
-              <Button heroDestructive onPress={handleDeletePressed}>
-                <Button.Text>Delete</Button.Text>
-              </Button>
-            </ActionSheet>
+            <SendPostRetrySheet
+              open={showRetrySheet}
+              onOpenChange={setShowRetrySheet}
+              onPressRetry={handleRetryPressed}
+              onPressDelete={handleDeletePressed}
+            />
           </>
         )}
       </YStack>

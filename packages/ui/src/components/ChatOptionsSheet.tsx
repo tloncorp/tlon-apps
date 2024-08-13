@@ -16,9 +16,8 @@ import { Alert } from 'react-native';
 import { useSheet } from 'tamagui';
 
 import { useCalm, useChatOptions, useCurrentUserId } from '../contexts';
-import { useCopy } from '../hooks/useCopy';
 import * as utils from '../utils';
-import { Action, ActionGroup, ActionSheet } from './ActionSheetV2';
+import { Action, ActionGroup, ActionSheet } from './ActionSheet';
 import { ListItem } from './ListItem';
 
 export type ChatType = 'group' | db.ChannelType;
@@ -142,10 +141,6 @@ export function GroupOptions({
     [currentUser, group?.members]
   );
 
-  const { didCopy: didCopyRef, doCopy: copyRef } = useCopy(
-    logic.getGroupReferencePath(group.id)
-  );
-
   const handleVolumeUpdate = useCallback(
     (newLevel: string) => {
       if (group) {
@@ -204,6 +199,8 @@ export function GroupOptions({
   );
 
   const actionGroups = useMemo(() => {
+    const groupRef = logic.getGroupReferencePath(group.id);
+
     const actionGroups: ActionGroup[] = [
       {
         accent: 'neutral',
@@ -213,17 +210,19 @@ export function GroupOptions({
             action: () => {
               setPane('notifications');
             },
-            icon: 'ChevronRight',
+            endIcon: 'ChevronRight',
           },
           {
             title: isPinned ? 'Unpin' : 'Pin',
-            icon: 'Pin',
+            endIcon: 'Pin',
             action: onTogglePinned,
           },
           {
             title: 'Copy group reference',
-            action: () => copyRef(),
-            icon: didCopyRef ? 'Checkmark' : 'Copy',
+            description: groupRef,
+            render: (props) => (
+              <ActionSheet.CopyAction {...props} copyText={groupRef} />
+            ),
           },
         ],
       },
@@ -235,12 +234,12 @@ export function GroupOptions({
         sheetRef.current.setOpen(false);
         onPressManageChannels?.(group.id);
       },
-      icon: 'ChevronRight',
+      endIcon: 'ChevronRight',
     };
 
     const goToMembersAction: Action = {
       title: 'Members',
-      icon: 'ChevronRight',
+      endIcon: 'ChevronRight',
       action: () => {
         if (!group) {
           return;
@@ -256,7 +255,7 @@ export function GroupOptions({
         sheetRef.current.setOpen(false);
         onPressGroupMeta?.(group.id);
       },
-      icon: 'ChevronRight',
+      endIcon: 'ChevronRight',
     };
 
     actionGroups.push({
@@ -273,7 +272,7 @@ export function GroupOptions({
         actions: [
           {
             title: 'Leave group',
-            icon: 'LogOut',
+            endIcon: 'LogOut',
             action: () => {
               sheetRef.current.setOpen(false);
               onPressLeave?.();
@@ -286,11 +285,9 @@ export function GroupOptions({
   }, [
     isPinned,
     onTogglePinned,
-    didCopyRef,
     group,
     currentUserIsAdmin,
     setPane,
-    copyRef,
     onPressManageChannels,
     onPressGroupMembers,
     onPressGroupMeta,
@@ -480,7 +477,7 @@ export function ChannelOptions({
               actions: [
                 {
                   title: 'Members',
-                  icon: 'ChevronRight',
+                  endIcon: 'ChevronRight',
                   action: () => {
                     if (!channel) {
                       return;
@@ -491,7 +488,7 @@ export function ChannelOptions({
                 },
                 {
                   title: 'Edit metadata',
-                  icon: 'ChevronRight',
+                  endIcon: 'ChevronRight',
                   action: () => {
                     if (!channel) {
                       return;
@@ -568,9 +565,9 @@ function ChatOptionsSheetContent({
           <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
         </ListItem.MainContent>
       </ActionSheet.Header>
-      <ActionSheet.ScrollView>
-        <ActionSheet.ActionGroupList actionGroups={actionGroups} />
-      </ActionSheet.ScrollView>
+      <ActionSheet.ScrollableContent>
+        <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
+      </ActionSheet.ScrollableContent>
     </>
   );
 }

@@ -11,9 +11,8 @@ import { DraggableItem } from '../DraggableItem';
 import { GenericHeader } from '../GenericHeader';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
-import { AddSectionSheet } from './AddSectionSheet';
 import { ChannelTypeName, CreateChannelSheet } from './CreateChannelSheet';
-import { EditSectionSheet } from './EditSectionSheet';
+import { EditSectionNameSheet } from './EditSectionNameSheet';
 
 export type Section = {
   id: string;
@@ -575,23 +574,26 @@ export function ManageChannelsScreenView({
           }
         />
       )}
-      {showAddSection && (
-        <AddSectionSheet
-          onOpenChange={(open) => setShowAddSection(open)}
-          createSection={async (title) =>
-            createNavSection({
-              title,
-            })
-          }
-        />
-      )}
-      {editSection && (
-        <EditSectionSheet
-          onOpenChange={(open) => setEditSection(open ? editSection : null)}
-          title={editSection?.title ?? ''}
-          updateSection={(title) => handleUpdateSection(editSection.id, title)}
-        />
-      )}
+      <EditSectionNameSheet
+        open={showAddSection}
+        mode="add"
+        onOpenChange={(open) => setShowAddSection(open)}
+        onSave={async (title) =>
+          createNavSection({
+            title,
+          })
+        }
+      />
+      <EditSectionNameSheet
+        open={!!editSection}
+        mode="edit"
+        onOpenChange={(open) => setEditSection(open ? editSection : null)}
+        onSave={
+          editSection
+            ? (title) => handleUpdateSection(editSection.id, title)
+            : undefined
+        }
+      />
     </View>
   );
 }
