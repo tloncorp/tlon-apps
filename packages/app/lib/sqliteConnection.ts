@@ -2,6 +2,11 @@ import { AnySqliteDatabase } from '@tloncorp/shared/dist/db/client';
 import { Schema } from '@tloncorp/shared/dist/db/types';
 import type { DrizzleConfig } from 'drizzle-orm/utils';
 
+/**
+ * Abstracts a connection to an SQLite database; see
+ * `OPSQLite$SQLiteConnection` and `BetterSqlite3$SQLiteConnection` for
+ * implementations.
+ */
 export interface SQLiteConnection<
   Client extends AnySqliteDatabase = AnySqliteDatabase,
 > {

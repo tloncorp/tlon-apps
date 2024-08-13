@@ -60,6 +60,8 @@ module.exports = mergeConfig(config, {
       path.resolve(workspaceRoot, 'node_modules/tamagui/node_modules'),
     ],
     sourceExts: [...config.resolver.sourceExts, 'svg', 'sql'],
+
+    // Enables importing alternative package exports, e.g. `react-tweet/api`
     unstable_enablePackageExports: true,
   },
 });
