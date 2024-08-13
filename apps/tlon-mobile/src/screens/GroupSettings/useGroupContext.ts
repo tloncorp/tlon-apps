@@ -6,7 +6,13 @@ import { useCallback, useEffect, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 
-export const useGroupContext = ({ groupId }: { groupId: string }) => {
+export const useGroupContext = ({
+  groupId,
+  isFocused,
+}: {
+  groupId: string;
+  isFocused?: boolean;
+}) => {
   const currentUserId = useCurrentUserId();
   const groupQuery = store.useGroup({
     id: groupId,
@@ -94,8 +100,12 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     }
   }, [group]);
 
-  const { data: pendingChats } = store.usePendingChats();
-  const { data: currentChatData } = store.useCurrentChats();
+  const { data: pendingChats } = store.usePendingChats({
+    enabled: isFocused,
+  });
+  const { data: currentChatData } = store.useCurrentChats({
+    enabled: isFocused,
+  });
 
   const createChannel = useCallback(
     async ({

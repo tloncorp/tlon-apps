@@ -295,6 +295,7 @@ export default function ChatListScreen(
 
   const { leaveGroup, togglePinned } = useGroupContext({
     groupId: longPressedGroup?.id ?? '',
+    isFocused,
   });
 
   const handleLeaveGroup = useCallback(async () => {
