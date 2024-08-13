@@ -10,13 +10,7 @@ import type { SQLiteConnection } from '../sqliteConnection';
 
 // We swap out better-sqlite3 for op-sqlite for the test enviroment.
 class BetterSqlite3$SQLiteConnection implements SQLiteConnection {
-  connection: Database;
-
-  constructor() {
-    // The normal constructor gets a connection to the database as part of the
-    // constructor args, but we just want to use an in-memory DB:
-    this.connection = new BetterSqlite3Database();
-  }
+  constructor(private connection: Database) {}
 
   execute(query: string): void {
     this.connection.exec(query);
