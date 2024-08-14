@@ -28,7 +28,7 @@ patchedDependencies:
     hash: cegrec33e6f7d6ltk7vff5r7w4
     path: patches/drizzle-orm@0.30.9.patch
   react-native-gesture-handler@2.18.1:
-    hash: 5zbece3s7ezckmv2dx2n7plseq
+    hash: 3cmtvqiauuehrkeqz6qjuqgv4a
     path: patches/react-native-gesture-handler@2.18.1.patch
   react-native-reanimated@3.8.1:
     hash: n2blcrn244i77n7euhqt5mi2km
@@ -110,7 +110,7 @@ importers:
         version: 18.4.0(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@gorhom/bottom-sheet':
         specifier: ^4.5.1
-        version: 4.6.0(@types/react-native@0.73.0(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(@types/react@18.2.55)(react-native-gesture-handler@2.18.1(patch_hash=5zbece3s7ezckmv2dx2n7plseq)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+        version: 4.6.0(@types/react-native@0.73.0(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(@types/react@18.2.55)(react-native-gesture-handler@2.18.1(patch_hash=3cmtvqiauuehrkeqz6qjuqgv4a)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@op-engineering/op-sqlite':
         specifier: 5.0.5
         version: 5.0.5(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
@@ -269,7 +269,7 @@ importers:
         version: 3.0.0
       react-native-gesture-handler:
         specifier: ~2.18.0
-        version: 2.18.1(patch_hash=5zbece3s7ezckmv2dx2n7plseq)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+        version: 2.18.1(patch_hash=3cmtvqiauuehrkeqz6qjuqgv4a)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       react-native-get-random-values:
         specifier: ^1.11.0
         version: 1.11.0(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))
@@ -1076,7 +1076,7 @@ importers:
         version: 1.1.2
       '@likashefqet/react-native-image-zoom':
         specifier: ^3.0.0
-        version: 3.0.0(react-native-gesture-handler@2.18.1(patch_hash=5zbece3s7ezckmv2dx2n7plseq)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+        version: 3.0.0(react-native-gesture-handler@2.18.1(patch_hash=3cmtvqiauuehrkeqz6qjuqgv4a)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@react-native-clipboard/clipboard':
         specifier: ^1.14.0
         version: 1.14.0(react-native-macos@0.73.24(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-windows@0.73.11(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
@@ -14761,13 +14761,13 @@ snapshots:
       react: 18.2.0
       react-native: 0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0)
 
-  '@gorhom/bottom-sheet@4.6.0(@types/react-native@0.73.0(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(@types/react@18.2.55)(react-native-gesture-handler@2.18.1(patch_hash=5zbece3s7ezckmv2dx2n7plseq)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
+  '@gorhom/bottom-sheet@4.6.0(@types/react-native@0.73.0(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(@types/react@18.2.55)(react-native-gesture-handler@2.18.1(patch_hash=3cmtvqiauuehrkeqz6qjuqgv4a)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@gorhom/portal': 1.0.14(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       invariant: 2.2.4
       react: 18.2.0
       react-native: 0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0)
-      react-native-gesture-handler: 2.18.1(patch_hash=5zbece3s7ezckmv2dx2n7plseq)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+      react-native-gesture-handler: 2.18.1(patch_hash=3cmtvqiauuehrkeqz6qjuqgv4a)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       react-native-reanimated: 3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
     optionalDependencies:
       '@types/react': 18.2.55
@@ -14920,11 +14920,11 @@ snapshots:
 
   '@juggle/resize-observer@3.4.0': {}
 
-  '@likashefqet/react-native-image-zoom@3.0.0(react-native-gesture-handler@2.18.1(patch_hash=5zbece3s7ezckmv2dx2n7plseq)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
+  '@likashefqet/react-native-image-zoom@3.0.0(react-native-gesture-handler@2.18.1(patch_hash=3cmtvqiauuehrkeqz6qjuqgv4a)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
     dependencies:
       react: 18.2.0
       react-native: 0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0)
-      react-native-gesture-handler: 2.18.1(patch_hash=5zbece3s7ezckmv2dx2n7plseq)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+      react-native-gesture-handler: 2.18.1(patch_hash=3cmtvqiauuehrkeqz6qjuqgv4a)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       react-native-reanimated: 3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
 
   '@linaria/core@4.2.9':
@@ -23967,7 +23967,7 @@ snapshots:
     dependencies:
       p-defer: 3.0.0
 
-  react-native-gesture-handler@2.18.1(patch_hash=5zbece3s7ezckmv2dx2n7plseq)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0):
+  react-native-gesture-handler@2.18.1(patch_hash=3cmtvqiauuehrkeqz6qjuqgv4a)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0):
     dependencies:
       '@egjs/hammerjs': 2.0.17
       hoist-non-react-statics: 3.3.2
