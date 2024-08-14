@@ -3,7 +3,7 @@ import { deSig } from '@urbit/aura';
 import { Urbit } from '@urbit/http-api';
 import _ from 'lodash';
 
-import { createDevLogger, escapeLog } from '../debug';
+import { createDevLogger, escapeLog, runIfDev } from '../debug';
 
 const logger = createDevLogger('urbit', false);
 
@@ -77,7 +77,10 @@ export function configureClient({
   });
 
   clientInstance.on('fact', (fact) => {
-    logger.log('received message', escapeLog(JSON.stringify(fact)));
+    logger.log(
+      'received message',
+      runIfDev(() => escapeLog(JSON.stringify(fact)))
+    );
   });
 
   clientInstance.onReconnect = () => {

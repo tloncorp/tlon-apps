@@ -136,7 +136,7 @@ export const useGroupContext = ({
         });
       }
     },
-    [group, currentUserId, currentChatData]
+    [group, currentUserId, currentChatData, pendingChats]
   );
 
   const deleteChannel = useCallback(

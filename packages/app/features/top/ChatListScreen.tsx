@@ -109,7 +109,7 @@ export default function ChatListScreen({
       unpinned: chats?.unpinned ?? [],
       pendingChats: pendingChats ?? [],
     };
-  }, [chats]);
+  }, [chats, pendingChats]);
 
   const goToDm = useCallback(
     async (participants: string[]) => {
