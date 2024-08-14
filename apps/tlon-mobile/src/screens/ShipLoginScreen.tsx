@@ -152,6 +152,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
           }}
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
+              testID="textInput shipUrl"
               style={tailwind(
                 'p-4 text-tlon-black-80 dark:text-white border border-tlon-black-20 dark:border-tlon-black-80 rounded-lg'
               )}
@@ -196,6 +197,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
           render={({ field: { ref, onChange, onBlur, value } }) => (
             <TextInput
               ref={ref}
+              testID="textInput accessCode"
               style={tailwind(
                 'p-4 text-tlon-black-80 dark:text-white border border-tlon-black-20 dark:border-tlon-black-80 rounded-lg'
               )}

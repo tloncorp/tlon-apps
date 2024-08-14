@@ -13,12 +13,15 @@ export type OnboardingProperties = {
 
 export let posthog: PostHog | undefined;
 
-export const posthogAsync = PostHog.initAsync(POST_HOG_API_KEY, {
-  host: 'https://eu.posthog.com',
-  enable: true,
-});
+export const posthogAsync =
+  process.env.NODE_ENV === 'test'
+    ? undefined
+    : PostHog.initAsync(POST_HOG_API_KEY, {
+        host: 'https://eu.posthog.com',
+        enable: true,
+      });
 
-posthogAsync.then((client) => {
+posthogAsync?.then((client) => {
   posthog = client;
   crashlytics().setAttribute('analyticsId', client.getDistinctId());
 });
