@@ -10,7 +10,7 @@
 ::
 /-  c=channels, g=groups, ha=hark, activity
 /-  meta
-/+  default-agent, verb, dbug, sparse, neg=negotiate
+/+  default-agent, verb, dbug, sparse, neg=negotiate, imp=import-aid
 /+  utils=channel-utils, volume, s=subscriber
 ::  performance, keep warm
 /+  channel-json
@@ -27,7 +27,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %5
+    $:  %6
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         hidden-posts=(set id-post:c)
@@ -37,6 +37,7 @@
         pending-ref-edits=(jug ship [=kind:c name=term])
         :: delayed resubscribes
         =^subs:s
+        =pimp:imp
     ==
   --
 =|  current-state
@@ -112,20 +113,38 @@
   (emil caz)
 ::
 ++  load
-  |=  =vase
-  |^  ^+  cor
+  |^  |=  =vase
+  ^+  cor
   =+  !<(old=versioned-state vase)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
-  ?>  ?=(%5 -.old)
+  =?  old  ?=(%5 -.old)  (state-5-to-6 old)
+  ?>  ?=(%6 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-5 state-4 state-3 state-2 state-1 state-0)
-  +$  state-5  current-state
+  +$  versioned-state  $%(state-6 state-5 state-4 state-3 state-2 state-1 state-0)
+  +$  state-6  current-state
+  +$  state-5
+    $:  %5
+        =v-channels:c
+        voc=(map [nest:c plan:c] (unit said:c))
+        hidden-posts=(set id-post:c)
+      ::
+        ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
+        ::
+        pending-ref-edits=(jug ship [=kind:c name=term])
+        :: delayed resubscribes
+        =^subs:s
+    ==
+  ::
+  ++  state-5-to-6
+    |=  state-5
+    ^-  state-6
+    [%6 v-channels voc hidden-posts pending-ref-edits subs *pimp:imp]
   ::
   +$  state-4
     $:  %4
@@ -386,6 +405,22 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-poke+mark !!)
+      %noun
+    ?+  q.vase  !!
+        [%channel-wake @ @]
+      =+  ;;([=kind:c name=term] +.q.vase)
+      =/  =nest:c  [kind src.bowl name]
+      ?.  (~(has by v-channels) nest)  cor
+      ca-abet:(ca-safe-sub:(ca-abed:ca-core nest) |)
+    ::
+        %pimp-ready
+      ?-  pimp
+        ~         cor(pimp `&+~)
+        [~ %& *]  cor
+        [~ %| *]  (run-import p.u.pimp)
+      ==
+    ==
+  ::
     :: TODO: add transfer/import channels
       %channel-action
     =+  !<(=a-channels:c vase)
@@ -463,6 +498,15 @@
       ::NOTE  %chat-migrate-refs, etc
       (cat 3 kind '-migrate-refs')
     !>([host name])
+  ::
+      %egg-any
+    =+  !<(=egg-any:gall vase)
+    ?-  pimp
+      ~         cor(pimp `|+egg-any)
+      [~ %& *]  (run-import egg-any)
+      [~ %| *]  ~&  [dap.bowl %overwriting-pending-import]
+                cor(pimp `|+egg-any)
+    ==
   ==
   ++  toggle-post
     |=  toggle=post-toggle:c
@@ -474,6 +518,26 @@
       ==
     (give %fact ~[/ /v0 /v1] toggle-post+!>(toggle))
   ::
+::
+++  run-import
+  |=  =egg-any:gall
+  ^+  cor
+  =.  pimp  ~
+  ?-  -.egg-any
+      ?(%15 %16)
+    ?.  ?=(%live +<.egg-any)
+      ~&  [dap.bowl %egg-any-not-live]
+      cor
+    =/  bak
+      (load -:!>(*versioned-state:load) +>.old-state.egg-any)
+    ::  restore as much data as we can. we don't restart subscriptions here,
+    ::  we wait for the groups agent to tell us which ones to re-join.
+    ::
+    =.  v-channels    (~(uni by v-channels:bak) v-channels)
+    =.  voc           (~(uni by voc:bak) voc)
+    =.  hidden-posts  (~(uni in hidden-posts:bak) hidden-posts)
+    (emil (prod-next:imp [our dap]:bowl))
+  ==
 ::
 ++  watch
   |=  =(pole knot)
@@ -537,6 +601,7 @@
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
       ~          cor
+      [%pimp ~]  cor
       [%hark ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
@@ -872,8 +937,13 @@
   ++  ca-join
     |=  [n=nest:c group=flag:g]
     =.  nest  n
-    ?<  (~(has by v-channels) nest)
     ?>  |(=(p.group src.bowl) from-self)
+    ?:  (~(has by v-channels) nest)
+      ::  we should already be in, but make sure our subscriptions still exist
+      ::  just in case
+      ::
+      =.  channel  (~(got by v-channels) nest)
+      (ca-safe-sub |)
     =.  channel  *v-channel:c
     =.  group.perm.perm.channel  group
     =.  last-read.remark.channel  now.bowl

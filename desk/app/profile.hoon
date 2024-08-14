@@ -491,6 +491,16 @@
       %handle-http-request
     :_  this
     (serve:do !<(order:rudder:do vase))
+  ::
+      %egg-any
+    =+  !<(=egg-any:gall vase)
+    ?-  -.egg-any
+        ?(%15 %16)
+      ?.  ?=(%live +<.egg-any)
+        ~&  [dap.bowl %egg-any-not-live]
+        [~ this]
+      (on-load -:!>(*state-0) +>.old-state.egg-any)
+    ==
   ==
 ::
 ++  on-watch
