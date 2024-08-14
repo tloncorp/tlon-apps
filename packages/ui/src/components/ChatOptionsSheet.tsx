@@ -199,6 +199,7 @@ export function GroupOptions({ group }: { group: db.Group }) {
           },
           {
             title: isPinned ? 'Unpin' : 'Pin',
+            icon: 'Pin',
             action: onTogglePinned,
           },
           {

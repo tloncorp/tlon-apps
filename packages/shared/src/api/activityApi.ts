@@ -312,6 +312,11 @@ export type ActivityEvent =
       volumeUpdate: db.VolumeSettings;
     }
   | {
+      type: 'removeItemVolume';
+      itemId: string;
+      itemType: string;
+    }
+  | {
       type: 'updatePushNotificationsSetting';
       value: ub.PushNotificationsSetting;
     }
@@ -357,6 +362,7 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
 
       // handle volume settings
       if ('adjust' in update) {
+        console.log(`bl: got adjust event`, update);
         const { source, volume } = update.adjust;
         const sourceId = ub.sourceToString(source);
 
@@ -375,59 +381,74 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
         }
 
         if ('group' in source) {
-          const level: ub.NotificationLevel = volume
-            ? ub.getLevelFromVolumeMap(volume)
-            : 'default';
-          return handler({
-            type: 'updateItemVolume',
-            volumeUpdate: {
+          if (volume) {
+            return handler({
+              type: 'updateItemVolume',
+              volumeUpdate: {
+                itemId: source.group,
+                itemType: 'group',
+                level: ub.getLevelFromVolumeMap(volume),
+              },
+            });
+          } else {
+            return handler({
+              type: 'removeItemVolume',
               itemId: source.group,
               itemType: 'group',
-              level,
-            },
-          });
+            });
+          }
         }
 
         if ('channel' in source || 'dm' in source) {
-          const level: ub.NotificationLevel = volume
-            ? ub.getLevelFromVolumeMap(volume)
-            : 'default';
           const channelId =
             'channel' in source
               ? source.channel.nest
               : 'ship' in source.dm
                 ? source.dm.ship
                 : source.dm.club;
-          return handler({
-            type: 'updateItemVolume',
-            volumeUpdate: {
+          if (volume) {
+            return handler({
+              type: 'updateItemVolume',
+              volumeUpdate: {
+                itemId: channelId,
+                itemType: 'channel',
+                level: ub.getLevelFromVolumeMap(volume),
+              },
+            });
+          } else {
+            return handler({
+              type: 'removeItemVolume',
               itemId: channelId,
               itemType: 'channel',
-              level,
-            },
-          });
+            });
+          }
         }
 
         if ('thread' in source || 'dm-thread' in source) {
-          const level: ub.NotificationLevel = volume
-            ? ub.getLevelFromVolumeMap(volume)
-            : 'default';
           const postId = getPostIdFromSource(source);
-          return handler({
-            type: 'updateItemVolume',
-            volumeUpdate: {
+          if (volume) {
+            return handler({
+              type: 'updateItemVolume',
+              volumeUpdate: {
+                itemId: postId,
+                itemType: 'thread',
+                level: ub.getLevelFromVolumeMap(volume),
+              },
+            });
+          } else {
+            return handler({
+              type: 'removeItemVolume',
               itemId: postId,
               itemType: 'thread',
-              level,
-            },
-          });
+            });
+          }
         }
 
         // keep handling threads as they were
-        return handler({
-          type: 'updateVolumeSetting',
-          update: { sourceId, volume },
-        });
+        // return handler({
+        //   type: 'updateVolumeSetting',
+        //   update: { sourceId, volume },
+        // });
       }
 
       // handle push notification settings

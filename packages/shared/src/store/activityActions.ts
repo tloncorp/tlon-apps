@@ -10,13 +10,15 @@ const logger = createDevLogger('activityActions', false);
 export async function muteChat(channel: db.Channel) {
   const initialSettings = await getChatVolumeSettings(channel);
 
-  db.setVolumes([
-    {
-      itemId: channel.groupId ?? channel.id,
-      itemType: channel.groupId ? 'group' : 'channel',
-      level: 'soft',
-    },
-  ]);
+  db.setVolumes({
+    volumes: [
+      {
+        itemId: channel.groupId ?? channel.id,
+        itemType: channel.groupId ? 'group' : 'channel',
+        level: 'soft',
+      },
+    ],
+  });
 
   try {
     const { source } = api.getRootSourceFromChannel(channel);
@@ -26,7 +28,7 @@ export async function muteChat(channel: db.Channel) {
     logger.log(`failed to mute group ${channel.id}`, e);
     // revert the optimistic update
     if (initialSettings) {
-      await db.setVolumes([initialSettings]);
+      await db.setVolumes({ volumes: [initialSettings] });
     }
   }
 }
@@ -34,13 +36,15 @@ export async function muteChat(channel: db.Channel) {
 export async function unmuteChat(channel: db.Channel) {
   const initialSettings = await getChatVolumeSettings(channel);
 
-  db.setVolumes([
-    {
-      itemId: channel.groupId ?? channel.id,
-      itemType: channel.groupId ? 'group' : 'channel',
-      level: 'default',
-    },
-  ]);
+  db.setVolumes({
+    volumes: [
+      {
+        itemId: channel.groupId ?? channel.id,
+        itemType: channel.groupId ? 'group' : 'channel',
+        level: 'default',
+      },
+    ],
+  });
 
   try {
     const { source } = api.getRootSourceFromChannel(channel);
@@ -49,7 +53,7 @@ export async function unmuteChat(channel: db.Channel) {
     logger.log(`failed to unmute chat ${channel.id}`, e);
     // revert the optimistic update
     if (initialSettings) {
-      await db.setVolumes([initialSettings]);
+      await db.setVolumes({ volumes: [initialSettings] });
     }
   }
 }
@@ -73,7 +77,9 @@ export async function muteThread({
 }) {
   const initialSettings = await db.getVolumeSetting(thread.id);
 
-  db.setVolumes([{ itemId: thread.id, itemType: 'thread', level: 'soft' }]);
+  db.setVolumes({
+    volumes: [{ itemId: thread.id, itemType: 'thread', level: 'soft' }],
+  });
 
   try {
     const { source } = api.getThreadSource({ channel, post: thread });
@@ -82,7 +88,7 @@ export async function muteThread({
   } catch (e) {
     logger.log(`failed to mute thread ${channel.id}/${thread.id}`, e);
     if (initialSettings) {
-      db.setVolumes([initialSettings]);
+      db.setVolumes({ volumes: [initialSettings] });
     } else {
       db.clearVolumeSetting(thread.id);
     }
@@ -98,7 +104,9 @@ export async function unmuteThread({
 }) {
   const initialSettings = await db.getVolumeSetting(thread.id);
 
-  db.setVolumes([{ itemId: thread.id, itemType: 'thread', level: 'default' }]);
+  db.setVolumes({
+    volumes: [{ itemId: thread.id, itemType: 'thread', level: 'default' }],
+  });
 
   try {
     const { source } = api.getThreadSource({ channel, post: thread });
@@ -106,7 +114,7 @@ export async function unmuteThread({
   } catch (e) {
     logger.log(`failed to unmute thread ${channel.id}/${thread.id}`, e);
     if (initialSettings) {
-      db.setVolumes([initialSettings]);
+      db.setVolumes({ volumes: [initialSettings] });
     } else {
       db.clearVolumeSetting(thread.id);
     }
@@ -136,33 +144,66 @@ export async function advanceActivitySeenMarker(timestamp: number) {
   }
 }
 
+export async function setBaseVolumeLevel(params: {
+  level: ub.NotificationLevel;
+}) {
+  logger.log(`setting base volume level`, params.level);
+  const existingSetting = await db.getVolumeSetting('base');
+
+  // optimistic update
+  await db.setVolumes({
+    volumes: [{ itemId: 'base', itemType: 'base', level: params.level }],
+  });
+
+  try {
+    await api.adjustVolumeSetting(
+      { base: null },
+      ub.getVolumeMap(params.level, true)
+    );
+  } catch (e) {
+    logger.log(`failed to set base volume level`, e);
+    if (existingSetting) {
+      await db.setVolumes({ volumes: [existingSetting] });
+    }
+  }
+}
+
 export async function setGroupVolumeLevel(params: {
   group: db.Group;
-  level: ub.NotificationLevel;
+  level: ub.NotificationLevel | null;
 }) {
   logger.log(`setting group volume level`, params.group, params.level);
   const existingGroup = await db.getGroup({ id: params.group.id });
   const source: ub.Source = { group: params.group.id };
 
   // optimistic update
-  await db.setVolumes([
-    { itemId: params.group.id, itemType: 'group', level: params.level },
-  ]);
+  if (!params.level) {
+    await db.removeVolumeLevels({ itemIds: [params.group.id] });
+  } else {
+    await db.setVolumes({
+      volumes: [
+        { itemId: params.group.id, itemType: 'group', level: params.level },
+      ],
+    });
+  }
 
   try {
-    await api.adjustVolumeSetting(source, ub.getVolumeMap(params.level, true));
+    await api.adjustVolumeSetting(
+      source,
+      params.level ? ub.getVolumeMap(params.level, true) : null
+    );
   } catch (e) {
     // rollback
     logger.log(`failed to set volume level`, e);
     if (existingGroup?.volumeSettings) {
-      await db.setVolumes([existingGroup.volumeSettings]);
+      await db.setVolumes({ volumes: [existingGroup.volumeSettings] });
     }
   }
 }
 
 export async function setChannelVolumeLevel(params: {
   channel: db.Channel;
-  level: ub.NotificationLevel;
+  level: ub.NotificationLevel | null;
 }) {
   logger.log(`setting channel volume level`, params.channel, params.level);
   const existingVolumeSetting = await db.getChannelVolumeSetting({
@@ -190,23 +231,34 @@ export async function setChannelVolumeLevel(params: {
         };
 
   // optimistic update
-  await db.setVolumes([
-    { itemId: params.channel.id, itemType: 'channel', level: params.level },
-  ]);
+  if (!params.level) {
+    await db.removeVolumeLevels({ itemIds: [params.channel.id] });
+  } else {
+    await db.setVolumes({
+      volumes: [
+        { itemId: params.channel.id, itemType: 'channel', level: params.level },
+      ],
+    });
+  }
 
   try {
-    await api.adjustVolumeSetting(source, ub.getVolumeMap(params.level, true));
+    await api.adjustVolumeSetting(
+      source,
+      params.level ? ub.getVolumeMap(params.level, true) : null
+    );
   } catch (e) {
     // rollback
     logger.log(`failed to set volume level`, e);
     if (existingVolumeSetting) {
-      await db.setVolumes([
-        {
-          itemId: params.channel.id,
-          itemType: 'channel',
-          level: existingVolumeSetting,
-        },
-      ]);
+      await db.setVolumes({
+        volumes: [
+          {
+            itemId: params.channel.id,
+            itemType: 'channel',
+            level: existingVolumeSetting,
+          },
+        ],
+      });
     }
   }
 }

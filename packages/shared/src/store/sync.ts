@@ -190,7 +190,7 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
     api.getVolumeSettings()
   );
   const clientVolumes = extractClientVolumes(volumeSettings);
-  await db.setVolumes(clientVolumes);
+  await db.setVolumes({ volumes: clientVolumes, deleteOthers: true });
 };
 
 export const syncContacts = async (ctx?: SyncCtx) => {
@@ -595,7 +595,7 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
         await db.insertGroupUnreads(activitySnapshot.groupUnreads, ctx);
         await db.insertChannelUnreads(activitySnapshot.channelUnreads, ctx);
         await db.insertThreadUnreads(activitySnapshot.threadUnreads, ctx);
-        await db.setVolumes(activitySnapshot.volumeUpdates, ctx);
+        await db.setVolumes({ volumes: activitySnapshot.volumeUpdates }, ctx);
         await db.insertActivityEvents(activitySnapshot.activityEvents, ctx);
       });
 

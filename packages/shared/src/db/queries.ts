@@ -1100,15 +1100,38 @@ export type ChannelVolume = {
 
 export const setVolumes = createWriteQuery(
   'setVolumes',
-  async (volumes: VolumeSettings[], ctx: QueryCtx) => {
+  async (
+    {
+      volumes,
+      deleteOthers,
+    }: { volumes: VolumeSettings[]; deleteOthers?: boolean },
+    ctx: QueryCtx
+  ) => {
     if (!volumes.length) return;
-    return ctx.db
+    await ctx.db
       .insert($volumeSettings)
       .values(volumes)
       .onConflictDoUpdate({
         target: $volumeSettings.itemId,
         set: conflictUpdateSetAll($volumeSettings),
       });
+
+    if (deleteOthers) {
+      const ids = volumes.map((v) => v.itemId);
+      await ctx.db
+        .delete($volumeSettings)
+        .where(not(inArray($volumeSettings.itemId, ids)));
+    }
+  },
+  ['volumeSettings']
+);
+
+export const removeVolumeLevels = createWriteQuery(
+  'removeVolumeLevel',
+  async ({ itemIds }: { itemIds: string[] }, ctx: QueryCtx) => {
+    return ctx.db
+      .delete($volumeSettings)
+      .where(inArray($volumeSettings.itemId, itemIds));
   },
   ['volumeSettings']
 );
@@ -1163,11 +1186,62 @@ export const getChannelVolumeSetting = createReadQuery(
       return channelSetting.level;
     }
 
+    // if it's a group channel, check the group volume
+    // TODO: right now, this is only called for dm channels
+
     // otherwise, fallback to base
     const baseSetting = await ctx.db.query.volumeSettings.findFirst({
       where: and(eq($volumeSettings.itemType, 'base')),
     });
     return baseSetting?.level ?? 'medium';
+  },
+  ['volumeSettings']
+);
+
+export const getVolumeExceptions = createReadQuery(
+  'getVolumeExceptions',
+  async (ctx: QueryCtx) => {
+    const base = await ctx.db.query.volumeSettings.findFirst({
+      where: eq($volumeSettings.itemType, 'base'),
+    });
+
+    const exceptions = await ctx.db.query.volumeSettings.findMany({
+      where: not(eq($volumeSettings.level, base?.level || 'default')),
+    });
+
+    const groupIds = [];
+    const channelIds = [];
+    for (const exception of exceptions) {
+      if (exception.itemType === 'group') {
+        groupIds.push(exception.itemId);
+      }
+      if (exception.itemType === 'channel') {
+        channelIds.push(exception.itemId);
+      }
+    }
+
+    let channels: Channel[] = [];
+    if (channelIds.length) {
+      channels = await ctx.db.query.channels.findMany({
+        where: inArray($channels.id, channelIds),
+        with: {
+          group: true,
+          volumeSettings: true,
+        },
+      });
+    }
+
+    let groups: Group[] = [];
+    if (groupIds.length) {
+      groups = await ctx.db.query.groups.findMany({
+        where: inArray($groups.id, groupIds),
+        with: {
+          volumeSettings: true,
+        },
+      });
+    }
+
+    return { channels, groups };
   },
   ['volumeSettings']
 );

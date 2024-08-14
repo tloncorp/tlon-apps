@@ -29,14 +29,12 @@ export function extractClientVolumes(
     }
 
     if (sourceType === 'channel' || sourceType === 'dm') {
-      // TODO: recursive bologna
       const level = getLevelFromVolumeMap(volumeMap);
       settings.push({ itemId: entityId, itemType: 'channel', level });
     }
 
     if (sourceType === 'thread' || sourceType === 'dm-thread') {
       const postId = rest[rest.length - 1];
-      // TODO: recursive bologna
       const level = getLevelFromVolumeMap(volumeMap);
       settings.push({ itemId: postId, itemType: 'thread', level });
     }

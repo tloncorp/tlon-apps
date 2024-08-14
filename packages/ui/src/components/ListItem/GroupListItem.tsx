@@ -14,8 +14,9 @@ export const GroupListItem = ({
   model,
   onPress,
   onLongPress,
+  customSubtitle,
   ...props
-}: ListItemProps<db.Group>) => {
+}: { customSubtitle?: string } & ListItemProps<db.Group>) => {
   const unreadCount = model.unread?.count ?? 0;
   const title = model.title ?? model.id;
   const { isPending, label: statusLabel, isErrored } = getGroupStatus(model);
@@ -41,7 +42,10 @@ export const GroupListItem = ({
         >
           {title}
         </ListItem.Title>
-        {model.lastPost && (
+        {customSubtitle && (
+          <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
+        )}
+        {model.lastPost && !customSubtitle && (
           <ListItem.SubtitleWithIcon
             icon={getPostTypeIcon(model.lastPost.type)}
           >

@@ -11,11 +11,14 @@ import { useBoundHandler } from './listItemUtils';
 export function ChannelListItem({
   model,
   useTypeIcon,
+  customSubtitle,
   onPress,
   onLongPress,
+  EndContent,
   ...props
 }: {
   useTypeIcon?: boolean;
+  customSubtitle?: string;
 } & ListItemProps<db.Channel>) {
   const unreadCount = model.unread?.count ?? 0;
   const title = utils.useChannelTitle(model);
@@ -62,9 +65,13 @@ export function ChannelListItem({
         >
           {title}
         </ListItem.Title>
-        <ListItem.SubtitleWithIcon icon={subtitleIcon}>
-          {subtitle}
-        </ListItem.SubtitleWithIcon>
+        {customSubtitle ? (
+          <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
+        ) : (
+          <ListItem.SubtitleWithIcon icon={subtitleIcon}>
+            {subtitle}
+          </ListItem.SubtitleWithIcon>
+        )}
         {model.lastPost && (
           <ListItem.PostPreview
             post={model.lastPost}
@@ -73,20 +80,22 @@ export function ChannelListItem({
         )}
       </ListItem.MainContent>
 
-      <ListItem.EndContent>
-        {model.lastPost?.receivedAt ? (
-          <ListItem.Time time={model.lastPost.receivedAt} />
-        ) : null}
+      {EndContent ?? (
+        <ListItem.EndContent>
+          {model.lastPost?.receivedAt ? (
+            <ListItem.Time time={model.lastPost.receivedAt} />
+          ) : null}
 
-        {model.isDmInvite ? (
-          <Badge text="Invite" />
-        ) : (
-          <ListItem.Count
-            count={unreadCount}
-            muted={logic.isMuted(model.volumeSettings?.level)}
-          />
-        )}
-      </ListItem.EndContent>
+          {model.isDmInvite ? (
+            <Badge text="Invite" />
+          ) : (
+            <ListItem.Count
+              count={unreadCount}
+              muted={logic.isMuted(model.volumeSettings?.level)}
+            />
+          )}
+        </ListItem.EndContent>
+      )}
     </ListItem>
   );
 }
