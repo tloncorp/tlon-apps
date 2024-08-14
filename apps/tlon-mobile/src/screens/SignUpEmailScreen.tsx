@@ -1,4 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import {
+  DEFAULT_LURE,
+  DEFAULT_PRIORITY_TOKEN,
+  EMAIL_REGEX,
+} from '@tloncorp/app/constants';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { getHostingAvailability } from '@tloncorp/app/lib/hostingApi';
+import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { useLayoutEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
@@ -12,15 +20,7 @@ import { useTailwind } from 'tailwind-rn';
 
 import { HeaderButton } from '../components/HeaderButton';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import {
-  DEFAULT_LURE,
-  DEFAULT_PRIORITY_TOKEN,
-  EMAIL_REGEX,
-} from '../constants';
-import { useIsDarkMode } from '../hooks/useIsDarkMode';
-import { getHostingAvailability } from '../lib/hostingApi';
 import type { OnboardingStackParamList } from '../types';
-import { trackError, trackOnboardingAction } from '../utils/posthog';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignUpEmail'>;
 

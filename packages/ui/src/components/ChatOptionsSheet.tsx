@@ -2,234 +2,406 @@ import { sync } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
-import { useCallback, useEffect, useMemo } from 'react';
-import { Text, View, XStack, YStack } from 'tamagui';
+import React, {
+  ReactElement,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { Alert } from 'react-native';
+import { useSheet } from 'tamagui';
 
+import { useCalm, useChatOptions, useCurrentUserId } from '../contexts';
 import { useCopy } from '../hooks/useCopy';
-import { ActionSheet } from './ActionSheet';
-import { GroupAvatar } from './Avatar';
-import { Button } from './Button';
-import { Icon } from './Icon';
+import * as utils from '../utils';
+import { Action, ActionGroup, ActionSheet } from './ActionSheetV2';
+import { ListItem } from './ListItem';
 
-interface Props {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  currentUser: string;
-  pinned: db.Pin[];
-  channel?: db.Channel;
-  group?: db.Group;
-  useGroup: typeof store.useGroup;
-  onPressGroupMeta: (groupId: string) => void;
-  onPressGroupMembers: (groupId: string) => void;
-  onPressManageChannels: (groupId: string) => void;
-  onPressLeave: (groupId: string) => void;
-  onPressInvitesAndPrivacy: (groupId: string) => void;
-  onPressRoles: (groupId: string) => void;
-  onTogglePinned: () => void;
-}
+export type ChatType = 'group' | db.ChannelType;
 
-export function ChatOptionsSheet({
+export type ChatOptionsSheetMethods = {
+  open: (chatId: string, chatType: ChatType) => void;
+};
+
+export type ChatOptionsSheetRef = React.Ref<ChatOptionsSheetMethods>;
+
+const ChatOptionsSheetComponent = React.forwardRef<ChatOptionsSheetMethods>(
+  function ChatOptionsSheetImpl(props, ref) {
+    const [open, setOpen] = useState(false);
+    const [chat, setChat] = useState<{ type: ChatType; id: string } | null>(
+      null
+    );
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        open: (chatId, chatType) => {
+          setOpen(true);
+          setChat({ id: chatId, type: chatType });
+        },
+      }),
+      []
+    );
+
+    if (!chat && !open) {
+      return null;
+    }
+
+    return (
+      <ActionSheet open={open} onOpenChange={setOpen}>
+        {chat ? (
+          chat.type === 'group' ? (
+            <GroupOptionsSheetLoader
+              groupId={chat.id}
+              open={open}
+              onOpenChange={setOpen}
+            />
+          ) : (
+            <ChannelOptionsSheetLoader
+              channelId={chat.id}
+              open={open}
+              onOpenChange={setOpen}
+            />
+          )
+        ) : null}
+      </ActionSheet>
+    );
+  }
+);
+
+export const ChatOptionsSheet = React.memo(ChatOptionsSheetComponent);
+
+export function GroupOptionsSheetLoader({
+  groupId,
   open,
   onOpenChange,
-  currentUser,
-  pinned,
-  channel,
-  group,
-  useGroup,
-  onPressGroupMeta,
-  onPressGroupMembers,
-  onPressManageChannels,
-  onPressLeave,
-  onTogglePinned,
-  onPressInvitesAndPrivacy,
-  onPressRoles,
-}: Props) {
-  const { data: groupData } = useGroup({
-    id: group?.id ?? channel?.groupId ?? '',
-  });
+}: {
+  groupId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const groupQuery = store.useGroup({ id: groupId });
+  return groupQuery.data ? (
+    <ActionSheet open={open} onOpenChange={onOpenChange}>
+      <GroupOptions group={groupQuery.data} />
+    </ActionSheet>
+  ) : null;
+}
 
-  const { didCopy: didCopyRef, doCopy: copyRef } = useCopy(
-    logic.getGroupReferencePath(groupData?.id ?? '')
-  );
+export function GroupOptions({ group }: { group: db.Group }) {
+  const currentUser = useCurrentUserId();
+  const sheet = useSheet();
+  const sheetRef = useRef(sheet);
+  sheetRef.current = sheet;
+
+  const {
+    onPressGroupMembers,
+    onPressGroupMeta,
+    onPressManageChannels,
+    onPressLeave,
+    onTogglePinned,
+  } = useChatOptions() ?? {};
 
   useEffect(() => {
-    if (group?.id) {
-      sync.syncGroup(group.id, { priority: store.SyncPriority.High });
-    }
+    sync.syncGroup(group.id, { priority: store.SyncPriority.High });
+  }, [group]);
 
-    if (channel?.groupId) {
-      sync.syncGroup(channel.groupId, { priority: store.SyncPriority.High });
-    }
-  }, [group?.id, channel?.groupId]);
-
-  const isPinned = useMemo(() => {
-    if (channel) {
-      return pinned.some((p) => p.itemId === channel.id);
-    }
-
-    if (group) {
-      return pinned.some((p) => p.itemId === group.id);
-    }
-
-    return false;
-  }, [channel, pinned, groupData]);
+  const isPinned = group?.pin;
 
   const currentUserIsAdmin = useMemo(
     () =>
-      groupData?.members?.some(
+      group?.members?.some(
         (m) =>
           m.contactId === currentUser &&
           m.roles?.some((r) => r.roleId === 'admin')
       ) ?? false,
-    [currentUser, groupData?.members]
+    [currentUser, group?.members]
   );
 
-  const actions = useMemo(() => {
-    const actions = [];
-    actions.push(
+  const { didCopy: didCopyRef, doCopy: copyRef } = useCopy(
+    logic.getGroupReferencePath(group.id)
+  );
+
+  const actionGroups = useMemo(() => {
+    const actionGroups: ActionGroup[] = [
       {
-        title: 'Copy group reference',
-        action: () => {
-          if (groupData) {
-            copyRef();
-          }
-        },
-        icon: didCopyRef ? 'Checkmark' : 'ArrowRef',
+        accent: 'neutral',
+        actions: [
+          {
+            title: isPinned ? 'Unpin' : 'Pin',
+            action: onTogglePinned,
+          },
+          {
+            title: 'Copy group reference',
+            action: () => copyRef(),
+            icon: didCopyRef ? 'Checkmark' : 'Copy',
+          },
+        ],
       },
-      {
-        title: isPinned ? 'Unpin' : 'Pin',
-        action: onTogglePinned,
-        icon: 'Pin',
-      }
-    );
+    ];
 
-    if (group && currentUserIsAdmin) {
-      actions.push({
-        title: 'Manage Channels',
-        action: () => (groupData ? onPressManageChannels(groupData.id) : {}),
-        icon: 'ChevronRight',
-      });
-
-      // TODO: other admin actions
-      // {
-      // title: 'Invites & Privacy',
-      // action: () => (groupData ? onPressInvitesAndPrivacy(groupData.id) : {}),
-      // icon: 'ChevronRight',
-      // },
-      // {
-      // title: 'Roles',
-      // action: () => (groupData ? onPressRoles(groupData.id) : {}),
-      // icon: 'ChevronRight',
-      // },
-    }
-
-    actions.push({
-      title: 'Notifications',
-      action: () => {},
+    const manageChannelsAction: Action = {
+      title: 'Manage channels',
+      action: () => {
+        sheetRef.current.setOpen(false);
+        onPressManageChannels?.(group.id);
+      },
       icon: 'ChevronRight',
+    };
+
+    const goToMembersAction: Action = {
+      title: 'Members',
+      icon: 'ChevronRight',
+      action: () => {
+        if (!group) {
+          return;
+        }
+        onPressGroupMembers?.(group.id);
+        sheetRef.current.setOpen(false);
+      },
+    };
+
+    const metadataAction: Action = {
+      title: 'Edit metadata',
+      action: () => {
+        sheetRef.current.setOpen(false);
+        onPressGroupMeta?.(group.id);
+      },
+      icon: 'ChevronRight',
+    };
+
+    actionGroups.push({
+      accent: 'neutral',
+      actions:
+        group && currentUserIsAdmin
+          ? [manageChannelsAction, goToMembersAction, metadataAction]
+          : [goToMembersAction],
     });
 
     if (group && !group.currentUserIsHost) {
-      actions.push({
-        title: 'Leave group',
-        icon: 'LogOut',
-        variant: 'destructive',
-        action: () => (groupData ? onPressLeave(groupData.id) : {}),
+      actionGroups.push({
+        accent: 'negative',
+        actions: [
+          {
+            title: 'Leave group',
+            icon: 'LogOut',
+            action: () => {
+              sheetRef.current.setOpen(false);
+              onPressLeave?.();
+            },
+          },
+        ],
       });
     }
-
-    return actions;
+    return actionGroups;
   }, [
-    didCopyRef,
     isPinned,
     onTogglePinned,
+    didCopyRef,
     group,
     currentUserIsAdmin,
-    groupData,
     copyRef,
     onPressManageChannels,
+    onPressGroupMembers,
+    onPressGroupMeta,
     onPressLeave,
   ]);
 
-  const memberCount = groupData?.members?.length ?? 0;
-  const title = channel?.title ?? groupData?.title ?? 'Loading…';
-  const description =
-    channel?.description ?? groupData?.description ?? undefined;
-  const handleOnPressGroupMeta = useCallback(() => {
-    if (groupData) {
-      onPressGroupMeta(groupData.id);
-    }
-  }, [groupData, onPressGroupMeta]);
-  const handleOnPressGroupMembers = useCallback(() => {
-    if (groupData) {
-      onPressGroupMembers(groupData.id);
-    }
-  }, [groupData, onPressGroupMembers]);
-
+  const memberCount = group?.members?.length ?? 0;
+  const title = group?.title ?? 'Loading…';
+  const subtitle = memberCount ? `Group with ${memberCount} members` : '';
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
-      <ActionSheet.Header>
-        <View
-          backgroundColor="$secondaryBackground"
-          borderRadius="$xl"
-          paddingVertical="$3xl"
-          paddingHorizontal="$4xl"
-          alignItems="center"
-        >
-          <YStack alignItems="center" space="$m">
-            {groupData && <GroupAvatar model={groupData} />}
+    <ChatOptionsSheetContent
+      actionGroups={actionGroups}
+      title={title}
+      subtitle={subtitle}
+      icon={<ListItem.GroupIcon model={group} />}
+    />
+  );
+}
 
-            <Text fontSize="$l">{title}</Text>
-            {description && (
-              <Text fontSize="$s" color="$tertiaryText">
-                {description}
-              </Text>
-            )}
-            <Button onPress={handleOnPressGroupMembers}>
-              <Button.Text fontSize="$s" color="$tertiaryText">
-                {memberCount} members
-              </Button.Text>
-            </Button>
-          </YStack>
-          {currentUserIsAdmin && (
-            <View
-              position="absolute"
-              top="$space.m"
-              right="$space.m"
-              padding="$m"
-            >
-              <Button
-                onPress={handleOnPressGroupMeta}
-                backgroundColor="unset"
-                borderWidth="unset"
-              >
-                <Button.Text fontSize="$l">Edit</Button.Text>
-              </Button>
-            </View>
-          )}
-        </View>
-      </ActionSheet.Header>
-      {actions.map((action, index) => (
-        <ActionSheet.Action
-          key={index}
-          action={action.action}
-          destructive={action.variant === 'destructive'}
-        >
-          <XStack space="$s" alignItems="center" justifyContent="space-between">
-            <ActionSheet.ActionTitle>{action.title}</ActionSheet.ActionTitle>
-            {action.icon && (
-              <Icon
-                // @ts-expect-error string type is fine here
-                type={action.icon}
-                size="$l"
-                color={
-                  action.variant === 'destructive' ? '$red' : '$primaryText'
-                }
-              />
-            )}
-          </XStack>
-        </ActionSheet.Action>
-      ))}
+export function ChannelOptionsSheetLoader({
+  channelId,
+  open,
+  onOpenChange,
+}: {
+  channelId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const channelQuery = store.useChannelWithRelations({
+    id: channelId,
+  });
+  return channelQuery.data ? (
+    <ActionSheet open={open} onOpenChange={onOpenChange}>
+      <ChannelOptions channel={channelQuery.data} />
     </ActionSheet>
+  ) : null;
+}
+
+export function ChannelOptions({ channel }: { channel: db.Channel }) {
+  const { data: group } = store.useGroup({
+    id: channel?.groupId ?? undefined,
+  });
+  const sheet = useSheet();
+  const sheetRef = useRef(sheet);
+  sheetRef.current = sheet;
+
+  const { onPressChannelMembers, onPressChannelMeta } = useChatOptions() ?? {};
+
+  const { disableNicknames } = useCalm();
+  const title = useMemo(() => {
+    return channel
+      ? utils.getChannelTitle(channel, disableNicknames)
+      : 'Loading...';
+  }, [channel, disableNicknames]);
+
+  const subtitle = useMemo(() => {
+    if (!channel) {
+      return '';
+    }
+    switch (channel.type) {
+      case 'dm':
+        return `Chat with ${channel.contactId}`;
+      case 'groupDm':
+        return channel.members && channel.members?.length > 2
+          ? `Chat with ${channel.members[0].contactId} and ${channel.members?.length - 1} others`
+          : 'Group chat';
+      default:
+        return group ? `Channel in ${group?.title}` : '';
+    }
+  }, [channel, group]);
+
+  const actionGroups: ActionGroup[] = useMemo(() => {
+    return [
+      {
+        accent: 'neutral',
+        actions: [
+          {
+            title: channel?.volumeSettings?.isMuted ? 'Unmute' : 'Mute',
+            action: () => {
+              if (!channel) {
+                return;
+              }
+              channel?.volumeSettings?.isMuted
+                ? store.unmuteChat(channel)
+                : store.muteChat(channel);
+            },
+          },
+          {
+            title: channel?.pin ? 'Unpin' : 'Pin',
+            action: () => {
+              if (!channel) {
+                return;
+              }
+              channel.pin
+                ? store.unpinItem(channel.pin)
+                : store.pinItem(channel);
+            },
+          },
+        ],
+      },
+      ...(channel.type === 'groupDm'
+        ? [
+            {
+              accent: 'neutral',
+              actions: [
+                {
+                  title: 'Members',
+                  icon: 'ChevronRight',
+                  action: () => {
+                    if (!channel) {
+                      return;
+                    }
+                    onPressChannelMembers?.(channel.id);
+                    sheetRef.current.setOpen(false);
+                  },
+                },
+                {
+                  title: 'Edit metadata',
+                  icon: 'ChevronRight',
+                  action: () => {
+                    if (!channel) {
+                      return;
+                    }
+                    onPressChannelMeta?.(channel.id);
+                    sheetRef.current.setOpen(false);
+                  },
+                },
+              ],
+            } as ActionGroup,
+          ]
+        : []),
+      {
+        accent: 'negative',
+        actions: [
+          {
+            title: `Leave chat`,
+            action: () => {
+              if (!channel) {
+                return;
+              }
+              Alert.alert(
+                `Leave ${title}?`,
+                'This chat will be removed from list',
+                [
+                  {
+                    text: 'Cancel',
+                    onPress: () => console.log('Cancel Pressed'),
+                    style: 'cancel',
+                  },
+                  {
+                    text: 'Leave',
+                    style: 'destructive',
+                    onPress: () => {
+                      sheetRef.current.setOpen(false);
+                      store.respondToDMInvite({ channel, accept: false });
+                    },
+                  },
+                ]
+              );
+            },
+          },
+        ],
+      },
+    ];
+  }, [channel, onPressChannelMembers, onPressChannelMeta, title]);
+  console.log(channel);
+  return (
+    <ChatOptionsSheetContent
+      actionGroups={actionGroups}
+      title={title}
+      subtitle={subtitle}
+      icon={<ListItem.ChannelIcon model={channel} />}
+    />
+  );
+}
+
+function ChatOptionsSheetContent({
+  actionGroups,
+  title,
+  subtitle,
+  icon,
+}: {
+  actionGroups: ActionGroup[];
+  title: string;
+  subtitle: string;
+  icon?: ReactElement;
+}) {
+  return (
+    <>
+      <ActionSheet.Header>
+        {icon}
+        <ListItem.MainContent>
+          <ListItem.Title>{title}</ListItem.Title>
+          <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
+        </ListItem.MainContent>
+      </ActionSheet.Header>
+      <ActionSheet.ScrollView>
+        <ActionSheet.ActionGroupList actionGroups={actionGroups} />
+      </ActionSheet.ScrollView>
+    </>
   );
 }

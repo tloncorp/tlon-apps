@@ -13,8 +13,8 @@ import { EditablePofileImages } from './EditableProfileImages';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
 import { FormTextInput } from './FormInput';
 import { GenericHeader } from './GenericHeader';
-import { SaveButton } from './GroupMetaScreenView';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
+import { SaveButton } from './MetaEditorScreenView';
 
 interface Props {
   onGoBack: () => void;

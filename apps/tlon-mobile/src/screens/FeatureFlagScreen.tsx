@@ -1,8 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as featureFlags from '@tloncorp/app/lib/featureFlags';
 import { FeatureFlagScreenView } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
-import * as featureFlags from '../lib/featureFlags';
 import type { RootStackParamList } from '../types';
 
 type FeatureFlagScreenProps = NativeStackScreenProps<

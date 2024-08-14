@@ -4,6 +4,7 @@ import * as store from '@tloncorp/shared/dist/store';
 import { useMemo } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
+import { useCalm } from '../../contexts';
 import { getChannelTitle } from '../../utils';
 import { ChannelAvatar, ContactAvatar } from '../Avatar';
 import { ActivitySourceContent } from './ActivitySourceContent';
@@ -19,6 +20,7 @@ export function ChannelActivitySummary({
   seenMarker: number;
   pressHandler?: () => void;
 }) {
+  const calm = useCalm();
   const newestPost = summary.newest;
   const group = newestPost.group ?? undefined;
   const channel: db.Channel | undefined = newestPost.channel ?? undefined;
@@ -38,27 +40,26 @@ export function ChannelActivitySummary({
       ? 'DM'
       : channel.type === 'groupDm'
         ? 'Group chat'
-        : getChannelTitle(channel);
+        : getChannelTitle(channel, calm.disableNicknames);
 
   return (
     <View
-      padding="$l"
-      marginBottom="$l"
+      padding="$m"
       backgroundColor={
-        newestPost.timestamp > seenMarker && unreadCount > 0
+        newestPost.timestamp > seenMarker || unreadCount > 0
           ? '$positiveBackground'
           : 'unset'
       }
       borderRadius="$l"
       onPress={newestIsBlockOrNote ? undefined : pressHandler}
     >
-      <XStack>
+      <XStack gap="$m">
         <ContactAvatar
           contactId={newestPost.authorId ?? ''}
           size="$3xl"
           innerSigilSize={14}
         />
-        <YStack marginLeft="$m">
+        <YStack gap="$xs" flex={1}>
           {channel && (
             <ActivitySummaryHeader
               unreadCount={unreadCount}

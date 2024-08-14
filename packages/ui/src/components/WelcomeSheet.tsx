@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, XStack, YStack } from 'tamagui';
@@ -6,7 +6,7 @@ import { Text, View, XStack, YStack } from 'tamagui';
 import { Icon } from './Icon';
 import { Sheet } from './Sheet';
 
-export function WelcomeSheet({
+function WelcomeSheetComponent({
   open,
   onOpenChange,
 }: {
@@ -109,3 +109,5 @@ export function WelcomeSheet({
     </Sheet>
   );
 }
+
+export const WelcomeSheet = React.memo(WelcomeSheetComponent);

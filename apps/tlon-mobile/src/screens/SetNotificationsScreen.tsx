@@ -1,11 +1,11 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { requestNotificationToken } from '@tloncorp/app/lib/notifications';
+import { trackError } from '@tloncorp/app/utils/posthog';
 import { Text, View } from 'react-native';
 import { useTailwind } from 'tailwind-rn';
 
 import { TlonButton } from '../components/TlonButton';
-import { requestNotificationToken } from '../lib/notifications';
 import type { OnboardingStackParamList } from '../types';
-import { trackError } from '../utils/posthog';
 
 type Props = NativeStackScreenProps<
   OnboardingStackParamList,

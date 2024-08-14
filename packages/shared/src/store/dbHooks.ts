@@ -388,14 +388,14 @@ export const useChannelSearchResults = (
   });
 };
 
-export const useChannelWithLastPostAndMembers = (
-  options: db.GetChannelWithLastPostAndMembersOptions
+export const useChannelWithRelations = (
+  options: db.GetChannelWithRelations
 ) => {
-  const tableDeps = useKeyFromQueryDeps(db.getChannelWithLastPostAndMembers);
+  const tableDeps = useKeyFromQueryDeps(db.getChannelWithRelations);
   return useQuery({
-    queryKey: ['channelWithLastPostAndMembers', tableDeps, options],
+    queryKey: ['channelWithRelations', tableDeps, options],
     queryFn: async () => {
-      const channel = await db.getChannelWithLastPostAndMembers(options);
+      const channel = await db.getChannelWithRelations(options);
       return channel ?? null;
     },
   });
@@ -404,7 +404,7 @@ export const useChannelWithLastPostAndMembers = (
 export const useChannel = (options: { id: string }) => {
   return useQuery({
     queryKey: [['channel', options]],
-    queryFn: () => db.getChannelWithLastPostAndMembers(options),
+    queryFn: () => db.getChannelWithRelations(options),
   });
 };
 

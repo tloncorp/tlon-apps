@@ -125,7 +125,7 @@ export const PostReference = ({
               )}
               <PostAuthor contactId={post.authorId} />
               <ContentRenderer
-                viewMode={viewMode}
+                viewMode={props.viewMode}
                 shortened={shortened}
                 post={post}
               />
@@ -134,7 +134,7 @@ export const PostReference = ({
             <>
               <PostAuthor contactId={post.authorId} />
               <ContentRenderer
-                viewMode={viewMode}
+                viewMode={props.viewMode}
                 shortened={shortened}
                 post={post}
               />

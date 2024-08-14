@@ -4,11 +4,12 @@ import * as ub from '../urbit';
 import {
   deriveFullWrit,
   deriveFullWritReply,
+  fromClientMeta,
   getCanonicalPostId,
   toClientMeta,
 } from './apiUtils';
 import { toPostData, toPostReplyData, toReplyMeta } from './postsApi';
-import { getCurrentUserId, poke, scry, subscribe } from './urbit';
+import { getCurrentUserId, poke, scry, subscribe, trackedPoke } from './urbit';
 
 const logger = createDevLogger('chatApi', true);
 
@@ -65,6 +66,26 @@ export const respondToDMInvite = ({
   return poke(action);
 };
 
+export const updateDMMeta = async ({
+  channelId,
+  meta,
+}: {
+  channelId: string;
+  meta: db.ClientMeta;
+}) => {
+  return await trackedPoke<ub.WritResponse | ub.ClubAction | string[]>(
+    multiDmAction(channelId, { meta: fromClientMeta(meta) }),
+    { app: 'chat', path: '/' },
+    (event) => {
+      if (!('diff' in event)) {
+        return false;
+      }
+      const { diff } = event;
+      return 'meta' in diff && event.id === channelId;
+    }
+  );
+};
+
 export type ChatEvent =
   | { type: 'showPost'; postId: string }
   | { type: 'hidePost'; postId: string }
@@ -75,6 +96,7 @@ export type ChatEvent =
   | { type: 'addReaction'; postId: string; userId: string; react: string }
   | { type: 'deleteReaction'; postId: string; userId: string }
   | { type: 'unknown' };
+
 export function subscribeToChatUpdates(
   eventHandler: (event: ChatEvent) => void
 ) {

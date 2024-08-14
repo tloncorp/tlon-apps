@@ -524,7 +524,7 @@ export function InlineContent({
     return (
       <ShipMention
         userId={inline.ship}
-        fontSize={viewMode === 'activity' ? '$s' : undefined}
+        size={viewMode === 'block' || viewMode === 'activity' ? '$s' : '$m'}
         fontFamily={serif ? '$serif' : '$body'}
       />
     );
@@ -715,7 +715,11 @@ const LineRenderer = memo(
           <ShipMention
             key={`ship-${index}`}
             userId={inline.ship}
-            fontSize={isNotice || viewMode === 'activity' ? '$s' : 'unset'}
+            size={
+              viewMode === 'block' || viewMode === 'activity' || isNotice
+                ? '$s'
+                : '$m'
+            }
             fontFamily={serif ? '$serif' : '$body'}
           />
         );
@@ -883,7 +887,9 @@ export default function ContentRenderer({
         }
 
         if ('type' in s && s.type === 'reference') {
-          return <ContentReferenceLoader key={k} reference={s} />;
+          return (
+            <ContentReferenceLoader viewMode={viewMode} key={k} reference={s} />
+          );
         }
 
         if ('inline' in s) {

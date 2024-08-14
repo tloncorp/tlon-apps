@@ -1,62 +1,90 @@
-import { ActionSheet } from '@tloncorp/ui/src/components/ActionSheet';
+import { ListItem } from '@tloncorp/ui';
+import {
+  ActionGroup,
+  ActionSheet,
+} from '@tloncorp/ui/src/components/ActionSheetV2';
 
 import { FixtureWrapper } from './FixtureWrapper';
 
 const ActionSheetFixture = () => {
-  const actions = [
+  const actionGroups: ActionGroup[] = [
     {
-      title: 'Action 1',
-      action: () => console.log('Action 1'),
-      description: 'Action 1 Description',
+      accent: 'positive',
+      actions: [
+        {
+          title: 'Invite people',
+          description: 'Share a link to join this group',
+          action: () => console.log('Action 1'),
+        },
+      ],
     },
     {
-      title: 'Action 2',
-      action: () => console.log('Action 2'),
-      description: 'Action 2 Description',
-      variant: 'success',
+      accent: 'neutral',
+      actions: [
+        {
+          title: 'Group settings',
+          description: 'Configure group details and privacy',
+          action: () => console.log('Action 1'),
+        },
+      ],
     },
     {
-      title: 'Action 3',
-      action: () => console.log('Action 3'),
-      description: 'Action 3 Description',
-      variant: 'destructive',
+      accent: 'neutral',
+      actions: [
+        {
+          title: 'Pin',
+          description: 'Pin this group to the top of your groups list',
+        },
+        {
+          title: 'Copy group link',
+          description: 'Copy an in-urbit link to this group',
+        },
+        { title: 'Group members', description: 'View all members and roles' },
+        {
+          title: 'All channels',
+          description:
+            'View all channels and sections you have visibility towards',
+        },
+        {
+          title: 'Group notification settings',
+          description: 'Configure notifications for this group',
+        },
+      ],
     },
     {
-      title: 'Action 4',
-      action: () => console.log('Action 4'),
-      description: 'Action 4 Description',
-      variant: 'primary',
+      accent: 'negative',
+      actions: [
+        {
+          title: 'Leave group',
+          description: undefined,
+        },
+      ],
     },
-  ];
+  ] as const;
 
   return (
     <FixtureWrapper fillWidth>
       <ActionSheet
+        snapPointsMode="mixed"
+        snapPoints={['90%']}
         open={true}
         onOpenChange={(open: boolean) => console.log('Open Change', open)}
       >
         <ActionSheet.Header>
-          <ActionSheet.Title>Action Sheet Title</ActionSheet.Title>
-          <ActionSheet.Description>
-            Action Sheet Description
-          </ActionSheet.Description>
+          <ListItem.MainContent>
+            <ListItem.Title>Action Sheet Title</ListItem.Title>
+            <ListItem.Subtitle>Action sheet description</ListItem.Subtitle>
+          </ListItem.MainContent>
         </ActionSheet.Header>
-        {actions.map((action, index) => (
-          <ActionSheet.Action
-            key={index}
-            success={action.variant === 'success'}
-            destructive={action.variant === 'destructive'}
-            primary={action.variant === 'primary'}
-            action={action.action}
-          >
-            <ActionSheet.ActionTitle>{action.title}</ActionSheet.ActionTitle>
-            {action.description && (
-              <ActionSheet.ActionDescription>
-                {action.description}
-              </ActionSheet.ActionDescription>
-            )}
-          </ActionSheet.Action>
-        ))}
+        <ActionSheet.ScrollView>
+          {actionGroups.map((group, index) => (
+            <ActionSheet.ActionGroup key={index} accent={group.accent}>
+              {group.actions.map((action, index) => (
+                <ActionSheet.Action key={index} action={action} />
+              ))}
+            </ActionSheet.ActionGroup>
+          ))}
+        </ActionSheet.ScrollView>
       </ActionSheet>
     </FixtureWrapper>
   );

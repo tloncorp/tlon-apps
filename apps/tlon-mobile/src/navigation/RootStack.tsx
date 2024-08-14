@@ -1,22 +1,24 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useTheme } from '@tloncorp/ui';
 import { Platform, StatusBar } from 'react-native';
 
-import { useIsDarkMode } from '../hooks/useIsDarkMode';
-import { ActivityScreen } from '../screens/ActivityScreen';
+import { ActivityScreenController } from '../controllers/ActivityScreenController';
+import { ChannelScreenController } from '../controllers/ChannelScreenController';
+import { ChannelSearchScreenController } from '../controllers/ChannelSearchScreenController';
+import { ChatListScreenController } from '../controllers/ChatListScreenController';
+import { GroupChannelsScreenController } from '../controllers/GroupChannelsScreenController';
+import { PostScreenController } from '../controllers/PostScreenController';
 import { AppInfoScreen } from '../screens/AppInfo';
 import { AppSettingsScreen } from '../screens/AppSettingsScreen';
 import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
-import ChannelScreen from '../screens/ChannelScreen';
-import ChannelSearch from '../screens/ChannelSearchScreen';
-import ChatListScreen from '../screens/ChatListScreen';
+import { ChannelMembersScreen } from '../screens/ChannelMembersScreen';
+import { ChannelMetaScreen } from '../screens/ChannelMetaScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { FeatureFlagScreen } from '../screens/FeatureFlagScreen';
-import { GroupChannelsScreen } from '../screens/GroupChannelsScreen';
 import ImageViewerScreen from '../screens/ImageViewerScreen';
 import { ManageAccountScreen } from '../screens/ManageAccountScreen';
-import PostScreen from '../screens/PostScreen';
 import { PushNotificationSettingsScreen } from '../screens/PushNotificationSettingsScreen';
 import { UserBugReportScreen } from '../screens/UserBugReportScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
@@ -51,12 +53,12 @@ export function RootStack() {
       {/* top level tabs */}
       <Root.Screen
         name="ChatList"
-        component={ChatListScreen}
+        component={ChatListScreenController}
         options={{ animation: 'none', gestureEnabled: false }}
       />
       <Root.Screen
         name="Activity"
-        component={ActivityScreen}
+        component={ActivityScreenController}
         options={{ animation: 'none', gestureEnabled: false }}
       />
       <Root.Screen
@@ -67,10 +69,16 @@ export function RootStack() {
 
       {/* individual screens */}
       <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
-      <Root.Screen name="Channel" component={ChannelScreen} />
-      <Root.Screen name="ChannelSearch" component={ChannelSearch} />
-      <Root.Screen name="Post" component={PostScreen} />
-      <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />
+      <Root.Screen name="Channel" component={ChannelScreenController} />
+      <Root.Screen
+        name="ChannelSearch"
+        component={ChannelSearchScreenController}
+      />
+      <Root.Screen name="Post" component={PostScreenController} />
+      <Root.Screen
+        name="GroupChannels"
+        component={GroupChannelsScreenController}
+      />
       <Root.Screen
         name="ImageViewer"
         component={ImageViewerScreen}
@@ -93,6 +101,8 @@ export function RootStack() {
       <Root.Screen name="UserProfile" component={UserProfileScreen} />
       <Root.Screen name="EditProfile" component={EditProfileScreen} />
       <Root.Screen name="WompWomp" component={UserBugReportScreen} />
+      <Root.Screen name="ChannelMembers" component={ChannelMembersScreen} />
+      <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
     </Root.Navigator>
   );
 }

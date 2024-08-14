@@ -23,13 +23,8 @@
     "sourceMap": false,
     "strictNullChecks": true,
     "target": "es2020",
-    "types": [
-      "node"
-    ],
-    "lib": [
-      "dom",
-      "esnext"
-    ]
+    "types": ["node"],
+    "lib": ["dom", "esnext"]
   },
   "references": [
     {
@@ -43,6 +38,10 @@
     },
     {
       "path": "./apps/tlon-mobile/tsconfig.json"
+    },
+    {
+      "path": "./packages/app/tsconfig.json"
     }
   ]
 }
+

@@ -4,6 +4,13 @@ import {
   initClient,
 } from '@google-cloud/recaptcha-enterprise-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import {
+  logInHostingUser,
+  signUpHostingUser,
+} from '@tloncorp/app/lib/hostingApi';
+import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
@@ -17,11 +24,7 @@ import { useTailwind } from 'tailwind-rn';
 
 import { HeaderButton } from '../components/HeaderButton';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { RECAPTCHA_SITE_KEY } from '../constants';
-import { useIsDarkMode } from '../hooks/useIsDarkMode';
-import { logInHostingUser, signUpHostingUser } from '../lib/hostingApi';
 import type { OnboardingStackParamList } from '../types';
-import { trackError, trackOnboardingAction } from '../utils/posthog';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignUpPassword'>;
 

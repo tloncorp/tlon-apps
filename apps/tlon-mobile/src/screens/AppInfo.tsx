@@ -1,4 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '@tloncorp/app/constants';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   AppSetting,
@@ -15,7 +16,6 @@ import { useCallback } from 'react';
 import { Platform } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
-import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../constants';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AppInfo'>;

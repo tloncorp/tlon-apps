@@ -30,11 +30,7 @@ export function ActivitySourceContent({
 
   // thread or comment
   if (summary.newest.parentId) {
-    return (
-      <View marginTop="$s" marginRight="$xl">
-        <ContentRenderer post={post} viewMode="activity" />
-      </View>
-    );
+    return <ContentRenderer post={post} viewMode="activity" />;
   }
 
   if (
@@ -43,8 +39,6 @@ export function ActivitySourceContent({
   ) {
     return (
       <ScrollView
-        marginTop="$s"
-        marginRight="$xl"
         gap="$s"
         horizontal
         alwaysBounceHorizontal={false}
@@ -81,11 +75,7 @@ export function ActivitySourceContent({
     );
   }
 
-  return (
-    <View marginTop="$s" marginRight="$xl">
-      <ContentRenderer post={post} viewMode="activity" />
-    </View>
-  );
+  return <ContentRenderer post={post} viewMode="activity" />;
 }
 
 function getPost(event: db.ActivityEvent): db.Post {

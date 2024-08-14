@@ -1,8 +1,8 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useGroupContext } from '@tloncorp/app/hooks/useGroupContext';
 import { ManageChannelsScreenView } from '@tloncorp/ui';
 
 import { GroupSettingsStackParamList } from '../../types';
-import { useGroupContext } from './useGroupContext';
 
 type ManageChannelsScreenProps = NativeStackScreenProps<
   GroupSettingsStackParamList,
