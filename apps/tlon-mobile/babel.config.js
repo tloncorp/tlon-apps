@@ -1,6 +1,6 @@
 module.exports = function (api) {
-  api.cache.using(() => process.env.NODE_ENV);
-  const config = {
+  api.cache(true);
+  return {
     presets: [['babel-preset-expo', { jsxRuntime: 'automatic' }]],
     plugins: [
       // Allow sql imports so that we can bundle drizzle migrations.
@@ -11,8 +11,7 @@ module.exports = function (api) {
         },
       ],
       'react-native-reanimated/plugin',
-
-      !api.env('test') && [
+      [
         '@tamagui/babel-plugin',
         {
           config: './tamagui.config.ts',
@@ -20,10 +19,6 @@ module.exports = function (api) {
           experimentalFlattenThemesOnNative: true,
         },
       ],
-    ]
-      // Remove all falsy values
-      .filter(Boolean),
+    ],
   };
-
-  return config;
 };
