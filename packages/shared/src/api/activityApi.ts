@@ -2,7 +2,7 @@ import { unixToDa } from '@urbit/api';
 import { backOff } from 'exponential-backoff';
 
 import * as db from '../db';
-import { createDevLogger } from '../debug';
+import { createDevLogger, runIfDev } from '../debug';
 import { extractClientVolume } from '../logic/activity';
 import * as ub from '../urbit';
 import {
@@ -322,6 +322,10 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   subscribe<ub.ActivityUpdate>(
     { app: 'activity', path: '/v4' },
     async (update: ub.ActivityUpdate) => {
+      logger.log(
+        'activity update',
+        runIfDev(() => JSON.stringify(update))
+      );
       // handle unreads
       if ('activity' in update) {
         Object.entries(update.activity).forEach((activityEntry) => {

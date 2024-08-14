@@ -23,7 +23,6 @@ export * from './useChannelSearch';
 export interface CurrentChats {
   pinned: db.Channel[];
   unpinned: db.Channel[];
-  pendingChats: (db.Group | db.Channel)[];
 }
 
 export type CustomQueryConfig<T> = Pick<
@@ -36,29 +35,51 @@ export const useCurrentChats = (
 ): UseQueryResult<CurrentChats | null> => {
   return useQuery({
     queryFn: async () => {
-      const [pendingChats, channels] = await Promise.all([
-        db.getPendingChats(),
-        db.getChats(),
-      ]);
-      return { channels, pendingChats };
+      const channels = await db.getChats();
+      return { channels };
     },
     queryKey: ['currentChats', useKeyFromQueryDeps(db.getChats)],
-    select({ channels, pendingChats }) {
+    select({ channels }) {
       for (let i = 0; i < channels.length; ++i) {
         if (!channels[i].pin) {
           return {
             pinned: channels.slice(0, i),
             unpinned: channels.slice(i),
-            pendingChats,
           };
         }
       }
       return {
         pinned: channels,
         unpinned: [],
-        pendingChats,
       };
     },
+    ...queryConfig,
+  });
+};
+
+export type PendingChats = (db.Group | db.Channel)[];
+
+export const usePendingChats = (
+  queryConfig?: CustomQueryConfig<PendingChats>
+): UseQueryResult<PendingChats | null> => {
+  return useQuery({
+    queryFn: async () => {
+      const pendingChats = await db.getPendingChats();
+      return pendingChats;
+    },
+    queryKey: ['pendingChats', useKeyFromQueryDeps(db.getPendingChats)],
+    ...queryConfig,
+  });
+};
+
+export const usePins = (
+  queryConfig?: CustomQueryConfig<db.Pin[]>
+): UseQueryResult<db.Pin[] | null> => {
+  return useQuery({
+    queryFn: async () => {
+      return db.getPins();
+    },
+    queryKey: ['pins', useKeyFromQueryDeps(db.getPins)],
     ...queryConfig,
   });
 };
