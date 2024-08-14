@@ -29,6 +29,7 @@ import NavTab, {
 import BellIcon from '../icons/BellIcon';
 import CmdSmallIcon from '../icons/CmdSmallIcon';
 import HomeIconMobileNav from '../icons/HomeIconMobileNav';
+import LandscapeIcon from '../icons/LandscapeIcon';
 import MessagesIcon from '../icons/MessagesIcon';
 import useActiveTab, { ActiveTab } from './util';
 
@@ -357,6 +358,20 @@ function ProfileTab(props: { isInactive: boolean }) {
   );
 }
 
+function LandscapeTab() {
+  return (
+    <div
+      className={cn(
+        'relative mx-auto flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-50 cursor-pointer text-gray-400'
+      )}
+      aria-label="Open Landscape"
+      onClick={() => window.open('/apps/landscape', '_blank')}
+    >
+      <LandscapeIcon className="h-4 w-4" />
+    </div>
+  );
+}
+
 function LeapTab() {
   const { setIsOpen: setLeapOpen, isOpen } = useLeap();
 
@@ -449,7 +464,10 @@ export default function AppNav() {
                 <ProfileTab isInactive={isInactive('/profile')} />
               )}
             </div>
-            <LeapTab />
+            <div className="space-y-4">
+              <LandscapeTab />
+              <LeapTab />
+            </div>
           </ul>
         </nav>
         <section className="relative h-full flex-1 bg-white">

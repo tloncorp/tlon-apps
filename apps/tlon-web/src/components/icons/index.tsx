@@ -53,6 +53,7 @@ import InviteIcon from './InviteIcon';
 import InviteIcon16 from './InviteIcon16';
 import ItalicIcon from './ItalicIcon';
 import KeyIcon from './KeyIcon';
+import LandscapeIcon from './LandscapeIcon';
 import LeaveIcon from './LeaveIcon';
 import LinkIcon from './LinkIcon';
 import LinkIcon16 from './LinkIcon16';
@@ -136,6 +137,7 @@ const icons: Record<string, React.FC<IconProps>> = {
   InviteIcon,
   ItalicIcon,
   KeyIcon,
+  LandscapeIcon,
   LeaveIcon,
   LinkIcon,
   ListIcon,
