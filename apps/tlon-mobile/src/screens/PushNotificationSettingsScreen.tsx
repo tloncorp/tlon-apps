@@ -15,7 +15,8 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/ui';
-import { ComponentProps, useCallback } from 'react';
+import { ComponentProps, useCallback, useMemo } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RootStackParamList } from '../types';
 
@@ -24,6 +25,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AppSettings'>;
 export function PushNotificationSettingsScreen(props: Props) {
   const baseVolumeSetting = store.useBaseVolumeLevel();
   const { data: exceptions } = store.useVolumeExceptions();
+
+  const numExceptions = useMemo(
+    () =>
+      (exceptions?.channels.length ?? 0) + (exceptions?.groups.length ?? 0) ??
+      0,
+    [exceptions]
+  );
 
   const setLevel = useCallback(
     async (level: ub.NotificationLevel) => {
@@ -78,7 +86,7 @@ export function PushNotificationSettingsScreen(props: Props) {
         title="Push Notifications"
         goBack={() => props.navigation.goBack()}
       />
-      <ScrollView marginTop="$m" marginHorizontal="$2xl" flex={1}>
+      <View marginTop="$m" marginHorizontal="$2xl" flex={1}>
         <SizableText marginLeft="$m" marginTop="$xl" size="$m">
           Configure what kinds of messages will send you notifications.
         </SizableText>
@@ -110,14 +118,15 @@ export function PushNotificationSettingsScreen(props: Props) {
           </XStack>
         </YStack>
 
-        <ExceptionsDisplay
-          marginTop="$2xl"
-          marginHorizontal="$xl"
-          channels={exceptions?.channels ?? []}
-          groups={exceptions?.groups ?? []}
-          removeException={removeException}
-        />
-      </ScrollView>
+        {numExceptions > 0 ? (
+          <ExceptionsDisplay
+            marginTop="$2xl"
+            channels={exceptions?.channels ?? []}
+            groups={exceptions?.groups ?? []}
+            removeException={removeException}
+          />
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -132,53 +141,64 @@ export function ExceptionsDisplay({
   channels: db.Channel[];
   removeException: (exception: db.Group | db.Channel) => void;
 } & ComponentProps<typeof YStack>) {
+  const insets = useSafeAreaInsets();
   return (
-    <YStack {...rest}>
-      <SizableText color="$secondaryText">Exceptions</SizableText>
-      {groups.map((group) => {
-        return (
-          <GroupListItem
-            model={group}
-            key={group.id}
-            pressStyle={{ backgroundColor: '$background' }}
-            customSubtitle={
-              group.volumeSettings?.level
-                ? ub.NotificationNamesShort[group.volumeSettings.level]
-                : undefined
-            }
-            EndContent={
-              <ListItem.SystemIcon
-                icon="Close"
-                backgroundColor="unset"
-                onPress={() => removeException(group)}
-              />
-            }
-            paddingVertical="$s"
-          />
-        );
-      })}
-      {channels.map((channel) => {
-        return (
-          <ChannelListItem
-            model={channel}
-            key={channel.id}
-            pressStyle={{ backgroundColor: '$background' }}
-            customSubtitle={
-              channel.volumeSettings?.level
-                ? ub.NotificationNamesShort[channel.volumeSettings.level]
-                : undefined
-            }
-            EndContent={
-              <ListItem.SystemIcon
-                icon="Close"
-                backgroundColor="unset"
-                onPress={() => removeException(channel)}
-              />
-            }
-            paddingVertical="$s"
-          />
-        );
-      })}
+    <YStack flex={1} {...rest}>
+      <SizableText
+        marginHorizontal="$l"
+        marginBottom="$m"
+        color="$secondaryText"
+      >
+        Exceptions
+      </SizableText>
+      <ScrollView flex={1}>
+        {groups.map((group) => {
+          return (
+            <GroupListItem
+              model={group}
+              key={group.id}
+              pressStyle={{ backgroundColor: '$background' }}
+              customSubtitle={
+                group.volumeSettings?.level
+                  ? ub.NotificationNamesShort[group.volumeSettings.level]
+                  : undefined
+              }
+              EndContent={
+                <ListItem.SystemIcon
+                  icon="Close"
+                  backgroundColor="unset"
+                  onPress={() => removeException(group)}
+                />
+              }
+              paddingVertical="$s"
+            />
+          );
+        })}
+        {channels.map((channel) => {
+          return (
+            <ChannelListItem
+              model={channel}
+              key={channel.id}
+              pressStyle={{ backgroundColor: '$background' }}
+              customSubtitle={
+                channel.volumeSettings?.level
+                  ? ub.NotificationNamesShort[channel.volumeSettings.level]
+                  : undefined
+              }
+              EndContent={
+                <ListItem.SystemIcon
+                  icon="Close"
+                  backgroundColor="unset"
+                  onPress={() => removeException(channel)}
+                />
+              }
+              paddingVertical="$s"
+            />
+          );
+        })}
+        {/* applying padding to the scrollview doesn't work, so use a spacer view */}
+        <View paddingBottom={insets.bottom} />
+      </ScrollView>
     </YStack>
   );
 }

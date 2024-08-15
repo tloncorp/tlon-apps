@@ -85,16 +85,34 @@ export function GroupOptionsSheetLoader({
   onOpenChange: (open: boolean) => void;
 }) {
   const groupQuery = store.useGroup({ id: groupId });
+  const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
+  const openChangeHandler = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setPane('initial');
+      }
+      onOpenChange(open);
+    },
+    [onOpenChange]
+  );
+
   return groupQuery.data ? (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
-      <GroupOptions group={groupQuery.data} />
+    <ActionSheet open={open} onOpenChange={openChangeHandler}>
+      <GroupOptions group={groupQuery.data} pane={pane} setPane={setPane} />
     </ActionSheet>
   ) : null;
 }
 
-export function GroupOptions({ group }: { group: db.Group }) {
+export function GroupOptions({
+  group,
+  pane,
+  setPane,
+}: {
+  group: db.Group;
+  pane: 'initial' | 'notifications';
+  setPane: (pane: 'initial' | 'notifications') => void;
+}) {
   const currentUser = useCurrentUserId();
-  const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
   const { data: currentVolumeLevel } = store.useGroupVolumeLevel(group.id);
   const sheet = useSheet();
   const sheetRef = useRef(sheet);
@@ -167,7 +185,7 @@ export function GroupOptions({ group }: { group: db.Group }) {
             icon: currentVolumeLevel === 'soft' ? 'Checkmark' : undefined,
           },
           {
-            title: 'Mute everything',
+            title: 'Nothing',
             action: () => {
               handleVolumeUpdate('hush');
             },
@@ -182,7 +200,7 @@ export function GroupOptions({ group }: { group: db.Group }) {
         ],
       },
     ],
-    [handleVolumeUpdate, currentVolumeLevel]
+    [currentVolumeLevel, handleVolumeUpdate, setPane]
   );
 
   const actionGroups = useMemo(() => {
@@ -271,6 +289,7 @@ export function GroupOptions({ group }: { group: db.Group }) {
     didCopyRef,
     group,
     currentUserIsAdmin,
+    setPane,
     copyRef,
     onPressManageChannels,
     onPressGroupMembers,
@@ -300,18 +319,41 @@ export function ChannelOptionsSheetLoader({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
   const channelQuery = store.useChannelWithRelations({
     id: channelId,
   });
+
+  const openChangeHandler = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setPane('initial');
+      }
+      onOpenChange(open);
+    },
+    [onOpenChange]
+  );
+
   return channelQuery.data ? (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
-      <ChannelOptions channel={channelQuery.data} />
+    <ActionSheet open={open} onOpenChange={openChangeHandler}>
+      <ChannelOptions
+        channel={channelQuery.data}
+        pane={pane}
+        setPane={setPane}
+      />
     </ActionSheet>
   ) : null;
 }
 
-export function ChannelOptions({ channel }: { channel: db.Channel }) {
-  const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
+export function ChannelOptions({
+  channel,
+  pane,
+  setPane,
+}: {
+  channel: db.Channel;
+  pane: 'initial' | 'notifications';
+  setPane: (pane: 'initial' | 'notifications') => void;
+}) {
   const { data: group } = store.useGroup({
     id: channel?.groupId ?? undefined,
   });
@@ -384,7 +426,7 @@ export function ChannelOptions({ channel }: { channel: db.Channel }) {
             icon: currentVolumeLevel === 'soft' ? 'Checkmark' : undefined,
           },
           {
-            title: 'Mute everything',
+            title: 'Nothing',
             action: () => {
               handleVolumeUpdate('hush');
             },
@@ -399,7 +441,7 @@ export function ChannelOptions({ channel }: { channel: db.Channel }) {
         ],
       },
     ],
-    [handleVolumeUpdate, currentVolumeLevel]
+    [currentVolumeLevel, handleVolumeUpdate, setPane]
   );
 
   const actionGroups: ActionGroup[] = useMemo(() => {
@@ -419,6 +461,7 @@ export function ChannelOptions({ channel }: { channel: db.Channel }) {
           },
           {
             title: channel?.pin ? 'Unpin' : 'Pin',
+            icon: 'Pin',
             action: () => {
               if (!channel) {
                 return;
@@ -494,7 +537,7 @@ export function ChannelOptions({ channel }: { channel: db.Channel }) {
         ],
       },
     ];
-  }, [channel, onPressChannelMembers, onPressChannelMeta, title]);
+  }, [channel, onPressChannelMembers, onPressChannelMeta, setPane, title]);
   return (
     <ChatOptionsSheetContent
       actionGroups={pane === 'initial' ? actionGroups : actionNotifications}
