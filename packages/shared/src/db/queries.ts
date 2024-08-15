@@ -641,7 +641,7 @@ export const insertChannelPerms = createWriteQuery(
     );
 
     if (readers.length > 0) {
-      return ctx.db
+      await ctx.db
         .insert($channelReaders)
         .values(readers)
         .onConflictDoUpdate({
@@ -650,17 +650,15 @@ export const insertChannelPerms = createWriteQuery(
         });
     }
 
-    if (writers.length === 0) {
-      return;
+    if (writers.length > 0) {
+      await ctx.db
+        .insert($channelWriters)
+        .values(writers)
+        .onConflictDoUpdate({
+          target: [$channelWriters.channelId, $channelWriters.roleId],
+          set: conflictUpdateSetAll($channelWriters),
+        });
     }
-
-    return ctx.db
-      .insert($channelWriters)
-      .values(writers)
-      .onConflictDoUpdate({
-        target: [$channelWriters.channelId, $channelWriters.roleId],
-        set: conflictUpdateSetAll($channelWriters),
-      });
   },
   ['channelWriters', 'channels']
 );
@@ -1249,6 +1247,11 @@ export const getChannelWithRelations = createReadQuery(
         group: true,
         contact: true,
         writerRoles: {
+          with: {
+            role: true,
+          },
+        },
+        readerRoles: {
           with: {
             role: true,
           },
