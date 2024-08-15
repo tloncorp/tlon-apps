@@ -56,7 +56,7 @@ export const ChatMessageReplySummary = React.memo(
           </SizableText>
           <ThreadStatus
             unreadCount={threadUnread?.count ?? 0}
-            isMuted={logic.isMuted(post.volumeSettings?.level)}
+            isMuted={logic.isMuted(post.volumeSettings?.level, 'thread')}
             isNotify={post.threadUnread?.notify ?? false}
           />
         </XStack>

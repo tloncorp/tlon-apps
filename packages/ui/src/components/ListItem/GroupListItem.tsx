@@ -30,12 +30,12 @@ export const GroupListItem = ({
     >
       <ListItem.GroupIcon
         model={model}
-        opacity={logic.isMuted(model.volumeSettings?.level) ? 0.2 : 1}
+        opacity={logic.isMuted(model.volumeSettings?.level, 'group') ? 0.2 : 1}
       />
       <ListItem.MainContent>
         <ListItem.Title
           color={
-            logic.isMuted(model.volumeSettings?.level)
+            logic.isMuted(model.volumeSettings?.level, 'group')
               ? '$tertiaryText'
               : undefined
           }
@@ -69,7 +69,7 @@ export const GroupListItem = ({
               <ListItem.Time time={model.lastPostAt} />
               <ListItem.Count
                 count={unreadCount}
-                muted={logic.isMuted(model.volumeSettings?.level)}
+                muted={logic.isMuted(model.volumeSettings?.level, 'group')}
               />
             </>
           )}

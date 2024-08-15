@@ -53,12 +53,14 @@ export function ChannelListItem({
       <ListItem.ChannelIcon
         model={model}
         useTypeIcon={useTypeIcon}
-        opacity={logic.isMuted(model.volumeSettings?.level) ? 0.2 : 1}
+        opacity={
+          logic.isMuted(model.volumeSettings?.level, 'channel') ? 0.2 : 1
+        }
       />
       <ListItem.MainContent>
         <ListItem.Title
           color={
-            logic.isMuted(model.volumeSettings?.level)
+            logic.isMuted(model.volumeSettings?.level, 'channel')
               ? '$tertiaryText'
               : undefined
           }
@@ -91,7 +93,7 @@ export function ChannelListItem({
           ) : (
             <ListItem.Count
               count={unreadCount}
-              muted={logic.isMuted(model.volumeSettings?.level)}
+              muted={logic.isMuted(model.volumeSettings?.level, 'channel')}
             />
           )}
         </ListItem.EndContent>

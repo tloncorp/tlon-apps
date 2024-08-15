@@ -35,9 +35,9 @@ function BaseSwipableChatRow({
 
   const isMuted = useMemo(() => {
     if (model.group) {
-      return logic.isMuted(model.group.volumeSettings?.level);
+      return logic.isMuted(model.group.volumeSettings?.level, 'group');
     } else if (model.type === 'dm' || model.type === 'groupDm') {
-      return logic.isMuted(model.volumeSettings?.level);
+      return logic.isMuted(model.volumeSettings?.level, 'channel');
     }
     return false;
   }, [model]);

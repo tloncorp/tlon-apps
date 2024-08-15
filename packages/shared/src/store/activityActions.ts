@@ -9,20 +9,21 @@ const logger = createDevLogger('activityActions', false);
 
 export async function muteChat(channel: db.Channel) {
   const initialSettings = await getChatVolumeSettings(channel);
+  const muteLevel = channel.groupId ? 'soft' : 'hush';
 
   db.setVolumes({
     volumes: [
       {
         itemId: channel.groupId ?? channel.id,
         itemType: channel.groupId ? 'group' : 'channel',
-        level: 'soft',
+        level: muteLevel,
       },
     ],
   });
 
   try {
     const { source } = api.getRootSourceFromChannel(channel);
-    const volume = ub.getVolumeMap('soft', true);
+    const volume = ub.getVolumeMap(muteLevel, true);
     await api.adjustVolumeSetting(source, volume);
   } catch (e) {
     logger.log(`failed to mute group ${channel.id}`, e);

@@ -43,8 +43,15 @@ export function extractClientVolumes(
   return settings;
 }
 
-export function isMuted(volume: NotificationLevel | null | undefined) {
+export function isMuted(
+  volume: NotificationLevel | null | undefined,
+  type: 'group' | 'channel' | 'thread'
+) {
   if (!volume) return false;
+
+  if (type === 'channel') {
+    return volume === 'hush';
+  }
 
   if (volume === 'soft' || volume === 'hush') {
     return true;
