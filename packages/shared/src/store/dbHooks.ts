@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 
 import * as api from '../api';
 import * as db from '../db';
+import * as ub from '../urbit';
 import {
   getIsHosted,
   hasCustomS3Creds,
@@ -172,6 +173,45 @@ export const useUnreadsCount = () => {
     queryKey: ['unreadsCount'],
     queryFn: () => db.getUnreadsCount({}),
   });
+};
+
+export const useGroupVolumeLevel = (groupId: string) => {
+  const deps = useKeyFromQueryDeps(db.getGroupVolumeSetting);
+  return useQuery({
+    queryKey: ['groupVolumeLevel', deps, groupId],
+    queryFn: () => db.getGroupVolumeSetting({ groupId }),
+  });
+};
+
+export const useChannelVolumeLevel = (channelId: string) => {
+  const deps = useKeyFromQueryDeps(db.getChannelVolumeSetting);
+  return useQuery({
+    queryKey: ['channelVolumeLevel', deps, channelId],
+    queryFn: () => db.getChannelVolumeSetting({ channelId }),
+  });
+};
+
+export const useVolumeExceptions = () => {
+  const deps = useKeyFromQueryDeps(db.getVolumeExceptions);
+  return useQuery({
+    queryKey: ['volumeExceptions', deps],
+    queryFn: () => db.getVolumeExceptions(),
+  });
+};
+
+export const useBaseVolumeLevel = (): ub.NotificationLevel => {
+  const deps = useKeyFromQueryDeps(db.getVolumeSetting);
+
+  const { data } = useQuery({
+    queryKey: ['baseVolumeLevel', deps],
+    queryFn: () => db.getVolumeSetting('base'),
+  });
+
+  if (data) {
+    return data.level;
+  }
+
+  return 'medium';
 };
 
 export const useHaveUnreadUnseenActivity = () => {

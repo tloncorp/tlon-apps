@@ -306,8 +306,7 @@ CREATE TABLE `thread_unreads` (
 CREATE TABLE `volume_settings` (
 	`item_id` text PRIMARY KEY NOT NULL,
 	`item_type` text NOT NULL,
-	`is_muted` integer DEFAULT false,
-	`is_noisy` integer DEFAULT false
+	`level` text NOT NULL
 );
 --> statement-breakpoint
 CREATE INDEX `last_post_id` ON `channels` (`last_post_id`);--> statement-breakpoint

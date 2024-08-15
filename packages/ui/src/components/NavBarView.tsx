@@ -1,6 +1,5 @@
 import * as store from '@tloncorp/shared/dist/store';
 
-import { useCurrentUserId } from '../contexts';
 import { AvatarNavIcon, NavBar, NavIcon } from './NavBar';
 
 export const NavBarView = ({
@@ -20,8 +19,6 @@ export const NavBarView = ({
     return currentRoute === routeName;
   };
   const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
-  // const currentUserId = useCurrentUserId();
-  console.log('NavBarView', currentUserId);
 
   return (
     <NavBar>

@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "3d371fd9-81ce-42f7-80cb-12d0ed9a4eb0",
+  "id": "d3b5845c-7fa4-48d9-ba18-3e237654d040",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -2038,21 +2038,12 @@
           "notNull": true,
           "autoincrement": false
         },
-        "is_muted": {
-          "name": "is_muted",
-          "type": "integer",
+        "level": {
+          "name": "level",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": false
-        },
-        "is_noisy": {
-          "name": "is_noisy",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": false
+          "notNull": true,
+          "autoincrement": false
         }
       },
       "indexes": {},

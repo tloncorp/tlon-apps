@@ -3,7 +3,6 @@ import { backOff } from 'exponential-backoff';
 
 import * as db from '../db';
 import { createDevLogger, runIfDev } from '../debug';
-import { extractClientVolume } from '../logic/activity';
 import * as ub from '../urbit';
 import {
   formatUd,
@@ -296,7 +295,6 @@ function getInfoFromMessageKey(
   return { authorId, postId };
 }
 
-export type VolumeUpdate = { sourceId: string; volume: ub.VolumeMap | null };
 export type ActivityEvent =
   | {
       type: 'updateChannelUnread';
@@ -305,12 +303,13 @@ export type ActivityEvent =
   | { type: 'updateThreadUnread'; activity: db.ThreadUnreadState }
   | { type: 'updateGroupUnread'; unread: db.GroupUnread }
   | {
-      type: 'updateVolumeSetting';
-      update: VolumeUpdate;
-    }
-  | {
       type: 'updateItemVolume';
       volumeUpdate: db.VolumeSettings;
+    }
+  | {
+      type: 'removeItemVolume';
+      itemId: string;
+      itemType: string;
     }
   | {
       type: 'updatePushNotificationsSetting';
@@ -365,54 +364,83 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
         const { source, volume } = update.adjust;
         const sourceId = ub.sourceToString(source);
 
-        if ('group' in source) {
-          const clientVolume = extractClientVolume(volume);
+        if (sourceId === 'base') {
+          const level: ub.NotificationLevel = volume
+            ? ub.getLevelFromVolumeMap(volume)
+            : 'default';
           return handler({
             type: 'updateItemVolume',
             volumeUpdate: {
-              itemId: source.group,
-              itemType: 'group',
-              ...clientVolume,
+              itemId: 'base',
+              itemType: 'base',
+              level,
             },
           });
         }
 
+        if ('group' in source) {
+          if (volume) {
+            return handler({
+              type: 'updateItemVolume',
+              volumeUpdate: {
+                itemId: source.group,
+                itemType: 'group',
+                level: ub.getLevelFromVolumeMap(volume),
+              },
+            });
+          } else {
+            return handler({
+              type: 'removeItemVolume',
+              itemId: source.group,
+              itemType: 'group',
+            });
+          }
+        }
+
         if ('channel' in source || 'dm' in source) {
-          const clientVolume = extractClientVolume(volume, 'channel' in source);
           const channelId =
             'channel' in source
               ? source.channel.nest
               : 'ship' in source.dm
                 ? source.dm.ship
                 : source.dm.club;
-          return handler({
-            type: 'updateItemVolume',
-            volumeUpdate: {
+          if (volume) {
+            return handler({
+              type: 'updateItemVolume',
+              volumeUpdate: {
+                itemId: channelId,
+                itemType: 'channel',
+                level: ub.getLevelFromVolumeMap(volume),
+              },
+            });
+          } else {
+            return handler({
+              type: 'removeItemVolume',
               itemId: channelId,
               itemType: 'channel',
-              ...clientVolume,
-            },
-          });
+            });
+          }
         }
 
         if ('thread' in source || 'dm-thread' in source) {
-          const clientVolume = extractClientVolume(volume);
           const postId = getPostIdFromSource(source);
-          return handler({
-            type: 'updateItemVolume',
-            volumeUpdate: {
+          if (volume) {
+            return handler({
+              type: 'updateItemVolume',
+              volumeUpdate: {
+                itemId: postId,
+                itemType: 'thread',
+                level: ub.getLevelFromVolumeMap(volume),
+              },
+            });
+          } else {
+            return handler({
+              type: 'removeItemVolume',
               itemId: postId,
               itemType: 'thread',
-              ...clientVolume,
-            },
-          });
+            });
+          }
         }
-
-        // keep handling threads as they were
-        return handler({
-          type: 'updateVolumeSetting',
-          update: { sourceId, volume },
-        });
       }
 
       // handle push notification settings

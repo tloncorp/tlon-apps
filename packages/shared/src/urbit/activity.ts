@@ -34,6 +34,14 @@ export enum NotificationNames {
   hush = 'Do not notify for any activity',
 }
 
+export enum NotificationNamesShort {
+  loud = 'All posts and replies',
+  default = 'All posts',
+  medium = 'All posts ',
+  soft = 'Mentions and replies',
+  hush = 'No notifications',
+}
+
 export interface VolumeLevel {
   notify: NotificationLevel;
   unreads: boolean;

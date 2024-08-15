@@ -91,7 +91,3 @@ export function getChannelTypeIcon(type: db.Channel['type']): IconType {
       return 'ChannelTalk';
   }
 }
-
-export function isMuted(model: db.Group | db.Channel) {
-  return model.volumeSettings?.isMuted ?? false;
-}

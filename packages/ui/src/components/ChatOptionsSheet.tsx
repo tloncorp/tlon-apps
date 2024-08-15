@@ -2,8 +2,10 @@ import { sync } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
+import * as ub from '@tloncorp/shared/dist/urbit';
 import React, {
   ReactElement,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -83,15 +85,35 @@ export function GroupOptionsSheetLoader({
   onOpenChange: (open: boolean) => void;
 }) {
   const groupQuery = store.useGroup({ id: groupId });
+  const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
+  const openChangeHandler = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setPane('initial');
+      }
+      onOpenChange(open);
+    },
+    [onOpenChange]
+  );
+
   return groupQuery.data ? (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
-      <GroupOptions group={groupQuery.data} />
+    <ActionSheet open={open} onOpenChange={openChangeHandler}>
+      <GroupOptions group={groupQuery.data} pane={pane} setPane={setPane} />
     </ActionSheet>
   ) : null;
 }
 
-export function GroupOptions({ group }: { group: db.Group }) {
+export function GroupOptions({
+  group,
+  pane,
+  setPane,
+}: {
+  group: db.Group;
+  pane: 'initial' | 'notifications';
+  setPane: (pane: 'initial' | 'notifications') => void;
+}) {
   const currentUser = useCurrentUserId();
+  const { data: currentVolumeLevel } = store.useGroupVolumeLevel(group.id);
   const sheet = useSheet();
   const sheetRef = useRef(sheet);
   sheetRef.current = sheet;
@@ -124,13 +146,78 @@ export function GroupOptions({ group }: { group: db.Group }) {
     logic.getGroupReferencePath(group.id)
   );
 
+  const handleVolumeUpdate = useCallback(
+    (newLevel: string) => {
+      if (group) {
+        store.setGroupVolumeLevel({
+          group: group,
+          level: newLevel as ub.NotificationLevel,
+        });
+      }
+    },
+    [group]
+  );
+
+  const actionNotifications: ActionGroup[] = useMemo(
+    () => [
+      {
+        accent: 'neutral',
+        actions: [
+          {
+            title: 'All activity',
+            action: () => {
+              handleVolumeUpdate('loud');
+            },
+            icon: currentVolumeLevel === 'loud' ? 'Checkmark' : undefined,
+          },
+          {
+            title: 'Posts, mentions, and replies',
+            action: () => {
+              handleVolumeUpdate('medium');
+            },
+            icon: currentVolumeLevel === 'medium' ? 'Checkmark' : undefined,
+          },
+          {
+            title: 'Only mentions and replies',
+            action: () => {
+              handleVolumeUpdate('soft');
+            },
+            icon: currentVolumeLevel === 'soft' ? 'Checkmark' : undefined,
+          },
+          {
+            title: 'Nothing',
+            action: () => {
+              handleVolumeUpdate('hush');
+            },
+            icon: currentVolumeLevel === 'hush' ? 'Checkmark' : undefined,
+          },
+          {
+            title: 'Back',
+            action: () => {
+              setPane('initial');
+            },
+          },
+        ],
+      },
+    ],
+    [currentVolumeLevel, handleVolumeUpdate, setPane]
+  );
+
   const actionGroups = useMemo(() => {
     const actionGroups: ActionGroup[] = [
       {
         accent: 'neutral',
         actions: [
           {
+            title: 'Notifications',
+            action: () => {
+              setPane('notifications');
+            },
+            icon: 'ChevronRight',
+          },
+          {
             title: isPinned ? 'Unpin' : 'Pin',
+            icon: 'Pin',
             action: onTogglePinned,
           },
           {
@@ -202,6 +289,7 @@ export function GroupOptions({ group }: { group: db.Group }) {
     didCopyRef,
     group,
     currentUserIsAdmin,
+    setPane,
     copyRef,
     onPressManageChannels,
     onPressGroupMembers,
@@ -214,7 +302,7 @@ export function GroupOptions({ group }: { group: db.Group }) {
   const subtitle = memberCount ? `Group with ${memberCount} members` : '';
   return (
     <ChatOptionsSheetContent
-      actionGroups={actionGroups}
+      actionGroups={pane === 'initial' ? actionGroups : actionNotifications}
       title={title}
       subtitle={subtitle}
       icon={<ListItem.GroupIcon model={group} />}
@@ -231,20 +319,45 @@ export function ChannelOptionsSheetLoader({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
   const channelQuery = store.useChannelWithRelations({
     id: channelId,
   });
+
+  const openChangeHandler = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setPane('initial');
+      }
+      onOpenChange(open);
+    },
+    [onOpenChange]
+  );
+
   return channelQuery.data ? (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
-      <ChannelOptions channel={channelQuery.data} />
+    <ActionSheet open={open} onOpenChange={openChangeHandler}>
+      <ChannelOptions
+        channel={channelQuery.data}
+        pane={pane}
+        setPane={setPane}
+      />
     </ActionSheet>
   ) : null;
 }
 
-export function ChannelOptions({ channel }: { channel: db.Channel }) {
+export function ChannelOptions({
+  channel,
+  pane,
+  setPane,
+}: {
+  channel: db.Channel;
+  pane: 'initial' | 'notifications';
+  setPane: (pane: 'initial' | 'notifications') => void;
+}) {
   const { data: group } = store.useGroup({
     id: channel?.groupId ?? undefined,
   });
+  const { data: currentVolumeLevel } = store.useChannelVolumeLevel(channel.id);
   const sheet = useSheet();
   const sheetRef = useRef(sheet);
   sheetRef.current = sheet;
@@ -274,24 +387,81 @@ export function ChannelOptions({ channel }: { channel: db.Channel }) {
     }
   }, [channel, group]);
 
+  const handleVolumeUpdate = useCallback(
+    (newLevel: string) => {
+      if (channel) {
+        store.setChannelVolumeLevel({
+          channel: channel,
+          level: newLevel as ub.NotificationLevel,
+        });
+      }
+    },
+    [channel]
+  );
+
+  const actionNotifications: ActionGroup[] = useMemo(
+    () => [
+      {
+        accent: 'neutral',
+        actions: [
+          {
+            title: 'All activity',
+            action: () => {
+              handleVolumeUpdate('loud');
+            },
+            icon: currentVolumeLevel === 'loud' ? 'Checkmark' : undefined,
+          },
+          {
+            title: 'Posts, mentions, and replies',
+            action: () => {
+              handleVolumeUpdate('medium');
+            },
+            icon: currentVolumeLevel === 'medium' ? 'Checkmark' : undefined,
+          },
+          {
+            title: 'Only mentions and replies',
+            action: () => {
+              handleVolumeUpdate('soft');
+            },
+            icon: currentVolumeLevel === 'soft' ? 'Checkmark' : undefined,
+          },
+          {
+            title: 'Nothing',
+            action: () => {
+              handleVolumeUpdate('hush');
+            },
+            icon: currentVolumeLevel === 'hush' ? 'Checkmark' : undefined,
+          },
+          {
+            title: 'Back',
+            action: () => {
+              setPane('initial');
+            },
+          },
+        ],
+      },
+    ],
+    [currentVolumeLevel, handleVolumeUpdate, setPane]
+  );
+
   const actionGroups: ActionGroup[] = useMemo(() => {
     return [
       {
         accent: 'neutral',
         actions: [
           {
-            title: channel?.volumeSettings?.isMuted ? 'Unmute' : 'Mute',
+            title: 'Notifications',
             action: () => {
               if (!channel) {
                 return;
               }
-              channel?.volumeSettings?.isMuted
-                ? store.unmuteChat(channel)
-                : store.muteChat(channel);
+              setPane('notifications');
             },
+            icon: 'ChevronRight',
           },
           {
             title: channel?.pin ? 'Unpin' : 'Pin',
+            icon: 'Pin',
             action: () => {
               if (!channel) {
                 return;
@@ -367,11 +537,10 @@ export function ChannelOptions({ channel }: { channel: db.Channel }) {
         ],
       },
     ];
-  }, [channel, onPressChannelMembers, onPressChannelMeta, title]);
-  console.log(channel);
+  }, [channel, onPressChannelMembers, onPressChannelMeta, setPane, title]);
   return (
     <ChatOptionsSheetContent
-      actionGroups={actionGroups}
+      actionGroups={pane === 'initial' ? actionGroups : actionNotifications}
       title={title}
       subtitle={subtitle}
       icon={<ListItem.ChannelIcon model={channel} />}
