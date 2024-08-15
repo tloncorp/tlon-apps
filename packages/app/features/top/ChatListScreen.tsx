@@ -89,6 +89,13 @@ export default function ChatListScreen({
   // const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const isFocused = useIsFocused();
+  const { data: pins } = store.usePins({
+    enabled: isFocused,
+  });
+  const pinned = useMemo(() => pins ?? [], [pins]);
+  const { data: pendingChats } = store.usePendingChats({
+    enabled: isFocused,
+  });
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
   });
@@ -100,9 +107,9 @@ export default function ChatListScreen({
     return {
       pinned: chats?.pinned ?? [],
       unpinned: chats?.unpinned ?? [],
-      pendingChats: chats?.pendingChats ?? [],
+      pendingChats: pendingChats ?? [],
     };
-  }, [chats]);
+  }, [chats, pendingChats]);
 
   const goToDm = useCallback(
     async (participants: string[]) => {
@@ -181,8 +188,8 @@ export default function ChatListScreen({
   // [goToChannel]
   // );
 
-  const { pinned, unpinned } = resolvedChats;
-  const allChats = [...pinned, ...unpinned];
+  const { pinned: pinnedChats, unpinned } = resolvedChats;
+  const allChats = [...pinnedChats, ...unpinned];
   const isTlonEmployee = !!allChats.find(
     (obj) => obj.groupId === TLON_EMPLOYEE_GROUP
   );
@@ -251,6 +258,7 @@ export default function ChatListScreen({
           <ChatOptionsProvider
             channelId={chatOptionsChannelId}
             groupId={chatOptionsGroupId}
+            pinned={pinned}
             {...useChatSettingsNavigation()}
           >
             <View backgroundColor="$background" flex={1}>

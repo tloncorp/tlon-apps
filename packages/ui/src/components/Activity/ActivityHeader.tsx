@@ -18,7 +18,7 @@ function ActivityHeaderRaw({
     <View>
       <View width="100%">
         <ScreenHeader>
-          <ScreenHeader.Title textAlign="center">Activity</ScreenHeader.Title>
+          <ScreenHeader.Title textAlign="left">Activity</ScreenHeader.Title>
         </ScreenHeader>
       </View>
       <Tabs>

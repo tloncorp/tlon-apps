@@ -1,16 +1,14 @@
-import type { OPSQLiteConnection } from '@op-engineering/op-sqlite';
 import { open } from '@op-engineering/op-sqlite';
 import { createDevLogger, escapeLog } from '@tloncorp/shared';
-import type { Schema } from '@tloncorp/shared/dist/db';
 import { handleChange, schema, setClient } from '@tloncorp/shared/dist/db';
-import { migrations } from '@tloncorp/shared/dist/db/migrations';
-import type { OPSQLiteDatabase } from 'drizzle-orm/op-sqlite';
-import { drizzle } from 'drizzle-orm/op-sqlite';
-import { migrate } from 'drizzle-orm/op-sqlite/migrator';
+import { AnySqliteDatabase } from 'packages/shared/dist/db/client';
 import { useEffect, useMemo, useState } from 'react';
 
-let connection: OPSQLiteConnection | null = null;
-let client: OPSQLiteDatabase<Schema> | null = null;
+import { OPSQLite$SQLiteConnection } from './opsqliteConnection';
+import { SQLiteConnection } from './sqliteConnection';
+
+let connection: SQLiteConnection | null = null;
+let client: AnySqliteDatabase | null = null;
 
 const enableLogger = false;
 const logger = createDevLogger('db', enableLogger);
@@ -20,7 +18,9 @@ export function setupDb() {
     logger.warn('setupDb called multiple times, ignoring');
     return;
   }
-  connection = open({ location: 'default', name: 'tlon.sqlite' });
+  connection = new OPSQLite$SQLiteConnection(
+    open({ location: 'default', name: 'tlon.sqlite' })
+  );
   // Experimental SQLite settings. May cause crashes. More here:
   // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
   connection.execute('PRAGMA mmap_size=268435456');
@@ -29,7 +29,7 @@ export function setupDb() {
 
   connection.updateHook(handleChange);
 
-  client = drizzle(connection, {
+  client = connection.createClient({
     schema,
     logger: enableLogger
       ? {
@@ -90,17 +90,17 @@ export function useMigrations() {
 
 async function runMigrations() {
   try {
-    await migrate(client!, migrations);
+    await connection?.migrateClient(client!);
     return;
   } catch (e) {
     logger.log('migrations failed, purging db and retrying', e);
   }
   await purgeDb();
-  await migrate(client!, migrations);
+  await connection?.migrateClient(client!);
   logger.log("migrations succeeded after purge, shouldn't happen often");
 }
 
 export async function resetDb() {
   await purgeDb();
-  await migrate(client!, migrations);
+  await connection?.migrateClient(client!);
 }

@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 
 import { queryClient } from '../api';
-import { createDevLogger, escapeLog, listDebugLabel } from '../debug';
+import { createDevLogger, escapeLog, listDebugLabel, runIfDev } from '../debug';
 import * as changeListener from './changeListener';
 import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
 import { TableName } from './types';
@@ -168,11 +168,16 @@ export async function withCtxOrDefault<T>(
     const invalidated: string[] = [];
     queryClient.invalidateQueries({
       fetchStatus: 'idle',
+      type: 'active',
       predicate: (query) => {
         const tableKey = query.queryKey[1];
         const shouldInvalidate =
           tableKey instanceof Set && setsOverlap(tableKey, pendingEffects);
         if (shouldInvalidate) {
+          logger.log(
+            `${meta.label} attempting invalidation`,
+            runIfDev(() => JSON.stringify([query.queryHash, query.isActive()]))
+          );
           invalidated.push(query.queryHash);
         }
         return shouldInvalidate;

@@ -220,13 +220,13 @@ export default function ChannelScreen({
 
   const isFocused = useIsFocused();
 
-  const { data: chats } = store.useCurrentChats({
+  const { data: pins } = store.usePins({
     enabled: isFocused,
   });
 
   const pinnedItems = useMemo(() => {
-    return chats?.pinned ?? [];
-  }, [chats]);
+    return pins ?? [];
+  }, [pins]);
 
   const chatOptionsNavProps = useChatSettingsNavigation();
 

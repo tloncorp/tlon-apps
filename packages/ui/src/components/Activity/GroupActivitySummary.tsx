@@ -65,23 +65,22 @@ export function GroupActivitySummary({
 
   return (
     <View
-      padding="$l"
-      marginBottom="$l"
+      padding="$m"
       backgroundColor={
-        newest.timestamp > seenMarker && unreadCount > 0
+        newest.timestamp > seenMarker || unreadCount > 0
           ? '$positiveBackground'
           : 'unset'
       }
       borderRadius="$l"
       onPress={pressHandler}
     >
-      <XStack>
+      <XStack gap="$m">
         <ContactAvatar
           contactId={newest.groupEventUserId ?? ''}
           size="$3xl"
           innerSigilSize={14}
         />
-        <YStack marginLeft="$m">
+        <YStack gap="$xs" flex={1}>
           {group && (
             <ActivitySummaryHeader
               unreadCount={unreadCount}
@@ -92,7 +91,7 @@ export function GroupActivitySummary({
             </ActivitySummaryHeader>
           )}
           <View>
-            <SizableText color="$secondaryText" size="$s" marginRight="$xl">
+            <SizableText color="$secondaryText" size="$s">
               {Authors}
               {` ${plural ? 'have' : 'has'} requested to join the group`}
             </SizableText>

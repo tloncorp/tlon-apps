@@ -22,13 +22,13 @@ export function GroupChannelsScreen({
 }) {
   const currentUser = useCurrentUserId();
   const isFocused = useIsFocused();
-  const { data: chats } = store.useCurrentChats({
+  const { data: pins } = store.usePins({
     enabled: isFocused,
   });
 
   const pinnedItems = useMemo(() => {
-    return chats?.pinned ?? [];
-  }, [chats]);
+    return pins ?? [];
+  }, [pins]);
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {

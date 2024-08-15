@@ -9,7 +9,7 @@ import {
 } from 'react';
 
 export type ChatOptionsContextValue = {
-  pinned: db.Channel[];
+  pinned: db.Pin[];
   useGroup: typeof store.useGroup;
   group: db.Group | null;
   groupChannels: db.Channel[];
@@ -34,7 +34,7 @@ type ChatOptionsProviderProps = {
   children: ReactNode;
   groupId?: string;
   channelId?: string;
-  pinned?: db.Channel[];
+  pinned: db.Pin[];
   useGroup?: typeof store.useGroup;
   onPressGroupMeta: (groupId: string) => void;
   onPressGroupMembers: (groupId: string) => void;

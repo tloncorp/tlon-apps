@@ -2,7 +2,8 @@
   "extends": "../../tsconfig",
   "include": ["./src"],
   "compilerOptions": {
-    "composite": true
+    "composite": true,
+    "moduleResolution": "bundler"
   }
 }
 

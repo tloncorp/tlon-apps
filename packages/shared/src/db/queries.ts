@@ -219,7 +219,15 @@ export const getPendingChats = createReadQuery(
 
     return [...pendingChannels, ...pendingGroups];
   },
-  ['groups']
+  ['groups', 'channels']
+);
+
+export const getPins = createReadQuery(
+  'getPins',
+  async (ctx: QueryCtx): Promise<Pin[]> => {
+    return ctx.db.query.pins.findMany();
+  },
+  ['pins']
 );
 
 export const getChats = createReadQuery(
@@ -228,9 +236,10 @@ export const getChats = createReadQuery(
     const partitionedGroupsQuery = ctx.db
       .select({
         ...getTableColumns($channels),
-        rn: sql`ROW_NUMBER() OVER(PARTITION BY ${$channels.groupId} ORDER BY COALESCE(${$channels.lastPostAt}, ${$channelUnreads.updatedAt}) DESC)`.as(
-          'rn'
-        ),
+        rowNumber:
+          sql`ROW_NUMBER() OVER(PARTITION BY ${$channels.groupId} ORDER BY COALESCE(${$channels.lastPostAt}, ${$channelUnreads.updatedAt}) DESC)`.as(
+            'row_number'
+          ),
       })
       .from($channels)
       .where(
@@ -243,12 +252,12 @@ export const getChats = createReadQuery(
     const groupChannels = ctx.db
       .select()
       .from(partitionedGroupsQuery)
-      .where(eq(partitionedGroupsQuery.rn, 1));
+      .where(eq(partitionedGroupsQuery.rowNumber, 1));
 
     const allChannels = ctx.db
       .select({
         ...getTableColumns($channels),
-        rn: sql`0`.as('rn'),
+        rowNumber: sql`0`.as('row_number'),
       })
       .from($channels)
       .where(and(isNull($channels.groupId), eq($channels.isDmInvite, false)))
@@ -2748,7 +2757,7 @@ export const insertGroupUnreads = createWriteQuery(
         set: conflictUpdateSetAll($groupUnreads),
       });
   },
-  ['groups', 'groupUnreads']
+  ['groupUnreads']
 );
 
 export const updateGroupUnreadCount = createWriteQuery(
