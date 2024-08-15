@@ -1155,7 +1155,6 @@ export const getVolumeSetting = createReadQuery(
   ['volumeSettings']
 );
 
-// TODO: is this the right place to locate recursive volumes? Not sure, but expedient for now
 export const getGroupVolumeSetting = createReadQuery(
   'getGroupVolumeSetting',
   async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {

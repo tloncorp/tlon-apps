@@ -185,16 +185,3 @@ export async function getAppInfoSettings(): Promise<AppInfo | null> {
   const appInfo = storedAppInfo ? (JSON.parse(storedAppInfo) as AppInfo) : null;
   return appInfo;
 }
-
-// export async function getBaseVolumeSetting(): Promise<ub.NotificationLevel> {
-//   const volumeSetting = await AsyncStorage.getItem('baseVolumeSetting');
-//   return (volumeSetting ?? 'soft') as ub.NotificationLevel;
-// }
-
-// export async function setBaseVolumeSetting(
-//   volumeSetting: ub.NotificationLevel
-// ) {
-//   await AsyncStorage.setItem('baseVolumeSetting', volumeSetting);
-//   queryClient.invalidateQueries({ queryKey: BASE_VOLUME_SETTING_QUERY_KEY });
-//   logger.log('stored base volume setting', volumeSetting);
-// }

@@ -295,7 +295,6 @@ function getInfoFromMessageKey(
   return { authorId, postId };
 }
 
-export type VolumeUpdate = { sourceId: string; volume: ub.VolumeMap | null };
 export type ActivityEvent =
   | {
       type: 'updateChannelUnread';
@@ -303,10 +302,6 @@ export type ActivityEvent =
     }
   | { type: 'updateThreadUnread'; activity: db.ThreadUnreadState }
   | { type: 'updateGroupUnread'; unread: db.GroupUnread }
-  | {
-      type: 'updateVolumeSetting';
-      update: VolumeUpdate;
-    }
   | {
       type: 'updateItemVolume';
       volumeUpdate: db.VolumeSettings;
@@ -366,7 +361,6 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
 
       // handle volume settings
       if ('adjust' in update) {
-        console.log(`bl: got adjust event`, update);
         const { source, volume } = update.adjust;
         const sourceId = ub.sourceToString(source);
 
@@ -447,12 +441,6 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
             });
           }
         }
-
-        // keep handling threads as they were
-        // return handler({
-        //   type: 'updateVolumeSetting',
-        //   update: { sourceId, volume },
-        // });
       }
 
       // handle push notification settings
