@@ -5,11 +5,10 @@ import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { Text, View, XStack, YStack } from 'tamagui';
 
-import { ActionSheet } from '../ActionSheet';
 import AuthorRow from '../AuthorRow';
-import { Button } from '../Button';
 import ContentRenderer from '../ContentRenderer';
 import { MessageInput } from '../MessageInput';
+import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 
@@ -234,15 +233,12 @@ const ChatMessage = ({
       post.replyContactIds ? (
         <ChatMessageReplySummary post={post} onPress={handleRepliesPressed} />
       ) : null}
-      <ActionSheet open={showRetrySheet} onOpenChange={setShowRetrySheet}>
-        <ActionSheet.ActionTitle>Post failed to send</ActionSheet.ActionTitle>
-        <Button hero onPress={handleRetryPressed}>
-          <Button.Text>Retry</Button.Text>
-        </Button>
-        <Button heroDestructive onPress={handleDeletePressed}>
-          <Button.Text>Delete</Button.Text>
-        </Button>
-      </ActionSheet>
+      <SendPostRetrySheet
+        open={showRetrySheet}
+        onOpenChange={setShowRetrySheet}
+        onPressRetry={handleRetryPressed}
+        onPressDelete={handleDeletePressed}
+      />
     </YStack>
   );
 };

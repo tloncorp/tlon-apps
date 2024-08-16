@@ -1,14 +1,16 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import React from 'react';
-import { View } from 'tamagui';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { triggerHaptic } from '../utils';
-import { ActionSheet } from './ActionSheet';
-import { GroupAvatar } from './Avatar';
-import { Button } from './Button';
-import { PrimaryButton } from './Buttons';
+import {
+  ActionGroup,
+  ActionSheet,
+  SimpleActionSheetHeader,
+  createActionGroup,
+  createActionGroups,
+} from './ActionSheet';
+import { ListItem } from './ListItem';
 import { LoadingSpinner } from './LoadingSpinner';
 
 interface Props {
@@ -142,113 +144,98 @@ export function GroupPreviewPane({
 
   return (
     <>
-      <ActionSheet.Header>
-        <View
-          alignItems="center"
-          gap="$l"
-          backgroundColor="$secondaryBackground"
-          borderRadius="$xl"
-          padding="$3xl"
-        >
-          <GroupAvatar model={group} />
-          <ActionSheet.Title>{group?.title ?? group?.id}</ActionSheet.Title>
-          {group?.description ? (
-            <ActionSheet.Description fontSize="$s" textAlign="center">
-              {group.description}
-            </ActionSheet.Description>
-          ) : null}
-        </View>
-      </ActionSheet.Header>
-      <View marginTop="$m" gap={isJoining ? '$2xl' : '$l'}>
-        <GroupActions
-          status={status}
-          actions={{
+      <SimpleActionSheetHeader
+        title={group?.title ?? group?.id}
+        subtitle={group.description ?? undefined}
+        icon={<ListItem.GroupIcon model={group} />}
+      />
+      <ActionSheet.Content>
+        <ActionSheet.SimpleActionGroupList
+          actionGroups={getActionGroups(status, {
             respondToInvite,
             requestInvite,
             rescindInvite,
             joinGroup,
             goToGroup,
-          }}
-          loading={isJoining}
+          })}
         />
-      </View>
+      </ActionSheet.Content>
     </>
   );
 }
 
 export const GroupPreviewSheet = React.memo(GroupPreviewSheetComponent);
 
-export function GroupActions({
-  status,
-  actions,
-  loading,
-}: {
-  status: JoinStatus;
+export function getActionGroups(
+  status: JoinStatus,
   actions: {
     respondToInvite: (accepted: boolean) => void;
     requestInvite: () => void;
     rescindInvite: () => void;
     joinGroup: () => void;
     goToGroup: () => void;
-  };
-  loading: boolean;
-}) {
+  }
+): ActionGroup[] {
   if (status.isMember) {
-    return (
-      <PrimaryButton onPress={() => actions.goToGroup()}>
-        <Button.Text>Go to Group</Button.Text>
-      </PrimaryButton>
+    return createActionGroups([
+      'positive',
+      {
+        title: 'Go to group',
+        action: actions.goToGroup,
+      },
+    ]);
+  } else if (status.isJoining) {
+    return createActionGroups([
+      'disabled',
+      {
+        title: 'Joining, please wait...',
+        disabled: true,
+      },
+    ]);
+  } else if (status.hasInvite) {
+    return createActionGroups(
+      [
+        'positive',
+        {
+          title: 'Accept invite',
+          action: () => actions.respondToInvite(true),
+        },
+      ],
+      [
+        'negative',
+        {
+          title: 'Reject invite',
+          action: () => actions.respondToInvite(false),
+        },
+      ]
     );
+  } else if (status.needsInvite && !status.hasInvite) {
+    if (status.requestedInvite) {
+      return createActionGroups(
+        ['disabled', { title: 'Invite requested' }],
+        [
+          'negative',
+          {
+            title: 'Cancel request',
+            action: actions.rescindInvite,
+          },
+        ]
+      );
+    } else {
+      return [
+        createActionGroup('positive', {
+          title: 'Request invite',
+          action: actions.requestInvite,
+        }),
+      ];
+    }
+  } else {
+    return createActionGroups([
+      'positive',
+      {
+        title: 'Join group',
+        action: actions.joinGroup,
+      },
+    ]);
   }
-
-  if (status.isJoining) {
-    return (
-      <>
-        <PrimaryButton disabled={true} loading={true}>
-          <Button.Text>Joining, please wait</Button.Text>
-        </PrimaryButton>
-      </>
-    );
-  }
-
-  if (status.hasInvite) {
-    return (
-      <>
-        <PrimaryButton onPress={() => actions.respondToInvite(true)}>
-          <Button.Text>Accept invite</Button.Text>
-        </PrimaryButton>
-        <Button secondary onPress={() => actions.respondToInvite(false)}>
-          <Button.Text>Reject invite</Button.Text>
-        </Button>
-      </>
-    );
-  }
-
-  if (status.needsInvite && !status.hasInvite) {
-    return (
-      <>
-        <PrimaryButton
-          disabled={status.requestedInvite}
-          onPress={actions.requestInvite}
-        >
-          <Button.Text>
-            {status.requestedInvite ? 'Requested' : 'Request an invite'}
-          </Button.Text>
-        </PrimaryButton>
-        {status.requestedInvite && (
-          <Button secondary onPress={actions.rescindInvite}>
-            <Button.Text>Cancel request</Button.Text>
-          </Button>
-        )}
-      </>
-    );
-  }
-
-  return (
-    <>
-      <PrimaryButton onPress={actions.joinGroup}>
-        <Button.Text>Join</Button.Text>
-      </PrimaryButton>
-    </>
-  );
 }

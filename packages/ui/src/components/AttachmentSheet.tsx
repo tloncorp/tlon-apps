@@ -2,7 +2,7 @@ import { MessageAttachments } from '@tloncorp/shared/dist/api';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect } from 'react';
 
-import { ActionGroup, ActionSheet } from './ActionSheetV2';
+import { ActionGroup, ActionSheet } from './ActionSheet';
 import { ListItem } from './ListItem';
 
 export default function AttachmentSheet({
@@ -98,9 +98,9 @@ export default function AttachmentSheet({
           <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
         </ListItem.MainContent>
       </ActionSheet.Header>
-      <ActionSheet.ScrollView>
-        <ActionSheet.ActionGroupList actionGroups={actionGroups} />
-      </ActionSheet.ScrollView>
+      <ActionSheet.Content>
+        <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
+      </ActionSheet.Content>
     </ActionSheet>
   );
 }

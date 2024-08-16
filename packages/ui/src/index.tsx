@@ -1,4 +1,3 @@
-export * from './components/ActionSheet';
 export * from './components/Activity/ActivityScreenView';
 export * from './components/AddChats';
 export * from './components/AddChats/AddDmSheet';
@@ -33,6 +32,7 @@ export * from './components/Emoji';
 export * from './components/FeatureFlagScreenView';
 export * from './components/FloatingActionButton';
 export * from './components/FormInput';
+export * from './components/Form';
 export * from './components/GalleryPost';
 export * from './components/GenericHeader';
 export * from './components/GroupChannelsScreenView';

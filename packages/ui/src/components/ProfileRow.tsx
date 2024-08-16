@@ -1,15 +1,13 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { View, XStack, YStack } from 'tamagui';
+import { XStack, YStack } from 'tamagui';
 
 import { ContactAvatar } from './Avatar';
-import ContactName from './ContactName';
-import { DebugInfo } from './DebugInfo';
+import { LabelText } from './TrimmedText';
 
 export default function ProfileRow({
   contactId,
   contact,
   dark,
-  debugMessage,
 }: {
   contactId: string;
   contact?: db.Contact;
@@ -17,40 +15,38 @@ export default function ProfileRow({
   debugMessage?: string;
 }) {
   const color = dark ? '$primaryText' : '$white';
+
   return (
     <XStack
-      padding="$2xl"
+      padding="$l"
+      gap="$xl"
       alignItems="center"
       backgroundColor={dark ? '$secondaryBackground' : undefined}
       borderRadius={dark ? '$xl' : undefined}
     >
-      {debugMessage ? (
-        <DebugInfo debugMessage={debugMessage}>
-          <ContactAvatar size="$5xl" contactId={contactId} />
-        </DebugInfo>
-      ) : (
-        <ContactAvatar size="$5xl" contactId={contactId} />
-      )}
-      <View marginLeft="$l" flex={1}>
+      <ContactAvatar
+        size="custom"
+        width={100}
+        height={100}
+        borderRadius={'$xl'}
+        contactId={contactId}
+      />
+      <YStack flex={1} gap="$l" justifyContent="center">
         {contact?.nickname ? (
-          <YStack>
-            <ContactName
-              color={color}
-              fontWeight="$xl"
-              userId={contactId}
-              showNickname
-            />
-            <ContactName
-              fontFamily="$mono"
-              color={color}
-              opacity={dark ? 0.5 : 0.7}
-              userId={contactId}
-            />
-          </YStack>
+          <>
+            <LabelText color={color} size="$2xl">
+              {contact.nickname}
+            </LabelText>
+            <LabelText color={color} opacity={dark ? 0.5 : 0.7} size="$xl">
+              {contact.id}
+            </LabelText>
+          </>
         ) : (
-          <ContactName color={color} fontWeight="$xl" userId={contactId} />
+          <LabelText color={color} size="$3xl">
+            {contactId}
+          </LabelText>
         )}
-      </View>
+      </YStack>
     </XStack>
   );
 }
