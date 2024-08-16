@@ -351,6 +351,7 @@ export const getChats = createReadQuery(
     'channels',
     'posts',
     'channelUnreads',
+    'groupUnreads',
     'threadUnreads',
     'volumeSettings',
   ]
