@@ -4,6 +4,7 @@ import { queryClient } from '../api';
 import { createDevLogger, escapeLog, listDebugLabel, runIfDev } from '../debug';
 import * as changeListener from './changeListener';
 import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
+import { QueryLogger } from './queryLogger';
 import { TableName } from './types';
 
 const logger = createDevLogger('query', false);
@@ -101,7 +102,11 @@ export const createQuery = <TOptions, TReturn>(
     // Will kick off a transaction if this is a write query + there's no existing context.
     return withCtxOrDefault(meta, ctxArg, async (resolvedCtx) => {
       const result = await runQuery(resolvedCtx);
-      logger.log(meta.label + ':end', Date.now() - startTime + 'ms');
+      const durationMs = Date.now() - startTime;
+      logger.log(meta.label + ':end', durationMs + 'ms');
+      if (meta.label) {
+        QueryLogger.shared.log(meta.label, durationMs);
+      }
       // Pass pending table effects to query context
       if (meta?.tableEffects) {
         const effects =
