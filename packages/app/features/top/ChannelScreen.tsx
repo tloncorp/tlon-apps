@@ -122,16 +122,15 @@ export default function ChannelScreen({
     if (!channel) {
       return undefined;
     }
-    const unread = channel?.unread;
     const firstUnreadId =
-      unread &&
-      (unread.countWithoutThreads ?? 0) > 0 &&
-      unread?.firstUnreadPostId;
+      initialChannelUnread &&
+      (initialChannelUnread.countWithoutThreads ?? 0) > 0 &&
+      initialChannelUnread?.firstUnreadPostId;
     return selectedPostId || firstUnreadId;
     // We only want this to rerun when the channel is loaded for the first time OR if
     // the selected post route param changes
     // eslint-disable-next-line
-  }, [!!channel, selectedPostId]);
+  }, [initialChannelUnread, selectedPostId]);
 
   useEffect(() => {
     if (channel?.id) {
