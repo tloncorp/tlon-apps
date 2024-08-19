@@ -27,7 +27,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %6
+    $:  %7
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         hidden-posts=(set id-post:c)
@@ -122,15 +122,48 @@
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
-  ?>  ?=(%6 -.old)
+  =?  old  ?=(%6 -.old)  (state-6-to-7 old)
+  ?>  ?=(%7 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-6 state-5 state-4 state-3 state-2 state-1 state-0)
-  +$  state-6  current-state
+  +$  versioned-state
+    $%  state-7
+        state-6
+        state-5
+        state-4
+        state-3
+        state-2
+        state-1
+        state-0
+    ==
+  +$  state-7  current-state
+  +$  state-6
+    $:  %6
+        =v-channels:v6:old:c
+        voc=(map [nest:c plan:c] (unit said:c))
+        hidden-posts=(set id-post:c)
+      ::
+        ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
+        ::
+        pending-ref-edits=(jug ship [=kind:c name=term])
+        :: delayed resubscribes
+        =^subs:s
+        =pimp:imp
+    ==
+  ++  state-6-to-7
+    |=  s=state-6
+    ^-  state-7
+    s(- %7, v-channels (v-channels-6-to-7 v-channels.s))
+  ++  v-channels-6-to-7
+    |=  vc=v-channels:v6:old:c
+    ^-  v-channels:c
+    %-  ~(run by vc)
+    |=  v=v-channel:v6:old:c
+    v(pending [pending.v *(map time id-post:c)])
   +$  state-5
     $:  %5
-        =v-channels:c
+        =v-channels:v6:old:c
         voc=(map [nest:c plan:c] (unit said:c))
         hidden-posts=(set id-post:c)
       ::
@@ -148,7 +181,7 @@
   ::
   +$  state-4
     $:  %4
-        =v-channels:c
+        =v-channels:v6:old:c
         voc=(map [nest:c plan:c] (unit said:c))
         pins=(list nest:c)
         hidden-posts=(set id-post:c)
@@ -261,7 +294,7 @@
     ==
   ++  v-channel-2-to-3
     |=  v=v-channel-2
-    ^-  v-channel:c
+    ^-  v-channel:v6:old:c
     v(future [future.v *pending-messages:c])
   ++  v-channel-1-to-2
     |=  v=v-channel-1
@@ -1304,7 +1337,8 @@
     |=  [=time =u-channel:c]
     ?>  ca-from-host
     ^+  ca-core
-    =.  log.channel  (put:log-on:c log.channel time u-channel)
+    =?  last-updated.channel  ?=(%post -.u-channel)
+      (~(put by last-updated.channel) time id.u-channel)
     ?-    -.u-channel
         %create
       ?.  =(0 rev.perm.channel)  ca-core

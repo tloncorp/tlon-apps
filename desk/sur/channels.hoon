@@ -61,6 +61,7 @@
         =window
         =future
         pending=pending-messages
+        last-updated=(map time id-post)
     ==
   --
 ::  $v-post: a channel post
@@ -526,6 +527,21 @@
 ++  on-simple-replies  ((on id-reply simple-reply) lte)
 ++  old
   |%
+  ++  v6
+    |%
+    ++  v-channels  (map nest v-channel)
+    ++  v-channel
+      |^  ,[global:^v-channel local]
+      +$  local
+        $:  =net
+            =log
+            =remark
+            =window:^v-channel
+            =future:^v-channel
+            pending=pending-messages
+        ==
+      --
+    --
   ++  v1
     |%
     +$  post  [seal [rev=@ud essay]]
