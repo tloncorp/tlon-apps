@@ -15,7 +15,7 @@ import {
   ChatOptionsProvider,
   INITIAL_POSTS_PER_PAGE,
 } from '@tloncorp/ui';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 
 import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -77,7 +77,7 @@ export default function ChannelScreen({
       setInitialChannelUnread(unread ?? null);
     }
     initializeChannelUnread();
-  }, []);
+  }, [currentChannelId]);
 
   const {
     negotiationStatus,
