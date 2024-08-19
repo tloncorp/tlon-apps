@@ -97,7 +97,7 @@ import {
   VolumeSettings,
 } from './types';
 
-const logger = createDevLogger('queries', false);
+const logger = createDevLogger('queries', true);
 
 const GROUP_META_COLUMNS = {
   id: true,
@@ -1383,7 +1383,7 @@ export const getChannelWithRelations = createReadQuery(
     });
     return returnNullIfUndefined(result);
   },
-  ['channels', 'volumeSettings', 'pins', 'groups', 'contacts']
+  ['channels', 'volumeSettings', 'pins', 'groups', 'contacts', 'channelUnreads']
 );
 
 export const getStaleChannels = createReadQuery(

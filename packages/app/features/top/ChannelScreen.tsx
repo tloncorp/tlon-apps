@@ -15,7 +15,7 @@ import {
   ChatOptionsProvider,
   INITIAL_POSTS_PER_PAGE,
 } from '@tloncorp/ui';
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -66,6 +66,18 @@ export default function ChannelScreen({
   const [currentChannelId, setCurrentChannelId] = React.useState(
     channelFromParams.id
   );
+
+  // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
+  // time
+  const [initialChannelUnread, setInitialChannelUnread] =
+    React.useState<db.ChannelUnread | null>(null);
+  useEffect(() => {
+    async function initializeChannelUnread() {
+      const unread = await db.getChannelUnread({ channelId: currentChannelId });
+      setInitialChannelUnread(unread ?? null);
+    }
+    initializeChannelUnread();
+  }, []);
 
   const {
     negotiationStatus,
@@ -251,6 +263,7 @@ export default function ChannelScreen({
       <Channel
         headerMode={headerMode}
         channel={channel}
+        initialChannelUnread={initialChannelUnread}
         currentUserId={currentUserId}
         calmSettings={calmSettings}
         isLoadingPosts={isLoadingPosts}
