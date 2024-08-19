@@ -61,9 +61,11 @@
         =window
         =future
         pending=pending-messages
-        last-updated=(map time id-post)
+        =last-updated
     ==
   --
++$  last-updated  ((mop time id-post) lte)
+++  updated-on   ((on time id-post) lte)
 ::  $v-post: a channel post
 ::
 +$  v-post      [v-seal (rev essay)]

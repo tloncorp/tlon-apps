@@ -15,6 +15,7 @@
 ::  performance, keep warm
 /+  channel-json
 ::
+=/  verbose  &
 %-  %-  agent:neg
     :+  notify=&
       [~.channels^%1 ~ ~]
@@ -99,6 +100,11 @@
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  server  (cat 3 dap.bowl '-server')
+++  log
+  |=  msg=(trap tape)
+  ?.  verbose  same
+  (slog leaf+"%{(trip dap.bowl)} {(msg)}" ~)
+::
 ::
 ::  does not overwite if wire and dock exist.  maybe it should
 ::  leave/rewatch if the path differs?
@@ -160,7 +166,7 @@
     ^-  v-channels:c
     %-  ~(run by vc)
     |=  v=v-channel:v6:old:c
-    v(pending [pending.v *(map time id-post:c)])
+    v(pending [pending.v *last-updated:c])
   +$  state-5
     $:  %5
         =v-channels:v6:old:c
@@ -1338,7 +1344,15 @@
     ?>  ca-from-host
     ^+  ca-core
     =?  last-updated.channel  ?=(%post -.u-channel)
-      (~(put by last-updated.channel) time id.u-channel)
+      =/  id  id.u-channel
+      =-  (put:updated-on:c - time id.u-channel)
+      ::  delete old entry so we don't have two entries for the same post
+      %+  gas:updated-on:c  *last-updated:c
+      %+  murn
+        (tap:updated-on:c last-updated.channel)
+      |=  [=^time =id-post:c]
+      ?:  =(id id-post)  ~
+      `[time id-post]
     ?-    -.u-channel
         %create
       ?.  =(0 rev.perm.channel)  ca-core
@@ -1981,54 +1995,51 @@
         %v2  give-posts-2
       ==
     ::
-        [%changes before=@ limit=@ ~]
-      =/  before=id-post:c
-        ?^  tim=(slaw %da before.pole)  u.tim
-        (slav %ud before.pole)
-      =/  limit=@ud ::$@([%count @ud] [%time @da])  ::TODO  support?
-        :: ?^  tim=(slaw %da limit.pole)  [%time u.tim]
-        :: [%count (slav %ud limit.pole)]
-        (slav %ud limit.pole)
-      =;  [older=(unit time) posts=v-posts:c]
+        [%changes start=@ end=@ after=@ ~]
+      =/  start=id-post:c
+        ?^  tim=(slaw %da start.pole)  u.tim
+        (slav %ud start.pole)
+      =/  end=id-post:c
+        ?^  tim=(slaw %da end.pole)  u.tim
+        (slav %ud end.pole)
+      =/  after=id-post:c
+        ?^  tim=(slaw %da after.pole)  u.tim
+        (slav %ud after.pole)
+      =;  posts=v-posts:c
         ?:  ?=(%v2 version)
           =/  =paged-posts:c
-            [(uv-posts-2:utils posts) `before older (wyt:on-v-posts:c posts)]
+            [(uv-posts-2:utils posts) ~ ~ (wyt:on-v-posts:c posts)]
           ``channel-posts-2+!>(paged-posts)
         =/  =paged-posts:v1:old:c
-          [(uv-posts:utils posts) `before older (wyt:on-v-posts:c posts)]
+          [(uv-posts:utils posts) ~ ~ (wyt:on-v-posts:c posts)]
         ``channel-posts+!>(paged-posts)
       ::  walk both posts and logs, in chronological order, newest-first,
       ::  until we accumulate the desired amount of results
       ::
       ::NOTE  would manually walk the tree, but logic gets rather confusing,
       ::      so we just eat the conversion overhead here
-      =/  posts  (bap:on-v-posts:c (lot:on-v-posts:c posts.channel ~ `before))
-      =/  logs   (bap:log-on:c (lot:log-on:c log.channel ~ `before))
-      =|  s=[=_limit older=_`(unit time)`(some before) out=v-posts:c]
-      =<  [older out]
-      |-  ^+  s
-      ?:  =(0 limit.s)  s
-      ?~  posts
-        ::  cannot have logs if posts already empty ::REVIEW right?
-        ::
-        s(older ~)
-      =*  pit  key.i.posts
-      =/  lit  ?~(logs pit key.i.logs)
-      ?:  (gte pit lit)
-        ::  post is newer than logs
-        ::
-        =?  s  !(has:on-v-posts:c out.s pit)
-          [(dec limit.s) `pit (put:on-v-posts:c out.s i.posts)]
-        $(posts t.posts)
-      ::  log is newer than posts
-      ::
-      ?>  ?=(^ logs)
-      ?.  ?=(%post -.val.i.logs)  $(logs t.logs)
-      =*  id  id.val.i.logs
-      =?  s  !(has:on-v-posts:c out.s id)
-        :+  (dec limit.s)  `lit
-        (put:on-v-posts:c out.s id (got:on-v-posts:c posts.channel id))
-      $(logs t.logs)
+      =/  posts  (lot:on-v-posts:c posts.channel `(sub start 1) `(add end 1))
+      =/  logs   (tap:log-on:c (lot:log-on:c log.channel `after ~))
+      =/  updated  (tap:updated-on:c (lot:updated-on:c last-updated.channel `after ~))
+      %-  (log |.("posts: {<(lent posts)>}"))
+      %-  (log |.("updated: {<(lent updated)>}"))
+      %-  (log |.("start: {<start>}"))
+      %-  (log |.("end: {<end>}"))
+      =|  out=v-posts:c
+      |-  ^+  out
+      ::  no posts in this range
+      ?~  posts  ~
+      ::  no changes after this point
+      ?~  updated  out
+      =*  changed  val.i.updated
+      %-  (log |.("changed post: {<changed>}"))
+      %-  (log |.("  gte start: {<(gte changed start)>}"))
+      %-  (log |.("  lte end: {<(lte changed end)>}"))
+      ::  if the post is not in our subset, skip
+      ?~  post=(get:on-v-posts:c posts changed)
+        $(updated t.updated)
+      =.  out  (put:on-v-posts:c out changed u.post)
+      $(updated t.updated)
     ::
         [%post time=@ ~]
       =/  time  (slav %ud time.pole)

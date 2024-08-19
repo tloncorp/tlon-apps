@@ -113,7 +113,7 @@
     %-  ~(run by vc)
     |=  v=v-channel:v6:old:c
     ^-  v-channel:c
-    v(pending [pending.v *(map time id-post:c)])
+    v(pending [pending.v *last-updated:c])
   +$  state-4
     $:  %4
         =v-channels:v6:old:c
