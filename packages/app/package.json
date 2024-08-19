@@ -13,5 +13,9 @@
   "devDependencies": {
     "@types/react": "^18.2.55",
     "@types/react-native": "0.73.0"
+  },
+  "peerDependencies": {
+    "lodash": "^4.17.21",
+    "zustand": "^3.7.2"
   }
 }

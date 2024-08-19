@@ -8,7 +8,7 @@ import { GroupPreviewAction } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
-import * as featureFlags from '../lib/featureFlags';
+import { useFeatureFlag } from '../lib/featureFlags';
 import storage from '../lib/storage';
 
 export const useChannelContext = ({
@@ -170,6 +170,7 @@ export const useChannelContext = ({
   // Contacts
 
   const contactsQuery = store.useContacts();
+  const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   return {
     negotiationStatus,
@@ -189,6 +190,6 @@ export const useChannelContext = ({
     navigateToSearch,
     currentUserId,
     performGroupAction,
-    headerMode: featureFlags.isEnabled('channelSwitcher') ? 'next' : 'default',
+    headerMode: isChannelSwitcherEnabled ? 'next' : 'default',
   } as const;
 };
