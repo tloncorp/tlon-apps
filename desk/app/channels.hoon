@@ -1304,6 +1304,7 @@
     |=  [=time =u-channel:c]
     ?>  ca-from-host
     ^+  ca-core
+    =.  log.channel  (put:log-on:c log.channel time u-channel)
     ?-    -.u-channel
         %create
       ?.  =(0 rev.perm.channel)  ca-core
