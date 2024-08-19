@@ -15,7 +15,7 @@
 ::  performance, keep warm
 /+  channel-json
 ::
-=/  verbose  &
+=/  verbose  |
 %-  %-  agent:neg
     :+  notify=&
       [~.channels^%1 ~ ~]
@@ -2008,7 +2008,15 @@
       =;  posts=v-posts:c
         ?:  ?=(%v2 version)
           =/  =paged-posts:c
-            [(uv-posts-2:utils posts) ~ ~ (wyt:on-v-posts:c posts)]
+            :*  (uv-posts-2:utils posts)
+                ?~  newer=(tab:on-v-posts:c posts.channel `end 1)
+                  ~
+                `key:(head newer)
+                ?~  older=(bat:mo-v-posts:c posts.channel `start 1)
+                  ~
+                `key:(head older)
+                (wyt:on-v-posts:c posts)
+            ==
           ``channel-posts-2+!>(paged-posts)
         =/  =paged-posts:v1:old:c
           [(uv-posts:utils posts) ~ ~ (wyt:on-v-posts:c posts)]
