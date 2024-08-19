@@ -27,7 +27,7 @@ import { useCalmSettings } from '../../hooks/useCalmSettings';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useIsFocused } from '../../hooks/useIsFocused';
-import * as featureFlags from '../../lib/featureFlags';
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 
@@ -131,13 +131,15 @@ export default function ChatListScreen({
   // [props.navigation]
   // );
 
+  const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
+
   const onPressChat = useCallback(
     (item: db.Channel | db.Group) => {
       if (logic.isGroup(item)) {
         setSelectedGroup(item);
       } else if (
         item.group &&
-        !featureFlags.isEnabled('channelSwitcher') &&
+        !isChannelSwitcherEnabled &&
         // Should navigate to channel if it's pinned as a channel
         (!item.pin || item.pin.type === 'group')
       ) {
@@ -151,7 +153,7 @@ export default function ChatListScreen({
         navigateToSelectedPost(item, item.firstUnreadPostId);
       }
     },
-    [navigateToGroupChannels, navigateToSelectedPost]
+    [navigateToGroupChannels, navigateToSelectedPost, isChannelSwitcherEnabled]
   );
 
   const onLongPressChat = useCallback((item: db.Channel | db.Group) => {
