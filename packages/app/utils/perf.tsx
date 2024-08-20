@@ -1,9 +1,13 @@
 import { firebase } from '@react-native-firebase/perf';
+import { InstrumentationProvider } from '@tloncorp/shared/dist';
 import { PerformanceMonitoringEndpoint } from '@tloncorp/shared/dist/perf';
+import { useMemo } from 'react';
+
+import { useFeatureFlag } from '../lib/featureFlags';
 
 type Firebase = typeof firebase;
 
-export class FirebasePerformanceMonitoringEndpoint
+class FirebasePerformanceMonitoringEndpoint
   implements PerformanceMonitoringEndpoint
 {
   static shared = new FirebasePerformanceMonitoringEndpoint(firebase);
@@ -21,4 +25,27 @@ export class FirebasePerformanceMonitoringEndpoint
   async startTrace(identifier: string) {
     return firebase.perf().startTrace(identifier);
   }
+}
+
+export function FeatureFlagConnectedInstrumentationProvider({
+  children,
+}: {
+  children: JSX.Element;
+}) {
+  const [isPerformanceCollectionEnabled] = useFeatureFlag(
+    'instrumentationEnabled'
+  );
+  const endpoint = useMemo(
+    () => new FirebasePerformanceMonitoringEndpoint(firebase),
+    []
+  );
+
+  return (
+    <InstrumentationProvider
+      collectionEnabled={isPerformanceCollectionEnabled}
+      endpoint={endpoint}
+    >
+      {children}
+    </InstrumentationProvider>
+  );
 }

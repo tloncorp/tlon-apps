@@ -17,6 +17,7 @@ import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useScreenOptions } from '@tloncorp/app/hooks/useScreenOptions';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
+import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import { PortalProvider } from '@tloncorp/ui';
@@ -30,7 +31,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTailwind } from 'tailwind-rn';
 
 import AuthenticatedApp from './components/AuthenticatedApp';
-import { FeatureFlagConnectedInstrumentationProvider } from './components/FeatureFlagConnectedInstrumentationProvider';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
