@@ -30,6 +30,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTailwind } from 'tailwind-rn';
 
 import AuthenticatedApp from './components/AuthenticatedApp';
+import { FeatureFlagConnectedInstrumentationProvider } from './components/FeatureFlagConnectedInstrumentationProvider';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
@@ -213,42 +214,44 @@ export default function ConnectedApp(props: Props) {
 
   return (
     <ErrorBoundary>
-      <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-        <ShipProvider>
-          <NavigationContainer
-            theme={isDarkMode ? DarkTheme : DefaultTheme}
-            ref={navigationContainerRef}
-          >
-            <BranchProvider>
-              <PostHogProvider
-                client={posthogAsync}
-                autocapture
-                options={{
-                  enable: process.env.NODE_ENV !== 'test',
-                }}
-              >
-                <GestureHandlerRootView style={tailwind('flex-1')}>
-                  <SafeAreaProvider>
-                    <MigrationCheck>
-                      <QueryClientProvider client={queryClient}>
-                        <PortalProvider>
-                          <App {...props} />
-                        </PortalProvider>
+      <FeatureFlagConnectedInstrumentationProvider>
+        <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
+          <ShipProvider>
+            <NavigationContainer
+              theme={isDarkMode ? DarkTheme : DefaultTheme}
+              ref={navigationContainerRef}
+            >
+              <BranchProvider>
+                <PostHogProvider
+                  client={posthogAsync}
+                  autocapture
+                  options={{
+                    enable: process.env.NODE_ENV !== 'test',
+                  }}
+                >
+                  <GestureHandlerRootView style={tailwind('flex-1')}>
+                    <SafeAreaProvider>
+                      <MigrationCheck>
+                        <QueryClientProvider client={queryClient}>
+                          <PortalProvider>
+                            <App {...props} />
+                          </PortalProvider>
 
-                        {__DEV__ && (
-                          <DevTools
-                            navigationContainerRef={navigationContainerRef}
-                          />
-                        )}
-                      </QueryClientProvider>
-                    </MigrationCheck>
-                  </SafeAreaProvider>
-                </GestureHandlerRootView>
-              </PostHogProvider>
-            </BranchProvider>
-          </NavigationContainer>
-        </ShipProvider>
-      </TamaguiProvider>
+                          {__DEV__ && (
+                            <DevTools
+                              navigationContainerRef={navigationContainerRef}
+                            />
+                          )}
+                        </QueryClientProvider>
+                      </MigrationCheck>
+                    </SafeAreaProvider>
+                  </GestureHandlerRootView>
+                </PostHogProvider>
+              </BranchProvider>
+            </NavigationContainer>
+          </ShipProvider>
+        </TamaguiProvider>
+      </FeatureFlagConnectedInstrumentationProvider>
     </ErrorBoundary>
   );
 }

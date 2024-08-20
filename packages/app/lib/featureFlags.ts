@@ -9,6 +9,10 @@ export const featureMeta = {
     default: false,
     label: 'Experimental channel switcher',
   },
+  instrumentationEnabled: {
+    default: false,
+    label: 'Enable collecting and reporting performance data',
+  },
 } satisfies Record<string, { default: boolean; label: string }>;
 
 export type FeatureName = keyof typeof featureMeta;
