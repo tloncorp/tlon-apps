@@ -1,5 +1,3 @@
-import { ChargeUpdateInitial, Pikes, getPikes, scryCharges } from '@urbit/api';
-
 import * as db from '../db';
 import * as ub from '../urbit';
 import { client, scry } from './urbit';
@@ -60,9 +58,79 @@ export const toClientSettings = (
   };
 };
 
+export interface ChargeUpdateInitial {
+  initial: {
+    [desk: string]: Charge;
+  };
+}
+
+export declare type DocketHref = DocketHrefSite | DocketHrefGlob;
+export interface DocketHrefGlob {
+  glob: {
+    base: string;
+  };
+}
+export interface DocketHrefSite {
+  site: string;
+}
+export interface Docket {
+  title: string;
+  info?: string;
+  color: string;
+  href: DocketHref;
+  website: string;
+  license: string;
+  version: string;
+  image?: string;
+}
+export interface Charge extends Docket {
+  chad: Chad;
+}
+export declare type Chad =
+  | HungChad
+  | GlobChad
+  | SiteChad
+  | InstallChad
+  | SuspendChad;
+export interface HungChad {
+  hung: string;
+}
+export interface GlobChad {
+  glob: null;
+}
+export interface SiteChad {
+  site: null;
+}
+export interface InstallChad {
+  install: null;
+}
+export interface SuspendChad {
+  suspend: null;
+}
+
+export interface Pike {
+  hash: string;
+  sync: {
+    desk: string;
+    ship: string;
+  } | null;
+  zest: 'live' | 'dead' | 'held';
+}
+export interface Pikes {
+  [desk: string]: Pike;
+}
+
 export async function getAppInfo(): Promise<db.AppInfo> {
-  const pikes = await scry<Pikes>(getPikes);
-  const charges = (await scry<ChargeUpdateInitial>(scryCharges)).initial;
+  const pikes = await scry<Pikes>({
+    app: 'hood',
+    path: '/kiln/pikes',
+  });
+  const charges = (
+    await scry<ChargeUpdateInitial>({
+      app: 'docket',
+      path: '/charges',
+    })
+  ).initial;
 
   const groupsPike = pikes?.['groups'] ?? {};
   const groupsCharge = charges?.['groups'] ?? {};

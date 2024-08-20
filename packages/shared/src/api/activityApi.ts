@@ -1,4 +1,4 @@
-import { unixToDa } from '@urbit/api';
+import { unixToDa } from '@urbit/aura';
 import { backOff } from 'exponential-backoff';
 
 import * as db from '../db';
@@ -321,10 +321,7 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   subscribe<ub.ActivityUpdate>(
     { app: 'activity', path: '/v4' },
     async (update: ub.ActivityUpdate) => {
-      logger.log(
-        'activity update',
-        runIfDev(() => JSON.stringify(update))
-      );
+      logger.log('activity update', runIfDev(() => JSON.stringify(update))());
       // handle unreads
       if ('activity' in update) {
         Object.entries(update.activity).forEach((activityEntry) => {
