@@ -63,7 +63,10 @@ async function loadInitialState() {
   if (state) {
     useFeatureFlagStore.setState((prev) => ({
       ...prev,
-      flags: state,
+      flags: {
+        ...prev.flags,
+        state,
+      },
     }));
   }
 }
