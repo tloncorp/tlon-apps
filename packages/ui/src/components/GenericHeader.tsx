@@ -2,8 +2,8 @@ import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SizableText, View, XStack, isWeb } from 'tamagui';
 
+import { Button } from './Button';
 import { Icon } from './Icon';
-import { IconButton } from './IconButton';
 
 export function GenericHeader({
   title,
@@ -35,9 +35,13 @@ export function GenericHeader({
           flex={1}
         >
           {goBack && (
-            <IconButton onPress={goBack} backgroundColor="unset">
+            <Button
+              onPress={goBack}
+              backgroundColor="unset"
+              borderColor="transparent"
+            >
               <Icon type="ChevronLeft" />
-            </IconButton>
+            </Button>
           )}
           {isWeb ? (
             <View flex={1}>

@@ -96,34 +96,34 @@ export function MessageInput({
   const [mentionText, setMentionText] = useState<string>();
 
   const extensions = [
-    // Blockquote,
-    // Bold,
-    // Code.extend({
-    // excludes: undefined,
-    // exitable: true,
-    // }).configure({
-    // HTMLAttributes: {
-    // class: 'rounded px-1 bg-gray-50 dark:bg-gray-100',
-    // },
-    // }),
-    // CodeBlock.configure({
-    // HTMLAttributes: {
-    // class: 'mr-4 px-2 rounded bg-gray-50 dark:bg-gray-100',
-    // },
-    // }),
+    Blockquote,
+    Bold,
+    Code.extend({
+      excludes: undefined,
+      exitable: true,
+    }).configure({
+      HTMLAttributes: {
+        class: 'rounded px-1 bg-gray-50 dark:bg-gray-100',
+      },
+    }),
+    CodeBlock.configure({
+      HTMLAttributes: {
+        class: 'mr-4 px-2 rounded bg-gray-50 dark:bg-gray-100',
+      },
+    }),
     Document,
-    // HardBreak,
-    // History.configure({ newGroupDelay: 100 }),
-    // Italic,
+    HardBreak,
+    History.configure({ newGroupDelay: 100 }),
+    Italic,
     // keyMapExt,
-    // Link.configure({
-    // openOnClick: false,
-    // }).extend({
-    // exitable: true,
-    // }),
+    Link.configure({
+      openOnClick: false,
+    }).extend({
+      exitable: true,
+    }),
     Paragraph,
-    // Placeholder.configure({ placeholder: placeholder ?? 'Message' }),
-    // Strike,
+    Placeholder.configure({ placeholder: placeholder ?? 'Message' }),
+    Strike,
     Text,
     // Text.extend({
     // addPasteRules() {

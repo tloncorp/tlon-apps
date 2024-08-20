@@ -1,15 +1,15 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useMemo, useState } from 'react';
 
-import { Dots, Search } from '../../assets/icons';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { ActionGroup, ActionSheet } from '../ActionSheetV2';
+import { Button } from '../Button';
 import {
   getPostActions,
   handleAction,
 } from '../ChatMessage/ChatMessageActions/MessageActions';
 import { GenericHeader } from '../GenericHeader';
-import { IconButton } from '../IconButton';
+import { Icon } from '../Icon';
 import { ListItem } from '../ListItem';
 import { BaubleHeader } from './BaubleHeader';
 
@@ -98,14 +98,22 @@ export function ChannelHeader({
         rightContent={
           <>
             {showSearchButton && (
-              <IconButton onPress={goToSearch}>
-                <Search />
-              </IconButton>
+              <Button
+                backgroundColor="unset"
+                borderColor="transparent"
+                onPress={goToSearch}
+              >
+                <Icon type="Search" />
+              </Button>
             )}
             {showMenuButton && (
-              <IconButton onPress={() => setShowActionSheet(true)}>
-                <Dots />
-              </IconButton>
+              <Button
+                backgroundColor="unset"
+                borderColor="transparent"
+                onPress={() => setShowActionSheet(true)}
+              >
+                <Icon type="Dots" />
+              </Button>
             )}
           </>
         }
