@@ -27,7 +27,6 @@ const usePerformanceMonitoringStore = create<PerformanceMonitoringStore>(
         ...(enabled
           ? {
               startTrace(identifier) {
-                console.log(`Starting trace ${identifier}`);
                 return firebase.perf().startTrace(identifier);
               },
             }
@@ -68,9 +67,6 @@ export function InstrumentationProvider({
   );
 
   useEffect(() => {
-    console.log(
-      `Setting performance monitoring collection enabled to ${collectionEnabled}`
-    );
     setMonitoringEnabled(collectionEnabled);
   }, [collectionEnabled, setMonitoringEnabled]);
 
