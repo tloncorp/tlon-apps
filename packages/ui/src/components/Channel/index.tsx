@@ -107,7 +107,7 @@ export function Channel({
   goToSearch: () => void;
   goToUserProfile: (userId: string) => void;
   messageSender: (content: Story, channelId: string) => Promise<void>;
-  uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
+  uploadAsset: (asset: ImagePickerAsset, isWeb?: boolean) => Promise<void>;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
