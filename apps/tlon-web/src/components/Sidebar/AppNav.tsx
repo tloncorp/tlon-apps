@@ -360,15 +360,16 @@ function ProfileTab(props: { isInactive: boolean }) {
 
 function LandscapeTab() {
   return (
-    <div
+    <a
+      href="/apps/landscape"
+      target="_blank"
       className={cn(
         'relative mx-auto flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-50 cursor-pointer text-gray-400'
       )}
       aria-label="Open Landscape"
-      onClick={() => window.open('/apps/landscape', '_blank')}
     >
       <LandscapeIcon className="h-4 w-4" />
-    </div>
+    </a>
   );
 }
 
