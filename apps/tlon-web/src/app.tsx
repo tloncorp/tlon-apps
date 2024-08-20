@@ -122,6 +122,7 @@ import UpdateNoticeSheet from './components/UpdateNotices';
 import { ActivityScreenController } from './controllers/ActivityScreenController';
 import { ChannelScreenController } from './controllers/ChannelScreenController';
 import { ChatListScreenController } from './controllers/ChatListScreenController';
+import { GroupChannelsScreenController } from './controllers/GroupChannelsScreenController';
 import BroadcastDm from './dms/BroadcastDm';
 import DMThread from './dms/DMThread';
 import MobileDmSearch from './dms/MobileDmSearch';
@@ -636,6 +637,10 @@ function NewAppRoutes() {
     <Routes>
       <Route path="/" element={<ChatListScreenController />} />
       <Route path="/activity" element={<ActivityScreenController />} />
+      <Route
+        path="/group/:ship/:name"
+        element={<GroupChannelsScreenController />}
+      />
       <Route
         path="/group/:ship/:name/channel/:chType/:chShip/:chName/:postId?"
         element={<ChannelScreenController />}
