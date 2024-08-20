@@ -298,7 +298,8 @@
         %.  indices
         %~  uni  by
         %-  ~(run by indices:bak)
-        |=  index
+        |=  index:a
+        ^-  index:a
         :_  [[floor.reads ~] bump]
         ?~  hed=(ram:on-event:a stream)
           *stream:a
