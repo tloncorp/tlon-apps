@@ -23,6 +23,7 @@ export default defineConfig({
     'expo-image-picker',
     'expo-file-system',
     '@react-native-firebase/crashlytics',
+    '@react-native-firebase/perf',
     '@react-native-community/netinfo',
     'expo-battery',
   ],
