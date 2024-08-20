@@ -1,12 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useShip } from '@tloncorp/app/contexts/ship';
+import { setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { useLayoutEffect } from 'react';
 import { ScrollView, Text } from 'react-native';
 import { useTailwind } from 'tailwind-rn';
 
 import { HeaderButton } from '../components/HeaderButton';
-import { useShip } from '../contexts/ship';
 import type { OnboardingStackParamList } from '../types';
-import { setEulaAgreed } from '../utils/eula';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'EULA'>;
 
@@ -66,7 +66,7 @@ Definitions
 
 For the purposes of this End-User License Agreement:
 
-"Agreement" means this End-User License Agreement that forms the entire agreement between You and the Company regarding the use of the Application. 
+"Agreement" means this End-User License Agreement that forms the entire agreement between You and the Company regarding the use of the Application.
 "Application" means the software program provided by the Company downloaded by You through an Application Store's account to a Device, named Tlon
 "Application Store" means the digital distribution service operated and developed by Apple Inc. (Apple App Store) or Google Inc. (Google Play Store) by which the Application has been downloaded to your Device.
 "Company" (referred to as either "the Company", "We", "Us" or "Our" in this Agreement) refers to Tlon Corporation, 2325 3rd St, San Francisco, CA 94107

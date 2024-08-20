@@ -1,14 +1,16 @@
-import { ProfileSheet } from '@tloncorp/ui';
+import { AppDataContextProvider, ProfileSheet } from '@tloncorp/ui';
 
-import { initialContacts } from './fakeData';
+import { brianContact } from './fakeData';
 
 export default {
   basic: (
-    <ProfileSheet
-      open
-      onOpenChange={() => {}}
-      contact={initialContacts[0]}
-      contactId={initialContacts[0].id}
-    />
+    <AppDataContextProvider contacts={[brianContact]}>
+      <ProfileSheet
+        open
+        onOpenChange={() => {}}
+        contact={brianContact}
+        contactId={brianContact.id}
+      />
+    </AppDataContextProvider>
   ),
 };

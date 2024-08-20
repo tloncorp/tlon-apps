@@ -1,4 +1,17 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useBranch } from '@tloncorp/app/contexts/branch';
+import { useShip } from '@tloncorp/app/contexts/ship';
+import {
+  allocateReservedShip,
+  getHostingUser,
+  getReservableShips,
+  getShipAccessCode,
+  getShipsWithStatus,
+  reserveShip as reserveShipApi,
+} from '@tloncorp/app/lib/hostingApi';
+import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
+import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { getShipFromCookie, getShipUrl } from '@tloncorp/app/utils/ship';
 import {
   configureApi,
   getLandscapeAuthCookie,
@@ -11,20 +24,7 @@ import { Alert, Text, View } from 'react-native';
 import { useTailwind } from 'tailwind-rn';
 
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { useBranch } from '../contexts/branch';
-import { useShip } from '../contexts/ship';
-import {
-  allocateReservedShip,
-  getHostingUser,
-  getReservableShips,
-  getShipAccessCode,
-  getShipsWithStatus,
-  reserveShip as reserveShipApi,
-} from '../lib/hostingApi';
-import { connectNotifyProvider } from '../lib/notificationsApi';
 import type { OnboardingStackParamList } from '../types';
-import { trackError, trackOnboardingAction } from '../utils/posthog';
-import { getShipFromCookie, getShipUrl } from '../utils/ship';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ReserveShip'>;
 

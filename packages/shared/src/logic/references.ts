@@ -10,6 +10,10 @@ export function getPostReferencePath(post: db.Post) {
   return `/1/chan/${post.channelId}/msg/${udToDec(post.id)}`;
 }
 
+export function getGroupReferencePath(groupId: string) {
+  return `/1/group/${groupId}`;
+}
+
 export function postToContentReference(
   post: db.Post
 ): [path: string, reference: ContentReference] {

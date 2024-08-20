@@ -1,8 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import { useMemo } from 'react';
+import { ScrollView, View } from 'tamagui';
 
-import { ScrollView, View } from '../../core';
 import ContentRenderer from '../ContentRenderer';
 import { GalleryPost } from '../GalleryPost';
 import { NotebookPost } from '../NotebookPost';
@@ -30,11 +30,7 @@ export function ActivitySourceContent({
 
   // thread or comment
   if (summary.newest.parentId) {
-    return (
-      <View marginTop="$s" marginRight="$xl">
-        <ContentRenderer post={post} viewMode="activity" />
-      </View>
-    );
+    return <ContentRenderer post={post} viewMode="activity" />;
   }
 
   if (
@@ -43,8 +39,6 @@ export function ActivitySourceContent({
   ) {
     return (
       <ScrollView
-        marginTop="$s"
-        marginRight="$xl"
         gap="$s"
         horizontal
         alwaysBounceHorizontal={false}
@@ -81,11 +75,7 @@ export function ActivitySourceContent({
     );
   }
 
-  return (
-    <View marginTop="$s" marginRight="$xl">
-      <ContentRenderer post={post} viewMode="activity" />
-    </View>
-  );
+  return <ContentRenderer post={post} viewMode="activity" />;
 }
 
 function getPost(event: db.ActivityEvent): db.Post {

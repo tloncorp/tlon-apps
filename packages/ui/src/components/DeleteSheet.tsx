@@ -1,5 +1,4 @@
-import { Text } from '../core';
-import { ActionSheet } from './ActionSheet';
+import { ActionSheet, createActionGroup } from './ActionSheet';
 
 export function DeleteSheet({
   title,
@@ -16,20 +15,24 @@ export function DeleteSheet({
 }) {
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
-      <ActionSheet.Title>Delete {title}</ActionSheet.Title>
-      <ActionSheet.Description>
-        <Text>
-          Are you sure you want to delete {title}? This action cannot be undone.
-        </Text>
-      </ActionSheet.Description>
-      <ActionSheet.Action destructive action={deleteAction}>
-        <ActionSheet.ActionTitle>
-          Delete {itemTypeDescription}
-        </ActionSheet.ActionTitle>
-      </ActionSheet.Action>
-      <ActionSheet.Action action={() => onOpenChange(false)}>
-        <ActionSheet.ActionTitle>Cancel</ActionSheet.ActionTitle>
-      </ActionSheet.Action>
+      <ActionSheet.SimpleHeader
+        title={`Delete ${title}?`}
+        subtitle="This action cannot be undone."
+      />
+      <ActionSheet.Content>
+        <ActionSheet.SimpleActionGroupList
+          actionGroups={[
+            createActionGroup('negative', {
+              title: `Delete ${itemTypeDescription}`,
+              action: deleteAction,
+            }),
+            createActionGroup('neutral', {
+              title: 'Cancel',
+              action: () => onOpenChange(false),
+            }),
+          ]}
+        />
+      </ActionSheet.Content>
     </ActionSheet>
   );
 }

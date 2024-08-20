@@ -1,0 +1,21 @@
+{
+  "name": "@tloncorp/app",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "private": true,
+  "scripts": {
+    "test": "vitest --watch false"
+  },
+  "dependencies": {
+    "@tloncorp/ui": "workspace:*",
+    "@tloncorp/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.55",
+    "@types/react-native": "0.73.0"
+  },
+  "peerDependencies": {
+    "lodash": "^4.17.21",
+    "zustand": "^3.7.2"
+  }
+}

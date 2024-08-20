@@ -1,8 +1,8 @@
 import { debounce } from 'lodash';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { Input as TInput, View } from 'tamagui';
+import { Circle } from 'tamagui';
 
-import { Circle } from '../core';
 import { Icon } from './Icon';
 import { Input } from './Input';
 

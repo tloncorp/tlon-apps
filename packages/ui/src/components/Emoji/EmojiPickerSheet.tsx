@@ -7,8 +7,8 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from 'react-native';
+import { View } from 'tamagui';
 
-import { View } from '../../core';
 import { Button } from '../Button';
 import KeyboardAvoidingView from '../KeyboardAvoidingView';
 import { SearchBar } from '../SearchBar';

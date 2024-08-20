@@ -13,12 +13,15 @@
     "build:all": "pnpm run build:packages && pnpm run build:apps",
     "dev:shared": "pnpm --filter '@tloncorp/shared' dev",
     "dev:android": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' android\"",
-    "dev:ios": "concurrently \"pnpm run dev:shared\" \"pnpm run dev --filter 'tlon-mobile'\" \"pnpm --filter 'tlon-mobile' ios\" \"pnpm --filter '@tloncorp/ui' watch\"",
+    "dev:ios": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios\" \"pnpm --filter '@tloncorp/ui' watch\"",
     "dev:web": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-web' dev-no-ssl\"",
     "test": "pnpm run -r test run -u",
     "prepare": "husky",
     "postinstall": "pnpm run build:all",
     "lint:all": "pnpm -r lint"
+  },
+  "dependencies": {
+    "@tloncorp/ui": "workspace:*"
   },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",

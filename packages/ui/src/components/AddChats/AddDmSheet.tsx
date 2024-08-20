@@ -1,17 +1,18 @@
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { XStack, YStack, ZStack } from 'tamagui';
 
 import { AppDataContextProvider, useContacts } from '../../contexts';
-import { XStack, YStack, ZStack } from '../../core';
 import { triggerHaptic } from '../../utils';
 import { Button } from '../Button';
 import { ContactBook } from '../ContactBook';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { Sheet } from '../Sheet';
 
-export function StartDmSheet({
+function StartDmSheetComponent({
   open,
   onOpenChange,
   goToDm,
@@ -98,6 +99,8 @@ export function StartDmSheet({
     </Sheet>
   );
 }
+
+export const StartDmSheet = React.memo(StartDmSheetComponent);
 
 function StartDMButton({
   participants,

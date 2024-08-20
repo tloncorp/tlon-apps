@@ -5,9 +5,9 @@ import * as Haptics from 'expo-haptics';
 import { useRef, useState } from 'react';
 import { Dimensions, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Stack, View, XStack, YStack, ZStack } from 'tamagui';
 
 import { Close } from '../assets/icons';
-import { Stack, View, XStack, YStack, ZStack } from '../core';
 import { Button } from './Button';
 import { Icon } from './Icon';
 import { IconButton } from './IconButton';

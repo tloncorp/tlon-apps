@@ -2,14 +2,13 @@ import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { isEqual } from 'lodash';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
+import { Text, View, XStack, YStack } from 'tamagui';
 
-import { Text, View, XStack, YStack } from '../../core';
-import { ActionSheet } from '../ActionSheet';
 import AuthorRow from '../AuthorRow';
-import { Button } from '../Button';
 import ContentRenderer from '../ContentRenderer';
 import { MessageInput } from '../MessageInput';
+import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 
@@ -41,8 +40,10 @@ const NoticeWrapper = ({
 const ChatMessage = ({
   post,
   showAuthor,
+  hideProfilePreview,
   onPressReplies,
   onPressImage,
+  onPress,
   onLongPress,
   onPressRetry,
   onPressDelete,
@@ -50,18 +51,23 @@ const ChatMessage = ({
   editing,
   editPost,
   setEditingPost,
+  isHighlighted,
 }: {
   post: db.Post;
   showAuthor?: boolean;
+  hideProfilePreview?: boolean;
+  authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
   showReplies?: boolean;
   onPressReplies?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => void;
   onPressDelete?: (post: db.Post) => void;
   editing?: boolean;
   editPost?: (post: db.Post, content: Story) => Promise<void>;
   setEditingPost?: (post: db.Post | undefined) => void;
+  isHighlighted?: boolean;
 }) => {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const isNotice = post.type === 'notice';
@@ -73,6 +79,17 @@ const ChatMessage = ({
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
   }, [onPressReplies, post]);
+
+  const shouldHandlePress = useMemo(() => {
+    return Boolean(onPress || post.deliveryStatus === 'failed');
+  }, [onPress, post.deliveryStatus]);
+  const handlePress = useCallback(() => {
+    if (onPress) {
+      onPress(post);
+    } else if (post.deliveryStatus === 'failed') {
+      setShowRetrySheet(true);
+    }
+  }, [post, onPress]);
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -127,7 +144,8 @@ const ChatMessage = ({
         paddingRight="$l"
         marginVertical="$s"
         backgroundColor="$secondaryBackground"
-        borderRadius="$m"
+        borderRadius="$xl"
+        overflow="hidden"
       >
         <Text
           paddingLeft="$l"
@@ -147,15 +165,13 @@ const ChatMessage = ({
   return (
     <YStack
       onLongPress={handleLongPress}
+      backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
       key={post.id}
       gap="$s"
       paddingVertical="$xs"
       paddingRight="$l"
-      onPress={
-        post.deliveryStatus === 'failed'
-          ? () => setShowRetrySheet(true)
-          : undefined
-      }
+      // avoid setting the top level press handler at all unless we need to
+      onPress={shouldHandlePress ? handlePress : undefined}
     >
       {showAuthor ? (
         <View paddingLeft="$l" paddingTop="$s">
@@ -164,6 +180,7 @@ const ChatMessage = ({
             authorId={post.authorId}
             sent={post.sentAt ?? 0}
             type={post.type}
+            disabled={hideProfilePreview}
             // roles={roles}
           />
         </View>
@@ -216,15 +233,12 @@ const ChatMessage = ({
       post.replyContactIds ? (
         <ChatMessageReplySummary post={post} onPress={handleRepliesPressed} />
       ) : null}
-      <ActionSheet open={showRetrySheet} onOpenChange={setShowRetrySheet}>
-        <ActionSheet.ActionTitle>Post failed to send</ActionSheet.ActionTitle>
-        <Button hero onPress={handleRetryPressed}>
-          <Button.Text>Retry</Button.Text>
-        </Button>
-        <Button heroDestructive onPress={handleDeletePressed}>
-          <Button.Text>Delete</Button.Text>
-        </Button>
-      </ActionSheet>
+      <SendPostRetrySheet
+        open={showRetrySheet}
+        onOpenChange={setShowRetrySheet}
+        onPressRetry={handleRetryPressed}
+        onPressDelete={handleDeletePressed}
+      />
     </YStack>
   );
 };
@@ -240,7 +254,8 @@ export default memo(ChatMessage, (prev, next) => {
     prev.setEditingPost === next.setEditingPost &&
     prev.onPressReplies === next.onPressReplies &&
     prev.onPressImage === next.onPressImage &&
-    prev.onLongPress === next.onLongPress;
+    prev.onLongPress === next.onLongPress &&
+    prev.onPress === next.onPress;
 
   return isPostEqual && areOtherPropsEqual;
 });

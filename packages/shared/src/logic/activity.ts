@@ -2,7 +2,7 @@ import * as db from '../db';
 import { ActivityEvent } from '../db';
 import {
   ExtendedEventType,
-  VolumeMap,
+  NotificationLevel,
   VolumeSettings,
   getLevelFromVolumeMap,
 } from '../urbit';
@@ -14,53 +14,50 @@ export function extractClientVolumes(
 
   Object.entries(volume).forEach(([sourceId, volumeMap]) => {
     if (!volumeMap) return;
+    const isBase = sourceId === 'base';
     const [sourceType, ...rest] = sourceId.split('/');
     const entityId = rest.join('/');
 
+    if (isBase) {
+      const level = getLevelFromVolumeMap(volumeMap);
+      settings.push({ itemId: 'base', itemType: 'base', level });
+    }
+
     if (sourceType === 'group') {
-      const clientVolume = getClientVolume(volumeMap);
-      settings.push({ itemId: entityId, itemType: 'group', ...clientVolume });
+      const level = getLevelFromVolumeMap(volumeMap);
+      settings.push({ itemId: entityId, itemType: 'group', level });
     }
 
     if (sourceType === 'channel' || sourceType === 'dm') {
-      const clientVolume = getClientVolume(volumeMap, sourceType === 'channel');
-      settings.push({ itemId: entityId, itemType: 'channel', ...clientVolume });
+      const level = getLevelFromVolumeMap(volumeMap);
+      settings.push({ itemId: entityId, itemType: 'channel', level });
     }
 
     if (sourceType === 'thread' || sourceType === 'dm-thread') {
       const postId = rest[rest.length - 1];
-      const clientVolume = getClientVolume(volumeMap);
-      settings.push({ itemId: postId, itemType: 'thread', ...clientVolume });
+      const level = getLevelFromVolumeMap(volumeMap);
+      settings.push({ itemId: postId, itemType: 'thread', level });
     }
   });
 
   return settings;
 }
 
-export function extractClientVolume(
-  volume: VolumeMap | null,
-  isGroupChannel?: boolean
-): {
-  isMuted: boolean;
-  isNoisy: boolean;
-} {
-  if (!volume) return { isMuted: false, isNoisy: false };
+export function isMuted(
+  volume: NotificationLevel | null | undefined,
+  type: 'group' | 'channel' | 'thread'
+) {
+  if (!volume) return false;
 
-  const clientVolume = getClientVolume(volume, isGroupChannel);
-  return clientVolume;
-}
+  if (type === 'channel') {
+    return volume === 'hush';
+  }
 
-function getClientVolume(volumeMap: VolumeMap, isGroupChannel?: boolean) {
-  const level = getLevelFromVolumeMap(volumeMap);
-  return {
-    // NOTE: channels are muted (in mobile app terms) by default — only mentions & replies. But we don't
-    // want them to all show up as muted visually. Do we want a way to support "muting" a channel in the App
-    // to hide it's count from the UI?
-    isMuted: isGroupChannel
-      ? level === 'hush'
-      : level === 'soft' || level === 'hush',
-    isNoisy: level === 'loud' || level === 'medium',
-  };
+  if (volume === 'soft' || volume === 'hush') {
+    return true;
+  }
+
+  return false;
 }
 
 // Aggregates events from the same source into a shape that we can use
@@ -157,14 +154,13 @@ export function interleaveActivityEvents(
     bIndex++;
   }
 
-  return filterDupeEvents(results);
+  return results;
 }
 
 export function filterDupeEvents(events: ActivityEvent[]): ActivityEvent[] {
   const seen = new Set<string>();
   return events.filter((event) => {
-    if (!event.postId) return false; // shouldn't happen
-    if (seen.has(event.postId)) {
+    if (seen.has(event.id)) {
       return false;
     }
     seen.add(event.id);

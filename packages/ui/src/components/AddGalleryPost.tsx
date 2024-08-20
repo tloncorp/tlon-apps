@@ -1,20 +1,22 @@
-import { MessageAttachments } from '@tloncorp/shared/dist/api';
-import { useState } from 'react';
+import { ImagePickerAsset } from 'expo-image-picker';
+import { useCallback, useState } from 'react';
 
-import { ActionSheet } from './ActionSheet';
+import { useAttachmentContext } from '../contexts/attachment';
+import { SimpleActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 
 export default function AddGalleryPost({
   showAddGalleryPost,
   setShowAddGalleryPost,
   setShowGalleryInput,
-  setImage,
+  onSetImage,
 }: {
   showAddGalleryPost: boolean;
   setShowAddGalleryPost: (show: boolean) => void;
   setShowGalleryInput: (show: boolean) => void;
-  setImage: (attchments: MessageAttachments) => void;
+  onSetImage: (assets: ImagePickerAsset[]) => void;
 }) {
+  const { attachAssets } = useAttachmentContext();
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
 
   const actions = [
@@ -34,22 +36,25 @@ export default function AddGalleryPost({
     },
   ];
 
+  const handleImageSet = useCallback(
+    (assets: ImagePickerAsset[]) => {
+      attachAssets(assets);
+      onSetImage(assets);
+    },
+    [attachAssets, onSetImage]
+  );
+
   return (
     <>
-      <ActionSheet
+      <SimpleActionSheet
         open={showAddGalleryPost}
-        onOpenChange={(open: boolean) => setShowAddGalleryPost(open)}
-      >
-        {actions.map((action, index) => (
-          <ActionSheet.Action key={index} action={action.action}>
-            <ActionSheet.ActionTitle>{action.title}</ActionSheet.ActionTitle>
-          </ActionSheet.Action>
-        ))}
-      </ActionSheet>
+        onOpenChange={setShowAddGalleryPost}
+        actions={actions}
+      />
       <AttachmentSheet
         showAttachmentSheet={showAttachmentSheet}
         setShowAttachmentSheet={setShowAttachmentSheet}
-        setImage={setImage}
+        setImage={handleImageSet}
       />
     </>
   );

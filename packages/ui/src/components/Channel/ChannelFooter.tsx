@@ -6,10 +6,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SizableText, Spinner, XStack } from 'tamagui';
 
 import { ChevronLeft, Search } from '../../assets/icons';
 import { useScrollContext } from '../../contexts/scroll';
-import { SizableText, Spinner, XStack } from '../../core';
 import { Button } from '../Button';
 import { Icon } from '../Icon';
 import { IconButton } from '../IconButton';
@@ -64,6 +64,7 @@ export function ChannelFooter({
         justifyContent="space-between"
         alignItems="center"
         paddingVertical="$m"
+        paddingBottom={insets.bottom}
         paddingHorizontal="$xl"
         gap="$m"
       >
@@ -84,13 +85,19 @@ export function ChannelFooter({
               paddingVertical="$s"
               alignItems="center"
             >
-              <Icon size="$s" type="Channel" marginRight="$s" />
+              <Icon
+                size="$s"
+                type="Channel"
+                marginRight="$s"
+                color="$secondaryText"
+              />
               <SizableText
                 ellipsizeMode="tail"
                 numberOfLines={1}
                 fontSize={'$s'}
                 maxWidth={200}
                 height={'$2xl'}
+                color="$secondaryText"
               >
                 {title}
               </SizableText>

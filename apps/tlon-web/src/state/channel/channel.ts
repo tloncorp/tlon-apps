@@ -37,6 +37,7 @@ import {
 import { PagedWrits, Writ } from '@tloncorp/shared/dist/urbit/dms';
 import { Flag } from '@tloncorp/shared/dist/urbit/hark';
 import { daToUnix, decToUd, udToDec, unixToDa } from '@urbit/api';
+import { formatUd } from '@urbit/aura';
 import { Poke } from '@urbit/http-api';
 import bigInt from 'big-integer';
 import produce from 'immer';
@@ -518,6 +519,7 @@ const replyUpdater = (
 
   const {
     reply: {
+      id: replyId,
       meta: { replyCount, lastReply, lastRepliers },
       'r-reply': reply,
     },
@@ -538,7 +540,7 @@ const replyUpdater = (
     const existingReplies = prev.seal.replies ?? {};
 
     const newReplies = Object.keys(existingReplies)
-      .filter((k) => k !== reply.set?.seal.id)
+      .filter((k) => k !== formatUd(bigInt(replyId)))
       .reduce(
         (acc, k) => {
           // eslint-disable-next-line no-param-reassign
@@ -1227,7 +1229,7 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
   );
 
   const scryPath = useMemo(
-    () => `/v1/${nest}/posts/post/${decToUd(postId)}`,
+    () => `/v2/${nest}/posts/post/${decToUd(postId)}`,
     [nest, postId]
   );
 

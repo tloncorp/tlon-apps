@@ -8,9 +8,9 @@ export const animations = createAnimations({
   },
   quick: {
     type: 'spring',
-    damping: 30,
+    damping: 25,
     mass: 1,
-    stiffness: 250,
+    stiffness: 300,
   },
 });
 
@@ -80,6 +80,7 @@ export const tokens = createTokens({
     true: 16,
     '2xl': 24,
     '3xl': 32,
+    '3.5xl': 36,
     '4xl': 48,
   },
   zIndex: {
@@ -253,6 +254,7 @@ export const systemFont = createFont({
     xs: 16,
     s: 22,
     m: 24,
+    l: 24,
     true: 24,
   },
   weight: {

@@ -5,27 +5,81 @@ import { useCurrentSession } from './store/session';
 
 const customLoggers = new Set<string>();
 
+interface Breadcrumb {
+  tag: string;
+  message?: string | null;
+  sensitive?: string | null;
+}
+
+export type Logger = Console & {
+  crumb: (...args: unknown[]) => void;
+  sensitiveCrumb: (...args: unknown[]) => void;
+};
+
+const debugBreadcrumbs: Breadcrumb[] = [];
+const BREADCRUMB_LIMIT = 100;
+
+function addBreadcrumb(crumb: Breadcrumb) {
+  debugBreadcrumbs.push(crumb);
+  if (debugBreadcrumbs.length >= BREADCRUMB_LIMIT) {
+    debugBreadcrumbs.shift();
+  }
+}
+
+export function getCurrentBreadcrumbs() {
+  const includeSensitiveContext = true; // TODO: handle accordingly
+  return debugBreadcrumbs.map((crumb) => {
+    return `[${crumb.tag}] ${crumb.message ?? ''}${includeSensitiveContext && crumb.sensitive ? crumb.sensitive : ''}`;
+  });
+}
+
 export function addCustomEnabledLoggers(loggers: string[]) {
   loggers.forEach((logger) => customLoggers.add(logger));
 }
 
 export function createDevLogger(tag: string, enabled: boolean) {
-  return new Proxy(console, {
-    get(target: Console, prop, receiver) {
+  const proxy = new Proxy(console, {
+    get(target: Console, prop: string | symbol, receiver) {
       return (...args: unknown[]) => {
+        let resolvedProp = prop;
+
+        if (prop === 'crumb') {
+          addBreadcrumb({
+            tag,
+            message: args.length > 0 ? args.join(' ') : null,
+          });
+          resolvedProp = 'log';
+        }
+
+        if (prop === 'sensitiveCrumb') {
+          addBreadcrumb({
+            tag,
+            sensitive: args.length > 0 ? args.join(' ') : null,
+          });
+          resolvedProp = 'log';
+        }
+
+        if (prop === 'error') {
+          // TODO: feel like it might be revealing too much to always log the message?
+          addBreadcrumb({
+            tag,
+            message: 'error logged',
+          });
+        }
+
         if (
           (enabled || customLoggers.has(tag)) &&
           process.env.NODE_ENV !== 'production'
         ) {
-          const val = Reflect.get(target, prop, receiver);
-          val(
-            `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`,
-            ...args
-          );
+          const val = Reflect.get(target, resolvedProp, receiver);
+          const prefix = `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`;
+          val(prefix, ...args);
         }
       };
     },
   });
+
+  return proxy as Logger;
 }
 
 export async function logDuration<T>(
@@ -140,3 +194,27 @@ export function useSendPosts(
     };
   }, [channelId, initialDelay, interval, senderRef, session]);
 }
+
+export const useLogChange = (label: string, value: unknown) => {
+  const isFirst = useRef(true);
+  useEffect(() => {
+    if (isFirst.current) {
+      isFirst.current = false;
+      return;
+    }
+    console.log(label, 'changed', value);
+  }, [label, value]);
+};
+
+export const useLogLifecycleEvents = (
+  label: string,
+  includeRender?: boolean
+) => {
+  if (includeRender) {
+    console.log('label', 'rendered');
+  }
+  return useEffect(() => {
+    console.log(label, 'mounted');
+    return () => console.log(label, 'unmounted');
+  }, []);
+};

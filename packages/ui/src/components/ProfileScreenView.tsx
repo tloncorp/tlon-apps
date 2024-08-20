@@ -1,10 +1,11 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { Alert, Dimensions, TouchableOpacity } from 'react-native';
+import { useFeatureFlag } from 'posthog-react-native';
+import { Alert, Dimensions, Share, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, SizableText, getTokens } from 'tamagui';
+import { Stack, View, YStack } from 'tamagui';
 
 import { AppDataContextProvider, useContact } from '../contexts';
-import { Stack, View, YStack } from '../core';
 import { IconType } from './Icon';
 import { ListItem } from './ListItem';
 import ProfileCover from './ProfileCover';
@@ -14,7 +15,10 @@ interface Props {
   currentUserId: string;
   onAppSettingsPressed?: () => void;
   onEditProfilePressed?: () => void;
+  onViewProfile?: () => void;
   onLogoutPressed: () => void;
+  onSendBugReportPressed?: () => void;
+  dmLink?: string;
 }
 
 export function ProfileScreenView({
@@ -34,6 +38,7 @@ export function ProfileScreenView({
 export function Wrapped(props: Props) {
   const { top } = useSafeAreaInsets();
   const contact = useContact(props.currentUserId);
+  const showDmLure = useFeatureFlag('share-dm-lure');
 
   // TODO: Add logout back in when we figure out TLON-2098.
   const onLogoutPress = () => {
@@ -49,20 +54,40 @@ export function Wrapped(props: Props) {
     ]);
   };
 
+  const onShare = async () => {
+    try {
+      await Share.share(
+        {
+          message:
+            'I’m inviting you to Tlon, the only communication tool you can trust.',
+          url: props.dmLink,
+          title: 'Join me on Tlon',
+        },
+        {
+          subject: 'Join me on Tlon',
+        }
+      );
+    } catch (error) {
+      console.error(error.message);
+    }
+  };
+
   return (
     <ScrollView>
       <YStack flex={1} paddingHorizontal="$xl" paddingTop={top}>
         <View marginTop="$l">
-          {contact ? (
-            <ProfileDisplayWidget
-              contact={contact}
-              contactId={props.currentUserId}
-            />
-          ) : (
-            <View backgroundColor="$secondaryBackground" borderRadius="$m">
-              <ProfileRow dark contactId={props.currentUserId} />
-            </View>
-          )}
+          <View onPress={props.onViewProfile}>
+            {contact ? (
+              <ProfileDisplayWidget
+                contact={contact}
+                contactId={props.currentUserId}
+              />
+            ) : (
+              <View backgroundColor="$secondaryBackground" borderRadius="$m">
+                <ProfileRow dark contactId={props.currentUserId} />
+              </View>
+            )}
+          </View>
           <View position="absolute" top="$l" right="$l">
             <TouchableOpacity
               activeOpacity={0.7}
@@ -83,10 +108,25 @@ export function Wrapped(props: Props) {
           </View>
         </View>
         <View marginTop="$xl">
+          {showDmLure && props.dmLink !== '' && (
+            <ProfileAction
+              title="Share app with friends"
+              icon="Send"
+              tint
+              onPress={() => {
+                onShare();
+              }}
+            />
+          )}
           <ProfileAction
             title="App Settings"
             icon="Settings"
             onPress={props.onAppSettingsPressed}
+          />
+          <ProfileAction
+            title="Report a bug"
+            icon="Send"
+            onPress={props.onSendBugReportPressed}
           />
           <ProfileAction
             title="Log Out"
@@ -132,6 +172,7 @@ function ProfileAction({
   title: string;
   hideCaret?: boolean;
   onPress?: () => void;
+  tint?: boolean;
 }) {
   return (
     <ListItem onPress={onPress}>

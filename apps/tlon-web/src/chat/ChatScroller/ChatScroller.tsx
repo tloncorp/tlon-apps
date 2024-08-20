@@ -38,6 +38,7 @@ import ReplyMessage from '@/replies/ReplyMessage';
 import { useShowDevTools } from '@/state/local';
 
 import DeletedChatMessage from '../ChatMessage/DeletedChatMessage';
+import DeletedChatReply from '../ChatMessage/DeletedChatReply';
 import ChatScrollerDebugOverlay from './ChatScrollerDebugOverlay';
 
 const logger = createDevLogger('ChatScroller', false);
@@ -64,8 +65,23 @@ const ChatScrollerItem = React.memo(
 
     const { writ, time, ...rest } = item;
 
-    if (!writ) {
+    if (!writ && !('parent' in rest)) {
       return <DeletedChatMessage key={time.toString()} time={time} {...rest} />;
+    }
+
+    if (!writ && !!rest.parent) {
+      return (
+        <DeletedChatReply
+          key={time.toString()}
+          time={time}
+          {...rest}
+          parent={rest.parent}
+        />
+      );
+    }
+
+    if (!writ) {
+      return null;
     }
 
     if ('memo' in writ) {

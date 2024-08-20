@@ -2,12 +2,13 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import { useMemo } from 'react';
+import { View, XStack, YStack } from 'tamagui';
 
-import { SizableText, View, XStack, YStack } from '../../core';
+import { useCalm } from '../../contexts';
 import { getChannelTitle } from '../../utils';
 import { ChannelAvatar, ContactAvatar } from '../Avatar';
-import { UnreadDot } from '../UnreadDot';
 import { ActivitySourceContent } from './ActivitySourceContent';
+import { ActivitySummaryHeader } from './ActivitySummaryHeader';
 import { SummaryMessage } from './ActivitySummaryMessage';
 
 export function ChannelActivitySummary({
@@ -19,6 +20,7 @@ export function ChannelActivitySummary({
   seenMarker: number;
   pressHandler?: () => void;
 }) {
+  const calm = useCalm();
   const newestPost = summary.newest;
   const group = newestPost.group ?? undefined;
   const channel: db.Channel | undefined = newestPost.channel ?? undefined;
@@ -32,33 +34,42 @@ export function ChannelActivitySummary({
   const newestIsBlockOrNote =
     (summary.type === 'post' && newestPost.channel?.type === 'gallery') ||
     newestPost.channel?.type === 'notebook';
+  const title = !channel
+    ? ''
+    : channel.type === 'dm'
+      ? 'DM'
+      : channel.type === 'groupDm'
+        ? 'Group chat'
+        : getChannelTitle(channel, calm.disableNicknames);
 
   return (
     <View
-      padding="$l"
-      marginBottom="$l"
+      padding="$m"
       backgroundColor={
-        newestPost.timestamp > seenMarker && unreadCount > 0
+        newestPost.timestamp > seenMarker || unreadCount > 0
           ? '$positiveBackground'
           : 'unset'
       }
       borderRadius="$l"
       onPress={newestIsBlockOrNote ? undefined : pressHandler}
     >
-      <XStack>
+      <XStack gap="$m">
         <ContactAvatar
           contactId={newestPost.authorId ?? ''}
           size="$3xl"
           innerSigilSize={14}
         />
-        <YStack marginLeft="$m">
+        <YStack gap="$xs" flex={1}>
           {channel && (
-            <ChannelIndicator
+            <ActivitySummaryHeader
               unreadCount={unreadCount}
-              channel={channel}
-              group={group}
+              title={title}
               sentTime={newestPost.timestamp}
-            />
+            >
+              {group && (
+                <ChannelAvatar size="$xl" model={{ ...channel, group }} />
+              )}
+            </ActivitySummaryHeader>
           )}
           <View>
             <SummaryMessage summary={summary} />
@@ -70,43 +81,5 @@ export function ChannelActivitySummary({
         </YStack>
       </XStack>
     </View>
-  );
-}
-
-export function ChannelIndicator({
-  channel,
-  group,
-  unreadCount,
-  sentTime,
-}: {
-  channel: db.Channel;
-  group?: db.Group;
-  unreadCount: number;
-  sentTime?: number;
-}) {
-  const title =
-    channel.type === 'dm'
-      ? 'DM'
-      : channel.type === 'groupDm'
-        ? 'Group chat'
-        : getChannelTitle(channel);
-
-  return (
-    <XStack alignItems="center" gap="$s">
-      {unreadCount || group ? (
-        <XStack alignItems="center" gap="$s">
-          {unreadCount ? <UnreadDot /> : null}
-          {group && <ChannelAvatar size="$xl" model={{ ...channel, group }} />}
-        </XStack>
-      ) : null}
-      <SizableText fontSize="$s" color="$secondaryText">
-        {title}
-      </SizableText>
-      {sentTime && (
-        <SizableText fontSize="$s" color="$secondaryText">
-          {logic.makePrettyTime(new Date(sentTime))}
-        </SizableText>
-      )}
-    </XStack>
   );
 }

@@ -1,20 +1,19 @@
 import { isChatChannel as getIsChatChannel } from '@tloncorp/shared/dist';
-import type * as api from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { Story } from '@tloncorp/shared/dist/urbit';
+import { ImagePickerAsset } from 'expo-image-picker';
 import { useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, View, YStack } from 'tamagui';
 
 import { AppDataContextProvider, CalmProvider, CalmState } from '../contexts';
-import { ReferencesProvider } from '../contexts/references';
-import { Text, View, YStack } from '../core';
+import { AttachmentProvider } from '../contexts/attachment';
 import { useStickyUnread } from '../hooks/useStickyUnread';
 import * as utils from '../utils';
 import { ChannelFooter } from './Channel/ChannelFooter';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import Scroller from './Channel/Scroller';
-import UploadedImagePreview from './Channel/UploadedImagePreview';
 import { ChatMessage } from './ChatMessage';
 import { NotebookDetailView } from './DetailView';
 import GalleryDetailView from './DetailView/GalleryDetailView';
@@ -32,7 +31,7 @@ export function PostScreenView({
   goBack,
   groupMembers,
   calmSettings,
-  uploadInfo,
+  uploadAsset,
   handleGoToImage,
   storeDraft,
   clearDraft,
@@ -44,6 +43,7 @@ export function PostScreenView({
   onPressDelete,
   negotiationMatch,
   headerMode,
+  canUpload,
 }: {
   currentUserId: string;
   calmSettings?: CalmState | null;
@@ -57,17 +57,23 @@ export function PostScreenView({
   goBack?: () => void;
   groupMembers: db.ChatMember[];
   handleGoToImage?: (post: db.Post, uri?: string) => void;
-  uploadInfo: api.UploadInfo;
+  uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
   storeDraft: (draft: urbit.JSONContent) => void;
   clearDraft: () => void;
   getDraft: () => Promise<urbit.JSONContent>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost: (post: db.Post, content: Story) => Promise<void>;
+  editPost: (
+    post: db.Post,
+    content: Story,
+    parentId?: string,
+    metadata?: db.PostMetadata
+  ) => Promise<void>;
   onPressRetry: (post: db.Post) => void;
   onPressDelete: (post: db.Post) => void;
   negotiationMatch: boolean;
   headerMode?: 'default' | 'next';
+  canUpload: boolean;
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
@@ -97,7 +103,7 @@ export function PostScreenView({
   return (
     <CalmProvider calmSettings={calmSettings}>
       <AppDataContextProvider contacts={contacts} currentUserId={currentUserId}>
-        <ReferencesProvider>
+        <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
           <View
             paddingBottom={isChatChannel ? bottom : 'unset'}
             backgroundColor="$background"
@@ -110,10 +116,9 @@ export function PostScreenView({
                 title={headerTitle}
                 goBack={goBack}
                 showSearchButton={false}
-                showMenuButton={!isChatChannel}
                 post={parentPost ?? undefined}
-                channelType={channel.type}
                 mode={headerMode}
+                setEditingPost={setEditingPost}
               />
               <KeyboardAvoidingView enabled={!activeMessage}>
                 {parentPost && channel.type === 'gallery' && (
@@ -128,7 +133,6 @@ export function PostScreenView({
                     posts={postsWithoutParent}
                     sendReply={sendReply}
                     groupMembers={groupMembers}
-                    uploadInfo={uploadInfo}
                     storeDraft={storeDraft}
                     clearDraft={clearDraft}
                     getDraft={getDraft}
@@ -147,47 +151,37 @@ export function PostScreenView({
                     posts={postsWithoutParent}
                     sendReply={sendReply}
                     groupMembers={groupMembers}
-                    uploadInfo={uploadInfo}
                     storeDraft={storeDraft}
                     clearDraft={clearDraft}
                     getDraft={getDraft}
                     goBack={goBack}
                   />
                 )}
-                {uploadInfo.imageAttachment ? (
-                  <UploadedImagePreview
-                    imageAttachment={uploadInfo.imageAttachment}
-                    resetImageAttachment={uploadInfo.resetImageAttachment}
-                  />
-                ) : (
-                  posts &&
-                  channel &&
-                  isChatChannel && (
-                    <View flex={1}>
-                      <Scroller
-                        inverted
-                        renderItem={ChatMessage}
-                        channelType="chat"
-                        channelId={channel.id}
-                        editingPost={editingPost}
-                        setEditingPost={setEditingPost}
-                        editPost={editPost}
-                        onPressRetry={onPressRetry}
-                        onPressDelete={onPressDelete}
-                        posts={posts}
-                        showReplies={false}
-                        onPressImage={handleGoToImage}
-                        firstUnreadId={
-                          threadUnread?.count ?? 0 > 0
-                            ? threadUnread?.firstUnreadPostId
-                            : null
-                        }
-                        unreadCount={threadUnread?.count ?? 0}
-                        activeMessage={activeMessage}
-                        setActiveMessage={setActiveMessage}
-                      />
-                    </View>
-                  )
+                {posts && channel && isChatChannel && (
+                  <View flex={1}>
+                    <Scroller
+                      inverted
+                      renderItem={ChatMessage}
+                      channelType="chat"
+                      channelId={channel.id}
+                      editingPost={editingPost}
+                      setEditingPost={setEditingPost}
+                      editPost={editPost}
+                      onPressRetry={onPressRetry}
+                      onPressDelete={onPressDelete}
+                      posts={posts}
+                      showReplies={false}
+                      onPressImage={handleGoToImage}
+                      firstUnreadId={
+                        threadUnread?.count ?? 0 > 0
+                          ? threadUnread?.firstUnreadPostId
+                          : null
+                      }
+                      unreadCount={threadUnread?.count ?? 0}
+                      activeMessage={activeMessage}
+                      setActiveMessage={setActiveMessage}
+                    />
+                  </View>
                 )}
                 {negotiationMatch &&
                   !editingPost &&
@@ -199,7 +193,6 @@ export function PostScreenView({
                       setShouldBlur={setInputShouldBlur}
                       send={sendReply}
                       channelId={channel.id}
-                      uploadInfo={uploadInfo}
                       groupMembers={groupMembers}
                       storeDraft={storeDraft}
                       clearDraft={clearDraft}
@@ -234,7 +227,7 @@ export function PostScreenView({
               </KeyboardAvoidingView>
             </YStack>
           </View>
-        </ReferencesProvider>
+        </AttachmentProvider>
       </AppDataContextProvider>
     </CalmProvider>
   );

@@ -1,38 +1,47 @@
 import * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
 import React, {
   ComponentProps,
-  PropsWithChildren,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import { Animated, TouchableOpacity } from 'react-native';
-import Swipeable from 'react-native-gesture-handler/Swipeable';
-import { ColorTokens, Stack } from 'tamagui';
+import Swipeable, {
+  SwipeableMethods,
+} from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Animated, {
+  SharedValue,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
+import { ColorTokens, Stack, View, getTokenValue } from 'tamagui';
 
-import { XStack } from '../../core';
 import * as utils from '../../utils';
+import { Chat } from '../ChatList';
 import { Icon, IconType } from '../Icon';
+import { ChatListItem } from './ChatListItem';
+import { ListItemProps } from './ListItem';
+import { useBoundHandler } from './listItemUtils';
 
 function BaseSwipableChatRow({
   model,
-  jailBroken,
-  children,
-}: PropsWithChildren<{ model: db.Channel; jailBroken?: boolean }>) {
-  const swipeableRef = useRef<Swipeable | null>(null);
+  onPress,
+  onLongPress,
+}: ListItemProps<Chat> & { model: db.Channel }) {
+  const swipeableRef = useRef<SwipeableMethods>(null);
+
   const isMuted = useMemo(() => {
     if (model.group) {
-      return model.group.volumeSettings?.isMuted ?? false;
+      return logic.isMuted(model.group.volumeSettings?.level, 'group');
     } else if (model.type === 'dm' || model.type === 'groupDm') {
-      return model.volumeSettings?.isMuted ?? false;
+      return logic.isMuted(model.volumeSettings?.level, 'channel');
     }
-
     return false;
   }, [model]);
+
   // prevent color flicker when unmuting
   const [mutedState, setMutedState] = useState(isMuted);
   useEffect(() => {
@@ -62,40 +71,23 @@ function BaseSwipableChatRow({
     [model, isMuted]
   );
 
-  const renderLeftActions = useCallback(
-    (
-      progress: Animated.AnimatedInterpolation<string | number>,
-      drag: Animated.AnimatedInterpolation<string | number>
-    ) => {
-      return jailBroken ? (
-        <LeftActions progress={progress} drag={drag} model={model} />
-      ) : null;
-    },
-    [jailBroken, model]
-  );
-
   const renderRightActions = useCallback(
-    (
-      progress: Animated.AnimatedInterpolation<string | number>,
-      drag: Animated.AnimatedInterpolation<string | number>
-    ) => {
+    (progress: SharedValue<number>, drag: SharedValue<number>) => {
       return (
         <RightActions
           progress={progress}
           drag={drag}
-          model={model}
           isMuted={mutedState}
           handleAction={handleAction}
         />
       );
     },
-    [handleAction, mutedState, model]
+    [handleAction, mutedState]
   );
 
   return (
     <Swipeable
       ref={swipeableRef}
-      renderLeftActions={renderLeftActions}
       renderRightActions={renderRightActions}
       leftThreshold={1}
       rightThreshold={1}
@@ -103,156 +95,88 @@ function BaseSwipableChatRow({
       overshootLeft={false}
       overshootRight={false}
     >
-      {children}
+      <ChatListItem model={model} onPress={onPress} onLongPress={onLongPress} />
     </Swipeable>
   );
 }
 
 export const SwipableChatListItem = React.memo(BaseSwipableChatRow);
 
-function BaseLeftActions({
-  model,
-  progress,
-  drag,
-}: {
-  model: db.Channel;
-  progress: Animated.AnimatedInterpolation<string | number>;
-  drag: Animated.AnimatedInterpolation<string | number>;
-}) {
-  return (
-    <XStack
-      borderBottomLeftRadius="$m"
-      borderTopLeftRadius="$m"
-      overflow="hidden"
-      width={180}
-    >
-      <Action
-        side="left"
-        backgroundColor="$red"
-        color="$white"
-        iconType="Close"
-        progress={progress}
-        drag={drag}
-        xOffset={60}
-        zIndex={3}
-      />
-      <Action
-        side="left"
-        backgroundColor="$indigo"
-        color="$white"
-        iconType="Bang"
-        progress={progress}
-        drag={drag}
-        xOffset={120}
-        zIndex={2}
-      />
-      <Action
-        side="left"
-        backgroundColor="$gray300"
-        color="$white"
-        iconType="Notifications"
-        progress={progress}
-        drag={drag}
-        xOffset={180}
-        zIndex={1}
-      />
-    </XStack>
-  );
-}
-
-export const LeftActions = React.memo(BaseLeftActions);
-
 function BaseRightActions({
-  model,
   isMuted,
-  progress,
   drag,
   handleAction,
 }: {
   isMuted: boolean;
-  model: db.Channel;
-  progress: Animated.AnimatedInterpolation<string | number>;
-  drag: Animated.AnimatedInterpolation<string | number>;
+  progress: SharedValue<number>;
+  drag: SharedValue<number>;
   handleAction: (actionId: 'pin' | 'mute') => void;
 }) {
+  const handlePin = useBoundHandler('pin', handleAction);
+  const handleMute = useBoundHandler('mute', handleAction);
+
+  const containerStyle = useAnimatedStyle(() => ({
+    width: Math.abs(drag.value),
+    flexDirection: 'row',
+    overflow: 'hidden',
+  }));
+
   return (
-    <XStack
-      borderBottomRightRadius="$m"
-      borderTopRightRadius="$m"
-      overflow="hidden"
-      justifyContent="space-around"
-      width={160}
-    >
-      <Action
-        side="right"
-        backgroundColor="$blueSoft"
-        color="$darkBackground"
-        iconType="Pin"
-        xOffset={160}
-        progress={progress}
-        drag={drag}
-        handleAction={() => handleAction('pin')}
-      />
-      <Action
-        side="right"
-        backgroundColor={isMuted ? '$darkBackground' : '$secondaryBackground'}
-        color={isMuted ? '$secondaryText' : '$secondaryText'}
-        iconType={isMuted ? 'Notifications' : 'Mute'}
-        xOffset={80}
-        progress={progress}
-        drag={drag}
-        handleAction={() => handleAction('mute')}
-      />
-    </XStack>
+    <View width={160} justifyContent="flex-end" flexDirection="row">
+      <Animated.View
+        style={[
+          containerStyle,
+          {
+            borderBottomRightRadius: getTokenValue('$m', 'radius'),
+            borderTopRightRadius: getTokenValue('$m', 'radius'),
+          },
+        ]}
+      >
+        <Action
+          backgroundColor="$blueSoft"
+          color="$darkBackground"
+          iconType="Pin"
+          handleAction={handlePin}
+        />
+        <Action
+          backgroundColor={isMuted ? '$darkBackground' : '$secondaryBackground'}
+          color={isMuted ? '$secondaryText' : '$secondaryText'}
+          iconType={isMuted ? 'Notifications' : 'Mute'}
+          handleAction={handleMute}
+        />
+      </Animated.View>
+    </View>
   );
 }
 
 export const RightActions = React.memo(BaseRightActions);
 
-function Action(
-  props: ComponentProps<typeof Stack> & {
-    backgroundColor: ColorTokens;
-    color: ColorTokens;
-    iconType: IconType;
-    handleAction?: () => void;
-    xOffset: number;
-    progress: Animated.AnimatedInterpolation<string | number>;
-    drag: Animated.AnimatedInterpolation<string | number>;
-    side: 'left' | 'right';
-    zIndex?: number;
-  }
-) {
-  const { handleAction, backgroundColor, color, iconType, ...rest } = props;
-  const translateX = props.progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [props.side === 'left' ? -props.xOffset : props.xOffset, 0],
-  });
-
+function Action({
+  backgroundColor,
+  handleAction,
+  color,
+  iconType,
+}: ComponentProps<typeof Stack> & {
+  backgroundColor: ColorTokens;
+  color: ColorTokens;
+  iconType: IconType;
+  handleAction?: () => void;
+}) {
   return (
-    <Animated.View
-      style={{
-        transform: [{ translateX }],
-        flex: 1,
-        margin: 0,
-        zIndex: props.zIndex ?? undefined,
-      }}
-    >
-      <TouchableOpacity
-        style={{ flex: 1 }}
+    <View flex={0.5}>
+      <Icon
+        minWidth={80}
+        type={iconType}
+        color={color}
+        flex={1}
+        alignItems="center"
+        justifyContent="center"
+        backgroundColor={backgroundColor}
         onPress={handleAction}
-        activeOpacity={0.8}
-      >
-        <Stack
-          flex={1}
-          backgroundColor={backgroundColor}
-          padding="$xl"
-          alignItems="center"
-          justifyContent="center"
-          {...rest}
-        >
-          <Icon type={iconType} color={color} />
-        </Stack>
-      </TouchableOpacity>
-    </Animated.View>
+        pressStyle={{
+          opacity: 0.8,
+        }}
+      />
+    </View>
   );
 }

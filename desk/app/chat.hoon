@@ -36,8 +36,8 @@
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
         pins=(list whom:c)
-        bad=(set ship)
-        inv=(set ship)
+        bad=(set ship)  ::TODO  vestigial, remove me
+        inv=(set ship)  ::TODO  vestigial, remove me
         blocked=(set ship)
         blocked-by=(set ship)
         hidden-messages=(set id:c)
@@ -113,8 +113,8 @@
 ++  init  cor
 ::  +load: load next state
 ++  load
-  |=  =vase
-  |^  ^+  cor
+  |^  |=  =vase
+  ^+  cor
   =+  !<([old=versioned-state cool=@ud] vase)
   |-
   ?-  -.old
@@ -468,6 +468,53 @@
     =+  !<(=action:club:old vase)
     ?.  ?=(%writ -.q.q.action)  action
     action(diff.q.q (new-diff diff.q.q.action))
+  ::
+      %egg-any
+    =+  !<(=egg-any:gall vase)
+    ?-  -.egg-any
+        ?(%15 %16)
+      ?.  ?=(%live +<.egg-any)
+        ~&  [dap.bowl %egg-any-not-live]
+        cor
+      =/  bak=_cor
+        (load -:!>(*[versioned-state:load @ud]) q.old-state.egg-any)
+      ::  restore previous data, doing a "deep merge" where possible
+      ::
+      =.  dms
+        %+  roll  ~(tap by dms:bak)
+        |=  [[=ship =dm:c] =_dms]
+        %+  ~(put by dms)  ship
+        ?.  (~(has by dms) ship)
+          dm
+        =/  hav  (~(got by dms) ship)
+        :*  :-  (uni:on:writs:c wit.pact.dm wit.pact.hav)
+            (~(uni by dex.pact.dm) dex.pact.hav)
+          ::
+            remark.hav
+            net.hav
+            |(pin.hav pin.dm)
+        ==
+      =.  clubs
+        %+  roll  ~(tap by clubs:bak)
+        |=  [[=id:club:c =club:c] =_clubs]
+        %+  ~(put by clubs)  id
+        ?.  (~(has by clubs) id)
+          club
+        =/  hav  (~(got by clubs) id)
+        :*  (~(uni in heard.club) heard.hav)
+            remark.hav
+          ::
+            :-  (uni:on:writs:c wit.pact.club wit.pact.hav)
+            (~(uni by dex.pact.club) dex.pact.hav)
+          ::
+            crew.hav
+        ==
+      =.  pins             pins:bak
+      =.  blocked          (~(uni in blocked:bak) blocked)
+      =.  blocked-by       (~(uni in blocked-by:bak) blocked-by)
+      =.  hidden-messages  (~(uni in hidden-messages:bak) hidden-messages)
+      cor
+    ==
   ==
   ++  pin
     |=  ps=(list whom:c)
@@ -779,18 +826,19 @@
   =,  activity
   |=  $:  =whom
           $=  concern
-          $%  [%post key=message-key]
-              [%delete key=message-key]
+          $%  [%invite ~]
+              [%post key=message-key]
+              [%delete-post key=message-key]
               [%reply key=message-key top=message-key]
-              [%invite ~]
+              [%delete-reply key=message-key top=message-key]
           ==
           content=story:d
           mention=?
       ==
   ^+  cor
+  ?.  .^(? %gu (scry-path %activity /$))
+    cor
   =;  actions=(list action)
-    ?.  .^(? %gu (scry-path %activity /$))
-      cor
     %-  emil
     %+  turn  actions
     |=  =action
@@ -806,9 +854,16 @@
     :~  [%read source [%all `now.bowl |]]
         [%bump source]
     ==
+  ?:  ?=(%delete-reply -.concern)
+    =/  =source:activity  [%dm-thread top.concern whom]
+    =/  =incoming-event:activity
+      [%dm-reply key.concern top.concern whom content mention]
+    [%del-event source incoming-event]~
+  ?:  ?=(%delete-post -.concern)
+    :~  [%del %dm-thread key.concern whom]
+        [%del-event [%dm whom] [%dm-post key.concern whom content mention]]
+    ==
   :_  ~
-  ?:  ?=(%delete -.concern)
-    [%del %dm-thread key.concern whom]
   :-  %add
   ?-  -.concern
     %post    [%dm-post key.concern whom content mention]
@@ -1316,6 +1371,10 @@
          cu-core
       =/  had=(unit [=time =writ:c])
         (get:cu-pact p.diff.delta)
+      =/  reply=(unit [=time =reply:c])
+        ?.  ?=(%reply -.q.diff.delta)  ~
+        ?~  had  ~
+        (get-reply:cu-pact id.q.diff.delta replies.writ.u.had)
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
       ?-  -.q.diff.delta
           ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
@@ -1345,7 +1404,9 @@
       ::
           %del
         =?  cu-core  ?=(^ had)
-          (cu-activity [%delete p.diff.delta time.u.had] *story:d |)
+          =*  content  content.writ.u.had
+          =/  mention  (was-mentioned:utils content our.bowl)
+          (cu-activity [%delete-post [id time]:writ.u.had] content mention)
         (cu-give-writs-diff diff.delta)
       ::
           %reply
@@ -1354,7 +1415,17 @@
         =/  entry=(unit [=time =writ:c])  (get:cu-pact p.diff.delta)
         =?  meta.q.diff.delta  !=(~ entry)  `meta.writ:(need entry)
         ?-  -.delt
-            ?(%del %add-react %del-react)  (cu-give-writs-diff diff.delta)
+            ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
+        ::
+            %del
+          =?  cu-core  &(?=(^ entry) ?=(^ reply))
+            =*  content  content.reply.u.reply
+            =/  mention  (was-mentioned:utils content our.bowl)
+            =/  concern
+              [%delete-reply [id time]:reply.u.reply [id time]:writ.u.entry]
+            (cu-activity concern content mention)
+          (cu-give-writs-diff diff.delta)
+        ::
             %add
           =*  memo  memo.delt
           =?  last-read.remark.club  =(author.memo our.bowl)
@@ -1675,6 +1746,10 @@
     =/  old-unread  di-unread
     =/  had=(unit [=time =writ:c])
       (get:di-pact p.diff)
+    =/  reply=(unit [=time =reply:c])
+      ?.  ?=(%reply -.q.diff)  ~
+      ?~  had  ~
+      (get-reply:di-pact id.q.diff replies.writ.u.had)
     =.  pact.dm  (reduce:di-pact now.bowl diff)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
@@ -1710,7 +1785,9 @@
     ::
         %del
       =?  di-core  ?=(^ had)
-        (di-activity [%delete p.diff time.u.had] *story:d |)
+        =*  content  content.writ.u.had
+        =/  mention  (was-mentioned:utils content our.bowl)
+        (di-activity [%delete-post [id time]:writ.u.had] content mention)
       (di-give-writs-diff diff)
     ::
         %reply
@@ -1718,7 +1795,17 @@
       =/  entry=(unit [=time =writ:c])  (get:di-pact p.diff)
       =?  meta.q.diff  !=(~ entry)  `meta.writ:(need entry)
       ?-  -.delt
-          ?(%del %add-react %del-react)  (di-give-writs-diff diff)
+          ?(%add-react %del-react)  (di-give-writs-diff diff)
+      ::
+          %del
+        =?  di-core  &(?=(^ entry) ?=(^ reply))
+          =*  content  content.reply.u.reply
+          =/  mention  (was-mentioned:utils content our.bowl)
+          =/  concern
+            [%delete-reply [id time]:reply.u.reply [id time]:writ.u.entry]
+          (di-activity concern content mention)
+        (di-give-writs-diff diff)
+      ::
           %add
         =*  memo  memo.delt
         =?  unread-threads.remark.dm  !=(our.bowl author.memo)

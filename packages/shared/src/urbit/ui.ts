@@ -1,6 +1,6 @@
 import { Activity } from './activity';
-import { Channels } from './channel';
-import { DMInit, DMInit2 } from './dms';
+import { ChannelHeadsResponse, Channels } from './channel';
+import { ChatHeadsResponse, DMInit, DMInit2 } from './dms';
 import { Gangs, Groups } from './groups';
 
 // v4
@@ -23,4 +23,9 @@ export interface GroupsInit4 {
   activity: Activity;
   pins: string[];
   chat: DMInit2;
+}
+
+export interface CombinedHeads {
+  dms: ChatHeadsResponse;
+  channels: ChannelHeadsResponse;
 }

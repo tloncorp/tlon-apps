@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import { TextArea } from 'tamagui';
 
-import { TextArea } from '../../core';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 
 export function MessageInput({
@@ -8,14 +8,12 @@ export function MessageInput({
   setShouldBlur,
   send,
   channelId,
-  uploadInfo,
   groupMembers,
 }: MessageInputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
     <MessageInputContainer
-      uploadInfo={uploadInfo}
       containerHeight={0}
       groupMembers={groupMembers}
       onSelectMention={() => {}}

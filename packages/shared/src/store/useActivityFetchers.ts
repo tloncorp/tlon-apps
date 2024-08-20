@@ -7,7 +7,7 @@ import { createDevLogger } from '../debug';
 import * as logic from '../logic';
 import * as sync from './sync';
 
-const logger = createDevLogger('useInfiniteBucketedActivity', true);
+const logger = createDevLogger('useInfiniteBucketedActivity', false);
 
 export interface ActivityFetcher {
   canFetchMoreActivity: boolean;

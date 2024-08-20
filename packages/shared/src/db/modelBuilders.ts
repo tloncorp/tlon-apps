@@ -9,7 +9,7 @@ import {
 import * as db from '../db';
 import * as logic from '../logic';
 import { convertToAscii } from '../logic';
-import { CurrentChats } from '../store';
+import { CurrentChats, PendingChats } from '../store';
 import * as ub from '../urbit';
 import { getChannelKindFromType } from '../urbit';
 import * as types from './types';
@@ -18,15 +18,17 @@ export function assembleNewChannelIdAndName({
   title,
   channelType,
   currentChatData,
+  pendingChats,
   currentUserId,
 }: {
   title: string;
   channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
   currentChatData?: CurrentChats | null;
+  pendingChats?: PendingChats | null;
   currentUserId: string;
 }) {
   const existingChannels = [
-    ...(currentChatData?.pendingChats ?? []),
+    ...(pendingChats ?? []),
     ...(currentChatData?.pinned ?? []),
     ...(currentChatData?.unpinned ?? []),
   ];
@@ -241,6 +243,7 @@ export function buildPendingSingleDmChannel(
     currentUserIsMember: true,
     postCount: 0,
     unreadCount: 0,
+    isPendingChannel: true,
     members: [partnerMember],
   };
 }

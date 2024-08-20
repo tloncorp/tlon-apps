@@ -3,8 +3,8 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import { PropsWithChildren, useMemo } from 'react';
 import React from 'react';
+import { SizableText } from 'tamagui';
 
-import { SizableText } from '../../core';
 import ContactName from '../ContactName';
 
 function SummaryMessageRaw({
@@ -26,7 +26,12 @@ function SummaryMessageRaw({
 
   const NewestAuthor = useMemo(() => {
     return (
-      <ContactName fontSize="$s" userId={newest.authorId ?? ''} showNickname />
+      <ContactName
+        fontSize="$s"
+        lineHeight={18}
+        userId={newest.authorId ?? ''}
+        showNickname
+      />
     );
   }, [newest.authorId]);
 
@@ -35,19 +40,30 @@ function SummaryMessageRaw({
       <>
         <ContactName
           fontSize="$s"
+          lineHeight={18}
           userId={newest.authorId ?? ''}
           showNickname
         />
         {otherAuthors[0] && (
           <>
             {`${otherAuthors[1] ? ', ' : ' and '}`}
-            <ContactName fontSize="$s" userId={otherAuthors[0]} showNickname />
+            <ContactName
+              fontSize="$s"
+              lineHeight={18}
+              userId={otherAuthors[0]}
+              showNickname
+            />
           </>
         )}
         {otherAuthors[1] && (
           <>
             {', and '}
-            <ContactName fontSize="$s" userId={otherAuthors[1]} showNickname />
+            <ContactName
+              fontSize="$s"
+              lineHeight={18}
+              userId={otherAuthors[1]}
+              showNickname
+            />
           </>
         )}
       </>
@@ -153,9 +169,13 @@ function SummaryMessageRaw({
     );
   }
 
+  if (relevancy === 'groupJoinRequest') {
+    return <SummaryMessageWrapper>test</SummaryMessageWrapper>;
+  }
+
   if (summary.all.length === 1) {
     return (
-      <SizableText color="$secondaryText">
+      <SizableText color="$secondaryText" lineHeight="$s">
         <ContactName userId={newest.authorId ?? ''} showNickname />
         {` ${postVerb(newest.channel?.type ?? 'chat')} a ${postName(newest)}`}
       </SizableText>
@@ -166,17 +186,13 @@ function SummaryMessageRaw({
   summary.all.forEach((event) => uniqueAuthors.add(event.authorId ?? ''));
   if (uniqueAuthors.size === 1) {
     return (
-      <SizableText color="$secondaryText">
-        <ContactName
-          userId={newest.authorId ?? ''}
-          fontWeight="$xl"
-          showNickname
-        />
+      <SizableText color="$secondaryText" lineHeight="$s">
+        <ContactName userId={newest.authorId ?? ''} showNickname />
         {` ${postVerb(newest.channel?.type ?? 'chat')} ${count} ${postName(newest, count > 1)}`}
       </SizableText>
     );
   } else {
-    <SizableText color="$secondaryText">
+    <SizableText color="$secondaryText" lineHeight="$s">
       {`${postVerb(newest.channel?.type ?? 'chat')} ${count} ${postName(newest, count > 1)}`}
     </SizableText>;
   }
@@ -186,7 +202,7 @@ export const SummaryMessage = React.memo(SummaryMessageRaw);
 
 function SummaryMessageWrapper({ children }: PropsWithChildren) {
   return (
-    <SizableText color="$secondaryText" size="$s" marginRight="$xl">
+    <SizableText color="$secondaryText" size="$s" lineHeight="$s">
       {children}
     </SizableText>
   );

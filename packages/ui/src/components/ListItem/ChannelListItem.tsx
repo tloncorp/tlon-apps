@@ -1,24 +1,27 @@
 import type * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 import { useMemo } from 'react';
 
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
 import { ListItem, type ListItemProps } from './ListItem';
-import { isMuted } from './isMuted';
 import { useBoundHandler } from './listItemUtils';
 
 export function ChannelListItem({
   model,
   useTypeIcon,
+  customSubtitle,
   onPress,
   onLongPress,
+  EndContent,
   ...props
 }: {
   useTypeIcon?: boolean;
+  customSubtitle?: string;
 } & ListItemProps<db.Channel>) {
   const unreadCount = model.unread?.count ?? 0;
-  const title = utils.getChannelTitle(model);
+  const title = utils.useChannelTitle(model);
   const firstMemberId = model.members?.[0]?.contactId ?? '';
   const memberCount = model.members?.length ?? 0;
 
@@ -50,15 +53,27 @@ export function ChannelListItem({
       <ListItem.ChannelIcon
         model={model}
         useTypeIcon={useTypeIcon}
-        opacity={isMuted(model) ? 0.2 : 1}
+        opacity={
+          logic.isMuted(model.volumeSettings?.level, 'channel') ? 0.2 : 1
+        }
       />
       <ListItem.MainContent>
-        <ListItem.Title color={isMuted(model) ? '$tertiaryText' : undefined}>
+        <ListItem.Title
+          color={
+            logic.isMuted(model.volumeSettings?.level, 'channel')
+              ? '$tertiaryText'
+              : undefined
+          }
+        >
           {title}
         </ListItem.Title>
-        <ListItem.SubtitleWithIcon icon={subtitleIcon}>
-          {subtitle}
-        </ListItem.SubtitleWithIcon>
+        {customSubtitle ? (
+          <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
+        ) : (
+          <ListItem.SubtitleWithIcon icon={subtitleIcon}>
+            {subtitle}
+          </ListItem.SubtitleWithIcon>
+        )}
         {model.lastPost && (
           <ListItem.PostPreview
             post={model.lastPost}
@@ -67,17 +82,22 @@ export function ChannelListItem({
         )}
       </ListItem.MainContent>
 
-      <ListItem.EndContent>
-        {model.lastPost?.receivedAt ? (
-          <ListItem.Time time={model.lastPost.receivedAt} />
-        ) : null}
+      {EndContent ?? (
+        <ListItem.EndContent>
+          {model.lastPost?.receivedAt ? (
+            <ListItem.Time time={model.lastPost.receivedAt} />
+          ) : null}
 
-        {model.isDmInvite ? (
-          <Badge text="Invite" />
-        ) : (
-          <ListItem.Count count={unreadCount} muted={isMuted(model)} />
-        )}
-      </ListItem.EndContent>
+          {model.isDmInvite ? (
+            <Badge text="Invite" />
+          ) : (
+            <ListItem.Count
+              count={unreadCount}
+              muted={logic.isMuted(model.volumeSettings?.level, 'channel')}
+            />
+          )}
+        </ListItem.EndContent>
+      )}
     </ListItem>
   );
 }

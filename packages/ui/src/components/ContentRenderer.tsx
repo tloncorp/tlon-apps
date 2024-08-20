@@ -40,20 +40,13 @@ import { StyleSheet, TextStyle, TouchableOpacity } from 'react-native';
 import hoon from 'refractor/lang/hoon';
 import { refractor } from 'refractor/lib/common.js';
 import { SizableText } from 'tamagui';
+import { ColorTokens, ScrollView, Text, View, XStack, YStack } from 'tamagui';
 
-import {
-  ColorTokens,
-  Image,
-  ScrollView,
-  Text,
-  View,
-  XStack,
-  YStack,
-} from '../core';
 import ChatEmbedContent from './ChatMessage/ChatEmbedContent';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import ContactName from './ContactName';
 import { ContentReferenceLoader } from './ContentReference/ContentReference';
+import { Image } from './Image';
 
 refractor.register(hoon);
 
@@ -531,7 +524,7 @@ export function InlineContent({
     return (
       <ShipMention
         userId={inline.ship}
-        fontSize={viewMode === 'activity' ? '$s' : undefined}
+        size={viewMode === 'block' || viewMode === 'activity' ? '$s' : '$m'}
         fontFamily={serif ? '$serif' : '$body'}
       />
     );
@@ -722,7 +715,11 @@ const LineRenderer = memo(
           <ShipMention
             key={`ship-${index}`}
             userId={inline.ship}
-            fontSize={isNotice || viewMode === 'activity' ? '$s' : 'unset'}
+            size={
+              viewMode === 'block' || viewMode === 'activity' || isNotice
+                ? '$s'
+                : '$m'
+            }
             fontFamily={serif ? '$serif' : '$body'}
           />
         );
@@ -890,7 +887,9 @@ export default function ContentRenderer({
         }
 
         if ('type' in s && s.type === 'reference') {
-          return <ContentReferenceLoader key={k} reference={s} />;
+          return (
+            <ContentReferenceLoader viewMode={viewMode} key={k} reference={s} />
+          );
         }
 
         if ('inline' in s) {
