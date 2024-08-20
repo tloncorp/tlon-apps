@@ -7,19 +7,19 @@ import {
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { getHostingAvailability } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import {
+  Button,
+  GenericHeader,
+  Input,
+  KeyboardAvoidingView,
+  SizableText,
+  Text,
+  View,
+  YStack,
+} from '@tloncorp/ui';
 import { useLayoutEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import {
-  KeyboardAvoidingView,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { useTailwind } from 'tailwind-rn';
 
-import { HeaderButton } from '../components/HeaderButton';
-import { LoadingSpinner } from '../components/LoadingSpinner';
 import type { OnboardingStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignUpEmail'>;
@@ -38,7 +38,6 @@ export const SignUpEmailScreen = ({
   },
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const tailwind = useTailwind();
   const isDarkMode = useIsDarkMode();
 
   const {
@@ -91,43 +90,30 @@ export const SignUpEmailScreen = ({
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerLeft: () => (
-        <HeaderButton title="Back" onPress={() => navigation.goBack()} />
+      header: () => (
+        <GenericHeader
+          title="Sign Up"
+          goBack={() => navigation.goBack()}
+          showSpinner={isSubmitting}
+          rightContent={
+            <Button minimal onPress={onSubmit}>
+              <Text fontSize={'$m'}>Next</Text>
+            </Button>
+          }
+        />
       ),
-      headerRight: () =>
-        isSubmitting ? (
-          <View style={tailwind('px-4')}>
-            <LoadingSpinner height={16} />
-          </View>
-        ) : (
-          <HeaderButton title="Next" onPress={onSubmit} />
-        ),
     });
-  }, [navigation, isSubmitting, isDarkMode]);
+  }, [navigation, isSubmitting, isDarkMode, onSubmit]);
 
   return (
-    <KeyboardAvoidingView
-      behavior="height"
-      style={tailwind('p-6 h-full bg-white dark:bg-black')}
-      keyboardVerticalOffset={90}
-    >
-      <ScrollView style={tailwind('pb-40')}>
-        <Text
-          style={tailwind(
-            'text-lg font-medium text-tlon-black-80 dark:text-white'
-          )}
-        >
+    <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
+      <YStack gap="$2xl" padding="$2xl">
+        <SizableText size="$l">
           Hosting with Tlon makes running your Urbit easy and reliable. Sign up
           for a free account and your very own Urbit ID.
-        </Text>
-        <View style={tailwind('mt-8')}>
-          <Text
-            style={tailwind(
-              'mb-2 text-lg font-medium text-tlon-black-80 dark:text-white'
-            )}
-          >
-            Email
-          </Text>
+        </SizableText>
+        <View>
+          <SizableText marginBottom="$m">Email</SizableText>
           <Controller
             control={control}
             rules={{
@@ -138,32 +124,34 @@ export const SignUpEmailScreen = ({
               },
             }}
             render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={tailwind(
-                  'p-4 text-tlon-black-80 dark:text-white border border-tlon-black-20 dark:border-tlon-black-80 rounded-lg'
-                )}
-                placeholder="sampel@pal.net"
-                placeholderTextColor="#999999"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                onSubmitEditing={onSubmit}
-                value={value}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="send"
-                enablesReturnKeyAutomatically
-              />
+              <Input height="$4xl">
+                <Input.Area
+                  placeholder="sample@pal.net"
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  onSubmitEditing={onSubmit}
+                  value={value}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="send"
+                  enablesReturnKeyAutomatically
+                />
+              </Input>
             )}
             name="email"
           />
-          {errors.email ? (
-            <Text style={tailwind('mt-2 text-tlon-red')}>
+          {errors.email && (
+            <SizableText
+              color="$negativeActionText"
+              marginTop="$l"
+              fontSize={'$s'}
+            >
               {errors.email.message}
-            </Text>
-          ) : null}
+            </SizableText>
+          )}
         </View>
-      </ScrollView>
+      </YStack>
     </KeyboardAvoidingView>
   );
 };
