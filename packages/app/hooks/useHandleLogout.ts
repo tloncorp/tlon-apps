@@ -1,18 +1,18 @@
 import * as api from '@tloncorp/shared/dist/api';
 import { useCallback } from 'react';
 
-// import { clearShipInfo, useShip } from '../contexts/ship';
+import { clearShipInfo, useShip } from '../contexts/ship';
 import { resetDb } from '../lib/nativeDb';
 import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 
 export function useHandleLogout() {
-  // const { clearShip } = useShip();
+  const { clearShip } = useShip();
 
   const handleLogout = useCallback(async () => {
     api.queryClient.clear();
     api.removeUrbitClient();
-    // clearShip();
-    // clearShipInfo();
+    clearShip();
+    clearShipInfo();
     removeHostingToken();
     removeHostingUserId();
     // delay DB reset to next tick to avoid race conditions

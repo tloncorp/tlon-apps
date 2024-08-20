@@ -123,6 +123,8 @@ import { ActivityScreenController } from './controllers/ActivityScreenController
 import { ChannelScreenController } from './controllers/ChannelScreenController';
 import { ChatListScreenController } from './controllers/ChatListScreenController';
 import { GroupChannelsScreenController } from './controllers/GroupChannelsScreenController';
+import { PostScreenController } from './controllers/PostScreenController';
+import { ProfileScreenController } from './controllers/ProfileScreenController';
 import BroadcastDm from './dms/BroadcastDm';
 import DMThread from './dms/DMThread';
 import MobileDmSearch from './dms/MobileDmSearch';
@@ -645,21 +647,19 @@ function NewAppRoutes() {
         path="/group/:ship/:name/channel/:chType/:chShip/:chName/:postId?"
         element={<ChannelScreenController />}
       />
+      <Route
+        path="/group/:ship/:name/channel/:chType/:chShip/:chName/post/:authorId/:postId"
+        element={<PostScreenController />}
+      />
+      <Route
+        path="/dm/:chShip/post/:authorId/:postId"
+        element={<PostScreenController />}
+      />
       <Route path="/dm/:chShip" element={<ChannelScreenController />} />
+      <Route path="/profile" element={<ProfileScreenController />} />
     </Routes>
   );
 }
-
-// <Route path="/profile" element={<ProfileScreen />} />
-// <Route path="/group/:ship/:name" element={<GroupChannelsScreen />} />
-// <Route
-// path="/group/:ship/:name/channel/:chType/:chShip/:chName/post/:authorId/:postId"
-// element={<PostScreen />}
-// />
-// <Route
-// path="/dm/:chShip/post/:authorId/:postId"
-// element={<PostScreen />}
-// />
 
 function MigrationCheck({ children }: PropsWithChildren) {
   const { success, error } = useMigrations();
