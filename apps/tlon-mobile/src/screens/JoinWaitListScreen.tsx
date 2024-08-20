@@ -1,11 +1,15 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { addUserToWaitlist } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { useState } from 'react';
-import { Text, View } from 'react-native';
-import { useTailwind } from 'tailwind-rn';
+import {
+  GenericHeader,
+  PrimaryButton,
+  SizableText,
+  View,
+  YStack,
+} from '@tloncorp/ui';
+import { useLayoutEffect, useState } from 'react';
 
-import { TlonButton } from '../components/TlonButton';
 import type { OnboardingStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'JoinWaitList'>;
@@ -17,7 +21,6 @@ export const JoinWaitListScreen = ({
   },
 }: Props) => {
   const [remoteError, setRemoteError] = useState<string | undefined>();
-  const tailwind = useTailwind();
 
   const handleSubmit = async () => {
     try {
@@ -35,27 +38,34 @@ export const JoinWaitListScreen = ({
     }
   };
 
-  return (
-    <View style={tailwind('p-6 h-full bg-white dark:bg-black')}>
-      <Text
-        style={tailwind(
-          'text-lg font-medium text-tlon-black-80 dark:text-white'
-        )}
-      >
-        We've given out all available slots for today, but we'll have more soon.
-        If you'd like, we can let you know when they're ready.
-      </Text>
-      {remoteError ? (
-        <Text style={tailwind('mt-4 text-tlon-red')}>{remoteError}</Text>
-      ) : null}
-      <View style={tailwind('mt-8')}>
-        <TlonButton
-          title="Notify Me"
-          onPress={handleSubmit}
-          align="center"
-          roundedFull
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      header: () => (
+        <GenericHeader
+          title="Join Waitlist"
+          goBack={() => navigation.goBack()}
         />
+      ),
+    });
+  }, [navigation]);
+
+  return (
+    <YStack padding="$xl" gap="$2xl">
+      <SizableText color="$primaryText" textAlign="center">
+        We&rsquo;ve given out all available accounts for today, but w&rsquo;ll
+        have more soon. If you&rsquo;d like, we can let you know when
+        they&rsquo;re ready.
+      </SizableText>
+      {remoteError ? (
+        <SizableText fontSize="$s" color="$negativeActionText">
+          {remoteError}
+        </SizableText>
+      ) : null}
+      <View>
+        <PrimaryButton shadow onPress={handleSubmit} alignSelf="center">
+          Notify Me
+        </PrimaryButton>
       </View>
-    </View>
+    </YStack>
   );
 };

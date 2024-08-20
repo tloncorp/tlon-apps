@@ -5,25 +5,23 @@ import {
 } from '@google-cloud/recaptcha-enterprise-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import {
   logInHostingUser,
   signUpHostingUser,
 } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import {
+  Button,
+  GenericHeader,
+  Input,
+  KeyboardAvoidingView,
+  Text,
+  View,
+  YStack,
+} from '@tloncorp/ui';
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import {
-  KeyboardAvoidingView,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { useTailwind } from 'tailwind-rn';
 
-import { HeaderButton } from '../components/HeaderButton';
-import { LoadingSpinner } from '../components/LoadingSpinner';
 import type { OnboardingStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignUpPassword'>;
@@ -40,8 +38,6 @@ export const SignUpPasswordScreen = ({
   },
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const tailwind = useTailwind();
-  const isDarkMode = useIsDarkMode();
   const {
     control,
     setFocus,
@@ -126,16 +122,20 @@ export const SignUpPasswordScreen = ({
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () =>
-        isSubmitting ? (
-          <View style={tailwind('px-4')}>
-            <LoadingSpinner height={16} />
-          </View>
-        ) : (
-          <HeaderButton title="Next" onPress={onSubmit} />
-        ),
+      header: () => (
+        <GenericHeader
+          title="Set Password"
+          goBack={() => navigation.goBack()}
+          showSpinner={isSubmitting}
+          rightContent={
+            <Button minimal onPress={onSubmit}>
+              <Text fontSize="$m">Next</Text>
+            </Button>
+          }
+        />
+      ),
     });
-  }, [navigation, isSubmitting, isDarkMode]);
+  }, [navigation, isSubmitting, onSubmit]);
 
   // Initialize reCAPTCHA client
   useEffect(() => {
@@ -156,82 +156,72 @@ export const SignUpPasswordScreen = ({
   }, []);
 
   return (
-    <KeyboardAvoidingView
-      behavior="height"
-      style={tailwind('p-6 h-full bg-white dark:bg-black')}
-      keyboardVerticalOffset={90}
-    >
-      <ScrollView style={tailwind('pb-40')}>
-        <Text
-          style={tailwind(
-            'mb-2 text-lg font-medium text-tlon-black-80 dark:text-white'
-          )}
-        >
-          Password
-        </Text>
-        <Controller
-          control={control}
-          rules={{
-            required: 'A password with a minimum of 8 characters is required.',
-            minLength: {
-              value: 8,
-              message: 'A password with a minimum of 8 characters is required.',
-            },
-          }}
-          render={({ field: { onChange, onBlur, value } }) => (
-            <TextInput
-              style={tailwind(
-                'p-4 text-tlon-black-80 dark:text-white border border-tlon-black-20 dark:border-tlon-black-80 rounded-lg'
-              )}
-              placeholder="Choose a password"
-              placeholderTextColor="#999999"
-              onBlur={onBlur}
-              onChangeText={onChange}
-              onSubmitEditing={() => setFocus('confirmPassword')}
-              value={value}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="next"
-              enablesReturnKeyAutomatically
-            />
-          )}
-          name="password"
-        />
-        <Controller
-          control={control}
-          rules={{
-            required: 'Enter the password again for confirmation.',
-            validate: (value, { password }) =>
-              value === password || 'Passwords must match.',
-          }}
-          render={({ field: { ref, onChange, onBlur, value } }) => (
-            <TextInput
-              ref={ref}
-              style={tailwind(
-                'p-4 mt-3 text-tlon-black-80 dark:text-white border border-tlon-black-20 dark:border-tlon-black-80 rounded-lg'
-              )}
-              placeholder="Confirm password"
-              placeholderTextColor="#999999"
-              onBlur={onBlur}
-              onChangeText={onChange}
-              onSubmitEditing={onSubmit}
-              value={value}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="send"
-              enablesReturnKeyAutomatically
-            />
-          )}
-          name="confirmPassword"
-        />
-        {errors.password || errors.confirmPassword ? (
-          <Text style={tailwind('mt-2 text-tlon-red')}>
-            {errors.password?.message ?? errors.confirmPassword?.message}
-          </Text>
-        ) : null}
-      </ScrollView>
+    <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
+      <View flex={1}>
+        <YStack gap="$xl" padding="$2xl">
+          <Text color="$primaryText">Password</Text>
+
+          <Controller
+            control={control}
+            rules={{
+              required:
+                'A password with a minimum of 8 characters is required.',
+              minLength: {
+                value: 8,
+                message:
+                  'A password with a minimum of 8 characters is required.',
+              },
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input height="$4xl">
+                <Input.Area
+                  placeholder="Choose a password"
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  onSubmitEditing={() => setFocus('confirmPassword')}
+                  value={value}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="next"
+                  enablesReturnKeyAutomatically
+                />
+              </Input>
+            )}
+            name="password"
+          />
+          <Controller
+            control={control}
+            rules={{
+              required: 'Enter the password again for confirmation.',
+              validate: (value, { password }) =>
+                value === password || 'Passwords must match.',
+            }}
+            render={({ field: { ref, onChange, onBlur, value } }) => (
+              <Input height="$4xl">
+                <Input.Area
+                  placeholder="Confirm password"
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  onSubmitEditing={onSubmit}
+                  value={value}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="send"
+                  enablesReturnKeyAutomatically
+                />
+              </Input>
+            )}
+            name="confirmPassword"
+          />
+          {errors.password || errors.confirmPassword ? (
+            <Text color="$red">
+              {errors.password?.message ?? errors.confirmPassword?.message}
+            </Text>
+          ) : null}
+        </YStack>
+      </View>
     </KeyboardAvoidingView>
   );
 };
