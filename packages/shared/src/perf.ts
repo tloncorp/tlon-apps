@@ -1,4 +1,3 @@
-import { firebase } from '@react-native-firebase/perf';
 import { useEffect } from 'react';
 import create from 'zustand';
 
@@ -7,42 +6,55 @@ interface Trace {
   stop(): Promise<null>;
 }
 
-type PerformanceMonitoringStore = { setEnabled: (enabled: boolean) => void } & (
-  | { enabled: false }
-  | { enabled: true; startTrace(identifier: string): Promise<Trace> }
-);
+export interface PerformanceMonitoringEndpoint {
+  setEnabled: (enabled: boolean) => void;
+  startTrace: (identifier: string) => Promise<Trace>;
+}
+
+type PerformanceMonitoringStore = {
+  enabled: boolean;
+  setEnabled: (enabled: boolean) => void;
+  endpoint: PerformanceMonitoringEndpoint | null;
+  setEndpoint: (e: PerformanceMonitoringEndpoint | null) => void;
+  startTrace(identifier: string): Promise<Trace> | null;
+};
 
 const usePerformanceMonitoringStore = create<PerformanceMonitoringStore>(
-  (set) => ({
-    setEnabled: (enabled) => {
-      // instrumentationEnabled = automatic measurement of HTTP requests, other things?
-      firebase.perf().instrumentationEnabled = false;
+  (set, getState) => ({
+    endpoint: null,
+    setEndpoint: (e) => {
+      set({ endpoint: e });
+    },
 
-      // dataCollectionEnabled = sending any data to server
-      firebase.perf().dataCollectionEnabled = enabled;
+    setEnabled: (enabled) => {
+      const { endpoint } = getState();
+      if (enabled && endpoint == null) {
+        throw new Error('Performance monitoring endpoint not set');
+      }
+      endpoint?.setEnabled(enabled);
 
       set((prev) => ({
         ...prev,
         enabled,
-        ...(enabled
-          ? {
-              startTrace(identifier) {
-                return firebase.perf().startTrace(identifier);
-              },
-            }
-          : {}),
       }));
     },
+
     enabled: false,
+
+    startTrace(identifier) {
+      const { enabled, endpoint } = getState();
+      if (!enabled || endpoint == null) {
+        return null;
+      }
+      return endpoint.startTrace(identifier);
+    },
   })
 );
 
-export function useStartTraceCallback():
-  | undefined
-  | ((identifier: string) => Promise<Trace>) {
-  return usePerformanceMonitoringStore((s) =>
-    s.enabled ? s.startTrace : undefined
-  );
+export function useStartTraceCallback(): (
+  identifier: string
+) => Promise<Trace> | null {
+  return usePerformanceMonitoringStore((s) => s.startTrace);
 }
 
 // For use outside of React
@@ -56,19 +68,23 @@ export function startTrace(identifier: string): Promise<Trace> | null {
 }
 
 export function InstrumentationProvider({
+  endpoint,
   collectionEnabled,
   children,
 }: {
+  endpoint: PerformanceMonitoringEndpoint | null;
   collectionEnabled: boolean;
   children: JSX.Element;
 }) {
-  const setMonitoringEnabled = usePerformanceMonitoringStore(
-    (s) => s.setEnabled
-  );
+  const { setEndpoint, setEnabled } = usePerformanceMonitoringStore();
 
   useEffect(() => {
-    setMonitoringEnabled(collectionEnabled);
-  }, [collectionEnabled, setMonitoringEnabled]);
+    setEnabled(collectionEnabled);
+  }, [collectionEnabled, setEnabled]);
+
+  useEffect(() => {
+    setEndpoint(endpoint);
+  }, [setEndpoint, endpoint]);
 
   return children;
 }
