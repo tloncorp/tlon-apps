@@ -108,7 +108,7 @@ export const SignUpEmailScreen = ({
   return (
     <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
       <YStack gap="$2xl" padding="$2xl">
-        <SizableText size="$l">
+        <SizableText color="$primaryText">
           Hosting with Tlon makes running your Urbit easy and reliable. Sign up
           for a free account and your very own Urbit ID.
         </SizableText>
@@ -144,8 +144,8 @@ export const SignUpEmailScreen = ({
           {errors.email && (
             <SizableText
               color="$negativeActionText"
-              marginTop="$l"
-              fontSize={'$s'}
+              marginTop="$m"
+              fontSize="$s"
             >
               {errors.email.message}
             </SizableText>

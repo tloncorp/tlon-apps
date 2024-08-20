@@ -9,13 +9,19 @@ import { isEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { transformShipURL } from '@tloncorp/app/utils/string';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
+import {
+  Button,
+  GenericHeader,
+  Input,
+  KeyboardAvoidingView,
+  SizableText,
+  Text,
+  View,
+  YStack,
+} from '@tloncorp/ui';
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Text, TextInput, View } from 'react-native';
-import { useTailwind } from 'tailwind-rn';
 
-import { HeaderButton } from '../components/HeaderButton';
-import { LoadingSpinner } from '../components/LoadingSpinner';
 import type { OnboardingStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ShipLogin'>;
@@ -31,7 +37,6 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     string | undefined
   >();
   const [remoteError, setRemoteError] = useState<string | undefined>();
-  const tailwind = useTailwind();
   const {
     control,
     setFocus,
@@ -94,19 +99,20 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerLeft: () => (
-        <HeaderButton title="Back" onPress={() => navigation.goBack()} />
+      header: () => (
+        <GenericHeader
+          title="Connect Ship"
+          goBack={() => navigation.goBack()}
+          showSpinner={isSubmitting}
+          rightContent={
+            <Button minimal onPress={onSubmit}>
+              <Text fontSize={'$m'}>Connect</Text>
+            </Button>
+          }
+        />
       ),
-      headerRight: () =>
-        isSubmitting ? (
-          <View style={tailwind('px-8')}>
-            <LoadingSpinner height={16} />
-          </View>
-        ) : (
-          <HeaderButton title="Connect" onPress={onSubmit} isSubmit />
-        ),
     });
-  }, [navigation, isSubmitting, tailwind, onSubmit]);
+  }, [navigation, isSubmitting, onSubmit]);
 
   useEffect(() => {
     if (errors.shipUrl && formattedShipUrl) {
@@ -116,112 +122,99 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
   }, [errors.shipUrl, formattedShipUrl, setFocus, setValue]);
 
   return (
-    <View style={tailwind('p-6 h-full bg-white dark:bg-black')}>
-      <Text
-        style={tailwind(
-          'text-lg font-medium text-tlon-black-80 dark:text-white'
-        )}
-      >
-        Connect a self-hosted ship by entering its URL and access code.
-      </Text>
-      {remoteError ? (
-        <Text style={tailwind('mt-4 text-tlon-red')}>{remoteError}</Text>
-      ) : null}
-      <View style={tailwind('mt-8')}>
-        <Text
-          style={tailwind(
-            'mb-2 text-lg font-medium text-tlon-black-80 dark:text-white'
-          )}
-        >
-          Ship URL
-        </Text>
-        <Controller
-          control={control}
-          rules={{
-            required: 'Please enter a valid URL.',
-            validate: (value) => {
-              const urlValidation = isValidUrl(value);
-              if (urlValidation === false) {
-                return 'Please enter a valid URL.';
-              }
-              if (urlValidation === 'hosted') {
-                return 'Please log in to your hosted Tlon ship using email and password.';
-              }
-              return true;
-            },
-          }}
-          render={({ field: { onChange, onBlur, value } }) => (
-            <TextInput
-              testID="textInput shipUrl"
-              style={tailwind(
-                'p-4 text-tlon-black-80 dark:text-white border border-tlon-black-20 dark:border-tlon-black-80 rounded-lg'
-              )}
-              placeholder="https://sampel-palnet.arvo.network"
-              placeholderTextColor="#999999"
-              onBlur={onBlur}
-              onChangeText={onChange}
-              onSubmitEditing={() => setFocus('accessCode')}
-              value={value}
-              keyboardType="url"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="next"
-              enablesReturnKeyAutomatically
-            />
-          )}
-          name="shipUrl"
-        />
-        {errors.shipUrl ? (
-          <Text style={tailwind('mt-2 text-tlon-red')}>
-            {errors.shipUrl.message}
-          </Text>
+    <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
+      <YStack gap="$2xl" padding="$2xl">
+        <SizableText color="$primaryText">
+          Connect a self-hosted ship by entering its URL and access code.
+        </SizableText>
+        {remoteError ? (
+          <SizableText color="$negativeActionText">{remoteError}</SizableText>
         ) : null}
-      </View>
-      <View style={tailwind('mt-8')}>
-        <Text
-          style={tailwind(
-            'mb-2 text-lg font-medium text-tlon-black-80 dark:text-white'
+        <View>
+          <SizableText marginBottom="$m">Ship URL</SizableText>
+          <Controller
+            control={control}
+            rules={{
+              required: 'Please enter a valid URL.',
+              validate: (value) => {
+                const urlValidation = isValidUrl(value);
+                if (urlValidation === false) {
+                  return 'Please enter a valid URL.';
+                }
+                if (urlValidation === 'hosted') {
+                  return 'Please log in to your hosted Tlon ship using email and password.';
+                }
+                return true;
+              },
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input height="$4xl">
+                <Input.Area
+                  placeholder="https://sampel-palnet.arvo.network"
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  onSubmitEditing={() => setFocus('accessCode')}
+                  value={value}
+                  keyboardType="url"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="next"
+                  enablesReturnKeyAutomatically
+                />
+              </Input>
+            )}
+            name="shipUrl"
+          />
+          {errors.shipUrl && (
+            <SizableText
+              color="$negativeActionText"
+              marginTop="$m"
+              fontSize="$s"
+            >
+              {errors.shipUrl.message}
+            </SizableText>
           )}
-        >
-          Access Code
-        </Text>
-        <Controller
-          control={control}
-          rules={{
-            required: 'Please enter a valid access code.',
-            pattern: {
-              value: ACCESS_CODE_REGEX,
-              message: 'Please enter a valid access code.',
-            },
-          }}
-          render={({ field: { ref, onChange, onBlur, value } }) => (
-            <TextInput
-              ref={ref}
-              testID="textInput accessCode"
-              style={tailwind(
-                'p-4 text-tlon-black-80 dark:text-white border border-tlon-black-20 dark:border-tlon-black-80 rounded-lg'
-              )}
-              placeholder="xxxxxx-xxxxxx-xxxxxx-xxxxxx"
-              placeholderTextColor="#999999"
-              onBlur={onBlur}
-              onChangeText={onChange}
-              onSubmitEditing={onSubmit}
-              value={value}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="send"
-              enablesReturnKeyAutomatically
-            />
+        </View>
+        <View>
+          <SizableText marginBottom="$m">Access Code</SizableText>
+          <Controller
+            control={control}
+            rules={{
+              required: 'Please enter a valid access code.',
+              pattern: {
+                value: ACCESS_CODE_REGEX,
+                message: 'Please enter a valid access code.',
+              },
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input height="$4xl">
+                <Input.Area
+                  placeholder="xxxxxx-xxxxxx-xxxxxx-xxxxxx"
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  onSubmitEditing={onSubmit}
+                  value={value}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="send"
+                  enablesReturnKeyAutomatically
+                />
+              </Input>
+            )}
+            name="accessCode"
+          />
+          {errors.accessCode && (
+            <SizableText
+              color="$negativeActionText"
+              marginTop="$m"
+              fontSize="$s"
+            >
+              {errors.accessCode.message}
+            </SizableText>
           )}
-          name="accessCode"
-        />
-        {errors.accessCode ? (
-          <Text style={tailwind('mt-2 text-tlon-red')}>
-            {errors.accessCode.message}
-          </Text>
-        ) : null}
-      </View>
-    </View>
+        </View>
+      </YStack>
+    </KeyboardAvoidingView>
   );
 };

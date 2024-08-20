@@ -13,13 +13,19 @@ import {
 import { isEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
+import {
+  Button,
+  GenericHeader,
+  Input,
+  KeyboardAvoidingView,
+  SizableText,
+  Text,
+  View,
+  YStack,
+} from '@tloncorp/ui';
 import { useLayoutEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Text, TextInput, View } from 'react-native';
-import { useTailwind } from 'tailwind-rn';
 
-import { HeaderButton } from '../components/HeaderButton';
-import { LoadingSpinner } from '../components/LoadingSpinner';
 import type { OnboardingStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'TlonLogin'>;
@@ -32,7 +38,6 @@ type FormData = {
 export const TlonLoginScreen = ({ navigation }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
-  const tailwind = useTailwind();
   const {
     control,
     setFocus,
@@ -124,119 +129,104 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerLeft: () => (
-        <HeaderButton title="Back" onPress={() => navigation.goBack()} />
+      header: () => (
+        <GenericHeader
+          title="Login"
+          goBack={() => navigation.goBack()}
+          showSpinner={isSubmitting}
+          rightContent={
+            <Button minimal onPress={onSubmit}>
+              <Text fontSize={'$m'}>Connect</Text>
+            </Button>
+          }
+        />
       ),
-      headerRight: () =>
-        isSubmitting ? (
-          <View style={tailwind('px-8')}>
-            <LoadingSpinner height={16} />
-          </View>
-        ) : (
-          <HeaderButton title="Connect" onPress={onSubmit} isSubmit />
-        ),
     });
-  }, [navigation, isSubmitting]);
+  }, [navigation, isSubmitting, onSubmit]);
 
   return (
-    <View style={tailwind('p-6 h-full bg-white dark:bg-black')}>
-      <Text
-        style={tailwind(
-          'text-lg font-medium text-tlon-black-80 dark:text-white'
-        )}
-      >
-        Enter the email and password associated with your Tlon account.
-      </Text>
-      {remoteError ? (
-        <Text style={tailwind('mt-4 text-tlon-red')}>{remoteError}</Text>
-      ) : null}
-      <View style={tailwind('mt-8')}>
-        <Text
-          style={tailwind(
-            'mb-2 text-lg font-medium text-tlon-black-80 dark:text-white'
-          )}
-        >
-          Email
-        </Text>
-        <Controller
-          control={control}
-          rules={{
-            required: 'Please enter a valid email address.',
-          }}
-          render={({ field: { onChange, onBlur, value } }) => (
-            <TextInput
-              style={tailwind(
-                'p-4 text-tlon-black-80 dark:text-white border border-tlon-black-20 dark:border-tlon-black-80 rounded-lg'
-              )}
-              placeholder="Email Address"
-              placeholderTextColor="#999999"
-              onBlur={onBlur}
-              onChangeText={onChange}
-              onSubmitEditing={() => setFocus('password')}
-              value={value}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="next"
-              enablesReturnKeyAutomatically
-            />
-          )}
-          name="email"
-        />
-        {errors.email ? (
-          <Text style={tailwind('mt-2 text-tlon-red')}>
-            {errors.email.message}
-          </Text>
+    <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
+      <YStack gap="$2xl" padding="$2xl">
+        <SizableText color="$primaryText">
+          Enter the email and password associated with your Tlon account.
+        </SizableText>
+        {remoteError ? (
+          <SizableText color="$negativeActionText">{remoteError}</SizableText>
         ) : null}
-      </View>
-      <View style={tailwind('mt-8')}>
-        <Text
-          style={tailwind(
-            'mb-2 text-lg font-medium text-tlon-black-80 dark:text-white'
+        <View>
+          <SizableText marginBottom="$m">Email</SizableText>
+          <Controller
+            control={control}
+            rules={{
+              required: 'Please enter a valid email address.',
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input height="$4xl">
+                <Input.Area
+                  placeholder="Email Address"
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  onSubmitEditing={() => setFocus('password')}
+                  value={value}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="next"
+                  enablesReturnKeyAutomatically
+                />
+              </Input>
+            )}
+            name="email"
+          />
+          {errors.email && (
+            <SizableText
+              color="$negativeActionText"
+              marginTop="$m"
+              fontSize="$s"
+            >
+              {errors.email.message}
+            </SizableText>
           )}
-        >
-          Password
-        </Text>
-        <Controller
-          control={control}
-          rules={{
-            required: 'Please enter a password.',
-          }}
-          render={({ field: { ref, onChange, onBlur, value } }) => (
-            <TextInput
-              ref={ref}
-              style={tailwind(
-                'p-4 text-tlon-black-80 dark:text-white border border-tlon-black-20 dark:border-tlon-black-80 rounded-lg'
-              )}
-              placeholder="Password"
-              placeholderTextColor="#999999"
-              onBlur={onBlur}
-              onChangeText={onChange}
-              onSubmitEditing={onSubmit}
-              value={value}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="send"
-              enablesReturnKeyAutomatically
-            />
+        </View>
+        <View>
+          <SizableText marginBottom="$m">Password</SizableText>
+          <Controller
+            control={control}
+            rules={{
+              required: 'Please enter a password.',
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input height="$4xl">
+                <Input.Area
+                  placeholder="Password"
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  onSubmitEditing={onSubmit}
+                  value={value}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="send"
+                  enablesReturnKeyAutomatically
+                />
+              </Input>
+            )}
+            name="password"
+          />
+          {errors.password && (
+            <SizableText
+              color="$negativeActionText"
+              marginTop="$m"
+              fontSize="$s"
+            >
+              {errors.password.message}
+            </SizableText>
           )}
-          name="password"
-        />
-        {errors.password ? (
-          <Text style={tailwind('mt-2 text-tlon-red')}>
-            {errors.password.message}
-          </Text>
-        ) : null}
-      </View>
-      <View style={tailwind('mt-6')}>
-        <Text
-          style={tailwind('text-lg font-medium text-tlon-black-40')}
-          onPress={handleForgotPassword}
-        >
-          Forgot password?
-        </Text>
-      </View>
-    </View>
+        </View>
+        <Button minimal onPress={handleForgotPassword}>
+          <SizableText color="$primaryText">Forgot password?</SizableText>
+        </Button>
+      </YStack>
+    </KeyboardAvoidingView>
   );
 };
