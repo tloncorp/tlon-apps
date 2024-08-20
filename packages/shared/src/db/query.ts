@@ -168,7 +168,6 @@ export async function withCtxOrDefault<T>(
     const invalidated: string[] = [];
     queryClient.invalidateQueries({
       fetchStatus: 'idle',
-      type: 'active',
       predicate: (query) => {
         const tableKey = query.queryKey[1];
         const shouldInvalidate =
