@@ -19,6 +19,12 @@ vi.mock('@react-native-firebase/crashlytics', () => {
   };
 });
 
+vi.mock('@react-native-firebase/perf', () => {
+  return {
+    firebase: vi.fn(),
+  };
+});
+
 vi.mock('@react-native-community/netinfo', () => {
   return {
     fetch: async () => ({ isConnected: true, type: 'wifi' }),
