@@ -50,8 +50,6 @@ export * from './components/ManageChannels/EditChannelScreenView';
 export * from './components/ManageChannels/ManageChannelsScreenView';
 export * from './components/MessageInput';
 export * from './components/MessageInput/AttachmentPreviewList';
-export * from './components/MessageInput/InputToolbar';
-export * from './components/MessageInput/toolbarActions';
 export * from './components/NavBarView';
 export * from './components/Modal';
 export * from './components/NavBar';

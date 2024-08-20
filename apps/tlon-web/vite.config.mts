@@ -58,7 +58,6 @@ export default ({ mode }: { mode: string }) => {
     }
 
     return [
-      reactNativeWeb(),
       process.env.SSL === 'true' ? (basicSsl() as PluginOption) : null,
       urbitPlugin({
         base: 'groups',
@@ -67,11 +66,20 @@ export default ({ mode }: { mode: string }) => {
         secure: false,
       }) as PluginOption[],
       react({
+        babel: {
+          // adding these per instructions here:
+          // https://docs.swmansion.com/react-native-reanimated/docs/guides/web-support/
+          plugins: [
+            '@babel/plugin-proposal-export-namespace-from',
+            'react-native-reanimated/plugin',
+          ],
+        },
         jsxImportSource: '@welldone-software/why-did-you-render',
       }) as PluginOption[],
       svgr({
         include: '**/*.svg',
       }) as Plugin,
+      reactNativeWeb(),
       tamaguiPlugin({
         config: './tamagui.config.ts',
         platform: 'web',
@@ -92,6 +100,7 @@ export default ({ mode }: { mode: string }) => {
         injectManifest: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
           maximumFileSizeToCacheInBytes: 100000000,
+          plugins: [reactNativeWeb()],
         },
       }),
     ];
@@ -101,19 +110,11 @@ export default ({ mode }: { mode: string }) => {
     external:
       mode === 'mock' || mode === 'staging'
         ? ['virtual:pwa-register/react']
-        : // TODO: find workaround for issues with @tamagui/react-native-svg
-          [
+        : [
             '@urbit/sigil-js/dist/core',
-            // 'react-native-svg',
-            '@tloncorp/editor/dist/editorHtml',
-            '@tloncorp/editor/src/bridges',
             'react-native-device-info',
             '@react-navigation/bottom-tabs',
             '@react-navigation/native-stack',
-            '@react-native-firebase/app',
-            '@react-native-firebase/crashlytics',
-            // 'react-native-gesture-handler',
-            'react-native-context-menu-view',
           ],
     output: {
       hashCharacters: 'base36' as any,
@@ -145,6 +146,7 @@ export default ({ mode }: { mode: string }) => {
         'radix-ui/react-popover': ['@radix-ui/react-popover'],
         'radix-ui/react-toast': ['@radix-ui/react-toast'],
         'radix-ui/react-tooltip': ['@radix-ui/react-tooltip'],
+        'react-native-reanimated': ['react-native-reanimated'],
       },
     },
   };
@@ -211,24 +213,6 @@ export default ({ mode }: { mode: string }) => {
           replacement: fileURLToPath(new URL('./src', import.meta.url)),
         },
         {
-          find: 'react-native/Libraries/vendor/emitter/EventEmitter',
-          replacement: fileURLToPath(
-            new URL('./src/mocks/EventEmitter.js', import.meta.url)
-          ),
-        },
-        {
-          find: 'react-native/Libraries/Utilities/binaryToBase64',
-          replacement: fileURLToPath(
-            new URL('./src/mocks/binaryToBase64.js', import.meta.url)
-          ),
-        },
-        {
-          find: '@react-native-firebase/app',
-          replacement: fileURLToPath(
-            new URL('./src/mocks/react-native-firebase-app.js', import.meta.url)
-          ),
-        },
-        {
           find: '@react-native-firebase/crashlytics',
           replacement: fileURLToPath(
             new URL(
@@ -238,35 +222,28 @@ export default ({ mode }: { mode: string }) => {
           ),
         },
         {
-          find: '@react-native-firebase/app/lib/common',
+          find: '@tloncorp/editor/dist/editorHtml',
           replacement: fileURLToPath(
-            new URL(
-              './src/mocks/react-native-firebase-app-common.js',
-              import.meta.url
-            )
+            new URL('./src/mocks/tloncorp-editor-html.js', import.meta.url)
           ),
         },
-        // {
-        // find: 'react-native-gesture-handler',
-        // replacement: fileURLToPath(
-        // new URL('./src/mocks/react-native-gesture-handler', import.meta.url)
-        // ),
-        // },
+        {
+          find: '@tloncorp/editor/src/bridges',
+          replacement: fileURLToPath(
+            new URL('./src/mocks/tloncorp-editor-bridges.js', import.meta.url)
+          ),
+        },
+        {
+          find: '@10play/tentap-editor',
+          replacement: fileURLToPath(
+            new URL('./src/mocks/tentap-editor.js', import.meta.url)
+          ),
+        },
       ],
     },
     optimizeDeps: {
-      exclude: [
-        'sqlocal',
-        '@react-native-firebase/app',
-        '@react-native-firebase/crashlytics',
-        // 'react-native-gesture-handler',
-        'react-native-context-menu-view',
-      ],
-      include: [
-        'react-native-web',
-        'react-native-web/dist/index',
-        // 'hoist-non-react-statics',
-      ],
+      exclude: ['sqlocal'],
+      // include: ['react-native-web', 'react-native-web/dist/index'],
     },
     test: {
       globals: true,

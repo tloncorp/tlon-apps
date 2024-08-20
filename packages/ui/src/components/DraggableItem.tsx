@@ -66,7 +66,7 @@ export function DraggableItem({
       transform: [{ translateY: translateY.value }],
       width: '100%',
     };
-  });
+  }, [translateY]);
 
   return (
     <View ref={viewRef} style={{ width: '100%' }}>

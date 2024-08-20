@@ -1,4 +1,3 @@
-// import { EditorTheme, Images } from '@10play/tentap-editor';
 import type { EditorTheme } from '@10play/tentap-editor';
 import React from 'react';
 import { TouchableOpacity } from 'react-native';

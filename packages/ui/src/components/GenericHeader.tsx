@@ -1,7 +1,6 @@
-import { Platform } from 'react-native';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SizableText, View, XStack } from 'tamagui';
+import { SizableText, View, XStack, isWeb } from 'tamagui';
 
 import { Icon } from './Icon';
 import { IconButton } from './IconButton';
@@ -40,7 +39,7 @@ export function GenericHeader({
               <Icon type="ChevronLeft" />
             </IconButton>
           )}
-          {Platform.OS === 'web' ? (
+          {isWeb ? (
             <View flex={1}>
               <SizableText
                 flexShrink={1}

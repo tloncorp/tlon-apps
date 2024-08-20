@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
+import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser.native';
 import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';

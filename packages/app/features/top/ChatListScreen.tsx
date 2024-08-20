@@ -15,8 +15,7 @@ import {
   RequestsProvider,
   ScreenHeader,
   StartDmSheet,
-  View,
-  // WelcomeSheet,
+  View, // WelcomeSheet,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -314,16 +313,22 @@ export default function ChatListScreen({
               />
               */}
               <ChatOptionsSheet ref={chatOptionsSheetRef} />
+              {/*
+              // We are seeing errors thrown (in prod builds) from react-native-reanimated when
+              // these sheets are included.
               <StartDmSheet
                 goToDm={goToDm}
                 open={startDmOpen}
                 onOpenChange={handleDmOpenChange}
               />
+              */}
+              {/*
               <GroupPreviewSheet
                 open={selectedGroup !== null}
                 onOpenChange={handleGroupPreviewSheetOpenChange}
                 group={selectedGroup ?? undefined}
               />
+              */}
             </View>
             <NavBarView
               navigateToHome={() => {

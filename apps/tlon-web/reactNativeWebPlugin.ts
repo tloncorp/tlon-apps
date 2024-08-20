@@ -35,6 +35,7 @@ const loader = {
 } as const;
 
 const filter = /\.(js|flow)$/;
+const nativeFilter = /\.native\.(js|jsx|ts|tsx)$/;
 
 const esbuildPlugin = (): ESBuildPlugin => ({
   name: 'react-native-web',
@@ -75,6 +76,10 @@ const reactNativeWeb =
 
     async transform(code, id) {
       if (!filter.test(id)) return code;
+
+      if (nativeFilter.test(id)) {
+        return null;
+      }
 
       if (code.includes('@flow')) code = flowRemoveTypes(code).toString();
 

@@ -167,6 +167,7 @@
     "zustand": "^3.7.2"
   },
   "devDependencies": {
+    "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
     "@faker-js/faker": "^8.4.1",
     "@playwright/test": "^1.33.0",
     "@tailwindcss/aspect-ratio": "^0.4.0",

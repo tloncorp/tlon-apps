@@ -1,7 +1,7 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import useAppForegrounded from '@tloncorp/app/hooks/useAppForegrounded';
-import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
+import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser.native';
 import { useDeepLinkListener } from '@tloncorp/app/hooks/useDeepLinkListener';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';

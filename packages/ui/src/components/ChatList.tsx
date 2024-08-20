@@ -228,7 +228,7 @@ function ChatListFiltersComponent({
 }) {
   const [contentHeight, setContentHeight] = useState(0);
 
-  const openProgress = useSharedValue(isOpen ? 1 : 0);
+  const openProgress = useSharedValue(1);
 
   useEffect(() => {
     if (isOpen) {
@@ -250,7 +250,7 @@ function ChatListFiltersComponent({
       height: contentHeight * openProgress.value,
       opacity: openProgress.value,
     };
-  }, [contentHeight, openProgress]);
+  }, [openProgress]);
 
   const handleContentLayout = useCallback((e: LayoutChangeEvent) => {
     setContentHeight(e.nativeEvent.layout.height);
