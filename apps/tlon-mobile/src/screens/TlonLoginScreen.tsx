@@ -23,7 +23,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useLayoutEffect, useState } from 'react';
+import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import type { OnboardingStackParamList } from '../types';
@@ -127,106 +127,101 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
     setIsSubmitting(false);
   });
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      header: () => (
-        <GenericHeader
-          title="Login"
-          goBack={() => navigation.goBack()}
-          showSpinner={isSubmitting}
-          rightContent={
-            <Button minimal onPress={onSubmit}>
-              <Text fontSize={'$m'}>Connect</Text>
-            </Button>
-          }
-        />
-      ),
-    });
-  }, [navigation, isSubmitting, onSubmit]);
-
   return (
-    <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
-      <YStack gap="$2xl" padding="$2xl">
-        <SizableText color="$primaryText">
-          Enter the email and password associated with your Tlon account.
-        </SizableText>
-        {remoteError ? (
-          <SizableText color="$negativeActionText">{remoteError}</SizableText>
-        ) : null}
-        <View>
-          <SizableText marginBottom="$m">Email</SizableText>
-          <Controller
-            control={control}
-            rules={{
-              required: 'Please enter a valid email address.',
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Input height="$4xl">
-                <Input.Area
-                  placeholder="Email Address"
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  onSubmitEditing={() => setFocus('password')}
-                  value={value}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                  enablesReturnKeyAutomatically
-                />
-              </Input>
+    <View flex={1}>
+      <GenericHeader
+        title="Login"
+        goBack={() => navigation.goBack()}
+        showSpinner={isSubmitting}
+        rightContent={
+          <Button minimal onPress={onSubmit}>
+            <Text fontSize={'$m'}>Connect</Text>
+          </Button>
+        }
+      />
+      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
+        <YStack gap="$2xl" padding="$2xl">
+          <SizableText color="$primaryText">
+            Enter the email and password associated with your Tlon account.
+          </SizableText>
+          {remoteError ? (
+            <SizableText color="$negativeActionText">{remoteError}</SizableText>
+          ) : null}
+          <View>
+            <SizableText marginBottom="$m">Email</SizableText>
+            <Controller
+              control={control}
+              rules={{
+                required: 'Please enter a valid email address.',
+              }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input height="$4xl">
+                  <Input.Area
+                    placeholder="Email Address"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    onSubmitEditing={() => setFocus('password')}
+                    value={value}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    enablesReturnKeyAutomatically
+                  />
+                </Input>
+              )}
+              name="email"
+            />
+            {errors.email && (
+              <SizableText
+                color="$negativeActionText"
+                marginTop="$m"
+                fontSize="$s"
+              >
+                {errors.email.message}
+              </SizableText>
             )}
-            name="email"
-          />
-          {errors.email && (
-            <SizableText
-              color="$negativeActionText"
-              marginTop="$m"
-              fontSize="$s"
-            >
-              {errors.email.message}
-            </SizableText>
-          )}
-        </View>
-        <View>
-          <SizableText marginBottom="$m">Password</SizableText>
-          <Controller
-            control={control}
-            rules={{
-              required: 'Please enter a password.',
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Input height="$4xl">
-                <Input.Area
-                  placeholder="Password"
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  onSubmitEditing={onSubmit}
-                  value={value}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="send"
-                  enablesReturnKeyAutomatically
-                />
-              </Input>
+          </View>
+          <View>
+            <SizableText marginBottom="$m">Password</SizableText>
+            <Controller
+              control={control}
+              rules={{
+                required: 'Please enter a password.',
+              }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input height="$4xl">
+                  <Input.Area
+                    placeholder="Password"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    onSubmitEditing={onSubmit}
+                    value={value}
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="send"
+                    enablesReturnKeyAutomatically
+                  />
+                </Input>
+              )}
+              name="password"
+            />
+            {errors.password && (
+              <SizableText
+                color="$negativeActionText"
+                marginTop="$m"
+                fontSize="$s"
+              >
+                {errors.password.message}
+              </SizableText>
             )}
-            name="password"
-          />
-          {errors.password && (
-            <SizableText
-              color="$negativeActionText"
-              marginTop="$m"
-              fontSize="$s"
-            >
-              {errors.password.message}
-            </SizableText>
-          )}
-        </View>
-        <Button minimal onPress={handleForgotPassword}>
-          <SizableText color="$primaryText">Forgot password?</SizableText>
-        </Button>
-      </YStack>
-    </KeyboardAvoidingView>
+          </View>
+          <Button minimal onPress={handleForgotPassword}>
+            <SizableText color="$primaryText">Forgot password?</SizableText>
+          </Button>
+        </YStack>
+      </KeyboardAvoidingView>
+    </View>
   );
 };

@@ -9,7 +9,7 @@ import {
   YStack,
 } from '@tloncorp/ui';
 import { usePostHog } from 'posthog-react-native';
-import { useCallback, useLayoutEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Switch } from 'react-native';
 import branch from 'react-native-branch';
 
@@ -38,24 +38,17 @@ export const SetTelemetryScreen = ({
     });
   }, [isEnabled, user, postHog, navigation, signUpExtras]);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      header: () => (
-        <GenericHeader
-          title="Usage Statistics"
-          rightContent={
-            <Button minimal onPress={handleNext}>
-              <Text fontSize="$m">Next</Text>
-            </Button>
-          }
-        />
-      ),
-    });
-  }, [navigation, handleNext]);
-
   return (
-    <View flex={1} padding="$2xl" backgroundColor="$background">
-      <YStack gap="$xl">
+    <View flex={1}>
+      <GenericHeader
+        title="Usage Statistics"
+        rightContent={
+          <Button minimal onPress={handleNext}>
+            <Text fontSize="$m">Next</Text>
+          </Button>
+        }
+      />
+      <YStack gap="$3xl" padding="$2xl">
         <SizableText color="$primaryText">
           We&rsquo;re trying to make the app better and knowing how people use
           the app really helps.

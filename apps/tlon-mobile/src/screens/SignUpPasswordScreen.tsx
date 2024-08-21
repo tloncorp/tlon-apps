@@ -19,7 +19,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import type { OnboardingStackParamList } from '../types';
@@ -120,23 +120,6 @@ export const SignUpPasswordScreen = ({
     setIsSubmitting(false);
   });
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      header: () => (
-        <GenericHeader
-          title="Set Password"
-          goBack={() => navigation.goBack()}
-          showSpinner={isSubmitting}
-          rightContent={
-            <Button minimal onPress={onSubmit}>
-              <Text fontSize="$m">Next</Text>
-            </Button>
-          }
-        />
-      ),
-    });
-  }, [navigation, isSubmitting, onSubmit]);
-
   // Initialize reCAPTCHA client
   useEffect(() => {
     (async () => {
@@ -156,8 +139,18 @@ export const SignUpPasswordScreen = ({
   }, []);
 
   return (
-    <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
-      <View flex={1}>
+    <View flex={1}>
+      <GenericHeader
+        title="Set Password"
+        goBack={() => navigation.goBack()}
+        showSpinner={isSubmitting}
+        rightContent={
+          <Button minimal onPress={onSubmit}>
+            <Text fontSize="$m">Next</Text>
+          </Button>
+        }
+      />
+      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
         <YStack gap="$xl" padding="$2xl">
           <Text color="$primaryText">Password</Text>
 
@@ -221,7 +214,7 @@ export const SignUpPasswordScreen = ({
             </Text>
           ) : null}
         </YStack>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 };

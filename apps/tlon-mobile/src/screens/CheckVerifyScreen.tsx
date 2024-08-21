@@ -17,7 +17,7 @@ import {
   YStack,
   useTheme,
 } from '@tloncorp/ui';
-import { createRef, useLayoutEffect, useMemo, useState } from 'react';
+import { createRef, useMemo, useState } from 'react';
 import { TextInput } from 'react-native';
 import type { TextInputKeyPressEventData } from 'react-native';
 
@@ -120,21 +120,14 @@ export const CheckVerifyScreen = ({
     }
   };
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      header: () => (
-        <GenericHeader
-          title="Confirmation"
-          goBack={() => navigation.goBack()}
-          showSpinner={isSubmitting}
-        />
-      ),
-    });
-  }, [navigation, isSubmitting]);
-
   return (
-    <View flex={1} padding="$2xl">
-      <YStack gap="$xl">
+    <View flex={1}>
+      <GenericHeader
+        title="Confirmation"
+        goBack={() => navigation.goBack()}
+        showSpinner={isSubmitting}
+      />
+      <YStack padding="$2xl" gap="$xl">
         <SizableText color="$primaryText" fontSize="$l">
           We&rsquo;ve sent a confirmation code to{' '}
           {isEmail ? user.email : formatPhoneNumber(user.phoneNumber ?? '')}.

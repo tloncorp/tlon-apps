@@ -25,7 +25,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
     : require('../../assets/images/welcome-bg.png');
 
   return (
-    <View height="100%">
+    <View flex={1}>
       <ImageBackground
         style={{
           flex: 1,

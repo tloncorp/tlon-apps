@@ -19,7 +19,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import type { OnboardingStackParamList } from '../types';
@@ -97,23 +97,6 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     setIsSubmitting(false);
   });
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      header: () => (
-        <GenericHeader
-          title="Connect Ship"
-          goBack={() => navigation.goBack()}
-          showSpinner={isSubmitting}
-          rightContent={
-            <Button minimal onPress={onSubmit}>
-              <Text fontSize={'$m'}>Connect</Text>
-            </Button>
-          }
-        />
-      ),
-    });
-  }, [navigation, isSubmitting, onSubmit]);
-
   useEffect(() => {
     if (errors.shipUrl && formattedShipUrl) {
       setFocus('shipUrl');
@@ -122,99 +105,111 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
   }, [errors.shipUrl, formattedShipUrl, setFocus, setValue]);
 
   return (
-    <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
-      <YStack gap="$2xl" padding="$2xl">
-        <SizableText color="$primaryText">
-          Connect a self-hosted ship by entering its URL and access code.
-        </SizableText>
-        {remoteError ? (
-          <SizableText color="$negativeActionText">{remoteError}</SizableText>
-        ) : null}
-        <View>
-          <SizableText marginBottom="$m">Ship URL</SizableText>
-          <Controller
-            control={control}
-            rules={{
-              required: 'Please enter a valid URL.',
-              validate: (value) => {
-                const urlValidation = isValidUrl(value);
-                if (urlValidation === false) {
-                  return 'Please enter a valid URL.';
-                }
-                if (urlValidation === 'hosted') {
-                  return 'Please log in to your hosted Tlon ship using email and password.';
-                }
-                return true;
-              },
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Input height="$4xl">
-                <Input.Area
-                  placeholder="https://sampel-palnet.arvo.network"
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  onSubmitEditing={() => setFocus('accessCode')}
-                  value={value}
-                  keyboardType="url"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                  enablesReturnKeyAutomatically
-                />
-              </Input>
+    <View flex={1}>
+      <GenericHeader
+        title="Connect Ship"
+        goBack={() => navigation.goBack()}
+        showSpinner={isSubmitting}
+        rightContent={
+          <Button minimal onPress={onSubmit}>
+            <Text fontSize={'$m'}>Connect</Text>
+          </Button>
+        }
+      />
+      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
+        <YStack gap="$2xl" padding="$2xl">
+          <SizableText color="$primaryText">
+            Connect a self-hosted ship by entering its URL and access code.
+          </SizableText>
+          {remoteError ? (
+            <SizableText color="$negativeActionText">{remoteError}</SizableText>
+          ) : null}
+          <View>
+            <SizableText marginBottom="$m">Ship URL</SizableText>
+            <Controller
+              control={control}
+              rules={{
+                required: 'Please enter a valid URL.',
+                validate: (value) => {
+                  const urlValidation = isValidUrl(value);
+                  if (urlValidation === false) {
+                    return 'Please enter a valid URL.';
+                  }
+                  if (urlValidation === 'hosted') {
+                    return 'Please log in to your hosted Tlon ship using email and password.';
+                  }
+                  return true;
+                },
+              }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input height="$4xl">
+                  <Input.Area
+                    placeholder="https://sampel-palnet.arvo.network"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    onSubmitEditing={() => setFocus('accessCode')}
+                    value={value}
+                    keyboardType="url"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    enablesReturnKeyAutomatically
+                  />
+                </Input>
+              )}
+              name="shipUrl"
+            />
+            {errors.shipUrl && (
+              <SizableText
+                color="$negativeActionText"
+                marginTop="$m"
+                fontSize="$s"
+              >
+                {errors.shipUrl.message}
+              </SizableText>
             )}
-            name="shipUrl"
-          />
-          {errors.shipUrl && (
-            <SizableText
-              color="$negativeActionText"
-              marginTop="$m"
-              fontSize="$s"
-            >
-              {errors.shipUrl.message}
-            </SizableText>
-          )}
-        </View>
-        <View>
-          <SizableText marginBottom="$m">Access Code</SizableText>
-          <Controller
-            control={control}
-            rules={{
-              required: 'Please enter a valid access code.',
-              pattern: {
-                value: ACCESS_CODE_REGEX,
-                message: 'Please enter a valid access code.',
-              },
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Input height="$4xl">
-                <Input.Area
-                  placeholder="xxxxxx-xxxxxx-xxxxxx-xxxxxx"
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  onSubmitEditing={onSubmit}
-                  value={value}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="send"
-                  enablesReturnKeyAutomatically
-                />
-              </Input>
+          </View>
+          <View>
+            <SizableText marginBottom="$m">Access Code</SizableText>
+            <Controller
+              control={control}
+              rules={{
+                required: 'Please enter a valid access code.',
+                pattern: {
+                  value: ACCESS_CODE_REGEX,
+                  message: 'Please enter a valid access code.',
+                },
+              }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input height="$4xl">
+                  <Input.Area
+                    placeholder="xxxxxx-xxxxxx-xxxxxx-xxxxxx"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    onSubmitEditing={onSubmit}
+                    value={value}
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="send"
+                    enablesReturnKeyAutomatically
+                  />
+                </Input>
+              )}
+              name="accessCode"
+            />
+            {errors.accessCode && (
+              <SizableText
+                color="$negativeActionText"
+                marginTop="$m"
+                fontSize="$s"
+              >
+                {errors.accessCode.message}
+              </SizableText>
             )}
-            name="accessCode"
-          />
-          {errors.accessCode && (
-            <SizableText
-              color="$negativeActionText"
-              marginTop="$m"
-              fontSize="$s"
-            >
-              {errors.accessCode.message}
-            </SizableText>
-          )}
-        </View>
-      </YStack>
-    </KeyboardAvoidingView>
+          </View>
+        </YStack>
+      </KeyboardAvoidingView>
+    </View>
   );
 };

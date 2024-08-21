@@ -8,7 +8,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useLayoutEffect, useState } from 'react';
+import { useState } from 'react';
 
 import type { OnboardingStackParamList } from '../types';
 
@@ -38,34 +38,26 @@ export const JoinWaitListScreen = ({
     }
   };
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      header: () => (
-        <GenericHeader
-          title="Join Waitlist"
-          goBack={() => navigation.goBack()}
-        />
-      ),
-    });
-  }, [navigation]);
-
   return (
-    <YStack padding="$xl" gap="$2xl">
-      <SizableText color="$primaryText" textAlign="center">
-        We&rsquo;ve given out all available accounts for today, but w&rsquo;ll
-        have more soon. If you&rsquo;d like, we can let you know when
-        they&rsquo;re ready.
-      </SizableText>
-      {remoteError ? (
-        <SizableText fontSize="$s" color="$negativeActionText">
-          {remoteError}
+    <View flex={1}>
+      <GenericHeader title="Join Waitlist" goBack={() => navigation.goBack()} />
+      <YStack padding="$xl" gap="$2xl">
+        <SizableText color="$primaryText" textAlign="center">
+          We&rsquo;ve given out all available accounts for today, but w&rsquo;ll
+          have more soon. If you&rsquo;d like, we can let you know when
+          they&rsquo;re ready.
         </SizableText>
-      ) : null}
-      <View>
-        <PrimaryButton shadow onPress={handleSubmit} alignSelf="center">
-          Notify Me
-        </PrimaryButton>
-      </View>
-    </YStack>
+        {remoteError ? (
+          <SizableText fontSize="$s" color="$negativeActionText">
+            {remoteError}
+          </SizableText>
+        ) : null}
+        <View>
+          <PrimaryButton onPress={handleSubmit} alignSelf="center">
+            Notify Me
+          </PrimaryButton>
+        </View>
+      </YStack>
+    </View>
   );
 };

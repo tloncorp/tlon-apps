@@ -64,6 +64,14 @@ const App = ({
   const [connected, setConnected] = useState(true);
   const { lure, priorityToken } = useBranch();
   const screenOptions = useScreenOptions();
+
+  const onboardingScreenOptions = {
+    ...screenOptions,
+    headerShown: false,
+    animation: 'simple_push' as const,
+    animationDuration: 128,
+  };
+
   usePreloadedEmojis();
 
   useEffect(() => {
@@ -95,15 +103,9 @@ const App = ({
         ) : (
           <OnboardingStack.Navigator
             initialRouteName="Welcome"
-            screenOptions={screenOptions}
+            screenOptions={onboardingScreenOptions}
           >
-            <OnboardingStack.Screen
-              name="Welcome"
-              component={WelcomeScreen}
-              options={{
-                headerShown: false,
-              }}
-            />
+            <OnboardingStack.Screen name="Welcome" component={WelcomeScreen} />
             <OnboardingStack.Screen
               name="SignUpEmail"
               component={SignUpEmailScreen}
@@ -134,9 +136,6 @@ const App = ({
             <OnboardingStack.Screen
               name="SetNickname"
               component={SetNicknameScreen}
-              options={{
-                headerBackVisible: false,
-              }}
             />
             <OnboardingStack.Screen
               name="SetNotifications"

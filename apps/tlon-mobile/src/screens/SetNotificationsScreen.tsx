@@ -3,6 +3,7 @@ import { requestNotificationToken } from '@tloncorp/app/lib/notifications';
 import { trackError } from '@tloncorp/app/utils/posthog';
 import {
   Button,
+  GenericHeader,
   PrimaryButton,
   SizableText,
   Text,
@@ -34,15 +35,21 @@ export const SetNotificationsScreen = ({
   };
 
   return (
-    <View flex={1} padding="$2xl" backgroundColor="$background">
-      <YStack gap="$xl">
+    <View flex={1}>
+      <GenericHeader
+        title="Notifications"
+        rightContent={
+          <Button minimal onPress={() => goToNext()}>
+            <Text fontSize={'$m'}>Skip</Text>
+          </Button>
+        }
+      />
+      <YStack gap="$3xl" padding="$2xl">
         <SizableText color="$primaryText" fontSize="$l">
           Enable notifications so you&rsquo;re alerted when you receive new
           messages.
         </SizableText>
-
         <PrimaryButton
-          shadow
           onPress={async () => {
             let token: string | undefined;
             try {
@@ -53,15 +60,11 @@ export const SetNotificationsScreen = ({
                 trackError(err);
               }
             }
-
             goToNext(token);
           }}
         >
           Enable
         </PrimaryButton>
-        <Button minimal onPress={() => goToNext()}>
-          <Text>Skip</Text>
-        </Button>
       </YStack>
     </View>
   );

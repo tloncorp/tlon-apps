@@ -8,7 +8,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useEffect, useLayoutEffect } from 'react';
+import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import type { OnboardingStackParamList } from '../types';
@@ -45,21 +45,6 @@ export const SetNicknameScreen = ({
     });
   });
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      header: () => (
-        <GenericHeader
-          title="Nickname"
-          rightContent={
-            <Button minimal onPress={onSubmit}>
-              <Text fontSize="$m">Next</Text>
-            </Button>
-          }
-        />
-      ),
-    });
-  }, [navigation, onSubmit]);
-
   // Disable back button
   useEffect(
     () =>
@@ -70,11 +55,19 @@ export const SetNicknameScreen = ({
   );
 
   return (
-    <View flex={1} padding="$2xl">
-      <YStack gap="$xl">
+    <View flex={1}>
+      <GenericHeader
+        title="Nickname"
+        rightContent={
+          <Button minimal onPress={onSubmit}>
+            <Text fontSize="$m">Next</Text>
+          </Button>
+        }
+      />
+      <YStack gap="$xl" padding="$2xl">
         <SizableText color="$primaryText">
           Choose the nickname you want to use on the Tlon network. By default,
-          you will use a pseudonymous Urbit ID.
+          you will use a pseudonymous identifier.
         </SizableText>
         <Controller
           control={control}
