@@ -67,6 +67,18 @@ export default function ChannelScreen({
     channelFromParams.id
   );
 
+  // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
+  // time
+  const [initialChannelUnread, setInitialChannelUnread] =
+    React.useState<db.ChannelUnread | null>(null);
+  useEffect(() => {
+    async function initializeChannelUnread() {
+      const unread = await db.getChannelUnread({ channelId: currentChannelId });
+      setInitialChannelUnread(unread ?? null);
+    }
+    initializeChannelUnread();
+  }, [currentChannelId]);
+
   const {
     negotiationStatus,
     getDraft,
@@ -110,16 +122,15 @@ export default function ChannelScreen({
     if (!channel) {
       return undefined;
     }
-    const unread = channel?.unread;
     const firstUnreadId =
-      unread &&
-      (unread.countWithoutThreads ?? 0) > 0 &&
-      unread?.firstUnreadPostId;
+      initialChannelUnread &&
+      (initialChannelUnread.countWithoutThreads ?? 0) > 0 &&
+      initialChannelUnread?.firstUnreadPostId;
     return selectedPostId || firstUnreadId;
     // We only want this to rerun when the channel is loaded for the first time OR if
     // the selected post route param changes
     // eslint-disable-next-line
-  }, [!!channel, selectedPostId]);
+  }, [initialChannelUnread, selectedPostId]);
 
   useEffect(() => {
     if (channel?.id) {
@@ -251,6 +262,7 @@ export default function ChannelScreen({
       <Channel
         headerMode={headerMode}
         channel={channel}
+        initialChannelUnread={initialChannelUnread}
         currentUserId={currentUserId}
         calmSettings={calmSettings}
         isLoadingPosts={isLoadingPosts}

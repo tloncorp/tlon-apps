@@ -1,17 +1,15 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-// import { parseActiveTab } from '@tloncorp/shared';
+import { useBranch } from '@tloncorp/app/contexts/branch';
+import { useShip } from '@tloncorp/app/contexts/ship';
+import { inviteShipWithLure } from '@tloncorp/app/lib/hostingApi';
+import { trackError } from '@tloncorp/app/utils/posthog';
 import { useEffect } from 'react';
 import { Alert } from 'react-native';
 
-import { useBranch } from '../contexts/branch';
-import { useShip } from '../contexts/ship';
-import { inviteShipWithLure } from '../lib/hostingApi';
-// import type { RootStackParamList } from '../types';
-import { trackError } from '../utils/posthog';
+import { RootStackParamList } from '../types';
 
 export const useDeepLinkListener = () => {
-  // @ts-expect-error - TODO: pass navigation handler to hook
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { ship } = useShip();
   const { lure, deepLinkPath, clearLure, clearDeepLink } = useBranch();
