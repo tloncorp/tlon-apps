@@ -56,6 +56,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     '@react-native-firebase/app',
     '@react-native-firebase/crashlytics',
+    '@react-native-firebase/perf',
     [
       'expo-image-picker',
       {
