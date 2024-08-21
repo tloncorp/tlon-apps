@@ -2,7 +2,6 @@ import crashlytics from '@react-native-firebase/crashlytics';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import useAppForegrounded from '@tloncorp/app/hooks/useAppForegrounded';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
-import { useDeepLinkListener } from '@tloncorp/app/hooks/useDeepLinkListener';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { configureClient } from '@tloncorp/app/lib/api';
@@ -12,6 +11,7 @@ import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
+import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener, {
   type Props as NotificationListenerProps,
 } from '../hooks/useNotificationListener';
