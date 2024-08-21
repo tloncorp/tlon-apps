@@ -211,7 +211,7 @@ export default function ConnectedApp(props: Props) {
                     enable: process.env.NODE_ENV !== 'test',
                   }}
                 >
-                  <GestureHandlerRootView style={tailwind('flex-1')}>
+                  <GestureHandlerRootView style={{ flex: 1 }}>
                     <SafeAreaProvider>
                       <MigrationCheck>
                         <QueryClientProvider client={queryClient}>
