@@ -139,6 +139,7 @@
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   ?>  ?=(%6 -.old)
   =.  state  old
+  =.  allowed  %all
   (emit %pass /fix-init-unreads %agent [our.bowl dap.bowl] %poke noun+!>(%fix-init-unreads))
   +$  versioned-state
     $%  state-6
