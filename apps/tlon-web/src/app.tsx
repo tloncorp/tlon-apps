@@ -95,13 +95,7 @@ import EditProfile from '@/profiles/EditProfile/EditProfile';
 import Profile from '@/profiles/Profile';
 import ProfileModal from '@/profiles/ProfileModal';
 import bootstrap from '@/state/bootstrap';
-import {
-  toggleDevTools,
-  toggleNewApp,
-  useLocalState,
-  useNewApp,
-  useShowDevTools,
-} from '@/state/local';
+import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
 import { useScheduler } from '@/state/scheduler';
 import {
   useAnalyticsId,
@@ -679,8 +673,9 @@ function MigrationCheck({ children }: PropsWithChildren) {
 
 const App = React.memo(function AppComponent() {
   useNativeBridge();
+  const mode = import.meta.env.MODE;
   const navigate = useNavigate();
-  const newApp = true; // useNewApp();
+  const newApp = mode === 'new';
   const handleError = useErrorHandler();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
