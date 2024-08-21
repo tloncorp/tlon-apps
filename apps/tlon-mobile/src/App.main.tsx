@@ -68,8 +68,6 @@ const App = ({
   const onboardingScreenOptions = {
     ...screenOptions,
     headerShown: false,
-    animation: 'simple_push' as const,
-    animationDuration: 128,
   };
 
   usePreloadedEmojis();
