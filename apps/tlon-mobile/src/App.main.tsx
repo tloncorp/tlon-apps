@@ -19,15 +19,14 @@ import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
-import { PortalProvider } from '@tloncorp/ui';
+import { PortalProvider, Text, View } from '@tloncorp/ui';
 import { usePreloadedEmojis } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
 import type { PropsWithChildren } from 'react';
 import { useEffect, useState } from 'react';
-import { StatusBar, Text, View } from 'react-native';
+import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useTailwind } from 'tailwind-rn';
 
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { LoadingSpinner } from './components/LoadingSpinner';
@@ -60,7 +59,7 @@ const App = ({
   channelId: notificationChannelId,
 }: Props) => {
   const isDarkMode = useIsDarkMode();
-  const tailwind = useTailwind();
+
   const { isLoading, isAuthenticated } = useShip();
   const [connected, setConnected] = useState(true);
   const { lure, priorityToken } = useBranch();
@@ -80,10 +79,10 @@ const App = ({
   }, []);
 
   return (
-    <View style={tailwind('h-full w-full bg-white dark:bg-black')}>
+    <View height={'100%'} width={'100%'} backgroundColor="$background">
       {connected ? (
         isLoading ? (
-          <View style={tailwind('h-full flex items-center justify-center')}>
+          <View flex={1} alignItems="center" justifyContent="center">
             <LoadingSpinner />
           </View>
         ) : isAuthenticated ? (
@@ -108,33 +107,24 @@ const App = ({
             <OnboardingStack.Screen
               name="SignUpEmail"
               component={SignUpEmailScreen}
-              options={{ headerTitle: 'Sign Up' }}
               initialParams={{ lure, priorityToken }}
             />
-            <OnboardingStack.Screen
-              name="EULA"
-              component={EULAScreen}
-              options={{ headerTitle: 'EULA' }}
-            />
+            <OnboardingStack.Screen name="EULA" component={EULAScreen} />
             <OnboardingStack.Screen
               name="SignUpPassword"
               component={SignUpPasswordScreen}
-              options={{ headerTitle: 'Set a Password' }}
             />
             <OnboardingStack.Screen
               name="JoinWaitList"
               component={JoinWaitListScreen}
-              options={{ headerTitle: 'Join Waitlist' }}
             />
             <OnboardingStack.Screen
               name="RequestPhoneVerify"
               component={RequestPhoneVerifyScreen}
-              options={{ headerTitle: 'Sign Up' }}
             />
             <OnboardingStack.Screen
               name="CheckVerify"
               component={CheckVerifyScreen}
-              options={{ headerTitle: 'Confirmation' }}
             />
             <OnboardingStack.Screen
               name="ReserveShip"
@@ -145,44 +135,39 @@ const App = ({
               name="SetNickname"
               component={SetNicknameScreen}
               options={{
-                headerTitle: 'Display Name',
                 headerBackVisible: false,
               }}
             />
             <OnboardingStack.Screen
               name="SetNotifications"
               component={SetNotificationsScreen}
-              options={{ headerTitle: 'Notifications' }}
             />
             <OnboardingStack.Screen
               name="SetTelemetry"
               component={SetTelemetryScreen}
-              options={{ headerTitle: 'Telemetry' }}
             />
             <OnboardingStack.Screen
               name="TlonLogin"
               component={TlonLoginScreen}
-              options={{ headerTitle: 'Log In' }}
             />
             <OnboardingStack.Screen
               name="ShipLogin"
               component={ShipLoginScreen}
-              options={{ headerTitle: 'Connect Ship' }}
             />
             <OnboardingStack.Screen
               name="ResetPassword"
               component={ResetPasswordScreen}
-              options={{ headerTitle: 'Reset Password' }}
             />
           </OnboardingStack.Navigator>
         )
       ) : (
-        <View style={tailwind('h-full p-4 flex items-center justify-center')}>
-          <Text
-            style={tailwind(
-              'text-center text-xl font-semibold text-tlon-black-80 dark:text-white'
-            )}
-          >
+        <View
+          height="100%"
+          padding="$l"
+          justifyContent="center"
+          alignItems="center"
+        >
+          <Text textAlign="center" fontSize="$xl" color="$primaryText">
             You are offline. Please connect to the internet and try again.
           </Text>
         </View>
@@ -208,7 +193,6 @@ function MigrationCheck({ children }: PropsWithChildren) {
 
 export default function ConnectedApp(props: Props) {
   const isDarkMode = useIsDarkMode();
-  const tailwind = useTailwind();
   const navigationContainerRef = useNavigationContainerRef();
 
   return (
@@ -227,7 +211,7 @@ export default function ConnectedApp(props: Props) {
                   enable: process.env.NODE_ENV !== 'test',
                 }}
               >
-                <GestureHandlerRootView style={tailwind('flex-1')}>
+                <GestureHandlerRootView style={{ flex: 1 }}>
                   <SafeAreaProvider>
                     <MigrationCheck>
                       <QueryClientProvider client={queryClient}>

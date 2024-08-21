@@ -1,6 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { ActionSheet, PrimaryButton, Text, View, YStack } from '@tloncorp/ui';
+import {
+  ActionSheet,
+  PrimaryButton,
+  SizableText,
+  View,
+  YStack,
+} from '@tloncorp/ui';
 import { useState } from 'react';
 import { ImageBackground, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,6 +37,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
       >
         <YStack gap="$4xl" justifyContent="center" alignItems="center">
           <PrimaryButton
+            backgroundColor="$blue"
             hero={true}
             shadow={true}
             onPress={() => {
@@ -40,9 +47,9 @@ export const WelcomeScreen = ({ navigation }: Props) => {
             Sign Up with Email
           </PrimaryButton>
           <Pressable onPress={() => setOpen(true)}>
-            <Text fontSize="$l" color="$primaryText">
+            <SizableText color="$primaryText">
               Have an account? Log in
-            </Text>
+            </SizableText>
           </Pressable>
         </YStack>
       </ImageBackground>
