@@ -61,18 +61,22 @@ async function loadInitialState() {
     // ignore
   }
   if (state) {
-    useFeatureFlagStore.setState((prev) => ({
-      ...prev,
-      flags: {
-        ...prev.flags,
-        state,
-      },
-    }));
+    Object.entries(state).forEach(([name, enabled]) => {
+      if (name in featureMeta) {
+        useFeatureFlagStore.getState().setEnabled(name as FeatureName, enabled);
+      } else {
+        console.warn('Unknown feature flag encountered in local storage', name);
+      }
+    });
   }
 }
 
-// Write to local storage on changes
-useFeatureFlagStore.subscribe(async (state) => {
-  await storage.save({ key: storageKey, data: state.flags });
-});
-loadInitialState();
+async function setup() {
+  await loadInitialState();
+
+  // Write to local storage on changes, but only after initial load
+  useFeatureFlagStore.subscribe(async (state) => {
+    await storage.save({ key: storageKey, data: state.flags });
+  });
+}
+setup();
