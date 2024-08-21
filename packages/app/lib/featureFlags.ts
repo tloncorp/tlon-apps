@@ -9,6 +9,10 @@ export const featureMeta = {
     default: false,
     label: 'Experimental channel switcher',
   },
+  instrumentationEnabled: {
+    default: false,
+    label: 'Enable collecting and reporting performance data',
+  },
 } satisfies Record<string, { default: boolean; label: string }>;
 
 export type FeatureName = keyof typeof featureMeta;
@@ -57,15 +61,22 @@ async function loadInitialState() {
     // ignore
   }
   if (state) {
-    useFeatureFlagStore.setState((prev) => ({
-      ...prev,
-      flags: state,
-    }));
+    Object.entries(state).forEach(([name, enabled]) => {
+      if (name in featureMeta) {
+        useFeatureFlagStore.getState().setEnabled(name as FeatureName, enabled);
+      } else {
+        console.warn('Unknown feature flag encountered in local storage', name);
+      }
+    });
   }
 }
 
-// Write to local storage on changes
-useFeatureFlagStore.subscribe(async (state) => {
-  await storage.save({ key: storageKey, data: state.flags });
-});
-loadInitialState();
+async function setup() {
+  await loadInitialState();
+
+  // Write to local storage on changes, but only after initial load
+  useFeatureFlagStore.subscribe(async (state) => {
+    await storage.save({ key: storageKey, data: state.flags });
+  });
+}
+setup();

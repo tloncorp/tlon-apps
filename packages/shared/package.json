@@ -49,7 +49,8 @@
     "@tiptap/react": "^2.0.3",
     "@tiptap/suggestion": "^2.0.3",
     "drizzle-orm": "0.30.9",
-    "react": "^18.2.0"
+    "react": "^18.2.0",
+    "zustand": "^3.7.2"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "4.9.5"
