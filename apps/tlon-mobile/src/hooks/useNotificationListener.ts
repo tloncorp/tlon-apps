@@ -1,6 +1,7 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import type { NavigationProp } from '@react-navigation/native';
 import { CommonActions, useNavigation } from '@react-navigation/native';
+import { useFeatureFlag } from '@tloncorp/app/lib/featureFlags';
 import { connectNotifications } from '@tloncorp/app/lib/notifications';
 import * as posthog from '@tloncorp/app/utils/posthog';
 import { syncDms, syncGroups } from '@tloncorp/shared';
@@ -35,6 +36,7 @@ export default function useNotificationListener({
 }: Props) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { data: isTlonEmployee } = store.useIsTlonEmployee();
+  const [channelSwitcherEnabled, _] = useFeatureFlag('channelSwitcher');
 
   const [{ postInfo, channelId, isDm }, setGotoData] = useState<{
     path?: string;
@@ -115,7 +117,7 @@ export default function useNotificationListener({
         }
 
         const routeStack: RouteStack = [{ name: 'ChatList' }];
-        if (channel.group) {
+        if (channel.group && !channelSwitcherEnabled) {
           routeStack.push({
             name: 'GroupChannels',
             params: { group: channel.group },
