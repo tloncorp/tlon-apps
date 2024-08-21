@@ -2006,20 +2006,20 @@
         ?^  tim=(slaw %da after.pole)  u.tim
         (slav %ud after.pole)
       =;  posts=v-posts:c
+        =/  newer
+          ?~  newer=(tab:on-v-posts:c posts.channel `end 1)
+            ~
+          `key:(head newer)
+        =/  older
+          ?~  older=(bat:mo-v-posts:c posts.channel `start 1)
+            ~
+          `key:(head older)
         ?:  ?=(%v2 version)
           =/  =paged-posts:c
-            :*  (uv-posts-2:utils posts)
-                ?~  newer=(tab:on-v-posts:c posts.channel `end 1)
-                  ~
-                `key:(head newer)
-                ?~  older=(bat:mo-v-posts:c posts.channel `start 1)
-                  ~
-                `key:(head older)
-                (wyt:on-v-posts:c posts)
-            ==
+            [(uv-posts-2:utils posts) newer older (wyt:on-v-posts:c posts)]
           ``channel-posts-2+!>(paged-posts)
         =/  =paged-posts:v1:old:c
-          [(uv-posts:utils posts) ~ ~ (wyt:on-v-posts:c posts)]
+          [(uv-posts:utils posts) newer older (wyt:on-v-posts:c posts)]
         ``channel-posts+!>(paged-posts)
       ::  walk both posts and logs, in chronological order, newest-first,
       ::  until we accumulate the desired amount of results
@@ -2027,7 +2027,6 @@
       ::NOTE  would manually walk the tree, but logic gets rather confusing,
       ::      so we just eat the conversion overhead here
       =/  posts  (lot:on-v-posts:c posts.channel `(sub start 1) `(add end 1))
-      =/  logs   (tap:log-on:c (lot:log-on:c log.channel `after ~))
       =/  updated  (tap:updated-on:c (lot:updated-on:c last-updated.channel `after ~))
       %-  (log |.("posts: {<(lent posts)>}"))
       %-  (log |.("updated: {<(lent updated)>}"))
