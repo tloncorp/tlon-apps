@@ -1,10 +1,16 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import {
+  Button,
+  GenericHeader,
+  Input,
+  SizableText,
+  Text,
+  View,
+  YStack,
+} from '@tloncorp/ui';
 import { useEffect, useLayoutEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Text, TextInput, View } from 'react-native';
-import { useTailwind } from 'tailwind-rn';
 
-import { HeaderButton } from '../components/HeaderButton';
 import type { OnboardingStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetNickname'>;
@@ -19,7 +25,6 @@ export const SetNicknameScreen = ({
     params: { user, signUpExtras },
   },
 }: Props) => {
-  const tailwind = useTailwind();
   const {
     control,
     handleSubmit,
@@ -42,9 +47,18 @@ export const SetNicknameScreen = ({
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () => <HeaderButton title="Next" onPress={onSubmit} />,
+      header: () => (
+        <GenericHeader
+          title="Nickname"
+          rightContent={
+            <Button minimal onPress={onSubmit}>
+              <Text fontSize="$m">Next</Text>
+            </Button>
+          }
+        />
+      ),
     });
-  }, [navigation]);
+  }, [navigation, onSubmit]);
 
   // Disable back button
   useEffect(
@@ -56,43 +70,37 @@ export const SetNicknameScreen = ({
   );
 
   return (
-    <View style={tailwind('p-6 h-full bg-white dark:bg-black')}>
-      <Text
-        style={tailwind(
-          'text-lg font-medium text-tlon-black-80 dark:text-white'
-        )}
-      >
-        Name
-      </Text>
-      <Text style={tailwind('mb-6 text-lg font-medium text-tlon-black-40')}>
-        Choose the name you want to use on the network.
-      </Text>
-      <Controller
-        control={control}
-        render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            style={tailwind(
-              'p-4 text-tlon-black-80 dark:text-white border border-tlon-black-20 dark:border-tlon-black-80 rounded-lg'
-            )}
-            placeholder="Choose a display name"
-            placeholderTextColor="#999999"
-            onBlur={onBlur}
-            onChangeText={onChange}
-            onSubmitEditing={onSubmit}
-            value={value}
-            autoCapitalize="words"
-            autoComplete="name"
-            returnKeyType="send"
-            enablesReturnKeyAutomatically
-          />
-        )}
-        name="nickname"
-      />
-      {errors.nickname ? (
-        <Text style={tailwind('mt-2 text-tlon-red')}>
-          {errors.nickname.message}
-        </Text>
-      ) : null}
+    <View flex={1} padding="$2xl">
+      <YStack gap="$xl">
+        <SizableText color="$primaryText">
+          Choose the nickname you want to use on the Tlon network. By default,
+          you will use a pseudonymous Urbit ID.
+        </SizableText>
+        <Controller
+          control={control}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <Input height="$4xl">
+              <Input.Area
+                placeholder="Choose a display name"
+                onBlur={onBlur}
+                onChangeText={onChange}
+                onSubmitEditing={onSubmit}
+                value={value}
+                autoCapitalize="words"
+                autoComplete="name"
+                returnKeyType="send"
+                enablesReturnKeyAutomatically
+              />
+            </Input>
+          )}
+          name="nickname"
+        />
+        {errors.nickname ? (
+          <SizableText color="$negativeActionText" fontSize="$s" marginTop="$m">
+            {errors.nickname.message}
+          </SizableText>
+        ) : null}
+      </YStack>
     </View>
   );
 };

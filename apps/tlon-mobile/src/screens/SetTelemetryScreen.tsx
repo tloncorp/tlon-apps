@@ -1,11 +1,18 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import {
+  Button,
+  GenericHeader,
+  SizableText,
+  Text,
+  View,
+  XStack,
+  YStack,
+} from '@tloncorp/ui';
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useLayoutEffect, useState } from 'react';
-import { Switch, Text, View } from 'react-native';
+import { Switch } from 'react-native';
 import branch from 'react-native-branch';
-import { useTailwind } from 'tailwind-rn';
 
-import { HeaderButton } from '../components/HeaderButton';
 import type { OnboardingStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetTelemetry'>;
@@ -17,7 +24,6 @@ export const SetTelemetryScreen = ({
   },
 }: Props) => {
   const [isEnabled, setIsEnabled] = useState(true);
-  const tailwind = useTailwind();
   const postHog = usePostHog();
 
   const handleNext = useCallback(() => {
@@ -30,38 +36,46 @@ export const SetTelemetryScreen = ({
       user,
       signUpExtras: { ...signUpExtras, telemetry: isEnabled },
     });
-  }, [isEnabled, user, postHog]);
+  }, [isEnabled, user, postHog, navigation, signUpExtras]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () => <HeaderButton title="Next" onPress={handleNext} />,
+      header: () => (
+        <GenericHeader
+          title="Usage Statistics"
+          rightContent={
+            <Button minimal onPress={handleNext}>
+              <Text fontSize="$m">Next</Text>
+            </Button>
+          }
+        />
+      ),
     });
   }, [navigation, handleNext]);
 
   return (
-    <View style={tailwind('p-6 h-full bg-white dark:bg-black')}>
-      <Text
-        style={tailwind(
-          'mb-8 text-lg font-medium text-tlon-black-80 dark:text-white'
-        )}
-      >
-        We're trying to make this thing great, and knowing how people use the
-        app really helps.
-      </Text>
-      <View
-        style={tailwind(
-          'px-6 py-3 flex flex-row items-center justify-between border border-tlon-black-10 dark:border-tlon-black-90 rounded-xl'
-        )}
-      >
-        <Text
-          style={tailwind(
-            'text-lg font-medium text-tlon-black-80 dark:text-white'
-          )}
+    <View flex={1} padding="$2xl" backgroundColor="$background">
+      <YStack gap="$xl">
+        <SizableText color="$primaryText">
+          We&rsquo;re trying to make the app better and knowing how people use
+          the app really helps.
+        </SizableText>
+        <XStack
+          backgroundColor="$background"
+          borderRadius="$l"
+          borderWidth={1}
+          borderColor="$border"
+          paddingHorizontal="$xl"
+          paddingVertical="$l"
+          alignItems="center"
+          justifyContent="space-between"
         >
-          Enable Telemetry
-        </Text>
-        <Switch value={isEnabled} onValueChange={setIsEnabled} />
-      </View>
+          <SizableText color="$primaryText">
+            Enable anonymous usage stats
+          </SizableText>
+          <Switch value={isEnabled} onValueChange={setIsEnabled} />
+        </XStack>
+      </YStack>
     </View>
   );
 };

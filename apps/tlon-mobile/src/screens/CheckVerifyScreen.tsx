@@ -7,12 +7,20 @@ import {
 } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { formatPhoneNumber } from '@tloncorp/app/utils/string';
+import {
+  Button,
+  GenericHeader,
+  SizableText,
+  Text,
+  View,
+  XStack,
+  YStack,
+  useTheme,
+} from '@tloncorp/ui';
 import { createRef, useLayoutEffect, useMemo, useState } from 'react';
+import { TextInput } from 'react-native';
 import type { TextInputKeyPressEventData } from 'react-native';
-import { Text, TextInput, View } from 'react-native';
-import { useTailwind } from 'tailwind-rn';
 
-import { LoadingSpinner } from '../components/LoadingSpinner';
 import type { OnboardingStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'CheckVerify'>;
@@ -26,6 +34,7 @@ export const CheckVerifyScreen = ({
     params: { user },
   },
 }: Props) => {
+  const theme = useTheme();
   const isEmail = !user.requirePhoneNumberVerification;
   const codeLength = isEmail ? EMAIL_CODE_LENGTH : PHONE_CODE_LENGTH;
   const [code, setCode] = useState<string[]>([]);
@@ -35,7 +44,6 @@ export const CheckVerifyScreen = ({
     () => Array.from({ length: codeLength }).map(() => createRef<TextInput>()),
     []
   );
-  const tailwind = useTailwind();
 
   const handleKeyPress = async (
     index: number,
@@ -114,54 +122,63 @@ export const CheckVerifyScreen = ({
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () =>
-        isSubmitting ? (
-          <View style={tailwind('px-4')}>
-            <LoadingSpinner height={16} />
-          </View>
-        ) : null,
+      header: () => (
+        <GenericHeader
+          title="Confirmation"
+          goBack={() => navigation.goBack()}
+          showSpinner={isSubmitting}
+        />
+      ),
     });
   }, [navigation, isSubmitting]);
 
   return (
-    <View style={tailwind('p-6 h-full bg-white dark:bg-black')}>
-      <Text
-        style={tailwind(
-          'text-lg font-medium text-tlon-black-80 dark:text-white'
-        )}
-      >
-        We've sent a confirmation code to{' '}
-        {isEmail ? user.email : formatPhoneNumber(user.phoneNumber ?? '')}
-      </Text>
-      <View style={tailwind('mt-6 flex flex-row items-center')}>
-        {Array.from({ length: codeLength }).map((_, i) => (
-          <TextInput
-            key={i}
-            ref={inputRefs[i]}
-            style={tailwind(
-              'w-10 mr-2 py-4 font-medium text-center text-tlon-black-80 dark:text-white border-t border border-tlon-black-20 dark:border-tlon-black-80 rounded-lg'
-            )}
-            onKeyPress={({ nativeEvent }) => handleKeyPress(i, nativeEvent.key)}
-            onChangeText={(text) => handleChangeText(i, text)}
-            value={code.length > i ? code[i] : ''}
-            keyboardType="numeric"
-          />
-        ))}
-      </View>
-      {error ? (
-        <Text style={tailwind('mt-2 text-tlon-red')}>{error}</Text>
-      ) : null}
-      <View style={tailwind('mt-6')}>
-        <Text style={tailwind('text-lg font-medium text-tlon-black-40')}>
-          Didn't receive a code?
-        </Text>
-        <Text
-          style={tailwind('text-lg underline font-medium text-tlon-black-40')}
-          onPress={handleResend}
-        >
-          Send a new code
-        </Text>
-      </View>
+    <View flex={1} padding="$2xl">
+      <YStack gap="$xl">
+        <SizableText color="$primaryText" fontSize="$l">
+          We&rsquo;ve sent a confirmation code to{' '}
+          {isEmail ? user.email : formatPhoneNumber(user.phoneNumber ?? '')}.
+        </SizableText>
+        <XStack gap="$l">
+          {Array.from({ length: codeLength }).map((_, i) => (
+            <TextInput
+              key={i}
+              ref={inputRefs[i]}
+              style={{
+                width: 75,
+                height: 75,
+                borderWidth: 1,
+                borderColor: theme.border.val,
+                borderRadius: 8,
+                fontSize: 32,
+                color: theme.primaryText.val,
+                backgroundColor: theme.background.val,
+                textAlign: 'center',
+              }}
+              onKeyPress={({ nativeEvent }) =>
+                handleKeyPress(i, nativeEvent.key)
+              }
+              onChangeText={(text) => handleChangeText(i, text)}
+              value={code.length > i ? code[i] : ''}
+              keyboardType="numeric"
+              maxLength={1}
+            />
+          ))}
+        </XStack>
+        {error ? (
+          <SizableText color="$red" fontSize="$s">
+            {error}
+          </SizableText>
+        ) : null}
+        <YStack gap="$m">
+          <SizableText color="$primaryText">
+            Didn&rsquo;t receive a code?
+          </SizableText>
+          <Button secondary onPress={handleResend}>
+            <Text>Send a new code</Text>
+          </Button>
+        </YStack>
+      </YStack>
     </View>
   );
 };
