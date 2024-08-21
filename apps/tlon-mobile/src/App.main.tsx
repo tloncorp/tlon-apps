@@ -19,7 +19,7 @@ import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
-import { PortalProvider, Text, View } from '@tloncorp/ui';
+import { LoadingSpinner, PortalProvider, Text, View } from '@tloncorp/ui';
 import { usePreloadedEmojis } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
 import type { PropsWithChildren } from 'react';
@@ -29,7 +29,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import AuthenticatedApp from './components/AuthenticatedApp';
-import { LoadingSpinner } from './components/LoadingSpinner';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
 import { JoinWaitListScreen } from './screens/JoinWaitListScreen';
