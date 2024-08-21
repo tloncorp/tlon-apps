@@ -138,12 +138,12 @@ export const CheckVerifyScreen = ({
               key={i}
               ref={inputRefs[i]}
               style={{
-                width: 75,
-                height: 75,
+                width: 40,
+                height: 40,
+                fontSize: 16,
                 borderWidth: 1,
                 borderColor: theme.border.val,
                 borderRadius: 8,
-                fontSize: 32,
                 color: theme.primaryText.val,
                 backgroundColor: theme.background.val,
                 textAlign: 'center',
