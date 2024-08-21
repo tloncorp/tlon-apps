@@ -32,6 +32,7 @@ export * from './components/Embed';
 export * from './components/Emoji';
 export * from './components/FeatureFlagScreenView';
 export * from './components/FloatingActionButton';
+export * from './components/FloatingAddButton';
 export * from './components/FormInput';
 export * from './components/GalleryPost';
 export * from './components/GenericHeader';

@@ -8,18 +8,19 @@ import {
   ChatList,
   ChatOptionsProvider,
   ChatOptionsSheet,
-  ChatOptionsSheetMethods, // FloatingActionButton,
+  ChatOptionsSheetMethods,
+  FloatingAddButton,
   GroupPreviewSheet,
   Icon,
   NavBarView,
   RequestsProvider,
   ScreenHeader,
   StartDmSheet,
-  View, // WelcomeSheet,
+  View,
+  WelcomeSheet,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-// import ContextMenu from 'react-native-context-menu-view';
 // import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useCalmSettings } from '../../hooks/useCalmSettings';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -83,8 +84,6 @@ export default function ChatListScreen({
     'all'
   );
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
-  // const [startDmOpen, setStartDmOpen] = useState(false);
-  // const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const isFocused = useIsFocused();
   const { data: chats } = store.useCurrentChats({
@@ -113,15 +112,6 @@ export default function ChatListScreen({
     [navigateToDm, setStartDmOpen]
   );
 
-  // const goToChannel = useCallback(
-  // ({ channel }: { channel: db.Channel }) => {
-  // setStartDmOpen(false);
-  // setAddGroupOpen(false);
-  // setTimeout(() => navigateToC, 150);
-  // },
-  // [props.navigation]
-  // );
-
   const onPressChat = useCallback(
     (item: db.Channel | db.Group) => {
       if (logic.isGroup(item)) {
@@ -132,13 +122,8 @@ export default function ChatListScreen({
         // Should navigate to channel if it's pinned as a channel
         (!item.pin || item.pin.type === 'group')
       ) {
-        // props.navigation.navigate('GroupChannels', { group: item.group });
         navigateToGroupChannels(item.group);
       } else {
-        // props.navigation.navigate('Channel', {
-        // channel: item,
-        // selectedPostId: item.firstUnreadPostId,
-        // });
         navigateToSelectedPost(item, item.firstUnreadPostId);
       }
     },
@@ -162,22 +147,17 @@ export default function ChatListScreen({
     }
   }, []);
 
-  const handleAddGroupOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setAddGroupOpen(false);
-    }
-  }, []);
+  // const handleAddGroupOpenChange = useCallback((open: boolean) => {
+  // if (!open) {
+  // setAddGroupOpen(false);
+  // }
+  // }, []);
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
       setSelectedGroup(null);
     }
   }, []);
-
-  // const handleGroupCreated = useCallback(
-  // ({ channel }: { channel: db.Channel }) => goToChannel({ channel }),
-  // [goToChannel]
-  // );
 
   // const { pinned, unpinned } = resolvedChats;
   // const allChats = [...pinned, ...unpinned];
@@ -281,54 +261,26 @@ export default function ChatListScreen({
                 width={'100%'}
                 pointerEvents="box-none"
               >
-                {/*
-                <ContextMenu
-                  dropdownMenuMode={true}
-                  actions={[
-                    { title: 'Create or join a group' },
-                    { title: 'Start a direct message' },
-                  ]}
-                  onPress={(event) => {
-                    const { index } = event.nativeEvent;
-                    if (index === 0) {
-                      setAddGroupOpen(true);
-                    }
-                    if (index === 1) {
-                      setStartDmOpen(true);
-                    }
-                  }}
-                >
-                  <FloatingActionButton
-                    icon={<Icon type="Add" size="$s" marginRight="$s" />}
-                    label={'Add'}
-                    onPress={() => {}}
-                  />
-                </ContextMenu>
-                */}
+                <FloatingAddButton
+                  setStartDmOpen={setStartDmOpen}
+                  setAddGroupOpen={setAddGroupOpen}
+                />
               </View>
-              {/*
               <WelcomeSheet
                 open={splashVisible}
                 onOpenChange={handleWelcomeOpenChange}
               />
-              */}
               <ChatOptionsSheet ref={chatOptionsSheetRef} />
-              {/*
-              // We are seeing errors thrown (in prod builds) from react-native-reanimated when
-              // these sheets are included.
               <StartDmSheet
                 goToDm={goToDm}
                 open={startDmOpen}
                 onOpenChange={handleDmOpenChange}
               />
-              */}
-              {/*
               <GroupPreviewSheet
                 open={selectedGroup !== null}
                 onOpenChange={handleGroupPreviewSheetOpenChange}
                 group={selectedGroup ?? undefined}
               />
-              */}
             </View>
             <NavBarView
               navigateToHome={() => {

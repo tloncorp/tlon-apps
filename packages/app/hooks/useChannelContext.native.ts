@@ -1,11 +1,11 @@
-import { isGroupChannelId } from '@tloncorp/shared/dist';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { JSONContent } from '@tloncorp/shared/dist/urbit';
 import { GroupPreviewAction } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useFeatureFlag } from '../lib/featureFlags';
@@ -108,56 +108,46 @@ export const useChannelContext = ({
   }, [draftKey]);
 
   // Navigation
-  const navigate = useNavigate();
+
+  const navigation = useNavigation<
+    // @ts-expect-error - TODO: pass navigation handlers into context
+    NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
+  >();
 
   const navigateToPost = useCallback(
     (post: db.Post) => {
-      isGroupChannelId(post.channelId)
-        ? navigate(
-            '/group/' +
-              post.groupId +
-              '/channel/' +
-              post.channelId +
-              '/post/' +
-              post.authorId +
-              '/' +
-              post.id
-          )
-        : navigate(
-            '/dm/' + post.channelId + '/post/' + post.authorId + '/' + post.id
-          );
+      navigation.push('Post', { post });
     },
-    [navigate]
+    [navigation]
   );
 
   const navigateToRef = useCallback(
     (channel: db.Channel, post: db.Post) => {
       if (channel.id === channelId) {
-        navigate(
-          '/group/' + channel.groupId + '/channel/' + channel.id + '/' + post.id
-        );
+        navigation.navigate('Channel', { channel, selectedPostId: post.id });
       } else {
-        navigate(
-          '/group/' + channel.groupId + '/channel/' + channel.id + '/' + post.id
-        );
+        navigation.replace('Channel', { channel, selectedPostId: post.id });
       }
     },
-    [navigate, channelId]
+    [navigation, channelId]
   );
 
   const navigateToImage = useCallback(
     (post: db.Post, uri?: string) => {
-      navigate('/image/' + post.id + '/' + (uri ?? ''));
+      navigation.navigate('ImageViewer', { post, uri });
     },
-    [navigate]
+    [navigation]
   );
 
   const navigateToSearch = useCallback(() => {
     if (!channelQuery.data) {
       return;
     }
-    navigate('/search/' + channelQuery.data.id);
-  }, [navigate, channelQuery.data]);
+    console.log('navigateToSearch, channelQuery.data:', channelQuery.data);
+    navigation.push('ChannelSearch', {
+      channel: channelQuery.data ?? null,
+    });
+  }, [navigation, channelQuery.data]);
 
   const performGroupAction = useCallback(
     async (action: GroupPreviewAction, updatedGroup: db.Group) => {
@@ -166,15 +156,15 @@ export const useChannelContext = ({
           id: updatedGroup.lastPost.channelId,
         });
         if (channel) {
-          navigate('/group/' + channel.groupId + '/channel/' + channel.id);
+          navigation.navigate('Channel', { channel });
         }
       }
 
       if (action === 'joined') {
-        navigate('/');
+        navigation.navigate('ChatList');
       }
     },
-    [navigate]
+    [navigation]
   );
 
   // Contacts
