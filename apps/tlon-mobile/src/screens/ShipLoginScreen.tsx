@@ -144,6 +144,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
               render={({ field: { onChange, onBlur, value } }) => (
                 <Input height="$4xl">
                   <Input.Area
+                    testID="textInput shipUrl"
                     placeholder="https://sampel-palnet.arvo.network"
                     onBlur={onBlur}
                     onChangeText={onChange}
@@ -183,6 +184,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
               render={({ field: { onChange, onBlur, value } }) => (
                 <Input height="$4xl">
                   <Input.Area
+                    testID="textInput accessCode"
                     placeholder="xxxxxx-xxxxxx-xxxxxx-xxxxxx"
                     onBlur={onBlur}
                     onChangeText={onChange}
