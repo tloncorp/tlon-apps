@@ -11,10 +11,11 @@ import {
   YStack,
   useTheme,
 } from '@tloncorp/ui';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { CountryPicker } from 'react-native-country-codes-picker';
 import PhoneInput from 'react-native-phone-input';
+import { useTailwind } from 'tailwind-rn';
 
 import type { OnboardingStackParamList } from '../types';
 
@@ -75,36 +76,31 @@ export const RequestPhoneVerifyScreen = ({
     setIsSubmitting(false);
   });
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      header: () => (
-        <GenericHeader
-          title="Phone Number"
-          goBack={() => navigation.goBack()}
-          showSpinner={isSubmitting}
-          rightContent={
-            <Button minimal onPress={onSubmit} disabled={isSubmitting}>
-              <Text fontSize={'$m'}>Next</Text>
-            </Button>
-          }
-        />
-      ),
-    });
-  }, [navigation, isSubmitting, onSubmit]);
-
+  const tailwind = useTailwind();
   return (
     <View flex={1} padding="$l" backgroundColor="$background">
-      <YStack gap="$l">
+      <GenericHeader
+        title="Confirm"
+        goBack={() => navigation.goBack()}
+        showSpinner={isSubmitting}
+        rightContent={
+          <Button minimal onPress={onSubmit} disabled={isSubmitting}>
+            <Text fontSize={'$m'}>Next</Text>
+          </Button>
+        }
+      />
+      <YStack gap="$l" padding="$2xl">
         <SizableText color="$primaryText">
           Tlon is a platform for humans. We want to make sure you&rsquo;re one
-          too.
+          too. We&rsquo;ll send you a verification code to the phone number you
+          enter below.
         </SizableText>
         {remoteError ? (
           <SizableText color="$negativeActionText" fontSize="$s">
             {remoteError}
           </SizableText>
         ) : null}
-        <View>
+        <View display="flex" flexDirection="row" alignItems="center" gap="$m">
           <Controller
             control={control}
             rules={{
@@ -160,18 +156,19 @@ export const RequestPhoneVerifyScreen = ({
               : theme.background.val,
           },
           dialCode: {
-            color: theme.color.val,
+            color: theme.primaryText.val,
           },
           countryName: {
-            color: theme.color.val,
+            color: theme.primaryText.val,
           },
           textInput: {
             backgroundColor: isDarkMode
               ? theme.background.val
               : theme.background.val,
-            color: theme.color.val,
+            color: theme.primaryText.val,
             borderWidth: 1,
             borderColor: theme.border.val,
+            padding: 16,
           },
           line: {
             backgroundColor: isDarkMode
