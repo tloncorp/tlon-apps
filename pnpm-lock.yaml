@@ -12,6 +12,9 @@ patchedDependencies:
   '@10play/tentap-editor@0.4.55':
     hash: xjpmkpcw463yvoqvocxrxq7ici
     path: patches/@10play__tentap-editor@0.4.55.patch
+  '@likashefqet/react-native-image-zoom@3.0.0':
+    hash: zkdmh374s554i7qlaqtqn2nhfm
+    path: patches/@likashefqet__react-native-image-zoom@3.0.0.patch
   '@tiptap/react@2.0.3':
     hash: tt2duu22fpwhmhaws3iaoig4mu
     path: patches/@tiptap__react@2.0.3.patch
@@ -1079,7 +1082,7 @@ importers:
         version: 1.1.2
       '@likashefqet/react-native-image-zoom':
         specifier: ^3.0.0
-        version: 3.0.0(react-native-gesture-handler@2.18.1(patch_hash=3cmtvqiauuehrkeqz6qjuqgv4a)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+        version: 3.0.0(patch_hash=zkdmh374s554i7qlaqtqn2nhfm)(react-native-gesture-handler@2.18.1(patch_hash=3cmtvqiauuehrkeqz6qjuqgv4a)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@react-native-clipboard/clipboard':
         specifier: ^1.14.0
         version: 1.14.0(react-native-macos@0.73.24(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-windows@0.73.11(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
@@ -16199,7 +16202,7 @@ snapshots:
 
   '@juggle/resize-observer@3.4.0': {}
 
-  '@likashefqet/react-native-image-zoom@3.0.0(react-native-gesture-handler@2.18.1(patch_hash=3cmtvqiauuehrkeqz6qjuqgv4a)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
+  '@likashefqet/react-native-image-zoom@3.0.0(patch_hash=zkdmh374s554i7qlaqtqn2nhfm)(react-native-gesture-handler@2.18.1(patch_hash=3cmtvqiauuehrkeqz6qjuqgv4a)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.23.7)(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
     dependencies:
       react: 18.2.0
       react-native: 0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.25.3(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0)

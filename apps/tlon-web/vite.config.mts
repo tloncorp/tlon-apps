@@ -243,7 +243,6 @@ export default ({ mode }: { mode: string }) => {
     },
     optimizeDeps: {
       exclude: ['sqlocal'],
-      // include: ['react-native-web', 'react-native-web/dist/index'],
     },
     test: {
       globals: true,

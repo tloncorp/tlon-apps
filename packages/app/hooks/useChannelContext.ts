@@ -147,7 +147,7 @@ export const useChannelContext = ({
 
   const navigateToImage = useCallback(
     (post: db.Post, uri?: string) => {
-      navigate('/image/' + post.id + '/' + (uri ?? ''));
+      navigate(`/image/${post.id}/${encodeURIComponent(uri?? '')}`);
     },
     [navigate]
   );

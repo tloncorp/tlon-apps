@@ -1,16 +1,8 @@
-// import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import ChannelScreen from '@tloncorp/app/features/top/ChannelScreen';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
-
-// import type { RootStackParamList } from '../types';
-
-// type ChannelScreenControllerProps = NativeStackScreenProps<
-// RootStackParamList,
-// 'Channel'
-// >;
 
 export function ChannelScreenController() {
   const navigate = useNavigate();
@@ -23,21 +15,19 @@ export function ChannelScreenController() {
   const { data: group } = store.useGroup({ id: groupId });
   const handleGoToDm = useCallback(
     async (dmChannel: db.Channel) => {
-      // props.navigation.push('Channel', { channel: dmChannel });
       navigate(`/dm/${dmChannel.id}`);
     },
     [navigate]
   );
 
   const handleGoToUserProfile = useCallback((userId: string) => {
+    // TODO: Implement profile on web.
     // props.navigation.push('UserProfile', { userId });
   }, []);
 
   const handleGoBack = useCallback(() => {
     navigate('..');
   }, [navigate]);
-
-  console.log('ChannelScreenController', channel, group, postId);
 
   if (!channel || (!isDm && !group)) {
     return null;

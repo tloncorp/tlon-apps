@@ -123,6 +123,7 @@ import { ActivityScreenController } from './controllers/ActivityScreenController
 import { ChannelScreenController } from './controllers/ChannelScreenController';
 import { ChatListScreenController } from './controllers/ChatListScreenController';
 import { GroupChannelsScreenController } from './controllers/GroupChannelsScreenController';
+import ImageViewerScreenController from './controllers/ImageViewerScreenController';
 import { PostScreenController } from './controllers/PostScreenController';
 import { ProfileScreenController } from './controllers/ProfileScreenController';
 import BroadcastDm from './dms/BroadcastDm';
@@ -654,6 +655,10 @@ function NewAppRoutes() {
       <Route
         path="/dm/:chShip/post/:authorId/:postId"
         element={<PostScreenController />}
+      />
+      <Route
+        path="/image/:postId/:uri"
+        element={<ImageViewerScreenController />}
       />
       <Route path="/dm/:chShip" element={<ChannelScreenController />} />
       <Route path="/profile" element={<ProfileScreenController />} />
