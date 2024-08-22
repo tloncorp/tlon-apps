@@ -3,14 +3,13 @@ import * as db from '@tloncorp/shared/dist/db';
 import { PropsWithChildren, useCallback, useState } from 'react';
 import { SizableText, Text, View, XStack, styled } from 'tamagui';
 
-import { ActionSheet } from '../ActionSheet';
 import AuthorRow from '../AuthorRow';
-import { Button } from '../Button';
 import { ContentReferenceLoader } from '../ContentReference/ContentReference';
 import ContentRenderer from '../ContentRenderer';
 import { Icon } from '../Icon';
 import { ImageWithFallback } from '../Image';
 import { useBoundHandler } from '../ListItem/listItemUtils';
+import { SendPostRetrySheet } from '../SendPostRetrySheet';
 
 const GalleryPostFrame = styled(View, {
   name: 'GalleryPostFrame',
@@ -196,17 +195,12 @@ export default function GalleryPost({
               )}
             </View>
           )}
-          <ActionSheet open={showRetrySheet} onOpenChange={setShowRetrySheet}>
-            <ActionSheet.ActionTitle>
-              Message failed to send
-            </ActionSheet.ActionTitle>
-            <Button hero onPress={handleRetryPressed}>
-              <Button.Text>Retry</Button.Text>
-            </Button>
-            <Button heroDestructive onPress={handleDeletePressed}>
-              <Button.Text>Delete</Button.Text>
-            </Button>
-          </ActionSheet>
+          <SendPostRetrySheet
+            open={showRetrySheet}
+            onOpenChange={setShowRetrySheet}
+            onPressDelete={handleDeletePressed}
+            onPressRetry={handleRetryPressed}
+          />
         </View>
       )}
     </GalleryPostFrame>

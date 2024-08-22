@@ -39,7 +39,8 @@
 ::
 ::
 /-  a=activity, c=channels, ch=chat, g=groups
-/+  *activity, ch-utils=channel-utils, v=volume, aj=activity-json
+/+  *activity, ch-utils=channel-utils, v=volume, aj=activity-json,
+    imp=import-aid
 /+  default-agent, verb, dbug
 ::
 =/  verbose  |
@@ -125,8 +126,8 @@
   (emit %pass /migrate %agent [our.bowl dap.bowl] %poke noun+!>(%migrate))
 ::
 ++  load
-  |=  =vase
-  |^  ^+  cor
+  |^  |=  =vase
+  ^+  cor
   ?:  ?=([%0 *] q.vase)  init
   =+  !<(old=versioned-state vase)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
@@ -138,6 +139,7 @@
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   ?>  ?=(%6 -.old)
   =.  state  old
+  =.  allowed  %all
   (emit %pass /fix-init-unreads %agent [our.bowl dap.bowl] %poke noun+!>(%fix-init-unreads))
   +$  versioned-state
     $%  state-6
@@ -276,6 +278,34 @@
       %read     (read source.action read-action.action |)
       %adjust   (adjust +.action)
       %allow-notifications  (allow +.action)
+    ==
+  ::
+      %egg-any
+    =+  !<(=egg-any:gall vase)
+    ?-  -.egg-any
+        ?(%15 %16)
+      ?.  ?=(%live +<.egg-any)
+        ~&  [dap.bowl %egg-any-not-live]
+        cor
+      =/  bak
+        (load -:!>(*versioned-state:load) +>.old-state.egg-any)
+      ::  restore volume settings, but keep any we've explicitly set ourselves,
+      ::  and restore activity summaries & read/bump status
+      ::
+      =.  allowed          allowed:bak
+      =.  volume-settings  (~(uni by volume-settings:bak) volume-settings)
+      =.  activity         (~(uni by activity:bak) activity)
+      =.  indices
+        %.  indices
+        %~  uni  by
+        %-  ~(run by indices:bak)
+        |=  index:a
+        ^-  index:a
+        :_  [[floor.reads ~] bump]
+        ?~  hed=(ram:on-event:a stream)
+          *stream:a
+        (put:on-event:a *stream:a u.hed)
+      (emil (prod-next:imp [our dap]:bowl))
     ==
   ==
 ::

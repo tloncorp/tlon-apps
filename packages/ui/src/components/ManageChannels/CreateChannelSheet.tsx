@@ -1,79 +1,32 @@
 import { useCallback } from 'react';
 import { useForm } from 'react-hook-form';
-import { Text, XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
 import { Button } from '../Button';
-import { FormInput } from '../FormInput';
-import { Icon } from '../Icon';
-import Pressable from '../Pressable';
+import * as Form from '../Form';
 
 export type ChannelTypeName = 'chat' | 'notebook' | 'gallery';
-type ChannelTypeIcon = 'ChannelTalk' | 'ChannelNotebooks' | 'ChannelGalleries';
 
-type ChannelType = {
-  title: string;
-  description: string;
-  channelType: ChannelTypeName;
-  iconType: ChannelTypeIcon;
-};
-
-const channelTypes: ChannelType[] = [
+const channelTypes: Form.ListItemInputOption<ChannelTypeName>[] = [
   {
-    title: 'Chat channel',
-    description: 'A simple, standard text chat',
-    channelType: 'chat',
-    iconType: 'ChannelTalk',
+    title: 'Chat',
+    subtitle: 'A simple, standard text chat',
+    value: 'chat',
+    icon: 'ChannelTalk',
   },
   {
-    title: 'Notebook channel',
-    description: 'Longform publishing and discussion',
-    channelType: 'notebook',
-    iconType: 'ChannelNotebooks',
+    title: 'Notebook',
+    subtitle: 'Longform publishing and discussion',
+    value: 'notebook',
+    icon: 'ChannelNotebooks',
   },
   {
-    title: 'Gallery channel',
-    description: 'Gather, connect, and arrange rich media',
-    channelType: 'gallery',
-    iconType: 'ChannelGalleries',
+    title: 'Gallery',
+    subtitle: 'Gather, connect, and arrange rich media',
+    value: 'gallery',
+    icon: 'ChannelGalleries',
   },
 ];
-
-function ChannelTypeRow({
-  channelType,
-  iconType,
-  channelTypeTitle,
-  description,
-  onPress,
-  currentChannelType,
-}: {
-  channelType: ChannelTypeName;
-  iconType: ChannelTypeIcon;
-  channelTypeTitle: string;
-  description: string;
-  onPress: () => void;
-  currentChannelType?: 'chat' | 'notebook' | 'gallery';
-}) {
-  return (
-    <Pressable onPress={onPress}>
-      <XStack
-        padding="$s"
-        alignItems="center"
-        justifyContent="space-between"
-        width="100%"
-      >
-        <XStack gap="$s" alignItems="center">
-          <Icon type={iconType} />
-          <YStack gap="$s" width="80%">
-            <Text>{channelTypeTitle}</Text>
-            <Text fontSize="$s">{description}</Text>
-          </YStack>
-        </XStack>
-        {currentChannelType === channelType && <Icon type="Checkmark" />}
-      </XStack>
-    </Pressable>
-  );
-}
 
 export function CreateChannelSheet({
   onOpenChange,
@@ -90,21 +43,13 @@ export function CreateChannelSheet({
     channelType: ChannelTypeName;
   }) => void;
 }) {
-  const {
-    control,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useForm({
+  const { control, handleSubmit } = useForm({
     defaultValues: {
       title: '',
       description: '',
       channelType: 'chat',
     },
   });
-
-  const channelType = watch('channelType');
 
   const handlePressSave = useCallback(
     async (data: {
@@ -124,59 +69,40 @@ export function CreateChannelSheet({
 
   return (
     <ActionSheet moveOnKeyboardChange open={true} onOpenChange={onOpenChange}>
-      <ActionSheet.Header>
-        <ActionSheet.Title>Create a new channel</ActionSheet.Title>
-        <YStack
-          alignItems="center"
-          justifyContent="space-between"
-          paddingTop="$l"
-          gap="$l"
-          width="100%"
-        >
-          <FormInput
+      <ActionSheet.SimpleHeader title="Create a new channel" />
+      <ActionSheet.ScrollableContent>
+        <ActionSheet.FormBlock>
+          <Form.ControlledTextField
             control={control}
-            errors={errors}
             name="title"
             label="Title"
-            placeholder="Channel title"
+            inputProps={{ placeholder: 'Channel title' }}
             rules={{ required: 'Channel title is required' }}
           />
-          <FormInput
+        </ActionSheet.FormBlock>
+        <ActionSheet.FormBlock>
+          <Form.ControlledTextField
             control={control}
-            errors={errors}
             name="description"
             label="Description"
-            placeholder="Channel description"
+            inputProps={{ placeholder: 'Channel description' }}
+            rules={{ required: 'Channel description is required' }}
           />
-          <YStack
-            gap="$xl"
-            width="100%"
-            borderWidth={1}
-            borderRadius="$l"
-            borderColor="$secondaryBorder"
-            padding="$l"
-          >
-            {channelTypes.map((c) => (
-              <ChannelTypeRow
-                key={c.channelType}
-                iconType={c.iconType}
-                channelType={c.channelType}
-                channelTypeTitle={c.title}
-                description={c.description}
-                currentChannelType={channelType as ChannelTypeName}
-                onPress={() => setValue('channelType', c.channelType)}
-              />
-            ))}
-          </YStack>
-          <Text>
-            By default, everyone can read the entire history, can write to the
-            channel, and comment on all posts.
-          </Text>
-          <Button hero onPress={handleSubmit(handlePressSave)}>
-            <Button.Text>Create a new channel</Button.Text>
+        </ActionSheet.FormBlock>
+        <ActionSheet.FormBlock>
+          <Form.ControlledListItemField
+            label="Channel type"
+            options={channelTypes}
+            control={control}
+            name={'channelType'}
+          />
+        </ActionSheet.FormBlock>
+        <ActionSheet.FormBlock>
+          <Button onPress={handleSubmit(handlePressSave)} hero>
+            <Button.Text>Create channel</Button.Text>
           </Button>
-        </YStack>
-      </ActionSheet.Header>
+        </ActionSheet.FormBlock>
+      </ActionSheet.ScrollableContent>
     </ActionSheet>
   );
 }

@@ -8,7 +8,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
-import { ExtendedEventType, Rank } from '../urbit';
+import { ExtendedEventType, NotificationLevel, Rank } from '../urbit';
 
 const boolean = (name: string) => {
   return integer(name, { mode: 'boolean' });
@@ -654,9 +654,10 @@ export const groupNavSectionChannelsRelations = relations(
 
 export const volumeSettings = sqliteTable('volume_settings', {
   itemId: text('item_id').primaryKey(),
-  itemType: text('item_type').$type<'group' | 'channel' | 'thread'>().notNull(),
-  isMuted: boolean('is_muted').default(false),
-  isNoisy: boolean('is_noisy').default(false),
+  itemType: text('item_type')
+    .$type<'group' | 'channel' | 'thread' | 'base'>()
+    .notNull(),
+  level: text('level').$type<NotificationLevel>().notNull(),
 });
 
 export type ChannelType = 'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm';

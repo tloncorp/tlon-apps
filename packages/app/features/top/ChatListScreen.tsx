@@ -26,7 +26,7 @@ import { useCalmSettings } from '../../hooks/useCalmSettings';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useIsFocused } from '../../hooks/useIsFocused';
-import * as featureFlags from '../../lib/featureFlags';
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 
@@ -86,6 +86,13 @@ export default function ChatListScreen({
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const isFocused = useIsFocused();
+  const { data: pins } = store.usePins({
+    enabled: isFocused,
+  });
+  const pinned = useMemo(() => pins ?? [], [pins]);
+  const { data: pendingChats } = store.usePendingChats({
+    enabled: isFocused,
+  });
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
   });
@@ -97,9 +104,9 @@ export default function ChatListScreen({
     return {
       pinned: chats?.pinned ?? [],
       unpinned: chats?.unpinned ?? [],
-      pendingChats: chats?.pendingChats ?? [],
+      pendingChats: pendingChats ?? [],
     };
-  }, [chats]);
+  }, [chats, pendingChats]);
 
   const goToDm = useCallback(
     async (participants: string[]) => {
@@ -112,13 +119,16 @@ export default function ChatListScreen({
     [navigateToDm, setStartDmOpen]
   );
 
+
+  const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
+
   const onPressChat = useCallback(
     (item: db.Channel | db.Group) => {
       if (logic.isGroup(item)) {
         setSelectedGroup(item);
       } else if (
         item.group &&
-        !featureFlags.isEnabled('channelSwitcher') &&
+        !isChannelSwitcherEnabled &&
         // Should navigate to channel if it's pinned as a channel
         (!item.pin || item.pin.type === 'group')
       ) {
@@ -127,7 +137,7 @@ export default function ChatListScreen({
         navigateToSelectedPost(item, item.firstUnreadPostId);
       }
     },
-    [navigateToGroupChannels, navigateToSelectedPost]
+    [navigateToGroupChannels, navigateToSelectedPost, isChannelSwitcherEnabled]
   );
 
   const onLongPressChat = useCallback((item: db.Channel | db.Group) => {
@@ -156,8 +166,9 @@ export default function ChatListScreen({
     }
   }, []);
 
-  const { pinned, unpinned } = resolvedChats;
-  const allChats = [...pinned, ...unpinned];
+
+  const { pinned: pinnedChats, unpinned } = resolvedChats;
+  const allChats = [...pinnedChats, ...unpinned];
   const isTlonEmployee = !!allChats.find(
     (obj) => obj.groupId === TLON_EMPLOYEE_GROUP
   );
@@ -226,6 +237,7 @@ export default function ChatListScreen({
           <ChatOptionsProvider
             channelId={chatOptionsChannelId}
             groupId={chatOptionsGroupId}
+            pinned={pinned}
             {...useChatSettingsNavigation()}
           >
             <View backgroundColor="$background" flex={1}>

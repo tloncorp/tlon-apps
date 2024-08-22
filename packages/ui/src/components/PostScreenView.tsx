@@ -9,7 +9,6 @@ import { Text, View, YStack } from 'tamagui';
 
 import { AppDataContextProvider, CalmProvider, CalmState } from '../contexts';
 import { AttachmentProvider } from '../contexts/attachment';
-import { useStickyUnread } from '../hooks/useStickyUnread';
 import * as utils from '../utils';
 import { ChannelFooter } from './Channel/ChannelFooter';
 import { ChannelHeader } from './Channel/ChannelHeader';
@@ -24,6 +23,7 @@ export function PostScreenView({
   currentUserId,
   contacts,
   channel,
+  initialThreadUnread,
   parentPost,
   posts,
   sendReply,
@@ -49,6 +49,7 @@ export function PostScreenView({
   calmSettings?: CalmState | null;
   contacts: db.Contact[] | null;
   channel: db.Channel;
+  initialThreadUnread?: db.ThreadUnreadState | null;
   group?: db.Group | null;
   parentPost: db.Post | null;
   posts: db.Post[] | null;
@@ -79,7 +80,6 @@ export function PostScreenView({
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
-  const threadUnread = useStickyUnread(parentPost?.threadUnread);
   const postsWithoutParent = useMemo(
     () => posts?.filter((p) => p.id !== parentPost?.id) ?? [],
     [posts, parentPost]
@@ -124,6 +124,7 @@ export function PostScreenView({
                 {parentPost && channel.type === 'gallery' && (
                   <GalleryDetailView
                     post={parentPost}
+                    initialPostUnread={initialThreadUnread}
                     onPressImage={handleGoToImage}
                     editingPost={editingPost}
                     setEditingPost={setEditingPost}
@@ -142,6 +143,7 @@ export function PostScreenView({
                 {parentPost && channel.type === 'notebook' && (
                   <NotebookDetailView
                     post={parentPost}
+                    initialPostUnread={initialThreadUnread}
                     onPressImage={handleGoToImage}
                     editingPost={editingPost}
                     setEditingPost={setEditingPost}
@@ -173,11 +175,11 @@ export function PostScreenView({
                       showReplies={false}
                       onPressImage={handleGoToImage}
                       firstUnreadId={
-                        threadUnread?.count ?? 0 > 0
-                          ? threadUnread?.firstUnreadPostId
+                        initialThreadUnread?.count ?? 0 > 0
+                          ? initialThreadUnread?.firstUnreadPostId
                           : null
                       }
-                      unreadCount={threadUnread?.count ?? 0}
+                      unreadCount={initialThreadUnread?.count ?? 0}
                       activeMessage={activeMessage}
                       setActiveMessage={setActiveMessage}
                     />

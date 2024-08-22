@@ -59,6 +59,7 @@ function ChatListComponent({
   setActiveTab,
   showFilters,
 }: store.CurrentChats & {
+  pendingChats: store.PendingChats;
   onPressItem?: (chat: Chat) => void;
   onLongPressItem?: (chat: Chat) => void;
   onSectionChange?: (title: string) => void;

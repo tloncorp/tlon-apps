@@ -17,6 +17,7 @@ import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useScreenOptions } from '@tloncorp/app/hooks/useScreenOptions';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
+import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import { PortalProvider } from '@tloncorp/ui';
@@ -213,36 +214,44 @@ export default function ConnectedApp(props: Props) {
 
   return (
     <ErrorBoundary>
-      <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-        <ShipProvider>
-          <NavigationContainer
-            theme={isDarkMode ? DarkTheme : DefaultTheme}
-            ref={navigationContainerRef}
-          >
-            <BranchProvider>
-              <PostHogProvider client={posthogAsync} autocapture>
-                <GestureHandlerRootView style={tailwind('flex-1')}>
-                  <SafeAreaProvider>
-                    <MigrationCheck>
-                      <QueryClientProvider client={queryClient}>
-                        <PortalProvider>
-                          <App {...props} />
-                        </PortalProvider>
+      <FeatureFlagConnectedInstrumentationProvider>
+        <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
+          <ShipProvider>
+            <NavigationContainer
+              theme={isDarkMode ? DarkTheme : DefaultTheme}
+              ref={navigationContainerRef}
+            >
+              <BranchProvider>
+                <PostHogProvider
+                  client={posthogAsync}
+                  autocapture
+                  options={{
+                    enable: process.env.NODE_ENV !== 'test',
+                  }}
+                >
+                  <GestureHandlerRootView style={tailwind('flex-1')}>
+                    <SafeAreaProvider>
+                      <MigrationCheck>
+                        <QueryClientProvider client={queryClient}>
+                          <PortalProvider>
+                            <App {...props} />
+                          </PortalProvider>
 
-                        {__DEV__ && (
-                          <DevTools
-                            navigationContainerRef={navigationContainerRef}
-                          />
-                        )}
-                      </QueryClientProvider>
-                    </MigrationCheck>
-                  </SafeAreaProvider>
-                </GestureHandlerRootView>
-              </PostHogProvider>
-            </BranchProvider>
-          </NavigationContainer>
-        </ShipProvider>
-      </TamaguiProvider>
+                          {__DEV__ && (
+                            <DevTools
+                              navigationContainerRef={navigationContainerRef}
+                            />
+                          )}
+                        </QueryClientProvider>
+                      </MigrationCheck>
+                    </SafeAreaProvider>
+                  </GestureHandlerRootView>
+                </PostHogProvider>
+              </BranchProvider>
+            </NavigationContainer>
+          </ShipProvider>
+        </TamaguiProvider>
+      </FeatureFlagConnectedInstrumentationProvider>
     </ErrorBoundary>
   );
 }

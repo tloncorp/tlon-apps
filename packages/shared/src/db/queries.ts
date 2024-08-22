@@ -219,7 +219,15 @@ export const getPendingChats = createReadQuery(
 
     return [...pendingChannels, ...pendingGroups];
   },
-  ['groups']
+  ['groups', 'channels']
+);
+
+export const getPins = createReadQuery(
+  'getPins',
+  async (ctx: QueryCtx): Promise<Pin[]> => {
+    return ctx.db.query.pins.findMany();
+  },
+  ['pins']
 );
 
 export const getChats = createReadQuery(
@@ -228,9 +236,10 @@ export const getChats = createReadQuery(
     const partitionedGroupsQuery = ctx.db
       .select({
         ...getTableColumns($channels),
-        rn: sql`ROW_NUMBER() OVER(PARTITION BY ${$channels.groupId} ORDER BY COALESCE(${$channels.lastPostAt}, ${$channelUnreads.updatedAt}) DESC)`.as(
-          'rn'
-        ),
+        rowNumber:
+          sql`ROW_NUMBER() OVER(PARTITION BY ${$channels.groupId} ORDER BY COALESCE(${$channels.lastPostAt}, ${$channelUnreads.updatedAt}) DESC)`.as(
+            'row_number'
+          ),
       })
       .from($channels)
       .where(
@@ -243,12 +252,12 @@ export const getChats = createReadQuery(
     const groupChannels = ctx.db
       .select()
       .from(partitionedGroupsQuery)
-      .where(eq(partitionedGroupsQuery.rn, 1));
+      .where(eq(partitionedGroupsQuery.rowNumber, 1));
 
     const allChannels = ctx.db
       .select({
         ...getTableColumns($channels),
-        rn: sql`0`.as('rn'),
+        rowNumber: sql`0`.as('row_number'),
       })
       .from($channels)
       .where(and(isNull($channels.groupId), eq($channels.isDmInvite, false)))
@@ -342,6 +351,7 @@ export const getChats = createReadQuery(
     'channels',
     'posts',
     'channelUnreads',
+    'groupUnreads',
     'threadUnreads',
     'volumeSettings',
   ]
@@ -632,7 +642,7 @@ export const insertChannelPerms = createWriteQuery(
     );
 
     if (readers.length > 0) {
-      return ctx.db
+      await ctx.db
         .insert($channelReaders)
         .values(readers)
         .onConflictDoUpdate({
@@ -641,17 +651,15 @@ export const insertChannelPerms = createWriteQuery(
         });
     }
 
-    if (writers.length === 0) {
-      return;
+    if (writers.length > 0) {
+      await ctx.db
+        .insert($channelWriters)
+        .values(writers)
+        .onConflictDoUpdate({
+          target: [$channelWriters.channelId, $channelWriters.roleId],
+          set: conflictUpdateSetAll($channelWriters),
+        });
     }
-
-    return ctx.db
-      .insert($channelWriters)
-      .values(writers)
-      .onConflictDoUpdate({
-        target: [$channelWriters.channelId, $channelWriters.roleId],
-        set: conflictUpdateSetAll($channelWriters),
-      });
   },
   ['channelWriters', 'channels']
 );
@@ -1100,15 +1108,38 @@ export type ChannelVolume = {
 
 export const setVolumes = createWriteQuery(
   'setVolumes',
-  async (volumes: VolumeSettings[], ctx: QueryCtx) => {
+  async (
+    {
+      volumes,
+      deleteOthers,
+    }: { volumes: VolumeSettings[]; deleteOthers?: boolean },
+    ctx: QueryCtx
+  ) => {
     if (!volumes.length) return;
-    return ctx.db
+    await ctx.db
       .insert($volumeSettings)
       .values(volumes)
       .onConflictDoUpdate({
         target: $volumeSettings.itemId,
         set: conflictUpdateSetAll($volumeSettings),
       });
+
+    if (deleteOthers) {
+      const ids = volumes.map((v) => v.itemId);
+      await ctx.db
+        .delete($volumeSettings)
+        .where(not(inArray($volumeSettings.itemId, ids)));
+    }
+  },
+  ['volumeSettings']
+);
+
+export const removeVolumeLevels = createWriteQuery(
+  'removeVolumeLevel',
+  async ({ itemIds }: { itemIds: string[] }, ctx: QueryCtx) => {
+    return ctx.db
+      .delete($volumeSettings)
+      .where(inArray($volumeSettings.itemId, itemIds));
   },
   ['volumeSettings']
 );
@@ -1119,6 +1150,105 @@ export const getVolumeSetting = createReadQuery(
     return ctx.db.query.volumeSettings.findFirst({
       where: eq($volumeSettings.itemId, itemId),
     });
+  },
+  ['volumeSettings']
+);
+
+export const getGroupVolumeSetting = createReadQuery(
+  'getGroupVolumeSetting',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    const groupSetting = await ctx.db.query.volumeSettings.findFirst({
+      where: and(
+        eq($volumeSettings.itemId, groupId),
+        eq($volumeSettings.itemType, 'group')
+      ),
+    });
+
+    // if we have a group level, return it
+    if (groupSetting) {
+      return groupSetting.level;
+    }
+
+    // otherwise, fallback to base
+    const baseSetting = await ctx.db.query.volumeSettings.findFirst({
+      where: and(eq($volumeSettings.itemType, 'base')),
+    });
+    return baseSetting?.level ?? 'medium';
+  },
+  ['volumeSettings']
+);
+
+export const getChannelVolumeSetting = createReadQuery(
+  'getChannelVolumeSetting',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    const channelSetting = await ctx.db.query.volumeSettings.findFirst({
+      where: and(
+        eq($volumeSettings.itemId, channelId),
+        eq($volumeSettings.itemType, 'channel')
+      ),
+    });
+
+    // if we have a channel level, return it
+    if (channelSetting) {
+      return channelSetting.level;
+    }
+
+    // if it's a group channel, check the group volume
+    // TODO: right now, this is only called for dm channels
+
+    // otherwise, fallback to base
+    const baseSetting = await ctx.db.query.volumeSettings.findFirst({
+      where: and(eq($volumeSettings.itemType, 'base')),
+    });
+    return baseSetting?.level ?? 'medium';
+  },
+  ['volumeSettings']
+);
+
+export const getVolumeExceptions = createReadQuery(
+  'getVolumeExceptions',
+  async (ctx: QueryCtx) => {
+    const base = await ctx.db.query.volumeSettings.findFirst({
+      where: eq($volumeSettings.itemType, 'base'),
+    });
+
+    const exceptions = await ctx.db.query.volumeSettings.findMany({
+      where: not(eq($volumeSettings.level, base?.level || 'default')),
+    });
+
+    const groupIds = [];
+    const channelIds = [];
+    for (const exception of exceptions) {
+      if (exception.itemType === 'group') {
+        groupIds.push(exception.itemId);
+      }
+      if (exception.itemType === 'channel') {
+        channelIds.push(exception.itemId);
+      }
+    }
+
+    let channels: Channel[] = [];
+    if (channelIds.length) {
+      channels = await ctx.db.query.channels.findMany({
+        where: inArray($channels.id, channelIds),
+        with: {
+          group: true,
+          volumeSettings: true,
+        },
+      });
+    }
+
+    let groups: Group[] = [];
+    if (groupIds.length) {
+      groups = await ctx.db.query.groups.findMany({
+        where: inArray($groups.id, groupIds),
+        with: {
+          volumeSettings: true,
+        },
+      });
+    }
+
+    return { channels, groups };
   },
   ['volumeSettings']
 );
@@ -1244,11 +1374,16 @@ export const getChannelWithRelations = createReadQuery(
             role: true,
           },
         },
+        readerRoles: {
+          with: {
+            role: true,
+          },
+        },
       },
     });
     return returnNullIfUndefined(result);
   },
-  ['channels', 'volumeSettings', 'pins', 'groups', 'contacts']
+  ['channels', 'volumeSettings', 'pins', 'groups', 'contacts', 'channelUnreads']
 );
 
 export const getStaleChannels = createReadQuery(
@@ -2383,6 +2518,7 @@ export const getGroup = createReadQuery(
               channels: true,
             },
           },
+          volumeSettings: true,
         },
       })
       .then(returnNullIfUndefined);
@@ -2624,7 +2760,7 @@ export const insertGroupUnreads = createWriteQuery(
         set: conflictUpdateSetAll($groupUnreads),
       });
   },
-  ['groups', 'groupUnreads']
+  ['groupUnreads']
 );
 
 export const updateGroupUnreadCount = createWriteQuery(

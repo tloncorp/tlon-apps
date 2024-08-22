@@ -63,7 +63,7 @@ const performUpload = async (asset: ImagePickerAsset, isWeb = false) => {
     { compress: 0.75 }
   );
 
-  const fileKey = `${getCurrentUserId()}/${deSig(
+  const fileKey = `${deSig(getCurrentUserId())}/${deSig(
     formatDa(unixToDa(new Date().getTime()))
   )}-${resizedAsset.uri.split('/').pop()}`;
   logger.log('asset key:', fileKey);

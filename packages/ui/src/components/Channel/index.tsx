@@ -25,7 +25,6 @@ import {
 import { Attachment, AttachmentProvider } from '../../contexts/attachment';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
-import { useStickyUnread } from '../../hooks/useStickyUnread';
 import * as utils from '../../utils';
 import AddGalleryPost from '../AddGalleryPost';
 import { BigInput } from '../BigInput';
@@ -51,6 +50,7 @@ const useApp = () => {};
 
 export function Channel({
   channel,
+  initialChannelUnread,
   currentUserId,
   posts,
   selectedPostId,
@@ -92,6 +92,7 @@ export function Channel({
   initialAttachments,
 }: {
   channel: db.Channel;
+  initialChannelUnread?: db.ChannelUnread | null;
   currentUserId: string;
   selectedPostId?: string | null;
   headerMode?: 'default' | 'next';
@@ -143,7 +144,6 @@ export function Channel({
   const canWrite = utils.useCanWrite(channel, currentUserId);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
-  const channelUnread = useStickyUnread(channel.unread);
   const renderItem = isChatChannel
     ? ChatMessage
     : channel.type === 'notebook'
@@ -151,7 +151,13 @@ export function Channel({
       : GalleryPost;
 
   const renderEmptyComponent = useCallback(() => {
-    return <EmptyChannelNotice channel={channel} userId={currentUserId} />;
+    return (
+      <EmptyChannelNotice
+        channel={channel}
+        userId={currentUserId}
+        withBugAdjust
+      />
+    );
   }, [currentUserId, channel]);
 
   const onPressGroupRef = useCallback((group: db.Group) => {
@@ -180,13 +186,13 @@ export function Channel({
       return { type: 'selected', postId: selectedPostId };
     } else if (
       channel.type !== 'gallery' &&
-      channelUnread?.countWithoutThreads &&
-      channelUnread.firstUnreadPostId
+      initialChannelUnread?.countWithoutThreads &&
+      initialChannelUnread.firstUnreadPostId
     ) {
-      return { type: 'unread', postId: channelUnread.firstUnreadPostId };
+      return { type: 'unread', postId: initialChannelUnread.firstUnreadPostId };
     }
     return null;
-  }, [channel.type, selectedPostId, channelUnread]);
+  }, [channel.type, selectedPostId, initialChannelUnread]);
 
   const bigInputGoBack = () => {
     setShowBigInput(false);
@@ -360,13 +366,14 @@ export function Channel({
                                       channelType={channel.type}
                                       channelId={channel.id}
                                       firstUnreadId={
-                                        channelUnread?.countWithoutThreads ??
+                                        initialChannelUnread?.countWithoutThreads ??
                                         0 > 0
-                                          ? channelUnread?.firstUnreadPostId
+                                          ? initialChannelUnread?.firstUnreadPostId
                                           : null
                                       }
                                       unreadCount={
-                                        channelUnread?.countWithoutThreads ?? 0
+                                        initialChannelUnread?.countWithoutThreads ??
+                                        0
                                       }
                                       onPressPost={
                                         isChatChannel ? undefined : goToPost

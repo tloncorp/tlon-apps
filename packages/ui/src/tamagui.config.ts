@@ -250,6 +250,7 @@ export const systemFont = createFont({
     xs: 16,
     s: 22,
     m: 24,
+    l: 24,
     true: 24,
   },
   weight: {

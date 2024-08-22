@@ -44,23 +44,22 @@ export function ChannelActivitySummary({
 
   return (
     <View
-      padding="$l"
-      marginBottom="$l"
+      padding="$m"
       backgroundColor={
-        newestPost.timestamp > seenMarker && unreadCount > 0
+        newestPost.timestamp > seenMarker || unreadCount > 0
           ? '$positiveBackground'
           : 'unset'
       }
       borderRadius="$l"
       onPress={newestIsBlockOrNote ? undefined : pressHandler}
     >
-      <XStack>
+      <XStack gap="$m">
         <ContactAvatar
           contactId={newestPost.authorId ?? ''}
           size="$3xl"
           innerSigilSize={14}
         />
-        <YStack marginLeft="$m">
+        <YStack gap="$xs" flex={1}>
           {channel && (
             <ActivitySummaryHeader
               unreadCount={unreadCount}

@@ -1,16 +1,10 @@
-import Clipboard from '@react-native-clipboard/clipboard';
 import * as db from '@tloncorp/shared/dist/db';
-import { useCallback } from 'react';
-import { Dimensions } from 'react-native';
-import { getTokens } from 'tamagui';
-import { Text, View, YStack } from 'tamagui';
+import { useMemo } from 'react';
 
 import { useNavigation } from '../contexts';
 import { useCurrentUserId } from '../contexts/appDataContext';
-import { ActionSheet } from './ActionSheet';
-import { Button } from './Button';
-import ProfileCover from './ProfileCover';
-import ProfileRow from './ProfileRow';
+import { ActionSheet, createActionGroups } from './ActionSheet';
+import { ListItem } from './ListItem';
 
 export function GroupJoinRequestSheet({
   contact,
@@ -30,78 +24,92 @@ export function GroupJoinRequestSheet({
   onPressReject: () => void;
 }) {
   const currentUserId = useCurrentUserId();
-  const coverSize =
-    Dimensions.get('window').width / 2 - getTokens().space.$xl.val * 2;
 
-  const handleCopyName = useCallback(() => {
-    Clipboard.setString(contactId);
-    onOpenChange(false);
-  }, [contactId, onOpenChange]);
+  const { onPressGoToDm, onGoToUserProfile } = useNavigation();
 
-  const { onPressGoToDm } = useNavigation();
+  const profileActionGroup = useMemo(
+    () =>
+      createActionGroups([
+        'neutral',
+        {
+          title: contact?.nickname ?? contactId,
+          description: `View ${contact?.nickname ?? contactId}'s profile`,
+          action: () => {
+            onGoToUserProfile?.(contactId);
+            onOpenChange(false);
+          },
+          startIcon: <ListItem.ContactIcon contactId={contactId} />,
+          endIcon: 'ChevronRight',
+        },
+      ]),
+    [contact?.nickname, contactId, onGoToUserProfile, onOpenChange]
+  );
 
-  const handleGoToDm = useCallback(async () => {
-    onPressGoToDm?.([contactId]);
-    onOpenChange(false);
-  }, [contactId, onPressGoToDm, onOpenChange]);
+  const userActionGroups = useMemo(() => {
+    return createActionGroups([
+      'neutral',
+      currentUserId !== contactId && {
+        title: 'Send message',
+        action: () => {
+          onPressGoToDm?.([contactId]);
+          onOpenChange(false);
+        },
+        endIcon: 'ChevronRight',
+      },
+      {
+        title: 'Copy ID',
+        description: contactId,
+        render: (props) => (
+          <ActionSheet.CopyAction {...props} copyText={contactId} />
+        ),
+      },
+    ]);
+  }, [contactId, currentUserId, onOpenChange, onPressGoToDm]);
+
+  const adminActionGroups = useMemo(
+    () =>
+      currentUserIsAdmin
+        ? createActionGroups(
+            [
+              'positive',
+              {
+                title: 'Accept request',
+                action: () => {
+                  onPressAccept();
+                  onOpenChange(false);
+                },
+              },
+            ],
+            [
+              'negative',
+              {
+                title: 'Reject request',
+                action: () => {
+                  onPressReject();
+                  onOpenChange(false);
+                },
+              },
+            ]
+          )
+        : [],
+    [currentUserIsAdmin, onOpenChange, onPressAccept, onPressReject]
+  );
+
+  const actionGroups = useMemo(
+    () => [...profileActionGroup, ...userActionGroups, ...adminActionGroups],
+    [profileActionGroup, userActionGroups, adminActionGroups]
+  );
+
+  const subtitle = `From ${
+    contact?.nickname ? `${contact.nickname} (${contactId})` : contactId
+  }`;
 
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
-      <YStack gap="$xl">
-        {contact?.coverImage ? (
-          <ProfileCover uri={contact.coverImage}>
-            <View height={coverSize} justifyContent="flex-end">
-              <ProfileRow
-                contactId={contactId}
-                contact={contact}
-                debugMessage="ProfileCard"
-              />
-            </View>
-          </ProfileCover>
-        ) : (
-          <ProfileRow
-            contactId={contactId}
-            contact={contact}
-            debugMessage="ProfileCard"
-            dark
-          />
-        )}
-        <Text paddingHorizontal="$2xl" fontSize="$l">
-          {contact?.bio}
-        </Text>
-        <YStack gap="$m">
-          {currentUserIsAdmin && (
-            <>
-              <Button
-                hero
-                onPress={() => {
-                  onPressAccept();
-                  onOpenChange(false);
-                }}
-              >
-                <Button.Text>Accept Request</Button.Text>
-              </Button>
-              <Button
-                heroDestructive
-                onPress={() => {
-                  onPressReject();
-                  onOpenChange(false);
-                }}
-              >
-                <Button.Text>Reject Request</Button.Text>
-              </Button>
-            </>
-          )}
-          {currentUserId !== contactId && (
-            <Button secondary onPress={handleGoToDm}>
-              <Button.Text>Message</Button.Text>
-            </Button>
-          )}
-          <Button secondary onPress={handleCopyName}>
-            <Button.Text>Copy Name</Button.Text>
-          </Button>
-        </YStack>
-      </YStack>
+      <ActionSheet.SimpleHeader title="Join request" subtitle={subtitle} />
+      <ActionSheet.Content>
+        <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
+      </ActionSheet.Content>
     </ActionSheet>
   );
 }

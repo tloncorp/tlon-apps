@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 import { formatDistanceToNow } from 'date-fns';
 import React, { useMemo } from 'react';
 import { SizableText, View, XStack } from 'tamagui';
@@ -44,7 +45,7 @@ export const ChatMessageReplySummary = React.memo(
             size="$s"
             color={
               threadUnread?.count
-                ? post.volumeSettings?.isMuted || !threadUnread.notify
+                ? post.volumeSettings || !threadUnread.notify
                   ? '$tertiaryText'
                   : '$positiveActionText'
                 : undefined
@@ -55,7 +56,7 @@ export const ChatMessageReplySummary = React.memo(
           </SizableText>
           <ThreadStatus
             unreadCount={threadUnread?.count ?? 0}
-            isMuted={post.volumeSettings?.isMuted ?? false}
+            isMuted={logic.isMuted(post.volumeSettings?.level, 'thread')}
             isNotify={post.threadUnread?.notify ?? false}
           />
         </XStack>

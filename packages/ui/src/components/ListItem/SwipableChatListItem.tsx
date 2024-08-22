@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
 import React, {
@@ -34,9 +35,9 @@ function BaseSwipableChatRow({
 
   const isMuted = useMemo(() => {
     if (model.group) {
-      return model.group.volumeSettings?.isMuted ?? false;
+      return logic.isMuted(model.group.volumeSettings?.level, 'group');
     } else if (model.type === 'dm' || model.type === 'groupDm') {
-      return model.volumeSettings?.isMuted ?? false;
+      return logic.isMuted(model.volumeSettings?.level, 'channel');
     }
     return false;
   }, [model]);

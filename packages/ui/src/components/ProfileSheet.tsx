@@ -1,19 +1,15 @@
-import Clipboard from '@react-native-clipboard/clipboard';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback } from 'react';
-import { Dimensions } from 'react-native';
-import { getTokens } from 'tamagui';
-import { Text, View, YStack } from 'tamagui';
+import { Text } from 'tamagui';
 
 import { useNavigation } from '../contexts';
 import { useCurrentUserId } from '../contexts/appDataContext';
-import { ActionSheet } from './ActionSheet';
+import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { Button } from './Button';
-import ProfileCover from './ProfileCover';
-import ProfileRow from './ProfileRow';
+import { ProfileBlock } from './ProfileBlock';
 
-function ProfileButton({
+export function ProfileButton({
   label,
   onPress,
   hero,
@@ -55,13 +51,6 @@ export function ProfileSheet({
   onPressUnban?: () => void;
 }) {
   const currentUserId = useCurrentUserId();
-  const coverSize =
-    Dimensions.get('window').width / 2 - getTokens().space.$xl.val * 2;
-
-  const handleCopyName = useCallback(() => {
-    Clipboard.setString(contactId);
-    onOpenChange(false);
-  }, [contactId, onOpenChange]);
 
   const { onPressGoToDm } = useNavigation();
 
@@ -79,82 +68,61 @@ export function ProfileSheet({
     onOpenChange(false);
   }, [contactId, onPressGoToDm, onOpenChange]);
 
+  const isAdminnable = currentUserIsAdmin && currentUserId !== contactId;
+
+  const actions: ActionGroup[] = createActionGroups(
+    [
+      'neutral',
+      {
+        title: 'Send message',
+        action: () => handleGoToDm,
+        endIcon: 'ChevronRight',
+      },
+      {
+        title: 'Copy user ID',
+        render: (props) => (
+          <ActionSheet.CopyAction {...props} copyText={contactId} />
+        ),
+      },
+    ],
+    isAdminnable && [
+      'neutral',
+      {
+        title: 'Kick User',
+        action: () => {
+          onPressKick?.();
+          onOpenChange(false);
+        },
+      },
+      groupIsOpen
+        ? userIsBanned
+          ? {
+              title: 'Unban User',
+              action: onPressUnban,
+            }
+          : {
+              title: 'Ban User',
+              action: onPressBan,
+            }
+        : null,
+    ],
+    currentUserId !== contactId && [
+      'negative',
+      {
+        title: contact?.isBlocked ? 'Unblock' : 'Block',
+        action: handleBlock,
+      },
+    ]
+  );
+
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
-      <YStack gap="$xl">
-        {contact?.coverImage ? (
-          <ProfileCover uri={contact.coverImage}>
-            <View height={coverSize} justifyContent="flex-end">
-              <ProfileRow
-                contactId={contactId}
-                contact={contact}
-                debugMessage="ProfileCard"
-              />
-            </View>
-          </ProfileCover>
-        ) : (
-          <ProfileRow
-            contactId={contactId}
-            contact={contact}
-            debugMessage="ProfileCard"
-            dark
-          />
-        )}
-        <Text paddingHorizontal="$2xl" fontSize="$l">
-          {contact?.bio}
-        </Text>
-        <YStack gap="$m">
-          {currentUserId !== contactId && (
-            <ProfileButton hero label="Message" onPress={handleGoToDm} />
-          )}
-          <ProfileButton secondary label="Copy Name" onPress={handleCopyName} />
-          {currentUserIsAdmin && currentUserId !== contactId && (
-            <>
-              <ProfileButton
-                secondary
-                label="Kick User"
-                onPress={() => {
-                  onPressKick?.();
-                  onOpenChange(false);
-                }}
-              />
-              {groupIsOpen ? (
-                userIsBanned ? (
-                  <ProfileButton
-                    secondary
-                    label="Unban User"
-                    onPress={() => {
-                      onPressUnban?.();
-                      onOpenChange(false);
-                    }}
-                  />
-                ) : (
-                  <ProfileButton
-                    secondary
-                    label="Ban User"
-                    onPress={() => {
-                      onPressBan?.();
-                      onOpenChange(false);
-                    }}
-                  />
-                )
-              ) : null}
-            </>
-          )}
-          {currentUserId !== contactId && (
-            <ProfileButton
-              secondary
-              label={contact?.isBlocked ? 'Unblock' : 'Block'}
-              onPress={handleBlock}
-            />
-          )}
-          {currentUserIsAdmin && currentUserId !== contactId && (
-            <Text paddingHorizontal="$2xl" fontSize="$s">
-              Visit your group on desktop to manage roles.
-            </Text>
-          )}
-        </YStack>
-      </YStack>
+    <ActionSheet open={open} onOpenChange={onOpenChange} snapPoints={['90%']}>
+      <ActionSheet.ScrollableContent>
+        <ActionSheet.ContentBlock>
+          <ProfileBlock contactId={contactId} />
+        </ActionSheet.ContentBlock>
+        <ActionSheet.SimpleActionGroupList actionGroups={actions} />
+      </ActionSheet.ScrollableContent>
     </ActionSheet>
   );
 }

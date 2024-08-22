@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View } from 'tamagui';
 
 import { useChatOptions } from '../contexts/chatOptions';
-import { ActionSheet } from './ActionSheet';
+import { SimpleActionSheet } from './ActionSheet';
 import { Button } from './Button';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
@@ -53,6 +53,7 @@ export function GroupChannelsScreenView({
   const handleSortByChanged = useCallback(
     (newSortBy: 'recency' | 'arranged') => {
       setSortBy(newSortBy);
+      setShowSortOptions(false);
       db.storeChannelSortPreference(newSortBy);
     },
     []
@@ -95,27 +96,43 @@ export function GroupChannelsScreenView({
           />
         ) : null}
       </ScrollView>
-      <ActionSheet open={showSortOptions} onOpenChange={setShowSortOptions}>
-        <ActionSheet.Action
-          action={() => {
-            handleSortByChanged('recency');
-            setShowSortOptions(false);
-          }}
-          primary={sortBy === 'recency'}
-        >
-          <ActionSheet.ActionTitle>Sort by recency</ActionSheet.ActionTitle>
-        </ActionSheet.Action>
-        <ActionSheet.Action
-          action={() => {
-            handleSortByChanged('arranged');
-            setShowSortOptions(false);
-          }}
-          primary={sortBy === 'arranged'}
-        >
-          <ActionSheet.ActionTitle>Sort by arrangement</ActionSheet.ActionTitle>
-        </ActionSheet.Action>
-      </ActionSheet>
+      <ChannelSortActionsSheet
+        open={showSortOptions}
+        onOpenChange={setShowSortOptions}
+        onSelectSort={handleSortByChanged}
+      />
       <ChatOptionsSheet ref={chatOptionsSheetRef} />
     </View>
+  );
+}
+
+export function ChannelSortActionsSheet({
+  open,
+  onOpenChange,
+  onSelectSort,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelectSort: (sortBy: db.ChannelSortPreference) => void;
+}) {
+  return (
+    <SimpleActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      actions={[
+        {
+          title: 'Sort by recency',
+          action: () => {
+            onSelectSort('recency');
+          },
+        },
+        {
+          title: 'Sort by arrangement',
+          action: () => {
+            onSelectSort('arranged');
+          },
+        },
+      ]}
+    />
   );
 }

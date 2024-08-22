@@ -13,7 +13,6 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
-import { useStickyUnread } from '../../hooks/useStickyUnread';
 import AuthorRow from '../AuthorRow';
 import { BigInput } from '../BigInput';
 import Scroller from '../Channel/Scroller';
@@ -23,6 +22,7 @@ import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 
 export interface DetailViewProps {
   post: db.Post;
+  initialPostUnread?: db.ThreadUnreadState | null;
   children?: JSX.Element;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
@@ -100,6 +100,7 @@ const DetailViewHeaderComponentFrame = ({
 
 const DetailViewFrameComponent = ({
   post,
+  initialPostUnread,
   editingPost,
   setEditingPost,
   editPost,
@@ -119,7 +120,6 @@ const DetailViewFrameComponent = ({
     DEFAULT_MESSAGE_INPUT_HEIGHT
   );
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
-  const threadUnread = useStickyUnread(post?.threadUnread);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const { bottom } = useSafeAreaInsets();
   const isEditingParent = useMemo(() => {
@@ -169,11 +169,11 @@ const DetailViewFrameComponent = ({
               onPressRetry={onPressRetry}
               onPressDelete={onPressDelete}
               firstUnreadId={
-                threadUnread?.count ?? 0 > 0
-                  ? threadUnread?.firstUnreadPostId
+                initialPostUnread?.count ?? 0 > 0
+                  ? initialPostUnread?.firstUnreadPostId
                   : null
               }
-              unreadCount={threadUnread?.count ?? 0}
+              unreadCount={initialPostUnread?.count ?? 0}
               activeMessage={activeMessage}
               setActiveMessage={setActiveMessage}
             />

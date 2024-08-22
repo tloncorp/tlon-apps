@@ -13,12 +13,15 @@ export type OnboardingProperties = {
 
 export let posthog: PostHog | undefined;
 
-export const posthogAsync = PostHog.initAsync(POST_HOG_API_KEY, {
-  host: 'https://eu.posthog.com',
-  enable: true,
-});
+export const posthogAsync =
+  process.env.NODE_ENV === 'test'
+    ? undefined
+    : PostHog.initAsync(POST_HOG_API_KEY, {
+        host: 'https://eu.posthog.com',
+        enable: true,
+      });
 
-posthogAsync.then((client) => {
+posthogAsync?.then((client) => {
   posthog = client;
   crashlytics().setAttribute('analyticsId', client.getDistinctId());
 });
@@ -43,9 +46,16 @@ export const trackOnboardingAction = (properties: OnboardingProperties) =>
   capture('Onboarding Action', properties);
 
 export const trackError = (
-  { message }: { message: string },
+  {
+    message,
+    properties,
+  }: {
+    message: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    properties?: { [key: string]: any };
+  },
   event = 'app_error'
-) => capture(event, { message });
+) => capture(event, { message, properties });
 
 export const identifyTlonEmployee = () => {
   if (!posthog) {

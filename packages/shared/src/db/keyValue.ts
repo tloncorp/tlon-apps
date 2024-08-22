@@ -22,6 +22,7 @@ export const PUSH_NOTIFICATIONS_SETTING_QUERY_KEY = [
 
 export const IS_TLON_EMPLOYEE_QUERY_KEY = ['settings', 'isTlonEmployee'];
 export const APP_INFO_QUERY_KEY = ['settings', 'appInfo'];
+export const BASE_VOLUME_SETTING_QUERY_KEY = ['volume', 'base'];
 
 export type ChannelSortPreference = 'recency' | 'arranged';
 export async function storeChannelSortPreference(
