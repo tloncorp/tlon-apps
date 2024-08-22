@@ -30,6 +30,29 @@ export type Props = {
   notificationChannelId?: string;
 };
 
+function payloadFromNotification(
+  notification: Notification
+): NotificationData | null {
+  // When a notification is received directly (i.e. is not mutated via
+  // notification service extension), the payload is delivered in the
+  // `content`. When "triggered" through the NSE, the payload is in the
+  // `trigger`.
+  // Detect and use whatever payload is available.
+  const payload =
+    notification.request.trigger.type === 'push'
+      ? notification.request.trigger.payload!
+      : notification.request.content.data;
+
+  if (payload == null) {
+    return null;
+  }
+  if (typeof payload !== 'object' || payload.wer == null) {
+    return null;
+  }
+
+  return payload as unknown as NotificationData;
+}
+
 export default function useNotificationListener({
   notificationPath,
   notificationChannelId,
@@ -61,18 +84,8 @@ export default function useNotificationListener({
     // This only seems to get triggered on iOS. Android handles the tap and other intents in native code.
     const notificationTapListener = addNotificationResponseReceivedListener(
       (response) => {
-        // When a notification is received directly (i.e. is not mutated via
-        // notification service extension), the payload is delivered in the
-        // `content`. When "triggered" through the NSE, the payload is in the
-        // `trigger`.
-        // Detect and use whatever payload is available.
-        const data = (response.notification.request.trigger.type === 'push'
-          ? response.notification.request.trigger.payload!
-          : response.notification.request.content
-              .data) as unknown as NotificationData;
-
-        const { actionIdentifier, userText } = response;
-        if (data == null || (typeof data === 'object' && data.wer == null)) {
+        const data = payloadFromNotification(response.notification);
+        if (data == null) {
           // https://linear.app/tlon/issue/TLON-2551/multiple-notifications-that-lead-to-nowhere-crash-app
           // We're seeing cases where `data` is null here - not sure why this is happening.
           // Log the notification and don't try to navigate.
@@ -84,6 +97,8 @@ export default function useNotificationListener({
           }
           return;
         }
+
+        const { actionIdentifier, userText } = response;
         const postInfo = api.getPostInfoFromWer(data.wer);
         const isDm = api.getIsDmFromWer(data.wer);
         if (actionIdentifier === 'markAsRead' && data.channelId) {
