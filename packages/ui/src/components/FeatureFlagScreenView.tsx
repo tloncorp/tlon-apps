@@ -35,8 +35,9 @@ export function FeatureFlagScreenView({
               alignItems="center"
               padding="$l"
             >
-              <SizableText>{feature.label}</SizableText>
+              <SizableText flexShrink={1}>{feature.label}</SizableText>
               <Switch
+                style={{ flexShrink: 0 }}
                 value={feature.enabled}
                 onValueChange={(enabled) =>
                   onFlagToggled(feature.name, enabled)

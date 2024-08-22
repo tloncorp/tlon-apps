@@ -8,11 +8,7 @@ import { useMemo } from 'react';
 import * as api from '../api';
 import * as db from '../db';
 import * as ub from '../urbit';
-import {
-  getIsHosted,
-  hasCustomS3Creds,
-  hasHostingUploadCreds,
-} from './storage';
+import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import { syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 

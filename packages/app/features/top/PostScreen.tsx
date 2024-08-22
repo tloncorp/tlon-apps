@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { PostScreenView } from '@tloncorp/ui';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useChannelContext } from '../../hooks/useChannelContext';
 
@@ -37,6 +37,18 @@ export default function PostScreen({
     draftKey: postParam.id,
     uploaderKey: `${postParam.channelId}/${postParam.id}`,
   });
+
+  // for the unread thread divider, we care about the unread state when you enter but don't want it to update over
+  // time
+  const [initialThreadUnread, setInitialThreadUnread] =
+    useState<db.ThreadUnreadState | null>(null);
+  useEffect(() => {
+    async function initializeChannelUnread() {
+      const unread = await db.getThreadUnreadState({ parentId: postParam.id });
+      setInitialThreadUnread(unread ?? null);
+    }
+    initializeChannelUnread();
+  }, []);
 
   const { data: post } = store.usePostWithThreadUnreads({
     id: postParam.id,
@@ -109,6 +121,7 @@ export default function PostScreen({
       parentPost={post}
       posts={posts}
       channel={channel}
+      initialThreadUnread={initialThreadUnread}
       goBack={goBack}
       sendReply={sendReply}
       groupMembers={group?.members ?? []}
