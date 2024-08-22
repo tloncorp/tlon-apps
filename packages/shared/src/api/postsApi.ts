@@ -1,4 +1,4 @@
-import { unixToDa } from '@urbit/api';
+import { formatDa, unixToDa } from '@urbit/aura';
 import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
@@ -408,16 +408,18 @@ export const getLatestPosts = async ({
 
 export interface GetChangedPostsOptions {
   channelId: string;
-  afterCursor?: Cursor;
-  count?: number;
+  startCursor: Cursor;
+  endCursor: Cursor;
+  afterTime: Date;
 }
 
 export type GetChangedPostsResponse = GetChannelPostsResponse;
 
 export const getChangedPosts = async ({
   channelId,
-  afterCursor,
-  count = 50,
+  startCursor,
+  endCursor,
+  afterTime,
 }: GetChangedPostsOptions): Promise<GetChangedPostsResponse> => {
   if (!isGroupChannelId(channelId)) {
     throw new Error(
@@ -429,8 +431,9 @@ export const getChangedPosts = async ({
     app: 'channels',
     path: formatScryPath(
       `v1/${channelId}/posts/changes`,
-      afterCursor ? formatCursor(afterCursor) : null,
-      count
+      formatCursor(startCursor),
+      formatCursor(endCursor),
+      formatDa(unixToDa(afterTime.valueOf()).toString())
     ),
   });
   return toPagedPostsData(channelId, response);

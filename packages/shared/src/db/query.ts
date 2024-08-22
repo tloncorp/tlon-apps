@@ -188,10 +188,6 @@ export async function withCtxOrDefault<T>(
         const shouldInvalidate =
           tableKey instanceof Set && setsOverlap(tableKey, pendingEffects);
         if (shouldInvalidate) {
-          logger.log(
-            `${meta.label} attempting invalidation`,
-            runIfDev(() => JSON.stringify([query.queryHash, query.isActive()]))
-          );
           invalidated.push(query.queryHash);
         }
         return shouldInvalidate;

@@ -1,13 +1,17 @@
-import { udToDec } from '@urbit/api';
+import { parseUd } from '@urbit/aura';
 
 import { ContentReference } from '../api';
 import * as db from '../db';
 
+function formatId(id: string) {
+  return parseUd(id).toString();
+}
+
 export function getPostReferencePath(post: db.Post) {
   if (post.parentId) {
-    return `/1/chan/${post.channelId}/msg/${udToDec(post.parentId)}/${udToDec(post.id)}`;
+    return `/1/chan/${post.channelId}/msg/${formatId(post.parentId)}/${formatId(post.id)}`;
   }
-  return `/1/chan/${post.channelId}/msg/${udToDec(post.id)}`;
+  return `/1/chan/${post.channelId}/msg/${formatId(post.id)}`;
 }
 
 export function getGroupReferencePath(groupId: string) {
