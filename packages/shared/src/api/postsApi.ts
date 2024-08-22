@@ -1,4 +1,4 @@
-import { unixToDa } from '@urbit/aura';
+import { formatDa, unixToDa } from '@urbit/aura';
 import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
@@ -433,7 +433,7 @@ export const getChangedPosts = async ({
       `v1/${channelId}/posts/changes`,
       formatCursor(startCursor),
       formatCursor(endCursor),
-      formatUd(unixToDa(afterTime.valueOf()).toString())
+      formatDa(unixToDa(afterTime.valueOf()).toString())
     ),
   });
   return toPagedPostsData(channelId, response);
