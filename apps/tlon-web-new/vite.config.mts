@@ -17,6 +17,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import svgr from 'vite-plugin-svgr';
 
 import packageJson from './package.json';
+import reactNativeWeb from './reactNativeWebPlugin';
 import manifest from './src/manifest';
 
 // https://vitejs.dev/config/
@@ -65,11 +66,20 @@ export default ({ mode }: { mode: string }) => {
         secure: false,
       }) as PluginOption[],
       react({
+        babel: {
+          // adding these per instructions here:
+          // https://docs.swmansion.com/react-native-reanimated/docs/guides/web-support/
+          plugins: [
+            '@babel/plugin-proposal-export-namespace-from',
+            'react-native-reanimated/plugin',
+          ],
+        },
         jsxImportSource: '@welldone-software/why-did-you-render',
       }) as PluginOption[],
       svgr({
         include: '**/*.svg',
       }) as Plugin,
+      reactNativeWeb(),
       tamaguiPlugin({
         config: './tamagui.config.ts',
         platform: 'web',
@@ -90,6 +100,7 @@ export default ({ mode }: { mode: string }) => {
         injectManifest: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
           maximumFileSizeToCacheInBytes: 100000000,
+          plugins: [reactNativeWeb()],
         },
       }),
     ];
@@ -99,8 +110,12 @@ export default ({ mode }: { mode: string }) => {
     external:
       mode === 'mock' || mode === 'staging'
         ? ['virtual:pwa-register/react']
-        : // TODO: find workaround for issues with @tamagui/react-native-svg
-          ['@urbit/sigil-js/dist/core', 'react-native-svg'],
+        : [
+            '@urbit/sigil-js/dist/core',
+            'react-native-device-info',
+            '@react-navigation/bottom-tabs',
+            '@react-navigation/native-stack',
+          ],
     output: {
       hashCharacters: 'base36' as any,
       manualChunks: {
@@ -131,6 +146,7 @@ export default ({ mode }: { mode: string }) => {
         'radix-ui/react-popover': ['@radix-ui/react-popover'],
         'radix-ui/react-toast': ['@radix-ui/react-toast'],
         'radix-ui/react-tooltip': ['@radix-ui/react-tooltip'],
+        'react-native-reanimated': ['react-native-reanimated'],
       },
     },
   };
@@ -181,20 +197,52 @@ export default ({ mode }: { mode: string }) => {
               ],
             },
           } as BuildOptions),
+    worker: {
+      rollupOptions: {
+        output: {
+          hashCharacters: 'base36' as any,
+        },
+      },
+    },
     plugins: plugins(mode),
     resolve: {
       dedupe: ['@tanstack/react-query'],
-      alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url)),
-      },
+      alias: [
+        {
+          find: '@',
+          replacement: fileURLToPath(new URL('./src', import.meta.url)),
+        },
+        {
+          find: '@react-native-firebase/crashlytics',
+          replacement: fileURLToPath(
+            new URL(
+              './src/mocks/react-native-firebase-crashlytics.js',
+              import.meta.url
+            )
+          ),
+        },
+        {
+          find: '@tloncorp/editor/dist/editorHtml',
+          replacement: fileURLToPath(
+            new URL('./src/mocks/tloncorp-editor-html.js', import.meta.url)
+          ),
+        },
+        {
+          find: '@tloncorp/editor/src/bridges',
+          replacement: fileURLToPath(
+            new URL('./src/mocks/tloncorp-editor-bridges.js', import.meta.url)
+          ),
+        },
+        {
+          find: '@10play/tentap-editor',
+          replacement: fileURLToPath(
+            new URL('./src/mocks/tentap-editor.js', import.meta.url)
+          ),
+        },
+      ],
     },
     optimizeDeps: {
-      esbuildOptions: {
-        // Fix for polyfill issue with @tamagui/animations-moti
-        define: {
-          global: 'globalThis',
-        },
-      },
+      exclude: ['sqlocal'],
     },
     test: {
       globals: true,

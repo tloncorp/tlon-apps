@@ -12,51 +12,51 @@ import { createRoot } from 'react-dom/client';
 import _api from './api';
 import App from './app';
 import indexedDBPersistor from './indexedDBPersistor';
-import { setupDb } from './lib/webDb';
+import SafeAreaProvider from './logic/SafeAreaContext';
 import { analyticsClient, captureError } from './logic/analytics';
 import queryClient from './queryClient';
 import './styles/index.css';
 
-setupDb().then(() => {
-  const oldUpdateState = EditorView.prototype.updateState;
+const oldUpdateState = EditorView.prototype.updateState;
 
-  EditorView.prototype.updateState = function updateState(state) {
-    if (!(this as any).docView) {
-      //return; // This prevents the matchesNode error on hot reloads
-    }
-    // (this as any).updateStateInner(state, this.state.plugins != state.plugins); //eslint-disable-line
-    oldUpdateState.call(this, state);
-  };
-
-  const IS_MOCK =
-    import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
-
-  if (IS_MOCK) {
-    window.ship = 'finned-palmer';
-    window.our = '~finned-palmer';
+EditorView.prototype.updateState = function updateState(state) {
+  if (!(this as any).docView) {
+    //return; // This prevents the matchesNode error on hot reloads
   }
+  // (this as any).updateStateInner(state, this.state.plugins != state.plugins); //eslint-disable-line
+  oldUpdateState.call(this, state);
+};
 
-  window.our = `~${window.ship}`;
+const IS_MOCK =
+  import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
 
-  window.addEventListener('error', (e) => {
-    captureError('window', e.error);
-  });
+if (IS_MOCK) {
+  window.ship = 'finned-palmer';
+  window.our = '~finned-palmer';
+}
 
-  const container = document.getElementById('app') as HTMLElement;
-  const root = createRoot(container);
-  root.render(
-    <React.StrictMode>
-      <PersistQueryClientProvider
-        client={queryClient}
-        persistOptions={{
-          persister: indexedDBPersistor(`${window.our}-landscape`),
-          buster: `${window.our}-landscape-4.0.1`,
-        }}
-      >
+window.our = `~${window.ship}`;
+
+window.addEventListener('error', (e) => {
+  captureError('window', e.error);
+});
+
+const container = document.getElementById('app') as HTMLElement;
+const root = createRoot(container);
+root.render(
+  <React.StrictMode>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: indexedDBPersistor(`${window.our}-landscape`),
+        buster: `${window.our}-landscape-4.0.1`,
+      }}
+    >
+      <SafeAreaProvider>
         <PostHogProvider client={analyticsClient}>
           <App />
         </PostHogProvider>
-      </PersistQueryClientProvider>
-    </React.StrictMode>
-  );
-});
+      </SafeAreaProvider>
+    </PersistQueryClientProvider>
+  </React.StrictMode>
+);

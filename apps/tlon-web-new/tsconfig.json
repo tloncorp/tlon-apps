@@ -1,0 +1,35 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["DOM", "DOM.Iterable", "ESNext", "WebWorker"],
+    "experimentalDecorators": true,
+    "strict": true,
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "types": [
+      "vite/client",
+      "vitest/globals",
+      "@testing-library/jest-dom",
+      "vite-plugin-pwa/react"
+    ],
+    "composite": true,
+    "paths": {
+      "@/*": ["./apps/tlon-web-new/src/*"],
+      "sqlocal/drizzle": ["node_modules/sqlocal/dist/drizzle"]
+    }
+  },
+  "include": [
+    "./src",
+    "./test",
+    "./e2e",
+    "./*.config.ts",
+    "./*.setup.ts",
+    "./rube",
+    "cosmos/setup.ts",
+    "vite.config.mts",
+    "reactNativeWebPlugin.ts"
+  ]
+}
