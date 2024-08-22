@@ -30,7 +30,6 @@ import * as fixture23 from './src/fixtures/Form.fixture';
 import * as fixture22 from './src/fixtures/GalleryPost.fixture';
 import * as fixture21 from './src/fixtures/GroupList.fixture';
 import * as fixture20 from './src/fixtures/GroupListItem.fixture';
-import * as fixture19 from './src/fixtures/HeaderButton.fixture';
 import * as fixture18 from './src/fixtures/ImageViewer.fixture';
 import * as fixture17 from './src/fixtures/Input.fixture';
 import * as fixture16 from './src/fixtures/InputToolbar.fixture';
@@ -46,7 +45,6 @@ import * as fixture7 from './src/fixtures/ProfileWidget.fixture';
 import * as fixture6 from './src/fixtures/ReferenceSkeleton.fixture';
 import * as fixture5 from './src/fixtures/ScreenHeader.fixture';
 import * as fixture4 from './src/fixtures/SearchBar.fixture';
-import * as fixture3 from './src/fixtures/TlonButton.fixture';
 import * as fixture2 from './src/fixtures/TrimmedText.fixture';
 import * as fixture1 from './src/fixtures/VideoEmbed.fixture';
 import * as decorator0 from './src/fixtures/cosmos.decorator';
@@ -60,7 +58,6 @@ const fixtures = {
   'src/App.fixture.tsx': { module: fixture0 },
   'src/fixtures/VideoEmbed.fixture.tsx': { module: fixture1 },
   'src/fixtures/TrimmedText.fixture.tsx': { module: fixture2 },
-  'src/fixtures/TlonButton.fixture.tsx': { module: fixture3 },
   'src/fixtures/SearchBar.fixture.tsx': { module: fixture4 },
   'src/fixtures/ScreenHeader.fixture.tsx': { module: fixture5 },
   'src/fixtures/ReferenceSkeleton.fixture.tsx': { module: fixture6 },
@@ -76,7 +73,6 @@ const fixtures = {
   'src/fixtures/InputToolbar.fixture.tsx': { module: fixture16 },
   'src/fixtures/Input.fixture.tsx': { module: fixture17 },
   'src/fixtures/ImageViewer.fixture.tsx': { module: fixture18 },
-  'src/fixtures/HeaderButton.fixture.tsx': { module: fixture19 },
   'src/fixtures/GroupListItem.fixture.tsx': { module: fixture20 },
   'src/fixtures/GroupList.fixture.tsx': { module: fixture21 },
   'src/fixtures/GalleryPost.fixture.tsx': { module: fixture22 },

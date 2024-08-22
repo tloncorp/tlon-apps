@@ -1,12 +1,21 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { EMAIL_REGEX } from '@tloncorp/app/constants';
 import { requestPasswordReset } from '@tloncorp/app/lib/hostingApi';
-import { useLayoutEffect, useState } from 'react';
+import { trackError } from '@tloncorp/app/utils/posthog';
+import {
+  Button,
+  Field,
+  GenericHeader,
+  KeyboardAvoidingView,
+  SizableText,
+  Text,
+  TextInput,
+  View,
+  YStack,
+} from '@tloncorp/ui';
+import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Text, TextInput, View } from 'react-native';
-import { useTailwind } from 'tailwind-rn';
 
-import { HeaderButton } from '../components/HeaderButton';
-import { LoadingSpinner } from '../components/LoadingSpinner';
 import type { OnboardingStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ResetPassword'>;
@@ -22,12 +31,13 @@ export const ResetPasswordScreen = ({
   },
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [remoteError, setRemoteError] = useState<string | undefined>();
-  const tailwind = useTailwind();
+
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
+    setError,
+    trigger,
   } = useForm<FormData>({
     defaultValues: {
       email: emailParam,
@@ -41,73 +51,71 @@ export const ResetPasswordScreen = ({
       await requestPasswordReset(email);
       navigation.goBack();
     } catch (err) {
-      return setRemoteError((err as Error).message);
+      console.error('Error resetting password:', err);
+      if (err instanceof Error) {
+        setError('email', {
+          type: 'custom',
+          message: err.message,
+        });
+        trackError(err);
+      }
     }
 
     setIsSubmitting(false);
   });
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () =>
-        isSubmitting ? (
-          <View style={tailwind('px-6')}>
-            <LoadingSpinner height={16} />
-          </View>
-        ) : (
-          <HeaderButton title="Submit" onPress={onSubmit} isSubmit />
-        ),
-    });
-  }, [navigation, isSubmitting]);
-
   return (
-    <View style={tailwind('p-6 h-full bg-white dark:bg-black')}>
-      <Text
-        style={tailwind(
-          'text-lg font-medium text-tlon-black-80 dark:text-white'
-        )}
-      >
-        Enter the email associated with your Tlon account.
-      </Text>
-      <View style={tailwind('mt-8')}>
-        <Text
-          style={tailwind(
-            'mb-2 text-lg font-medium text-tlon-black-80 dark:text-white'
-          )}
-        >
-          Email
-        </Text>
-        <Controller
-          control={control}
-          rules={{
-            required: 'Please enter a valid email address.',
-          }}
-          render={({ field: { onChange, onBlur, value } }) => (
-            <TextInput
-              style={tailwind(
-                'p-4 text-tlon-black-80 dark:text-white border border-tlon-black-20 dark:border-tlon-black-80 rounded-lg'
-              )}
-              placeholder="sampel@pal.net"
-              placeholderTextColor="#999999"
-              onBlur={onBlur}
-              onChangeText={onChange}
-              onSubmitEditing={onSubmit}
-              value={value}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="send"
-              enablesReturnKeyAutomatically
-            />
-          )}
-          name="email"
-        />
-        {remoteError ?? errors.email ? (
-          <Text style={tailwind('mt-2 text-tlon-red')}>
-            {remoteError ?? errors.email?.message}
-          </Text>
-        ) : null}
-      </View>
+    <View flex={1}>
+      <GenericHeader
+        title="Reset Password"
+        goBack={() => navigation.goBack()}
+        showSpinner={isSubmitting}
+        rightContent={
+          isValid && (
+            <Button minimal onPress={onSubmit}>
+              <Text fontSize={'$m'}>Submit</Text>
+            </Button>
+          )
+        }
+      />
+      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
+        <YStack gap="$2xl" padding="$2xl">
+          <SizableText size="$l">
+            Enter the email associated with your Tlon account. We&rsquo;ll send
+            you a link to reset your password.
+          </SizableText>
+          <Controller
+            control={control}
+            name="email"
+            rules={{
+              required: 'Please enter a valid email address.',
+              pattern: {
+                value: EMAIL_REGEX,
+                message: 'Please enter a valid email address.',
+              },
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Field label="Email" error={errors.email?.message}>
+                <TextInput
+                  placeholder="Email Address"
+                  onBlur={() => {
+                    onBlur();
+                    trigger('email');
+                  }}
+                  onChangeText={onChange}
+                  onSubmitEditing={onSubmit}
+                  value={value}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="send"
+                  enablesReturnKeyAutomatically
+                />
+              </Field>
+            )}
+          />
+        </YStack>
+      </KeyboardAvoidingView>
     </View>
   );
 };
