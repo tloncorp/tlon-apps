@@ -321,7 +321,10 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   subscribe<ub.ActivityUpdate>(
     { app: 'activity', path: '/v4' },
     async (update: ub.ActivityUpdate) => {
-      logger.log('activity update', runIfDev(() => JSON.stringify(update))());
+      logger.log(
+        'activity update',
+        runIfDev(() => JSON.stringify(update))
+      );
       // handle unreads
       if ('activity' in update) {
         Object.entries(update.activity).forEach((activityEntry) => {

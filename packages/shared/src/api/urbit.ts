@@ -78,7 +78,7 @@ export function configureClient({
   clientInstance.on('fact', (fact) => {
     logger.log(
       'received message',
-      runIfDev(() => escapeLog(JSON.stringify(fact)))()
+      runIfDev(() => escapeLog(JSON.stringify(fact)))
     );
   });
 

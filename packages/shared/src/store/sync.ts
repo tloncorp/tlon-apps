@@ -273,7 +273,7 @@ export async function syncUpdatedPosts(
 ) {
   logger.log(
     'syncing updated posts',
-    runIfDev(() => JSON.stringify(options))()
+    runIfDev(() => JSON.stringify(options))
   );
   const response = await syncQueue.add('syncUpdatedPosts', ctx, async () =>
     api.getChangedPosts(options)
