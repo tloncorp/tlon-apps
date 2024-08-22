@@ -226,6 +226,7 @@ const PrismCodeBlock = CodeBlock.extend<CodeBlockPrismOptions>({
         },
 
         props: {
+          // @ts-expect-error prosemirror#plugin
           decorations(state) {
             return this.getState(state);
           },
