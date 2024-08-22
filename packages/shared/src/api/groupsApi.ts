@@ -1,4 +1,4 @@
-import { Poke } from '@urbit/api';
+import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';

@@ -16,7 +16,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %5
+    $:  %6
         =v-channels:c
         =pimp:imp
     ==
@@ -91,15 +91,32 @@
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
-  ?>  ?=(%5 -.old)
+  =?  old  ?=(%5 -.old)  (state-5-to-6 old)
+  ?>  ?=(%6 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-5 state-4 state-3 state-2 state-1 state-0)
-  +$  state-5  current-state
+  +$  versioned-state  $%(state-6 state-5 state-4 state-3 state-2 state-1 state-0)
+  +$  state-6  current-state
+  +$  state-5
+    $:  %5
+        =v-channels:v6:old:c
+        =pimp:imp
+    ==
+  ++  state-5-to-6
+    |=  state-5
+    ^-  state-6
+    [%6 (v-channels-5-to-6 v-channels) pimp]
+  ++  v-channels-5-to-6
+    |=  vc=v-channels:v6:old:c
+    ^-  v-channels:c
+    %-  ~(run by vc)
+    |=  v=v-channel:v6:old:c
+    ^-  v-channel:c
+    v(pending [pending.v *last-updated:c])
   +$  state-4
     $:  %4
-        =v-channels:c
+        =v-channels:v6:old:c
     ==
   ++  state-4-to-5
     |=  state-4
@@ -113,7 +130,7 @@
   ::
   ++  v-channel-2-to-3
     |=  v=v-channel-2
-    ^-  v-channel:c
+    ^-  v-channel:v6:old:c
     v(future [future.v *pending-messages:c])
   ++  v-channels-2  (map nest:c v-channel-2)
   ++  v-channel-2
