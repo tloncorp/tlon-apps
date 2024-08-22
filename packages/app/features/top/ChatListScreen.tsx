@@ -21,13 +21,13 @@ import {
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-// import { TLON_EMPLOYEE_GROUP } from '../../constants';
+import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useCalmSettings } from '../../hooks/useCalmSettings';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useIsFocused } from '../../hooks/useIsFocused';
 import * as featureFlags from '../../lib/featureFlags';
-// import { identifyTlonEmployee } from '../../utils/posthog';
+import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 
 const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
@@ -141,17 +141,14 @@ export default function ChatListScreen({
     }
   }, []);
 
-  const handleDmOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setStartDmOpen(false);
-    }
-  }, []);
-
-  // const handleAddGroupOpenChange = useCallback((open: boolean) => {
-  // if (!open) {
-  // setAddGroupOpen(false);
-  // }
-  // }, []);
+  const handleDmOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setStartDmOpen(false);
+      }
+    },
+    [setStartDmOpen]
+  );
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -159,14 +156,14 @@ export default function ChatListScreen({
     }
   }, []);
 
-  // const { pinned, unpinned } = resolvedChats;
-  // const allChats = [...pinned, ...unpinned];
-  // const isTlonEmployee = !!allChats.find(
-  // (obj) => obj.groupId === TLON_EMPLOYEE_GROUP
-  // );
-  // if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
-  // // identifyTlonEmployee();
-  // }
+  const { pinned, unpinned } = resolvedChats;
+  const allChats = [...pinned, ...unpinned];
+  const isTlonEmployee = !!allChats.find(
+    (obj) => obj.groupId === TLON_EMPLOYEE_GROUP
+  );
+  if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
+    identifyTlonEmployee();
+  }
 
   const { calmSettings } = useCalmSettings();
 
