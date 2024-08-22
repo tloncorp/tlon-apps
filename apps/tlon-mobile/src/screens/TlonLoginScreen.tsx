@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   DEFAULT_TLON_LOGIN_EMAIL,
   DEFAULT_TLON_LOGIN_PASSWORD,
+  EMAIL_REGEX,
 } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import {
@@ -15,11 +16,12 @@ import { getShipUrl } from '@tloncorp/app/utils/ship';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
 import {
   Button,
+  Field,
   GenericHeader,
-  Input,
   KeyboardAvoidingView,
   SizableText,
   Text,
+  TextInput,
   View,
   YStack,
 } from '@tloncorp/ui';
@@ -42,8 +44,9 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
     control,
     setFocus,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
     getValues,
+    trigger,
   } = useForm<FormData>({
     defaultValues: {
       email: DEFAULT_TLON_LOGIN_EMAIL,
@@ -134,9 +137,11 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
         goBack={() => navigation.goBack()}
         showSpinner={isSubmitting}
         rightContent={
-          <Button minimal onPress={onSubmit}>
-            <Text fontSize={'$m'}>Connect</Text>
-          </Button>
+          isValid && (
+            <Button minimal onPress={onSubmit}>
+              <Text fontSize={'$m'}>Connect</Text>
+            </Button>
+          )
         }
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
@@ -147,76 +152,64 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
           {remoteError ? (
             <SizableText color="$negativeActionText">{remoteError}</SizableText>
           ) : null}
-          <View>
-            <SizableText marginBottom="$m">Email</SizableText>
-            <Controller
-              control={control}
-              rules={{
-                required: 'Please enter a valid email address.',
-              }}
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input height="$4xl">
-                  <Input.Area
-                    placeholder="Email Address"
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    onSubmitEditing={() => setFocus('password')}
-                    value={value}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    returnKeyType="next"
-                    enablesReturnKeyAutomatically
-                  />
-                </Input>
-              )}
-              name="email"
-            />
-            {errors.email && (
-              <SizableText
-                color="$negativeActionText"
-                marginTop="$m"
-                fontSize="$s"
-              >
-                {errors.email.message}
-              </SizableText>
+
+          <Controller
+            control={control}
+            rules={{
+              required: 'Please enter a valid email address.',
+              pattern: {
+                value: EMAIL_REGEX,
+                message: 'Please enter a valid email address.',
+              },
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Field label="Email" error={errors.email?.message}>
+                <TextInput
+                  placeholder="Email Address"
+                  onBlur={() => {
+                    onBlur();
+                    trigger('email');
+                  }}
+                  onChangeText={onChange}
+                  onSubmitEditing={() => setFocus('password')}
+                  value={value}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="next"
+                  enablesReturnKeyAutomatically
+                />
+              </Field>
             )}
-          </View>
-          <View>
-            <SizableText marginBottom="$m">Password</SizableText>
-            <Controller
-              control={control}
-              rules={{
-                required: 'Please enter a password.',
-              }}
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input height="$4xl">
-                  <Input.Area
-                    placeholder="Password"
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    onSubmitEditing={onSubmit}
-                    value={value}
-                    secureTextEntry
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    returnKeyType="send"
-                    enablesReturnKeyAutomatically
-                  />
-                </Input>
-              )}
-              name="password"
-            />
-            {errors.password && (
-              <SizableText
-                color="$negativeActionText"
-                marginTop="$m"
-                fontSize="$s"
-              >
-                {errors.password.message}
-              </SizableText>
+            name="email"
+          />
+          <Controller
+            control={control}
+            rules={{
+              required: 'Please enter a password.',
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Field label="Password" error={errors.password?.message}>
+                <TextInput
+                  placeholder="Password"
+                  onBlur={() => {
+                    onBlur();
+                    trigger('password');
+                  }}
+                  onChangeText={onChange}
+                  onSubmitEditing={onSubmit}
+                  value={value}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="send"
+                  enablesReturnKeyAutomatically
+                />
+              </Field>
             )}
-          </View>
+            name="password"
+          />
+
           <Button minimal onPress={handleForgotPassword}>
             <SizableText color="$primaryText">Forgot password?</SizableText>
           </Button>

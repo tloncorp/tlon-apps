@@ -9,17 +9,18 @@ import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { formatPhoneNumber } from '@tloncorp/app/utils/string';
 import {
   Button,
+  Field,
   GenericHeader,
   SizableText,
   Text,
+  TextInput,
   View,
   XStack,
   YStack,
-  useTheme,
 } from '@tloncorp/ui';
 import { createRef, useMemo, useState } from 'react';
-import { TextInput } from 'react-native';
 import type { TextInputKeyPressEventData } from 'react-native';
+import { TextInput as RNTextInput } from 'react-native';
 
 import type { OnboardingStackParamList } from '../types';
 
@@ -34,14 +35,14 @@ export const CheckVerifyScreen = ({
     params: { user },
   },
 }: Props) => {
-  const theme = useTheme();
   const isEmail = !user.requirePhoneNumberVerification;
   const codeLength = isEmail ? EMAIL_CODE_LENGTH : PHONE_CODE_LENGTH;
   const [code, setCode] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const inputRefs = useMemo(
-    () => Array.from({ length: codeLength }).map(() => createRef<TextInput>()),
+    () =>
+      Array.from({ length: codeLength }).map(() => createRef<RNTextInput>()),
     []
   );
 
@@ -127,50 +128,36 @@ export const CheckVerifyScreen = ({
         goBack={() => navigation.goBack()}
         showSpinner={isSubmitting}
       />
-      <YStack padding="$2xl" gap="$xl">
-        <SizableText color="$primaryText" fontSize="$l">
+      <YStack padding="$2xl" gap="$2xl">
+        <SizableText color="$primaryText">
           We&rsquo;ve sent a confirmation code to{' '}
           {isEmail ? user.email : formatPhoneNumber(user.phoneNumber ?? '')}.
         </SizableText>
-        <XStack gap="$l">
-          {Array.from({ length: codeLength }).map((_, i) => (
-            <TextInput
-              key={i}
-              ref={inputRefs[i]}
-              style={{
-                width: 40,
-                height: 40,
-                fontSize: 16,
-                borderWidth: 1,
-                borderColor: theme.border.val,
-                borderRadius: 8,
-                color: theme.primaryText.val,
-                backgroundColor: theme.background.val,
-                textAlign: 'center',
-              }}
-              onKeyPress={({ nativeEvent }) =>
-                handleKeyPress(i, nativeEvent.key)
-              }
-              onChangeText={(text) => handleChangeText(i, text)}
-              value={code.length > i ? code[i] : ''}
-              keyboardType="numeric"
-              maxLength={1}
-            />
-          ))}
-        </XStack>
-        {error ? (
-          <SizableText color="$red" fontSize="$s">
-            {error}
-          </SizableText>
-        ) : null}
-        <YStack gap="$m">
-          <SizableText color="$primaryText">
-            Didn&rsquo;t receive a code?
-          </SizableText>
-          <Button secondary onPress={handleResend}>
-            <Text>Send a new code</Text>
-          </Button>
-        </YStack>
+        <Field label="Code" error={error}>
+          <XStack gap="$s" justifyContent="space-between">
+            {Array.from({ length: codeLength }).map((_, i) => (
+              <TextInput
+                textAlign="center"
+                flex={1}
+                key={i}
+                ref={inputRefs[i]}
+                onKeyPress={({ nativeEvent }) =>
+                  handleKeyPress(i, nativeEvent.key)
+                }
+                onChangeText={(text) => handleChangeText(i, text)}
+                value={code.length > i ? code[i] : ''}
+                keyboardType="numeric"
+                maxLength={1}
+              />
+            ))}
+          </XStack>
+        </Field>
+        <SizableText color="$primaryText">
+          Didn&rsquo;t receive a code?
+        </SizableText>
+        <Button secondary onPress={handleResend}>
+          <Text>Send a new code</Text>
+        </Button>
       </YStack>
     </View>
   );

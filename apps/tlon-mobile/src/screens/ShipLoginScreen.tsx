@@ -11,11 +11,12 @@ import { transformShipURL } from '@tloncorp/app/utils/string';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
 import {
   Button,
+  Field,
   GenericHeader,
-  Input,
   KeyboardAvoidingView,
   SizableText,
   Text,
+  TextInput,
   View,
   YStack,
 } from '@tloncorp/ui';
@@ -41,8 +42,9 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     control,
     setFocus,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
     setValue,
+    trigger,
   } = useForm<FormData>({
     defaultValues: {
       shipUrl: DEFAULT_SHIP_LOGIN_URL,
@@ -111,9 +113,11 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
         goBack={() => navigation.goBack()}
         showSpinner={isSubmitting}
         rightContent={
-          <Button minimal onPress={onSubmit}>
-            <Text fontSize={'$m'}>Connect</Text>
-          </Button>
+          isValid && (
+            <Button minimal onPress={onSubmit}>
+              <Text fontSize={'$m'}>Connect</Text>
+            </Button>
+          )
         }
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
@@ -124,92 +128,76 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
           {remoteError ? (
             <SizableText color="$negativeActionText">{remoteError}</SizableText>
           ) : null}
-          <View>
-            <SizableText marginBottom="$m">Ship URL</SizableText>
-            <Controller
-              control={control}
-              rules={{
-                required: 'Please enter a valid URL.',
-                validate: (value) => {
-                  const urlValidation = isValidUrl(value);
-                  if (urlValidation === false) {
-                    return 'Please enter a valid URL.';
-                  }
-                  if (urlValidation === 'hosted') {
-                    return 'Please log in to your hosted Tlon ship using email and password.';
-                  }
-                  return true;
-                },
-              }}
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input height="$4xl">
-                  <Input.Area
-                    testID="textInput shipUrl"
-                    placeholder="https://sampel-palnet.arvo.network"
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    onSubmitEditing={() => setFocus('accessCode')}
-                    value={value}
-                    keyboardType="url"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    returnKeyType="next"
-                    enablesReturnKeyAutomatically
-                  />
-                </Input>
-              )}
-              name="shipUrl"
-            />
-            {errors.shipUrl && (
-              <SizableText
-                color="$negativeActionText"
-                marginTop="$m"
-                fontSize="$s"
-              >
-                {errors.shipUrl.message}
-              </SizableText>
+
+          <Controller
+            control={control}
+            name="shipUrl"
+            rules={{
+              required: 'Please enter a valid URL.',
+              validate: (value) => {
+                const urlValidation = isValidUrl(value);
+                if (urlValidation === false) {
+                  return 'Please enter a valid URL.';
+                }
+                if (urlValidation === 'hosted') {
+                  return 'Please log in to your hosted Tlon ship using email and password.';
+                }
+                return true;
+              },
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Field label="Ship URL" error={errors.shipUrl?.message}>
+                <TextInput
+                  testID="textInput shipUrl"
+                  placeholder="https://sampel-palnet.arvo.network"
+                  onBlur={() => {
+                    onBlur();
+                    trigger('shipUrl');
+                  }}
+                  onChangeText={onChange}
+                  onSubmitEditing={() => setFocus('accessCode')}
+                  value={value}
+                  keyboardType="url"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="next"
+                  enablesReturnKeyAutomatically
+                />
+              </Field>
             )}
-          </View>
-          <View>
-            <SizableText marginBottom="$m">Access Code</SizableText>
-            <Controller
-              control={control}
-              rules={{
-                required: 'Please enter a valid access code.',
-                pattern: {
-                  value: ACCESS_CODE_REGEX,
-                  message: 'Please enter a valid access code.',
-                },
-              }}
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input height="$4xl">
-                  <Input.Area
-                    testID="textInput accessCode"
-                    placeholder="xxxxxx-xxxxxx-xxxxxx-xxxxxx"
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    onSubmitEditing={onSubmit}
-                    value={value}
-                    secureTextEntry
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    returnKeyType="send"
-                    enablesReturnKeyAutomatically
-                  />
-                </Input>
-              )}
-              name="accessCode"
-            />
-            {errors.accessCode && (
-              <SizableText
-                color="$negativeActionText"
-                marginTop="$m"
-                fontSize="$s"
-              >
-                {errors.accessCode.message}
-              </SizableText>
+          />
+
+          <Controller
+            control={control}
+            name="accessCode"
+            rules={{
+              required: 'Please enter a valid access code.',
+              pattern: {
+                value: ACCESS_CODE_REGEX,
+                message: 'Please enter a valid access code.',
+              },
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Field label="Access Code" error={errors.accessCode?.message}>
+                <TextInput
+                  testID="textInput accessCode"
+                  placeholder="xxxxxx-xxxxxx-xxxxxx-xxxxxx"
+                  onBlur={() => {
+                    onBlur();
+                    trigger('accessCode');
+                  }}
+                  onChangeText={onChange}
+                  onSubmitEditing={onSubmit}
+                  value={value}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="send"
+                  enablesReturnKeyAutomatically
+                />
+              </Field>
             )}
-          </View>
+          />
         </YStack>
       </KeyboardAvoidingView>
     </View>

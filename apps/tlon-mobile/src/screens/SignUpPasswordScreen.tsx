@@ -12,10 +12,12 @@ import {
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Button,
+  Field,
   GenericHeader,
-  Input,
   KeyboardAvoidingView,
+  SizableText,
   Text,
+  TextInput,
   View,
   YStack,
 } from '@tloncorp/ui';
@@ -42,8 +44,9 @@ export const SignUpPasswordScreen = ({
     control,
     setFocus,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
     setError,
+    trigger,
   } = useForm<FormData>();
 
   const onSubmit = handleSubmit(async ({ password }) => {
@@ -145,31 +148,36 @@ export const SignUpPasswordScreen = ({
         goBack={() => navigation.goBack()}
         showSpinner={isSubmitting}
         rightContent={
-          <Button minimal onPress={onSubmit}>
-            <Text fontSize="$m">Next</Text>
-          </Button>
+          isValid && (
+            <Button minimal onPress={onSubmit}>
+              <Text fontSize="$m">Next</Text>
+            </Button>
+          )
         }
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
         <YStack gap="$xl" padding="$2xl">
-          <Text color="$primaryText">Password</Text>
-
+          <SizableText color="$primaryText">
+            Please set a strong password with at least 8 characters.
+          </SizableText>
           <Controller
             control={control}
+            name="password"
             rules={{
-              required:
-                'A password with a minimum of 8 characters is required.',
+              required: 'Password must be at least 8 characters.',
               minLength: {
                 value: 8,
-                message:
-                  'A password with a minimum of 8 characters is required.',
+                message: 'Password must be at least 8 characters.',
               },
             }}
             render={({ field: { onChange, onBlur, value } }) => (
-              <Input height="$4xl">
-                <Input.Area
+              <Field label="Password" error={errors.password?.message}>
+                <TextInput
                   placeholder="Choose a password"
-                  onBlur={onBlur}
+                  onBlur={() => {
+                    onBlur();
+                    trigger('password');
+                  }}
                   onChangeText={onChange}
                   onSubmitEditing={() => setFocus('confirmPassword')}
                   value={value}
@@ -179,22 +187,28 @@ export const SignUpPasswordScreen = ({
                   returnKeyType="next"
                   enablesReturnKeyAutomatically
                 />
-              </Input>
+              </Field>
             )}
-            name="password"
           />
           <Controller
             control={control}
+            name="confirmPassword"
             rules={{
               required: 'Enter the password again for confirmation.',
               validate: (value, { password }) =>
                 value === password || 'Passwords must match.',
             }}
-            render={({ field: { ref, onChange, onBlur, value } }) => (
-              <Input height="$4xl">
-                <Input.Area
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Field
+                label="Confirm Password"
+                error={errors.confirmPassword?.message}
+              >
+                <TextInput
                   placeholder="Confirm password"
-                  onBlur={onBlur}
+                  onBlur={() => {
+                    onBlur();
+                    trigger('confirmPassword');
+                  }}
                   onChangeText={onChange}
                   onSubmitEditing={onSubmit}
                   value={value}
@@ -204,15 +218,9 @@ export const SignUpPasswordScreen = ({
                   returnKeyType="send"
                   enablesReturnKeyAutomatically
                 />
-              </Input>
+              </Field>
             )}
-            name="confirmPassword"
           />
-          {errors.password || errors.confirmPassword ? (
-            <Text color="$red">
-              {errors.password?.message ?? errors.confirmPassword?.message}
-            </Text>
-          ) : null}
         </YStack>
       </KeyboardAvoidingView>
     </View>

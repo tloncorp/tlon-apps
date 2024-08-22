@@ -1,10 +1,11 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   Button,
+  Field,
   GenericHeader,
-  Input,
   SizableText,
   Text,
+  TextInput,
   View,
   YStack,
 } from '@tloncorp/ui';
@@ -71,28 +72,23 @@ export const SetNicknameScreen = ({
         </SizableText>
         <Controller
           control={control}
+          name="nickname"
           render={({ field: { onChange, onBlur, value } }) => (
-            <Input height="$4xl">
-              <Input.Area
+            <Field label="Nickname" error={errors.nickname?.message}>
+              <TextInput
+                value={value}
                 placeholder="Choose a display name"
                 onBlur={onBlur}
                 onChangeText={onChange}
                 onSubmitEditing={onSubmit}
-                value={value}
                 autoCapitalize="words"
                 autoComplete="name"
                 returnKeyType="send"
                 enablesReturnKeyAutomatically
               />
-            </Input>
+            </Field>
           )}
-          name="nickname"
         />
-        {errors.nickname ? (
-          <SizableText color="$negativeActionText" fontSize="$s" marginTop="$m">
-            {errors.nickname.message}
-          </SizableText>
-        ) : null}
       </YStack>
     </View>
   );

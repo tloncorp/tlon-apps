@@ -1,12 +1,15 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { EMAIL_REGEX } from '@tloncorp/app/constants';
 import { requestPasswordReset } from '@tloncorp/app/lib/hostingApi';
+import { trackError } from '@tloncorp/app/utils/posthog';
 import {
   Button,
+  Field,
   GenericHeader,
-  Input,
   KeyboardAvoidingView,
   SizableText,
   Text,
+  TextInput,
   View,
   YStack,
 } from '@tloncorp/ui';
@@ -28,11 +31,13 @@ export const ResetPasswordScreen = ({
   },
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [remoteError, setRemoteError] = useState<string | undefined>();
+
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
+    setError,
+    trigger,
   } = useForm<FormData>({
     defaultValues: {
       email: emailParam,
@@ -46,7 +51,14 @@ export const ResetPasswordScreen = ({
       await requestPasswordReset(email);
       navigation.goBack();
     } catch (err) {
-      return setRemoteError((err as Error).message);
+      console.error('Error resetting password:', err);
+      if (err instanceof Error) {
+        setError('email', {
+          type: 'custom',
+          message: err.message,
+        });
+        trackError(err);
+      }
     }
 
     setIsSubmitting(false);
@@ -59,54 +71,49 @@ export const ResetPasswordScreen = ({
         goBack={() => navigation.goBack()}
         showSpinner={isSubmitting}
         rightContent={
-          <Button minimal onPress={onSubmit}>
-            <Text fontSize={'$m'}>Submit</Text>
-          </Button>
+          isValid && (
+            <Button minimal onPress={onSubmit}>
+              <Text fontSize={'$m'}>Submit</Text>
+            </Button>
+          )
         }
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
         <YStack gap="$2xl" padding="$2xl">
           <SizableText size="$l">
-            Enter the email associated with your Tlon account.
+            Enter the email associated with your Tlon account. We&rsquo;ll send
+            you a link to reset your password.
           </SizableText>
-          {remoteError ? (
-            <SizableText color="$negativeActionText">{remoteError}</SizableText>
-          ) : null}
-          <View>
-            <SizableText marginBottom="$m">Email</SizableText>
-            <Controller
-              control={control}
-              rules={{
-                required: 'Please enter a valid email address.',
-              }}
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input height="$4xl">
-                  <Input.Area
-                    placeholder="Email Address"
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    onSubmitEditing={onSubmit}
-                    value={value}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    returnKeyType="send"
-                    enablesReturnKeyAutomatically
-                  />
-                </Input>
-              )}
-              name="email"
-            />
-            {errors.email && (
-              <SizableText
-                color="$negativeActionText"
-                marginTop="$l"
-                fontSize={'$s'}
-              >
-                {errors.email.message}
-              </SizableText>
+          <Controller
+            control={control}
+            name="email"
+            rules={{
+              required: 'Please enter a valid email address.',
+              pattern: {
+                value: EMAIL_REGEX,
+                message: 'Please enter a valid email address.',
+              },
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Field label="Email" error={errors.email?.message}>
+                <TextInput
+                  placeholder="Email Address"
+                  onBlur={() => {
+                    onBlur();
+                    trigger('email');
+                  }}
+                  onChangeText={onChange}
+                  onSubmitEditing={onSubmit}
+                  value={value}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="send"
+                  enablesReturnKeyAutomatically
+                />
+              </Field>
             )}
-          </View>
+          />
         </YStack>
       </KeyboardAvoidingView>
     </View>

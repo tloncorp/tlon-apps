@@ -4,6 +4,7 @@ import { requestPhoneVerify } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Button,
+  Field,
   GenericHeader,
   SizableText,
   Text,
@@ -15,7 +16,6 @@ import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { CountryPicker } from 'react-native-country-codes-picker';
 import PhoneInput from 'react-native-phone-input';
-import { useTailwind } from 'tailwind-rn';
 
 import type { OnboardingStackParamList } from '../types';
 
@@ -76,7 +76,6 @@ export const RequestPhoneVerifyScreen = ({
     setIsSubmitting(false);
   });
 
-  const tailwind = useTailwind();
   return (
     <View flex={1} padding="$l" backgroundColor="$background">
       <GenericHeader
@@ -102,38 +101,37 @@ export const RequestPhoneVerifyScreen = ({
         ) : null}
         <View display="flex" flexDirection="row" alignItems="center" gap="$m">
           <Controller
+            name="phoneNumber"
             control={control}
             rules={{
               required: 'Please enter a valid phone number.',
             }}
             render={({ field: { onChange } }) => (
-              <PhoneInput
-                ref={phoneInputRef}
-                onPressFlag={() => setShowCountryPicker(true)}
-                onChangePhoneNumber={onChange}
-                style={{
-                  flex: 1,
-                  padding: 16,
-                  borderWidth: 1,
-                  borderColor: theme.border.val,
-                  borderRadius: 8,
-                }}
-                textStyle={{
-                  fontWeight: '500',
-                  color: theme.color.val,
-                }}
-                initialCountry="us"
-                autoFormat={true}
-              />
+              <Field
+                width={'100%'}
+                label="Phone Number"
+                error={errors.phoneNumber?.message}
+              >
+                <PhoneInput
+                  ref={phoneInputRef}
+                  onPressFlag={() => setShowCountryPicker(true)}
+                  onChangePhoneNumber={onChange}
+                  style={{
+                    padding: 16,
+                    borderWidth: 1,
+                    borderColor: theme.border.val,
+                    borderRadius: 8,
+                  }}
+                  textStyle={{
+                    color: theme.primaryText.val,
+                  }}
+                  initialCountry="us"
+                  autoFormat={true}
+                />
+              </Field>
             )}
-            name="phoneNumber"
           />
         </View>
-        {errors.phoneNumber ? (
-          <SizableText color="$negativeActionText" fontSize="$s">
-            {errors.phoneNumber.message}
-          </SizableText>
-        ) : null}
       </YStack>
 
       <CountryPicker

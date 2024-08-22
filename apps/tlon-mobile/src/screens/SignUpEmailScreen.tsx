@@ -9,15 +9,17 @@ import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Button,
   GenericHeader,
-  Input,
   KeyboardAvoidingView,
   SizableText,
   Text,
+  TextInput,
   View,
   YStack,
 } from '@tloncorp/ui';
+import { Field } from '@tloncorp/ui';
 import { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
+import { Controller } from 'react-hook-form';
 
 import type { OnboardingStackParamList } from '../types';
 
@@ -41,8 +43,9 @@ export const SignUpEmailScreen = ({
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
     setError,
+    trigger,
   } = useForm<FormData>();
 
   const onSubmit = handleSubmit(async ({ email }) => {
@@ -93,9 +96,11 @@ export const SignUpEmailScreen = ({
         goBack={() => navigation.goBack()}
         showSpinner={isSubmitting}
         rightContent={
-          <Button minimal onPress={onSubmit}>
-            <Text fontSize={'$m'}>Next</Text>
-          </Button>
+          isValid && (
+            <Button minimal onPress={onSubmit}>
+              <Text fontSize={'$m'}>Next</Text>
+            </Button>
+          )
         }
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
@@ -104,45 +109,36 @@ export const SignUpEmailScreen = ({
             Hosting with Tlon makes running your Urbit easy and reliable. Sign
             up for a free account and your very own Urbit ID.
           </SizableText>
-          <View>
-            <SizableText marginBottom="$m">Email</SizableText>
-            <Controller
-              control={control}
-              rules={{
-                required: 'Please enter a valid email address.',
-                pattern: {
-                  value: EMAIL_REGEX,
-                  message: 'Please enter a valid email address.',
-                },
-              }}
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input height="$4xl">
-                  <Input.Area
-                    placeholder="sample@pal.net"
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    onSubmitEditing={onSubmit}
-                    value={value}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    returnKeyType="send"
-                    enablesReturnKeyAutomatically
-                  />
-                </Input>
-              )}
-              name="email"
-            />
-            {errors.email && (
-              <SizableText
-                color="$negativeActionText"
-                marginTop="$m"
-                fontSize="$s"
-              >
-                {errors.email.message}
-              </SizableText>
+          <Controller
+            control={control}
+            name="email"
+            rules={{
+              required: 'Please enter a valid email address.',
+              pattern: {
+                value: EMAIL_REGEX,
+                message: 'Please enter a valid email address.',
+              },
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Field label="Email" error={errors.email?.message}>
+                <TextInput
+                  placeholder="sampel@pal.net"
+                  onBlur={() => {
+                    onBlur();
+                    trigger('email');
+                  }}
+                  onChangeText={onChange}
+                  onSubmitEditing={onSubmit}
+                  value={value}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="send"
+                  enablesReturnKeyAutomatically
+                />
+              </Field>
             )}
-          </View>
+          />
         </YStack>
       </KeyboardAvoidingView>
     </View>
