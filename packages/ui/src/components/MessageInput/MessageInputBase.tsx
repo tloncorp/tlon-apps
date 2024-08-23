@@ -157,7 +157,6 @@ export const MessageInputContainer = ({
             {disableSend ? null : (
               <Button
                 disabled={isSending}
-                // color={'$primaryText'}
                 onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
                 backgroundColor="unset"
                 borderColor="transparent"

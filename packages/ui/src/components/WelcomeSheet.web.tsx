@@ -1,5 +1,4 @@
 import React, { useCallback } from 'react';
-import { Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, XStack, YStack } from 'tamagui';
 
@@ -38,10 +37,9 @@ function WelcomeSheetComponent({
         <View paddingHorizontal="$2xl" paddingBottom="$2xl">
           <YStack gap="$2xl">
             <View borderRadius="$xl" overflow="hidden">
-              <Image
-                style={{ width: '100%', height: 188 }}
-                resizeMode={'cover'}
-                source={require('../assets/raster/welcome_flowers.jpg')}
+              <img
+                style={{ width: '100%', height: 188, objectFit: 'cover' }}
+                src="./groups/welcome_flowers.jpg"
               />
             </View>
             <YStack gap="$xs">
