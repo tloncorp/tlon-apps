@@ -29,13 +29,11 @@ import {
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStyle, useTheme } from 'tamagui';
-import { View, XStack } from 'tamagui';
+import { View } from 'tamagui';
 
 import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
-import { Button } from '../Button';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
-import { Icon } from '../Icon';
 import { Modal } from '../Modal';
 import { ChannelDivider } from './ChannelDivider';
 
@@ -99,7 +97,6 @@ const Scroller = forwardRef(
       onPressRetry,
       onPressDelete,
       hasNewerPosts,
-      hasOlderPosts,
       activeMessage,
       setActiveMessage,
     }: {
@@ -124,10 +121,12 @@ const Scroller = forwardRef(
       onPressRetry: (post: db.Post) => void;
       onPressDelete: (post: db.Post) => void;
       hasNewerPosts?: boolean;
-      hasOlderPosts?: boolean;
       activeMessage: db.Post | null;
       setActiveMessage: (post: db.Post | null) => void;
       ref?: RefObject<{ scrollToIndex: (params: { index: number }) => void }>;
+
+      // Unused
+      hasOlderPosts?: boolean;
     },
     ref
   ) => {
@@ -688,31 +687,3 @@ const PressableMessage = React.memo(
     }
   )
 );
-
-const UnreadsButton = ({ onPress }: { onPress: () => void }) => {
-  return (
-    <XStack position="absolute" zIndex={50} bottom="5%" width="40%" left="30%">
-      <Button
-        backgroundColor="$positiveBackground"
-        paddingVertical="$s"
-        paddingHorizontal="$m"
-        borderRadius="$l"
-        width="100%"
-        alignItems="center"
-        justifyContent="center"
-        gap="$s"
-        onPress={onPress}
-        size="$s"
-      >
-        <Button.Text color="$positiveActionText">Scroll to latest</Button.Text>
-        <Icon
-          type="ArrowDown"
-          color="$positiveActionText"
-          width="$s"
-          height="$s"
-          size="$l"
-        />
-      </Button>
-    </XStack>
-  );
-};
