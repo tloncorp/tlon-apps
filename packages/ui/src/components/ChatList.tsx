@@ -1,3 +1,4 @@
+//tamagui-ignore
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
@@ -199,41 +200,7 @@ function ChatListComponent({
   );
 }
 
-export const ChatList = React.memo(
-  ChatListComponent,
-  (prevProps, currentProps) => {
-    // Without this comparison function, the component was *not* re-rendering
-    // when the `showFilters` prop changed. This caused the filters to not
-    // animate in/out when the user toggled the filters (on web).
-    // On the surface this doesn't make sense, because react should re-render
-    // when props change, but it seems that the `showFilters` prop was not
-    // being detected as a change. This is likely due to the fact that the
-    // `showFilters` prop is not being used directly in the render function of this
-    // component, but is being passed to a child component (`ChatListFilters`).
-
-    if (prevProps.showFilters !== currentProps.showFilters) {
-      return false;
-    }
-
-    if (prevProps.activeTab !== currentProps.activeTab) {
-      return false;
-    }
-
-    if (prevProps.pinned.length !== currentProps.pinned.length) {
-      return false;
-    }
-
-    if (prevProps.unpinned.length !== currentProps.unpinned.length) {
-      return false;
-    }
-
-    if (prevProps.pendingChats.length !== currentProps.pendingChats.length) {
-      return false;
-    }
-
-    return true;
-  }
-);
+export const ChatList = React.memo(ChatListComponent);
 
 function getChatKey(item: unknown) {
   const chatItem = item as Chat;
