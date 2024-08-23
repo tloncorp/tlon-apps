@@ -55,6 +55,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     queryFn: async (ctx): Promise<db.Post[]> => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log('loading posts', queryOptions);
+// We should figure out why this is necessary.
       if (
         queryOptions &&
         queryOptions.mode === 'newest' &&
