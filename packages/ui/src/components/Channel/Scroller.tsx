@@ -560,31 +560,65 @@ const BaseScrollerItem = ({
     [onLayout, post, index]
   );
 
-  const unreadDivider = showUnreadDivider ? (
-    <ChannelDivider
-      post={post}
-      unreadCount={unreadCount ?? 0}
-      isFirstPostOfDay={showDayDivider}
-      channelInfo={{ id: channelId, type: channelType }}
-      index={index}
-    />
-  ) : null;
+  const dividerType = useMemo(() => {
+    switch (channelType) {
+      case 'chat':
+        if (showUnreadDivider) {
+          return 'unread';
+        }
+        if (showDayDivider) {
+          return 'day';
+        }
+        return null;
 
-  const dayDivider =
-    showDayDivider && !showUnreadDivider && channelType === 'chat' ? (
-      <ChannelDivider unreadCount={0} post={post} index={index} />
-    ) : null;
+      case 'dm':
+      // fallthrough
+      case 'groupDm':
+        return showUnreadDivider ? 'unread' : null;
+
+      case 'gallery':
+      // fallthrough
+      case 'notebook':
+        return null;
+    }
+  }, [channelType, showUnreadDivider, showDayDivider]);
+
+  const divider = useMemo(() => {
+    switch (dividerType) {
+      case 'day':
+        return <ChannelDivider unreadCount={0} post={post} index={index} />;
+      case 'unread':
+        return (
+          <ChannelDivider
+            post={post}
+            unreadCount={unreadCount ?? 0}
+            isFirstPostOfDay={showDayDivider}
+            channelInfo={{ id: channelId, type: channelType }}
+            index={index}
+          />
+        );
+      case null:
+        return null;
+    }
+  }, [
+    dividerType,
+    post,
+    unreadCount,
+    showDayDivider,
+    channelId,
+    channelType,
+    index,
+  ]);
 
   return (
     <View
       onLayout={handleLayout}
-      {...(channelType === 'gallery' ? { aspectRatio: 1, flex: 0.5 } : {})}
+      {...useMemo(
+        () => (channelType === 'gallery' ? { aspectRatio: 1, flex: 0.5 } : {}),
+        [channelType]
+      )}
     >
-      {channelType === 'chat' ||
-      channelType === 'dm' ||
-      channelType === 'groupDm'
-        ? unreadDivider ?? dayDivider
-        : null}
+      {divider}
       <PressableMessage
         ref={messageRef}
         isActive={activeMessage?.id === post.id}
@@ -597,10 +631,10 @@ const BaseScrollerItem = ({
           editPost={editPost}
           showAuthor={showAuthor}
           showReplies={showReplies}
-          onPressReplies={post.isDeleted ? () => {} : onPressReplies}
-          onPressImage={post.isDeleted ? () => {} : onPressImage}
-          onLongPress={post.isDeleted ? () => {} : onLongPressPost}
-          onPress={post.isDeleted ? () => {} : onPressPost}
+          onPressReplies={post.isDeleted ? undefined : onPressReplies}
+          onPressImage={post.isDeleted ? undefined : onPressImage}
+          onLongPress={post.isDeleted ? undefined : onLongPressPost}
+          onPress={post.isDeleted ? undefined : onPressPost}
           onPressRetry={onPressRetry}
           onPressDelete={onPressDelete}
         />
