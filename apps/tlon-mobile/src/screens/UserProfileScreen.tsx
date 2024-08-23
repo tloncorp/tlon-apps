@@ -1,6 +1,6 @@
 import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser.native';
+import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   AppDataContextProvider,
