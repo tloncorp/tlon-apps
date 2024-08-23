@@ -84,7 +84,7 @@ export default function useNotificationListener({
 }: Props) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { data: isTlonEmployee } = store.useIsTlonEmployee();
-  const [channelSwitcherEnabled, _] = useFeatureFlag('channelSwitcher');
+  const [channelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   const [{ postInfo, channelId, isDm }, setGotoData] = useState<{
     path?: string;
@@ -240,5 +240,12 @@ export default function useNotificationListener({
         }
       })();
     }
-  }, [channelId, postInfo, navigation, isDm, isTlonEmployee]);
+  }, [
+    channelId,
+    postInfo,
+    navigation,
+    isDm,
+    isTlonEmployee,
+    channelSwitcherEnabled,
+  ]);
 }
