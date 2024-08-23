@@ -1605,9 +1605,9 @@ importers:
       '@tiptap/suggestion':
         specifier: 2.6.0
         version: 2.6.0(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)
-      '@urbit/api':
-        specifier: 2.2.0
-        version: 2.2.0
+      '@urbit/aura':
+        specifier: ^1.0.0
+        version: 1.0.0(big-integer@1.6.52)
       any-ascii:
         specifier: ^0.3.1
         version: 0.3.2(patch_hash=5ofxtlxe6za2xqrbq5pqbz7wb4)
@@ -1626,9 +1626,6 @@ importers:
       sorted-btree:
         specifier: ^1.8.1
         version: 1.8.1
-      urbit-ob:
-        specifier: ^5.0.1
-        version: 5.0.1
       zustand:
         specifier: ^3.7.2
         version: 3.7.2(react@18.2.0)

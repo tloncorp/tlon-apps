@@ -1,4 +1,4 @@
-import { unixToDa } from '@urbit/api';
+import { unixToDa } from '@urbit/aura';
 
 import * as api from '../api';
 import {

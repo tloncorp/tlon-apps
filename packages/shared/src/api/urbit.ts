@@ -1,5 +1,4 @@
-import { preSig } from '@urbit/api';
-import { deSig } from '@urbit/aura';
+import { deSig, preSig } from '@urbit/aura';
 import { Urbit } from '@urbit/http-api';
 import _ from 'lodash';
 

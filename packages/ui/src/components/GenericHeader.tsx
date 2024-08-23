@@ -1,3 +1,4 @@
+import { useCurrentSession } from '@tloncorp/shared';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SizableText, View, XStack, isWeb } from 'tamagui';
@@ -17,6 +18,7 @@ export function GenericHeader({
   rightContent?: React.ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const currentSession = useCurrentSession();
 
   return (
     <View paddingTop={insets.top}>
@@ -48,7 +50,7 @@ export function GenericHeader({
               <SizableText
                 flexShrink={1}
                 numberOfLines={1}
-                color="$primaryText"
+                color={currentSession ? '$primaryText' : '$tertiaryText'}
                 size="$m"
                 fontWeight="$xl"
               >
@@ -64,7 +66,7 @@ export function GenericHeader({
               <SizableText
                 flexShrink={1}
                 numberOfLines={1}
-                color="$primaryText"
+                color={currentSession ? '$primaryText' : '$tertiaryText'}
                 size="$m"
                 fontWeight="$xl"
               >

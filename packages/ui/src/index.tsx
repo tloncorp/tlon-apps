@@ -1,4 +1,5 @@
 export * from './components/Activity/ActivityScreenView';
+export { ActionSheet } from './components/ActionSheet';
 export * from './components/AddChats';
 export * from './components/AddChats/AddDmSheet';
 export * from './components/AppSetting';

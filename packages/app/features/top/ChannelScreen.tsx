@@ -130,7 +130,7 @@ export default function ChannelScreen({
     // We only want this to rerun when the channel is loaded for the first time OR if
     // the selected post route param changes
     // eslint-disable-next-line
-  }, [initialChannelUnread, selectedPostId]);
+  }, [!!channel, initialChannelUnread, selectedPostId]);
 
   useEffect(() => {
     if (channel?.id) {
@@ -225,7 +225,7 @@ export default function ChannelScreen({
     if (channel && !channel.isPendingChannel) {
       store.markChannelRead(channel);
     }
-  }, [channel]);
+  }, [channel?.id, channel?.groupId, channel?.type]);
 
   const canUpload = useCanUpload();
 

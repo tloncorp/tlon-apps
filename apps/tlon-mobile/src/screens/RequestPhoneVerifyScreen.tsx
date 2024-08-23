@@ -2,15 +2,21 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { requestPhoneVerify } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { useLayoutEffect, useRef, useState } from 'react';
+import {
+  Button,
+  Field,
+  GenericHeader,
+  SizableText,
+  Text,
+  View,
+  YStack,
+  useTheme,
+} from '@tloncorp/ui';
+import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Text, View } from 'react-native';
 import { CountryPicker } from 'react-native-country-codes-picker';
 import PhoneInput from 'react-native-phone-input';
-import { useTailwind } from 'tailwind-rn';
 
-import { HeaderButton } from '../components/HeaderButton';
-import { LoadingSpinner } from '../components/LoadingSpinner';
 import type { OnboardingStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<
@@ -35,7 +41,8 @@ export const RequestPhoneVerifyScreen = ({
   const phoneInputRef = useRef<PhoneInput>(null);
 
   const isDarkMode = useIsDarkMode();
-  const tailwind = useTailwind();
+  const theme = useTheme();
+
   const {
     control,
     handleSubmit,
@@ -58,9 +65,6 @@ export const RequestPhoneVerifyScreen = ({
     } catch (err) {
       console.error('Error verifiying phone number:', err);
       if (err instanceof SyntaxError) {
-        // Handle HTML response with 500 error from hosting API
-        // generates exception when trying to JSON.parse
-        // Assumed here to be caused primarily by an already in use phone number
         setRemoteError('Invalid phone number, please contact support@tlon.io');
         trackError({ message: 'Invalid phone number' });
       } else if (err instanceof Error) {
@@ -72,68 +76,67 @@ export const RequestPhoneVerifyScreen = ({
     setIsSubmitting(false);
   });
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () =>
-        isSubmitting ? (
-          <View style={tailwind('px-4')}>
-            <LoadingSpinner height={16} />
-          </View>
-        ) : (
-          <HeaderButton title="Next" onPress={onSubmit} />
-        ),
-    });
-  }, [navigation, isSubmitting]);
-
   return (
-    <View style={tailwind('p-6 h-full bg-white dark:bg-black')}>
-      <Text
-        style={tailwind(
-          'text-lg font-medium text-tlon-black-80 dark:text-white'
-        )}
-      >
-        Phone Number
-      </Text>
-      <Text style={tailwind('text-lg font-medium text-tlon-black-40')}>
-        Tlon is a platform for humans. We want to make sure you're one too.
-      </Text>
-      {remoteError ? (
-        <Text style={tailwind('mt-4 text-tlon-red')}>{remoteError}</Text>
-      ) : null}
-      <View style={tailwind('mt-6 flex flex-row items-center')}>
-        <Controller
-          control={control}
-          rules={{
-            required: 'Please enter a valid phone number.',
-          }}
-          render={({ field: { onChange } }) => (
-            <PhoneInput
-              ref={phoneInputRef}
-              onPressFlag={() => setShowCountryPicker(true)}
-              onChangePhoneNumber={onChange}
-              style={tailwind(
-                'flex-1 px-4 py-3 border border-tlon-black-20 rounded-lg'
-              )}
-              textStyle={tailwind(
-                'font-medium text-tlon-black-80 dark:text-white'
-              )}
-              initialCountry="us"
-              autoFormat={true}
-            />
-          )}
-          name="phoneNumber"
-        />
-      </View>
-      {errors.phoneNumber ? (
-        <Text style={tailwind('mt-2 text-tlon-red')}>
-          {errors.phoneNumber.message}
-        </Text>
-      ) : null}
+    <View flex={1} padding="$l" backgroundColor="$background">
+      <GenericHeader
+        title="Confirm"
+        goBack={() => navigation.goBack()}
+        showSpinner={isSubmitting}
+        rightContent={
+          <Button minimal onPress={onSubmit} disabled={isSubmitting}>
+            <Text fontSize={'$m'}>Next</Text>
+          </Button>
+        }
+      />
+      <YStack gap="$l" padding="$2xl">
+        <SizableText color="$primaryText">
+          Tlon is a platform for humans. We want to make sure you&rsquo;re one
+          too. We&rsquo;ll send you a verification code to the phone number you
+          enter below.
+        </SizableText>
+        {remoteError ? (
+          <SizableText color="$negativeActionText" fontSize="$s">
+            {remoteError}
+          </SizableText>
+        ) : null}
+        <View display="flex" flexDirection="row" alignItems="center" gap="$m">
+          <Controller
+            name="phoneNumber"
+            control={control}
+            rules={{
+              required: 'Please enter a valid phone number.',
+            }}
+            render={({ field: { onChange } }) => (
+              <Field
+                width={'100%'}
+                label="Phone Number"
+                error={errors.phoneNumber?.message}
+              >
+                <PhoneInput
+                  ref={phoneInputRef}
+                  onPressFlag={() => setShowCountryPicker(true)}
+                  onChangePhoneNumber={onChange}
+                  style={{
+                    padding: 16,
+                    borderWidth: 1,
+                    borderColor: theme.border.val,
+                    borderRadius: 8,
+                  }}
+                  textStyle={{
+                    color: theme.primaryText.val,
+                  }}
+                  initialCountry="us"
+                  autoFormat={true}
+                />
+              </Field>
+            )}
+          />
+        </View>
+      </YStack>
 
       <CountryPicker
         lang="en"
         show={showCountryPicker}
-        // when picker button press you will get the country object with dial code
         pickerButtonOnPress={(item) => {
           phoneInputRef.current?.selectCountry(item.code.toLowerCase());
           setShowCountryPicker(false);
@@ -141,25 +144,34 @@ export const RequestPhoneVerifyScreen = ({
         style={{
           modal: {
             flex: 0.8,
-            backgroundColor: isDarkMode ? '#333' : '#fff',
+            backgroundColor: isDarkMode
+              ? theme.background.val
+              : theme.background.val,
           },
           countryButtonStyles: {
-            backgroundColor: isDarkMode ? '#000' : '#e5e5e5',
+            backgroundColor: isDarkMode
+              ? theme.background.val
+              : theme.background.val,
           },
           dialCode: {
-            color: isDarkMode ? '#fff' : '#000',
+            color: theme.primaryText.val,
           },
           countryName: {
-            color: isDarkMode ? '#fff' : '#000',
+            color: theme.primaryText.val,
           },
           textInput: {
-            backgroundColor: isDarkMode ? '#000' : '#fff',
-            color: isDarkMode ? '#fff' : '#000',
+            backgroundColor: isDarkMode
+              ? theme.background.val
+              : theme.background.val,
+            color: theme.primaryText.val,
             borderWidth: 1,
-            borderColor: '#ccc',
+            borderColor: theme.border.val,
+            padding: 16,
           },
           line: {
-            backgroundColor: isDarkMode ? '#000' : '#fff',
+            backgroundColor: isDarkMode
+              ? theme.background.val
+              : theme.background.val,
           },
         }}
         onBackdropPress={() => setShowCountryPicker(false)}

@@ -4,22 +4,23 @@ import {
   DEFAULT_PRIORITY_TOKEN,
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { getHostingAvailability } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { useLayoutEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
 import {
+  Button,
+  GenericHeader,
   KeyboardAvoidingView,
-  ScrollView,
+  SizableText,
   Text,
   TextInput,
   View,
-} from 'react-native';
-import { useTailwind } from 'tailwind-rn';
+  YStack,
+} from '@tloncorp/ui';
+import { Field } from '@tloncorp/ui';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Controller } from 'react-hook-form';
 
-import { HeaderButton } from '../components/HeaderButton';
-import { LoadingSpinner } from '../components/LoadingSpinner';
 import type { OnboardingStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignUpEmail'>;
@@ -38,14 +39,13 @@ export const SignUpEmailScreen = ({
   },
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const tailwind = useTailwind();
-  const isDarkMode = useIsDarkMode();
 
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
     setError,
+    trigger,
   } = useForm<FormData>();
 
   const onSubmit = handleSubmit(async ({ email }) => {
@@ -89,47 +89,29 @@ export const SignUpEmailScreen = ({
     setIsSubmitting(false);
   });
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerLeft: () => (
-        <HeaderButton title="Back" onPress={() => navigation.goBack()} />
-      ),
-      headerRight: () =>
-        isSubmitting ? (
-          <View style={tailwind('px-4')}>
-            <LoadingSpinner height={16} />
-          </View>
-        ) : (
-          <HeaderButton title="Next" onPress={onSubmit} />
-        ),
-    });
-  }, [navigation, isSubmitting, isDarkMode]);
-
   return (
-    <KeyboardAvoidingView
-      behavior="height"
-      style={tailwind('p-6 h-full bg-white dark:bg-black')}
-      keyboardVerticalOffset={90}
-    >
-      <ScrollView style={tailwind('pb-40')}>
-        <Text
-          style={tailwind(
-            'text-lg font-medium text-tlon-black-80 dark:text-white'
-          )}
-        >
-          Hosting with Tlon makes running your Urbit easy and reliable. Sign up
-          for a free account and your very own Urbit ID.
-        </Text>
-        <View style={tailwind('mt-8')}>
-          <Text
-            style={tailwind(
-              'mb-2 text-lg font-medium text-tlon-black-80 dark:text-white'
-            )}
-          >
-            Email
-          </Text>
+    <View flex={1}>
+      <GenericHeader
+        title="Sign Up"
+        goBack={() => navigation.goBack()}
+        showSpinner={isSubmitting}
+        rightContent={
+          isValid && (
+            <Button minimal onPress={onSubmit}>
+              <Text fontSize={'$m'}>Next</Text>
+            </Button>
+          )
+        }
+      />
+      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
+        <YStack gap="$2xl" padding="$2xl">
+          <SizableText color="$primaryText">
+            Hosting with Tlon makes running your Urbit easy and reliable. Sign
+            up for a free account and your very own Urbit ID.
+          </SizableText>
           <Controller
             control={control}
+            name="email"
             rules={{
               required: 'Please enter a valid email address.',
               pattern: {
@@ -138,32 +120,27 @@ export const SignUpEmailScreen = ({
               },
             }}
             render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={tailwind(
-                  'p-4 text-tlon-black-80 dark:text-white border border-tlon-black-20 dark:border-tlon-black-80 rounded-lg'
-                )}
-                placeholder="sampel@pal.net"
-                placeholderTextColor="#999999"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                onSubmitEditing={onSubmit}
-                value={value}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="send"
-                enablesReturnKeyAutomatically
-              />
+              <Field label="Email" error={errors.email?.message}>
+                <TextInput
+                  placeholder="sampel@pal.net"
+                  onBlur={() => {
+                    onBlur();
+                    trigger('email');
+                  }}
+                  onChangeText={onChange}
+                  onSubmitEditing={onSubmit}
+                  value={value}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="send"
+                  enablesReturnKeyAutomatically
+                />
+              </Field>
             )}
-            name="email"
           />
-          {errors.email ? (
-            <Text style={tailwind('mt-2 text-tlon-red')}>
-              {errors.email.message}
-            </Text>
-          ) : null}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </YStack>
+      </KeyboardAvoidingView>
+    </View>
   );
 };

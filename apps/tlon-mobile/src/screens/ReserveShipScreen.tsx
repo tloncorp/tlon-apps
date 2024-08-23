@@ -18,12 +18,11 @@ import {
   updateNickname,
   updateTelemetrySetting,
 } from '@tloncorp/shared/dist/api';
+import { Spinner, Text, View, YStack } from '@tloncorp/ui';
 import { preSig } from '@urbit/aura';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
-import { useTailwind } from 'tailwind-rn';
+import { Alert } from 'react-native';
 
-import { LoadingSpinner } from '../components/LoadingSpinner';
 import type { OnboardingStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ReserveShip'>;
@@ -41,7 +40,6 @@ export const ReserveShipScreen = ({
     state: 'loading',
   });
   const { setShip } = useShip();
-  const tailwind = useTailwind();
   const { clearLure } = useBranch();
 
   const startShip = useCallback(
@@ -51,7 +49,7 @@ export const ReserveShipScreen = ({
       if (!shipsWithStatus) {
         return setState({
           state: 'error',
-          error: "Sorry, we couldn't find an active Urbit ID for your account.",
+          error: "Sorry, we couldn't find an active ship for your account.",
         });
       }
 
@@ -80,7 +78,7 @@ export const ReserveShipScreen = ({
       if (!authCookie) {
         return setState({
           state: 'error',
-          error: "Sorry, we couldn't log you into your Urbit ID.",
+          error: "Sorry, we couldn't log you into your ship.",
         });
       }
 
@@ -150,7 +148,7 @@ export const ReserveShipScreen = ({
             return setState({
               state: 'error',
               error:
-                'Sorry, we could no longer find an Urbit ID for you. Please try again later.',
+                'Sorry, we could no longer find a ship for you. Please try again later.',
             });
           }
 
@@ -176,7 +174,7 @@ export const ReserveShipScreen = ({
           return setState({
             state: 'error',
             error:
-              'We were not able to reserve your Urbit ID. Please try again later.',
+              'We were not able to reserve your ship. Please try again later.',
           });
         }
       }
@@ -192,7 +190,7 @@ export const ReserveShipScreen = ({
 
         return setState({
           state: 'error',
-          error: "Sorry, we couldn't boot your Urbit. Please try again later.",
+          error: "Sorry, we couldn't boot your ship. Please try again later.",
         });
       }
     },
@@ -241,40 +239,24 @@ export const ReserveShipScreen = ({
   );
 
   return (
-    <View
-      style={tailwind(
-        'p-6 h-full flex items-center justify-center bg-white dark:bg-black'
-      )}
-    >
+    <View flex={1} padding="$2xl" alignItems="center" justifyContent="center">
       {state === 'loading' ? (
-        <>
-          <LoadingSpinner />
-          <Text
-            style={tailwind(
-              'mt-4 text-center text-tlon-black-80 dark:text-white text-lg font-medium'
-            )}
-          >
-            Getting your Urbit ready...
+        <YStack alignItems="center" gap="$xl">
+          <Spinner size="large" />
+          <Text textAlign="center" color="$primaryText">
+            Getting your ship ready...
           </Text>
-        </>
+        </YStack>
       ) : state === 'booting' ? (
-        <>
-          <LoadingSpinner />
-          <Text
-            style={tailwind(
-              'mt-4 text-center text-tlon-black-80 dark:text-white text-lg font-medium'
-            )}
-          >
-            Booting your Urbit...
+        <YStack alignItems="center" gap="$xl">
+          <Spinner size="large" />
+          <Text textAlign="center" color="$primaryText">
+            Booting your ship...
           </Text>
-          <Text
-            style={tailwind(
-              'text-center text-tlon-black-80 dark:text-white text-lg font-medium'
-            )}
-          >
+          <Text textAlign="center" color="$secondaryText" fontSize="$m">
             This may take a few minutes.
           </Text>
-        </>
+        </YStack>
       ) : null}
     </View>
   );

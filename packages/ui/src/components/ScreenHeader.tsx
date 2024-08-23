@@ -1,3 +1,4 @@
+import { useCurrentSession } from '@tloncorp/shared';
 import { PropsWithChildren, ReactNode } from 'react';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +19,7 @@ export const ScreenHeaderComponent = ({
   rightControls?: ReactNode | null;
 }>) => {
   const { top } = useSafeAreaInsets();
+  const currentSession = useCurrentSession();
 
   return (
     <View paddingTop={top} zIndex={50} backgroundColor="$background">
@@ -29,7 +31,11 @@ export const ScreenHeaderComponent = ({
       >
         {typeof title === 'string' ? (
           isWeb ? (
-            <HeaderTitle>{title}</HeaderTitle>
+            <HeaderTitle
+              color={currentSession ? '$primaryText' : '$tertiaryText'}
+            >
+              {title}
+            </HeaderTitle>
           ) : (
             <Animated.View
               key={title}
@@ -37,7 +43,11 @@ export const ScreenHeaderComponent = ({
               exiting={FadeOutUp}
               style={{ flex: 1 }}
             >
-              <HeaderTitle>{title}</HeaderTitle>
+              <HeaderTitle
+                color={currentSession ? '$primaryText' : '$tertiaryText'}
+              >
+                {title}
+              </HeaderTitle>
             </Animated.View>
           )
         ) : (
