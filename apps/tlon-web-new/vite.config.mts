@@ -239,6 +239,15 @@ export default ({ mode }: { mode: string }) => {
             new URL('./src/mocks/tentap-editor.js', import.meta.url)
           ),
         },
+        {
+          find: 'react-native-gesture-handler/ReanimatedSwipeable',
+          replacement: fileURLToPath(
+            new URL(
+              './src/mocks/react-native-gesture-handler.js',
+              import.meta.url
+            )
+          ),
+        },
       ],
     },
     optimizeDeps: {

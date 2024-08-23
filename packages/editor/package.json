@@ -20,10 +20,10 @@
     ]
   },
   "dependencies": {
-    "@tiptap/core": "^2.3.0",
-    "@tiptap/extension-code-block": "^2.3.0",
-    "@tiptap/pm": "^2.3.0",
-    "@tiptap/react": "^2.3.0"
+    "@tiptap/core": "^2.6.6",
+    "@tiptap/extension-code-block": "^2.6.6",
+    "@tiptap/pm": "^2.6.6",
+    "@tiptap/react": "^2.6.6"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.7.4",

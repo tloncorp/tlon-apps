@@ -58,7 +58,14 @@
     "allowNonAppliedPatches": true,
     "overrides": {
       "typescript": "5.4.5",
-      "@urbit/http-api": "3.1.0-dev-3"
+      "@10play/tentap-editor": "0.5.11",
+      "@tiptap/suggestion": "2.6.0",
+      "@tiptap/extension-mention": "2.6.0",
+      "@tiptap/extension-hard-break": "2.6.0",
+      "@urbit/http-api": "3.1.0-dev-3",
+      "@urbit/api": "2.2.0",
+      "prosemirror-model": "1.19.3",
+      "prosemirror-view": "1.33.4"
     }
   }
 }
