@@ -10,7 +10,10 @@ import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/dist/urbit';
-import { addNotificationResponseReceivedListener } from 'expo-notifications';
+import {
+  Notification,
+  addNotificationResponseReceivedListener,
+} from 'expo-notifications';
 import { useEffect, useState } from 'react';
 
 import { RootStackParamList } from '../types';
@@ -20,10 +23,19 @@ type RouteStack = {
   params?: RootStackParamList[keyof RootStackParamList];
 }[];
 
-interface NotificationData {
+interface BaseNotificationData {
+  meta: { errorsFromExtension?: unknown };
+}
+interface WerNotificationData extends BaseNotificationData {
+  type: 'wer';
   channelId: string;
   wer: string;
 }
+interface UnrecognizedNotificationData extends BaseNotificationData {
+  type: 'unrecognized';
+}
+
+type NotificationData = WerNotificationData | UnrecognizedNotificationData;
 
 export type Props = {
   notificationPath?: string;
@@ -40,17 +52,30 @@ function payloadFromNotification(
   // Detect and use whatever payload is available.
   const payload =
     notification.request.trigger.type === 'push'
-      ? notification.request.trigger.payload!
+      ? notification.request.trigger.payload
       : notification.request.content.data;
 
-  if (payload == null) {
-    return null;
-  }
-  if (typeof payload !== 'object' || payload.wer == null) {
+  if (payload == null || typeof payload !== 'object') {
     return null;
   }
 
-  return payload as unknown as NotificationData;
+  const baseNotificationData: BaseNotificationData = {
+    meta: { errorsFromExtension: payload.notificationServiceExtensionErrors },
+  };
+
+  // welcome to my validation library
+  if (payload.wer != null && payload.channelId != null) {
+    return {
+      ...baseNotificationData,
+      type: 'wer',
+      channelId: payload.channelId,
+      wer: payload.wer,
+    };
+  }
+  return {
+    ...baseNotificationData,
+    type: 'unrecognized',
+  };
 }
 
 export default function useNotificationListener({
@@ -85,7 +110,23 @@ export default function useNotificationListener({
     const notificationTapListener = addNotificationResponseReceivedListener(
       (response) => {
         const data = payloadFromNotification(response.notification);
-        if (data == null) {
+
+        // If the NSE caught an error, it puts it in a list under
+        // `notificationServiceExtensionErrors` - slurp em and log.
+        //
+        // NB: This will only log errors on tapped notifications - we could use
+        // `getPresentedNotificationsAsync` to log all notifications' errors,
+        // but we don't have a good way to prevent logging the same
+        // notification multiple times.
+        const errorsFromExtension = data?.meta.errorsFromExtension;
+        if (errorsFromExtension != null) {
+          posthog.trackError({
+            message: 'Notification service extension forwarded an error:',
+            properties: { errors: errorsFromExtension },
+          });
+        }
+
+        if (data == null || data.type === 'unrecognized') {
           // https://linear.app/tlon/issue/TLON-2551/multiple-notifications-that-lead-to-nowhere-crash-app
           // We're seeing cases where `data` is null here - not sure why this is happening.
           // Log the notification and don't try to navigate.
