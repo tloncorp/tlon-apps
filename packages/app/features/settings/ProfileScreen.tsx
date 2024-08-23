@@ -14,6 +14,7 @@ export default function ProfileScreen({
   navigateToHome,
   navigateToNotifications,
   navigateToSettings,
+  handleLogout,
 }: {
   navigateToAppSettings: () => void;
   navigateToEditProfile: () => void;
@@ -22,10 +23,10 @@ export default function ProfileScreen({
   navigateToHome: () => void;
   navigateToNotifications: () => void;
   navigateToSettings: () => void;
+  handleLogout?: () => void;
 }) {
   const currentUserId = useCurrentUserId();
   const { data: contacts } = store.useContacts();
-  const handleLogout = useHandleLogout();
 
   const onAppSettingsPressed = useCallback(() => {
     navigateToAppSettings();
@@ -52,7 +53,11 @@ export default function ProfileScreen({
         currentUserId={currentUserId}
         onAppSettingsPressed={onAppSettingsPressed}
         onEditProfilePressed={onEditProfilePressed}
-        onLogoutPressed={handleLogout}
+        onLogoutPressed={() => {
+          if (handleLogout) {
+            handleLogout();
+          }
+        }}
         onSendBugReportPressed={onSendBugReportPressed}
         onViewProfile={onViewProfilePressed}
         dmLink={dmLink}

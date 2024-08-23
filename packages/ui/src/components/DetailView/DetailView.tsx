@@ -18,7 +18,7 @@ import { BigInput } from '../BigInput';
 import Scroller from '../Channel/Scroller';
 import { ChatMessage } from '../ChatMessage';
 import { MessageInput } from '../MessageInput';
-import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput/index.native';
+import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 
 export interface DetailViewProps {
   post: db.Post;

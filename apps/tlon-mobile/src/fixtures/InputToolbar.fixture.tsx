@@ -1,6 +1,6 @@
 import { useEditorBridge } from '@10play/tentap-editor';
-import { InputToolbar } from '@tloncorp/ui';
-import { TlonEditorBridge } from '@tloncorp/ui/src/components/MessageInput/toolbarActions';
+import { InputToolbar } from '@tloncorp/ui/src/components/MessageInput/InputToolbar.native';
+import { TlonEditorBridge } from '@tloncorp/ui/src/components/MessageInput/toolbarActions.native';
 
 import { FixtureWrapper } from './FixtureWrapper';
 

@@ -31,7 +31,7 @@ import { BigInput } from '../BigInput';
 import { ChatMessage } from '../ChatMessage';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { GalleryPost } from '../GalleryPost';
-import { GroupPreviewSheet } from '../GroupPreviewSheet';
+import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { Icon } from '../Icon';
 import KeyboardAvoidingView from '../KeyboardAvoidingView';
 import { MessageInput } from '../MessageInput';
@@ -108,7 +108,7 @@ export function Channel({
   goToSearch: () => void;
   goToUserProfile: (userId: string) => void;
   messageSender: (content: Story, channelId: string) => Promise<void>;
-  uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
+  uploadAsset: (asset: ImagePickerAsset, isWeb?: boolean) => Promise<void>;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
@@ -117,7 +117,7 @@ export function Channel({
   usePost: typeof usePostWithRelations;
   useGroup: typeof useGroupPreview;
   usePostReference: typeof usePostReferenceHook;
-  onGroupAction: (action: string, group: db.Group) => void;
+  onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   useChannel: typeof useChannelFromStore;
   storeDraft: (draft: JSONContent) => void;
   clearDraft: () => void;
@@ -165,7 +165,7 @@ export function Channel({
   }, []);
 
   const handleGroupAction = useCallback(
-    (action: string, group: db.Group) => {
+    (action: GroupPreviewAction, group: db.Group) => {
       onGroupAction(action, group);
       setGroupPreview(null);
     },

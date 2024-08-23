@@ -1,3 +1,4 @@
+//tamagui-ignore
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
@@ -28,7 +29,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import { Text, View, YStack, useStyle } from 'tamagui';
+import { Text, View, YStack, isWeb, useStyle } from 'tamagui';
 
 import { interactionWithTiming } from '../utils/animation';
 import { Icon } from './Icon';
@@ -91,7 +92,7 @@ function ChatListComponent({
     }: SectionListRenderItemInfo<ChatListItemData, ChatListSectionData>) => {
       const itemModel = item as Chat;
 
-      if (logic.isChannel(itemModel)) {
+      if (logic.isChannel(itemModel) && !isWeb) {
         return (
           <SwipableChatListItem
             model={itemModel}
@@ -251,7 +252,7 @@ function ChatListFiltersComponent({
       height: contentHeight * openProgress.value,
       opacity: openProgress.value,
     };
-  });
+  }, [openProgress]);
 
   const handleContentLayout = useCallback((e: LayoutChangeEvent) => {
     setContentHeight(e.nativeEvent.layout.height);

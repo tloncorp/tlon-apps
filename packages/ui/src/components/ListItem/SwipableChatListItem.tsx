@@ -115,11 +115,14 @@ function BaseRightActions({
   const handlePin = useBoundHandler('pin', handleAction);
   const handleMute = useBoundHandler('mute', handleAction);
 
-  const containerStyle = useAnimatedStyle(() => ({
-    width: Math.abs(drag.value),
-    flexDirection: 'row',
-    overflow: 'hidden',
-  }));
+  const containerStyle = useAnimatedStyle(
+    () => ({
+      width: Math.abs(drag.value),
+      flexDirection: 'row',
+      overflow: 'hidden',
+    }),
+    [drag]
+  );
 
   return (
     <View width={160} justifyContent="flex-end" flexDirection="row">

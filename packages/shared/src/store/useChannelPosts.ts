@@ -55,7 +55,12 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     queryFn: async (ctx): Promise<db.Post[]> => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log('loading posts', queryOptions);
-      if (queryOptions.mode === 'newest' && !options.hasCachedNewest) {
+      // We should figure out why this is necessary.
+      if (
+        queryOptions &&
+        queryOptions.mode === 'newest' &&
+        !options.hasCachedNewest
+      ) {
         await sync.syncPosts(queryOptions, { priority: SyncPriority.High });
       }
       const cached = await db.getChannelPosts(queryOptions);
@@ -116,7 +121,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       const firstPageIsEmpty = !firstPage[0]?.id;
       if (
         firstPageIsEmpty ||
-        (firstPageParam.mode === 'newest' && options.hasCachedNewest)
+        (firstPageParam?.mode === 'newest' && options.hasCachedNewest)
       ) {
         return undefined;
       }

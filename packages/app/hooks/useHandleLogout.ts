@@ -17,7 +17,7 @@ export function useHandleLogout() {
     removeHostingUserId();
     // delay DB reset to next tick to avoid race conditions
     setTimeout(() => resetDb());
-  }, [clearShip]);
+  }, []);
 
   return handleLogout;
 }

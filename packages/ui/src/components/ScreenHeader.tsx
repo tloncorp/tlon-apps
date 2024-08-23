@@ -2,7 +2,7 @@ import { useCurrentSession } from '@tloncorp/shared';
 import { PropsWithChildren, ReactNode } from 'react';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { styled, withStaticProperties } from 'tamagui';
+import { isWeb, styled, withStaticProperties } from 'tamagui';
 import { SizableText, View, XStack } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
@@ -30,18 +30,26 @@ export const ScreenHeaderComponent = ({
         paddingVertical="$l"
       >
         {typeof title === 'string' ? (
-          <Animated.View
-            key={title}
-            entering={FadeInDown}
-            exiting={FadeOutUp}
-            style={{ flex: 1 }}
-          >
+          isWeb ? (
             <HeaderTitle
               color={currentSession ? '$primaryText' : '$tertiaryText'}
             >
               {title}
             </HeaderTitle>
-          </Animated.View>
+          ) : (
+            <Animated.View
+              key={title}
+              entering={FadeInDown}
+              exiting={FadeOutUp}
+              style={{ flex: 1 }}
+            >
+              <HeaderTitle
+                color={currentSession ? '$primaryText' : '$tertiaryText'}
+              >
+                {title}
+              </HeaderTitle>
+            </Animated.View>
+          )
         ) : (
           title
         )}

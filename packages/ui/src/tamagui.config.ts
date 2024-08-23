@@ -232,11 +232,7 @@ export const themes = {
 
 export const systemFont = createFont({
   family:
-    // Previously used font stack
-    // '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-    // did not work, threw errors in xcode console on iOS. Fortunately iOS
-    //defaulted to its system font anyway
-    'System',
+    'System, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   size: {
     xs: 12,
     s: 14,

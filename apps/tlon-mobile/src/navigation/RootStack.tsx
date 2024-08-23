@@ -9,6 +9,7 @@ import { ChannelScreenController } from '../controllers/ChannelScreenController'
 import { ChannelSearchScreenController } from '../controllers/ChannelSearchScreenController';
 import { ChatListScreenController } from '../controllers/ChatListScreenController';
 import { GroupChannelsScreenController } from '../controllers/GroupChannelsScreenController';
+import ImageViewerScreenController from '../controllers/ImageViewerScreenController';
 import { PostScreenController } from '../controllers/PostScreenController';
 import { AppInfoScreen } from '../screens/AppInfo';
 import { AppSettingsScreen } from '../screens/AppSettingsScreen';
@@ -17,7 +18,6 @@ import { ChannelMembersScreen } from '../screens/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../screens/ChannelMetaScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { FeatureFlagScreen } from '../screens/FeatureFlagScreen';
-import ImageViewerScreen from '../screens/ImageViewerScreen';
 import { ManageAccountScreen } from '../screens/ManageAccountScreen';
 import { PushNotificationSettingsScreen } from '../screens/PushNotificationSettingsScreen';
 import { UserBugReportScreen } from '../screens/UserBugReportScreen';
@@ -80,7 +80,7 @@ export function RootStack() {
       />
       <Root.Screen
         name="ImageViewer"
-        component={ImageViewerScreen}
+        component={ImageViewerScreenController}
         options={{ animation: 'fade' }}
       />
 

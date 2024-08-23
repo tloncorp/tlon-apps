@@ -10,10 +10,8 @@
     "rootDir": "./src",
     "outDir": "dist",
     "composite": true,
-    "resolveJsonModule": true,
+    "resolveJsonModule": true
   },
-  "include": [
-    "./src",
-    "./src/test/*.json"
-  ],
+  "include": ["./src", "./src/test/*.json"]
 }
+

@@ -1,0 +1,31 @@
+:root {
+  --aside-width: 240px;
+}
+
+.layout {
+  position: relative;
+  display: grid;
+  grid-template-areas:
+    'header header'
+    'main aside'
+    'footer aside';
+  grid-template-columns: 1fr auto; /** collapsible aside, main expands to fill */
+  grid-template-rows: auto minmax(0, 1fr) auto; /** collapsible header, main expands to fill, collapsible footer */
+  height: 100%;
+}
+
+.aside {
+  grid-area: aside;
+}
+
+.header {
+  grid-area: header;
+}
+
+.footer {
+  grid-area: footer;
+}
+
+.main {
+  grid-area: main;
+}
