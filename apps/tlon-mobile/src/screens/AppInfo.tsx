@@ -41,7 +41,7 @@ export function AppInfoScreen(props: Props) {
       <ScrollView>
         <YStack marginTop="$xl" marginHorizontal="$2xl" gap="$s">
           <AppSetting title="Build version" value={BUILD_VERSION} copyable />
-          <AppSetting title="OTA Version" value={easUpdateDisplay} copyable />
+          <AppSetting title="OTA Update" value={easUpdateDisplay} copyable />
           <AppSetting
             title="Notify provider"
             value={preSig(NOTIFY_PROVIDER)}
