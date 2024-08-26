@@ -12,6 +12,7 @@ type CrashReporter = {
 interface DebugPlatformState {
   network: string;
   battery: string;
+  easUpdate: string;
 }
 
 type PlatformState = {
@@ -111,6 +112,7 @@ export class ErrorReporter {
         if (platformState) {
           CrashReporter.log(`network: ${platformState.network}`);
           CrashReporter.log(`battery: ${platformState.battery}`);
+          CrashReporter.log(`OTA update: ${platformState.easUpdate}`);
         }
       }
 
