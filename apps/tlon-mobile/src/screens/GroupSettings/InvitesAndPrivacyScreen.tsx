@@ -1,8 +1,8 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useGroupContext } from '@tloncorp/app/hooks/useGroupContext';
 import { GroupPrivacy } from '@tloncorp/shared/dist/db/schema';
 import * as store from '@tloncorp/shared/dist/store';
 import { GenericHeader, GroupPrivacySelector, View } from '@tloncorp/ui';
-import { useGroupContext } from 'packages/app/hooks/useGroupContext';
 import { useCallback } from 'react';
 
 import { GroupSettingsStackParamList } from '../../types';
