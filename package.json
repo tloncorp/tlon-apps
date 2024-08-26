@@ -65,7 +65,9 @@
       "@urbit/http-api": "3.1.0-dev-3",
       "@urbit/api": "2.2.0",
       "prosemirror-model": "1.19.3",
-      "prosemirror-view": "1.33.4"
+      "prosemirror-view": "1.33.4",
+      "prosemirror-state": "1.4.3",
+      "@tiptap/pm": "2.6.6"
     }
   }
 }
