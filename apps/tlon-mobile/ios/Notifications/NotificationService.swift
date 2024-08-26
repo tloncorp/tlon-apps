@@ -31,11 +31,27 @@ class NotificationService: UNNotificationServiceExtension {
                 contentHandler(mutatedContent)
                 return
 
-            default:
+            case let .failedFetchContents(err):
+                packErrorOnNotification(err)
+                contentHandler(bestAttemptContent!)
+                return
+
+            case .invalid:
+                fallthrough
+
+            case .dismiss:
                 contentHandler(bestAttemptContent!)
                 return
             }
         }
+    }
+
+    /** Appends an error onto the `bestAttemptContent` payload; does *not* attempt to complete the notification request. */
+    func packErrorOnNotification(_ error: Error) {
+        guard let bestAttemptContent else { return }
+        var errorList = (bestAttemptContent.userInfo["notificationServiceExtensionErrors"] as? [String]) ?? [String]()
+        errorList.append(error.localizedDescription)
+        bestAttemptContent.userInfo["notificationServiceExtensionErrors"] = errorList
     }
 
     override func serviceExtensionTimeWillExpire() {
