@@ -121,6 +121,7 @@ export function GroupOptions({
     onPressGroupMembers,
     onPressGroupMeta,
     onPressManageChannels,
+    onPressInvite,
     onPressLeave,
     onTogglePinned,
   } = useChatOptions() ?? {};
@@ -258,11 +259,25 @@ export function GroupOptions({
       endIcon: 'ChevronRight',
     };
 
+    const inviteAction: Action = {
+      title: 'Invite people',
+      action: () => {
+        sheetRef.current.setOpen(false);
+        onPressInvite?.(group);
+      },
+      endIcon: 'ChevronRight',
+    };
+
     actionGroups.push({
       accent: 'neutral',
       actions:
         group && currentUserIsAdmin
-          ? [manageChannelsAction, goToMembersAction, metadataAction]
+          ? [
+              manageChannelsAction,
+              goToMembersAction,
+              inviteAction,
+              metadataAction,
+            ]
           : [goToMembersAction],
     });
 
@@ -292,6 +307,7 @@ export function GroupOptions({
     onPressGroupMembers,
     onPressGroupMeta,
     onPressLeave,
+    onPressInvite,
   ]);
 
   const memberCount = group?.members?.length ?? 0;

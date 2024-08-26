@@ -100,6 +100,45 @@ export async function rescindGroupInvitationRequest(group: db.Group) {
   }
 }
 
+export async function inviteGroupMembers({
+  groupId,
+  contactIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+}) {
+  logger.log('inviting group members', groupId, contactIds);
+
+  const existingGroup = await db.getGroup({ id: groupId });
+
+  if (!existingGroup) {
+    console.error('Group not found', groupId);
+    return;
+  }
+
+  // optimistic update
+  await db.addChatMembers({
+    chatId: groupId,
+    type: 'group',
+    contactIds,
+  });
+
+  try {
+    if (existingGroup.privacy === 'public') {
+      await api.addGroupMembers({ groupId, contactIds });
+    } else {
+      await api.inviteGroupMembers({ groupId, contactIds });
+    }
+  } catch (e) {
+    console.error('Failed to invite group members', e);
+    // rollback optimistic update
+    await db.removeChatMembers({
+      chatId: groupId,
+      contactIds,
+    });
+  }
+}
+
 export async function cancelGroupJoin(group: db.Group) {
   logger.log('canceling group join', group.id);
   // optimistic update

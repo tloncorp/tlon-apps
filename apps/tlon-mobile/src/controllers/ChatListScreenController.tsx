@@ -1,6 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import ChatListScreen from '@tloncorp/app/features/top/ChatListScreen';
 import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
+import { AppDataContextProvider } from 'packages/ui/src';
 import { useCallback, useState } from 'react';
 
 import AddGroupSheet from '../components/AddGroupSheet';
@@ -37,6 +39,8 @@ export function ChatListScreenController({
     [goToChannel]
   );
 
+  const { data: contacts } = store.useContacts();
+
   return (
     <>
       <ChatListScreen
@@ -62,11 +66,13 @@ export function ChatListScreenController({
           navigation.navigate('Profile');
         }}
       />
-      <AddGroupSheet
-        open={addGroupOpen}
-        onOpenChange={handleAddGroupOpenChange}
-        onCreatedGroup={handleGroupCreated}
-      />
+      <AppDataContextProvider contacts={contacts ?? []}>
+        <AddGroupSheet
+          open={addGroupOpen}
+          onOpenChange={handleAddGroupOpenChange}
+          onCreatedGroup={handleGroupCreated}
+        />
+      </AppDataContextProvider>
     </>
   );
 }

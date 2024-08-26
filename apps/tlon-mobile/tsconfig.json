@@ -7,7 +7,9 @@
     "tamagui.config.ts",
     "tamagui.d.ts",
     "index.js",
-    "svg.d.ts"
+    "svg.d.ts",
+    "../../packages/ui/src/**/*.ts",
+    "../../packages/ui/src/**/*.tsx"
   ],
   "compilerOptions": {
     "composite": true

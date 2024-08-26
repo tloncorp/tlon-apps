@@ -6,6 +6,8 @@ export * from './components/AppSetting';
 export * from './components/Avatar';
 export * from './components/BigInput';
 export * from './components/BlockedContactsWidget';
+export * from './components/InviteUsersWidget';
+export * from './components/InviteUsersSheet';
 export * from './components/Button';
 export * from './components/Buttons';
 export * from './components/Channel';

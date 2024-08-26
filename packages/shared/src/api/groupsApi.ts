@@ -109,6 +109,46 @@ export function cancelGroupJoin(groupId: string) {
   });
 }
 
+export function inviteGroupMembers({
+  groupId,
+  contactIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+}) {
+  return poke(
+    groupAction(groupId, {
+      cordon: {
+        shut: {
+          'add-ships': {
+            ships: contactIds,
+            kind: 'pending',
+          },
+        },
+      },
+    })
+  );
+}
+
+export function addGroupMembers({
+  groupId,
+  contactIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+}) {
+  return poke(
+    groupAction(groupId, {
+      fleet: {
+        ships: contactIds,
+        diff: {
+          add: null,
+        },
+      },
+    })
+  );
+}
+
 export function rescindGroupInvitationRequest(groupId: string) {
   logger.log('api rescinding', groupId);
   return poke({

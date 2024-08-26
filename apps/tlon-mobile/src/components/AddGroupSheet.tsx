@@ -16,6 +16,7 @@ import {
   CreateGroupWidget,
   GroupPreviewPane,
   Icon,
+  InviteUsersWidget,
   Sheet,
   View,
   ViewUserGroupsWidget,
@@ -55,6 +56,10 @@ type StackParamList = {
   Home: undefined;
   Root: undefined;
   CreateGroup: undefined;
+  InviteUsers: {
+    group: db.Group;
+    onInviteComplete: () => void;
+  };
   ViewContactGroups: {
     contactId: string;
   };
@@ -137,6 +142,10 @@ export default function AddGroupSheet({
                     <Stack.Screen
                       name="CreateGroup"
                       component={CreateGroupScreen}
+                    />
+                    <Stack.Screen
+                      name="InviteUsers"
+                      component={InviteUsersScreen}
                     />
                     <Stack.Screen
                       name="ViewContactGroups"
@@ -263,10 +272,15 @@ function CreateGroupScreen(
   const { onCreatedGroup, dismiss } = useContext(ActionContext);
   const handleCreate = useCallback(
     (args: { group: db.Group; channel: db.Channel }) => {
-      dismiss();
-      onCreatedGroup(args);
+      props.navigation.push('InviteUsers', {
+        group: args.group,
+        onInviteComplete: () => {
+          dismiss();
+          onCreatedGroup(args);
+        },
+      });
     },
-    [dismiss, onCreatedGroup]
+    [dismiss, onCreatedGroup, props.navigation]
   );
   return (
     <ScreenWrapper>
@@ -274,6 +288,22 @@ function CreateGroupScreen(
         goBack={() => props.navigation.pop()}
         onCreatedGroup={handleCreate}
       />
+    </ScreenWrapper>
+  );
+}
+
+function InviteUsersScreen(
+  props: NativeStackScreenProps<StackParamList, 'InviteUsers'>
+) {
+  const { contacts } = useContext(ActionContext);
+  return (
+    <ScreenWrapper>
+      <AppDataContextProvider contacts={contacts ?? null}>
+        <InviteUsersWidget
+          group={props.route.params.group}
+          onInviteComplete={props.route.params.onInviteComplete}
+        />
+      </AppDataContextProvider>
     </ScreenWrapper>
   );
 }
