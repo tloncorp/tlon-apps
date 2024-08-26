@@ -1,6 +1,9 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Text } from '@tloncorp/ui';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { GroupPrivacy } from '@tloncorp/shared/dist/db/schema';
+import * as store from '@tloncorp/shared/dist/store';
+import { GenericHeader, GroupPrivacySelector, View } from '@tloncorp/ui';
+import { useGroupContext } from 'packages/app/hooks/useGroupContext';
+import { useCallback } from 'react';
 
 import { GroupSettingsStackParamList } from '../../types';
 
@@ -10,9 +13,28 @@ type InvitesAndPrivacyScreenProps = NativeStackScreenProps<
 >;
 
 export function InvitesAndPrivacyScreen(props: InvitesAndPrivacyScreenProps) {
+  const { groupId } = props.route.params;
+
+  const { group } = useGroupContext({ groupId });
+
+  const handlePrivacyChange = useCallback(
+    (newPrivacy: GroupPrivacy) => {
+      if (group && group.privacy !== newPrivacy) {
+        store.updateGroupPrivacy(group, newPrivacy);
+      }
+    },
+    [group]
+  );
+
   return (
-    <SafeAreaView>
-      <Text>InvitesAndPrivacy</Text>
-    </SafeAreaView>
+    <View>
+      <GenericHeader title="Privacy" goBack={props.navigation.goBack} />
+      {group ? (
+        <GroupPrivacySelector
+          currentValue={group.privacy ?? 'private'}
+          onChange={handlePrivacyChange}
+        />
+      ) : null}
+    </View>
   );
 }

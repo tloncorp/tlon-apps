@@ -121,6 +121,7 @@ export function GroupOptions({
     onPressGroupMembers,
     onPressGroupMeta,
     onPressManageChannels,
+    onPressInvitesAndPrivacy,
     onPressLeave,
     onTogglePinned,
   } = useChatOptions() ?? {};
@@ -237,6 +238,15 @@ export function GroupOptions({
       endIcon: 'ChevronRight',
     };
 
+    const managePrivacyAction: Action = {
+      title: 'Privacy',
+      action: () => {
+        sheetRef.current.setOpen(false);
+        onPressInvitesAndPrivacy?.(group.id);
+      },
+      endIcon: 'ChevronRight',
+    };
+
     const goToMembersAction: Action = {
       title: 'Members',
       endIcon: 'ChevronRight',
@@ -262,7 +272,12 @@ export function GroupOptions({
       accent: 'neutral',
       actions:
         group && currentUserIsAdmin
-          ? [manageChannelsAction, goToMembersAction, metadataAction]
+          ? [
+              manageChannelsAction,
+              managePrivacyAction,
+              goToMembersAction,
+              metadataAction,
+            ]
           : [goToMembersAction],
     });
 
