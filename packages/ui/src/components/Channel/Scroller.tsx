@@ -168,6 +168,23 @@ const Scroller = forwardRef(
     logger.log('anchorIndex', anchorIndex, anchor?.postId);
     logger.log('hasFoundAnchor', hasFoundAnchor);
 
+    const lockScrollToAnchorIfNeeded = useCallback(() => {
+      if (!hasFoundAnchor || anchorIndex === -1) {
+        // can't scroll to anchor if we don't have anchor info yet
+        return;
+      }
+      if (userHasScrolledRef.current) {
+        // once user starts scrolling, no more scroll lock
+        return;
+      }
+      flatListRef.current?.scrollToIndex({
+        index: anchorIndex,
+        animated: false,
+        viewPosition: anchor?.type === 'unread' ? 1 : 0.5,
+      });
+      setNeedsAnchorScrollLockUpdate(false);
+    }, [flatListRef, anchorIndex, anchor, hasFoundAnchor]);
+
     // We use this function to manage autoscrolling to the anchor post. We need
     // the post to be rendered before we're able to scroll to it, so we wait for
     // it here. Once it's rendered we scroll to it and set `hasFoundAnchor` to
@@ -175,16 +192,10 @@ const Scroller = forwardRef(
     const handleItemLayout = useCallback(
       (post: db.Post, index: number) => {
         renderedPostsRef.current.add(post.id);
-        if (
-          !userHasScrolledRef.current &&
-          (post.id === anchor?.postId || (hasFoundAnchor && anchorIndex !== -1))
-        ) {
-          logger.log('scrolling to initially set anchor', post.id, index);
-          flatListRef.current?.scrollToIndex({
-            index: anchorIndex,
-            animated: false,
-            viewPosition: anchor?.type === 'unread' ? 1 : 0.5,
-          });
+
+        // If anchor has changed layout, update scroll lock if necessary
+        if (anchor?.postId === post.id) {
+          lockScrollToAnchorIfNeeded();
         }
 
         if (
@@ -199,8 +210,23 @@ const Scroller = forwardRef(
           setHasFoundAnchor(true);
         }
       },
-      [anchor?.postId, anchorIndex, hasFoundAnchor, posts?.length, anchor?.type]
+      [
+        anchor?.postId,
+        hasFoundAnchor,
+        lockScrollToAnchorIfNeeded,
+        posts?.length,
+      ]
     );
+
+    const [needsAnchorScrollLockUpdate, setNeedsAnchorScrollLockUpdate] =
+      useState(true);
+
+    useEffect(() => {
+      if (!needsAnchorScrollLockUpdate) {
+        return;
+      }
+      lockScrollToAnchorIfNeeded();
+    }, [lockScrollToAnchorIfNeeded, needsAnchorScrollLockUpdate]);
 
     const theme = useTheme();
 
@@ -301,6 +327,11 @@ const Scroller = forwardRef(
           // based on the average item length.
           const offset = info.index * info.averageItemLength;
           flatListRef.current?.scrollToOffset({ offset, animated: false });
+
+          // Even though we tried our best to scroll to the anchor, mark that we
+          // still would like a precise scroll if we can get it - ideally, this
+          // happens within an imperceptible time frame.
+          setNeedsAnchorScrollLockUpdate(true);
         }
       },
       [anchor?.postId]
