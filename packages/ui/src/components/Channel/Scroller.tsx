@@ -32,7 +32,6 @@ import { useStyle, useTheme } from 'tamagui';
 import { View } from 'tamagui';
 
 import { useLivePost } from '../../contexts/requests';
-import { useScrollDirectionTracker } from '../../contexts/scroll';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { Modal } from '../Modal';
 import { ChannelDivider } from './ChannelDivider';
@@ -130,10 +129,6 @@ const Scroller = forwardRef(
     },
     ref
   ) => {
-    const [isAtBottom, setIsAtBottom] = useState(true);
-
-    const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
-
     const flatListRef = useRef<FlatList<db.Post>>(null);
 
     useImperativeHandle(ref, () => ({
@@ -141,20 +136,17 @@ const Scroller = forwardRef(
         flatListRef.current?.scrollToIndex(params),
     }));
 
-    const pressedGoToBottom = () => {
-      setHasPressedGoToBottom(true);
-      if (flatListRef.current) {
-        flatListRef.current.scrollToOffset({ offset: 0, animated: true });
-      }
-    };
     const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
 
-    const handleSetActive = useCallback((active: db.Post) => {
-      if (active.type !== 'notice') {
-        activeMessageRefs.current[active.id] = createRef();
-        setActiveMessage(active);
-      }
-    }, []);
+    const handleSetActive = useCallback(
+      (active: db.Post) => {
+        if (active.type !== 'notice') {
+          activeMessageRefs.current[active.id] = createRef();
+          setActiveMessage(active);
+        }
+      },
+      [setActiveMessage]
+    );
 
     const handlePostLongPressed = useCallback(
       (post: db.Post) => {
@@ -423,8 +415,6 @@ const Scroller = forwardRef(
         : undefined;
     }, [hasNewerPosts, channelType]);
 
-    const handleScroll = useScrollDirectionTracker(setIsAtBottom);
-
     const scrollIndicatorInsets = useMemo(() => {
       return {
         top: 0,
@@ -465,7 +455,6 @@ const Scroller = forwardRef(
             onEndReachedThreshold={0.5}
             onStartReached={handleStartReached}
             onStartReachedThreshold={0.1}
-            onScroll={handleScroll}
             scrollIndicatorInsets={scrollIndicatorInsets}
             automaticallyAdjustsScrollIndicatorInsets={false}
           />
