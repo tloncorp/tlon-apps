@@ -562,6 +562,10 @@ const BaseScrollerItem = ({
   const dividerType = useMemo(() => {
     switch (channelType) {
       case 'chat':
+      // fallthrough
+      case 'dm':
+      // fallthrough
+      case 'groupDm':
         if (showUnreadDivider) {
           return 'unread';
         }
@@ -569,11 +573,6 @@ const BaseScrollerItem = ({
           return 'day';
         }
         return null;
-
-      case 'dm':
-      // fallthrough
-      case 'groupDm':
-        return showUnreadDivider ? 'unread' : null;
 
       case 'gallery':
       // fallthrough
