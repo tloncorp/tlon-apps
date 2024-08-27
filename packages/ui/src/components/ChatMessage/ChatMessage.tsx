@@ -117,6 +117,26 @@ const ChatMessage = ({
     return utils.makePrettyTime(date);
   }, [post.sentAt]);
 
+  const messageInputForEditing = useMemo(
+    () => (
+      <MessageInput
+        groupMembers={[]}
+        storeDraft={() => {}}
+        clearDraft={() => {}}
+        getDraft={async () => ({})}
+        shouldBlur={false}
+        setShouldBlur={() => {}}
+        send={async () => {}}
+        channelId={post.channelId}
+        editingPost={post}
+        editPost={editPost}
+        setEditingPost={setEditingPost}
+        channelType="chat"
+      />
+    ),
+    [post, editPost, setEditingPost]
+  );
+
   if (!post) {
     return null;
   }
@@ -187,20 +207,7 @@ const ChatMessage = ({
       ) : null}
       <View paddingLeft={!isNotice && '$4xl'}>
         {editing ? (
-          <MessageInput
-            groupMembers={[]}
-            storeDraft={() => {}}
-            clearDraft={() => {}}
-            getDraft={async () => ({})}
-            shouldBlur={false}
-            setShouldBlur={() => {}}
-            send={async () => {}}
-            channelId={post.channelId}
-            editingPost={post}
-            editPost={editPost}
-            setEditingPost={setEditingPost}
-            channelType="chat"
-          />
+          messageInputForEditing
         ) : post.hidden ? (
           <Text color="$secondaryText">
             You have hidden or flagged this message.
