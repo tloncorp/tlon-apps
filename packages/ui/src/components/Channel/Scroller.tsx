@@ -28,8 +28,7 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useStyle, useTheme } from 'tamagui';
-import { View } from 'tamagui';
+import { View, styled, useStyle, useTheme } from 'tamagui';
 
 import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
@@ -77,6 +76,7 @@ const Scroller = forwardRef(
   (
     {
       anchor,
+      showDividers = true,
       inverted,
       renderItem,
       renderEmptyComponent: renderEmptyComponentFn,
@@ -101,6 +101,7 @@ const Scroller = forwardRef(
       setActiveMessage,
     }: {
       anchor?: ScrollAnchor | null;
+      showDividers?: boolean;
       inverted: boolean;
       renderItem: RenderItemType;
       renderEmptyComponent?: () => ReactElement;
@@ -223,10 +224,14 @@ const Scroller = forwardRef(
     const listRenderItem: ListRenderItem<db.Post> = useCallback(
       ({ item, index }) => {
         const previousItem = posts?.[index + 1];
+        const nextItem = posts?.[index - 1];
         const isFirstPostOfDay = !isSameDay(
           item.receivedAt ?? 0,
           previousItem?.receivedAt ?? 0
         );
+        const isLastPostOfBlock =
+          item.type !== 'notice' &&
+          ((nextItem && nextItem.authorId !== item.authorId) || !isSameDay);
         const showAuthor =
           item.type === 'note' ||
           item.type === 'block' ||
@@ -243,9 +248,10 @@ const Scroller = forwardRef(
             item={item}
             index={index}
             isSelected={isSelected}
-            showUnreadDivider={isFirstUnread}
-            showDayDivider={isFirstPostOfDay}
+            showUnreadDivider={showDividers && isFirstUnread}
+            showDayDivider={showDividers && isFirstPostOfDay}
             showAuthor={showAuthor}
+            isLastPostOfBlock={isLastPostOfBlock}
             Component={renderItem}
             unreadCount={unreadCount}
             editingPost={editingPost}
@@ -287,6 +293,7 @@ const Scroller = forwardRef(
         onPressRetry,
         handlePostLongPressed,
         activeMessage,
+        showDividers,
       ]
     );
 
@@ -327,8 +334,8 @@ const Scroller = forwardRef(
             }
           : channelType === 'notebook'
             ? {
-                paddingHorizontal: '$xl',
-                gap: '$xl',
+                paddingHorizontal: '$m',
+                gap: '$l',
               }
             : {
                 paddingHorizontal: '$m',
@@ -525,6 +532,7 @@ const BaseScrollerItem = ({
   activeMessage,
   messageRef,
   isSelected,
+  isLastPostOfBlock,
 }: {
   showUnreadDivider: boolean;
   showAuthor: boolean;
@@ -549,6 +557,7 @@ const BaseScrollerItem = ({
   activeMessage?: db.Post | null;
   messageRef: RefObject<RNView>;
   isSelected: boolean;
+  isLastPostOfBlock: boolean;
 }) => {
   const post = useLivePost(item);
 
@@ -584,29 +593,27 @@ const BaseScrollerItem = ({
   const divider = useMemo(() => {
     switch (dividerType) {
       case 'day':
-        return <ChannelDivider unreadCount={0} post={post} index={index} />;
+        return (
+          <>
+            <ChannelDivider unreadCount={0} post={post} />
+            <PostBlockSeparator />
+          </>
+        );
       case 'unread':
         return (
-          <ChannelDivider
-            post={post}
-            unreadCount={unreadCount ?? 0}
-            isFirstPostOfDay={showDayDivider}
-            channelInfo={{ id: channelId, type: channelType }}
-            index={index}
-          />
+          <>
+            <ChannelDivider
+              post={post}
+              unreadCount={unreadCount ?? 0}
+              isFirstPostOfDay={showDayDivider}
+            />
+            <PostBlockSeparator />
+          </>
         );
       case null:
         return null;
     }
-  }, [
-    dividerType,
-    post,
-    unreadCount,
-    showDayDivider,
-    channelId,
-    channelType,
-    index,
-  ]);
+  }, [dividerType, post, unreadCount, showDayDivider]);
 
   return (
     <View
@@ -637,9 +644,16 @@ const BaseScrollerItem = ({
           onPressDelete={onPressDelete}
         />
       </PressableMessage>
+      {isLastPostOfBlock && <PostBlockSeparator />}
     </View>
   );
 };
+
+export const PostBlockSeparator = styled(View, {
+  name: 'PostBlockSeparator',
+  height: '$m',
+  width: '100%',
+});
 
 const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
   const isItemEqual = isEqual(prev.item, next.item);

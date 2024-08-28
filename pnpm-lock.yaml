@@ -331,6 +331,9 @@ importers:
         specifier: ^3.7.2
         version: 3.7.2(react@18.2.0)
     devDependencies:
+      '@faker-js/faker':
+        specifier: ^8.4.1
+        version: 8.4.1
       '@jest/globals':
         specifier: ^29.7.0
         version: 29.7.0

@@ -5,7 +5,7 @@ import { View, XStack, YStack, styled } from 'tamagui';
 import { Icon, IconType } from '../Icon';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
-import { LabelText } from '../TrimmedText';
+import { Text } from '../TextV2';
 import { FieldContext } from './Form';
 
 // Text input
@@ -125,13 +125,13 @@ export function RadioInputRow<T>({
         checked={checked}
       />
       <YStack gap="$l">
-        <LabelText size="$xl" color="$primaryText">
+        <Text size="$label/xl" color="$primaryText">
           {option.title}
-        </LabelText>
+        </Text>
         {option.description ? (
-          <LabelText size="$m" color="$secondaryText">
+          <Text size="$label/m" color="$secondaryText">
             {option.description}
-          </LabelText>
+          </Text>
         ) : null}
       </YStack>
     </RadioInputRowFrame>

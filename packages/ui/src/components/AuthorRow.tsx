@@ -2,26 +2,34 @@ import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { GestureResponderEvent } from 'react-native';
-import { SizableText, View, XStack } from 'tamagui';
+import { View, XStack } from 'tamagui';
 
 import { useNavigation } from '../contexts';
 import { ContactAvatar } from './Avatar';
-import ContactName from './ContactName';
+import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
+import { ContactName } from './ContactNameV2';
 import { ProfileSheet } from './ProfileSheet';
+import { Text } from './TextV2';
 
-const RoleBadge = ({ role }: { role: string }) => {
-  return (
-    <View
-      borderRadius="$l"
-      backgroundColor="$secondaryBackground"
-      paddingHorizontal="$s"
-    >
-      <SizableText color="$secondaryText" size="$s">
-        {role}
-      </SizableText>
-    </View>
-  );
-};
+const RoleBadge = View.styleable<{ role: string }>(
+  ({ role, ...props }, ref) => {
+    return (
+      <View
+        marginVertical={'$-xs'}
+        borderRadius="$l"
+        backgroundColor="$shadow"
+        paddingHorizontal="$m"
+        paddingVertical="$xs"
+        {...props}
+        ref={ref}
+      >
+        <Text color="$secondaryText" size="$label/m">
+          {role}
+        </Text>
+      </View>
+    );
+  }
+);
 
 export const AUTHOR_ROW_HEIGHT_DETAIL_VIEW = '$4xl';
 
@@ -33,6 +41,7 @@ type AuthorRowProps = ComponentProps<typeof XStack> & {
   deliveryStatus?: db.PostDeliveryStatus | null;
   type?: db.PostType;
   detailView?: boolean;
+  showEditedIndicator?: boolean;
 };
 
 export default function AuthorRow({ onPress, ...props }: AuthorRowProps) {
@@ -76,40 +85,51 @@ function DetailViewAuthorRow({ authorId, ...props }: AuthorRowProps) {
   return (
     <XStack gap="$s" alignItems="center" {...props}>
       <ContactAvatar size="$2xl" contactId={authorId} />
-      <ContactName width="100%" showNickname userId={authorId} />
+      <ContactName width="100%" contactId={authorId} />
     </XStack>
   );
 }
 
-function ChatAuthorRow({ authorId, sent, roles, ...props }: AuthorRowProps) {
+function ChatAuthorRow({
+  authorId,
+  showEditedIndicator,
+  sent,
+  roles,
+  deliveryStatus,
+  ...props
+}: AuthorRowProps) {
   const timeDisplay = useMemo(() => {
     const date = new Date(sent);
     return utils.makePrettyTime(date);
   }, [sent]);
+
   const firstRole = roles?.[0];
 
   return (
     <XStack gap="$l" alignItems="center" {...props}>
       <ContactAvatar size="$2xl" contactId={authorId} />
-      <ContactName showNickname userId={authorId} fontWeight="$xl" />
-      <SizableText color="$secondaryText" size="$s" position="relative" top={1}>
-        {timeDisplay}
-      </SizableText>
-      {firstRole && <RoleBadge role={firstRole} />}
+      <XStack gap="$l" alignItems="flex-end">
+        <ContactName size="$label/2xl" contactId={authorId} />
+        <Text color="$secondaryText" size="$label/m">
+          {timeDisplay}
+        </Text>
+        {showEditedIndicator && (
+          <Text size="$label/m" color="$secondaryText">
+            Edited
+          </Text>
+        )}
+        {firstRole && <RoleBadge role={firstRole} />}
+      </XStack>
+      {deliveryStatus && <ChatMessageDeliveryStatus status={'pending'} />}
     </XStack>
   );
 }
 
 function NotebookAuthorRow({ authorId, ...props }: AuthorRowProps) {
   return (
-    <XStack gap="$l" alignItems="center" {...props}>
+    <XStack gap="$m" alignItems="center" {...props}>
       <ContactAvatar size="$2xl" contactId={authorId} />
-      <ContactName
-        width="100%"
-        showNickname
-        fontWeight={'500'}
-        userId={authorId}
-      />
+      <ContactName size="$body" color="$secondaryText" contactId={authorId} />
     </XStack>
   );
 }

@@ -1,19 +1,19 @@
+//tamagui-ignore
 import { PostType } from '@tloncorp/shared/dist/db';
 import { ComponentProps, useContext } from 'react';
-import { Dimensions } from 'react-native';
 import {
-  SizableText,
+  View,
   ViewStyle,
+  XStack,
+  YStack,
   createStyledContext,
   styled,
   withStaticProperties,
 } from 'tamagui';
-import { View, XStack, YStack } from 'tamagui';
 
-import { PostViewMode } from '../ContentRenderer';
 import { Icon, IconType } from '../Icon';
-
-export const REF_AUTHOR_WIDTH = 230;
+import { PostViewMode } from '../PostContent/ContentRenderer';
+import { Text } from '../TextV2';
 
 export type ReferenceProps = ComponentProps<typeof ReferenceComponent> & {
   actionIcon?: IconType | null;
@@ -46,15 +46,11 @@ const ReferenceFrame = styled(YStack, {
   borderRadius: '$m',
   padding: 0,
   borderColor: '$border',
-  marginBottom: '$s',
   borderWidth: 1,
   backgroundColor: '$secondaryBackground',
   overflow: 'hidden',
   variants: {
     viewMode: {
-      attachment: {
-        width: Dimensions.get('window').width - 30,
-      },
       block: {
         backgroundColor: '$secondaryBackground',
         borderWidth: 0,
@@ -119,18 +115,11 @@ const ReferenceHeader = styled(XStack, {
   context: ReferenceContext,
   name: 'ReferenceHeader',
   paddingLeft: '$l',
-  paddingRight: '$s',
-  paddingVertical: '$2xs',
+  paddingRight: '$l',
+  paddingVertical: '$s',
   justifyContent: 'space-between',
   borderBottomColor: '$border',
   borderBottomWidth: 1,
-  variants: {
-    viewMode: {
-      attachment: {
-        width: Dimensions.get('window').width - 30,
-      },
-    },
-  } as const,
 });
 
 const ReferenceTitle = styled(XStack, {
@@ -153,9 +142,9 @@ const ReferenceTitleIcon = styled(
   }
 );
 
-const ReferenceTitleText = styled(SizableText, {
+const ReferenceTitleText = styled(Text, {
   name: 'ReferenceTitleText',
-  size: '$s',
+  size: '$label/m',
   color: '$tertiaryText',
 });
 
@@ -167,7 +156,11 @@ const ReferenceActionIcon = ({
   return actionIcon ? (
     <Icon
       color="$tertiaryText"
-      size="$m"
+      // Hacking a little to shrink container by a couple pixels to compensate
+      // for inset border in ochre
+      marginTop={-1}
+      marginBottom={-1}
+      customSize={[15, 15]}
       {...props}
       type={type ?? 'ArrowRef'}
     />
@@ -177,21 +170,21 @@ const ReferenceActionIcon = ({
 const ReferenceBody = styled(View, {
   context: ReferenceContext,
   name: 'ReferenceBody',
-  paddingHorizontal: '$l',
-  paddingVertical: '$l',
-  gap: '$m',
+  padding: '$l',
+  gap: '$l',
   pointerEvents: 'none',
   variants: {
     renderMode: {
       note: {
         padding: '$2xl',
-        gap: '$xl',
+        gap: '$2xl',
       },
     },
   } as const,
 });
 
 export const Reference = withStaticProperties(ReferenceComponent, {
+  Frame: ReferenceFrame,
   Header: ReferenceHeader,
   Title: ReferenceTitle,
   TitleIcon: ReferenceTitleIcon,
@@ -214,9 +207,9 @@ export function ReferenceSkeleton({
           // TODO: Replace with proper error icon when available
           <Icon type="Placeholder" color="$tertiaryText" size="$s" />
         ) : null}
-        <SizableText fontSize="$s" color="$tertiaryText" flex={1}>
+        <Text size="$body" color="$tertiaryText" flex={1}>
           {message}
-        </SizableText>
+        </Text>
       </XStack>
     </ReferenceBody>
   );

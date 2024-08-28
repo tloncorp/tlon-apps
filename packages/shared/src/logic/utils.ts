@@ -1,11 +1,5 @@
 import anyAscii from 'any-ascii';
-import {
-  differenceInCalendarDays,
-  differenceInDays,
-  endOfToday,
-  format,
-  getDate,
-} from 'date-fns';
+import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
 import { backOff } from 'exponential-backoff';
 import { useMemo } from 'react';
@@ -19,7 +13,7 @@ import {
 import * as db from '../db';
 import * as ub from '../urbit';
 
-export { isDmChannelId, isGroupDmChannelId, isGroupChannelId };
+export { isDmChannelId, isGroupChannelId, isGroupDmChannelId };
 
 export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
@@ -173,16 +167,18 @@ export function makePrettyDayAndDateAndTime(date: Date): DateDayTimeDisplay {
   };
 }
 
-export function isSingleEmoji(input: string): boolean {
-  const regex = emojiRegex();
-  const matches = input.match(regex);
+const emojiTestRegex = emojiRegex();
 
-  return (
-    (matches &&
-      matches.length === 1 &&
-      matches.length === input.split('').length) ??
-    false
-  );
+export function containsOnlyEmoji(input: string): boolean {
+  if (input.length > 10) {
+    return false;
+  }
+  // Lots of gotchas trying to figure out length of an emoji string. This is a
+  // reasonably reliable way to do it in hermes. Should keep an eye on perf.
+  // Some info here: https://stackoverflow.com/questions/54369513/how-to-count-the-correct-length-of-a-string-with-emojis-in-javascript
+  return [...input].every((char) => {
+    return !!char.match(emojiTestRegex);
+  });
 }
 
 export function normalizeUrbitColor(color: string): string {
