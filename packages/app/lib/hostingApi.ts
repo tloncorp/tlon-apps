@@ -77,6 +77,29 @@ const hostingFetch = async <T extends object>(
   return result as T;
 };
 
+const rawHostingFetch = async (path: string, init?: RequestInit) => {
+  const response = await hostingFetchResponse(path, init);
+  return response;
+};
+
+export type HostingHeartBeatCode = 'expired' | 'ok' | 'unknown';
+export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
+  const userId = await getHostingUserId();
+  const response = await rawHostingFetch(`/v1/users/${userId}`);
+
+  // 401 indicates that the authentication token is expired
+  if (response.status === 401) {
+    return 'expired';
+  }
+
+  // if we get a response in the 2xx range, we know it's definitely still valid
+  if (response.status >= 200 && response.status < 300) {
+    return 'ok';
+  }
+
+  return 'unknown';
+};
+
 export const getHostingAvailability = async (params: {
   email?: string;
   lure?: string;
