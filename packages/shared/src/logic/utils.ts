@@ -38,6 +38,32 @@ export function isValidUrl(str?: string): boolean {
   return str ? !!URL_REGEX.test(str) : false;
 }
 
+export async function asyncWithDefault<T>(
+  cb: () => Promise<T>,
+  def: T
+): Promise<T> {
+  try {
+    return await cb();
+  } catch (error) {
+    console.error(error);
+    return def;
+  }
+}
+
+// for purging storage with version updates
+export function clearStorageMigration<T>() {
+  return {} as T;
+}
+
+export function getFlagParts(flag: string) {
+  const parts = flag.split('/');
+
+  return {
+    ship: parts[0],
+    name: parts[1],
+  };
+}
+
 export function getPrettyAppName(kind: 'chat' | 'diary' | 'heap') {
   switch (kind) {
     case 'chat':

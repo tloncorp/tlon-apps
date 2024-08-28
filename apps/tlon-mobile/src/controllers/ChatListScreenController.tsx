@@ -1,8 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { BRANCH_DOMAIN, BRANCH_KEY } from '@tloncorp/app/constants';
 import ChatListScreen from '@tloncorp/app/features/top/ChatListScreen';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { AppDataContextProvider } from 'packages/ui/src';
+import { AppDataContextProvider } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
 import AddGroupSheet from '../components/AddGroupSheet';
@@ -65,8 +66,14 @@ export function ChatListScreenController({
         navigateToProfile={() => {
           navigation.navigate('Profile');
         }}
+        branchDomain={BRANCH_DOMAIN}
+        branchKey={BRANCH_KEY}
       />
-      <AppDataContextProvider contacts={contacts ?? []}>
+      <AppDataContextProvider
+        contacts={contacts ?? []}
+        branchDomain={BRANCH_DOMAIN}
+        branchKey={BRANCH_KEY}
+      >
         <AddGroupSheet
           open={addGroupOpen}
           onOpenChange={handleAddGroupOpenChange}

@@ -49,6 +49,8 @@ export default function ChatListScreen({
   navigateToHome,
   navigateToNotifications,
   navigateToProfile,
+  branchDomain,
+  branchKey,
 }: {
   startDmOpen: boolean;
   setStartDmOpen: (open: boolean) => void;
@@ -59,6 +61,8 @@ export default function ChatListScreen({
   navigateToHome: () => void;
   navigateToNotifications: () => void;
   navigateToProfile: () => void;
+  branchDomain: string;
+  branchKey: string;
 }) {
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
@@ -232,6 +236,8 @@ export default function ChatListScreen({
       <AppDataContextProvider
         currentUserId={currentUser}
         contacts={contacts ?? []}
+        branchKey={branchKey}
+        branchDomain={branchDomain}
       >
         <RequestsProvider
           usePostReference={store.usePostReference}

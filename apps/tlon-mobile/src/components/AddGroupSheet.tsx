@@ -296,6 +296,7 @@ function InviteUsersScreen(
   props: NativeStackScreenProps<StackParamList, 'InviteUsers'>
 ) {
   const { contacts } = useContext(ActionContext);
+
   return (
     <ScreenWrapper>
       <AppDataContextProvider contacts={contacts ?? null}>

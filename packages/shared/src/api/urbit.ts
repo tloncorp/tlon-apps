@@ -4,7 +4,7 @@ import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '../debug';
 
-const logger = createDevLogger('urbit', false);
+const logger = createDevLogger('urbit', true);
 
 const config = {
   shipName: '',

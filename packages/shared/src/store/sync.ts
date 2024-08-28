@@ -12,6 +12,7 @@ import {
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
 import { ErrorReporter } from './errorReporting';
+import { useLureState } from './lure';
 import { updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
@@ -51,6 +52,7 @@ export const syncInitData = async (
   );
   reporter?.log('got init data from api');
   initializeJoinedSet(initData.unreads);
+  useLureState.getState().start();
 
   const writer = async () => {
     await db

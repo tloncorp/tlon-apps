@@ -289,7 +289,9 @@ export function GroupOptions({
               inviteAction,
               metadataAction,
             ]
-          : [goToMembersAction],
+          : group.privacy === 'public' || group.privacy === 'private'
+            ? [goToMembersAction, inviteAction]
+            : [goToMembersAction],
     });
 
     if (group && !group.currentUserIsHost) {
