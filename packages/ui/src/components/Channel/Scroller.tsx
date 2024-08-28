@@ -29,13 +29,11 @@ import {
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStyle, useTheme } from 'tamagui';
-import { View, XStack } from 'tamagui';
+import { View } from 'tamagui';
 
 import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
-import { Button } from '../Button';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
-import { Icon } from '../Icon';
 import { Modal } from '../Modal';
 import { ChannelDivider } from './ChannelDivider';
 
@@ -99,7 +97,6 @@ const Scroller = forwardRef(
       onPressRetry,
       onPressDelete,
       hasNewerPosts,
-      hasOlderPosts,
       activeMessage,
       setActiveMessage,
     }: {
@@ -124,10 +121,12 @@ const Scroller = forwardRef(
       onPressRetry: (post: db.Post) => void;
       onPressDelete: (post: db.Post) => void;
       hasNewerPosts?: boolean;
-      hasOlderPosts?: boolean;
       activeMessage: db.Post | null;
       setActiveMessage: (post: db.Post | null) => void;
       ref?: RefObject<{ scrollToIndex: (params: { index: number }) => void }>;
+
+      // Unused
+      hasOlderPosts?: boolean;
     },
     ref
   ) => {
@@ -560,31 +559,64 @@ const BaseScrollerItem = ({
     [onLayout, post, index]
   );
 
-  const unreadDivider = showUnreadDivider ? (
-    <ChannelDivider
-      post={post}
-      unreadCount={unreadCount ?? 0}
-      isFirstPostOfDay={showDayDivider}
-      channelInfo={{ id: channelId, type: channelType }}
-      index={index}
-    />
-  ) : null;
+  const dividerType = useMemo(() => {
+    switch (channelType) {
+      case 'chat':
+      // fallthrough
+      case 'dm':
+      // fallthrough
+      case 'groupDm':
+        if (showUnreadDivider) {
+          return 'unread';
+        }
+        if (showDayDivider) {
+          return 'day';
+        }
+        return null;
 
-  const dayDivider =
-    showDayDivider && !showUnreadDivider && channelType === 'chat' ? (
-      <ChannelDivider unreadCount={0} post={post} index={index} />
-    ) : null;
+      case 'gallery':
+      // fallthrough
+      case 'notebook':
+        return null;
+    }
+  }, [channelType, showUnreadDivider, showDayDivider]);
+
+  const divider = useMemo(() => {
+    switch (dividerType) {
+      case 'day':
+        return <ChannelDivider unreadCount={0} post={post} index={index} />;
+      case 'unread':
+        return (
+          <ChannelDivider
+            post={post}
+            unreadCount={unreadCount ?? 0}
+            isFirstPostOfDay={showDayDivider}
+            channelInfo={{ id: channelId, type: channelType }}
+            index={index}
+          />
+        );
+      case null:
+        return null;
+    }
+  }, [
+    dividerType,
+    post,
+    unreadCount,
+    showDayDivider,
+    channelId,
+    channelType,
+    index,
+  ]);
 
   return (
     <View
       onLayout={handleLayout}
-      {...(channelType === 'gallery' ? { aspectRatio: 1, flex: 0.5 } : {})}
+      {...useMemo(
+        () => (channelType === 'gallery' ? { aspectRatio: 1, flex: 0.5 } : {}),
+        [channelType]
+      )}
     >
-      {channelType === 'chat' ||
-      channelType === 'dm' ||
-      channelType === 'groupDm'
-        ? unreadDivider ?? dayDivider
-        : null}
+      {divider}
       <PressableMessage
         ref={messageRef}
         isActive={activeMessage?.id === post.id}
@@ -597,10 +629,10 @@ const BaseScrollerItem = ({
           editPost={editPost}
           showAuthor={showAuthor}
           showReplies={showReplies}
-          onPressReplies={post.isDeleted ? () => {} : onPressReplies}
-          onPressImage={post.isDeleted ? () => {} : onPressImage}
-          onLongPress={post.isDeleted ? () => {} : onLongPressPost}
-          onPress={post.isDeleted ? () => {} : onPressPost}
+          onPressReplies={post.isDeleted ? undefined : onPressReplies}
+          onPressImage={post.isDeleted ? undefined : onPressImage}
+          onLongPress={post.isDeleted ? undefined : onLongPressPost}
+          onPress={post.isDeleted ? undefined : onPressPost}
           onPressRetry={onPressRetry}
           onPressDelete={onPressDelete}
         />
@@ -654,31 +686,3 @@ const PressableMessage = React.memo(
     }
   )
 );
-
-const UnreadsButton = ({ onPress }: { onPress: () => void }) => {
-  return (
-    <XStack position="absolute" zIndex={50} bottom="5%" width="40%" left="30%">
-      <Button
-        backgroundColor="$positiveBackground"
-        paddingVertical="$s"
-        paddingHorizontal="$m"
-        borderRadius="$l"
-        width="100%"
-        alignItems="center"
-        justifyContent="center"
-        gap="$s"
-        onPress={onPress}
-        size="$s"
-      >
-        <Button.Text color="$positiveActionText">Scroll to latest</Button.Text>
-        <Icon
-          type="ArrowDown"
-          color="$positiveActionText"
-          width="$s"
-          height="$s"
-          size="$l"
-        />
-      </Button>
-    </XStack>
-  );
-};

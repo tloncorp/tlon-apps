@@ -1,5 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '@tloncorp/app/constants';
+import { getEasUpdateDisplay } from '@tloncorp/app/lib/platformHelpers';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   AppSetting,
@@ -12,7 +13,8 @@ import {
 } from '@tloncorp/ui';
 import { preSig } from '@urbit/aura';
 import * as Application from 'expo-application';
-import { useCallback } from 'react';
+import * as Updates from 'expo-updates';
+import { useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
@@ -24,6 +26,7 @@ const BUILD_VERSION = `${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${Applicatio
 
 export function AppInfoScreen(props: Props) {
   const { data: appInfo } = store.useAppInfo();
+  const easUpdateDisplay = useMemo(() => getEasUpdateDisplay(Updates), []);
 
   const onPressPreviewFeatures = useCallback(() => {
     props.navigation.navigate('FeatureFlags');
@@ -38,6 +41,7 @@ export function AppInfoScreen(props: Props) {
       <ScrollView>
         <YStack marginTop="$xl" marginHorizontal="$2xl" gap="$s">
           <AppSetting title="Build version" value={BUILD_VERSION} copyable />
+          <AppSetting title="OTA Update" value={easUpdateDisplay} copyable />
           <AppSetting
             title="Notify provider"
             value={preSig(NOTIFY_PROVIDER)}

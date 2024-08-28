@@ -42,6 +42,7 @@ export * from './components/GenericHeader';
 export * from './components/GroupChannelsScreenView';
 export * from './components/GroupMembersScreenView';
 export * from './components/GroupPreviewSheet';
+export * from './components/GroupPrivacySelector';
 export * from './components/Icon';
 export * from './components/MetaEditorScreenView';
 export * from './components/IconButton';

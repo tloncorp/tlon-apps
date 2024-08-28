@@ -128,6 +128,11 @@ export function RadioInputRow<T>({
         <LabelText size="$xl" color="$primaryText">
           {option.title}
         </LabelText>
+        {option.description ? (
+          <LabelText size="$m" color="$secondaryText">
+            {option.description}
+          </LabelText>
+        ) : null}
       </YStack>
     </RadioInputRowFrame>
   );

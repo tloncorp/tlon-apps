@@ -249,7 +249,7 @@ export default function ChatListScreen({
               setInviteSheetGroup(group);
             }}
           >
-            <View backgroundColor="$background" flex={1}>
+            <View flex={1}>
               <ScreenHeader
                 title={
                   !chats || (!chats.unpinned.length && !chats.pinned.length)

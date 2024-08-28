@@ -1,5 +1,6 @@
 import * as api from '../api';
 import * as db from '../db';
+import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { createSectionId } from '../urbit';
 import * as sync from './sync';
@@ -181,6 +182,39 @@ export async function markGroupNew(group: db.Group) {
 export async function markGroupVisited(group: db.Group) {
   logger.log('marking new group as visited', group.id);
   await db.updateGroup({ id: group.id, isNew: false });
+}
+
+export async function updateGroupPrivacy(
+  group: db.Group,
+  newPrivacy: GroupPrivacy
+) {
+  logger.log('updating group privacy', group.id, newPrivacy);
+
+  const oldPrivacy = group.privacy ?? 'public';
+
+  if (oldPrivacy === newPrivacy) {
+    return;
+  }
+
+  // optimistic update
+  await db.updateGroup({
+    id: group.id,
+    privacy: newPrivacy,
+  });
+
+  try {
+    await api.updateGroupPrivacy({
+      groupId: group.id,
+      oldPrivacy,
+      newPrivacy,
+    });
+  } catch (e) {
+    // rollback optimistic update
+    await db.updateGroup({
+      id: group.id,
+      privacy: oldPrivacy,
+    });
+  }
 }
 
 export async function updateGroupMeta(group: db.Group) {
