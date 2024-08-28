@@ -65,8 +65,6 @@ interface LureState {
 
 const lureLogger = createDevLogger('lure', true);
 
-// const LURE_REQUEST_TIMEOUT = 10 * 1000;
-
 function groupsDescribe(meta: GroupMeta) {
   return {
     tag: 'groups-0',
@@ -192,63 +190,6 @@ export const useLureState = create<LureState>(
           ),
         ]);
 
-        // const enabled = await subscribeOnce<boolean>({
-        // app: 'grouper',
-        // path: `/group-enabled/${flag}`,
-        // });
-        // .then((en) => {
-        // lureLogger.log(performance.now(), 'enabled fetched', en, flag);
-        // return en;
-        // });
-
-        // lureLogger.log('enabled fetched', enabled, flag);
-
-        // const url = '';
-        // const url = await subscribeOnce<string>({
-        // app: 'reel',
-        // path: `/token-link/${flag}`,
-        // });
-        // .then((u) => {
-        // lureLogger.log(performance.now(), 'url fetched', flag, 'url', u);
-        // if (!u) {
-        // return '';
-        // }
-        // return u;
-        // });
-        // lureLogger.log('url fetched', url, flag);
-
-        // const metadata = await scry<LureMetadata>({
-        // app: 'reel',
-        // path: `/metadata/${name}`,
-        // });
-        // lureLogger.log('metadata fetched', metadata, flag);
-        // .then((m) => {
-        // lureLogger.log(
-        // performance.now(),
-        // 'metadata fetched',
-        // flag,
-        // 'meta',
-        // m
-        // );
-        // return m;
-        // });
-
-        // const outstandingPoke = await scry<boolean>({
-        // app: 'reel',
-        // path: `/outstanding-poke/${flag}`,
-        // });
-        // lureLogger.log('outstanding-poke fetched', flag, outstandingPoke);
-        // .then((op) => {
-        // lureLogger.log(
-        // performance.now(),
-        // 'outstanding-poke fetched',
-        // flag,
-        // 'op',
-        // op
-        // );
-        // return op;
-        // });
-
         lureLogger.log(
           'fetched',
           flag,
@@ -268,6 +209,7 @@ export const useLureState = create<LureState>(
             branchDomain,
             branchKey
           );
+          lureLogger.log('deepLinkUrl created', deepLinkUrl);
         }
 
         set(
@@ -425,6 +367,8 @@ export function useLureLinkStatus({
 
     return 'ready';
   }, [supported, fetched, enabled, url, good, checked]);
+
+  lureLogger.log('url', url, 'deepLinkUrl', deepLinkUrl, 'status', status);
 
   return { status, shareUrl: deepLinkUrl ?? url, toggle };
 }

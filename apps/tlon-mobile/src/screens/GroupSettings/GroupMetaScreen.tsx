@@ -1,6 +1,8 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { BRANCH_DOMAIN, BRANCH_KEY } from '@tloncorp/app/constants';
 import { useGroupContext } from '@tloncorp/app/hooks/useGroupContext';
 import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/dist/store';
 import {
   AttachmentProvider,
@@ -24,13 +26,26 @@ export function GroupMetaScreen(props: GroupMetaScreenProps) {
   });
   const canUpload = useCanUpload();
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
+  const { enabled, describe } = store.useLure({
+    flag: groupId,
+    branchDomain: BRANCH_DOMAIN,
+    branchKey: BRANCH_KEY,
+  });
 
   const handleSubmit = useCallback(
     (data: db.ClientMeta) => {
       setGroupMetadata(data);
       props.navigation.goBack();
+      if (enabled) {
+        describe({
+          title: data.title ?? '',
+          description: data.description ?? '',
+          image: data.iconImage ?? '',
+          cover: data.coverImage ?? '',
+        });
+      }
     },
-    [setGroupMetadata, props.navigation]
+    [setGroupMetadata, props.navigation, enabled, describe]
   );
 
   const handlePressDelete = useCallback(() => {

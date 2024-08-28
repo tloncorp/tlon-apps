@@ -8,6 +8,7 @@ import { useBranchDomain, useBranchKey } from '../contexts';
 import { useCopy } from '../hooks/useCopy';
 import { Button } from './Button';
 import { ContactBook } from './ContactBook';
+import { LoadingSpinner } from './LoadingSpinner';
 
 const InviteUsersWidgetComponent = ({
   group,
@@ -83,6 +84,9 @@ const InviteUsersWidgetComponent = ({
     onInviteComplete();
   }, [onInviteComplete]);
 
+  console.log('status', status);
+  console.log('shareUrl', shareUrl);
+
   return (
     <YStack flex={1} gap="$2xl">
       <ContactBook
@@ -100,7 +104,11 @@ const InviteUsersWidgetComponent = ({
         }
       >
         {invitees.length === 0 ? (
-          <Button.Text>Invite friends that aren't on Tlon</Button.Text>
+          <Button.Text>
+            Invite friends that aren't on Tlon{' '}
+            {status === 'loading' ||
+              (typeof shareUrl !== 'string' && <LoadingSpinner />)}
+          </Button.Text>
         ) : (
           <Button.Text>Invite {invitees.length} and continue</Button.Text>
         )}

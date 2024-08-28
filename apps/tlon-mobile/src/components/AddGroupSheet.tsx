@@ -7,6 +7,7 @@ import {
   NativeStackScreenProps,
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
+import { BRANCH_DOMAIN, BRANCH_KEY } from '@tloncorp/app/constants';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import {
@@ -299,7 +300,11 @@ function InviteUsersScreen(
 
   return (
     <ScreenWrapper>
-      <AppDataContextProvider contacts={contacts ?? null}>
+      <AppDataContextProvider
+        branchKey={BRANCH_KEY}
+        branchDomain={BRANCH_DOMAIN}
+        contacts={contacts ?? null}
+      >
         <InviteUsersWidget
           group={props.route.params.group}
           onInviteComplete={props.route.params.onInviteComplete}
