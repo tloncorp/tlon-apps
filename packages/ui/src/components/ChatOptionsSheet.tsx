@@ -121,7 +121,7 @@ export function GroupOptions({
     onPressGroupMembers,
     onPressGroupMeta,
     onPressManageChannels,
-    onPressInvitesAndPrivacy,
+    onPressGroupPrivacy,
     onPressLeave,
     onTogglePinned,
   } = useChatOptions() ?? {};
@@ -242,7 +242,7 @@ export function GroupOptions({
       title: 'Privacy',
       action: () => {
         sheetRef.current.setOpen(false);
-        onPressInvitesAndPrivacy?.(group.id);
+        onPressGroupPrivacy?.(group.id);
       },
       endIcon: 'ChevronRight',
     };

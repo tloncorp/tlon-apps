@@ -14,10 +14,10 @@ import { GroupSettingsStackParamList } from '../../types';
 
 type InvitesAndPrivacyScreenProps = NativeStackScreenProps<
   GroupSettingsStackParamList,
-  'InvitesAndPrivacy'
+  'Privacy'
 >;
 
-export function InvitesAndPrivacyScreen(props: InvitesAndPrivacyScreenProps) {
+export function GroupPrivacyScreen(props: InvitesAndPrivacyScreenProps) {
   const { groupId } = props.route.params;
 
   const { group } = useGroupContext({ groupId });
