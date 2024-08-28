@@ -1,16 +1,47 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
+import { useCallback, useMemo } from 'react';
 import { SizableText, XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useReactionDetails } from '../../utils/postUtils';
 import { SizableEmoji } from '../Emoji/SizableEmoji';
 
-export function ReactionsDisplay({ post }: { post: db.Post }) {
+export function ReactionsDisplay({
+  post,
+  onViewPostReactions,
+}: {
+  post: db.Post;
+  onViewPostReactions?: (post: db.Post) => void;
+}) {
   const currentUserId = useCurrentUserId();
   const reactionDetails = useReactionDetails(
     post.reactions ?? [],
     currentUserId
+  );
+
+  const isOwnMessage = useMemo(
+    () => post.authorId === currentUserId,
+    [currentUserId, post.authorId]
+  );
+
+  const handleEmojiPress = useCallback(
+    (emojiValue: string) => {
+      if (
+        reactionDetails.self.didReact &&
+        emojiValue === reactionDetails.self.value
+      ) {
+        store.removePostReaction(post, currentUserId);
+      } else if (!reactionDetails.self.didReact) {
+        store.addPostReaction(post, emojiValue, currentUserId);
+      }
+    },
+    [
+      currentUserId,
+      post,
+      reactionDetails.self.didReact,
+      reactionDetails.self.value,
+    ]
   );
 
   if (reactionDetails.list.length === 0) {
@@ -18,7 +49,15 @@ export function ReactionsDisplay({ post }: { post: db.Post }) {
   }
 
   return (
-    <XStack paddingBottom="$m" paddingLeft="$4xl" borderRadius="$m" gap="$xs">
+    <XStack
+      paddingBottom="$m"
+      paddingLeft="$4xl"
+      borderRadius="$m"
+      gap="$xs"
+      onPress={() => onViewPostReactions?.(post)}
+      borderWidth={2}
+      borderColor="green"
+    >
       {reactionDetails.list.map((reaction) => (
         <XStack
           key={reaction.value}
@@ -41,8 +80,9 @@ export function ReactionsDisplay({ post }: { post: db.Post }) {
           borderWidth={1}
           gap={'$s'}
           disabled={
-            reactionDetails.self.didReact &&
-            reaction.value !== reactionDetails.self.value
+            isOwnMessage ||
+            (reactionDetails.self.didReact &&
+              reaction.value !== reactionDetails.self.value)
           }
           onPress={() =>
             reactionDetails.self.didReact

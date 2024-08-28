@@ -51,6 +51,7 @@ const ChatMessage = ({
   editing,
   editPost,
   setEditingPost,
+  setViewReactionsPost,
   isHighlighted,
 }: {
   post: db.Post;
@@ -67,6 +68,7 @@ const ChatMessage = ({
   editing?: boolean;
   editPost?: (post: db.Post, content: Story) => Promise<void>;
   setEditingPost?: (post: db.Post | undefined) => void;
+  setViewReactionsPost?: (post: db.Post) => void;
   isHighlighted?: boolean;
 }) => {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
@@ -232,7 +234,10 @@ const ChatMessage = ({
           </Text>
         </XStack>
       ) : null}
-      <ReactionsDisplay post={post} />
+      <ReactionsDisplay
+        post={post}
+        onViewPostReactions={setViewReactionsPost}
+      />
 
       {showReplies &&
       post.replyCount &&
