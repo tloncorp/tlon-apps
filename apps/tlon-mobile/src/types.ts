@@ -77,7 +77,7 @@ export type GroupSettingsStackParamList = {
   ManageChannels: {
     groupId: string;
   };
-  InvitesAndPrivacy: {
+  Privacy: {
     groupId: string;
   };
   GroupRoles: {

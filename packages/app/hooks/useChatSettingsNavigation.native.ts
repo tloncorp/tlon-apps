@@ -16,7 +16,7 @@ type GroupSettingsStackParamList = {
   ManageChannels: {
     groupId: string;
   };
-  InvitesAndPrivacy: {
+  Privacy: {
     groupId: string;
   };
   GroupRoles: {
@@ -65,9 +65,9 @@ export const useChatSettingsNavigation = () => {
     [navigateToGroupSettings]
   );
 
-  const onPressInvitesAndPrivacy = useCallback(
+  const onPressGroupPrivacy = useCallback(
     (groupId: string) => {
-      navigateToGroupSettings('InvitesAndPrivacy', { groupId });
+      navigateToGroupSettings('Privacy', { groupId });
     },
     [navigateToGroupSettings]
   );
@@ -99,7 +99,7 @@ export const useChatSettingsNavigation = () => {
     onPressGroupMeta,
     onPressGroupMembers,
     onPressManageChannels,
-    onPressInvitesAndPrivacy,
+    onPressGroupPrivacy,
     onPressRoles,
   };
 };
