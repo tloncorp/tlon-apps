@@ -15,6 +15,7 @@ import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener, {
   type Props as NotificationListenerProps,
 } from '../hooks/useNotificationListener';
+import { refreshHostingAuth } from '../lib/refreshHostingAuth';
 import { RootStack } from '../navigation/RootStack';
 
 export interface AuthenticatedAppProps {
@@ -57,6 +58,8 @@ function AuthenticatedApp({
       sync.syncUnreads({ priority: sync.SyncPriority.High });
       sync.syncPinnedItems({ priority: sync.SyncPriority.High });
     }
+
+    refreshHostingAuth();
   });
 
   return (
