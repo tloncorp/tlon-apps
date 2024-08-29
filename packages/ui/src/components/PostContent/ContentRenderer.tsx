@@ -425,12 +425,12 @@ function ShortenedContentRenderer({
     () =>
       inlines.length > 0
         ? inlines
+            .slice(0, firstInlineIsMention ? 2 : 1)
             .map((i) =>
               typeof i === 'string'
                 ? truncate(i, { length: 100, omission: '' })
                 : i
             )
-            .slice(0, firstInlineIsMention ? 2 : 1)
             .concat('...')
         : [],
     [firstInlineIsMention, inlines]
@@ -459,7 +459,7 @@ function BaseContentRenderer({
     if (!post.content) {
       return [];
     }
-    const content = convertContent(JSON.parse(post.content as string));
+    const content = convertContent(post.content);
     // We don't want to render nested references
     return viewMode === 'attachment'
       ? content.filter((b) => b.type !== 'reference')

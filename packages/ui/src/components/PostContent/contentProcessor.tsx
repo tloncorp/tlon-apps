@@ -133,9 +133,7 @@ export type PostContent = Block[];
  * The format is very loosely inspired by ProseMirror's internal representation,
  * and could be converted to be compatible pretty easily.
  */
-export function convertContent(
-  story: NonNullable<api.PostContent>
-): PostContent {
+export function convertContent(story: api.PostContent): PostContent {
   const blocks: PostContent = [];
 
   for (const verse of story) {

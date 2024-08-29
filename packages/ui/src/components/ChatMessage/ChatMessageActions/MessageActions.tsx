@@ -10,6 +10,8 @@ import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
 import { useCopy } from '../../../hooks/useCopy';
 import ActionList from '../../ActionList';
 
+const ENABLE_COPY_JSON = __DEV__;
+
 export default function MessageActions({
   dismiss,
   onReply,
@@ -53,7 +55,6 @@ export default function MessageActions({
       }
     });
   }, [post, channelType, currentUserId]);
-  const { doCopy, didCopy } = useCopy((post.content as string) ?? '');
 
   return (
     // arbitrary width that looks reasonable given labels
@@ -81,12 +82,20 @@ export default function MessageActions({
           {action.label}
         </ActionList.Action>
       ))}
-      {__DEV__ ? (
-        <ActionList.Action onPress={doCopy} last>
-          {!didCopy ? 'Copy post JSON' : 'Copied'}
-        </ActionList.Action>
-      ) : null}
+      {ENABLE_COPY_JSON ? <CopyJsonAction post={post} /> : null}
     </ActionList>
+  );
+}
+
+function CopyJsonAction({ post }: { post: db.Post }) {
+  const jsonString = useMemo(() => {
+    return JSON.stringify(post.content, null, 2);
+  }, [post.content]);
+  const { doCopy, didCopy } = useCopy(jsonString);
+  return (
+    <ActionList.Action onPress={doCopy} last>
+      {!didCopy ? 'Copy post JSON' : 'Copied'}
+    </ActionList.Action>
   );
 }
 

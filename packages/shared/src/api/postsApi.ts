@@ -38,8 +38,7 @@ import { poke, scry, subscribeOnce } from './urbit';
 const logger = createDevLogger('postsApi', false);
 
 export type Cursor = string | Date;
-export type PostContent = (ub.Verse | ContentReference)[] | null;
-export type PostContentAndFlags = [PostContent, db.PostFlags | null];
+export type PostContent = (ub.Verse | ContentReference)[];
 
 export function channelAction(
   nest: ub.Nest,
@@ -868,7 +867,7 @@ export function toPostData(
     image: metadata?.image ?? '',
     authorId: post.essay.author,
     isEdited: 'revision' in post && post.revision !== '0',
-    content: JSON.stringify(content),
+    content: content,
     textContent: getTextContent(post?.essay.content),
     sentAt: post.essay.sent,
     receivedAt: getReceivedAtFromId(id),
@@ -903,6 +902,7 @@ function getReplyData(
     toPostReplyData(channelId, postId, reply)
   );
 }
+
 export function toReplyMeta(meta?: ub.ReplyMeta | null): db.ReplyMeta | null {
   if (!meta) {
     return null;
@@ -933,7 +933,7 @@ export function toPostReplyData(
     isEdited: !!reply.revision && reply.revision !== '0',
     parentId: getCanonicalPostId(postId),
     reactions: toReactionsData(reply.seal.reacts, id),
-    content: JSON.stringify(content),
+    content: content,
     textContent: getTextContent(reply.memo.content),
     sentAt: reply.memo.sent,
     backendTime,
@@ -945,7 +945,9 @@ export function toPostReplyData(
   };
 }
 
-export function toPostContent(story?: ub.Story): PostContentAndFlags {
+export function toPostContent(
+  story?: ub.Story
+): [PostContent | null, db.PostFlags | null] {
   if (!story) {
     return [null, null];
   }
