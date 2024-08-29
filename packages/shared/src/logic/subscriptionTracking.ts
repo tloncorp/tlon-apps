@@ -20,7 +20,6 @@ export function getPreviewTracker(wait = DEFAULT_WAIT) {
     tracked,
     shouldLoad: (k: string) => {
       const { attempted, inProgress } = getPreviewTracking(k);
-      console.log('shouldLoad', k, attempted, inProgress);
       return isPastWaiting(attempted) && !inProgress;
     },
     newAttempt: (k: string) => {

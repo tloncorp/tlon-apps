@@ -63,7 +63,7 @@ interface LureState {
   start: () => Promise<void>;
 }
 
-const lureLogger = createDevLogger('lure', true);
+const lureLogger = createDevLogger('lure', false);
 
 function groupsDescribe(meta: GroupMeta) {
   return {

@@ -8,6 +8,7 @@ import {
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
 import { BRANCH_DOMAIN, BRANCH_KEY } from '@tloncorp/app/constants';
+import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import {
@@ -297,6 +298,7 @@ function InviteUsersScreen(
   props: NativeStackScreenProps<StackParamList, 'InviteUsers'>
 ) {
   const { contacts } = useContext(ActionContext);
+  const currentUserId = useCurrentUserId();
 
   return (
     <ScreenWrapper>
@@ -304,6 +306,7 @@ function InviteUsersScreen(
         branchKey={BRANCH_KEY}
         branchDomain={BRANCH_DOMAIN}
         contacts={contacts ?? null}
+        currentUserId={currentUserId}
       >
         <InviteUsersWidget
           group={props.route.params.group}

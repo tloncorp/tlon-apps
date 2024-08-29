@@ -1,10 +1,10 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Share } from 'react-native';
 import { YStack, isWeb } from 'tamagui';
 
-import { useBranchDomain, useBranchKey } from '../contexts';
+import { useBranchDomain, useBranchKey, useCurrentUserId } from '../contexts';
 import { useCopy } from '../hooks/useCopy';
 import { Button } from './Button';
 import { ContactBook } from './ContactBook';
@@ -18,6 +18,7 @@ const InviteUsersWidgetComponent = ({
   onInviteComplete: () => void;
 }) => {
   const [invitees, setInvitees] = useState<string[]>([]);
+  const currentUser = useCurrentUserId();
   const branchDomain = useBranchDomain();
   const branchKey = useBranchKey();
   const { status, shareUrl, toggle } = store.useLureLinkStatus({
@@ -26,6 +27,15 @@ const InviteUsersWidgetComponent = ({
     branchKey: branchKey,
   });
   const { doCopy } = useCopy(shareUrl);
+  const currentUserIsAdmin = useMemo(
+    () =>
+      group?.members?.some(
+        (m) =>
+          m.contactId === currentUser &&
+          m.roles?.some((r) => r.roleId === 'admin')
+      ) ?? false,
+    [currentUser, group?.members]
+  );
 
   const handleInviteButtonPress = useCallback(async () => {
     if (invitees.length === 0 && shareUrl && status === 'ready') {
@@ -75,17 +85,14 @@ const InviteUsersWidgetComponent = ({
         image: group.iconImage ?? '',
       });
     };
-    if (status === 'disabled') {
+    if (status === 'disabled' && currentUserIsAdmin) {
       toggleLink();
     }
-  }, [group, branchDomain, branchKey, toggle, status]);
+  }, [group, branchDomain, branchKey, toggle, status, currentUserIsAdmin]);
 
   const handleSkipButtonPress = useCallback(() => {
     onInviteComplete();
   }, [onInviteComplete]);
-
-  console.log('status', status);
-  console.log('shareUrl', shareUrl);
 
   return (
     <YStack flex={1} gap="$2xl">
@@ -103,14 +110,14 @@ const InviteUsersWidgetComponent = ({
           (status !== 'ready' || typeof shareUrl !== 'string')
         }
       >
-        {invitees.length === 0 ? (
-          <Button.Text>
-            Invite friends that aren't on Tlon{' '}
-            {status === 'loading' ||
-              (typeof shareUrl !== 'string' && <LoadingSpinner />)}
-          </Button.Text>
+        {invitees.length === 0 && status === 'ready' ? (
+          <Button.Text>Invite friends that aren't on Tlon</Button.Text>
         ) : (
-          <Button.Text>Invite {invitees.length} and continue</Button.Text>
+          <Button.Text>
+            {invitees.length === 0
+              ? 'Invite'
+              : `Invite ${invitees.length} and continue`}
+          </Button.Text>
         )}
       </Button>
       <Button hero secondary onPress={handleSkipButtonPress}>
