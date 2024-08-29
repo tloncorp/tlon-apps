@@ -50,11 +50,6 @@ export async function asyncWithDefault<T>(
   }
 }
 
-// for purging storage with version updates
-export function clearStorageMigration<T>() {
-  return {} as T;
-}
-
 export function getFlagParts(flag: string) {
   const parts = flag.split('/');
 
