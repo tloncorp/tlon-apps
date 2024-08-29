@@ -168,9 +168,6 @@ const useContentStyle = () => {
 const ActionSheetContentBlock = styled(View, {
   name: 'ActionSheetContentBlock',
   padding: '$xl',
-  // backgroundColor: 'green',
-  // borderBottomColor: 'yellow',
-  // borderBottomWidth: 1,
   variants: {
     form: {
       true: { paddingHorizontal: '$2xl' },
@@ -201,7 +198,6 @@ const ActionSheetActionGroupContext = createStyledContext<{
 const ActionSheetActionGroupFrame = styled(ActionSheetContentBlock, {
   name: 'ActionSheetActionGroupFrame',
   context: ActionSheetActionGroupContext,
-  borderWidth: 1,
   variants: {
     accent: {
       positive: {
