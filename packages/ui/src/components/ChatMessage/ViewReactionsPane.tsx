@@ -1,10 +1,10 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useMemo, useState } from 'react';
-import { ScrollView, View } from 'tamagui';
+import { useCallback, useMemo, useState } from 'react';
+import { View } from 'tamagui';
 
+import { triggerHaptic } from '../../utils';
 import { useGroupedReactions } from '../../utils/postUtils';
 import { ActionSheet } from '../ActionSheet';
-import { Button } from '../Button';
 import { getNativeEmoji } from '../Emoji';
 import { ToggleGroupInput } from '../Form';
 import { ContactListItem } from '../ListItem';
@@ -41,16 +41,20 @@ export function ViewReactionsPane({ post }: { post: db.Post }) {
     if (currentTab === 'all') {
       return allReactions;
     }
-
     return groupedReactions[currentTab];
   }, [currentTab, allReactions, groupedReactions]);
+
+  const handleTabPress = useCallback((newTab: string) => {
+    triggerHaptic('baseButtonClick');
+    setCurrentTab(newTab);
+  }, []);
 
   return (
     <View flex={1}>
       <ActionSheet.FormBlock paddingBottom={0}>
         <ToggleGroupInput
           value={currentTab}
-          onChange={setCurrentTab}
+          onChange={handleTabPress}
           options={tabs}
         />
       </ActionSheet.FormBlock>

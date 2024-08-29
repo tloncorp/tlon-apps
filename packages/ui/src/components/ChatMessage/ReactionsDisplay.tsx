@@ -1,8 +1,10 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
+import { useCallback } from 'react';
 import { SizableText, XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
+import { triggerHaptic } from '../../utils';
 import { useReactionDetails } from '../../utils/postUtils';
 import { SizableEmoji } from '../Emoji/SizableEmoji';
 
@@ -19,6 +21,24 @@ export function ReactionsDisplay({
     currentUserId
   );
 
+  const handleOpenReactions = useCallback(
+    (post: db.Post) => {
+      triggerHaptic('sheetOpen');
+      onViewPostReactions?.(post);
+    },
+    [onViewPostReactions]
+  );
+
+  const handleModifyYourReaction = useCallback(
+    (value: string) => {
+      triggerHaptic('baseButtonClick');
+      reactionDetails.self.didReact
+        ? store.removePostReaction(post, currentUserId)
+        : store.addPostReaction(post, value, currentUserId);
+    },
+    [currentUserId, post, reactionDetails.self.didReact]
+  );
+
   if (reactionDetails.list.length === 0) {
     return null;
   }
@@ -29,7 +49,7 @@ export function ReactionsDisplay({
       paddingLeft="$4xl"
       borderRadius="$m"
       gap="$xs"
-      onLongPress={() => onViewPostReactions?.(post)}
+      onLongPress={() => handleOpenReactions(post)}
     >
       {reactionDetails.list.map((reaction) => (
         <XStack
@@ -56,11 +76,8 @@ export function ReactionsDisplay({
             reactionDetails.self.didReact &&
             reaction.value !== reactionDetails.self.value
           }
-          onPress={() =>
-            reactionDetails.self.didReact
-              ? store.removePostReaction(post, currentUserId)
-              : store.addPostReaction(post, reaction.value, currentUserId)
-          }
+          onPress={() => handleModifyYourReaction(reaction.value)}
+          onLongPress={() => handleOpenReactions(post)}
         >
           <SizableEmoji
             key={reaction.value}
