@@ -1,66 +1,32 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useShip } from '@tloncorp/app/contexts/ship';
-import { setEulaAgreed } from '@tloncorp/app/utils/eula';
-import {
-  Button,
-  GenericHeader,
-  SizableText,
-  Text,
-  View,
-  YStack,
-} from '@tloncorp/ui';
-import { useCallback } from 'react';
+import { GenericHeader, SizableText, View, YStack } from '@tloncorp/ui';
 import { ScrollView } from 'react-native';
 
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'EULA'>;
 
-export const EULAScreen = ({
-  navigation,
-  route: { params: routeParams },
-}: Props) => {
-  const { setShip } = useShip();
-
-  const handleAgree = useCallback(() => {
-    setEulaAgreed();
-    if ('email' in routeParams) {
-      // User is in sign up flow
-      navigation.navigate('SignUpPassword', routeParams);
-    } else {
-      // User is in login flow
-      const { shipId, shipUrl, authCookie } = routeParams;
-      setShip({
-        ship: shipId,
-        shipUrl,
-        authCookie,
-      });
-    }
-  }, [navigation, routeParams, setShip]);
-
+export const EULAScreen = ({ navigation }: Props) => {
   return (
     <View flex={1}>
       <GenericHeader
         title="EULA"
         showSessionStatus={false}
         goBack={() => navigation.goBack()}
-        rightContent={
-          <Button minimal onPress={handleAgree}>
-            <Text fontSize="$m">I Agree</Text>
-          </Button>
-        }
       />
       <ScrollView style={{ flex: 1 }}>
         <YStack gap="$xl" padding="$2xl">
           <SizableText>
             End-User License Agreement (&ldquo;Agreement&rdquo;)
           </SizableText>
-          <SizableText>Our EULA was last updated on Oct 6, 2023</SizableText>
+          <SizableText>
+            Our EULA was last updated on August 29, 2024
+          </SizableText>
 
           <SizableText>
             Please read this End-User License Agreement carefully before
-            clicking the &ldquo;I Agree&rdquo; button, downloading or using
-            Tlon.
+            checking the &ldquo;I have read and agree to the End User License
+            Agreement&rdquo; checkbox, downloading or using Tlon.
           </SizableText>
 
           <SizableText>Interpretation and Definitions</SizableText>
