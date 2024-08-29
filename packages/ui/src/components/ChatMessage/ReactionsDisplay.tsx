@@ -55,8 +55,6 @@ export function ReactionsDisplay({
       borderRadius="$m"
       gap="$xs"
       onPress={() => onViewPostReactions?.(post)}
-      borderWidth={2}
-      borderColor="green"
     >
       {reactionDetails.list.map((reaction) => (
         <XStack

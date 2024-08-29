@@ -8,6 +8,7 @@ import { getNativeEmoji } from '../Emoji';
 import { ListItem } from '../ListItem';
 import { Sheet, SheetHeader } from '../Sheet';
 import { Emoji } from '../TrimmedText';
+import { ViewReactionsPane } from './ViewReactionsPane';
 
 export function ViewReactionsSheet({
   post,
@@ -28,6 +29,8 @@ export function ViewReactionsSheet({
       onOpenChange={onOpenChange}
       animation="quick"
       dismissOnSnapToBottom
+      snapPointsMode="percent"
+      snapPoints={[60]}
     >
       <Sheet.LazyFrame padding="$l">
         <Sheet.Overlay />
@@ -36,16 +39,7 @@ export function ViewReactionsSheet({
             <SizableText>Reactions</SizableText>
           </SheetHeader.Title>
         </SheetHeader>
-        <ScrollView>
-          {details.list.map((reaction) => (
-            <ListItem key={reaction.users[0]}>
-              <Emoji size="$m">{getNativeEmoji(reaction.value)}</Emoji>
-              <ListItem.EndContent>
-                <ContactName userId={reaction.users[0]} showNickname flex={1} />
-              </ListItem.EndContent>
-            </ListItem>
-          ))}
-        </ScrollView>
+        <ViewReactionsPane post={post} />
       </Sheet.LazyFrame>
     </Sheet>
   );
