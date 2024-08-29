@@ -17,7 +17,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { CountryPicker } from 'react-native-country-codes-picker';
 import PhoneInput from 'react-native-phone-input';
 
-import type { OnboardingStackParamList } from '../types';
+import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<
   OnboardingStackParamList,
@@ -80,6 +80,7 @@ export const RequestPhoneVerifyScreen = ({
     <View flex={1} padding="$l" backgroundColor="$background">
       <GenericHeader
         title="Confirm"
+        showSessionStatus={false}
         goBack={() => navigation.goBack()}
         showSpinner={isSubmitting}
         rightContent={

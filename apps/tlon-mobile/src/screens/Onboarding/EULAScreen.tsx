@@ -12,7 +12,7 @@ import {
 import { useCallback } from 'react';
 import { ScrollView } from 'react-native';
 
-import type { OnboardingStackParamList } from '../types';
+import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'EULA'>;
 
@@ -42,6 +42,7 @@ export const EULAScreen = ({
     <View flex={1}>
       <GenericHeader
         title="EULA"
+        showSessionStatus={false}
         goBack={() => navigation.goBack()}
         rightContent={
           <Button minimal onPress={handleAgree}>
@@ -50,7 +51,7 @@ export const EULAScreen = ({
         }
       />
       <ScrollView style={{ flex: 1 }}>
-        <YStack gap="$xl" padding="$xl">
+        <YStack gap="$xl" padding="$2xl">
           <SizableText>
             End-User License Agreement (&ldquo;Agreement&rdquo;)
           </SizableText>

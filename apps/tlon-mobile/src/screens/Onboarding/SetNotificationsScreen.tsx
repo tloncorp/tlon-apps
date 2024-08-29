@@ -11,7 +11,7 @@ import {
   YStack,
 } from '@tloncorp/ui';
 
-import type { OnboardingStackParamList } from '../types';
+import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<
   OnboardingStackParamList,
@@ -38,6 +38,7 @@ export const SetNotificationsScreen = ({
     <View flex={1}>
       <GenericHeader
         title="Notifications"
+        showSessionStatus={false}
         rightContent={
           <Button minimal onPress={() => goToNext()}>
             <Text fontSize={'$m'}>Skip</Text>

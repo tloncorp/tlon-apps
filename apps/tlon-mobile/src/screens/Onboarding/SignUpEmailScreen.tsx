@@ -17,11 +17,11 @@ import {
   YStack,
 } from '@tloncorp/ui';
 import { Field } from '@tloncorp/ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Controller } from 'react-hook-form';
 
-import type { OnboardingStackParamList } from '../types';
+import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignUpEmail'>;
 
@@ -48,6 +48,22 @@ export const SignUpEmailScreen = ({
     trigger,
   } = useForm<FormData>();
 
+  const hostingCheck = async () => {
+    try {
+      const { enabled } = await getHostingAvailability({
+        lure,
+        priorityToken,
+      });
+      return enabled;
+    } catch (err) {
+      console.error('Error checking hosting availability:', err);
+      if (err instanceof Error) {
+        trackError(err);
+      }
+      return false;
+    }
+  };
+
   const onSubmit = handleSubmit(async ({ email }) => {
     setIsSubmitting(true);
 
@@ -64,7 +80,7 @@ export const SignUpEmailScreen = ({
         setError('email', {
           type: 'custom',
           message:
-            'This email address is ineligible for signup. Please contact support@tlon.io',
+            'This email address is ineligible for signup. Please contact support@tlon.io.',
         });
         trackError({ message: 'Ineligible email address' });
       } else {
@@ -89,10 +105,15 @@ export const SignUpEmailScreen = ({
     setIsSubmitting(false);
   });
 
+  useEffect(() => {
+    hostingCheck();
+  }, []);
+
   return (
     <View flex={1}>
       <GenericHeader
         title="Sign Up"
+        showSessionStatus={false}
         goBack={() => navigation.goBack()}
         showSpinner={isSubmitting}
         rightContent={
@@ -103,11 +124,22 @@ export const SignUpEmailScreen = ({
           )
         }
       />
-      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
+      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
         <YStack gap="$2xl" padding="$2xl">
+          <SizableText color="$primaryText" size="$xl">
+            Pain-free P2P
+          </SizableText>
           <SizableText color="$primaryText">
-            Hosting with Tlon makes running your Urbit easy and reliable. Sign
-            up for a free account and your very own Urbit ID.
+            Tlon operates on a peer-to-peer network. Practically, this means
+            your free account is a cloud computer. You can run it yourself, or
+            we can run it for you.
+          </SizableText>
+          <SizableText color="$primaryText">
+            We&rsquo;ll make sure it&rsquo;s online and up-to-date. Interested
+            in self-hosting? You can always change your mind.
+          </SizableText>
+          <SizableText color="$primaryText">
+            Sign up with your email address to get started.
           </SizableText>
           <Controller
             control={control}

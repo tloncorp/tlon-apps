@@ -24,7 +24,7 @@ import {
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
-import type { OnboardingStackParamList } from '../types';
+import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignUpPassword'>;
 
@@ -145,6 +145,7 @@ export const SignUpPasswordScreen = ({
     <View flex={1}>
       <GenericHeader
         title="Set Password"
+        showSessionStatus={false}
         goBack={() => navigation.goBack()}
         showSpinner={isSubmitting}
         rightContent={
