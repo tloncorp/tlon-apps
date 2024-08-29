@@ -11,14 +11,22 @@ export function GenericHeader({
   goBack,
   showSpinner,
   rightContent,
+  showSessionStatus,
 }: {
   title?: string;
   goBack?: () => void;
   showSpinner?: boolean;
   rightContent?: React.ReactNode;
+  showSessionStatus?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const currentSession = useCurrentSession();
+  const textColor =
+    showSessionStatus === false
+      ? '$primaryText'
+      : currentSession
+        ? '$primaryText'
+        : '$tertiaryText';
 
   return (
     <View paddingTop={insets.top}>
@@ -50,7 +58,7 @@ export function GenericHeader({
               <SizableText
                 flexShrink={1}
                 numberOfLines={1}
-                color={currentSession ? '$primaryText' : '$tertiaryText'}
+                color={textColor}
                 size="$m"
                 fontWeight="$xl"
               >
@@ -66,7 +74,7 @@ export function GenericHeader({
               <SizableText
                 flexShrink={1}
                 numberOfLines={1}
-                color={currentSession ? '$primaryText' : '$tertiaryText'}
+                color={textColor}
                 size="$m"
                 fontWeight="$xl"
               >
