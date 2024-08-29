@@ -180,8 +180,13 @@ export const subscribeOnce = async <T>(
   endpoint: UrbitEndpoint,
   timeout?: number
 ) => {
+  if (!clientInstance) {
+    throw new Error(
+      'Tried to subscribe once, but Urbit client is not initialized'
+    );
+  }
   logger.log('subscribing once to', printEndpoint(endpoint));
-  return client.subscribeOnce<T>(endpoint.app, endpoint.path, timeout);
+  return clientInstance.subscribeOnce<T>(endpoint.app, endpoint.path, timeout);
 };
 
 export const configureApi = (shipName: string, shipUrl: string) => {
