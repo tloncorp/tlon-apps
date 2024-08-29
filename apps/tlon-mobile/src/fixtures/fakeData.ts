@@ -1,3 +1,4 @@
+import { PostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { getTextContent } from '@tloncorp/shared/dist/urbit';
 import type { Story } from '@tloncorp/shared/dist/urbit/channel';
@@ -10,12 +11,12 @@ const makeRandomGenerator = (seed: string = '') => {
 };
 const random = makeRandomGenerator();
 
-export const createSimpleContent = (str: string): string => {
-  return JSON.stringify([
+export const createSimpleContent = (str: string): PostContent => {
+  return [
     {
       inline: [str],
     },
-  ] as Story);
+  ] as Story;
 };
 
 export const createContentWithMention = (
@@ -25,22 +26,22 @@ export const createContentWithMention = (
   const beforeOrAfter = random() < 0.5 ? 'before' : 'after';
 
   if (beforeOrAfter === 'before') {
-    return JSON.stringify([
+    return [
       {
         inline: [{ ship: contactId }, ' ' + str],
       },
-    ] as Story);
+    ];
   }
 
-  return JSON.stringify([
+  return [
     {
       inline: [str + ' ', { ship: contactId }],
     },
-  ] as Story);
+  ] as Story;
 };
 
-export const createImageContent = (url: string): string => {
-  return JSON.stringify([
+export const createImageContent = (url: string): PostContent => {
+  return [
     {
       block: {
         image: {
@@ -50,11 +51,11 @@ export const createImageContent = (url: string): string => {
         },
       },
     },
-  ] as Story);
+  ] as Story;
 };
 
-export const createMentionContent = (contactId: string): string => {
-  return JSON.stringify([
+export const createMentionContent = (contactId: string): PostContent => {
+  return [
     {
       inline: [
         {
@@ -62,11 +63,11 @@ export const createMentionContent = (contactId: string): string => {
         },
       ],
     },
-  ] as Story);
+  ];
 };
 
-export const createCodeContent = (code: string): string => {
-  return JSON.stringify([
+export const createCodeContent = (code: string): PostContent => {
+  return [
     {
       inline: [
         {
@@ -74,11 +75,14 @@ export const createCodeContent = (code: string): string => {
         },
       ],
     },
-  ] as Story);
+  ];
 };
 
-export const createBlockquoteContent = (str: string, str2?: string): string => {
-  return JSON.stringify([
+export const createBlockquoteContent = (
+  str: string,
+  str2: string
+): PostContent => {
+  return [
     {
       inline: [
         {
@@ -87,7 +91,7 @@ export const createBlockquoteContent = (str: string, str2?: string): string => {
         str2,
       ],
     },
-  ] as Story);
+  ];
 };
 
 //prettier-ignore
@@ -287,8 +291,7 @@ export const tlonLocalIntros: db.Channel = {
     hasImage: null,
     image: null,
     receivedAt: 0,
-    textContent:
-      getTextContent(JSON.parse(createSimpleContent('hello'))) ?? null,
+    textContent: getTextContent(createSimpleContent('hello')) ?? null,
     hasAppReference: null,
     hasChannelReference: null,
     hasGroupReference: null,
@@ -324,7 +327,7 @@ export const tlonLocalWaterCooler: db.Channel = {
     hasImage: null,
     image: null,
     receivedAt: 0,
-    textContent: getTextContent(JSON.parse(createSimpleContent('hey'))) ?? null,
+    textContent: getTextContent(createSimpleContent('hey')) ?? null,
     hasAppReference: null,
     hasChannelReference: null,
     hasGroupReference: null,
@@ -360,7 +363,7 @@ export const tlonLocalSupport: db.Channel = {
     hasImage: null,
     image: null,
     receivedAt: 0,
-    textContent: getTextContent(JSON.parse(createSimpleContent('sup'))) ?? null,
+    textContent: getTextContent(createSimpleContent('sup')) ?? null,
     hasAppReference: null,
     hasChannelReference: null,
     hasGroupReference: null,
@@ -396,7 +399,7 @@ export const tlonLocalBulletinBoard: db.Channel = {
     hasImage: null,
     image: null,
     receivedAt: 0,
-    textContent: getTextContent(JSON.parse(createSimpleContent('yo'))) ?? null,
+    textContent: getTextContent(createSimpleContent('yo')) ?? null,
     hasAppReference: null,
     hasChannelReference: null,
     hasGroupReference: null,
@@ -431,7 +434,7 @@ export const tlonLocalCommunityCatalog: db.Channel = {
     hasImage: null,
     image: null,
     receivedAt: 0,
-    textContent: getTextContent(JSON.parse(createSimpleContent('lol'))) ?? null,
+    textContent: getTextContent(createSimpleContent('lol')) ?? null,
     hasAppReference: null,
     hasChannelReference: null,
     hasGroupReference: null,
@@ -466,7 +469,7 @@ export const tlonLocalGettingStarted: db.Channel = {
     hasImage: null,
     image: null,
     receivedAt: 0,
-    textContent: getTextContent(JSON.parse(createSimpleContent('hi'))) ?? null,
+    textContent: getTextContent(createSimpleContent('hi')) ?? null,
     hasAppReference: null,
     hasChannelReference: null,
     hasGroupReference: null,
@@ -637,7 +640,7 @@ export const fakeStrings: string[] = [
   'Consectetur est laborum ut. Exercitation sit ad non. Adipisicing irure in laborum. Exercitation laborum laborum ad. Aute labore do in. Exercitation dolor ad laborum. Consectetur in non laborum.',
 ];
 
-const getRandomFakeContent = () => {
+const getRandomFakeContent = (): PostContent => {
   const fakeTextContent = pickRandom(fakeStrings);
 
   // randomly add an image
@@ -667,7 +670,7 @@ const getRandomFakeContact = () => {
 
 export const createFakePost = (
   type?: db.PostType,
-  content?: string,
+  content?: PostContent,
   image?: string
 ): db.Post => {
   const fakeContact = getRandomFakeContact();
@@ -677,11 +680,11 @@ export const createFakePost = (
     new Date().getTime() - Math.floor(random() * 10000000)
   ).getTime();
 
-  const fakeRandomContent = getRandomFakeContent() as unknown as string;
+  const fakeRandomContent = getRandomFakeContent();
   const contentOrFake = content ?? fakeRandomContent;
   const fakeImage = image ? createImageContent(image) : null;
 
-  const textContent = getTextContent(JSON.parse(contentOrFake)) ?? null;
+  const textContent = getTextContent(contentOrFake) ?? null;
   const id = formatUd(unixToDa(randomSentAtSameDay));
   return {
     id: `${id}`,

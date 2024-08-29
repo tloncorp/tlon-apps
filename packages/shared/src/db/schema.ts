@@ -8,6 +8,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
+import { PostContent } from '../api';
 import { ExtendedEventType, NotificationLevel, Rank } from '../urbit';
 
 const boolean = (name: string) => {
@@ -753,7 +754,7 @@ export const posts = sqliteTable(
       .notNull(),
     title: text('title'),
     image: text('image'),
-    content: text('content', { mode: 'json' }),
+    content: text('content', { mode: 'json' }).$type<PostContent>(),
     receivedAt: timestamp('received_at').notNull(),
     sentAt: timestamp('sent_at').unique().notNull(),
     // client-side time

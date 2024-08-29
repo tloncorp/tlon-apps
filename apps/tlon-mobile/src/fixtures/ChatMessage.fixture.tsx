@@ -1,6 +1,7 @@
 // tamagui-ignore
 import { faker } from '@faker-js/faker';
 import { useQuery } from '@tanstack/react-query';
+import { PostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import {
   AppDataContextProvider,
@@ -44,10 +45,10 @@ const exampleContacts = {
 
 const makePost = (
   contact: db.Contact,
-  content: unknown,
+  content: PostContent,
   extra?: Partial<db.Post>
 ) => {
-  const post = createFakePost('chat', JSON.stringify(content));
+  const post = createFakePost('chat', content);
   post.authorId = contact.id;
   post.author = contact;
   return { ...post, reactions: [], ...extra };

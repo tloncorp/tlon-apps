@@ -44,10 +44,9 @@ export default function GalleryDetailView({
 
   if (!isImage && !isText && !isReference && !isRefInText) {
     // This should never happen, but if it does, we should log it
-    const content = JSON.parse(post.content as string);
     console.log('Unsupported post type', {
       post,
-      content,
+      content: post.content,
     });
 
     return (
