@@ -178,7 +178,7 @@ const ListItemCount = ({
       {...rest}
     >
       {muted ? (
-        <Icon type="Mute" customSize={[18, 18]} color="$tertiaryText" />
+        <Icon type="Muted" customSize={[18, 18]} color="$tertiaryText" />
       ) : (
         <ListItemCountNumber hidden={!!(muted || count < 1)}>
           {numberWithMax(count, 99)}

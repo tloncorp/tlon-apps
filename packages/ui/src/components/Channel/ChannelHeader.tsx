@@ -63,7 +63,7 @@ export function ChannelHeader({
                 borderColor="transparent"
                 onPress={handlePressOverflowMenu}
               >
-                <Icon type="Dots" />
+                <Icon type="Overflow" />
               </Button>
             )}
           </>
