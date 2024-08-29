@@ -14,7 +14,9 @@ import {
   CheckboxInput,
   Field,
   GenericHeader,
+  Icon,
   KeyboardAvoidingView,
+  ListItem,
   SizableText,
   Text,
   TextInput,
@@ -69,6 +71,10 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     }
     return true;
   }, []);
+
+  const handleEula = () => {
+    navigation.navigate('EULA');
+  };
 
   const onSubmit = handleSubmit(async (params) => {
     const { shipUrl: rawShipUrl, accessCode } = params;
@@ -225,6 +231,14 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
               />
             )}
           />
+          <ListItem onPress={handleEula}>
+            <ListItem.MainContent>
+              <ListItem.Title>End User License Agreement</ListItem.Title>
+            </ListItem.MainContent>
+            <ListItem.EndContent>
+              <Icon type="ChevronRight" color="$primaryText" />
+            </ListItem.EndContent>
+          </ListItem>
         </YStack>
       </KeyboardAvoidingView>
     </View>
