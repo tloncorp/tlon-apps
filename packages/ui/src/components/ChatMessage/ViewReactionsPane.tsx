@@ -1,17 +1,16 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, XStack } from 'tamagui';
+import { ScrollView, View } from 'tamagui';
 
 import { useGroupedReactions } from '../../utils/postUtils';
+import { ActionSheet } from '../ActionSheet';
 import { Button } from '../Button';
-import ContactName from '../ContactName';
 import { getNativeEmoji } from '../Emoji';
-import { ListItem } from '../ListItem';
+import { ToggleGroupInput } from '../Form';
+import { ContactListItem } from '../ListItem';
 import { Emoji } from '../TrimmedText';
 
 export function ViewReactionsPane({ post }: { post: db.Post }) {
-  const insets = useSafeAreaInsets();
   const groupedReactions = useGroupedReactions(post.reactions ?? []);
 
   const allReactions = useMemo(() => {
@@ -23,8 +22,18 @@ export function ViewReactionsPane({ post }: { post: db.Post }) {
   }, [groupedReactions]);
 
   const tabs = useMemo(() => {
-    const emojis = Object.keys(groupedReactions);
-    return ['all', ...emojis];
+    const tabValues = ['all', ...Object.keys(groupedReactions)];
+    return tabValues.map((tabVal) => {
+      return {
+        value: tabVal,
+        label:
+          tabVal === 'all' ? (
+            'All'
+          ) : (
+            <Emoji size="$m">{getNativeEmoji(tabVal)}</Emoji>
+          ),
+      };
+    });
   }, [groupedReactions]);
 
   const [currentTab, setCurrentTab] = useState('all');
@@ -37,59 +46,33 @@ export function ViewReactionsPane({ post }: { post: db.Post }) {
   }, [currentTab, allReactions, groupedReactions]);
 
   return (
-    <View>
-      <ScrollView
-        // flexShrink={1}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        // contentContainerStyle={{
-        //   flexGrow: 1,
-        //   justifyContent: 'center',
-        // }}
-        // borderWidth={3}
-        // contentContainerStyle={{
-        //   // flexShrink: 1,
-        //   justifyContent: 'center',
-        //   alignItems: 'center',
-        // }}
-      >
-        {tabs.map((tab, index) => (
-          <Button
-            flexShrink={1}
-            key={tab}
-            onPress={() => setCurrentTab(tab)}
-            paddingHorizontal="$xl"
-            paddingVertical="$m"
-            // marginHorizontal="$s"
-            borderTopRightRadius={index === tabs.length - 1 ? undefined : 0}
-            borderBottomRightRadius={index === tabs.length - 1 ? undefined : 0}
-            borderTopLeftRadius={index === 0 ? undefined : 0}
-            borderBottomLeftRadius={index === 0 ? undefined : 0}
-            borderLeftWidth={index === 0 ? 'unset' : 0}
-            backgroundColor={
-              currentTab === tab ? '$secondaryBackground' : 'unset'
-            }
-          >
-            {tab === 'all' ? (
-              <Button.Text>All</Button.Text>
-            ) : (
-              <Emoji size="$m">{getNativeEmoji(tab)}</Emoji>
-            )}
-          </Button>
-        ))}
-      </ScrollView>
-      <ScrollView paddingTop="$xl">
-        {tabData.map((reaction) => (
-          <ListItem key={reaction.userId} paddingHorizontal={0}>
-            <View flexGrow={1}>
-              <ContactName userId={reaction.userId} showNickname flex={1} />
-            </View>
-            <View flexShrink={1}>
-              <Emoji size="$m">{getNativeEmoji(reaction.value)}</Emoji>
-            </View>
-          </ListItem>
-        ))}
-      </ScrollView>
+    <View flex={1}>
+      <ActionSheet.FormBlock paddingBottom={0}>
+        <ToggleGroupInput
+          value={currentTab}
+          onChange={setCurrentTab}
+          options={tabs}
+        />
+      </ActionSheet.FormBlock>
+      <ActionSheet.ScrollableContent paddingTop="$xl">
+        <ActionSheet.FormBlock flex={1}>
+          <ActionSheet.ActionGroupContent borderWidth={0}>
+            {tabData.map((reaction) => (
+              <ContactListItem
+                size="$4xl"
+                key={reaction.userId}
+                contactId={reaction.userId}
+                showNickname
+                showUserId
+                showEndContent
+                endContent={
+                  <Emoji size="$m">{getNativeEmoji(reaction.value)}</Emoji>
+                }
+              ></ContactListItem>
+            ))}
+          </ActionSheet.ActionGroupContent>
+        </ActionSheet.FormBlock>
+      </ActionSheet.ScrollableContent>
     </View>
   );
 }

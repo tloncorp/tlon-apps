@@ -1,7 +1,8 @@
 import React, { ComponentProps, ReactElement } from 'react';
 import { TextInput as BaseTextInput } from 'react-native';
-import { View, XStack, YStack, styled } from 'tamagui';
+import { ScrollView, View, XStack, YStack, styled } from 'tamagui';
 
+import { Button } from '../Button';
 import { Icon, IconType } from '../Icon';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
@@ -42,6 +43,55 @@ export const TextInput = React.memo(
     }
   )
 );
+
+// Toggle group
+
+export const ToggleGroupInput = ({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: string; label: string | React.ReactNode }[];
+  value: string;
+  onChange: (value: string) => void;
+}) => {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      borderWidth={1}
+      borderColor="$border"
+      borderRadius="$l"
+      contentContainerStyle={{
+        flexGrow: 1,
+      }}
+    >
+      <XStack minWidth="100%">
+        {options.map((tab, index) => (
+          <Button
+            flex={1}
+            minWidth={75}
+            key={tab.value}
+            onPress={() => onChange(tab.value)}
+            padding="$xl"
+            borderWidth={0}
+            borderRadius={0}
+            borderRightWidth={index !== options.length - 1 ? 1 : 0}
+            backgroundColor={
+              value === tab.value ? '$secondaryBackground' : 'unset'
+            }
+          >
+            {typeof tab.label === 'string' ? (
+              <Button.Text size="$l">{tab.label}</Button.Text>
+            ) : (
+              tab.label
+            )}
+          </Button>
+        ))}
+      </XStack>
+    </ScrollView>
+  );
+};
 
 // Radio input
 

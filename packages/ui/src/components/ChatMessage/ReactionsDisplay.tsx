@@ -1,6 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { useCallback, useMemo } from 'react';
 import { SizableText, XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -20,30 +19,6 @@ export function ReactionsDisplay({
     currentUserId
   );
 
-  const isOwnMessage = useMemo(
-    () => post.authorId === currentUserId,
-    [currentUserId, post.authorId]
-  );
-
-  const handleEmojiPress = useCallback(
-    (emojiValue: string) => {
-      if (
-        reactionDetails.self.didReact &&
-        emojiValue === reactionDetails.self.value
-      ) {
-        store.removePostReaction(post, currentUserId);
-      } else if (!reactionDetails.self.didReact) {
-        store.addPostReaction(post, emojiValue, currentUserId);
-      }
-    },
-    [
-      currentUserId,
-      post,
-      reactionDetails.self.didReact,
-      reactionDetails.self.value,
-    ]
-  );
-
   if (reactionDetails.list.length === 0) {
     return null;
   }
@@ -54,7 +29,7 @@ export function ReactionsDisplay({
       paddingLeft="$4xl"
       borderRadius="$m"
       gap="$xs"
-      onPress={() => onViewPostReactions?.(post)}
+      onLongPress={() => onViewPostReactions?.(post)}
     >
       {reactionDetails.list.map((reaction) => (
         <XStack
@@ -78,9 +53,8 @@ export function ReactionsDisplay({
           borderWidth={1}
           gap={'$s'}
           disabled={
-            isOwnMessage ||
-            (reactionDetails.self.didReact &&
-              reaction.value !== reactionDetails.self.value)
+            reactionDetails.self.didReact &&
+            reaction.value !== reactionDetails.self.value
           }
           onPress={() =>
             reactionDetails.self.didReact

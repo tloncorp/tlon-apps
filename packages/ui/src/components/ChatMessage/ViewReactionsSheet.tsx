@@ -23,15 +23,14 @@ export function ViewReactionsSheet({
       open={open}
       onOpenChange={onOpenChange}
       snapPointsMode="percent"
-      snapPoints={[60]}
+      snapPoints={[70]}
     >
       <ActionSheet.SimpleHeader
         title="Reactions"
-        // subtitle={`${reactionCount} people reacted`}
+        subtitle={`${reactionCount} people reacted`}
       />
-      <ActionSheet.ContentBlock>
-        <ViewReactionsPane post={post} />
-      </ActionSheet.ContentBlock>
+
+      <ViewReactionsPane post={post} />
     </ActionSheet>
   );
 }

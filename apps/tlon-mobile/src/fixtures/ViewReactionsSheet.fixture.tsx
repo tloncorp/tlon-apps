@@ -1,14 +1,38 @@
+import * as db from '@tloncorp/shared/dist/db';
+import { AppDataContextProvider } from 'packages/ui/src';
 import { ViewReactionsSheet } from 'packages/ui/src/components/ChatMessage/ViewReactionsSheet';
 
-import { createFakePosts } from './fakeData';
+import {
+  brianContact,
+  createFakePosts,
+  createFakeReactions,
+  danContact,
+  edContact,
+  hunterContact,
+} from './fakeData';
 
-const posts = createFakePosts(3);
+const contacts = [brianContact, danContact, edContact, hunterContact];
+const posts = createFakePosts(15);
+
 const post = posts[0];
+post.reactions = createFakeReactions(10, contacts);
+
 const secondPost = posts[1];
+secondPost.reactions = createFakeReactions(3, contacts).slice(0, 2);
 
 export default {
-  many: <ViewReactionsSheet post={post} open={true} onOpenChange={() => {}} />,
+  many: (
+    <AppDataContextProvider contacts={contacts}>
+      <ViewReactionsSheet post={post} open={true} onOpenChange={() => {}} />
+    </AppDataContextProvider>
+  ),
   few: (
-    <ViewReactionsSheet post={secondPost} open={true} onOpenChange={() => {}} />
+    <AppDataContextProvider contacts={contacts}>
+      <ViewReactionsSheet
+        post={secondPost}
+        open={true}
+        onOpenChange={() => {}}
+      />
+    </AppDataContextProvider>
   ),
 };

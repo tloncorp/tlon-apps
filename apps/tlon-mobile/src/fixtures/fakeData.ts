@@ -716,11 +716,16 @@ const reactionValues = [
   'anger',
 ];
 
-export const createFakeReactions = (count: number): db.Reaction[] => {
+export const createFakeReactions = (
+  count: number,
+  contacts?: db.Contact[]
+): db.Reaction[] => {
   const reactions = [];
   for (let i = 0; i < count; i++) {
     reactions.push({
-      contactId: randomContactId(),
+      contactId: contacts
+        ? contacts[i % contacts.length].id
+        : randomContactId(),
       postId: 'fake-post-id',
       value: ':' + reactionValues[randInt(0, reactionValues.length)] + ':',
     });

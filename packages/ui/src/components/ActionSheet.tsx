@@ -168,6 +168,9 @@ const useContentStyle = () => {
 const ActionSheetContentBlock = styled(View, {
   name: 'ActionSheetContentBlock',
   padding: '$xl',
+  // backgroundColor: 'green',
+  // borderBottomColor: 'yellow',
+  // borderBottomWidth: 1,
   variants: {
     form: {
       true: { paddingHorizontal: '$2xl' },
@@ -198,6 +201,7 @@ const ActionSheetActionGroupContext = createStyledContext<{
 const ActionSheetActionGroupFrame = styled(ActionSheetContentBlock, {
   name: 'ActionSheetActionGroupFrame',
   context: ActionSheetActionGroupContext,
+  borderWidth: 1,
   variants: {
     accent: {
       positive: {
@@ -482,6 +486,8 @@ export const ActionSheet = withStaticProperties(ActionSheetComponent, {
   ActionGroup: ActionSheetActionGroup,
   Action: ActionSheetAction,
   ActionFrame: ActionSheetActionFrame,
+  ActionGroupContent: ActionSheetActionGroupContent,
+  ActionGroupFrame: ActionSheetActionGroupFrame,
   ActionTitle: ActionSheetActionTitle,
   ActionDescription: ActionSheetActionDescription,
   // Prefab components -- used in simple/common applications
