@@ -1,13 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { ScrollView, SizableText } from 'tamagui';
+import { useMemo } from 'react';
 
-import { useCurrentUserId } from '../../contexts/appDataContext';
-import { useReactionDetails } from '../../utils/postUtils';
-import ContactName from '../ContactName';
-import { getNativeEmoji } from '../Emoji';
-import { ListItem } from '../ListItem';
-import { Sheet, SheetHeader } from '../Sheet';
-import { Emoji } from '../TrimmedText';
+import { ActionSheet } from '../ActionSheet';
 import { ViewReactionsPane } from './ViewReactionsPane';
 
 export function ViewReactionsSheet({
@@ -19,28 +13,25 @@ export function ViewReactionsSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const currentUserId = useCurrentUserId();
-  const details = useReactionDetails(post.reactions ?? [], currentUserId);
+  const reactionCount = useMemo(
+    () => post.reactions?.length ?? 0,
+    [post.reactions]
+  );
 
   return (
-    <Sheet
-      modal
+    <ActionSheet
       open={open}
       onOpenChange={onOpenChange}
-      animation="quick"
-      dismissOnSnapToBottom
       snapPointsMode="percent"
       snapPoints={[60]}
     >
-      <Sheet.LazyFrame padding="$l">
-        <Sheet.Overlay />
-        <SheetHeader>
-          <SheetHeader.Title>
-            <SizableText>Reactions</SizableText>
-          </SheetHeader.Title>
-        </SheetHeader>
+      <ActionSheet.SimpleHeader
+        title="Reactions"
+        // subtitle={`${reactionCount} people reacted`}
+      />
+      <ActionSheet.ContentBlock>
         <ViewReactionsPane post={post} />
-      </Sheet.LazyFrame>
-    </Sheet>
+      </ActionSheet.ContentBlock>
+    </ActionSheet>
   );
 }

@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View } from 'tamagui';
+import { ScrollView, View, XStack } from 'tamagui';
 
 import { useGroupedReactions } from '../../utils/postUtils';
 import { Button } from '../Button';
@@ -38,27 +38,49 @@ export function ViewReactionsPane({ post }: { post: db.Post }) {
 
   return (
     <View>
-      <ScrollView horizontal>
-        {tabs.map((tab) => (
+      <ScrollView
+        // flexShrink={1}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        // contentContainerStyle={{
+        //   flexGrow: 1,
+        //   justifyContent: 'center',
+        // }}
+        // borderWidth={3}
+        // contentContainerStyle={{
+        //   // flexShrink: 1,
+        //   justifyContent: 'center',
+        //   alignItems: 'center',
+        // }}
+      >
+        {tabs.map((tab, index) => (
           <Button
+            flexShrink={1}
             key={tab}
             onPress={() => setCurrentTab(tab)}
             paddingHorizontal="$xl"
-            paddingVertical="$l"
-            marginHorizontal="$s"
+            paddingVertical="$m"
+            // marginHorizontal="$s"
+            borderTopRightRadius={index === tabs.length - 1 ? undefined : 0}
+            borderBottomRightRadius={index === tabs.length - 1 ? undefined : 0}
+            borderTopLeftRadius={index === 0 ? undefined : 0}
+            borderBottomLeftRadius={index === 0 ? undefined : 0}
+            borderLeftWidth={index === 0 ? 'unset' : 0}
             backgroundColor={
-              currentTab === tab ? '$positiveBackground' : 'unset'
+              currentTab === tab ? '$secondaryBackground' : 'unset'
             }
           >
-            <Button.Text>
-              {tab === 'all' ? 'All' : getNativeEmoji(tab)}
-            </Button.Text>
+            {tab === 'all' ? (
+              <Button.Text>All</Button.Text>
+            ) : (
+              <Emoji size="$m">{getNativeEmoji(tab)}</Emoji>
+            )}
           </Button>
         ))}
       </ScrollView>
       <ScrollView paddingTop="$xl">
         {tabData.map((reaction) => (
-          <ListItem key={reaction.userId}>
+          <ListItem key={reaction.userId} paddingHorizontal={0}>
             <View flexGrow={1}>
               <ContactName userId={reaction.userId} showNickname flex={1} />
             </View>
