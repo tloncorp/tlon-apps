@@ -27,7 +27,7 @@ export function ViewReactionsSheet({
     >
       <ActionSheet.SimpleHeader
         title="Reactions"
-        subtitle={`${reactionCount} people reacted`}
+        subtitle={`${reactionCount} ${reactionCount === 1 ? 'person' : 'people'} reacted`}
       />
 
       <ViewReactionsPane post={post} />
