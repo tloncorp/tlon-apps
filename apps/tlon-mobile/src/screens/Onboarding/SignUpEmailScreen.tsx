@@ -17,7 +17,7 @@ import {
   YStack,
 } from '@tloncorp/ui';
 import { Field } from '@tloncorp/ui';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Controller } from 'react-hook-form';
 
@@ -48,22 +48,6 @@ export const SignUpEmailScreen = ({
     trigger,
   } = useForm<FormData>();
 
-  const hostingCheck = async () => {
-    try {
-      const { enabled } = await getHostingAvailability({
-        lure,
-        priorityToken,
-      });
-      return enabled;
-    } catch (err) {
-      console.error('Error checking hosting availability:', err);
-      if (err instanceof Error) {
-        trackError(err);
-      }
-      return false;
-    }
-  };
-
   const onSubmit = handleSubmit(async ({ email }) => {
     setIsSubmitting(true);
 
@@ -89,7 +73,7 @@ export const SignUpEmailScreen = ({
           email,
           lure,
         });
-        navigation.navigate('EULA', { email, lure, priorityToken });
+        navigation.navigate('SignUpPassword', { email, lure, priorityToken });
       }
     } catch (err) {
       console.error('Error getting hosting availability:', err);
@@ -104,10 +88,6 @@ export const SignUpEmailScreen = ({
 
     setIsSubmitting(false);
   });
-
-  useEffect(() => {
-    hostingCheck();
-  }, []);
 
   return (
     <View flex={1}>

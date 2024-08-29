@@ -5,12 +5,13 @@ import {
   DEFAULT_SHIP_LOGIN_URL,
 } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { isEulaAgreed } from '@tloncorp/app/utils/eula';
+import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { transformShipURL } from '@tloncorp/app/utils/string';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
 import {
   Button,
+  CheckboxInput,
   Field,
   GenericHeader,
   KeyboardAvoidingView,
@@ -30,6 +31,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'ShipLogin'>;
 type FormData = {
   shipUrl: string;
   accessCode: string;
+  eulaAgreed: boolean;
 };
 
 export const ShipLoginScreen = ({ navigation }: Props) => {
@@ -45,10 +47,12 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     formState: { errors, isValid },
     setValue,
     trigger,
+    watch,
   } = useForm<FormData>({
     defaultValues: {
       shipUrl: DEFAULT_SHIP_LOGIN_URL,
       accessCode: DEFAULT_SHIP_LOGIN_ACCESS_CODE,
+      eulaAgreed: false,
     },
   });
   const { setShip } = useShip();
@@ -66,8 +70,13 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     return true;
   }, []);
 
-  const onSubmit = handleSubmit(async ({ shipUrl: rawShipUrl, accessCode }) => {
+  const onSubmit = handleSubmit(async (params) => {
+    const { shipUrl: rawShipUrl, accessCode } = params;
     setIsSubmitting(true);
+
+    if (params.eulaAgreed) {
+      await setEulaAgreed();
+    }
 
     const shipUrl = transformShipURL(rawShipUrl);
     setFormattedShipUrl(shipUrl);
@@ -85,7 +94,9 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
             authCookie,
           });
         } else {
-          navigation.navigate('EULA', { shipId, shipUrl, authCookie });
+          setRemoteError(
+            'Please agree to the End User License Agreement to continue.'
+          );
         }
       } else {
         setRemoteError(
@@ -114,7 +125,8 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
         goBack={() => navigation.goBack()}
         showSpinner={isSubmitting}
         rightContent={
-          isValid && (
+          isValid &&
+          watch('eulaAgreed') && (
             <Button minimal onPress={onSubmit}>
               <Text fontSize={'$m'}>Connect</Text>
             </Button>
@@ -167,7 +179,6 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
               </Field>
             )}
           />
-
           <Controller
             control={control}
             name="accessCode"
@@ -197,6 +208,21 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
                   enablesReturnKeyAutomatically
                 />
               </Field>
+            )}
+          />
+          <Controller
+            control={control}
+            name="eulaAgreed"
+            render={({ field: { onChange, value } }) => (
+              <CheckboxInput
+                option={{
+                  title:
+                    'I have read and agree to the End User License Agreement',
+                  value: 'agreed',
+                }}
+                checked={value}
+                onChange={() => onChange(!value)}
+              />
             )}
           />
         </YStack>
