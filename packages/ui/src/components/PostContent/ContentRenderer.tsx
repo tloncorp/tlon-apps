@@ -1,7 +1,5 @@
-import { extractContentTypesFromPost } from '@tloncorp/shared';
 import { Post } from '@tloncorp/shared/dist/db';
 import { ImageLoadEventData } from 'expo-image';
-import { truncate } from 'lodash';
 import {
   ComponentProps,
   memo,
@@ -27,7 +25,7 @@ import { Image } from '../Image';
 import { RawText, Text, TextProps } from '../TextV2';
 import { CodeBlock } from './CodeBlock';
 import type * as cn from './contentProcessor';
-import { convertContent, convertInlineContent } from './contentProcessor';
+import { convertContent } from './contentProcessor';
 
 export type PostViewMode =
   | 'chat'
@@ -398,52 +396,13 @@ export function ContentRenderer({
       isNotice={props.post.type === 'notice'}
     >
       {shortened ? (
-        <ShortenedContentRenderer {...props} />
+        <ContentFrame {...props}>
+          <LineText>{props.post.textContent?.slice(0, 100)}</LineText>
+        </ContentFrame>
       ) : (
         <BaseContentRenderer {...props} />
       )}
     </ContentContext.Provider>
-  );
-}
-
-function ShortenedContentRenderer({
-  post,
-  onLongPress,
-  onPressImage,
-  ...props
-}: ContentRendererProps) {
-  const { inlines } = useMemo(() => extractContentTypesFromPost(post), [post]);
-
-  const firstInlineIsMention = useMemo(
-    () =>
-      inlines.length > 0 &&
-      typeof inlines[0] === 'object' &&
-      'ship' in inlines[0],
-    [inlines]
-  );
-  const shortenedInlines = useMemo(
-    () =>
-      inlines.length > 0
-        ? inlines
-            .slice(0, firstInlineIsMention ? 2 : 1)
-            .map((i) =>
-              typeof i === 'string'
-                ? truncate(i, { length: 100, omission: '' })
-                : i
-            )
-            .concat('...')
-        : [],
-    [firstInlineIsMention, inlines]
-  );
-
-  return (
-    <ContentFrame {...props}>
-      <LineRenderer
-        inlines={convertInlineContent(shortenedInlines)}
-        onPressImage={onPressImage}
-        onLongPress={onLongPress}
-      />
-    </ContentFrame>
   );
 }
 
