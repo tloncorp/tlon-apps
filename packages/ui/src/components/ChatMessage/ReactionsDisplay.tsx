@@ -1,10 +1,11 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { SizableText, XStack } from 'tamagui';
+import { XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useReactionDetails } from '../../utils/postUtils';
 import { SizableEmoji } from '../Emoji/SizableEmoji';
+import { Text } from '../TextV2';
 
 export function ReactionsDisplay({ post }: { post: db.Post }) {
   const currentUserId = useCurrentUserId();
@@ -18,7 +19,13 @@ export function ReactionsDisplay({ post }: { post: db.Post }) {
   }
 
   return (
-    <XStack paddingBottom="$m" paddingLeft="$4xl" borderRadius="$m" gap="$xs">
+    <XStack
+      paddingBottom="$l"
+      paddingLeft="$4xl"
+      borderRadius="$m"
+      gap="$xs"
+      flexWrap="wrap"
+    >
       {reactionDetails.list.map((reaction) => (
         <XStack
           key={reaction.value}
@@ -55,11 +62,7 @@ export function ReactionsDisplay({ post }: { post: db.Post }) {
             shortCode={reaction.value}
             fontSize="$s"
           />
-          {reaction.count > 0 && (
-            <SizableText color="$secondaryText" lineHeight="$m" height="$2xl">
-              {reaction.count}
-            </SizableText>
-          )}
+          {reaction.count > 0 && <Text size="$label/m">{reaction.count}</Text>}
         </XStack>
       ))}
     </XStack>

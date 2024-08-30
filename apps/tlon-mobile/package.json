@@ -115,6 +115,7 @@
     "zustand": "^3.7.2"
   },
   "devDependencies": {
+    "@faker-js/faker": "^8.4.1",
     "@jest/globals": "^29.7.0",
     "@react-native/metro-config": "^0.73.5",
     "@tamagui/babel-plugin": "1.101.3",

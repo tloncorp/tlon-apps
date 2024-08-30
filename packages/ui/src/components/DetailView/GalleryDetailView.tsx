@@ -3,9 +3,9 @@ import { Dimensions } from 'react-native';
 import { Text, View, YStack } from 'tamagui';
 
 import { ContentReferenceLoader } from '../ContentReference/ContentReference';
-import ContentRenderer from '../ContentRenderer';
 import { Icon } from '../Icon';
 import { Image } from '../Image';
+import { ContentRenderer } from '../PostContent';
 import { DetailView, DetailViewProps } from './DetailView';
 
 export default function GalleryDetailView({

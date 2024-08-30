@@ -1,13 +1,12 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useState } from 'react';
-import { Text, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack, styled } from 'tamagui';
 
 import AuthorRow from '../AuthorRow';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
-import ContentRenderer from '../ContentRenderer';
 import { Image } from '../Image';
-import Pressable from '../Pressable';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
+import { Text } from '../TextV2';
 
 const IMAGE_HEIGHT = 268;
 
@@ -70,26 +69,21 @@ export default function NotebookPost({
     return null;
   }
 
-  const hasReplies = post.replyCount! > 0;
+  const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
 
   return (
-    <Pressable
-      onPress={handlePress}
-      onLongPress={handleLongPress}
-      delayLongPress={250}
-      disabled={viewMode === 'activity'}
-    >
-      <YStack
-        key={post.id}
-        gap="$l"
-        padding="$l"
+    <>
+      <View
         borderWidth={1}
+        borderColor={'$border'}
         borderRadius="$l"
-        borderColor="$border"
-        overflow={viewMode === 'activity' ? 'hidden' : undefined}
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+        pressStyle={{ backgroundColor: '$secondaryBackground' }}
+        disabled={viewMode === 'activity'}
       >
-        {post.hidden || post.isDeleted ? (
-          post.hidden ? (
+        <NotebookPostFrame pointerEvents="none">
+          {post.hidden ? (
             <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
               You have hidden or flagged this post.
             </Text>
@@ -97,68 +91,95 @@ export default function NotebookPost({
             <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
               This post has been deleted.
             </Text>
-          ) : null
-        ) : (
-          <>
-            {post.image && (
-              <Image
-                source={{
-                  uri: post.image,
-                }}
-                width="100%"
-                height={smallImage ? IMAGE_HEIGHT / 2 : IMAGE_HEIGHT}
-                borderRadius="$s"
-              />
-            )}
-            {post.title && (
-              <Text
-                fontWeight="$xl"
-                color="$primaryText"
-                fontSize={smallTitle || viewMode === 'activity' ? '$l' : 24}
-              >
-                {post.title}
-              </Text>
-            )}
-            {showAuthor && viewMode !== 'activity' && (
-              <AuthorRow
-                authorId={post.authorId}
-                author={post.author}
-                sent={post.sentAt}
-                type={post.type}
-              />
-            )}
-            {viewMode !== 'activity' && (
-              <ContentRenderer
-                viewMode={viewMode}
-                shortenedTextOnly={true}
-                post={post}
-              />
-            )}
+          ) : (
+            // We don't want anything in here to swallow the press event
+            <>
+              {post.image && (
+                <NotebookPostHeroImage
+                  source={{
+                    uri: post.image,
+                  }}
+                  small={smallImage}
+                />
+              )}
+              {post.title && (
+                <NotebookPostTitle
+                  small={smallTitle || viewMode === 'activity'}
+                >
+                  {post.title}
+                </NotebookPostTitle>
+              )}
 
-            {/* TODO: reuse reply stack from Chat messages */}
-            {showReplies &&
-            hasReplies &&
-            post.replyCount &&
-            post.replyTime &&
-            post.replyContactIds ? (
-              <ChatMessageReplySummary post={post} paddingLeft={false} />
-            ) : null}
-            {post.deliveryStatus === 'failed' ? (
-              <XStack alignItems="center" justifyContent="flex-end">
-                <Text color="$negativeActionText" fontSize="$xs">
-                  Message failed to send
+              {showAuthor && viewMode !== 'activity' && (
+                <AuthorRow
+                  authorId={post.authorId}
+                  author={post.author}
+                  sent={post.sentAt}
+                  type={post.type}
+                />
+              )}
+
+              {viewMode !== 'activity' && (
+                <Text size="$body" color="$secondaryText" numberOfLines={3}>
+                  {post.textContent}
                 </Text>
-              </XStack>
-            ) : null}
-            <SendPostRetrySheet
-              open={showRetrySheet}
-              onOpenChange={setShowRetrySheet}
-              onPressRetry={handleRetryPressed}
-              onPressDelete={handleDeletePressed}
-            />
-          </>
-        )}
-      </YStack>
-    </Pressable>
+              )}
+
+              {showReplies && hasReplies ? (
+                <ChatMessageReplySummary
+                  post={post}
+                  showTime={false}
+                  textColor="$tertiaryText"
+                />
+              ) : null}
+
+              {post.deliveryStatus === 'failed' ? (
+                <XStack alignItems="center" justifyContent="flex-end">
+                  <Text color="$negativeActionText" fontSize="$xs">
+                    Message failed to send
+                  </Text>
+                </XStack>
+              ) : null}
+            </>
+          )}
+        </NotebookPostFrame>
+      </View>
+      <SendPostRetrySheet
+        open={showRetrySheet}
+        onOpenChange={setShowRetrySheet}
+        onPressRetry={handleRetryPressed}
+        onPressDelete={handleDeletePressed}
+      />
+    </>
   );
 }
+
+export const NotebookPostFrame = styled(YStack, {
+  name: 'NotebookPostFrame',
+  gap: '$2xl',
+  padding: '$xl',
+  overflow: 'hidden',
+});
+
+export const NotebookPostHeroImage = styled(Image, {
+  width: '100%',
+  height: IMAGE_HEIGHT,
+  borderRadius: '$s',
+  variants: {
+    small: {
+      true: {
+        height: IMAGE_HEIGHT / 2,
+      },
+    },
+  } as const,
+});
+
+export const NotebookPostTitle = styled(Text, {
+  color: '$primaryText',
+  size: '$title/l',
+  variants: {
+    small: {
+      true: '$label/2xl',
+    },
+  } as const,
+});

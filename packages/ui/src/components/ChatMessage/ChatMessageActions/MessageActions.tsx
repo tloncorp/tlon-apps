@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
+import { useCopy } from '../../../hooks/useCopy';
 import ActionList from '../../ActionList';
 
 export default function MessageActions({
@@ -48,6 +49,7 @@ export default function MessageActions({
       }
     });
   }, [post, channelType, currentUserId]);
+  const { doCopy, didCopy } = useCopy((post.content as string) ?? '');
 
   return (
     // arbitrary width that looks reasonable given labels
@@ -69,11 +71,16 @@ export default function MessageActions({
           }
           key={action.id}
           actionType={action.actionType}
-          last={index === postActions.length - 1}
+          last={index === postActions.length - 1 && !__DEV__}
         >
           {action.label}
         </ActionList.Action>
       ))}
+      {__DEV__ ? (
+        <ActionList.Action onPress={doCopy} last>
+          {!didCopy ? 'Copy post JSON' : 'Copied'}
+        </ActionList.Action>
+      ) : null}
     </ActionList>
   );
 }

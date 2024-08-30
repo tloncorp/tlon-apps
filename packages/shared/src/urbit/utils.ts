@@ -215,8 +215,10 @@ export function getTextContent(story?: ub.Story | undefined) {
     .map((verse) => {
       if (ubc.isBlock(verse)) {
         return getBlockContent(verse.block);
-      } else {
+      } else if ('inline' in verse) {
         return getInlinesContent(verse.inline);
+      } else {
+        return '';
       }
     })
     .filter((v) => !!v && v !== '')

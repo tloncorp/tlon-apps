@@ -89,6 +89,8 @@ export interface Image {
   };
 }
 
+export type ListType = 'ordered' | 'unordered' | 'tasklist';
+
 export interface List {
   list: {
     type: 'ordered' | 'unordered' | 'tasklist';

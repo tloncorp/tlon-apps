@@ -5,7 +5,13 @@ import { FixtureWrapper } from './FixtureWrapper';
 const VideoEmbedFixture = () => {
   return (
     <FixtureWrapper>
-      <VideoEmbed url="https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4" />
+      <VideoEmbed
+        video={{
+          src: 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
+          width: 640,
+          height: 360,
+        }}
+      />
     </FixtureWrapper>
   );
 };
@@ -13,7 +19,7 @@ const VideoEmbedFixture = () => {
 const VideoEmbedFixtureNoVideo = () => {
   return (
     <FixtureWrapper>
-      <VideoEmbed url="" />
+      <VideoEmbed video={{ src: '', width: 100, height: 100 }} />
     </FixtureWrapper>
   );
 };
