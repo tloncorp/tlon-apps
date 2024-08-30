@@ -169,62 +169,79 @@ const Scroller = forwardRef(
       [handleSetActive]
     );
 
-    const userHasScrolledRef = useRef(false);
+    const [userHasScrolled, setUserHasScrolled] = useState(false);
     const renderedPostsRef = useRef(new Set());
-    // Whether we've scrolled to the anchor post.
-    const [hasFoundAnchor, setHasFoundAnchor] = useState(!anchor);
 
-    logger.log('anchor postId', anchor?.postId);
+    const [needsScrollToAnchor, setNeedsScrollToAnchor] = useState(true);
+    const readyToDisplayPosts = !needsScrollToAnchor;
+
     const anchorIndex = useMemo(() => {
       return posts?.findIndex((p) => p.id === anchor?.postId) ?? -1;
     }, [posts, anchor]);
 
-    logger.log('anchorIndex', anchorIndex, anchor?.postId);
-    logger.log('hasFoundAnchor', hasFoundAnchor);
+    const scrollToAnchorIfNeeded = useCallback(() => {
+      if (!needsScrollToAnchor) {
+        return;
+      }
+      if (userHasScrolled) {
+        return;
+      }
+      if (anchorIndex === -1) {
+        return;
+      }
+      setNeedsScrollToAnchor(false);
+
+      flatListRef.current?.scrollToIndex({
+        index: anchorIndex,
+        animated: false,
+        viewPosition: anchor?.type === 'unread' ? 1 : 0.5,
+      });
+    }, [needsScrollToAnchor, anchorIndex, anchor?.type, userHasScrolled]);
 
     // We use this function to manage autoscrolling to the anchor post. We need
     // the post to be rendered before we're able to scroll to it, so we wait for
-    // it here. Once it's rendered we scroll to it and set `hasFoundAnchor` to
-    // true, revealing the Scroller.
+    // it here. Once it's rendered we scroll to it and set `needsScrollToAnchor` to
+    // false, revealing the Scroller.
     const handleItemLayout = useCallback(
       (post: db.Post, index: number) => {
         renderedPostsRef.current.add(post.id);
-        if (
-          !userHasScrolledRef.current &&
-          (post.id === anchor?.postId || (hasFoundAnchor && anchorIndex !== -1))
-        ) {
+        if (post.id === anchor?.postId) {
           logger.log('scrolling to initially set anchor', post.id, index);
-          flatListRef.current?.scrollToIndex({
-            index: anchorIndex,
-            animated: false,
-            viewPosition: anchor?.type === 'unread' ? 1 : 0.5,
-          });
+          scrollToAnchorIfNeeded();
         }
 
         if (
-          !hasFoundAnchor &&
-          (anchor?.postId === post.id ||
-            // if we've got at least a page of posts and we've rendered them all,
-            // reveal the scroller to prevent getting stuck when messages are
-            // deleted.
-            (posts?.length && renderedPostsRef.current.size >= posts?.length))
+          needsScrollToAnchor &&
+          // if we've got at least a page of posts and we've rendered them all,
+          // reveal the scroller to prevent getting stuck when messages are
+          // deleted.
+          posts?.length &&
+          renderedPostsRef.current.size >= posts?.length
         ) {
-          logger.log('found anchor', post.id, index);
-          setHasFoundAnchor(true);
+          setNeedsScrollToAnchor(false);
         }
       },
-      [anchor?.postId, anchorIndex, hasFoundAnchor, posts?.length, anchor?.type]
+      [
+        anchor?.postId,
+        needsScrollToAnchor,
+        posts?.length,
+        scrollToAnchorIfNeeded,
+      ]
     );
+
+    useEffect(() => {
+      scrollToAnchorIfNeeded();
+    }, [scrollToAnchorIfNeeded]);
 
     const theme = useTheme();
 
     // Used to hide the scroller until we've found the anchor post.
     const style = useMemo(() => {
       return {
-        opacity: hasFoundAnchor ? 1 : 0,
+        opacity: readyToDisplayPosts ? 1 : 0,
         backgroundColor: theme.background.val,
       };
-    }, [hasFoundAnchor, theme.background.val]);
+    }, [readyToDisplayPosts, theme.background.val]);
 
     const listRenderItem: ListRenderItem<db.Post> = useCallback(
       ({ item, index }) => {
@@ -322,6 +339,7 @@ const Scroller = forwardRef(
           // based on the average item length.
           const offset = info.index * info.averageItemLength;
           flatListRef.current?.scrollToOffset({ offset, animated: false });
+          setNeedsScrollToAnchor(true);
         }
       },
       [anchor?.postId]
@@ -358,7 +376,7 @@ const Scroller = forwardRef(
     ) as StyleProp<ViewStyle>;
 
     const handleScrollBeginDrag = useCallback(() => {
-      userHasScrolledRef.current = true;
+      setUserHasScrolled(true);
     }, []);
 
     const pendingEvents = useRef({
@@ -373,7 +391,7 @@ const Scroller = forwardRef(
     // the page. Instead, we use `pendingEvents` to record the attempt, and call
     // the events after we've found the anchor.
     useEffect(() => {
-      if (hasFoundAnchor) {
+      if (readyToDisplayPosts) {
         if (pendingEvents.current.onEndReached) {
           logger.log('trigger pending onEndReached');
           onEndReached?.();
@@ -385,23 +403,23 @@ const Scroller = forwardRef(
           pendingEvents.current.onStartReached = false;
         }
       }
-    }, [hasFoundAnchor, onEndReached, onStartReached]);
+    }, [readyToDisplayPosts, onEndReached, onStartReached]);
 
     const handleEndReached = useCallback(() => {
-      if (!hasFoundAnchor) {
+      if (!readyToDisplayPosts) {
         pendingEvents.current.onEndReached = true;
         return;
       }
       onEndReached?.();
-    }, [onEndReached, hasFoundAnchor]);
+    }, [onEndReached, readyToDisplayPosts]);
 
     const handleStartReached = useCallback(() => {
-      if (!hasFoundAnchor) {
+      if (!readyToDisplayPosts) {
         pendingEvents.current.onStartReached = true;
         return;
       }
       onStartReached?.();
-    }, [onStartReached, hasFoundAnchor]);
+    }, [onStartReached, readyToDisplayPosts]);
 
     const renderEmptyComponent = useCallback(() => {
       return (
@@ -431,10 +449,11 @@ const Scroller = forwardRef(
             // we're starting at an older post and scrolling down towards newer ones,
             // as it will trigger on every new page load, causing jumping. Instead, we
             // only enable it when there's nothing newer left to load (so, for new incoming messages only).
-            autoscrollToTopThreshold: hasNewerPosts ? undefined : 0,
+            autoscrollToTopThreshold:
+              !userHasScrolled || hasNewerPosts ? undefined : 0,
           }
         : undefined;
-    }, [hasNewerPosts, channelType]);
+    }, [userHasScrolled, hasNewerPosts, channelType]);
 
     const handleScroll = useScrollDirectionTracker(setIsAtBottom);
 
