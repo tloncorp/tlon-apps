@@ -89,7 +89,7 @@ export function PostScreenView({
 
   const headerTitle = isChatChannel
     ? `Thread: ${channel?.title ?? null}`
-    : 'Post';
+    : parentPost?.title ?? 'Post';
 
   const hasLoaded = !!(posts && channel && parentPost);
   useEffect(() => {

@@ -45,19 +45,19 @@ import * as fixture6 from './src/fixtures/ProfileWidget.fixture';
 import * as fixture5 from './src/fixtures/ReferenceSkeleton.fixture';
 import * as fixture4 from './src/fixtures/ScreenHeader.fixture';
 import * as fixture3 from './src/fixtures/SearchBar.fixture';
-import * as fixture2 from './src/fixtures/TrimmedText.fixture';
+import * as fixture2 from './src/fixtures/Text.fixture';
 import * as fixture1 from './src/fixtures/VideoEmbed.fixture';
 import * as decorator0 from './src/fixtures/cosmos.decorator';
 
 export const rendererConfig: RendererConfig = {
-  playgroundUrl: 'http://localhost:5000',
+  playgroundUrl: 'http://localhost:5001',
   rendererUrl: null,
 };
 
 const fixtures = {
   'src/App.fixture.tsx': { module: fixture0 },
   'src/fixtures/VideoEmbed.fixture.tsx': { module: fixture1 },
-  'src/fixtures/TrimmedText.fixture.tsx': { module: fixture2 },
+  'src/fixtures/Text.fixture.tsx': { module: fixture2 },
   'src/fixtures/SearchBar.fixture.tsx': { module: fixture3 },
   'src/fixtures/ScreenHeader.fixture.tsx': { module: fixture4 },
   'src/fixtures/ReferenceSkeleton.fixture.tsx': { module: fixture5 },

@@ -1,41 +1,17 @@
-import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
-import { Text, View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
 import AuthorRow from '../AuthorRow';
-import ContentRenderer from '../ContentRenderer';
+import { Icon } from '../Icon';
 import { MessageInput } from '../MessageInput';
+import { ContentRenderer } from '../PostContent';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
+import { Text } from '../TextV2';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
-
-const NoticeWrapper = ({
-  isNotice,
-  children,
-}: {
-  isNotice?: boolean;
-  children: JSX.Element;
-}) => {
-  if (isNotice) {
-    return (
-      <XStack alignItems="center" padding="$l">
-        <View width={'$2xl'} flex={1} height={1} backgroundColor="$border" />
-        <View
-          paddingHorizontal="$m"
-          backgroundColor="$border"
-          borderRadius={'$2xl'}
-        >
-          {children}
-        </View>
-        <View flex={1} height={1} backgroundColor="$border" />
-      </XStack>
-    );
-  }
-  return children;
-};
 
 const ChatMessage = ({
   post,
@@ -83,6 +59,7 @@ const ChatMessage = ({
   const shouldHandlePress = useMemo(() => {
     return Boolean(onPress || post.deliveryStatus === 'failed');
   }, [onPress, post.deliveryStatus]);
+
   const handlePress = useCallback(() => {
     if (onPress) {
       onPress(post);
@@ -111,11 +88,6 @@ const ChatMessage = ({
     onPressDelete?.(post);
     setShowRetrySheet(false);
   }, [onPressDelete, post]);
-
-  const timeDisplay = useMemo(() => {
-    const date = new Date(post.sentAt ?? 0);
-    return utils.makePrettyTime(date);
-  }, [post.sentAt]);
 
   const messageInputForEditing = useMemo(
     () => (
@@ -157,53 +129,42 @@ const ChatMessage = ({
   if (post.isDeleted) {
     return (
       <XStack
-        alignItems="center"
         key={post.id}
         gap="$s"
-        paddingVertical="$m"
-        paddingRight="$l"
-        marginVertical="$s"
-        backgroundColor="$secondaryBackground"
-        borderRadius="$xl"
-        overflow="hidden"
+        paddingVertical="$xl"
+        justifyContent={'center'}
+        alignItems={'center'}
       >
-        <Text
-          paddingLeft="$l"
-          fontSize="$s"
-          fontWeight="$l"
-          color="$secondaryText"
-        >
-          {timeDisplay}
-        </Text>
-        <Text fontStyle="italic" paddingLeft="$4xl" color="$secondaryText">
-          This message was deleted
+        <Icon size="$s" type="Placeholder" color="$tertiaryText" />
+        <Text size="$label/m" color="$tertiaryText">
+          Message deleted
         </Text>
       </XStack>
     );
   }
+
+  const shouldRenderReplies =
+    showReplies && post.replyCount && post.replyTime && post.replyContactIds;
 
   return (
     <YStack
       onLongPress={handleLongPress}
       backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
       key={post.id}
-      gap="$s"
-      paddingVertical="$xs"
-      paddingRight="$l"
       // avoid setting the top level press handler at all unless we need to
       onPress={shouldHandlePress ? handlePress : undefined}
     >
       {showAuthor ? (
-        <View paddingLeft="$l" paddingTop="$s">
-          <AuthorRow
-            author={post.author}
-            authorId={post.authorId}
-            sent={post.sentAt ?? 0}
-            type={post.type}
-            disabled={hideProfilePreview}
-            // roles={roles}
-          />
-        </View>
+        <AuthorRow
+          padding="$l"
+          paddingBottom="$2xs"
+          author={post.author}
+          authorId={post.authorId}
+          sent={post.sentAt ?? 0}
+          type={post.type}
+          disabled={hideProfilePreview}
+          showEditedIndicator={!!post.isEdited}
+        />
       ) : null}
       <View paddingLeft={!isNotice && '$4xl'}>
         {editing ? (
@@ -213,16 +174,11 @@ const ChatMessage = ({
             You have hidden or flagged this message.
           </Text>
         ) : (
-          <NoticeWrapper isNotice={isNotice}>
-            <ContentRenderer
-              post={post}
-              isNotice={isNotice}
-              onPressImage={handleImagePressed}
-              onLongPress={handleLongPress}
-              deliveryStatus={post.deliveryStatus}
-              isEdited={post.isEdited ?? false}
-            />
-          </NoticeWrapper>
+          <ContentRenderer
+            post={post}
+            onPressImage={handleImagePressed}
+            onLongPress={handleLongPress}
+          />
         )}
       </View>
       {post.deliveryStatus === 'failed' ? (
@@ -234,11 +190,15 @@ const ChatMessage = ({
       ) : null}
       <ReactionsDisplay post={post} />
 
-      {showReplies &&
-      post.replyCount &&
-      post.replyTime &&
-      post.replyContactIds ? (
-        <ChatMessageReplySummary post={post} onPress={handleRepliesPressed} />
+      {shouldRenderReplies ? (
+        <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
+          {shouldRenderReplies ? (
+            <ChatMessageReplySummary
+              post={post}
+              onPress={handleRepliesPressed}
+            />
+          ) : null}
+        </XStack>
       ) : null}
       <SendPostRetrySheet
         open={showRetrySheet}

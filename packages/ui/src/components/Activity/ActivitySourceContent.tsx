@@ -3,9 +3,9 @@ import * as logic from '@tloncorp/shared/dist/logic';
 import { useMemo } from 'react';
 import { ScrollView, View } from 'tamagui';
 
-import ContentRenderer from '../ContentRenderer';
 import { GalleryPost } from '../GalleryPost';
 import { NotebookPost } from '../NotebookPost';
+import { ContentRenderer } from '../PostContent';
 
 export function ActivitySourceContent({
   summary,

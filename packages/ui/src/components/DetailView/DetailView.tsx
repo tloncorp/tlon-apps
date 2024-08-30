@@ -5,20 +5,14 @@ import { getChannelType } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo, useState } from 'react';
 import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  Text,
-  View,
-  YStack,
-  getTokenValue,
-  withStaticProperties,
-} from 'tamagui';
+import { View, YStack, getTokenValue, withStaticProperties } from 'tamagui';
 
 import AuthorRow from '../AuthorRow';
 import { BigInput } from '../BigInput';
 import Scroller from '../Channel/Scroller';
 import { ChatMessage } from '../ChatMessage';
-import { MessageInput } from '../MessageInput';
-import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
+import { DEFAULT_MESSAGE_INPUT_HEIGHT, MessageInput } from '../MessageInput';
+import { Text } from '../TextV2';
 
 export interface DetailViewProps {
   post: db.Post;
@@ -154,7 +148,7 @@ const DetailViewFrameComponent = ({
           paddingBottom: messageInputHeight + bottom + getTokenValue('$2xl'),
         }}
         renderItem={() => (
-          <View paddingTop="$m" paddingHorizontal="$xs">
+          <View paddingTop="$xl" paddingHorizontal="$xs">
             <Scroller
               inverted
               renderItem={ChatMessage}
@@ -165,6 +159,7 @@ const DetailViewFrameComponent = ({
               editPost={editPost}
               posts={posts ?? null}
               showReplies={false}
+              showDividers={false}
               onPressImage={onPressImage}
               onPressRetry={onPressRetry}
               onPressDelete={onPressDelete}
@@ -173,6 +168,13 @@ const DetailViewFrameComponent = ({
                   ? initialPostUnread?.firstUnreadPostId
                   : null
               }
+              renderEmptyComponent={() => (
+                <YStack padding="$2xl" alignItems="center">
+                  <Text size="$body" color="$tertiaryText">
+                    No replies yet
+                  </Text>
+                </YStack>
+              )}
               unreadCount={initialPostUnread?.count ?? 0}
               activeMessage={activeMessage}
               setActiveMessage={setActiveMessage}
