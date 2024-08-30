@@ -15,7 +15,11 @@ import React, {
 import { Alert } from 'react-native';
 import { useSheet } from 'tamagui';
 
-import { useCalm, useChatOptions, useCurrentUserId } from '../contexts';
+import {
+  ChatOptionsContextValue,
+  useCalm,
+  useCurrentUserId,
+} from '../contexts';
 import * as utils from '../utils';
 import { Action, ActionGroup, ActionSheet } from './ActionSheet';
 import { ListItem } from './ListItem';
@@ -28,58 +32,66 @@ export type ChatOptionsSheetMethods = {
 
 export type ChatOptionsSheetRef = React.Ref<ChatOptionsSheetMethods>;
 
-const ChatOptionsSheetComponent = React.forwardRef<ChatOptionsSheetMethods>(
-  function ChatOptionsSheetImpl(props, ref) {
-    const [open, setOpen] = useState(false);
-    const [chat, setChat] = useState<{ type: ChatType; id: string } | null>(
-      null
-    );
+const ChatOptionsSheetComponent = React.forwardRef<
+  ChatOptionsSheetMethods,
+  { chatOptionsContext: ChatOptionsContextValue }
+>(function ChatOptionsSheetImpl(
+  props: {
+    chatOptionsContext: ChatOptionsContextValue;
+  },
+  ref
+) {
+  const [open, setOpen] = useState(false);
+  const [chat, setChat] = useState<{ type: ChatType; id: string } | null>(null);
 
-    useImperativeHandle(
-      ref,
-      () => ({
-        open: (chatId, chatType) => {
-          setOpen(true);
-          setChat({ id: chatId, type: chatType });
-        },
-      }),
-      []
-    );
+  useImperativeHandle(
+    ref,
+    () => ({
+      open: (chatId, chatType) => {
+        setOpen(true);
+        setChat({ id: chatId, type: chatType });
+      },
+    }),
+    []
+  );
 
-    if (!chat && !open) {
-      return null;
-    }
-
-    return (
-      <ActionSheet open={open} onOpenChange={setOpen}>
-        {chat ? (
-          chat.type === 'group' ? (
-            <GroupOptionsSheetLoader
-              groupId={chat.id}
-              open={open}
-              onOpenChange={setOpen}
-            />
-          ) : (
-            <ChannelOptionsSheetLoader
-              channelId={chat.id}
-              open={open}
-              onOpenChange={setOpen}
-            />
-          )
-        ) : null}
-      </ActionSheet>
-    );
+  if (!chat && !open) {
+    return null;
   }
-);
+
+  return (
+    <ActionSheet open={open} onOpenChange={setOpen}>
+      {chat ? (
+        chat.type === 'group' ? (
+          <GroupOptionsSheetLoader
+            groupId={chat.id}
+            chatOptionsContext={props.chatOptionsContext}
+            open={open}
+            onOpenChange={setOpen}
+          />
+        ) : (
+          <ChannelOptionsSheetLoader
+            channelId={chat.id}
+            chatOptionsContext={props.chatOptionsContext}
+            open={open}
+            onOpenChange={setOpen}
+          />
+        )
+      ) : null}
+    </ActionSheet>
+  );
+});
 
 export const ChatOptionsSheet = React.memo(ChatOptionsSheetComponent);
 
 export function GroupOptionsSheetLoader({
   groupId,
+  chatOptionsContext,
   open,
   onOpenChange,
 }: {
   groupId: string;
+  chatOptionsContext: ChatOptionsContextValue;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -97,17 +109,24 @@ export function GroupOptionsSheetLoader({
 
   return groupQuery.data ? (
     <ActionSheet open={open} onOpenChange={openChangeHandler}>
-      <GroupOptions group={groupQuery.data} pane={pane} setPane={setPane} />
+      <GroupOptions
+        group={groupQuery.data}
+        pane={pane}
+        setPane={setPane}
+        chatOptionsContext={chatOptionsContext}
+      />
     </ActionSheet>
   ) : null;
 }
 
 export function GroupOptions({
   group,
+  chatOptionsContext,
   pane,
   setPane,
 }: {
   group: db.Group;
+  chatOptionsContext: ChatOptionsContextValue;
   pane: 'initial' | 'notifications';
   setPane: (pane: 'initial' | 'notifications') => void;
 }) {
@@ -125,7 +144,7 @@ export function GroupOptions({
     onPressGroupPrivacy,
     onPressLeave,
     onTogglePinned,
-  } = useChatOptions() ?? {};
+  } = chatOptionsContext ?? {};
 
   useEffect(() => {
     sync.syncGroup(group.id, { priority: store.SyncPriority.High });
@@ -311,12 +330,13 @@ export function GroupOptions({
     }
     return actionGroups;
   }, [
-    isPinned,
-    onTogglePinned,
     group,
+    isPinned,
     currentUserIsAdmin,
     setPane,
+    onTogglePinned,
     onPressManageChannels,
+    onPressGroupPrivacy,
     onPressGroupMembers,
     onPressGroupMeta,
     onPressLeave,
@@ -339,10 +359,12 @@ export function GroupOptions({
 
 export function ChannelOptionsSheetLoader({
   channelId,
+  chatOptionsContext,
   open,
   onOpenChange,
 }: {
   channelId: string;
+  chatOptionsContext: ChatOptionsContextValue;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -365,6 +387,7 @@ export function ChannelOptionsSheetLoader({
     <ActionSheet open={open} onOpenChange={openChangeHandler}>
       <ChannelOptions
         channel={channelQuery.data}
+        chatOptionsContext={chatOptionsContext}
         pane={pane}
         setPane={setPane}
       />
@@ -374,10 +397,12 @@ export function ChannelOptionsSheetLoader({
 
 export function ChannelOptions({
   channel,
+  chatOptionsContext,
   pane,
   setPane,
 }: {
   channel: db.Channel;
+  chatOptionsContext: ChatOptionsContextValue;
   pane: 'initial' | 'notifications';
   setPane: (pane: 'initial' | 'notifications') => void;
 }) {
@@ -389,7 +414,8 @@ export function ChannelOptions({
   const sheetRef = useRef(sheet);
   sheetRef.current = sheet;
 
-  const { onPressChannelMembers, onPressChannelMeta } = useChatOptions() ?? {};
+  const { onPressChannelMembers, onPressChannelMeta } =
+    chatOptionsContext ?? {};
 
   const { disableNicknames } = useCalm();
   const title = useMemo(() => {

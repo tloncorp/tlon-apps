@@ -19,6 +19,7 @@ import {
   StartDmSheet,
   View,
   WelcomeSheet,
+  useChatOptionsContextValue,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -231,6 +232,13 @@ export default function ChatListScreen({
     );
   }, []);
 
+  const chatOptionsContext = useChatOptionsContextValue({
+    channelId: chatOptionsChannelId,
+    groupId: chatOptionsGroupId,
+    pinned,
+    ...useChatSettingsNavigation(),
+  });
+
   return (
     <CalmProvider calmSettings={calmSettings}>
       <AppDataContextProvider
@@ -294,7 +302,10 @@ export default function ChatListScreen({
                 open={splashVisible}
                 onOpenChange={handleWelcomeOpenChange}
               />
-              <ChatOptionsSheet ref={chatOptionsSheetRef} />
+              <ChatOptionsSheet
+                ref={chatOptionsSheetRef}
+                chatOptionsContext={chatOptionsContext}
+              />
               <StartDmSheet
                 goToDm={goToDm}
                 open={startDmOpen}

@@ -32,6 +32,7 @@
     "@tamagui/image": "1.101.3",
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
+    "@tloncorp/app": "workspace:*",
     "@uidotdev/usehooks": "^2.4.1",
     "any-ascii": "^0.3.1",
     "color2k": "^2.0.0",

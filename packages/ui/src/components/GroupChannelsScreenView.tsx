@@ -101,7 +101,10 @@ export function GroupChannelsScreenView({
         onOpenChange={setShowSortOptions}
         onSelectSort={handleSortByChanged}
       />
-      <ChatOptionsSheet ref={chatOptionsSheetRef} />
+      <ChatOptionsSheet
+        ref={chatOptionsSheetRef}
+        chatOptionsContext={groupOptions}
+      />
     </View>
   );
 }
