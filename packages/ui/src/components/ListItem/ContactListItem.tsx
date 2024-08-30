@@ -50,7 +50,7 @@ export const ContactListItem = ({
           <ContactName
             matchText={matchText}
             showNickname={showNickname}
-            // showUserId={showUserId}
+            showUserId={!showNickname && showUserId}
             full={full}
             userId={contactId}
           />
