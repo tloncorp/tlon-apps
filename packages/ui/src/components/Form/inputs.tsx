@@ -310,13 +310,13 @@ export function CheckboxInputRow<T>({
         checked={checked}
       />
       <YStack gap="$l">
-        <LabelText size="$l" color="$primaryText">
+        <Text size="$label/l" color="$primaryText">
           {option.title}
-        </LabelText>
+        </Text>
         {option.description ? (
-          <LabelText size="$m" color="$secondaryText">
+          <Text size="$label/m" color="$secondaryText">
             {option.description}
-          </LabelText>
+          </Text>
         ) : null}
       </YStack>
     </RadioInputRowFrame>
