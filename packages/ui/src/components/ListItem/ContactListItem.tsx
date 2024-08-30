@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps } from 'react';
+import { SizableText } from 'tamagui';
 
 import { AvatarProps } from '../Avatar';
 import ContactName from '../ContactName';
@@ -49,11 +50,14 @@ export const ContactListItem = ({
           <ContactName
             matchText={matchText}
             showNickname={showNickname}
-            showUserId={showUserId}
+            showUserId={!showNickname && showUserId}
             full={full}
             userId={contactId}
           />
         </ListItem.Title>
+        {showUserId && showNickname ? (
+          <ListItem.Subtitle>{contactId}</ListItem.Subtitle>
+        ) : null}
       </ListItem.MainContent>
       {showEndContent && (
         <ListItem.EndContent flexGrow={1} justifyContent="flex-end">

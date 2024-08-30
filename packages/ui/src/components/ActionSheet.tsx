@@ -482,6 +482,8 @@ export const ActionSheet = withStaticProperties(ActionSheetComponent, {
   ActionGroup: ActionSheetActionGroup,
   Action: ActionSheetAction,
   ActionFrame: ActionSheetActionFrame,
+  ActionGroupContent: ActionSheetActionGroupContent,
+  ActionGroupFrame: ActionSheetActionGroupFrame,
   ActionTitle: ActionSheetActionTitle,
   ActionDescription: ActionSheetActionDescription,
   // Prefab components -- used in simple/common applications

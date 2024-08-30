@@ -33,6 +33,7 @@ import { View, styled, useStyle, useTheme } from 'tamagui';
 import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { Modal } from '../Modal';
 import { ChannelDivider } from './ChannelDivider';
 
@@ -46,6 +47,7 @@ type RenderItemFunction = (props: {
   onLongPress?: (post: db.Post) => void;
   editing?: boolean;
   setEditingPost?: (post: db.Post | undefined) => void;
+  setViewReactionsPost?: (post: db.Post) => void;
   editPost?: (post: db.Post, content: Story) => Promise<void>;
   onPressRetry: (post: db.Post) => void;
   onPressDelete: (post: db.Post) => void;
@@ -134,6 +136,9 @@ const Scroller = forwardRef(
     const [isAtBottom, setIsAtBottom] = useState(true);
 
     const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
+    const [viewReactionsPost, setViewReactionsPost] = useState<null | db.Post>(
+      null
+    );
 
     const flatListRef = useRef<FlatList<db.Post>>(null);
 
@@ -259,6 +264,7 @@ const Scroller = forwardRef(
             channelId={channelId}
             channelType={channelType}
             setEditingPost={setEditingPost}
+            setViewReactionsPost={setViewReactionsPost}
             editPost={editPost}
             onPressRetry={onPressRetry}
             onPressDelete={onPressDelete}
@@ -492,9 +498,17 @@ const Scroller = forwardRef(
                 setEditingPost?.(activeMessage);
                 setActiveMessage(null);
               }}
+              onViewReactions={setViewReactionsPost}
             />
           )}
         </Modal>
+        {viewReactionsPost ? (
+          <ViewReactionsSheet
+            post={viewReactionsPost}
+            open
+            onOpenChange={() => setViewReactionsPost(null)}
+          />
+        ) : null}
       </View>
     );
   }
@@ -520,6 +534,7 @@ const BaseScrollerItem = ({
   onLayout,
   channelId,
   channelType,
+  setViewReactionsPost,
   setEditingPost,
   editPost,
   showReplies,
@@ -548,6 +563,7 @@ const BaseScrollerItem = ({
   onPressReplies?: (post: db.Post) => void;
   showReplies?: boolean;
   editingPost?: db.Post;
+  setViewReactionsPost?: (post: db.Post) => void;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (post: db.Post, content: Story) => Promise<void>;
   onPressPost?: (post: db.Post) => void;
@@ -633,6 +649,7 @@ const BaseScrollerItem = ({
           post={post}
           editing={editingPost && editingPost?.id === item.id}
           setEditingPost={setEditingPost}
+          setViewReactionsPost={setViewReactionsPost}
           editPost={editPost}
           showAuthor={showAuthor}
           showReplies={showReplies}

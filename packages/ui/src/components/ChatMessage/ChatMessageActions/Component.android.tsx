@@ -16,12 +16,14 @@ export function ChatMessageActions({
   onDismiss,
   onReply,
   onEdit,
+  onViewReactions,
 }: {
   post: db.Post;
   postRef: RefObject<RNView>;
   channelType: db.ChannelType;
   onDismiss: () => void;
   onReply?: (post: db.Post) => void;
+  onViewReactions?: (post: db.Post) => void;
   onEdit?: () => void;
 }) {
   const [topOffset, setTopOffset] = useState(0);
@@ -72,6 +74,7 @@ export function ChatMessageActions({
             dismiss={onDismiss}
             onReply={onReply}
             onEdit={onEdit}
+            onViewReactions={onViewReactions}
           />
         </YStack>
       </View>

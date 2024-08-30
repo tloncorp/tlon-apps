@@ -699,7 +699,7 @@ export const createFakePost = (
     hasChannelReference: null,
     hasGroupReference: null,
     hasLink: null,
-    reactions: createFakeReactions(randInt(0, 10)),
+    reactions: createFakeReactions({ count: randInt(0, 10) }),
     hidden: false,
     syncedAt: 0,
   };
@@ -716,17 +716,30 @@ const reactionValues = [
   'anger',
 ];
 
-export const createFakeReactions = (
-  valueCount: number,
+// valueCount: number,
+// minTotal = 1,
+// maxTotal = 20
+
+export const createFakeReactions = ({
+  count,
+  contacts,
   minTotal = 1,
-  maxTotal = 20
-): db.Reaction[] => {
+  maxTotal = 20,
+}: {
+  count: number;
+  contacts?: db.Contact[];
+  minTotal?: number;
+  maxTotal?: number;
+}): db.Reaction[] => {
   const reactions = [];
-  for (let i = 0; i < valueCount; i++) {
+  for (let i = 0; i < count; i++) {
     const count = randInt(minTotal, maxTotal);
     for (let j = 0; j < count; j++) {
+      const contactId = contacts
+        ? contacts[randInt(0, contacts.length - 1)]?.id ?? '~latter-bolden'
+        : randomContactId();
       reactions.push({
-        contactId: randomContactId(),
+        contactId,
         postId: 'fake-post-id',
         value: ':' + reactionValues[i] + ':',
       });

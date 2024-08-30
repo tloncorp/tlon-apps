@@ -59,7 +59,7 @@ const postWithImage = makePost(
   {
     isEdited: true,
     replyCount: 56,
-    reactions: createFakeReactions(5, 1, 5),
+    reactions: createFakeReactions({ count: 5, minTotal: 1, maxTotal: 5 }),
   }
 );
 
@@ -82,7 +82,10 @@ const postWithMention = makePost(
       ' here'
     ),
   ],
-  { reactions: createFakeReactions(1, 1, 1), replyCount: 0 }
+  {
+    reactions: createFakeReactions({ count: 1, minTotal: 1, maxTotal: 1 }),
+    replyCount: 0,
+  }
 );
 
 const postWithBlockquote = makePost(
@@ -254,7 +257,11 @@ const scrollPosts: PostGroup[] = [
         [content.block.randomImage(317 * 2, 208 * 2)],
         {
           isEdited: true,
-          reactions: createFakeReactions(2, 1, 2),
+          reactions: createFakeReactions({
+            count: 2,
+            minTotal: 1,
+            maxTotal: 2,
+          }),
         }
       ),
       makePost(
@@ -277,7 +284,11 @@ const scrollPosts: PostGroup[] = [
         exampleContacts.fabledFaster,
         [content.block.randomImage(317 * 2, 100 * 2)],
         {
-          reactions: createFakeReactions(8, 1, 8),
+          reactions: createFakeReactions({
+            count: 8,
+            minTotal: 1,
+            maxTotal: 8,
+          }),
         }
       ),
       makePost(
@@ -285,7 +296,11 @@ const scrollPosts: PostGroup[] = [
         [content.block.randomImage(317 * 2, 273 * 2)],
         {
           replyCount: 0,
-          reactions: createFakeReactions(4, 1, 3),
+          reactions: createFakeReactions({
+            count: 4,
+            minTotal: 1,
+            maxTotal: 3,
+          }),
           isEdited: true,
         }
       ),
