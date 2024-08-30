@@ -237,6 +237,9 @@ export default function ChatListScreen({
     groupId: chatOptionsGroupId,
     pinned,
     ...useChatSettingsNavigation(),
+    onPressInvite: (group) => {
+      setInviteSheetGroup(group);
+    },
   });
 
   return (
