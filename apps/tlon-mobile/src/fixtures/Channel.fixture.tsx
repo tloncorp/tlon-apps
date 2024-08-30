@@ -110,18 +110,26 @@ export const ChannelFixture = (props: {
   theme?: 'light' | 'dark';
   negotiationMatch?: boolean;
   headerMode?: 'default' | 'next';
+  passedProps?: (
+    baseProps: ComponentProps<typeof Channel>
+  ) => Partial<ComponentProps<typeof Channel>>;
 }) => {
   const switcher = useChannelSwitcher(tlonLocalIntros);
 
+  const channelProps = useMemo(
+    () => ({
+      ...baseProps,
+      headerModel: props.headerMode,
+      channel: switcher.activeChannel,
+      negotiationMatch: props.negotiationMatch ?? true,
+      goToChannels: () => switcher.open(),
+    }),
+    [props.headerMode, props.negotiationMatch, switcher]
+  );
+
   return (
     <ChannelFixtureWrapper theme={props.theme}>
-      <Channel
-        {...baseProps}
-        headerMode={props.headerMode}
-        channel={switcher.activeChannel}
-        negotiationMatch={props.negotiationMatch ?? true}
-        goToChannels={() => switcher.open()}
-      />
+      <Channel {...channelProps} {...props.passedProps?.(channelProps)} />
       <SwitcherFixture switcher={switcher} />
     </ChannelFixtureWrapper>
   );
@@ -246,6 +254,24 @@ export default {
       negotiationMatch={true}
       theme={'light'}
       headerMode={'default'}
+    />
+  ),
+  chatWithUnreadAnchor: (
+    <ChannelFixture
+      negotiationMatch={true}
+      theme={'light'}
+      headerMode={'default'}
+      passedProps={(baseProps) => ({
+        initialChannelUnread: {
+          channelId: baseProps.channel.id,
+          type: 'channel',
+          notify: false,
+          count: 1,
+          countWithoutThreads: 1,
+          updatedAt: Date.now(),
+          firstUnreadPostId: baseProps.posts!.at(10)!.id,
+        },
+      })}
     />
   ),
   notebook: <NotebookChannelFixture />,
