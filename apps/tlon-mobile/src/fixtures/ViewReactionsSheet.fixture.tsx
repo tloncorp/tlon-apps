@@ -10,10 +10,18 @@ import {
 const posts = createFakePosts(15);
 
 const post = posts[0];
-post.reactions = createFakeReactions(30, initialContacts);
+post.reactions = createFakeReactions({
+  count: 8,
+  contacts: initialContacts,
+  minTotal: 1,
+  maxTotal: 5,
+});
 
 const secondPost = posts[1];
-secondPost.reactions = createFakeReactions(3, initialContacts).slice(0, 2);
+secondPost.reactions = createFakeReactions({
+  count: 3,
+  contacts: initialContacts,
+}).slice(0, 2);
 
 export default {
   many: (
