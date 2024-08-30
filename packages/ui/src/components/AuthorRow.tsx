@@ -63,7 +63,7 @@ export default function AuthorRow({ onPress, ...props }: AuthorRowProps) {
       {props.detailView ? (
         <DetailViewAuthorRow {...props} onPress={handlePress} />
       ) : props.type === 'block' ? (
-        <BlockAuthorRow {...props} onPress={handlePress} />
+        <GalleryPostAuthorRow {...props} onPress={handlePress} />
       ) : props.type === 'note' ? (
         <NotebookAuthorRow {...props} onPress={handlePress} />
       ) : (
@@ -90,7 +90,7 @@ function DetailViewAuthorRow({ authorId, ...props }: AuthorRowProps) {
   );
 }
 
-function ChatAuthorRow({
+export function ChatAuthorRow({
   authorId,
   showEditedIndicator,
   sent,
@@ -125,7 +125,7 @@ function ChatAuthorRow({
   );
 }
 
-function NotebookAuthorRow({ authorId, ...props }: AuthorRowProps) {
+export function NotebookAuthorRow({ authorId, ...props }: AuthorRowProps) {
   return (
     <XStack gap="$m" alignItems="center" {...props}>
       <ContactAvatar size="$2xl" contactId={authorId} />
@@ -134,7 +134,7 @@ function NotebookAuthorRow({ authorId, ...props }: AuthorRowProps) {
   );
 }
 
-function BlockAuthorRow({ authorId, ...props }: AuthorRowProps) {
+export function GalleryPostAuthorRow({ authorId, ...props }: AuthorRowProps) {
   return (
     <XStack
       padding="$m"

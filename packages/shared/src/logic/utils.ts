@@ -359,6 +359,14 @@ export const isImagePost = (post: db.Post) => {
   return blocks.length === 1 && blocks.some((b) => 'image' in b);
 };
 
+export const isVideoPost = (post: db.Post) => {
+  const { blocks } = extractContentTypesFromPost(post);
+  return (
+    blocks.length === 1 &&
+    blocks.some((b) => 'image' in b && b.image.src.match(VIDEO_REGEX))
+  );
+};
+
 export const findFirstImageBlock = (blocks: ub.Block[]): ub.Image | null => {
   return blocks.find((b) => 'image' in b) as ub.Image;
 };
