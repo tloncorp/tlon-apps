@@ -45,7 +45,7 @@ export const typeStyles = {
   },
   '$label/s': {
     fontSize: 12,
-    lineHeight: 12,
+    lineHeight: 16,
     letterSpacing: 0,
     fontWeight: '400',
   },
@@ -125,7 +125,10 @@ export const Paragraph = ({
   trimmed,
   children,
   ...props
-}: ComponentProps<typeof BaseParagraph> & { trimmed: boolean }) => {
+}: ComponentProps<typeof BaseParagraph> & {
+  size: TextSize;
+  trimmed?: boolean;
+}) => {
   const content = useMemo(() => {
     if (!trimmed) {
       return children;
@@ -135,5 +138,9 @@ export const Paragraph = ({
       });
     }
   }, [trimmed, children]);
-  return <YStack {...props}>{content}</YStack>;
+  return (
+    <BaseParagraph trimmed {...props}>
+      {content}
+    </BaseParagraph>
+  );
 };

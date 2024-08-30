@@ -144,8 +144,16 @@ const ReferenceTitleIcon = styled(
 
 const ReferenceTitleText = styled(Text, {
   name: 'ReferenceTitleText',
+  context: ReferenceContext,
   size: '$label/m',
   color: '$tertiaryText',
+  variants: {
+    viewMode: {
+      block: {
+        size: '$label/s',
+      },
+    },
+  },
 });
 
 const ReferenceActionIcon = ({
@@ -173,14 +181,6 @@ const ReferenceBody = styled(View, {
   padding: '$l',
   gap: '$l',
   pointerEvents: 'none',
-  variants: {
-    renderMode: {
-      note: {
-        padding: '$2xl',
-        gap: '$2xl',
-      },
-    },
-  } as const,
 });
 
 export const Reference = withStaticProperties(ReferenceComponent, {

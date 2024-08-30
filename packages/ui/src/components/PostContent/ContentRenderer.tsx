@@ -364,6 +364,7 @@ const LineRenderer = memo(function LineRendererComponent({
   trimmed?: boolean;
 }) {
   return (
+    // Spread color prop as undefined value will override when we don't want it to
     <LineText {...props}>
       {inlines.map((child, i) => {
         return (
