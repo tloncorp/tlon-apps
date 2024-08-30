@@ -223,11 +223,11 @@ const postWithNotebookReference = makePost(
 );
 
 const postWithEmoji = makePost(exampleContacts.emotive, [
-  content.verse.inline('🙏🤪🥵'),
+  content.verse.inline('🙏🤪🥵', content.inline.break()),
 ]);
 
 const postWithSingleEmoji = makePost(exampleContacts.emotive, [
-  content.verse.inline('🙏'),
+  content.verse.inline('🙏', content.inline.break()),
 ]);
 
 const postWithVideo = makePost(exampleContacts.emotive, [

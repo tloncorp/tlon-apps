@@ -180,9 +180,11 @@ function convertTopLevelInline(verse: ub.VerseInline): Block[] {
   }
 
   if (
-    verse.inline.length === 1 &&
+    // Start with cheaper checks to rule out most cases
+    verse.inline.length < 3 &&
+    (!verse.inline[1] || ub.isBreak(verse.inline[1])) &&
     typeof verse.inline[0] === 'string' &&
-    verse.inline.length < 8 &&
+    verse.inline[0].length < 12 &&
     utils.containsOnlyEmoji(verse.inline[0])
   ) {
     return [
