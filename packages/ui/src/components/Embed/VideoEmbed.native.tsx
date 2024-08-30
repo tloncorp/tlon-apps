@@ -1,59 +1,67 @@
-import { AVPlaybackStatus, Video as ExpoVideo, ResizeMode } from 'expo-av';
-import { useEffect, useRef, useState } from 'react';
-import { Text } from 'tamagui';
+import { Video as ExpoVideo, ResizeMode } from 'expo-av';
+import { VideoReadyForDisplayEvent } from 'expo-av';
+import { useRef, useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { View } from 'tamagui';
 
 import { Icon } from '../Icon';
-import { Embed } from './Embed';
 
-export default function Video({ url }: { url: string }) {
+export default function VideoEmbed({
+  video,
+}: {
+  video: { src: string; height: number; width: number; alt: string };
+}) {
   const videoRef = useRef<ExpoVideo | null>(null);
-  const [playbackStatus, setPlaybackStatus] = useState<AVPlaybackStatus>();
-  const [showModal, setShowModal] = useState(false);
+  const [aspect, setAspect] = useState<number | null>(
+    video.width / video.height
+  );
 
-  useEffect(() => {
-    if (!videoRef.current || !playbackStatus || !playbackStatus.isLoaded) {
-      return;
-    }
+  const handlePress = useCallback(() => {
+    videoRef.current?.presentFullscreenPlayer();
+    videoRef.current?.playAsync();
+  }, []);
 
-    if (playbackStatus.isPlaying) {
-      videoRef.current?.presentFullscreenPlayer();
-    }
+  const handleReadyForDisplay = useCallback((e: VideoReadyForDisplayEvent) => {
+    setAspect(e.naturalSize.width / e.naturalSize.height);
+  }, []);
 
-    if (playbackStatus.didJustFinish) {
-      videoRef.current?.dismissFullscreenPlayer();
-    }
-  }, [playbackStatus]);
+  const source = useMemo(() => ({ uri: video.src }), [video.src]);
 
   return (
-    <Embed height={100}>
-      <Embed.Header onPress={() => ({})}>
-        <Embed.Title>Video</Embed.Title>
-        <Embed.PopOutIcon />
-      </Embed.Header>
-      <Embed.Preview onPress={() => setShowModal(true)}>
-        <Icon type="Play" />
-        <Text>Watch</Text>
-      </Embed.Preview>
-      <Embed.Modal visible={showModal} onDismiss={() => setShowModal(false)}>
-        <ExpoVideo
-          ref={videoRef}
-          source={{ uri: url }}
-          rate={1.0}
-          volume={1.0}
-          isMuted={false}
-          resizeMode={ResizeMode.CONTAIN}
-          useNativeControls
-          onFullscreenUpdate={(event) => {
-            if (event.fullscreenUpdate === 2) {
-              videoRef.current?.pauseAsync();
-            }
-          }}
-          onPlaybackStatusUpdate={(status) => {
-            setPlaybackStatus(status);
-          }}
-          style={{ width: 200, height: 200 }}
+    <View
+      onPress={handlePress}
+      group="button"
+      borderRadius="$m"
+      overflow="hidden"
+    >
+      <ExpoVideo
+        ref={videoRef}
+        source={source}
+        onReadyForDisplay={handleReadyForDisplay}
+        resizeMode={ResizeMode.CONTAIN}
+        style={{
+          width: '100%',
+          aspectRatio: aspect ?? 1,
+        }}
+      />
+      <View
+        position="absolute"
+        top={0}
+        left={0}
+        right={0}
+        bottom={0}
+        alignItems="center"
+        justifyContent="center"
+      >
+        <Icon
+          type="Play"
+          backgroundColor={'$mediaScrim'}
+          color="$white"
+          borderRadius={100}
+          customSize={['$4xl', '$4xl']}
+          $group-button-press={{ opacity: 0.8 }}
         />
-      </Embed.Modal>
-    </Embed>
+      </View>
+    </View>
   );
 }

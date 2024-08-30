@@ -11,14 +11,17 @@ import {
   logInHostingUser,
   requestPhoneVerify,
 } from '@tloncorp/app/lib/hostingApi';
-import { isEulaAgreed } from '@tloncorp/app/utils/eula';
+import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
 import {
   Button,
+  CheckboxInput,
   Field,
   GenericHeader,
+  Icon,
   KeyboardAvoidingView,
+  ListItem,
   SizableText,
   Text,
   TextInput,
@@ -28,13 +31,14 @@ import {
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
-import type { OnboardingStackParamList } from '../types';
+import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'TlonLogin'>;
 
 type FormData = {
   email: string;
   password: string;
+  eulaAgreed: boolean;
 };
 
 export const TlonLoginScreen = ({ navigation }: Props) => {
@@ -47,11 +51,14 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
     formState: { errors, isValid },
     getValues,
     trigger,
+    watch,
   } = useForm<FormData>({
     defaultValues: {
       email: DEFAULT_TLON_LOGIN_EMAIL,
       password: DEFAULT_TLON_LOGIN_PASSWORD,
+      eulaAgreed: false,
     },
+    mode: 'onChange',
   });
   const { setShip } = useShip();
 
@@ -60,8 +67,16 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
     navigation.navigate('ResetPassword', { email });
   };
 
+  const handleEula = () => {
+    navigation.navigate('EULA');
+  };
+
   const onSubmit = handleSubmit(async (params) => {
     setIsSubmitting(true);
+
+    if (params.eulaAgreed) {
+      await setEulaAgreed();
+    }
 
     try {
       const user = await logInHostingUser(params);
@@ -88,11 +103,13 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
                     authCookie
                   );
                 } else {
-                  navigation.navigate('EULA', { shipId, shipUrl, authCookie });
+                  setRemoteError(
+                    'Please agree to the End User License Agreement to continue.'
+                  );
                 }
               } else {
                 setRemoteError(
-                  "Sorry, we couldn't log you into your Urbit ID."
+                  "Sorry, we couldn't log you into your Tlon account."
                 );
               }
             } else {
@@ -100,7 +117,7 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
             }
           } else {
             setRemoteError(
-              "Sorry, we couldn't find an active Urbit ID for your account."
+              "Sorry, we couldn't find an active Tlon ship for your account."
             );
           }
         } else {
@@ -134,10 +151,12 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
     <View flex={1}>
       <GenericHeader
         title="Login"
+        showSessionStatus={false}
         goBack={() => navigation.goBack()}
         showSpinner={isSubmitting}
         rightContent={
-          isValid && (
+          isValid &&
+          watch('eulaAgreed') && (
             <Button minimal onPress={onSubmit}>
               <Text fontSize={'$m'}>Connect</Text>
             </Button>
@@ -209,10 +228,39 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
             )}
             name="password"
           />
-
-          <Button minimal onPress={handleForgotPassword}>
-            <SizableText color="$primaryText">Forgot password?</SizableText>
-          </Button>
+          <Controller
+            control={control}
+            name="eulaAgreed"
+            render={({ field: { onChange, value } }) => (
+              <CheckboxInput
+                option={{
+                  title:
+                    'I have read and agree to the End User License Agreement',
+                  value: 'agreed',
+                }}
+                checked={value}
+                onChange={() => onChange(!value)}
+              />
+            )}
+          />
+          <YStack>
+            <ListItem onPress={handleEula}>
+              <ListItem.MainContent>
+                <ListItem.Title>End User License Agreement</ListItem.Title>
+              </ListItem.MainContent>
+              <ListItem.EndContent>
+                <Icon type="ChevronRight" color="$primaryText" />
+              </ListItem.EndContent>
+            </ListItem>
+            <ListItem onPress={handleForgotPassword}>
+              <ListItem.MainContent>
+                <ListItem.Title>Forgot password?</ListItem.Title>
+              </ListItem.MainContent>
+              <ListItem.EndContent>
+                <Icon type="ChevronRight" color="$primaryText" />
+              </ListItem.EndContent>
+            </ListItem>
+          </YStack>
         </YStack>
       </KeyboardAvoidingView>
     </View>

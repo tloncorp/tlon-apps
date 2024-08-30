@@ -10,7 +10,7 @@ import {
 } from '@tloncorp/ui';
 import { useState } from 'react';
 
-import type { OnboardingStackParamList } from '../types';
+import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'JoinWaitList'>;
 
@@ -40,12 +40,16 @@ export const JoinWaitListScreen = ({
 
   return (
     <View flex={1}>
-      <GenericHeader title="Join Waitlist" goBack={() => navigation.goBack()} />
+      <GenericHeader
+        title="Join Waitlist"
+        showSessionStatus={false}
+        goBack={() => navigation.goBack()}
+      />
       <YStack padding="$xl" gap="$2xl">
         <SizableText color="$primaryText" textAlign="center">
-          We&rsquo;ve given out all available accounts for today, but w&rsquo;ll
-          have more soon. If you&rsquo;d like, we can let you know via email
-          when they&rsquo;re ready.
+          We&rsquo;ve given out all available accounts for today, but
+          we&rsquo;ll have more soon. If you&rsquo;d like, we can let you know
+          via email when they&rsquo;re ready.
         </SizableText>
         {remoteError ? (
           <SizableText fontSize="$s" color="$negativeActionText">

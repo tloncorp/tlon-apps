@@ -8,7 +8,7 @@ import { ActionSheet } from '../ActionSheet';
 import { getNativeEmoji } from '../Emoji';
 import { ToggleGroupInput } from '../Form';
 import { ContactListItem } from '../ListItem';
-import { Emoji } from '../TrimmedText';
+import { Text } from '../TextV2';
 
 export function ViewReactionsPane({ post }: { post: db.Post }) {
   const groupedReactions = useGroupedReactions(post.reactions ?? []);
@@ -30,7 +30,7 @@ export function ViewReactionsPane({ post }: { post: db.Post }) {
           tabVal === 'all' ? (
             'All'
           ) : (
-            <Emoji size="$m">{getNativeEmoji(tabVal)}</Emoji>
+            <Text size="$emoji/m">{getNativeEmoji(tabVal)}</Text>
           ),
       };
     });
@@ -70,7 +70,7 @@ export function ViewReactionsPane({ post }: { post: db.Post }) {
                 showUserId
                 showEndContent
                 endContent={
-                  <Emoji size="$m">{getNativeEmoji(reaction.value)}</Emoji>
+                  <Text size="$emoji/m">{getNativeEmoji(reaction.value)}</Text>
                 }
               ></ContactListItem>
             ))}

@@ -1,12 +1,17 @@
-import { useCallback } from 'react';
+import { makePrettyShortDate } from '@tloncorp/shared/dist';
+import { useCallback, useMemo } from 'react';
 import { TouchableOpacity } from 'react-native-gesture-handler';
-import { Text, View, getTokenValue } from 'tamagui';
+import { View } from 'tamagui';
 
-import ContentRenderer from '../ContentRenderer';
-import { Image } from '../Image';
+import AuthorRow from '../AuthorRow';
+import {
+  NotebookPostFrame,
+  NotebookPostHeroImage,
+  NotebookPostTitle,
+} from '../NotebookPost/NotebookPost';
+import { ContentRenderer } from '../PostContent';
+import { Text } from '../TextV2';
 import { DetailView, DetailViewProps } from './DetailView';
-
-const IMAGE_HEIGHT = 268;
 
 export default function NotebookDetailView({
   post,
@@ -30,6 +35,10 @@ export default function NotebookDetailView({
     }
   }, [post, onPressImage]);
 
+  const date = useMemo(() => {
+    return makePrettyShortDate(new Date(post.receivedAt));
+  }, [post.receivedAt]);
+
   if (!post) {
     return null;
   }
@@ -51,28 +60,40 @@ export default function NotebookDetailView({
       onPressRetry={onPressRetry}
       onPressDelete={onPressDelete}
     >
-      <DetailView.Header replyCount={post.replyCount ?? 0}>
-        {post.image && (
-          <TouchableOpacity onPress={handleImagePressed} activeOpacity={0.9}>
-            <View marginHorizontal={-getTokenValue('$2xl')} alignItems="center">
-              <Image
+      <View>
+        <NotebookPostFrame>
+          {post.image && (
+            <TouchableOpacity onPress={handleImagePressed} activeOpacity={0.9}>
+              <NotebookPostHeroImage
                 source={{
                   uri: post.image,
                 }}
-                width="100%"
-                height={IMAGE_HEIGHT}
               />
-            </View>
-          </TouchableOpacity>
-        )}
-        {post.title && (
-          <Text color="$primaryText" fontSize={24} fontWeight={'500'}>
-            {post.title}
+            </TouchableOpacity>
+          )}
+
+          {post.title && <NotebookPostTitle>{post.title}</NotebookPostTitle>}
+
+          <Text size="$body" color="$tertiaryText">
+            {date}
           </Text>
-        )}
-        <DetailView.MetaData post={post} />
-        <ContentRenderer post={post} />
-      </DetailView.Header>
+
+          <AuthorRow
+            authorId={post.authorId}
+            author={post.author}
+            sent={post.sentAt}
+            type={post.type}
+          />
+        </NotebookPostFrame>
+        <View
+          paddingHorizontal="$xl"
+          paddingBottom="$l"
+          borderBottomWidth={1}
+          borderBottomColor="$border"
+        >
+          <ContentRenderer viewMode="note" post={post} />
+        </View>
+      </View>
     </DetailView>
   );
 }

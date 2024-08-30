@@ -1,4 +1,4 @@
-import type * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/dist/db';
 import { getTextContent } from '@tloncorp/shared/dist/urbit';
 import type { Story } from '@tloncorp/shared/dist/urbit/channel';
 import { formatUd, unixToDa } from '@urbit/aura';
@@ -135,7 +135,7 @@ function pickRandom<T>(arr: T[]) {
   return arr[randInt(0, arr.length)];
 }
 
-function randomContactId() {
+export function randomContactId() {
   return `~${pickRandom(urbitPrefixes)}${pickRandom(urbitSuffixes)}-${pickRandom(urbitPrefixes)}${pickRandom(urbitSuffixes)}`;
 }
 
@@ -365,7 +365,7 @@ export const tlonLocalSupport: db.Channel = {
 
 export const tlonLocalBulletinBoard: db.Channel = {
   ...emptyChannel,
-  id: '~nibset-napwyn/bulletin-board',
+  id: 'heap/~nibset-napwyn/bulletin-board',
   type: 'gallery',
   groupId: '~nibset-napwyn/tlon',
   title: 'Bulletin Board',
@@ -436,7 +436,7 @@ export const tlonLocalCommunityCatalog: db.Channel = {
 
 export const tlonLocalGettingStarted: db.Channel = {
   ...emptyChannel,
-  id: '~nibset-napwyn/getting-started',
+  id: 'diary/~nibset-napwyn/getting-started',
   type: 'notebook',
   groupId: '~nibset-napwyn/tlon',
   title: 'Getting Started',
