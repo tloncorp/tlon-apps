@@ -222,6 +222,14 @@ const postWithNotebookReference = makePost(
   { isEdited: false, replyCount: 0 }
 );
 
+const postWithEmoji = makePost(exampleContacts.emotive, [
+  content.verse.inline('🙏🤪🥵'),
+]);
+
+const postWithSingleEmoji = makePost(exampleContacts.emotive, [
+  content.verse.inline('🙏'),
+]);
+
 const postWithVideo = makePost(exampleContacts.emotive, [
   content.block.image({
     width: 868,
@@ -449,4 +457,6 @@ export default {
   postWithNotebookReference: (
     <SinglePostFixture post={postWithNotebookReference} />
   ),
+  postWithEmoji: <SinglePostFixture post={postWithEmoji} />,
+  postWithSingleEmoji: <SinglePostFixture post={postWithSingleEmoji} />,
 };
