@@ -7,6 +7,8 @@ import {
   NativeStackScreenProps,
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
+import { BRANCH_DOMAIN, BRANCH_KEY } from '@tloncorp/app/constants';
+import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import {
@@ -16,6 +18,7 @@ import {
   CreateGroupWidget,
   GroupPreviewPane,
   Icon,
+  InviteUsersWidget,
   Sheet,
   View,
   ViewUserGroupsWidget,
@@ -55,6 +58,10 @@ type StackParamList = {
   Home: undefined;
   Root: undefined;
   CreateGroup: undefined;
+  InviteUsers: {
+    group: db.Group;
+    onInviteComplete: () => void;
+  };
   ViewContactGroups: {
     contactId: string;
   };
@@ -137,6 +144,10 @@ export default function AddGroupSheet({
                     <Stack.Screen
                       name="CreateGroup"
                       component={CreateGroupScreen}
+                    />
+                    <Stack.Screen
+                      name="InviteUsers"
+                      component={InviteUsersScreen}
                     />
                     <Stack.Screen
                       name="ViewContactGroups"
@@ -263,10 +274,15 @@ function CreateGroupScreen(
   const { onCreatedGroup, dismiss } = useContext(ActionContext);
   const handleCreate = useCallback(
     (args: { group: db.Group; channel: db.Channel }) => {
-      dismiss();
-      onCreatedGroup(args);
+      props.navigation.push('InviteUsers', {
+        group: args.group,
+        onInviteComplete: () => {
+          dismiss();
+          onCreatedGroup(args);
+        },
+      });
     },
-    [dismiss, onCreatedGroup]
+    [dismiss, onCreatedGroup, props.navigation]
   );
   return (
     <ScreenWrapper>
@@ -274,6 +290,29 @@ function CreateGroupScreen(
         goBack={() => props.navigation.pop()}
         onCreatedGroup={handleCreate}
       />
+    </ScreenWrapper>
+  );
+}
+
+function InviteUsersScreen(
+  props: NativeStackScreenProps<StackParamList, 'InviteUsers'>
+) {
+  const { contacts } = useContext(ActionContext);
+  const currentUserId = useCurrentUserId();
+
+  return (
+    <ScreenWrapper>
+      <AppDataContextProvider
+        branchKey={BRANCH_KEY}
+        branchDomain={BRANCH_DOMAIN}
+        contacts={contacts ?? null}
+        currentUserId={currentUserId}
+      >
+        <InviteUsersWidget
+          group={props.route.params.group}
+          onInviteComplete={props.route.params.onInviteComplete}
+        />
+      </AppDataContextProvider>
     </ScreenWrapper>
   );
 }

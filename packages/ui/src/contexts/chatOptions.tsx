@@ -16,6 +16,7 @@ export type ChatOptionsContextValue = {
   onPressGroupMeta: (groupId: string) => void;
   onPressGroupMembers: (groupId: string) => void;
   onPressManageChannels: (groupId: string) => void;
+  onPressInvite?: (group: db.Group) => void;
   onPressGroupPrivacy: (groupId: string) => void;
   onPressRoles: (groupId: string) => void;
   onPressChannelMembers: (channelId: string) => void;
@@ -39,6 +40,7 @@ type ChatOptionsProviderProps = {
   onPressGroupMeta: (groupId: string) => void;
   onPressGroupMembers: (groupId: string) => void;
   onPressManageChannels: (groupId: string) => void;
+  onPressInvite?: (group: db.Group) => void;
   onPressGroupPrivacy: (groupId: string) => void;
   onPressChannelMembers: (channelId: string) => void;
   onPressChannelMeta: (channelId: string) => void;
@@ -53,6 +55,7 @@ export const ChatOptionsProvider = ({
   onPressGroupMeta,
   onPressGroupMembers,
   onPressManageChannels,
+  onPressInvite,
   onPressGroupPrivacy,
   onPressChannelMembers,
   onPressChannelMeta,
@@ -85,6 +88,7 @@ export const ChatOptionsProvider = ({
     onPressGroupMeta,
     onPressGroupMembers,
     onPressManageChannels,
+    onPressInvite,
     onPressGroupPrivacy,
     onPressRoles,
     onPressLeave,
