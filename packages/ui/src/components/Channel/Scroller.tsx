@@ -169,69 +169,17 @@ const Scroller = forwardRef(
       [handleSetActive]
     );
 
-    const [userHasScrolled, setUserHasScrolled] = useState(false);
-    const renderedPostsRef = useRef(new Set());
-
-    const [needsScrollToAnchor, setNeedsScrollToAnchor] = useState(true);
-    const readyToDisplayPosts = !needsScrollToAnchor;
-
-    const anchorIndex = useMemo(() => {
-      return posts?.findIndex((p) => p.id === anchor?.postId) ?? -1;
-    }, [posts, anchor]);
-
-    const scrollToAnchorIfNeeded = useCallback(() => {
-      if (!needsScrollToAnchor) {
-        return;
-      }
-      if (userHasScrolled) {
-        return;
-      }
-      if (anchorIndex === -1) {
-        return;
-      }
-      setNeedsScrollToAnchor(false);
-
-      flatListRef.current?.scrollToIndex({
-        index: anchorIndex,
-        animated: false,
-        viewPosition: anchor?.type === 'unread' ? 1 : 0.5,
-      });
-    }, [needsScrollToAnchor, anchorIndex, anchor?.type, userHasScrolled]);
-
-    // We use this function to manage autoscrolling to the anchor post. We need
-    // the post to be rendered before we're able to scroll to it, so we wait for
-    // it here. Once it's rendered we scroll to it and set `needsScrollToAnchor` to
-    // false, revealing the Scroller.
-    const handleItemLayout = useCallback(
-      (post: db.Post, index: number) => {
-        renderedPostsRef.current.add(post.id);
-        if (post.id === anchor?.postId) {
-          logger.log('scrolling to initially set anchor', post.id, index);
-          scrollToAnchorIfNeeded();
-        }
-
-        if (
-          needsScrollToAnchor &&
-          // if we've got at least a page of posts and we've rendered them all,
-          // reveal the scroller to prevent getting stuck when messages are
-          // deleted.
-          posts?.length &&
-          renderedPostsRef.current.size >= posts?.length
-        ) {
-          setNeedsScrollToAnchor(false);
-        }
-      },
-      [
-        anchor?.postId,
-        needsScrollToAnchor,
-        posts?.length,
-        scrollToAnchorIfNeeded,
-      ]
-    );
-
-    useEffect(() => {
-      scrollToAnchorIfNeeded();
-    }, [scrollToAnchorIfNeeded]);
+    const {
+      readyToDisplayPosts,
+      scrollerItemProps: anchorScrollLockScrollerItemProps,
+      flatlistProps: anchorScrollLockFlatlistProps,
+    } = useAnchorScrollLock({
+      posts,
+      anchor,
+      flatListRef,
+      hasNewerPosts,
+      channelType,
+    });
 
     const theme = useTheme();
 
@@ -277,7 +225,6 @@ const Scroller = forwardRef(
             Component={renderItem}
             unreadCount={unreadCount}
             editingPost={editingPost}
-            onLayout={handleItemLayout}
             channelId={channelId}
             channelType={channelType}
             setEditingPost={setEditingPost}
@@ -292,6 +239,7 @@ const Scroller = forwardRef(
             onLongPressPost={handlePostLongPressed}
             activeMessage={activeMessage}
             messageRef={activeMessageRefs.current[item.id]}
+            {...anchorScrollLockScrollerItemProps}
           />
         );
       },
@@ -303,7 +251,7 @@ const Scroller = forwardRef(
         renderItem,
         unreadCount,
         editingPost,
-        handleItemLayout,
+        anchorScrollLockScrollerItemProps,
         channelId,
         channelType,
         setEditingPost,
@@ -318,31 +266,6 @@ const Scroller = forwardRef(
         activeMessage,
         showDividers,
       ]
-    );
-
-    const lastAnchorId = useRef(anchor?.postId);
-
-    const handleScrollToIndexFailed = useCallback(
-      (info: {
-        index: number;
-        highestMeasuredFrameIndex: number;
-        averageItemLength: number;
-      }) => {
-        logger.log('scroll to index failed', { info });
-
-        // If the anchor hasn't changed then we aren't refreshing the list,
-        // so we can try to scroll to the index (that we failed to scroll to)
-        // again.
-
-        if (anchor?.postId === lastAnchorId.current) {
-          // The index hasn't been measured yet, so we try to guess the offset
-          // based on the average item length.
-          const offset = info.index * info.averageItemLength;
-          flatListRef.current?.scrollToOffset({ offset, animated: false });
-          setNeedsScrollToAnchor(true);
-        }
-      },
-      [anchor?.postId]
     );
 
     const insets = useSafeAreaInsets();
@@ -374,10 +297,6 @@ const Scroller = forwardRef(
           }
         : {}
     ) as StyleProp<ViewStyle>;
-
-    const handleScrollBeginDrag = useCallback(() => {
-      setUserHasScrolled(true);
-    }, []);
 
     const pendingEvents = useRef({
       onEndReached: false,
@@ -438,23 +357,6 @@ const Scroller = forwardRef(
       );
     }, [renderEmptyComponentFn, inverted]);
 
-    const maintainVisibleContentPositionConfig = useMemo(() => {
-      return channelType === 'chat' ||
-        channelType === 'dm' ||
-        channelType === 'groupDm'
-        ? {
-            minIndexForVisible: 0,
-            // If this is set to a number, the list will scroll to the bottom (or top,
-            // if not inverted) when the list height changes. This is undesirable when
-            // we're starting at an older post and scrolling down towards newer ones,
-            // as it will trigger on every new page load, causing jumping. Instead, we
-            // only enable it when there's nothing newer left to load (so, for new incoming messages only).
-            autoscrollToTopThreshold:
-              !userHasScrolled || hasNewerPosts ? undefined : 0,
-          }
-        : undefined;
-    }, [userHasScrolled, hasNewerPosts, channelType]);
-
     const handleScroll = useScrollDirectionTracker(setIsAtBottom);
 
     const scrollIndicatorInsets = useMemo(() => {
@@ -482,15 +384,10 @@ const Scroller = forwardRef(
             keyboardDismissMode="on-drag"
             contentContainerStyle={contentContainerStyle}
             columnWrapperStyle={channelType === 'gallery' && columnWrapperStyle}
-            onScrollBeginDrag={handleScrollBeginDrag}
-            onScrollToIndexFailed={handleScrollToIndexFailed}
             inverted={inverted}
             initialNumToRender={INITIAL_POSTS_PER_PAGE}
             maxToRenderPerBatch={8}
             windowSize={8}
-            maintainVisibleContentPosition={
-              maintainVisibleContentPositionConfig
-            }
             numColumns={channelType === 'gallery' ? 2 : 1}
             style={style}
             onEndReached={handleEndReached}
@@ -500,6 +397,7 @@ const Scroller = forwardRef(
             onScroll={handleScroll}
             scrollIndicatorInsets={scrollIndicatorInsets}
             automaticallyAdjustsScrollIndicatorInsets={false}
+            {...anchorScrollLockFlatlistProps}
           />
         )}
         <Modal
@@ -736,3 +634,151 @@ const PressableMessage = React.memo(
     }
   )
 );
+
+/**
+ * Manages locking scroll to anchor post on load.
+ */
+function useAnchorScrollLock({
+  flatListRef,
+  posts,
+  anchor,
+  hasNewerPosts,
+  channelType,
+}: {
+  flatListRef: RefObject<FlatList<db.Post>>;
+  posts: db.Post[] | null;
+  anchor: ScrollAnchor | null | undefined;
+  hasNewerPosts?: boolean;
+  channelType: db.ChannelType;
+}) {
+  const [userHasScrolled, setUserHasScrolled] = useState(false);
+  const [needsScrollToAnchor, setNeedsScrollToAnchor] = useState(true);
+  const lastAnchorId = useRef(anchor?.postId);
+  const renderedPostsRef = useRef(new Set());
+
+  const anchorIndex = useMemo(() => {
+    return posts?.findIndex((p) => p.id === anchor?.postId) ?? -1;
+  }, [posts, anchor]);
+
+  const scrollToAnchorIfNeeded = useCallback(() => {
+    if (!needsScrollToAnchor) {
+      return;
+    }
+    if (userHasScrolled) {
+      return;
+    }
+    if (anchorIndex === -1) {
+      return;
+    }
+    setNeedsScrollToAnchor(false);
+
+    flatListRef.current?.scrollToIndex({
+      index: anchorIndex,
+      animated: false,
+      viewPosition: anchor?.type === 'unread' ? 1 : 0.5,
+    });
+  }, [
+    needsScrollToAnchor,
+    anchorIndex,
+    anchor?.type,
+    userHasScrolled,
+    flatListRef,
+  ]);
+
+  const handleScrollBeginDrag = useCallback(() => {
+    setUserHasScrolled(true);
+  }, []);
+
+  // We use this function to manage autoscrolling to the anchor post. We need
+  // the post to be rendered before we're able to scroll to it, so we wait for
+  // it here. Once it's rendered we scroll to it and set `needsScrollToAnchor` to
+  // false, revealing the Scroller.
+  const handleItemLayout = useCallback(
+    (post: db.Post, index: number) => {
+      renderedPostsRef.current.add(post.id);
+
+      // If the anchor post got a layout, attempt a scroll.
+      if (post.id === anchor?.postId) {
+        logger.log('scrolling to initially set anchor', post.id, index);
+        scrollToAnchorIfNeeded();
+      }
+
+      // If we've got at least a page of posts and we've rendered them all,
+      // reveal the scroller to prevent getting stuck when messages are
+      // deleted.
+      if (
+        needsScrollToAnchor &&
+        posts?.length &&
+        renderedPostsRef.current.size >= posts?.length
+      ) {
+        setNeedsScrollToAnchor(false);
+      }
+    },
+    [anchor?.postId, needsScrollToAnchor, posts?.length, scrollToAnchorIfNeeded]
+  );
+  const maintainVisibleContentPositionConfig = useMemo(() => {
+    return channelType === 'chat' ||
+      channelType === 'dm' ||
+      channelType === 'groupDm'
+      ? {
+          minIndexForVisible: 0,
+          // If this is set to a number, the list will scroll to the bottom (or top,
+          // if not inverted) when the list height changes. This is undesirable when
+          // we're starting at an older post and scrolling down towards newer ones,
+          // as it will trigger on every new page load, causing jumping. Instead, we
+          // only enable it when there's nothing newer left to load (so, for new incoming messages only).
+          autoscrollToTopThreshold:
+            !userHasScrolled || hasNewerPosts ? undefined : 0,
+        }
+      : undefined;
+  }, [userHasScrolled, hasNewerPosts, channelType]);
+
+  const handleScrollToIndexFailed = useCallback(
+    (info: {
+      index: number;
+      highestMeasuredFrameIndex: number;
+      averageItemLength: number;
+    }) => {
+      logger.log('scroll to index failed', { info });
+
+      // If the anchor hasn't changed then we aren't refreshing the list,
+      // so we can try to scroll to the index (that we failed to scroll to)
+      // again.
+
+      if (anchor?.postId === lastAnchorId.current) {
+        // The index hasn't been measured yet, so we try to guess the offset
+        // based on the average item length.
+        const offset = info.index * info.averageItemLength;
+        flatListRef.current?.scrollToOffset({ offset, animated: false });
+
+        setNeedsScrollToAnchor(true);
+      }
+    },
+    [anchor?.postId, flatListRef]
+  );
+
+  // `scrollToAnchorIfNeeded` has internal checks that will bail if a scroll is
+  // not needed.
+  // These checks double as dependencies which change the identity of
+  // `scrollToAnchorIfNeeded` when it's possible a scroll is needed - that is
+  // why `scrollTOAnchorIfNeeded` is the sole dependency here.
+  useEffect(() => {
+    scrollToAnchorIfNeeded();
+  }, [scrollToAnchorIfNeeded]);
+
+  return {
+    readyToDisplayPosts: !needsScrollToAnchor,
+
+    scrollerItemProps: {
+      onLayout: handleItemLayout,
+    } satisfies Partial<React.ComponentProps<typeof ScrollerItem>>,
+
+    flatlistProps: {
+      onScrollToIndexFailed: handleScrollToIndexFailed,
+      onScrollBeginDrag: handleScrollBeginDrag,
+      maintainVisibleContentPosition: maintainVisibleContentPositionConfig,
+    } satisfies Partial<
+      React.ComponentProps<typeof Animated.FlatList<db.Post>>
+    >,
+  };
+}
