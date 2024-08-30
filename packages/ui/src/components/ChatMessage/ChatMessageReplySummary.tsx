@@ -40,7 +40,7 @@ export const ChatMessageReplySummary = React.memo(
               ? isMuted
                 ? '$tertiaryText'
                 : '$positiveActionText'
-              : undefined)
+              : '$primaryText')
           }
         >
           {replyCount} {replyCount > 1 ? 'replies' : 'reply'}
