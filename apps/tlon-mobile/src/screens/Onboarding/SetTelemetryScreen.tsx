@@ -13,7 +13,7 @@ import { useCallback, useState } from 'react';
 import { Switch } from 'react-native';
 import branch from 'react-native-branch';
 
-import type { OnboardingStackParamList } from '../types';
+import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetTelemetry'>;
 
@@ -42,6 +42,7 @@ export const SetTelemetryScreen = ({
     <View flex={1}>
       <GenericHeader
         title="Usage Statistics"
+        showSessionStatus={false}
         rightContent={
           <Button minimal onPress={handleNext}>
             <Text fontSize="$m">Next</Text>

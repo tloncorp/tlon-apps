@@ -31,19 +31,19 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
-import { EULAScreen } from './screens/EULAScreen';
-import { JoinWaitListScreen } from './screens/JoinWaitListScreen';
-import { RequestPhoneVerifyScreen } from './screens/RequestPhoneVerifyScreen';
+import { EULAScreen } from './screens/Onboarding/EULAScreen';
+import { JoinWaitListScreen } from './screens/Onboarding/JoinWaitListScreen';
+import { RequestPhoneVerifyScreen } from './screens/Onboarding/RequestPhoneVerifyScreen';
+import { ResetPasswordScreen } from './screens/Onboarding/ResetPasswordScreen';
+import { SetNicknameScreen } from './screens/Onboarding/SetNicknameScreen';
+import { SetNotificationsScreen } from './screens/Onboarding/SetNotificationsScreen';
+import { SetTelemetryScreen } from './screens/Onboarding/SetTelemetryScreen';
+import { ShipLoginScreen } from './screens/Onboarding/ShipLoginScreen';
+import { SignUpEmailScreen } from './screens/Onboarding/SignUpEmailScreen';
+import { SignUpPasswordScreen } from './screens/Onboarding/SignUpPasswordScreen';
+import { TlonLoginScreen } from './screens/Onboarding/TlonLoginScreen';
+import { WelcomeScreen } from './screens/Onboarding/WelcomeScreen';
 import { ReserveShipScreen } from './screens/ReserveShipScreen';
-import { ResetPasswordScreen } from './screens/ResetPasswordScreen';
-import { SetNicknameScreen } from './screens/SetNicknameScreen';
-import { SetNotificationsScreen } from './screens/SetNotificationsScreen';
-import { SetTelemetryScreen } from './screens/SetTelemetryScreen';
-import { ShipLoginScreen } from './screens/ShipLoginScreen';
-import { SignUpEmailScreen } from './screens/SignUpEmailScreen';
-import { SignUpPasswordScreen } from './screens/SignUpPasswordScreen';
-import { TlonLoginScreen } from './screens/TlonLoginScreen';
-import { WelcomeScreen } from './screens/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
 
 type Props = {

@@ -12,7 +12,7 @@ import {
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
-import type { OnboardingStackParamList } from '../types';
+import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetNickname'>;
 
@@ -59,6 +59,7 @@ export const SetNicknameScreen = ({
     <View flex={1}>
       <GenericHeader
         title="Nickname"
+        showSessionStatus={false}
         rightContent={
           <Button minimal onPress={onSubmit}>
             <Text fontSize="$m">Next</Text>
