@@ -182,6 +182,7 @@ const Rule = styled(View, {
 });
 
 const LineText = styled(Text, {
+  color: '$primaryText',
   size: '$body',
   context: ContentContext,
   variants: {
@@ -356,8 +357,7 @@ const LineRenderer = memo(function LineRendererComponent({
   inlines,
   onPressImage,
   onLongPress,
-  color,
-  trimmed = true,
+  ...props
 }: {
   inlines: cn.InlineNode[];
   onLongPress?: () => void;
@@ -366,7 +366,7 @@ const LineRenderer = memo(function LineRendererComponent({
   trimmed?: boolean;
 }) {
   return (
-    <LineText trimmed={trimmed} color={color}>
+    <LineText {...props}>
       {inlines.map((child, i) => {
         return (
           <InlineContent
