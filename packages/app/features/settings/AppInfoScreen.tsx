@@ -1,6 +1,3 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '@tloncorp/app/constants';
-import { getEasUpdateDisplay } from '@tloncorp/app/lib/platformHelpers';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   AppSetting,
@@ -14,30 +11,28 @@ import {
 import { preSig } from '@urbit/aura';
 import * as Application from 'expo-application';
 import * as Updates from 'expo-updates';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Platform } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
-import { RootStackParamList } from '../types';
-
-type Props = NativeStackScreenProps<RootStackParamList, 'AppInfo'>;
+import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
+import { getEasUpdateDisplay } from '../../lib/platformHelpers';
 
 const BUILD_VERSION = `${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${Application.nativeBuildVersion}`;
 
-export function AppInfoScreen(props: Props) {
+export function AppInfoScreen({
+  onPressPreviewFeatures,
+  onGoBack,
+}: {
+  onPressPreviewFeatures: () => void;
+  onGoBack: () => void;
+}) {
   const { data: appInfo } = store.useAppInfo();
   const easUpdateDisplay = useMemo(() => getEasUpdateDisplay(Updates), []);
 
-  const onPressPreviewFeatures = useCallback(() => {
-    props.navigation.navigate('FeatureFlags');
-  }, [props.navigation]);
-
   return (
     <View flex={1}>
-      <GenericHeader
-        title="App Info"
-        goBack={() => props.navigation.goBack()}
-      />
+      <GenericHeader title="App Info" goBack={onGoBack} />
       <ScrollView>
         <YStack marginTop="$xl" marginHorizontal="$2xl" gap="$s">
           <AppSetting title="Build version" value={BUILD_VERSION} copyable />

@@ -1,5 +1,3 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
@@ -11,18 +9,12 @@ import {
 } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
-import { RootStackParamList } from '../types';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
-
-export function EditProfileScreen(props: Props) {
+export function EditProfileScreen({ onGoBack }: { onGoBack: () => void }) {
   const currentUserId = useCurrentUserId();
   const { data: contacts } = store.useContacts();
   const { data: groups } = store.useGroups({ includeUnjoined: true });
-
-  const onGoBack = useCallback(() => {
-    props.navigation.goBack();
-  }, [props.navigation]);
 
   const onSaveProfile = useCallback(
     (update: {
@@ -35,9 +27,9 @@ export function EditProfileScreen(props: Props) {
       if (update.pinnedGroups) {
         store.updateProfilePinnedGroups(update.pinnedGroups);
       }
-      props.navigation.goBack();
+      onGoBack();
     },
-    [props.navigation]
+    [onGoBack]
   );
 
   const canUpload = store.useCanUpload();

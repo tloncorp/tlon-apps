@@ -1,5 +1,3 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useGroupContext } from '@tloncorp/app/hooks/useGroupContext';
 import { GroupPrivacy } from '@tloncorp/shared/dist/db/schema';
 import * as store from '@tloncorp/shared/dist/store';
 import {
@@ -10,16 +8,15 @@ import {
 } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
-import { GroupSettingsStackParamList } from '../../types';
+import { useGroupContext } from '../../hooks/useGroupContext';
 
-type InvitesAndPrivacyScreenProps = NativeStackScreenProps<
-  GroupSettingsStackParamList,
-  'Privacy'
->;
-
-export function GroupPrivacyScreen(props: InvitesAndPrivacyScreenProps) {
-  const { groupId } = props.route.params;
-
+export function GroupPrivacyScreen({
+  groupId,
+  onGoBack,
+}: {
+  groupId: string;
+  onGoBack: () => void;
+}) {
   const { group } = useGroupContext({ groupId });
 
   const handlePrivacyChange = useCallback(
@@ -34,7 +31,7 @@ export function GroupPrivacyScreen(props: InvitesAndPrivacyScreenProps) {
 
   return (
     <View>
-      <GenericHeader title="Privacy" goBack={props.navigation.goBack} />
+      <GenericHeader title="Privacy" goBack={onGoBack} />
       {group ? (
         <GroupPrivacySelector
           currentValue={group.privacy ?? 'private'}

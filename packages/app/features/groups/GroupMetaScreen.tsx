@@ -1,5 +1,3 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useGroupContext } from '@tloncorp/app/hooks/useGroupContext';
 import * as db from '@tloncorp/shared/dist/db';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/dist/store';
 import {
@@ -10,15 +8,15 @@ import {
 } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
-import { GroupSettingsStackParamList } from '../../types';
+import { useGroupContext } from '../../hooks/useGroupContext';
 
-type GroupMetaScreenProps = NativeStackScreenProps<
-  GroupSettingsStackParamList,
-  'GroupMeta'
->;
-
-export function GroupMetaScreen(props: GroupMetaScreenProps) {
-  const { groupId } = props.route.params;
+export function GroupMetaScreen({
+  groupId,
+  onGoBack,
+}: {
+  groupId: string;
+  onGoBack: () => void;
+}) {
   const { group, setGroupMetadata, deleteGroup } = useGroupContext({
     groupId,
   });
@@ -28,9 +26,9 @@ export function GroupMetaScreen(props: GroupMetaScreenProps) {
   const handleSubmit = useCallback(
     (data: db.ClientMeta) => {
       setGroupMetadata(data);
-      props.navigation.goBack();
+      onGoBack();
     },
-    [setGroupMetadata, props.navigation]
+    [setGroupMetadata, onGoBack]
   );
 
   const handlePressDelete = useCallback(() => {
@@ -42,7 +40,7 @@ export function GroupMetaScreen(props: GroupMetaScreenProps) {
       <MetaEditorScreenView
         chat={group}
         title={'Edit group info'}
-        goBack={props.navigation.goBack}
+        goBack={onGoBack}
         onSubmit={handleSubmit}
       >
         <Button heroDestructive onPress={handlePressDelete}>

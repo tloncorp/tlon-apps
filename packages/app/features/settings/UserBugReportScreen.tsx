@@ -1,5 +1,3 @@
-import { useIsFocused } from '@react-navigation/native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ErrorReporter } from '@tloncorp/shared/dist';
 import {
   Button,
@@ -17,11 +15,9 @@ import { useForm } from 'react-hook-form';
 import { Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { RootStackParamList } from '../types';
+import { useIsFocused } from '../../hooks/useIsFocused';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'WompWomp'>;
-
-export function UserBugReportScreen(props: Props) {
+export function UserBugReportScreen({ onGoBack }: { onGoBack: () => void }) {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const isFocused = useIsFocused();
   const isFocusedRef = useRef(isFocused);
@@ -46,10 +42,6 @@ export function UserBugReportScreen(props: Props) {
       keyboardDidShowListener.remove();
     };
   }, []);
-
-  const onGoBack = useCallback(() => {
-    props.navigation.goBack();
-  }, [props.navigation]);
 
   const { control, handleSubmit, formState } = useForm({
     defaultValues: {

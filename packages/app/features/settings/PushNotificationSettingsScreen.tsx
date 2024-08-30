@@ -1,4 +1,3 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
@@ -18,11 +17,11 @@ import {
 import { ComponentProps, useCallback, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { RootStackParamList } from '../types';
-
-type Props = NativeStackScreenProps<RootStackParamList, 'AppSettings'>;
-
-export function PushNotificationSettingsScreen(props: Props) {
+export function PushNotificationSettingsScreen({
+  onGoBack,
+}: {
+  onGoBack: () => void;
+}) {
   const baseVolumeSetting = store.useBaseVolumeLevel();
   const { data: exceptions } = store.useVolumeExceptions();
 
@@ -82,10 +81,7 @@ export function PushNotificationSettingsScreen(props: Props) {
 
   return (
     <View flex={1}>
-      <GenericHeader
-        title="Push Notifications"
-        goBack={() => props.navigation.goBack()}
-      />
+      <GenericHeader title="Push Notifications" goBack={onGoBack} />
       <View marginTop="$m" marginHorizontal="$2xl" flex={1}>
         <SizableText marginLeft="$m" marginTop="$xl" size="$m">
           Configure what kinds of messages will send you notifications.

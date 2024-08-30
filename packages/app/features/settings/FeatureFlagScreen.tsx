@@ -1,19 +1,12 @@
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as featureFlags from '@tloncorp/app/lib/featureFlags';
 import { FeatureFlagScreenView } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
-import type { RootStackParamList } from '../types';
+import * as featureFlags from '../../lib/featureFlags';
 
-type FeatureFlagScreenProps = NativeStackScreenProps<
-  RootStackParamList,
-  'FeatureFlags'
->;
-
-export function FeatureFlagScreen({ navigation }: FeatureFlagScreenProps) {
+export function FeatureFlagScreen({ onGoBack }: { onGoBack: () => void }) {
   const handleGoBackPressed = useCallback(() => {
-    navigation.goBack();
-  }, [navigation]);
+    onGoBack();
+  }, [onGoBack]);
 
   const { flags, setEnabled } = featureFlags.useFeatureFlagStore();
 
