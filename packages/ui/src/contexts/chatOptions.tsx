@@ -57,6 +57,8 @@ export const ChatOptionsProvider = (props: ChatOptionsProviderProps) => {
   );
 };
 
+// remove use of this free from its context once android bug is fixed
+// https://github.com/reactwg/react-native-new-architecture/discussions/186
 export const useChatOptionsContextValue = ({
   groupId,
   pinned = [],

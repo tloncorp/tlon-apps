@@ -1678,6 +1678,9 @@ importers:
       '@tamagui/image':
         specifier: 1.101.3
         version: 1.101.3(react@18.2.0)
+      '@tloncorp/app':
+        specifier: workspace:*
+        version: link:../app
       '@tloncorp/editor':
         specifier: workspace:*
         version: link:../editor

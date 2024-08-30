@@ -305,7 +305,7 @@ function ChatListFiltersComponent({
   );
 }
 
-const ChatListFilters = React.memo(ChatListFiltersComponent);
+const ChatListFilters = ChatListFiltersComponent;
 
 function useFilteredChats({
   pinned,

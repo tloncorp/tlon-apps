@@ -1,6 +1,9 @@
+import { useChatSettingsNavigation } from '@tloncorp/app/hooks/useChatSettingsNavigation';
 import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useRef } from 'react';
 
+import { useChatOptionsContextValue } from '../../contexts';
 import { Button } from '../Button';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
 import { GenericHeader } from '../GenericHeader';
@@ -30,7 +33,15 @@ export function ChannelHeader({
   post?: db.Post;
   setEditingPost?: (post: db.Post) => void;
 }) {
+  const { data: pinned } = store.usePins();
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
+
+  const chatOptionsContext = useChatOptionsContextValue({
+    channelId: channel.id,
+    groupId: undefined,
+    pinned: pinned ?? [],
+    ...useChatSettingsNavigation(),
+  });
 
   const handlePressOverflowMenu = useCallback(() => {
     chatOptionsSheetRef.current?.open(channel.id, channel.type);
@@ -69,7 +80,7 @@ export function ChannelHeader({
           </>
         }
       />
-      <ChatOptionsSheet />
+      <ChatOptionsSheet chatOptionsContext={chatOptionsContext} />
     </>
   );
 }

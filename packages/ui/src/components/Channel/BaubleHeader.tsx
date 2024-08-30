@@ -182,7 +182,10 @@ export function BaubleHeader({
         </Animated.View>
       )}
       {isGroupContext && groupOptions && (
-        <ChatOptionsSheet ref={chatOptionsSheetRef} />
+        <ChatOptionsSheet
+          ref={chatOptionsSheetRef}
+          chatOptionsContext={groupOptions}
+        />
       )}
     </View>
   );
