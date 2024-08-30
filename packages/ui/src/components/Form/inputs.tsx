@@ -15,6 +15,7 @@ export const TextInput = React.memo(
     BaseTextInput,
     {
       context: FieldContext,
+      color: '$primaryText',
       borderRadius: '$l',
       borderWidth: 1,
       borderColor: '$border',
