@@ -190,7 +190,7 @@ const ChatMessage = ({
       ) : null}
       <ReactionsDisplay post={post} />
 
-      {shouldRenderReplies || post.isEdited ? (
+      {shouldRenderReplies ? (
         <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
           {shouldRenderReplies ? (
             <ChatMessageReplySummary
