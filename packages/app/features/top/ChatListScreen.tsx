@@ -18,6 +18,7 @@ import {
   StartDmSheet,
   View,
   WelcomeSheet,
+  useChatOptionsContextValue,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -119,7 +120,6 @@ export default function ChatListScreen({
     [navigateToDm, setStartDmOpen]
   );
 
-
   const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   const onPressChat = useCallback(
@@ -165,7 +165,6 @@ export default function ChatListScreen({
       setSelectedGroup(null);
     }
   }, []);
-
 
   const { pinned: pinnedChats, unpinned } = resolvedChats;
   const allChats = [...pinnedChats, ...unpinned];
@@ -220,6 +219,13 @@ export default function ChatListScreen({
       <ShowFiltersButton onPress={() => setShowFilters((prev) => !prev)} />
     );
   }, []);
+
+  const chatOptionsContext = useChatOptionsContextValue({
+    channelId: chatOptionsChannelId,
+    groupId: chatOptionsGroupId,
+    pinned,
+    ...useChatSettingsNavigation(),
+  });
 
   return (
     <CalmProvider calmSettings={calmSettings}>
@@ -279,7 +285,10 @@ export default function ChatListScreen({
                 open={splashVisible}
                 onOpenChange={handleWelcomeOpenChange}
               />
-              <ChatOptionsSheet ref={chatOptionsSheetRef} />
+              <ChatOptionsSheet
+                ref={chatOptionsSheetRef}
+                chatOptionsContext={chatOptionsContext}
+              />
               <StartDmSheet
                 goToDm={goToDm}
                 open={startDmOpen}

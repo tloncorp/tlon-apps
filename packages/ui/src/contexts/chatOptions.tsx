@@ -30,8 +30,7 @@ export const useChatOptions = () => {
   return useContext(ChatOptionsContext);
 };
 
-type ChatOptionsProviderProps = {
-  children: ReactNode;
+export type ChatOptionsContextValueProps = {
   groupId?: string;
   channelId?: string;
   pinned: db.Pin[];
@@ -45,8 +44,20 @@ type ChatOptionsProviderProps = {
   onPressRoles: (groupId: string) => void;
 };
 
-export const ChatOptionsProvider = ({
-  children,
+type ChatOptionsProviderProps = ChatOptionsContextValueProps & {
+  children: ReactNode;
+};
+
+export const ChatOptionsProvider = (props: ChatOptionsProviderProps) => {
+  const contextValue = useChatOptionsContextValue(props);
+  return (
+    <ChatOptionsContext.Provider value={contextValue}>
+      {props.children}
+    </ChatOptionsContext.Provider>
+  );
+};
+
+export const useChatOptionsContextValue = ({
   groupId,
   pinned = [],
   useGroup = store.useGroup,
@@ -57,7 +68,7 @@ export const ChatOptionsProvider = ({
   onPressChannelMembers,
   onPressChannelMeta,
   onPressRoles,
-}: ChatOptionsProviderProps) => {
+}: ChatOptionsContextValueProps): ChatOptionsContextValue => {
   const groupQuery = useGroup({ id: groupId ?? '' });
   const group = groupId ? groupQuery.data ?? null : null;
 
@@ -93,9 +104,5 @@ export const ChatOptionsProvider = ({
     onPressChannelMeta,
   };
 
-  return (
-    <ChatOptionsContext.Provider value={contextValue}>
-      {children}
-    </ChatOptionsContext.Provider>
-  );
+  return contextValue;
 };
