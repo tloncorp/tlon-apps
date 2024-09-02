@@ -1,5 +1,6 @@
+import * as api from '@tloncorp/shared/dist/api';
 import { registerDevMenuItems } from 'expo-dev-menu';
-import { NativeModules } from 'react-native';
+import { Alert, DevSettings, NativeModules } from 'react-native';
 
 import { getDbPath, purgeDb } from './nativeDb';
 
@@ -22,10 +23,52 @@ const devMenuItems = [
     },
   },
   {
-    name: 'Dump sqlite database',
+    name: 'Dump SQLite',
     callback: async () => {
-      const path = getDbPath() ?? '';
-      sendBundlerRequest('dump-sqlite', { path });
+      const outputPath = process.env.SQLITE_DUMP_PATH ?? 'dump.sqlite3';
+      const databaseSourcePath = getDbPath() ?? '';
+
+      sendBundlerRequest('dump-sqlite', { databaseSourcePath, outputPath });
+    },
+  },
+  {
+    name: 'Restore SQLite',
+    callback: async () => {
+      const sourcePath = process.env.SQLITE_RESTORE_PATH ?? 'restore.sqlite3';
+      const localDatabasePath = getDbPath();
+      if (localDatabasePath == null) {
+        Alert.alert('Could not find database path');
+        return;
+      }
+
+      const overwriteDatabase = async () => {
+        await sendBundlerRequest('restore-sqlite', {
+          sourcePath,
+          targetPath: localDatabasePath,
+        });
+      };
+
+      Alert.alert(
+        'Overwrite local database?',
+        `This will overwrite your local database with the file on the Metro host at ${sourcePath}.`,
+        [
+          {
+            text: 'Overwrite and restart app',
+            onPress: async () => {
+              await overwriteDatabase();
+              DevSettings.reload('Restoring SQLite database');
+            },
+          },
+          {
+            text: 'Overwrite and reset queries (faster, may cause issues)',
+            onPress: async () => {
+              await overwriteDatabase();
+              api.queryClient.resetQueries();
+            },
+          },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     },
   },
 ];
