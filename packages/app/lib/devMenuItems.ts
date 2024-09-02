@@ -1,6 +1,7 @@
 import * as api from '@tloncorp/shared/dist/api';
 import { registerDevMenuItems } from 'expo-dev-menu';
 import { Alert, DevSettings, NativeModules } from 'react-native';
+import * as DeviceInfo from 'react-native-device-info';
 
 import { getDbPath, purgeDb } from './nativeDb';
 
@@ -10,13 +11,11 @@ if (__DEV__) {
   metroBundlerURL = scriptURL.split('index.bundle?')[0] ?? null;
 }
 
-const devMenuItems = [
+type ExpoDevMenuItem = Parameters<typeof registerDevMenuItems>[0][0];
+
+const simulatorOnlyMenuItems: ExpoDevMenuItem[] = [
   {
-    name: 'Delete local database',
-    callback: () => purgeDb(),
-  },
-  {
-    name: 'Drizzle studio (simulator only)',
+    name: 'Drizzle studio',
     callback: async () => {
       const path = getDbPath() ?? '';
       sendBundlerRequest('open-sqlite', { path });
@@ -73,6 +72,16 @@ const devMenuItems = [
   },
 ];
 
+const devMenuItems: Promise<ExpoDevMenuItem[]> = DeviceInfo.isEmulator().then(
+  (isEmulator) => [
+    {
+      name: 'Delete local database',
+      callback: () => purgeDb(),
+    },
+    ...(isEmulator ? simulatorOnlyMenuItems : []),
+  ]
+);
+
 async function sendBundlerRequest(
   path: string,
   params: Record<string, string>
@@ -91,4 +100,4 @@ async function sendBundlerRequest(
   }
 }
 
-registerDevMenuItems(devMenuItems);
+devMenuItems.then((items) => registerDevMenuItems(items));
