@@ -190,9 +190,13 @@ export function InlineContent({ story }: InlineContentProps) {
 
 export function ListingContent({ content }: { content: Listing }) {
   if ('item' in content) {
+    // Filter line breaks at end of list items to avoid doubling the line height
+    const item = isBreak(content.item.at(-1))
+      ? content.item.slice(0, -1)
+      : content.item;
     return (
       <>
-        {content.item.map((con, i) => (
+        {item.map((con, i) => (
           <InlineContent key={`${i}-${con}`} story={con} />
         ))}
       </>
