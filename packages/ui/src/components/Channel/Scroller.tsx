@@ -654,7 +654,9 @@ function useAnchorScrollLock({
   channelType: db.ChannelType;
 }) {
   const [userHasScrolled, setUserHasScrolled] = useState(false);
-  const [needsScrollToAnchor, setNeedsScrollToAnchor] = useState(true);
+  const [needsScrollToAnchor, setNeedsScrollToAnchor] = useState(
+    () => anchor != null
+  );
   const [didAnchorSearchTimeout, setDidAnchorSearchTimeout] = useState(false);
   const lastAnchorId = useRef(anchor?.postId);
   const renderedPostsRef = useRef(new Set());
