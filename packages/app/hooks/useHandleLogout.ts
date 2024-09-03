@@ -22,7 +22,7 @@ export function useHandleLogout() {
     removeHostingAuthTracking();
     // delay DB reset to next tick to avoid race conditions
     setTimeout(() => resetDb());
-  }, []);
+  }, [clearShip]);
 
   return handleLogout;
 }
