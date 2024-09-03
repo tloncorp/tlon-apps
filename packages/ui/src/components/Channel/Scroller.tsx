@@ -635,6 +635,12 @@ const PressableMessage = React.memo(
   )
 );
 
+enum AnchorLayoutStatus {
+  hopingForFirstPage,
+  awaitingPastFirstPage,
+  found,
+}
+
 /**
  * Manages locking scroll to anchor post on load.
  */
@@ -646,6 +652,8 @@ function useAnchorScrollLock({
   channelType,
 }: {
   flatListRef: RefObject<FlatList<db.Post>>;
+
+  // The following should be passed directly from Channel props
   posts: db.Post[] | null;
   anchor: ScrollAnchor | null | undefined;
   hasNewerPosts?: boolean;
@@ -653,35 +661,73 @@ function useAnchorScrollLock({
 }) {
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const [needsScrollToAnchor, setNeedsScrollToAnchor] = useState(true);
+  const [anchorSearchStatus, setAnchorSearchStatus] = useState(
+    AnchorLayoutStatus.hopingForFirstPage
+  );
   const lastAnchorId = useRef(anchor?.postId);
   const renderedPostsRef = useRef(new Set());
+  const readyToDisplayPosts =
+    !needsScrollToAnchor ||
+    anchorSearchStatus === AnchorLayoutStatus.awaitingPastFirstPage;
 
   const anchorIndex = useMemo(() => {
     return posts?.findIndex((p) => p.id === anchor?.postId) ?? -1;
   }, [posts, anchor]);
 
-  const scrollToAnchorIfNeeded = useCallback(() => {
+  // Track whether a scroll attempt is active to prevent concurrent scrolls
+  const isScrollAttemptActiveRef = useRef(false);
+
+  const scrollToAnchorIfNeeded = useCallback(async () => {
     if (!needsScrollToAnchor) {
+      logger.log('bail: !needsScrollToAnchor');
       return;
     }
     if (userHasScrolled) {
+      logger.log('bail: !userHasScrolled');
       return;
     }
     if (anchorIndex === -1) {
+      logger.log('bail: anchorIndex === -1');
       return;
     }
-    setNeedsScrollToAnchor(false);
+    if (flatListRef.current == null) {
+      logger.log('bail: flatListRef.current == null');
+      return;
+    }
+    if (isScrollAttemptActiveRef.current) {
+      logger.log('bail: isScrollAttemptActiveRef.current');
+      return;
+    }
 
-    flatListRef.current?.scrollToIndex({
-      index: anchorIndex,
-      animated: false,
-      viewPosition: anchor?.type === 'unread' ? 1 : 0.5,
-    });
+    try {
+      logger.log('attempting scroll');
+      isScrollAttemptActiveRef.current = true;
+
+      setNeedsScrollToAnchor(false);
+
+      logger.log('doing a scrollToIndex to anchor', {
+        anchorIndex,
+        readyToDisplayPosts,
+      });
+
+      // If we aren't showing the posts yet, we can jump without animation.
+      // Once we show the posts, use an animation for the poor little user's eyesies
+      const shouldAnimateScroll = readyToDisplayPosts;
+      flatListRef.current.scrollToIndex({
+        index: anchorIndex,
+        animated: shouldAnimateScroll,
+        viewPosition: anchor?.type === 'unread' ? 1 : 0.5,
+      });
+    } finally {
+      logger.log('finished scroll attempt');
+      isScrollAttemptActiveRef.current = false;
+    }
   }, [
     needsScrollToAnchor,
     anchorIndex,
     anchor?.type,
     userHasScrolled,
+    readyToDisplayPosts,
     flatListRef,
   ]);
 
@@ -700,6 +746,7 @@ function useAnchorScrollLock({
       // If the anchor post got a layout, attempt a scroll.
       if (post.id === anchor?.postId) {
         logger.log('scrolling to initially set anchor', post.id, index);
+        setAnchorSearchStatus(AnchorLayoutStatus.found);
         scrollToAnchorIfNeeded();
       }
 
@@ -707,14 +754,14 @@ function useAnchorScrollLock({
       // reveal the scroller to prevent getting stuck when messages are
       // deleted.
       if (
-        needsScrollToAnchor &&
+        anchorSearchStatus === AnchorLayoutStatus.hopingForFirstPage &&
         posts?.length &&
         renderedPostsRef.current.size >= posts?.length
       ) {
-        setNeedsScrollToAnchor(false);
+        setAnchorSearchStatus(AnchorLayoutStatus.awaitingPastFirstPage);
       }
     },
-    [anchor?.postId, needsScrollToAnchor, posts?.length, scrollToAnchorIfNeeded]
+    [anchor?.postId, posts?.length, scrollToAnchorIfNeeded, anchorSearchStatus]
   );
   const maintainVisibleContentPositionConfig = useMemo(() => {
     return channelType === 'chat' ||
@@ -749,8 +796,15 @@ function useAnchorScrollLock({
         // The index hasn't been measured yet, so we try to guess the offset
         // based on the average item length.
         const offset = info.index * info.averageItemLength;
+        logger.log('doing best guess scroll to offset', offset);
         flatListRef.current?.scrollToOffset({ offset, animated: false });
 
+        // Scroll-to-index failure happens when the item at the target index
+        // has not yet been laid out.
+        // This "best guess" scroll hopes to bring the anchor post close enough
+        // to viewport so that it gets rendered / laid out. By setting
+        // `needsScrollToAnchor=true`, the next layout event from the anchor
+        // will trigger a righteous scroll.
         setNeedsScrollToAnchor(true);
       }
     },
@@ -767,7 +821,7 @@ function useAnchorScrollLock({
   }, [scrollToAnchorIfNeeded]);
 
   return {
-    readyToDisplayPosts: !needsScrollToAnchor,
+    readyToDisplayPosts,
 
     scrollerItemProps: {
       onLayout: handleItemLayout,
