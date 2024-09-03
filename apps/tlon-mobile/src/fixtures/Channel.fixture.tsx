@@ -265,17 +265,19 @@ function useSimulatedPostsQuery({
       limit = 10,
       simulateLoadMs = 200,
       insertionPoint = 'end',
+      getPostAtOverride,
     }: Partial<{
       limit: number;
       simulateLoadMs: number;
       insertionPoint: 'start' | 'end';
+      getPostAtOverride?: typeof getPostAt;
     }>) => {
       if (isLoading) {
         return;
       }
       setIsLoading(true);
       const page = range(postIndex.current, postIndex.current + limit).map(
-        (i) => getPostAt(i)
+        (i) => (getPostAtOverride ?? getPostAt)(i)
       );
       postIndex.current = postIndex.current + limit;
       await new Promise((resolve) => setTimeout(resolve, simulateLoadMs));
@@ -393,6 +395,38 @@ function ChannelWithControlledPostLoading() {
                       limit: 5,
                       insertionPoint: 'end',
                       simulateLoadMs: 30,
+                    });
+                  }
+                });
+              }}
+            />
+            <Button
+              title="Load around anchor"
+              onPress={() => {
+                // Simulate a `mode: around` query:
+                // - First page has `limit` number of posts
+                // - First page has anchor post at index `floor(limit / 2)`
+                // - Subsequent pages alternate between inserting at start/end of timeline
+                doBusyWork(async () => {
+                  const limit = 5;
+                  const getPostAtOverride = (index: number) => {
+                    if (index === Math.floor(limit / 2)) {
+                      return anchorPost;
+                    }
+                    return createFakePost();
+                  };
+                  for (let i = 0; i < 3; i++) {
+                    await loadMore({
+                      limit,
+                      insertionPoint: 'start',
+                      simulateLoadMs: 30,
+                      getPostAtOverride,
+                    });
+                    await loadMore({
+                      limit,
+                      insertionPoint: 'end',
+                      simulateLoadMs: 30,
+                      getPostAtOverride,
                     });
                   }
                 });
