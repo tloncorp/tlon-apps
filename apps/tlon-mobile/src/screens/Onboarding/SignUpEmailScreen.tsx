@@ -9,13 +9,11 @@ import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Button,
   GenericHeader,
-  Icon,
   KeyboardAvoidingView,
   SizableText,
   Text,
   TextInput,
   View,
-  XStack,
   YStack,
 } from '@tloncorp/ui';
 import { Field } from '@tloncorp/ui';

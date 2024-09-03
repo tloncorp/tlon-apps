@@ -59,7 +59,7 @@ export const JoinWaitListScreen = ({
         goBack={() => navigation.goBack()}
       />
       <YStack padding="$xl" gap="$2xl">
-        <SizableText color="$primaryText" textAlign="center">
+        <SizableText color="$primaryText">
           We&rsquo;ve given out all available accounts for today, but
           we&rsquo;ll have more soon. If you&rsquo;d like, we can let you know
           via email when they&rsquo;re ready.
