@@ -668,6 +668,9 @@ function useAnchorScrollLock({
   const isScrollAttemptActiveRef = useRef(false);
 
   const scrollToAnchorIfNeeded = useCallback(async () => {
+    if (didAnchorSearchTimeout) {
+      return;
+    }
     if (!needsScrollToAnchor) {
       logger.log('bail: !needsScrollToAnchor');
       return;
@@ -713,6 +716,7 @@ function useAnchorScrollLock({
       isScrollAttemptActiveRef.current = false;
     }
   }, [
+    didAnchorSearchTimeout,
     needsScrollToAnchor,
     anchorIndex,
     anchor?.type,
