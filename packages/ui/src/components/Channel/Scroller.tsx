@@ -635,12 +635,6 @@ const PressableMessage = React.memo(
   )
 );
 
-enum AnchorLayoutStatus {
-  hopingForFirstPage,
-  awaitingPastFirstPage,
-  found,
-}
-
 /**
  * Manages locking scroll to anchor post on load.
  */
@@ -661,14 +655,10 @@ function useAnchorScrollLock({
 }) {
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const [needsScrollToAnchor, setNeedsScrollToAnchor] = useState(true);
-  const [anchorSearchStatus, setAnchorSearchStatus] = useState(
-    AnchorLayoutStatus.hopingForFirstPage
-  );
+  const [didAnchorSearchTimeout, setDidAnchorSearchTimeout] = useState(false);
   const lastAnchorId = useRef(anchor?.postId);
   const renderedPostsRef = useRef(new Set());
-  const readyToDisplayPosts =
-    !needsScrollToAnchor ||
-    anchorSearchStatus === AnchorLayoutStatus.awaitingPastFirstPage;
+  const readyToDisplayPosts = !needsScrollToAnchor || didAnchorSearchTimeout;
 
   const anchorIndex = useMemo(() => {
     return posts?.findIndex((p) => p.id === anchor?.postId) ?? -1;
@@ -743,25 +733,29 @@ function useAnchorScrollLock({
     (post: db.Post, index: number) => {
       renderedPostsRef.current.add(post.id);
 
+      if (didAnchorSearchTimeout) {
+        return;
+      }
+
       // If the anchor post got a layout, attempt a scroll.
       if (post.id === anchor?.postId) {
         logger.log('scrolling to initially set anchor', post.id, index);
-        setAnchorSearchStatus(AnchorLayoutStatus.found);
         scrollToAnchorIfNeeded();
       }
 
       // If we've got at least a page of posts and we've rendered them all,
       // reveal the scroller to prevent getting stuck when messages are
       // deleted.
-      if (
-        anchorSearchStatus === AnchorLayoutStatus.hopingForFirstPage &&
-        posts?.length &&
-        renderedPostsRef.current.size >= posts?.length
-      ) {
-        setAnchorSearchStatus(AnchorLayoutStatus.awaitingPastFirstPage);
+      if (posts?.length && renderedPostsRef.current.size >= posts?.length) {
+        setDidAnchorSearchTimeout(true);
       }
     },
-    [anchor?.postId, posts?.length, scrollToAnchorIfNeeded, anchorSearchStatus]
+    [
+      anchor?.postId,
+      posts?.length,
+      scrollToAnchorIfNeeded,
+      didAnchorSearchTimeout,
+    ]
   );
   const maintainVisibleContentPositionConfig = useMemo(() => {
     return channelType === 'chat' ||
