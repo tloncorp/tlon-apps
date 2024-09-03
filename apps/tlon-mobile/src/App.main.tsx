@@ -30,10 +30,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import AuthenticatedApp from './components/AuthenticatedApp';
-import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
+import { CheckVerifyScreen } from './screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from './screens/Onboarding/EULAScreen';
 import { JoinWaitListScreen } from './screens/Onboarding/JoinWaitListScreen';
 import { RequestPhoneVerifyScreen } from './screens/Onboarding/RequestPhoneVerifyScreen';
+import { ReserveShipScreen } from './screens/Onboarding/ReserveShipScreen';
 import { ResetPasswordScreen } from './screens/Onboarding/ResetPasswordScreen';
 import { SetNicknameScreen } from './screens/Onboarding/SetNicknameScreen';
 import { SetTelemetryScreen } from './screens/Onboarding/SetTelemetryScreen';
@@ -42,7 +43,6 @@ import { SignUpEmailScreen } from './screens/Onboarding/SignUpEmailScreen';
 import { SignUpPasswordScreen } from './screens/Onboarding/SignUpPasswordScreen';
 import { TlonLoginScreen } from './screens/Onboarding/TlonLoginScreen';
 import { WelcomeScreen } from './screens/Onboarding/WelcomeScreen';
-import { ReserveShipScreen } from './screens/ReserveShipScreen';
 import type { OnboardingStackParamList } from './types';
 
 type Props = {
