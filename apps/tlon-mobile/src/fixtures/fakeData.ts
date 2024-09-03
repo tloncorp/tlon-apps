@@ -4,7 +4,7 @@ import type { Story } from '@tloncorp/shared/dist/urbit/channel';
 import { formatUd, unixToDa } from '@urbit/aura';
 import seedrandom from 'seedrandom';
 
-const makeRandomGenerator = (seed: string = 'david!') => {
+const makeRandomGenerator = (seed?: string) => {
   const gen = seedrandom(seed);
   return () => gen.quick();
 };
