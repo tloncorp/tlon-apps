@@ -1,4 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { requestNotificationToken } from '@tloncorp/app/lib/notifications';
+import { trackError } from '@tloncorp/app/utils/posthog';
 import {
   Button,
   Field,
@@ -9,8 +11,6 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { requestNotificationToken } from 'packages/app/lib/notifications';
-import { trackError } from 'packages/app/utils/posthog';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
