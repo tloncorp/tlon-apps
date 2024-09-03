@@ -8,7 +8,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
-import { ExtendedEventType, Rank } from '../urbit';
+import { ExtendedEventType, NotificationLevel, Rank } from '../urbit';
 
 const boolean = (name: string) => {
   return integer(name, { mode: 'boolean' });
@@ -144,9 +144,10 @@ export const threadUnreadsRelations = relations(threadUnreads, ({ one }) => ({
 }));
 
 export const groupUnreads = sqliteTable('group_unreads', {
-  groupId: text('channel_id').primaryKey(),
+  groupId: text('group_id').primaryKey(),
   notify: boolean('notify'),
   count: integer('count'),
+  notifyCount: integer('notify_count'),
   updatedAt: timestamp('updated_at').notNull(),
 });
 
@@ -175,6 +176,7 @@ export const activityEvents = sqliteTable(
     isMention: boolean('is_mention'),
     shouldNotify: boolean('should_notify'),
     content: text('content', { mode: 'json' }),
+    groupEventUserId: text('group_event_user_id'),
   },
   (table) => {
     return {
@@ -208,6 +210,10 @@ export const activityRelations = relations(activityEvents, ({ one, many }) => ({
     fields: [activityEvents.parentAuthorId],
     references: [contacts.id],
   }),
+  groupEventUser: one(contacts, {
+    fields: [activityEvents.groupEventUserId],
+    references: [contacts.id],
+  }),
 }));
 
 export type PinType = 'group' | 'channel' | 'dm' | 'groupDm';
@@ -215,7 +221,7 @@ export const pins = sqliteTable(
   'pins',
   {
     type: text('type').$type<PinType>().notNull(),
-    index: integer('index').notNull(),
+    index: integer('pin_index').notNull(),
     itemId: text('item_id').notNull(),
   },
   (table) => {
@@ -246,6 +252,8 @@ export const groups = sqliteTable('groups', {
   haveInvite: boolean('have_invite'),
   haveRequestedInvite: boolean('have_requested_invite'),
   currentUserIsMember: boolean('current_user_is_member').notNull(),
+  currentUserIsHost: boolean('current_user_is_host').notNull(),
+  hostUserId: text('host_user_id').notNull(),
   isNew: boolean('is_new'),
   joinStatus: text('join_status').$type<GroupJoinStatus>(),
   lastPostId: text('last_post_id'),
@@ -256,6 +264,7 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   pin: one(pins),
   roles: many(groupRoles),
   members: many(chatMembers),
+  joinRequests: many(groupJoinRequests),
   bannedMembers: many(groupMemberBans),
   navSections: many(groupNavSections),
   flaggedPosts: many(groupFlaggedPosts),
@@ -390,6 +399,38 @@ export const groupMemberInviteRelations = relations(
     }),
     contact: one(contacts, {
       fields: [groupMemberInvites.contactId],
+      references: [contacts.id],
+    }),
+  })
+);
+
+export const groupJoinRequests = sqliteTable(
+  'group_join_requests',
+  {
+    groupId: text('group_id')
+      .references(() => groups.id, { onDelete: 'cascade' })
+      .notNull(),
+    contactId: text('contact_id').notNull(),
+    requestedAt: timestamp('requested_at'),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.groupId, table.contactId],
+      }),
+    };
+  }
+);
+
+export const groupJoinRequestRelations = relations(
+  groupJoinRequests,
+  ({ one }) => ({
+    group: one(groups, {
+      fields: [groupJoinRequests.groupId],
+      references: [groups.id],
+    }),
+    contact: one(contacts, {
+      fields: [groupJoinRequests.contactId],
       references: [contacts.id],
     }),
   })
@@ -613,9 +654,10 @@ export const groupNavSectionChannelsRelations = relations(
 
 export const volumeSettings = sqliteTable('volume_settings', {
   itemId: text('item_id').primaryKey(),
-  itemType: text('item_type').$type<'group' | 'channel' | 'thread'>().notNull(),
-  isMuted: boolean('is_muted').default(false),
-  isNoisy: boolean('is_noisy').default(false),
+  itemType: text('item_type')
+    .$type<'group' | 'channel' | 'thread' | 'base'>()
+    .notNull(),
+  level: text('level').$type<NotificationLevel>().notNull(),
 });
 
 export type ChannelType = 'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm';

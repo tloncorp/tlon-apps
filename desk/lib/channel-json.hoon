@@ -233,8 +233,8 @@
     |=  =replies:c
     %-  pairs
     %+  turn  (tap:on-replies:c replies)
-    |=  [t=@da =reply:c]
-    [(scot %ud t) (^reply reply)]
+    |=  [t=@da reply=(unit reply:c)]
+    [(scot %ud t) ?~(reply ~ (^reply u.reply))]
   ::
   ++  simple-replies
     |=  replies=simple-replies:c
@@ -589,6 +589,65 @@
     :~  nest/(nest p.s)
         reference/(reference q.s)
     ==
+  ++  v1
+    |%
+    ++  channels
+      |=  =channels:v1:old:c
+      %-  pairs
+      %+  turn  ~(tap by channels)
+      |=  [n=nest:c ca=channel:v1:old:c]
+      [(nest-cord n) (channel ca)]
+    ::
+    ++  channel
+      |=  =channel:v1:old:c
+      %-  pairs
+      :~  posts+(posts posts.channel)
+          order+(order order.channel)
+          view+s+view.channel
+          sort+s+sort.channel
+          perms+(perm perm.channel)
+          pending+(pending-msgs pending.channel)
+      ==
+    ::
+    ++  paged-posts
+      |=  pn=paged-posts:v1:old:c
+      %-  pairs
+      :~  posts+(posts posts.pn)
+          newer+?~(newer.pn ~ (id u.newer.pn))
+          older+?~(older.pn ~ (id u.older.pn))
+          total+(numb total.pn)
+      ==
+    ::
+    ++  posts
+      |=  =posts:v1:old:c
+      %-  pairs
+      %+  turn  (tap:on-posts:v1:old:c posts)
+      |=  [id=id-post:c post=(unit post:v1:old:c)]
+      [(scot %ud id) ?~(post ~ (^post u.post))]
+    ::
+    ++  seal
+      |=  =seal:v1:old:c
+      %-  pairs
+      :~  id+(id id.seal)
+          reacts+(reacts reacts.seal)
+          replies+(replies replies.seal)
+          meta+(reply-meta reply-meta.seal)
+      ==
+    ++  post
+      |=  [=seal:v1:old:c [rev=@ud =essay:c]]
+      %-  pairs
+      :~  seal+(^seal seal)
+          revision+s+(scot %ud rev)
+          essay+(^essay essay)
+          type+s+%post
+      ==
+    ++  replies
+      |=  =replies:v1:old:c
+      %-  pairs
+      %+  turn  (tap:on-replies:v1:old:c replies)
+      |=  [t=@da =reply:c]
+      [(scot %ud t) (^reply reply)]
+    --
   --
 ::
 ++  dejs

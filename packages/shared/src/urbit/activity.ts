@@ -1,4 +1,3 @@
-import { unixToDa } from '@urbit/api';
 import { parseUd } from '@urbit/aura';
 import _ from 'lodash';
 
@@ -35,6 +34,14 @@ export enum NotificationNames {
   hush = 'Do not notify for any activity',
 }
 
+export enum NotificationNamesShort {
+  loud = 'All posts and replies',
+  default = 'All posts',
+  medium = 'All posts ',
+  soft = 'Mentions and replies',
+  hush = 'No notifications',
+}
+
 export interface VolumeLevel {
   notify: NotificationLevel;
   unreads: boolean;
@@ -56,6 +63,13 @@ export interface DmInviteEvent {
 
 export interface GroupKickEvent {
   'group-kick': {
+    ship: string;
+    group: string;
+  };
+}
+
+export interface GroupAskEvent {
+  'group-ask': {
     ship: string;
     group: string;
   };
@@ -145,6 +159,7 @@ export type ActivityIncomingEvent =
   | GroupJoinEvent
   | GroupRoleEvent
   | GroupInviteEvent
+  | GroupAskEvent
   | FlagPostEvent
   | FlagReplyEvent
   | DmInviteEvent
@@ -632,6 +647,8 @@ export const isReply = (event: ActivityEvent) => {
   return false;
 };
 
+export const isAsk = (event: ActivityEvent) => 'group-ask' in event;
+
 export const isInvite = (event: ActivityEvent) => 'group-invite' in event;
 
 export const isJoin = (event: ActivityEvent) => 'group-join' in event;
@@ -672,6 +689,10 @@ export function getSource(bundle: ActivityBundle): Source {
     return {
       'dm-thread': { key: top['dm-reply'].parent, whom: top['dm-reply'].whom },
     };
+  }
+
+  if ('group-ask' in top) {
+    return { group: top['group-ask'].group };
   }
 
   if ('group-join' in top) {
@@ -758,6 +779,10 @@ export function getAuthor(event: ActivityEvent) {
     return getIdParts(event['flag-reply'].key.id).author;
   }
 
+  if ('group-ask' in event) {
+    return event['group-ask'].ship;
+  }
+
   return undefined;
 }
 
@@ -778,7 +803,8 @@ export type ActivityRelevancy =
   | 'postToChannel'
   | 'groupMeta'
   | 'flaggedPost'
-  | 'flaggedReply';
+  | 'flaggedReply'
+  | 'groupJoinRequest';
 
 export function getRelevancy(
   event: ActivityEvent,
@@ -823,6 +849,10 @@ export function getRelevancy(
 
   if ('flag-reply' in event) {
     return 'flaggedReply';
+  }
+
+  if ('group-ask' in event) {
+    return 'groupJoinRequest';
   }
 
   console.log(

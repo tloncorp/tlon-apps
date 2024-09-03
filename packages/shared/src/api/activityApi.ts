@@ -2,8 +2,7 @@ import { unixToDa } from '@urbit/api';
 import { backOff } from 'exponential-backoff';
 
 import * as db from '../db';
-import { createDevLogger } from '../debug';
-import { extractClientVolume } from '../logic/activity';
+import { createDevLogger, runIfDev } from '../debug';
 import * as ub from '../urbit';
 import {
   formatUd,
@@ -15,7 +14,7 @@ import {
 } from './apiUtils';
 import { poke, scry, subscribe } from './urbit';
 
-const logger = createDevLogger('activityApi', true);
+const logger = createDevLogger('activityApi', false);
 
 export async function getGroupAndChannelUnreads() {
   const activity = await scry<ub.Activity>({
@@ -275,6 +274,15 @@ function toActivityEvent({
     };
   }
 
+  if ('group-ask' in event) {
+    return {
+      ...baseFields,
+      type: 'group-ask',
+      groupId: event['group-ask'].group,
+      groupEventUserId: event['group-ask'].ship,
+    };
+  }
+
   return null;
 }
 
@@ -287,7 +295,6 @@ function getInfoFromMessageKey(
   return { authorId, postId };
 }
 
-export type VolumeUpdate = { sourceId: string; volume: ub.VolumeMap | null };
 export type ActivityEvent =
   | {
       type: 'updateChannelUnread';
@@ -296,12 +303,13 @@ export type ActivityEvent =
   | { type: 'updateThreadUnread'; activity: db.ThreadUnreadState }
   | { type: 'updateGroupUnread'; unread: db.GroupUnread }
   | {
-      type: 'updateVolumeSetting';
-      update: VolumeUpdate;
-    }
-  | {
       type: 'updateItemVolume';
       volumeUpdate: db.VolumeSettings;
+    }
+  | {
+      type: 'removeItemVolume';
+      itemId: string;
+      itemType: string;
     }
   | {
       type: 'updatePushNotificationsSetting';
@@ -313,6 +321,10 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   subscribe<ub.ActivityUpdate>(
     { app: 'activity', path: '/v4' },
     async (update: ub.ActivityUpdate) => {
+      logger.log(
+        'activity update',
+        runIfDev(() => JSON.stringify(update))
+      );
       // handle unreads
       if ('activity' in update) {
         Object.entries(update.activity).forEach((activityEntry) => {
@@ -352,54 +364,83 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
         const { source, volume } = update.adjust;
         const sourceId = ub.sourceToString(source);
 
-        if ('group' in source) {
-          const clientVolume = extractClientVolume(volume);
+        if (sourceId === 'base') {
+          const level: ub.NotificationLevel = volume
+            ? ub.getLevelFromVolumeMap(volume)
+            : 'default';
           return handler({
             type: 'updateItemVolume',
             volumeUpdate: {
-              itemId: source.group,
-              itemType: 'group',
-              ...clientVolume,
+              itemId: 'base',
+              itemType: 'base',
+              level,
             },
           });
         }
 
+        if ('group' in source) {
+          if (volume) {
+            return handler({
+              type: 'updateItemVolume',
+              volumeUpdate: {
+                itemId: source.group,
+                itemType: 'group',
+                level: ub.getLevelFromVolumeMap(volume),
+              },
+            });
+          } else {
+            return handler({
+              type: 'removeItemVolume',
+              itemId: source.group,
+              itemType: 'group',
+            });
+          }
+        }
+
         if ('channel' in source || 'dm' in source) {
-          const clientVolume = extractClientVolume(volume, 'channel' in source);
           const channelId =
             'channel' in source
               ? source.channel.nest
               : 'ship' in source.dm
                 ? source.dm.ship
                 : source.dm.club;
-          return handler({
-            type: 'updateItemVolume',
-            volumeUpdate: {
+          if (volume) {
+            return handler({
+              type: 'updateItemVolume',
+              volumeUpdate: {
+                itemId: channelId,
+                itemType: 'channel',
+                level: ub.getLevelFromVolumeMap(volume),
+              },
+            });
+          } else {
+            return handler({
+              type: 'removeItemVolume',
               itemId: channelId,
               itemType: 'channel',
-              ...clientVolume,
-            },
-          });
+            });
+          }
         }
 
         if ('thread' in source || 'dm-thread' in source) {
-          const clientVolume = extractClientVolume(volume);
           const postId = getPostIdFromSource(source);
-          return handler({
-            type: 'updateItemVolume',
-            volumeUpdate: {
+          if (volume) {
+            return handler({
+              type: 'updateItemVolume',
+              volumeUpdate: {
+                itemId: postId,
+                itemType: 'thread',
+                level: ub.getLevelFromVolumeMap(volume),
+              },
+            });
+          } else {
+            return handler({
+              type: 'removeItemVolume',
               itemId: postId,
               itemType: 'thread',
-              ...clientVolume,
-            },
-          });
+            });
+          }
         }
-
-        // keep handling threads as they were
-        return handler({
-          type: 'updateVolumeSetting',
-          update: { sourceId, volume },
-        });
       }
 
       // handle push notification settings
@@ -457,6 +498,20 @@ export function activityAction(action: ub.ActivityAction) {
     json: action,
   };
 }
+
+export const readGroup = async (group: db.Group) => {
+  const source: ub.Source = { group: group.id };
+  const action = activityAction({
+    read: { source, action: { all: { time: null, deep: false } } },
+  });
+  logger.log(`reading group ${group.id}`, action);
+
+  return backOff(() => poke(action), {
+    delayFirstAttempt: false,
+    startingDelay: 2000,
+    numOfAttempts: 4,
+  });
+};
 
 export const readChannel = async (channel: db.Channel) => {
   let source: ub.Source;
@@ -841,6 +896,7 @@ export const toGroupUnread = (
     count: summary.count,
     notify: summary.notify,
     updatedAt: summary.recency,
+    notifyCount: summary['notify-count'],
   };
 };
 

@@ -58,6 +58,7 @@ export function PostReferenceLoader({
   channelId,
   postId,
   replyId,
+  openOnPress = true,
   ...props
 }: ReferenceProps & {
   channelId: string;
@@ -73,7 +74,7 @@ export function PostReferenceLoader({
   const { onPressRef } = useNavigation();
   const handlePress = useCallback(() => {
     if (channel && postQuery.data) {
-      onPressRef(channel, postQuery.data);
+      onPressRef?.(channel, postQuery.data);
     }
   }, [channel, onPressRef, postQuery.data]);
 
@@ -85,7 +86,7 @@ export function PostReferenceLoader({
       isError={postQuery.isError}
       errorMessage={postQuery.error?.message}
       hasData={!!postQuery.data}
-      onPress={props.viewMode === 'attachment' ? undefined : handlePress}
+      onPress={openOnPress ? handlePress : undefined}
       {...props}
     />
   );
@@ -113,7 +114,7 @@ export const PostReference = ({
           <Reference.TitleIcon type={meta.icon} />
           <Reference.TitleText>{meta.label}</Reference.TitleText>
         </Reference.Title>
-        <Reference.LinkIcon type="ArrowRef" />
+        <Reference.ActionIcon />
       </Reference.Header>
       {post && (
         <Reference.Body>
@@ -124,7 +125,7 @@ export const PostReference = ({
               )}
               <PostAuthor contactId={post.authorId} />
               <ContentRenderer
-                viewMode={viewMode}
+                viewMode={props.viewMode}
                 shortened={shortened}
                 post={post}
               />
@@ -133,7 +134,7 @@ export const PostReference = ({
             <>
               <PostAuthor contactId={post.authorId} />
               <ContentRenderer
-                viewMode={viewMode}
+                viewMode={props.viewMode}
                 shortened={shortened}
                 post={post}
               />
@@ -189,18 +190,19 @@ const typeMeta: Record<string, { label: string; icon: IconType }> = {
 
 export function GroupReferenceLoader({
   groupId,
-  viewMode,
+  openOnPress = true,
+  ...props
 }: {
   groupId: string;
   viewMode?: PostViewMode;
-}) {
+} & ReferenceProps) {
   const { useGroup } = useRequests();
   const { onPressGroupRef } = useNavigation();
   const { data: group, isLoading, isError, error } = useGroup(groupId);
 
   const onPress = useCallback(() => {
     if (group) {
-      onPressGroupRef(group);
+      onPressGroupRef?.(group);
     }
   }, [group, onPressGroupRef]);
 
@@ -209,9 +211,9 @@ export function GroupReferenceLoader({
       isLoading={isLoading}
       errorMessage={error?.message}
       isError={isError}
+      {...props}
       data={group}
-      onPress={onPress}
-      viewMode={viewMode}
+      onPress={openOnPress ? onPress : undefined}
     />
   );
 }
@@ -227,7 +229,7 @@ export function GroupReference({
           <Reference.TitleIcon type="Discover" />
           <Reference.TitleText>Group</Reference.TitleText>
         </Reference.Title>
-        <Reference.LinkIcon type="ArrowRef" />
+        <Reference.ActionIcon />
       </Reference.Header>
       {data && (
         <Reference.Body padding={0}>

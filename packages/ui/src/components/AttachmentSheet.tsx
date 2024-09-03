@@ -2,7 +2,8 @@ import { MessageAttachments } from '@tloncorp/shared/dist/api';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect } from 'react';
 
-import { ActionSheet } from './ActionSheet';
+import { ActionGroup, ActionSheet } from './ActionSheet';
+import { ListItem } from './ListItem';
 
 export default function AttachmentSheet({
   showAttachmentSheet,
@@ -65,18 +66,26 @@ export default function AttachmentSheet({
     requestCameraPermission,
   ]);
 
-  const actions = [
+  const actionGroups: ActionGroup[] = [
     {
-      title: 'Photo Library',
-      description: 'Choose a photo from your library',
-      action: pickImage,
-    },
-    {
-      title: 'Take a Photo',
-      description: 'Use your camera to take a photo',
-      action: takePicture,
+      accent: 'neutral',
+      actions: [
+        {
+          title: 'Photo Library',
+          description: 'Choose a photo from your library',
+          action: pickImage,
+        },
+        {
+          title: 'Take a Photo',
+          description: 'Use your camera to take a photo',
+          action: takePicture,
+        },
+      ],
     },
   ];
+
+  const title = 'Attach a file';
+  const subtitle = 'Choose a file to attach';
 
   return (
     <ActionSheet
@@ -84,19 +93,14 @@ export default function AttachmentSheet({
       onOpenChange={(open: boolean) => setShowAttachmentSheet(open)}
     >
       <ActionSheet.Header>
-        <ActionSheet.Title>Attach a file</ActionSheet.Title>
-        <ActionSheet.Description>
-          Choose a file to attach
-        </ActionSheet.Description>
+        <ListItem.MainContent>
+          <ListItem.Title>{title}</ListItem.Title>
+          <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
+        </ListItem.MainContent>
       </ActionSheet.Header>
-      {actions.map((action, index) => (
-        <ActionSheet.Action key={index} action={action.action}>
-          <ActionSheet.ActionTitle>{action.title}</ActionSheet.ActionTitle>
-          <ActionSheet.ActionDescription>
-            {action.description}
-          </ActionSheet.ActionDescription>
-        </ActionSheet.Action>
-      ))}
+      <ActionSheet.Content>
+        <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
+      </ActionSheet.Content>
     </ActionSheet>
   );
 }

@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
 import { TouchableOpacity } from 'react-native-gesture-handler';
-import { getTokenValue } from 'tamagui';
+import { Text, View, getTokenValue } from 'tamagui';
 
-import { Image, Text, View } from '../../core';
 import ContentRenderer from '../ContentRenderer';
+import { Image } from '../Image';
 import { DetailView, DetailViewProps } from './DetailView';
 
 const IMAGE_HEIGHT = 268;
@@ -17,7 +17,6 @@ export default function NotebookDetailView({
   groupMembers,
   posts,
   onPressImage,
-  uploadInfo,
   storeDraft,
   clearDraft,
   getDraft,
@@ -45,7 +44,6 @@ export default function NotebookDetailView({
       groupMembers={groupMembers}
       posts={posts}
       onPressImage={onPressImage}
-      uploadInfo={uploadInfo}
       storeDraft={storeDraft}
       clearDraft={clearDraft}
       getDraft={getDraft}

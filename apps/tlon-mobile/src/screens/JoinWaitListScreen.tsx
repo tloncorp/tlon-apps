@@ -1,12 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { addUserToWaitlist } from '@tloncorp/app/lib/hostingApi';
+import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useTailwind } from 'tailwind-rn';
 
 import { TlonButton } from '../components/TlonButton';
-import { addUserToWaitlist } from '../lib/hostingApi';
 import type { OnboardingStackParamList } from '../types';
-import { trackError, trackOnboardingAction } from '../utils/posthog';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'JoinWaitList'>;
 

@@ -7,6 +7,8 @@ import { useMemo } from 'react';
 
 import * as api from '../api';
 import * as db from '../db';
+import * as ub from '../urbit';
+import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import { syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
@@ -18,7 +20,6 @@ export * from './useChannelSearch';
 export interface CurrentChats {
   pinned: db.Channel[];
   unpinned: db.Channel[];
-  pendingChats: (db.Group | db.Channel)[];
 }
 
 export type CustomQueryConfig<T> = Pick<
@@ -31,29 +32,51 @@ export const useCurrentChats = (
 ): UseQueryResult<CurrentChats | null> => {
   return useQuery({
     queryFn: async () => {
-      const [pendingChats, channels] = await Promise.all([
-        db.getPendingChats(),
-        db.getChats(),
-      ]);
-      return { channels, pendingChats };
+      const channels = await db.getChats();
+      return { channels };
     },
     queryKey: ['currentChats', useKeyFromQueryDeps(db.getChats)],
-    select({ channels, pendingChats }) {
+    select({ channels }) {
       for (let i = 0; i < channels.length; ++i) {
         if (!channels[i].pin) {
           return {
             pinned: channels.slice(0, i),
             unpinned: channels.slice(i),
-            pendingChats,
           };
         }
       }
       return {
         pinned: channels,
         unpinned: [],
-        pendingChats,
       };
     },
+    ...queryConfig,
+  });
+};
+
+export type PendingChats = (db.Group | db.Channel)[];
+
+export const usePendingChats = (
+  queryConfig?: CustomQueryConfig<PendingChats>
+): UseQueryResult<PendingChats | null> => {
+  return useQuery({
+    queryFn: async () => {
+      const pendingChats = await db.getPendingChats();
+      return pendingChats;
+    },
+    queryKey: ['pendingChats', useKeyFromQueryDeps(db.getPendingChats)],
+    ...queryConfig,
+  });
+};
+
+export const usePins = (
+  queryConfig?: CustomQueryConfig<db.Pin[]>
+): UseQueryResult<db.Pin[] | null> => {
+  return useQuery({
+    queryFn: async () => {
+      return db.getPins();
+    },
+    queryKey: ['pins', useKeyFromQueryDeps(db.getPins)],
     ...queryConfig,
   });
 };
@@ -98,6 +121,25 @@ export const useIsTlonEmployee = () => {
   });
 };
 
+export const useCanUpload = () => {
+  return (
+    useQuery({
+      queryKey: db.STORAGE_SETTINGS_QUERY_KEY,
+      queryFn: async () => {
+        const [config, credentials] = await Promise.all([
+          db.getStorageConfiguration(),
+          db.getStorageCredentials(),
+        ]);
+        return (
+          !config ||
+          hasHostingUploadCreds(config, credentials) ||
+          hasCustomS3Creds(config, credentials)
+        );
+      },
+    }).data ?? true
+  );
+};
+
 export const useContact = (options: { id: string }) => {
   const deps = useKeyFromQueryDeps(db.getContact);
   return useQuery({
@@ -127,6 +169,45 @@ export const useUnreadsCount = () => {
     queryKey: ['unreadsCount'],
     queryFn: () => db.getUnreadsCount({}),
   });
+};
+
+export const useGroupVolumeLevel = (groupId: string) => {
+  const deps = useKeyFromQueryDeps(db.getGroupVolumeSetting);
+  return useQuery({
+    queryKey: ['groupVolumeLevel', deps, groupId],
+    queryFn: () => db.getGroupVolumeSetting({ groupId }),
+  });
+};
+
+export const useChannelVolumeLevel = (channelId: string) => {
+  const deps = useKeyFromQueryDeps(db.getChannelVolumeSetting);
+  return useQuery({
+    queryKey: ['channelVolumeLevel', deps, channelId],
+    queryFn: () => db.getChannelVolumeSetting({ channelId }),
+  });
+};
+
+export const useVolumeExceptions = () => {
+  const deps = useKeyFromQueryDeps(db.getVolumeExceptions);
+  return useQuery({
+    queryKey: ['volumeExceptions', deps],
+    queryFn: () => db.getVolumeExceptions(),
+  });
+};
+
+export const useBaseVolumeLevel = (): ub.NotificationLevel => {
+  const deps = useKeyFromQueryDeps(db.getVolumeSetting);
+
+  const { data } = useQuery({
+    queryKey: ['baseVolumeLevel', deps],
+    queryFn: () => db.getVolumeSetting('base'),
+  });
+
+  if (data) {
+    return data.level;
+  }
+
+  return 'medium';
 };
 
 export const useHaveUnreadUnseenActivity = () => {
@@ -185,6 +266,28 @@ export const useLiveChannelUnread = (unread: db.ChannelUnread | null) => {
   });
 };
 
+export const useLiveGroupUnread = (unread: db.GroupUnread | null) => {
+  const depsKey = useMemo(
+    () => (unread ? keyFromQueryDeps(db.getGroupUnread) : null),
+    [unread]
+  );
+
+  return useQuery({
+    queryKey: [
+      'liveUnreadCount',
+      depsKey,
+      'group',
+      unread ? unread.groupId : null,
+    ],
+    queryFn: async () => {
+      if (unread) {
+        return db.getGroupUnread({ groupId: unread.groupId ?? '' });
+      }
+      return null;
+    },
+  });
+};
+
 export const useLiveUnread = (
   unread: db.ChannelUnread | db.ThreadUnreadState | null
 ) => {
@@ -202,6 +305,14 @@ export const useGroups = (options: db.GetGroupsOptions) => {
   return useQuery({
     queryKey: ['groups'],
     queryFn: () => db.getGroups(options).then((r) => r ?? null),
+  });
+};
+
+export const useGroupPreviews = (groupIds: string[]) => {
+  const depsKey = useKeyFromQueryDeps(db.getGroupPreviews);
+  return useQuery({
+    queryKey: ['groupPreviews', depsKey, groupIds],
+    queryFn: () => db.getGroupPreviews(groupIds),
   });
 };
 
@@ -313,14 +424,14 @@ export const useChannelSearchResults = (
   });
 };
 
-export const useChannelWithLastPostAndMembers = (
-  options: db.GetChannelWithLastPostAndMembersOptions
+export const useChannelWithRelations = (
+  options: db.GetChannelWithRelations
 ) => {
-  const tableDeps = useKeyFromQueryDeps(db.getChannelWithLastPostAndMembers);
+  const tableDeps = useKeyFromQueryDeps(db.getChannelWithRelations);
   return useQuery({
-    queryKey: ['channelWithLastPostAndMembers', tableDeps, options],
+    queryKey: ['channelWithRelations', tableDeps, options],
     queryFn: async () => {
-      const channel = await db.getChannelWithLastPostAndMembers(options);
+      const channel = await db.getChannelWithRelations(options);
       return channel ?? null;
     },
   });
@@ -329,7 +440,7 @@ export const useChannelWithLastPostAndMembers = (
 export const useChannel = (options: { id: string }) => {
   return useQuery({
     queryKey: [['channel', options]],
-    queryFn: () => db.getChannelWithLastPostAndMembers(options),
+    queryFn: () => db.getChannelWithRelations(options),
   });
 };
 

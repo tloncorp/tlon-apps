@@ -1,18 +1,19 @@
 import { EditorBridge } from '@10play/tentap-editor';
-import { UploadInfo, UploadedFile } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
-import { PropsWithChildren, useMemo } from 'react';
+import { ImagePickerAsset } from 'expo-image-picker';
+import { PropsWithChildren } from 'react';
 import { SpaceTokens } from 'tamagui';
+import { ThemeTokens, View, XStack, YStack } from 'tamagui';
 
 import { ArrowUp, Checkmark, ChevronLeft, Close } from '../../assets/icons';
-import { ThemeTokens, View, XStack, YStack } from '../../core';
+import { useAttachmentContext } from '../../contexts/attachment';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
 import { IconButton } from '../IconButton';
+import { LoadingSpinner } from '../LoadingSpinner';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
-import ReferencePreview from './ReferencePreview';
 
 export interface MessageInputProps {
   shouldBlur: boolean;
@@ -23,7 +24,6 @@ export interface MessageInputProps {
     metadata?: db.PostMetadata
   ) => Promise<void>;
   channelId: string;
-  uploadInfo?: UploadInfo;
   groupMembers: db.ChatMember[];
   storeDraft: (draft: JSONContent) => void;
   clearDraft: () => void;
@@ -33,7 +33,8 @@ export interface MessageInputProps {
   editPost?: (
     post: db.Post,
     content: Story,
-    parentId?: string
+    parentId?: string,
+    metadata?: db.PostMetadata
   ) => Promise<void>;
   setShowBigInput?: (showBigInput: boolean) => void;
   showAttachmentButton?: boolean;
@@ -43,10 +44,12 @@ export interface MessageInputProps {
   placeholder?: string;
   bigInput?: boolean;
   title?: string;
-  image?: UploadedFile;
+  image?: ImagePickerAsset;
+  showInlineAttachments?: boolean;
   showToolbar?: boolean;
   channelType: db.ChannelType;
   initialHeight?: number;
+  onSend?: () => void;
   // for external access to height
   setHeight?: (height: number) => void;
   goBack?: () => void;
@@ -60,7 +63,6 @@ export const MessageInputContainer = ({
   children,
   onPressSend,
   setShouldBlur,
-  uploadInfo,
   containerHeight,
   showMentionPopup = false,
   showAttachmentButton = true,
@@ -69,6 +71,7 @@ export const MessageInputContainer = ({
   mentionText,
   groupMembers,
   onSelectMention,
+  isSending,
   isEditing = false,
   cancelEditing,
   onPressEdit,
@@ -76,7 +79,6 @@ export const MessageInputContainer = ({
 }: PropsWithChildren<{
   setShouldBlur: (shouldBlur: boolean) => void;
   onPressSend: () => void;
-  uploadInfo?: UploadInfo;
   containerHeight: number;
   showMentionPopup?: boolean;
   showAttachmentButton?: boolean;
@@ -86,23 +88,14 @@ export const MessageInputContainer = ({
   groupMembers: db.ChatMember[];
   onSelectMention: (contact: db.Contact) => void;
   isEditing?: boolean;
+  isSending?: boolean;
   cancelEditing?: () => void;
   onPressEdit?: () => void;
   goBack?: () => void;
 }>) => {
-  const hasUploadedImage = useMemo(
-    () => !!(uploadInfo?.uploadedImage && uploadInfo.uploadedImage.url !== ''),
-    [uploadInfo]
-  );
-  const uploadIsLoading = useMemo(() => uploadInfo?.uploading, [uploadInfo]);
-  const sendIconColor = useMemo(
-    () => (uploadIsLoading ? '$secondaryText' : '$primaryText'),
-    [uploadIsLoading]
-  );
-
+  const { canUpload } = useAttachmentContext();
   return (
     <YStack width="100%">
-      <ReferencePreview containerHeight={containerHeight} />
       <InputMentionPopup
         containerHeight={containerHeight}
         showMentionPopup={showMentionPopup}
@@ -112,7 +105,7 @@ export const MessageInputContainer = ({
       />
       <XStack
         paddingHorizontal="$m"
-        paddingVertical="$s"
+        paddingBottom="$s"
         gap="$l"
         alignItems="flex-end"
         justifyContent="space-between"
@@ -131,13 +124,9 @@ export const MessageInputContainer = ({
             </IconButton>
           </View>
         ) : null}
-        {hasUploadedImage ? null : uploadInfo?.canUpload &&
-          showAttachmentButton ? (
+        {canUpload && showAttachmentButton ? (
           <View paddingBottom="$xs">
-            <AttachmentButton
-              uploadInfo={uploadInfo}
-              setShouldBlur={setShouldBlur}
-            />
+            <AttachmentButton setShouldBlur={setShouldBlur} />
           </View>
         ) : null}
         {children}
@@ -160,12 +149,20 @@ export const MessageInputContainer = ({
           <View paddingBottom="$xs">
             {disableSend ? null : (
               <IconButton
-                color={sendIconColor}
-                disabled={uploadIsLoading}
+                disabled={isSending}
+                color={'$primaryText'}
                 onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
                 backgroundColor="unset"
               >
-                {isEditing ? <Checkmark /> : <ArrowUp />}
+                {isSending ? (
+                  <View width="$2xl" height="$2xl">
+                    <LoadingSpinner size="small" color="$secondaryText" />
+                  </View>
+                ) : isEditing ? (
+                  <Checkmark />
+                ) : (
+                  <ArrowUp />
+                )}
               </IconButton>
             )}
           </View>

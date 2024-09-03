@@ -56,20 +56,21 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log('loading posts', queryOptions);
       if (queryOptions.mode === 'newest' && !options.hasCachedNewest) {
-        await sync.syncPosts(queryOptions, SyncPriority.High);
+        await sync.syncPosts(queryOptions, { priority: SyncPriority.High });
       }
       const cached = await db.getChannelPosts(queryOptions);
       if (cached?.length) {
         postsLogger.log('returning', cached.length, 'posts from db');
         return cached;
       }
+
       postsLogger.log('no posts found in database, loading from api...');
       const res = await sync.syncPosts(
         {
           ...queryOptions,
           count: options.count ?? 50,
         },
-        SyncPriority.High
+        { priority: SyncPriority.High }
       );
       postsLogger.log('loaded', res.posts?.length, 'posts from api');
       const secondResult = await db.getChannelPosts(queryOptions);
@@ -157,10 +158,11 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
   useRefreshPosts(options.channelId, posts);
 
   const isLoading = useDebouncedValue(
-    query.isPending ||
-      query.isPaused ||
-      query.isFetchingNextPage ||
-      query.isFetchingPreviousPage,
+    enabled &&
+      (query.isPending ||
+        query.isPaused ||
+        query.isFetchingNextPage ||
+        query.isFetchingPreviousPage),
     100
   );
 
@@ -227,7 +229,7 @@ function useRefreshPosts(channelId: string, posts: db.Post[] | null) {
             channelId,
             authorId: post.authorId,
           },
-          4
+          { priority: 4 }
         );
         pendingStalePosts.current.add(post.id);
       }

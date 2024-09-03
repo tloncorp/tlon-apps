@@ -1,6 +1,9 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import type { NavigationProp } from '@react-navigation/native';
 import { CommonActions, useNavigation } from '@react-navigation/native';
+import { useFeatureFlag } from '@tloncorp/app/lib/featureFlags';
+import { connectNotifications } from '@tloncorp/app/lib/notifications';
+import * as posthog from '@tloncorp/app/utils/posthog';
 import { syncDms, syncGroups } from '@tloncorp/shared';
 import { markChatRead } from '@tloncorp/shared/dist/api';
 import * as api from '@tloncorp/shared/dist/api';
@@ -10,8 +13,17 @@ import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/dist/urbit';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useEffect, useState } from 'react';
 
-import { connectNotifications } from '../lib/notifications';
-import type { RootStackParamList } from '../types';
+import { RootStackParamList } from '../types';
+
+type RouteStack = {
+  name: keyof RootStackParamList;
+  params?: RootStackParamList[keyof RootStackParamList];
+}[];
+
+interface NotificationData {
+  channelId: string;
+  wer: string;
+}
 
 export type Props = {
   notificationPath?: string;
@@ -24,6 +36,7 @@ export default function useNotificationListener({
 }: Props) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { data: isTlonEmployee } = store.useIsTlonEmployee();
+  const [channelSwitcherEnabled, _] = useFeatureFlag('channelSwitcher');
 
   const [{ postInfo, channelId, isDm }, setGotoData] = useState<{
     path?: string;
@@ -48,15 +61,29 @@ export default function useNotificationListener({
     // This only seems to get triggered on iOS. Android handles the tap and other intents in native code.
     const notificationTapListener = addNotificationResponseReceivedListener(
       (response) => {
-        const {
-          actionIdentifier,
-          userText,
-          notification: {
-            request: {
-              content: { data },
-            },
-          },
-        } = response;
+        // When a notification is received directly (i.e. is not mutated via
+        // notification service extension), the payload is delivered in the
+        // `content`. When "triggered" through the NSE, the payload is in the
+        // `trigger`.
+        // Detect and use whatever payload is available.
+        const data = (response.notification.request.trigger.type === 'push'
+          ? response.notification.request.trigger.payload!
+          : response.notification.request.content
+              .data) as unknown as NotificationData;
+
+        const { actionIdentifier, userText } = response;
+        if (data == null || (typeof data === 'object' && data.wer == null)) {
+          // https://linear.app/tlon/issue/TLON-2551/multiple-notifications-that-lead-to-nowhere-crash-app
+          // We're seeing cases where `data` is null here - not sure why this is happening.
+          // Log the notification and don't try to navigate.
+          if (isTlonEmployee) {
+            posthog.trackError({
+              message: 'Failed to get notification payload',
+              properties: response.notification.request,
+            });
+          }
+          return;
+        }
         const postInfo = api.getPostInfoFromWer(data.wer);
         const isDm = api.getIsDmFromWer(data.wer);
         if (actionIdentifier === 'markAsRead' && data.channelId) {
@@ -78,16 +105,25 @@ export default function useNotificationListener({
       // Clean up listeners
       notificationTapListener.remove();
     };
-  }, [navigation]);
+  }, [navigation, isTlonEmployee]);
 
   // If notification tapped, push channel on stack
   useEffect(() => {
     if (channelId) {
       const goToChannel = async () => {
-        const channel = await db.getChannel({ id: channelId });
+        const channel = await db.getChannelWithRelations({ id: channelId });
         if (!channel) {
           return false;
         }
+
+        const routeStack: RouteStack = [{ name: 'ChatList' }];
+        if (channel.group && !channelSwitcherEnabled) {
+          routeStack.push({
+            name: 'GroupChannels',
+            params: { group: channel.group },
+          });
+        }
+        routeStack.push({ name: 'Channel', params: { channel } });
 
         // if we have a post id, try to navigate to the thread
         if (postInfo) {
@@ -105,21 +141,15 @@ export default function useNotificationListener({
             postToNavigateTo = { ...postInfo, channelId };
           }
 
-          navigation.dispatch(
-            CommonActions.reset({
-              index: 1,
-              routes: [
-                { name: 'ChatList' },
-                { name: 'Channel', params: { channel } },
-                { name: 'Post', params: { post: postToNavigateTo } },
-              ],
-            })
-          );
-          resetGotoData();
-          return true;
+          routeStack.push({ name: 'Post', params: { post: postToNavigateTo } });
         }
 
-        navigation.navigate('Channel', { channel });
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 1,
+            routes: routeStack,
+          })
+        );
         resetGotoData();
         return true;
       };
@@ -154,5 +184,5 @@ export default function useNotificationListener({
         }
       })();
     }
-  }, [channelId, postInfo, navigation, isDm]);
+  }, [channelId, postInfo, navigation, isDm, isTlonEmployee]);
 }

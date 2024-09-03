@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
 type Session = { startTime: number };
-type SessionListener = (session: Session) => void;
+type SessionListener = (session: Session | null) => void;
 
 let session: Session | null = null;
 const sessionListeners: SessionListener[] = [];
@@ -12,6 +12,7 @@ export function getSession() {
 
 export function updateSession(newSession: Session | null) {
   session = newSession;
+  sessionListeners.forEach((listener) => listener(session));
 }
 
 function subscribeToSession(listener: SessionListener) {

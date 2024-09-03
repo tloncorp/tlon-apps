@@ -1,10 +1,11 @@
 import { tiptap, usePostMeta } from '@tloncorp/shared/dist';
 import { Dimensions } from 'react-native';
+import { Text, View, YStack } from 'tamagui';
 
-import { Image, Text, View, YStack } from '../../core';
 import { ContentReferenceLoader } from '../ContentReference/ContentReference';
 import ContentRenderer from '../ContentRenderer';
 import { Icon } from '../Icon';
+import { Image } from '../Image';
 import { DetailView, DetailViewProps } from './DetailView';
 
 export default function GalleryDetailView({
@@ -16,7 +17,6 @@ export default function GalleryDetailView({
   groupMembers,
   posts,
   onPressImage,
-  uploadInfo,
   storeDraft,
   clearDraft,
   getDraft,
@@ -67,7 +67,6 @@ export default function GalleryDetailView({
       groupMembers={groupMembers}
       posts={posts}
       onPressImage={onPressImage}
-      uploadInfo={uploadInfo}
       storeDraft={storeDraft}
       clearDraft={clearDraft}
       getDraft={getDraft}

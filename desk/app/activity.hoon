@@ -39,7 +39,8 @@
 ::
 ::
 /-  a=activity, c=channels, ch=chat, g=groups
-/+  *activity, ch-utils=channel-utils, v=volume, aj=activity-json
+/+  *activity, ch-utils=channel-utils, v=volume, aj=activity-json,
+    imp=import-aid
 /+  default-agent, verb, dbug
 ::
 =/  verbose  |
@@ -125,8 +126,8 @@
   (emit %pass /migrate %agent [our.bowl dap.bowl] %poke noun+!>(%migrate))
 ::
 ++  load
-  |=  =vase
-  |^  ^+  cor
+  |^  |=  =vase
+  ^+  cor
   ?:  ?=([%0 *] q.vase)  init
   =+  !<(old=versioned-state vase)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
@@ -138,6 +139,7 @@
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   ?>  ?=(%6 -.old)
   =.  state  old
+  =.  allowed  %all
   (emit %pass /fix-init-unreads %agent [our.bowl dap.bowl] %poke noun+!>(%fix-init-unreads))
   +$  versioned-state
     $%  state-6
@@ -272,9 +274,38 @@
       %add      (add-event +.action)
       %bump     (bump +.action)
       %del      (del-source +.action)
+      %del-event  (del-event +.action)
       %read     (read source.action read-action.action |)
       %adjust   (adjust +.action)
       %allow-notifications  (allow +.action)
+    ==
+  ::
+      %egg-any
+    =+  !<(=egg-any:gall vase)
+    ?-  -.egg-any
+        ?(%15 %16)
+      ?.  ?=(%live +<.egg-any)
+        ~&  [dap.bowl %egg-any-not-live]
+        cor
+      =/  bak
+        (load -:!>(*versioned-state:load) +>.old-state.egg-any)
+      ::  restore volume settings, but keep any we've explicitly set ourselves,
+      ::  and restore activity summaries & read/bump status
+      ::
+      =.  allowed          allowed:bak
+      =.  volume-settings  (~(uni by volume-settings:bak) volume-settings)
+      =.  activity         (~(uni by activity:bak) activity)
+      =.  indices
+        %.  indices
+        %~  uni  by
+        %-  ~(run by indices:bak)
+        |=  index:a
+        ^-  index:a
+        :_  [[floor.reads ~] bump]
+        ?~  hed=(ram:on-event:a stream)
+          *stream:a
+        (put:on-event:a *stream:a u.hed)
+      (emil (prod-next:imp [our dap]:bowl))
     ==
   ==
 ::
@@ -496,9 +527,10 @@
   ^-  [(unit event:a) ? out]
   ?:  =(limit.acc 0)  [~ & acc]
   ::  we only care about events older than start
-  ?:  (gth time real-start)  [~ | acc]
-  :-  ~   :-  |
+  :+  ~  |
+  ?:  (gth time real-start)  acc
   =/  =source:a  (source:evt -.event)
+  ?.  (~(has by indices) source)  acc
   =/  src-info=[latest=time-id:a added=?]
     ?^  stored=(~(get by sources.acc) source)  u.stored
     :_  |
@@ -512,7 +544,10 @@
   ::  after the start so we always get "new" sources when paging
   ?.  ?&  notified.event
           (lth latest.src-info start)
-          ?=(?(%post %reply %dm-post %dm-reply %flag-post) -<.event)
+          ?=  $?  %post  %reply  %dm-post  %dm-reply
+                  %flag-post  %flag-reply  %group-ask
+              ==
+            -<.event
       ==
     acc
   =/  mention=(unit activity-bundle:a)
@@ -546,7 +581,8 @@
   =/  collapsed
     (~(gas in collapsed.acc) (turn top head))
   :-  (~(put by sources.acc) source src-info(added &))
-  [(sub limit.acc 1) (snoc happenings.acc [source time top]) collapsed]
+  ?~  top  +.acc
+  [(sub limit.acc 1) (snoc happenings.acc [source time.i.top top]) collapsed]
   +$  out
     $:  sources=(map source:a [latest=time-id:a added=?])
         limit=@ud
@@ -564,7 +600,10 @@
   |=  [acc=out [=time =event:a]]
   ?:  =(limit.acc 0)  [~ & acc]
   ?:  child.event  [~ | acc]
-  ?.  ?=(?(%post %reply %dm-post %dm-reply %flag-post) -<.event)
+  ?.  ?=  $?  %post  %reply  %dm-post  %dm-reply
+              %flag-post  %flag-reply  %group-ask
+          ==
+        -<.event
     [~ | acc]
   =/  is-mention
     ?+  -<.event  |
@@ -695,10 +734,39 @@
 ++  del-source
   |=  =source:a
   ^+  cor
+  =.  cor
+    =/  children  (get-children:src indices source)
+    |-
+    ?~  children  cor
+    =.  cor  (del-source i.children)
+    $(children t.children)
   =.  indices  (~(del by indices) source)
+  =.  activity  (~(del by activity) source)
   =.  volume-settings  (~(del by volume-settings) source)
   ::  TODO: send notification removals?
   (give-update [%del source] [%hose ~])
+++  del-event
+  |=  [=source:a event=incoming-event:a]
+  ^+  cor
+  =/  =index:a  (~(got by indices) source)
+  =/  events=(list [=time-id:a =event:a])
+    %+  murn
+      (tap:on-event:a stream.index)
+    |=  [=time e=event:a]
+    ?.  =(-.e event)  ~
+    `[time e]
+  ?~  events  cor
+  =/  new-index  index(stream +:(del:on-event:a stream.index time-id:(head events)))
+  =.  indices
+    (~(put by indices) source new-index)
+  =.  cor  (refresh source)
+  =/  new-activity=activity:a
+    %+  roll
+      (snoc (get-parents:src source) source)
+    |=  [=source:a out=activity:a]
+    (~(put by out) source (~(got by activity) source))
+  %-  (log |.("sending activity: {<new-activity>}"))
+  (give-update [%activity new-activity] [%hose ~])
 ++  add-to-index
   |=  [=source:a =time-id:a =event:a]
   ^+  cor
@@ -740,7 +808,9 @@
 ++  bump
   |=  =source:a
   ^+  cor
-  =/  =index:a  (~(got by indices) source)
+  ::  we use get-index here because this source may not exist especially
+  ::  if it was a post we created and then commented on w/o any other activity
+  =/  =index:a  (get-index source)
   =/  new=index:a  index(bump now.bowl)
   =.  indices
     (~(put by indices) source new)
@@ -770,7 +840,10 @@
       ?^  time.action  u.time.action
       =/  latest=(unit [=time event:a])
         (ram:on-event:a stream.index)
-      ?~(latest now.bowl time.u.latest)
+      ::  if we don't have an event, then this is read anyway so we can
+      ::  just reuse the floor. likely if a recursive read is happening
+      ::  from one of our parents
+      ?~(latest floor.reads.index time.u.latest)
     ::  if we're marking deeply we need to recursively read all
     ::  children
     =/  children  (get-children:src indices source)
@@ -1033,6 +1106,7 @@
   =.  importing  &
   =.  indices   (~(put by indices) [%base ~] *index:a)
   =.  cor  set-chat-reads
+  ::REVIEW  maybe need a scry api version bump here?
   =+  .^(=channels:c %gx (scry-path %channels /v2/channels/full/noun))
   =.  cor  (set-volumes channels)
   =.  cor  (set-channel-reads channels)
@@ -1082,18 +1156,21 @@
     ?~  post  ~
     ?~  u.post  ~
     %-  some
-    %+  turn
+    %+  murn
       (tab:on-replies:c replies.u.u.post `(sub id 1) count)
-    |=  [=time =reply:c]
+    |=  [=time reply=(unit reply:c)]
+    ^-  (unit [^time incoming-event:a])
+    ?~  reply  ~
+    %-  some
     =/  key=message-key:a
       :_  time
-      [author.reply time]
+      [author.u.reply time]
     =/  parent=message-key:a
       :_  id-post
       [author.u.u.post id-post]
     =/  mention
-      (was-mentioned:ch-utils content.reply our.bowl)
-    [time %reply key parent nest group content.reply mention]
+      (was-mentioned:ch-utils content.u.reply our.bowl)
+    [time %reply key parent nest group content.u.reply mention]
   =/  init-time
     ?:  &(=(posts ~) =(replies ~))  recency.unread
     *@da

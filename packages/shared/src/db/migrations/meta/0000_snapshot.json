@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "f4f2ae74-3687-485f-ac82-85cc2b687cd2",
+  "id": "d3b5845c-7fa4-48d9-ba18-3e237654d040",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -100,6 +100,13 @@
         },
         "content": {
           "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "group_event_user_id": {
+          "name": "group_event_user_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -739,6 +746,58 @@
       },
       "uniqueConstraints": {}
     },
+    "group_join_requests": {
+      "name": "group_join_requests",
+      "columns": {
+        "group_id": {
+          "name": "group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "requested_at": {
+          "name": "requested_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "group_join_requests_group_id_groups_id_fk": {
+          "name": "group_join_requests_group_id_groups_id_fk",
+          "tableFrom": "group_join_requests",
+          "tableTo": "groups",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "group_join_requests_group_id_contact_id_pk": {
+          "columns": [
+            "contact_id",
+            "group_id"
+          ],
+          "name": "group_join_requests_group_id_contact_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
     "group_member_bans": {
       "name": "group_member_bans",
       "columns": {
@@ -1143,8 +1202,8 @@
     "group_unreads": {
       "name": "group_unreads",
       "columns": {
-        "channel_id": {
-          "name": "channel_id",
+        "group_id": {
+          "name": "group_id",
           "type": "text",
           "primaryKey": true,
           "notNull": true,
@@ -1159,6 +1218,13 @@
         },
         "count": {
           "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "notify_count": {
+          "name": "notify_count",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -1257,6 +1323,20 @@
           "notNull": true,
           "autoincrement": false
         },
+        "current_user_is_host": {
+          "name": "current_user_is_host",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "host_user_id": {
+          "name": "host_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "is_new": {
           "name": "is_new",
           "type": "integer",
@@ -1301,8 +1381,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "index": {
-          "name": "index",
+        "pin_index": {
+          "name": "pin_index",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -1958,21 +2038,12 @@
           "notNull": true,
           "autoincrement": false
         },
-        "is_muted": {
-          "name": "is_muted",
-          "type": "integer",
+        "level": {
+          "name": "level",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": false
-        },
-        "is_noisy": {
-          "name": "is_noisy",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": false
+          "notNull": true,
+          "autoincrement": false
         }
       },
       "indexes": {},

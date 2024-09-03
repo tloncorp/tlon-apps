@@ -1,6 +1,5 @@
 import { ColorTokens } from 'tamagui';
-
-import { Spinner } from '../core';
+import { Spinner } from 'tamagui';
 
 // This will render a system spinner on mobile. We have an existing implementation of our
 // custom spinner from the old mobile repo, but it needs to be refactored to use our new style

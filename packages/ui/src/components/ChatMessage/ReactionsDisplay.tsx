@@ -1,8 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
+import { SizableText, XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
-import { SizableText, XStack } from '../../core';
 import { useReactionDetails } from '../../utils/postUtils';
 import { SizableEmoji } from '../Emoji/SizableEmoji';
 

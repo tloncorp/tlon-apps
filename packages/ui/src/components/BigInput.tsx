@@ -1,16 +1,16 @@
 import { EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/dist/db';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // TODO: replace input with our own input component
-import { Image, Input, getToken } from 'tamagui';
+import { Input, ScrollView, View, YStack, getToken } from 'tamagui';
 
-import { ScrollView, View, YStack } from '../core';
+import { ImageAttachment, useAttachmentContext } from '../contexts/attachment';
 import AttachmentSheet from './AttachmentSheet';
 import { Icon } from './Icon';
-import { LoadingSpinner } from './LoadingSpinner';
+import { Image } from './Image';
 import { MessageInput } from './MessageInput';
 import { InputToolbar } from './MessageInput/InputToolbar';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
@@ -31,11 +31,10 @@ export function BigInput({
   editPost,
   setShowBigInput,
   placeholder,
-  uploadInfo,
 }: {
   channelType: db.ChannelType;
 } & MessageInputProps) {
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(editingPost?.title ?? '');
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const editorRef = useRef<{
     editor: TlonEditorBridge | null;
@@ -48,20 +47,39 @@ export function BigInput({
   const keyboardVerticalOffset =
     Platform.OS === 'ios' ? top + titleInputHeight : top;
 
+  const { attachments, attachAssets } = useAttachmentContext();
+  const imageAttachment = useMemo(() => {
+    if (attachments.length > 0) {
+      return attachments.find(
+        (attachment): attachment is ImageAttachment =>
+          attachment.type === 'image'
+      );
+    }
+
+    if (editingPost?.image) {
+      return {
+        type: 'image',
+        file: {
+          uri: editingPost.image,
+          width: 0,
+          height: 0,
+        },
+      };
+    }
+
+    return null;
+  }, [attachments, editingPost]);
+
   return (
     <YStack height="100%" width="100%">
       {channelType === 'notebook' && (
         <View
-          style={[
-            {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: imageButtonHeight,
-              zIndex: 10,
-            },
-          ]}
+          position="absolute"
+          top={0}
+          left={0}
+          width="100%"
+          height={imageButtonHeight}
+          zIndex={10}
         >
           <TouchableOpacity
             onPress={() => {
@@ -69,10 +87,10 @@ export function BigInput({
               editorRef.current?.editor?.blur();
             }}
           >
-            {uploadInfo?.imageAttachment && !uploadInfo.uploading ? (
+            {imageAttachment ? (
               <Image
-                source={{ uri: uploadInfo.imageAttachment }}
-                resizeMode="cover"
+                source={{ uri: imageAttachment.file.uri }}
+                contentFit="cover"
                 style={{
                   width: '100%',
                   height: '100%',
@@ -92,26 +110,21 @@ export function BigInput({
                 justifyContent="center"
                 gap="$l"
               >
-                {uploadInfo?.uploading ? (
-                  <LoadingSpinner />
-                ) : (
-                  <Icon type="Camera" color="$background" />
-                )}
+                <Icon type="Camera" color="$background" />
               </View>
             )}
           </TouchableOpacity>
-          {channelType === 'notebook' && (
-            <View backgroundColor="$background" width="100%">
-              <Input
-                size="$xl"
-                height={titleInputHeight}
-                backgroundColor="$background"
-                borderColor="transparent"
-                placeholder="New Title"
-                onChangeText={setTitle}
-              />
-            </View>
-          )}
+          <View backgroundColor="$background" width="100%">
+            <Input
+              size="$xl"
+              height={titleInputHeight}
+              backgroundColor="$background"
+              borderColor="transparent"
+              placeholder="New Title"
+              onChangeText={setTitle}
+              value={title}
+            />
+          </View>
         </View>
       )}
       <ScrollView
@@ -130,7 +143,7 @@ export function BigInput({
           setShouldBlur={setShouldBlur}
           send={send}
           title={title}
-          image={uploadInfo?.uploadedImage ?? undefined}
+          image={imageAttachment?.file ?? undefined}
           channelId={channelId}
           groupMembers={groupMembers}
           storeDraft={storeDraft}
@@ -142,6 +155,7 @@ export function BigInput({
           setShowBigInput={setShowBigInput}
           floatingActionButton
           showAttachmentButton={false}
+          showInlineAttachments={false}
           backgroundColor="$background"
           paddingHorizontal="$m"
           placeholder={placeholder}
@@ -166,11 +180,11 @@ export function BigInput({
             <InputToolbar editor={editorRef.current.editor} />
           </KeyboardAvoidingView>
         )}
-      {channelType === 'notebook' && uploadInfo && (
+      {channelType === 'notebook' && showAttachmentSheet && (
         <AttachmentSheet
           showAttachmentSheet={showAttachmentSheet}
           setShowAttachmentSheet={setShowAttachmentSheet}
-          setImage={uploadInfo?.setAttachments}
+          setImage={attachAssets}
         />
       )}
     </YStack>

@@ -1,7 +1,8 @@
 {
   "name": "@tloncorp/ui",
+  "version": "1.0.0",
   "types": "./src",
-  "main": "src/index.ts",
+  "main": "src/index.tsx",
   "module:jsx": "src",
   "files": [
     "types",
@@ -43,7 +44,6 @@
     "moti": "^0.28.1",
     "react-hook-form": "^7.52.0",
     "react-native-context-menu-view": "^1.15.0",
-    "react-native-reanimated": "^3.8.1",
     "react-native-safe-area-context": "^4.9.0",
     "react-native-svg": "^15.0.0",
     "react-tweet": "^3.0.4",
@@ -51,10 +51,11 @@
     "urbit-ob": "^5.0.1"
   },
   "peerDependencies": {
-    "@10play/tentap-editor": "^0.4.55",
+    "@10play/tentap-editor": "~0.5.11",
     "@urbit/sigil-js": "^2.2.0",
     "expo-image": "*",
     "react": "*",
+    "react-native-reanimated": "*",
     "react-native-safe-area-context": "*",
     "react-native-svg": "*"
   },

@@ -1,19 +1,19 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import {
+  checkPhoneVerify,
+  requestPhoneVerify,
+  resendEmailVerification,
+  verifyEmailDigits,
+} from '@tloncorp/app/lib/hostingApi';
+import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { formatPhoneNumber } from '@tloncorp/app/utils/string';
 import { createRef, useLayoutEffect, useMemo, useState } from 'react';
 import type { TextInputKeyPressEventData } from 'react-native';
 import { Text, TextInput, View } from 'react-native';
 import { useTailwind } from 'tailwind-rn';
 
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import {
-  checkPhoneVerify,
-  requestPhoneVerify,
-  resendEmailVerification,
-  verifyEmailDigits,
-} from '../lib/hostingApi';
 import type { OnboardingStackParamList } from '../types';
-import { trackError, trackOnboardingAction } from '../utils/posthog';
-import { formatPhoneNumber } from '../utils/string';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'CheckVerify'>;
 

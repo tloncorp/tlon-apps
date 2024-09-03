@@ -37,6 +37,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     enabledLoggers: process.env.ENABLED_LOGGERS,
     ignoreCosmos: process.env.IGNORE_COSMOS,
     TlonEmployeeGroup: process.env.TLON_EMPLOYEE_GROUP,
+    branchKey: process.env.BRANCH_KEY,
+    branchDomain: process.env.BRANCH_DOMAIN,
   },
   ios: {
     runtimeVersion: '4.0.1',
@@ -54,6 +56,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     '@react-native-firebase/app',
     '@react-native-firebase/crashlytics',
+    '@react-native-firebase/perf',
     [
       'expo-image-picker',
       {

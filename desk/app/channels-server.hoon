@@ -3,7 +3,7 @@
 ::    this is the server-side from which /app/channels gets its data.
 ::
 /-  c=channels, g=groups
-/+  utils=channel-utils
+/+  utils=channel-utils, imp=import-aid
 /+  default-agent, verb, dbug, neg=negotiate
 ::
 %-  %-  agent:neg
@@ -16,8 +16,9 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %4
+    $:  %6
         =v-channels:c
+        =pimp:imp
     ==
   --
 =|  current-state
@@ -81,20 +82,47 @@
   (emit %pass wire %agent dock %watch path)
 ::
 ++  load
-  |=  =vase
-  |^  ^+  cor
+  |^  |=  =vase
+  ^+  cor
   =+  !<(old=versioned-state vase)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
   =?  cor  ?=(%2 -.old)  (emit %pass /trim %agent [our.bowl %chat] %poke %chat-trim !>(~))
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
-  ?>  ?=(%4 -.old)
+  =?  old  ?=(%4 -.old)  (state-4-to-5 old)
+  =?  old  ?=(%5 -.old)  (state-5-to-6 old)
+  ?>  ?=(%6 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-4 state-3 state-2 state-1 state-0)
-  +$  state-4  current-state
+  +$  versioned-state  $%(state-6 state-5 state-4 state-3 state-2 state-1 state-0)
+  +$  state-6  current-state
+  +$  state-5
+    $:  %5
+        =v-channels:v6:old:c
+        =pimp:imp
+    ==
+  ++  state-5-to-6
+    |=  state-5
+    ^-  state-6
+    [%6 (v-channels-5-to-6 v-channels) pimp]
+  ++  v-channels-5-to-6
+    |=  vc=v-channels:v6:old:c
+    ^-  v-channels:c
+    %-  ~(run by vc)
+    |=  v=v-channel:v6:old:c
+    ^-  v-channel:c
+    v(pending [pending.v *last-updated:c])
+  +$  state-4
+    $:  %4
+        =v-channels:v6:old:c
+    ==
+  ++  state-4-to-5
+    |=  state-4
+    ^-  state-5
+    [%5 v-channels *pimp:imp]
+  ::
   ++  state-3-to-4
     |=  s=state-3
     ^-  state-4
@@ -102,7 +130,7 @@
   ::
   ++  v-channel-2-to-3
     |=  v=v-channel-2
-    ^-  v-channel:c
+    ^-  v-channel:v6:old:c
     v(future [future.v *pending-messages:c])
   ++  v-channels-2  (map nest:c v-channel-2)
   ++  v-channel-2
@@ -254,6 +282,16 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-poke+mark !!)
+      %noun
+    ?+  q.vase  !!
+        %pimp-ready
+      ?-  pimp
+        ~         cor(pimp `&+~)
+        [~ %& *]  cor
+        [~ %| *]  (run-import p.u.pimp)
+      ==
+    ==
+  ::
       %channel-command
     =+  !<(=c-channels:c vase)
     ?-    -.c-channels
@@ -274,6 +312,53 @@
     %+  roll  ~(tap by v-channels)
     |=  [[=nest:c =v-channel:c] cr=_cor]
     ca-abet:ca-migrate:(ca-abed:ca-core:cr nest)
+  ::
+      %egg-any
+    =+  !<(=egg-any:gall vase)
+    ?-  pimp
+      ~         cor(pimp `|+egg-any)
+      [~ %& *]  (run-import egg-any)
+      [~ %| *]  ~&  [dap.bowl %overwriting-pending-import]
+                cor(pimp `|+egg-any)
+    ==
+  ==
+::
+++  run-import
+  |=  =egg-any:gall
+  =.  pimp  ~
+  ?-  -.egg-any
+      ?(%15 %16)
+    ?.  ?=(%live +<.egg-any)
+      ~&  [dap.bowl %egg-any-not-live]
+      cor
+    =/  bak
+      (load -:!>(*versioned-state:load) +>.old-state.egg-any)
+    ::  for channels that we're gonna restore, tell previous subscribers to
+    ::  try again
+    ::
+    =.  cor
+      =/  ded=(list [=ship =path])
+        ~(val by bitt.egg-any)
+      |-  ^+  cor
+      ?~  ded                                   cor
+      ?:  =(our.bowl ship.i.ded)                $(ded t.ded)
+      ?.  ?=([kind:c @ %updates *] path.i.ded)  $(ded t.ded)
+      =/  =nest:c  [i.path.i.ded our.bowl i.t.path.i.ded]
+      ?.  &((~(has by v-channels:bak) nest) !(~(has by v-channels) nest))
+        $(ded t.ded)
+      =/  =cage  noun+!>([%channel-wake [i i.t]:path.i.ded])
+      ::NOTE  this assumes it was their %channels agent subscribing to us,
+      ::      which we actually cannot know. but a false positive here should
+      ::      be harmless.
+      =.  cor  (emit %pass /wake %agent [ship.i.ded %channels] %poke cage)
+      $(ded t.ded)
+    ::  if both the backup and our latest have a channel, keep only our
+    ::  version. we could do a "deep merge" but presently unclear how that
+    ::  would affect existing subscribers/what would be the correct behavior
+    ::  wrt them.
+    ::
+    =.  v-channels  (~(uni by v-channels:bak) v-channels)
+    (emil (prod-next:imp [our dap]:bowl))
   ==
 ::
 ++  watch
@@ -327,6 +412,9 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
+    [%pimp ~]  cor
+    [%wake ~]  cor
+  ::
       [=kind:c *]
     ?+    -.sign  !!
         %poke-ack

@@ -2,9 +2,9 @@ import { PropsWithChildren, ReactNode } from 'react';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styled, withStaticProperties } from 'tamagui';
+import { SizableText, View, XStack } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
-import { SizableText, View, XStack } from '../core';
 import { IconButton } from './IconButton';
 
 export const ScreenHeaderComponent = ({

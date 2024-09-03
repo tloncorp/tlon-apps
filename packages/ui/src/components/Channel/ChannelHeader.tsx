@@ -1,10 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useMemo, useState } from 'react';
+import { useCallback, useRef } from 'react';
 
 import { Dots, Search } from '../../assets/icons';
-import { useCurrentUserId } from '../../contexts/appDataContext';
-import { ActionSheet } from '../ActionSheet';
-import { getPostActions } from '../ChatMessage/ChatMessageActions/MessageActions';
+import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
 import { GenericHeader } from '../GenericHeader';
 import { IconButton } from '../IconButton';
 import { BaubleHeader } from './BaubleHeader';
@@ -19,8 +17,6 @@ export function ChannelHeader({
   showSpinner,
   showSearchButton = true,
   showMenuButton = false,
-  post,
-  channelType,
 }: {
   title: string;
   mode?: 'default' | 'next';
@@ -32,27 +28,13 @@ export function ChannelHeader({
   showSearchButton?: boolean;
   showMenuButton?: boolean;
   post?: db.Post;
-  channelType?: db.ChannelType;
+  setEditingPost?: (post: db.Post) => void;
 }) {
-  const [showActionSheet, setShowActionSheet] = useState(false);
-  const currentUserId = useCurrentUserId();
+  const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
 
-  const postActions = useMemo(() => {
-    if (!post || !channelType || !currentUserId) return [];
-    return getPostActions({ post, channelType }).filter((action) => {
-      switch (action.id) {
-        case 'startThread':
-          // if undelivered or already in a thread, don't show reply
-          return false;
-        case 'edit':
-          // only show edit for current user's posts
-          return post.authorId === currentUserId;
-        // TODO: delete case should only be shown for admins or the author
-        default:
-          return true;
-      }
-    });
-  }, [post, channelType, currentUserId]);
+  const handlePressOverflowMenu = useCallback(() => {
+    chatOptionsSheetRef.current?.open(channel.id, channel.type);
+  }, [channel.id, channel.type]);
 
   if (mode === 'next') {
     return <BaubleHeader channel={channel} group={group} />;
@@ -72,25 +54,14 @@ export function ChannelHeader({
               </IconButton>
             )}
             {showMenuButton && (
-              <IconButton onPress={() => setShowActionSheet(true)}>
+              <IconButton onPress={handlePressOverflowMenu}>
                 <Dots />
               </IconButton>
             )}
           </>
         }
       />
-      <ActionSheet
-        open={showActionSheet}
-        onOpenChange={setShowActionSheet}
-        snapPointsMode="percent"
-        snapPoints={[60]}
-      >
-        {postActions.map((action) => (
-          <ActionSheet.Action key={action.id} action={() => ({})}>
-            <ActionSheet.ActionTitle>{action.label}</ActionSheet.ActionTitle>
-          </ActionSheet.Action>
-        ))}
-      </ActionSheet>
+      <ChatOptionsSheet />
     </>
   );
 }

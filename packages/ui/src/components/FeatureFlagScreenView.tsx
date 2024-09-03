@@ -1,7 +1,7 @@
 import { Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, SizableText, View, XStack } from 'tamagui';
 
-import { ScrollView, SizableText, View, XStack } from '../core';
 import { GenericHeader } from './GenericHeader';
 
 export function FeatureFlagScreenView({
@@ -35,8 +35,9 @@ export function FeatureFlagScreenView({
               alignItems="center"
               padding="$l"
             >
-              <SizableText>{feature.label}</SizableText>
+              <SizableText flexShrink={1}>{feature.label}</SizableText>
               <Switch
+                style={{ flexShrink: 0 }}
                 value={feature.enabled}
                 onValueChange={(enabled) =>
                   onFlagToggled(feature.name, enabled)

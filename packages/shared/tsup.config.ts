@@ -19,7 +19,12 @@ export default defineConfig({
     'react',
     '@aws-sdk/client-s3',
     '@aws-sdk/s3-request-presigner',
+    'expo-image-manipulator',
+    'expo-image-picker',
+    'expo-file-system',
     '@react-native-firebase/crashlytics',
+    '@react-native-community/netinfo',
+    'expo-battery',
   ],
   ignoreWatch: ['**/node_modules/**', '**/.git/**'],
   loader: {

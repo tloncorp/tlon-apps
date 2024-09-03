@@ -2,10 +2,10 @@ import { EditorTheme, Images } from '@10play/tentap-editor';
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
 // TODO: replace with our own input component
-import { Input } from 'tamagui';
+import { Input, View } from 'tamagui';
 
-import { Image, View } from '../../core';
 import { Button } from '../Button';
+import { Image } from '../Image';
 
 interface EditLinkBarProps {
   theme: EditorTheme;

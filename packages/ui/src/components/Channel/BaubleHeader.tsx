@@ -1,5 +1,7 @@
+import { LinearGradient } from '@tamagui/linear-gradient';
 import * as db from '@tloncorp/shared/dist/db';
 import { BlurView } from 'expo-blur';
+import { useCallback, useRef } from 'react';
 import { OpaqueColorValue } from 'react-native';
 import Animated, {
   Easing,
@@ -14,11 +16,14 @@ import {
   useSafeAreaFrame,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
+import { Spinner, Text, View } from 'tamagui';
 
+import { useChatOptions } from '../../contexts/chatOptions';
 import { useScrollContext } from '../../contexts/scroll';
-import { Image, LinearGradient, Spinner, Text, View } from '../../core';
 import { ContactAvatar } from '../Avatar';
+import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
 import { Icon } from '../Icon';
+import { Image } from '../Image';
 
 export function BaubleHeader({
   showSpinner,
@@ -34,6 +39,9 @@ export function BaubleHeader({
   const [scrollValue] = useScrollContext();
   const insets = useSafeAreaInsets();
   const frame = useSafeAreaFrame();
+  const groupOptions = useChatOptions();
+  const isGroupContext = !!group && !!groupOptions;
+  const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
 
   const easedValue = useDerivedValue(
     () => Easing.ease(scrollValue.value),
@@ -56,6 +64,14 @@ export function BaubleHeader({
       opacity: opacity,
     };
   }, [easedValue, insets.top]);
+
+  const handlePress = useCallback(() => {
+    if (group && groupOptions) {
+      chatOptionsSheetRef.current?.open(group.id, 'group');
+    } else {
+      chatOptionsSheetRef.current?.open(channel.id, channel.type);
+    }
+  }, [channel.id, channel.type, group, groupOptions]);
 
   return (
     <View
@@ -85,6 +101,7 @@ export function BaubleHeader({
             borderColor={'$border'}
             borderRadius="$l"
             overflow="hidden"
+            onPress={handlePress}
           >
             <BlurView intensity={32}>
               {showSpinner ? (
@@ -163,6 +180,9 @@ export function BaubleHeader({
             </BlurView>
           </View>
         </Animated.View>
+      )}
+      {isGroupContext && groupOptions && (
+        <ChatOptionsSheet ref={chatOptionsSheetRef} />
       )}
     </View>
   );

@@ -43,16 +43,24 @@ export type RootStackParamList = {
     post: db.Post;
     uri?: string;
   };
-  GroupSettings: {
-    group: db.Group;
-  };
+  GroupSettings: NavigatorScreenParams<GroupSettingsStackParamList>;
   AppSettings: undefined;
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BlockedUsers: undefined;
   AppInfo: undefined;
   PushNotificationSettings: undefined;
+  UserProfile: {
+    userId: string;
+  };
   EditProfile: undefined;
+  WompWomp: undefined;
+  ChannelMembers: {
+    channelId: string;
+  };
+  ChannelMeta: {
+    channelId: string;
+  };
 };
 
 export type GroupSettingsStackParamList = {

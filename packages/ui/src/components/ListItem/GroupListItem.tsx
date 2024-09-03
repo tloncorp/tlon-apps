@@ -1,9 +1,9 @@
 import type * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 
 import { Badge } from '../Badge';
 import type { ListItemProps } from './ListItem';
 import { ListItem } from './ListItem';
-import { isMuted } from './isMuted';
 import {
   getGroupStatus,
   getPostTypeIcon,
@@ -14,8 +14,9 @@ export const GroupListItem = ({
   model,
   onPress,
   onLongPress,
+  customSubtitle,
   ...props
-}: ListItemProps<db.Group>) => {
+}: { customSubtitle?: string } & ListItemProps<db.Group>) => {
   const unreadCount = model.unread?.count ?? 0;
   const title = model.title ?? model.id;
   const { isPending, label: statusLabel, isErrored } = getGroupStatus(model);
@@ -27,12 +28,24 @@ export const GroupListItem = ({
       onPress={useBoundHandler(model, onPress)}
       onLongPress={useBoundHandler(model, onLongPress)}
     >
-      <ListItem.GroupIcon model={model} opacity={isMuted(model) ? 0.2 : 1} />
+      <ListItem.GroupIcon
+        model={model}
+        opacity={logic.isMuted(model.volumeSettings?.level, 'group') ? 0.2 : 1}
+      />
       <ListItem.MainContent>
-        <ListItem.Title color={isMuted(model) ? '$tertiaryText' : undefined}>
+        <ListItem.Title
+          color={
+            logic.isMuted(model.volumeSettings?.level, 'group')
+              ? '$tertiaryText'
+              : undefined
+          }
+        >
           {title}
         </ListItem.Title>
-        {model.lastPost && (
+        {customSubtitle && (
+          <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
+        )}
+        {model.lastPost && !customSubtitle && (
           <ListItem.SubtitleWithIcon
             icon={getPostTypeIcon(model.lastPost.type)}
           >
@@ -44,16 +57,24 @@ export const GroupListItem = ({
         ) : null}
       </ListItem.MainContent>
 
-      <ListItem.EndContent>
-        {statusLabel ? (
-          <Badge text={statusLabel} type={isErrored ? 'warning' : 'positive'} />
-        ) : (
-          <>
-            <ListItem.Time time={model.lastPostAt} />
-            <ListItem.Count count={unreadCount} muted={isMuted(model)} />
-          </>
-        )}
-      </ListItem.EndContent>
+      {props.EndContent ?? (
+        <ListItem.EndContent>
+          {statusLabel ? (
+            <Badge
+              text={statusLabel}
+              type={isErrored ? 'warning' : 'positive'}
+            />
+          ) : (
+            <>
+              <ListItem.Time time={model.lastPostAt} />
+              <ListItem.Count
+                count={unreadCount}
+                muted={logic.isMuted(model.volumeSettings?.level, 'group')}
+              />
+            </>
+          )}
+        </ListItem.EndContent>
+      )}
     </ListItem>
   );
 };

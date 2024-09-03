@@ -17,13 +17,6 @@ const ChatMessageInputFixture = () => {
           setShouldBlur={setInputShouldBlur}
           send={async () => {}}
           channelId="channel-id"
-          uploadInfo={{
-            imageAttachment: null,
-            resetImageAttachment: () => {},
-            setAttachments: () => {},
-            canUpload: true,
-            uploading: false,
-          }}
           groupMembers={group.members ?? []}
           getDraft={async () => ({})}
           storeDraft={() => {}}

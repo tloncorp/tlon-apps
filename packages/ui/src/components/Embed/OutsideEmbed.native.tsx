@@ -2,10 +2,10 @@ import { useEmbed, validOembedCheck } from '@tloncorp/shared';
 import { useEffect, useState } from 'react';
 import { Linking } from 'react-native';
 import WebView from 'react-native-webview';
-// @ts-expect-error ts doesn't like this, but the bundler won't include it otherwise
-import { MediaDetails, type Tweet, getTweet } from 'react-tweet/dist/api';
+import { MediaDetails, Tweet, getTweet } from 'react-tweet/api';
+import { Text, YStack } from 'tamagui';
 
-import { Image, Text, YStack } from '../../core';
+import { Image } from '../Image';
 import { Embed } from './Embed';
 
 // this is a basic twitter embed, we could use the react-tweet api
