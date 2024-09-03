@@ -36,7 +36,6 @@ import { JoinWaitListScreen } from './screens/Onboarding/JoinWaitListScreen';
 import { RequestPhoneVerifyScreen } from './screens/Onboarding/RequestPhoneVerifyScreen';
 import { ResetPasswordScreen } from './screens/Onboarding/ResetPasswordScreen';
 import { SetNicknameScreen } from './screens/Onboarding/SetNicknameScreen';
-import { SetNotificationsScreen } from './screens/Onboarding/SetNotificationsScreen';
 import { SetTelemetryScreen } from './screens/Onboarding/SetTelemetryScreen';
 import { ShipLoginScreen } from './screens/Onboarding/ShipLoginScreen';
 import { SignUpEmailScreen } from './screens/Onboarding/SignUpEmailScreen';
@@ -134,10 +133,6 @@ const App = ({
             <OnboardingStack.Screen
               name="SetNickname"
               component={SetNicknameScreen}
-            />
-            <OnboardingStack.Screen
-              name="SetNotifications"
-              component={SetNotificationsScreen}
             />
             <OnboardingStack.Screen
               name="SetTelemetry"
