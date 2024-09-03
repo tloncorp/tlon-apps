@@ -41,7 +41,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
             hero={true}
             shadow={true}
             onPress={() => {
-              navigation.navigate('SignUpEmail');
+              navigation.navigate('InventoryCheck');
             }}
           >
             Sign Up with Email
