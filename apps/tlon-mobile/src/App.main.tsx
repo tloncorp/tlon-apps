@@ -32,6 +32,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { CheckVerifyScreen } from './screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from './screens/Onboarding/EULAScreen';
+import { InventoryCheckScreen } from './screens/Onboarding/InventoryCheckScreen';
 import { JoinWaitListScreen } from './screens/Onboarding/JoinWaitListScreen';
 import { RequestPhoneVerifyScreen } from './screens/Onboarding/RequestPhoneVerifyScreen';
 import { ReserveShipScreen } from './screens/Onboarding/ReserveShipScreen';
@@ -109,6 +110,10 @@ const App = ({
               initialParams={{ lure, priorityToken }}
             />
             <OnboardingStack.Screen name="EULA" component={EULAScreen} />
+            <OnboardingStack.Screen
+              name="InventoryCheck"
+              component={InventoryCheckScreen}
+            />
             <OnboardingStack.Screen
               name="SignUpPassword"
               component={SignUpPasswordScreen}
