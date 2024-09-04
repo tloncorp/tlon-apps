@@ -102,6 +102,7 @@ const ActionSheetComponent = ({
         dismissOnSnapToBottom
         snapPointsMode="fit"
         animation="quick"
+        handleDisableScroll
         {...props}
       >
         <Sheet.Overlay animation="quick" />
