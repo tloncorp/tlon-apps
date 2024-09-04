@@ -1,4 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { requestNotificationToken } from '@tloncorp/app/lib/notifications';
+import { trackError } from '@tloncorp/app/utils/posthog';
 import {
   Button,
   Field,
@@ -18,6 +20,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetNickname'>;
 
 type FormData = {
   nickname?: string;
+  notificationToken?: string | undefined;
 };
 
 export const SetNicknameScreen = ({
@@ -30,18 +33,21 @@ export const SetNicknameScreen = ({
     control,
     handleSubmit,
     formState: { errors },
+    setValue,
   } = useForm<FormData>({
     defaultValues: {
       nickname: signUpExtras.nickname,
+      notificationToken: undefined,
     },
   });
 
-  const onSubmit = handleSubmit(({ nickname }) => {
-    navigation.navigate('SetNotifications', {
+  const onSubmit = handleSubmit(({ nickname, notificationToken }) => {
+    navigation.navigate('SetTelemetry', {
       user,
       signUpExtras: {
         ...signUpExtras,
         nickname,
+        notificationToken,
       },
     });
   });
@@ -54,6 +60,22 @@ export const SetNicknameScreen = ({
       }),
     [navigation]
   );
+
+  useEffect(() => {
+    async function getNotificationToken() {
+      let token: string | undefined;
+      try {
+        token = await requestNotificationToken();
+        setValue('notificationToken', token);
+      } catch (err) {
+        console.error('Error enabling notifications:', err);
+        if (err instanceof Error) {
+          trackError(err);
+        }
+      }
+    }
+    getNotificationToken();
+  }, [setValue]);
 
   return (
     <View flex={1}>
