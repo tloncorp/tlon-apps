@@ -1,3 +1,4 @@
+import { useMutableCallback } from '@tloncorp/shared';
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import { isSameDay } from '@tloncorp/shared/dist/logic';
@@ -735,7 +736,7 @@ function useAnchorScrollLock({
   // the post to be rendered before we're able to scroll to it, so we wait for
   // it here. Once it's rendered we scroll to it and set `needsScrollToAnchor` to
   // false, revealing the Scroller.
-  const handleItemLayout = useCallback(
+  const handleItemLayout = useMutableCallback(
     (post: db.Post, index: number) => {
       renderedPostsRef.current.add(post.id);
 
@@ -755,13 +756,7 @@ function useAnchorScrollLock({
       if (posts?.length && renderedPostsRef.current.size >= posts?.length) {
         setDidAnchorSearchTimeout(true);
       }
-    },
-    [
-      anchor?.postId,
-      posts?.length,
-      scrollToAnchorIfNeeded,
-      didAnchorSearchTimeout,
-    ]
+    }
   );
   const maintainVisibleContentPositionConfig = useMemo(() => {
     return channelType === 'chat' ||
@@ -780,7 +775,7 @@ function useAnchorScrollLock({
       : undefined;
   }, [userHasScrolled, hasNewerPosts, channelType]);
 
-  const handleScrollToIndexFailed = useCallback(
+  const handleScrollToIndexFailed = useMutableCallback(
     (info: {
       index: number;
       highestMeasuredFrameIndex: number;
@@ -807,15 +802,14 @@ function useAnchorScrollLock({
         // will trigger a righteous scroll.
         setNeedsScrollToAnchor(true);
       }
-    },
-    [anchor?.postId, flatListRef]
+    }
   );
 
   // `scrollToAnchorIfNeeded` has internal checks that will bail if a scroll is
   // not needed.
   // These checks double as dependencies which change the identity of
   // `scrollToAnchorIfNeeded` when it's possible a scroll is needed - that is
-  // why `scrollTOAnchorIfNeeded` is the sole dependency here.
+  // why `scrollToAnchorIfNeeded` is the sole dependency here.
   useEffect(() => {
     scrollToAnchorIfNeeded();
   }, [scrollToAnchorIfNeeded]);
@@ -823,16 +817,28 @@ function useAnchorScrollLock({
   return {
     readyToDisplayPosts,
 
-    scrollerItemProps: {
-      onLayout: handleItemLayout,
-    } satisfies Partial<React.ComponentProps<typeof ScrollerItem>>,
+    scrollerItemProps: useMemo(
+      () =>
+        ({
+          onLayout: handleItemLayout,
+        }) satisfies Partial<React.ComponentProps<typeof ScrollerItem>>,
+      [handleItemLayout]
+    ),
 
-    flatlistProps: {
-      onScrollToIndexFailed: handleScrollToIndexFailed,
-      onScrollBeginDrag: handleScrollBeginDrag,
-      maintainVisibleContentPosition: maintainVisibleContentPositionConfig,
-    } satisfies Partial<
-      React.ComponentProps<typeof Animated.FlatList<db.Post>>
-    >,
+    flatlistProps: useMemo(
+      () =>
+        ({
+          onScrollToIndexFailed: handleScrollToIndexFailed,
+          onScrollBeginDrag: handleScrollBeginDrag,
+          maintainVisibleContentPosition: maintainVisibleContentPositionConfig,
+        }) satisfies Partial<
+          React.ComponentProps<typeof Animated.FlatList<db.Post>>
+        >,
+      [
+        handleScrollToIndexFailed,
+        handleScrollBeginDrag,
+        maintainVisibleContentPositionConfig,
+      ]
+    ),
   };
 }
