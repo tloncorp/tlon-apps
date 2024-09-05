@@ -185,10 +185,10 @@ function ChatMessageFixtureWrapper({
   );
 }
 
-const ScrollFixture = () => {
+const ScrollFixture = ({ postGroups }: { postGroups: PostGroup[] }) => {
   return (
     <ChatMessageFixtureWrapper>
-      {scrollPosts.map((p) => {
+      {postGroups.map((p) => {
         return (
           <React.Fragment key="groupWrapper">
             {p.divider !== 'none' ? (
@@ -269,26 +269,37 @@ const PostSpecimen = ({ label, post }: { label: string; post: db.Post }) => {
 };
 
 export default {
-  all: ScrollFixture,
-  variants: <PostVariantsFixture post={postWithText} />,
-  postWithImage: <SinglePostFixture post={postWithImage} />,
-  postWithVideo: <SinglePostFixture post={postWithVideo} />,
-  postWithText: <SinglePostFixture post={postWithText} />,
-  postWithMention: <SinglePostFixture post={postWithMention} />,
-  postWithBlockquote: <SinglePostFixture post={postWithBlockquote} />,
-  postWithCode: <SinglePostFixture post={postWithCode} />,
-  postWithList: <SinglePostFixture post={postWithList} />,
-  postWithChatReference: <SinglePostFixture post={postWithChatReference} />,
-  postWithImageAndText: <SinglePostFixture post={postWithImageAndText} />,
-  postWithGroupReference: <SinglePostFixture post={postWithGroupReference} />,
-  postWithGalleryReference: (
-    <SinglePostFixture post={postWithGalleryReference} />
+  All: <ScrollFixture postGroups={scrollPosts} />,
+  References: (
+    <ScrollFixture
+      postGroups={[
+        {
+          divider: 'none',
+          posts: [
+            postWithChatReference,
+            postWithGroupReference,
+            postWithGalleryReference,
+            postWithNotebookReference,
+          ],
+        },
+      ]}
+    />
   ),
-  postWithNotebookReference: (
-    <SinglePostFixture post={postWithNotebookReference} />
-  ),
-  postWithEmoji: <SinglePostFixture post={postWithEmoji} />,
-  postWithSingleEmoji: <SinglePostFixture post={postWithSingleEmoji} />,
-  postWithDeleted: <SinglePostFixture post={postWithDeleted} />,
-  postWithHidden: <SinglePostFixture post={postWithHidden} />,
+  MessageStates: <PostVariantsFixture post={postWithText} />,
+  Image: <SinglePostFixture post={postWithImage} />,
+  Video: <SinglePostFixture post={postWithVideo} />,
+  Text: <SinglePostFixture post={postWithText} />,
+  Mention: <SinglePostFixture post={postWithMention} />,
+  Blockquote: <SinglePostFixture post={postWithBlockquote} />,
+  Code: <SinglePostFixture post={postWithCode} />,
+  List: <SinglePostFixture post={postWithList} />,
+  ChatReference: <SinglePostFixture post={postWithChatReference} />,
+  ImageAndText: <SinglePostFixture post={postWithImageAndText} />,
+  GroupReference: <SinglePostFixture post={postWithGroupReference} />,
+  GalleryReference: <SinglePostFixture post={postWithGalleryReference} />,
+  NotebookReference: <SinglePostFixture post={postWithNotebookReference} />,
+  Emoji: <SinglePostFixture post={postWithEmoji} />,
+  SingleEmoji: <SinglePostFixture post={postWithSingleEmoji} />,
+  Deleted: <SinglePostFixture post={postWithDeleted} />,
+  Hidden: <SinglePostFixture post={postWithHidden} />,
 };

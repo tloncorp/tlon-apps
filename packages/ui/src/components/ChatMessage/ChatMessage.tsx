@@ -2,16 +2,25 @@ import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
-import { View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack, styled } from 'tamagui';
 
 import AuthorRow from '../AuthorRow';
 import { Icon } from '../Icon';
 import { MessageInput } from '../MessageInput';
-import { ContentRenderer } from '../PostContent';
+import { BlockWrapper, ReferenceBlock } from '../PostContent/BlockRenderer';
+import { PostContentRenderer } from '../PostContent/ContentRenderer';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { Text } from '../TextV2';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
+
+const ChatBlockWrapper = styled(BlockWrapper, {
+  paddingLeft: 0,
+});
+
+const ChatReference = styled(ReferenceBlock, {
+  contentSize: '$l',
+});
 
 const ChatMessage = ({
   post,
@@ -129,20 +138,9 @@ const ChatMessage = ({
   // }, [post.sentAt]);
 
   if (post.isDeleted) {
-    return (
-      <XStack
-        key={post.id}
-        gap="$s"
-        paddingVertical="$xl"
-        justifyContent={'center'}
-        alignItems={'center'}
-      >
-        <Icon size="$s" type="Placeholder" color="$tertiaryText" />
-        <Text size="$label/m" color="$tertiaryText">
-          Message deleted
-        </Text>
-      </XStack>
-    );
+    return <ErrorMessage message="Message deleted" />;
+  } else if (post.hidden) {
+    return <ErrorMessage message="Message hidden or flagged" />;
   }
 
   const shouldRenderReplies =
@@ -165,31 +163,27 @@ const ChatMessage = ({
           sent={post.sentAt ?? 0}
           type={post.type}
           disabled={hideProfilePreview}
+          deliveryStatus={post.deliveryStatus}
           showEditedIndicator={!!post.isEdited}
         />
       ) : null}
       <View paddingLeft={!isNotice && '$4xl'}>
         {editing ? (
           messageInputForEditing
-        ) : post.hidden ? (
-          <Text color="$secondaryText">
-            You have hidden or flagged this message.
-          </Text>
         ) : (
-          <ContentRenderer
+          <PostContentRenderer
             post={post}
+            isNotice={post.type === 'notice'}
             onPressImage={handleImagePressed}
             onLongPress={handleLongPress}
+            blockRenderers={{
+              blockWrapper: ChatBlockWrapper,
+              reference: ChatReference,
+            }}
           />
         )}
       </View>
-      {post.deliveryStatus === 'failed' ? (
-        <XStack alignItems="center" justifyContent="flex-end">
-          <Text color="$negativeActionText" fontSize="$xs">
-            Message failed to send
-          </Text>
-        </XStack>
-      ) : null}
+
       <ReactionsDisplay
         post={post}
         onViewPostReactions={setViewReactionsPost}
@@ -214,6 +208,22 @@ const ChatMessage = ({
     </YStack>
   );
 };
+
+function ErrorMessage({ message }: { message: string }) {
+  return (
+    <XStack
+      gap="$s"
+      paddingVertical="$xl"
+      justifyContent={'center'}
+      alignItems={'center'}
+    >
+      <Icon size="$s" type="Placeholder" color="$tertiaryText" />
+      <Text size="$label/m" color="$tertiaryText">
+        {message}
+      </Text>
+    </XStack>
+  );
+}
 
 export default memo(ChatMessage, (prev, next) => {
   const isPostEqual = isEqual(prev.post, next.post);

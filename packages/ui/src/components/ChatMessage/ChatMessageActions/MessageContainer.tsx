@@ -23,7 +23,7 @@ export function MessageContainer({ post }: { post: db.Post }) {
         padding="$l"
         borderRadius="$l"
       >
-        <NotebookPost showAuthor={false} smallImage smallTitle post={post} />
+        <NotebookPost showAuthor={false} size="$s" post={post} />
       </ScrollView>
     );
   }
