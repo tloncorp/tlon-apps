@@ -188,9 +188,9 @@ function ChatMessageFixtureWrapper({
 const ScrollFixture = ({ postGroups }: { postGroups: PostGroup[] }) => {
   return (
     <ChatMessageFixtureWrapper>
-      {postGroups.map((p) => {
+      {postGroups.map((p, i) => {
         return (
-          <React.Fragment key="groupWrapper">
+          <React.Fragment key={'groupWrapper-' + i}>
             {p.divider !== 'none' ? (
               <React.Fragment key="divider">
                 <ChannelDivider

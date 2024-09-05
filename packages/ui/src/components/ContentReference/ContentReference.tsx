@@ -9,12 +9,11 @@ import { useNavigation } from '../../contexts';
 import { useRequests } from '../../contexts/requests';
 import { ContactAvatar, GroupAvatar } from '../Avatar';
 import { useContactName } from '../ContactNameV2';
-import { GalleryContentRenderer } from '../GalleryPost/GalleryContentRenderer';
+import { GalleryContentRenderer } from '../GalleryPost';
 import { IconType } from '../Icon';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { PostContentRenderer } from '../PostContent/ContentRenderer';
-import { usePostContent } from '../PostContent/contentUtils';
 import { Text } from '../TextV2';
 import {
   Reference,
@@ -124,10 +123,9 @@ export const PostReference = ({
 
 function BlockReferenceContent({ post }: { post: db.Post }) {
   const { contentSize } = useReferenceContext();
-  const content = usePostContent(post);
   return (
     <Reference.Body padding={0} aspectRatio={1}>
-      <GalleryContentRenderer embedded content={content} size={contentSize} />
+      <GalleryContentRenderer embedded post={post} size={contentSize} />
     </Reference.Body>
   );
 }

@@ -6,6 +6,7 @@ import {
   BlockRenderer,
   BlockRendererConfig,
   BlockRendererProvider,
+  DefaultRendererProps,
 } from './BlockRenderer';
 import { InlineRendererConfig, InlineRendererProvider } from './InlineRenderer';
 import {
@@ -23,10 +24,8 @@ const ContentRendererFrame = styled(YStack, {
 
 // Renderers
 
-type ContentRendererProps = ContentContextProps & {
-  blockRenderers?: Partial<BlockRendererConfig>;
-  inlineRenderers?: Partial<InlineRendererConfig>;
-} & Omit<ComponentProps<typeof YStack>, 'content'>;
+type ContentRendererProps = ContentContextProps &
+  Omit<ComponentProps<typeof YStack>, 'content'>;
 
 type PostContentRendererProps = ContentRendererProps & {
   post: Post;
@@ -54,8 +53,6 @@ export function PostContentRenderer({
 
 export function ContentRenderer({
   content,
-  inlineRenderers,
-  blockRenderers,
   ...props
 }: ContentRendererProps & {
   content: PostContent;
@@ -66,15 +63,38 @@ export function ContentRenderer({
       onLongPress={props.onLongPress}
       isNotice={props.isNotice}
     >
-      <BlockRendererProvider value={blockRenderers}>
-        <InlineRendererProvider value={inlineRenderers}>
-          <ContentRendererFrame {...props}>
-            {content.map((block, k) => {
-              return <BlockRenderer key={k} block={block} />;
-            })}
-          </ContentRendererFrame>
-        </InlineRendererProvider>
-      </BlockRendererProvider>
+      <ContentRendererFrame {...props}>
+        {content.map((block, k) => {
+          return <BlockRenderer key={k} block={block} />;
+        })}
+      </ContentRendererFrame>
     </ContentContext.Provider>
   );
+}
+
+export function createContentRenderer({
+  blockRenderers,
+  blockSettings,
+  inlineRenderers,
+}: {
+  blockRenderers?: Partial<BlockRendererConfig>;
+  blockSettings?: Partial<DefaultRendererProps>;
+  inlineRenderers?: Partial<InlineRendererConfig>;
+}) {
+  return function ContentRendererWrapper({
+    ...props
+  }: ContentRendererProps & {
+    content: PostContent;
+  }) {
+    return (
+      <BlockRendererProvider
+        renderers={blockRenderers}
+        settings={blockSettings}
+      >
+        <InlineRendererProvider value={inlineRenderers}>
+          <ContentRenderer {...props} />
+        </InlineRendererProvider>
+      </BlockRendererProvider>
+    );
+  };
 }
