@@ -11,7 +11,6 @@ import {
   MentionInlineData,
   StyleInlineData,
   TextInlineData,
-  providerPropsAreEqual,
 } from './contentUtils';
 
 export const CodeText = styled(Text, {
@@ -122,8 +121,7 @@ const InlineRendererContext = React.createContext<
 >(undefined);
 
 export const InlineRendererProvider = React.memo(
-  InlineRendererContext.Provider,
-  providerPropsAreEqual
+  InlineRendererContext.Provider
 );
 
 export function InlineRenderer({

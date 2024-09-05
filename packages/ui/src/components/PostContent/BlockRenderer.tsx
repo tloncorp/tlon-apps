@@ -27,7 +27,6 @@ import { Image } from '../Image';
 import { Text } from '../TextV2';
 import { InlineRenderer } from './InlineRenderer';
 import * as cn from './contentUtils';
-import { providerPropsAreEqual } from './contentUtils';
 
 export const BlockWrapper = styled(View, {
   name: 'ContentBlock',

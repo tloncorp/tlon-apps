@@ -372,29 +372,3 @@ function convertInlineContent(inlines: ub.Inline[]): InlineData[] {
   });
   return nodes;
 }
-
-export function providerPropsAreEqual<
-  T extends PropsWithChildren<{ value?: Record<string, unknown> }>,
->(a: T, b: T) {
-  if (a.children !== b.children) {
-    return false;
-  }
-  if (a.value === b.value) {
-    return true;
-  }
-  if (!a.value || !b.value) {
-    return false;
-  }
-
-  for (const key in a.value) {
-    if (!(key in b.value) || a.value[key] !== b.value[key]) {
-      return false;
-    }
-  }
-  for (const key in b.value) {
-    if (!(key in a.value)) {
-      return false;
-    }
-  }
-  return true;
-}
