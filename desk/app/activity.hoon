@@ -922,7 +922,9 @@
   |-
   ?~  indexes
     ~?  =(orphan-count 0)  "no orphans found"
-    cor
+    ?:  dry-run  cor
+    ?:  =(orphan-count 0)  cor
+    refresh-all-summaries
   =/  [=source:a =index:a]  i.indexes
   =/  parent  (get-parent:src indices source)
   =/  missing-parent  &(=(parent ~) ?!(?=(%base -.source)))
