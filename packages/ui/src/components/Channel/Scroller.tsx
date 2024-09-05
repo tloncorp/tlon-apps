@@ -411,9 +411,9 @@ const Scroller = forwardRef(
             numColumns={channelType === 'gallery' ? 2 : 1}
             style={style}
             onEndReached={handleEndReached}
-            onEndReachedThreshold={0.5}
+            onEndReachedThreshold={1}
             onStartReached={handleStartReached}
-            onStartReachedThreshold={0.1}
+            onStartReachedThreshold={1}
             onScroll={handleScroll}
             scrollIndicatorInsets={scrollIndicatorInsets}
             automaticallyAdjustsScrollIndicatorInsets={false}
