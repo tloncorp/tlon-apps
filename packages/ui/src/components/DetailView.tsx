@@ -4,11 +4,11 @@ import { useMemo } from 'react';
 import { FlatList } from 'react-native';
 import { View, YStack } from 'tamagui';
 
-import Scroller from '../Channel/Scroller';
-import { ChatMessage } from '../ChatMessage';
-import { GalleryPostDetailView } from '../GalleryPost/GalleryPost';
-import { NotebookPostDetailView } from '../NotebookPost/NotebookPost';
-import { Text } from '../TextV2';
+import Scroller from './Channel/Scroller';
+import { ChatMessage } from './ChatMessage';
+import { GalleryPostDetailView } from './GalleryPost/GalleryPost';
+import { NotebookPostDetailView } from './NotebookPost/NotebookPost';
+import { Text } from './TextV2';
 
 export interface DetailViewProps {
   post: db.Post;

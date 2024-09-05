@@ -124,7 +124,7 @@ export const PostReference = ({
 
 function BlockReferenceContent({ post }: { post: db.Post }) {
   const { contentSize } = useReferenceContext();
-  const content = usePostContent(post, 1);
+  const content = usePostContent(post);
   return (
     <Reference.Body padding={0} aspectRatio={1}>
       <GalleryContentRenderer embedded content={content} size={contentSize} />

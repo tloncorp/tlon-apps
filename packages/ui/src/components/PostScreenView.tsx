@@ -18,7 +18,7 @@ import * as utils from '../utils';
 import { BigInput } from './BigInput';
 import { ChannelFooter } from './Channel/ChannelFooter';
 import { ChannelHeader } from './Channel/ChannelHeader';
-import { DetailView } from './DetailView/DetailView';
+import { DetailView } from './DetailView';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { MessageInput } from './MessageInput';
 

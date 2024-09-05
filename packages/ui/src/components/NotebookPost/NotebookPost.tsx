@@ -46,7 +46,7 @@ export default function NotebookPost({
   showDate?: boolean;
   viewMode?: 'activity';
   isHighlighted?: boolean;
-  size: '$l' | '$s';
+  size?: '$l' | '$s';
 }) {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const handleLongPress = useCallback(() => {

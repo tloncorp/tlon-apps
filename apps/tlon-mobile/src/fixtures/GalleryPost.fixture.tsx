@@ -38,6 +38,8 @@ const GalleryPostFixture = ({ posts }: { posts: db.Post[] }) => {
     <FixtureWrapper fillWidth fillHeight>
       <AppDataContextProvider contacts={Object.values(content.exampleContacts)}>
         <RequestsProvider
+          usePost={content.usePost}
+          useApp={content.useApp}
           useChannel={content.useChannel}
           useGroup={content.useGroup}
           usePostReference={content.usePostReference}
