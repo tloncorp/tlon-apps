@@ -60,7 +60,7 @@ export function DetailViewAuthorRow({
   authorId,
   color,
   ...props
-}: AuthorRowProps & { color?: ColorTokens }) {
+}: { authorId: string; color?: ColorTokens } & ComponentProps<typeof XStack>) {
   const openProfile = useNavigateToProfile(authorId);
   return (
     <XStack gap="$l" alignItems="center" {...props} onPress={openProfile}>

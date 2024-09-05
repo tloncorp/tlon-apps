@@ -2,25 +2,17 @@ import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
-import { View, XStack, YStack, styled } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
 import AuthorRow from '../AuthorRow';
 import { Icon } from '../Icon';
 import { MessageInput } from '../MessageInput';
-import { BlockWrapper, ReferenceBlock } from '../PostContent/BlockRenderer';
-import { PostContentRenderer } from '../PostContent/ContentRenderer';
+import { createContentRenderer } from '../PostContent/ContentRenderer';
+import { usePostContent } from '../PostContent/contentUtils';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { Text } from '../TextV2';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
-
-const ChatBlockWrapper = styled(BlockWrapper, {
-  paddingLeft: 0,
-});
-
-const ChatReference = styled(ReferenceBlock, {
-  contentSize: '$l',
-});
 
 const ChatMessage = ({
   post,
@@ -120,6 +112,8 @@ const ChatMessage = ({
     [post, editPost, setEditingPost]
   );
 
+  const content = usePostContent(post);
+
   if (!post) {
     return null;
   }
@@ -171,15 +165,11 @@ const ChatMessage = ({
         {editing ? (
           messageInputForEditing
         ) : (
-          <PostContentRenderer
-            post={post}
+          <ChatContentRenderer
+            content={content}
             isNotice={post.type === 'notice'}
             onPressImage={handleImagePressed}
             onLongPress={handleLongPress}
-            blockRenderers={{
-              blockWrapper: ChatBlockWrapper,
-              reference: ChatReference,
-            }}
           />
         )}
       </View>
@@ -208,6 +198,17 @@ const ChatMessage = ({
     </YStack>
   );
 };
+
+const ChatContentRenderer = createContentRenderer({
+  blockSettings: {
+    blockWrapper: {
+      paddingLeft: 0,
+    },
+    reference: {
+      contentSize: '$l',
+    },
+  },
+});
 
 function ErrorMessage({ message }: { message: string }) {
   return (

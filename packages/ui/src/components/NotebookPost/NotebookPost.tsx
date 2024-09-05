@@ -13,7 +13,7 @@ import {
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
 import { Image } from '../Image';
-import { ContentRenderer } from '../PostContent/ContentRenderer';
+import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { Text } from '../TextV2';
@@ -22,7 +22,7 @@ const IMAGE_HEIGHT = 268;
 
 const NotebookLineBreak = () => `\n\n`;
 
-export default function NotebookPost({
+export function NotebookPost({
   post,
   onPress,
   onLongPress,
@@ -142,13 +142,13 @@ function NotebookPostHeader({
   showAuthor?: boolean;
   showDate?: boolean;
   post: db.Post;
-} & ComponentProps<typeof NotebookHeaderFrame>) {
+} & ComponentProps<typeof NotebookPostHeaderFrame>) {
   const formattedDate = useMemo(() => {
     return makePrettyShortDate(new Date(post.receivedAt));
   }, [post.receivedAt]);
 
   return (
-    <NotebookHeaderFrame>
+    <NotebookPostHeaderFrame>
       {post.image && (
         <NotebookPostHeroImage
           source={{
@@ -165,15 +165,8 @@ function NotebookPostHeader({
         </Text>
       )}
 
-      {showAuthor && (
-        <DetailViewAuthorRow
-          authorId={post.authorId}
-          author={post.author}
-          sent={post.sentAt}
-          type={post.type}
-        />
-      )}
-    </NotebookHeaderFrame>
+      {showAuthor && <DetailViewAuthorRow authorId={post.authorId} />}
+    </NotebookPostHeaderFrame>
   );
 }
 
@@ -182,17 +175,20 @@ export function NotebookPostDetailView({ post }: { post: db.Post }) {
   return (
     <NotebookPostFrame embedded paddingTop={post.image ? '$xl' : '$2xl'}>
       <NotebookPostHeader post={post} showDate showAuthor />
-      <ContentRenderer
+      <NotebookContentRenderer
         marginTop="$-l"
         marginHorizontal="$-l"
         content={content}
-        inlineRenderers={{
-          lineBreak: NotebookLineBreak,
-        }}
       />
     </NotebookPostFrame>
   );
 }
+
+const NotebookContentRenderer = createContentRenderer({
+  inlineRenderers: {
+    lineBreak: NotebookLineBreak,
+  },
+});
 
 const NotebookPostContext = createStyledContext<{ size: '$l' | '$s' }>({
   size: '$l',
@@ -221,7 +217,7 @@ const NotebookPostFrame = styled(View, {
   } as const,
 });
 
-const NotebookHeaderFrame = styled(YStack, {
+const NotebookPostHeaderFrame = styled(YStack, {
   name: 'NotebookHeaderFrame',
   gap: '$2xl',
   overflow: 'hidden',

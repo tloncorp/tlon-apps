@@ -1,6 +1,7 @@
 import { ImageLoadEventData } from 'expo-image';
 import React, {
   ComponentProps,
+  ComponentType,
   PropsWithChildren,
   createContext,
   memo,
@@ -82,15 +83,13 @@ function ListItemMarker({
   type: 'ordered' | 'unordered' | 'tasklist';
   index: number;
 }) {
-  const TextComponent = useContext(BlockRendererContext)?.lineText ?? LineText;
-
   switch (type) {
     case 'ordered':
-      return <TextComponent trimmed={false}>{index + 1}.</TextComponent>;
+      return <TextContent trimmed={false}>{index + 1}.</TextContent>;
     case 'unordered':
-      return <TextComponent trimmed={false}>•︎</TextComponent>;
+      return <TextContent trimmed={false}>•︎</TextContent>;
     case 'tasklist':
-      return <TextComponent trimmed={false}>{'\u2610'}</TextComponent>;
+      return <TextContent trimmed={false}>{'\u2610'}</TextContent>;
   }
 }
 
@@ -104,17 +103,24 @@ export const LineRenderer = memo(function LineRendererComponent({
   inlines: cn.InlineData[];
   color?: ColorTokens;
   trimmed?: boolean;
-} & ComponentProps<typeof LineText>) {
-  const TextComponent = useContext(BlockRendererContext)?.lineText ?? LineText;
+} & ComponentProps<typeof TextContent>) {
   return (
     // Spread color prop as undefined value will override when we don't want it to
-    <TextComponent {...props}>
+    <TextContent {...props}>
       {inlines.map((child, i) => {
         return <InlineRenderer key={i} inline={child} />;
       })}
-    </TextComponent>
+    </TextContent>
   );
 });
+
+function TextContent(props: ComponentProps<typeof LineText>) {
+  const TextComponent =
+    useContext(BlockRendererContext)?.renderers?.lineText ?? LineText;
+  const defaultProps =
+    useContext(BlockRendererContext)?.settings?.lineText ?? {};
+  return <TextComponent {...defaultProps} {...props} />;
+}
 
 export const LineText = styled(Text, {
   color: '$primaryText',
@@ -376,23 +382,56 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   embed: EmbedBlock,
 };
 
-const BlockRendererContext = createContext<
-  Partial<BlockRendererConfig> | undefined
->(undefined);
+type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
+  wrapperProps?: Partial<ComponentProps<typeof BlockWrapper>>;
+};
 
-export const BlockRendererProvider = React.memo(
-  BlockRendererContext.Provider,
-  providerPropsAreEqual
-);
+export type DefaultRendererProps = {
+  blockWrapper: Partial<ComponentProps<typeof BlockWrapper>>;
+  lineText: Partial<ComponentProps<typeof LineText>>;
+  blockquote: BlockSettings<typeof BlockquoteBlock>;
+  paragraph: BlockSettings<typeof ParagraphBlock>;
+  image: BlockSettings<typeof ImageBlock>;
+  video: BlockSettings<typeof VideoBlock>;
+  reference: BlockSettings<typeof ReferenceBlock>;
+  code: BlockSettings<typeof CodeBlock>;
+  header: BlockSettings<typeof HeaderBlock>;
+  rule: BlockSettings<typeof RuleBlock>;
+  list: BlockSettings<typeof ListBlock>;
+  bigEmoji: BlockSettings<typeof BigEmojiBlock>;
+  embed: BlockSettings<typeof EmbedBlock>;
+};
+
+interface BlockRendererContextValue {
+  renderers?: Partial<BlockRendererConfig>;
+  settings?: Partial<DefaultRendererProps>;
+}
+
+const BlockRendererContext = createContext<BlockRendererContextValue>({});
+
+export const BlockRendererProvider = React.memo(function BlockRendererProvider({
+  children,
+  ...props
+}: PropsWithChildren<BlockRendererContextValue>) {
+  return (
+    <BlockRendererContext.Provider value={props}>
+      {children}
+    </BlockRendererContext.Provider>
+  );
+});
 
 export function BlockRenderer({ block }: { block: cn.BlockData }) {
-  const renderers = useContext(BlockRendererContext);
+  const { renderers, settings: defaultProps } =
+    useContext(BlockRendererContext);
   const Wrapper = renderers?.blockWrapper ?? BlockWrapper;
   const Renderer = (renderers?.[block.type] ??
     defaultBlockRenderers[block.type]) as BlockRenderer<typeof block>;
+  const { wrapperProps, ...defaultPropsForBlock } =
+    defaultProps?.[block.type] ?? {};
+  const defaultPropsForBlockWrapper = defaultProps?.blockWrapper;
   return (
-    <Wrapper block={block}>
-      <Renderer block={block} />
+    <Wrapper {...defaultPropsForBlockWrapper} {...wrapperProps} block={block}>
+      <Renderer {...defaultPropsForBlock} block={block} />
     </Wrapper>
   );
 }
