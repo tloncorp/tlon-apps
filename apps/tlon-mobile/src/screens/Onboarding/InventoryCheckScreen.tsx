@@ -134,7 +134,7 @@ export const InventoryCheckScreen = ({
         </XStack>
 
         <PrimaryButton onPress={checkAvailability} disabled={isChecking}>
-          <Text fontSize="$m">Get Started</Text>
+          Get Started
         </PrimaryButton>
       </YStack>
     </View>
