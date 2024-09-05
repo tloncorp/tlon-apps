@@ -17,6 +17,7 @@ import {
   BlockData,
   BlockFromType,
   BlockType,
+  ImageBlockData,
   PostContent,
   usePostContent,
 } from '../PostContent/contentUtils';
@@ -202,13 +203,13 @@ const SmallPreviewLineText = styled(LineText, {
   size: '$label/s',
 });
 
-const SmallPreviewImageBlock = styled(ImageBlock, {
-  height: '100%',
-  imageProps: {
-    aspectRatio: 'unset',
-    height: '100%',
-  },
-});
+const SmallPreviewImageBlock = ({ block }: { block: ImageBlockData }) => (
+  <ImageBlock
+    block={block}
+    height={'100%'}
+    imageProps={{ aspectRatio: 'unset', height: '100%' }}
+  />
+);
 
 const SmallPreviewVideoBlock = styled(VideoBlock, {
   height: '100%',
@@ -244,9 +245,9 @@ function SmallPreviewRenderer({
     >
       <Icon type="Link" customSize={[24, 17]} />
       <Text size={'$label/s'} color="$secondaryText">
-        {link.href === link.text
-          ? truncatedHref
-          : `${link.text}\n\n${truncatedHref}`}
+        {link.href !== link.text && link.text && link.text !== ' '
+          ? `${link.text}\n\n${truncatedHref}`
+          : truncatedHref}
       </Text>
     </View>
   ) : (

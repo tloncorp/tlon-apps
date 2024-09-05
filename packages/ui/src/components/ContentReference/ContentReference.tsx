@@ -295,7 +295,12 @@ export function GroupReference({
                 alignItems="center"
                 justifyContent="center"
               >
-                <Text size={'$label/xl'} color="secondaryText">
+                <Text
+                  size={'$label/xl'}
+                  color="$secondaryText"
+                  textAlign="center"
+                  paddingHorizontal="$m"
+                >
                   {data.title}
                 </Text>
               </View>
