@@ -1,5 +1,6 @@
 import { Post } from '@tloncorp/shared/dist/db';
 import { ComponentProps, useMemo } from 'react';
+import React from 'react';
 import { YStack, styled } from 'tamagui';
 
 import {
@@ -48,10 +49,16 @@ export function PostContentRenderer({
       : content;
   }, [post.content, renderReferences]);
 
-  return <ContentRenderer content={content} {...props} />;
+  return (
+    <BlockRendererProvider>
+      <InlineRendererProvider value={undefined}>
+        <ContentRenderer content={content} {...props} />
+      </InlineRendererProvider>
+    </BlockRendererProvider>
+  );
 }
 
-export function ContentRenderer({
+function ContentRenderer({
   content,
   ...props
 }: ContentRendererProps & {
@@ -81,7 +88,7 @@ export function createContentRenderer({
   blockSettings?: Partial<DefaultRendererProps>;
   inlineRenderers?: Partial<InlineRendererConfig>;
 }) {
-  return function ContentRendererWrapper({
+  return React.memo(function ContentRendererWrapper({
     ...props
   }: ContentRendererProps & {
     content: PostContent;
@@ -96,5 +103,5 @@ export function createContentRenderer({
         </InlineRendererProvider>
       </BlockRendererProvider>
     );
-  };
+  });
 }

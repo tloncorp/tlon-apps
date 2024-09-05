@@ -45,8 +45,8 @@ export const createImageContent = (url: string): string => {
       block: {
         image: {
           src: url,
-          height: 200,
-          width: 200,
+          height: 350,
+          width: 536,
         },
       },
     },
