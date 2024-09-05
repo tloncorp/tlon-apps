@@ -6,7 +6,7 @@ import { useCalm } from '../../contexts';
 import { AudioEmbed, OutsideEmbed } from '../Embed';
 import { Icon } from '../Icon';
 import { ImageWithFallback } from '../Image';
-import { PostViewMode } from '../PostContent';
+import { PostViewMode } from '../PostContent/contentUtils';
 
 const trustedProviders = [
   {

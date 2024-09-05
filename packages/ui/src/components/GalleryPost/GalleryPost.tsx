@@ -34,7 +34,7 @@ export default function GalleryPost({
   onPressDelete?: (post: db.Post) => void;
   showAuthor?: boolean;
   isHighlighted?: boolean;
-} & ComponentProps<typeof GalleryPostFrame>) {
+} & Omit<ComponentProps<typeof GalleryPostFrame>, 'onPress' | 'onLongPress'>) {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
 
   const handleRetryPressed = useCallback(() => {

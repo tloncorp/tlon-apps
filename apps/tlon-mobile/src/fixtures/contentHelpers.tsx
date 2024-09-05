@@ -202,7 +202,7 @@ export const postWithImage = makePost(
   [block.randomImage(317 * 2, 251 * 2)],
   {
     replyCount: 56,
-    reactions: createFakeReactions(5, 1, 5),
+    reactions: createFakeReactions({ count: 5, minTotal: 1, maxTotal: 5 }),
   }
 );
 
@@ -215,7 +215,10 @@ export const postWithText = makePost(exampleContacts.ted, [
 export const postWithMention = makePost(
   exampleContacts.ted,
   [verse.inline('Ill mention ', inline.ship('~fabled-faster'), ' here')],
-  { reactions: createFakeReactions(1, 1, 1), replyCount: 0 }
+  {
+    reactions: createFakeReactions({ count: 1, minTotal: 1, maxTotal: 1 }),
+    replyCount: 0,
+  }
 );
 
 export const postWithBlockquote = makePost(
@@ -605,5 +608,8 @@ export const useChannel = ({ id }: { id: string }) =>
     queryKey: ['channel', id],
     queryFn: () => channelsMap[id] ?? tlonLocalGettingStarted,
   });
+
 export const useGroup = (id: string) =>
   useQuery({ queryKey: ['group', id], queryFn: () => groupsMap[id] ?? group });
+
+export const useApp = () => {};
