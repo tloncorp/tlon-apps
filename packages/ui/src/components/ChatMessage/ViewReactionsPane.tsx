@@ -58,7 +58,10 @@ export function ViewReactionsPane({ post }: { post: db.Post }) {
           options={tabs}
         />
       </ActionSheet.FormBlock>
-      <ActionSheet.ScrollableContent paddingTop="$xl">
+      <ActionSheet.ScrollableContent
+        paddingTop="$xl"
+        contentContainerStyle={{ flex: 1 }}
+      >
         <ActionSheet.FormBlock flex={1}>
           <ActionSheet.ActionGroupContent borderWidth={0}>
             {tabData.map((reaction) => (

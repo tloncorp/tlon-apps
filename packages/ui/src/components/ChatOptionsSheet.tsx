@@ -46,28 +46,26 @@ const ChatOptionsSheetComponent = React.forwardRef<ChatOptionsSheetMethods>(
       []
     );
 
-    if (!chat && !open) {
+    if (!chat || !open) {
       return null;
     }
 
+    if (chat.type === 'group') {
+      return (
+        <GroupOptionsSheetLoader
+          groupId={chat.id}
+          open={open}
+          onOpenChange={setOpen}
+        />
+      );
+    }
+
     return (
-      <ActionSheet open={open} onOpenChange={setOpen}>
-        {chat ? (
-          chat.type === 'group' ? (
-            <GroupOptionsSheetLoader
-              groupId={chat.id}
-              open={open}
-              onOpenChange={setOpen}
-            />
-          ) : (
-            <ChannelOptionsSheetLoader
-              channelId={chat.id}
-              open={open}
-              onOpenChange={setOpen}
-            />
-          )
-        ) : null}
-      </ActionSheet>
+      <ChannelOptionsSheetLoader
+        channelId={chat.id}
+        open={open}
+        onOpenChange={setOpen}
+      />
     );
   }
 );

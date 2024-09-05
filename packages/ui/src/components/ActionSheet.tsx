@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
 } from 'react';
+import { Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   SheetProps,
@@ -89,21 +90,32 @@ const ActionSheetComponent = ({
   if (!hasOpened.current) return null;
 
   return (
-    <Sheet
-      open={open}
-      onOpenChange={onOpenChange}
-      modal
-      dismissOnSnapToBottom
-      snapPointsMode="fit"
-      animation="quick"
-      {...props}
+    <Modal
+      visible={open}
+      onRequestClose={() => onOpenChange(false)}
+      transparent
+      animationType="none"
     >
-      <Sheet.Overlay animation="quick" />
-      <Sheet.Frame>
-        <Sheet.Handle />
-        {children}
-      </Sheet.Frame>
-    </Sheet>
+      <Sheet
+        open={open}
+        onOpenChange={onOpenChange}
+        dismissOnSnapToBottom
+        snapPointsMode="fit"
+        animation="quick"
+        handleDisableScroll
+        {...props}
+      >
+        <Sheet.Overlay animation="quick" />
+        {/* 
+          press style is set here to ensure touch responders are added and drag gestures
+          bubble up accordingly (unclear why needed after adding modal wrapper)
+        */}
+        <Sheet.Frame pressStyle={{}}>
+          <Sheet.Handle />
+          {children}
+        </Sheet.Frame>
+      </Sheet>
+    </Modal>
   );
 };
 
