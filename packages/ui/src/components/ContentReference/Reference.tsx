@@ -183,21 +183,31 @@ export const Reference = withStaticProperties(ReferenceComponent, {
 export function ReferenceSkeleton({
   message = 'Loading',
   messageType = 'loading',
+  ...props
 }: {
   message?: string;
   messageType?: 'loading' | 'error' | 'not-found';
-} & ComponentProps<typeof YStack>) {
+} & ComponentProps<typeof ReferenceFrame>) {
   return (
-    <ReferenceBody>
-      <XStack gap="$s" alignItems="center">
-        {messageType === 'error' ? (
-          // TODO: Replace with proper error icon when available
-          <Icon type="Placeholder" color="$tertiaryText" size="$s" />
-        ) : null}
-        <Text size="$body" color="$tertiaryText" flex={1}>
-          {message}
-        </Text>
-      </XStack>
-    </ReferenceBody>
+    <ReferenceFrame {...props}>
+      <ReferenceBody padding="$l" justifyContent="center" alignItems="center">
+        <YStack gap="$l" alignItems="center">
+          {messageType === 'error' ? (
+            <Icon
+              type="Placeholder"
+              color="$tertiaryText"
+              customSize={[24, 17]}
+            />
+          ) : null}
+          <Text
+            size={props.contentSize === '$s' ? '$label/s' : '$label/m'}
+            color="$tertiaryText"
+            flex={1}
+          >
+            {message}
+          </Text>
+        </YStack>
+      </ReferenceBody>
+    </ReferenceFrame>
   );
 }

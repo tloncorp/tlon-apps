@@ -15,7 +15,7 @@ const GalleryPostFrame = styled(View, {
   name: 'GalleryPostFrame',
   maxHeight: '100%',
   overflow: 'hidden',
-  flex: 1,
+  aspectRatio: 1,
 });
 
 export default function GalleryPost({
