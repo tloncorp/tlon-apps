@@ -15,9 +15,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FixtureWrapper } from './FixtureWrapper';
 import * as content from './contentHelpers';
-import { makePost } from './contentHelpers';
-import { exampleContacts } from './contentHelpers';
 import {
+  exampleContacts,
+  makePost,
   postWithBlockquote,
   postWithChatReference,
   postWithCode,
@@ -34,8 +34,10 @@ import {
   postWithSingleEmoji,
   postWithText,
   postWithVideo,
+  useChannel,
+  useGroup,
+  usePostReference,
 } from './contentHelpers';
-import { useChannel, useGroup, usePostReference } from './contentHelpers';
 import { createFakeReactions } from './fakeData';
 
 type PostGroup = { divider: 'date' | 'unread' | 'none'; posts: db.Post[] };
