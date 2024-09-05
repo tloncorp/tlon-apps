@@ -918,20 +918,23 @@
 ++  drop-orphans
   |=  dry-run=?
   =/  indexes  ~(tap by indices)
-  =|  new-indices=indices:a
+  =/  orphan-count=@ud  0
   |-
   ?~  indexes
-    ?:  dry-run
-      ~?  =(~(wyt by indices) ~(wyt by new-indices))
-        "no orphans found"
-      cor
-    cor(indices new-indices)
+    ~?  =(orphan-count 0)  "no orphans found"
+    cor
   =/  [=source:a =index:a]  i.indexes
   =/  parent  (get-parent:src indices source)
-  ?:  &(=(parent ~) ?!(?=(%base -.source)))
-    ~?  dry-run  "orphaned source: {<source>}"
-    $(indexes t.indexes)
-  $(indexes t.indexes, new-indices (~(put by new-indices) source index))
+  =/  missing-parent  &(=(parent ~) ?!(?=(%base -.source)))
+  =/  new-count  ?:(missing-parent +(orphan-count) orphan-count)
+  ?:  dry-run
+    ~?  missing-parent  "orphaned source: {<source>}"
+    $(indexes t.indexes, orphan-count new-count)
+  ?.  missing-parent  $(indexes t.indexes)
+  =.  indices  (~(del by indices) source)
+  =.  activity  (~(del by activity) source)
+  =.  volume-settings  (~(del by volume-settings) source)
+  $(indexes t.indexes, orphan-count new-count)
 
 ::
 ::  when we migrated from chat and channels, we always added an init event
