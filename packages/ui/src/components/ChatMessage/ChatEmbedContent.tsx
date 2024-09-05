@@ -6,7 +6,6 @@ import { useCalm } from '../../contexts';
 import { AudioEmbed, OutsideEmbed } from '../Embed';
 import { Icon } from '../Icon';
 import { ImageWithFallback } from '../Image';
-import { PostViewMode } from '../PostContent/contentUtils';
 
 const trustedProviders = [
   {
@@ -28,13 +27,11 @@ export default function ChatEmbedContent({
   content,
   onPressImage,
   onLongPress,
-  viewMode = 'chat',
 }: {
   url: string;
   content: string;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
-  viewMode?: PostViewMode;
 }) {
   const isAudio = utils.AUDIO_REGEX.test(url);
   const isImage = utils.IMAGE_REGEX.test(url);
@@ -86,11 +83,7 @@ export default function ChatEmbedContent({
   }
 
   return (
-    <SizableText
-      textDecorationLine="underline"
-      size={viewMode === 'block' || viewMode === 'activity' ? '$s' : '$m'}
-      onPress={openLink}
-    >
+    <SizableText textDecorationLine="underline" size={'$m'} onPress={openLink}>
       {content || url}
     </SizableText>
   );

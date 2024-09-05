@@ -314,7 +314,7 @@ export function extractBlocksFromContent(story: api.PostContent): ub.Block[] {
 }
 
 export const extractContentTypes = (
-  content: api.PostContent
+  content: string | api.PostContent
 ): {
   inlines: ub.Inline[];
   references: api.ContentReference[];
@@ -338,7 +338,7 @@ export const extractContentTypesFromPost = (
   story: api.PostContent;
 } => {
   const { inlines, references, blocks, story } = extractContentTypes(
-    post.content ?? []
+    post.content as string
   );
 
   return { inlines, references, blocks, story };

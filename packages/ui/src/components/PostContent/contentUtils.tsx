@@ -5,15 +5,6 @@ import * as ub from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useContext, useMemo } from 'react';
 import { createStyledContext } from 'tamagui';
 
-export type PostViewMode =
-  | 'chat'
-  | 'block'
-  | 'note'
-  | 'activity'
-  | 'attachment'
-  | 'detail'
-  | 'detailHero';
-
 export interface ContentContextProps {
   isNotice?: boolean;
   onPressImage?: (src: string) => void;
@@ -171,8 +162,14 @@ export type PostContent = BlockData[];
  * The format is very loosely inspired by ProseMirror's internal representation,
  * and could be converted to be compatible pretty easily.
  */
-export function convertContent(story: api.PostContent): PostContent {
+export function convertContent(input: unknown): PostContent {
   const blocks: PostContent = [];
+  if (!input) {
+    return blocks;
+  }
+
+  const story: NonNullable<api.PostContent> =
+    typeof input === 'string' ? JSON.parse(input) : input;
 
   for (const verse of story) {
     if ('type' in verse && verse.type === 'reference') {
@@ -195,7 +192,7 @@ export function convertContent(story: api.PostContent): PostContent {
 
 export function usePostContent(post: Post): BlockData[] {
   return useMemo(() => {
-    return post.content ? convertContent(post.content) : [];
+    return convertContent(post.content);
   }, [post.content]);
 }
 
