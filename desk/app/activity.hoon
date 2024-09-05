@@ -507,7 +507,9 @@
       %+  skim
         ~(tap by activity)
       |=  [=source:a as=activity-summary:a]
-      (gth count.as 0)
+      ?.  |(?=(%thread -.source) ?=(%dm-thread -.source))
+        (gth count.as 0)
+      (gth notify-count.as 0)
     ``activity-summary-pairs-4+!>(unreads)
   ::
       [%x %v4 %activity %notified ~]
