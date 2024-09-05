@@ -83,7 +83,10 @@ const BaseContactName = Text.styleable<{
     }
 
     return (
-      <Text {...useContactNameProps({ contactId, expandLongIds, mode })}></Text>
+      <Text
+        {...useContactNameProps({ contactId, expandLongIds, mode })}
+        {...props}
+      ></Text>
     );
   },
   {

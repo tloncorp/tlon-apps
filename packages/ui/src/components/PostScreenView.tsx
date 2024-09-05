@@ -15,12 +15,10 @@ import {
 } from '../contexts';
 import { AttachmentProvider } from '../contexts/attachment';
 import * as utils from '../utils';
+import { BigInput } from './BigInput';
 import { ChannelFooter } from './Channel/ChannelFooter';
 import { ChannelHeader } from './Channel/ChannelHeader';
-import Scroller from './Channel/Scroller';
-import { ChatMessage } from './ChatMessage';
-import { NotebookDetailView } from './DetailView';
-import GalleryDetailView from './DetailView/GalleryDetailView';
+import { DetailView } from './DetailView/DetailView';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { MessageInput } from './MessageInput';
 
@@ -107,16 +105,16 @@ export function PostScreenView({
     // eslint-disable-next-line
   }, [hasLoaded]);
 
+  const isEditingParent = useMemo(() => {
+    return editingPost && editingPost.id === parentPost?.id;
+  }, [editingPost, parentPost]);
+
   return (
     <CalmProvider calmSettings={calmSettings}>
       <AppDataContextProvider contacts={contacts} currentUserId={currentUserId}>
         <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
           <NavigationProvider onGoToUserProfile={handleGoToUserProfile}>
-            <View
-              paddingBottom={isChatChannel ? bottom : 'unset'}
-              backgroundColor="$background"
-              flex={1}
-            >
+            <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
               <YStack flex={1} backgroundColor={'$background'}>
                 <ChannelHeader
                   channel={channel}
@@ -126,11 +124,11 @@ export function PostScreenView({
                   showSearchButton={false}
                   post={parentPost ?? undefined}
                   mode={headerMode}
-                  setEditingPost={setEditingPost}
+                  showMenuButton={true}
                 />
                 <KeyboardAvoidingView enabled={!activeMessage}>
-                  {parentPost && channel.type === 'gallery' && (
-                    <GalleryDetailView
+                  {parentPost ? (
+                    <DetailView
                       post={parentPost}
                       initialPostUnread={initialThreadUnread}
                       onPressImage={handleGoToImage}
@@ -140,76 +138,26 @@ export function PostScreenView({
                       onPressRetry={onPressRetry}
                       onPressDelete={onPressDelete}
                       posts={postsWithoutParent}
-                      sendReply={sendReply}
+                      goBack={goBack}
+                      activeMessage={activeMessage}
+                      setActiveMessage={setActiveMessage}
+                    />
+                  ) : null}
+
+                  {negotiationMatch && !editingPost && channel && canWrite && (
+                    <MessageInput
+                      placeholder="Reply"
+                      shouldBlur={inputShouldBlur}
+                      setShouldBlur={setInputShouldBlur}
+                      send={sendReply}
+                      channelId={channel.id}
                       groupMembers={groupMembers}
                       storeDraft={storeDraft}
                       clearDraft={clearDraft}
+                      channelType="chat"
                       getDraft={getDraft}
-                      goBack={goBack}
                     />
                   )}
-                  {parentPost && channel.type === 'notebook' && (
-                    <NotebookDetailView
-                      post={parentPost}
-                      initialPostUnread={initialThreadUnread}
-                      onPressImage={handleGoToImage}
-                      editingPost={editingPost}
-                      setEditingPost={setEditingPost}
-                      editPost={editPost}
-                      onPressRetry={onPressRetry}
-                      onPressDelete={onPressDelete}
-                      posts={postsWithoutParent}
-                      sendReply={sendReply}
-                      groupMembers={groupMembers}
-                      storeDraft={storeDraft}
-                      clearDraft={clearDraft}
-                      getDraft={getDraft}
-                      goBack={goBack}
-                    />
-                  )}
-                  {posts && channel && isChatChannel && (
-                    <View flex={1}>
-                      <Scroller
-                        inverted
-                        renderItem={ChatMessage}
-                        channelType="chat"
-                        channelId={channel.id}
-                        editingPost={editingPost}
-                        setEditingPost={setEditingPost}
-                        editPost={editPost}
-                        onPressRetry={onPressRetry}
-                        onPressDelete={onPressDelete}
-                        posts={posts}
-                        showReplies={false}
-                        onPressImage={handleGoToImage}
-                        firstUnreadId={
-                          initialThreadUnread?.count ?? 0 > 0
-                            ? initialThreadUnread?.firstUnreadPostId
-                            : null
-                        }
-                        unreadCount={initialThreadUnread?.count ?? 0}
-                        activeMessage={activeMessage}
-                        setActiveMessage={setActiveMessage}
-                      />
-                    </View>
-                  )}
-                  {negotiationMatch &&
-                    !editingPost &&
-                    channel &&
-                    canWrite &&
-                    isChatChannel && (
-                      <MessageInput
-                        shouldBlur={inputShouldBlur}
-                        setShouldBlur={setInputShouldBlur}
-                        send={sendReply}
-                        channelId={channel.id}
-                        groupMembers={groupMembers}
-                        storeDraft={storeDraft}
-                        clearDraft={clearDraft}
-                        channelType="chat"
-                        getDraft={getDraft}
-                      />
-                    )}
                   {!negotiationMatch && channel && canWrite && (
                     <View
                       position={isChatChannel ? undefined : 'absolute'}
@@ -227,6 +175,26 @@ export function PostScreenView({
                       </Text>
                     </View>
                   )}
+
+                  {parentPost &&
+                  isEditingParent &&
+                  (channel.type === 'notebook' ||
+                    channel.type === 'gallery') ? (
+                    <BigInput
+                      channelType={urbit.getChannelType(parentPost.channelId)}
+                      channelId={parentPost?.channelId}
+                      editingPost={editingPost}
+                      setEditingPost={setEditingPost}
+                      editPost={editPost}
+                      shouldBlur={inputShouldBlur}
+                      setShouldBlur={setInputShouldBlur}
+                      send={async () => {}}
+                      getDraft={getDraft}
+                      storeDraft={storeDraft}
+                      clearDraft={clearDraft}
+                      groupMembers={groupMembers}
+                    />
+                  ) : null}
                   {headerMode === 'next' && (
                     <ChannelFooter
                       showSearchButton={false}

@@ -1,5 +1,3 @@
-//tamagui-ignore
-import { PostType } from '@tloncorp/shared/dist/db';
 import { ComponentProps, useContext } from 'react';
 import {
   View,
@@ -12,11 +10,11 @@ import {
 } from 'tamagui';
 
 import { Icon, IconType } from '../Icon';
-import { PostViewMode } from '../PostContent/ContentRenderer';
 import { Text } from '../TextV2';
 
 export type ReferenceProps = ComponentProps<typeof ReferenceComponent> & {
   actionIcon?: IconType | null;
+  contentSize?: '$s' | '$l';
   openOnPress?: boolean;
 };
 
@@ -24,16 +22,14 @@ export const ReferenceContext = createStyledContext<{
   /**
    * The type of context embedding this ref
    */
-  viewMode?: PostViewMode;
+  contentSize: '$s' | '$l';
   /**
    * Mode for actually rendering the content
    */
-  renderMode?: PostType;
   actionIcon?: IconType;
 }>({
-  viewMode: 'chat',
-  renderMode: 'chat',
   actionIcon: 'ArrowRef',
+  contentSize: '$l',
 });
 
 export const useReferenceContext = () => {
@@ -43,21 +39,14 @@ export const useReferenceContext = () => {
 const ReferenceFrame = styled(YStack, {
   context: ReferenceContext,
   name: 'ReferenceFrame',
-  borderRadius: '$m',
+  borderRadius: '$s',
   padding: 0,
   borderColor: '$border',
   borderWidth: 1,
   backgroundColor: '$secondaryBackground',
   overflow: 'hidden',
+  flex: 1,
   variants: {
-    viewMode: {
-      block: {
-        backgroundColor: '$secondaryBackground',
-        borderWidth: 0,
-        borderRadius: 0,
-        marginBottom: 0,
-      },
-    },
     pressable: {
       true: {
         pressStyle: {
@@ -67,8 +56,7 @@ const ReferenceFrame = styled(YStack, {
     },
   } as {
     pressable: { true: ViewStyle };
-    viewMode: { [K in PostViewMode]: ViewStyle };
-    renderMode: { [K in PostType]: ViewStyle };
+    contentSize: Record<'$s' | '$m' | '$l', ViewStyle>;
   },
 });
 
@@ -148,8 +136,8 @@ const ReferenceTitleText = styled(Text, {
   size: '$label/m',
   color: '$tertiaryText',
   variants: {
-    viewMode: {
-      block: {
+    contentSize: {
+      $s: {
         size: '$label/s',
       },
     },
@@ -178,9 +166,8 @@ const ReferenceActionIcon = ({
 const ReferenceBody = styled(View, {
   context: ReferenceContext,
   name: 'ReferenceBody',
-  padding: '$l',
-  gap: '$l',
   pointerEvents: 'none',
+  flex: 1,
 });
 
 export const Reference = withStaticProperties(ReferenceComponent, {

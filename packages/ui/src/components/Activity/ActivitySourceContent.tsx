@@ -5,7 +5,7 @@ import { ScrollView, View } from 'tamagui';
 
 import { GalleryPost } from '../GalleryPost';
 import { NotebookPost } from '../NotebookPost';
-import { ContentRenderer } from '../PostContent';
+import { PostContentRenderer } from '../PostContent';
 
 export function ActivitySourceContent({
   summary,
@@ -30,7 +30,7 @@ export function ActivitySourceContent({
 
   // thread or comment
   if (summary.newest.parentId) {
-    return <ContentRenderer post={post} viewMode="activity" />;
+    return <PostContentRenderer post={post} />;
   }
 
   if (
@@ -53,12 +53,7 @@ export function ActivitySourceContent({
                 onPress={pressHandler}
                 width={256}
               >
-                <NotebookPost
-                  post={post}
-                  viewMode="activity"
-                  smallImage
-                  smallTitle
-                />
+                <NotebookPost post={post} viewMode="activity" size="$s" />
               </View>
             ))}
           </>
@@ -66,7 +61,7 @@ export function ActivitySourceContent({
           <>
             {allPosts.map((post) => (
               <View key={post.id} onPress={pressHandler}>
-                <GalleryPost post={post} viewMode="activity" />
+                <GalleryPost post={post} />
               </View>
             ))}
           </>
@@ -75,7 +70,7 @@ export function ActivitySourceContent({
     );
   }
 
-  return <ContentRenderer post={post} viewMode="activity" />;
+  return <PostContentRenderer post={post} />;
 }
 
 function getPost(event: db.ActivityEvent): db.Post {

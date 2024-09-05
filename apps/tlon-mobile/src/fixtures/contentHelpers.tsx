@@ -332,9 +332,163 @@ export const postWithGroupReferenceNoAvatar = makePost(
   ]
 );
 
+export const postWithLongNote = makePost(
+  exampleContacts.eleanor,
+  [
+    verse.inline(
+      inline.italics('This week in TestFlight feedback:'),
+      inline.break(),
+      inline.text(
+        "Started out the week with a slim cohort, but throughout the week it's grown into a sizable number of testers—as a result, the feedback has been sporadic and continues to trickle in (enthusiastically). "
+      ),
+      inline.break(),
+      inline.text(
+        'Generally, this cohort is excited to use the app, notices the fluidity and speed, and only calls attention to known yet-to-be implemented features related to profiles and reactions.'
+      ),
+      inline.break(),
+      inline.italics(
+        "BTW: a little bit of a miscalculation last week. There's still some dissonance between the number of invites sent and number of activations, roughly ten or so. My suspicions about the link escaping containment were premature and I've noted that on the previous bulletin."
+      ),
+      inline.break(),
+      inline.bold('Some numbers:'),
+      inline.break()
+    ),
+    block.list(
+      'unordered',
+      ["We've sent out invites and installations:"],
+      [
+        listItem.basic(
+          inline.text("We've sent out "),
+          inline.bold('90 invites '),
+          inline.text('to download the TestFlight on iOS or Android so far'),
+          inline.break()
+        ),
+        listItem.basic(
+          inline.bold('79 overall installations'),
+          inline.text(' ('),
+          inline.bold('60'),
+          inline.text(' on iOS and '),
+          inline.bold('19'),
+          inline.text(' on Android)'),
+          inline.break()
+        ),
+      ]
+    ),
+    verse.inline(inline.bold('Feedback summary:'), inline.break()),
+    block.list(
+      'unordered',
+      ['Feedback points:'],
+      [
+        listItem.basic(
+          inline.text(
+            "As usual, you can read through this week's likes, dislikes and unexpected behaviors "
+          ),
+          inline.link(
+            'https://www.figma.com/board/eSXy0fvDs53SudcQVDSQt0/~2024.7.10-Closed-Alpha-Feedback?node-id=0-1&t=1HYRiNx13KbenB0V-0',
+            'here'
+          ),
+          inline.text('. Bugs are in '),
+          inline.link(
+            'https://docs.google.com/spreadsheets/d/1mpked9CcOWzs1ndi0AOC3Kz17-6f2MLwrLXz834EVp0/edit?gid=747855318#gid=747855318',
+            'this spreadsheet'
+          ),
+          inline.text('.'),
+          inline.break()
+        ),
+        listItem.basic(
+          inline.text(
+            'First slowly, then all at once: a few of our testers asked to onboard people in their immediate circles this week, which seems to be a pretty good sign that the app is hitting, especially for nontechnical people. To underline this point, reiterating '
+          ),
+          inline.ship('~ricsul-bilwyt-dozzod-nisfeb'),
+          inline.text(" 's anecdote:"),
+          inline.break()
+        ),
+      ]
+    ),
+    verse.inline(
+      inline.blockquote(
+        inline.text(
+          "I continue to move real people in my life to Tlon. They like the app, which is something on the OS. They like that they can take control by downloading and running it themselves, which the OS gives them. They like the privacy, security such as it is, data ownership, etc. Basically, they love the OS and the way Tlon lets them use their OS. They do not care about the identity and they immediately set nicknames and never see the ID again. Spam will never be a problem for them because all groups they're in are private. I know a lot of users are still ideological about azimuth and I'm not trying to stir that debate. But having onboarded about 50 people myself azimuth, address space, galaxy/star valuation, network hierarchy, etc hold less than zero interest for normal users. That potential user base appears far larger to me than the one that does care about those aspects, which I believe is already 100% in attendance and not growing."
+        ),
+        inline.break()
+      )
+    ),
+    block.list(
+      'unordered',
+      ['Additional feedback points:'],
+      [
+        listItem.basic(
+          inline.text(
+            "Worth noting that testers who don't use the current app regularly or at all mentioned a desire to automatically navigate to their most recent messages in a channel."
+          ),
+          inline.break()
+        ),
+        listItem.basic(
+          inline.text(
+            'There seems to be something persistently sticky about notifications in threads and, generally speaking, more than one tester has called attention to the clunkiness of the UX.'
+          ),
+          inline.break()
+        ),
+        listItem.basic(
+          inline.text(
+            'Reactions are important to everyone. They want notifications when their post gets a reaction; they want to know who is reacting to their posts. They (me) want the spacing to be centered, ha.'
+          ),
+          inline.break()
+        ),
+        listItem.basic(
+          inline.text(
+            "I'm sure there's a reason for this that I should already know, but enough people have brought it up that it's worth reconsidering: why can't DM messages be edited?"
+          ),
+          inline.break()
+        ),
+        listItem.basic(
+          inline.text('Our power tester '),
+          inline.ship('~dovsem-bornyl'),
+          inline.text(
+            " continues to find good bugs, most pertinently, some strange notification behavior: when notifications for group activity are activated, notifications aren't delivering as expected."
+          ),
+          inline.break()
+        ),
+      ]
+    ),
+    verse.inline(inline.bold("What's next?"), inline.break()),
+    block.list(
+      'unordered',
+      ['Next steps:'],
+      [
+        listItem.basic(
+          inline.text('Thank you to '),
+          inline.ship('~finned-palmer'),
+          inline.text(
+            ' for sending a few new testers my way. I sent over download instructions and feedback questions earlier today.'
+          ),
+          inline.break()
+        ),
+        listItem.basic(
+          inline.text(
+            "As noted, many of the testers in this week's cohort were ad hoc, invited through the week, so I'll be fielding those responses as they trickle in (thank you to "
+          ),
+          inline.ship('~ravmel-ropdyl'),
+          inline.text(
+            ' for looping many of those contacts in to the TestFlight).'
+          ),
+          inline.break()
+        ),
+      ]
+    ),
+    verse.inline(inline.break()),
+  ],
+  {
+    type: 'note',
+    title: '~2024.08.27 Feedback',
+    image:
+      'https://sfo2.digitaloceanspaces.com/dalwes-migdec/dalwes-migdec/2024.8.27..21.8.40..245a.1cac.0831.26e9-greenish.jpg',
+  }
+);
+
 export const referencedGalleryPost = makePost(
   exampleContacts.ed,
-  [block.randomImage(800, 500)],
+  [verse.inline(inline.blockquote(faker.lorem.paragraphs(3)))],
   { type: 'block', channelId: tlonLocalBulletinBoard.id }
 );
 export const postWithGalleryReference = makePost(
@@ -362,6 +516,7 @@ export const postWithNotebookReference = makePost(
   ],
   { isEdited: false, replyCount: 0 }
 );
+
 export const postWithVideo = makePost(exampleContacts.emotive, [
   block.image({
     width: 868,
@@ -388,14 +543,50 @@ export const postWithSingleEmoji = makePost(exampleContacts.emotive, [
 ]);
 
 const postsMap: Record<string, db.Post> = Object.fromEntries(
-  [referencedGalleryPost, referencedChatPost, referencedNotebookPost].map(
-    (p) => [p.id, p]
-  )
+  [
+    referencedGalleryPost,
+    referencedChatPost,
+    referencedNotebookPost,
+    postWithImage,
+    postWithText,
+    postWithMention,
+    postWithBlockquote,
+    postWithCode,
+    postWithList,
+    postWithLink,
+    postWithChatReference,
+    postWithImageAndText,
+    postWithGroupReference,
+    postWithGroupReferenceNoAvatar,
+    postWithLongNote,
+    postWithGalleryReference,
+    postWithNotebookReference,
+    postWithVideo,
+    postWithDeleted,
+    postWithHidden,
+    postWithEmoji,
+    postWithSingleEmoji,
+  ].map((p) => [p.id, p])
 );
 
 const groupsMap: Record<string, db.Group> = Object.fromEntries(
   [group, groupWithNoColorOrImage].map((g) => [g.id, g])
 );
+
+const channelsMap: Record<string, db.Channel> = Object.fromEntries(
+  [tlonLocalBulletinBoard, tlonLocalGettingStarted, tlonLocalIntros].map(
+    (c) => [c.id, c]
+  )
+);
+
+export const usePost = (options: { id: string }, initialData?: db.Post) => {
+  return useQuery({
+    queryKey: ['post', options.id],
+    staleTime: Infinity,
+    ...(initialData ? { initialData } : {}),
+    queryFn: () => initialData ?? postsMap[options.id] ?? null,
+  });
+};
 
 export const usePostReference = ({
   postId,
@@ -403,11 +594,16 @@ export const usePostReference = ({
   channelId: string;
   postId: string;
   replyId?: string;
-}) => useQuery({ queryKey: ['post', postId], queryFn: () => postsMap[postId] });
+}) =>
+  useQuery({
+    queryKey: ['post', postId],
+    queryFn: () => postsMap[postId] ?? null,
+  });
+
 export const useChannel = ({ id }: { id: string }) =>
   useQuery({
     queryKey: ['channel', id],
-    queryFn: () => tlonLocalBulletinBoard,
+    queryFn: () => channelsMap[id] ?? tlonLocalGettingStarted,
   });
 export const useGroup = (id: string) =>
   useQuery({ queryKey: ['group', id], queryFn: () => groupsMap[id] ?? group });

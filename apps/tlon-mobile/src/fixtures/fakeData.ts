@@ -411,7 +411,7 @@ export const tlonLocalBulletinBoard: db.Channel = {
 
 export const tlonLocalCommunityCatalog: db.Channel = {
   ...emptyChannel,
-  id: '~nibset-napwyn/community-catalog',
+  id: 'heap/~nibset-napwyn/community-catalog',
   type: 'gallery',
   groupId: '~nibset-napwyn/tlon',
   title: 'Community Catalog',
@@ -709,7 +709,8 @@ export const createFakePost = (
     hasChannelReference: null,
     hasGroupReference: null,
     hasLink: null,
-    reactions: createFakeReactions({ count: randInt(0, 10) }),
+    reactions:
+      Math.random() > 0.2 ? [] : createFakeReactions({ count: randInt(0, 10) }),
     hidden: false,
     syncedAt: 0,
   };

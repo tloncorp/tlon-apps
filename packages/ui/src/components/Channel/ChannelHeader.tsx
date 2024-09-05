@@ -28,7 +28,6 @@ export function ChannelHeader({
   showSearchButton?: boolean;
   showMenuButton?: boolean;
   post?: db.Post;
-  setEditingPost?: (post: db.Post) => void;
 }) {
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
 
@@ -69,7 +68,7 @@ export function ChannelHeader({
           </>
         }
       />
-      <ChatOptionsSheet />
+      <ChatOptionsSheet ref={chatOptionsSheetRef} />
     </>
   );
 }
