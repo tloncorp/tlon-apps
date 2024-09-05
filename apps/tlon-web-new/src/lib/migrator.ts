@@ -115,7 +115,6 @@ export default async function migrate<TSchema extends Record<string, unknown>>(
       const migrationHash = `m${entry.tag.split('_').slice(0, 1).join('_')}`;
       logger.log('Checking migration hash', migrationHash);
       if (!appliedMigrationHashes.has(migrationHash)) {
-        // @ts-expect-error migrationHash is not typed
         const migrationSql = migrations[migrationHash];
         if (migrationSql) {
           try {
