@@ -25,9 +25,9 @@ import * as fixture26 from './src/fixtures/ChannelHeader.fixture';
 import * as fixture25 from './src/fixtures/ChannelSwitcherSheet.fixture';
 import * as fixture24 from './src/fixtures/ChatMessage.fixture';
 import * as fixture23 from './src/fixtures/ContactList.fixture';
-import * as fixture36 from './src/fixtures/DetailView/Chat.fixture';
-import * as fixture35 from './src/fixtures/DetailView/Gallery.fixture';
-import * as fixture34 from './src/fixtures/DetailView/Notebook.fixture';
+import * as fixture36 from './src/fixtures/DetailView/ChatDetailView.fixture';
+import * as fixture35 from './src/fixtures/DetailView/GalleryDetailView.fixture';
+import * as fixture34 from './src/fixtures/DetailView/NotebookDetailView.fixture';
 import * as fixture22 from './src/fixtures/Form.fixture';
 import * as fixture21 from './src/fixtures/GalleryPost.fixture';
 import * as fixture20 from './src/fixtures/GroupList.fixture';
@@ -92,9 +92,13 @@ const fixtures = {
   'src/fixtures/Avatar.fixture.tsx': { module: fixture31 },
   'src/fixtures/AudioEmbed.fixture.tsx': { module: fixture32 },
   'src/fixtures/AttachmentPreviewList.fixture.tsx': { module: fixture33 },
-  'src/fixtures/DetailView/Notebook.fixture.tsx': { module: fixture34 },
-  'src/fixtures/DetailView/Gallery.fixture.tsx': { module: fixture35 },
-  'src/fixtures/DetailView/Chat.fixture.tsx': { module: fixture36 },
+  'src/fixtures/DetailView/NotebookDetailView.fixture.tsx': {
+    module: fixture34,
+  },
+  'src/fixtures/DetailView/GalleryDetailView.fixture.tsx': {
+    module: fixture35,
+  },
+  'src/fixtures/DetailView/ChatDetailView.fixture.tsx': { module: fixture36 },
   'src/fixtures/ActionSheet/SendPostRetrySheet.fixture.tsx': {
     module: fixture37,
   },
