@@ -421,8 +421,30 @@ export const textPostIsLink = (post: db.Post): boolean => {
 };
 
 export const textPostIsReference = (post: db.Post): boolean => {
-  const { references } = extractContentTypesFromPost(post);
-  return !!references.length;
+  const { inlines, references } = extractContentTypesFromPost(post);
+  if (references.length === 0) {
+    return false;
+  }
+
+  if (inlines.length === 2) {
+    const [first] = inlines;
+    const isRefString =
+      typeof first === 'string' && REF_REGEX.test(first as string);
+
+    if (isRefString) {
+      return true;
+    }
+  }
+
+  if (
+    inlines.length === 1 &&
+    typeof inlines[0] === 'object' &&
+    'break' in inlines[0]
+  ) {
+    return true;
+  }
+
+  return false;
 };
 
 export const getPostTypeFromChannelId = ({
