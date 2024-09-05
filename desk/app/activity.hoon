@@ -256,6 +256,8 @@
       %refresh-activity  refresh-all-summaries
       %clean-keys  correct-dm-keys
       %fix-init-unreads  fix-init-unreads
+      %show-orphans  (drop-orphans &)
+      %drop-orphans  (drop-orphans |)
     ::
         %sync-reads
       =^  indices  activity
@@ -499,6 +501,22 @@
       |=  [=source:a out=activity:a]
       (~(put by out) source (~(got by activity) source))
     ``activity-summary-4+!>(threads)
+  ::
+      [%x %v4 %activity %unreads ~]
+    =/  unreads
+      %+  skim
+        ~(tap by activity)
+      |=  [=source:a as=activity-summary:a]
+      (gth count.as 0)
+    ``activity-summary-pairs-4+!>(unreads)
+  ::
+      [%x %v4 %activity %notified ~]
+    =/  notified
+      %+  skim
+        ~(tap by activity)
+      |=  [=source:a as=activity-summary:a]
+      notify.as
+    ``activity-summary-pairs-4+!>(notified)
   ::
       [%x any %volume-settings ~]
     ``activity-settings+!>(volume-settings)
@@ -894,6 +912,25 @@
   (give-update [%allow-notifications na] [%hose ~])
 ++  summarize-unreads
   ~(summarize-unreads urd indices activity volume-settings log)
+::
+++  drop-orphans
+  |=  dry-run=?
+  =/  indexes  ~(tap by indices)
+  =|  new-indices=indices:a
+  |-
+  ?~  indexes
+    ?:  dry-run
+      ~?  =(~(wyt by indices) ~(wyt by new-indices))
+        "no orphans found"
+      cor
+    cor(indices new-indices)
+  =/  [=source:a =index:a]  i.indexes
+  =/  parent  (get-parent:src indices source)
+  ?:  &(=(parent ~) ?!(?=(%base -.source)))
+    ~?  dry-run  "orphaned source: {<source>}"
+    $(indexes t.indexes)
+  $(indexes t.indexes, new-indices (~(put by new-indices) source index))
+
 ::
 ::  when we migrated from chat and channels, we always added an init event
 ::  so that we can mark what's been joined and have something affect the
