@@ -1,5 +1,5 @@
 import { replaceEqualDeep } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * Creates a ref whose current value is always the value as of last render.
@@ -46,4 +46,17 @@ export function useDebouncedValue<T>(value: T, delay: number) {
   }, [value, delay]);
 
   return debouncedValue;
+}
+
+export function useMutableRef<T>(initialValue: T): { current: T } {
+  const ref = useRef(initialValue);
+  ref.current = initialValue;
+  return ref;
+}
+
+export function useMutableCallback<Args extends unknown[], Result>(
+  callback: (...args: Args) => Result
+): (...args: Args) => Result {
+  const callbackRef = useMutableRef(callback);
+  return useCallback((...args) => callbackRef.current(...args), [callbackRef]);
 }

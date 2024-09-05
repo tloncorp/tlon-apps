@@ -147,7 +147,7 @@ export default function ChannelScreen({
   } = store.useChannelPosts({
     enabled: !!channel && !channel?.isPendingChannel,
     channelId: currentChannelId,
-    count: 50,
+    count: 15,
     hasCachedNewest,
     ...(cursor
       ? {
@@ -247,6 +247,16 @@ export default function ChannelScreen({
     },
     [navigateToUserProfile]
   );
+  const loadNewerUnlessAlreadyLoading = useCallback(() => {
+    if (!isLoadingPosts) {
+      loadNewer();
+    }
+  }, [loadNewer, isLoadingPosts]);
+  const loadOlderUnlessAlreadyLoading = useCallback(() => {
+    if (!isLoadingPosts) {
+      loadOlder();
+    }
+  }, [loadOlder, isLoadingPosts]);
 
   if (!channel) {
     return null;
@@ -281,8 +291,8 @@ export default function ChannelScreen({
         goToDm={handleGoToDm}
         goToUserProfile={handleGoToUserProfile}
         uploadAsset={store.uploadAsset}
-        onScrollEndReached={loadOlder}
-        onScrollStartReached={loadNewer}
+        onScrollEndReached={loadOlderUnlessAlreadyLoading}
+        onScrollStartReached={loadNewerUnlessAlreadyLoading}
         onPressRef={navigateToRef}
         markRead={handleMarkRead}
         usePost={usePostWithRelations}

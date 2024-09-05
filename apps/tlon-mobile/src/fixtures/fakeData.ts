@@ -2,6 +2,13 @@ import * as db from '@tloncorp/shared/dist/db';
 import { getTextContent } from '@tloncorp/shared/dist/urbit';
 import type { Story } from '@tloncorp/shared/dist/urbit/channel';
 import { formatUd, unixToDa } from '@urbit/aura';
+import seedrandom from 'seedrandom';
+
+const makeRandomGenerator = (seed: string = '') => {
+  const gen = seedrandom(seed);
+  return () => gen.quick();
+};
+const random = makeRandomGenerator();
 
 export const createSimpleContent = (str: string): string => {
   return JSON.stringify([
@@ -15,7 +22,7 @@ export const createContentWithMention = (
   str: string,
   contactId: string
 ): string => {
-  const beforeOrAfter = Math.random() < 0.5 ? 'before' : 'after';
+  const beforeOrAfter = random() < 0.5 ? 'before' : 'after';
 
   if (beforeOrAfter === 'before') {
     return JSON.stringify([
@@ -634,19 +641,19 @@ const getRandomFakeContent = () => {
   const fakeTextContent = pickRandom(fakeStrings);
 
   // randomly add an image
-  if (Math.random() < 0.2) {
+  if (random() < 0.2) {
     return createImageContent(
       'https://togten.com:9001/finned-palmer/finned-palmer/2024.3.19..21.2.17..5581.0624.dd2f.1a9f-image.png'
     );
   }
 
   // randomly add code
-  if (Math.random() < 0.2) {
+  if (random() < 0.2) {
     return createCodeContent('console.log("hello world");');
   }
 
   // randomly add a mention
-  if (Math.random() < 0.2) {
+  if (random() < 0.2) {
     return createContentWithMention(fakeTextContent, randomContactId());
   }
 
@@ -655,7 +662,7 @@ const getRandomFakeContent = () => {
 
 const getRandomFakeContact = () => {
   const keys = Object.keys(initialContacts);
-  return initialContacts[Math.floor(Math.random() * keys.length)];
+  return initialContacts[Math.floor(random() * keys.length)];
 };
 
 export const createFakePost = (
@@ -667,7 +674,7 @@ export const createFakePost = (
   const ship = fakeContact.id;
   // timestamp on same day
   const randomSentAtSameDay = new Date(
-    new Date().getTime() - Math.floor(Math.random() * 10000000)
+    new Date().getTime() - Math.floor(random() * 10000000)
   ).getTime();
 
   const fakeRandomContent = getRandomFakeContent() as unknown as string;
@@ -761,7 +768,7 @@ export const createFakeReplyMeta = () => {
 
 function getRandomTimeOnSameDay() {
   return new Date(
-    new Date().getTime() - Math.floor(Math.random() * 10000000)
+    new Date().getTime() - Math.floor(random() * 10000000)
   ).getTime();
 }
 
@@ -827,7 +834,7 @@ export const groupWithNoColorOrImage: db.Group = {
   lastPost: createFakePost(),
   lastPostAt: dates.yesterday,
   lastChannel: tlonLocalSupport.title,
-  unreadCount: Math.floor(Math.random() * 20),
+  unreadCount: Math.floor(random() * 20),
 };
 
 export const groupWithImage: db.Group = {
@@ -837,7 +844,7 @@ export const groupWithImage: db.Group = {
   lastPost: createFakePost(),
   lastPostAt: dates.lastWeek,
   lastChannel: tlonLocalSupport.title,
-  unreadCount: Math.floor(Math.random() * 20),
+  unreadCount: Math.floor(random() * 20),
 };
 
 export const groupWithSvgImage: db.Group = {
@@ -846,9 +853,9 @@ export const groupWithSvgImage: db.Group = {
   lastPost: createFakePost(),
   lastPostAt: dates.lastMonth,
   lastChannel: tlonLocalSupport.title,
-  unreadCount: Math.floor(Math.random() * 20),
+  unreadCount: Math.floor(random() * 20),
 };
 
 function randInt(min: number, max: number) {
-  return Math.floor(min + Math.random() * (max - min));
+  return Math.floor(min + random() * (max - min));
 }
