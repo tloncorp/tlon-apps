@@ -3,17 +3,15 @@ import { usePostWithThreadUnreads } from '@tloncorp/shared/dist';
 import { useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
-export function PostScreenController(props: { navigation: any }) {
+export function PostScreenController() {
   const { postId } = useParams();
   const navigate = useNavigate();
   const { data: post } = usePostWithThreadUnreads({ id: postId ?? '' });
 
-  const handleGoToUserProfile = useCallback(
-    (userId: string) => {
-      props.navigation.push('UserProfile', { userId });
-    },
-    [props.navigation]
-  );
+  const handleGoToUserProfile = useCallback((userId: string) => {
+    // TODO: Implement profile on web.
+    // props.navigation.push('UserProfile', { userId });
+  }, []);
 
   if (!post) {
     return null;
