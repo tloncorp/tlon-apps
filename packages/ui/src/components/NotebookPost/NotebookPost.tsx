@@ -20,8 +20,6 @@ import { Text } from '../TextV2';
 
 const IMAGE_HEIGHT = 268;
 
-const NotebookLineBreak = () => `\n\n`;
-
 export function NotebookPost({
   post,
   onPress,
@@ -183,6 +181,8 @@ export function NotebookPostDetailView({ post }: { post: db.Post }) {
     </NotebookPostFrame>
   );
 }
+
+const NotebookLineBreak = () => `\n\n`;
 
 const NotebookContentRenderer = createContentRenderer({
   inlineRenderers: {

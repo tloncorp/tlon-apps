@@ -17,7 +17,7 @@ const chatRef: db.Post = {
   channelId: 'chat/~solfer-magfed/another',
   groupId: '~solfer-magfed/boko',
   type: 'chat',
-  content: [{ inline: ['okokok', { break: null }] }],
+  content: '[{"inline":["okokok",{"break":null}]}]',
 };
 
 const galleryRef: db.Post = {
@@ -25,19 +25,8 @@ const galleryRef: db.Post = {
   channelId: 'heap/~solfer-magfed/gg-',
   groupId: '~solfer-magfed/boko',
   type: 'block',
-  content: [
-    { inline: [] },
-    {
-      block: {
-        image: {
-          width: 1170,
-          alt: 'heap image',
-          src: 'https://dans-gifts.s3.amazonaws.com/dans-gifts/solfer-magfed/2023.12.15..22.37.52..1fbe.76c8.b439.5810-IMG_5907.png',
-          height: 2532,
-        },
-      },
-    },
-  ],
+  content:
+    '[{"inline":[]},{"block":{"image":{"width":1170,"alt":"heap image","src":"https://dans-gifts.s3.amazonaws.com/dans-gifts/solfer-magfed/2023.12.15..22.37.52..1fbe.76c8.b439.5810-IMG_5907.png","height":2532}}}]',
 } as const;
 
 const notebookRef: db.Post = {
@@ -48,10 +37,8 @@ const notebookRef: db.Post = {
   title: 'A Quote About Something',
   image:
     'https://dans-gifts.s3.amazonaws.com/dans-gifts/solfer-magfed/2023.12.7..16.54.32..7999.9999.9999.9999-IMG_FBD440716632-1.jpeg',
-  content: [
-    { block: { header: { content: ['Whats8-'], tag: 'h1' } } },
-    { inline: ['Ok, goodbye.', { break: null }] },
-  ],
+  content:
+    '[{"block":{"header":{"content":["Whats8-"],"tag":"h1"}}},{"inline":["Ok, goodbye.",{"break":null}]}]',
 };
 
 function Wrapper({ children }: PropsWithChildren) {

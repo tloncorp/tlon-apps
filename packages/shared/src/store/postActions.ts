@@ -1,6 +1,6 @@
 import * as api from '../api';
 import { toPostContent } from '../api';
-import { toUrbitStory } from '../api/postsApi';
+import { PostContent, toUrbitStory } from '../api/postsApi';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as urbit from '../urbit';
@@ -94,7 +94,8 @@ export async function retrySendPost({
   // optimistic update
   await db.updatePost({ id: post.id, deliveryStatus: 'pending' });
 
-  const story = post.content ? toUrbitStory(post.content) : [];
+  const content = JSON.parse(post.content as string) as PostContent;
+  const story = toUrbitStory(content);
 
   logger.log('retrySendPost: sending post', { post, story });
 
