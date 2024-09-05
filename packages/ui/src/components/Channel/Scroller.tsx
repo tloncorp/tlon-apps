@@ -38,6 +38,12 @@ import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { Modal } from '../Modal';
 import { ChannelDivider } from './ChannelDivider';
 
+interface PostWithNeighbors {
+  post: db.Post;
+  newer: db.Post | null;
+  older: db.Post | null;
+}
+
 type RenderItemFunction = (props: {
   post: db.Post;
   showAuthor?: boolean;
@@ -192,31 +198,45 @@ const Scroller = forwardRef(
       };
     }, [readyToDisplayPosts, theme.background.val]);
 
-    const listRenderItem: ListRenderItem<db.Post> = useCallback(
-      ({ item, index }) => {
-        const previousItem = posts?.[index + 1];
-        const nextItem = posts?.[index - 1];
+    const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
+      () =>
+        posts?.map((post, postIndex, posts) => {
+          const newerIndex = postIndex - 1;
+          const olderIndex = postIndex + 1;
+          const newerPost = newerIndex >= 0 ? posts[newerIndex] : null;
+          const olderPost =
+            olderIndex < posts.length ? posts[olderIndex] : null;
+          return {
+            post,
+            newer: newerPost,
+            older: olderPost,
+          };
+        }),
+      [posts]
+    );
+    const listRenderItem: ListRenderItem<PostWithNeighbors> = useCallback(
+      ({ item: { post, newer: nextItem, older: previousItem }, index }) => {
         const isFirstPostOfDay = !isSameDay(
-          item.receivedAt ?? 0,
+          post.receivedAt ?? 0,
           previousItem?.receivedAt ?? 0
         );
         const isLastPostOfBlock =
-          item.type !== 'notice' &&
-          ((nextItem && nextItem.authorId !== item.authorId) || !isSameDay);
+          post.type !== 'notice' &&
+          ((nextItem && nextItem.authorId !== post.authorId) || !isSameDay);
         const showAuthor =
-          item.type === 'note' ||
-          item.type === 'block' ||
-          previousItem?.authorId !== item.authorId ||
+          post.type === 'note' ||
+          post.type === 'block' ||
+          previousItem?.authorId !== post.authorId ||
           previousItem?.type === 'notice' ||
           isFirstPostOfDay;
         const isSelected =
-          anchor?.type === 'selected' && anchor.postId === item.id;
+          anchor?.type === 'selected' && anchor.postId === post.id;
 
-        const isFirstUnread = item.id === firstUnreadId;
+        const isFirstUnread = post.id === firstUnreadId;
 
         return (
           <ScrollerItem
-            item={item}
+            item={post}
             index={index}
             isSelected={isSelected}
             showUnreadDivider={showDividers && isFirstUnread}
@@ -239,13 +259,12 @@ const Scroller = forwardRef(
             onPressPost={onPressPost}
             onLongPressPost={handlePostLongPressed}
             activeMessage={activeMessage}
-            messageRef={activeMessageRefs.current[item.id]}
+            messageRef={activeMessageRefs.current[post.id]}
             {...anchorScrollLockScrollerItemProps}
           />
         );
       },
       [
-        posts,
         anchor?.type,
         anchor?.postId,
         firstUnreadId,
@@ -373,12 +392,12 @@ const Scroller = forwardRef(
         <UnreadsButton onPress={pressedGoToBottom} />
       ) : null} */}
         {posts && (
-          <Animated.FlatList<db.Post>
+          <Animated.FlatList<PostWithNeighbors>
             ref={flatListRef as React.RefObject<Animated.FlatList<db.Post>>}
             // This is needed so that we can force a refresh of the list when
             // we need to switch from 1 to 2 columns or vice versa.
             key={channelType}
-            data={posts}
+            data={postsWithNeighbors}
             renderItem={listRenderItem}
             ListEmptyComponent={renderEmptyComponent}
             keyExtractor={getPostId}
@@ -436,7 +455,7 @@ Scroller.displayName = 'Scroller';
 
 export default React.memo(Scroller);
 
-function getPostId(post: db.Post) {
+function getPostId({ post }: PostWithNeighbors) {
   return post.id;
 }
 
