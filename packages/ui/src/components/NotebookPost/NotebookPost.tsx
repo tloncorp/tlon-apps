@@ -136,6 +136,7 @@ function NotebookPostHeader({
   showDate,
   showAuthor,
   post,
+  ...props
 }: {
   showAuthor?: boolean;
   showDate?: boolean;
@@ -146,7 +147,7 @@ function NotebookPostHeader({
   }, [post.receivedAt]);
 
   return (
-    <NotebookPostHeaderFrame>
+    <NotebookPostHeaderFrame {...props}>
       {post.image && (
         <NotebookPostHeroImage
           source={{
@@ -171,11 +172,24 @@ function NotebookPostHeader({
 export function NotebookPostDetailView({ post }: { post: db.Post }) {
   const content = usePostContent(post);
   return (
-    <NotebookPostFrame embedded paddingTop={post.image ? '$xl' : '$2xl'}>
-      <NotebookPostHeader post={post} showDate showAuthor />
+    <NotebookPostFrame
+      embedded
+      paddingHorizontal={0}
+      paddingTop={post.image ? '$xl' : '$2xl'}
+    >
+      <NotebookPostHeader
+        post={post}
+        showDate
+        showAuthor
+        paddingHorizontal={'$xl'}
+        paddingBottom={'$2xl'}
+        borderBottomWidth={1}
+        borderBottomColor="$border"
+      />
       <NotebookContentRenderer
         marginTop="$-l"
         marginHorizontal="$-l"
+        paddingHorizontal="$xl"
         content={content}
       />
     </NotebookPostFrame>
