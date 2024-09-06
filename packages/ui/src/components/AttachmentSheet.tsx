@@ -21,6 +21,9 @@ export default function AttachmentSheet({
 
   const takePicture = async () => {
     setShowAttachmentSheet(false);
+    // The image picker is attempting to mount inside the sheet, but
+    // the sheet closes before the picker can mount. This adds
+    // a slight timeout to let the picker have enough time to mount.
     await new Promise((resolve) => setTimeout(resolve, 300));
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -36,6 +39,7 @@ export default function AttachmentSheet({
 
   const pickImage = async () => {
     setShowAttachmentSheet(false);
+    // See the comment above about the picker not mounting in time.
     await new Promise((resolve) => setTimeout(resolve, 300));
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
