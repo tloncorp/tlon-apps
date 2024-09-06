@@ -124,7 +124,10 @@ export const PostReference = ({
 function BlockReferenceContent({ post }: { post: db.Post }) {
   const { contentSize } = useReferenceContext();
   return (
-    <Reference.Body padding={0} aspectRatio={1}>
+    <Reference.Body
+      padding={0}
+      aspectRatio={contentSize !== '$l' ? 1 : 'unset'}
+    >
       <GalleryContentRenderer embedded post={post} size={contentSize} />
     </Reference.Body>
   );
