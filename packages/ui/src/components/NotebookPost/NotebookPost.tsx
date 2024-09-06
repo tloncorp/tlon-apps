@@ -91,7 +91,6 @@ export function NotebookPost({
         <NotebookPostHeader
           post={post}
           showDate={showDate}
-          backgroundColor="cyan"
           showAuthor={showAuthor && viewMode !== 'activity'}
         />
 

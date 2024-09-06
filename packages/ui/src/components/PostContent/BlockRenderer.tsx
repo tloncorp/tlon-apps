@@ -225,7 +225,7 @@ export function ImageBlock({
 } & ComponentProps<typeof View>) {
   const { onPressImage, onLongPress } = cn.useContentContext();
   const [aspect, setAspect] = useState<number | null>(
-    block.width / block.height
+    block.width && block.height ? block.width / block.height : 1
   );
 
   const handlePress = useCallback(() => {
