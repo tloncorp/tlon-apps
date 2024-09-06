@@ -154,24 +154,21 @@ export const MessageInputContainer = ({
           </View>
         ) : (
           <View paddingBottom="$xs">
-            {disableSend ? null : (
-              <Button
-                disabled={isSending}
-                onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
-                backgroundColor="unset"
-                borderColor="transparent"
-              >
-                {isSending ? (
-                  <View width="$2xl" height="$2xl">
-                    <LoadingSpinner size="small" color="$secondaryText" />
-                  </View>
-                ) : isEditing ? (
-                  <Icon type="Checkmark" />
-                ) : (
-                  <Icon type="ArrowUp" />
-                )}
-              </Button>
-            )}
+            <Button
+              disabled={disableSend || isSending}
+              onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
+              backgroundColor="unset"
+              borderColor="transparent"
+              opacity={disableSend ? 0 : 1}
+            >
+              {isSending ? (
+                <View width="$2xl" height="$2xl">
+                  <LoadingSpinner size="small" color="$secondaryText" />
+                </View>
+              ) : (
+                <Icon size="$m" type={isEditing ? 'Checkmark' : 'ArrowUp'} />
+              )}
+            </Button>
           </View>
         )}
       </XStack>
