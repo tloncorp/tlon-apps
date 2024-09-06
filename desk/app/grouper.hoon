@@ -1,8 +1,8 @@
-/-  reel, groups
-/+  default-agent, verb, dbug
+/-  reel, groups, c=chat
+/+  gj=groups-json, default-agent, verb, dbug
 ::
 |%
-++  dev-mode  |
+++  dev-mode  &
 ++  enabled-groups  (set cord)
 ++  outstanding-pokes  (set (pair ship cord))
 ++  bite-subscribe
@@ -36,39 +36,50 @@
   ^-  (quip card _this)
   ?+  mark  (on-poke:def mark vase)
     %leave  :_  this  ~[[%pass /bite-wire %agent [our.bowl %reel] %leave ~]]
-      %watch  
-    :_  this  
+  ::
+      %watch
+    :_  this
     ?:  (~(has by wex.bowl) [/bite-wire our.bowl %reel])  ~
     ~[(bite-subscribe bowl)]
-    ::
+  ::
       %grouper-enable
     =+  !<(name=cord vase)
     `this(enabled-groups (~(put in enabled-groups) name))
+  ::
       %grouper-disable
     =+  !<(name=cord vase)
     `this(enabled-groups (~(del in enabled-groups) name))
+  ::
       %grouper-ask-enabled
     =+  !<(name=cord vase)
     =/  enabled  (~(has in enabled-groups) name)
     :_  this
     ~[[%pass [%ask name ~] %agent [src.bowl %grouper] %poke %grouper-answer-enabled !>([name enabled])]]
+  ::
       %grouper-answer-enabled
     =/  [name=cord enabled=?]  !<([cord ?] vase)
     :_  this
     ~[[%give %fact ~[[%group-enabled (scot %p src.bowl) name ~]] %json !>(b+enabled)]]
+  ::
       %grouper-check-link
-    =+  !<(=path vase)
-    ?>  ?=([%check-link @ @ ~] path)
+    =+  !<(=(pole knot) vase)
+    ?>  ?=([%check-link rest=*] pole)
     =/  baseurl  .^(cord %gx /(scot %p our.bowl)/reel/(scot %da now.bowl)/service/noun)
-    =/  target=ship  (slav %p i.t.path)
-    =/  group=cord  i.t.t.path
+    ::  it really is necessary to double-encode this, make sure we strip
+    ::  the leading slash before encoding
+    =/  end  (en-urlt:html (en-urlt:html +:(spud rest.pole)))
+    =/  url
+      ?.  =(baseurl 'https://tlon.network/lure/')
+        (crip "{(trip baseurl)}{end}")
+      (crip "https://tlon.network/v1/policies/lure/{end}")
     :_  this
-    :~  :*  %pass  path
+    :~  :*  %pass  pole
           %arvo  %k  %fard
           q.byk.bowl  %lure-check-link  %noun
-          !>(`[baseurl target group path])
+          !>(`[url pole])
         ==
     ==
+  ::
       %grouper-link-checked
     =+  !<([good=? =path] vase)
     :_  this
@@ -88,9 +99,20 @@
     :~  [%pass path %agent [target %grouper] %poke %grouper-ask-enabled !>(group)]
         [%pass /expire/(scot %p our.bowl)/[group] %arvo %b [%wait (add ~h1 now.bowl)]]
     ==
+  ::
       [%check-link @ @ ~]
     :_  this
     ~[[%pass path %agent [our.bowl %grouper] %poke %grouper-check-link !>(path)]]
+  ::
+      [%v1 %check-link @ ~]
+    =/  url  (slav %t i.t.t.path)
+    :_  this
+    :~  :*  %pass  path
+          %arvo  %k  %fard
+          q.byk.bowl  %lure-check-link  %noun
+          !>(`[url path])
+        ==
+    ==
   ==
 ::
 ++  on-agent
@@ -104,30 +126,48 @@
   ?-  -.sign
       %poke-ack   `this
       %watch-ack  `this
-      %kick       
+      %kick
     :_  this
     ~[(bite-subscribe bowl)]
     ::
       %fact
     =+  !<(=bite:reel q.cage.sign)
-    ~?  dev-mode  [bite (~(has in enabled-groups) token.bite)]
-    ?>  (~(has in enabled-groups) token.bite)
-    ?>  ?=([%bite-1 *] bite)
-    ~?  dev-mode  'inviting'
-    =/  =invite:groups  [[our.bowl token.bite] joiner.bite]
+    ?>  ?=([%bite-2 *] bite)
     :_  this
-    =/  our  (scot %p our.bowl)
-    =/  =path  /[our]/groups/(scot %da now.bowl)/groups/[our]/[token.bite]/noun
+    =;  caz=(list card)
+      =/  wir=^wire  /dm/(scot %p joiner.bite)
+      =/  =dock  [our.bowl %chat]
+      =/  =id:c  [our now]:bowl
+      =/  =memo:c
+        [~[[%inline ~[[%ship joiner.bite] ' has joined the network']]] id]
+      =/  =action:dm:c
+        :-  joiner.bite
+        [id %add memo [%notice ~] ~]
+      =/  =cage  chat-dm-action+!>(`action:dm:c`action)
+      (welp caz ~[[%pass wir %agent dock %poke cage]])
+    =;  result=(each (list card) (list tank))
+      ?:  ?=(%.y -.result)  p.result
+      ((slog p.result) ~)
+    %-  mule
+    |.
+    ?~  group=(~(get by fields.metadata.bite) 'group')
+      ~|("no group field" !!)
+    =/  =flag:groups  (flag:dejs:gj s+u.group)
+    ~?  dev-mode  [bite (~(has in enabled-groups) q.flag)]
+    ?>  (~(has in enabled-groups) q.flag)
+    ~?  dev-mode  'inviting'
+    =/  =invite:groups  [flag joiner.bite]
+    =/  =path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.flag)/[q.flag]/noun
     =+  .^(=group:groups %gx path)
     ~?  dev-mode  cordon.group
     ?+  -.cordon.group  ~
         %open
-      ~?  dev-mode  ['inviting to public' joiner.bite]  
+      ~?  dev-mode  ['inviting to public' joiner.bite]
       ~[[%pass /invite %agent [our.bowl %groups] %poke %group-invite !>(invite)]]
     ::
         %shut
       ~?  dev-mode  ['inviting to private/secret' joiner.bite]
-      =/  =action:groups  
+      =/  =action:groups
         :-  [our.bowl token.bite]
         :-  now.bowl
         :-  %cordon

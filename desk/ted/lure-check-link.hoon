@@ -4,32 +4,16 @@
 =,  strand-fail=strand-fail:libstrand:spider
 ^-  thread:spider
 =/  m  (strand ,vase)
-|^  ted
-++  ted
-  |=  arg=vase
-  ^-  form:m
-  ;<  our=@p   bind:m  get-our
-  =/  arguments  !<((unit [cord ship cord path]) arg)
-  =/  [baseurl=cord target=ship group=cord =path]  (need arguments)
-  =/  target-tape  (trip (scot %p target))
-  ?~  target-tape  !!
-  ;<  ~  bind:m  (send-request %'GET' (url baseurl target group) ~ ~)
-  ;<  rep=client-response:iris  bind:m
-    take-client-response
-  ?>  ?=(%finished -.rep)
-  =/  result  =(200 status-code.response-header.rep)
-  ;<  ~  bind:m  (poke [our %grouper] grouper-link-checked+!>([result path]))
-  (pure:m !>(~))
-++  url
-  |=  [baseurl=cord target=ship group=cord]
-  ^-  cord
-  =/  target-tape  (trip (scot %p target))
-  ?~  target-tape
-    ~&  "lure link check: bad target ship"
-    !!
-  ?.  =(baseurl 'https://tlon.network/lure/')
-    (crip "{(trip baseurl)}{target-tape}/{(trip group)}")
-  ::  it really is necessary to double-encode this
-  =/  end  (en-urlt:html "%7E{t.target-tape}%2F{(trip group)}")
-  (crip "https://tlon.network/v1/policies/lure/{end}")
---
+|=  arg=vase
+^-  form:m
+;<  our=@p   bind:m  get-our
+=+  !<(args=(unit [url=cord =path]) arg)
+?~  args  (pure:m !>(~))
+=/  [url=cord =path]  u.args
+;<  ~  bind:m  (send-request %'GET' url ~ ~)
+;<  rep=client-response:iris  bind:m
+  take-client-response
+?>  ?=(%finished -.rep)
+=/  result  =(200 status-code.response-header.rep)
+;<  ~  bind:m  (poke [our %grouper] grouper-link-checked+!>([result path]))
+(pure:m !>(~))
