@@ -55,6 +55,7 @@ export const DetailViewFixture = ({
             goBack={() => {}}
             markRead={() => {}}
             canUpload={true}
+            handleGoToUserProfile={() => {}}
           />
         </RequestsProvider>
       </AppDataContextProvider>
