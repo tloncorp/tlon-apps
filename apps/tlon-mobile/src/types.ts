@@ -77,7 +77,7 @@ export type GroupSettingsStackParamList = {
   ManageChannels: {
     groupId: string;
   };
-  InvitesAndPrivacy: {
+  Privacy: {
     groupId: string;
   };
   GroupRoles: {
@@ -92,12 +92,11 @@ export type SettingsStackParamList = {
 
 export type OnboardingStackParamList = {
   Welcome: undefined;
+  InventoryCheck: { lure?: string; priorityToken?: string } | undefined;
   SignUpEmail: { lure?: string; priorityToken?: string } | undefined;
-  EULA:
-    | { shipId: string; shipUrl: string; authCookie: string }
-    | { email: string; lure: string; priorityToken?: string };
+  EULA: undefined;
   SignUpPassword: { email: string; lure: string; priorityToken?: string };
-  JoinWaitList: { email: string; lure?: string };
+  JoinWaitList: { email?: string; lure?: string };
   RequestPhoneVerify: { user: User };
   CheckVerify: { user: User };
   ReserveShip: { user: User; signUpExtras?: SignUpExtras };

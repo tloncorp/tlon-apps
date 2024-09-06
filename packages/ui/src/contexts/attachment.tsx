@@ -14,6 +14,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { isWeb } from 'tamagui';
 
 export type ReferenceAttachment = {
   type: 'reference';
@@ -82,7 +83,7 @@ export const AttachmentProvider = ({
   children,
 }: PropsWithChildren<{
   canUpload: boolean;
-  uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
+  uploadAsset: (asset: ImagePickerAsset, isWeb?: boolean) => Promise<void>;
   initialAttachments?: Attachment[];
 }>) => {
   const [state, setState] = useState<Attachment[]>(initialAttachments ?? []);
@@ -109,7 +110,7 @@ export const AttachmentProvider = ({
   useEffect(() => {
     attachments.forEach((a) => {
       if (a.type === 'image' && !a.uploadState) {
-        uploadAsset(a.file);
+        uploadAsset(a.file, isWeb);
       }
     });
   }, [attachments, uploadAsset]);

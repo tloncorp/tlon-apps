@@ -19,12 +19,18 @@ import {
 
 const logger = createDevLogger('storageActions', true);
 
-export const uploadAsset = async (asset: ImagePickerAsset) => {
-  logger.crumb('uploading asset', asset.mimeType, asset.fileSize);
+export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
+  logger.crumb(
+    'uploading asset',
+    asset.mimeType,
+    asset.fileSize,
+    'isWeb',
+    isWeb
+  );
   logger.log('full asset', asset);
   setUploadState(asset.uri, { status: 'uploading', localUri: asset.uri });
   try {
-    const remoteUri = await performUpload(asset);
+    const remoteUri = await performUpload(asset, isWeb);
     logger.crumb('upload succeeded');
     logger.log('final uri', remoteUri);
     setUploadState(asset.uri, { status: 'success', remoteUri });
@@ -35,7 +41,8 @@ export const uploadAsset = async (asset: ImagePickerAsset) => {
   }
 };
 
-const performUpload = async (asset: ImagePickerAsset) => {
+const performUpload = async (asset: ImagePickerAsset, isWeb = false) => {
+  logger.log('performing upload', asset.uri, 'isWeb', isWeb);
   const [config, credentials] = await Promise.all([
     db.getStorageConfiguration(),
     db.getStorageCredentials(),
@@ -74,10 +81,15 @@ const performUpload = async (asset: ImagePickerAsset) => {
       file,
       uploadKey: fileKey,
     });
-    await uploadFile(uploadUrl, resizedAsset.uri, {
-      'Cache-Control': 'public, max-age=3600',
-      'Content-Type': file.type,
-    });
+    await uploadFile(
+      uploadUrl,
+      resizedAsset.uri,
+      {
+        'Cache-Control': 'public, max-age=3600',
+        'Content-Type': file.type,
+      },
+      isWeb
+    );
     return hostedUrl;
   } else if (hasCustomS3Creds(config, credentials)) {
     const endpoint = new URL(prefixEndpoint(credentials.endpoint));
@@ -100,11 +112,16 @@ const performUpload = async (asset: ImagePickerAsset) => {
       ACL: 'public-read',
     });
     const signedUrl = await getSignedUrl(client, command);
-    await uploadFile(signedUrl, resizedAsset.uri, {
-      'Content-Type': asset.mimeType ?? 'application/octet-stream',
-      'Cache-Control': 'public, max-age=3600',
-      'x-amz-acl': 'public-read', // necessary for digital ocean spaces
-    });
+    await uploadFile(
+      signedUrl,
+      resizedAsset.uri,
+      {
+        'Content-Type': asset.mimeType ?? 'application/octet-stream',
+        'Cache-Control': 'public, max-age=3600',
+        'x-amz-acl': 'public-read', // necessary for digital ocean spaces
+      },
+      isWeb
+    );
     return config.publicUrlBase
       ? new URL(fileKey, config.publicUrlBase).toString()
       : signedUrl.split('?')[0];
@@ -117,18 +134,49 @@ const performUpload = async (asset: ImagePickerAsset) => {
 async function uploadFile(
   presignedUrl: string,
   assetUri: string,
-  headers?: Record<string, string>
+  headers?: Record<string, string>,
+  isWeb = false
 ) {
-  logger.log('uploading', assetUri, 'to', presignedUrl);
-  const response = await FileSystem.uploadAsync(presignedUrl, assetUri, {
-    httpMethod: 'PUT',
-    headers,
-  });
-  if (response.status !== 200) {
-    console.log(escapeLog(response.body));
-    throw new Error(`Got bad upload response ${response.status}`);
+  logger.log('uploading', assetUri, 'to', presignedUrl, 'isWeb', isWeb);
+  if (isWeb) {
+    let body: Blob | string = assetUri;
+
+    // If assetUri is a base64 string, convert it to a Blob
+    if (assetUri.startsWith('data:')) {
+      const arr = assetUri.split(',');
+      const mimeMatch = arr[0].match(/:(.*?);/);
+      const mime =
+        mimeMatch && mimeMatch[1] ? mimeMatch[1] : 'application/octet-stream';
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      body = new Blob([u8arr], { type: mime });
+    }
+
+    const response = await fetch(presignedUrl, {
+      method: 'PUT',
+      body: body,
+      headers,
+    });
+    if (!response.ok) {
+      throw new Error(`Got bad upload response ${response.status}`);
+    }
+    return response;
+  } else {
+    const response = await FileSystem.uploadAsync(presignedUrl, assetUri, {
+      httpMethod: 'PUT',
+      headers,
+    });
+
+    if (response.status !== 200) {
+      console.log(escapeLog(response.body));
+      throw new Error(`Got bad upload response ${response.status}`);
+    }
+    return response;
   }
-  return response;
 }
 
 function prefixEndpoint(endpoint: string) {

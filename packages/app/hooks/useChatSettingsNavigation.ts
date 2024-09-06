@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+// import { useNavigation } from '@react-navigation/native';
 import { useCallback } from 'react';
 import { Platform } from 'react-native';
 
@@ -16,7 +16,7 @@ type GroupSettingsStackParamList = {
   ManageChannels: {
     groupId: string;
   };
-  InvitesAndPrivacy: {
+  Privacy: {
     groupId: string;
   };
   GroupRoles: {
@@ -25,7 +25,7 @@ type GroupSettingsStackParamList = {
 };
 
 export const useChatSettingsNavigation = () => {
-  const navigation = useNavigation();
+  // const navigation = useNavigation();
 
   const navigateToGroupSettings = useCallback(
     <T extends keyof GroupSettingsStackParamList>(
@@ -33,15 +33,15 @@ export const useChatSettingsNavigation = () => {
       params: GroupSettingsStackParamList[T]
     ) => {
       if (Platform.OS !== 'web') {
-        navigation.navigate('GroupSettings', {
-          screen,
-          params,
-        } as any);
+        // navigation.navigate('GroupSettings', {
+        // screen,
+        // params,
+        // } as any);
       } else {
         console.log('web navigation not implemented');
       }
     },
-    [navigation]
+    []
   );
 
   const onPressGroupMeta = useCallback(
@@ -65,9 +65,9 @@ export const useChatSettingsNavigation = () => {
     [navigateToGroupSettings]
   );
 
-  const onPressInvitesAndPrivacy = useCallback(
+  const onPressGroupPrivacy = useCallback(
     (groupId: string) => {
-      navigateToGroupSettings('InvitesAndPrivacy', { groupId });
+      navigateToGroupSettings('Privacy', { groupId });
     },
     [navigateToGroupSettings]
   );
@@ -79,19 +79,13 @@ export const useChatSettingsNavigation = () => {
     [navigateToGroupSettings]
   );
 
-  const onPressChannelMembers = useCallback(
-    (channelId: string) => {
-      navigation.navigate('ChannelMembers', { channelId });
-    },
-    [navigation]
-  );
+  const onPressChannelMembers = useCallback((channelId: string) => {
+    // navigation.navigate('ChannelMembers', { channelId });
+  }, []);
 
-  const onPressChannelMeta = useCallback(
-    (channelId: string) => {
-      navigation.navigate('ChannelMeta', { channelId });
-    },
-    [navigation]
-  );
+  const onPressChannelMeta = useCallback((channelId: string) => {
+    // navigation.navigate('ChannelMeta', { channelId });
+  }, []);
 
   return {
     onPressChannelMembers,
@@ -99,7 +93,7 @@ export const useChatSettingsNavigation = () => {
     onPressGroupMeta,
     onPressGroupMembers,
     onPressManageChannels,
-    onPressInvitesAndPrivacy,
+    onPressGroupPrivacy,
     onPressRoles,
   };
 };

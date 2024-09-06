@@ -1,4 +1,5 @@
 import { createAnimations } from '@tamagui/animations-moti';
+import { Platform } from 'react-native';
 import { createFont, createTamagui, createTokens } from 'tamagui';
 
 export const animations = createAnimations({
@@ -13,6 +14,36 @@ export const animations = createAnimations({
     stiffness: 300,
   },
 });
+
+const rawMeasures = {
+  '2xs': 2,
+  xs: 4,
+  s: 6,
+  m: 8,
+  l: 12,
+  xl: 16,
+  true: 16,
+  '2xl': 24,
+  '3xl': 32,
+  '3.5xl': 36,
+  '4xl': 48,
+  '5xl': 64,
+  '6xl': 72,
+  '9xl': 96,
+};
+
+function addNegativeTokens<T extends { [k: string]: number }>(
+  tokens: T
+): T & { [K in keyof T as K extends string ? `-${K}` : never]: number } {
+  return {
+    ...tokens,
+    ...Object.fromEntries(
+      Object.entries(rawMeasures).map(([key, value]) => ['-' + key, -value])
+    ),
+  };
+}
+
+const measures = addNegativeTokens(rawMeasures);
 
 export const tokens = createTokens({
   color: {
@@ -42,47 +73,11 @@ export const tokens = createTokens({
     blueSoft: '#E5F4FF',
     indigoSoft: '#EFEFFB',
     darkOverlay: 'rgba(0,0,0,.8)',
+    mediaScrim: 'rgba(0, 0, 0, 0.5)',
   },
-  space: {
-    '2xs': 2,
-    xs: 4,
-    s: 6,
-    m: 8,
-    l: 12,
-    xl: 16,
-    true: 16,
-    '2xl': 24,
-    '3xl': 32,
-    '4xl': 48,
-  },
-  size: {
-    '2xs': 2,
-    xs: 4,
-    s: 6,
-    m: 8,
-    l: 12,
-    xl: 16,
-    true: 16,
-    '2xl': 24,
-    '3xl': 32,
-    '4xl': 48,
-    '5xl': 64,
-    '6xl': 72,
-    '9xl': 96, // TODO: worth leaving room between?
-  },
-  radius: {
-    '2xs': 2,
-    xs: 4,
-    s: 6,
-    m: 8,
-    l: 12,
-    xl: 16,
-    true: 16,
-    '2xl': 24,
-    '3xl': 32,
-    '3.5xl': 36,
-    '4xl': 48,
-  },
+  space: measures,
+  size: measures,
+  radius: measures,
   zIndex: {
     s: 0,
     true: 0,
@@ -116,6 +111,7 @@ export const themes = {
     overlayBackground: '#FFFFFF',
     overlayBlurTint: 'light',
     neutralUnreadDot: '#808080',
+    mediaScrim: tokens.color.mediaScrim.val,
   },
   light: {
     primaryText: '#1A1818',
@@ -139,6 +135,7 @@ export const themes = {
     overlayBackground: '#000000',
     overlayBlurTint: 'dark',
     neutralUnreadDot: '#B3B3B3',
+    mediaScrim: tokens.color.mediaScrim.val,
   },
   ocean: {
     primaryText: '#D2F1F9',
@@ -161,6 +158,7 @@ export const themes = {
     overlayBackground: '#000000',
     overlayBlurTint: 'light',
     neutralUnreadDot: '#B3B3B3',
+    mediaScrim: tokens.color.mediaScrim.val,
   },
   desert: {
     primaryText: '#4A3F35',
@@ -183,6 +181,7 @@ export const themes = {
     overlayBackground: '#000000',
     overlayBlurTint: 'light',
     neutralUnreadDot: '#B3B3B3',
+    mediaScrim: tokens.color.mediaScrim.val,
   },
   forest: {
     primaryText: '#A3BFA8',
@@ -205,6 +204,7 @@ export const themes = {
     overlayBackground: '#000000',
     overlayBlurTint: 'light',
     neutralUnreadDot: '#B3B3B3',
+    mediaScrim: tokens.color.mediaScrim.val,
   },
   mountain: {
     primaryText: '#D9D5C3',
@@ -227,16 +227,13 @@ export const themes = {
     overlayBackground: '#000000',
     overlayBlurTint: 'light',
     neutralUnreadDot: '#B3B3B3',
+    mediaScrim: tokens.color.mediaScrim.val,
   },
 };
 
 export const systemFont = createFont({
   family:
-    // Previously used font stack
-    // '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-    // did not work, threw errors in xcode console on iOS. Fortunately iOS
-    //defaulted to its system font anyway
-    'System',
+    'System, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   size: {
     xs: 12,
     s: 14,
@@ -298,7 +295,10 @@ export const serifFont = createFont({
 });
 
 export const monoFont = createFont({
-  family: 'Menlo-Regular',
+  family: Platform.select({
+    android: 'monospace',
+    ios: 'System-Monospaced',
+  }),
   size: {
     s: 14,
     m: 14,

@@ -11,6 +11,8 @@ export type CurrentAppDataState = {
   currentUserId: string;
   contacts: db.Contact[] | null;
   contactIndex: Record<string, db.Contact> | null;
+  branchDomain: string;
+  branchKey: string;
 };
 
 type ContextValue = CurrentAppDataState;
@@ -19,6 +21,8 @@ const defaultState: CurrentAppDataState = {
   currentUserId: '',
   contacts: null,
   contactIndex: null,
+  branchDomain: '',
+  branchKey: '',
 };
 
 const Context = createContext<ContextValue>(defaultState);
@@ -73,22 +77,52 @@ export const useContactGetter = () => {
   return getFromIndex;
 };
 
+export const useBranchDomain = () => {
+  const context = useContext(Context);
+
+  if (!context) {
+    throw new Error(
+      'Must call `useBranchDomain` within an `AppDataContextProvider` component.'
+    );
+  }
+
+  return context.branchDomain;
+};
+
+export const useBranchKey = () => {
+  const context = useContext(Context);
+
+  if (!context) {
+    throw new Error(
+      'Must call `useBranchKey` within an `AppDataContextProvider` component.'
+    );
+  }
+
+  return context.branchKey;
+};
+
 export const AppDataContextProvider = ({
   children,
   currentUserId,
   contacts,
+  branchDomain,
+  branchKey,
 }: {
   children: ReactNode;
   currentUserId?: string;
   contacts: db.Contact[] | null;
+  branchDomain?: string;
+  branchKey?: string;
 }) => {
   const value = useMemo(
     () => ({
       contacts,
       contactIndex: buildContactIndex(contacts ?? []),
       currentUserId: currentUserId ?? '',
+      branchDomain: branchDomain ?? '',
+      branchKey: branchKey ?? '',
     }),
-    [contacts, currentUserId]
+    [contacts, currentUserId, branchDomain, branchKey]
   );
 
   return <Context.Provider value={value}>{children}</Context.Provider>;

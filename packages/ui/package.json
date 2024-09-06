@@ -45,6 +45,7 @@
     "react-hook-form": "^7.52.0",
     "react-native-context-menu-view": "^1.15.0",
     "react-native-safe-area-context": "^4.9.0",
+    "react-native-gesture-handler": "~2.16.2",
     "react-native-svg": "^15.0.0",
     "react-tweet": "^3.0.4",
     "tamagui": "1.101.3",

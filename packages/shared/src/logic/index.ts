@@ -1,3 +1,4 @@
+export * from './utilHooks';
 export * from './utils';
 export * from './references';
 export * from './embed';

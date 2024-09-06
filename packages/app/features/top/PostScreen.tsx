@@ -9,6 +9,7 @@ import { useChannelContext } from '../../hooks/useChannelContext';
 export default function PostScreen({
   postParam,
   goBack,
+  handleGoToUserProfile,
 }: {
   postParam: {
     id: string;
@@ -16,6 +17,7 @@ export default function PostScreen({
     channelId: string;
   };
   goBack: () => void;
+  handleGoToUserProfile: (userId: string) => void;
 }) {
   const {
     currentUserId,
@@ -114,6 +116,7 @@ export default function PostScreen({
 
   return currentUserId && channel && post ? (
     <PostScreenView
+      handleGoToUserProfile={handleGoToUserProfile}
       canUpload={canUpload}
       contacts={contacts ?? null}
       calmSettings={calmSettings}

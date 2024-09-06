@@ -46,28 +46,26 @@ const ChatOptionsSheetComponent = React.forwardRef<ChatOptionsSheetMethods>(
       []
     );
 
-    if (!chat && !open) {
+    if (!chat || !open) {
       return null;
     }
 
+    if (chat.type === 'group') {
+      return (
+        <GroupOptionsSheetLoader
+          groupId={chat.id}
+          open={open}
+          onOpenChange={setOpen}
+        />
+      );
+    }
+
     return (
-      <ActionSheet open={open} onOpenChange={setOpen}>
-        {chat ? (
-          chat.type === 'group' ? (
-            <GroupOptionsSheetLoader
-              groupId={chat.id}
-              open={open}
-              onOpenChange={setOpen}
-            />
-          ) : (
-            <ChannelOptionsSheetLoader
-              channelId={chat.id}
-              open={open}
-              onOpenChange={setOpen}
-            />
-          )
-        ) : null}
-      </ActionSheet>
+      <ChannelOptionsSheetLoader
+        channelId={chat.id}
+        open={open}
+        onOpenChange={setOpen}
+      />
     );
   }
 );
@@ -121,6 +119,8 @@ export function GroupOptions({
     onPressGroupMembers,
     onPressGroupMeta,
     onPressManageChannels,
+    onPressInvite,
+    onPressGroupPrivacy,
     onPressLeave,
     onTogglePinned,
   } = useChatOptions() ?? {};
@@ -237,6 +237,15 @@ export function GroupOptions({
       endIcon: 'ChevronRight',
     };
 
+    const managePrivacyAction: Action = {
+      title: 'Privacy',
+      action: () => {
+        sheetRef.current.setOpen(false);
+        onPressGroupPrivacy?.(group.id);
+      },
+      endIcon: 'ChevronRight',
+    };
+
     const goToMembersAction: Action = {
       title: 'Members',
       endIcon: 'ChevronRight',
@@ -258,12 +267,29 @@ export function GroupOptions({
       endIcon: 'ChevronRight',
     };
 
+    const inviteAction: Action = {
+      title: 'Invite people',
+      action: () => {
+        sheetRef.current.setOpen(false);
+        onPressInvite?.(group);
+      },
+      endIcon: 'ChevronRight',
+    };
+
     actionGroups.push({
       accent: 'neutral',
       actions:
         group && currentUserIsAdmin
-          ? [manageChannelsAction, goToMembersAction, metadataAction]
-          : [goToMembersAction],
+          ? [
+              manageChannelsAction,
+              managePrivacyAction,
+              goToMembersAction,
+              inviteAction,
+              metadataAction,
+            ]
+          : group.privacy === 'public' || group.privacy === 'private'
+            ? [goToMembersAction, inviteAction]
+            : [goToMembersAction],
     });
 
     if (group && !group.currentUserIsHost) {
@@ -292,6 +318,8 @@ export function GroupOptions({
     onPressGroupMembers,
     onPressGroupMeta,
     onPressLeave,
+    onPressInvite,
+    onPressGroupPrivacy,
   ]);
 
   const memberCount = group?.members?.length ?? 0;

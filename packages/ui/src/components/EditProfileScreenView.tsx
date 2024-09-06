@@ -87,7 +87,7 @@ export function EditProfileScreenView(props: Props) {
         <GenericHeader
           title="Edit Profile"
           goBack={props.onGoBack}
-          rightContent={<SaveButton onPress={onSavePressed} />}
+          rightContent={isDirty && <SaveButton onPress={onSavePressed} />}
         />
         <KeyboardAvoidingView>
           <ScrollView>
@@ -100,11 +100,13 @@ export function EditProfileScreenView(props: Props) {
               <EditablePofileImages
                 contact={userContact ?? db.getFallbackContact(currentUserId)}
                 onSetCoverUrl={useCallback(
-                  (url: string) => setValue('coverImage', url),
+                  (url: string) =>
+                    setValue('coverImage', url, { shouldDirty: true }),
                   [setValue]
                 )}
                 onSetIconUrl={useCallback(
-                  (url: string) => setValue('avatarImage', url),
+                  (url: string) =>
+                    setValue('avatarImage', url, { shouldDirty: true }),
                   [setValue]
                 )}
               />

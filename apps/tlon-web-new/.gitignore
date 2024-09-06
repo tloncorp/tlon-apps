@@ -1,0 +1,15 @@
+node_modules
+.DS_Store
+dist
+dev-dist
+dist-ssr
+*.local
+stats.html
+.eslintcache
+.vercel
+.tamagui
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+/e2e/.auth/

@@ -1,6 +1,7 @@
 import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
+import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
 import {
@@ -109,6 +110,46 @@ export function cancelGroupJoin(groupId: string) {
   });
 }
 
+export function inviteGroupMembers({
+  groupId,
+  contactIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+}) {
+  return poke(
+    groupAction(groupId, {
+      cordon: {
+        shut: {
+          'add-ships': {
+            ships: contactIds,
+            kind: 'pending',
+          },
+        },
+      },
+    })
+  );
+}
+
+export function addGroupMembers({
+  groupId,
+  contactIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+}) {
+  return poke(
+    groupAction(groupId, {
+      fleet: {
+        ships: contactIds,
+        diff: {
+          add: null,
+        },
+      },
+    })
+  );
+}
+
 export function rescindGroupInvitationRequest(groupId: string) {
   logger.log('api rescinding', groupId);
   return poke({
@@ -188,6 +229,47 @@ export function requestGroupInvitation(groupId: string) {
     mark: 'group-knock',
     json: groupId,
   });
+}
+
+export async function updateGroupPrivacy(params: {
+  groupId: string;
+  oldPrivacy: GroupPrivacy;
+  newPrivacy: GroupPrivacy;
+}) {
+  if (params.newPrivacy === 'public') {
+    const action = groupAction(params.groupId, {
+      cordon: {
+        swap: {
+          open: {
+            ships: [],
+            ranks: [],
+          },
+        },
+      },
+    });
+    await poke(action);
+  } else {
+    // Only swap if it's currently public. If moving between secret and private, we keep
+    // the existing cordon to avoid losing pending requests.
+    if (params.oldPrivacy === 'public') {
+      const cordonSwapAction = groupAction(params.groupId, {
+        cordon: {
+          swap: {
+            shut: {
+              pending: [],
+              ask: [],
+            },
+          },
+        },
+      });
+      await poke(cordonSwapAction);
+    }
+
+    const secretAction = groupAction(params.groupId, {
+      secret: params.newPrivacy === 'secret',
+    });
+    await poke(secretAction);
+  }
 }
 
 export const getPinnedItemType = (rawItem: string) => {

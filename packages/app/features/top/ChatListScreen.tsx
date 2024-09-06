@@ -9,9 +9,10 @@ import {
   ChatOptionsProvider,
   ChatOptionsSheet,
   ChatOptionsSheetMethods,
-  FloatingActionButton,
+  FloatingAddButton,
   GroupPreviewSheet,
   Icon,
+  InviteUsersSheet,
   NavBarView,
   RequestsProvider,
   ScreenHeader,
@@ -20,7 +21,6 @@ import {
   WelcomeSheet,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import ContextMenu from 'react-native-context-menu-view';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useCalmSettings } from '../../hooks/useCalmSettings';
@@ -49,6 +49,8 @@ export default function ChatListScreen({
   navigateToHome,
   navigateToNotifications,
   navigateToProfile,
+  branchDomain,
+  branchKey,
 }: {
   startDmOpen: boolean;
   setStartDmOpen: (open: boolean) => void;
@@ -59,8 +61,11 @@ export default function ChatListScreen({
   navigateToHome: () => void;
   navigateToNotifications: () => void;
   navigateToProfile: () => void;
+  branchDomain: string;
+  branchKey: string;
 }) {
   const [screenTitle, setScreenTitle] = useState('Home');
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
   const [longPressedChat, setLongPressedChat] = useState<
     db.Channel | db.Group | null
@@ -85,8 +90,6 @@ export default function ChatListScreen({
     'all'
   );
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
-  // const [startDmOpen, setStartDmOpen] = useState(false);
-  // const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const isFocused = useIsFocused();
   const { data: pins } = store.usePins({
@@ -122,15 +125,6 @@ export default function ChatListScreen({
     [navigateToDm, setStartDmOpen]
   );
 
-  // const goToChannel = useCallback(
-  // ({ channel }: { channel: db.Channel }) => {
-  // setStartDmOpen(false);
-  // setAddGroupOpen(false);
-  // setTimeout(() => navigateToC, 150);
-  // },
-  // [props.navigation]
-  // );
-
   const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   const onPressChat = useCallback(
@@ -143,13 +137,8 @@ export default function ChatListScreen({
         // Should navigate to channel if it's pinned as a channel
         (!item.pin || item.pin.type === 'group')
       ) {
-        // props.navigation.navigate('GroupChannels', { group: item.group });
         navigateToGroupChannels(item.group);
       } else {
-        // props.navigation.navigate('Channel', {
-        // channel: item,
-        // selectedPostId: item.firstUnreadPostId,
-        // });
         navigateToSelectedPost(item, item.firstUnreadPostId);
       }
     },
@@ -167,17 +156,14 @@ export default function ChatListScreen({
     }
   }, []);
 
-  const handleDmOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setStartDmOpen(false);
-    }
-  }, []);
-
-  const handleAddGroupOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setAddGroupOpen(false);
-    }
-  }, []);
+  const handleDmOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setStartDmOpen(false);
+      }
+    },
+    [setStartDmOpen]
+  );
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -185,10 +171,11 @@ export default function ChatListScreen({
     }
   }, []);
 
-  // const handleGroupCreated = useCallback(
-  // ({ channel }: { channel: db.Channel }) => goToChannel({ channel }),
-  // [goToChannel]
-  // );
+  const handleInviteSheetOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setInviteSheetGroup(null);
+    }
+  }, []);
 
   const { pinned: pinnedChats, unpinned } = resolvedChats;
   const allChats = [...pinnedChats, ...unpinned];
@@ -249,6 +236,8 @@ export default function ChatListScreen({
       <AppDataContextProvider
         currentUserId={currentUser}
         contacts={contacts ?? []}
+        branchKey={branchKey}
+        branchDomain={branchDomain}
       >
         <RequestsProvider
           usePostReference={store.usePostReference}
@@ -262,8 +251,11 @@ export default function ChatListScreen({
             groupId={chatOptionsGroupId}
             pinned={pinned}
             {...useChatSettingsNavigation()}
+            onPressInvite={(group) => {
+              setInviteSheetGroup(group);
+            }}
           >
-            <View backgroundColor="$background" flex={1}>
+            <View flex={1}>
               <ScreenHeader
                 title={
                   !chats || (!chats.unpinned.length && !chats.pinned.length)
@@ -293,28 +285,10 @@ export default function ChatListScreen({
                 width={'100%'}
                 pointerEvents="box-none"
               >
-                <ContextMenu
-                  dropdownMenuMode={true}
-                  actions={[
-                    { title: 'Create or join a group' },
-                    { title: 'Start a direct message' },
-                  ]}
-                  onPress={(event) => {
-                    const { index } = event.nativeEvent;
-                    if (index === 0) {
-                      setAddGroupOpen(true);
-                    }
-                    if (index === 1) {
-                      setStartDmOpen(true);
-                    }
-                  }}
-                >
-                  <FloatingActionButton
-                    icon={<Icon type="Add" size="$s" marginRight="$s" />}
-                    label={'Add'}
-                    onPress={() => {}}
-                  />
-                </ContextMenu>
+                <FloatingAddButton
+                  setStartDmOpen={setStartDmOpen}
+                  setAddGroupOpen={setAddGroupOpen}
+                />
               </View>
               <WelcomeSheet
                 open={splashVisible}
@@ -330,6 +304,12 @@ export default function ChatListScreen({
                 open={selectedGroup !== null}
                 onOpenChange={handleGroupPreviewSheetOpenChange}
                 group={selectedGroup ?? undefined}
+              />
+              <InviteUsersSheet
+                open={inviteSheetGroup !== null}
+                onOpenChange={handleInviteSheetOpenChange}
+                onInviteComplete={() => setInviteSheetGroup(null)}
+                group={inviteSheetGroup ?? undefined}
               />
             </View>
             <NavBarView

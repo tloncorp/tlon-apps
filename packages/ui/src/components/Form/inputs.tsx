@@ -1,11 +1,12 @@
 import React, { ComponentProps, ReactElement } from 'react';
 import { TextInput as BaseTextInput } from 'react-native';
-import { View, XStack, YStack, styled } from 'tamagui';
+import { ScrollView, View, XStack, YStack, styled } from 'tamagui';
 
+import { Button } from '../Button';
 import { Icon, IconType } from '../Icon';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
-import { LabelText } from '../TrimmedText';
+import { Text } from '../TextV2';
 import { FieldContext } from './Form';
 
 // Text input
@@ -15,6 +16,7 @@ export const TextInput = React.memo(
     BaseTextInput,
     {
       context: FieldContext,
+      color: '$primaryText',
       borderRadius: '$l',
       borderWidth: 1,
       borderColor: '$border',
@@ -42,6 +44,98 @@ export const TextInput = React.memo(
     }
   )
 );
+
+// Toggle group
+
+export const ToggleGroupInput = ({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: string; label: string | React.ReactNode }[];
+  value: string;
+  onChange: (value: string) => void;
+}) => {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      borderWidth={1}
+      borderColor="$border"
+      borderRadius="$l"
+      contentContainerStyle={{
+        flexGrow: 1,
+      }}
+    >
+      <XStack minWidth="100%">
+        {options.map((tab, index) => (
+          <Button
+            flex={1}
+            minWidth={75}
+            key={tab.value}
+            onPress={() => onChange(tab.value)}
+            padding="$xl"
+            borderWidth={0}
+            borderRadius={0}
+            borderRightWidth={index !== options.length - 1 ? 1 : 0}
+            backgroundColor={
+              value === tab.value ? '$secondaryBackground' : 'unset'
+            }
+          >
+            {typeof tab.label === 'string' ? (
+              <Button.Text size="$l">{tab.label}</Button.Text>
+            ) : (
+              tab.label
+            )}
+          </Button>
+        ))}
+      </XStack>
+    </ScrollView>
+  );
+};
+
+// Shared control style between radio and checkbox
+
+const ControlFrame = styled(View, {
+  width: '$3xl',
+  height: '$3xl',
+  borderWidth: 1,
+  borderColor: '$shadow',
+  alignItems: 'center',
+  justifyContent: 'center',
+  variants: {
+    checked: {
+      true: {
+        backgroundColor: '$positiveActionText',
+        borderColor: '$positiveActionText',
+      },
+    },
+    disabled: {
+      true: {
+        backgroundColor: '$shadow',
+      },
+    },
+    variant: {
+      radio: {
+        borderRadius: 100,
+      },
+      checkbox: {
+        borderRadius: '$s',
+      },
+    },
+  } as const,
+});
+
+export const Control = ControlFrame.styleable<{
+  checked?: boolean;
+  variant: 'radio' | 'checkbox';
+}>((props, ref) => {
+  return (
+    <ControlFrame {...props} ref={ref}>
+      {props.checked ? <Icon color="$background" type="Checkmark" /> : null}
+    </ControlFrame>
+  );
+});
 
 // Radio input
 
@@ -125,49 +219,25 @@ export function RadioInputRow<T>({
         checked={checked}
       />
       <YStack gap="$l">
-        <LabelText size="$xl" color="$primaryText">
+        <Text size="$label/xl" color="$primaryText">
           {option.title}
-        </LabelText>
+        </Text>
+        {option.description ? (
+          <Text size="$label/m" color="$secondaryText">
+            {option.description}
+          </Text>
+        ) : null}
       </YStack>
     </RadioInputRowFrame>
   );
 }
 
-const RadioControlFrame = styled(View, {
-  width: '$3xl',
-  height: '$3xl',
-  borderWidth: 1,
-  borderRadius: 100,
-  borderColor: '$shadow',
-  alignItems: 'center',
-  justifyContent: 'center',
-  variants: {
-    checked: {
-      true: {
-        backgroundColor: '$positiveActionText',
-        borderColor: '$positiveActionText',
-      },
-    },
-    disabled: {
-      true: {
-        backgroundColor: '$shadow',
-      },
-    },
-  } as const,
-});
-
 /**
  * The actual little checkmark button
  */
-export const RadioControl = RadioControlFrame.styleable<{ checked?: boolean }>(
-  (props, ref) => {
-    return (
-      <RadioControlFrame {...props} ref={ref}>
-        {props.checked ? <Icon color="$background" type="Checkmark" /> : null}
-      </RadioControlFrame>
-    );
-  }
-);
+export const RadioControl = (
+  props: Omit<ComponentProps<typeof Control>, 'variant'>
+) => <Control {...props} variant="radio" />;
 
 // List item input
 
@@ -237,3 +307,72 @@ function ListItemInputRow<T>({
     </ListItem>
   );
 }
+
+/* A checkbox input that can be used to select multiple options */
+
+export type CheckboxInputOption<T> = {
+  title: string;
+  value: T;
+  description?: string;
+  disabled?: boolean;
+};
+
+export const CheckboxInput = <T,>({
+  option,
+  onChange,
+  checked,
+  ...props
+}: {
+  option: CheckboxInputOption<T>;
+  checked?: boolean;
+  onChange?: (value: T) => void;
+} & ComponentProps<typeof YStack>) => {
+  return (
+    <YStack {...props}>
+      <CheckboxInputRow
+        key={option.title}
+        option={option}
+        onPress={onChange}
+        checked={checked}
+      />
+    </YStack>
+  );
+};
+
+export function CheckboxInputRow<T>({
+  option,
+  onPress,
+  checked,
+}: {
+  option: CheckboxInputOption<T>;
+  onPress?: (value: T) => void;
+  checked?: boolean;
+} & Omit<ComponentProps<typeof RadioInputRowFrame>, 'onPress'>) {
+  const handlePress = useBoundHandler(option.value, onPress);
+  return (
+    <RadioInputRowFrame
+      onPress={option.disabled ? undefined : handlePress}
+      disabled={!!option.disabled}
+    >
+      <CheckboxControl
+        key={option.title}
+        disabled={option.disabled}
+        checked={checked}
+      />
+      <YStack gap="$l">
+        <Text size="$label/l" color="$primaryText">
+          {option.title}
+        </Text>
+        {option.description ? (
+          <Text size="$label/m" color="$secondaryText">
+            {option.description}
+          </Text>
+        ) : null}
+      </YStack>
+    </RadioInputRowFrame>
+  );
+}
+
+export const CheckboxControl = (
+  props: Omit<ComponentProps<typeof Control>, 'variant'>
+) => <Control {...props} variant="checkbox" />;
