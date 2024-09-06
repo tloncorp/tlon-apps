@@ -21,6 +21,7 @@ export default function AttachmentSheet({
 
   const takePicture = async () => {
     setShowAttachmentSheet(false);
+    await new Promise((resolve) => setTimeout(resolve, 300));
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,
@@ -34,7 +35,9 @@ export default function AttachmentSheet({
   };
 
   const pickImage = async () => {
+    console.log('pickImage');
     setShowAttachmentSheet(false);
+    await new Promise((resolve) => setTimeout(resolve, 300));
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,
