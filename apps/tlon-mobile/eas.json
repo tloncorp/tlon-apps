@@ -18,6 +18,7 @@
         "NOTIFY_SERVICE": "tlon-preview-release"
       },
       "android": {
+        "resourceClass": "large",
         "gradleCommand": ":app:bundlePreviewRelease"
       },
       "ios": {
