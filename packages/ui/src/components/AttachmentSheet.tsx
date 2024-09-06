@@ -35,7 +35,6 @@ export default function AttachmentSheet({
   };
 
   const pickImage = async () => {
-    console.log('pickImage');
     setShowAttachmentSheet(false);
     await new Promise((resolve) => setTimeout(resolve, 300));
     const result = await ImagePicker.launchImageLibraryAsync({
