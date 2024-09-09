@@ -18,6 +18,7 @@ import {
   GroupsProvider,
   NavigationProvider,
   useCalm,
+  useCurrentUserId,
 } from '../../contexts';
 import { Attachment, AttachmentProvider } from '../../contexts/attachment';
 import { RequestsProvider } from '../../contexts/requests';
@@ -48,7 +49,6 @@ const useApp = () => {};
 export function Channel({
   channel,
   initialChannelUnread,
-  currentUserId,
   posts,
   selectedPostId,
   group,
@@ -88,7 +88,6 @@ export function Channel({
 }: {
   channel: db.Channel;
   initialChannelUnread?: db.ChannelUnread | null;
-  currentUserId: string;
   selectedPostId?: string | null;
   headerMode?: 'default' | 'next';
   posts: db.Post[] | null;
@@ -134,6 +133,7 @@ export function Channel({
   const disableNicknames = !!useCalm()?.disableNicknames;
   const title = channel ? utils.getChannelTitle(channel, disableNicknames) : '';
   const groups = useMemo(() => (group ? [group] : null), [group]);
+  const currentUserId = useCurrentUserId();
   const canWrite = utils.useCanWrite(channel, currentUserId);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;

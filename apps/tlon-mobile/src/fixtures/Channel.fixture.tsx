@@ -85,7 +85,6 @@ const baseProps: ComponentProps<typeof Channel> = {
   headerMode: 'default',
   posts: posts,
   channel: tlonLocalIntros,
-  currentUserId: '~zod',
   negotiationMatch: true,
   isLoadingPosts: false,
   group: group,
