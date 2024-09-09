@@ -456,7 +456,8 @@ function BaseContentRenderer({
   const { viewMode } = useContext(ContentContext);
 
   const convertedContent = useMemo(() => {
-    if (!post.content) {
+    // post.content can apparently be a string of 'null' in some cases
+    if (!post.content || post.content === 'null') {
       return [];
     }
     const content = convertContent(JSON.parse(post.content as string));

@@ -29,12 +29,12 @@ export function EditChannelScreen({
   }, [data, deleteChannel, onGoBack]);
 
   const handleSubmit = useCallback(
-    (name: string, description: string) => {
+    (title: string, description?: string) => {
       const prevChannel = data;
       if (prevChannel) {
         updateChannel({
           ...prevChannel,
-          title: name,
+          title,
           description,
         });
         onGoBack();

@@ -1,4 +1,10 @@
-import { LoadingSpinner, ScreenHeader, View, YStack } from '@tloncorp/ui';
+import {
+  LoadingSpinner,
+  ScreenHeader,
+  View,
+  YStack,
+  isWeb,
+} from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
@@ -20,12 +26,14 @@ interface HostingSession {
 export function ManageAccountScreen({
   onGoBack,
   webview,
+  resetDb,
 }: {
   onGoBack: () => void;
   webview?: WebViewProps;
+  resetDb?: () => void;
 }) {
   const [goingBack, setGoingBack] = useState(false);
-  const handleLogout = useHandleLogout();
+  const handleLogout = useHandleLogout({ resetDb });
   const [hostingSession, setHostingSession] = useState<HostingSession | null>(
     null
   );
@@ -93,7 +101,15 @@ export function ManageAccountScreen({
         </View>
         <ScreenHeader.Title>Manage Account</ScreenHeader.Title>
       </ScreenHeader>
-      {hostingSession && !hostingSession.isExpired ? (
+      {isWeb && (
+        <View flex={1}>
+          <iframe
+            src={MANAGE_ACCOUNT_URL}
+            style={{ width: '100%', height: '100%', border: 'none' }}
+          />
+        </View>
+      )}
+      {hostingSession && !hostingSession.isExpired && webview ? (
         <View flex={1}>
           <WebView
             webview={webview}

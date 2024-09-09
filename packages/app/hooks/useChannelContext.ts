@@ -147,7 +147,7 @@ export const useChannelContext = ({
 
   const navigateToImage = useCallback(
     (post: db.Post, uri?: string) => {
-      navigate(`/image/${post.id}/${encodeURIComponent(uri?? '')}`);
+      navigate(`/image/${post.id}/${encodeURIComponent(uri ?? '')}`);
     },
     [navigate]
   );
@@ -156,7 +156,13 @@ export const useChannelContext = ({
     if (!channelQuery.data) {
       return;
     }
-    navigate('/search/' + channelQuery.data.id);
+    if (isGroupChannelId(channelQuery.data.id)) {
+      navigate(
+        `/group/${channelQuery.data.groupId}/channel/${channelQuery.data.id}/search`
+      );
+      return;
+    }
+    navigate(`/dm/${channelQuery.data.id}/search`);
   }, [navigate, channelQuery.data]);
 
   const performGroupAction = useCallback(

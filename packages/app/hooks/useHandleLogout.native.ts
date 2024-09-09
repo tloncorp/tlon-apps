@@ -2,10 +2,9 @@ import * as api from '@tloncorp/shared/dist/api';
 import { useCallback } from 'react';
 
 import { clearShipInfo, useShip } from '../contexts/ship';
-import { resetDb } from '../lib/nativeDb';
 import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 
-export function useHandleLogout() {
+export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
   const { clearShip } = useShip();
 
   const handleLogout = useCallback(async () => {
@@ -16,8 +15,9 @@ export function useHandleLogout() {
     removeHostingToken();
     removeHostingUserId();
     // delay DB reset to next tick to avoid race conditions
+    if (!resetDb) return;
     setTimeout(() => resetDb());
-  }, [clearShip]);
+  }, [clearShip, resetDb]);
 
   return handleLogout;
 }
