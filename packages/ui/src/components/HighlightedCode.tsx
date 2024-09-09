@@ -1,49 +1,23 @@
-import { ReactNode, useCallback } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { StyleSheet, TextStyle } from 'react-native';
 import hoon from 'refractor/lang/hoon';
 import { refractor } from 'refractor/lib/common.js';
-import { ScrollView } from 'tamagui';
 
-import { useCopy } from '../../hooks/useCopy';
-import { Reference } from '../ContentReference';
-import { Text } from '../TextV2';
+import { Text } from './TextV2';
 
 refractor.register(hoon);
 
-export function CodeBlock({ code, lang }: { code: string; lang?: string }) {
-  const tree = refractor.highlight(code, lang || 'plaintext') as TreeNode;
-  const element = hastToReactNative(tree);
-  const { doCopy, didCopy } = useCopy(code);
-  const handleStartShouldSetResponder = useCallback(() => true, []);
-
-  return (
-    <Reference.Frame>
-      <Reference.Header paddingVertical="$l">
-        <Reference.Title>
-          <Reference.TitleText>{'Code'}</Reference.TitleText>
-        </Reference.Title>
-        <Reference.TitleText onPress={doCopy}>
-          {didCopy ? 'Copied' : 'Copy'}
-        </Reference.TitleText>
-      </Reference.Header>
-      <ScrollView horizontal>
-        <Reference.Body
-          pointerEvents="auto"
-          // Hack to prevent touch events from being eaten by Pressables higher
-          // in the stack.
-          onStartShouldSetResponder={handleStartShouldSetResponder}
-        >
-          <Text
-            size={'$mono/m'}
-            borderRadius="$s"
-            backgroundColor="$secondaryBackground"
-          >
-            {element}
-          </Text>
-        </Reference.Body>
-      </ScrollView>
-    </Reference.Frame>
-  );
+export function HighlightedCode({
+  code,
+  lang,
+}: {
+  code: string;
+  lang?: string;
+}) {
+  return useMemo(() => {
+    const tree = refractor.highlight(code, lang ?? 'plaintext') as TreeNode;
+    return hastToReactNative(tree);
+  }, [code, lang]);
 }
 
 function getStyles(className: string[] | undefined) {

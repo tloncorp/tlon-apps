@@ -124,7 +124,7 @@ function ChatListComponent({
                   borderWidth="unset"
                   size="$l"
                 >
-                  <Icon type="Dots" size="$s" />
+                  <Icon type="Overflow" />
                 </Button>
               </View>
             </View>

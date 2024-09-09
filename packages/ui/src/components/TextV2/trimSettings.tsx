@@ -5,8 +5,8 @@
 
 export const trimIos = {
   '$mono/s': {
-    marginTop: -5.810546875,
-    marginBottom: -5.734375,
+    marginTop: -5.810546874999998,
+    marginBottom: -5.734374999999998,
   },
   '$mono/m': {
     marginTop: -7.1123046875,
@@ -18,15 +18,15 @@ export const trimIos = {
   },
   '$emoji/l': {
     marginTop: -5.951171875,
-    marginBottom: 0,
+    marginBottom: -8.68359375,
   },
   '$label/s': {
-    marginTop: -0.650390625,
-    marginBottom: -2.89453125,
+    marginTop: -3.810546875,
+    marginBottom: -3.734375,
   },
   '$label/m': {
-    marginTop: -5.1123046875,
-    marginBottom: -5.0234375,
+    marginTop: -5.112304687499998,
+    marginBottom: -5.023437499999998,
   },
   '$label/l': {
     marginTop: -6.4140625,

@@ -28,7 +28,6 @@ export function ChannelHeader({
   showSearchButton?: boolean;
   showMenuButton?: boolean;
   post?: db.Post;
-  setEditingPost?: (post: db.Post) => void;
 }) {
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
 
@@ -63,13 +62,13 @@ export function ChannelHeader({
                 borderColor="transparent"
                 onPress={handlePressOverflowMenu}
               >
-                <Icon type="Dots" />
+                <Icon type="Overflow" />
               </Button>
             )}
           </>
         }
       />
-      <ChatOptionsSheet />
+      <ChatOptionsSheet ref={chatOptionsSheetRef} />
     </>
   );
 }

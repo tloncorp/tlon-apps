@@ -25,8 +25,7 @@ export function ChannelDivider({
   }, [post.receivedAt]);
 
   return (
-    <XStack alignItems="center" paddingVertical="$l">
-      <View flex={1} height={1} backgroundColor={borderColor} />
+    <XStack alignItems="center" justifyContent="center" paddingVertical="$l">
       <View
         paddingHorizontal="$m"
         paddingVertical="$s"
@@ -46,7 +45,6 @@ export function ChannelDivider({
             : null}
         </Text>
       </View>
-      <View flex={1} height={1} backgroundColor={borderColor} />
     </XStack>
   );
 }

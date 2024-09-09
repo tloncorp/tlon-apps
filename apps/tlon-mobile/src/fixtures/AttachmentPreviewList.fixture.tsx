@@ -1,31 +1,55 @@
 import { Attachment, AttachmentProvider } from '@tloncorp/ui';
+import { AppDataContextProvider, RequestsProvider } from '@tloncorp/ui/src';
 import { AttachmentPreviewList } from '@tloncorp/ui/src/components/MessageInput/AttachmentPreviewList';
-import React from 'react';
 
 import { FixtureWrapper } from './FixtureWrapper';
-import { createFakePosts } from './fakeData';
+import {
+  exampleContacts,
+  referencedChatPost,
+  referencedGalleryPost,
+  referencedNotebookPost,
+  useApp,
+  useChannel,
+  useGroup,
+  usePost,
+  usePostReference,
+} from './contentHelpers';
 
-const posts = createFakePosts(100);
-
-const attachment: Attachment = {
-  type: 'reference',
-  path: '/1/chan/~nibset-napwyn/intros/msg/~solfer-magfed-3mct56',
-  reference: {
+const attachments: Attachment[] = [
+  referencedChatPost,
+  referencedGalleryPost,
+  referencedNotebookPost,
+].map((p) => {
+  return {
     type: 'reference',
-    referenceType: 'channel',
-    channelId: posts[0].channelId,
-    postId: posts[0].id,
-  },
-};
+    path: '',
+    reference: {
+      type: 'reference',
+      referenceType: 'channel',
+      channelId: p.channelId,
+      postId: p.id,
+    },
+  } as const;
+});
 
 export default (
   <FixtureWrapper fillWidth>
-    <AttachmentProvider
-      initialAttachments={[attachment, attachment, attachment, attachment]}
-      uploadAsset={async () => {}}
-      canUpload={true}
-    >
-      <AttachmentPreviewList />
-    </AttachmentProvider>
+    <AppDataContextProvider contacts={Object.values(exampleContacts)}>
+      <RequestsProvider
+        useChannel={useChannel}
+        useGroup={useGroup}
+        usePost={usePost}
+        usePostReference={usePostReference}
+        useApp={useApp}
+      >
+        <AttachmentProvider
+          initialAttachments={attachments}
+          uploadAsset={async () => {}}
+          canUpload={true}
+        >
+          <AttachmentPreviewList />
+        </AttachmentProvider>
+      </RequestsProvider>
+    </AppDataContextProvider>
   </FixtureWrapper>
 );

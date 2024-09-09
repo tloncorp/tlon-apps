@@ -216,6 +216,7 @@ export const ImageAvatar = function ImageAvatarComponent({
       <Image
         width={'100%'}
         height={'100%'}
+        contentFit="cover"
         onError={handleLoadError}
         source={{
           uri: imageUrl,

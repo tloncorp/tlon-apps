@@ -144,7 +144,7 @@ function BaseRightActions({
         <Action
           backgroundColor={isMuted ? '$darkBackground' : '$secondaryBackground'}
           color={isMuted ? '$secondaryText' : '$secondaryText'}
-          iconType={isMuted ? 'Notifications' : 'Mute'}
+          iconType={isMuted ? 'Notifications' : 'Muted'}
           handleAction={handleMute}
         />
       </Animated.View>
