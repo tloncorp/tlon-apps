@@ -88,10 +88,8 @@ export default function ChannelScreen({
     editingPost,
     setEditingPost,
     editPost,
-    contacts,
     channel,
     group,
-    calmSettings,
     currentUserId,
     headerMode,
   } = useChannelContext({
@@ -268,12 +266,10 @@ export default function ChannelScreen({
         channel={channel}
         initialChannelUnread={initialChannelUnread}
         currentUserId={currentUserId}
-        calmSettings={calmSettings}
         isLoadingPosts={isLoadingPosts}
         hasNewerPosts={postsQuery.hasPreviousPage}
         hasOlderPosts={postsQuery.hasNextPage}
         group={group}
-        contacts={contacts}
         posts={posts}
         selectedPostId={selectedPostId}
         goBack={goBack}
@@ -311,7 +307,6 @@ export default function ChannelScreen({
           onOpenChange={(open) => setChannelNavOpen(open)}
           group={group}
           channels={group?.channels || []}
-          contacts={contacts ?? []}
           onSelect={handleChannelSelected}
         />
       )}

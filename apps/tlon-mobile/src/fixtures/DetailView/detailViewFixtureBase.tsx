@@ -40,12 +40,10 @@ export const DetailViewFixture = ({
             }}
             posts={replies}
             channel={channel}
-            currentUserId={post.authorId}
             sendReply={async () => {}}
             onPressRetry={() => {}}
             onPressDelete={() => {}}
             groupMembers={[]}
-            contacts={[]}
             negotiationMatch={true}
             editPost={async () => {}}
             uploadAsset={async () => {}}

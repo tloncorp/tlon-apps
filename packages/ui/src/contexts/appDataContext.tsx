@@ -1,11 +1,12 @@
 import * as db from '@tloncorp/shared/dist/db';
-import {
-  ReactNode,
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-} from 'react';
+import { Session } from '@tloncorp/shared/dist/store';
+import { PropsWithChildren, createContext, useContext, useMemo } from 'react';
+
+export type CalmState = {
+  disableAvatars: boolean;
+  disableRemoteContent: boolean;
+  disableNicknames: boolean;
+};
 
 export type CurrentAppDataState = {
   currentUserId: string;
@@ -13,53 +14,54 @@ export type CurrentAppDataState = {
   contactIndex: Record<string, db.Contact> | null;
   branchDomain: string;
   branchKey: string;
+  session: Session | null;
+  calmSettings: CalmState;
 };
 
 type ContextValue = CurrentAppDataState;
 
-const defaultState: CurrentAppDataState = {
-  currentUserId: '',
-  contacts: null,
-  contactIndex: null,
-  branchDomain: '',
-  branchKey: '',
+const Context = createContext<ContextValue | undefined>(undefined);
+
+export const AppDataContextProvider = ({
+  children,
+  currentUserId,
+  contacts,
+  branchDomain,
+  branchKey,
+  calmSettings,
+  session,
+}: PropsWithChildren<Partial<CurrentAppDataState>>) => {
+  const value = useMemo(
+    () => ({
+      currentUserId: currentUserId ?? '',
+      contacts: contacts ?? [],
+      contactIndex: buildContactIndex(contacts ?? []),
+      branchDomain: branchDomain ?? '',
+      branchKey: branchKey ?? '',
+      calmSettings: calmSettings ?? {
+        disableRemoteContent: false,
+        disableAvatars: false,
+        disableNicknames: false,
+      },
+      session: session ?? null,
+    }),
+    [currentUserId, contacts, branchDomain, branchKey, session, calmSettings]
+  );
+  return <Context.Provider value={value}>{children}</Context.Provider>;
 };
 
-const Context = createContext<ContextValue>(defaultState);
-
 export const useCurrentUserId = () => {
-  const context = useContext(Context);
-
-  if (!context) {
-    throw new Error(
-      'Must call `useCurrentUser` within an `CurrentUserProvider` component.'
-    );
-  }
-
+  const context = useAppDataContext();
   return context.currentUserId;
 };
 
 export const useContacts = () => {
-  const context = useContext(Context);
-
-  if (!context) {
-    throw new Error(
-      'Must call `useContacts` within an `ContactsProvider` component.'
-    );
-  }
-
+  const context = useAppDataContext();
   return context.contacts;
 };
 
 export const useContactIndex = () => {
-  const context = useContext(Context);
-
-  if (!context) {
-    throw new Error(
-      'Must call `useContacts` within an `ContactsProvider` component.'
-    );
-  }
-
+  const context = useAppDataContext();
   return context.contactIndex;
 };
 
@@ -68,64 +70,31 @@ export const useContact = (ship: string) => {
   return contactIndex?.[ship] ?? null;
 };
 
-export const useContactGetter = () => {
-  const contactIndex = useContactIndex();
-  const getFromIndex = useCallback(
-    (contactId: string) => contactIndex?.[contactId] ?? null,
-    [contactIndex]
-  );
-  return getFromIndex;
-};
-
 export const useBranchDomain = () => {
-  const context = useContext(Context);
-
-  if (!context) {
-    throw new Error(
-      'Must call `useBranchDomain` within an `AppDataContextProvider` component.'
-    );
-  }
-
+  const context = useAppDataContext();
   return context.branchDomain;
 };
 
 export const useBranchKey = () => {
+  const context = useAppDataContext();
+  return context.branchKey;
+};
+
+export const useCalm = () => {
+  const context = useAppDataContext();
+  return context.calmSettings;
+};
+
+const useAppDataContext = (): CurrentAppDataState => {
   const context = useContext(Context);
 
   if (!context) {
     throw new Error(
-      'Must call `useBranchKey` within an `AppDataContextProvider` component.'
+      'Must call `useCurrentUser` within an `CurrentUserProvider` component.'
     );
   }
 
-  return context.branchKey;
-};
-
-export const AppDataContextProvider = ({
-  children,
-  currentUserId,
-  contacts,
-  branchDomain,
-  branchKey,
-}: {
-  children: ReactNode;
-  currentUserId?: string;
-  contacts: db.Contact[] | null;
-  branchDomain?: string;
-  branchKey?: string;
-}) => {
-  const value = useMemo(
-    () => ({
-      contacts,
-      contactIndex: buildContactIndex(contacts ?? []),
-      currentUserId: currentUserId ?? '',
-      branchDomain: branchDomain ?? '',
-      branchKey: branchKey ?? '',
-    }),
-    [contacts, currentUserId, branchDomain, branchKey]
-  );
-
-  return <Context.Provider value={value}>{children}</Context.Provider>;
+  return context;
 };
 
 function buildContactIndex(contacts: db.Contact[]) {

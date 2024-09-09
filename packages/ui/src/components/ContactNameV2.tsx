@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 
+import { useCalm } from '../contexts';
 import { useContact } from '../contexts/appDataContext';
-import { useCalm } from '../contexts/calm';
 import { formatUserId } from '../utils/user';
 import { Text } from './TextV2';
 

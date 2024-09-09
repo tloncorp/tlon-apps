@@ -1,4 +1,4 @@
-import { PostScreenView } from '@tloncorp/ui';
+import { AppDataContextProvider, PostScreenView } from '@tloncorp/ui';
 
 import {
   createFakePosts,
@@ -10,7 +10,14 @@ import {
 const posts = createFakePosts(10);
 
 export default (
-  <>
+  <AppDataContextProvider
+    contacts={initialContacts}
+    calmSettings={{
+      disableAvatars: false,
+      disableNicknames: false,
+      disableRemoteContent: false,
+    }}
+  >
     <PostScreenView
       handleGoToUserProfile={() => {}}
       editPost={async () => {}}
@@ -20,13 +27,6 @@ export default (
       negotiationMatch={true}
       setEditingPost={() => {}}
       parentPost={null}
-      currentUserId="~solfer-magfed"
-      contacts={initialContacts}
-      calmSettings={{
-        disableAvatars: false,
-        disableNicknames: false,
-        disableRemoteContent: false,
-      }}
       uploadAsset={async () => {}}
       channel={tlonLocalBulletinBoard}
       posts={posts}
@@ -38,5 +38,5 @@ export default (
       clearDraft={() => {}}
       canUpload={true}
     />
-  </>
+  </AppDataContextProvider>
 );
