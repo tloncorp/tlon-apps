@@ -90,7 +90,7 @@ export const useLureState = create<LureState>(
             app: 'reel',
             mark: 'reel-undescribe',
             json: {
-              token: getFlagParts(flag).name,
+              token: flag,
             },
           });
         } else {

@@ -74,7 +74,10 @@ export const createDeepLink = async (
       return undefined;
     }
   }
-  const alias = path.replace('~', '').replace('/', '-');
+
+  const parsedURL = new URL(fallbackUrl);
+  const token = parsedURL.pathname.split('/').pop();
+  const alias = token || path.replace('~', '').replace('/', '-');
   const data: DeepLinkData = {
     $desktop_url: fallbackUrl,
     $canonical_url: fallbackUrl,
