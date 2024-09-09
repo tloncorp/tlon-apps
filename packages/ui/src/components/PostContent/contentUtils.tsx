@@ -169,6 +169,7 @@ export function convertContent(input: unknown): PostContent {
   }
 
   const story: NonNullable<api.PostContent> =
+    // defensive, post content should always already be JSON
     typeof input === 'string' ? JSON.parse(input) : input;
 
   for (const verse of story) {

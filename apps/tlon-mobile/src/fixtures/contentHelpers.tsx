@@ -174,7 +174,7 @@ export const makePost = (
   content: PostContent,
   extra?: any
 ) => {
-  const post = createFakePost('chat', JSON.stringify(content));
+  const post = createFakePost('chat', content);
   post.authorId = contact.id;
   post.author = contact;
   return { ...post, reactions: [], ...extra };

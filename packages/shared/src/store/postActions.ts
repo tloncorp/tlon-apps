@@ -94,8 +94,7 @@ export async function retrySendPost({
   // optimistic update
   await db.updatePost({ id: post.id, deliveryStatus: 'pending' });
 
-  const content = JSON.parse(post.content as string) as PostContent;
-  const story = toUrbitStory(content);
+  const story = post.content ? toUrbitStory(post.content) : [];
 
   logger.log('retrySendPost: sending post', { post, story });
 
@@ -136,7 +135,7 @@ export async function editPost({
   const [contentForDb, flags] = toPostContent(content);
   await db.updatePost({
     id: post.id,
-    content: JSON.stringify(contentForDb),
+    content: contentForDb,
     ...flags,
   });
   logger.log('editPost optimistic update done');
