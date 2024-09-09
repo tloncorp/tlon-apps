@@ -16,6 +16,8 @@ import Swipeable, {
 import Animated, {
   SharedValue,
   useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from 'react-native-reanimated';
 import { ColorTokens, Stack, View, getTokenValue } from 'tamagui';
 
@@ -32,6 +34,7 @@ function BaseSwipableChatRow({
   onLongPress,
 }: ListItemProps<Chat> & { model: db.Channel }) {
   const swipeableRef = useRef<SwipeableMethods>(null);
+  const isOpen = useSharedValue(0);
 
   const isMuted = useMemo(() => {
     if (model.group) {
@@ -85,6 +88,20 @@ function BaseSwipableChatRow({
     [handleAction, mutedState]
   );
 
+  const animatedShadowStyle = useAnimatedStyle(() => {
+    return {
+      shadowOpacity: isOpen.value * 0.2,
+    };
+  });
+
+  const onSwipeableWillOpen = useCallback(() => {
+    isOpen.value = withTiming(1, { duration: 150 });
+  }, []);
+
+  const onSwipeableWillClose = useCallback(() => {
+    isOpen.value = withTiming(0, { duration: 150 });
+  }, []);
+
   return (
     <Swipeable
       ref={swipeableRef}
@@ -94,6 +111,24 @@ function BaseSwipableChatRow({
       friction={1.5}
       overshootLeft={false}
       overshootRight={false}
+      onSwipeableWillOpen={onSwipeableWillOpen}
+      onSwipeableWillClose={onSwipeableWillClose}
+      containerStyle={{
+        overflow: 'visible',
+      }}
+      childrenContainerStyle={[
+        {
+          shadowColor: '$shadow',
+          shadowOffset: {
+            width: 0,
+            height: 0,
+          },
+          shadowRadius: 4,
+          elevation: 10,
+          zIndex: 10,
+        },
+        animatedShadowStyle,
+      ]}
     >
       <ChatListItem model={model} onPress={onPress} onLongPress={onLongPress} />
     </Swipeable>
@@ -130,8 +165,8 @@ function BaseRightActions({
         style={[
           containerStyle,
           {
-            borderBottomRightRadius: getTokenValue('$m', 'radius'),
-            borderTopRightRadius: getTokenValue('$m', 'radius'),
+            borderBottomRightRadius: getTokenValue('$xl', 'radius'),
+            borderTopRightRadius: getTokenValue('$xl', 'radius'),
           },
         ]}
       >
