@@ -1,0 +1,22 @@
+diff --git a/React/Views/ScrollView/RCTScrollView.m b/React/Views/ScrollView/RCTScrollView.m
+index 7aa9b2a2300d39b16906cd4f7ea0488a6343a696..e284769e3dec46a9cc9351e739dbfe94dcf0e252 100644
+--- a/React/Views/ScrollView/RCTScrollView.m
++++ b/React/Views/ScrollView/RCTScrollView.m
+@@ -976,7 +976,7 @@ - (void)uiManagerWillPerformMounting:(RCTUIManager *)manager
+             CGPointMake(self->_scrollView.contentOffset.x + deltaX, self->_scrollView.contentOffset.y);
+         if (autoscrollThreshold != nil) {
+           // If the offset WAS within the threshold of the start, animate to the start.
+-          if (x - deltaX <= [autoscrollThreshold integerValue]) {
++          if (x <= [autoscrollThreshold integerValue]) {
+             [self scrollToOffset:CGPointMake(-leftInset, self->_scrollView.contentOffset.y) animated:YES];
+           }
+         }
+@@ -992,7 +992,7 @@ - (void)uiManagerWillPerformMounting:(RCTUIManager *)manager
+             CGPointMake(self->_scrollView.contentOffset.x, self->_scrollView.contentOffset.y + deltaY);
+         if (autoscrollThreshold != nil) {
+           // If the offset WAS within the threshold of the start, animate to the start.
+-          if (y - deltaY <= [autoscrollThreshold integerValue]) {
++          if (y <= [autoscrollThreshold integerValue]) {
+             [self scrollToOffset:CGPointMake(self->_scrollView.contentOffset.x, -bottomInset) animated:YES];
+           }
+         }
