@@ -23,7 +23,7 @@ import { preSig } from '@urbit/aura';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
-import type { OnboardingStackParamList } from '../types';
+import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ReserveShip'>;
 

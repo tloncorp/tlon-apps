@@ -12,6 +12,7 @@ const posts = createFakePosts(10);
 export default (
   <>
     <PostScreenView
+      handleGoToUserProfile={() => {}}
       editPost={async () => {}}
       onPressRetry={() => {}}
       onPressDelete={() => {}}

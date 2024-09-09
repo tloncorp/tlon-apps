@@ -134,7 +134,11 @@ export async function editPost({
   logger.log('editPost', { post, content, parentId, metadata });
   // optimistic update
   const [contentForDb, flags] = toPostContent(content);
-  await db.updatePost({ id: post.id, content: contentForDb, ...flags });
+  await db.updatePost({
+    id: post.id,
+    content: JSON.stringify(contentForDb),
+    ...flags,
+  });
   logger.log('editPost optimistic update done');
 
   try {

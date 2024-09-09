@@ -5,10 +5,10 @@ import { SizableText, Text, View, XStack, styled } from 'tamagui';
 
 import AuthorRow from '../AuthorRow';
 import { ContentReferenceLoader } from '../ContentReference/ContentReference';
-import ContentRenderer from '../ContentRenderer';
 import { Icon } from '../Icon';
 import { ImageWithFallback } from '../Image';
 import { useBoundHandler } from '../ListItem/listItemUtils';
+import { ContentRenderer } from '../PostContent';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 
 const GalleryPostFrame = styled(View, {
@@ -21,6 +21,12 @@ const GalleryPostFrame = styled(View, {
   flex: 1,
   backgroundColor: '$background',
   variants: {
+    viewMode: {
+      attachment: {
+        borderRadius: 0,
+      },
+      activity: {},
+    },
     previewType: {
       image: {
         borderWidth: 0,
@@ -56,7 +62,7 @@ export default function GalleryPost({
   onLongPress?: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => void;
   onPressDelete?: (post: db.Post) => void;
-  viewMode?: 'activity';
+  viewMode?: 'activity' | 'attachment';
   isHighlighted?: boolean;
 }) {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
@@ -105,6 +111,7 @@ export default function GalleryPost({
   return (
     <GalleryPostFrame
       previewType={previewType}
+      viewMode={viewMode}
       disabled={viewMode === 'activity'}
       onPress={
         post.deliveryStatus === 'failed'

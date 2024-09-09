@@ -1,4 +1,3 @@
-//tamagui-ignore
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
@@ -252,7 +251,7 @@ function ChatListFiltersComponent({
       height: contentHeight * openProgress.value,
       opacity: openProgress.value,
     };
-  }, [openProgress]);
+  }, [openProgress, contentHeight]);
 
   const handleContentLayout = useCallback((e: LayoutChangeEvent) => {
     setContentHeight(e.nativeEvent.layout.height);

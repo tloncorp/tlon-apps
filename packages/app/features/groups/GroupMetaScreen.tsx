@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/dist/store';
 import {
   AttachmentProvider,
@@ -8,6 +9,7 @@ import {
 } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
+import { BRANCH_DOMAIN, BRANCH_KEY } from '../../constants';
 import { useGroupContext } from '../../hooks/useGroupContext';
 
 export function GroupMetaScreen({
@@ -22,13 +24,26 @@ export function GroupMetaScreen({
   });
   const canUpload = useCanUpload();
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
+  const { enabled, describe } = store.useLure({
+    flag: groupId,
+    branchDomain: BRANCH_DOMAIN,
+    branchKey: BRANCH_KEY,
+  });
 
   const handleSubmit = useCallback(
     (data: db.ClientMeta) => {
       setGroupMetadata(data);
       onGoBack();
+      if (enabled) {
+        describe({
+          title: data.title ?? '',
+          description: data.description ?? '',
+          image: data.iconImage ?? '',
+          cover: data.coverImage ?? '',
+        });
+      }
     },
-    [setGroupMetadata, onGoBack]
+    [setGroupMetadata, onGoBack, enabled, describe]
   );
 
   const handlePressDelete = useCallback(() => {

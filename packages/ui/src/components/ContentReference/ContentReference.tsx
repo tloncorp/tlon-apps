@@ -2,17 +2,24 @@ import { ContentReference } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { getChannelType } from '@tloncorp/shared/dist/urbit';
 import { ComponentProps, useCallback } from 'react';
-import { SizableText, XStack, styled } from 'tamagui';
+import { XStack, styled } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
 import { useRequests } from '../../contexts/requests';
 import { ContactAvatar } from '../Avatar';
-import ContactName from '../ContactName';
-import ContentRenderer, { PostViewMode } from '../ContentRenderer';
+import { ContactName } from '../ContactNameV2';
+import { GalleryPost } from '../GalleryPost';
 import { IconType } from '../Icon';
 import { ListItem } from '../ListItem';
-import { ReferenceProps, ReferenceSkeleton } from './Reference';
-import { Reference, ReferenceContext, useReferenceContext } from './Reference';
+import { ContentRenderer, PostViewMode } from '../PostContent';
+import { Text } from '../TextV2';
+import {
+  Reference,
+  ReferenceContext,
+  ReferenceProps,
+  ReferenceSkeleton,
+  useReferenceContext,
+} from './Reference';
 
 // Any reference
 
@@ -101,12 +108,6 @@ export const PostReference = ({
   const meta =
     channelType in typeMeta ? typeMeta[channelType] : typeMeta['chat'];
   const { viewMode } = useReferenceContext();
-  const shortened =
-    channelType === 'gallery'
-      ? false
-      : channelType === 'notebook'
-        ? true
-        : viewMode === 'attachment' || viewMode === 'block';
   return (
     <Reference {...props} renderMode={post?.type}>
       <Reference.Header>
@@ -116,32 +117,28 @@ export const PostReference = ({
         </Reference.Title>
         <Reference.ActionIcon />
       </Reference.Header>
-      {post && (
-        <Reference.Body>
-          {post.type === 'note' ? (
-            <>
-              {post.title && (
-                <SizableText size={'$xl'}>{post.title}</SizableText>
-              )}
-              <PostAuthor contactId={post.authorId} />
-              <ContentRenderer
-                viewMode={props.viewMode}
-                shortened={shortened}
-                post={post}
-              />
-            </>
-          ) : (
-            <>
-              <PostAuthor contactId={post.authorId} />
-              <ContentRenderer
-                viewMode={props.viewMode}
-                shortened={shortened}
-                post={post}
-              />
-            </>
-          )}
+      {post?.type === 'block' ? (
+        <Reference.Body padding={0} aspectRatio={1}>
+          <GalleryPost post={post} viewMode="attachment" />
         </Reference.Body>
-      )}
+      ) : post?.type === 'note' ? (
+        <Reference.Body>
+          {post.title && <Text size="$title/l">{post.title}</Text>}
+          <PostAuthor contactId={post.authorId} />
+          <Text size="$body" trimmed={false} numberOfLines={6}>
+            {post.textContent}
+          </Text>
+        </Reference.Body>
+      ) : post ? (
+        <Reference.Body>
+          <PostAuthor contactId={post.authorId} />
+          <ContentRenderer
+            viewMode={props.viewMode}
+            shortened={viewMode === 'attachment' || viewMode === 'block'}
+            post={post}
+          />
+        </Reference.Body>
+      ) : null}
     </Reference>
   );
 };
@@ -151,6 +148,7 @@ const PostAuthorFrame = styled(XStack, {
   name: 'PostAuthorFrame',
   gap: '$m',
   alignItems: 'center',
+  paddingBottom: '$2xs',
 });
 
 const PostAuthor = ({
@@ -162,9 +160,8 @@ const PostAuthor = ({
       <ContactAvatar contactId={contactId} size="$xl" />
       <ContactName
         color="$tertiaryText"
-        size="$s"
-        userId={contactId}
-        showNickname
+        size="$label/m"
+        contactId={contactId}
         maxWidth={'unset'}
       />
     </PostAuthorFrame>
@@ -213,6 +210,7 @@ export function GroupReferenceLoader({
       isError={isError}
       {...props}
       data={group}
+      hasData={!!group}
       onPress={openOnPress ? onPress : undefined}
     />
   );
@@ -233,7 +231,7 @@ export function GroupReference({
       </Reference.Header>
       {data && (
         <Reference.Body padding={0}>
-          <ListItem pressable={false} backgroundColor={'transparent'}>
+          <ListItem pressable={false} backgroundColor={'transparent'} gap="$m">
             <ListItem.GroupIcon model={data} />
             <ListItem.MainContent>
               <ListItem.Title>{data.title ?? data.id}</ListItem.Title>

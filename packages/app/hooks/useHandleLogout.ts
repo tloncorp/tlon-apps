@@ -3,7 +3,11 @@ import { useCallback } from 'react';
 
 import { clearShipInfo, useShip } from '../contexts/ship';
 import { resetDb } from '../lib/nativeDb';
-import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
+import {
+  removeHostingAuthTracking,
+  removeHostingToken,
+  removeHostingUserId,
+} from '../utils/hosting';
 
 export function useHandleLogout() {
   const { clearShip } = useShip();
@@ -15,9 +19,10 @@ export function useHandleLogout() {
     clearShipInfo();
     removeHostingToken();
     removeHostingUserId();
+    removeHostingAuthTracking();
     // delay DB reset to next tick to avoid race conditions
     setTimeout(() => resetDb());
-  }, []);
+  }, [clearShip]);
 
   return handleLogout;
 }

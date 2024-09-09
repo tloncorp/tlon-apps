@@ -11,7 +11,7 @@ import { useState } from 'react';
 import { ImageBackground, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { OnboardingStackParamList } from '../types';
+import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Welcome'>;
 
@@ -21,8 +21,8 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   const [open, setOpen] = useState(false);
 
   const bgSource = isDarkMode
-    ? require('../../assets/images/welcome-bg-dark.png')
-    : require('../../assets/images/welcome-bg.png');
+    ? require('../../../assets/images/welcome-bg-dark.png')
+    : require('../../../assets/images/welcome-bg.png');
 
   return (
     <View flex={1}>
@@ -41,7 +41,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
             hero={true}
             shadow={true}
             onPress={() => {
-              navigation.navigate('SignUpEmail');
+              navigation.navigate('InventoryCheck');
             }}
           >
             Sign Up with Email

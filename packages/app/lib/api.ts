@@ -35,11 +35,13 @@ export function configureClient({
   shipUrl,
   onReset,
   onChannelReset,
+  verbose,
 }: {
   shipName: string;
   shipUrl: string;
   onReset?: () => void;
   onChannelReset?: () => void;
+  verbose?: boolean;
 }) {
   api.configureClient({
     shipName,
@@ -47,5 +49,6 @@ export function configureClient({
     fetchFn: apiFetch,
     onReset,
     onChannelReset,
+    verbose,
   });
 }

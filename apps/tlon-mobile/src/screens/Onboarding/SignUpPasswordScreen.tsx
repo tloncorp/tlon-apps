@@ -9,12 +9,16 @@ import {
   logInHostingUser,
   signUpHostingUser,
 } from '@tloncorp/app/lib/hostingApi';
+import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Button,
+  CheckboxInput,
   Field,
   GenericHeader,
+  Icon,
   KeyboardAvoidingView,
+  ListItem,
   SizableText,
   Text,
   TextInput,
@@ -24,13 +28,14 @@ import {
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
-import type { OnboardingStackParamList } from '../types';
+import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignUpPassword'>;
 
 type FormData = {
   password: string;
   confirmPassword: string;
+  eulaAgreed: boolean;
 };
 
 export const SignUpPasswordScreen = ({
@@ -47,9 +52,20 @@ export const SignUpPasswordScreen = ({
     formState: { errors, isValid },
     setError,
     trigger,
-  } = useForm<FormData>();
+    watch,
+  } = useForm<FormData>({
+    defaultValues: {
+      eulaAgreed: false,
+    },
+    mode: 'onChange',
+  });
 
-  const onSubmit = handleSubmit(async ({ password }) => {
+  const handleEula = () => {
+    navigation.navigate('EULA');
+  };
+
+  const onSubmit = handleSubmit(async (params) => {
+    const { password } = params;
     setIsSubmitting(true);
 
     let recaptchaToken: string | undefined;
@@ -66,7 +82,20 @@ export const SignUpPasswordScreen = ({
       }
     }
 
+    if (params.eulaAgreed) {
+      await setEulaAgreed();
+    }
+
     if (!recaptchaToken) {
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!isEulaAgreed()) {
+      setError('eulaAgreed', {
+        type: 'custom',
+        message: 'Please agree to the End User License Agreement to continue.',
+      });
       setIsSubmitting(false);
       return;
     }
@@ -88,7 +117,6 @@ export const SignUpPasswordScreen = ({
         });
         trackError(err);
       }
-
       setIsSubmitting(false);
       return;
     }
@@ -145,10 +173,12 @@ export const SignUpPasswordScreen = ({
     <View flex={1}>
       <GenericHeader
         title="Set Password"
+        showSessionStatus={false}
         goBack={() => navigation.goBack()}
         showSpinner={isSubmitting}
         rightContent={
-          isValid && (
+          isValid &&
+          watch('eulaAgreed') && (
             <Button minimal onPress={onSubmit}>
               <Text fontSize="$m">Next</Text>
             </Button>
@@ -221,6 +251,29 @@ export const SignUpPasswordScreen = ({
               </Field>
             )}
           />
+          <Controller
+            control={control}
+            name="eulaAgreed"
+            render={({ field: { onChange, value } }) => (
+              <CheckboxInput
+                option={{
+                  title:
+                    'I have read and agree to the End User License Agreement',
+                  value: 'agreed',
+                }}
+                checked={value}
+                onChange={() => onChange(!value)}
+              />
+            )}
+          />
+          <ListItem onPress={handleEula}>
+            <ListItem.MainContent>
+              <ListItem.Title>End User License Agreement</ListItem.Title>
+            </ListItem.MainContent>
+            <ListItem.EndContent>
+              <Icon type="ChevronRight" color="$primaryText" />
+            </ListItem.EndContent>
+          </ListItem>
         </YStack>
       </KeyboardAvoidingView>
     </View>

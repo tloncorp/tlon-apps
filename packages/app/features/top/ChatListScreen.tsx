@@ -12,6 +12,7 @@ import {
   FloatingAddButton,
   GroupPreviewSheet,
   Icon,
+  InviteUsersSheet,
   NavBarView,
   RequestsProvider,
   ScreenHeader,
@@ -48,6 +49,8 @@ export default function ChatListScreen({
   navigateToHome,
   navigateToNotifications,
   navigateToProfile,
+  branchDomain,
+  branchKey,
 }: {
   startDmOpen: boolean;
   setStartDmOpen: (open: boolean) => void;
@@ -58,8 +61,11 @@ export default function ChatListScreen({
   navigateToHome: () => void;
   navigateToNotifications: () => void;
   navigateToProfile: () => void;
+  branchDomain: string;
+  branchKey: string;
 }) {
   const [screenTitle, setScreenTitle] = useState('Home');
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
   const [longPressedChat, setLongPressedChat] = useState<
     db.Channel | db.Group | null
@@ -119,7 +125,6 @@ export default function ChatListScreen({
     [navigateToDm, setStartDmOpen]
   );
 
-
   const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   const onPressChat = useCallback(
@@ -166,6 +171,11 @@ export default function ChatListScreen({
     }
   }, []);
 
+  const handleInviteSheetOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setInviteSheetGroup(null);
+    }
+  }, []);
 
   const { pinned: pinnedChats, unpinned } = resolvedChats;
   const allChats = [...pinnedChats, ...unpinned];
@@ -226,6 +236,8 @@ export default function ChatListScreen({
       <AppDataContextProvider
         currentUserId={currentUser}
         contacts={contacts ?? []}
+        branchKey={branchKey}
+        branchDomain={branchDomain}
       >
         <RequestsProvider
           usePostReference={store.usePostReference}
@@ -239,6 +251,9 @@ export default function ChatListScreen({
             groupId={chatOptionsGroupId}
             pinned={pinned}
             {...useChatSettingsNavigation()}
+            onPressInvite={(group) => {
+              setInviteSheetGroup(group);
+            }}
           >
             <View flex={1}>
               <ScreenHeader
@@ -289,6 +304,12 @@ export default function ChatListScreen({
                 open={selectedGroup !== null}
                 onOpenChange={handleGroupPreviewSheetOpenChange}
                 group={selectedGroup ?? undefined}
+              />
+              <InviteUsersSheet
+                open={inviteSheetGroup !== null}
+                onOpenChange={handleInviteSheetOpenChange}
+                onInviteComplete={() => setInviteSheetGroup(null)}
+                group={inviteSheetGroup ?? undefined}
               />
             </View>
             <NavBarView

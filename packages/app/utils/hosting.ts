@@ -42,3 +42,8 @@ export async function getLastHostingAuthCheck() {
 export async function setLastHostingAuthCheck(value: number) {
   await AsyncStorage.setItem('hosting:lastAuthCheck', String(value));
 }
+
+export async function removeHostingAuthTracking() {
+  await AsyncStorage.removeItem('hosting:hostingAuthExpired');
+  await AsyncStorage.removeItem('hosting:lastAuthCheck');
+}

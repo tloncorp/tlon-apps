@@ -147,7 +147,7 @@ export default function ChannelScreen({
   } = store.useChannelPosts({
     enabled: !!channel && !channel?.isPendingChannel,
     channelId: currentChannelId,
-    count: 50,
+    count: 15,
     hasCachedNewest,
     ...(cursor
       ? {

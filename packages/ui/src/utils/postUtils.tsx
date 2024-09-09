@@ -44,3 +44,28 @@ export function useReactionDetails(
     return details;
   }, [reactions, ourId]);
 }
+
+export type GroupedReactions = Record<
+  string,
+  { value: string; userId: string }[]
+>;
+
+export function useGroupedReactions(
+  reactions: db.Reaction[]
+): GroupedReactions {
+  return useMemo(() => {
+    const groupedReactions: GroupedReactions = {};
+
+    reactions.forEach((reaction) => {
+      if (!groupedReactions[reaction.value]) {
+        groupedReactions[reaction.value] = [];
+      }
+      groupedReactions[reaction.value].push({
+        value: reaction.value,
+        userId: reaction.contactId,
+      });
+    });
+
+    return groupedReactions;
+  }, [reactions]);
+}

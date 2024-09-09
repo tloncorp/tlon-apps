@@ -2,6 +2,7 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const { mergeConfig } = require('@react-native/metro-config');
 const path = require('path');
+const fs = require('fs');
 const connect = require('connect');
 const { spawn } = require('child_process');
 
@@ -28,15 +29,64 @@ module.exports = mergeConfig(config, {
   },
   server: {
     enhanceMiddleware: (metroMiddleware) => {
-      return connect()
-        .use(metroMiddleware)
-        .use('/open-sqlite', (req, res) => {
-          const dbPath = new URL('http://localhost' + req.url).searchParams.get(
-            'path'
-          );
-          openDrizzleStudio(dbPath);
-          res.end('ok');
-        });
+      return (
+        connect()
+          .use(metroMiddleware)
+          .use('/open-sqlite', (req, res) => {
+            const dbPath = new URL(
+              'http://localhost' + req.url
+            ).searchParams.get('path');
+            openDrizzleStudio(dbPath);
+            res.end('ok');
+          })
+          /**
+           * Dumps SQLite database from simulator to Metro host.
+           * - databaseSourcePath: path to the SQLite database in the simulator.
+           * - outputPath: path for output file, relative to workspace root
+           */
+          .use('/dump-sqlite', (req, res) => {
+            const params = new URL('http://localhost' + req.url).searchParams;
+            const dbPath = params.get('databaseSourcePath');
+            const outputPath = params.get('outputPath');
+            const dest = path.resolve(workspaceRoot, outputPath);
+            try {
+              fs.copyFileSync(dbPath, dest);
+              console.log('/dump-sqlite', 'Copied', dbPath, 'to', dest);
+              res.end('ok');
+            } catch (err) {
+              console.error('/dump-sqlite', err);
+              res.statusCode = 500;
+              res.end(err.message);
+            }
+          })
+          /**
+           * Replaces SQLite on simulator with a database from Metro host.
+           * - sourcePath: path of database file on Metro host
+           * - targetPath: path of database on simulator that will be overwritten
+           *   with contents of file at `sourcePath`
+           */
+          .use('/restore-sqlite', (req, res) => {
+            const params = new URL('http://localhost' + req.url).searchParams;
+            const sourcePath = params.get('sourcePath');
+            const targetPath = params.get('targetPath');
+
+            try {
+              fs.copyFileSync(sourcePath, targetPath);
+              console.log(
+                '/restore-sqlite',
+                'Copied',
+                sourcePath,
+                'to',
+                targetPath
+              );
+              res.end('ok');
+            } catch (err) {
+              console.error('/restore-sqlite', err);
+              res.statusCode = 500;
+              res.end(err.message);
+            }
+          })
+      );
     },
   },
   resolver: {

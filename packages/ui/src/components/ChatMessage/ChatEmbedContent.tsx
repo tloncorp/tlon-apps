@@ -3,10 +3,10 @@ import { Linking, TouchableOpacity } from 'react-native';
 import { SizableText, View } from 'tamagui';
 
 import { useCalm } from '../../contexts';
-import { PostViewMode } from '../ContentRenderer';
-import { AudioEmbed, OutsideEmbed, VideoEmbed } from '../Embed';
+import { AudioEmbed, OutsideEmbed } from '../Embed';
 import { Icon } from '../Icon';
 import { ImageWithFallback } from '../Image';
+import { PostViewMode } from '../PostContent';
 
 const trustedProviders = [
   {
@@ -37,7 +37,6 @@ export default function ChatEmbedContent({
   viewMode?: PostViewMode;
 }) {
   const isAudio = utils.AUDIO_REGEX.test(url);
-  const isVideo = utils.VIDEO_REGEX.test(url);
   const isImage = utils.IMAGE_REGEX.test(url);
   const isTrusted = trustedProviders.some((provider) =>
     provider.regex.test(url)
@@ -50,10 +49,6 @@ export default function ChatEmbedContent({
   };
 
   if (!calm.disableRemoteContent) {
-    if (isVideo) {
-      return <VideoEmbed url={url} />;
-    }
-
     if (isImage) {
       return (
         <TouchableOpacity

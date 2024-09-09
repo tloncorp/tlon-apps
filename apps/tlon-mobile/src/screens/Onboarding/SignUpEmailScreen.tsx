@@ -1,10 +1,13 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { EMAIL_REGEX } from '@tloncorp/app/constants';
-import { requestPasswordReset } from '@tloncorp/app/lib/hostingApi';
-import { trackError } from '@tloncorp/app/utils/posthog';
+import {
+  DEFAULT_LURE,
+  DEFAULT_PRIORITY_TOKEN,
+  EMAIL_REGEX,
+} from '@tloncorp/app/constants';
+import { getHostingAvailability } from '@tloncorp/app/lib/hostingApi';
+import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Button,
-  Field,
   GenericHeader,
   KeyboardAvoidingView,
   SizableText,
@@ -13,21 +16,26 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
+import { Field } from '@tloncorp/ui';
 import { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
+import { Controller } from 'react-hook-form';
 
-import type { OnboardingStackParamList } from '../types';
+import type { OnboardingStackParamList } from '../../types';
 
-type Props = NativeStackScreenProps<OnboardingStackParamList, 'ResetPassword'>;
+type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignUpEmail'>;
 
 type FormData = {
   email: string;
 };
 
-export const ResetPasswordScreen = ({
+export const SignUpEmailScreen = ({
   navigation,
   route: {
-    params: { email: emailParam },
+    params: {
+      lure = DEFAULT_LURE,
+      priorityToken = DEFAULT_PRIORITY_TOKEN,
+    } = {},
   },
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,20 +46,37 @@ export const ResetPasswordScreen = ({
     formState: { errors, isValid },
     setError,
     trigger,
-  } = useForm<FormData>({
-    defaultValues: {
-      email: emailParam,
-    },
-  });
+  } = useForm<FormData>();
 
   const onSubmit = handleSubmit(async ({ email }) => {
     setIsSubmitting(true);
 
     try {
-      await requestPasswordReset(email);
-      navigation.goBack();
+      const { enabled, validEmail } = await getHostingAvailability({
+        email,
+        lure,
+        priorityToken,
+      });
+
+      if (!enabled) {
+        navigation.navigate('JoinWaitList', { email, lure });
+      } else if (!validEmail) {
+        setError('email', {
+          type: 'custom',
+          message:
+            'This email address is ineligible for signup. Please contact support@tlon.io.',
+        });
+        trackError({ message: 'Ineligible email address' });
+      } else {
+        trackOnboardingAction({
+          actionName: 'Email submitted',
+          email,
+          lure,
+        });
+        navigation.navigate('SignUpPassword', { email, lure, priorityToken });
+      }
     } catch (err) {
-      console.error('Error resetting password:', err);
+      console.error('Error getting hosting availability:', err);
       if (err instanceof Error) {
         setError('email', {
           type: 'custom',
@@ -67,22 +92,23 @@ export const ResetPasswordScreen = ({
   return (
     <View flex={1}>
       <GenericHeader
-        title="Reset Password"
+        title="Sign Up"
+        showSessionStatus={false}
         goBack={() => navigation.goBack()}
         showSpinner={isSubmitting}
         rightContent={
           isValid && (
             <Button minimal onPress={onSubmit}>
-              <Text fontSize={'$m'}>Submit</Text>
+              <Text fontSize={'$m'}>Next</Text>
             </Button>
           )
         }
       />
-      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
+      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
         <YStack gap="$2xl" padding="$2xl">
-          <SizableText size="$l">
-            Enter the email associated with your Tlon account. We&rsquo;ll send
-            you a link to reset your password.
+          <SizableText>
+            Enter your email address. You&rsquo;ll use it to log in to Tlon and
+            we&rsquo;ll email you the occasional service update.
           </SizableText>
           <Controller
             control={control}
@@ -97,7 +123,7 @@ export const ResetPasswordScreen = ({
             render={({ field: { onChange, onBlur, value } }) => (
               <Field label="Email" error={errors.email?.message}>
                 <TextInput
-                  placeholder="Email Address"
+                  placeholder="sampel@pal.net"
                   onBlur={() => {
                     onBlur();
                     trigger('email');

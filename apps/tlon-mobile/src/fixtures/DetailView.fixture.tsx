@@ -21,6 +21,7 @@ const NotebookDetailViewFixture = () => {
   return (
     <FixtureWrapper>
       <PostScreenView
+        handleGoToUserProfile={() => {}}
         parentPost={notebookPost}
         posts={notebookReplies}
         contacts={[]}
@@ -48,6 +49,7 @@ const GalleryDetailViewFixture = () => {
   return (
     <FixtureWrapper>
       <PostScreenView
+        handleGoToUserProfile={() => {}}
         parentPost={galleryPost}
         posts={galleryReplies}
         contacts={[]}
