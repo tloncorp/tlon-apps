@@ -416,4 +416,179 @@
       .^($-([ship nest] ?) %gx path)
     (test her nest)
   --
+::
+++  en-manx  ::NOTE  more commonly, marl, but that's just (list manx)
+  |%
+  ++  content  story
+  ++  story
+    |=  content=story:c
+    ^-  marl
+    (zing (turn content verse))
+  ::
+  ++  verse
+    |=  =verse:c
+    ^-  marl
+    ?-  -.verse
+      %block  (block p.verse)
+    ::
+        %inline
+      ;+
+      ?:  ?=([[%break ~] ~] p.verse)
+        ;br;
+      ;p
+        ;*  (turn p.verse inline)
+      ==
+    ==
+  ::
+  ++  block
+    |=  =block:c
+    ^-  marl
+    ?-  -.block
+        %image
+      ;+
+      =/  src=tape  (trip src.block)
+      ;div.image
+        ;a/"{src}"(target "_blank", rel "noreferrer")
+          ;img@"{src}"
+            =height  "{(a-co:co height.block)}"
+            =width   "{(a-co:co width.block)}"
+            =alt     "{?:(=('' alt.block) "image" (trip alt.block))}";
+        ==
+      ==
+    ::
+        %cite
+      ;+
+      ;div.cite
+        ; [reference xx]  ::TODO  link to /expose if chan ref?
+      ==
+    ::
+        %header
+      ;+
+      ?-  p.block
+        %h1  ;h1  ;*  (turn q.block inline)  ==
+        %h2  ;h2  ;*  (turn q.block inline)  ==
+        %h3  ;h3  ;*  (turn q.block inline)  ==
+        %h4  ;h4  ;*  (turn q.block inline)  ==
+        %h5  ;h5  ;*  (turn q.block inline)  ==
+        %h6  ;h6  ;*  (turn q.block inline)  ==
+      ==
+    ::
+        %listing
+      ?-  -.p.block
+          %item
+        |-  ^-  marl
+        ?:  ?=([[%break ~] ~] p.p.block)
+          ~  ::  filter out trailing newlines
+        ?~  p.p.block  ~
+        :-  (inline i.p.p.block)
+        $(p.p.block t.p.p.block)
+      ::
+          %list
+        %+  weld
+          `marl`(turn r.p.block inline)
+        ^-  marl
+        ;+
+        ?-  p.p.block
+            %ordered
+          ;ol
+            ;*  %+  turn  q.p.block
+                |=  l=listing:c
+                ;li
+                  ;*  (^block %listing l)
+                ==
+          ==
+        ::
+            %unordered
+          ;ul
+            ;*  %+  turn  q.p.block
+                |=  l=listing:c
+                ;li
+                  ;*  (^block %listing l)
+                ==
+          ==
+        ::
+            %tasklist
+          ;ul.tasklist
+            ;*  %+  turn  q.p.block
+                |=  l=listing:c
+                ;li
+                  ;*  (^block %listing l)
+                ==
+          ==
+        ==
+      ==
+    ::
+        %rule
+      ;+  ;hr;
+    ::
+        %code
+      ;+
+      ;pre
+        ;code:"{(trip code.block)}"
+      ==
+    ==
+  ::
+  ++  inline
+    |=  =inline:c
+    ^-  manx
+    ?@  inline
+      ;span:"{(trip inline)}"
+    ?-  -.inline
+        %italics
+      ;em
+        ;*  (turn p.inline ^inline)
+      ==
+    ::
+        %bold
+      ;strong
+        ;*  (turn p.inline ^inline)
+      ==
+    ::
+        %strike
+      ;s
+        ;*  (turn p.inline ^inline)
+      ==
+    ::
+        %blockquote
+      ;blockquote
+        ;*  (turn p.inline ^inline)
+      ==
+    ::
+        %inline-code
+      ;code.inline-code:"{(trip p.inline)}"
+    ::
+        %code
+      ;pre.code
+        ;code:"{(trip p.inline)}"
+      ==
+    ::
+        %ship
+      ;span.ship:"{(scow %p p.inline)}"
+    ::
+        %block
+      ;span.block:"[block xx]"
+    ::
+        %tag
+      ;span.tag:"[tag xx]"
+    ::
+        %link
+      ::TODO  prefix // if no protocol in url
+      =/  url=tape  (trip p.inline)
+      ;a/"{url}"
+        =target  "_blank"
+        =rel     "noreferrer"
+        ; "{?:(=('' q.inline) url (trip q.inline))}"
+      ==
+    ::
+        %task
+      ;div.task
+        ;+  ?.  p.inline  ;input(type "checkbox", disabled "");
+            ;input(type "checkbox", checked "", disabled "");
+        ;*  (turn q.inline ^inline)
+      ==
+    ::
+        %break
+      ;br;
+    ==
+  --
 --
