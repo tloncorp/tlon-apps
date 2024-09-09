@@ -778,19 +778,19 @@ function useAnchorScrollLock({
     }
   );
   const maintainVisibleContentPositionConfig = useMemo(() => {
-    return channelType === 'chat' ||
-      channelType === 'dm' ||
-      channelType === 'groupDm'
-      ? {
-          minIndexForVisible: 0,
-          // If this is set to a number, the list will scroll to the bottom (or top,
-          // if not inverted) when the list height changes. This is undesirable when
-          // we're starting at an older post and scrolling down towards newer ones,
-          // as it will trigger on every new page load, causing jumping. Instead, we
-          // only enable it when there's nothing newer left to load (so, for new incoming messages only).
-          autoscrollToTopThreshold: hasNewerPosts ? undefined : 0,
-        }
-      : undefined;
+    if (!['chat', 'dm', 'groupDm'].includes(channelType)) {
+      return undefined;
+    }
+
+    return {
+      minIndexForVisible: 0,
+      // If this is set to a number, the list will scroll to the bottom (or top,
+      // if not inverted) when the list height changes. This is undesirable when
+      // we're starting at an older post and scrolling down towards newer ones,
+      // as it will trigger on every new page load, causing jumping. Instead, we
+      // only enable it when there's nothing newer left to load (so, for new incoming messages only).
+      autoscrollToTopThreshold: hasNewerPosts ? undefined : 0,
+    };
   }, [hasNewerPosts, channelType]);
 
   const handleScrollToIndexFailed = useMutableCallback(
