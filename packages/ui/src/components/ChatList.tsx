@@ -31,6 +31,7 @@ import Animated, {
 import { Text, View, YStack, isWeb, useStyle } from 'tamagui';
 
 import { interactionWithTiming } from '../utils/animation';
+import { Button } from './Button';
 import { Icon } from './Icon';
 import { Input } from './Input';
 import { ChatListItem, SwipableChatListItem } from './ListItem';
@@ -54,6 +55,7 @@ function ChatListComponent({
   pendingChats,
   onLongPressItem,
   onPressItem,
+  onPressMenuButton,
   onSectionChange,
   activeTab,
   setActiveTab,
@@ -62,6 +64,7 @@ function ChatListComponent({
   pendingChats: store.PendingChats;
   onPressItem?: (chat: Chat) => void;
   onLongPressItem?: (chat: Chat) => void;
+  onPressMenuButton?: (chat: Chat) => void;
   onSectionChange?: (title: string) => void;
   activeTab: TabName;
   setActiveTab: (tab: TabName) => void;
@@ -85,20 +88,48 @@ function ChatListComponent({
     { resolveValues: 'value' }
   ) as StyleProp<ViewStyle>;
 
+  const handleMenuPress = useCallback(
+    (chat: Chat) => {
+      onPressMenuButton?.(chat);
+    },
+    [onPressMenuButton]
+  );
+
   const renderItem = useCallback(
     ({
       item,
     }: SectionListRenderItemInfo<ChatListItemData, ChatListSectionData>) => {
       const itemModel = item as Chat;
 
-      if (logic.isChannel(itemModel) && !isWeb) {
-        return (
-          <SwipableChatListItem
-            model={itemModel}
-            onPress={onPressItem}
-            onLongPress={onLongPressItem}
-          />
-        );
+      if (logic.isChannel(itemModel)) {
+        if (!isWeb) {
+          return (
+            <SwipableChatListItem
+              model={itemModel}
+              onPress={onPressItem}
+              onLongPress={onLongPressItem}
+            />
+          );
+        } else {
+          return (
+            <View>
+              <ChatListItem
+                model={itemModel}
+                onPress={onPressItem}
+                onLongPress={onLongPressItem}
+              />
+              <View position="absolute" right={-2} top={44} zIndex={1}>
+                <Button
+                  onPress={() => handleMenuPress(itemModel)}
+                  borderWidth="unset"
+                  size="$l"
+                >
+                  <Icon type="Dots" size="$s" />
+                </Button>
+              </View>
+            </View>
+          );
+        }
       } else {
         return (
           <ChatListItem
@@ -109,7 +140,7 @@ function ChatListComponent({
         );
       }
     },
-    [onPressItem, onLongPressItem]
+    [onPressItem, onLongPressItem, handleMenuPress]
   );
 
   const renderSectionHeader = useCallback(

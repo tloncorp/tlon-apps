@@ -273,6 +273,7 @@ export default function ChatListScreen({
                   pendingChats={resolvedChats.pendingChats}
                   onLongPressItem={onLongPressChat}
                   onPressItem={onPressChat}
+                  onPressMenuButton={onLongPressChat}
                   onSectionChange={handleSectionChange}
                   showFilters={showFilters}
                 />
