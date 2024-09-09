@@ -1,60 +1,82 @@
 import { utils } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/dist/api';
+import { Post } from '@tloncorp/shared/dist/db';
 import * as ub from '@tloncorp/shared/dist/urbit';
+import { PropsWithChildren, useContext, useMemo } from 'react';
+import { createStyledContext } from 'tamagui';
+
+export interface ContentContextProps {
+  isNotice?: boolean;
+  onPressImage?: (src: string) => void;
+  onLongPress?: () => void;
+}
+
+export const ContentContext = createStyledContext<ContentContextProps>({
+  isNotice: false,
+});
+
+export const useContentContext = () => useContext(ContentContext);
 
 // Inline types
 
-export type InlineStyleNode = {
+export type StyleInlineData = {
   type: 'style';
   style: 'bold' | 'italic' | 'strikethrough' | 'code';
-  children: InlineNode[];
+  children: InlineData[];
 };
 
-export type InlineTextNode = {
+export type TextInlineData = {
   type: 'text';
   text: string;
 };
 
-export type InlineMentionNode = {
+export type MentionInlineData = {
   type: 'mention';
   contactId: string;
 };
 
-export type InlineLineBreakNode = {
+export type LineBreakInlineData = {
   type: 'lineBreak';
 };
 
-export type InlineLinkNode = {
+export type LinkInlineData = {
   type: 'link';
   href: string;
   text: string;
 };
 
-export type InlineNode =
-  | InlineStyleNode
-  | InlineTextNode
-  | InlineMentionNode
-  | InlineLineBreakNode
-  | InlineLinkNode;
+export type InlineData =
+  | StyleInlineData
+  | TextInlineData
+  | MentionInlineData
+  | LineBreakInlineData
+  | LinkInlineData;
+
+export type InlineType = InlineData['type'];
+
+export type InlineFromType<T extends InlineType> = Extract<
+  InlineData,
+  { type: T }
+>;
 
 // Block content types
 
-export type BlockquoteBlock = {
+export type BlockquoteBlockData = {
   type: 'blockquote';
-  content: InlineNode[];
+  content: InlineData[];
 };
 
-export type ParagraphBlock = {
+export type ParagraphBlockData = {
   type: 'paragraph';
-  content: InlineNode[];
+  content: InlineData[];
 };
 
-export type BigEmojiBlock = {
+export type BigEmojiBlockData = {
   type: 'bigEmoji';
   emoji: string;
 };
 
-export type ImageBlock = {
+export type ImageBlockData = {
   type: 'image';
   src: string;
   height: number;
@@ -62,7 +84,7 @@ export type ImageBlock = {
   alt: string;
 };
 
-export type VideoBlock = {
+export type VideoBlockData = {
   type: 'video';
   src: string;
   height: number;
@@ -70,53 +92,60 @@ export type VideoBlock = {
   alt: string;
 };
 
-export type EmbedBlock = {
+export type EmbedBlockData = {
   type: 'embed';
 };
 
-export type ReferenceBlock = api.ContentReference;
+export type ReferenceBlockData = api.ContentReference;
 
-export type CodeBlock = {
+export type CodeBlockData = {
   type: 'code';
   content: string;
   lang?: string;
 };
 
-export type HeaderBlock = {
+export type HeaderBlockData = {
   type: 'header';
   level: ub.HeaderLevel;
-  children: InlineNode[];
+  children: InlineData[];
 };
 
-export type RuleBlock = {
+export type RuleBlockData = {
   type: 'rule';
 };
 
-export type ListBlock = {
+export type ListBlockData = {
   type: 'list';
-  list: ListNode;
+  list: ListData;
 };
 
-export type ListNode = {
-  content: InlineNode[];
+export type ListData = {
+  content: InlineData[];
   type?: 'ordered' | 'unordered' | 'tasklist';
-  children?: ListNode[];
+  children?: ListData[];
 };
 
-export type Block =
-  | BlockquoteBlock
-  | ParagraphBlock
-  | ImageBlock
-  | VideoBlock
-  | EmbedBlock
-  | ReferenceBlock
-  | CodeBlock
-  | HeaderBlock
-  | RuleBlock
-  | ListBlock
-  | BigEmojiBlock;
+export type BlockData =
+  | BlockquoteBlockData
+  | ParagraphBlockData
+  | ImageBlockData
+  | VideoBlockData
+  | EmbedBlockData
+  | ReferenceBlockData
+  | CodeBlockData
+  | HeaderBlockData
+  | RuleBlockData
+  | ListBlockData
+  | BigEmojiBlockData;
 
-export type PostContent = Block[];
+export type BlockType = BlockData['type'];
+
+export type BlockFromType<T extends BlockType> = Extract<
+  BlockData,
+  { type: T }
+>;
+
+export type PostContent = BlockData[];
 
 /**
  * Preprocess content for rendering. Alterations include:
@@ -133,10 +162,14 @@ export type PostContent = Block[];
  * The format is very loosely inspired by ProseMirror's internal representation,
  * and could be converted to be compatible pretty easily.
  */
-export function convertContent(
-  story: NonNullable<api.PostContent>
-): PostContent {
+export function convertContent(input: unknown): PostContent {
   const blocks: PostContent = [];
+  if (!input) {
+    return blocks;
+  }
+
+  const story: NonNullable<api.PostContent> =
+    typeof input === 'string' ? JSON.parse(input) : input;
 
   for (const verse of story) {
     if ('type' in verse && verse.type === 'reference') {
@@ -157,13 +190,19 @@ export function convertContent(
   return blocks;
 }
 
+export function usePostContent(post: Post): BlockData[] {
+  return useMemo(() => {
+    return convertContent(post.content);
+  }, [post.content]);
+}
+
 /**
  * Convert an array of inlines to an array of blocks. The existing inline will
  * be split if it contains block-like inlines (again, blockquote, code block,
  * etc.)
  */
-function convertTopLevelInline(verse: ub.VerseInline): Block[] {
-  const blocks: Block[] = [];
+function convertTopLevelInline(verse: ub.VerseInline): BlockData[] {
+  const blocks: BlockData[] = [];
   let currentInlines: ub.Inline[] = [];
 
   function flushCurrentBlock() {
@@ -216,7 +255,7 @@ function convertTopLevelInline(verse: ub.VerseInline): Block[] {
   return blocks;
 }
 
-function convertBlock(block: ub.Block): Block {
+function convertBlock(block: ub.Block): BlockData {
   if (ub.isImage(block)) {
     if (utils.VIDEO_REGEX.test(block.image.src)) {
       return {
@@ -259,7 +298,7 @@ function convertBlock(block: ub.Block): Block {
   }
 }
 
-function convertListing(listing: ub.Listing): ListNode {
+function convertListing(listing: ub.Listing): ListData {
   if (ub.isList(listing)) {
     return {
       type: listing.list.type,
@@ -273,8 +312,8 @@ function convertListing(listing: ub.Listing): ListNode {
   }
 }
 
-export function convertInlineContent(inlines: ub.Inline[]): InlineNode[] {
-  const nodes: InlineNode[] = [];
+function convertInlineContent(inlines: ub.Inline[]): InlineData[] {
+  const nodes: InlineData[] = [];
   inlines.forEach((inline, i) => {
     if (typeof inline === 'string') {
       nodes.push({

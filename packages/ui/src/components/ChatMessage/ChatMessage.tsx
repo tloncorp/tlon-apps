@@ -7,7 +7,8 @@ import { View, XStack, YStack } from 'tamagui';
 import AuthorRow from '../AuthorRow';
 import { Icon } from '../Icon';
 import { MessageInput } from '../MessageInput';
-import { ContentRenderer } from '../PostContent';
+import { createContentRenderer } from '../PostContent/ContentRenderer';
+import { usePostContent } from '../PostContent/contentUtils';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { Text } from '../TextV2';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -111,6 +112,8 @@ const ChatMessage = ({
     [post, editPost, setEditingPost]
   );
 
+  const content = usePostContent(post);
+
   if (!post) {
     return null;
   }
@@ -129,20 +132,9 @@ const ChatMessage = ({
   // }, [post.sentAt]);
 
   if (post.isDeleted) {
-    return (
-      <XStack
-        key={post.id}
-        gap="$s"
-        paddingVertical="$xl"
-        justifyContent={'center'}
-        alignItems={'center'}
-      >
-        <Icon size="$s" type="Placeholder" color="$tertiaryText" />
-        <Text size="$label/m" color="$tertiaryText">
-          Message deleted
-        </Text>
-      </XStack>
-    );
+    return <ErrorMessage message="Message deleted" />;
+  } else if (post.hidden) {
+    return <ErrorMessage message="Message hidden or flagged" />;
   }
 
   const shouldRenderReplies =
@@ -165,31 +157,23 @@ const ChatMessage = ({
           sent={post.sentAt ?? 0}
           type={post.type}
           disabled={hideProfilePreview}
+          deliveryStatus={post.deliveryStatus}
           showEditedIndicator={!!post.isEdited}
         />
       ) : null}
       <View paddingLeft={!isNotice && '$4xl'}>
         {editing ? (
           messageInputForEditing
-        ) : post.hidden ? (
-          <Text color="$secondaryText">
-            You have hidden or flagged this message.
-          </Text>
         ) : (
-          <ContentRenderer
-            post={post}
+          <ChatContentRenderer
+            content={content}
+            isNotice={post.type === 'notice'}
             onPressImage={handleImagePressed}
             onLongPress={handleLongPress}
           />
         )}
       </View>
-      {post.deliveryStatus === 'failed' ? (
-        <XStack alignItems="center" justifyContent="flex-end">
-          <Text color="$negativeActionText" fontSize="$xs">
-            Message failed to send
-          </Text>
-        </XStack>
-      ) : null}
+
       <ReactionsDisplay
         post={post}
         onViewPostReactions={setViewReactionsPost}
@@ -214,6 +198,33 @@ const ChatMessage = ({
     </YStack>
   );
 };
+
+const ChatContentRenderer = createContentRenderer({
+  blockSettings: {
+    blockWrapper: {
+      paddingLeft: 0,
+    },
+    reference: {
+      contentSize: '$l',
+    },
+  },
+});
+
+function ErrorMessage({ message }: { message: string }) {
+  return (
+    <XStack
+      gap="$s"
+      paddingVertical="$xl"
+      justifyContent={'center'}
+      alignItems={'center'}
+    >
+      <Icon size="$s" type="Placeholder" color="$tertiaryText" />
+      <Text size="$label/m" color="$tertiaryText">
+        {message}
+      </Text>
+    </XStack>
+  );
+}
 
 export default memo(ChatMessage, (prev, next) => {
   const isPostEqual = isEqual(prev.post, next.post);

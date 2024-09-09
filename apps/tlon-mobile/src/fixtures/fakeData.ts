@@ -45,8 +45,8 @@ export const createImageContent = (url: string): string => {
       block: {
         image: {
           src: url,
-          height: 200,
-          width: 200,
+          height: 350,
+          width: 536,
         },
       },
     },
@@ -408,7 +408,7 @@ export const tlonLocalBulletinBoard: db.Channel = {
 
 export const tlonLocalCommunityCatalog: db.Channel = {
   ...emptyChannel,
-  id: '~nibset-napwyn/community-catalog',
+  id: 'heap/~nibset-napwyn/community-catalog',
   type: 'gallery',
   groupId: '~nibset-napwyn/tlon',
   title: 'Community Catalog',
@@ -706,7 +706,8 @@ export const createFakePost = (
     hasChannelReference: null,
     hasGroupReference: null,
     hasLink: null,
-    reactions: createFakeReactions({ count: randInt(0, 10) }),
+    reactions:
+      Math.random() > 0.2 ? [] : createFakeReactions({ count: randInt(0, 10) }),
     hidden: false,
     syncedAt: 0,
   };
@@ -798,7 +799,7 @@ const dates = {
 };
 
 export const groupWithColorAndNoImage: db.Group = {
-  id: '1',
+  id: '~nibset-napwyn/tlon/color-no-image',
   hostUserId: '~nibset-napwyn',
   currentUserIsHost: false,
   title: 'Test Group',
@@ -818,6 +819,7 @@ export const groupWithColorAndNoImage: db.Group = {
 
 export const groupWithLongTitle: db.Group = {
   ...groupWithColorAndNoImage,
+  id: '~nibset-napwyn/tlon/long-title',
   title: 'And here, a reallly long title, wazzup, ok',
   lastPostAt: dates.earlierToday,
   lastChannel: tlonLocalSupport.title,
@@ -830,6 +832,7 @@ export const groupWithLongTitle: db.Group = {
 
 export const groupWithNoColorOrImage: db.Group = {
   ...groupWithColorAndNoImage,
+  id: '~nibset-napwyn/tlon/no-color-or-image',
   iconImageColor: null,
   lastPost: createFakePost(),
   lastPostAt: dates.yesterday,
@@ -839,6 +842,7 @@ export const groupWithNoColorOrImage: db.Group = {
 
 export const groupWithImage: db.Group = {
   ...groupWithColorAndNoImage,
+  id: '~nibset-napwyn/tlon/image',
   iconImage:
     'https://dans-gifts.s3.amazonaws.com/dans-gifts/solfer-magfed/2024.4.6..15.49.54..4a7e.f9db.22d0.e560-IMG_4770.jpg',
   lastPost: createFakePost(),
@@ -849,6 +853,7 @@ export const groupWithImage: db.Group = {
 
 export const groupWithSvgImage: db.Group = {
   ...groupWithColorAndNoImage,
+  id: '~nibset-napwyn/tlon/svg-image',
   iconImage: 'https://tlon.io/local-icon.svg',
   lastPost: createFakePost(),
   lastPostAt: dates.lastMonth,

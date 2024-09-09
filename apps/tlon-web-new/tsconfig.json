@@ -3,7 +3,6 @@
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ESNext", "WebWorker"],
     "experimentalDecorators": true,
-    "strict": true,
     "module": "ESNext",
     "moduleResolution": "Node",
     "resolveJsonModule": true,

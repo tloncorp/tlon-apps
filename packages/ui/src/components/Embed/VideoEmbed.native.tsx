@@ -1,16 +1,15 @@
-import { Video as ExpoVideo, ResizeMode } from 'expo-av';
-import { VideoReadyForDisplayEvent } from 'expo-av';
-import { useRef, useState } from 'react';
-import { useCallback, useMemo } from 'react';
+import {
+  Video as ExpoVideo,
+  ResizeMode,
+  VideoReadyForDisplayEvent,
+} from 'expo-av';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'tamagui';
 
 import { Icon } from '../Icon';
+import { VideoEmbedProps } from './VideoEmbed';
 
-export default function VideoEmbed({
-  video,
-}: {
-  video: { src: string; height: number; width: number; alt: string };
-}) {
+export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
   const videoRef = useRef<ExpoVideo | null>(null);
   const [aspect, setAspect] = useState<number | null>(
     video.width / video.height
@@ -33,12 +32,14 @@ export default function VideoEmbed({
       group="button"
       borderRadius="$m"
       overflow="hidden"
+      backgroundColor={'$secondaryBackground'}
+      {...props}
     >
       <ExpoVideo
         ref={videoRef}
         source={source}
         onReadyForDisplay={handleReadyForDisplay}
-        resizeMode={ResizeMode.CONTAIN}
+        resizeMode={ResizeMode.COVER}
         style={{
           width: '100%',
           aspectRatio: aspect ?? 1,
