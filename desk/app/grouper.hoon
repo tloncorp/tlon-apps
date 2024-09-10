@@ -2,7 +2,7 @@
 /+  gj=groups-json, default-agent, verb, dbug
 ::
 |%
-++  dev-mode  &
+++  dev-mode  |
 ++  enabled-groups  (set cord)
 ++  outstanding-pokes  (set (pair ship cord))
 ++  bite-subscribe
@@ -144,7 +144,7 @@
         :-  joiner.bite
         [id %add memo [%notice ~] ~]
       =/  =cage  chat-dm-action+!>(`action:dm:c`action)
-      (welp caz ~[[%pass wir %agent dock %poke cage]])
+      (snoc caz [%pass wir %agent dock %poke cage])
     =;  result=(each (list card) (list tank))
       ?:  ?=(%.y -.result)  p.result
       ((slog p.result) ~)
