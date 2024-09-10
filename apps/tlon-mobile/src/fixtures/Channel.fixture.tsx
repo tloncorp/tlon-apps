@@ -465,6 +465,16 @@ export default {
       headerMode={'default'}
     />
   ),
+  emptyChat: (
+    <ChannelFixture
+      negotiationMatch={true}
+      theme={'light'}
+      headerMode={'default'}
+      passedProps={() => ({
+        posts: [],
+      })}
+    />
+  ),
   chatWithSimulatedLoad: <ChannelWithControlledPostLoading />,
   chatWithUnreadAnchor: (
     <ChannelFixture
