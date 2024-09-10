@@ -157,9 +157,9 @@
     ?.  .^(? %gu (weld prefix /$))
       ~?(dev-mode "groups not running" ~)
     =/  gnat=path  /(scot %p p.flag)/[q.flag]/noun
-    ?.  .^(? %gx (weld prefix %exists gnat))
+    ?.  .^(? %gx :(weld prefix /exists gnat))
       ~?(dev-mode "group doesn't exist" ~)
-    =+  .^(=group:groups %gx (weld prefix %groups gnat))
+    =+  .^(=group:groups %gx :(weld prefix /groups gnat))
     ~?  dev-mode  cordon.group
     ?+  -.cordon.group  ~
         %open
