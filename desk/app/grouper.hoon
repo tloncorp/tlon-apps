@@ -1,4 +1,4 @@
-/-  reel, groups, c=chat
+/-  reel, groups, c=chat, ch=channels
 /+  gj=groups-json, default-agent, verb, dbug
 ::
 |%
@@ -138,7 +138,7 @@
       =/  wir=^wire  /dm/(scot %p joiner.bite)
       =/  =dock  [our.bowl %chat]
       =/  =id:c  [our now]:bowl
-      =/  =memo:c
+      =/  =memo:ch
         [~[[%inline ~[[%ship joiner.bite] ' has joined the network']]] id]
       =/  =action:dm:c
         :-  joiner.bite
