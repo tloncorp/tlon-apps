@@ -145,19 +145,19 @@
         [id %add memo [%notice ~] ~]
       =/  =cage  chat-dm-action+!>(`action:dm:c`action)
       (snoc caz [%pass wir %agent dock %poke cage])
-    =;  result=(each (list card) (list tank))
-      ?:  ?=(%.y -.result)  p.result
-      ((slog p.result) ~)
-    %-  mule
-    |.
     ?~  group=(~(get by fields.metadata.bite) 'group')
-      ~|("no group field" !!)
+      ~&("no group field for token: {<token.bite>}" ~)
     =/  =flag:groups  (flag:dejs:gj s+u.group)
     ~?  dev-mode  [bite (~(has in enabled-groups) q.flag)]
-    ?>  (~(has in enabled-groups) q.flag)
+    ?.  (~(has in enabled-groups) q.flag)
+      ~&("group lure not enabled: {<flag>}" ~)
     ~?  dev-mode  'inviting'
     =/  =invite:groups  [flag joiner.bite]
-    =/  =path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.flag)/[q.flag]/noun
+    =/  prefix  /(scot %p our.bowl)/groups/(scot %da now.bowl)
+    =+  .^(groups-running=? %gu (weld prefix /$))
+    ?.  groups-running
+      ~&("groups not running" ~)
+    =/  =path  (weld prefix /groups/(scot %p p.flag)/[q.flag]/noun)
     =+  .^(=group:groups %gx path)
     ~?  dev-mode  cordon.group
     ?+  -.cordon.group  ~
