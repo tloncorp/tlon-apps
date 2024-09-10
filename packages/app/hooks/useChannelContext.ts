@@ -1,11 +1,8 @@
-import { isGroupChannelId } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { JSONContent } from '@tloncorp/shared/dist/urbit';
-import { GroupPreviewAction } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useFeatureFlag } from '../lib/featureFlags';
@@ -107,76 +104,6 @@ export const useChannelContext = ({
     }
   }, [draftKey]);
 
-  // Navigation
-  const navigate = useNavigate();
-
-  const navigateToPost = useCallback(
-    (post: db.Post) => {
-      isGroupChannelId(post.channelId)
-        ? navigate(
-            '/group/' +
-              post.groupId +
-              '/channel/' +
-              post.channelId +
-              '/post/' +
-              post.authorId +
-              '/' +
-              post.id
-          )
-        : navigate(
-            '/dm/' + post.channelId + '/post/' + post.authorId + '/' + post.id
-          );
-    },
-    [navigate]
-  );
-
-  const navigateToRef = useCallback(
-    (channel: db.Channel, post: db.Post) => {
-      if (channel.id === channelId) {
-        navigate(
-          '/group/' + channel.groupId + '/channel/' + channel.id + '/' + post.id
-        );
-      } else {
-        navigate(
-          '/group/' + channel.groupId + '/channel/' + channel.id + '/' + post.id
-        );
-      }
-    },
-    [navigate, channelId]
-  );
-
-  const navigateToImage = useCallback(
-    (post: db.Post, uri?: string) => {
-      navigate(`/image/${post.id}/${encodeURIComponent(uri?? '')}`);
-    },
-    [navigate]
-  );
-
-  const navigateToSearch = useCallback(() => {
-    if (!channelQuery.data) {
-      return;
-    }
-    navigate('/search/' + channelQuery.data.id);
-  }, [navigate, channelQuery.data]);
-
-  const performGroupAction = useCallback(
-    async (action: GroupPreviewAction, updatedGroup: db.Group) => {
-      if (action === 'goTo' && updatedGroup.lastPost?.channelId) {
-        const channel = await db.getChannel({
-          id: updatedGroup.lastPost.channelId,
-        });
-        if (channel) {
-          navigate('/group/' + channel.groupId + '/channel/' + channel.id);
-        }
-      }
-
-      if (action === 'joined') {
-        navigate('/');
-      }
-    },
-    [navigate]
-  );
-
   // Contacts
 
   const contactsQuery = store.useContacts();
@@ -194,12 +121,7 @@ export const useChannelContext = ({
     channel: channelQuery.data ?? null,
     group: groupQuery.data ?? null,
     calmSettings: calmSettingsQuery.data ?? null,
-    navigateToPost,
-    navigateToImage,
-    navigateToRef,
-    navigateToSearch,
     currentUserId,
-    performGroupAction,
     headerMode: isChannelSwitcherEnabled ? 'next' : 'default',
   } as const;
 };

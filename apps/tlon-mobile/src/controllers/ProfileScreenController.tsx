@@ -1,13 +1,14 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import ProfileScreen from '@tloncorp/app/features/settings/ProfileScreen';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
+import { resetDb } from '@tloncorp/app/lib/nativeDb';
 
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
 export function ProfileScreenController(props: Props) {
-  const handleLogout = useHandleLogout();
+  const handleLogout = useHandleLogout({ resetDb });
 
   return (
     <ProfileScreen

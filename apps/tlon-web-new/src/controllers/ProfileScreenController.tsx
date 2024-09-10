@@ -8,10 +8,8 @@ export function ProfileScreenController() {
     <ProfileScreen
       navigateToAppSettings={() => navigate('/settings')}
       navigateToEditProfile={() => navigate('/profile/edit')}
-      navigateToErrorReport={() => navigate('/error')}
-      navigateToProfile={(userId: string) =>
-        navigate(`/profile/user/${userId}`)
-      }
+      navigateToErrorReport={() => navigate('/bug-report')}
+      navigateToProfile={(userId: string) => navigate(`/profile/${userId}`)}
       navigateToHome={() => navigate('/')}
       navigateToNotifications={() => navigate('/activity')}
       navigateToSettings={() => navigate('/profile')}

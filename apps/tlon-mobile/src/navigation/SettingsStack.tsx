@@ -4,11 +4,9 @@ import { useScreenOptions } from '@tloncorp/app/hooks/useScreenOptions';
 import { useContacts } from '@tloncorp/shared/dist';
 import { AppDataContextProvider } from '@tloncorp/ui';
 
+import { FeatureFlagScreenController } from '../controllers/FeatureFlagScreenController';
 import { ProfileScreenController } from '../controllers/ProfileScreenController';
-import { FeatureFlagScreen } from '../screens/FeatureFlagScreen';
 import { RootStackParamList, SettingsStackParamList } from '../types';
-
-// import type { SettingsStackParamList, TabParamList } from '../types';
 
 type Props = BottomTabScreenProps<RootStackParamList, 'Profile'>;
 const Stack = createNativeStackNavigator<SettingsStackParamList>();
@@ -29,7 +27,10 @@ export const SettingsStack = ({ navigation }: Props) => {
         screenOptions={screenOptions}
       >
         <Stack.Screen name="Settings" component={ProfileScreenController} />
-        <Stack.Screen name="FeatureFlags" component={FeatureFlagScreen} />
+        <Stack.Screen
+          name="FeatureFlags"
+          component={FeatureFlagScreenController}
+        />
       </Stack.Navigator>
     </AppDataContextProvider>
   );

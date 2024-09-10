@@ -298,6 +298,7 @@ export const monoFont = createFont({
   family: Platform.select({
     android: 'monospace',
     ios: 'System-Monospaced',
+    web: 'monospace',
     default: 'monospace',
   }),
   size: {

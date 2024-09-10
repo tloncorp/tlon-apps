@@ -39,7 +39,8 @@ export function PostContentRenderer({
   ...props
 }: PostContentRendererProps) {
   const content = useMemo(() => {
-    if (!post.content) {
+    // apparently sometimes the content is literally the string "null"
+    if (!post.content || post.content == 'null') {
       return [];
     }
     const content = convertContent(post.content);

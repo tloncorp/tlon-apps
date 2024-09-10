@@ -4,7 +4,6 @@ import { useCallback } from 'react';
 
 import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useHandleLogout } from '../../hooks/useHandleLogout';
 
 export default function ProfileScreen({
   navigateToAppSettings,

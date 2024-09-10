@@ -28,12 +28,12 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import { Text, View, YStack, isWeb, useStyle } from 'tamagui';
+import { Text, View, YStack, useStyle } from 'tamagui';
 
 import { interactionWithTiming } from '../utils/animation';
 import { Icon } from './Icon';
 import { Input } from './Input';
-import { ChatListItem, SwipableChatListItem } from './ListItem';
+import { ChatListItem, InteractableChatListItem } from './ListItem';
 import Pressable from './Pressable';
 import { SectionListHeader } from './SectionList';
 import { Tabs } from './Tabs';
@@ -54,6 +54,7 @@ function ChatListComponent({
   pendingChats,
   onLongPressItem,
   onPressItem,
+  onPressMenuButton,
   onSectionChange,
   activeTab,
   setActiveTab,
@@ -62,6 +63,7 @@ function ChatListComponent({
   pendingChats: store.PendingChats;
   onPressItem?: (chat: Chat) => void;
   onLongPressItem?: (chat: Chat) => void;
+  onPressMenuButton?: (chat: Chat) => void;
   onSectionChange?: (title: string) => void;
   activeTab: TabName;
   setActiveTab: (tab: TabName) => void;
@@ -91,12 +93,13 @@ function ChatListComponent({
     }: SectionListRenderItemInfo<ChatListItemData, ChatListSectionData>) => {
       const itemModel = item as Chat;
 
-      if (logic.isChannel(itemModel) && !isWeb) {
+      if (logic.isChannel(itemModel)) {
         return (
-          <SwipableChatListItem
+          <InteractableChatListItem
             model={itemModel}
             onPress={onPressItem}
             onLongPress={onLongPressItem}
+            onPressMenuButton={onPressMenuButton}
           />
         );
       } else {
@@ -109,7 +112,7 @@ function ChatListComponent({
         );
       }
     },
-    [onPressItem, onLongPressItem]
+    [onPressItem, onLongPressItem, onPressMenuButton]
   );
 
   const renderSectionHeader = useCallback(

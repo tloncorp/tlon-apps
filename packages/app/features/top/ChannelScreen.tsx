@@ -15,6 +15,7 @@ import {
   ChatOptionsProvider,
   INITIAL_POSTS_PER_PAGE,
 } from '@tloncorp/ui';
+import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import React, { useCallback, useEffect, useMemo } from 'react';
 
 import { useChannelContext } from '../../hooks/useChannelContext';
@@ -90,19 +91,22 @@ export default function ChannelScreen({
     contacts,
     channel,
     group,
-    navigateToImage,
-    navigateToPost,
-    navigateToRef,
-    navigateToSearch,
     calmSettings,
     currentUserId,
-    performGroupAction,
     headerMode,
   } = useChannelContext({
     channelId: currentChannelId,
     draftKey: currentChannelId,
     uploaderKey: `${currentChannelId}`,
   });
+
+  const {
+    navigateToImage,
+    navigateToPost,
+    navigateToRef,
+    navigateToSearch,
+    performGroupAction,
+  } = useChannelNavigation({ channelId: currentChannelId });
 
   const session = store.useCurrentSession();
   const hasCachedNewest = useMemo(() => {
