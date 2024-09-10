@@ -148,7 +148,6 @@ export function MessageInput({
         getDraft().then((draft) => {
           if (draft) {
             editor.commands.setContent(draft);
-            setHasSetInitialContent(true);
             setEditorIsEmpty(false);
           }
           if (editingPost?.content) {
@@ -200,11 +199,12 @@ export function MessageInput({
               ) as Story
             );
             editor.commands.setContent(tiptapContent);
-            setHasSetInitialContent(true);
           }
         });
       } catch (e) {
         messageInputLogger.error('Error getting draft', e);
+      } finally {
+        setHasSetInitialContent(true);
       }
     }
   }, [editor, getDraft, hasSetInitialContent, editingPost, resetAttachments]);
