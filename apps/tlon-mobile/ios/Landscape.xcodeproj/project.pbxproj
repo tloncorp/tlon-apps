@@ -228,6 +228,7 @@
 		630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserDefaults+appGroup.swift"; sourceTree = "<group>"; };
 		630DE0F02C51AE870053603B /* Info-preview.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-preview.plist"; sourceTree = "<group>"; };
 		632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Error+isAFTimeout.swift"; sourceTree = "<group>"; };
+		636788082C90DC2600F5331E /* Notifications-preview.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Notifications-preview.entitlements"; sourceTree = "<group>"; };
 		6374ACDF2C49DA9600E637C0 /* Notifications.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Notifications.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6374ACE12C49DA9600E637C0 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		6374ACE32C49DA9600E637C0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -378,6 +379,7 @@
 			isa = PBXGroup;
 			children = (
 				6374ACEB2C49DAB600E637C0 /* Notifications.entitlements */,
+				636788082C90DC2600F5331E /* Notifications-preview.entitlements */,
 				6374ACE12C49DA9600E637C0 /* NotificationService.swift */,
 				6374ACE32C49DA9600E637C0 /* Info.plist */,
 				630DE0F02C51AE870053603B /* Info-preview.plist */,
@@ -1438,7 +1440,7 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_ENTITLEMENTS = Notifications/Notifications.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "Notifications/Notifications-preview.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
@@ -1486,7 +1488,7 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_ENTITLEMENTS = Notifications/Notifications.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "Notifications/Notifications-preview.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
