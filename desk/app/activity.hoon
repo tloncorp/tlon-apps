@@ -256,6 +256,8 @@
       %refresh-activity  refresh-all-summaries
       %clean-keys  correct-dm-keys
       %fix-init-unreads  fix-init-unreads
+      %show-orphans  (drop-orphans &)
+      %drop-orphans  (drop-orphans |)
     ::
         %sync-reads
       =^  indices  activity
@@ -499,6 +501,24 @@
       |=  [=source:a out=activity:a]
       (~(put by out) source (~(got by activity) source))
     ``activity-summary-4+!>(threads)
+  ::
+      [%x %v4 %activity %unreads ~]
+    =/  unreads
+      %+  skim
+        ~(tap by activity)
+      |=  [=source:a as=activity-summary:a]
+      ?.  |(?=(%thread -.source) ?=(%dm-thread -.source))
+        (gth count.as 0)
+      (gth notify-count.as 0)
+    ``activity-summary-pairs-4+!>(unreads)
+  ::
+      [%x %v4 %activity %notified ~]
+    =/  notified
+      %+  skim
+        ~(tap by activity)
+      |=  [=source:a as=activity-summary:a]
+      notify.as
+    ``activity-summary-pairs-4+!>(notified)
   ::
       [%x any %volume-settings ~]
     ``activity-settings+!>(volume-settings)
@@ -894,6 +914,30 @@
   (give-update [%allow-notifications na] [%hose ~])
 ++  summarize-unreads
   ~(summarize-unreads urd indices activity volume-settings log)
+::
+++  drop-orphans
+  |=  dry-run=?
+  =/  indexes  ~(tap by indices)
+  =/  orphan-count=@ud  0
+  |-
+  ?~  indexes
+    ~?  =(orphan-count 0)  "no orphans found"
+    ?:  dry-run  cor
+    ?:  =(orphan-count 0)  cor
+    refresh-all-summaries
+  =/  [=source:a =index:a]  i.indexes
+  =/  parent  (get-parent:src indices source)
+  =/  missing-parent  &(=(parent ~) ?!(?=(%base -.source)))
+  =/  new-count  ?:(missing-parent +(orphan-count) orphan-count)
+  ?:  dry-run
+    ~?  missing-parent  "orphaned source: {<source>}"
+    $(indexes t.indexes, orphan-count new-count)
+  ?.  missing-parent  $(indexes t.indexes)
+  =.  indices  (~(del by indices) source)
+  =.  activity  (~(del by activity) source)
+  =.  volume-settings  (~(del by volume-settings) source)
+  $(indexes t.indexes, orphan-count new-count)
+
 ::
 ::  when we migrated from chat and channels, we always added an init event
 ::  so that we can mark what's been joined and have something affect the
