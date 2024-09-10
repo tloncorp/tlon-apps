@@ -1,8 +1,4 @@
-import {
-  AppDataContextProvider,
-  CalmProvider,
-  ContactList,
-} from '@tloncorp/ui';
+import { AppDataContextProvider, ContactList } from '@tloncorp/ui';
 
 import { FixtureWrapper } from './FixtureWrapper';
 import { initialContacts } from './fakeData';
@@ -18,29 +14,28 @@ const ContactListFixture = ({
 }) => {
   return (
     <FixtureWrapper>
-      <AppDataContextProvider contacts={initialContacts}>
-        <CalmProvider
-          calmSettings={{
-            disableNicknames: false,
-            disableAvatars: false,
-            disableRemoteContent: false,
-          }}
-        >
-          <ContactList>
-            {initialContacts.map((contact) => (
-              <ContactList.Item
-                alignItems="center"
-                showNickname={showAlias}
-                showUserId={showBoth}
-                justifyContent="flex-start"
-                padding="$s"
-                key={contact.id}
-                contactId={contact.id}
-                matchText={matchText}
-              />
-            ))}
-          </ContactList>
-        </CalmProvider>
+      <AppDataContextProvider
+        contacts={initialContacts}
+        calmSettings={{
+          disableNicknames: false,
+          disableAvatars: false,
+          disableRemoteContent: false,
+        }}
+      >
+        <ContactList>
+          {initialContacts.map((contact) => (
+            <ContactList.Item
+              alignItems="center"
+              showNickname={showAlias}
+              showUserId={showBoth}
+              justifyContent="flex-start"
+              padding="$s"
+              key={contact.id}
+              contactId={contact.id}
+              matchText={matchText}
+            />
+          ))}
+        </ContactList>
       </AppDataContextProvider>
     </FixtureWrapper>
   );

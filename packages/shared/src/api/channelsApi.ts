@@ -1,4 +1,5 @@
-import { decToUd, unixToDa } from '@urbit/api';
+import { formatUd, unixToDa } from '@urbit/aura';
+import bigInt from 'big-integer';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -332,7 +333,7 @@ export const searchChannel = async (params: {
     response = await scry<ub.ChannelScam>({
       app: 'channels',
       path: `/${params.channel.id}/search/bounded/text/${
-        params.cursor ? decToUd(params.cursor.toString()) : ''
+        params.cursor ? formatUd(bigInt(params.cursor ?? 0)) : ''
       }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
     });
   } else {
@@ -341,7 +342,7 @@ export const searchChannel = async (params: {
     response = await scry<ub.ChatScam>({
       app: 'chat',
       path: `/${type}/${params.channel.id}/search/bounded/text/${
-        params.cursor ? decToUd(params.cursor.toString()) : ''
+        params.cursor ? formatUd(bigInt(params.cursor ?? 0)) : ''
       }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
     });
   }

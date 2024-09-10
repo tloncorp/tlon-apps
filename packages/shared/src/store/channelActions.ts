@@ -151,24 +151,27 @@ export async function markChannelVisited(channel: db.Channel) {
   await db.updateChannel({ id: channel.id, lastViewedAt: now });
 }
 
-export async function markChannelRead(channel: db.Channel) {
+export type MarkChannelReadParams = Pick<db.Channel, 'id' | 'groupId' | 'type'>;
+
+export async function markChannelRead(params: MarkChannelReadParams) {
+  logger.log(`marking channel as read`, params.id);
   // optimistic update
-  const existingUnread = await db.getChannelUnread({ channelId: channel.id });
+  const existingUnread = await db.getChannelUnread({ channelId: params.id });
   if (existingUnread) {
-    await db.clearChannelUnread(channel.id);
+    await db.clearChannelUnread(params.id);
   }
 
   const existingCount = existingUnread?.count ?? 0;
-  if (channel.groupId && existingCount > 0) {
+  if (params.groupId && existingCount > 0) {
     // optimitically update group unread count
     await db.updateGroupUnreadCount({
-      groupId: channel.groupId,
+      groupId: params.groupId,
       decrement: existingCount,
     });
   }
 
   try {
-    await api.readChannel(channel);
+    await api.readChannel(params);
   } catch (e) {
     console.error('Failed to read channel', e);
     // rollback optimistic update

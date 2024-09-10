@@ -6,6 +6,7 @@ import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { configureClient } from '@tloncorp/app/lib/api';
 import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
+import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { initializeCrashReporter, sync } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
@@ -15,6 +16,7 @@ import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener, {
   type Props as NotificationListenerProps,
 } from '../hooks/useNotificationListener';
+import { refreshHostingAuth } from '../lib/refreshHostingAuth';
 import { RootStack } from '../navigation/RootStack';
 
 export interface AuthenticatedAppProps {
@@ -37,6 +39,7 @@ function AuthenticatedApp({
       shipName: ship ?? '',
       shipUrl: shipUrl ?? '',
       onReset: () => sync.syncStart(),
+      verbose: __DEV__,
       onChannelReset: () => sync.handleDiscontinuity(),
     });
 
@@ -57,6 +60,8 @@ function AuthenticatedApp({
       sync.syncUnreads({ priority: sync.SyncPriority.High });
       sync.syncPinnedItems({ priority: sync.SyncPriority.High });
     }
+
+    refreshHostingAuth();
   });
 
   return (
@@ -69,5 +74,9 @@ function AuthenticatedApp({
 export default function ConnectedAuthenticatedApp(
   props: AuthenticatedAppProps
 ) {
-  return <AuthenticatedApp {...props} />;
+  return (
+    <AppDataProvider>
+      <AuthenticatedApp {...props} />
+    </AppDataProvider>
+  );
 }

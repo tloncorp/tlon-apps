@@ -161,7 +161,7 @@ function logEnqueuedPendingOperations(
         'position',
         runIfDev(() => {
           return queue.indexOf(op) + 1 + '/' + queue.length;
-        })()
+        })
       );
     });
 }

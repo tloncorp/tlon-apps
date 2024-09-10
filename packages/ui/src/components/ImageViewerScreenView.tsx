@@ -70,22 +70,24 @@ export function ImageViewerScreenView(props: {
         </View>
 
         {/* overlay */}
-        <YStack padding="$xl" paddingTop={top}>
-          <XStack opacity={showOverlay ? 1 : 0} justifyContent="flex-end">
-            <TouchableOpacity
-              onPress={() => props.goBack()}
-              activeOpacity={0.8}
-            >
-              <Stack
-                padding="$m"
-                backgroundColor="$darkOverlay"
-                borderRadius="$l"
+        {showOverlay ? (
+          <YStack padding="$xl" paddingTop={top}>
+            <XStack justifyContent="flex-end">
+              <TouchableOpacity
+                onPress={() => props.goBack()}
+                activeOpacity={0.8}
               >
-                <Icon type="Close" size="$l" color="$white" />
-              </Stack>
-            </TouchableOpacity>
-          </XStack>
-        </YStack>
+                <Stack
+                  padding="$m"
+                  backgroundColor="$darkOverlay"
+                  borderRadius="$l"
+                >
+                  <Icon type="Close" size="$l" color="$white" />
+                </Stack>
+              </TouchableOpacity>
+            </XStack>
+          </YStack>
+        ) : null}
       </ZStack>
     </>
   );

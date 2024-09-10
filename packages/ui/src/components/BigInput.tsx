@@ -1,4 +1,4 @@
-import { EditorBridge } from '@10play/tentap-editor';
+// import { EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useRef, useState } from 'react';
 import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
@@ -12,9 +12,10 @@ import AttachmentSheet from './AttachmentSheet';
 import { Icon } from './Icon';
 import { Image } from './Image';
 import { MessageInput } from './MessageInput';
-import { InputToolbar } from './MessageInput/InputToolbar';
+// import { InputToolbar } from './MessageInput/InputToolbar';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
-import { TlonEditorBridge } from './MessageInput/toolbarActions';
+
+// import { TlonEditorBridge } from './MessageInput/toolbarActions';
 
 export function BigInput({
   channelType,
@@ -36,10 +37,10 @@ export function BigInput({
 } & MessageInputProps) {
   const [title, setTitle] = useState(editingPost?.title ?? '');
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
-  const editorRef = useRef<{
-    editor: TlonEditorBridge | null;
-    setEditor: (editor: EditorBridge) => void;
-  }>(null);
+  // const editorRef = useRef<{
+  // editor: TlonEditorBridge | null;
+  // setEditor: (editor: any) => void;
+  // }>(null);
   const { top } = useSafeAreaInsets();
   const { width } = Dimensions.get('screen');
   const titleInputHeight = getToken('$4xl', 'size');
@@ -84,7 +85,7 @@ export function BigInput({
           <TouchableOpacity
             onPress={() => {
               setShowAttachmentSheet(true);
-              editorRef.current?.editor?.blur();
+              // editorRef.current?.editor?.blur();
             }}
           >
             {imageAttachment ? (
@@ -161,10 +162,10 @@ export function BigInput({
           placeholder={placeholder}
           bigInput
           channelType={channelType}
-          ref={editorRef}
+          // ref={editorRef}
         />
       </ScrollView>
-      {channelType === 'notebook' &&
+      {/* channelType === 'notebook' &&
         editorRef.current &&
         editorRef.current.editor && (
           <KeyboardAvoidingView
@@ -179,7 +180,7 @@ export function BigInput({
           >
             <InputToolbar editor={editorRef.current.editor} />
           </KeyboardAvoidingView>
-        )}
+        ) */}
       {channelType === 'notebook' && showAttachmentSheet && (
         <AttachmentSheet
           showAttachmentSheet={showAttachmentSheet}

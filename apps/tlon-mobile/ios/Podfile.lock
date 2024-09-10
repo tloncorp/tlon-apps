@@ -1386,7 +1386,7 @@ PODS:
   - sqlite3 (3.42.0):
     - sqlite3/common (= 3.42.0)
   - sqlite3/common (3.42.0)
-  - tentap (0.5.13):
+  - tentap (0.5.11):
     - glog
     - RCT-Folly (= 2022.05.16.00)
     - React-Core
@@ -1872,9 +1872,9 @@ SPEC CHECKSUMS:
   SDWebImageWebPCoder: af09429398d99d524cae2fe00f6f0f6e491ed102
   SocketRocket: f32cd54efbe0f095c4d7594881e52619cfe80b17
   sqlite3: f163dbbb7aa3339ad8fc622782c2d9d7b72f7e9c
-  tentap: fc7669734b4dea745d6e56f57f5c7dc4fc2977bc
+  tentap: f86059c95e32751ffdab4c513494b477b760c609
   UMAppLoader: 5df85360d65cabaef544be5424ac64672e648482
-  Yoga: 64cd2a583ead952b0315d5135bf39e053ae9be70
+  Yoga: 1b901a6d6eeba4e8a2e8f308f708691cdb5db312
 
 PODFILE CHECKSUM: 0cb7a78e5777e69c86c1bf4bb5135fd660376dbe
 

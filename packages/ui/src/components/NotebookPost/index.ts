@@ -1,3 +1,1 @@
-import NotebookPost from './NotebookPost';
-
-export { NotebookPost };
+export * from './NotebookPost';

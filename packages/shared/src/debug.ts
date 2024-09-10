@@ -116,28 +116,26 @@ export function shortPostId(postId: string) {
  * expensive log operations -- logs themselves are disabled in  prod, but their
  * contents string still gets constructed.
  */
-export const runIfDev =
-  <T extends any[], TReturn>(fn: (...args: T) => TReturn) =>
-  (...args: T): TReturn | undefined => {
-    if (__DEV__) {
-      return fn(...args);
-    }
-  };
+export const runIfDev = <TReturn>(fn: () => TReturn) => {
+  if (__DEV__) {
+    return fn();
+  }
+};
 
 /**
  * Escapes double quotes in strings.
  * Needed because sometimes values with " literals fail to fully log in the debug console. This is probably related to the missing bundler logs issue.
  */
-export const escapeLog = runIfDev((value: string) =>
-  value.replace(/"/g, '\\"')
-);
+export const escapeLog = (value: string) =>
+  runIfDev(() => value.replace(/"/g, '\\"'));
 
 /**
  * String representation of a list of values.
  */
-export const listDebugLabel = runIfDev((list: Iterable<string | number>) => {
-  return '[' + Array.from(list).join(' ') + ']';
-});
+export const listDebugLabel = (list: Iterable<string | number>) =>
+  runIfDev(() => {
+    return '[' + Array.from(list).join(' ') + ']';
+  });
 
 const sessionStartTime = Date.now();
 

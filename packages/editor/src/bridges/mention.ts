@@ -6,7 +6,6 @@ export const MentionsBridge = new BridgeExtension<
   undefined,
   undefined
 >({
-  // @ts-expect-error this type mismatch doesn't matter
   tiptapExtension: Mention.extend({ priority: 1000 }).configure({
     HTMLAttributes: {
       class: 'mention',

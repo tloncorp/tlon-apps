@@ -51,12 +51,24 @@
       "react-native-reanimated@3.8.1": "patches/react-native-reanimated@3.8.1.patch",
       "drizzle-orm@0.30.9": "patches/drizzle-orm@0.30.9.patch",
       "@10play/tentap-editor@0.4.55": "patches/@10play__tentap-editor@0.4.55.patch",
-      "any-ascii@0.3.2": "patches/any-ascii@0.3.2.patch"
+      "any-ascii@0.3.2": "patches/any-ascii@0.3.2.patch",
+      "react-native-gesture-handler@2.18.1": "patches/react-native-gesture-handler@2.18.1.patch",
+      "@likashefqet/react-native-image-zoom@3.0.0": "patches/@likashefqet__react-native-image-zoom@3.0.0.patch",
+      "react-native@0.73.4": "patches/react-native@0.73.4.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {
       "typescript": "5.4.5",
-      "@urbit/http-api": "3.1.0-dev-3"
+      "@10play/tentap-editor": "0.5.11",
+      "@tiptap/suggestion": "2.6.0",
+      "@tiptap/extension-mention": "2.6.0",
+      "@tiptap/extension-hard-break": "2.6.0",
+      "@urbit/http-api": "3.1.0-dev-3",
+      "@urbit/api": "2.2.0",
+      "prosemirror-model": "1.19.3",
+      "prosemirror-view": "1.33.4",
+      "prosemirror-state": "1.4.3",
+      "@tiptap/pm": "2.6.6"
     }
   }
 }

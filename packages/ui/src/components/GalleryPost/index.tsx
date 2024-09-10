@@ -1,3 +1,1 @@
-import GalleryPost from './GalleryPost';
-
-export { GalleryPost };
+export * from './GalleryPost';

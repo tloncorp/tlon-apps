@@ -1,5 +1,5 @@
 import * as $ from 'drizzle-orm';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 import { toClientGroup } from '../api';
 import * as db from '../db';
@@ -52,6 +52,14 @@ const inputData = [
   '~solfer-magfed',
   '~nibset-napwyn/tlon',
 ];
+
+vi.mock('./lure', () => ({
+  useLureState: {
+    getState: () => ({
+      start: () => ({}),
+    }),
+  },
+}));
 
 const outputData = [
   {

@@ -1,9 +1,11 @@
 import { NetInfoState, fetch } from '@react-native-community/netinfo';
 import * as Battery from 'expo-battery';
+import * as Updates from 'expo-updates';
 
 interface DebugPlatformState {
   network: string;
   battery: string;
+  easUpdate: string;
 }
 
 export const PlatformState = {
@@ -13,9 +15,12 @@ export const PlatformState = {
 async function getDebugPlatformState(): Promise<DebugPlatformState | null> {
   const network = await getNetworkState();
   const battery = await getBatteryState();
+  const easUpdate = getEasUpdateDisplay(Updates);
+
   return {
     network,
     battery,
+    easUpdate,
   };
 }
 
@@ -35,4 +40,12 @@ export function toNetworkTypeDisplay(state: NetInfoState): string {
   return networkType === 'cellular'
     ? `(cellular ${state.details.cellularGeneration})`
     : `(${networkType})`;
+}
+
+export function getEasUpdateDisplay(updates: typeof Updates): string {
+  if (updates.isEmbeddedLaunch) {
+    return 'embedded';
+  }
+
+  return updates.updateId ?? 'unknown';
 }

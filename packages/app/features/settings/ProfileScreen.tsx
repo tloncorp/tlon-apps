@@ -1,10 +1,8 @@
-import * as store from '@tloncorp/shared/dist/store';
 import { NavBarView, ProfileScreenView, View } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useHandleLogout } from '../../hooks/useHandleLogout';
 
 export default function ProfileScreen({
   navigateToAppSettings,
@@ -14,6 +12,7 @@ export default function ProfileScreen({
   navigateToHome,
   navigateToNotifications,
   navigateToSettings,
+  handleLogout,
 }: {
   navigateToAppSettings: () => void;
   navigateToEditProfile: () => void;
@@ -22,10 +21,9 @@ export default function ProfileScreen({
   navigateToHome: () => void;
   navigateToNotifications: () => void;
   navigateToSettings: () => void;
+  handleLogout?: () => void;
 }) {
   const currentUserId = useCurrentUserId();
-  const { data: contacts } = store.useContacts();
-  const handleLogout = useHandleLogout();
 
   const onAppSettingsPressed = useCallback(() => {
     navigateToAppSettings();
@@ -48,11 +46,14 @@ export default function ProfileScreen({
   return (
     <View backgroundColor="$background" flex={1}>
       <ProfileScreenView
-        contacts={contacts ?? []}
         currentUserId={currentUserId}
         onAppSettingsPressed={onAppSettingsPressed}
         onEditProfilePressed={onEditProfilePressed}
-        onLogoutPressed={handleLogout}
+        onLogoutPressed={() => {
+          if (handleLogout) {
+            handleLogout();
+          }
+        }}
         onSendBugReportPressed={onSendBugReportPressed}
         onViewProfile={onViewProfilePressed}
         dmLink={dmLink}

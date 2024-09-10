@@ -1,96 +1,56 @@
-import { useNavigation } from '@react-navigation/native';
 import { useCallback } from 'react';
-import { Platform } from 'react-native';
-
-type GroupSettingsStackParamList = {
-  EditChannel: {
-    channelId: string;
-    groupId: string;
-  };
-  GroupMeta: {
-    groupId: string;
-  };
-  GroupMembers: {
-    groupId: string;
-  };
-  ManageChannels: {
-    groupId: string;
-  };
-  InvitesAndPrivacy: {
-    groupId: string;
-  };
-  GroupRoles: {
-    groupId: string;
-  };
-};
+import { useNavigate } from 'react-router-dom';
 
 export const useChatSettingsNavigation = () => {
-  const navigation = useNavigation();
-
-  const navigateToGroupSettings = useCallback(
-    <T extends keyof GroupSettingsStackParamList>(
-      screen: T,
-      params: GroupSettingsStackParamList[T]
-    ) => {
-      if (Platform.OS !== 'web') {
-        navigation.navigate('GroupSettings', {
-          screen,
-          params,
-        } as any);
-      } else {
-        console.log('web navigation not implemented');
-      }
-    },
-    [navigation]
-  );
+  const navigate = useNavigate();
 
   const onPressGroupMeta = useCallback(
     (groupId: string) => {
-      navigateToGroupSettings('GroupMeta', { groupId });
+      navigate(`/group/${groupId}/meta`);
     },
-    [navigateToGroupSettings]
+    [navigate]
   );
 
   const onPressGroupMembers = useCallback(
     (groupId: string) => {
-      navigateToGroupSettings('GroupMembers', { groupId });
+      navigate(`/group/${groupId}/members`);
     },
-    [navigateToGroupSettings]
+    [navigate]
   );
 
   const onPressManageChannels = useCallback(
     (groupId: string) => {
-      navigateToGroupSettings('ManageChannels', { groupId });
+      navigate(`/group/${groupId}/manage-channels`);
     },
-    [navigateToGroupSettings]
+    [navigate]
   );
 
-  const onPressInvitesAndPrivacy = useCallback(
+  const onPressGroupPrivacy = useCallback(
     (groupId: string) => {
-      navigateToGroupSettings('InvitesAndPrivacy', { groupId });
+      navigate(`/group/${groupId}/privacy`);
     },
-    [navigateToGroupSettings]
+    [navigate]
   );
 
   const onPressRoles = useCallback(
     (groupId: string) => {
-      navigateToGroupSettings('GroupRoles', { groupId });
+      navigate(`/group/${groupId}/roles`);
     },
-    [navigateToGroupSettings]
+    [navigate]
   );
 
   const onPressChannelMembers = useCallback(
     (channelId: string) => {
-      navigation.navigate('ChannelMembers', { channelId });
+      navigate(`/dm/${channelId}/members`);
     },
-    [navigation]
+    [navigate]
   );
 
   const onPressChannelMeta = useCallback(
     (channelId: string) => {
-      navigation.navigate('ChannelMeta', { channelId });
+      navigate(`/dm/${channelId}/meta`);
     },
-    [navigation]
+    [navigate]
   );
 
   return {
@@ -99,7 +59,7 @@ export const useChatSettingsNavigation = () => {
     onPressGroupMeta,
     onPressGroupMembers,
     onPressManageChannels,
-    onPressInvitesAndPrivacy,
+    onPressGroupPrivacy,
     onPressRoles,
   };
 };

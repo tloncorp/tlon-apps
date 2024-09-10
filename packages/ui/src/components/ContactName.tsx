@@ -1,8 +1,7 @@
 import { ComponentProps, useMemo } from 'react';
 import { SizableText } from 'tamagui';
 
-import { useContact } from '../contexts/appDataContext';
-import { useCalm } from '../contexts/calm';
+import { useCalm, useContact } from '../contexts';
 import { formatUserId } from '../utils/user';
 
 const NickNameWithMatch = ({

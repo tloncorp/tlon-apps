@@ -1,7 +1,7 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps, ReactElement, useMemo } from 'react';
-import { styled, withStaticProperties } from 'tamagui';
+import { isWeb, styled, withStaticProperties } from 'tamagui';
 import { SizableText, Stack, View, XStack, YStack } from 'tamagui';
 
 import { numberWithMax } from '../../utils';
@@ -21,6 +21,7 @@ export interface BaseListItemProps<T> {
   EndContent?: ReactElement | null;
   onPress?: (model: T) => void;
   onLongPress?: (model: T) => void;
+  onPressMenuButton?: (model: T) => void;
   unreadCount?: number;
 }
 
@@ -84,7 +85,7 @@ const ListItemMainContent = styled(YStack, {
   name: 'ListItemMainContent',
   flex: 1,
   justifyContent: 'space-evenly',
-  height: '$4xl',
+  height: isWeb ? '$5xl' : '$4xl',
 });
 
 const ListItemTitle = styled(SizableText, {
@@ -178,7 +179,7 @@ const ListItemCount = ({
       {...rest}
     >
       {muted ? (
-        <Icon type="Mute" customSize={[18, 18]} color="$tertiaryText" />
+        <Icon type="Muted" customSize={[18, 18]} color="$tertiaryText" />
       ) : (
         <ListItemCountNumber hidden={!!(muted || count < 1)}>
           {numberWithMax(count, 99)}

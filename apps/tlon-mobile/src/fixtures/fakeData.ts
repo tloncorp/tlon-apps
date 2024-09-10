@@ -1,7 +1,14 @@
-import type * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/dist/db';
 import { getTextContent } from '@tloncorp/shared/dist/urbit';
 import type { Story } from '@tloncorp/shared/dist/urbit/channel';
 import { formatUd, unixToDa } from '@urbit/aura';
+import seedrandom from 'seedrandom';
+
+const makeRandomGenerator = (seed: string = '') => {
+  const gen = seedrandom(seed);
+  return () => gen.quick();
+};
+const random = makeRandomGenerator();
 
 export const createSimpleContent = (str: string): string => {
   return JSON.stringify([
@@ -15,7 +22,7 @@ export const createContentWithMention = (
   str: string,
   contactId: string
 ): string => {
-  const beforeOrAfter = Math.random() < 0.5 ? 'before' : 'after';
+  const beforeOrAfter = random() < 0.5 ? 'before' : 'after';
 
   if (beforeOrAfter === 'before') {
     return JSON.stringify([
@@ -38,8 +45,8 @@ export const createImageContent = (url: string): string => {
       block: {
         image: {
           src: url,
-          height: 200,
-          width: 200,
+          height: 350,
+          width: 536,
         },
       },
     },
@@ -135,7 +142,7 @@ function pickRandom<T>(arr: T[]) {
   return arr[randInt(0, arr.length)];
 }
 
-function randomContactId() {
+export function randomContactId() {
   return `~${pickRandom(urbitPrefixes)}${pickRandom(urbitSuffixes)}-${pickRandom(urbitPrefixes)}${pickRandom(urbitSuffixes)}`;
 }
 
@@ -365,7 +372,7 @@ export const tlonLocalSupport: db.Channel = {
 
 export const tlonLocalBulletinBoard: db.Channel = {
   ...emptyChannel,
-  id: '~nibset-napwyn/bulletin-board',
+  id: 'heap/~nibset-napwyn/bulletin-board',
   type: 'gallery',
   groupId: '~nibset-napwyn/tlon',
   title: 'Bulletin Board',
@@ -401,7 +408,7 @@ export const tlonLocalBulletinBoard: db.Channel = {
 
 export const tlonLocalCommunityCatalog: db.Channel = {
   ...emptyChannel,
-  id: '~nibset-napwyn/community-catalog',
+  id: 'heap/~nibset-napwyn/community-catalog',
   type: 'gallery',
   groupId: '~nibset-napwyn/tlon',
   title: 'Community Catalog',
@@ -436,7 +443,7 @@ export const tlonLocalCommunityCatalog: db.Channel = {
 
 export const tlonLocalGettingStarted: db.Channel = {
   ...emptyChannel,
-  id: '~nibset-napwyn/getting-started',
+  id: 'diary/~nibset-napwyn/getting-started',
   type: 'notebook',
   groupId: '~nibset-napwyn/tlon',
   title: 'Getting Started',
@@ -634,19 +641,19 @@ const getRandomFakeContent = () => {
   const fakeTextContent = pickRandom(fakeStrings);
 
   // randomly add an image
-  if (Math.random() < 0.2) {
+  if (random() < 0.2) {
     return createImageContent(
       'https://togten.com:9001/finned-palmer/finned-palmer/2024.3.19..21.2.17..5581.0624.dd2f.1a9f-image.png'
     );
   }
 
   // randomly add code
-  if (Math.random() < 0.2) {
+  if (random() < 0.2) {
     return createCodeContent('console.log("hello world");');
   }
 
   // randomly add a mention
-  if (Math.random() < 0.2) {
+  if (random() < 0.2) {
     return createContentWithMention(fakeTextContent, randomContactId());
   }
 
@@ -655,7 +662,7 @@ const getRandomFakeContent = () => {
 
 const getRandomFakeContact = () => {
   const keys = Object.keys(initialContacts);
-  return initialContacts[Math.floor(Math.random() * keys.length)];
+  return initialContacts[Math.floor(random() * keys.length)];
 };
 
 export const createFakePost = (
@@ -667,7 +674,7 @@ export const createFakePost = (
   const ship = fakeContact.id;
   // timestamp on same day
   const randomSentAtSameDay = new Date(
-    new Date().getTime() - Math.floor(Math.random() * 10000000)
+    new Date().getTime() - Math.floor(random() * 10000000)
   ).getTime();
 
   const fakeRandomContent = getRandomFakeContent() as unknown as string;
@@ -699,7 +706,8 @@ export const createFakePost = (
     hasChannelReference: null,
     hasGroupReference: null,
     hasLink: null,
-    reactions: createFakeReactions(randInt(0, 10)),
+    reactions:
+      Math.random() > 0.2 ? [] : createFakeReactions({ count: randInt(0, 10) }),
     hidden: false,
     syncedAt: 0,
   };
@@ -716,14 +724,34 @@ const reactionValues = [
   'anger',
 ];
 
-export const createFakeReactions = (count: number): db.Reaction[] => {
+// valueCount: number,
+// minTotal = 1,
+// maxTotal = 20
+
+export const createFakeReactions = ({
+  count,
+  contacts,
+  minTotal = 1,
+  maxTotal = 20,
+}: {
+  count: number;
+  contacts?: db.Contact[];
+  minTotal?: number;
+  maxTotal?: number;
+}): db.Reaction[] => {
   const reactions = [];
   for (let i = 0; i < count; i++) {
-    reactions.push({
-      contactId: randomContactId(),
-      postId: 'fake-post-id',
-      value: ':' + reactionValues[randInt(0, reactionValues.length)] + ':',
-    });
+    const count = randInt(minTotal, maxTotal);
+    for (let j = 0; j < count; j++) {
+      const contactId = contacts
+        ? contacts[randInt(0, contacts.length - 1)]?.id ?? '~latter-bolden'
+        : randomContactId();
+      reactions.push({
+        contactId,
+        postId: 'fake-post-id',
+        value: ':' + reactionValues[i] + ':',
+      });
+    }
   }
   return reactions;
 };
@@ -741,7 +769,7 @@ export const createFakeReplyMeta = () => {
 
 function getRandomTimeOnSameDay() {
   return new Date(
-    new Date().getTime() - Math.floor(Math.random() * 10000000)
+    new Date().getTime() - Math.floor(random() * 10000000)
   ).getTime();
 }
 
@@ -771,7 +799,7 @@ const dates = {
 };
 
 export const groupWithColorAndNoImage: db.Group = {
-  id: '1',
+  id: '~nibset-napwyn/tlon/color-no-image',
   hostUserId: '~nibset-napwyn',
   currentUserIsHost: false,
   title: 'Test Group',
@@ -791,6 +819,7 @@ export const groupWithColorAndNoImage: db.Group = {
 
 export const groupWithLongTitle: db.Group = {
   ...groupWithColorAndNoImage,
+  id: '~nibset-napwyn/tlon/long-title',
   title: 'And here, a reallly long title, wazzup, ok',
   lastPostAt: dates.earlierToday,
   lastChannel: tlonLocalSupport.title,
@@ -803,32 +832,35 @@ export const groupWithLongTitle: db.Group = {
 
 export const groupWithNoColorOrImage: db.Group = {
   ...groupWithColorAndNoImage,
+  id: '~nibset-napwyn/tlon/no-color-or-image',
   iconImageColor: null,
   lastPost: createFakePost(),
   lastPostAt: dates.yesterday,
   lastChannel: tlonLocalSupport.title,
-  unreadCount: Math.floor(Math.random() * 20),
+  unreadCount: Math.floor(random() * 20),
 };
 
 export const groupWithImage: db.Group = {
   ...groupWithColorAndNoImage,
+  id: '~nibset-napwyn/tlon/image',
   iconImage:
     'https://dans-gifts.s3.amazonaws.com/dans-gifts/solfer-magfed/2024.4.6..15.49.54..4a7e.f9db.22d0.e560-IMG_4770.jpg',
   lastPost: createFakePost(),
   lastPostAt: dates.lastWeek,
   lastChannel: tlonLocalSupport.title,
-  unreadCount: Math.floor(Math.random() * 20),
+  unreadCount: Math.floor(random() * 20),
 };
 
 export const groupWithSvgImage: db.Group = {
   ...groupWithColorAndNoImage,
+  id: '~nibset-napwyn/tlon/svg-image',
   iconImage: 'https://tlon.io/local-icon.svg',
   lastPost: createFakePost(),
   lastPostAt: dates.lastMonth,
   lastChannel: tlonLocalSupport.title,
-  unreadCount: Math.floor(Math.random() * 20),
+  unreadCount: Math.floor(random() * 20),
 };
 
 function randInt(min: number, max: number) {
-  return Math.floor(min + Math.random() * (max - min));
+  return Math.floor(min + random() * (max - min));
 }

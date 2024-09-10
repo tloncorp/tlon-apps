@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { daToUnix } from '@urbit/api';
+import { daToUnix } from '@urbit/aura';
 import bigInt from 'big-integer';
 import { useEffect, useMemo } from 'react';
 

@@ -2044,6 +2044,20 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
       target: [$posts.authorId, $posts.sentAt],
       set: conflictUpdateSetAll($posts, ['hidden']),
     });
+
+  const reactions = posts
+    .filter((p) => p.reactions && p.reactions.length > 0)
+    .flatMap((p) => p.reactions) as Reaction[];
+  if (reactions.length) {
+    await ctx.db
+      .insert($postReactions)
+      .values(reactions)
+      .onConflictDoUpdate({
+        target: [$postReactions.contactId, $postReactions.postId],
+        set: conflictUpdateSetAll($postReactions),
+      });
+  }
+
   logger.log('inserted posts');
   await setLastPosts(posts, ctx);
   logger.log('set last posts');

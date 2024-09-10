@@ -1,5 +1,9 @@
-import { daToUnix, decToUd, unixToDa } from '@urbit/api';
-import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
+import {
+  formatUd as baseFormatUd,
+  daToUnix,
+  parseUd,
+  unixToDa,
+} from '@urbit/aura';
 import bigInt from 'big-integer';
 
 import * as db from '../db/types';
@@ -60,10 +64,6 @@ export function udToDate(da: string) {
 
 export function formatDateParam(date: Date) {
   return baseFormatUd(unixToDa(date!.getTime()));
-}
-
-export function formatPostIdParam(sealId: string) {
-  return decToUd(sealId);
 }
 
 export function isDmChannelId(channelId: string) {

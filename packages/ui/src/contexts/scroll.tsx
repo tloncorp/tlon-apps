@@ -8,7 +8,6 @@ import {
   withTiming,
 } from 'react-native-reanimated';
 import { clamp } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ScrollContextTuple = [SharedValue<number>, () => void];
 
@@ -24,33 +23,29 @@ export const useScrollDirectionTracker = (
 ) => {
   const [scrollValue] = useScrollContext();
   const previousScrollValue = useSharedValue(0);
-  const { bottom } = useSafeAreaInsets();
   const isAtBottom = useSharedValue(true);
 
-  return useAnimatedScrollHandler(
-    (event) => {
-      const { y } = event.contentOffset;
+  return useAnimatedScrollHandler((event) => {
+    const { y } = event.contentOffset;
 
-      if (y < 0 || y > event.contentSize.height) {
-        return;
-      }
+    if (y < 0 || y > event.contentSize.height) {
+      return;
+    }
 
-      scrollValue.value = clamp(
-        scrollValue.value + (y - previousScrollValue.value) / 200,
-        0,
-        1
-      );
+    scrollValue.value = clamp(
+      scrollValue.value + (y - previousScrollValue.value) / 200,
+      0,
+      1
+    );
 
-      previousScrollValue.value = y;
+    previousScrollValue.value = y;
 
-      const atBottom = y <= 0;
-      if (isAtBottom.value !== atBottom) {
-        isAtBottom.value = atBottom;
-        runOnJS(setIsAtBottom)(atBottom);
-      }
-    },
-    [bottom]
-  );
+    const atBottom = y <= 0;
+    if (isAtBottom.value !== atBottom) {
+      isAtBottom.value = atBottom;
+      runOnJS(setIsAtBottom)(atBottom);
+    }
+  });
 };
 
 export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({

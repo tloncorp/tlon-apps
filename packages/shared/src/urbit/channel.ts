@@ -1,5 +1,5 @@
-import { udToDec } from '@urbit/api';
-import bigInt, { BigInteger } from 'big-integer';
+import { parseUd } from '@urbit/aura';
+import { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
@@ -88,6 +88,8 @@ export interface Image {
     alt: string;
   };
 }
+
+export type ListType = 'ordered' | 'unordered' | 'tasklist';
 
 export interface List {
   list: {
@@ -660,7 +662,7 @@ export function newPostTupleArray(
     data.pages
       .map((page) => {
         const pagePosts = Object.entries(page.posts).map(
-          ([k, v]) => [bigInt(udToDec(k)), v] as PostTuple
+          ([k, v]) => [parseUd(k), v] as PostTuple
         );
 
         return pagePosts;
