@@ -17,19 +17,21 @@ import Animated, {
   SharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import { ColorTokens, Stack, View, getTokenValue } from 'tamagui';
+import { ColorTokens, Stack, View, getTokenValue, isWeb } from 'tamagui';
 
 import * as utils from '../../utils';
+import { Button } from '../Button';
 import { Chat } from '../ChatList';
 import { Icon, IconType } from '../Icon';
 import { ChatListItem } from './ChatListItem';
 import { ListItemProps } from './ListItem';
 import { useBoundHandler } from './listItemUtils';
 
-function BaseSwipableChatRow({
+function BaseInteractableChatRow({
   model,
   onPress,
   onLongPress,
+  onPressMenuButton,
 }: ListItemProps<Chat> & { model: db.Channel }) {
   const swipeableRef = useRef<SwipeableMethods>(null);
 
@@ -85,22 +87,54 @@ function BaseSwipableChatRow({
     [handleAction, mutedState]
   );
 
-  return (
-    <Swipeable
-      ref={swipeableRef}
-      renderRightActions={renderRightActions}
-      leftThreshold={1}
-      rightThreshold={1}
-      friction={1.5}
-      overshootLeft={false}
-      overshootRight={false}
-    >
-      <ChatListItem model={model} onPress={onPress} onLongPress={onLongPress} />
-    </Swipeable>
+  const handleMenuPress = useCallback(
+    (chat: Chat) => {
+      onPressMenuButton?.(chat);
+    },
+    [onPressMenuButton]
   );
+
+  if (!isWeb) {
+    return (
+      <Swipeable
+        ref={swipeableRef}
+        renderRightActions={renderRightActions}
+        leftThreshold={1}
+        rightThreshold={1}
+        friction={1.5}
+        overshootLeft={false}
+        overshootRight={false}
+      >
+        <ChatListItem
+          model={model}
+          onPress={onPress}
+          onLongPress={onLongPress}
+        />
+      </Swipeable>
+    );
+  } else {
+    return (
+      <View>
+        <ChatListItem
+          model={model}
+          onPress={onPress}
+          onLongPress={onLongPress}
+        />
+        <View position="absolute" right={-2} top={44} zIndex={1}>
+          <Button
+            onPress={() => handleMenuPress(model)}
+            borderWidth="unset"
+            size="$l"
+          >
+            <Icon type="Overflow" />
+          </Button>
+        </View>
+      </View>
+    );
+  }
 }
 
-export const SwipableChatListItem = React.memo(BaseSwipableChatRow);
+export const InteractableChatListItem = React.memo(BaseInteractableChatRow);
 
 function BaseRightActions({
   isMuted,

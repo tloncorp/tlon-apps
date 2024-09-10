@@ -28,13 +28,12 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import { Text, View, YStack, isWeb, useStyle } from 'tamagui';
+import { Text, View, YStack, useStyle } from 'tamagui';
 
 import { interactionWithTiming } from '../utils/animation';
-import { Button } from './Button';
 import { Icon } from './Icon';
 import { Input } from './Input';
-import { ChatListItem, SwipableChatListItem } from './ListItem';
+import { ChatListItem, InteractableChatListItem } from './ListItem';
 import Pressable from './Pressable';
 import { SectionListHeader } from './SectionList';
 import { Tabs } from './Tabs';
@@ -88,13 +87,6 @@ function ChatListComponent({
     { resolveValues: 'value' }
   ) as StyleProp<ViewStyle>;
 
-  const handleMenuPress = useCallback(
-    (chat: Chat) => {
-      onPressMenuButton?.(chat);
-    },
-    [onPressMenuButton]
-  );
-
   const renderItem = useCallback(
     ({
       item,
@@ -102,34 +94,14 @@ function ChatListComponent({
       const itemModel = item as Chat;
 
       if (logic.isChannel(itemModel)) {
-        if (!isWeb) {
-          return (
-            <SwipableChatListItem
-              model={itemModel}
-              onPress={onPressItem}
-              onLongPress={onLongPressItem}
-            />
-          );
-        } else {
-          return (
-            <View>
-              <ChatListItem
-                model={itemModel}
-                onPress={onPressItem}
-                onLongPress={onLongPressItem}
-              />
-              <View position="absolute" right={-2} top={44} zIndex={1}>
-                <Button
-                  onPress={() => handleMenuPress(itemModel)}
-                  borderWidth="unset"
-                  size="$l"
-                >
-                  <Icon type="Overflow" />
-                </Button>
-              </View>
-            </View>
-          );
-        }
+        return (
+          <InteractableChatListItem
+            model={itemModel}
+            onPress={onPressItem}
+            onLongPress={onLongPressItem}
+            onPressMenuButton={onPressMenuButton}
+          />
+        );
       } else {
         return (
           <ChatListItem
@@ -140,7 +112,7 @@ function ChatListComponent({
         );
       }
     },
-    [onPressItem, onLongPressItem, handleMenuPress]
+    [onPressItem, onLongPressItem, onPressMenuButton]
   );
 
   const renderSectionHeader = useCallback(

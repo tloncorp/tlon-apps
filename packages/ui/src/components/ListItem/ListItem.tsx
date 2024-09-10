@@ -21,6 +21,7 @@ export interface BaseListItemProps<T> {
   EndContent?: ReactElement | null;
   onPress?: (model: T) => void;
   onLongPress?: (model: T) => void;
+  onPressMenuButton?: (model: T) => void;
   unreadCount?: number;
 }
 
