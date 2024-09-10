@@ -2,7 +2,7 @@
 /+  gj=groups-json, default-agent, verb, dbug
 ::
 |%
-++  dev-mode  &
+++  dev-mode  |
 ++  enabled-groups  (set cord)
 ++  outstanding-pokes  (set (pair ship cord))
 ++  bite-subscribe
