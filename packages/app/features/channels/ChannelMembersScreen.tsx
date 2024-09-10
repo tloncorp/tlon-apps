@@ -1,7 +1,5 @@
 import * as store from '@tloncorp/shared/dist/store';
-import { AppDataContextProvider, ChannelMembersScreenView } from '@tloncorp/ui';
-
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { ChannelMembersScreenView } from '@tloncorp/ui';
 
 export function ChannelMembersScreen({
   channelId,
@@ -14,18 +12,10 @@ export function ChannelMembersScreen({
     id: channelId,
   });
 
-  const currentUserId = useCurrentUserId();
-  const contactsQuery = store.useContacts();
-
   return (
-    <AppDataContextProvider
-      contacts={contactsQuery.data ?? null}
-      currentUserId={currentUserId}
-    >
-      <ChannelMembersScreenView
-        channel={channelQuery.data ?? undefined}
-        goBack={onGoBack}
-      />
-    </AppDataContextProvider>
+    <ChannelMembersScreenView
+      channel={channelQuery.data ?? undefined}
+      goBack={onGoBack}
+    />
   );
 }

@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
-type Session = { startTime: number };
+export type Session = { startTime: number };
+
 type SessionListener = (session: Session | null) => void;
 
 let session: Session | null = null;

@@ -2,9 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import {
-  AppDataContextProvider,
   Button,
-  CalmProvider,
   ChatList,
   ChatOptionsProvider,
   ChatOptionsSheet,
@@ -23,7 +21,6 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
-import { useCalmSettings } from '../../hooks/useCalmSettings';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useIsFocused } from '../../hooks/useIsFocused';
@@ -49,8 +46,6 @@ export default function ChatListScreen({
   navigateToHome,
   navigateToNotifications,
   navigateToProfile,
-  branchDomain,
-  branchKey,
 }: {
   startDmOpen: boolean;
   setStartDmOpen: (open: boolean) => void;
@@ -61,8 +56,6 @@ export default function ChatListScreen({
   navigateToHome: () => void;
   navigateToNotifications: () => void;
   navigateToProfile: () => void;
-  branchDomain: string;
-  branchKey: string;
 }) {
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
@@ -105,7 +98,6 @@ export default function ChatListScreen({
 
   const currentUser = useCurrentUserId();
 
-  const { data: contacts } = store.useContacts();
   const resolvedChats = useMemo(() => {
     return {
       pinned: chats?.pinned ?? [],
@@ -186,8 +178,6 @@ export default function ChatListScreen({
     identifyTlonEmployee();
   }
 
-  const { calmSettings } = useCalmSettings();
-
   const handleSectionChange = useCallback(
     (title: string) => {
       if (activeTab === 'all') {
@@ -232,103 +222,94 @@ export default function ChatListScreen({
   }, []);
 
   return (
-    <CalmProvider calmSettings={calmSettings}>
-      <AppDataContextProvider
-        currentUserId={currentUser}
-        contacts={contacts ?? []}
-        branchKey={branchKey}
-        branchDomain={branchDomain}
+    <RequestsProvider
+      usePostReference={store.usePostReference}
+      useChannel={store.useChannelWithRelations}
+      usePost={store.usePostWithRelations}
+      useApp={store.useAppInfo}
+      useGroup={store.useGroupPreview}
+    >
+      <ChatOptionsProvider
+        channelId={chatOptionsChannelId}
+        groupId={chatOptionsGroupId}
+        pinned={pinned}
+        {...useChatSettingsNavigation()}
+        onPressInvite={(group) => {
+          setInviteSheetGroup(group);
+        }}
       >
-        <RequestsProvider
-          usePostReference={store.usePostReference}
-          useChannel={store.useChannelWithRelations}
-          usePost={store.usePostWithRelations}
-          useApp={store.useAppInfo}
-          useGroup={store.useGroupPreview}
-        >
-          <ChatOptionsProvider
-            channelId={chatOptionsChannelId}
-            groupId={chatOptionsGroupId}
-            pinned={pinned}
-            {...useChatSettingsNavigation()}
-            onPressInvite={(group) => {
-              setInviteSheetGroup(group);
-            }}
-          >
-            <View flex={1}>
-              <ScreenHeader
-                title={
-                  !chats || (!chats.unpinned.length && !chats.pinned.length)
-                    ? 'Loading…'
-                    : screenTitle
-                }
-                rightControls={headerControls}
-              />
-              {chats && chats.unpinned.length ? (
-                <ChatList
-                  activeTab={activeTab}
-                  setActiveTab={setActiveTab}
-                  pinned={resolvedChats.pinned}
-                  unpinned={resolvedChats.unpinned}
-                  pendingChats={resolvedChats.pendingChats}
-                  onLongPressItem={onLongPressChat}
-                  onPressItem={onPressChat}
-                  onPressMenuButton={onLongPressChat}
-                  onSectionChange={handleSectionChange}
-                  showFilters={showFilters}
-                />
-              ) : null}
-              <View
-                zIndex={50}
-                position="absolute"
-                bottom="$s"
-                alignItems="center"
-                width={'100%'}
-                pointerEvents="box-none"
-              >
-                <FloatingAddButton
-                  setStartDmOpen={setStartDmOpen}
-                  setAddGroupOpen={setAddGroupOpen}
-                />
-              </View>
-              <WelcomeSheet
-                open={splashVisible}
-                onOpenChange={handleWelcomeOpenChange}
-              />
-              <ChatOptionsSheet ref={chatOptionsSheetRef} />
-              <StartDmSheet
-                goToDm={goToDm}
-                open={startDmOpen}
-                onOpenChange={handleDmOpenChange}
-              />
-              <GroupPreviewSheet
-                open={selectedGroup !== null}
-                onOpenChange={handleGroupPreviewSheetOpenChange}
-                group={selectedGroup ?? undefined}
-              />
-              <InviteUsersSheet
-                open={inviteSheetGroup !== null}
-                onOpenChange={handleInviteSheetOpenChange}
-                onInviteComplete={() => setInviteSheetGroup(null)}
-                group={inviteSheetGroup ?? undefined}
-              />
-            </View>
-            <NavBarView
-              navigateToHome={() => {
-                navigateToHome();
-              }}
-              navigateToNotifications={() => {
-                navigateToNotifications();
-              }}
-              navigateToProfile={() => {
-                navigateToProfile();
-              }}
-              currentRoute="ChatList"
-              currentUserId={currentUser}
+        <View flex={1}>
+          <ScreenHeader
+            title={
+              !chats || (!chats.unpinned.length && !chats.pinned.length)
+                ? 'Loading…'
+                : screenTitle
+            }
+            rightControls={headerControls}
+          />
+          {chats && chats.unpinned.length ? (
+            <ChatList
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              pinned={resolvedChats.pinned}
+              unpinned={resolvedChats.unpinned}
+              pendingChats={resolvedChats.pendingChats}
+              onLongPressItem={onLongPressChat}
+              onPressItem={onPressChat}
+              onPressMenuButton={onLongPressChat}
+              onSectionChange={handleSectionChange}
+              showFilters={showFilters}
             />
-          </ChatOptionsProvider>
-        </RequestsProvider>
-      </AppDataContextProvider>
-    </CalmProvider>
+          ) : null}
+          <View
+            zIndex={50}
+            position="absolute"
+            bottom="$s"
+            alignItems="center"
+            width={'100%'}
+            pointerEvents="box-none"
+          >
+            <FloatingAddButton
+              setStartDmOpen={setStartDmOpen}
+              setAddGroupOpen={setAddGroupOpen}
+            />
+          </View>
+          <WelcomeSheet
+            open={splashVisible}
+            onOpenChange={handleWelcomeOpenChange}
+          />
+          <ChatOptionsSheet ref={chatOptionsSheetRef} />
+          <StartDmSheet
+            goToDm={goToDm}
+            open={startDmOpen}
+            onOpenChange={handleDmOpenChange}
+          />
+          <GroupPreviewSheet
+            open={selectedGroup !== null}
+            onOpenChange={handleGroupPreviewSheetOpenChange}
+            group={selectedGroup ?? undefined}
+          />
+          <InviteUsersSheet
+            open={inviteSheetGroup !== null}
+            onOpenChange={handleInviteSheetOpenChange}
+            onInviteComplete={() => setInviteSheetGroup(null)}
+            group={inviteSheetGroup ?? undefined}
+          />
+        </View>
+        <NavBarView
+          navigateToHome={() => {
+            navigateToHome();
+          }}
+          navigateToNotifications={() => {
+            navigateToNotifications();
+          }}
+          navigateToProfile={() => {
+            navigateToProfile();
+          }}
+          currentRoute="ChatList"
+          currentUserId={currentUser}
+        />
+      </ChatOptionsProvider>
+    </RequestsProvider>
   );
 }

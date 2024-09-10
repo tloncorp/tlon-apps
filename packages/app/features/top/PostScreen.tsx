@@ -1,11 +1,11 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
-import { PostScreenView } from '@tloncorp/ui';
-import { useChannelNavigation } from '../../hooks/useChannelNavigation';
+import { PostScreenView, useCurrentUserId } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useChannelContext } from '../../hooks/useChannelContext';
+import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 
 export default function PostScreen({
   postParam,
@@ -21,10 +21,8 @@ export default function PostScreen({
   handleGoToUserProfile: (userId: string) => void;
 }) {
   const {
-    currentUserId,
     group,
     channel,
-    contacts,
     negotiationStatus,
     getDraft,
     storeDraft,
@@ -32,7 +30,6 @@ export default function PostScreen({
     editingPost,
     setEditingPost,
     editPost,
-    calmSettings,
     headerMode,
   } = useChannelContext({
     channelId: postParam.channelId,
@@ -43,6 +40,8 @@ export default function PostScreen({
   const { navigateToImage } = useChannelNavigation({
     channelId: postParam.channelId,
   });
+
+  const currentUserId = useCurrentUserId();
 
   // for the unread thread divider, we care about the unread state when you enter but don't want it to update over
   // time
@@ -122,9 +121,6 @@ export default function PostScreen({
     <PostScreenView
       handleGoToUserProfile={handleGoToUserProfile}
       canUpload={canUpload}
-      contacts={contacts ?? null}
-      calmSettings={calmSettings}
-      currentUserId={currentUserId}
       parentPost={post}
       posts={posts}
       channel={channel}

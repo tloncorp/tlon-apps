@@ -10,8 +10,7 @@ import {
   useStyle,
 } from 'tamagui';
 
-import { useContact } from '../contexts';
-import { useCalm } from '../contexts/calm';
+import { useCalm, useContact } from '../contexts';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
 import { getContrastingColor, useSigilColors } from '../utils/colorUtils';

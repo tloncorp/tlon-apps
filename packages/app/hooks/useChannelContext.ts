@@ -4,7 +4,6 @@ import * as urbit from '@tloncorp/shared/dist/urbit';
 import { JSONContent } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useFeatureFlag } from '../lib/featureFlags';
 import storage from '../lib/storage';
 
@@ -16,13 +15,6 @@ export const useChannelContext = ({
   draftKey: string;
   uploaderKey: string;
 }) => {
-  const currentUserId = useCurrentUserId();
-
-  // Calm Settings
-  const calmSettingsQuery = store.useCalmSettings({
-    userId: currentUserId,
-  });
-
   // Model context
   const channelQuery = store.useChannelWithRelations({
     id: channelId,
@@ -106,7 +98,6 @@ export const useChannelContext = ({
 
   // Contacts
 
-  const contactsQuery = store.useContacts();
   const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   return {
@@ -117,11 +108,8 @@ export const useChannelContext = ({
     setEditingPost,
     editingPost,
     editPost,
-    contacts: contactsQuery.data ?? null,
     channel: channelQuery.data ?? null,
     group: groupQuery.data ?? null,
-    calmSettings: calmSettingsQuery.data ?? null,
-    currentUserId,
     headerMode: isChannelSwitcherEnabled ? 'next' : 'default',
   } as const;
 };

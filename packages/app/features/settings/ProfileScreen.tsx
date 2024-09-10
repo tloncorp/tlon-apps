@@ -1,4 +1,3 @@
-import * as store from '@tloncorp/shared/dist/store';
 import { NavBarView, ProfileScreenView, View } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
@@ -25,7 +24,6 @@ export default function ProfileScreen({
   handleLogout?: () => void;
 }) {
   const currentUserId = useCurrentUserId();
-  const { data: contacts } = store.useContacts();
 
   const onAppSettingsPressed = useCallback(() => {
     navigateToAppSettings();
@@ -48,7 +46,6 @@ export default function ProfileScreen({
   return (
     <View backgroundColor="$background" flex={1}>
       <ProfileScreenView
-        contacts={contacts ?? []}
         currentUserId={currentUserId}
         onAppSettingsPressed={onAppSettingsPressed}
         onEditProfilePressed={onEditProfilePressed}

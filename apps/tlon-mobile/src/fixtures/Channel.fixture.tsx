@@ -6,7 +6,11 @@ import {
 } from '@tloncorp/shared/dist';
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
-import { Channel, ChannelSwitcherSheet } from '@tloncorp/ui';
+import {
+  AppDataContextProvider,
+  Channel,
+  ChannelSwitcherSheet,
+} from '@tloncorp/ui';
 import { range } from 'lodash';
 import type { ComponentProps, PropsWithChildren } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -69,9 +73,11 @@ const ChannelFixtureWrapper = ({
   theme,
 }: PropsWithChildren<{ theme?: 'light' | 'dark' }>) => {
   return (
-    <FixtureWrapper fillWidth fillHeight theme={theme}>
-      {children}
-    </FixtureWrapper>
+    <AppDataContextProvider contacts={initialContacts}>
+      <FixtureWrapper fillWidth fillHeight theme={theme}>
+        {children}
+      </FixtureWrapper>
+    </AppDataContextProvider>
   );
 };
 
@@ -79,8 +85,6 @@ const baseProps: ComponentProps<typeof Channel> = {
   headerMode: 'default',
   posts: posts,
   channel: tlonLocalIntros,
-  currentUserId: '~zod',
-  contacts: initialContacts,
   negotiationMatch: true,
   isLoadingPosts: false,
   group: group,
@@ -246,7 +250,6 @@ function SwitcherFixture({
         switcher.setActiveChannel(channel);
         switcher.close();
       }}
-      contacts={initialContacts}
     />
   );
 }

@@ -1,6 +1,7 @@
 // Copyright 2024, Tlon Corporation
 import { TooltipProvider } from '@radix-ui/react-tooltip';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
+import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/dist/api';
 import cookies from 'browser-cookies';
@@ -228,11 +229,13 @@ const App = React.memo(function AppComponent() {
   return (
     <div className="flex h-full w-full flex-col">
       <MigrationCheck>
-        <SafeAreaProvider>
-          <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-            <AppRoutes />
-          </TamaguiProvider>
-        </SafeAreaProvider>
+        <AppDataProvider>
+          <SafeAreaProvider>
+            <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
+              <AppRoutes />
+            </TamaguiProvider>
+          </SafeAreaProvider>
+        </AppDataProvider>
       </MigrationCheck>
     </div>
   );

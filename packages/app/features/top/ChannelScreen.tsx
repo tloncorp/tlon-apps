@@ -14,11 +14,12 @@ import {
   ChannelSwitcherSheet,
   ChatOptionsProvider,
   INITIAL_POSTS_PER_PAGE,
+  useCurrentUserId,
 } from '@tloncorp/ui';
-import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import React, { useCallback, useEffect, useMemo } from 'react';
 
 import { useChannelContext } from '../../hooks/useChannelContext';
+import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useFocusEffect } from '../../hooks/useFocusEffect';
 import { useIsFocused } from '../../hooks/useIsFocused';
@@ -39,6 +40,7 @@ export default function ChannelScreen({
   groupFromParams?: db.Group | null;
   selectedPostId?: string | null;
 }) {
+  const currentUserId = useCurrentUserId();
   useFocusEffect(
     useCallback(() => {
       if (channelFromParams.group?.isNew) {
@@ -88,11 +90,8 @@ export default function ChannelScreen({
     editingPost,
     setEditingPost,
     editPost,
-    contacts,
     channel,
     group,
-    calmSettings,
-    currentUserId,
     headerMode,
   } = useChannelContext({
     channelId: currentChannelId,
@@ -267,13 +266,10 @@ export default function ChannelScreen({
         headerMode={headerMode}
         channel={channel}
         initialChannelUnread={initialChannelUnread}
-        currentUserId={currentUserId}
-        calmSettings={calmSettings}
         isLoadingPosts={isLoadingPosts}
         hasNewerPosts={postsQuery.hasPreviousPage}
         hasOlderPosts={postsQuery.hasNextPage}
         group={group}
-        contacts={contacts}
         posts={posts}
         selectedPostId={selectedPostId}
         goBack={goBack}
@@ -311,7 +307,6 @@ export default function ChannelScreen({
           onOpenChange={(open) => setChannelNavOpen(open)}
           group={group}
           channels={group?.channels || []}
-          contacts={contacts ?? []}
           onSelect={handleChannelSelected}
         />
       )}
