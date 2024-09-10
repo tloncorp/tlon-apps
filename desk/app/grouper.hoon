@@ -154,11 +154,12 @@
     ~?  dev-mode  'inviting'
     =/  =invite:groups  [flag joiner.bite]
     =/  prefix  /(scot %p our.bowl)/groups/(scot %da now.bowl)
-    =+  .^(groups-running=? %gu (weld prefix /$))
-    ?.  groups-running
-      ~&("groups not running" ~)
-    =/  =path  (weld prefix /groups/(scot %p p.flag)/[q.flag]/noun)
-    =+  .^(=group:groups %gx path)
+    ?.  .^(? %gu (weld prefix /$))
+      ~?(dev-mode "groups not running" ~)
+    =/  gnat=path  /(scot %p p.flag)/[q.flag]/noun
+    ?.  .^(? %gx (weld prefix %exists gnat))
+      ~?(dev-mode "group doesn't exist" ~)
+    =+  .^(=group:groups %gx (weld prefix %groups gnat))
     ~?  dev-mode  cordon.group
     ?+  -.cordon.group  ~
         %open
