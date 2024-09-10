@@ -362,6 +362,7 @@ function ChannelWithControlledPostLoading() {
             channel: baseProps.channel,
             post: anchorPost,
           }),
+          hasNewerPosts: true,
         })}
       />
       <FixtureToolbar>
