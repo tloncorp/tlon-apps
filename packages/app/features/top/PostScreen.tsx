@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { PostScreenView } from '@tloncorp/ui';
+import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useChannelContext } from '../../hooks/useChannelContext';
@@ -31,13 +32,16 @@ export default function PostScreen({
     editingPost,
     setEditingPost,
     editPost,
-    navigateToImage,
     calmSettings,
     headerMode,
   } = useChannelContext({
     channelId: postParam.channelId,
     draftKey: postParam.id,
     uploaderKey: `${postParam.channelId}/${postParam.id}`,
+  });
+
+  const { navigateToImage } = useChannelNavigation({
+    channelId: postParam.channelId,
   });
 
   // for the unread thread divider, we care about the unread state when you enter but don't want it to update over
