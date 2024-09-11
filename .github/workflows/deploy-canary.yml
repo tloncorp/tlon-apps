@@ -62,7 +62,7 @@ jobs:
   glob:
     runs-on: ubuntu-latest
     name: 'Make a glob'
-    needs: build-frontend
+    needs: build-new-frontend
     steps:
       - uses: actions/checkout@v3
         with:
