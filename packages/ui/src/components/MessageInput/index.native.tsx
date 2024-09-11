@@ -226,8 +226,22 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         try {
           getDraft().then((draft) => {
             if (draft) {
+              const inlines = tiptap.JSONToInlines(draft);
+              const newInlines = inlines
+                .map((inline) => {
+                  if (typeof inline === 'string') {
+                    if (inline.match(tiptap.REF_REGEX)) {
+                      return null;
+                    }
+                    return inline;
+                  }
+                  return inline;
+                })
+                .filter((inline) => inline !== null) as Inline[];
+              const newStory = constructStory(newInlines);
+              const tiptapContent = tiptap.diaryMixedToJSON(newStory);
               // @ts-expect-error setContent does accept JSONContent
-              editor.setContent(draft);
+              editor.setContent(tiptapContent);
               setHasSetInitialContent(true);
               setEditorIsEmpty(false);
             }
