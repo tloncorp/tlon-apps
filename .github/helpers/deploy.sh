@@ -9,7 +9,7 @@ ship=$3
 zone=$4
 project=$5
 ref=${6:-"develop"}
-[ "$desk" == "talk" ] && from="talk" || from="desk"
+[ "$desk" == "tm-alpha" ] && from="tm-alpha-desk" || from="desk"
 folder=$ship/$desk
 
 echo "Deploying $desk from $ref of $repo to $ship in $zone of $project"

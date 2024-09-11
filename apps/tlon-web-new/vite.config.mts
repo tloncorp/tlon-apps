@@ -19,6 +19,7 @@ import svgr from 'vite-plugin-svgr';
 import packageJson from './package.json';
 import reactNativeWeb from './reactNativeWebPlugin';
 import manifest from './src/manifest';
+import manifestAlpha from './src/manifest-alpha';
 
 // https://vitejs.dev/config/
 export default ({ mode }: { mode: string }) => {
@@ -43,7 +44,9 @@ export default ({ mode }: { mode: string }) => {
       return '';
     }
 
-    return '/apps/groups/';
+    if (mode === 'alpha') {
+      return '/apps/tm-alpha/';
+    }
   };
 
   // eslint-disable-next-line
@@ -60,7 +63,7 @@ export default ({ mode }: { mode: string }) => {
     return [
       process.env.SSL === 'true' ? (basicSsl() as PluginOption) : null,
       urbitPlugin({
-        base: 'groups',
+        base: mode === 'alpha' ? 'tm-alpha' : 'groups',
         target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
         changeOrigin: true,
         secure: false,
@@ -85,8 +88,8 @@ export default ({ mode }: { mode: string }) => {
         platform: 'web',
       }) as Plugin,
       VitePWA({
-        base: '/apps/groups/',
-        manifest,
+        base: mode === 'alpha' ? '/apps/tm-alpha/' : '/apps/groups/',
+        manifest: mode === 'alpha' ? manifestAlpha : manifest,
         injectRegister: 'inline',
         registerType: 'prompt',
         strategies: 'injectManifest',

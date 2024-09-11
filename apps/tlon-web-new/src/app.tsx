@@ -264,6 +264,10 @@ function RoutedApp() {
       return '/';
     }
 
+    if (mode === 'alpha') {
+      return '/apps/tm-alpha';
+    }
+
     return '/apps/groups';
   };
 
