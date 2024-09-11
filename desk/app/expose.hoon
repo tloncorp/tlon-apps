@@ -5,7 +5,7 @@
 ::    then visit in the browser:
 ::    /expose/that/reference/as/copied/123456789
 ::
-/-  c=cite, d=channels
+/-  c=cite, d=channels, co=contacts
 /+  sigil, u=channel-utils,
     dbug, verb
 ::
@@ -140,17 +140,37 @@
       ==
     ?~  msg
       ~
+    ::
+    =/  aco=(unit contact:co)
+      =/  base=path  /(scot %p our.bowl)/contacts/(scot %da now.bowl)
+      ?.  .^(? %gu (weld base /$))
+        ~
+      =+  .^(rol=rolodex:co %gx (weld base /all/contact-rolodex))
+      ?~  for=(~(get by rol) author.u.msg)
+        ~
+      ?.  ?=([[@ ^] *] u.for)
+        ~
+      `con.for.u.for
+    ::
     ::TODO  if we render replies then we can "unroll" whole chat threads too (:
     |^  ?+  p.nest.u.ref  ~  ::TODO  support rendering others
             %diary
           ?>  ?=(%diary -.kind-data.u.msg)
-          =/  title=tape  (trip title.kind-data.u.msg)
+          =*  kd  kind-data.u.msg
+          =/  title=tape  (trip title.kd)
           %-  some
           ^-  manx
           ;html
-            ;+  (heads title (scow %p author.u.msg))
+            ;+  %:  heads
+                  title
+                  (scow %p author.u.msg)
+                  ?:(=('' image.kd) ~ `image.kd)
+                ==
             ;body
-              ;*  (diary-prelude title author.u.msg sent.u.msg)
+              ;*  ?:  =('' image.kd)  ~
+                  :_  ~
+                  ;img.cover@"{(trip image.kd)}"(alt "cover image");
+              ;*  (diary-prelude title)
               ;*  (story:en-manx:u content.u.msg)
               ;+  diary-coda
             ==
@@ -1828,24 +1848,42 @@
       '''
     ::
     ++  heads
-      |=  [title=tape author=tape]
+      |=  [title=tape author=tape img=(unit @t)]
       ;head
         ;title:"{title}"
         ;style:"{(trip style)}"
+        ;link(rel "preconnect", href "https://rsms.me");
+        ;link(rel "stylesheet", href "https://rsms.me/inter/inter.css");
+      ::
         ;meta(charset "utf-8");
         ;meta(name "viewport", content "width=device-width, initial-scale=1");
       ::
         ;meta(name "robots", content "noindex, nofollow, noimageindex");
+      ::
+        ::TODO  make sure this is the right/new app id
+        ;meta(property "apple-itunes-app", content "app-id=6451392109");
+        ::NOTE  at the time of writing, android supports no such thing
       ::
         ::TODO  could get smarter about description, preview image, etc
         ;meta(property "og:title", content title);
         ;meta(property "twitter:title", content title);
         ;meta(property "og:site_name", content "Tlon");
         ;meta(property "og:type", content "article");
-        ;meta(property "twitter:card", content "summary");
         ;meta(property "og:article:author:username", content author);
-        ;link(rel "preconnect", href "https://rsms.me");
-        ;link(rel "stylesheet", href "https://rsms.me/inter/inter.css");
+      ::
+        ;*  ?~  img
+            :_  ~
+            ;meta(property "twitter:card", content "summary");
+        =/  img=tape  (trip u.img)
+        :~  ;meta(property "twitter:card", content "summary_large_image");
+            ;meta(property "og:image", content img);
+            ;meta(property "twitter:image", content img);
+        ==
+      ::
+        ;*  ?~  aco  ~
+            ?:  =('' nickname.u.aco)  ~
+            :_  ~
+        ;meta(property "og:article:author:first_name", content (trip nickname.u.aco));
       ==
     ::
     ++  diary-coda
@@ -1858,20 +1896,41 @@
       ==
     ::
     ++  diary-prelude
-      |=  [title=tape author=ship sent=@da]
+      |=  title=tape
       ^-  marl
       :~  ;h1:"{title}"
           ;div.prelude
             ;div.published
-              ;time:"{(scow %da (sub sent (mod sent ~s1)))}"
+              ;time:"{(scow %da (sub sent.u.msg (mod sent.u.msg ~s1)))}"  ::TODO  nicer format
             ==
-            ;div.author
-              ;div.avatar
-                ;+  (sigil(size 20, icon &) author)
-              ==
-              ; {(scow %p author)}
-            ==
+            ;+  author-node
           ==
+      ==
+    ::
+    ++  author-node
+      ^-  manx
+      =*  author  author.u.msg
+      ;div.author
+        ;div.avatar
+          ;+
+          ?:  &(?=(^ aco) ?=(^ avatar.u.aco) !=('' u.avatar.u.aco))
+            ;img@"{(trip u.avatar.u.aco)}"(alt "author's avatar");
+          =/  val=@ux   ?~(aco 0x0 color.u.aco)
+          =/  col=tape  ((x-co:^co 6) val)
+          %.  author
+          %_  sigil
+            size  25
+            icon  &
+            bg    '#'^col
+            fg    ?:((gth (div (roll (rip 3 val) add) 3) 127) "black" "white")  ::REVIEW
+          ==
+        ==
+      ::
+        ;+
+        =*  nom  ;span.author:"{(scow %p author)}"
+        ?~  aco  nom
+        ?:  =('' nickname.u.aco)  nom
+        ;span.author(title "{(scow %p author)}"):"{(trip nickname.u.aco)}"
       ==
     --
   ==
