@@ -95,7 +95,7 @@ jobs:
   glob-new:
     runs-on: ubuntu-latest
     name: 'Make a glob for new frontend'
-    needs: build-frontend
+    needs: build-frontend-new
     steps:
       - uses: actions/checkout@v3
         with:
@@ -150,7 +150,7 @@ jobs:
   deploy-new:
     runs-on: ubuntu-latest
     name: "Release new frontend to ~binnec-dozzod-marnus (canary)"
-    needs: glob
+    needs: glob-new
     steps:
       - uses: actions/checkout@v3
         with:
