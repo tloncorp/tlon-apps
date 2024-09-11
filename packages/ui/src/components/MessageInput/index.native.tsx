@@ -228,7 +228,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             if (draft) {
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(draft);
-              setHasSetInitialContent(true);
               setEditorIsEmpty(false);
             }
 
@@ -277,7 +276,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               );
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(tiptapContent);
-              setHasSetInitialContent(true);
             }
 
             if (editingPost?.image) {
@@ -293,6 +291,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           });
         } catch (e) {
           messageInputLogger.error('Error getting draft', e);
+        } finally {
+          setHasSetInitialContent(true);
         }
       }
     }, [
