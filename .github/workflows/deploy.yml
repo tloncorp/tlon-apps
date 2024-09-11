@@ -97,7 +97,7 @@ jobs:
   glob-new:
     runs-on: ubuntu-latest
     name: "Make a glob for new frontend"
-    needs: build-frontend-new
+    needs: build-new-frontend
     steps:
       - uses: actions/checkout@v3
         with:
