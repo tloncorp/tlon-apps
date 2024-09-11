@@ -144,13 +144,7 @@ export function Channel({
       : GalleryPost;
 
   const renderEmptyComponent = useCallback(() => {
-    return (
-      <EmptyChannelNotice
-        channel={channel}
-        userId={currentUserId}
-        withBugAdjust
-      />
-    );
+    return <EmptyChannelNotice channel={channel} userId={currentUserId} />;
   }, [currentUserId, channel]);
 
   const onPressGroupRef = useCallback((group: db.Group) => {

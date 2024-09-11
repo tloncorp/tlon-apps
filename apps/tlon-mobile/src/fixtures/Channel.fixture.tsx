@@ -365,6 +365,7 @@ function ChannelWithControlledPostLoading() {
             channel: baseProps.channel,
             post: anchorPost,
           }),
+          hasNewerPosts: true,
         })}
       />
       <FixtureToolbar>
@@ -466,6 +467,16 @@ export default {
       negotiationMatch={true}
       theme={'light'}
       headerMode={'default'}
+    />
+  ),
+  emptyChat: (
+    <ChannelFixture
+      negotiationMatch={true}
+      theme={'light'}
+      headerMode={'default'}
+      passedProps={() => ({
+        posts: [],
+      })}
     />
   ),
   chatWithSimulatedLoad: <ChannelWithControlledPostLoading />,
