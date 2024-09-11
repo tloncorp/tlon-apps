@@ -70,12 +70,11 @@ export const useLureState = create<LureState>((set, get) => ({
   bait: null,
   lures: {},
   describe: async (flag, metadata, branchDomain, branchKey) => {
-    const { name } = getFlagParts(flag);
     await poke({
       app: 'reel',
       mark: 'reel-describe',
       json: {
-        token: name,
+        token: flag,
         metadata,
       },
     });
@@ -92,7 +91,7 @@ export const useLureState = create<LureState>((set, get) => ({
         app: 'reel',
         mark: 'reel-undescribe',
         json: {
-          token: getFlagParts(flag).name,
+          token: flag,
         },
       });
     } else {
@@ -151,13 +150,10 @@ export const useLureState = create<LureState>((set, get) => ({
       // url
       asyncWithDefault(async () => {
         lureLogger.log(performance.now(), 'fetching url', flag);
-        return subscribeOnce<string>(
-          {
-            app: 'reel',
-            path: `/token-link/${flag}`,
-          },
-          LURE_REQUEST_TIMEOUT
-        ).then((u) => {
+        return scry<string>({
+          app: 'reel',
+          path: `/v1/id-url/${flag}`,
+        }).then((u) => {
           lureLogger.log(performance.now(), 'url fetched', u, flag);
           return u;
         });
@@ -167,7 +163,7 @@ export const useLureState = create<LureState>((set, get) => ({
         async () =>
           scry<LureMetadata>({
             app: 'reel',
-            path: `/metadata/${name}`,
+            path: `/metadata/${flag}`,
           }),
         prevLure?.metadata
       ),
