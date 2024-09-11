@@ -4,7 +4,7 @@
     image+'https://bootstrap.urbit.org/tlon.svg?v=1'
     glob-http+['https://bootstrap.urbit.org/glob-0v4.kgre5.dcoki.is810.6mj41.s3k9q.glob' 0v4.kgre5.dcoki.is810.6mj41.s3k9q]
     base+'groups'
-    version+[6 2 0]
+    version+[6 3 0]
     website+'https://tlon.io'
     license+'MIT'
 ==
