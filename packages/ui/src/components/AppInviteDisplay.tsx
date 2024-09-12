@@ -1,6 +1,7 @@
 import { DeepLinkMetadata } from '@tloncorp/shared/dist';
 import React, { ComponentProps } from 'react';
 
+import { AppDataContextProvider } from '../contexts';
 import { ListItem } from './ListItem';
 
 function AppInviteDisplayRaw({
@@ -28,22 +29,25 @@ function AppInviteDisplayRaw({
   };
 
   return (
-    <ListItem backgroundColor="$secondaryBackground" {...rest}>
-      {invitedGroupIconImageUrl ? (
-        <ListItem.GroupIcon
-          model={groupShim}
-          backgroundColor={groupShim.iconImageColor ?? '$secondaryBorder'}
-        />
-      ) : null}
-      <ListItem.MainContent>
-        <ListItem.Title>
-          Join {invitedGroupTitle ?? invitedGroupId}
-        </ListItem.Title>
-        <ListItem.Subtitle>
-          Invited by {inviterNickname ?? inviterUserId}
-        </ListItem.Subtitle>
-      </ListItem.MainContent>
-    </ListItem>
+    // provider needed to support calm settings usage down the tree
+    <AppDataContextProvider>
+      <ListItem backgroundColor="$secondaryBackground" {...rest}>
+        {invitedGroupIconImageUrl ? (
+          <ListItem.GroupIcon
+            model={groupShim}
+            backgroundColor={groupShim.iconImageColor ?? '$secondaryBorder'}
+          />
+        ) : null}
+        <ListItem.MainContent>
+          <ListItem.Title>
+            Join {invitedGroupTitle ?? invitedGroupId}
+          </ListItem.Title>
+          <ListItem.Subtitle>
+            Invited by {inviterNickname ?? inviterUserId}
+          </ListItem.Subtitle>
+        </ListItem.MainContent>
+      </ListItem>
+    </AppDataContextProvider>
   );
 }
 
