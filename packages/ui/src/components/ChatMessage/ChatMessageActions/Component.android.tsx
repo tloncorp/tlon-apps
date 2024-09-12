@@ -56,8 +56,7 @@ export function ChatMessageActions({
     <MotiView
       from={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      delay={150}
-      transition={{ duration: 300 }}
+      transition={{ duration: 200 }}
     >
       <View
         position="absolute"

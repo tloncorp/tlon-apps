@@ -34,6 +34,7 @@
         "NOTIFY_SERVICE": "groups-native"
       },
       "android": {
+        "resourceClass": "large",
         "gradleCommand": ":app:bundleProductionRelease"
       },
       "ios": {
