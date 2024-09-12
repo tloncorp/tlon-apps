@@ -8,6 +8,7 @@ import { createDevLogger } from '../debug';
 import { createDeepLink } from '../logic/branch';
 import { getPreviewTracker } from '../logic/subscriptionTracking';
 import { asyncWithDefault, getFlagParts } from '../logic/utils';
+import { stringToTa } from '../urbit';
 import { GroupMeta } from '../urbit/groups';
 
 interface LureMetadata {
@@ -268,13 +269,14 @@ export function useLure({
   };
 }
 
-export function useLureLinkChecked(flag: string, enabled: boolean) {
+export function useLureLinkChecked(url: string, enabled: boolean) {
   const prevData = useRef<boolean | undefined>(false);
+  const pathEncodedUrl = stringToTa(url);
   const { data, ...query } = useQuery({
-    queryKey: ['lure-check', flag],
+    queryKey: ['lure-check', url],
     queryFn: async () =>
       subscribeOnce<boolean>(
-        { app: 'grouper', path: `/check-link/${flag}` },
+        { app: 'grouper', path: `/check-link/${pathEncodedUrl}` },
         4500
       ),
     enabled,
@@ -283,7 +285,7 @@ export function useLureLinkChecked(flag: string, enabled: boolean) {
 
   prevData.current = data;
 
-  lureLogger.log('useLureLinkChecked', flag, data);
+  lureLogger.log('useLureLinkChecked', url, data);
 
   return {
     ...query,
@@ -307,7 +309,7 @@ export function useLureLinkStatus({
       branchDomain,
       branchKey,
     });
-  const { good, checked } = useLureLinkChecked(flag, !!enabled);
+  const { good, checked } = useLureLinkChecked(url, !!enabled);
 
   lureLogger.log('useLureLinkStatus', {
     flag,
