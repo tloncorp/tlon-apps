@@ -201,16 +201,14 @@ export const ImageAvatar = function ImageAvatarComponent({
   imageUrl?: string;
   fallback?: React.ReactNode;
 } & AvatarProps) {
-  const calmSettings = useCalm();
+  // const calmSettings = useCalm();
   const [loadFailed, setLoadFailed] = useState(false);
 
   const handleLoadError = useCallback(() => {
     setLoadFailed(true);
   }, []);
 
-  return imageUrl &&
-    (props.ignoreCalm || !calmSettings.disableAvatars) &&
-    !loadFailed ? (
+  return imageUrl && (props.ignoreCalm || true) && !loadFailed ? (
     <AvatarFrame {...props}>
       <Image
         width={'100%'}
