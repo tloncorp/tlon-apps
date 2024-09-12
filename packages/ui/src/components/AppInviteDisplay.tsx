@@ -1,29 +1,39 @@
 import { DeepLinkMetadata } from '@tloncorp/shared/dist';
-import React from 'react';
+import React, { ComponentProps } from 'react';
 
 import { ListItem } from './ListItem';
 
-function AppInviteDisplayRaw({ metadata }: { metadata: DeepLinkMetadata }) {
+function AppInviteDisplayRaw({
+  metadata,
+  ...rest
+}: { metadata: DeepLinkMetadata } & ComponentProps<typeof ListItem>) {
   const {
     inviterUserId,
     invitedGroupId,
     inviterNickname,
     invitedGroupTitle,
     invitedGroupIconImageUrl,
+    invitedGroupiconImageColor,
   } = metadata;
 
   if (!inviterUserId || !invitedGroupId) {
     return null;
   }
 
+  const groupShim = {
+    id: invitedGroupId,
+    title: invitedGroupTitle,
+    iconImage: invitedGroupIconImageUrl,
+    iconImageColor: invitedGroupiconImageColor,
+  };
+
   return (
-    <ListItem
-      marginHorizontal="$3xl"
-      backgroundColor="$secondaryBackground"
-      marginBottom="$4xl"
-    >
+    <ListItem backgroundColor="$secondaryBackground" {...rest}>
       {invitedGroupIconImageUrl ? (
-        <ListItem.ImageIcon imageUrl={invitedGroupIconImageUrl} />
+        <ListItem.GroupIcon
+          model={groupShim}
+          backgroundColor={groupShim.iconImageColor ?? '$secondaryBorder'}
+        />
       ) : null}
       <ListItem.MainContent>
         <ListItem.Title>

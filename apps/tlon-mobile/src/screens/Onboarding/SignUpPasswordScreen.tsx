@@ -12,6 +12,7 @@ import {
 import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
+  AppInviteDisplay,
   Button,
   CheckboxInput,
   Field,
@@ -25,6 +26,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
+import { useLureMetadata } from 'packages/app/contexts/branch';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -45,6 +47,7 @@ export const SignUpPasswordScreen = ({
   },
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const lureMeta = useLureMetadata();
   const {
     control,
     setFocus,
@@ -187,6 +190,7 @@ export const SignUpPasswordScreen = ({
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
         <YStack gap="$xl" padding="$2xl">
+          {lureMeta ? <AppInviteDisplay metadata={lureMeta} /> : null}
           <SizableText color="$primaryText">
             Please set a strong password with at least 8 characters.
           </SizableText>

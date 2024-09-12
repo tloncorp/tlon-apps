@@ -38,7 +38,13 @@ export const WelcomeScreen = ({ navigation }: Props) => {
         }}
         source={bgSource}
       >
-        {lureMeta ? <AppInviteDisplay metadata={lureMeta} /> : null}
+        {lureMeta ? (
+          <AppInviteDisplay
+            metadata={lureMeta}
+            marginHorizontal="$3xl"
+            marginBottom="$4xl"
+          />
+        ) : null}
         <YStack gap="$4xl" justifyContent="center" alignItems="center">
           <PrimaryButton
             backgroundColor="$blue"
