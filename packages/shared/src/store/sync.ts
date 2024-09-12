@@ -680,7 +680,6 @@ export const handleContactUpdate = async (update: api.ContactsUpdate) => {
 };
 
 export const handleStorageUpdate = async (update: api.StorageUpdate) => {
-  console.log('storage update', update);
   switch (update.type) {
     case 'storageCredentialsChanged': {
       await db.setStorageCredentials(update.credentials);

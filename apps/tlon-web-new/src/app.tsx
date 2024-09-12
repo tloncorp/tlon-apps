@@ -1,9 +1,11 @@
 // Copyright 2024, Tlon Corporation
 import { TooltipProvider } from '@radix-ui/react-tooltip';
+import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/dist/api';
+import * as store from '@tloncorp/shared/dist/store';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { PropsWithChildren, useEffect, useMemo, useState } from 'react';
@@ -25,7 +27,7 @@ import ImageViewerScreenController from '@/controllers/ImageViewerScreenControll
 import { PostScreenController } from '@/controllers/PostScreenController';
 import { ProfileScreenController } from '@/controllers/ProfileScreenController';
 import EyrieMenu from '@/eyrie/EyrieMenu';
-import { useMigrations } from '@/lib/webDb';
+import { checkDb, useMigrations } from '@/lib/webDb';
 import { ANALYTICS_DEFAULT_PROPERTIES } from '@/logic/analytics';
 import useAppUpdates, { AppUpdateContext } from '@/logic/useAppUpdates';
 import useErrorHandler from '@/logic/useErrorHandler';
@@ -97,99 +99,128 @@ function handleGridRedirect(navigate: NavigateFunction) {
   }
 }
 
-function AppRoutes() {
+function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
+  const contactsQuery = store.useContacts();
+  const currentUserId = useCurrentUserId();
+  const calmSettingsQuery = store.useCalmSettings({ userId: currentUserId });
+
+  useEffect(() => {
+    const { data, refetch, isRefetching, isFetching } = contactsQuery;
+
+    if (isLoaded && data?.length === 0 && !isRefetching && !isFetching) {
+      refetch();
+    }
+  }, [contactsQuery, isLoaded]);
+
+  useEffect(() => {
+    const { data, refetch, isRefetching, isFetching } = calmSettingsQuery;
+
+    if (isLoaded && !data && !isRefetching && !isFetching) {
+      refetch();
+    }
+  }, [calmSettingsQuery, isLoaded]);
+
+  if (!isLoaded) {
+    return null;
+  }
+
   return (
-    <Routes>
-      <Route path="/" element={<ChatListScreenController />} />
-      <Route path="/activity" element={<ActivityScreenController />} />
-      <Route
-        path="/group/:ship/:name"
-        index
-        element={<GroupChannelsScreenController />}
-      />
-      <Route
-        path="/group/:ship/:name/members"
-        element={<GroupMembersScreenController />}
-      />
-      <Route
-        path="/group/:ship/:name/meta"
-        element={<GroupMetaScreenController />}
-      />
-      <Route
-        path="/group/:ship/:name/privacy"
-        element={<GroupPrivacyScreenController />}
-      />
-      <Route
-        path="/group/:ship/:name/roles"
-        element={<GroupRolesScreenController />}
-      />
-      <Route
-        path="/group/:ship/:name/manage-channels"
-        element={<ManageChannelsScreenController />}
-      />
-      <Route
-        path="/group/:ship/:name/channel/:chType/:chShip/:chName/post/:authorId/:postId"
-        element={<PostScreenController />}
-      />
-      <Route
-        path="/dm/:chShip/post/:authorId/:postId"
-        element={<PostScreenController />}
-      />
-      <Route path="/dm/:chShip" element={<ChannelScreenController />} />
-      <Route
-        path="/group/:ship/:name/channel/:chType/:chShip/:chName/:postId?"
-        element={<ChannelScreenController />}
-      />
-      <Route
-        path="/image/:postId/:uri"
-        element={<ImageViewerScreenController />}
-      />
-      <Route
-        path="/dm/:chShip/members"
-        element={<ChannelMembersScreenController />}
-      />
-      <Route
-        path="/dm/:chShip/meta"
-        element={<ChannelMembersScreenController />}
-      />
-      <Route
-        path="/group/:ship/:name/channel/:chType/:chShip/:chName/search"
-        element={<ChannelSearchScreenController />}
-      />
-      <Route
-        path="/dm/:chShip/search"
-        element={<ChannelSearchScreenController />}
-      />
-      <Route
-        path="/group/:ship/:name/channel/:chType/:chShip/:chName/edit"
-        element={<EditChannelScreenController />}
-      />
-      <Route path="/profile" element={<ProfileScreenController />} />
-      <Route
-        path="/profile/:userId"
-        element={<UserProfileScreenController />}
-      />
-      <Route path="/profile/edit" element={<EditProfileScreenController />} />
-      <Route path="/settings" element={<AppSettingsScreenController />} />
-      <Route path="/settings/app-info" element={<AppInfoScreenController />} />
-      <Route
-        path="/settings/feature-flags"
-        element={<FeatureFlagScreenController />}
-      />
-      <Route
-        path="/settings/manage-account"
-        element={<ManageAccountScreenController />}
-      />
-      <Route
-        path="/settings/push-notifications"
-        element={<PushNotificationSettingsScreenController />}
-      />
-      <Route
-        path="/settings/blocked-users"
-        element={<BlockedUsersScreenController />}
-      />
-      <Route path="/bug-report" element={<UserBugReportScreenController />} />
-    </Routes>
+    <AppDataProvider>
+      <Routes>
+        <Route path="/" element={<ChatListScreenController />} />
+        <Route path="/activity" element={<ActivityScreenController />} />
+        <Route
+          path="/group/:ship/:name"
+          index
+          element={<GroupChannelsScreenController />}
+        />
+        <Route
+          path="/group/:ship/:name/members"
+          element={<GroupMembersScreenController />}
+        />
+        <Route
+          path="/group/:ship/:name/meta"
+          element={<GroupMetaScreenController />}
+        />
+        <Route
+          path="/group/:ship/:name/privacy"
+          element={<GroupPrivacyScreenController />}
+        />
+        <Route
+          path="/group/:ship/:name/roles"
+          element={<GroupRolesScreenController />}
+        />
+        <Route
+          path="/group/:ship/:name/manage-channels"
+          element={<ManageChannelsScreenController />}
+        />
+        <Route
+          path="/group/:ship/:name/channel/:chType/:chShip/:chName/post/:authorId/:postId"
+          element={<PostScreenController />}
+        />
+        <Route
+          path="/dm/:chShip/post/:authorId/:postId"
+          element={<PostScreenController />}
+        />
+        <Route path="/dm/:chShip" element={<ChannelScreenController />} />
+        <Route
+          path="/group/:ship/:name/channel/:chType/:chShip/:chName/:postId?"
+          element={<ChannelScreenController />}
+        />
+        <Route
+          path="/image/:postId/:uri"
+          element={<ImageViewerScreenController />}
+        />
+        <Route
+          path="/dm/:chShip/members"
+          element={<ChannelMembersScreenController />}
+        />
+        <Route
+          path="/dm/:chShip/meta"
+          element={<ChannelMembersScreenController />}
+        />
+        <Route
+          path="/group/:ship/:name/channel/:chType/:chShip/:chName/search"
+          element={<ChannelSearchScreenController />}
+        />
+        <Route
+          path="/dm/:chShip/search"
+          element={<ChannelSearchScreenController />}
+        />
+        <Route
+          path="/group/:ship/:name/channel/:chType/:chShip/:chName/edit"
+          element={<EditChannelScreenController />}
+        />
+        <Route path="/profile" element={<ProfileScreenController />} />
+        <Route
+          path="/profile/:userId"
+          element={<UserProfileScreenController />}
+        />
+        <Route path="/profile/edit" element={<EditProfileScreenController />} />
+        <Route path="/settings" element={<AppSettingsScreenController />} />
+        <Route
+          path="/settings/app-info"
+          element={<AppInfoScreenController />}
+        />
+        <Route
+          path="/settings/feature-flags"
+          element={<FeatureFlagScreenController />}
+        />
+        <Route
+          path="/settings/manage-account"
+          element={<ManageAccountScreenController />}
+        />
+        <Route
+          path="/settings/push-notifications"
+          element={<PushNotificationSettingsScreenController />}
+        />
+        <Route
+          path="/settings/blocked-users"
+          element={<BlockedUsersScreenController />}
+        />
+        <Route path="/bug-report" element={<UserBugReportScreenController />} />
+      </Routes>
+    </AppDataProvider>
   );
 }
 
@@ -208,6 +239,9 @@ const App = React.memo(function AppComponent() {
   const navigate = useNavigate();
   const handleError = useErrorHandler();
   const isDarkMode = useIsDark();
+  const currentUserId = useCurrentUserId();
+  const [dbIsLoaded, setDbIsLoaded] = useState(false);
+  const [startedSync, setStartedSync] = useState(false);
 
   useEffect(() => {
     handleError(() => {
@@ -218,24 +252,49 @@ const App = React.memo(function AppComponent() {
 
   useEffect(() => {
     api.configureClient({
-      shipName: window.our,
+      shipName: currentUserId,
       shipUrl: '',
       onReset: () => sync.syncStart(),
       onChannelReset: () => sync.handleDiscontinuity(),
     });
-    sync.syncStart();
-  }, []);
+    const syncStart = async () => {
+      await sync.syncStart(startedSync);
+      setStartedSync(true);
+
+      // we need to check the size of the database here to see if it's not zero
+      // if it's not zero, set the dbIsLoaded to true
+      // this is necessary because we load a fresh db on every load and we
+      // can't be sure of when data has been loaded
+
+      for (let i = 0; i < 10; i++) {
+        if (dbIsLoaded) {
+          break;
+        }
+
+        const { databaseSizeBytes } = (await checkDb()) || {
+          databaseSizeBytes: 0,
+        };
+
+        if (databaseSizeBytes && databaseSizeBytes > 0) {
+          setDbIsLoaded(true);
+          break;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    };
+
+    syncStart();
+  }, [dbIsLoaded, currentUserId, startedSync]);
 
   return (
     <div className="flex h-full w-full flex-col">
       <MigrationCheck>
-        <AppDataProvider>
-          <SafeAreaProvider>
-            <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-              <AppRoutes />
-            </TamaguiProvider>
-          </SafeAreaProvider>
-        </AppDataProvider>
+        <SafeAreaProvider>
+          <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
+            <AppRoutes isLoaded={dbIsLoaded} />
+          </TamaguiProvider>
+        </SafeAreaProvider>
       </MigrationCheck>
     </div>
   );
