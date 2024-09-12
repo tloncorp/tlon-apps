@@ -104,7 +104,7 @@ export interface GroupImageShim {
 export const GroupAvatar = React.memo(function GroupAvatarComponent({
   model,
   ...props
-}: { model: GroupImageShim } & AvatarProps) {
+}: { model: db.Group | GroupImageShim } & AvatarProps) {
   const fallback = (
     <TextAvatar
       text={model.title ?? model.id.replace('~', '')}
