@@ -4,6 +4,7 @@ import {
   DEFAULT_PRIORITY_TOKEN,
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
+import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { getHostingAvailability } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
@@ -18,7 +19,6 @@ import {
   YStack,
 } from '@tloncorp/ui';
 import { Field } from '@tloncorp/ui';
-import { useLureMetadata } from 'packages/app/contexts/branch';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Controller } from 'react-hook-form';

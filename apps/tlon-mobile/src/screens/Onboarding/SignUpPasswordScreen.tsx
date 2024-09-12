@@ -5,6 +5,7 @@ import {
 } from '@google-cloud/recaptcha-enterprise-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
+import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import {
   logInHostingUser,
   signUpHostingUser,
@@ -26,7 +27,6 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useLureMetadata } from 'packages/app/contexts/branch';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 

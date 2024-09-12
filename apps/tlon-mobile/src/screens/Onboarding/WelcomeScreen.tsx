@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import {
   ActionSheet,
@@ -8,7 +9,6 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useLureMetadata } from 'packages/app/contexts/branch';
 import { useState } from 'react';
 import { ImageBackground, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

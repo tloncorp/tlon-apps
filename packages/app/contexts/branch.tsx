@@ -1,5 +1,5 @@
 import { DeepLinkMetadata } from '@tloncorp/shared/dist';
-import { extractLureMetadata } from 'packages/shared/src/logic';
+import { extractLureMetadata } from '@tloncorp/shared/src/logic';
 import {
   type ReactNode,
   createContext,
