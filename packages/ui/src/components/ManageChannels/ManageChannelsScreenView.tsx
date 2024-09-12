@@ -100,7 +100,7 @@ function DraggableChannel({
             </XStack>
             <Pressable onPress={onEdit}>
               <View paddingVertical="$xs">
-                <Icon color="$secondaryText" type="Dots" size="$m" />
+                <Icon color="$secondaryText" type="Overflow" size="$m" />
               </View>
             </Pressable>
           </>

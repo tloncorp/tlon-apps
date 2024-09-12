@@ -36,10 +36,33 @@ jobs:
         with:
           name: 'ui-dist'
           path:  apps/tlon-web/dist
+  build-new-frontend:
+    runs-on: ubuntu-latest
+    name: 'Build New Frontend'
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.tag }}
+      - uses: actions/setup-node@v3
+        with:
+          node-version-file: .nvmrc
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+      - working-directory: ./apps/tlon-web-new
+        run:
+          pnpm build:alpha
+      - uses: actions/upload-artifact@v3
+        with:
+          name: 'ui-dist-new'
+          path:  apps/tlon-web-new/dist
   glob:
     runs-on: ubuntu-latest
     name: 'Make a glob'
-    needs: build-frontend
+    needs: build-new-frontend
     steps:
       - uses: actions/checkout@v3
         with:
@@ -69,6 +92,39 @@ jobs:
           BRANCH=${INPUT:-"staging"}
           git pull origin $BRANCH --rebase --autostash
           git push
+  glob-new:
+    runs-on: ubuntu-latest
+    name: 'Make a glob for new frontend'
+    needs: build-frontend-new
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.tag }}
+      - uses: actions/download-artifact@v3
+        with:
+          name: 'ui-dist-new'
+          path: apps/tlon-web-new/dist
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SERVICE_KEY }}'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
+      - name: 'glob'
+        uses: ./.github/actions/glob
+        with:
+          folder: 'apps/tlon-web-new/dist/*'
+          docket: "tm-alpha-desk/desk.docket-0"
+      - name: Commit and Push Glob
+        run: |
+          git config --global user.name github-actions
+          git config --global user.email github-actions@github.com
+          git add desk/desk.docket-0
+          git commit -n -m "update glob: ${{ steps.glob.outputs.hash }} [skip actions]" || echo "No changes to commit"
+          INPUT=${{ env.tag }}
+          BRANCH=${INPUT:-"staging"}
+          git pull origin $BRANCH --rebase --autostash
+          git push
   deploy:
     runs-on: ubuntu-latest
     name: "Release to ~binnec-dozzod-marnus (canary)"
@@ -87,6 +143,28 @@ jobs:
         name: Deploy
         run:
           ./.github/helpers/deploy.sh tloncorp/tlon-apps groups binnec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ env.tag }}
+        env:
+          SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
+          SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}
+          URBIT_REPO_TAG: ${{ vars.URBIT_REPO_TAG }}
+  deploy-new:
+    runs-on: ubuntu-latest
+    name: "Release new frontend to ~binnec-dozzod-marnus (canary)"
+    needs: glob-new
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.tag }}
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SERVICE_KEY }}'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
+      - id: deploy
+        name: Deploy
+        run:
+          ./.github/helpers/deploy.sh tloncorp/tlon-apps tm-alpha binnec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ env.tag }}
         env:
           SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}

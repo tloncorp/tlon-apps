@@ -1,4 +1,4 @@
-import { EditorBridge } from '@10play/tentap-editor';
+import type { EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
@@ -6,11 +6,10 @@ import { PropsWithChildren } from 'react';
 import { SpaceTokens } from 'tamagui';
 import { ThemeTokens, View, XStack, YStack } from 'tamagui';
 
-import { ArrowUp, Checkmark, ChevronLeft, Close } from '../../assets/icons';
 import { useAttachmentContext } from '../../contexts/attachment';
+import { Button } from '../Button';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
-import { IconButton } from '../IconButton';
 import { LoadingSpinner } from '../LoadingSpinner';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
@@ -112,16 +111,24 @@ export const MessageInputContainer = ({
       >
         {goBack ? (
           <View paddingBottom="$xs">
-            <IconButton backgroundColor="unset" onPress={goBack}>
-              <ChevronLeft />
-            </IconButton>
+            <Button
+              backgroundColor="unset"
+              borderColor="transparent"
+              onPress={goBack}
+            >
+              <Icon type="ChevronLeft" />
+            </Button>
           </View>
         ) : null}
         {isEditing ? (
           <View paddingBottom="$xs">
-            <IconButton backgroundColor="unset" onPress={cancelEditing}>
-              <Close />
-            </IconButton>
+            <Button
+              backgroundColor="unset"
+              borderColor="transparent"
+              onPress={cancelEditing}
+            >
+              <Icon type="Close" />
+            </Button>
           </View>
         ) : null}
         {canUpload && showAttachmentButton ? (
@@ -147,24 +154,21 @@ export const MessageInputContainer = ({
           </View>
         ) : (
           <View paddingBottom="$xs">
-            {disableSend ? null : (
-              <IconButton
-                disabled={isSending}
-                color={'$primaryText'}
-                onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
-                backgroundColor="unset"
-              >
-                {isSending ? (
-                  <View width="$2xl" height="$2xl">
-                    <LoadingSpinner size="small" color="$secondaryText" />
-                  </View>
-                ) : isEditing ? (
-                  <Checkmark />
-                ) : (
-                  <ArrowUp />
-                )}
-              </IconButton>
-            )}
+            <Button
+              disabled={disableSend || isSending}
+              onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
+              backgroundColor="unset"
+              borderColor="transparent"
+              opacity={disableSend ? 0 : 1}
+            >
+              {isSending ? (
+                <View width="$2xl" height="$2xl">
+                  <LoadingSpinner size="small" color="$secondaryText" />
+                </View>
+              ) : (
+                <Icon size="$m" type={isEditing ? 'Checkmark' : 'ArrowUp'} />
+              )}
+            </Button>
           </View>
         )}
       </XStack>

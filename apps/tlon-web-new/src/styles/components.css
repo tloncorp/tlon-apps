@@ -1,0 +1,209 @@
+.button {
+  @apply inline-flex items-center justify-center rounded-lg bg-gray-800 px-4 py-2 text-lg font-semibold leading-4 text-white ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400 sm:text-base;
+}
+
+.secondary-button {
+  @apply inline-flex items-center justify-center rounded-lg bg-gray-50 px-4 py-2 text-lg font-semibold leading-4 text-gray-800 mix-blend-multiply ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-50 disabled:text-gray-400 dark:mix-blend-screen sm:text-base;
+}
+
+.small-button {
+  @apply inline-flex items-center justify-center rounded-md bg-gray-800 px-2 py-1 text-sm font-semibold text-white ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400 sm:h-6 sm:leading-4;
+}
+
+.small-secondary-button {
+  @apply inline-flex h-6 items-center justify-center whitespace-nowrap rounded-md bg-gray-50 px-2 py-1 text-sm font-semibold leading-4 text-gray-800 mix-blend-multiply ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400 dark:mix-blend-screen;
+}
+
+.red-text-button {
+  @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-lg font-semibold leading-4 text-red ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400 sm:text-base;
+}
+
+.icon-button {
+  @apply inline-flex h-6 w-6 items-center justify-center rounded-lg bg-gray-100 p-0 text-sm font-bold leading-4 text-gray-600 ring-gray-200 ring-offset-2 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 disabled:text-gray-300 sm:text-base;
+}
+
+.icon-toggle {
+  @apply inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white p-0 text-sm font-bold leading-4 text-gray-400 ring-gray-200 ring-offset-2 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 disabled:text-gray-200 sm:text-base;
+}
+
+.icon-toggle-active {
+  @apply bg-gray-100 text-gray-600;
+}
+
+.input {
+  @apply flex rounded-lg border-2 border-transparent bg-gray-50 px-2 py-1 text-lg leading-5 caret-blue-400 transition-colors focus-within:border-gray-100
+  focus-within:bg-white focus:outline-none focus-visible:border-gray-100 focus-visible:bg-white sm:text-base sm:leading-5;
+}
+
+.input-inner {
+  @apply border-transparent bg-transparent px-2 py-1 text-lg leading-5 focus:outline-none sm:text-base sm:leading-5;
+}
+
+.input-transparent {
+  @apply bg-transparent text-lg leading-5 caret-blue-400 transition-colors focus-within:border-gray-100 focus-within:bg-white focus:outline-none focus-visible:border-gray-100 sm:text-base sm:leading-5;
+}
+
+.ProseMirror {
+  @apply bg-transparent caret-blue-400 transition-colors focus-within:border-gray-100  focus:outline-none focus-visible:border-gray-100;
+  /* Father forgive me for my sins.
+     we use anywhere here because any other value makes the input overflow. */
+  overflow-wrap: anywhere !important;
+}
+
+/* Placeholder (on every new line) */
+.ProseMirror:not(.ProseMirror-focused) p.is-empty::before {
+  content: attr(data-placeholder);
+  @apply pointer-events-none float-left h-0 text-gray-400;
+}
+
+.ProseMirror li :where(p):not(:where([class~='not-prose'] *)) {
+  @apply my-0;
+}
+
+.ProseMirror a {
+  @apply underline;
+}
+
+/* hack to prevent auto-zoom on em-emoji-picker */
+@media screen and (max-width: 767px) {
+  em-emoji-picker {
+    --font-size: 17px;
+    height: 45vh;
+  }
+}
+
+.dialog-container {
+  @apply fixed left-1/2 top-1/2 z-40 max-h-[100vh] max-w-[100vw] -translate-x-1/2 -translate-y-1/2 transform overflow-auto p-4;
+}
+
+.secondary-dialog-container {
+  @apply fixed left-1/2 top-3/4 z-40 -translate-x-1/2 -translate-y-1/2 transform p-4;
+}
+
+.dialog {
+  @apply relative rounded-xl bg-white p-6;
+}
+
+.sheet-container {
+  @apply fixed bottom-0 left-0 z-50 w-full;
+}
+
+.sheet {
+  @apply relative max-h-[75vh] w-full rounded-t-xl bg-white p-6 pb-12;
+}
+
+.dialog-inner-container {
+  @apply h-full space-y-8 overflow-y-auto p-4 md:p-8;
+}
+
+.dropdown {
+  @apply z-10 flex min-w-40 flex-col space-y-0.5 rounded-lg bg-white p-2 text-gray-800 shadow-xl dark:border dark:border-gray-50;
+}
+
+.dropdown-item {
+  @apply cursor-pointer rounded p-2 text-left text-[17px] font-medium no-underline ring-gray-200 hover:bg-gray-50 focus:outline-none sm:text-sm;
+}
+
+.dropdown-item > a {
+  @apply no-underline;
+}
+
+.dropdown-item-disabled {
+  @apply dropdown-item cursor-not-allowed text-gray-400 hover:bg-transparent;
+}
+
+.dropdown-item-blue {
+  @apply dropdown-item text-blue hover:bg-blue-50 dark:hover:bg-blue-900;
+}
+
+.dropdown-item-red {
+  @apply dropdown-item text-red hover:bg-red-50 dark:hover:bg-red-900;
+}
+
+.dropdown-item-icon {
+  @apply dropdown-item flex w-full items-center space-x-2 p-2;
+}
+
+.card {
+  @apply w-full rounded-lg bg-white p-4 sm:rounded-xl sm:p-6;
+}
+
+.switch {
+  @apply relative ml-2 h-4 w-6 space-x-2 rounded-full bg-gray-200 px-0.5 transition-colors duration-100;
+}
+
+.switch[data-state='checked'] {
+  @apply bg-black;
+}
+
+.switch-thumb {
+  @apply block h-3 w-3 rounded-full bg-white transition-transform;
+}
+
+.switch-thumb[data-state='checked'] {
+  @apply translate-x-2;
+}
+
+.heap-block {
+  @apply absolute flex h-full w-full cursor-pointer flex-col justify-between overflow-hidden rounded-lg bg-white bg-cover bg-center bg-no-repeat object-cover object-center p-2;
+}
+
+.heap-inline-block {
+  @apply relative flex h-[300px] w-full flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat;
+}
+
+.note-inline-block {
+  @apply relative flex h-full w-full flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat;
+}
+
+.writ-inline-block {
+  @apply relative flex h-full w-full flex-col justify-center overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat;
+}
+
+.embed-inline-block {
+  @apply relative flex h-full max-w-fit flex-col justify-center overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat px-4 py-2;
+}
+
+.heap-grid {
+  @apply grid gap-4;
+  /* tailwind crashes when i try to fill grid-cols in with the custom property brackets */
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+}
+
+.heap-grid-mobile {
+  @apply grid gap-4;
+  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+}
+
+.heap-list {
+  @apply flex flex-col gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))];
+}
+
+.new-curio-input p.is-editor-empty:first-child::before {
+  @apply !text-gray-300;
+  font-weight: 600 !important;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.new-curio-input::-webkit-scrollbar-corner {
+  background: rgba(0, 0, 0, 0);
+}
+
+.small-menu-button {
+  @apply w-full rounded bg-transparent p-2 text-left font-semibold ring-gray-200 hover:bg-gray-50 focus:outline-none focus-visible:ring-2;
+}
+
+.padding-bottom-transition {
+  transition-property: padding-bottom;
+  transition-timing-function: ease-out;
+  transition-duration: 150ms;
+}
+
+.navbar-transition {
+  transition-property: transform, opacity;
+  transition-timing-function: ease-in-out;
+  transition-duration: 250ms;
+}

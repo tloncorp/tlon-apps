@@ -27,12 +27,11 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.21.0",
-    "@urbit/api": "^2.2.0",
+    "@urbit/aura": "^1.0.0",
     "any-ascii": "^0.3.1",
     "big-integer": "^1.6.52",
-    "exponential-backoff": "^3.1.1",
     "sorted-btree": "^1.8.1",
-    "urbit-ob": "^5.0.1"
+    "exponential-backoff": "^3.1.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.9",
@@ -44,10 +43,10 @@
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.32.1",
-    "@tiptap/core": "^2.0.3",
-    "@tiptap/pm": "^2.0.3",
-    "@tiptap/react": "^2.0.3",
-    "@tiptap/suggestion": "^2.0.3",
+    "@tiptap/core": "^2.6.6",
+    "@tiptap/pm": "^2.6.6",
+    "@tiptap/react": "^2.6.6",
+    "@tiptap/suggestion": "^2.6.6",
     "drizzle-orm": "0.30.9",
     "react": "^18.2.0",
     "zustand": "^3.7.2"

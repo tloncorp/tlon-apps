@@ -1,22 +1,20 @@
-import { PostType } from '@tloncorp/shared/dist/db';
 import { ComponentProps, useContext } from 'react';
-import { Dimensions } from 'react-native';
 import {
-  SizableText,
+  View,
   ViewStyle,
+  XStack,
+  YStack,
   createStyledContext,
   styled,
   withStaticProperties,
 } from 'tamagui';
-import { View, XStack, YStack } from 'tamagui';
 
-import { PostViewMode } from '../ContentRenderer';
 import { Icon, IconType } from '../Icon';
-
-export const REF_AUTHOR_WIDTH = 230;
+import { Text } from '../TextV2';
 
 export type ReferenceProps = ComponentProps<typeof ReferenceComponent> & {
   actionIcon?: IconType | null;
+  contentSize?: '$s' | '$l';
   openOnPress?: boolean;
 };
 
@@ -24,16 +22,14 @@ export const ReferenceContext = createStyledContext<{
   /**
    * The type of context embedding this ref
    */
-  viewMode?: PostViewMode;
+  contentSize: '$s' | '$l';
   /**
    * Mode for actually rendering the content
    */
-  renderMode?: PostType;
   actionIcon?: IconType;
 }>({
-  viewMode: 'chat',
-  renderMode: 'chat',
   actionIcon: 'ArrowRef',
+  contentSize: '$l',
 });
 
 export const useReferenceContext = () => {
@@ -43,25 +39,14 @@ export const useReferenceContext = () => {
 const ReferenceFrame = styled(YStack, {
   context: ReferenceContext,
   name: 'ReferenceFrame',
-  borderRadius: '$m',
+  borderRadius: '$s',
   padding: 0,
   borderColor: '$border',
-  marginBottom: '$s',
   borderWidth: 1,
   backgroundColor: '$secondaryBackground',
   overflow: 'hidden',
+  flex: 1,
   variants: {
-    viewMode: {
-      attachment: {
-        width: Dimensions.get('window').width - 30,
-      },
-      block: {
-        backgroundColor: '$secondaryBackground',
-        borderWidth: 0,
-        borderRadius: 0,
-        marginBottom: 0,
-      },
-    },
     pressable: {
       true: {
         pressStyle: {
@@ -71,8 +56,7 @@ const ReferenceFrame = styled(YStack, {
     },
   } as {
     pressable: { true: ViewStyle };
-    viewMode: { [K in PostViewMode]: ViewStyle };
-    renderMode: { [K in PostType]: ViewStyle };
+    contentSize: Record<'$s' | '$m' | '$l', ViewStyle>;
   },
 });
 
@@ -119,18 +103,11 @@ const ReferenceHeader = styled(XStack, {
   context: ReferenceContext,
   name: 'ReferenceHeader',
   paddingLeft: '$l',
-  paddingRight: '$s',
-  paddingVertical: '$2xs',
+  paddingRight: '$l',
+  paddingVertical: '$s',
   justifyContent: 'space-between',
   borderBottomColor: '$border',
   borderBottomWidth: 1,
-  variants: {
-    viewMode: {
-      attachment: {
-        width: Dimensions.get('window').width - 30,
-      },
-    },
-  } as const,
 });
 
 const ReferenceTitle = styled(XStack, {
@@ -153,10 +130,18 @@ const ReferenceTitleIcon = styled(
   }
 );
 
-const ReferenceTitleText = styled(SizableText, {
+const ReferenceTitleText = styled(Text, {
   name: 'ReferenceTitleText',
-  size: '$s',
+  context: ReferenceContext,
+  size: '$label/m',
   color: '$tertiaryText',
+  variants: {
+    contentSize: {
+      $s: {
+        size: '$label/s',
+      },
+    },
+  },
 });
 
 const ReferenceActionIcon = ({
@@ -167,7 +152,11 @@ const ReferenceActionIcon = ({
   return actionIcon ? (
     <Icon
       color="$tertiaryText"
-      size="$m"
+      // Hacking a little to shrink container by a couple pixels to compensate
+      // for inset border in ochre
+      marginTop={-1}
+      marginBottom={-1}
+      customSize={[15, 15]}
       {...props}
       type={type ?? 'ArrowRef'}
     />
@@ -177,21 +166,12 @@ const ReferenceActionIcon = ({
 const ReferenceBody = styled(View, {
   context: ReferenceContext,
   name: 'ReferenceBody',
-  paddingHorizontal: '$l',
-  paddingVertical: '$l',
-  gap: '$m',
   pointerEvents: 'none',
-  variants: {
-    renderMode: {
-      note: {
-        padding: '$2xl',
-        gap: '$xl',
-      },
-    },
-  } as const,
+  flex: 1,
 });
 
 export const Reference = withStaticProperties(ReferenceComponent, {
+  Frame: ReferenceFrame,
   Header: ReferenceHeader,
   Title: ReferenceTitle,
   TitleIcon: ReferenceTitleIcon,
@@ -203,21 +183,31 @@ export const Reference = withStaticProperties(ReferenceComponent, {
 export function ReferenceSkeleton({
   message = 'Loading',
   messageType = 'loading',
+  ...props
 }: {
   message?: string;
   messageType?: 'loading' | 'error' | 'not-found';
-} & ComponentProps<typeof YStack>) {
+} & ComponentProps<typeof ReferenceFrame>) {
   return (
-    <ReferenceBody>
-      <XStack gap="$s" alignItems="center">
-        {messageType === 'error' ? (
-          // TODO: Replace with proper error icon when available
-          <Icon type="Placeholder" color="$tertiaryText" size="$s" />
-        ) : null}
-        <SizableText fontSize="$s" color="$tertiaryText" flex={1}>
-          {message}
-        </SizableText>
-      </XStack>
-    </ReferenceBody>
+    <ReferenceFrame {...props}>
+      <ReferenceBody padding="$l" justifyContent="center" alignItems="center">
+        <YStack gap="$l" alignItems="center">
+          {messageType === 'error' ? (
+            <Icon
+              type="Placeholder"
+              color="$tertiaryText"
+              customSize={[24, 17]}
+            />
+          ) : null}
+          <Text
+            size={props.contentSize === '$s' ? '$label/s' : '$label/m'}
+            color="$tertiaryText"
+            flex={1}
+          >
+            {message}
+          </Text>
+        </YStack>
+      </ReferenceBody>
+    </ReferenceFrame>
   );
 }

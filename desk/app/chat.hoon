@@ -32,18 +32,20 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %6
+    $:  %7
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
         pins=(list whom:c)
-        bad=(set ship)  ::TODO  vestigial, remove me
-        inv=(set ship)  ::TODO  vestigial, remove me
+        sends=(map whom:c (qeu sent-id))
         blocked=(set ship)
         blocked-by=(set ship)
         hidden-messages=(set id:c)
         old-chats=(map flag:old chat:old)  :: for migration
         old-pins=(list whom:old)
     ==
+  +$  sent-id
+    $@  time             ::  top-level msg
+    [top=id:c new=time]  ::  or reply
   --
 =|  current-state
 =*  state  -
@@ -122,10 +124,11 @@
     %3  $(old (state-3-to-4 old))
     %4  $(old (state-4-to-5 old))
     %5  $(old (state-5-to-6 old))
-    %6  (emil(state old) (drop load:epos))
+    %6  $(old (state-6-to-7 old))
+    %7  (emil(state old) (drop load:epos))
   ==
   ::
-  +$  versioned-state  $%(current-state state-5 state-4 state-3 state-2)
+  +$  versioned-state  $%(current-state state-6 state-5 state-4 state-3 state-2)
   +$  state-2
     $:  %2
         chats=(map flag:two chat:two)
@@ -189,9 +192,26 @@
   +$  club-5    [heard:club:c remark=remark-5 =pact:c crew:club:c]
   +$  dm-5      [=pact:c remark=remark-5 net:dm:c pin=_|]
   +$  remark-5  [last-read=time watching=_| unread-threads=(set id:c)]
-  +$  state-6  current-state
+  +$  state-6
+    $:  %6
+        dms=(map ship dm:c)
+        clubs=(map id:club:c club:c)
+        pins=(list whom:c)
+        bad=(set ship)
+        inv=(set ship)
+        blocked=(set ship)
+        blocked-by=(set ship)
+        hidden-messages=(set id:c)
+        old-chats=(map flag:old chat:old)  :: for migration
+        old-pins=(list whom:old)
+    ==
+  +$  state-7  current-state
   ++  two      old
   ++  three    c
+  ++  state-6-to-7
+    |=  state-6
+    ^-  state-7
+    [%7 dms clubs pins ~ blocked blocked-by hidden-messages old-chats old-pins]
   ++  state-5-to-6
     |=  s=state-5
     ^-  state-6
@@ -1719,6 +1739,22 @@
   ++  di-proxy
     |=  =diff:dm:c
     =.  di-core  (di-ingest-diff diff)
+    ::  track the id of the message we sent so that we can handle nacks
+    ::  gracefully, such as retrying with an older protocol version.
+    ::  note that we don't put this information in the wire. +proxy:di-pass
+    ::  always uses the same wire. this is important, because ames gives
+    ::  message ordering guarantees only within the same flow, so we want to
+    ::  re-use the same flow (duct stack) for the same target ship whenever
+    ::  we can. (arguably rsvp pokes should go over that same flow also, but
+    ::  they only happen once, and their ordering wrt the messages isn't _that_
+    ::  important.)
+    ::
+    =.  sends
+      %+  ~(put by sends)  [%ship ship]
+      %-  ~(put to (~(gut by sends) [%ship ship] ~))
+      ?.  ?=(%reply -.q.diff)
+        q.p.diff
+      [[p.p q.p] q.id.q]:diff
     =.  cor  (emit (proxy:di-pass diff))
     di-core
   ::
@@ -1892,6 +1928,18 @@
     ::
         [%proxy *]
       ?>  ?=(%poke-ack -.sign)
+      ::  for pokes whose id we care about, pop it from the queue
+      ::
+      =^  sent=(unit sent-id)  sends
+        ?.  ?=([%diff ~] t.wire)  [~ sends]
+        =/  queue=(qeu sent-id)
+          (~(gut by sends) [%ship ship] ~)
+        ?:  =(~ queue)
+          ~&  [dap.bowl %strange-empty-sends-queue [%ship ship]]
+          [~ sends]
+        =^  id  queue  ~(get to queue)
+        :-  `id
+        (~(put by sends) [%ship ship] queue)
       ?~  p.sign  di-core
       ::  if we already tried hard, this is the end of the road.
       ::
@@ -1914,10 +1962,21 @@
           ?~  c  cor
           %+  emit  %pass
           [(weld di-area /proxy/archaic) %agent [ship %chat] %poke u.c]
+        |-
         ?+  t.wire  ~
             [%rsvp @ ~]
           =/  ok=?  ;;(? (slav %f i.t.t.wire))
           `[%dm-rsvp !>(`rsvp:dm:old`[our.bowl ok])]
+        ::
+            [%diff ~]
+          ?>  ?=(^ sent)
+          =*  s  u.sent
+          ::NOTE  we just pretend it's an old-style wire, to avoid duplicating
+          ::      code. the re-serialization overhead isn't too big, and this
+          ::      isn't the common path anyway.
+          ?@  s
+            $(t.wire /(scot %ud s))
+          $(t.wire /(scot %p p.top.s)/(scot %ud q.top.s)/(scot %ud new.s))
         ::
             [@ ?(~ [@ @ ~])]
           %-  some
@@ -2035,14 +2094,9 @@
     ++  proxy-rsvp  |=(ok=? (poke-them /proxy/rsvp/(scot %f ok) chat-dm-rsvp+!>([our.bowl ok])))
     ++  proxy
       |=  =diff:dm:c
-      =;  =wire
-        (poke-them wire chat-dm-diff+!>(diff))
-      ::  we put some details about the message into the wire, so that we may
-      ::  re-try a send for backwards compatibility in some cases
-      ::
-      ?.  ?=(%reply -.q.diff)
-        /proxy/(scot %ud q.p.diff)
-      /proxy/(scot %p p.p.diff)/(scot %ud q.p.diff)/(scot %ud q.id.q.diff)
+      ::NOTE  static wire important for ordering guarantees and preventing flow
+      ::      proliferation, see also +di-proxy
+      (poke-them /proxy/diff chat-dm-diff+!>(diff))
     --
   --
 --

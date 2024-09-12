@@ -49,7 +49,6 @@ export const ShortcutsBridge = new BridgeExtension<
   ShortcutsEditorInstance,
   ShortcutsMessage
 >({
-  //@ts-expect-error - not an actual type mismatch
   tiptapExtension: Shortcuts({
     // this is necessary to override the default behavior of the editor
     // which is to insert a new paragraph when the user presses enter.

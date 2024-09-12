@@ -7,7 +7,10 @@ import { useMemo } from 'react';
 
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
+import { useCopy } from '../../../hooks/useCopy';
 import ActionList from '../../ActionList';
+
+const ENABLE_COPY_JSON = __DEV__;
 
 export default function MessageActions({
   dismiss,
@@ -15,10 +18,12 @@ export default function MessageActions({
   channelType,
   post,
   onEdit,
+  onViewReactions,
 }: {
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
+  onViewReactions?: (post: db.Post) => void;
   post: db.Post;
   channelType: db.ChannelType;
 }) {
@@ -43,6 +48,8 @@ export default function MessageActions({
         case 'edit':
           // only show edit for current user's posts
           return post.authorId === currentUserId;
+        case 'viewReactions':
+          return (post.reactions?.length ?? 0) > 0;
         default:
           return true;
       }
@@ -64,17 +71,31 @@ export default function MessageActions({
               dismiss,
               onReply,
               onEdit,
+              onViewReactions,
               addAttachment,
             })
           }
           key={action.id}
           actionType={action.actionType}
-          last={index === postActions.length - 1}
+          last={index === postActions.length - 1 && !__DEV__}
         >
           {action.label}
         </ActionList.Action>
       ))}
+      {ENABLE_COPY_JSON ? <CopyJsonAction post={post} /> : null}
     </ActionList>
+  );
+}
+
+function CopyJsonAction({ post }: { post: db.Post }) {
+  const jsonString = useMemo(() => {
+    return JSON.stringify(post.content, null, 2);
+  }, [post.content]);
+  const { doCopy, didCopy } = useCopy(jsonString);
+  return (
+    <ActionList.Action onPress={doCopy} last>
+      {!didCopy ? 'Copy post JSON' : 'Copied'}
+    </ActionList.Action>
   );
 }
 
@@ -119,6 +140,7 @@ export function getPostActions({
         // { id: 'quote', label: 'Quote' },
         { id: 'startThread', label: 'Start thread' },
         { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
+        { id: 'viewReactions', label: 'View reactions' },
         { id: 'copyText', label: 'Copy message text' },
         { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
@@ -129,6 +151,7 @@ export function getPostActions({
         { id: 'quote', label: 'Quote' },
         { id: 'startThread', label: 'Start thread' },
         { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
+        { id: 'viewReactions', label: 'View reactions' },
         { id: 'copyRef', label: 'Copy link to message' },
         { id: 'copyText', label: 'Copy message text' },
         { id: 'edit', label: 'Edit message' },
@@ -148,6 +171,7 @@ export async function handleAction({
   dismiss,
   onReply,
   onEdit,
+  onViewReactions,
   addAttachment,
 }: {
   id: string;
@@ -158,6 +182,7 @@ export async function handleAction({
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
+  onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
 }) {
   const [path, reference] = logic.postToContentReference(post);
@@ -171,6 +196,9 @@ export async function handleAction({
       isMuted
         ? store.unmuteThread({ channel, thread: post })
         : store.muteThread({ channel, thread: post });
+      break;
+    case 'viewReactions':
+      onViewReactions?.(post);
       break;
     case 'quote':
       addAttachment({ type: 'reference', reference, path });

@@ -1,0 +1,13 @@
+diff --git a/lib/module/hooks/useGestures.js b/lib/module/hooks/useGestures.js
+index 341726cfd85e966d26b9dae709a5fb8fd5b794a0..5b9c7fb05f43d0d5ee757a4a21be5757795d4e2c 100644
+--- a/lib/module/hooks/useGestures.js
++++ b/lib/module/hooks/useGestures.js
+@@ -259,7 +259,7 @@ export const useGestures = _ref => {
+     }, {
+       scale: scale.value
+     }]
+-  }));
++  }), [translate.x, translate.y, focal.x, focal.y, scale]);
+   const pinchPanGestures = Gesture.Simultaneous(pinchGesture, panGesture);
+   const tapGestures = Gesture.Exclusive(doubleTapGesture, singleTapGesture);
+   const gestures = isDoubleTapEnabled || isSingleTapEnabled ? Gesture.Race(tapGestures, pinchPanGestures) : pinchPanGestures;

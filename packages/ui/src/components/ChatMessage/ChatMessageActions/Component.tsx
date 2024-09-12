@@ -36,6 +36,7 @@ export function ChatMessageActions({
   height,
   onReply,
   onEdit,
+  onViewReactions,
 }: {
   post: db.Post;
   postRef: RefObject<RNView>;
@@ -45,6 +46,7 @@ export function ChatMessageActions({
   height?: DimensionValue;
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
+  onViewReactions?: (post: db.Post) => void;
 }) {
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
@@ -152,6 +154,7 @@ export function ChatMessageActions({
             dismiss={onDismiss}
             onReply={onReply}
             onEdit={onEdit}
+            onViewReactions={onViewReactions}
           />
         </YStack>
       </View>

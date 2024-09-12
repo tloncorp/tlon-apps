@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# this script globs a folder of files, then subsequently uploads the 
+# this script globs a folder of files, then subsequently uploads the
 # glob to bootstrap.urbit.org and replaces the hash in the docket file.
 # assumes gcloud credentials are loaded and gsutil installed.
 
@@ -8,15 +8,15 @@
 # $2: the location of the docket file
 
 # globber is a prebooted and docked fakezod
-curl https://bootstrap.urbit.org/globberv3.tgz | tar xzk
+curl https://storage.googleapis.com/bootstrap.urbit.org/globberv4.tar.gz | tar xzk
 ./zod/.run -d
 
 dojo () {
-  curl -s --data '{"source":{"dojo":"'"$1"'"},"sink":{"stdout":null}}' http://localhost:12321    
+  curl -s --data '{"source":{"dojo":"'"$1"'"},"sink":{"stdout":null}}' http://localhost:12321
 }
 
 hood () {
-  curl -s --data '{"source":{"dojo":"+hood/'"$1"'"},"sink":{"app":"hood"}}' http://localhost:12321    
+  curl -s --data '{"source":{"dojo":"+hood/'"$1"'"},"sink":{"app":"hood"}}' http://localhost:12321
 }
 
 rsync -avL $1 zod/work/glob

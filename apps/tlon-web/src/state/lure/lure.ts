@@ -15,6 +15,7 @@ import {
   createStorageKey,
   getFlagParts,
   storageVersion,
+  stringToTa,
 } from '@/logic/utils';
 
 import { useLocalState } from '../local';
@@ -69,12 +70,11 @@ export const useLureState = create<LureState>(
       bait: null,
       lures: {},
       describe: async (flag, metadata) => {
-        const { name } = getFlagParts(flag);
         await api.poke({
           app: 'reel',
           mark: 'reel-describe',
           json: {
-            token: name,
+            token: flag,
             metadata,
           },
         });
@@ -90,7 +90,7 @@ export const useLureState = create<LureState>(
             app: 'reel',
             mark: 'reel-undescribe',
             json: {
-              token: getFlagParts(flag).name,
+              token: flag,
             },
           });
         } else {
@@ -127,7 +127,6 @@ export const useLureState = create<LureState>(
         );
       },
       fetchLure: async (flag) => {
-        const { name } = getFlagParts(flag);
         const prevLure = get().lures[flag];
         const [enabled, url, metadata, outstandingPoke] = await Promise.all([
           // enabled
@@ -149,11 +148,10 @@ export const useLureState = create<LureState>(
           asyncWithDefault(() => {
             lureLogger.log(performance.now(), 'fetching url', flag);
             return api
-              .subscribeOnce<string>(
-                'reel',
-                `/token-link/${flag}`,
-                LURE_REQUEST_TIMEOUT
-              )
+              .scry<string>({
+                app: 'reel',
+                path: `/v1/id-url/${flag}`,
+              })
               .then((u) => {
                 lureLogger.log(performance.now(), 'url fetched', flag);
                 return u;
@@ -164,7 +162,7 @@ export const useLureState = create<LureState>(
             () =>
               api.scry<LureMetadata>({
                 app: 'reel',
-                path: `/metadata/${name}`,
+                path: `/v1/metadata/${flag}`,
               }),
             prevLure?.metadata
           ),
@@ -248,14 +246,19 @@ export function useLure(flag: string, disableLoading = false) {
   };
 }
 
-export function useLureLinkChecked(flag: string, enabled: boolean) {
+export function useLureLinkChecked(url: string, enabled: boolean) {
   const prevData = useRef<boolean | undefined>(false);
+  const pathEncodedUrl = stringToTa(url);
   const { data, ...query } = useQuery(
-    ['lure-check', flag],
+    ['lure-check', url],
     () =>
       asyncWithDefault(
         () =>
-          api.subscribeOnce<boolean>('grouper', `/check-link/${flag}`, 4500),
+          api.subscribeOnce<boolean>(
+            'grouper',
+            `/v1/check-link/${pathEncodedUrl}`,
+            4500
+          ),
         prevData.current ?? false
       ),
     {
@@ -274,9 +277,9 @@ export function useLureLinkChecked(flag: string, enabled: boolean) {
 }
 
 export function useLureLinkStatus(flag: string) {
-  const { supported, fetched, enabled, enableAcked, url, deepLinkUrl, toggle } =
+  const { supported, fetched, enabled, url, deepLinkUrl, toggle } =
     useLure(flag);
-  const { good, checked } = useLureLinkChecked(flag, !!enabled);
+  const { good, checked } = useLureLinkChecked(url, !!enabled);
 
   const status = useMemo(() => {
     if (!supported) {

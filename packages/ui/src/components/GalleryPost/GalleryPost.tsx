@@ -1,64 +1,49 @@
-import { usePostMeta } from '@tloncorp/shared/dist';
+import { makePrettyShortDate } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
-import { PropsWithChildren, useCallback, useState } from 'react';
-import { SizableText, Text, View, XStack, styled } from 'tamagui';
+import { truncate } from 'lodash';
+import { ComponentProps, useCallback, useMemo, useState } from 'react';
+import { PropsWithChildren } from 'react';
+import { View, XStack, styled } from 'tamagui';
 
-import AuthorRow from '../AuthorRow';
-import { ContentReferenceLoader } from '../ContentReference/ContentReference';
-import ContentRenderer from '../ContentRenderer';
+import { DetailViewAuthorRow } from '../AuthorRow';
+import { ContactAvatar } from '../Avatar';
 import { Icon } from '../Icon';
-import { ImageWithFallback } from '../Image';
 import { useBoundHandler } from '../ListItem/listItemUtils';
+import { createContentRenderer } from '../PostContent/ContentRenderer';
+import {
+  BlockData,
+  BlockFromType,
+  BlockType,
+  PostContent,
+  usePostContent,
+} from '../PostContent/contentUtils';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
+import { Text } from '../TextV2';
 
 const GalleryPostFrame = styled(View, {
   name: 'GalleryPostFrame',
-  borderWidth: 1,
-  borderColor: '$border',
-  position: 'relative',
-  borderRadius: '$m',
+  maxHeight: '100%',
   overflow: 'hidden',
-  flex: 1,
-  backgroundColor: '$background',
-  variants: {
-    previewType: {
-      image: {
-        borderWidth: 0,
-      },
-      text: {},
-      link: {
-        borderWidth: 0,
-        backgroundColor: '$secondaryBackground',
-      },
-      reference: {
-        borderWidth: 0,
-        backgroundColor: '$secondaryBackground',
-      },
-      unsupported: {
-        borderWidth: 0,
-        backgroundColor: '$secondaryBackground',
-      },
-    },
-  } as const,
+  aspectRatio: 1,
 });
 
-export default function GalleryPost({
+export function GalleryPost({
   post,
   onPress,
   onLongPress,
   onPressRetry,
   onPressDelete,
-  viewMode,
-  isHighlighted,
+  showAuthor = true,
+  ...props
 }: {
   post: db.Post;
   onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => void;
   onPressDelete?: (post: db.Post) => void;
-  viewMode?: 'activity';
+  showAuthor?: boolean;
   isHighlighted?: boolean;
-}) {
+} & Omit<ComponentProps<typeof GalleryPostFrame>, 'onPress' | 'onLongPress'>) {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
 
   const handleRetryPressed = useCallback(() => {
@@ -71,148 +56,315 @@ export default function GalleryPost({
     setShowRetrySheet(false);
   }, [onPressDelete, post]);
 
-  const {
-    references,
-    isText,
-    isImage,
-    isLink,
-    isReference,
-    isLinkedImage,
-    isRefInText,
-    image,
-    linkedImage,
-  } = usePostMeta(post);
+  const handlePress = useCallback(() => {
+    post.deliveryStatus === 'failed'
+      ? () => setShowRetrySheet(true)
+      : onPress?.(post);
+  }, [onPress, post]);
 
-  const handlePress = useBoundHandler(post, onPress);
   const handleLongPress = useBoundHandler(post, onLongPress);
-
-  const previewType = (() => {
-    if (isImage || isLinkedImage) {
-      return 'image';
-    }
-    if (isText && !isLinkedImage && !isRefInText && !isLink) {
-      return 'text';
-    }
-    if (isReference || isRefInText) {
-      return 'reference';
-    }
-    if (isLink) {
-      return 'link';
-    }
-    return 'unsupported';
-  })();
 
   return (
     <GalleryPostFrame
-      previewType={previewType}
-      disabled={viewMode === 'activity'}
-      onPress={
-        post.deliveryStatus === 'failed'
-          ? () => setShowRetrySheet(true)
-          : handlePress
-      }
+      onPress={handlePress}
       onLongPress={handleLongPress}
+      {...props}
     >
-      {post.hidden || post.isDeleted ? (
-        post.hidden ? (
-          <View flex={1} padding="$m">
-            <SizableText size="$l" color="$tertiaryText">
-              You have hidden or flagged this post.
-            </SizableText>
-          </View>
-        ) : post.isDeleted ? (
-          <View flex={1} padding="$m">
-            <SizableText size="$l" color="$tertiaryText">
-              This post has been deleted.
-            </SizableText>
-          </View>
-        ) : null
-      ) : (
-        <View flex={1} pointerEvents="none">
-          {/** Image post */}
-          {(isImage || isLinkedImage) && (
-            <ImageWithFallback
-              contentFit="cover"
-              flex={1}
-              fallback={
-                <ErrorPlaceholder>
-                  Failed to load {isImage ? image!.src : linkedImage}
-                </ErrorPlaceholder>
-              }
-              source={{ uri: isImage ? image!.src : linkedImage }}
-            />
+      <GalleryContentRenderer post={post} pointerEvents="none" size="$s" />
+      {showAuthor && !post.hidden && !post.isDeleted && (
+        <View
+          position="absolute"
+          bottom={0}
+          left={0}
+          right={0}
+          width="100%"
+          pointerEvents="none"
+        >
+          {post.deliveryStatus === 'failed' ? (
+            <XStack alignItems="center" paddingLeft="$xl" paddingBottom="$xl">
+              <Text color="$negativeActionText" size="$label/s">
+                Message failed to send
+              </Text>
+            </XStack>
+          ) : (
+            <XStack padding="$m" {...props}>
+              <ContactAvatar size="$2xl" contactId={post.authorId} />
+            </XStack>
           )}
-
-          {/** Text post */}
-          {isText && !isLinkedImage && !isRefInText && (
-            <View padding="$m" flex={1}>
-              {isLink && <Icon type="Link" size="$s" marginBottom="$s" />}
-              <ContentRenderer viewMode="block" post={post} />
-            </View>
-          )}
-
-          {/** Reference post */}
-          {(isReference || isRefInText) && (
-            <View flex={1}>
-              <ContentReferenceLoader
-                viewMode="block"
-                reference={references[0]}
-              />
-            </View>
-          )}
-
-          {/** Unsupported post */}
-          {!isImage && !isText && !isReference && !isRefInText ? (
-            <ErrorPlaceholder>Unable to parse content</ErrorPlaceholder>
-          ) : null}
-
-          {viewMode !== 'activity' && (
-            <View
-              position="absolute"
-              bottom={0}
-              left={0}
-              right={0}
-              width="100%"
-              pointerEvents="none"
-            >
-              {post.deliveryStatus === 'failed' ? (
-                <XStack
-                  alignItems="center"
-                  paddingLeft="$xl"
-                  paddingBottom="$xl"
-                >
-                  <Text color="$negativeActionText" fontSize="$xs">
-                    Message failed to send
-                  </Text>
-                </XStack>
-              ) : (
-                <AuthorRow
-                  author={post.author}
-                  authorId={post.authorId}
-                  sent={post.sentAt}
-                  type={post.type}
-                />
-              )}
-            </View>
-          )}
-          <SendPostRetrySheet
-            open={showRetrySheet}
-            onOpenChange={setShowRetrySheet}
-            onPressDelete={handleDeletePressed}
-            onPressRetry={handleRetryPressed}
-          />
         </View>
       )}
+      <SendPostRetrySheet
+        open={showRetrySheet}
+        onOpenChange={setShowRetrySheet}
+        onPressDelete={handleDeletePressed}
+        onPressRetry={handleRetryPressed}
+      />
     </GalleryPostFrame>
   );
 }
 
-function ErrorPlaceholder({ children }: PropsWithChildren) {
+export function GalleryPostDetailView({ post }: { post: db.Post }) {
+  const formattedDate = useMemo(() => {
+    return makePrettyShortDate(new Date(post.receivedAt));
+  }, [post.receivedAt]);
+
   return (
-    <View backgroundColor={'$secondaryBackground'} padding="$m" flex={1}>
-      <SizableText size="$s" color="$tertiaryText" textAlign="center">
-        {children}
-      </SizableText>
+    <View paddingBottom="$xs" borderBottomWidth={1} borderColor="$border">
+      <View borderTopWidth={1} borderBottomWidth={1} borderColor="$border">
+        <GalleryContentRenderer embedded post={post} size="$l" />
+      </View>
+
+      <View gap="$xl" padding="$xl">
+        <DetailViewAuthorRow authorId={post.authorId} color="$primaryText" />
+
+        {post.title && <Text size="$body">{post.title}</Text>}
+
+        <Text size="$body" color="$tertiaryText">
+          {formattedDate}
+        </Text>
+      </View>
     </View>
   );
+}
+
+export function GalleryContentRenderer({
+  post,
+  ...props
+}: {
+  post: db.Post;
+  size?: '$s' | '$l';
+} & Omit<ComponentProps<typeof PreviewFrame>, 'content'>) {
+  const content = usePostContent(post);
+  const previewContent = usePreviewContent(content);
+
+  if (post.hidden) {
+    return (
+      <ErrorPlaceholder>You have hidden or flagged this post</ErrorPlaceholder>
+    );
+  } else if (post.isDeleted) {
+    return <ErrorPlaceholder>This post has been deleted</ErrorPlaceholder>;
+  }
+
+  return props.size === '$l' ? (
+    <LargePreview content={previewContent} {...props} />
+  ) : (
+    <SmallPreview content={previewContent} {...props} />
+  );
+}
+
+function LargePreview({
+  content,
+  ...props
+}: { content: PostContent } & Omit<
+  ComponentProps<typeof PreviewFrame>,
+  'content'
+>) {
+  return (
+    <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
+      <LargeContentRenderer content={content.slice(0, 1)} />
+    </PreviewFrame>
+  );
+}
+
+function SmallPreview({
+  content,
+  ...props
+}: { content: PostContent } & Omit<
+  ComponentProps<typeof PreviewFrame>,
+  'content'
+>) {
+  const link = useBlockLink(content);
+
+  return link ? (
+    <PreviewFrame {...props} previewType="link">
+      <LinkPreview link={link} />
+    </PreviewFrame>
+  ) : (
+    <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
+      <SmallContentRenderer height={'100%'} content={content.slice(0, 1)} />
+    </PreviewFrame>
+  );
+}
+
+const PreviewFrame = styled(View, {
+  name: 'PostPreviewFrame',
+  flex: 1,
+  borderColor: '$border',
+  borderRadius: '$m',
+  backgroundColor: '$background',
+  overflow: 'hidden',
+  variants: {
+    embedded: {
+      true: {
+        borderWidth: 0,
+        borderRadius: 0,
+        backgroundColor: 'transparent',
+      },
+    },
+    previewType: (
+      type: BlockType | 'link',
+      config: { props: { embedded?: true } }
+    ) => {
+      if (config.props.embedded) {
+        return {};
+      }
+      switch (type) {
+        case 'reference':
+          return { backgroundColor: '$secondaryBackground' };
+        case 'paragraph':
+        case 'list':
+        case 'blockquote':
+          return { borderWidth: 1 };
+      }
+    },
+  } as const,
+});
+
+function LinkPreview({ link }: { link: { href: string; text?: string } }) {
+  const truncatedHref = useMemo(() => {
+    return truncate(link?.href ?? '', { length: 100 });
+  }, [link?.href]);
+  return (
+    <View
+      flex={1}
+      backgroundColor={'$secondaryBackground'}
+      padding="$l"
+      gap="$xl"
+      borderRadius="$m"
+    >
+      <Icon type="Link" customSize={[17, 17]} />
+      <Text size={'$label/s'} color="$secondaryText">
+        {link.href !== link.text && link.text && link.text !== ' '
+          ? `${link.text}\n\n${truncatedHref}`
+          : truncatedHref}
+      </Text>
+    </View>
+  );
+}
+
+function useBlockLink(
+  content: BlockData[]
+): { text: string; href: string } | null {
+  return useMemo(() => {
+    if (content[0]?.type !== 'paragraph') {
+      return null;
+    }
+    for (const inline of content[0].content) {
+      if (inline.type === 'link') {
+        return inline;
+      }
+    }
+    return null;
+  }, [content]);
+}
+
+const noWrapperPadding = {
+  wrapperProps: {
+    padding: 0,
+  },
+} as const;
+
+const LargeContentRenderer = createContentRenderer({
+  blockSettings: {
+    blockWrapper: {
+      padding: '$2xl',
+    },
+    image: {
+      borderRadius: 0,
+      ...noWrapperPadding,
+    },
+    video: {
+      borderRadius: 0,
+      ...noWrapperPadding,
+    },
+    code: {
+      borderRadius: 0,
+      borderWidth: 0,
+      ...noWrapperPadding,
+    },
+    reference: {
+      borderRadius: 0,
+      borderWidth: 0,
+      contentSize: '$l',
+      height: '100%',
+      ...noWrapperPadding,
+    },
+  },
+});
+
+const SmallContentRenderer = createContentRenderer({
+  blockSettings: {
+    blockWrapper: {
+      padding: '$l',
+      flex: 1,
+    },
+    lineText: {
+      size: '$label/s',
+    },
+    image: {
+      height: '100%',
+      imageProps: { aspectRatio: 'unset', height: '100%' },
+      ...noWrapperPadding,
+    },
+    video: {
+      height: '100%',
+      ...noWrapperPadding,
+    },
+    reference: {
+      contentSize: '$s',
+      borderRadius: 0,
+      borderWidth: 0,
+      ...noWrapperPadding,
+    },
+    code: {
+      borderWidth: 0,
+      contentSize: '$s',
+      textProps: { size: '$mono/s' },
+      ...noWrapperPadding,
+    },
+  },
+});
+
+function ErrorPlaceholder({ children }: PropsWithChildren) {
+  return (
+    <View
+      backgroundColor={'$secondaryBackground'}
+      padding="$m"
+      flex={1}
+      gap="$m"
+    >
+      <Icon type="Placeholder" customSize={[24, 17]} />
+      <Text size="$label/s" color="$secondaryText">
+        {children}
+      </Text>
+    </View>
+  );
+}
+
+type GroupedBlocks = {
+  [K in BlockType]?: BlockFromType<K>[];
+};
+
+function usePreviewContent(content: BlockData[]): BlockData[] {
+  return useMemo(() => {
+    const groupedBlocks = content.reduce((memo, b) => {
+      if (!memo[b.type]) {
+        memo[b.type] = [];
+      }
+      // type mess, better ideas?
+      (memo[b.type] as BlockFromType<typeof b.type>[]).push(
+        b as BlockFromType<typeof b.type>
+      );
+      return memo;
+    }, {} as GroupedBlocks);
+
+    if (groupedBlocks.reference?.length) {
+      return [groupedBlocks.reference[0]];
+    } else if (groupedBlocks.image?.length) {
+      return [groupedBlocks.image[0]];
+    } else if (groupedBlocks.video?.length) {
+      return [groupedBlocks.video[0]];
+    }
+    return content;
+  }, [content]);
 }

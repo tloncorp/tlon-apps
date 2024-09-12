@@ -33,7 +33,7 @@ import { Text, View, YStack, useStyle } from 'tamagui';
 import { interactionWithTiming } from '../utils/animation';
 import { Icon } from './Icon';
 import { Input } from './Input';
-import { ChatListItem, SwipableChatListItem } from './ListItem';
+import { ChatListItem, InteractableChatListItem } from './ListItem';
 import Pressable from './Pressable';
 import { SectionListHeader } from './SectionList';
 import { Tabs } from './Tabs';
@@ -54,6 +54,7 @@ function ChatListComponent({
   pendingChats,
   onLongPressItem,
   onPressItem,
+  onPressMenuButton,
   onSectionChange,
   activeTab,
   setActiveTab,
@@ -62,6 +63,7 @@ function ChatListComponent({
   pendingChats: store.PendingChats;
   onPressItem?: (chat: Chat) => void;
   onLongPressItem?: (chat: Chat) => void;
+  onPressMenuButton?: (chat: Chat) => void;
   onSectionChange?: (title: string) => void;
   activeTab: TabName;
   setActiveTab: (tab: TabName) => void;
@@ -93,10 +95,11 @@ function ChatListComponent({
 
       if (logic.isChannel(itemModel)) {
         return (
-          <SwipableChatListItem
+          <InteractableChatListItem
             model={itemModel}
             onPress={onPressItem}
             onLongPress={onLongPressItem}
+            onPressMenuButton={onPressMenuButton}
           />
         );
       } else {
@@ -109,7 +112,7 @@ function ChatListComponent({
         );
       }
     },
-    [onPressItem, onLongPressItem]
+    [onPressItem, onLongPressItem, onPressMenuButton]
   );
 
   const renderSectionHeader = useCallback(
@@ -251,7 +254,7 @@ function ChatListFiltersComponent({
       height: contentHeight * openProgress.value,
       opacity: openProgress.value,
     };
-  });
+  }, [openProgress, contentHeight]);
 
   const handleContentLayout = useCallback((e: LayoutChangeEvent) => {
     setContentHeight(e.nativeEvent.layout.height);
