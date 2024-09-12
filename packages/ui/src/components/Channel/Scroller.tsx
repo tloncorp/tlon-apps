@@ -635,19 +635,7 @@ const PressableMessage = React.memo(
     function PressableMessageComponent({ isActive, children }, ref) {
       return isActive ? (
         // need the extra React Native View for ref measurement
-        <MotiView
-          animate={{
-            scale: 0.95,
-          }}
-          transition={{
-            scale: {
-              type: 'timing',
-              duration: 50,
-            },
-          }}
-        >
-          <RNView ref={ref}>{children}</RNView>
-        </MotiView>
+        <RNView ref={ref}>{children}</RNView>
       ) : (
         // this fragment is necessary to avoid the TS error about not being able to
         // return undefined

@@ -13,7 +13,6 @@ export function Overlay(props: ComponentProps<typeof View>) {
       transition={{
         opacity: {
           type: 'timing',
-          delay: 150,
           duration: 200,
         },
       }}
