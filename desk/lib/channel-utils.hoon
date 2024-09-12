@@ -417,6 +417,20 @@
     (test her nest)
   --
 ::
+++  flatten-inline
+  |=  i=inline:c
+  ^-  cord
+  ?@  i  i
+  ?-  -.i
+    ?(%italics %bold %strike %blockquote)  (rap 3 (turn p.i flatten-inline))
+    ?(%inline-code %code %tag)  p.i
+    %ship   (scot %p p.i)
+    %block  q.i
+    %link   q.i
+    %task   (rap 3 (turn q.i flatten-inline))
+    %break  '\0a'
+  ==
+:: ::
 ++  en-manx  ::NOTE  more commonly, marl, but that's just (list manx)
   |%
   ++  content  story
