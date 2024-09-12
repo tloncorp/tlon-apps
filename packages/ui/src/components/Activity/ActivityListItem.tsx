@@ -15,9 +15,11 @@ import { SummaryMessage } from './ActivitySummaryMessage';
 
 export const ActivityListItem = React.memo(function ActivityListItem({
   sourceActivity,
+  seenMarker,
   onPress,
 }: {
   sourceActivity: logic.SourceActivityEvents;
+  seenMarker: number;
   onPress: (event: db.ActivityEvent) => void;
 }) {
   const event = sourceActivity.newest;
@@ -35,6 +37,7 @@ export const ActivityListItem = React.memo(function ActivityListItem({
         <ActivityListItemContent
           summary={sourceActivity}
           pressHandler={handlePress}
+          seenMarker={seenMarker}
         />
       </View>
     );
@@ -46,9 +49,11 @@ export const ActivityListItem = React.memo(function ActivityListItem({
 export function ActivityListItemContent({
   summary,
   pressHandler,
+  seenMarker,
 }: {
   summary: logic.SourceActivityEvents;
   pressHandler?: () => void;
+  seenMarker: number;
 }) {
   const calm = useCalm();
   const newestPost = summary.newest;
@@ -78,6 +83,9 @@ export function ActivityListItemContent({
 
   return (
     <ActivitySummaryFrame
+      backgroundColor={
+        summary.newest.timestamp > seenMarker ? '$positiveBackground' : 'unset'
+      }
       pressStyle={{ backgroundColor: '$secondaryBackground' }}
       onPress={pressHandler}
     >

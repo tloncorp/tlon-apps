@@ -43,7 +43,11 @@ const ActivityFixture = ({
 }) => {
   return (
     <ActivityFixtureWrapper>
-      <ActivityScreenContent {...baseContentProps} events={items} />
+      <ActivityScreenContent
+        {...baseContentProps}
+        events={items}
+        seenMarker={Date.now()}
+      />
     </ActivityFixtureWrapper>
   );
 };

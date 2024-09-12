@@ -131,19 +131,21 @@ export function ActivityScreenView({
       isFetching={currentFetcher.isFetching}
       isRefreshing={refreshing}
       onRefreshTriggered={onRefresh}
+      seenMarker={activitySeenMarker ?? Date.now()}
     />
   );
 }
 
 export function ActivityScreenContent({
   activeTab,
-  onPressTab,
-  onPressEvent,
-  onEndReached,
   events,
   isFetching,
   isRefreshing,
+  onPressTab,
+  onPressEvent,
+  onEndReached,
   onRefreshTriggered,
+  seenMarker,
 }: {
   activeTab: db.ActivityBucket;
   onPressTab: (tab: db.ActivityBucket) => void;
@@ -153,6 +155,7 @@ export function ActivityScreenContent({
   isFetching: boolean;
   isRefreshing: boolean;
   onRefreshTriggered: () => void;
+  seenMarker: number;
 }) {
   const keyExtractor = useCallback((item: logic.SourceActivityEvents) => {
     return `${item.newest.id}/${item.sourceId}/${item.newest.bucketId}/${item.all.length}`;
@@ -160,9 +163,15 @@ export function ActivityScreenContent({
 
   const renderItem = useCallback(
     ({ item }: { item: logic.SourceActivityEvents }) => {
-      return <ActivityListItem sourceActivity={item} onPress={onPressEvent} />;
+      return (
+        <ActivityListItem
+          sourceActivity={item}
+          onPress={onPressEvent}
+          seenMarker={seenMarker}
+        />
+      );
     },
-    [onPressEvent]
+    [onPressEvent, seenMarker]
   );
 
   const containerStyle = useStyle({
