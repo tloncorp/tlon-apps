@@ -3,10 +3,11 @@ import { PropsWithChildren, ReactNode } from 'react';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isWeb, styled, withStaticProperties } from 'tamagui';
-import { SizableText, View, XStack } from 'tamagui';
+import { View, XStack } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
 import { IconButton } from './IconButton';
+import { Text } from './TextV2';
 
 export const ScreenHeaderComponent = ({
   children,
@@ -69,8 +70,8 @@ const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
   );
 };
 
-const HeaderTitle = styled(SizableText, {
-  size: '$m',
+const HeaderTitle = styled(Text, {
+  size: '$label/2xl',
   textAlign: 'left',
   fontWeight: '500',
   flex: 1,

@@ -45,6 +45,11 @@ const AvatarFrame = styled(View, {
         width: '$3xl',
         borderRadius: '$xs',
       },
+      '$3.5xl': {
+        height: '$3.5xl',
+        width: '$3.5xl',
+        borderRadius: '$s',
+      },
       $4xl: {
         height: '$4xl',
         width: '$4xl',
@@ -238,6 +243,7 @@ export const TextAvatar = React.memo(function TextAvatarComponent({
     $xl: 12,
     $2xl: 14,
     $3xl: 16,
+    '$3.5xl': 16,
     $4xl: 16,
     $5xl: 24,
     $9xl: 32,

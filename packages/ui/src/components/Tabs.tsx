@@ -1,16 +1,17 @@
 import { ReactNode } from 'react';
-import { SizableText, XStack, styled, withStaticProperties } from 'tamagui';
+import { XStack, styled, withStaticProperties } from 'tamagui';
 
 import { useBoundHandler } from './ListItem/listItemUtils';
+import { Text } from './TextV2';
 
 const TabsWrapper = styled(XStack, {
   width: '100%',
 });
 
-const TabTitleComponent = styled(SizableText, {
-  width: 100,
+const TabTitleComponent = styled(Text, {
   textAlign: 'center',
   paddingVertical: '$m',
+  size: '$label/m',
   variants: {
     active: {
       true: {
@@ -24,13 +25,17 @@ const TabTitleComponent = styled(SizableText, {
 });
 
 const TabFrame = styled(XStack, {
+  flexBasis: 1,
   flexGrow: 1,
   justifyContent: 'center',
-  borderColor: '$primaryText',
+  alignItems: 'center',
+  borderBottomWidth: 1,
+  borderColor: '$shadow',
+  height: '$4xl',
   variants: {
     active: {
       true: {
-        borderBottomWidth: 1,
+        borderColor: '$primaryText',
       },
     },
   },

@@ -1,222 +1,136 @@
-import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
-import { PropsWithChildren, useMemo } from 'react';
-import React from 'react';
-import { SizableText } from 'tamagui';
+import React, { Fragment, useMemo } from 'react';
+import { styled } from 'tamagui';
 
-import ContactName from '../ContactName';
+import { useCurrentUserId } from '../../contexts';
+import { ContactName } from '../ContactNameV2';
+import { Text } from '../TextV2';
 
 function SummaryMessageRaw({
   summary,
 }: {
   summary: logic.SourceActivityEvents;
 }) {
-  const relevancy = getRelevancy(summary);
+  const currentUserId = useCurrentUserId();
+  const relevancy = getRelevancy(summary, currentUserId);
   const newest = summary.newest;
   const count = summary.all.length;
   const plural = summary.all.length > 1;
-  const otherSet = new Set<string>();
-  summary.all.forEach((event) => {
-    if (event.authorId && event.authorId !== newest.authorId) {
-      otherSet.add(event.authorId);
-    }
-  });
-  const otherAuthors = Array.from(otherSet);
+  const authors = useActivitySummaryAuthors(summary);
 
-  const NewestAuthor = useMemo(() => {
-    return (
-      <ContactName
-        fontSize="$s"
-        lineHeight={18}
-        userId={newest.authorId ?? ''}
-        showNickname
-      />
-    );
-  }, [newest.authorId]);
-
-  const Authors = useMemo(() => {
-    return (
-      <>
-        <ContactName
-          fontSize="$s"
-          lineHeight={18}
-          userId={newest.authorId ?? ''}
-          showNickname
-        />
-        {otherAuthors[0] && (
-          <>
-            {`${otherAuthors[1] ? ', ' : ' and '}`}
-            <ContactName
-              fontSize="$s"
-              lineHeight={18}
-              userId={otherAuthors[0]}
-              showNickname
-            />
-          </>
-        )}
-        {otherAuthors[1] && (
-          <>
-            {', and '}
-            <ContactName
-              fontSize="$s"
-              lineHeight={18}
-              userId={otherAuthors[1]}
-              showNickname
-            />
-          </>
-        )}
-      </>
-    );
-  }, [newest.authorId, otherAuthors]);
+  if (authors.length === 1 && relevancy !== 'groupJoinRequest') {
+    return null;
+  }
 
   // if it's a mention, life is easy and we just say what it is
   if (relevancy === 'mention') {
     return (
-      <SummaryMessageWrapper>
-        {NewestAuthor}
-        {` mentioned you in a ${postName(newest)}`}
-      </SummaryMessageWrapper>
-    );
-  }
-
-  if (relevancy === 'dm') {
-    const message =
-      count === 1 ? ' sent you a message' : ` sent you ${count} messages`;
-    return (
-      <SummaryMessageWrapper>
-        {NewestAuthor}
-        {message}
-      </SummaryMessageWrapper>
+      <SummaryText>
+        <ActivitySummaryAuthorList contactIds={authors.slice(0, 1)} />
+        {` mentioned you`}:
+      </SummaryText>
     );
   }
 
   if (relevancy === 'groupchat') {
+    const message = count === 1 ? ' sent a message' : ` sent ${count} messages`;
     return (
-      <SummaryMessageWrapper>
-        {Authors}
-        {' messaged the group'}
-      </SummaryMessageWrapper>
+      <SummaryText>
+        <ActivitySummaryAuthorList contactIds={authors} />
+        {message}:
+      </SummaryText>
     );
   }
 
   if (relevancy === 'postInYourChannel') {
     return (
-      <SummaryMessageWrapper>
+      <SummaryText>
         {`New ${postName(newest, plural)} from `}
-        {Authors}
-      </SummaryMessageWrapper>
+        <ActivitySummaryAuthorList contactIds={authors} />
+      </SummaryText>
     );
   }
 
   if (relevancy === 'replyToGalleryOrNote') {
-    const message = `commented on your ${postName(newest)}`;
+    const message = `commented on your post`;
     return (
-      <SummaryMessageWrapper>
-        {Authors}
+      <SummaryText>
+        <ActivitySummaryAuthorList contactIds={authors} />
         {` ${message}`}
-      </SummaryMessageWrapper>
+      </SummaryText>
     );
   }
 
   if (relevancy === 'replyToChatPost') {
     const message = `replied to your message`;
     return (
-      <SummaryMessageWrapper>
-        {Authors}
+      <SummaryText>
+        <ActivitySummaryAuthorList contactIds={authors} />
         {` ${message}`}
-      </SummaryMessageWrapper>
+      </SummaryText>
     );
   }
 
   if (relevancy === 'involvedThread') {
     const message = `replied in a thread you're involved in`;
     return (
-      <SummaryMessageWrapper>
-        {Authors}
+      <SummaryText>
+        <ActivitySummaryAuthorList contactIds={authors} />
         {` ${message}`}
-      </SummaryMessageWrapper>
+      </SummaryText>
     );
   }
 
   if (relevancy === 'postToChannel') {
-    const message = ` ${postVerb(newest.channel?.type ?? 'chat')} ${postName(newest, plural)} to the channel`;
+    const message = ` ${postVerb(newest.channel?.type ?? 'chat')} ${postName(newest, plural)}:`;
     return (
-      <SummaryMessageWrapper>
-        {Authors}
+      <SummaryText>
+        <ActivitySummaryAuthorList contactIds={authors} />
         {message}
-      </SummaryMessageWrapper>
+      </SummaryText>
     );
   }
 
   if (relevancy === 'flaggedPost') {
     const message = ` flagged a ${postName(newest)} in your group`;
     return (
-      <SummaryMessageWrapper>
-        {Authors}
+      <SummaryText>
+        <ActivitySummaryAuthorList contactIds={authors} />
         {message}
-      </SummaryMessageWrapper>
+      </SummaryText>
     );
   }
 
   if (relevancy === 'flaggedReply') {
     const message = ` flagged a reply in your group`;
     return (
-      <SummaryMessageWrapper>
-        {Authors}
+      <SummaryText>
+        <ActivitySummaryAuthorList contactIds={authors} />
         {message}
-      </SummaryMessageWrapper>
+      </SummaryText>
     );
   }
 
   if (relevancy === 'groupJoinRequest') {
-    return <SummaryMessageWrapper>test</SummaryMessageWrapper>;
-  }
-
-  if (summary.all.length === 1) {
     return (
-      <SizableText color="$secondaryText" lineHeight="$s">
-        <ContactName userId={newest.authorId ?? ''} showNickname />
-        {` ${postVerb(newest.channel?.type ?? 'chat')} a ${postName(newest)}`}
-      </SizableText>
+      <SummaryText>
+        <ActivitySummaryAuthorList contactIds={authors} />
+        {` ${plural ? 'have' : 'has'} requested to join the group`}
+      </SummaryText>
     );
-  }
-
-  const uniqueAuthors = new Set<string>();
-  summary.all.forEach((event) => uniqueAuthors.add(event.authorId ?? ''));
-  if (uniqueAuthors.size === 1) {
-    return (
-      <SizableText color="$secondaryText" lineHeight="$s">
-        <ContactName userId={newest.authorId ?? ''} showNickname />
-        {` ${postVerb(newest.channel?.type ?? 'chat')} ${count} ${postName(newest, count > 1)}`}
-      </SizableText>
-    );
-  } else {
-    <SizableText color="$secondaryText" lineHeight="$s">
-      {`${postVerb(newest.channel?.type ?? 'chat')} ${count} ${postName(newest, count > 1)}`}
-    </SizableText>;
   }
 }
 
 export const SummaryMessage = React.memo(SummaryMessageRaw);
 
-function SummaryMessageWrapper({ children }: PropsWithChildren) {
-  return (
-    <SizableText color="$secondaryText" size="$s" lineHeight="$s">
-      {children}
-    </SizableText>
-  );
-}
+export const SummaryText = styled(Text, {
+  size: '$label/m',
+  trimmed: false,
+});
 
 function postName(event: db.ActivityEvent, plural?: boolean) {
-  const channelType = event.channel?.type ?? 'chat';
-
-  const name =
-    channelType === 'gallery'
-      ? 'block'
-      : channelType === 'notebook'
-        ? 'note'
-        : 'message';
+  const name = 'post';
   return `${name}${plural ? 's' : ''}`;
 }
 
@@ -238,12 +152,18 @@ type ActivityRelevancy =
   | 'postInYourChannel'
   | 'postToChannel'
   | 'flaggedPost'
-  | 'flaggedReply';
+  | 'flaggedReply'
+  | 'groupJoinRequest';
 
 export function getRelevancy(
-  summary: logic.SourceActivityEvents
+  summary: logic.SourceActivityEvents,
+  currentUserId: string
 ): ActivityRelevancy {
-  const currentUserId = api.getCurrentUserId();
+  console.log(
+    'getting relevancy',
+    summary.newest.type,
+    summary.newest.channel?.type
+  );
   const newest = summary.newest;
 
   if (newest.isMention) {
@@ -294,9 +214,72 @@ export function getRelevancy(
     return 'flaggedReply';
   }
 
+  if (newest.type === 'group-ask') {
+    return 'groupJoinRequest';
+  }
+
   console.log(
     'Unknown relevancy type for activity summary. Defaulting to involvedThread.',
     summary
   );
   return 'involvedThread';
+}
+
+export function ActivitySummaryAuthorList({
+  contactIds,
+}: {
+  contactIds: string[];
+}) {
+  if (!contactIds.length) {
+    return null;
+  } else if (contactIds.length === 1) {
+    return (
+      <ContactName color="$positiveActionText" contactId={contactIds[0]} />
+    );
+  } else if (contactIds.length === 2) {
+    return (
+      <>
+        <ContactName color="$positiveActionText" contactId={contactIds[0]} />
+        {' and '}
+        <ContactName color="$positiveActionText" contactId={contactIds[1]} />
+      </>
+    );
+  } else {
+    const visibleAuthors = contactIds.slice(0, 3);
+    const overflowCount = contactIds.length - visibleAuthors.length;
+    return (
+      <>
+        {visibleAuthors.map((contactId, i) => (
+          <Fragment key={i}>
+            <ContactName
+              color="$positiveActionText"
+              key={contactId}
+              contactId={contactId}
+            />
+            {i === visibleAuthors.length - 1 && !overflowCount ? '' : ', '}
+            {i === visibleAuthors.length - 2 && !overflowCount ? 'and ' : ''}
+          </Fragment>
+        ))}
+        {overflowCount ? `and others` : ''}
+      </>
+    );
+  }
+}
+
+export function useActivitySummaryAuthors(summary: logic.SourceActivityEvents) {
+  return useMemo(() => {
+    const firstAuthorId = db.isGroupEvent(summary.newest)
+      ? summary.newest.groupEventUserId
+      : summary.newest.authorId;
+    const rawIds = db.isGroupEvent(summary.newest)
+      ? summary.all.map((p) => p.groupEventUserId)
+      : summary.all.map((p) => p.authorId);
+    const validIds = rawIds.filter(
+      (p): p is string => !!p && p !== firstAuthorId
+    );
+    const secondaryAuthorIds = [...new Set(validIds)];
+    return firstAuthorId
+      ? [firstAuthorId, ...secondaryAuthorIds]
+      : secondaryAuthorIds;
+  }, [summary]);
 }
