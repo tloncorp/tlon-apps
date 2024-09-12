@@ -122,11 +122,8 @@
     ?.  ?=(%chan -.u.ref)
       ~
     ::TODO  the whole "deconstruct the ref path" situation is horrendous
-    ?.  ?=([?(%msg %note) @ ~] wer.u.ref)  ::TODO  support chat msgs, replies
+    ?.  ?=([?(%msg %note %curio) @ ~] wer.u.ref)
       ~
-    ::  /1/chan/chat/~bolbex-fogdys/watercooler-4926/msg/170141184506984515746528913634457812992
-    ::  /v2/chat/~bolbex-fogdys/watercooler-4926/posts/post/[id]
-    ::  /v2/chat/~bolbex-fogdys/watercooler-4926/posts/post/id/[id]/replies/[id]
     =/  msg=(unit post:d)
       :-  ~  ::TODO  we want to do existence checks first though...
       .^  post:d
@@ -153,7 +150,26 @@
       `con.for.u.for
     ::
     ::TODO  if we render replies then we can "unroll" whole chat threads too (:
-    |^  ?+  p.nest.u.ref  ~  ::TODO  support rendering others
+    |^  ?+  p.nest.u.ref  ~
+            %chat
+          ?>  ?=(%chat -.kind-data.u.msg)
+          =/  title=tape
+            (trip (rap 3 (turn (first-inline content.u.msg) flatten-inline:u)))
+          %-  some
+          ^-  manx
+          ;html
+            ;+  (heads title ~)
+            ;body.chat
+              ;header
+                ;+  chat-prelude
+              ==
+              ;article
+                ;*  (story:en-manx:u content.u.msg)
+              ==
+              ;+  footer
+            ==
+          ==
+        ::
             %diary
           ?>  ?=(%diary -.kind-data.u.msg)
           =*  kd  kind-data.u.msg
@@ -161,12 +177,8 @@
           %-  some
           ^-  manx
           ;html
-            ;+  %:  heads
-                  title
-                  (scow %p author.u.msg)
-                  ?:(=('' image.kd) ~ `image.kd)
-                ==
-            ;body
+            ;+  (heads title ?:(=('' image.kd) ~ `image.kd))
+            ;body.diary
               ;header
                 ;*  ?:  =('' image.kd)  ~
                     :_  ~
@@ -176,7 +188,31 @@
               ;article
                 ;*  (story:en-manx:u content.u.msg)
               ==
-              ;+  diary-coda
+              ;+  footer
+            ==
+          ==
+        ::
+            %heap
+          ?>  ?=(%heap -.kind-data.u.msg)
+          =/  title=tape
+            ?:  &(?=(^ title.kind-data.u.msg) !=('' u.title.kind-data.u.msg))
+              (trip u.title.kind-data.u.msg)
+            ::NOTE  could flatten the first-inline, but we don't. showing that
+            ::      as both h1 and content is strange
+            ""
+          %-  some
+          ^-  manx
+          ;html
+            ::REVIEW
+            ;+  (heads ?:(=("" title) "collection item" title) ~)
+            ;body.chat
+              ;header
+                ;*  (heap-prelude title)
+              ==
+              ;article
+                ;*  (story:en-manx:u content.u.msg)
+              ==
+              ;+  footer
             ==
           ==
         ==
@@ -1807,7 +1843,7 @@
       '''
     ::
     ++  heads
-      |=  [title=tape author=tape img=(unit @t)]
+      |=  [title=tape img=(unit @t)]
       ;head
         ;title:"{title}"
         ;style:"{(trip style)}"
@@ -1828,7 +1864,7 @@
         ;meta(property "twitter:title", content title);
         ;meta(property "og:site_name", content "Tlon");
         ;meta(property "og:type", content "article");
-        ;meta(property "og:article:author:username", content author);
+        ;meta(property "og:article:author:username", content (scow %p author.u.msg));
       ::
         ;*  ?~  img
             :_  ~
@@ -1845,7 +1881,7 @@
         ;meta(property "og:article:author:first_name", content (trip nickname.u.aco));
       ==
     ::
-    ++  diary-coda
+    ++  footer
       ;footer
         ;img@"https://tlon.io/icon.svg"(alt "Tlon logo", width "18");
         ;p
@@ -1853,6 +1889,15 @@
           ;a/"https://tlon.io":"Tlon"
           ; , a communication tool you can trust.
         ==
+      ==
+    ::
+    ++  chat-prelude
+      ^-  manx
+      ;div.prelude
+        ;div.published
+          ;time:"{(scow %da (sub sent.u.msg (mod sent.u.msg ~s1)))}"  ::TODO  nicer format
+        ==
+        ;+  author-node
       ==
     ::
     ++  diary-prelude
@@ -1865,6 +1910,19 @@
             ==
             ;+  author-node
           ==
+      ==
+    ::
+    ++  heap-prelude
+      |=  title=tape
+      ^-  marl
+      =-  ?:  =("" title)  [-]~
+          :-  ;h1:"{title}"
+          [-]~
+      ;div.prelude
+        ;div.published
+          ;time:"{(scow %da (sub sent.u.msg (mod sent.u.msg ~s1)))}"  ::TODO  nicer format
+        ==
+        ;+  author-node
       ==
     ::
     ++  author-node
@@ -1882,7 +1940,7 @@
             size  25
             icon  &
             bg    '#'^col
-            fg    ?:((gth (div (roll (rip 3 val) add) 3) 127) "black" "white")  ::REVIEW
+            fg    ?:((gth (div (roll (rip 3 val) add) 3) 180) "black" "white")  ::REVIEW
           ==
         ==
       ::
@@ -1891,6 +1949,29 @@
         ?~  aco  nom
         ?:  =('' nickname.u.aco)  nom
         ;span(title "{(scow %p author)}"):"{(trip nickname.u.aco)}"
+      ==
+    ::
+    ++  first-inline
+      |=  content=story:d
+      ^-  (list inline:d)
+      ?~  content  ~
+      ?:  ?=(%inline -.i.content)
+        p.i.content
+      ?+  -.p.i.content  $(content t.content)
+        %header   q.p.i.content  ::REVIEW  questionable
+      ::
+          %listing
+        |-
+        ?-  -.p.p.i.content
+          %list  ::TODO  or check listing first?
+                 ?.  =(~ r.p.p.i.content)
+                   r.p.p.i.content
+                 ?~  q.p.p.i.content  ~
+                 =/  r  $(p.p.i.content i.q.p.p.i.content)
+                 ?.  =(~ r)  r
+                 $(q.p.p.i.content t.q.p.p.i.content)
+          %item  p.p.p.i.content
+        ==
       ==
     --
   ==
