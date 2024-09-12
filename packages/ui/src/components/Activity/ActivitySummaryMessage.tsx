@@ -19,7 +19,12 @@ function SummaryMessageRaw({
   const plural = summary.all.length > 1;
   const authors = useActivitySummaryAuthors(summary);
 
-  if (authors.length === 1 && relevancy !== 'groupJoinRequest') {
+  if (
+    authors.length === 1 &&
+    relevancy !== 'groupJoinRequest' &&
+    relevancy !== 'flaggedPost' &&
+    relevancy !== 'flaggedReply'
+  ) {
     return null;
   }
 
@@ -159,11 +164,6 @@ export function getRelevancy(
   summary: logic.SourceActivityEvents,
   currentUserId: string
 ): ActivityRelevancy {
-  console.log(
-    'getting relevancy',
-    summary.newest.type,
-    summary.newest.channel?.type
-  );
   const newest = summary.newest;
 
   if (newest.isMention) {
