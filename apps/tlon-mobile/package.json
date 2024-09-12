@@ -91,7 +91,7 @@
     "posthog-react-native": "^2.7.1",
     "react": "^18.2.0",
     "react-hook-form": "^7.52.0",
-    "react-native": "0.73.4",
+    "react-native": "0.73.9",
     "react-native-branch": "^5.9.0",
     "react-native-context-menu-view": "^1.15.0",
     "react-native-country-codes-picker": "^2.3.3",
