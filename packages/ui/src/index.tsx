@@ -70,6 +70,7 @@ export * from './components/UrbitSigil';
 export * from './components/UserProfileScreenView';
 export * from './components/View';
 export * from './components/WelcomeSheet';
+export * from './components/AppInviteDisplay';
 export * from './contexts';
 export * from './tamagui.config';
 export * from './types';
