@@ -156,18 +156,10 @@
           =/  title=tape
             (trip (rap 3 (turn (first-inline content.u.msg) flatten-inline:u)))
           %-  some
-          ^-  manx
-          ;html
-            ;+  (heads title ~)
-            ;body.chat
-              ;header
-                ;+  chat-prelude
-              ==
-              ;article
-                ;*  (story:en-manx:u content.u.msg)
-              ==
-              ;+  footer
-            ==
+          %:  build  "chat"
+            (heads title ~)
+            [chat-prelude]~
+            (story:en-manx:u content.u.msg)
           ==
         ::
             %diary
@@ -175,21 +167,14 @@
           =*  kd  kind-data.u.msg
           =/  title=tape  (trip title.kd)
           %-  some
-          ^-  manx
-          ;html
-            ;+  (heads title ?:(=('' image.kd) ~ `image.kd))
-            ;body.diary
-              ;header
-                ;*  ?:  =('' image.kd)  ~
-                    :_  ~
-                    ;img.cover@"{(trip image.kd)}"(alt "Cover image");
-                ;*  (diary-prelude title)
-              ==
-              ;article
-                ;*  (story:en-manx:u content.u.msg)
-              ==
-              ;+  footer
-            ==
+          %:  build  "diary"
+            (heads title ?:(=('' image.kd) ~ `image.kd))
+          ::
+            ?:  =('' image.kd)  (diary-prelude title)
+            :-  ;img.cover@"{(trip image.kd)}"(alt "Cover image");
+            (diary-prelude title)
+          ::
+            (story:en-manx:u content.u.msg)
           ==
         ::
             %heap
@@ -201,21 +186,28 @@
             ::      as both h1 and content is strange
             ""
           %-  some
-          ^-  manx
-          ;html
-            ::REVIEW
-            ;+  (heads ?:(=("" title) "collection item" title) ~)
-            ;body.chat
-              ;header
-                ;*  (heap-prelude title)
-              ==
-              ;article
-                ;*  (story:en-manx:u content.u.msg)
-              ==
-              ;+  footer
-            ==
+          %:  build  "chat"
+            (heads ?:(=("" title) "collection item" title) ~)
+            (heap-prelude title)
+            (story:en-manx:u content.u.msg)
           ==
         ==
+    ::
+    ++  build
+      |=  [tag=tape hes=manx pre=marl bod=marl]
+      ^-  manx
+      ;html
+        ;+  hes
+        ;body(class tag)
+          ;header
+            ;*  pre
+          ==
+          ;article
+            ;*  bod
+          ==
+          ;+  footer
+        ==
+      ==
     ::
     ++  style
       '''
