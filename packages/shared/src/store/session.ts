@@ -38,7 +38,6 @@ export function getSyncing() {
 }
 
 export function updateIsSyncing(newValue: boolean) {
-  console.log(`updating is syncing`, newValue);
   isSyncing = newValue;
   syncListeners.forEach((listener) => listener(newValue));
 }
@@ -57,8 +56,6 @@ export function useSyncing() {
 export function useConnectionStatus() {
   const currentSession = useCurrentSession();
   const syncing = useSyncing();
-
-  console.log(`con status render`, currentSession, syncing);
 
   if (!currentSession) {
     return 'Connecting';
