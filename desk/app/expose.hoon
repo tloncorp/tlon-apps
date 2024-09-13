@@ -362,6 +362,9 @@
         margin: 0 1em;
       }
       
+      body.chat header > h1 {
+        padding: 1rem 1rem 0;
+      }
       
       @media screen and (min-width: 40rem) {
         body {
@@ -383,9 +386,12 @@
         body.chat {
           max-width: 40rem;
           margin: 0 auto;
-          height: 100vh;
+          min-height: 100vh;
           display: flex;
+          flex-direction: column;
           align-items: center;
+          justify-content: center;
+          overflow: auto;
         }
       }
 
