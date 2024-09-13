@@ -1,0 +1,11 @@
+{
+  "name": "tlon-desktop",
+  "version": "0.1.0",
+  "description": "",
+  "main": "src-tauri/index.ts",
+  "license": "MIT",
+  "dependencies": {
+    "tlon-web-new": "workspace:*",
+    "@tloncorp/ui": "workspace:*"
+  }
+}
