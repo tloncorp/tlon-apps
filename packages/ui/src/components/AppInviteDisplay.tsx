@@ -32,12 +32,10 @@ function AppInviteDisplayRaw({
     // provider needed to support calm settings usage down the tree
     <AppDataContextProvider>
       <ListItem backgroundColor="$secondaryBackground" {...rest}>
-        {invitedGroupIconImageUrl ? (
-          <ListItem.GroupIcon
-            model={groupShim}
-            backgroundColor={groupShim.iconImageColor ?? '$secondaryBorder'}
-          />
-        ) : null}
+        <ListItem.GroupIcon
+          model={groupShim}
+          backgroundColor={groupShim.iconImageColor ?? '$secondaryBorder'}
+        />
         <ListItem.MainContent>
           <ListItem.Title>
             Join {invitedGroupTitle ?? invitedGroupId}
