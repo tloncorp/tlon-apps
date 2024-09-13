@@ -1,7 +1,11 @@
 import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { EditProfileScreenView, GroupsProvider, View } from '@tloncorp/ui';
+import {
+  AttachmentProvider,
+  EditProfileScreenView,
+  GroupsProvider,
+} from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 export function EditProfileScreen({ onGoBack }: { onGoBack: () => void }) {
@@ -27,14 +31,12 @@ export function EditProfileScreen({ onGoBack }: { onGoBack: () => void }) {
 
   return (
     <GroupsProvider groups={groups ?? []}>
-      <View flex={1}>
+      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
         <EditProfileScreenView
-          canUpload={canUpload}
-          uploadAsset={store.uploadAsset}
           onGoBack={onGoBack}
           onSaveProfile={onSaveProfile}
         />
-      </View>
+      </AttachmentProvider>
     </GroupsProvider>
   );
 }

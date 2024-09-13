@@ -1,39 +1,33 @@
-import * as db from '@tloncorp/shared/dist/db';
 import { useFeatureFlag } from 'posthog-react-native';
-import { Alert, Dimensions, Share, TouchableOpacity } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  ScrollView,
-  SizableText,
-  Stack,
-  View,
-  YStack,
-  getTokens,
-} from 'tamagui';
+import { ReactElement } from 'react';
+import { Alert, Share } from 'react-native';
+import { ScrollView, View, YStack } from 'tamagui';
 
-import { useContact } from '../contexts';
+import { ContactAvatar } from './Avatar';
 import { IconType } from './Icon';
 import { ListItem } from './ListItem';
-import ProfileCover from './ProfileCover';
-import ProfileRow from './ProfileRow';
+import { ScreenHeader } from './ScreenHeader';
+import { TlonLogo } from './TlonLogo';
 
 interface Props {
   currentUserId: string;
-  onAppSettingsPressed?: () => void;
+  hasHostedAuth: boolean;
   onEditProfilePressed?: () => void;
+  onAppInfoPressed?: () => void;
+  onNotificationSettingsPressed: () => void;
+  onBlockedUsersPressed: () => void;
+  onManageAccountPressed: () => void;
   onViewProfile?: () => void;
-  onLogoutPressed: () => void;
+  onLogoutPressed?: () => void;
   onSendBugReportPressed?: () => void;
   dmLink?: string;
 }
 
 export function ProfileScreenView(props: Props) {
-  const { top } = useSafeAreaInsets();
-  const contact = useContact(props.currentUserId);
   const showDmLure = useFeatureFlag('share-dm-lure');
 
   // TODO: Add logout back in when we figure out TLON-2098.
-  const onLogoutPress = () => {
+  const handleLogoutPressed = () => {
     Alert.alert('Log out', 'Are you sure you want to log out?', [
       {
         text: 'Cancel',
@@ -65,119 +59,116 @@ export function ProfileScreenView(props: Props) {
   };
 
   return (
-    <ScrollView>
-      <YStack flex={1} paddingHorizontal="$xl" paddingTop={top}>
-        <View marginTop="$l">
-          <View onPress={props.onViewProfile}>
-            {contact ? (
-              <ProfileDisplayWidget
-                contact={contact}
-                contactId={props.currentUserId}
-              />
-            ) : (
-              <View backgroundColor="$secondaryBackground" borderRadius="$m">
-                <ProfileRow dark contactId={props.currentUserId} />
-              </View>
-            )}
-          </View>
-          <View position="absolute" top="$l" right="$l">
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={props.onEditProfilePressed}
-            >
-              <Stack
-                padding="$m"
-                paddingHorizontal="$l"
-                opacity={0.6}
-                backgroundColor="$darkOverlay"
-                borderRadius="$l"
-              >
-                <SizableText fontWeight="500" color="$white">
-                  Edit
-                </SizableText>
-              </Stack>
-            </TouchableOpacity>
-          </View>
-        </View>
-        <View marginTop="$xl">
+    <>
+      <ScreenHeader>
+        <ScreenHeader.Title textAlign="center">Settings</ScreenHeader.Title>
+      </ScreenHeader>
+      <ScrollView>
+        <YStack flex={1} padding="$l" gap="$s">
+          <ProfileAction
+            leftIcon={<ContactAvatar contactId={props.currentUserId} />}
+            title="Edit profile"
+            subtitle={props.currentUserId}
+            onPress={props.onEditProfilePressed}
+            rightIcon={'ChevronRight'}
+          />
           {showDmLure && props.dmLink !== '' && (
             <ProfileAction
               title="Share app with friends"
-              icon="Send"
-              tint
-              onPress={() => {
-                onShare();
-              }}
+              leftIcon="Send"
+              rightIcon={'ChevronRight'}
+              onPress={onShare}
             />
           )}
           <ProfileAction
-            title="App Settings"
-            icon="Settings"
-            onPress={props.onAppSettingsPressed}
+            title="Notification settings"
+            leftIcon="Notifications"
+            rightIcon={'ChevronRight'}
+            onPress={props.onNotificationSettingsPressed}
+          />
+          <ProfileAction
+            title="Blocked users"
+            leftIcon="Placeholder"
+            rightIcon={'ChevronRight'}
+            onPress={props.onBlockedUsersPressed}
+          />
+          {props.hasHostedAuth && (
+            <ProfileAction
+              title="Tlon Hosting account"
+              rightIcon={'ChevronRight'}
+              leftIcon={
+                <View
+                  padding="$xl"
+                  backgroundColor="$secondaryBackground"
+                  borderRadius={100}
+                >
+                  <TlonLogo
+                    width={'$xl'}
+                    height={'$xl'}
+                    color="$secondaryText"
+                  />
+                </View>
+              }
+              onPress={props.onManageAccountPressed}
+            />
+          )}
+          <ProfileAction
+            title="App info"
+            leftIcon="Info"
+            rightIcon={'ChevronRight'}
+            onPress={props.onAppInfoPressed}
           />
           <ProfileAction
             title="Report a bug"
-            icon="Send"
+            leftIcon="Send"
+            rightIcon={'ChevronRight'}
             onPress={props.onSendBugReportPressed}
           />
           <ProfileAction
-            title="Log Out"
-            icon="LogOut"
-            hideCaret
-            onPress={onLogoutPress}
+            title="Log out"
+            leftIcon="LogOut"
+            onPress={handleLogoutPressed}
           />
-        </View>
-      </YStack>
-    </ScrollView>
+        </YStack>
+      </ScrollView>
+    </>
   );
 }
 
-export function ProfileDisplayWidget({
-  contact,
-  contactId,
-}: {
-  contact: db.Contact;
-  contactId: string;
-}) {
-  const coverSize =
-    Dimensions.get('window').width - getTokens().space.$xl.val * 2;
-  if (contact.coverImage) {
-    return (
-      <ProfileCover uri={contact.coverImage}>
-        <YStack height={coverSize} width={coverSize} justifyContent="flex-end">
-          <ProfileRow contactId={contactId} contact={contact} />
-        </YStack>
-      </ProfileCover>
-    );
-  }
-
-  return <ProfileRow dark contactId={contactId} contact={contact} />;
-}
-
 function ProfileAction({
-  icon,
+  leftIcon,
+  rightIcon,
   title,
-  hideCaret,
+  subtitle,
   onPress,
 }: {
-  icon: IconType;
+  leftIcon: IconType | ReactElement;
+  rightIcon?: IconType | ReactElement;
   title: string;
-  hideCaret?: boolean;
   onPress?: () => void;
-  tint?: boolean;
+  subtitle?: string;
 }) {
   return (
     <ListItem onPress={onPress}>
-      <ListItem.SystemIcon icon={icon} rounded />
+      {typeof leftIcon === 'string' ? (
+        <ListItem.SystemIcon icon={leftIcon} rounded />
+      ) : (
+        leftIcon
+      )}
       <ListItem.MainContent>
         <ListItem.Title>{title}</ListItem.Title>
+        {subtitle && <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>}
       </ListItem.MainContent>
-      {!hideCaret && (
-        <ListItem.SystemIcon
-          icon="ChevronRight"
-          backgroundColor={'transparent'}
-        />
-      )}
+      {rightIcon ? (
+        typeof rightIcon === 'string' ? (
+          <ListItem.SystemIcon
+            icon={rightIcon}
+            backgroundColor={'transparent'}
+          />
+        ) : (
+          rightIcon
+        )
+      ) : null}
     </ListItem>
   );
 }

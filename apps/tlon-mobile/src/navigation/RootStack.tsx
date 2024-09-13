@@ -6,7 +6,6 @@ import { Platform, StatusBar } from 'react-native';
 
 import { ActivityScreenController } from '../controllers/ActivityScreenController';
 import { AppInfoScreenController } from '../controllers/AppInfoScreenController';
-import { AppSettingsScreenController } from '../controllers/AppSettingsScreenController';
 import { BlockedUsersScreenController } from '../controllers/BlockedUsersScreenController';
 import { ChannelMembersScreenController } from '../controllers/ChannelMembersScreenController';
 import { ChannelMetaScreenController } from '../controllers/ChannelMetaScreenController';
@@ -84,7 +83,6 @@ export function RootStack() {
         options={{ animation: 'fade' }}
       />
 
-      <Root.Screen name="AppSettings" component={AppSettingsScreenController} />
       <Root.Screen
         name="ManageAccount"
         component={ManageAccountScreenController}
