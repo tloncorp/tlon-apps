@@ -1,6 +1,5 @@
 import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
-import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
@@ -8,13 +7,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts';
-import { AttachmentProvider } from '../contexts/attachment';
 import { EditablePofileImages } from './EditableProfileImages';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
-import { FormTextInput } from './FormInput';
-import { GenericHeader } from './GenericHeader';
+import {
+  ControlledField,
+  ControlledTextField,
+  ControlledTextareaField,
+} from './Form';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
-import { SaveButton } from './MetaEditorScreenView';
+import { ScreenHeader } from './ScreenHeader';
+import { Text } from './TextV2';
 
 interface Props {
   onGoBack: () => void;
@@ -22,8 +24,6 @@ interface Props {
     profile: api.ProfileUpdate | null;
     pinnedGroups?: db.Group[] | null;
   }) => void;
-  uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
-  canUpload: boolean;
 }
 
 export function EditProfileScreenView(props: Props) {
@@ -47,6 +47,7 @@ export function EditProfileScreenView(props: Props) {
       bio: userContact?.bio ?? '',
       avatarImage: userContact?.avatarImage ?? '',
       coverImage: userContact?.coverImage ?? '',
+      pinnedGroups: userContact?.pinnedGroups?.map((pin) => pin.group) ?? [],
     },
   });
 
@@ -78,25 +79,43 @@ export function EditProfileScreenView(props: Props) {
     }
   }, [handleSubmit, isDirty, pinnedGroups, props, userContact?.pinnedGroups]);
 
+  const handlePressDone = () => {
+    props.onGoBack();
+    onSavePressed();
+  };
+  const handlePressCancel = () => {
+    console.log('cnacel');
+    props.onGoBack();
+  };
+
   return (
-    <AttachmentProvider
-      canUpload={props.canUpload}
-      uploadAsset={props.uploadAsset}
-    >
-      <View flex={1}>
-        <GenericHeader
-          title="Edit Profile"
-          goBack={props.onGoBack}
-          rightContent={isDirty && <SaveButton onPress={onSavePressed} />}
-        />
-        <KeyboardAvoidingView>
-          <ScrollView>
-            <YStack
-              onTouchStart={Keyboard.dismiss}
-              marginTop="$l"
-              marginHorizontal="$xl"
-              paddingBottom={insets.bottom}
-            >
+    <View flex={1}>
+      <ScreenHeader>
+        <ScreenHeader.Controls side="left">
+          <Text size="$label/2xl" onPress={handlePressCancel}>
+            Cancel
+          </Text>
+        </ScreenHeader.Controls>
+        <ScreenHeader.Title textAlign="center">Edit Profile</ScreenHeader.Title>
+        <ScreenHeader.Controls side="right">
+          <Text
+            size="$label/2xl"
+            onPress={handlePressDone}
+            color="$positiveActionText"
+          >
+            Done
+          </Text>
+        </ScreenHeader.Controls>
+      </ScreenHeader>
+
+      <KeyboardAvoidingView>
+        <ScrollView>
+          <YStack
+            onTouchStart={Keyboard.dismiss}
+            gap="$2xl"
+            paddingBottom={insets.bottom}
+          >
+            <View paddingHorizontal="$xl">
               <EditablePofileImages
                 contact={userContact ?? db.getFallbackContact(currentUserId)}
                 onSetCoverUrl={useCallback(
@@ -110,63 +129,54 @@ export function EditProfileScreenView(props: Props) {
                   [setValue]
                 )}
               />
+            </View>
+            <View paddingHorizontal="$2xl" gap="$2xl">
+              <ControlledTextField
+                name="nickname"
+                label="Nickname"
+                control={control}
+                inputProps={{ placeholder: userContact?.id }}
+                rules={{
+                  maxLength: {
+                    value: 30,
+                    message: 'Your nickname is limited to 30 characters',
+                  },
+                }}
+              />
 
-              <FormTextInput marginTop="$m">
-                <FormTextInput.Label>Nickname</FormTextInput.Label>
-                <FormTextInput.Input
-                  control={control}
-                  errors={errors}
-                  name="nickname"
-                  label="Nickname"
-                  rules={{
-                    maxLength: {
-                      value: 30,
-                      message: 'Your nickname is limited to 30 characters',
-                    },
-                  }}
-                  placeholder={userContact?.id}
-                />
-              </FormTextInput>
+              <ControlledTextareaField
+                name="bio"
+                label="Bio"
+                control={control}
+                inputProps={{
+                  placeholder: 'About yourself',
+                  numberOfLines: 5,
+                  multiline: true,
+                }}
+                rules={{
+                  maxLength: {
+                    value: 300,
+                    message: 'Your bio is limited to 300 characters',
+                  },
+                }}
+              />
 
-              <FormTextInput>
-                <FormTextInput.Label>Bio</FormTextInput.Label>
-                <FormTextInput.Input
-                  control={control}
-                  errors={errors}
-                  rules={{
-                    maxLength: {
-                      value: 300,
-                      message: 'Your bio is limited to 300 characters',
-                    },
-                  }}
-                  name="bio"
-                  label="Bio"
-                  placeholder="About yourself"
-                  frameProps={{
-                    height: 'auto',
-                    justifyContent: 'flex-start',
-                    alignItems: 'flex-start',
-                    overflow: 'scroll',
-                  }}
-                  areaProps={{
-                    numberOfLines: 5,
-                    multiline: true,
-                  }}
-                />
-              </FormTextInput>
-
-              <View marginTop="$2xl">
-                <FavoriteGroupsDisplay
-                  secondaryColors
-                  groups={pinnedGroups}
-                  editable
-                  onUpdate={setPinnedGroups}
-                />
-              </View>
-            </YStack>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </View>
-    </AttachmentProvider>
+              <ControlledField
+                name={'pinnedGroups'}
+                label="Pinned groups"
+                control={control}
+                renderInput={({ field: { onChange, value } }) => (
+                  <FavoriteGroupsDisplay
+                    groups={pinnedGroups}
+                    onUpdate={setPinnedGroups}
+                    editable
+                  />
+                )}
+              />
+            </View>
+          </YStack>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }

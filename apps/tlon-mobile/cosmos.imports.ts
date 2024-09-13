@@ -44,11 +44,11 @@ import * as fixture11 from './src/fixtures/PostReference.fixture';
 import * as fixture10 from './src/fixtures/PostScreen.fixture';
 import * as fixture9 from './src/fixtures/ProfileBlock.fixture';
 import * as fixture8 from './src/fixtures/ProfileSheet.fixture';
-import * as fixture7 from './src/fixtures/ProfileWidget.fixture';
-import * as fixture6 from './src/fixtures/ReferenceSkeleton.fixture';
-import * as fixture5 from './src/fixtures/ScreenHeader.fixture';
-import * as fixture4 from './src/fixtures/SearchBar.fixture';
-import * as fixture3 from './src/fixtures/Text.fixture';
+import * as fixture7 from './src/fixtures/ReferenceSkeleton.fixture';
+import * as fixture6 from './src/fixtures/ScreenHeader.fixture';
+import * as fixture5 from './src/fixtures/SearchBar.fixture';
+import * as fixture4 from './src/fixtures/Text.fixture';
+import * as fixture3 from './src/fixtures/UserProfileScreen.fixture';
 import * as fixture2 from './src/fixtures/VideoEmbed.fixture';
 import * as fixture1 from './src/fixtures/ViewReactionsSheet.fixture';
 import * as decorator0 from './src/fixtures/cosmos.decorator';
@@ -62,11 +62,11 @@ const fixtures = {
   'src/App.fixture.tsx': { module: fixture0 },
   'src/fixtures/ViewReactionsSheet.fixture.tsx': { module: fixture1 },
   'src/fixtures/VideoEmbed.fixture.tsx': { module: fixture2 },
-  'src/fixtures/Text.fixture.tsx': { module: fixture3 },
-  'src/fixtures/SearchBar.fixture.tsx': { module: fixture4 },
-  'src/fixtures/ScreenHeader.fixture.tsx': { module: fixture5 },
-  'src/fixtures/ReferenceSkeleton.fixture.tsx': { module: fixture6 },
-  'src/fixtures/ProfileWidget.fixture.tsx': { module: fixture7 },
+  'src/fixtures/UserProfileScreen.fixture.tsx': { module: fixture3 },
+  'src/fixtures/Text.fixture.tsx': { module: fixture4 },
+  'src/fixtures/SearchBar.fixture.tsx': { module: fixture5 },
+  'src/fixtures/ScreenHeader.fixture.tsx': { module: fixture6 },
+  'src/fixtures/ReferenceSkeleton.fixture.tsx': { module: fixture7 },
   'src/fixtures/ProfileSheet.fixture.tsx': { module: fixture8 },
   'src/fixtures/ProfileBlock.fixture.tsx': { module: fixture9 },
   'src/fixtures/PostScreen.fixture.tsx': { module: fixture10 },
