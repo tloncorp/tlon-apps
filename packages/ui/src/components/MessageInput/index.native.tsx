@@ -159,10 +159,18 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const titleInputHeight = 48;
     const inputBasePadding = getToken('$s', 'space');
     const imageInputButtonHeight = 50;
-    const basicOffset =
-      top + headerHeight + titleInputHeight + imageInputButtonHeight;
-    const bigInputHeightBasic =
-      height - basicOffset - bottom - inputBasePadding * 2;
+    const maxInputHeight = useMemo(
+      () => height - headerHeight - bottom - top,
+      [height, bottom, top, headerHeight]
+    );
+    const basicOffset = useMemo(
+      () => top + headerHeight + titleInputHeight + imageInputButtonHeight,
+      [top, headerHeight, titleInputHeight, imageInputButtonHeight]
+    );
+    const bigInputHeightBasic = useMemo(
+      () => height - basicOffset - bottom - inputBasePadding * 2,
+      [height, basicOffset, bottom, inputBasePadding]
+    );
     const [bigInputHeight, setBigInputHeight] = useState(bigInputHeightBasic);
     const [mentionText, setMentionText] = useState<string>();
     const [showMentionPopup, setShowMentionPopup] = useState(false);
@@ -728,6 +736,12 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         }
 
         if (type === 'contentHeight') {
+          if (payload === containerHeight) {
+            return;
+          }
+          if (containerHeight > maxInputHeight) {
+            return;
+          }
           setContainerHeight(payload);
           setHeight?.(payload);
           return;
@@ -768,6 +782,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         webviewRef,
         editorCrashed,
         setEditorCrashed,
+        containerHeight,
+        maxInputHeight,
       ]
     );
 
@@ -827,12 +843,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           borderColor="$border"
           borderWidth={1}
           borderRadius="$xl"
+          maxHeight={maxInputHeight}
         >
           {showInlineAttachments && <AttachmentPreviewList />}
           <XStack height={bigInput ? bigInputHeight : containerHeight}>
             <RichText
               style={{
                 backgroundColor: 'transparent',
+                maxHeight: maxInputHeight - getToken('$s', 'space'),
               }}
               editor={editor}
               onMessage={handleMessage}
