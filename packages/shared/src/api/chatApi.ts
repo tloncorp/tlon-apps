@@ -11,7 +11,7 @@ import {
 import { toPostData, toPostReplyData, toReplyMeta } from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe, trackedPoke } from './urbit';
 
-const logger = createDevLogger('chatApi', true);
+const logger = createDevLogger('chatApi', false);
 
 export const markChatRead = (whom: string) =>
   poke({
