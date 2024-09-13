@@ -1919,6 +1919,10 @@
         padding: 0;
       }
 
+      article p:empty {
+        display: none;
+      }
+
       article img {
         max-width: 100%;
         border-radius: 0.5em;
