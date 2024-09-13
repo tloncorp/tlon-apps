@@ -2,8 +2,8 @@ import { useSyncExternalStore } from 'react';
 
 export type Session = { startTime: number };
 
-// Session — time when subscriptions were first initialized and we can assume
-// all new events have been heard
+// Session — time when subscriptions were first initialized after which we can assume
+// all new events will be heard
 let session: Session | null = null;
 type SessionListener = (session: Session | null) => void;
 const sessionListeners: SessionListener[] = [];
@@ -28,7 +28,7 @@ export function useCurrentSession() {
   return useSyncExternalStore(subscribeToSession, getSession);
 }
 
-// Syncing — whether our start sync logic is currently running
+// Syncing — whether our initial fetching logic is currently running
 let isSyncing: boolean = false;
 type SyncListener = (syncing: boolean) => void;
 const syncListeners: SyncListener[] = [];
