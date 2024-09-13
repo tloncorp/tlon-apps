@@ -2,7 +2,7 @@ import { utils } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/dist/api';
 import { Post } from '@tloncorp/shared/dist/db';
 import * as ub from '@tloncorp/shared/dist/urbit';
-import { PropsWithChildren, useContext, useMemo } from 'react';
+import { useContext, useMemo } from 'react';
 import { createStyledContext } from 'tamagui';
 
 export interface ContentContextProps {
@@ -371,4 +371,51 @@ function convertInlineContent(inlines: ub.Inline[]): InlineData[] {
     }
   });
   return nodes;
+}
+
+export function prependInline(
+  content: BlockData[],
+  inline: InlineData
+): BlockData[] {
+  if (content[0]?.type === 'paragraph') {
+    return [
+      {
+        ...content[0],
+        content: [inline, ...content[0].content],
+      },
+      ...content.slice(1),
+    ];
+  } else {
+    return [
+      {
+        type: 'paragraph',
+        content: [inline],
+      },
+      ...content,
+    ];
+  }
+}
+
+export function appendInline(
+  content: BlockData[],
+  inline: InlineData
+): BlockData[] {
+  const lastBlock = content.at(-1);
+  if (lastBlock?.type === 'paragraph') {
+    return [
+      ...content.slice(0, -1),
+      {
+        ...lastBlock,
+        content: [...lastBlock.content, inline],
+      },
+    ];
+  } else {
+    return [
+      ...content,
+      {
+        type: 'paragraph',
+        content: [inline],
+      },
+    ];
+  }
 }

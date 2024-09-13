@@ -289,8 +289,9 @@ export const useLiveGroupUnread = (unread: db.GroupUnread | null) => {
 };
 
 export const useLiveUnread = (
-  unread: db.ChannelUnread | db.ThreadUnreadState | null
+  unread: db.ChannelUnread | db.ThreadUnreadState | db.GroupUnread | null
 ) => {
+  const isGroup = useMemo(() => unread && 'groupId' in unread, [unread]);
   const isThread = useMemo(() => unread && 'threadId' in unread, [unread]);
   const threadUnread = useLiveThreadUnread(
     isThread ? (unread as db.ThreadUnreadState) : null
@@ -298,7 +299,10 @@ export const useLiveUnread = (
   const channelUnread = useLiveChannelUnread(
     isThread ? null : (unread as db.ChannelUnread | null)
   );
-  return isThread ? threadUnread : channelUnread;
+  const groupUnread = useLiveGroupUnread(
+    isGroup ? (unread as db.GroupUnread) : null
+  );
+  return isThread ? threadUnread : isGroup ? groupUnread : channelUnread;
 };
 
 export const useGroups = (options: db.GetGroupsOptions) => {

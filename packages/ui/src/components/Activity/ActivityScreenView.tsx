@@ -1,15 +1,13 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import React from 'react';
-import { FlatList, RefreshControl } from 'react-native';
-import { SizableText, View } from 'tamagui';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, RefreshControl, StyleProp, ViewStyle } from 'react-native';
+import { View, useStyle } from 'tamagui';
 
 import { LoadingSpinner } from '../LoadingSpinner';
 import { ActivityHeader } from './ActivityHeader';
-import { ChannelActivitySummary } from './ChannelActivitySummary';
-import { GroupActivitySummary } from './GroupActivitySummary';
+import { ActivityListItem } from './ActivityListItem';
 
 export function ActivityScreenView({
   isFocused,
@@ -37,6 +35,7 @@ export function ActivityScreenView({
       bucketFetchers.all.activity[0]?.newest.timestamp ?? activitySeenMarker
     );
   }, [activitySeenMarker, bucketFetchers.all.activity]);
+
   const moveSeenMarker = useCallback(() => {
     setTimeout(() => {
       store.advanceActivitySeenMarker(newestTimestamp);
@@ -95,19 +94,6 @@ export function ActivityScreenView({
     [goToChannel, goToThread, goToGroup]
   );
 
-  const renderItem = useCallback(
-    ({ item }: { item: logic.SourceActivityEvents }) => {
-      return (
-        <SourceActivityDisplay
-          sourceActivity={item}
-          onPress={handlePressEvent}
-          seenMarker={activitySeenMarker ?? Date.now()}
-        />
-      );
-    },
-    [activitySeenMarker, handlePressEvent]
-  );
-
   const events = useMemo(
     () => currentFetcher.activity,
     [currentFetcher.activity]
@@ -128,10 +114,6 @@ export function ActivityScreenView({
     }
   }, [currentFetcher]);
 
-  const keyExtractor = useCallback((item: logic.SourceActivityEvents) => {
-    return `${item.sourceId}/${item.newest.bucketId}/${item.all.length}`;
-  }, []);
-
   const [refreshing, setRefreshing] = React.useState(false);
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -140,68 +122,82 @@ export function ActivityScreenView({
   }, [refresh]);
 
   return (
+    <ActivityScreenContent
+      activeTab={activeTab}
+      onPressTab={handleTabPress}
+      onPressEvent={handlePressEvent}
+      onEndReached={handleEndReached}
+      events={events}
+      isFetching={currentFetcher.isFetching}
+      isRefreshing={refreshing}
+      onRefreshTriggered={onRefresh}
+      seenMarker={activitySeenMarker ?? Date.now()}
+    />
+  );
+}
+
+export function ActivityScreenContent({
+  activeTab,
+  events,
+  isFetching,
+  isRefreshing,
+  onPressTab,
+  onPressEvent,
+  onEndReached,
+  onRefreshTriggered,
+  seenMarker,
+}: {
+  activeTab: db.ActivityBucket;
+  onPressTab: (tab: db.ActivityBucket) => void;
+  onPressEvent: (event: db.ActivityEvent) => void;
+  onEndReached: () => void;
+  events: logic.SourceActivityEvents[];
+  isFetching: boolean;
+  isRefreshing: boolean;
+  onRefreshTriggered: () => void;
+  seenMarker: number;
+}) {
+  const keyExtractor = useCallback((item: logic.SourceActivityEvents) => {
+    return `${item.newest.id}/${item.sourceId}/${item.newest.bucketId}/${item.all.length}`;
+  }, []);
+
+  const renderItem = useCallback(
+    ({ item }: { item: logic.SourceActivityEvents }) => {
+      return (
+        <ActivityListItem
+          sourceActivity={item}
+          onPress={onPressEvent}
+          seenMarker={seenMarker}
+        />
+      );
+    },
+    [onPressEvent, seenMarker]
+  );
+
+  const containerStyle = useStyle({
+    padding: '$l',
+    gap: '$l',
+  }) as StyleProp<ViewStyle>;
+
+  return (
     <View flex={1}>
-      <ActivityHeader activeTab={activeTab} onTabPress={handleTabPress} />
+      <ActivityHeader activeTab={activeTab} onTabPress={onPressTab} />
       {events.length > 0 && (
         <FlatList
           data={events}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
-          contentContainerStyle={{ paddingTop: 16, paddingHorizontal: 16 }}
-          onEndReached={handleEndReached}
-          ListFooterComponent={
-            currentFetcher.isFetching ? <LoadingSpinner /> : null
-          }
+          contentContainerStyle={containerStyle}
+          onEndReached={onEndReached}
+          ListFooterComponent={isFetching ? <LoadingSpinner /> : null}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefreshTriggered}
+            />
           }
         />
       )}
     </View>
   );
 }
-
-function ActivityEventRaw({
-  sourceActivity,
-  seenMarker,
-  onPress,
-}: {
-  seenMarker: number;
-  sourceActivity: logic.SourceActivityEvents;
-  onPress: (event: db.ActivityEvent) => void;
-}) {
-  const event = sourceActivity.newest;
-  const handlePress = useCallback(() => onPress(event), [event, onPress]);
-
-  if (db.isGroupEvent(event)) {
-    return (
-      <View onPress={handlePress} marginBottom="$xl">
-        <GroupActivitySummary
-          summary={sourceActivity}
-          seenMarker={seenMarker}
-          pressHandler={handlePress}
-        />
-      </View>
-    );
-  }
-
-  if (
-    event.type === 'post' ||
-    event.type === 'reply' ||
-    event.type === 'flag-post' ||
-    event.type === 'flag-reply'
-  ) {
-    return (
-      <View onPress={handlePress} marginBottom="$xl">
-        <ChannelActivitySummary
-          summary={sourceActivity}
-          seenMarker={seenMarker}
-          pressHandler={handlePress}
-        />
-      </View>
-    );
-  }
-
-  return <SizableText> Event type {event.type} not supported</SizableText>;
-}
-const SourceActivityDisplay = React.memo(ActivityEventRaw);
