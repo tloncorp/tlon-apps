@@ -36,7 +36,7 @@ export const InventoryCheckScreen = ({
     try {
       const { enabled } = await getHostingAvailability({
         lure,
-        priorityToken,
+        priorityToken: 'mobile',
       });
       if (enabled) {
         navigation.navigate('SignUpEmail', { lure, priorityToken });

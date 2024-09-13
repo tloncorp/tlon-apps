@@ -200,7 +200,7 @@ export const useLureState = create<LureState>((set, get) => ({
       };
 
       deepLinkUrl = await createDeepLink({
-        fallbackUrl: 'https://en.wikipedia.org/wiki/Construction',
+        fallbackUrl: url,
         type: 'lure',
         path: flag,
         branchDomain,
