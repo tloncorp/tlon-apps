@@ -165,7 +165,7 @@ export const useLureState = create<LureState>((set, get) => ({
         async () =>
           scry<LureMetadata>({
             app: 'reel',
-            path: `/metadata/${flag}`,
+            path: `/v1/metadata/${flag}`,
           }),
         prevLure?.metadata
       ),
@@ -292,7 +292,7 @@ export function useLureLinkChecked(url: string | undefined, enabled: boolean) {
     queryKey: ['lure-check', url],
     queryFn: async () =>
       subscribeOnce<boolean>(
-        { app: 'grouper', path: `/check-link/${pathEncodedUrl}` },
+        { app: 'grouper', path: `/v1/check-link/${pathEncodedUrl}` },
         4500
       ),
     enabled: enabled && Boolean(url),
