@@ -13,13 +13,13 @@ import {
 } from '../store/useActivityFetchers';
 import { ErrorReporter } from './errorReporting';
 import { useLureState } from './lure';
-import { updateSession } from './session';
+import { updateIsSyncing, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
 export { SyncPriority, syncQueue } from './syncQueue';
 
-const logger = createDevLogger('sync', false);
+const logger = createDevLogger('sync', true);
 
 // Used to track latest post we've seen for each channel.
 // Updated when:
@@ -1013,6 +1013,7 @@ export const handleDiscontinuity = async () => {
 };
 
 export const syncStart = async (alreadySubscribed?: boolean) => {
+  updateIsSyncing(true);
   const reporter = new ErrorReporter('sync start', logger);
   reporter.log(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
@@ -1088,13 +1089,15 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     }),
   ];
 
-  Promise.all(lowPriorityPromises)
+  await Promise.all(lowPriorityPromises)
     .then(() => {
       reporter.log(`finished low priority sync`);
     })
     .catch((e) => {
       reporter.report(e);
     });
+
+  updateIsSyncing(false);
 };
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {

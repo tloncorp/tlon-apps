@@ -98,6 +98,21 @@ export default function ChatListScreen({
 
   const currentUser = useCurrentUserId();
 
+  const connStatus = store.useConnectionStatus();
+  const notReadyMessage: string | null = useMemo(() => {
+    // if not fully connected yet, show status
+    if (connStatus !== 'Connected') {
+      return `${connStatus}...`;
+    }
+
+    // if still loading the screen data, show loading
+    if (!chats || (!chats.unpinned.length && !chats.pinned.length)) {
+      return 'Loading...';
+    }
+
+    return null;
+  }, [connStatus, chats]);
+
   const resolvedChats = useMemo(() => {
     return {
       pinned: chats?.pinned ?? [],
@@ -240,11 +255,7 @@ export default function ChatListScreen({
       >
         <View flex={1}>
           <ScreenHeader
-            title={
-              !chats || (!chats.unpinned.length && !chats.pinned.length)
-                ? 'Loading…'
-                : screenTitle
-            }
+            title={notReadyMessage ?? screenTitle}
             rightControls={headerControls}
           />
           {chats && chats.unpinned.length ? (
