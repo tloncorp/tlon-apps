@@ -187,7 +187,7 @@
             ""
           %-  some
           %:  build  "chat"
-            (heads ?:(=("" title) "collection item" title) ~)
+            (heads ?:(=("" title) "Gallery item" title) ~)
             (heap-prelude title)
             (story:en-manx:u content.u.msg)
           ==
@@ -1802,18 +1802,34 @@
           text-decoration: underline;
         }
       }
+
+      body.chat {
+        min-height: 100vh;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
       .cover {
         border-radius: 1em;
-        margin-bottom: 1.5em;
+        margin-bottom: 1em;
       }
+
       .prelude {
         display: flex;
         flex-direction: column;
         gap: 0.4em;
         border-bottom: 0.125em solid var(--border);
-        padding-bottom: 1.5em;
-        margin-bottom: 1.5em;
+        padding-bottom: 1em;
+        margin-bottom: 1em;
       }
+
+      .chat .prelude {
+        flex-direction: row-reverse;
+        justify-content: space-between;
+      }
+
       .prelude .author {
         display: flex;
         align-items: center;
@@ -1822,29 +1838,33 @@
         font-weight: 500;
         color: var(--text-muted);
       }
+
       .prelude .author .avatar {
         border-radius: 0.25em;
         overflow: hidden;
       }
+
       .prelude .author .avatar img {
         width: 1.5625em;
         height: 1.5625em;
         object-fit: cover;
       }
+
       .prelude time {
         color: var(--text-muted);
         font-size: 0.8em;
         padding: 0;
       }
+
       footer {
         display: flex;
         flex-direction: column;
         align-items: center;
       }
+
       footer p {
         font-size: 0.6em;
       }
-
       '''
     ::
     ++  heads
