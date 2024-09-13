@@ -5,6 +5,7 @@ import {
 } from '@google-cloud/recaptcha-enterprise-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
+import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import {
   logInHostingUser,
   signUpHostingUser,
@@ -12,6 +13,7 @@ import {
 import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
+  AppInviteDisplay,
   Button,
   CheckboxInput,
   Field,
@@ -45,6 +47,7 @@ export const SignUpPasswordScreen = ({
   },
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const lureMeta = useLureMetadata();
   const {
     control,
     setFocus,
@@ -187,6 +190,7 @@ export const SignUpPasswordScreen = ({
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
         <YStack gap="$xl" padding="$2xl">
+          {lureMeta ? <AppInviteDisplay metadata={lureMeta} /> : null}
           <SizableText color="$primaryText">
             Please set a strong password with at least 8 characters.
           </SizableText>

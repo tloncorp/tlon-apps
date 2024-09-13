@@ -3,9 +3,10 @@ import produce from 'immer';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import create from 'zustand';
 
-import { poke, scry, subscribeOnce } from '../api/urbit';
+import { getCurrentUserId, poke, scry, subscribeOnce } from '../api/urbit';
+import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { createDeepLink } from '../logic/branch';
+import { DeepLinkMetadata, createDeepLink } from '../logic/branch';
 import { getPreviewTracker } from '../logic/subscriptionTracking';
 import { asyncWithDefault, getFlagParts } from '../logic/utils';
 import { stringToTa } from '../urbit';
@@ -58,7 +59,7 @@ interface LureState {
   start: () => Promise<void>;
 }
 
-const lureLogger = createDevLogger('lure', false);
+const lureLogger = createDevLogger('lure', true);
 
 function groupsDescribe(meta: GroupMeta) {
   return {
@@ -183,14 +184,29 @@ export const useLureState = create<LureState>((set, get) => ({
 
     let deepLinkUrl: string | undefined;
     lureLogger.log('enabled', enabled);
-    if (enabled && url) {
-      deepLinkUrl = await createDeepLink(
-        url,
-        'lure',
-        flag,
+    if (enabled) {
+      const currentUserId = getCurrentUserId();
+      const group = await db.getGroup({ id: flag });
+      const user = await db.getContact({ id: currentUserId });
+      const metadata: DeepLinkMetadata = {
+        inviterUserId: currentUserId,
+        inviterNickname: user?.nickname ?? undefined,
+        inviterAvatarImage: user?.avatarImage ?? undefined,
+        invitedGroupId: flag,
+        invitedGroupTitle: group?.title ?? undefined,
+        invitedGroupDescription: group?.description ?? undefined,
+        invitedGroupIconImageUrl: group?.iconImage ?? undefined,
+        invitedGroupiconImageColor: group?.iconImageColor ?? undefined,
+      };
+
+      deepLinkUrl = await createDeepLink({
+        fallbackUrl: 'https://en.wikipedia.org/wiki/Construction',
+        type: 'lure',
+        path: flag,
         branchDomain,
-        branchKey
-      );
+        branchKey,
+        metadata,
+      });
       lureLogger.log('deepLinkUrl created', deepLinkUrl);
     }
 
@@ -269,9 +285,9 @@ export function useLure({
   };
 }
 
-export function useLureLinkChecked(url: string, enabled: boolean) {
+export function useLureLinkChecked(url: string | undefined, enabled: boolean) {
   const prevData = useRef<boolean | undefined>(false);
-  const pathEncodedUrl = stringToTa(url);
+  const pathEncodedUrl = stringToTa(url ?? '');
   const { data, ...query } = useQuery({
     queryKey: ['lure-check', url],
     queryFn: async () =>
@@ -279,7 +295,7 @@ export function useLureLinkChecked(url: string, enabled: boolean) {
         { app: 'grouper', path: `/check-link/${pathEncodedUrl}` },
         4500
       ),
-    enabled,
+    enabled: enabled && Boolean(url),
     refetchInterval: 5000,
   });
 

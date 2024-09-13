@@ -1,3 +1,5 @@
+import { DeepLinkMetadata } from '@tloncorp/shared/dist';
+import { extractLureMetadata } from '@tloncorp/shared/src/logic';
 import {
   type ReactNode,
   createContext,
@@ -11,8 +13,12 @@ import branch from 'react-native-branch';
 import storage from '../lib/storage';
 import { getPathFromWer } from '../utils/string';
 
+interface LureData extends DeepLinkMetadata {
+  id: string;
+}
+
 type Lure = {
-  lure: string | undefined;
+  lure: LureData | undefined;
   priorityToken: string | undefined;
 };
 
@@ -63,6 +69,18 @@ export const useBranch = () => {
   return context;
 };
 
+export const useLureMetadata = () => {
+  const context = useContext(Context);
+
+  if (!context) {
+    throw new Error(
+      'Must call `useLureMetadata` within a `BranchProvider` component.'
+    );
+  }
+
+  return context.lure ?? null;
+};
+
 export const BranchProvider = ({ children }: { children: ReactNode }) => {
   const [{ deepLinkPath, lure, priorityToken }, setState] =
     useState(INITIAL_STATE);
@@ -81,7 +99,10 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
             // Link had a lure field embedded
             console.debug('[branch] Detected lure link:', params.lure);
             const nextLure: Lure = {
-              lure: params.lure as string,
+              lure: {
+                ...extractLureMetadata(params),
+                id: params.lure as string,
+              },
               priorityToken: params.token as string | undefined,
             };
             setState({

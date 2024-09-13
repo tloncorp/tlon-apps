@@ -100,10 +100,16 @@ export const ContactAvatar = React.memo(function ContactAvatComponent({
   );
 });
 
+export interface GroupImageShim {
+  id: string;
+  title?: string;
+  iconImage?: string;
+  iconImageColor?: string;
+}
 export const GroupAvatar = React.memo(function GroupAvatarComponent({
   model,
   ...props
-}: { model: db.Group } & AvatarProps) {
+}: { model: db.Group | GroupImageShim } & AvatarProps) {
   const fallback = (
     <TextAvatar
       text={model.title ?? model.id.replace('~', '')}

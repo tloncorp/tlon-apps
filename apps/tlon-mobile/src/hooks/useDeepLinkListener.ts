@@ -19,7 +19,7 @@ export const useDeepLinkListener = () => {
     if (ship && lure) {
       (async () => {
         try {
-          await inviteShipWithLure({ ship, lure });
+          await inviteShipWithLure({ ship, lure: lure.id });
           Alert.alert(
             '',
             'Your invitation to the group is on its way. It will appear in the Groups list.',

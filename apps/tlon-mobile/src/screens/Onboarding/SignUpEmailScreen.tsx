@@ -4,9 +4,11 @@ import {
   DEFAULT_PRIORITY_TOKEN,
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
+import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { getHostingAvailability } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
+  AppInviteDisplay,
   Button,
   GenericHeader,
   KeyboardAvoidingView,
@@ -39,6 +41,8 @@ export const SignUpEmailScreen = ({
   },
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const lureMeta = useLureMetadata();
 
   const {
     control,
@@ -106,6 +110,7 @@ export const SignUpEmailScreen = ({
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
         <YStack gap="$2xl" padding="$2xl">
+          {lureMeta ? <AppInviteDisplay metadata={lureMeta} /> : null}
           <SizableText>
             Enter your email address. You&rsquo;ll use it to log in to Tlon and
             we&rsquo;ll email you the occasional service update.
