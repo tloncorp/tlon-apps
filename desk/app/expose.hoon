@@ -327,12 +327,11 @@
           "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
           "Helvetica Neue", "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji",
           sans-serif;
-        font-size: 20px;
+        font-size: 16px;
         font-weight: 400;
-        line-height: 1.8;
-        max-width: 40em;
-        margin: 1em auto;
-        padding: 0 0.5em;
+        line-height: 1.6;
+        margin: 1em 1em;
+        padding: 0;
         word-wrap: break-word;
         color: #1a1818;
         color: var(--text-main);
@@ -352,6 +351,41 @@
         body {
           color: #ffffff;
           color: var(--text-main);
+        }
+      }
+
+      body.chat {
+        margin: 0;
+      }
+
+      body.chat article {
+        margin: 0 1em;
+      }
+      
+      
+      @media screen and (min-width: 40rem) {
+        body {
+          font-size: 20px;
+          line-height: 1.8;
+        }
+        body:not(.chat) {
+          max-width: 40rem;
+          margin: 1em auto;
+          padding: 0 1em;
+        }
+      }
+
+      @media screen and (min-width: 960px) {
+        body:not(.chat) {
+          margin: 2em auto 2em 2em;
+          padding: 0;
+        }
+        body.chat {
+          max-width: 40rem;
+          margin: 0 auto;
+          height: 100vh;
+          display: flex;
+          align-items: center;
         }
       }
 
@@ -1733,9 +1767,30 @@
       }
 
       footer {
-        border-top: 0.125em solid #e5e5e5;
-        border-top: 0.125em solid var(--border);
-        padding-top: 1em;
+        position: fixed;
+        bottom: 1em;
+        right: 1em;
+        background: var(--background);
+        font-size: 0.75em;
+        padding: 0.5em 0.75em;
+        border-radius: 0.5em;
+        border: 0.125em solid var(--border);
+        box-shadow: 0 0.125em 0.25em var(--selection), 0 0 1em var(--selection);
+      }
+
+      @media screen and (min-width: 960px) {
+        footer {
+          bottom: 2em;
+          right: 2em;
+        }
+      }
+
+      footer a {
+        display: flex;
+        gap: 0.5em;
+        align-items: center;
+        text-decoration: none;
+        color: var(--text-main);
       }
 
       @media (prefers-color-scheme: dark) {
@@ -1803,20 +1858,13 @@
         }
       }
 
-      body.chat {
-        min-height: 100vh;
-        margin: 0 auto;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-      }
-
       .cover {
         border-radius: 1em;
         margin-bottom: 1em;
       }
 
       .prelude {
+        font-size: 0.75em;
         display: flex;
         flex-direction: column;
         gap: 0.4em;
@@ -1825,16 +1873,32 @@
         margin-bottom: 1em;
       }
 
-      .chat .prelude {
+      body.chat .prelude {
+        padding: 1em;
         flex-direction: row-reverse;
         justify-content: space-between;
+        align-items: center;
+      }
+
+      @media screen and (min-width: 960px) {
+        body.chat .prelude {
+          margin: 0;
+          position: fixed;
+          bottom: 2em;
+          left: 2em;
+          border: 0;
+          background: var(--background);
+          font-size: 0.75em;
+          padding: 0.5em 0.75em;
+          border-radius: 0.5em;
+          gap: 1em;
+        }
       }
 
       .prelude .author {
         display: flex;
         align-items: center;
-        gap: 0.4em;
-        font-size: 0.8em;
+        gap: 0.5em;
         font-weight: 500;
         color: var(--text-muted);
       }
@@ -1852,18 +1916,12 @@
 
       .prelude time {
         color: var(--text-muted);
-        font-size: 0.8em;
         padding: 0;
       }
 
-      footer {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      }
-
-      footer p {
-        font-size: 0.6em;
+      article img {
+        max-width: 100%;
+        border-radius: 0.5em;
       }
       '''
     ::
@@ -1908,11 +1966,11 @@
     ::
     ++  footer
       ;footer
-        ;img@"https://tlon.io/icon.svg"(alt "Tlon logo", width "18");
-        ;p
-          ; Powered by
-          ;a/"https://tlon.io":"Tlon"
-          ; , a communication tool you can trust.
+        ;a(href "https://tlon.io")
+          ;img@"https://tlon.io/icon.svg"(alt "Tlon logo", width "18");
+          ;span
+            ; Powered by Tlon
+          ==
         ==
       ==
     ::
