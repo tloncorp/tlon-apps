@@ -22,149 +22,39 @@
 ::
 +$  card  card:agent:gall
 ::
-++  hutils  ::  http request utils
-  ::NOTE  most of the below are also available in /lib/server, but we
-  ::      reimplement them here for independence's sake
+++  e
   |%
-  +$  order  [id=@ta inbound-request:eyre]
-  +$  query  [trail args=(list [key=@t value=@t])]
-  +$  trail  [ext=(unit @ta) site=(list @t)]
-  +$  reply
-    $%  [%page bod=manx]                                  ::  html page
-        [%xtra hed=header-list:http bod=manx]             ::  html page w/ heads
-    ==
-  ::
-  ++  purse  ::  url cord to query
-    |=  url=@t
-    ^-  query
-    (fall (rush url ;~(plug apat:de-purl:html yque:de-purl:html)) [[~ ~] ~])
-  ::
-  ++  press  ::  manx to octs
-    (cork en-xml:html as-octt:mimes:html)
-  ::
-  ++  paint  ::  render response into payload
-    |=  =reply
-    ^-  simple-payload:http
-    ?-  -.reply
-      %page  [[200 ['content-type' 'text/html']~] `(press bod.reply)]
-      %xtra  =?  hed.reply  ?=(~ (get-header:http 'content-type' hed.reply))
-               ['content-type'^'text/html' hed.reply]
-             [[200 hed.reply] `(press bod.reply)]
-    ==
-  ::
-  ++  spout  ::  build full response cards
-    |=  [eyre-id=@ta simple-payload:http]
-    ^-  (list card)
-    =/  =path  /http-response/[eyre-id]
-    :~  [%give %fact ~[path] [%http-response-header !>(response-header)]]
-        [%give %fact ~[path] [%http-response-data !>(data)]]
-        [%give %kick ~[path] ~]
-    ==
-  --
---
-::
-%-  agent:dbug
-%+  verb  |
-^-  agent:gall
-::
-=|  state-0
-=*  state  -
-|_  =bowl:gall
-+*  this  .
-++  on-init
-  ^-  (quip card _this)
-  :_  this
-  [%pass /eyre/connect %arvo %e %connect [~ /expose] dap.bowl]~
-::
-++  on-save  !>(state)
-++  on-load
-  |=  ole=vase
-  ^-  (quip card _this)
-  [~ this(state !<(state-0 ole))]
-::
-++  on-poke
-  |=  [=mark =vase]
-  ^-  (quip card _this)
-  ?+  mark  !!
-      %noun
-    ?+  q.vase  !!
-        [?(%show %hide) *]
-      =+  !<(act=action vase)
-      =.  open
-        ?-  -.act
-          %show  (~(put in open) (parse:c path.act))  ::TODO  populate cache
-          %hide  (~(del in open) (parse:c path.act))  ::TODO  update the cache w/ 404
-        ==
-      [~ this]
-    ==
-  ::
-      %handle-http-request
-    =+  !<([rid=@ta inbound-request:eyre] vase)
-    :_  this
-    =;  payload=simple-payload:http
-      ::TODO  re-enable caching
-      :: :_
-        (spout:hutils rid payload)
-      ::  if we handled a request here, make sure it's cached for next time
-      ::
-      :: [%pass /eyre/cache %arvo %e %set-response url.request `[| %payload payload]]
-    =/  ref=(unit cite:c)
-      (rush url.request (sear purse:c ;~(pfix (jest '/expose') stap)))
-    ?~  ref
-      [[400 ~] `(as-octs:mimes:html 'bad request')]
-    ::
-    =;  bod=(unit manx)
-      ?~  bod  [[404 ~] `(as-octs:mimes:html 'not found')]
-      (paint:hutils %page u.bod)
-    ::
-    ?.  (~(has in open) u.ref)
-      ~
-    ?.  ?=(%chan -.u.ref)
-      ~
-    ::TODO  the whole "deconstruct the ref path" situation is horrendous
-    ?.  ?=([?(%msg %note %curio) @ ~] wer.u.ref)
-      ~
-    =/  msg=(unit post:d)
-      :-  ~  ::TODO  we want to do existence checks first though...
-      .^  post:d
-        %gx
-        (scot %p our.bowl)
-        %channels
-        (scot %da now.bowl)
-      ::
-        =,  u.ref
-        /v2/[p.nest]/(scot %p p.q.nest)/[q.q.nest]/posts/post/(scot %ud (rash i.t.wer dum:ag))/channel-post-2
-      ==
-    ?~  msg
-      ~
-    ::
+  ++  render-post
+    |=  [our=@p now=@da]
+    |=  [=nest:g:c msg=post:d]
+    ^-  (unit manx)
     =/  aco=(unit contact:co)
-      =/  base=path  /(scot %p our.bowl)/contacts/(scot %da now.bowl)
+      =/  base=path  /(scot %p our)/contacts/(scot %da now)
       ?.  .^(? %gu (weld base /$))
         ~
       =+  .^(rol=rolodex:co %gx (weld base /all/contact-rolodex))
-      ?~  for=(~(get by rol) author.u.msg)
+      ?~  for=(~(get by rol) author.msg)
         ~
       ?.  ?=([[@ ^] *] u.for)
         ~
       `con.for.u.for
     ::
     ::TODO  if we render replies then we can "unroll" whole chat threads too (:
-    |^  ?+  p.nest.u.ref  ~
+    |^  ?+  p.nest  ~
             %chat
-          ?>  ?=(%chat -.kind-data.u.msg)
+          ?>  ?=(%chat -.kind-data.msg)
           =/  title=tape
-            (trip (rap 3 (turn (first-inline content.u.msg) flatten-inline:u)))
+            (trip (rap 3 (turn (first-inline content.msg) flatten-inline:u)))
           %-  some
           %:  build  "chat"
             (heads title ~)
             [chat-prelude]~
-            (story:en-manx:u content.u.msg)
+            (story:en-manx:u content.msg)
           ==
         ::
             %diary
-          ?>  ?=(%diary -.kind-data.u.msg)
-          =*  kd  kind-data.u.msg
+          ?>  ?=(%diary -.kind-data.msg)
+          =*  kd  kind-data.msg
           =/  title=tape  (trip title.kd)
           %-  some
           %:  build  "diary"
@@ -174,14 +64,14 @@
             :-  ;img.cover@"{(trip image.kd)}"(alt "Cover image");
             (diary-prelude title)
           ::
-            (story:en-manx:u content.u.msg)
+            (story:en-manx:u content.msg)
           ==
         ::
             %heap
-          ?>  ?=(%heap -.kind-data.u.msg)
+          ?>  ?=(%heap -.kind-data.msg)
           =/  title=tape
-            ?:  &(?=(^ title.kind-data.u.msg) !=('' u.title.kind-data.u.msg))
-              (trip u.title.kind-data.u.msg)
+            ?:  &(?=(^ title.kind-data.msg) !=('' u.title.kind-data.msg))
+              (trip u.title.kind-data.msg)
             ::NOTE  could flatten the first-inline, but we don't. showing that
             ::      as both h1 and content is strange
             ""
@@ -189,7 +79,7 @@
           %:  build  "chat"
             (heads ?:(=("" title) "Gallery item" title) ~)
             (heap-prelude title)
-            (story:en-manx:u content.u.msg)
+            (story:en-manx:u content.msg)
           ==
         ==
     ::
@@ -361,11 +251,11 @@
       body.chat article {
         margin: 0 1em;
       }
-      
+
       body.chat header > h1 {
         padding: 1rem 1rem 0;
       }
-      
+
       @media screen and (min-width: 40rem) {
         body {
           font-size: 20px;
@@ -1948,16 +1838,16 @@
       ::
         ;meta(name "robots", content "noindex, nofollow, noimageindex");
       ::
-        ::TODO  make sure this is the right/new app id
+        ::REVIEW  make sure this is the right/new app id
         ;meta(property "apple-itunes-app", content "app-id=6451392109");
         ::NOTE  at the time of writing, android supports no such thing
       ::
-        ::TODO  could get smarter about description, preview image, etc
+        ::TODO  could get even smarter about description, preview image, etc
         ;meta(property "og:title", content title);
         ;meta(property "twitter:title", content title);
         ;meta(property "og:site_name", content "Tlon");
         ;meta(property "og:type", content "article");
-        ;meta(property "og:article:author:username", content (scow %p author.u.msg));
+        ;meta(property "og:article:author:username", content (scow %p author.msg));
       ::
         ;*  ?~  img
             :_  ~
@@ -1988,7 +1878,7 @@
       ^-  manx
       ;div.prelude
         ;div.published
-          ;+  (render-datetime sent.u.msg)
+          ;+  (render-datetime sent.msg)
         ==
         ;+  author-node
       ==
@@ -1999,7 +1889,7 @@
       :~  ;h1:"{title}"
           ;div.prelude
             ;div.published
-              ;+  (render-datetime sent.u.msg)
+              ;+  (render-datetime sent.msg)
             ==
             ;+  author-node
           ==
@@ -2013,14 +1903,14 @@
           [-]~
       ;div.prelude
         ;div.published
-          ;+  (render-datetime sent.u.msg)
+          ;+  (render-datetime sent.msg)
         ==
         ;+  author-node
       ==
     ::
     ++  author-node
       ^-  manx
-      =*  author  author.u.msg
+      =*  author  author.msg
       ;div.author
         ;div.avatar
           ;+
@@ -2098,6 +1988,153 @@
         ==
       ==
     --
+  ::
+  ++  post-from-cite
+    |=  [our=@p now=@da ref=cite:c]
+    ^-  (unit [=nest:g:c =post:d])
+    ?.  ?=(%chan -.ref)
+      ~
+    ::TODO  the whole "deconstruct the ref path" situation is horrendous
+    ?.  ?=([?(%msg %note %curio) @ ~] wer.ref)
+      ~
+    =,  ref
+    =/  base=path
+      %+  weld
+        /(scot %p our)/channels/(scot %da now)
+      /v2/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
+    ?.  .^(? %gu base)  ~
+    :+  ~  nest
+    .^  post:d  %gx
+      %+  weld  base
+      /posts/post/(scot %ud (rash i.t.wer dum:ag))/channel-post-2
+    ==
+  --
+::
+++  hutils  ::  http request utils
+  ::NOTE  most of the below are also available in /lib/server, but we
+  ::      reimplement them here for independence's sake
+  |%
+  +$  order  [id=@ta inbound-request:eyre]
+  +$  query  [trail args=(list [key=@t value=@t])]
+  +$  trail  [ext=(unit @ta) site=(list @t)]
+  +$  reply
+    $%  [%page bod=manx]                                  ::  html page
+        [%xtra hed=header-list:http bod=manx]             ::  html page w/ heads
+    ==
+  ::
+  ++  purse  ::  url cord to query
+    |=  url=@t
+    ^-  query
+    (fall (rush url ;~(plug apat:de-purl:html yque:de-purl:html)) [[~ ~] ~])
+  ::
+  ++  press  ::  manx to octs
+    (cork en-xml:html as-octt:mimes:html)
+  ::
+  ++  paint  ::  render response into payload
+    |=  =reply
+    ^-  simple-payload:http
+    ?-  -.reply
+      %page  [[200 ['content-type' 'text/html']~] `(press bod.reply)]
+      %xtra  =?  hed.reply  ?=(~ (get-header:http 'content-type' hed.reply))
+               ['content-type'^'text/html' hed.reply]
+             [[200 hed.reply] `(press bod.reply)]
+    ==
+  ::
+  ++  spout  ::  build full response cards
+    |=  [eyre-id=@ta simple-payload:http]
+    ^-  (list card)
+    =/  =path  /http-response/[eyre-id]
+    :~  [%give %fact ~[path] [%http-response-header !>(response-header)]]
+        [%give %fact ~[path] [%http-response-data !>(data)]]
+        [%give %kick ~[path] ~]
+    ==
+  ::
+  ++  store  ::  set cache entry
+    |=  [url=@t entry=(unit cache-entry:eyre)]
+    ^-  card
+    [%pass /eyre/cache %arvo %e %set-response url entry]
+  --
+--
+::
+%-  agent:dbug
+%+  verb  |
+^-  agent:gall
+::
+=|  state-0
+=*  state  -
+|_  =bowl:gall
++*  this  .
+++  on-init
+  ^-  (quip card _this)
+  :_  this
+  [%pass /eyre/connect %arvo %e %connect [~ /expose] dap.bowl]~
+::
+++  on-save  !>(state)
+++  on-load
+  |=  ole=vase
+  ^-  (quip card _this)
+  [~ this(state !<(state-0 ole))]
+::
+++  on-poke
+  |=  [=mark =vase]
+  ^-  (quip card _this)
+  ?+  mark  !!  ::TODO  support json pokes
+      %noun
+    ?+  q.vase  !!
+        [?(%show %hide) *]
+      =+  !<(act=action vase)
+      ?-  -.act
+          %show
+        =/  ref=cite:c
+          (parse:c path.act)
+        =/  msg=(unit [=nest:g:c =post:d])
+          (post-from-cite:e our.bowl now.bowl ref)
+        ?>  ?=(^ msg)
+        =/  pag=(unit manx)
+          ((render-post:e [our now]:bowl) u.msg)
+        ?>  ?=(^ pag)
+        =.  open    (~(put in open) ref)
+        =/  url=@t  (cat 3 '/expose' (spat path.act))
+        :_  this  :_  ~
+        %+  store:hutils  url
+        `[| %payload (paint:hutils %page u.pag)]
+      ::
+          %hide
+        =/  ref=cite:c
+          (parse:c path.act)
+        ?.  (~(has in open) ref)
+          [~ this]
+        =.  open    (~(del in open) ref)
+        =/  url=@t  (cat 3 '/expose' (spat path.act))
+        :_  this  :_  ~
+        %+  store:hutils  url
+        :^  ~  |  %payload
+        [[404 ~] `(as-octs:mimes:html 'not found')]
+      ==
+    ==
+  ::
+      %handle-http-request
+    =+  !<([rid=@ta inbound-request:eyre] vase)
+    :_  this
+    =;  payload=simple-payload:http
+      :_  (spout:hutils rid payload)
+      ::  if we handled a request here, make sure it's cached for next time
+      ::
+      [%pass /eyre/cache %arvo %e %set-response url.request `[| %payload payload]]
+    =/  ref=(unit cite:c)
+      (rush url.request (sear purse:c ;~(pfix (jest '/expose') stap)))
+    ?~  ref
+      [[400 ~] `(as-octs:mimes:html 'bad request')]
+    ::
+    =;  bod=(unit manx)
+      ?~  bod  [[404 ~] `(as-octs:mimes:html 'not found')]
+      (paint:hutils %page u.bod)
+    ::
+    ?.  (~(has in open) u.ref)
+      ~
+    %+  biff
+      (post-from-cite:e our.bowl now.bowl u.ref)
+    (render-post:e [our now]:bowl)
   ==
 ::
 ++  on-watch
@@ -2117,7 +2154,7 @@
 ::
 ++  on-leave  |=(* [~ this])
 ++  on-agent  |=(* [~ this])
-++  on-peek   |=(* ~)
+++  on-peek   |=(* ~)  ::TODO  support scrying to see if it's published
 ::
 ++  on-fail
   |=  [=term =tang]
