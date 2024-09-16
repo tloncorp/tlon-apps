@@ -2152,9 +2152,16 @@
     [~ this]  ::TODO  print if not successful
   ==
 ::
+++  on-peek
+  |=  =path
+  ^-  (unit (unit cage))
+  ?+  path  [~ ~]
+      [?(%x %u) %show *]
+    ``loob+!>((~(has in open) (parse:c t.t.path)))
+  ==
+::
 ++  on-leave  |=(* [~ this])
 ++  on-agent  |=(* [~ this])
-++  on-peek   |=(* ~)  ::TODO  support scrying to see if it's published
 ::
 ++  on-fail
   |=  [=term =tang]
