@@ -1,3 +1,4 @@
+import { useNavigation } from '@react-navigation/native';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/dist/store';
@@ -19,6 +20,11 @@ export function GroupMetaScreen({
   groupId: string;
   onGoBack: () => void;
 }) {
+  const navigation = useNavigation<
+    // @ts-expect-error - TODO: pass navigation handlers into context
+    NativeStackNavigationProp<RootStackParamList, 'ChatList'>
+  >();
+
   const { group, setGroupMetadata, deleteGroup } = useGroupContext({
     groupId,
   });
@@ -66,7 +72,10 @@ export function GroupMetaScreen({
           itemTypeDescription="group"
           open={showDeleteSheet}
           onOpenChange={setShowDeleteSheet}
-          deleteAction={deleteGroup}
+          deleteAction={() => {
+            deleteGroup();
+            navigation.navigate('ChatList');
+          }}
         />
       </MetaEditorScreenView>
     </AttachmentProvider>
