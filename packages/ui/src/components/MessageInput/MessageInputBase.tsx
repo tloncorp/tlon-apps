@@ -103,8 +103,8 @@ export const MessageInputContainer = ({
         onSelectMention={onSelectMention}
       />
       <XStack
+        paddingVertical="$s"
         paddingHorizontal="$m"
-        paddingBottom="$s"
         gap="$l"
         alignItems="flex-end"
         justifyContent="space-between"
@@ -153,13 +153,13 @@ export const MessageInputContainer = ({
             )}
           </View>
         ) : (
-          <View paddingBottom="$xs">
+          <View marginBottom="$xs">
             <Button
               disabled={disableSend || isSending}
               onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
               backgroundColor="unset"
               borderColor="transparent"
-              opacity={disableSend ? 0 : 1}
+              opacity={disableSend ? 0.5 : 1}
             >
               {isSending ? (
                 <View width="$2xl" height="$2xl">
