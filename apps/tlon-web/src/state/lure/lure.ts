@@ -18,6 +18,7 @@ import {
   stringToTa,
 } from '@/logic/utils';
 
+import { useGroup } from '../groups';
 import { useLocalState } from '../local';
 
 interface LureMetadata {
@@ -211,6 +212,7 @@ const selLure = (flag: string) => (s: LureState) => ({
 const { shouldLoad, newAttempt, finished } = getPreviewTracker(30 * 1000);
 export function useLure(flag: string, disableLoading = false) {
   const { bait, lure } = useLureState(selLure(flag));
+  const group = useGroup(flag);
 
   useEffect(() => {
     if (!bait || disableLoading || !shouldLoad(flag)) {
@@ -238,6 +240,12 @@ export function useLure(flag: string, disableLoading = false) {
     [flag]
   );
 
+  useEffect(() => {
+    if (lure.enabled && !lure.url && group?.meta) {
+      describe(group.meta);
+    }
+  }, [group]);
+
   return {
     ...lure,
     supported: bait,
@@ -262,7 +270,7 @@ export function useLureLinkChecked(url: string, enabled: boolean) {
         prevData.current ?? false
       ),
     {
-      enabled,
+      enabled: enabled && !!url,
       refetchInterval: 5000,
     }
   );
