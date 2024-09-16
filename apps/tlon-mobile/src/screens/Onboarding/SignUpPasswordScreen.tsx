@@ -4,8 +4,12 @@ import {
   initClient,
 } from '@google-cloud/recaptcha-enterprise-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
-import { useLureMetadata } from '@tloncorp/app/contexts/branch';
+import { DEFAULT_LURE, RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
+import {
+  useBranch,
+  useLureMetadata,
+  useSignupParams,
+} from '@tloncorp/app/contexts/branch';
 import {
   logInHostingUser,
   signUpHostingUser,
@@ -43,10 +47,11 @@ type FormData = {
 export const SignUpPasswordScreen = ({
   navigation,
   route: {
-    params: { email, lure, priorityToken },
+    params: { email },
   },
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const signupParams = useSignupParams();
   const lureMeta = useLureMetadata();
   const {
     control,
@@ -104,12 +109,13 @@ export const SignUpPasswordScreen = ({
     }
 
     try {
+      console.log(`bl: signing up hosting user`, signupParams.lureId);
       await signUpHostingUser({
         email,
         password,
         recaptchaToken,
-        lure,
-        priorityToken,
+        lure: signupParams.lureId,
+        priorityToken: 'testing2',
       });
     } catch (err) {
       console.error('Error signing up user:', err);
@@ -127,7 +133,7 @@ export const SignUpPasswordScreen = ({
     trackOnboardingAction({
       actionName: 'Account Created',
       email,
-      lure,
+      lure: signupParams.lureId,
     });
 
     try {

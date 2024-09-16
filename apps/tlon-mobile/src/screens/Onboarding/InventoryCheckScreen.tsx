@@ -12,6 +12,7 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/ui';
+import { useBranch, useSignupParams } from 'packages/app/contexts/branch';
 import { useState } from 'react';
 import { Image } from 'react-native';
 
@@ -19,15 +20,8 @@ import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'InventoryCheck'>;
 
-export const InventoryCheckScreen = ({
-  navigation,
-  route: {
-    params: {
-      lure = DEFAULT_LURE,
-      priorityToken = DEFAULT_PRIORITY_TOKEN,
-    } = {},
-  },
-}: Props) => {
+export const InventoryCheckScreen = ({ navigation }: Props) => {
+  const signupParams = useSignupParams();
   const [isChecking, setIsChecking] = useState(false);
 
   const checkAvailability = async () => {
@@ -35,13 +29,14 @@ export const InventoryCheckScreen = ({
 
     try {
       const { enabled } = await getHostingAvailability({
-        lure,
-        priorityToken: 'mobile',
+        lure: signupParams.lureId,
+        priorityToken: signupParams.priorityToken,
       });
       if (enabled) {
-        navigation.navigate('SignUpEmail', { lure, priorityToken });
+        console.log(`bl: inv check lure`, signupParams.lureId);
+        navigation.navigate('SignUpEmail');
       } else {
-        navigation.navigate('JoinWaitList', { lure });
+        navigation.navigate('JoinWaitList', {});
       }
     } catch (err) {
       console.error('Error checking hosting availability:', err);

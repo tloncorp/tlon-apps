@@ -10,6 +10,7 @@ import {
 } from 'react';
 import branch from 'react-native-branch';
 
+import { DEFAULT_LURE, DEFAULT_PRIORITY_TOKEN } from '../constants';
 import storage from '../lib/storage';
 import { getPathFromWer } from '../utils/string';
 
@@ -67,6 +68,21 @@ export const useBranch = () => {
   }
 
   return context;
+};
+
+export const useSignupParams = () => {
+  const context = useContext(Context);
+
+  if (!context) {
+    throw new Error(
+      'Must call `useSignupParams` within a `BranchProvider` component.'
+    );
+  }
+
+  return {
+    lureId: context.lure?.id ?? DEFAULT_LURE,
+    priorityToken: context.priorityToken ?? DEFAULT_PRIORITY_TOKEN,
+  };
 };
 
 export const useLureMetadata = () => {

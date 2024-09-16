@@ -47,10 +47,11 @@ export const ReserveShipScreen = ({
       // Fetch statuses for the user's ships and start any required booting/resuming
       const shipsWithStatus = await getShipsWithStatus(shipIds);
       if (!shipsWithStatus) {
-        return setState({
-          state: 'error',
-          error: "Sorry, we couldn't find an active ship for your account.",
-        });
+        // return setState({
+        //   state: 'error',
+        //   error: "Sorry, we couldn't find an active ship for your account.",
+        // });
+        return setState({ state: 'booting' });
       }
 
       const { status, shipId } = shipsWithStatus;
@@ -119,7 +120,8 @@ export const ReserveShipScreen = ({
       }
 
       // We are done using the saved lure link, it can be cleared before dropping user in the app
-      clearLure();
+      // TODO: should this be removed?
+      // clearLure();
 
       // Set the ship info in the main context to navigate to chat view
       setShip({

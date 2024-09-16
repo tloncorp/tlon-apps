@@ -141,7 +141,7 @@ export const signUpHostingUser = async (params: {
       email: params.email,
       password: params.password,
       lure: params.lure || DEFAULT_LURE,
-      priorityToken: params.priorityToken || DEFAULT_PRIORITY_TOKEN,
+      priorityToken: 'testing2',
       recaptcha: {
         recaptchaToken: { token: params.recaptchaToken || '' },
         recaptchaPlatform: Platform.OS,
