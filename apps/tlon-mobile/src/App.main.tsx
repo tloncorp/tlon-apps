@@ -107,7 +107,6 @@ const App = ({
             <OnboardingStack.Screen
               name="SignUpEmail"
               component={SignUpEmailScreen}
-              initialParams={{ lure: lure?.id, priorityToken }}
             />
             <OnboardingStack.Screen name="EULA" component={EULAScreen} />
             <OnboardingStack.Screen
