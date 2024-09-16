@@ -10,14 +10,13 @@ import { Alert } from 'react-native';
 import { RootStackParamList } from '../types';
 
 export const useDeepLinkListener = () => {
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { ship } = useShip();
   const signupParams = useSignupParams();
-  const { clearLure } = useBranch();
+  const { clearLure, lure } = useBranch();
 
   // If lure is present, invite it and mark as handled
   useEffect(() => {
-    if (ship && signupParams.lureId) {
+    if (ship && lure) {
       (async () => {
         try {
           console.log(`bl: inviting ship with lure`, ship, signupParams.lureId);
@@ -46,7 +45,7 @@ export const useDeepLinkListener = () => {
         clearLure();
       })();
     }
-  }, [ship, signupParams, clearLure]);
+  }, [ship, signupParams, clearLure, lure]);
 
   // If deep link clicked, broadcast that navigation update to the webview and mark as handled
   // useEffect(() => {
