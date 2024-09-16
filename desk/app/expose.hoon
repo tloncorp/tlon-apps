@@ -2078,7 +2078,7 @@
 ++  on-poke
   |=  [=mark =vase]
   ^-  (quip card _this)
-  ?+  mark  !!  ::TODO  support json pokes
+  ?+  mark  !!
       %noun
     ?+  q.vase  !!
         [?(%show %hide) *]
@@ -2112,6 +2112,14 @@
         [[404 ~] `(as-octs:mimes:html 'not found')]
       ==
     ==
+  ::
+      %json
+    ::  we intentionally slum it with in-agent conversions for now
+    ::
+    =+  !<(=json vase)
+    =-  $(mark %noun, vase !>(`action`-))
+    %.  json
+    (of show+pa hide+pa ~):dejs:format
   ::
       %handle-http-request
     =+  !<([rid=@ta inbound-request:eyre] vase)
