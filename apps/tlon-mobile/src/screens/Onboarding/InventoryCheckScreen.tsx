@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DEFAULT_LURE, DEFAULT_PRIORITY_TOKEN } from '@tloncorp/app/constants';
+import { useBranch, useSignupParams } from '@tloncorp/app/contexts/branch';
 import { getHostingAvailability } from '@tloncorp/app/lib/hostingApi';
 import { trackError } from '@tloncorp/app/utils/posthog';
 import {
@@ -12,7 +13,6 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/ui';
-import { useBranch, useSignupParams } from 'packages/app/contexts/branch';
 import { useState } from 'react';
 import { Image } from 'react-native';
 
