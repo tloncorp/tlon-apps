@@ -259,7 +259,7 @@ export function GroupOptions({
     };
 
     const metadataAction: Action = {
-      title: 'Edit metadata',
+      title: 'Edit group info',
       action: () => {
         sheetRef.current.setOpen(false);
         onPressGroupMeta?.(group.id);

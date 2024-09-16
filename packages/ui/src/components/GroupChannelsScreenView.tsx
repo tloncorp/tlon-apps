@@ -10,6 +10,7 @@ import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
 import { GenericHeader } from './GenericHeader';
 import { Icon } from './Icon';
+import { InviteUsersSheet } from './InviteUsersSheet';
 
 const ChannelSortOptions = ({
   setShowSortOptions,
@@ -27,11 +28,15 @@ type GroupChannelsScreenViewProps = {
   onChannelPressed: (channel: db.Channel) => void;
   onBackPressed: () => void;
   currentUser: string;
+  inviteSheetGroup: db.Group | null;
+  handleInviteSheetOpenChange: (open: boolean) => void;
 };
 
 export function GroupChannelsScreenView({
   onChannelPressed,
   onBackPressed,
+  inviteSheetGroup,
+  handleInviteSheetOpenChange,
 }: GroupChannelsScreenViewProps) {
   const groupOptions = useChatOptions();
   const group = groupOptions?.group;
@@ -102,6 +107,12 @@ export function GroupChannelsScreenView({
         onSelectSort={handleSortByChanged}
       />
       <ChatOptionsSheet ref={chatOptionsSheetRef} />
+      <InviteUsersSheet
+        open={inviteSheetGroup !== null}
+        onOpenChange={handleInviteSheetOpenChange}
+        onInviteComplete={() => handleInviteSheetOpenChange(false)}
+        group={inviteSheetGroup ?? undefined}
+      />
     </View>
   );
 }
