@@ -16,20 +16,9 @@ export const useDeepLinkListener = () => {
     if (ship && lure && !isInvitingRef.current) {
       (async () => {
         try {
-          console.log(`bl: inviting ship with lure`, ship, signupParams.lureId);
           isInvitingRef.current = true;
+          console.log(`inviting ship with lure`, ship, signupParams.lureId);
           await inviteShipWithLure({ ship, lure: signupParams.lureId });
-          Alert.alert(
-            '',
-            'Your invitation to the group is on its way. It will appear in the Groups list.',
-            [
-              {
-                text: 'OK',
-                onPress: () => null,
-              },
-            ],
-            { cancelable: true }
-          );
         } catch (err) {
           console.error(
             '[useDeepLinkListener] Error inviting ship with lure:',
