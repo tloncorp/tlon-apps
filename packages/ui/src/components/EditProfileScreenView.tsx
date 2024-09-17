@@ -62,7 +62,6 @@ export function EditProfileScreenView(props: Props) {
       !initialPinnedIds.every((id) => newPinnedIds.includes(id));
 
     if (isDirty) {
-      console.log(`form is dirty, handling submit?`);
       return handleSubmit((formData) => {
         props.onSaveProfile({
           profile: formData,
@@ -83,8 +82,8 @@ export function EditProfileScreenView(props: Props) {
     props.onGoBack();
     onSavePressed();
   };
+
   const handlePressCancel = () => {
-    console.log('cnacel');
     props.onGoBack();
   };
 
@@ -92,7 +91,11 @@ export function EditProfileScreenView(props: Props) {
     <View flex={1}>
       <ScreenHeader>
         <ScreenHeader.Controls side="left">
-          <Text size="$label/2xl" onPress={handlePressCancel}>
+          <Text
+            size="$label/2xl"
+            onPress={handlePressCancel}
+            paddingHorizontal="$s"
+          >
             Cancel
           </Text>
         </ScreenHeader.Controls>
@@ -102,6 +105,7 @@ export function EditProfileScreenView(props: Props) {
             size="$label/2xl"
             onPress={handlePressDone}
             color="$positiveActionText"
+            paddingHorizontal="$s"
           >
             Done
           </Text>
