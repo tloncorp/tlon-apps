@@ -16,7 +16,6 @@ export function EmptyChannelNotice({
 }) {
   const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
   const group = useGroup(channel.groupId ?? '');
-  console.log('group', group);
   const [isFirstVisit] = useState(() => channel.lastViewedAt == null);
   const [showInviteUsersSheet, setShowInviteUsersSheet] = useState(false);
   const isWelcomeChannel = !!channel.isDefaultWelcomeChannel;
@@ -40,9 +39,9 @@ export function EmptyChannelNotice({
       </YStack>
       <InviteUsersSheet
         open={showInviteUsersSheet}
-        onOpenChange={setShowInviteUsersSheet}
+        onOpenChange={(open) => setShowInviteUsersSheet(open)}
         group={group}
-        onInviteComplete={() => {}}
+        onInviteComplete={() => setShowInviteUsersSheet(false)}
       />
     </>
   );

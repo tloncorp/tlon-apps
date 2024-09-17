@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
-import React from 'react';
+import React, { useRef } from 'react';
+import { Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { InviteUsersWidget } from './InviteUsersWidget';
@@ -17,30 +18,42 @@ const InviteUsersSheetComponent = ({
   onInviteComplete: () => void;
 }) => {
   const { bottom } = useSafeAreaInsets();
+  const hasOpened = useRef(open);
 
-  if (!group) {
-    return null;
+  if (!hasOpened.current && open) {
+    hasOpened.current = true;
   }
 
+  if (!hasOpened.current || !group) return null;
+
   return (
-    <Sheet
-      open={open}
-      onOpenChange={onOpenChange}
-      snapPoints={[85]}
-      modal
-      dismissOnSnapToBottom
-      animation="quick"
+    <Modal
+      visible={open}
+      onRequestClose={() => onOpenChange(false)}
+      transparent
+      animationType="none"
     >
-      <Sheet.Overlay />
-      <Sheet.LazyFrame
-        paddingTop="$s"
-        paddingHorizontal="$2xl"
-        paddingBottom={bottom}
+      <Sheet
+        open={open}
+        onOpenChange={onOpenChange}
+        snapPoints={[85]}
+        dismissOnSnapToBottom
+        animation="quick"
       >
-        <Sheet.Handle marginBottom="$l" />
-        <InviteUsersWidget group={group} onInviteComplete={onInviteComplete} />
-      </Sheet.LazyFrame>
-    </Sheet>
+        <Sheet.Overlay />
+        <Sheet.LazyFrame
+          paddingTop="$s"
+          paddingHorizontal="$2xl"
+          paddingBottom={bottom}
+        >
+          <Sheet.Handle marginBottom="$l" />
+          <InviteUsersWidget
+            group={group}
+            onInviteComplete={onInviteComplete}
+          />
+        </Sheet.LazyFrame>
+      </Sheet>
+    </Modal>
   );
 };
 

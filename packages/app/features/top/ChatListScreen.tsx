@@ -184,15 +184,6 @@ export default function ChatListScreen({
     }
   }, []);
 
-  // const handleDmOpenChange = useCallback(
-  // (open: boolean) => {
-  // if (!open) {
-  // setStartDmOpen(false);
-  // }
-  // },
-  // [setStartDmOpen]
-  // );
-
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
       setSelectedGroup(null);

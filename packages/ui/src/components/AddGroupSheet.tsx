@@ -1,24 +1,6 @@
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import {
-  ActionSheet,
-  AppDataContextProvider,
-  Button,
-  ContactBook,
-  CreateGroupWidget,
-  Icon,
-  Sheet,
-  Text,
-  TextButton,
-  View,
-  XStack,
-  YStack,
-  isWeb,
-  triggerHaptic,
-  useContacts,
-  useCurrentUserId,
-} from '@tloncorp/ui';
-import {
   createContext,
   useCallback,
   useContext,
@@ -33,6 +15,21 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, View, XStack, YStack, isWeb } from 'tamagui';
+
+import {
+  AppDataContextProvider,
+  useContacts,
+  useCurrentUserId,
+} from '../contexts';
+import { triggerHaptic } from '../utils';
+import { ActionSheet } from './ActionSheet';
+import { CreateGroupWidget } from './AddChats';
+import { Button } from './Button';
+import { TextButton } from './Buttons';
+import { ContactBook } from './ContactBook';
+import { Icon } from './Icon';
+import { Sheet } from './Sheet';
 
 interface AddGroupActions {
   dismiss: () => void;
@@ -144,7 +141,7 @@ export function AddGroupSheet({
   const screens: Record<CurrentScreenKey, React.ReactElement> = useMemo(
     () => ({
       Root: (
-        <TransitionWrapper isActive={currentScreen === 'Root'}>
+        <TransitionWrapper key={'Root'} isActive={currentScreen === 'Root'}>
           <RootScreen
             goToScreen={goToScreen}
             goToDM={onGoToDm}
@@ -153,12 +150,18 @@ export function AddGroupSheet({
         </TransitionWrapper>
       ),
       CreateGroup: (
-        <TransitionWrapper isActive={currentScreen === 'CreateGroup'}>
+        <TransitionWrapper
+          key={'CreateGroup'}
+          isActive={currentScreen === 'CreateGroup'}
+        >
           <CreateGroupScreen invitees={groupInvitees} goToScreen={goToScreen} />
         </TransitionWrapper>
       ),
       InviteUsers: (
-        <TransitionWrapper isActive={currentScreen === 'InviteUsers'}>
+        <TransitionWrapper
+          key={'InviteUsers'}
+          isActive={currentScreen === 'InviteUsers'}
+        >
           <InviteUsersScreen
             invitees={groupInvitees}
             setInvitees={setGroupInvitees}
