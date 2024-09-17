@@ -53,11 +53,6 @@ export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
     setIsSubmitting(true);
 
     try {
-      console.log(
-        `bl: getting hosting availability`,
-        email,
-        signupParams.lureId
-      );
       const { enabled, validEmail } = await getHostingAvailability({
         email,
         lure: signupParams.lureId,

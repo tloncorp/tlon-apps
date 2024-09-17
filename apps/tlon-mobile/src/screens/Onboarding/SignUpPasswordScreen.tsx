@@ -109,7 +109,6 @@ export const SignUpPasswordScreen = ({
     }
 
     try {
-      console.log(`bl: signing up hosting user`, signupParams.lureId);
       await signUpHostingUser({
         email,
         password,

@@ -33,7 +33,6 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
         priorityToken: signupParams.priorityToken,
       });
       if (enabled) {
-        console.log(`bl: inv check lure`, signupParams.lureId);
         navigation.navigate('SignUpEmail');
       } else {
         navigation.navigate('JoinWaitList', {});

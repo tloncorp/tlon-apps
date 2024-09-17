@@ -123,7 +123,6 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
               },
               priorityToken: params.token as string | undefined,
             };
-            console.log(`bl: setting next lure`, nextLure);
             setState({
               ...nextLure,
               deepLinkPath: undefined,
