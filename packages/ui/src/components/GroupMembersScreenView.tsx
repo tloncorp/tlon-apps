@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { GroupPrivacy } from '@tloncorp/shared/dist/db/schema';
 import { useCallback, useMemo, useState } from 'react';
 import { SectionList } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, getTokenValue } from 'tamagui';
 
 import { ContactList } from './ContactList';
@@ -37,6 +38,7 @@ export function GroupMembersScreenView({
   onPressAcceptJoinRequest: (contactId: string) => void;
   onPressRejectJoinRequest: (contactId: string) => void;
 }) {
+  const { bottom } = useSafeAreaInsets();
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const contacts = useMemo(
     () =>
@@ -179,6 +181,7 @@ export function GroupMembersScreenView({
           initialNumToRender={11}
           contentContainerStyle={{
             paddingHorizontal: getTokenValue('$l', 'size'),
+            paddingBottom: bottom,
           }}
           windowSize={2}
           renderItem={renderItem}
