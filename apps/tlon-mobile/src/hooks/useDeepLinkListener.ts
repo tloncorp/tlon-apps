@@ -1,13 +1,9 @@
-import { useNavigation } from '@react-navigation/native';
-import type { NavigationProp } from '@react-navigation/native';
 import { useBranch, useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { inviteShipWithLure } from '@tloncorp/app/lib/hostingApi';
 import { trackError } from '@tloncorp/app/utils/posthog';
 import { useEffect } from 'react';
 import { Alert } from 'react-native';
-
-import { RootStackParamList } from '../types';
 
 export const useDeepLinkListener = () => {
   const { ship } = useShip();
