@@ -28,10 +28,9 @@ interface LureMetadata {
 
 interface Lure {
   fetched: boolean;
-  url: string;
+  url?: string;
   deepLinkUrl?: string;
   enabled?: boolean;
-  enableAcked?: boolean;
   metadata?: LureMetadata;
 }
 
@@ -129,7 +128,7 @@ export const useLureState = create<LureState>(
       },
       fetchLure: async (flag) => {
         const prevLure = get().lures[flag];
-        const [enabled, url, metadata, outstandingPoke] = await Promise.all([
+        const [enabled, url, metadata] = await Promise.all([
           // enabled
           asyncWithDefault(() => {
             lureLogger.log(performance.now(), 'fetching enabled', flag);
@@ -140,7 +139,7 @@ export const useLureState = create<LureState>(
                 LURE_REQUEST_TIMEOUT
               )
               .then((en) => {
-                lureLogger.log(performance.now(), 'enabled fetched', flag);
+                lureLogger.log(performance.now(), 'enabled fetched', en, flag);
 
                 return en;
               });
@@ -149,15 +148,21 @@ export const useLureState = create<LureState>(
           asyncWithDefault(() => {
             lureLogger.log(performance.now(), 'fetching url', flag);
             return api
-              .scry<string>({
-                app: 'reel',
-                path: `/v1/id-url/${flag}`,
-              })
+              .subscribeOnce<string>('reel', `/v1/id-link/${flag}`, 4500)
               .then((u) => {
-                lureLogger.log(performance.now(), 'url fetched', flag);
+                lureLogger.log(performance.now(), 'url fetched', u, flag);
                 return u;
+              })
+              .catch((e) => {
+                lureLogger.error(
+                  performance.now(),
+                  'url fetch timeout',
+                  e,
+                  flag
+                );
+                return undefined;
               });
-          }, prevLure?.url),
+          }, prevLure?.url) as Promise<string | undefined>,
           // metadata
           asyncWithDefault(
             () =>
@@ -166,15 +171,6 @@ export const useLureState = create<LureState>(
                 path: `/v1/metadata/${flag}`,
               }),
             prevLure?.metadata
-          ),
-          // outstandingPoke
-          asyncWithDefault(
-            () =>
-              api.scry<boolean>({
-                app: 'reel',
-                path: `/outstanding-poke/${flag}`,
-              }),
-            false
           ),
         ]);
 
@@ -188,7 +184,6 @@ export const useLureState = create<LureState>(
             draft.lures[flag] = {
               fetched: true,
               enabled,
-              enableAcked: !outstandingPoke,
               url,
               deepLinkUrl,
               metadata,
@@ -254,9 +249,9 @@ export function useLure(flag: string, disableLoading = false) {
   };
 }
 
-export function useLureLinkChecked(url: string, enabled: boolean) {
+export function useLureLinkChecked(url: string | undefined, enabled: boolean) {
   const prevData = useRef<boolean | undefined>(false);
-  const pathEncodedUrl = stringToTa(url);
+  const pathEncodedUrl = stringToTa(url || '');
   const { data, ...query } = useQuery(
     ['lure-check', url],
     () =>
