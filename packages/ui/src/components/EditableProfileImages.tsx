@@ -114,6 +114,16 @@ export function EditablePofileImages({
     [attachingTo, attachAssets]
   );
 
+  const handleAttachmentCleared = useCallback(() => {
+    if (attachingTo === 'cover') {
+      setLocalCoverUrl('');
+      onSetCoverUrl('');
+    } else if (attachingTo === 'icon') {
+      setLocalIconUrl('');
+      onSetIconUrl('');
+    }
+  }, [attachingTo, onSetCoverUrl, onSetIconUrl]);
+
   return (
     <View width="100%" height={164} borderRadius="$xl" overflow="hidden">
       <ZStack width="100%" height="100%">
@@ -124,18 +134,26 @@ export function EditablePofileImages({
           onPress={handleCoverPress}
           disabled={!canUpload}
         >
-          <ImageBackground
-            source={{ uri: localCoverUrl }}
-            contentFit="cover"
-            style={{
-              width: '100%',
-              height: '100%',
-              justifyContent: 'flex-end',
-              alignItems: 'flex-end',
-              backgroundColor: theme.secondaryBackground.val,
-              opacity: coverIsUploading ? 0.7 : 1,
-            }}
+          <View
+            width="100%"
+            height="100%"
+            justifyContent="flex-end"
+            alignItems="flex-end"
+            backgroundColor={theme.secondaryBackground.val}
           >
+            {localCoverUrl ? (
+              <ImageBackground
+                source={{ uri: localCoverUrl }}
+                contentFit="cover"
+                style={{
+                  position: 'absolute',
+                  width: '100%',
+                  height: '100%',
+                  opacity: coverIsUploading ? 0.7 : 1,
+                }}
+              />
+            ) : null}
+
             {coverIsUploading && (
               <Stack
                 flex={1}
@@ -153,7 +171,7 @@ export function EditablePofileImages({
               opacity={!canUpload ? 0 : 1}
               loading={coverIsUploading}
             />
-          </ImageBackground>
+          </View>
         </TouchableOpacity>
 
         {/* Profile Icon */}
@@ -198,9 +216,14 @@ export function EditablePofileImages({
       </ZStack>
 
       <AttachmentSheet
-        showAttachmentSheet={showAttachmentSheet}
-        setShowAttachmentSheet={setShowAttachmentSheet}
-        setImage={handleAssetsSelected}
+        isOpen={showAttachmentSheet}
+        onOpenChange={setShowAttachmentSheet}
+        onAttachmentsSet={handleAssetsSelected}
+        showClearOption={
+          (attachingTo === 'cover' && localCoverUrl !== '') ||
+          (attachingTo === 'icon' && localIconUrl !== '')
+        }
+        onClearAttachments={handleAttachmentCleared}
       />
     </View>
   );
