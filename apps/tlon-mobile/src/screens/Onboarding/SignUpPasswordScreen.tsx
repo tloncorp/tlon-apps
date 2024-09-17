@@ -114,7 +114,7 @@ export const SignUpPasswordScreen = ({
         password,
         recaptchaToken,
         lure: signupParams.lureId,
-        priorityToken: 'testing2',
+        priorityToken: signupParams.priorityToken,
       });
     } catch (err) {
       console.error('Error signing up user:', err);

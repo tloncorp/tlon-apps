@@ -1,11 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { EMAIL_REGEX } from '@tloncorp/app/constants';
 import {
-  DEFAULT_LURE,
-  DEFAULT_PRIORITY_TOKEN,
-  EMAIL_REGEX,
-} from '@tloncorp/app/constants';
-import {
-  useBranch,
   useLureMetadata,
   useSignupParams,
 } from '@tloncorp/app/contexts/branch';
@@ -56,7 +51,7 @@ export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
       const { enabled, validEmail } = await getHostingAvailability({
         email,
         lure: signupParams.lureId,
-        priorityToken: 'testing2',
+        priorityToken: signupParams.priorityToken,
       });
 
       if (!enabled) {
