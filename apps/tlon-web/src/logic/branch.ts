@@ -68,7 +68,7 @@ export const createDeepLink = async (
     $canonical_url: fallbackUrl,
   };
   if (type === 'lure') {
-    data.lure = path;
+    data.lure = token;
   } else {
     data.wer = path;
   }
