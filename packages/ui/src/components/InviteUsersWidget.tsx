@@ -26,7 +26,7 @@ const InviteUsersWidgetComponent = ({
     branchDomain: branchDomain,
     branchKey: branchKey,
   });
-  const { doCopy } = useCopy(shareUrl);
+  const { doCopy } = useCopy(shareUrl || '');
   const currentUserIsAdmin = useMemo(
     () =>
       group?.members?.some(
