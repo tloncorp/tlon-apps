@@ -45,7 +45,7 @@ export default function LureInviteBlock({
         </p>
       </div>
 
-      {status === 'ready' && (
+      {status === 'ready' && shareUrl && (
         <QRWidget
           link={shareUrl}
           navigatorTitle={`Join ${group?.meta.title ?? flag}`}
@@ -83,7 +83,9 @@ export default function LureInviteBlock({
           <span
             className={cn(
               'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
-              status === 'disabled' ? 'border border-gray-100' : 'bg-blue-500'
+              status === 'disabled' || status === 'loading'
+                ? 'border border-gray-100'
+                : 'bg-blue-500'
             )}
           >
             <CheckIcon className="h-4 w-4 text-white" />

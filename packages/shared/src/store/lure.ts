@@ -20,10 +20,9 @@ const LURE_REQUEST_TIMEOUT = 10 * 1000;
 
 interface Lure {
   fetched: boolean;
-  url: string;
+  url?: string;
   deepLinkUrl?: string;
   enabled?: boolean;
-  enableAcked?: boolean;
   metadata?: LureMetadata;
 }
 
@@ -40,8 +39,7 @@ interface LureState {
   fetchLure: (
     flag: string,
     branchDomain: string,
-    branchKey: string,
-    fetchIfData?: boolean
+    branchKey: string
   ) => Promise<void>;
   describe: (
     flag: string,
@@ -132,7 +130,7 @@ export const useLureState = create<LureState>((set, get) => ({
     const { name } = getFlagParts(flag);
     const prevLure = get().lures[flag];
     lureLogger.log('fetching', flag, 'prevLure', prevLure);
-    const [enabled, url, metadata, outstandingPoke] = await Promise.all([
+    const [enabled, url, metadata] = await Promise.all([
       // enabled
       asyncWithDefault(async () => {
         lureLogger.log(performance.now(), 'fetching enabled', flag);
@@ -149,12 +147,12 @@ export const useLureState = create<LureState>((set, get) => ({
         });
       }, prevLure?.enabled),
       // url
-      asyncWithDefault(async () => {
+      asyncWithDefault<string | undefined>(async () => {
         lureLogger.log(performance.now(), 'fetching url', flag);
-        return scry<string>({
-          app: 'reel',
-          path: `/v1/id-url/${flag}`,
-        }).then((u) => {
+        return subscribeOnce<string>(
+          { app: 'reel', path: `/v1/id-link/${flag}` },
+          4500
+        ).then((u) => {
           lureLogger.log(performance.now(), 'url fetched', u, flag);
           return u;
         });
@@ -168,18 +166,9 @@ export const useLureState = create<LureState>((set, get) => ({
           }),
         prevLure?.metadata
       ),
-      // outstandingPoke
-      asyncWithDefault(
-        async () =>
-          scry<boolean>({
-            app: 'reel',
-            path: `/outstanding-poke/${flag}`,
-          }),
-        false
-      ),
     ]);
 
-    lureLogger.log('fetched', flag, enabled, url, metadata, outstandingPoke);
+    lureLogger.log('fetched', flag, enabled, url, metadata);
 
     let deepLinkUrl: string | undefined;
     lureLogger.log('enabled', enabled);
@@ -199,7 +188,6 @@ export const useLureState = create<LureState>((set, get) => ({
         draft.lures[flag] = {
           fetched: true,
           enabled,
-          enableAcked: !outstandingPoke,
           url,
           deepLinkUrl,
           metadata,
@@ -269,17 +257,17 @@ export function useLure({
   };
 }
 
-export function useLureLinkChecked(url: string, enabled: boolean) {
+export function useLureLinkChecked(url: string | undefined, enabled: boolean) {
   const prevData = useRef<boolean | undefined>(false);
-  const pathEncodedUrl = stringToTa(url);
+  const pathEncodedUrl = stringToTa(url || '');
   const { data, ...query } = useQuery({
     queryKey: ['lure-check', url],
     queryFn: async () =>
       subscribeOnce<boolean>(
-        { app: 'grouper', path: `/check-link/${pathEncodedUrl}` },
+        { app: 'grouper', path: `/v1/check-link/${pathEncodedUrl}` },
         4500
       ),
-    enabled,
+    enabled: enabled && !!url,
     refetchInterval: 5000,
   });
 
@@ -303,12 +291,11 @@ export function useLureLinkStatus({
   branchDomain: string;
   branchKey: string;
 }) {
-  const { supported, fetched, enabled, enableAcked, url, deepLinkUrl, toggle } =
-    useLure({
-      flag,
-      branchDomain,
-      branchKey,
-    });
+  const { supported, fetched, enabled, url, deepLinkUrl, toggle } = useLure({
+    flag,
+    branchDomain,
+    branchKey,
+  });
   const { good, checked } = useLureLinkChecked(url, !!enabled);
 
   lureLogger.log('useLureLinkStatus', {
