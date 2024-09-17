@@ -97,9 +97,6 @@ export const createDeepLink = async ({
   if (!fallbackUrl || !path) {
     return undefined;
   }
-  // if (type === 'lure' && !urbit.whomIsFlag(path)) {
-  //   return undefined;
-  // }
   if (type === 'wer') {
     const parts = path.split('/');
     const isDMLure =
