@@ -1,7 +1,7 @@
+export * from './components/AddGroupSheet';
 export * from './components/Activity/ActivityScreenView';
 export { ActionSheet } from './components/ActionSheet';
 export * from './components/AddChats';
-export * from './components/AddChats/AddDmSheet';
 export * from './components/AppSetting';
 export * from './components/Avatar';
 export * from './components/BigInput';
@@ -33,8 +33,8 @@ export * from './components/EditableProfileImages';
 export * from './components/Embed';
 export * from './components/Emoji';
 export * from './components/FeatureFlagScreenView';
+export * from './components/FindGroupsView';
 export * from './components/FloatingActionButton';
-export * from './components/FloatingAddButton';
 export * from './components/FormInput';
 export * from './components/Form';
 export * from './components/GalleryPost';

@@ -6,13 +6,14 @@ import {
   NativeSyntheticEvent,
   SectionListRenderItemInfo,
 } from 'react-native';
-import { View } from 'tamagui';
+import { View, XStack } from 'tamagui';
 
 import { useContactIndex, useContacts } from '../contexts';
 import {
   useAlphabeticallySegmentedContacts,
   useSortedContacts,
 } from '../hooks/contactSorters';
+import { TextButton } from './Buttons';
 import { ContactRow } from './ContactRow';
 import { SearchBar } from './SearchBar';
 import { BlockSectionList } from './SectionList';
@@ -24,6 +25,9 @@ export function ContactBook({
   multiSelect = false,
   onSelectedChange,
   onScrollChange,
+  showCancelButton = false,
+  onPressCancel,
+  explanationComponent,
 }: {
   searchPlaceholder?: string;
   searchable?: boolean;
@@ -31,6 +35,9 @@ export function ContactBook({
   multiSelect?: boolean;
   onSelectedChange?: (selected: string[]) => void;
   onScrollChange?: (scrolling: boolean) => void;
+  showCancelButton?: boolean;
+  onPressCancel?: () => void;
+  explanationComponent?: React.ReactElement;
 }) {
   const contacts = useContacts();
   const contactsIndex = useContactIndex();
@@ -38,6 +45,8 @@ export function ContactBook({
     contacts ?? [],
     contactsIndex ?? {}
   );
+
+  const Explanation = () => explanationComponent ?? null;
 
   const [query, setQuery] = useState('');
   const queryContacts = useSortedContacts({
@@ -113,7 +122,12 @@ export function ContactBook({
   return (
     <View flex={1}>
       {searchable && (
-        <View marginBottom="$xl">
+        <XStack
+          alignItems="center"
+          justifyContent="space-between"
+          marginBottom="$xl"
+          gap="$m"
+        >
           <SearchBar
             padding="$m"
             height="$4xl"
@@ -122,17 +136,24 @@ export function ContactBook({
             placeholder={searchPlaceholder ?? ''}
             areaProps={{ spellCheck: false }}
           />
+          {showCancelButton && (
+            <TextButton onPress={() => onPressCancel?.()}>Cancel</TextButton>
+          )}
+        </XStack>
+      )}
+      {!showSearchResults && explanationComponent ? (
+        <Explanation />
+      ) : (
+        <View flex={1} onTouchStart={Keyboard.dismiss}>
+          <BlockSectionList
+            sections={sections}
+            onScroll={handleScroll}
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+            renderItem={renderItem}
+          />
         </View>
       )}
-      <View flex={1} onTouchStart={Keyboard.dismiss}>
-        <BlockSectionList
-          sections={sections}
-          onScroll={handleScroll}
-          onTouchStart={onTouchStart}
-          onTouchEnd={onTouchEnd}
-          renderItem={renderItem}
-        />
-      </View>
     </View>
   );
 }

@@ -12,6 +12,7 @@ import { Icon } from '../Icon';
 
 export function CreateGroupWidget(props: {
   goBack: () => void;
+  invitees: string[];
   onCreatedGroup: ({
     group,
     channel,
@@ -37,6 +38,11 @@ export function CreateGroupWidget(props: {
         title: groupName,
         shortCode,
       });
+
+      await store.inviteGroupMembers({
+        groupId: group.id,
+        contactIds: props.invitees,
+      });
       props.onCreatedGroup({ group, channel });
       triggerHaptic('success');
     } catch (e) {
@@ -50,26 +56,28 @@ export function CreateGroupWidget(props: {
     <YStack flex={1} gap="$2xl">
       <XStack justifyContent="space-between" alignItems="center">
         <Icon type="ChevronLeft" onPress={() => props.goBack()} />
-        <SizableText fontWeight="$xl">Start a New Group</SizableText>
+        <SizableText fontWeight="$xl">New Group</SizableText>
         <Icon type="ChevronRight" opacity={0} />
       </XStack>
-      <SizableText size="$m">What is your group about?</SizableText>
-      {/* TODO: make tamagui input cohere */}
-      <TextInput
-        style={{
-          borderRadius: getTokenValue('$l', 'radius'),
-          borderWidth: 1,
-          borderColor: theme.primaryText.val,
-          padding: getTokenValue('$xl', 'space'),
-          fontSize: 17,
-        }}
-        autoFocus
-        autoComplete="off"
-        spellCheck={false}
-        maxLength={100}
-        onChangeText={setGroupName}
-        placeholder="Group name"
-      />
+      <YStack gap="$s">
+        <SizableText size="$s">Group Name (Required)</SizableText>
+        {/* TODO: make tamagui input cohere */}
+        <TextInput
+          style={{
+            borderRadius: getTokenValue('$l', 'radius'),
+            borderWidth: 1,
+            borderColor: theme.primaryText.val,
+            padding: getTokenValue('$xl', 'space'),
+            fontSize: 17,
+          }}
+          autoFocus
+          autoComplete="off"
+          spellCheck={false}
+          maxLength={100}
+          onChangeText={setGroupName}
+          placeholder="Group name"
+        />
+      </YStack>
       <PrimaryButton
         disabled={groupName.length < 3 || loading}
         loading={loading}

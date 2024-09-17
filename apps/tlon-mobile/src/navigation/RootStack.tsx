@@ -15,6 +15,7 @@ import { ChannelSearchScreenController } from '../controllers/ChannelSearchScree
 import { ChatListScreenController } from '../controllers/ChatListScreenController';
 import { EditProfileScreenController } from '../controllers/EditProfileScreenController';
 import { FeatureFlagScreenController } from '../controllers/FeatureFlagScreenController';
+import { FindGroupsScreenController } from '../controllers/FindGroupsScreenController';
 import { GroupChannelsScreenController } from '../controllers/GroupChannelsScreenController';
 import ImageViewerScreenController from '../controllers/ImageViewerScreenController';
 import { ManageAccountScreenController } from '../controllers/ManageAccountScreenController';
@@ -68,6 +69,7 @@ export function RootStack() {
 
       {/* individual screens */}
       <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
+      <Root.Screen name="FindGroups" component={FindGroupsScreenController} />
       <Root.Screen name="Channel" component={ChannelScreenController} />
       <Root.Screen
         name="ChannelSearch"

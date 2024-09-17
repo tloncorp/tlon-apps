@@ -8,7 +8,6 @@ import { useBranchDomain, useBranchKey, useCurrentUserId } from '../contexts';
 import { useCopy } from '../hooks/useCopy';
 import { Button } from './Button';
 import { ContactBook } from './ContactBook';
-import { LoadingSpinner } from './LoadingSpinner';
 
 const InviteUsersWidgetComponent = ({
   group,

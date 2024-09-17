@@ -22,6 +22,7 @@ import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useFocusEffect } from '../../hooks/useFocusEffect';
+import { useGroupActions } from '../../hooks/useGroupActions';
 import { useIsFocused } from '../../hooks/useIsFocused';
 
 const logger = createDevLogger('ChannelScreen', false);
@@ -99,13 +100,10 @@ export default function ChannelScreen({
     uploaderKey: `${currentChannelId}`,
   });
 
-  const {
-    navigateToImage,
-    navigateToPost,
-    navigateToRef,
-    navigateToSearch,
-    performGroupAction,
-  } = useChannelNavigation({ channelId: currentChannelId });
+  const { navigateToImage, navigateToPost, navigateToRef, navigateToSearch } =
+    useChannelNavigation({ channelId: currentChannelId });
+
+  const { performGroupAction } = useGroupActions();
 
   const session = store.useCurrentSession();
   const hasCachedNewest = useMemo(() => {
