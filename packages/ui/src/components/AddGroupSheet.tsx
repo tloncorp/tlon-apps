@@ -341,7 +341,7 @@ function InviteUsersScreen({
           <TextButton
             onPress={() => {
               setInvitees([]);
-              goToScreen('Root');
+              goToScreen('CreateGroup');
             }}
           >
             Skip
