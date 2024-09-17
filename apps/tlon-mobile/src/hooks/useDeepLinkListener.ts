@@ -3,7 +3,6 @@ import { useShip } from '@tloncorp/app/contexts/ship';
 import { inviteShipWithLure } from '@tloncorp/app/lib/hostingApi';
 import { trackError } from '@tloncorp/app/utils/posthog';
 import { useEffect, useRef } from 'react';
-import { Alert } from 'react-native';
 
 export const useDeepLinkListener = () => {
   const isInvitingRef = useRef(false);
@@ -34,19 +33,4 @@ export const useDeepLinkListener = () => {
       })();
     }
   }, [ship, signupParams, clearLure, lure]);
-
-  // If deep link clicked, broadcast that navigation update to the webview and mark as handled
-  // useEffect(() => {
-  // TODO: hook up deep links without webview
-  // if (deepLinkPath && webviewContext.appLoaded) {
-  // console.debug(
-  // '[useDeepLinkListener] Setting webview path:',
-  // deepLinkPath
-  // );
-  // webviewContext.setGotoPath(deepLinkPath);
-  // const tab = parseActiveTab(deepLinkPath) ?? 'Groups';
-  // navigation.navigate(tab, { screen: 'Webview' });
-  // clearDeepLink();
-  // }
-  // }, [deepLinkPath, navigation, clearDeepLink]);
 };
