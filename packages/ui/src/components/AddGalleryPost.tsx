@@ -52,9 +52,9 @@ export default function AddGalleryPost({
         actions={actions}
       />
       <AttachmentSheet
-        showAttachmentSheet={showAttachmentSheet}
-        setShowAttachmentSheet={setShowAttachmentSheet}
-        setImage={handleImageSet}
+        isOpen={showAttachmentSheet}
+        onOpenChange={setShowAttachmentSheet}
+        onAttachmentsSet={handleImageSet}
       />
     </>
   );

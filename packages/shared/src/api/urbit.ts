@@ -138,7 +138,7 @@ export function subscribe<T>(
     printEndpoint(endpoint)
   );
 
-  clientInstance.subscribe({
+  return clientInstance.subscribe({
     app: endpoint.app,
     path: endpoint.path,
     event: (event: any, mark: string, id?: number) => {
@@ -175,6 +175,15 @@ export function subscribe<T>(
     },
   });
 }
+
+export const unsubscribe = (subcriptionId: number) => {
+  if (!clientInstance) {
+    throw new Error(
+      'Tried to unsubscribe, but Urbit client is not initialized'
+    );
+  }
+  clientInstance.unsubscribe(subcriptionId);
+};
 
 export const subscribeOnce = async <T>(
   endpoint: UrbitEndpoint,

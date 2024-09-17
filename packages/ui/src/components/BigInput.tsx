@@ -183,9 +183,9 @@ export function BigInput({
         ) */}
       {channelType === 'notebook' && showAttachmentSheet && (
         <AttachmentSheet
-          showAttachmentSheet={showAttachmentSheet}
-          setShowAttachmentSheet={setShowAttachmentSheet}
-          setImage={attachAssets}
+          isOpen={showAttachmentSheet}
+          onOpenChange={setShowAttachmentSheet}
+          onAttachmentsSet={attachAssets}
         />
       )}
     </YStack>

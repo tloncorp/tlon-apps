@@ -308,15 +308,9 @@ export default function ChatListScreen({
           />
         </View>
         <NavBarView
-          navigateToHome={() => {
-            navigateToHome();
-          }}
-          navigateToNotifications={() => {
-            navigateToNotifications();
-          }}
-          navigateToProfile={() => {
-            navigateToProfile();
-          }}
+          navigateToHome={navigateToHome}
+          navigateToNotifications={navigateToNotifications}
+          navigateToProfileSettings={navigateToProfile}
           currentRoute="ChatList"
           currentUserId={currentUser}
         />
