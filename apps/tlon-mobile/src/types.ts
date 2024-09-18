@@ -99,10 +99,9 @@ export type OnboardingStackParamList = {
   JoinWaitList: { email?: string };
   RequestPhoneVerify: { user: User };
   CheckVerify: { user: User };
-  ReserveShip: { user: User; signUpExtras?: SignUpExtras };
-  SetNickname: { user: User; signUpExtras: SignUpExtras };
-  SetNotifications: { user: User; signUpExtras: SignUpExtras };
-  SetTelemetry: { user: User; signUpExtras: SignUpExtras };
+  ReserveShip: { user: User };
+  SetNickname: { user: User };
+  SetTelemetry: { user: User };
   TlonLogin: undefined;
   ShipLogin: undefined;
   ResetPassword: { email?: string };

@@ -30,7 +30,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'ReserveShip'>;
 export const ReserveShipScreen = ({
   navigation,
   route: {
-    params: { user, signUpExtras },
+    params: { user },
   },
 }: Props) => {
   const [{ state, error }, setState] = useState<{
@@ -54,15 +54,16 @@ export const ReserveShipScreen = ({
       const { status, shipId } = shipsWithStatus;
 
       // If user is in the sign up flow, send them to fill out some extra details
-      if (
-        signUpExtras?.nickname === undefined &&
-        signUpExtras?.telemetry === undefined
-      ) {
-        return navigation.navigate('SetNickname', {
-          user: await getHostingUser(user.id),
-          signUpExtras: { nickname: preSig(shipId) },
-        });
-      }
+      // TODO: ????
+      // if (
+      //   signUpExtras?.nickname === undefined &&
+      //   signUpExtras?.telemetry === undefined
+      // ) {
+      //   return navigation.navigate('SetNickname', {
+      //     user: await getHostingUser(user.id),
+      //     signUpExtras: { nickname: preSig(shipId) },
+      //   });
+      // }
 
       // If it's not ready, show the booting message
       if (status !== 'Ready') {
@@ -83,38 +84,38 @@ export const ReserveShipScreen = ({
       const ship = getShipFromCookie(authCookie);
       configureApi(ship, shipUrl);
 
-      if (signUpExtras?.nickname) {
-        try {
-          await updateNickname(signUpExtras.nickname);
-        } catch (err) {
-          console.error('Error setting nickname:', err);
-          if (err instanceof Error) {
-            trackError(err);
-          }
-        }
-      }
+      // if (signUpExtras?.nickname) {
+      //   try {
+      //     await updateNickname(signUpExtras.nickname);
+      //   } catch (err) {
+      //     console.error('Error setting nickname:', err);
+      //     if (err instanceof Error) {
+      //       trackError(err);
+      //     }
+      //   }
+      // }
 
-      if (signUpExtras?.notificationToken) {
-        try {
-          await connectNotifyProvider(signUpExtras.notificationToken);
-        } catch (err) {
-          console.error('Error connecting push notifications provider:', err);
-          if (err instanceof Error) {
-            trackError(err);
-          }
-        }
-      }
+      // if (signUpExtras?.notificationToken) {
+      //   try {
+      //     await connectNotifyProvider(signUpExtras.notificationToken);
+      //   } catch (err) {
+      //     console.error('Error connecting push notifications provider:', err);
+      //     if (err instanceof Error) {
+      //       trackError(err);
+      //     }
+      //   }
+      // }
 
-      if (signUpExtras?.telemetry !== undefined) {
-        try {
-          await updateTelemetrySetting(signUpExtras.telemetry);
-        } catch (err) {
-          console.error('Error setting telemetry:', err);
-          if (err instanceof Error) {
-            trackError(err);
-          }
-        }
-      }
+      // if (signUpExtras?.telemetry !== undefined) {
+      //   try {
+      //     await updateTelemetrySetting(signUpExtras.telemetry);
+      //   } catch (err) {
+      //     console.error('Error setting telemetry:', err);
+      //     if (err instanceof Error) {
+      //       trackError(err);
+      //     }
+      //   }
+      // }
 
       // Set the ship info in the main context to navigate to chat view
       setShip({
@@ -123,7 +124,7 @@ export const ReserveShipScreen = ({
         authCookie,
       });
     },
-    [user, signUpExtras, navigation, setShip]
+    [setShip]
   );
 
   const reserveShip = useCallback(

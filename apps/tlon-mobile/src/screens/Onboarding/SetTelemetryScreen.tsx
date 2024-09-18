@@ -8,6 +8,7 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/ui';
+import { useSignupContext } from 'packages/app/contexts/signup';
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useState } from 'react';
 import { Switch } from 'react-native';
@@ -20,13 +21,16 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetTelemetry'>;
 export const SetTelemetryScreen = ({
   navigation,
   route: {
-    params: { user, signUpExtras },
+    params: { user },
   },
 }: Props) => {
   const [isEnabled, setIsEnabled] = useState(true);
   const postHog = usePostHog();
+  const signupContext = useSignupContext();
 
   const handleNext = useCallback(() => {
+    signupContext.setTelemetry(isEnabled);
+
     if (!isEnabled) {
       postHog?.optOut();
       branch.disableTracking(true);
@@ -34,9 +38,8 @@ export const SetTelemetryScreen = ({
 
     navigation.push('ReserveShip', {
       user,
-      signUpExtras: { ...signUpExtras, telemetry: isEnabled },
     });
-  }, [isEnabled, user, postHog, navigation, signUpExtras]);
+  }, [isEnabled, user, postHog, navigation, signupContext]);
 
   return (
     <View flex={1}>
