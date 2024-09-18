@@ -17,4 +17,18 @@ export default {
       </Button>
     </FixtureWrapper>
   ),
+  hero: () => (
+    <FixtureWrapper fillWidth>
+      <Button hero>
+        <Button.Text>Hero Button</Button.Text>
+      </Button>
+    </FixtureWrapper>
+  ),
+  heroDisabled: () => (
+    <FixtureWrapper fillWidth>
+      <Button hero disabled>
+        <Button.Text>Hero Button</Button.Text>
+      </Button>
+    </FixtureWrapper>
+  ),
 };

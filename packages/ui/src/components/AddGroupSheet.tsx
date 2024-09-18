@@ -8,14 +8,14 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Dimensions, KeyboardAvoidingView, StyleSheet } from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, View, XStack, YStack, isWeb } from 'tamagui';
+import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import {
   AppDataContextProvider,
@@ -29,7 +29,6 @@ import { Button } from './Button';
 import { TextButton } from './Buttons';
 import { ContactBook } from './ContactBook';
 import { Icon } from './Icon';
-import { Sheet } from './Sheet';
 
 interface AddGroupActions {
   dismiss: () => void;
@@ -174,36 +173,31 @@ export function AddGroupSheet({
   );
 
   return (
-    <Sheet
+    <ActionSheet
+      disableDrag={screenScrolling}
+      moveOnKeyboardChange
       open={open}
       onOpenChange={dismiss}
-      disableDrag={screenScrolling}
-      dismissOnSnapToBottom
-      animation="quick"
-      modal
+      snapPoints={['90%']}
     >
-      <Sheet.Overlay />
-      <Sheet.LazyFrame>
-        <QueryClientProvider client={queryClient}>
-          <AppDataContextProvider contacts={contacts ?? null}>
-            <Sheet.Handle marginBottom="$l" />
-            <KeyboardAvoidingView style={{ flex: 1 }}>
-              <ActionContext.Provider
-                value={{
-                  dismiss,
-                  onCreatedGroup,
-                  onScrollChange: setScreenScrolling,
-                  screenKey,
-                  contacts,
-                }}
-              >
-                {Object.values(screens)}
-              </ActionContext.Provider>
-            </KeyboardAvoidingView>
-          </AppDataContextProvider>
-        </QueryClientProvider>
-      </Sheet.LazyFrame>
-    </Sheet>
+      <QueryClientProvider client={queryClient}>
+        <AppDataContextProvider contacts={contacts ?? null}>
+          <ActionContext.Provider
+            value={{
+              dismiss,
+              onCreatedGroup,
+              onScrollChange: setScreenScrolling,
+              screenKey,
+              contacts,
+            }}
+          >
+            <ActionSheet.Content flex={1}>
+              {Object.values(screens)}
+            </ActionSheet.Content>
+          </ActionContext.Provider>
+        </AppDataContextProvider>
+      </QueryClientProvider>
+    </ActionSheet>
   );
 }
 
@@ -216,13 +210,13 @@ function ScreenWrapper({
 }) {
   const insets = useSafeAreaInsets();
   return (
-    <View
+    <ActionSheet.ContentBlock
       flex={1}
       paddingBottom={withoutSafe ? undefined : insets.bottom}
       paddingHorizontal={isWeb ? '$2xl' : '$xl'}
     >
       {children}
-    </View>
+    </ActionSheet.ContentBlock>
   );
 }
 
@@ -245,7 +239,7 @@ function RootScreen({
 
   return (
     <ScreenWrapper withoutSafe>
-      <YStack flex={1} gap="$2xl">
+      <YStack flex={1} gap="$xl">
         <ActionSheet.ActionGroup>
           <ActionSheet.Action
             action={{
@@ -264,16 +258,18 @@ function RootScreen({
             }}
           />
         </ActionSheet.ActionGroup>
-        <XStack justifyContent="center">
-          <Text fontWeight="bold">New Message</Text>
-        </XStack>
-        <ContactBook
-          searchable
-          searchPlaceholder="Username or ID"
-          onSelect={onSelect}
-          onScrollChange={onScrollChange}
-          key={screenKey}
-        />
+        <ActionSheet.ActionTitle textAlign="center">
+          New Message
+        </ActionSheet.ActionTitle>
+        <View flex={1} padding="$xl">
+          <ContactBook
+            searchable
+            searchPlaceholder="Username or ID"
+            onSelect={onSelect}
+            onScrollChange={onScrollChange}
+            key={screenKey}
+          />
+        </View>
       </YStack>
     </ScreenWrapper>
   );
@@ -335,9 +331,9 @@ function InviteUsersScreen({
           <Button borderWidth={0}>
             <Icon type="ChevronLeft" onPress={() => goToScreen('Root')} />
           </Button>
-          <Text fontWeight="bold" fontSize="$l">
+          <ActionSheet.ActionTitle textAlign="center">
             Select Members
-          </Text>
+          </ActionSheet.ActionTitle>
           <TextButton
             onPress={() => {
               setInvitees([]);

@@ -2,12 +2,11 @@ import { createShortCodeFromTitle } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useState } from 'react';
-import { TextInput } from 'react-native';
-import { getTokenValue } from 'tamagui';
-import { SizableText, XStack, YStack, useTheme } from 'tamagui';
+import { SizableText, XStack, YStack } from 'tamagui';
 
 import { triggerHaptic } from '../../utils';
 import { PrimaryButton } from '../Buttons';
+import { Field, TextInput } from '../Form';
 import { Icon } from '../Icon';
 
 export function CreateGroupWidget(props: {
@@ -23,7 +22,6 @@ export function CreateGroupWidget(props: {
 }) {
   const [loading, setLoading] = useState(false);
   const [groupName, setGroupName] = useState('');
-  const theme = useTheme();
 
   const onCreateGroup = useCallback(async () => {
     const shortCode = createShortCodeFromTitle(groupName);
@@ -60,23 +58,16 @@ export function CreateGroupWidget(props: {
         <Icon type="ChevronRight" opacity={0} />
       </XStack>
       <YStack gap="$s">
-        <SizableText size="$s">Group Name (Required)</SizableText>
-        {/* TODO: make tamagui input cohere */}
-        <TextInput
-          style={{
-            borderRadius: getTokenValue('$l', 'radius'),
-            borderWidth: 1,
-            borderColor: theme.primaryText.val,
-            padding: getTokenValue('$xl', 'space'),
-            fontSize: 17,
-          }}
-          autoFocus
-          autoComplete="off"
-          spellCheck={false}
-          maxLength={100}
-          onChangeText={setGroupName}
-          placeholder="Group name"
-        />
+        <Field label="Group Name (Required)" required>
+          <TextInput
+            autoFocus
+            autoComplete="off"
+            spellCheck={false}
+            maxLength={100}
+            onChangeText={setGroupName}
+            placeholder="Group name"
+          />
+        </Field>
       </YStack>
       <PrimaryButton
         disabled={groupName.length < 3 || loading}
