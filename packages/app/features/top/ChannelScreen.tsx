@@ -147,22 +147,27 @@ export default function ChannelScreen({
     loadNewer,
     loadOlder,
     isLoading: isLoadingPosts,
-  } = store.useChannelPosts({
-    enabled: !!channel && !channel?.isPendingChannel,
-    channelId: currentChannelId,
-    count: 15,
-    hasCachedNewest,
-    ...(cursor
-      ? {
-          mode: 'around',
-          cursor,
-          firstPageCount: INITIAL_POSTS_PER_PAGE,
-        }
-      : {
-          mode: 'newest',
-          firstPageCount: 50,
-        }),
-  });
+  } = store.useChannelPosts(
+    useMemo(
+      () => ({
+        enabled: !!channel && !channel?.isPendingChannel,
+        channelId: currentChannelId,
+        count: 15,
+        hasCachedNewest,
+        ...(cursor
+          ? {
+              mode: 'around',
+              cursor,
+              firstPageCount: INITIAL_POSTS_PER_PAGE,
+            }
+          : {
+              mode: 'newest',
+              firstPageCount: 50,
+            }),
+      }),
+      [channel, currentChannelId, cursor, hasCachedNewest]
+    )
+  );
 
   const sendPost = useCallback(
     async (content: Story, _channelId: string, metadata?: db.PostMetadata) => {

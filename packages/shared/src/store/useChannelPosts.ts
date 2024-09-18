@@ -1,8 +1,11 @@
 import {
+  GetNextPageParamFunction,
+  GetPreviousPageParamFunction,
   InfiniteData,
   UseInfiniteQueryResult,
   useInfiniteQuery,
 } from '@tanstack/react-query';
+import { memoize } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import * as db from '../db';
@@ -32,6 +35,62 @@ type UseChanelPostsParams = UseChannelPostsPageParams & {
 export const clearChannelPostsQueries = () => {
   queryClient.invalidateQueries({ queryKey: ['channelPosts'] });
 };
+
+const getNextPageParam = (
+  options: UseChanelPostsParams
+): GetNextPageParamFunction<db.GetChannelPostsOptions, db.Post[]> =>
+  memoize(
+    (
+      lastPage,
+      _allPages,
+      lastPageParam
+    ): UseChannelPostsPageParams | undefined => {
+      const lastPageIsEmpty = !lastPage[lastPage.length - 1]?.id;
+      if (lastPageIsEmpty) {
+        // If we've only tried to get newer posts + that's failed, try using the
+        // same cursor to get older posts instead. This can happen when the
+        // first cached page is empty.
+        if (lastPageParam?.mode === 'newer') {
+          return {
+            ...options,
+            mode: 'older',
+            cursor: lastPageParam.cursor,
+          };
+        } else {
+          return undefined;
+        }
+      }
+      return {
+        ...options,
+        mode: 'older',
+        cursor: lastPage[lastPage.length - 1]?.id,
+      };
+    }
+  );
+
+const getPreviousPageParam = (
+  options: UseChanelPostsParams
+): GetPreviousPageParamFunction<db.GetChannelPostsOptions, db.Post[]> =>
+  memoize(
+    (
+      firstPage,
+      _allPages,
+      firstPageParam
+    ): UseChannelPostsPageParams | undefined => {
+      const firstPageIsEmpty = !firstPage[0]?.id;
+      if (
+        firstPageIsEmpty ||
+        (firstPageParam?.mode === 'newest' && options.hasCachedNewest)
+      ) {
+        return undefined;
+      }
+      return {
+        ...options,
+        mode: 'newer',
+        cursor: firstPage[0]?.id,
+      };
+    }
+  );
 
 export const useChannelPosts = (options: UseChanelPostsParams) => {
   const mountTime = useMemo(() => {
@@ -87,50 +146,11 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       return secondResult ?? [];
     },
     queryKey,
-    getNextPageParam: (
-      lastPage,
-      _allPages,
-      lastPageParam
-    ): UseChannelPostsPageParams | undefined => {
-      const lastPageIsEmpty = !lastPage[lastPage.length - 1]?.id;
-      if (lastPageIsEmpty) {
-        // If we've only tried to get newer posts + that's failed, try using the
-        // same cursor to get older posts instead. This can happen when the
-        // first cached page is empty.
-        if (lastPageParam?.mode === 'newer') {
-          return {
-            ...options,
-            mode: 'older',
-            cursor: lastPageParam.cursor,
-          };
-        } else {
-          return undefined;
-        }
-      }
-      return {
-        ...options,
-        mode: 'older',
-        cursor: lastPage[lastPage.length - 1]?.id,
-      };
-    },
-    getPreviousPageParam: (
-      firstPage,
-      _allPages,
-      firstPageParam
-    ): UseChannelPostsPageParams | undefined => {
-      const firstPageIsEmpty = !firstPage[0]?.id;
-      if (
-        firstPageIsEmpty ||
-        (firstPageParam?.mode === 'newest' && options.hasCachedNewest)
-      ) {
-        return undefined;
-      }
-      return {
-        ...options,
-        mode: 'newer',
-        cursor: firstPage[0]?.id,
-      };
-    },
+    getNextPageParam: useMemo(() => getNextPageParam(options), [options]),
+    getPreviousPageParam: useMemo(
+      () => getPreviousPageParam(options),
+      [options]
+    ),
   });
 
   // When we get a new post from the listener, add it to the pending list
