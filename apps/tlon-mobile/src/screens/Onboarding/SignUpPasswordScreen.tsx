@@ -31,6 +31,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
+import { useSignupContext } from 'packages/app/contexts/signup';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -51,6 +52,7 @@ export const SignUpPasswordScreen = ({
   },
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const signupContext = useSignupContext();
   const signupParams = useSignupParams();
   const lureMeta = useLureMetadata();
   const {
@@ -116,6 +118,7 @@ export const SignUpPasswordScreen = ({
         lure: signupParams.lureId,
         priorityToken: signupParams.priorityToken,
       });
+      signupContext.setDidSignup(true);
     } catch (err) {
       console.error('Error signing up user:', err);
       if (err instanceof Error) {

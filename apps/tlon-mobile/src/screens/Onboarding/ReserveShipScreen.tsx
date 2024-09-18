@@ -20,6 +20,7 @@ import {
 } from '@tloncorp/shared/dist/api';
 import { Spinner, Text, View, YStack } from '@tloncorp/ui';
 import { preSig } from '@urbit/aura';
+import { useSignupContext } from 'packages/app/contexts/signup';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
@@ -39,6 +40,7 @@ export const ReserveShipScreen = ({
   }>({
     state: 'loading',
   });
+  const signupContext = useSignupContext();
   const { setShip } = useShip();
 
   const startShip = useCallback(
@@ -54,16 +56,14 @@ export const ReserveShipScreen = ({
       const { status, shipId } = shipsWithStatus;
 
       // If user is in the sign up flow, send them to fill out some extra details
-      // TODO: ????
-      // if (
-      //   signUpExtras?.nickname === undefined &&
-      //   signUpExtras?.telemetry === undefined
-      // ) {
-      //   return navigation.navigate('SetNickname', {
-      //     user: await getHostingUser(user.id),
-      //     signUpExtras: { nickname: preSig(shipId) },
-      //   });
-      // }
+      if (
+        signupContext.nickname === undefined &&
+        signupContext.telemetry === undefined
+      ) {
+        return navigation.navigate('SetNickname', {
+          user: await getHostingUser(user.id),
+        });
+      }
 
       // If it's not ready, show the booting message
       if (status !== 'Ready') {

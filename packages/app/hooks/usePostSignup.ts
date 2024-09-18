@@ -6,7 +6,7 @@ import { useCallback } from 'react';
 import { useSignupContext } from '../contexts/signup';
 import { connectNotifyProvider } from '../lib/notificationsApi';
 
-const logger = createDevLogger('postSignup', false);
+const logger = createDevLogger('postSignup', true);
 
 export function usePostSignup() {
   const signupContext = useSignupContext();
