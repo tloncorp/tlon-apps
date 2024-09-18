@@ -38,7 +38,6 @@ import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
 import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
 
 import { AppInfoScreenController } from './controllers/AppInfoScreenController';
-import { AppSettingsScreenController } from './controllers/AppSettingsScreenController';
 import { BlockedUsersScreenController } from './controllers/BlockedUsersScreenController';
 import { ChannelMembersScreenController } from './controllers/ChannelMembersScreenController';
 import { ChannelSearchScreenController } from './controllers/ChannelSearchScreenController';
@@ -199,7 +198,6 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
           element={<UserProfileScreenController />}
         />
         <Route path="/profile/edit" element={<EditProfileScreenController />} />
-        <Route path="/settings" element={<AppSettingsScreenController />} />
         <Route
           path="/settings/app-info"
           element={<AppInfoScreenController />}

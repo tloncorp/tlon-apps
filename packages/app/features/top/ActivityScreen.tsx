@@ -76,15 +76,9 @@ export function ActivityScreen({
         refresh={handleRefreshActivity}
       />
       <NavBarView
-        navigateToHome={() => {
-          navigateToChatList();
-        }}
-        navigateToNotifications={() => {
-          navigateToActivity();
-        }}
-        navigateToProfile={() => {
-          navigateToProfile();
-        }}
+        navigateToHome={navigateToChatList}
+        navigateToNotifications={navigateToActivity}
+        navigateToProfileSettings={navigateToProfile}
         currentRoute="Activity"
         currentUserId={currentUserId}
       />

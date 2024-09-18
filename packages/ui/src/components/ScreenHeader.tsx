@@ -21,7 +21,7 @@ export const ScreenHeaderComponent = ({
   const { top } = useSafeAreaInsets();
 
   return (
-    <View paddingTop={top} zIndex={50} backgroundColor="$background">
+    <View paddingTop={top} zIndex={50}>
       <XStack
         alignItems="center"
         height="$4xl"
@@ -54,7 +54,7 @@ export const ScreenHeaderComponent = ({
 
 const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
   return (
-    <IconButton onPress={onPress}>
+    <IconButton backgroundColor={'unset'} onPress={onPress}>
       <ChevronLeft />
     </IconButton>
   );
@@ -63,17 +63,16 @@ const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
 const HeaderTitle = styled(Text, {
   size: '$label/2xl',
   textAlign: 'left',
-  fontWeight: '500',
-  flex: 1,
+  width: '100%',
 });
 
 const HeaderControls = styled(XStack, {
   position: 'absolute',
-  top: '$m',
+  top: 0,
   bottom: 0,
-  height: '100%',
   gap: '$m',
   alignItems: 'center',
+  zIndex: 1,
   variants: {
     side: {
       left: {

@@ -5,6 +5,7 @@ import {
   NativeSyntheticEvent,
   SectionListRenderItemInfo,
 } from 'react-native';
+import { Modal } from 'react-native';
 import { Stack, View, YStack } from 'tamagui';
 
 import { AlphaSegmentedGroups } from '../hooks/groupsSorters';
@@ -137,29 +138,35 @@ export function GroupSelectorSheet(props: SheetProps) {
   }, [props.open]);
 
   return (
-    <Sheet
-      open={props.open}
-      onOpenChange={props.onOpenChange}
-      snapPoints={[85]}
-      modal
-      disableDrag={contentScrolling}
-      dismissOnSnapToBottom
-      animation="quick"
+    <Modal
+      visible={props.open}
+      animationType="none"
+      transparent
+      onRequestClose={() => props.onOpenChange(false)}
     >
-      <Sheet.Overlay />
-      <Sheet.LazyFrame paddingTop="$s" paddingHorizontal="$2xl">
-        <Sheet.Handle marginBottom="$l" />
-        <YStack flex={1} gap="$2xl">
-          {props.TopContent}
-          <GroupSelector
-            multiSelect
-            selected={props.selected}
-            onSelect={props.onSelect}
-            onScrollChange={setContentScrolling}
-            alphaSegmentedGroups={props.alphaSegmentedGroups}
-          />
-        </YStack>
-      </Sheet.LazyFrame>
-    </Sheet>
+      <Sheet
+        open={props.open}
+        onOpenChange={props.onOpenChange}
+        snapPoints={[85]}
+        disableDrag={contentScrolling}
+        dismissOnSnapToBottom
+        animation="quick"
+      >
+        <Sheet.Overlay />
+        <Sheet.LazyFrame paddingTop="$s" paddingHorizontal="$2xl">
+          <Sheet.Handle marginBottom="$l" />
+          <YStack flex={1} gap="$2xl">
+            {props.TopContent}
+            <GroupSelector
+              multiSelect
+              selected={props.selected}
+              onSelect={props.onSelect}
+              onScrollChange={setContentScrolling}
+              alphaSegmentedGroups={props.alphaSegmentedGroups}
+            />
+          </YStack>
+        </Sheet.LazyFrame>
+      </Sheet>
+    </Modal>
   );
 }

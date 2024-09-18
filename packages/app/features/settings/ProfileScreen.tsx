@@ -1,76 +1,84 @@
 import { NavBarView, ProfileScreenView, View } from '@tloncorp/ui';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { getHostingToken, getHostingUserId } from '../../utils/hosting';
 
 export default function ProfileScreen({
-  navigateToAppSettings,
   navigateToEditProfile,
   navigateToErrorReport,
-  navigateToProfile,
+  navigateToContactProfile,
   navigateToHome,
   navigateToNotifications,
-  navigateToSettings,
+  navigateToProfileSettings,
+  navigateToBlockedUsers,
+  navigateToManageAccount,
+  navigateToAppInfo,
+  navigateToNotificationSettings,
   handleLogout,
 }: {
-  navigateToAppSettings: () => void;
   navigateToEditProfile: () => void;
   navigateToErrorReport: () => void;
-  navigateToProfile: (userId: string) => void;
+  navigateToContactProfile: (userId: string) => void;
   navigateToHome: () => void;
   navigateToNotifications: () => void;
-  navigateToSettings: () => void;
+  navigateToProfileSettings: () => void;
+  navigateToAppInfo?: () => void;
+  navigateToNotificationSettings: () => void;
+  navigateToBlockedUsers: () => void;
+  navigateToManageAccount: () => void;
   handleLogout?: () => void;
 }) {
   const currentUserId = useCurrentUserId();
-
-  const onAppSettingsPressed = useCallback(() => {
-    navigateToAppSettings();
-  }, [navigateToAppSettings]);
-
-  const onEditProfilePressed = useCallback(() => {
-    navigateToEditProfile();
-  }, [navigateToEditProfile]);
-
-  const onSendBugReportPressed = useCallback(() => {
-    navigateToErrorReport();
-  }, [navigateToErrorReport]);
-
-  const onViewProfilePressed = useCallback(() => {
-    navigateToProfile(currentUserId);
-  }, [currentUserId, navigateToProfile]);
-
   const { dmLink } = useDMLureLink();
+  const hasHostedAuth = useHasHostedAuth();
+
+  const handleViewProfile = useCallback(() => {
+    navigateToContactProfile(currentUserId);
+  }, [currentUserId, navigateToContactProfile]);
 
   return (
     <View backgroundColor="$background" flex={1}>
       <ProfileScreenView
+        hasHostedAuth={hasHostedAuth}
         currentUserId={currentUserId}
-        onAppSettingsPressed={onAppSettingsPressed}
-        onEditProfilePressed={onEditProfilePressed}
-        onLogoutPressed={() => {
-          if (handleLogout) {
-            handleLogout();
-          }
-        }}
-        onSendBugReportPressed={onSendBugReportPressed}
-        onViewProfile={onViewProfilePressed}
+        onEditProfilePressed={navigateToEditProfile}
+        onLogoutPressed={handleLogout}
+        onSendBugReportPressed={navigateToErrorReport}
+        onAppInfoPressed={navigateToAppInfo}
+        onNotificationSettingsPressed={navigateToNotificationSettings}
+        onBlockedUsersPressed={navigateToBlockedUsers}
+        onManageAccountPressed={navigateToManageAccount}
+        onViewProfile={handleViewProfile}
         dmLink={dmLink}
       />
       <NavBarView
-        navigateToHome={() => {
-          navigateToHome();
-        }}
-        navigateToNotifications={() => {
-          navigateToNotifications();
-        }}
-        navigateToProfile={() => {
-          navigateToSettings();
-        }}
+        navigateToHome={navigateToHome}
+        navigateToNotifications={navigateToNotifications}
+        navigateToProfileSettings={navigateToProfileSettings}
         currentRoute="Profile"
         currentUserId={currentUserId}
       />
     </View>
   );
+}
+
+function useHasHostedAuth() {
+  const [hasHostedAuth, setHasHostedAuth] = useState(false);
+
+  useEffect(() => {
+    async function getHostingInfo() {
+      const [cookie, userId] = await Promise.all([
+        getHostingToken(),
+        getHostingUserId(),
+      ]);
+      if (cookie && userId) {
+        setHasHostedAuth(true);
+      }
+    }
+    getHostingInfo();
+  }, []);
+
+  return hasHostedAuth;
 }

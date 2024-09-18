@@ -93,6 +93,58 @@ export const MessageInputContainer = ({
   goBack?: () => void;
 }>) => {
   const { canUpload } = useAttachmentContext();
+  if (isEditing) {
+    return (
+      <YStack
+        width="100%"
+        backgroundColor="$secondaryBackground"
+        borderRadius="$xl"
+      >
+        <InputMentionPopup
+          containerHeight={containerHeight}
+          showMentionPopup={showMentionPopup}
+          mentionText={mentionText}
+          groupMembers={groupMembers}
+          onSelectMention={onSelectMention}
+        />
+        <XStack
+          paddingVertical="$s"
+          paddingHorizontal="$s"
+          gap="$xs"
+          alignItems="flex-end"
+          justifyContent="space-around"
+        >
+          <Button
+            backgroundColor="unset"
+            borderColor="transparent"
+            onPress={cancelEditing}
+            marginBottom="$xs"
+          >
+            <Icon size="$m" type="Close" />
+          </Button>
+          {children}
+          <View marginBottom="$xs">
+            <Button
+              disabled={disableSend || isSending}
+              onPress={onPressEdit}
+              backgroundColor="unset"
+              borderColor="transparent"
+              opacity={disableSend ? 0.5 : 1}
+            >
+              {isSending ? (
+                <View width="$2xl" height="$2xl">
+                  <LoadingSpinner size="small" color="$secondaryText" />
+                </View>
+              ) : (
+                <Icon size="$m" type="Checkmark" />
+              )}
+            </Button>
+          </View>
+        </XStack>
+      </YStack>
+    );
+  }
+
   return (
     <YStack width="100%">
       <InputMentionPopup
@@ -103,8 +155,8 @@ export const MessageInputContainer = ({
         onSelectMention={onSelectMention}
       />
       <XStack
-        paddingHorizontal="$m"
-        paddingBottom="$s"
+        paddingVertical="$s"
+        paddingHorizontal="$xl"
         gap="$l"
         alignItems="flex-end"
         justifyContent="space-between"
@@ -120,19 +172,8 @@ export const MessageInputContainer = ({
             </Button>
           </View>
         ) : null}
-        {isEditing ? (
-          <View paddingBottom="$xs">
-            <Button
-              backgroundColor="unset"
-              borderColor="transparent"
-              onPress={cancelEditing}
-            >
-              <Icon type="Close" />
-            </Button>
-          </View>
-        ) : null}
         {canUpload && showAttachmentButton ? (
-          <View paddingBottom="$xs">
+          <View marginBottom="$xs">
             <AttachmentButton setShouldBlur={setShouldBlur} />
           </View>
         ) : null}
@@ -141,32 +182,26 @@ export const MessageInputContainer = ({
           <View position="absolute" bottom="$l" right="$l">
             {disableSend ? null : (
               <FloatingActionButton
-                onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
-                icon={
-                  isEditing ? (
-                    <Icon type="Checkmark" />
-                  ) : (
-                    <Icon type="ArrowUp" />
-                  )
-                }
+                onPress={onPressSend}
+                icon={<Icon type="ArrowUp" />}
               />
             )}
           </View>
         ) : (
-          <View paddingBottom="$xs">
+          <View marginBottom="$xs">
             <Button
               disabled={disableSend || isSending}
-              onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
+              onPress={onPressSend}
               backgroundColor="unset"
               borderColor="transparent"
-              opacity={disableSend ? 0 : 1}
+              opacity={disableSend ? 0.5 : 1}
             >
               {isSending ? (
                 <View width="$2xl" height="$2xl">
                   <LoadingSpinner size="small" color="$secondaryText" />
                 </View>
               ) : (
-                <Icon size="$m" type={isEditing ? 'Checkmark' : 'ArrowUp'} />
+                <Icon size="$m" type="ArrowUp" />
               )}
             </Button>
           </View>

@@ -284,7 +284,7 @@ export function Channel({
                       showSearchButton={isChatChannel}
                       goToSearch={goToSearch}
                       showSpinner={isLoadingPosts}
-                      showMenuButton={false}
+                      showMenuButton={true}
                     />
                     <KeyboardAvoidingView enabled={!activeMessage}>
                       <YStack alignItems="center" flex={1}>

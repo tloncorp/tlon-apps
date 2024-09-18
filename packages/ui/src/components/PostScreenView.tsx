@@ -112,7 +112,6 @@ export function PostScreenView({
               showSearchButton={false}
               post={parentPost ?? undefined}
               mode={headerMode}
-              showMenuButton={true}
             />
             <KeyboardAvoidingView enabled={!activeMessage}>
               {parentPost ? (

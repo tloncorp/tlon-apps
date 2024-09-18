@@ -78,6 +78,34 @@ export const ControlledTextField = <
   return <ControlledField {...props} renderInput={renderInput} />;
 };
 
+export const ControlledTextareaField = <
+  TFieldValues extends FieldValues,
+  TName extends Path<TFieldValues>,
+>(
+  props: { inputProps?: ComponentProps<typeof TextInput> } & Omit<
+    ControlledFieldProps<TFieldValues, TName>,
+    'renderInput'
+  >
+) => {
+  const renderInput = useCallback(
+    ({
+      field: { onChange, ...field },
+    }: UseControllerReturn<TFieldValues, TName>) => {
+      return (
+        <TextInput
+          {...field}
+          onChangeText={onChange}
+          multiline={true}
+          minHeight={128}
+          {...props.inputProps}
+        />
+      );
+    },
+    [props.inputProps]
+  );
+  return <ControlledField {...props} renderInput={renderInput} />;
+};
+
 export const ControlledRadioField = <
   TFieldValues extends FieldValues,
   TName extends Path<TFieldValues>,
