@@ -162,13 +162,13 @@
       ;html
         ;+  hes
         ;body(class tag)
-          ;header
-            ;*  pre
-          ==
-          ;article
+          ;article.expose-content
+            ;header
+              ;*  pre
+            ==
             ;*  bod
           ==
-          ;+  footer
+          ;+  badge
         ==
         ;+  time-script-node:r
       ==
@@ -179,8 +179,6 @@
         ;title:"{title}"
         ;link(rel "stylesheet", href "/expose/style/shared.css");
         ;style:"{(trip style-page)}"
-        ;link(rel "preconnect", href "https://rsms.me");
-        ;link(rel "stylesheet", href "https://rsms.me/inter/inter.css");
       ::
         ;meta(charset "utf-8");
         ;meta(name "viewport", content "width=device-width, initial-scale=1");
@@ -213,8 +211,8 @@
         ;meta(property "og:article:author:first_name", content (trip nickname.u.aco));
       ==
     ::
-    ++  footer
-      ;footer
+    ++  badge
+      ;div.tlon-badge
         ;a(href "https://tlon.io")
           ;img@"https://tlon.io/icon.svg"(alt "Tlon logo", width "18");
           ;span
@@ -225,22 +223,18 @@
     ::
     ++  chat-prelude
       ^-  manx
-      ;div.prelude
-        ;div.published
-          ;+  (render-datetime:r sent.msg)
-        ==
+      ;div.author-row
         ;+  (author-node:r [our now] author.msg)
+        ;+  (render-datetime:r sent.msg)
       ==
     ::
     ++  diary-prelude
       |=  title=tape
       ^-  marl
       :~  ;h1:"{title}"
-          ;div.prelude
-            ;div.published
-              ;+  (render-datetime:r sent.msg)
-            ==
+          ;div.author-row
             ;+  (author-node:r [our now] author.msg)
+            ;+  (render-datetime:r sent.msg)
           ==
       ==
     ::
@@ -250,11 +244,9 @@
       =-  ?:  =("" title)  [-]~
           :-  ;h1:"{title}"
           [-]~
-      ;div.prelude
-        ;div.published
-          ;+  (render-datetime:r sent.msg)
-        ==
+      ;div.author-row
         ;+  (author-node:r [our now] author.msg)
+        ;+  (render-datetime:r sent.msg)
       ==
     --
   ::
