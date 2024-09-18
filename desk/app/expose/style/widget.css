@@ -1,0 +1,15 @@
+/* TODO
+   prefer scoping rules to just elements under #groups--expose-all,
+   otherwise style may affect other widgets on the profile
+   (alternatively do inline style attributes)
+*/
+#groups--expose-all {
+  border: 1px solid red;
+}
+#groups--expose-all a {
+  display: block;
+  margin: 1em;
+}
+#groups--expose-all .exposed {
+  border: 1px solid black;
+}
