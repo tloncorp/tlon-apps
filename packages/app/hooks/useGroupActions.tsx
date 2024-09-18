@@ -1,10 +1,11 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { GroupPreviewAction } from '@tloncorp/ui';
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+
+import { useGroupNavigation } from './useGroupNavigation';
 
 export const useGroupActions = () => {
-  const navigate = useNavigate();
+  const { goToChannel, goToHome } = useGroupNavigation();
 
   const performGroupAction = useCallback(
     async (action: GroupPreviewAction, updatedGroup: db.Group) => {
@@ -13,15 +14,15 @@ export const useGroupActions = () => {
           id: updatedGroup.lastPost.channelId,
         });
         if (channel) {
-          navigate('/group/' + channel.groupId + '/channel/' + channel.id);
+          goToChannel(channel);
         }
       }
 
       if (action === 'joined') {
-        navigate('/');
+        goToHome();
       }
     },
-    [navigate]
+    [goToChannel, goToHome]
   );
 
   return {
