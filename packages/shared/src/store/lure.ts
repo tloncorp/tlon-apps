@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import produce from 'immer';
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import create from 'zustand';
 
 import { getCurrentUserId, poke, scry, subscribeOnce } from '../api/urbit';
@@ -305,11 +305,12 @@ export function useLureLinkStatus({
   branchDomain: string;
   branchKey: string;
 }) {
-  const { supported, fetched, enabled, url, deepLinkUrl, toggle } = useLure({
-    flag,
-    branchDomain,
-    branchKey,
-  });
+  const { supported, fetched, enabled, url, deepLinkUrl, toggle, describe } =
+    useLure({
+      flag,
+      branchDomain,
+      branchKey,
+    });
   const { good, checked } = useLureLinkChecked(url, !!enabled);
 
   lureLogger.log('useLureLinkStatus', {
@@ -332,6 +333,10 @@ export function useLureLinkStatus({
       return 'disabled';
     }
 
+    if (url && checkOldLureToken(url)) {
+      return 'stale';
+    }
+
     if (!url || !checkLureToken(url) || !fetched || !checked) {
       lureLogger.log('loading', fetched, checked, url);
       return 'loading';
@@ -346,7 +351,7 @@ export function useLureLinkStatus({
 
   lureLogger.log('url', url, 'deepLinkUrl', deepLinkUrl, 'status', status);
 
-  return { status, shareUrl: deepLinkUrl ?? url, toggle };
+  return { status, shareUrl: deepLinkUrl ?? url, toggle, describe };
 }
 
 // hack: we get an intermediate state while generating lure links where
@@ -356,4 +361,12 @@ function checkLureToken(url: string | undefined) {
   if (!url) return false;
   const token = url.split('/').pop();
   return token && token.startsWith('0v');
+}
+
+function checkOldLureToken(url: string | undefined) {
+  if (!url) return false;
+  const parts = url.split('/');
+  const token = parts.pop();
+  const ship = parts.pop();
+  return ship && token && ship.startsWith('~');
 }
