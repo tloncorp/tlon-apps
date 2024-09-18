@@ -1,5 +1,4 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useBranch } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import {
@@ -10,17 +9,13 @@ import {
   getShipsWithStatus,
   reserveShip as reserveShipApi,
 } from '@tloncorp/app/lib/hostingApi';
-import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { getShipFromCookie, getShipUrl } from '@tloncorp/app/utils/ship';
 import {
   configureApi,
   getLandscapeAuthCookie,
-  updateNickname,
-  updateTelemetrySetting,
 } from '@tloncorp/shared/dist/api';
 import { Spinner, Text, View, YStack } from '@tloncorp/ui';
-import { preSig } from '@urbit/aura';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
@@ -84,39 +79,6 @@ export const ReserveShipScreen = ({
       const ship = getShipFromCookie(authCookie);
       configureApi(ship, shipUrl);
 
-      // if (signUpExtras?.nickname) {
-      //   try {
-      //     await updateNickname(signUpExtras.nickname);
-      //   } catch (err) {
-      //     console.error('Error setting nickname:', err);
-      //     if (err instanceof Error) {
-      //       trackError(err);
-      //     }
-      //   }
-      // }
-
-      // if (signUpExtras?.notificationToken) {
-      //   try {
-      //     await connectNotifyProvider(signUpExtras.notificationToken);
-      //   } catch (err) {
-      //     console.error('Error connecting push notifications provider:', err);
-      //     if (err instanceof Error) {
-      //       trackError(err);
-      //     }
-      //   }
-      // }
-
-      // if (signUpExtras?.telemetry !== undefined) {
-      //   try {
-      //     await updateTelemetrySetting(signUpExtras.telemetry);
-      //   } catch (err) {
-      //     console.error('Error setting telemetry:', err);
-      //     if (err instanceof Error) {
-      //       trackError(err);
-      //     }
-      //   }
-      // }
-
       // Set the ship info in the main context to navigate to chat view
       setShip({
         ship,
@@ -124,7 +86,13 @@ export const ReserveShipScreen = ({
         authCookie,
       });
     },
-    [setShip]
+    [
+      navigation,
+      setShip,
+      signupContext.nickname,
+      signupContext.telemetry,
+      user.id,
+    ]
   );
 
   const reserveShip = useCallback(
