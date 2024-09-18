@@ -37,10 +37,13 @@ export function CreateGroupWidget(props: {
         shortCode,
       });
 
-      await store.inviteGroupMembers({
-        groupId: group.id,
-        contactIds: props.invitees,
-      });
+      if (props.invitees.length > 0) {
+        await store.inviteGroupMembers({
+          groupId: group.id,
+          contactIds: props.invitees,
+        });
+      }
+
       props.onCreatedGroup({ group, channel });
       triggerHaptic('success');
     } catch (e) {
