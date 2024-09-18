@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import {
   Button,
   GenericHeader,
@@ -8,7 +9,6 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/ui';
-import { useSignupContext } from 'packages/app/contexts/signup';
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useState } from 'react';
 import { Switch } from 'react-native';

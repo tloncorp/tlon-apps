@@ -10,6 +10,7 @@ import {
   useLureMetadata,
   useSignupParams,
 } from '@tloncorp/app/contexts/branch';
+import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import {
   logInHostingUser,
   signUpHostingUser,
@@ -31,7 +32,6 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useSignupContext } from 'packages/app/contexts/signup';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 

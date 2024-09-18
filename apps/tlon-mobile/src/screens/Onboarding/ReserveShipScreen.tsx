@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useBranch } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
+import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import {
   allocateReservedShip,
   getHostingUser,
@@ -20,7 +21,6 @@ import {
 } from '@tloncorp/shared/dist/api';
 import { Spinner, Text, View, YStack } from '@tloncorp/ui';
 import { preSig } from '@urbit/aura';
-import { useSignupContext } from 'packages/app/contexts/signup';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 

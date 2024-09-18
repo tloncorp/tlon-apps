@@ -1,6 +1,6 @@
+import { createDevLogger } from '@tloncorp/shared/dist';
 import { updateTelemetrySetting } from '@tloncorp/shared/dist/api';
 import * as store from '@tloncorp/shared/dist/store';
-import { createDevLogger } from 'packages/shared/dist';
 import { useCallback } from 'react';
 
 import { useSignupContext } from '../contexts/signup';
