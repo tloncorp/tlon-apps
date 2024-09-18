@@ -10,8 +10,7 @@ import {
   useStyle,
 } from 'tamagui';
 
-import { useContact } from '../contexts';
-import { useCalm } from '../contexts/calm';
+import { useCalm, useContact } from '../contexts';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
 import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
@@ -24,7 +23,6 @@ const AvatarFrame = styled(View, {
   height: '$4xl',
   borderRadius: '$s',
   overflow: 'hidden',
-  flex: 0,
   variants: {
     rounded: {
       true: {
@@ -217,6 +215,7 @@ export const ImageAvatar = function ImageAvatarComponent({
       <Image
         width={'100%'}
         height={'100%'}
+        contentFit="cover"
         onError={handleLoadError}
         source={{
           uri: imageUrl,

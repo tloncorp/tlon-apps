@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.io.tlon.groups.preview</string>
+		<string>group.io.tlon.groups</string>
 	</array>
 </dict>
 </plist>

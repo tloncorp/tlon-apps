@@ -1,0 +1,82 @@
+* {
+  /* Scrollbar resizing for Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--colors-gray-200)) transparent;
+  /* Hide gray box when tapping a link on iOS */
+  -webkit-tap-highlight-color: transparent;
+  /* Disable double-tap to zoom, removes click delay */
+  touch-action: manipulation;
+  /* Better font rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: subpixel-antialiased;
+}
+
+/* Scrollbar resizing for Chrome, Edge, and Safari */
+*::-webkit-scrollbar {
+  width: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border: solid 2px transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--colors-gray-200));
+  border: solid 2px transparent;
+  border-radius: 20px;
+  background-clip: content-box;
+}
+
+html,
+body,
+#app {
+  /* adding for mobile bottom bars */
+  @apply h-full min-h-screen w-full;
+  min-height: -webkit-fill-available;
+  font-variant-ligatures: contextual;
+  /* Prevents undesirable scroll capture / locking on iOS */
+  overflow: clip;
+}
+
+@media all and (display-mode: standalone) {
+  body {
+    padding-bottom: 2rem;
+  }
+}
+
+blockquote {
+  @apply block border-l-2 border-gray-100 pl-3 text-gray-600;
+}
+
+a:not([class]) {
+  @apply underline;
+}
+
+::selection {
+  @apply bg-gray-200;
+}
+
+.alt-highlight::selection {
+  @apply bg-white;
+}
+
+/* Ensures text selection is visible on dark mode desktop safari */
+_::-webkit-full-page-media,
+_:future,
+:root .safari_only,
+body.dark ::selection {
+  @apply bg-gray-200;
+}
+
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: initial;
+}
+
+iframe {
+  @apply max-w-full;
+}

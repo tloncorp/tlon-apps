@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { XStack, YStack } from 'tamagui';
 
 import { ContactAvatar } from './Avatar';
-import { LabelText } from './TrimmedText';
+import { Text } from './TextV2';
 
 export default function ProfileRow({
   contactId,
@@ -34,17 +34,17 @@ export default function ProfileRow({
       <YStack flex={1} gap="$l" justifyContent="center">
         {contact?.nickname ? (
           <>
-            <LabelText color={color} size="$2xl">
+            <Text color={color} size="$label/2xl">
               {contact.nickname}
-            </LabelText>
-            <LabelText color={color} opacity={dark ? 0.5 : 0.7} size="$xl">
+            </Text>
+            <Text color={color} opacity={dark ? 0.5 : 0.7} size="$label/xl">
               {contact.id}
-            </LabelText>
+            </Text>
           </>
         ) : (
-          <LabelText color={color} size="$3xl">
+          <Text color={color} size="$label/3xl">
             {contactId}
-          </LabelText>
+          </Text>
         )}
       </YStack>
     </XStack>

@@ -2,6 +2,7 @@ import { formatUd, formatUv, isValidPatp, unixToDa } from '@urbit/aura';
 import bigInt from 'big-integer';
 import { useMemo } from 'react';
 
+import { ContentReference, PostContent } from '../api';
 import { GroupJoinStatus, GroupPrivacy } from '../db/schema';
 import * as ub from './channel';
 import * as ubc from './content';
@@ -207,21 +208,31 @@ export function getChannelKindFromType(type: 'chat' | 'gallery' | 'notebook') {
   }
 }
 
-export function getTextContent(story?: ub.Story | undefined) {
+export function getTextContent(story?: PostContent) {
   if (!story) {
     return;
   }
   return story
     .map((verse) => {
-      if (ubc.isBlock(verse)) {
+      if (isReferenceVerse(verse)) {
+        return '';
+      } else if (ubc.isBlock(verse)) {
         return getBlockContent(verse.block);
-      } else {
+      } else if ('inline' in verse) {
         return getInlinesContent(verse.inline);
+      } else {
+        return '';
       }
     })
     .filter((v) => !!v && v !== '')
     .join(' ')
     .trim();
+}
+
+function isReferenceVerse(
+  verse: ub.Verse | ContentReference
+): verse is ContentReference {
+  return 'type' in verse && verse.type === 'reference';
 }
 
 export function getBlockContent(block: ub.Block) {

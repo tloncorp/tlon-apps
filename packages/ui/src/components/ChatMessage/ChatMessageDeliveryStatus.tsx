@@ -1,33 +1,19 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useMemo } from 'react';
-import { Path, Svg } from 'react-native-svg';
-import { useTheme } from 'tamagui';
+import { XStack } from 'tamagui';
 
-export function ChatMessageDeliveryStatus({
-  status,
-}: {
+import { Icon } from '../Icon';
+
+export const ChatMessageDeliveryStatus = XStack.styleable<{
   status: db.PostDeliveryStatus;
-}) {
-  const theme = useTheme();
-
+}>(({ status, ...props }, ref) => {
   return (
-    <Svg fill="none" viewBox="0 0 24 24" height="24" width="24">
-      <Path
-        d="M7 8L11 12L7 16"
-        stroke={
-          status === 'pending' ? theme.tertiaryText.val : theme.primaryText.val
-        }
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+    <XStack gap={-10} {...props} ref={ref}>
+      <Icon
+        type="ChevronRight"
+        color={status === 'pending' ? '$tertiaryText' : '$primaryText'}
+        customSize={[16, 16]}
       />
-      <Path
-        d="M15 8L19 12L15 16"
-        stroke={theme.tertiaryText.val}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
+      <Icon type="ChevronRight" customSize={[16, 16]} />
+    </XStack>
   );
-}
+});

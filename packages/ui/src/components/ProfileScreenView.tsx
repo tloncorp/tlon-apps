@@ -2,10 +2,16 @@ import * as db from '@tloncorp/shared/dist/db';
 import { useFeatureFlag } from 'posthog-react-native';
 import { Alert, Dimensions, Share, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, SizableText, getTokens } from 'tamagui';
-import { Stack, View, YStack } from 'tamagui';
+import {
+  ScrollView,
+  SizableText,
+  Stack,
+  View,
+  YStack,
+  getTokens,
+} from 'tamagui';
 
-import { AppDataContextProvider, useContact } from '../contexts';
+import { useContact } from '../contexts';
 import { IconType } from './Icon';
 import { ListItem } from './ListItem';
 import ProfileCover from './ProfileCover';
@@ -21,21 +27,7 @@ interface Props {
   dmLink?: string;
 }
 
-export function ProfileScreenView({
-  contacts,
-  ...rest
-}: Props & { contacts: db.Contact[] }) {
-  return (
-    <AppDataContextProvider
-      currentUserId={rest.currentUserId}
-      contacts={contacts ?? []}
-    >
-      <Wrapped {...rest} />
-    </AppDataContextProvider>
-  );
-}
-
-export function Wrapped(props: Props) {
+export function ProfileScreenView(props: Props) {
   const { top } = useSafeAreaInsets();
   const contact = useContact(props.currentUserId);
   const showDmLure = useFeatureFlag('share-dm-lure');

@@ -2,15 +2,17 @@ import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
 import * as api from '../api';
+import { GetChangedPostsOptions } from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
-import { createDevLogger } from '../debug';
+import { createDevLogger, runIfDev } from '../debug';
 import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
 import { ErrorReporter } from './errorReporting';
+import { useLureState } from './lure';
 import { updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
@@ -50,6 +52,7 @@ export const syncInitData = async (
   );
   reporter?.log('got init data from api');
   initializeJoinedSet(initData.unreads);
+  useLureState.getState().start();
 
   const writer = async () => {
     await db
@@ -264,6 +267,28 @@ export async function syncPostReference(options: {
     channelId: options.channelId,
     posts: [response],
   });
+}
+
+export async function syncUpdatedPosts(
+  options: GetChangedPostsOptions,
+  ctx?: SyncCtx
+) {
+  logger.log(
+    'syncing updated posts',
+    runIfDev(() => JSON.stringify(options))
+  );
+  const response = await syncQueue.add('syncUpdatedPosts', ctx, async () =>
+    api.getChangedPosts(options)
+  );
+  logger.log(`got ${response.posts.length} updated posts, inserting...`);
+
+  // ignore cursors since we're always fetching from old posts we have
+  await db.insertChannelPosts({
+    channelId: options.channelId,
+    posts: response.posts,
+  });
+
+  return response;
 }
 
 export async function syncThreadPosts(
@@ -604,6 +629,7 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
       if (activitySnapshot.activityEvents.length > 0) {
         api.queryClient.invalidateQueries({
           queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
+          refetchType: 'active',
         });
       }
 

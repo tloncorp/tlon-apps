@@ -33,7 +33,6 @@ export const CodeBlockBridge = new BridgeExtension<
   CodeBlockEditorInstance,
   CodeBlockMessage
 >({
-  //@ts-expect-error - not an actual type mismatch
   tiptapExtension: CodeBlock.configure({
     HTMLAttributes: {
       class: 'code-block',
@@ -41,12 +40,10 @@ export const CodeBlockBridge = new BridgeExtension<
   }),
   onBridgeMessage: (editor, message) => {
     if (message.type === CodeBlockEditorActionType.ToggleCodeBlock) {
-      //@ts-expect-error - not an actual type mismatch
       editor.chain().focus().toggleCodeBlock().run();
     }
 
     if (message.type === CodeBlockEditorActionType.SetCodeBlock) {
-      //@ts-expect-error - not an actual type mismatch
       editor.chain().focus().setCodeBlock().run();
     }
 
@@ -63,7 +60,6 @@ export const CodeBlockBridge = new BridgeExtension<
   },
   extendEditorState: (editor) => {
     return {
-      //@ts-expect-error - not an actual type mismatch
       canToggleCodeBlock: editor.can().toggleCodeBlock(),
       isCodeBlockActive: editor.isActive('codeBlock'),
     };

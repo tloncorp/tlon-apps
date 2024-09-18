@@ -48,7 +48,7 @@ const IconGraphic = styled(
 
 const IconComponent = View.styleable<{
   size?: '$s' | '$m' | '$l' | '$xl';
-  customSize?: [number, number];
+  customSize?: [frameSize: number | SizeTokens, iconSize: number | SizeTokens];
   color?: ColorTokens;
   type: IconType;
 }>(({ size, color, type, customSize, ...props }, ref) => {

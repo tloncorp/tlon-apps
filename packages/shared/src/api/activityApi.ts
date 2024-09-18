@@ -1,4 +1,4 @@
-import { unixToDa } from '@urbit/api';
+import { unixToDa } from '@urbit/aura';
 import { backOff } from 'exponential-backoff';
 
 import * as db from '../db';

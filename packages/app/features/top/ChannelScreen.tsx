@@ -14,10 +14,12 @@ import {
   ChannelSwitcherSheet,
   ChatOptionsProvider,
   INITIAL_POSTS_PER_PAGE,
+  useCurrentUserId,
 } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 
 import { useChannelContext } from '../../hooks/useChannelContext';
+import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useFocusEffect } from '../../hooks/useFocusEffect';
 import { useIsFocused } from '../../hooks/useIsFocused';
@@ -38,6 +40,7 @@ export default function ChannelScreen({
   groupFromParams?: db.Group | null;
   selectedPostId?: string | null;
 }) {
+  const currentUserId = useCurrentUserId();
   useFocusEffect(
     useCallback(() => {
       if (channelFromParams.group?.isNew) {
@@ -87,22 +90,22 @@ export default function ChannelScreen({
     editingPost,
     setEditingPost,
     editPost,
-    contacts,
     channel,
     group,
-    navigateToImage,
-    navigateToPost,
-    navigateToRef,
-    navigateToSearch,
-    calmSettings,
-    currentUserId,
-    performGroupAction,
     headerMode,
   } = useChannelContext({
     channelId: currentChannelId,
     draftKey: currentChannelId,
     uploaderKey: `${currentChannelId}`,
   });
+
+  const {
+    navigateToImage,
+    navigateToPost,
+    navigateToRef,
+    navigateToSearch,
+    performGroupAction,
+  } = useChannelNavigation({ channelId: currentChannelId });
 
   const session = store.useCurrentSession();
   const hasCachedNewest = useMemo(() => {
@@ -130,7 +133,7 @@ export default function ChannelScreen({
     // We only want this to rerun when the channel is loaded for the first time OR if
     // the selected post route param changes
     // eslint-disable-next-line
-  }, [initialChannelUnread, selectedPostId]);
+  }, [!!channel, initialChannelUnread, selectedPostId]);
 
   useEffect(() => {
     if (channel?.id) {
@@ -147,7 +150,7 @@ export default function ChannelScreen({
   } = store.useChannelPosts({
     enabled: !!channel && !channel?.isPendingChannel,
     channelId: currentChannelId,
-    count: 50,
+    count: 15,
     hasCachedNewest,
     ...(cursor
       ? {
@@ -225,7 +228,7 @@ export default function ChannelScreen({
     if (channel && !channel.isPendingChannel) {
       store.markChannelRead(channel);
     }
-  }, [channel]);
+  }, [channel?.id, channel?.groupId, channel?.type]);
 
   const canUpload = useCanUpload();
 
@@ -263,13 +266,10 @@ export default function ChannelScreen({
         headerMode={headerMode}
         channel={channel}
         initialChannelUnread={initialChannelUnread}
-        currentUserId={currentUserId}
-        calmSettings={calmSettings}
         isLoadingPosts={isLoadingPosts}
         hasNewerPosts={postsQuery.hasPreviousPage}
         hasOlderPosts={postsQuery.hasNextPage}
         group={group}
-        contacts={contacts}
         posts={posts}
         selectedPostId={selectedPostId}
         goBack={goBack}
@@ -307,7 +307,6 @@ export default function ChannelScreen({
           onOpenChange={(open) => setChannelNavOpen(open)}
           group={group}
           channels={group?.channels || []}
-          contacts={contacts ?? []}
           onSelect={handleChannelSelected}
         />
       )}

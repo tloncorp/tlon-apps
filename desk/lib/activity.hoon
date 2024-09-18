@@ -19,6 +19,21 @@
       ==
     ==
   ::
+  ++  get-parent
+    |=  [=indices:a =source:a]
+    ^-  (unit source:a)
+    ?:  ?=(%base -.source)  ~
+    ?<  ?=(%base -.source)
+    =/  parent
+      ?-  -.source
+        %dm  [%base ~]
+        %group  [%base ~]
+        %channel  [%group group.source]
+        %dm-thread  [%dm whom.source]
+        %thread  [%channel channel.source group.source]
+      ==
+    ?.  (~(has by indices) parent)  ~
+    `parent
   ++  get-children  ::  direct children only
     |=  [=indices:a =source:a]
     ^-  (list source:a)

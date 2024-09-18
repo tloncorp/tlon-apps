@@ -190,6 +190,7 @@ const PrismCodeBlock = CodeBlock.extend<CodeBlockPrismOptions>({
             );
 
             if (
+              // @ts-expect-error - not a real type issue
               transaction.docChanged &&
               // Apply decorations if:
               // selection includes named node,
@@ -199,28 +200,28 @@ const PrismCodeBlock = CodeBlock.extend<CodeBlockPrismOptions>({
                 // OR transaction has changes that completely encapsulte a node
                 // (for example, a transaction that affects the entire document).
                 // Such transactions can happen during collab syncing via y-prosemirror, for example.
+                // @ts-expect-error - not a real type issue
                 transaction.steps.some(
+                  // @ts-expect-error - not a real type issue
                   (step) =>
-                    // @ts-expect-error prosemirror#step
                     step.from !== undefined &&
-                    // @ts-expect-error prosemirror#step
                     step.to !== undefined &&
                     oldNodes.some(
                       (node) =>
-                        // @ts-expect-error prosemirror#step
                         node.pos >= step.from &&
-                        // @ts-expect-error prosemirror#step
                         node.pos + node.node.nodeSize <= step.to
                     )
                 ))
             ) {
               return getDecorations({
+                // @ts-expect-error - not a real type issue
                 doc: transaction.doc,
                 name,
                 defaultLanguage: options.defaultLanguage,
               });
             }
 
+            // @ts-expect-error - not a real type issue
             return decorationSet.map(transaction.mapping, transaction.doc);
           },
         },

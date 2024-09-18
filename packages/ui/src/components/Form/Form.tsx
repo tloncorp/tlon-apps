@@ -1,7 +1,7 @@
 import React from 'react';
 import { ViewStyle, YStack, createStyledContext, styled } from 'tamagui';
 
-import { LabelText } from '../TrimmedText';
+import { Text } from '../TextV2';
 
 // Top level form
 
@@ -47,9 +47,9 @@ export const Field = React.memo(
 );
 
 export const FieldLabel = React.memo(
-  styled(LabelText, {
+  styled(Text, {
     color: '$tertiaryText',
-    size: '$m',
+    size: '$label/m',
     paddingHorizontal: '$xl',
     paddingVertical: '$l',
   })

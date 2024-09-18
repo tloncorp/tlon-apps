@@ -55,7 +55,12 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     queryFn: async (ctx): Promise<db.Post[]> => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log('loading posts', queryOptions);
-      if (queryOptions.mode === 'newest' && !options.hasCachedNewest) {
+      // We should figure out why this is necessary.
+      if (
+        queryOptions &&
+        queryOptions.mode === 'newest' &&
+        !options.hasCachedNewest
+      ) {
         await sync.syncPosts(queryOptions, { priority: SyncPriority.High });
       }
       const cached = await db.getChannelPosts(queryOptions);
@@ -116,7 +121,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       const firstPageIsEmpty = !firstPage[0]?.id;
       if (
         firstPageIsEmpty ||
-        (firstPageParam.mode === 'newest' && options.hasCachedNewest)
+        (firstPageParam?.mode === 'newest' && options.hasCachedNewest)
       ) {
         return undefined;
       }
@@ -215,24 +220,42 @@ function addPostToNewPosts(post: db.Post, newPosts: db.Post[]) {
 function useRefreshPosts(channelId: string, posts: db.Post[] | null) {
   const session = useCurrentSession();
 
-  const pendingStalePosts = useRef(new Set());
+  const pendingStalePosts = useRef(new Set<string>());
   useEffect(() => {
-    posts?.forEach((post) => {
-      if (
-        session &&
-        post.syncedAt < (session?.startTime ?? 0) &&
-        !pendingStalePosts.current.has(post.id)
-      ) {
-        sync.syncThreadPosts(
-          {
-            postId: post.id,
-            channelId,
-            authorId: post.authorId,
-          },
-          { priority: 4 }
-        );
-        pendingStalePosts.current.add(post.id);
-      }
+    const toSync =
+      posts?.filter(
+        (post) =>
+          session &&
+          post.syncedAt < (session?.startTime ?? 0) &&
+          !pendingStalePosts.current.has(post.id)
+      ) || [];
+
+    postsLogger.log('stale posts to sync', toSync.length);
+
+    const chunked = [];
+    const chunkSize = 50;
+    for (let i = 0; i < toSync.length; i += chunkSize) {
+      chunked.push(toSync.slice(i, i + chunkSize));
+    }
+
+    postsLogger.log('chunked', chunked.length);
+    chunked.forEach((chunk, i) => {
+      const startCursor = chunk[chunk.length - 1].id;
+      const endCursor = chunk[0].id;
+      postsLogger.log('syncing chunk', startCursor, 'through', endCursor);
+      sync.syncUpdatedPosts(
+        {
+          channelId,
+          startCursor,
+          endCursor,
+          afterTime: new Date(session?.startTime ?? 0),
+        },
+        { priority: 4 }
+      );
+      pendingStalePosts.current = new Set<string>([
+        ...chunk.map((p) => p.id),
+        ...pendingStalePosts.current,
+      ]);
     });
   }, [channelId, posts, session]);
 }

@@ -5,7 +5,6 @@ import {
   PostReference,
 } from '@tloncorp/ui/src/components/ContentReference';
 import { PropsWithChildren } from 'react';
-import { useFixtureSelect } from 'react-cosmos/client';
 import { ScrollView } from 'react-native-gesture-handler';
 
 import { FixtureWrapper } from './FixtureWrapper';
@@ -61,10 +60,6 @@ function RefList(props: {
   hasData: boolean;
   onPress: () => void;
 }) {
-  const [viewMode, setViewMode] = useFixtureSelect('Viewmode', {
-    options: ['chat', 'block', 'note', 'activity', 'attachment'],
-    defaultValue: 'chat',
-  });
   return (
     <Wrapper>
       {[chatRef, galleryRef, notebookRef].map((p, i) => {
@@ -73,16 +68,11 @@ function RefList(props: {
             key={i}
             channelId={p.channelId}
             post={props.hasData ? p : null}
-            viewMode={viewMode}
             {...props}
           />
         );
       })}
-      <GroupReference
-        data={props.hasData ? group : null}
-        {...props}
-        viewMode={viewMode}
-      />
+      <GroupReference data={props.hasData ? group : null} {...props} />
     </Wrapper>
   );
 }

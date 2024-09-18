@@ -1,18 +1,14 @@
 import { IS_ANDROID } from '@tloncorp/app/constants';
+import { LoadingSpinner } from '@tloncorp/ui';
 import { type Ref, useCallback, useEffect, useRef } from 'react';
 import { Alert, BackHandler, View } from 'react-native';
 import type WebView from 'react-native-webview';
 import type { WebViewProps } from 'react-native-webview';
-import { useTailwind } from 'tailwind-rn';
-
-import { LoadingSpinner } from '../components/LoadingSpinner';
 
 export const useWebView = (): WebViewProps & {
   ref: Ref<WebView>;
 } => {
   const ref = useRef<WebView>(null);
-  const tailwind = useTailwind();
-
   const handleBackPressed = useCallback(() => {
     if (!ref.current) {
       return false;
@@ -58,7 +54,7 @@ export const useWebView = (): WebViewProps & {
 
   return {
     ref,
-    style: tailwind('bg-transparent'),
+    style: { backgroundColor: 'transparent' },
     onHttpError: ({ nativeEvent: { statusCode } }) => {
       if (statusCode > 399) {
         showErrorAlert();
@@ -67,7 +63,14 @@ export const useWebView = (): WebViewProps & {
     onError: showErrorAlert,
     onContentProcessDidTerminate: () => ref.current?.reload(),
     renderLoading: () => (
-      <View style={tailwind('h-full flex items-center justify-center')}>
+      <View
+        style={{
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <LoadingSpinner />
       </View>
     ),

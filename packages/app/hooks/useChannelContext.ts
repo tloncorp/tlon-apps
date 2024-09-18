@@ -1,13 +1,9 @@
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { JSONContent } from '@tloncorp/shared/dist/urbit';
-import { GroupPreviewAction } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useFeatureFlag } from '../lib/featureFlags';
 import storage from '../lib/storage';
 
@@ -19,13 +15,6 @@ export const useChannelContext = ({
   draftKey: string;
   uploaderKey: string;
 }) => {
-  const currentUserId = useCurrentUserId();
-
-  // Calm Settings
-  const calmSettingsQuery = store.useCalmSettings({
-    userId: currentUserId,
-  });
-
   // Model context
   const channelQuery = store.useChannelWithRelations({
     id: channelId,
@@ -107,69 +96,8 @@ export const useChannelContext = ({
     }
   }, [draftKey]);
 
-  // Navigation
-
-  const navigation = useNavigation<
-    // @ts-expect-error - TODO: pass navigation handlers into context
-    NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
-  >();
-
-  const navigateToPost = useCallback(
-    (post: db.Post) => {
-      navigation.push('Post', { post });
-    },
-    [navigation]
-  );
-
-  const navigateToRef = useCallback(
-    (channel: db.Channel, post: db.Post) => {
-      if (channel.id === channelId) {
-        navigation.navigate('Channel', { channel, selectedPostId: post.id });
-      } else {
-        navigation.replace('Channel', { channel, selectedPostId: post.id });
-      }
-    },
-    [navigation, channelId]
-  );
-
-  const navigateToImage = useCallback(
-    (post: db.Post, uri?: string) => {
-      navigation.navigate('ImageViewer', { post, uri });
-    },
-    [navigation]
-  );
-
-  const navigateToSearch = useCallback(() => {
-    if (!channelQuery.data) {
-      return;
-    }
-    console.log('navigateToSearch, channelQuery.data:', channelQuery.data);
-    navigation.push('ChannelSearch', {
-      channel: channelQuery.data ?? null,
-    });
-  }, [navigation, channelQuery.data]);
-
-  const performGroupAction = useCallback(
-    async (action: GroupPreviewAction, updatedGroup: db.Group) => {
-      if (action === 'goTo' && updatedGroup.lastPost?.channelId) {
-        const channel = await db.getChannel({
-          id: updatedGroup.lastPost.channelId,
-        });
-        if (channel) {
-          navigation.navigate('Channel', { channel });
-        }
-      }
-
-      if (action === 'joined') {
-        navigation.navigate('ChatList');
-      }
-    },
-    [navigation]
-  );
-
   // Contacts
 
-  const contactsQuery = store.useContacts();
   const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   return {
@@ -180,16 +108,8 @@ export const useChannelContext = ({
     setEditingPost,
     editingPost,
     editPost,
-    contacts: contactsQuery.data ?? null,
     channel: channelQuery.data ?? null,
     group: groupQuery.data ?? null,
-    calmSettings: calmSettingsQuery.data ?? null,
-    navigateToPost,
-    navigateToImage,
-    navigateToRef,
-    navigateToSearch,
-    currentUserId,
-    performGroupAction,
     headerMode: isChannelSwitcherEnabled ? 'next' : 'default',
   } as const;
 };

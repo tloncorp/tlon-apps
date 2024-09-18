@@ -92,7 +92,7 @@ function WelcomeSheetComponent({
                   borderRadius={'$3xl'}
                   padding="$m"
                 >
-                  <Icon type="Mute" />
+                  <Icon type="Muted" />
                 </View>
               </View>
               <YStack gap="$xs" flex={1}>

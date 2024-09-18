@@ -4,7 +4,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { SectionList } from 'react-native';
 import { View, getTokenValue } from 'tamagui';
 
-import { AppDataContextProvider } from '../contexts/appDataContext';
 import { ContactList } from './ContactList';
 import { GenericHeader } from './GenericHeader';
 import { GroupJoinRequestSheet } from './GroupJoinRequestSheet';
@@ -170,7 +169,7 @@ export function GroupMembersScreenView({
   );
 
   return (
-    <AppDataContextProvider contacts={contacts} currentUserId={currentUserId}>
+    <>
       <View backgroundColor="$background" flex={1}>
         <GenericHeader title="Members" goBack={goBack} />
         <SectionList
@@ -222,6 +221,6 @@ export function GroupMembersScreenView({
           onPressReject={() => onPressRejectJoinRequest(selectedContact)}
         />
       )}
-    </AppDataContextProvider>
+    </>
   );
 }

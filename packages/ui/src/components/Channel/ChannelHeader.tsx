@@ -1,10 +1,10 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useRef } from 'react';
 
-import { Dots, Search } from '../../assets/icons';
+import { Button } from '../Button';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
 import { GenericHeader } from '../GenericHeader';
-import { IconButton } from '../IconButton';
+import { Icon } from '../Icon';
 import { BaubleHeader } from './BaubleHeader';
 
 export function ChannelHeader({
@@ -28,7 +28,6 @@ export function ChannelHeader({
   showSearchButton?: boolean;
   showMenuButton?: boolean;
   post?: db.Post;
-  setEditingPost?: (post: db.Post) => void;
 }) {
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
 
@@ -49,19 +48,27 @@ export function ChannelHeader({
         rightContent={
           <>
             {showSearchButton && (
-              <IconButton onPress={goToSearch}>
-                <Search />
-              </IconButton>
+              <Button
+                backgroundColor="unset"
+                borderColor="transparent"
+                onPress={goToSearch}
+              >
+                <Icon type="Search" />
+              </Button>
             )}
             {showMenuButton && (
-              <IconButton onPress={handlePressOverflowMenu}>
-                <Dots />
-              </IconButton>
+              <Button
+                backgroundColor="unset"
+                borderColor="transparent"
+                onPress={handlePressOverflowMenu}
+              >
+                <Icon type="Overflow" />
+              </Button>
             )}
           </>
         }
       />
-      <ChatOptionsSheet />
+      <ChatOptionsSheet ref={chatOptionsSheetRef} />
     </>
   );
 }

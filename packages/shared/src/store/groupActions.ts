@@ -1,5 +1,6 @@
 import * as api from '../api';
 import * as db from '../db';
+import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { createSectionId } from '../urbit';
 import * as sync from './sync';
@@ -100,6 +101,45 @@ export async function rescindGroupInvitationRequest(group: db.Group) {
   }
 }
 
+export async function inviteGroupMembers({
+  groupId,
+  contactIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+}) {
+  logger.log('inviting group members', groupId, contactIds);
+
+  const existingGroup = await db.getGroup({ id: groupId });
+
+  if (!existingGroup) {
+    console.error('Group not found', groupId);
+    return;
+  }
+
+  // optimistic update
+  await db.addChatMembers({
+    chatId: groupId,
+    type: 'group',
+    contactIds,
+  });
+
+  try {
+    if (existingGroup.privacy === 'public') {
+      await api.addGroupMembers({ groupId, contactIds });
+    } else {
+      await api.inviteGroupMembers({ groupId, contactIds });
+    }
+  } catch (e) {
+    console.error('Failed to invite group members', e);
+    // rollback optimistic update
+    await db.removeChatMembers({
+      chatId: groupId,
+      contactIds,
+    });
+  }
+}
+
 export async function cancelGroupJoin(group: db.Group) {
   logger.log('canceling group join', group.id);
   // optimistic update
@@ -142,6 +182,39 @@ export async function markGroupNew(group: db.Group) {
 export async function markGroupVisited(group: db.Group) {
   logger.log('marking new group as visited', group.id);
   await db.updateGroup({ id: group.id, isNew: false });
+}
+
+export async function updateGroupPrivacy(
+  group: db.Group,
+  newPrivacy: GroupPrivacy
+) {
+  logger.log('updating group privacy', group.id, newPrivacy);
+
+  const oldPrivacy = group.privacy ?? 'public';
+
+  if (oldPrivacy === newPrivacy) {
+    return;
+  }
+
+  // optimistic update
+  await db.updateGroup({
+    id: group.id,
+    privacy: newPrivacy,
+  });
+
+  try {
+    await api.updateGroupPrivacy({
+      groupId: group.id,
+      oldPrivacy,
+      newPrivacy,
+    });
+  } catch (e) {
+    // rollback optimistic update
+    await db.updateGroup({
+      id: group.id,
+      privacy: oldPrivacy,
+    });
+  }
 }
 
 export async function updateGroupMeta(group: db.Group) {
