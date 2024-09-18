@@ -1986,6 +1986,79 @@
       %+  weld  base
       /posts/post/(scot %ud (rash i.t.wer dum:ag))/channel-post-2
     ==
+  ::
+  ++  update-widget
+    |=  [[our=@p now=@da] open=(set cite:c)]
+    ^-  (list card)
+    ?.  .^(? %gu /(scot %p our)/profile/(scot %da now)/$)
+      ~
+    ~>  %bout.[0 'updating expose widget']
+    =;  widget=[%0 desc=@t %marl marl]
+      =/  =cage  noun+!>([%command %update-widget %groups %expose-all widget])
+      [%pass /profile/widget/all %agent [our %profile] %poke cage]~
+    :^  %0  'Publicized content'  %marl
+    ^-  marl
+    ::
+    =/  cis=(list cite:c)
+      ::REVIEW  maybe limit to the latest n?
+      %+  sort  ~(tap in open)
+      ::  newest first (assumes id nr in path is a timestamp)
+      ::
+      |=  [a=cite:c b=cite:c]
+      ?.  ?=([%chan * ?(%msg %note %curio) @ *] a)  |
+      ?.  ?=([%chan * ?(%msg %note %curio) @ *] b)  &
+      ?~  aa=(rush i.t.wer.a dum:ag)                |
+      ?~  bb=(rush i.t.wer.b dum:ag)                &
+      (gth u.aa u.bb)
+    =/  style=@t
+      '''
+      /* TODO
+         prefer scoping rules to just elements under #groups--expose-all,
+         otherwise style may affect other widgets on the profile
+         (alternatively do inline style attributes)
+      */
+      #groups--expose-all {
+        border: 1px solid red;
+      }
+      #groups--expose-all a {
+        display: block;
+        margin: 1em;
+      }
+      #groups--expose-all .exposed {
+        border: 1px solid black;
+      }
+      '''
+    :-  ;style:"{(trip style)}"
+    %+  murn  cis
+    |=  ref=cite:c
+    ^-  (unit manx)
+    =/  pon=(unit [=nest:g:c =post:d])
+      (post-from-cite our now ref)
+    ?~  pon  ~
+    %-  some
+    =/  link=tape
+      (spud (print:c ref))
+    =,  post.u.pon
+    =/  desc=tape
+      ::TODO  also want to know if there's.. more content, so we can
+      ::      conditionally render the ellipses?
+      (trip (rap 3 (turn (first-inline:u content) flatten-inline:u)))
+    ?-  -.kind-data.post.u.pon
+        %chat
+      ;a.exposed.chat/"/expose{link}"
+        ;span:"{desc}"
+      ==
+    ::
+        %diary
+      ;a.exposed.diary/"/expose{link}"
+        ::TODO  image background?
+        ;h3:"{(trip title.kind-data)}"
+        ;span:"{desc}"
+      ==
+    ::
+        %heap
+      ;a.exposed.heap/"/expose{link}":"TODO gallery item?"
+    ==
   --
 ::
 ++  hutils  ::  http request utils
@@ -2051,7 +2124,8 @@
 ++  on-load
   |=  ole=vase
   ^-  (quip card _this)
-  [~ this(state !<(state-0 ole))]
+  =.  state  !<(state-0 ole)
+  [(update-widget:e [our now]:bowl open) this]
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -2072,9 +2146,10 @@
           ((render-post:e [our now]:bowl) u.msg)
         ?>  ?=(^ pag)
         =.  open    (~(put in open) ref)
-        =/  url=@t  (cat 3 '/expose' (spat path.act))
-        :_  this  :_  ~
-        %+  store:hutils  url
+        :_  this
+        :_  (update-widget:e [our now]:bowl open)
+        %+  store:hutils
+          (cat 3 '/expose' (spat path.act))
         `[| %payload (paint:hutils %page u.pag)]
       ::
           %hide
@@ -2083,9 +2158,10 @@
         ?.  (~(has in open) ref)
           [~ this]
         =.  open    (~(del in open) ref)
-        =/  url=@t  (cat 3 '/expose' (spat path.act))
-        :_  this  :_  ~
-        %+  store:hutils  url
+        :_  this
+        :_  (update-widget:e [our now]:bowl open)
+        %+  store:hutils
+          (cat 3 '/expose' (spat path.act))
         :^  ~  |  %payload
         [[404 ~] `(as-octs:mimes:html 'not found')]
       ==
