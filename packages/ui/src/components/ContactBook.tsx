@@ -149,8 +149,8 @@ export function ContactBook({
         <Explanation />
       ) : (
         <View flex={1} onTouchStart={Keyboard.dismiss}>
-          {quickActions && !showSearchResults && <QuickActions />}
           <BlockSectionList
+            ListHeaderComponent={QuickActions}
             sections={sections}
             onScroll={handleScroll}
             onTouchStart={onTouchStart}

@@ -246,35 +246,33 @@ function RootScreen({
         <ActionSheet.ActionTitle textAlign="center">
           New Message
         </ActionSheet.ActionTitle>
-        <View flex={1} padding="$xl">
-          <ContactBook
-            searchable
-            searchPlaceholder="Username or ID"
-            onSelect={onSelect}
-            onScrollChange={onScrollChange}
-            key={screenKey}
-            quickActions={
-              <ActionSheet.ActionGroup paddingVertical="$xl" padding="unset">
-                <ActionSheet.Action
-                  action={{
-                    title: 'New Group',
-                    description: 'Create a new group from scratch',
-                    endIcon: 'ChevronRight',
-                    action: () => goToScreen('InviteUsers'),
-                  }}
-                />
-                <ActionSheet.Action
-                  action={{
-                    title: 'Join a group by username',
-                    description: 'Find a group to join',
-                    endIcon: 'ChevronRight',
-                    action: () => goToFindGroups(),
-                  }}
-                />
-              </ActionSheet.ActionGroup>
-            }
-          />
-        </View>
+        <ContactBook
+          searchable
+          searchPlaceholder="Username or ID"
+          onSelect={onSelect}
+          onScrollChange={onScrollChange}
+          key={screenKey}
+          quickActions={
+            <ActionSheet.ActionGroup paddingVertical="$xl" padding="unset">
+              <ActionSheet.Action
+                action={{
+                  title: 'New Group',
+                  description: 'Create a new group from scratch',
+                  endIcon: 'ChevronRight',
+                  action: () => goToScreen('InviteUsers'),
+                }}
+              />
+              <ActionSheet.Action
+                action={{
+                  title: 'Join a group by username',
+                  description: 'Find a group to join',
+                  endIcon: 'ChevronRight',
+                  action: () => goToFindGroups(),
+                }}
+              />
+            </ActionSheet.ActionGroup>
+          }
+        />
       </YStack>
     </ScreenWrapper>
   );

@@ -60,18 +60,16 @@ export function CreateGroupWidget(props: {
         <SizableText fontWeight="$xl">New Group</SizableText>
         <Icon type="ChevronRight" opacity={0} />
       </XStack>
-      <YStack gap="$s">
-        <Field label="Group Name (Required)" required>
-          <TextInput
-            autoFocus
-            autoComplete="off"
-            spellCheck={false}
-            maxLength={100}
-            onChangeText={setGroupName}
-            placeholder="Group name"
-          />
-        </Field>
-      </YStack>
+      <Field label="Group Name (Required)" required>
+        <TextInput
+          autoFocus
+          autoComplete="off"
+          spellCheck={false}
+          maxLength={100}
+          onChangeText={setGroupName}
+          placeholder="Group name"
+        />
+      </Field>
       <PrimaryButton
         disabled={groupName.length < 3 || loading}
         loading={loading}
