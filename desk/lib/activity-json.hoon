@@ -282,6 +282,17 @@
     ?.  full  (activity-summary sum)
     (activity-summary-full sum)
   ::
+  ++  activity-pairs
+    |=  activity=(list [source:a activity-summary:a])
+    :-  %a
+    %+  turn
+      activity
+    |=  [s=source:a as=activity-summary:a]
+    %-  pairs
+    :~  source+(source s)
+        activity+(activity-summary as)
+    ==
+  ::
   ++  full-info
     |=  fi=full-info:a
     %-  pairs

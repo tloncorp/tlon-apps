@@ -5,23 +5,22 @@ import { useTheme } from '@tloncorp/ui';
 import { Platform, StatusBar } from 'react-native';
 
 import { ActivityScreenController } from '../controllers/ActivityScreenController';
+import { AppInfoScreenController } from '../controllers/AppInfoScreenController';
+import { BlockedUsersScreenController } from '../controllers/BlockedUsersScreenController';
+import { ChannelMembersScreenController } from '../controllers/ChannelMembersScreenController';
+import { ChannelMetaScreenController } from '../controllers/ChannelMetaScreenController';
 import { ChannelScreenController } from '../controllers/ChannelScreenController';
 import { ChannelSearchScreenController } from '../controllers/ChannelSearchScreenController';
 import { ChatListScreenController } from '../controllers/ChatListScreenController';
+import { EditProfileScreenController } from '../controllers/EditProfileScreenController';
+import { FeatureFlagScreenController } from '../controllers/FeatureFlagScreenController';
 import { GroupChannelsScreenController } from '../controllers/GroupChannelsScreenController';
 import ImageViewerScreenController from '../controllers/ImageViewerScreenController';
+import { ManageAccountScreenController } from '../controllers/ManageAccountScreenController';
 import { PostScreenController } from '../controllers/PostScreenController';
-import { AppInfoScreen } from '../screens/AppInfo';
-import { AppSettingsScreen } from '../screens/AppSettingsScreen';
-import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
-import { ChannelMembersScreen } from '../screens/ChannelMembersScreen';
-import { ChannelMetaScreen } from '../screens/ChannelMetaScreen';
-import { EditProfileScreen } from '../screens/EditProfileScreen';
-import { FeatureFlagScreen } from '../screens/FeatureFlagScreen';
-import { ManageAccountScreen } from '../screens/ManageAccountScreen';
-import { PushNotificationSettingsScreen } from '../screens/PushNotificationSettingsScreen';
-import { UserBugReportScreen } from '../screens/UserBugReportScreen';
-import UserProfileScreen from '../screens/UserProfileScreen';
+import { PushNotificationSettingsScreenController } from '../controllers/PushNotificationSettingsScreenController';
+import { UserBugReportScreenController } from '../controllers/UserBugReportScreenController';
+import UserProfileScreenController from '../controllers/UserProfileScreenController';
 import type { RootStackParamList } from '../types';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { SettingsStack } from './SettingsStack';
@@ -84,24 +83,32 @@ export function RootStack() {
         options={{ animation: 'fade' }}
       />
 
-      <Root.Screen name="AppSettings" component={AppSettingsScreen} />
       <Root.Screen
         name="ManageAccount"
-        component={ManageAccountScreen}
+        component={ManageAccountScreenController}
         options={{ gestureEnabled: false }}
       />
-      <Root.Screen name="BlockedUsers" component={BlockedUsersScreen} />
-      <Root.Screen name="AppInfo" component={AppInfoScreen} />
-      <Root.Screen name="FeatureFlags" component={FeatureFlagScreen} />
+      <Root.Screen
+        name="BlockedUsers"
+        component={BlockedUsersScreenController}
+      />
+      <Root.Screen name="AppInfo" component={AppInfoScreenController} />
+      <Root.Screen
+        name="FeatureFlags"
+        component={FeatureFlagScreenController}
+      />
       <Root.Screen
         name="PushNotificationSettings"
-        component={PushNotificationSettingsScreen}
+        component={PushNotificationSettingsScreenController}
       />
-      <Root.Screen name="UserProfile" component={UserProfileScreen} />
-      <Root.Screen name="EditProfile" component={EditProfileScreen} />
-      <Root.Screen name="WompWomp" component={UserBugReportScreen} />
-      <Root.Screen name="ChannelMembers" component={ChannelMembersScreen} />
-      <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
+      <Root.Screen name="UserProfile" component={UserProfileScreenController} />
+      <Root.Screen name="EditProfile" component={EditProfileScreenController} />
+      <Root.Screen name="WompWomp" component={UserBugReportScreenController} />
+      <Root.Screen
+        name="ChannelMembers"
+        component={ChannelMembersScreenController}
+      />
+      <Root.Screen name="ChannelMeta" component={ChannelMetaScreenController} />
     </Root.Navigator>
   );
 }

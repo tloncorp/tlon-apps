@@ -1,11 +1,12 @@
-import { YStack } from 'tamagui';
+import { ComponentProps } from 'react';
+import { View, YStack } from 'tamagui';
 import { BigPlayButton, Player } from 'video-react';
 
-export default function Video({
-  video,
-}: {
+export type VideoEmbedProps = ComponentProps<typeof View> & {
   video: { width: number; height: number; src: string; alt?: string };
-}) {
+};
+
+export default function Video({ video }: VideoEmbedProps) {
   // TODO: Implement mobile detection
   const isMobile = false;
   return (

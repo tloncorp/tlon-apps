@@ -7,26 +7,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
-import {
-  AppDataContextProvider,
-  CalmProvider,
-  CalmState,
-  NavigationProvider,
-} from '../contexts';
+import { NavigationProvider, useCurrentUserId } from '../contexts';
 import { AttachmentProvider } from '../contexts/attachment';
 import * as utils from '../utils';
+import { BigInput } from './BigInput';
 import { ChannelFooter } from './Channel/ChannelFooter';
 import { ChannelHeader } from './Channel/ChannelHeader';
-import Scroller from './Channel/Scroller';
-import { ChatMessage } from './ChatMessage';
-import { NotebookDetailView } from './DetailView';
-import GalleryDetailView from './DetailView/GalleryDetailView';
+import { DetailView } from './DetailView';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { MessageInput } from './MessageInput';
 
 export function PostScreenView({
-  currentUserId,
-  contacts,
   channel,
   initialThreadUnread,
   parentPost,
@@ -35,7 +26,6 @@ export function PostScreenView({
   markRead,
   goBack,
   groupMembers,
-  calmSettings,
   uploadAsset,
   handleGoToImage,
   handleGoToUserProfile,
@@ -51,9 +41,6 @@ export function PostScreenView({
   headerMode,
   canUpload,
 }: {
-  currentUserId: string;
-  calmSettings?: CalmState | null;
-  contacts: db.Contact[] | null;
   channel: db.Channel;
   initialThreadUnread?: db.ThreadUnreadState | null;
   group?: db.Group | null;
@@ -85,6 +72,7 @@ export function PostScreenView({
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
+  const currentUserId = useCurrentUserId();
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
   const postsWithoutParent = useMemo(
@@ -107,139 +95,103 @@ export function PostScreenView({
     // eslint-disable-next-line
   }, [hasLoaded]);
 
+  const isEditingParent = useMemo(() => {
+    return editingPost && editingPost.id === parentPost?.id;
+  }, [editingPost, parentPost]);
+
   return (
-    <CalmProvider calmSettings={calmSettings}>
-      <AppDataContextProvider contacts={contacts} currentUserId={currentUserId}>
-        <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
-          <NavigationProvider onGoToUserProfile={handleGoToUserProfile}>
-            <View
-              paddingBottom={isChatChannel ? bottom : 'unset'}
-              backgroundColor="$background"
-              flex={1}
-            >
-              <YStack flex={1} backgroundColor={'$background'}>
-                <ChannelHeader
-                  channel={channel}
-                  group={channel.group}
-                  title={headerTitle}
-                  goBack={goBack}
-                  showSearchButton={false}
-                  post={parentPost ?? undefined}
-                  mode={headerMode}
+    <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
+      <NavigationProvider onGoToUserProfile={handleGoToUserProfile}>
+        <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
+          <YStack flex={1} backgroundColor={'$background'}>
+            <ChannelHeader
+              channel={channel}
+              group={channel.group}
+              title={headerTitle}
+              goBack={goBack}
+              showSearchButton={false}
+              post={parentPost ?? undefined}
+              mode={headerMode}
+            />
+            <KeyboardAvoidingView enabled={!activeMessage}>
+              {parentPost ? (
+                <DetailView
+                  post={parentPost}
+                  initialPostUnread={initialThreadUnread}
+                  onPressImage={handleGoToImage}
+                  editingPost={editingPost}
                   setEditingPost={setEditingPost}
+                  editPost={editPost}
+                  onPressRetry={onPressRetry}
+                  onPressDelete={onPressDelete}
+                  posts={postsWithoutParent}
+                  goBack={goBack}
+                  activeMessage={activeMessage}
+                  setActiveMessage={setActiveMessage}
                 />
-                <KeyboardAvoidingView enabled={!activeMessage}>
-                  {parentPost && channel.type === 'gallery' && (
-                    <GalleryDetailView
-                      post={parentPost}
-                      initialPostUnread={initialThreadUnread}
-                      onPressImage={handleGoToImage}
-                      editingPost={editingPost}
-                      setEditingPost={setEditingPost}
-                      editPost={editPost}
-                      onPressRetry={onPressRetry}
-                      onPressDelete={onPressDelete}
-                      posts={postsWithoutParent}
-                      sendReply={sendReply}
-                      groupMembers={groupMembers}
-                      storeDraft={storeDraft}
-                      clearDraft={clearDraft}
-                      getDraft={getDraft}
-                      goBack={goBack}
-                    />
-                  )}
-                  {parentPost && channel.type === 'notebook' && (
-                    <NotebookDetailView
-                      post={parentPost}
-                      initialPostUnread={initialThreadUnread}
-                      onPressImage={handleGoToImage}
-                      editingPost={editingPost}
-                      setEditingPost={setEditingPost}
-                      editPost={editPost}
-                      onPressRetry={onPressRetry}
-                      onPressDelete={onPressDelete}
-                      posts={postsWithoutParent}
-                      sendReply={sendReply}
-                      groupMembers={groupMembers}
-                      storeDraft={storeDraft}
-                      clearDraft={clearDraft}
-                      getDraft={getDraft}
-                      goBack={goBack}
-                    />
-                  )}
-                  {posts && channel && isChatChannel && (
-                    <View flex={1}>
-                      <Scroller
-                        inverted
-                        renderItem={ChatMessage}
-                        channelType="chat"
-                        channelId={channel.id}
-                        editingPost={editingPost}
-                        setEditingPost={setEditingPost}
-                        editPost={editPost}
-                        onPressRetry={onPressRetry}
-                        onPressDelete={onPressDelete}
-                        posts={posts}
-                        showReplies={false}
-                        onPressImage={handleGoToImage}
-                        firstUnreadId={
-                          initialThreadUnread?.count ?? 0 > 0
-                            ? initialThreadUnread?.firstUnreadPostId
-                            : null
-                        }
-                        unreadCount={initialThreadUnread?.count ?? 0}
-                        activeMessage={activeMessage}
-                        setActiveMessage={setActiveMessage}
-                      />
-                    </View>
-                  )}
-                  {negotiationMatch &&
-                    !editingPost &&
-                    channel &&
-                    canWrite &&
-                    isChatChannel && (
-                      <MessageInput
-                        shouldBlur={inputShouldBlur}
-                        setShouldBlur={setInputShouldBlur}
-                        send={sendReply}
-                        channelId={channel.id}
-                        groupMembers={groupMembers}
-                        storeDraft={storeDraft}
-                        clearDraft={clearDraft}
-                        channelType="chat"
-                        getDraft={getDraft}
-                      />
-                    )}
-                  {!negotiationMatch && channel && canWrite && (
-                    <View
-                      position={isChatChannel ? undefined : 'absolute'}
-                      bottom={0}
-                      width="90%"
-                      alignItems="center"
-                      justifyContent="center"
-                      backgroundColor="$secondaryBackground"
-                      borderRadius="$xl"
-                      padding="$l"
-                    >
-                      <Text>
-                        Your ship&apos;s version of the Tlon app doesn&apos;t
-                        match the channel host.
-                      </Text>
-                    </View>
-                  )}
-                  {headerMode === 'next' && (
-                    <ChannelFooter
-                      showSearchButton={false}
-                      title={'Thread: ' + channel.title}
-                      goBack={goBack}
-                    />
-                  )}
-                </KeyboardAvoidingView>
-              </YStack>
-            </View>
-          </NavigationProvider>
-        </AttachmentProvider>
-      </AppDataContextProvider>
-    </CalmProvider>
+              ) : null}
+
+              {negotiationMatch && !editingPost && channel && canWrite && (
+                <MessageInput
+                  placeholder="Reply"
+                  shouldBlur={inputShouldBlur}
+                  setShouldBlur={setInputShouldBlur}
+                  send={sendReply}
+                  channelId={channel.id}
+                  groupMembers={groupMembers}
+                  storeDraft={storeDraft}
+                  clearDraft={clearDraft}
+                  channelType="chat"
+                  getDraft={getDraft}
+                />
+              )}
+              {!negotiationMatch && channel && canWrite && (
+                <View
+                  position={isChatChannel ? undefined : 'absolute'}
+                  bottom={0}
+                  width="90%"
+                  alignItems="center"
+                  justifyContent="center"
+                  backgroundColor="$secondaryBackground"
+                  borderRadius="$xl"
+                  padding="$l"
+                >
+                  <Text>
+                    Your ship&apos;s version of the Tlon app doesn&apos;t match
+                    the channel host.
+                  </Text>
+                </View>
+              )}
+
+              {parentPost &&
+              isEditingParent &&
+              (channel.type === 'notebook' || channel.type === 'gallery') ? (
+                <BigInput
+                  channelType={urbit.getChannelType(parentPost.channelId)}
+                  channelId={parentPost?.channelId}
+                  editingPost={editingPost}
+                  setEditingPost={setEditingPost}
+                  editPost={editPost}
+                  shouldBlur={inputShouldBlur}
+                  setShouldBlur={setInputShouldBlur}
+                  send={async () => {}}
+                  getDraft={getDraft}
+                  storeDraft={storeDraft}
+                  clearDraft={clearDraft}
+                  groupMembers={groupMembers}
+                />
+              ) : null}
+              {headerMode === 'next' && (
+                <ChannelFooter
+                  showSearchButton={false}
+                  title={'Thread: ' + channel.title}
+                  goBack={goBack}
+                />
+              )}
+            </KeyboardAvoidingView>
+          </YStack>
+        </View>
+      </NavigationProvider>
+    </AttachmentProvider>
   );
 }

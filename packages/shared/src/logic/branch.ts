@@ -28,11 +28,38 @@ export const getDeepLink = async (
 
 export type DeepLinkType = 'lure' | 'wer';
 
-interface DeepLinkData {
+export interface DeepLinkMetadata {
+  inviterUserId?: string;
+  inviterNickname?: string;
+  inviterAvatarImage?: string;
+  invitedGroupId?: string;
+  invitedGroupTitle?: string;
+  invitedGroupDescription?: string;
+  invitedGroupIconImageUrl?: string;
+  invitedGroupiconImageColor?: string;
+}
+interface DeepLinkData extends DeepLinkMetadata {
   $desktop_url: string;
   $canonical_url: string;
-  lure?: string;
   wer?: string;
+  lure?: string;
+}
+
+export function extractLureMetadata(branchParams: any) {
+  if (!branchParams || typeof branchParams !== 'object') {
+    return {};
+  }
+
+  return {
+    inviterUserId: branchParams.inviterUserId,
+    inviterNickname: branchParams.inviterNickname,
+    inviterAvatarImage: branchParams.inviterAvatarImage,
+    invitedGroupId: branchParams.invitedGroupId,
+    invitedGroupTitle: branchParams.invitedGroupTitle,
+    invitedGroupDescription: branchParams.invitedGroupDescription,
+    invitedGroupIconImageUrl: branchParams.invitedGroupIconImageUrl,
+    invitedGroupiconImageColor: branchParams.invitedGroupiconImageColor,
+  };
 }
 
 export async function getDmLink(
@@ -42,27 +69,32 @@ export async function getDmLink(
 ): Promise<string> {
   const dmPath = `dm/${ship}`;
   const fallbackUrl = `https://tlon.network/lure/~loshut-lonreg/tlon`; // for now, send to generic signup page on desktop
-  const link = await createDeepLink(
+  const link = await createDeepLink({
     fallbackUrl,
-    'wer',
-    dmPath,
+    type: 'wer',
+    path: dmPath,
     branchDomain,
-    branchKey
-  );
+    branchKey,
+  });
   return link || '';
 }
 
-export const createDeepLink = async (
-  fallbackUrl: string | undefined,
-  type: DeepLinkType,
-  path: string,
-  branchDomain: string,
-  branchKey: string
-) => {
+export const createDeepLink = async ({
+  fallbackUrl,
+  type,
+  path,
+  branchDomain,
+  branchKey,
+  metadata,
+}: {
+  fallbackUrl: string | undefined;
+  type: DeepLinkType;
+  path: string;
+  branchDomain: string;
+  branchKey: string;
+  metadata?: DeepLinkMetadata;
+}) => {
   if (!fallbackUrl || !path) {
-    return undefined;
-  }
-  if (type === 'lure' && !urbit.whomIsFlag(path)) {
     return undefined;
   }
   if (type === 'wer') {
@@ -74,13 +106,20 @@ export const createDeepLink = async (
       return undefined;
     }
   }
-  const alias = path.replace('~', '').replace('/', '-');
+
+  const parsedURL = new URL(fallbackUrl);
+  const token = parsedURL.pathname.split('/').pop();
+  const alias = token || path.replace('~', '').replace('/', '-');
   const data: DeepLinkData = {
     $desktop_url: fallbackUrl,
     $canonical_url: fallbackUrl,
+    ...(metadata ?? {}),
   };
+  data['$desktop_url'] = fallbackUrl;
+  data['$canonical_url'] = fallbackUrl;
+
   if (type === 'lure') {
-    data.lure = path;
+    data.lure = token;
   } else {
     data.wer = path;
   }

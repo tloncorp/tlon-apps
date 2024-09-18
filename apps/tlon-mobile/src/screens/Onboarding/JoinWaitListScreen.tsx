@@ -22,12 +22,7 @@ type FormData = {
   email: string;
 };
 
-export const JoinWaitListScreen = ({
-  navigation,
-  route: {
-    params: { lure },
-  },
-}: Props) => {
+export const JoinWaitListScreen = ({ navigation }: Props) => {
   const [remoteError, setRemoteError] = useState<string | undefined>();
   const {
     control,
@@ -37,7 +32,7 @@ export const JoinWaitListScreen = ({
 
   const onSubmit = async (data: FormData) => {
     try {
-      await addUserToWaitlist({ email: data.email, lure });
+      await addUserToWaitlist({ email: data.email });
       trackOnboardingAction({
         actionName: 'Waitlist Joined',
       });

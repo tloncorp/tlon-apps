@@ -1,4 +1,4 @@
-import { createDevLogger, escapeLog } from '@tloncorp/shared';
+import { createDevLogger } from '@tloncorp/shared';
 import type { Schema } from '@tloncorp/shared/dist/db';
 import { handleChange, schema, setClient } from '@tloncorp/shared/dist/db';
 import { migrations } from '@tloncorp/shared/dist/db/migrations';
@@ -37,7 +37,6 @@ export async function setupDb() {
     // await sqlocal.sql('PRAGMA journal_mode=MEMORY');
     await sqlocal.sql('PRAGMA synchronous=OFF');
     await sqlocal.sql('PRAGMA journal_mode=WAL');
-    // await sqlocal.sql(TRIGGER_SETUP);
 
     const { driver } = sqlocal;
 
@@ -46,7 +45,7 @@ export async function setupDb() {
       logger: enableLogger
         ? {
             logQuery(query, params) {
-              logger.log(escapeLog(query), params);
+              logger.log(query, params);
             },
           }
         : undefined,
@@ -56,11 +55,19 @@ export async function setupDb() {
     logger.log('SQLite database opened:', dbInfo);
 
     setClient(client);
-
-    // startChangePolling();
   } catch (e) {
     logger.error('Failed to setup SQLite db', e);
   }
+}
+
+export async function checkDb() {
+  if (!sqlocal) {
+    logger.warn('checkDb called before setupDb, ignoring');
+    return;
+  }
+  const dbInfo = await sqlocal.getDatabaseInfo();
+  logger.log('SQLite database info:', dbInfo);
+  return dbInfo;
 }
 
 let isPolling = false;
@@ -162,6 +169,8 @@ async function runMigrations() {
     logger.log('runMigrations: starting migration');
     await migrate<Schema>(client, migrations, sqlocal);
     logger.log('runMigrations: migrations succeeded');
+    await sqlocal.sql(TRIGGER_SETUP);
+    startChangePolling();
     return;
   } catch (e) {
     logger.log('migrations failed, purging db and retrying', e);

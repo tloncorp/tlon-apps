@@ -1,14 +1,13 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
-import { ComponentProps, useCallback, useMemo, useState } from 'react';
-import { GestureResponderEvent } from 'react-native';
-import { View, XStack } from 'tamagui';
+import { ComponentProps, useMemo } from 'react';
+import { ColorTokens, View, XStack } from 'tamagui';
 
 import { useNavigation } from '../contexts';
 import { ContactAvatar } from './Avatar';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import { ContactName } from './ContactNameV2';
-import { ProfileSheet } from './ProfileSheet';
+import { useBoundHandler } from './ListItem/listItemUtils';
 import { Text } from './TextV2';
 
 const RoleBadge = View.styleable<{ role: string }>(
@@ -36,7 +35,7 @@ export const AUTHOR_ROW_HEIGHT_DETAIL_VIEW = '$4xl';
 type AuthorRowProps = ComponentProps<typeof XStack> & {
   author?: db.Contact | null;
   authorId: string;
-  sent: number;
+  sent?: number;
   roles?: string[];
   deliveryStatus?: db.PostDeliveryStatus | null;
   type?: db.PostType;
@@ -44,53 +43,38 @@ type AuthorRowProps = ComponentProps<typeof XStack> & {
   showEditedIndicator?: boolean;
 };
 
-export default function AuthorRow({ onPress, ...props }: AuthorRowProps) {
-  const [showProfile, setShowProfile] = useState(false);
-  const navContext = useNavigation();
+export function useNavigateToProfile(userId: string) {
+  const { onGoToUserProfile } = useNavigation();
+  return useBoundHandler(userId, onGoToUserProfile);
+}
 
-  const handlePress = useCallback(
-    (e: GestureResponderEvent) => {
-      if (props.type !== 'block') {
-        navContext.onGoToUserProfile?.(props.authorId);
-        onPress?.(e);
-      }
-    },
-    [props.type, props.authorId, navContext, onPress]
-  );
-
-  return (
-    <>
-      {props.detailView ? (
-        <DetailViewAuthorRow {...props} onPress={handlePress} />
-      ) : props.type === 'block' ? (
-        <BlockAuthorRow {...props} onPress={handlePress} />
-      ) : props.type === 'note' ? (
-        <NotebookAuthorRow {...props} onPress={handlePress} />
-      ) : (
-        <ChatAuthorRow {...props} onPress={handlePress} />
-      )}
-      {showProfile && props.author && (
-        <ProfileSheet
-          open={showProfile}
-          contact={props.author}
-          contactId={props.authorId}
-          onOpenChange={setShowProfile}
-        />
-      )}
-    </>
+export default function AuthorRow({ ...props }: AuthorRowProps) {
+  return props.detailView || props.type === 'note' ? (
+    <DetailViewAuthorRow {...props} />
+  ) : (
+    <ChatAuthorRow {...props} />
   );
 }
 
-function DetailViewAuthorRow({ authorId, ...props }: AuthorRowProps) {
+export function DetailViewAuthorRow({
+  authorId,
+  color,
+  ...props
+}: { authorId: string; color?: ColorTokens } & ComponentProps<typeof XStack>) {
+  const openProfile = useNavigateToProfile(authorId);
   return (
-    <XStack gap="$s" alignItems="center" {...props}>
+    <XStack gap="$l" alignItems="center" {...props} onPress={openProfile}>
       <ContactAvatar size="$2xl" contactId={authorId} />
-      <ContactName width="100%" contactId={authorId} />
+      <ContactName
+        contactId={authorId}
+        size="$label/l"
+        color={color ?? '$secondaryText'}
+      />
     </XStack>
   );
 }
 
-function ChatAuthorRow({
+export function ChatAuthorRow({
   authorId,
   showEditedIndicator,
   sent,
@@ -98,7 +82,12 @@ function ChatAuthorRow({
   deliveryStatus,
   ...props
 }: AuthorRowProps) {
+  const openProfile = useNavigateToProfile(authorId);
+
   const timeDisplay = useMemo(() => {
+    if (!sent) {
+      return null;
+    }
     const date = new Date(sent);
     return utils.makePrettyTime(date);
   }, [sent]);
@@ -106,45 +95,30 @@ function ChatAuthorRow({
   const firstRole = roles?.[0];
 
   return (
-    <XStack gap="$l" alignItems="center" {...props}>
+    <XStack gap="$l" alignItems="center" {...props} onPress={openProfile}>
       <ContactAvatar size="$2xl" contactId={authorId} />
       <XStack gap="$l" alignItems="flex-end">
         <ContactName size="$label/2xl" contactId={authorId} />
-        <Text color="$secondaryText" size="$label/m">
-          {timeDisplay}
-        </Text>
+        {timeDisplay && (
+          <Text color="$secondaryText" size="$label/m">
+            {timeDisplay}
+          </Text>
+        )}
         {showEditedIndicator && (
           <Text size="$label/m" color="$secondaryText">
             Edited
           </Text>
         )}
         {firstRole && <RoleBadge role={firstRole} />}
+        {deliveryStatus === 'failed' ? (
+          <Text size="$label/m" color="$negativeActionText">
+            Failed to send
+          </Text>
+        ) : null}
       </XStack>
-      {deliveryStatus && <ChatMessageDeliveryStatus status={'pending'} />}
-    </XStack>
-  );
-}
-
-function NotebookAuthorRow({ authorId, ...props }: AuthorRowProps) {
-  return (
-    <XStack gap="$m" alignItems="center" {...props}>
-      <ContactAvatar size="$2xl" contactId={authorId} />
-      <ContactName size="$body" color="$secondaryText" contactId={authorId} />
-    </XStack>
-  );
-}
-
-function BlockAuthorRow({ authorId, ...props }: AuthorRowProps) {
-  return (
-    <XStack
-      padding="$m"
-      overflow="hidden"
-      gap="$s"
-      alignItems="center"
-      justifyContent="space-between"
-      {...props}
-    >
-      <ContactAvatar size="$2xl" contactId={authorId} />
+      {deliveryStatus && deliveryStatus !== 'failed' ? (
+        <ChatMessageDeliveryStatus status={deliveryStatus} />
+      ) : null}
     </XStack>
   );
 }

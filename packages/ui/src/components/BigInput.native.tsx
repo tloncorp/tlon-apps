@@ -127,16 +127,10 @@ export function BigInput({
           </View>
         </View>
       )}
-      <ScrollView
-        scrollEventThrottle={16}
-        scrollToOverflowEnabled
-        overScrollMode="always"
-        contentContainerStyle={{
-          paddingTop:
-            channelType === 'notebook'
-              ? titleInputHeight + imageButtonHeight
-              : 0,
-        }}
+      <View
+        paddingTop={
+          channelType === 'notebook' ? titleInputHeight + imageButtonHeight : 0
+        }
       >
         <MessageInput
           shouldBlur={shouldBlur}
@@ -163,7 +157,7 @@ export function BigInput({
           channelType={channelType}
           ref={editorRef}
         />
-      </ScrollView>
+      </View>
       {channelType === 'notebook' &&
         editorRef.current &&
         editorRef.current.editor && (
@@ -182,9 +176,9 @@ export function BigInput({
         )}
       {channelType === 'notebook' && showAttachmentSheet && (
         <AttachmentSheet
-          showAttachmentSheet={showAttachmentSheet}
-          setShowAttachmentSheet={setShowAttachmentSheet}
-          setImage={attachAssets}
+          isOpen={showAttachmentSheet}
+          onOpenChange={setShowAttachmentSheet}
+          onAttachmentsSet={attachAssets}
         />
       )}
     </YStack>

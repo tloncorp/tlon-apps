@@ -1,12 +1,13 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { EMAIL_REGEX } from '@tloncorp/app/constants';
 import {
-  DEFAULT_LURE,
-  DEFAULT_PRIORITY_TOKEN,
-  EMAIL_REGEX,
-} from '@tloncorp/app/constants';
+  useLureMetadata,
+  useSignupParams,
+} from '@tloncorp/app/contexts/branch';
 import { getHostingAvailability } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
+  AppInviteDisplay,
   Button,
   GenericHeader,
   KeyboardAvoidingView,
@@ -29,16 +30,11 @@ type FormData = {
   email: string;
 };
 
-export const SignUpEmailScreen = ({
-  navigation,
-  route: {
-    params: {
-      lure = DEFAULT_LURE,
-      priorityToken = DEFAULT_PRIORITY_TOKEN,
-    } = {},
-  },
-}: Props) => {
+export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const signupParams = useSignupParams();
+  const lureMeta = useLureMetadata();
 
   const {
     control,
@@ -54,12 +50,12 @@ export const SignUpEmailScreen = ({
     try {
       const { enabled, validEmail } = await getHostingAvailability({
         email,
-        lure,
-        priorityToken,
+        lure: signupParams.lureId,
+        priorityToken: signupParams.priorityToken,
       });
 
       if (!enabled) {
-        navigation.navigate('JoinWaitList', { email, lure });
+        navigation.navigate('JoinWaitList', { email });
       } else if (!validEmail) {
         setError('email', {
           type: 'custom',
@@ -71,9 +67,11 @@ export const SignUpEmailScreen = ({
         trackOnboardingAction({
           actionName: 'Email submitted',
           email,
-          lure,
+          lure: signupParams.lureId,
         });
-        navigation.navigate('SignUpPassword', { email, lure, priorityToken });
+        navigation.navigate('SignUpPassword', {
+          email,
+        });
       }
     } catch (err) {
       console.error('Error getting hosting availability:', err);
@@ -106,6 +104,7 @@ export const SignUpEmailScreen = ({
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
         <YStack gap="$2xl" padding="$2xl">
+          {lureMeta ? <AppInviteDisplay metadata={lureMeta} /> : null}
           <SizableText>
             Enter your email address. You&rsquo;ll use it to log in to Tlon and
             we&rsquo;ll email you the occasional service update.

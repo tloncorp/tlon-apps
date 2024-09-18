@@ -1,12 +1,12 @@
-import { useCurrentSession } from '@tloncorp/shared';
 import { PropsWithChildren, ReactNode } from 'react';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isWeb, styled, withStaticProperties } from 'tamagui';
-import { SizableText, View, XStack } from 'tamagui';
+import { View, XStack } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
 import { IconButton } from './IconButton';
+import { Text } from './TextV2';
 
 export const ScreenHeaderComponent = ({
   children,
@@ -19,10 +19,9 @@ export const ScreenHeaderComponent = ({
   rightControls?: ReactNode | null;
 }>) => {
   const { top } = useSafeAreaInsets();
-  const currentSession = useCurrentSession();
 
   return (
-    <View paddingTop={top} zIndex={50} backgroundColor="$background">
+    <View paddingTop={top} zIndex={50}>
       <XStack
         alignItems="center"
         height="$4xl"
@@ -31,11 +30,7 @@ export const ScreenHeaderComponent = ({
       >
         {typeof title === 'string' ? (
           isWeb ? (
-            <HeaderTitle
-              color={currentSession ? '$primaryText' : '$tertiaryText'}
-            >
-              {title}
-            </HeaderTitle>
+            <HeaderTitle>{title}</HeaderTitle>
           ) : (
             <Animated.View
               key={title}
@@ -43,11 +38,7 @@ export const ScreenHeaderComponent = ({
               exiting={FadeOutUp}
               style={{ flex: 1 }}
             >
-              <HeaderTitle
-                color={currentSession ? '$primaryText' : '$tertiaryText'}
-              >
-                {title}
-              </HeaderTitle>
+              <HeaderTitle>{title}</HeaderTitle>
             </Animated.View>
           )
         ) : (
@@ -63,26 +54,25 @@ export const ScreenHeaderComponent = ({
 
 const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
   return (
-    <IconButton onPress={onPress}>
+    <IconButton backgroundColor={'unset'} onPress={onPress}>
       <ChevronLeft />
     </IconButton>
   );
 };
 
-const HeaderTitle = styled(SizableText, {
-  size: '$m',
+const HeaderTitle = styled(Text, {
+  size: '$label/2xl',
   textAlign: 'left',
-  fontWeight: '500',
-  flex: 1,
+  width: '100%',
 });
 
 const HeaderControls = styled(XStack, {
   position: 'absolute',
-  top: '$m',
+  top: 0,
   bottom: 0,
-  height: '100%',
   gap: '$m',
   alignItems: 'center',
+  zIndex: 1,
   variants: {
     side: {
       left: {

@@ -140,8 +140,8 @@ export const signUpHostingUser = async (params: {
     body: JSON.stringify({
       email: params.email,
       password: params.password,
-      lure: params.lure || DEFAULT_LURE,
-      priorityToken: params.priorityToken || DEFAULT_PRIORITY_TOKEN,
+      lure: params.lure,
+      priorityToken: params.priorityToken,
       recaptcha: {
         recaptchaToken: { token: params.recaptchaToken || '' },
         recaptchaPlatform: Platform.OS,

@@ -54,8 +54,8 @@ BEGIN
     VALUES (
         'post_reactions',
         'INSERT',
-        NEW.id,
-        json_object('id', NEW.id, 'post_id', NEW.post_id)
+        json_object('contact_id', NEW.contact_id, 'post_id', NEW.post_id),
+        json_object('contact_id', NEW.contact_id, 'post_id', NEW.post_id)
     );
 END;
 
@@ -66,8 +66,8 @@ BEGIN
     VALUES (
         'post_reactions',
         'UPDATE',
-        NEW.id,
-        json_object('id', NEW.id, 'post_id', NEW.post_id)
+        json_object('contact_id', NEW.contact_id, 'post_id', NEW.post_id),
+        json_object('contact_id', NEW.contact_id, 'post_id', NEW.post_id)
     );
 END;
 
@@ -91,8 +91,8 @@ BEGIN
     VALUES (
         'thread_unreads',
         'INSERT',
-        NEW.id,
-        json_object('id', NEW.id, 'thread_id', NEW.thread_id)
+        json_object('channel_id', NEW.channel_id, 'thread_id', NEW.thread_id),
+        json_object('channel_id', NEW.channel_id, 'thread_id', NEW.thread_id)
     );
 END;
 
@@ -103,8 +103,8 @@ BEGIN
     VALUES (
         'thread_unreads',
         'UPDATE',
-        NEW.id,
-        json_object('id', NEW.id, 'thread_id', NEW.thread_id)
+        json_object('channel_id', NEW.channel_id, 'thread_id', NEW.thread_id),
+        json_object('channel_id', NEW.channel_id, 'thread_id', NEW.thread_id)
     );
 END;
 
@@ -115,8 +115,8 @@ BEGIN
     VALUES (
         'thread_unreads',
         'DELETE',
-        OLD.id,
-        json_object('id', OLD.id, 'thread_id', OLD.thread_id)
+        json_object('channel_id', OLD.channel_id, 'thread_id', OLD.thread_id),
+        json_object('channel_id', OLD.channel_id, 'thread_id', OLD.thread_id)
     );
 END;
 `;

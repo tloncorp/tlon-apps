@@ -1,17 +1,19 @@
+// tamagui-ignore
 import { ContentReference } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { getChannelType } from '@tloncorp/shared/dist/urbit';
 import { ComponentProps, useCallback } from 'react';
-import { XStack, styled } from 'tamagui';
+import { View, XStack, styled } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
 import { useRequests } from '../../contexts/requests';
-import { ContactAvatar } from '../Avatar';
-import { ContactName } from '../ContactNameV2';
-import { GalleryPost } from '../GalleryPost';
+import { ContactAvatar, GroupAvatar } from '../Avatar';
+import { useContactName } from '../ContactNameV2';
+import { GalleryContentRenderer } from '../GalleryPost';
 import { IconType } from '../Icon';
 import { ListItem } from '../ListItem';
-import { ContentRenderer, PostViewMode } from '../PostContent';
+import { useBoundHandler } from '../ListItem/listItemUtils';
+import { PostContentRenderer } from '../PostContent/ContentRenderer';
 import { Text } from '../TextV2';
 import {
   Reference,
@@ -105,83 +107,142 @@ export const PostReference = ({
   ...props
 }: ReferenceProps & { channelId: string; post?: db.Post | null }) => {
   const channelType = getChannelType(channelId);
-  const meta =
-    channelType in typeMeta ? typeMeta[channelType] : typeMeta['chat'];
-  const { viewMode } = useReferenceContext();
   return (
-    <Reference {...props} renderMode={post?.type}>
-      <Reference.Header>
-        <Reference.Title>
-          <Reference.TitleIcon type={meta.icon} />
-          <Reference.TitleText>{meta.label}</Reference.TitleText>
-        </Reference.Title>
-        <Reference.ActionIcon />
-      </Reference.Header>
+    <Reference {...props} hasData={!!post}>
+      <ContentReferenceHeader type={channelType} />
       {post?.type === 'block' ? (
-        <Reference.Body padding={0} aspectRatio={1}>
-          <GalleryPost post={post} viewMode="attachment" />
-        </Reference.Body>
+        <BlockReferenceContent post={post} />
       ) : post?.type === 'note' ? (
-        <Reference.Body>
-          {post.title && <Text size="$title/l">{post.title}</Text>}
-          <PostAuthor contactId={post.authorId} />
-          <Text size="$body" trimmed={false} numberOfLines={6}>
-            {post.textContent}
-          </Text>
-        </Reference.Body>
+        <NoteReferenceContent post={post} />
       ) : post ? (
-        <Reference.Body>
-          <PostAuthor contactId={post.authorId} />
-          <ContentRenderer
-            viewMode={props.viewMode}
-            shortened={viewMode === 'attachment' || viewMode === 'block'}
-            post={post}
-          />
-        </Reference.Body>
+        <ChatReferenceContent post={post} />
       ) : null}
     </Reference>
   );
 };
 
-const PostAuthorFrame = styled(XStack, {
+function BlockReferenceContent({ post }: { post: db.Post }) {
+  const { contentSize } = useReferenceContext();
+  return (
+    <Reference.Body
+      padding={0}
+      aspectRatio={contentSize !== '$l' ? 1 : 'unset'}
+    >
+      <GalleryContentRenderer embedded post={post} size={contentSize} />
+    </Reference.Body>
+  );
+}
+
+function NoteReferenceContent({ post }: { post: db.Post }) {
+  const { contentSize } = useReferenceContext();
+  return (
+    <Reference.Body>
+      <NoteBookReferenceContent>
+        {post.title && (
+          <NoteReferenceTitleText>{post.title}</NoteReferenceTitleText>
+        )}
+        <PostReferenceAuthor contactId={post.authorId} />
+        {contentSize !== '$s' && (
+          <Text size="$body" numberOfLines={6}>
+            {post.textContent}
+          </Text>
+        )}
+      </NoteBookReferenceContent>
+    </Reference.Body>
+  );
+}
+
+const NoteBookReferenceContent = styled(View, {
   context: ReferenceContext,
-  name: 'PostAuthorFrame',
-  gap: '$m',
-  alignItems: 'center',
-  paddingBottom: '$2xs',
+  padding: '$2xl',
+  gap: '$2xl',
+  variants: {
+    contentSize: {
+      $s: {
+        padding: 0,
+        gap: 0,
+      },
+    },
+  },
+} as const);
+
+const NoteReferenceTitleText = styled(Text, {
+  name: 'NoteReferenceTitleText',
+  context: ReferenceContext,
+  size: '$title/l',
+  color: '$primaryText',
+  variants: {
+    contentSize: {
+      $s: {
+        padding: '$l',
+        paddingBottom: '$2xs',
+        size: '$label/xl',
+      },
+    },
+  },
 });
 
-const PostAuthor = ({
+function ChatReferenceContent({ post }: { post: db.Post }) {
+  const { contentSize } = useReferenceContext();
+  return (
+    <Reference.Body>
+      <PostReferenceAuthor
+        padding="$l"
+        paddingBottom="$2xs"
+        contactId={post.authorId}
+      />
+      {contentSize === '$s' ? (
+        <Text padding="$l" size="$label/s">
+          {post.textContent}
+        </Text>
+      ) : (
+        <PostContentRenderer renderReferences={false} post={post} />
+      )}
+    </Reference.Body>
+  );
+}
+
+const PostReferenceAuthor = ({
   contactId,
   ...props
 }: ComponentProps<typeof XStack> & { contactId: string }) => {
+  const contactName = useContactName(contactId);
   return (
-    <PostAuthorFrame {...props}>
+    <PostReferenceAuthorFrame {...props}>
       <ContactAvatar contactId={contactId} size="$xl" />
-      <ContactName
-        color="$tertiaryText"
-        size="$label/m"
-        contactId={contactId}
-        maxWidth={'unset'}
-      />
-    </PostAuthorFrame>
+      <PostReferenceAuthorName>{contactName}</PostReferenceAuthorName>
+    </PostReferenceAuthorFrame>
   );
 };
 
-const typeMeta: Record<string, { label: string; icon: IconType }> = {
-  gallery: {
-    label: 'Gallery Post',
-    icon: 'ChannelGalleries',
-  },
-  notebook: {
-    label: 'Notebook Post',
-    icon: 'ChannelNotebooks',
-  },
-  chat: {
-    label: 'Chat Post',
-    icon: 'ChannelTalk',
-  },
-};
+const PostReferenceAuthorFrame = styled(XStack, {
+  context: ReferenceContext,
+  name: 'PostReferenceAuthorFrame',
+  gap: '$m',
+  alignItems: 'center',
+  variants: {
+    contentSize: {
+      $s: {
+        padding: '$l',
+        paddingBottom: '$2xs',
+      },
+    },
+  } as const,
+});
+
+const PostReferenceAuthorName = styled(Text, {
+  name: 'PostReferenceAuthorName',
+  context: ReferenceContext,
+  color: '$tertiaryText',
+  size: '$label/m',
+  variants: {
+    contentSize: {
+      $s: {
+        size: '$label/s',
+      },
+    },
+  } as const,
+});
 
 // Group reference
 
@@ -191,17 +252,11 @@ export function GroupReferenceLoader({
   ...props
 }: {
   groupId: string;
-  viewMode?: PostViewMode;
 } & ReferenceProps) {
   const { useGroup } = useRequests();
   const { onPressGroupRef } = useNavigation();
   const { data: group, isLoading, isError, error } = useGroup(groupId);
-
-  const onPress = useCallback(() => {
-    if (group) {
-      onPressGroupRef?.(group);
-    }
-  }, [group, onPressGroupRef]);
+  const onPress = useBoundHandler(group, onPressGroupRef);
 
   return (
     <GroupReference
@@ -222,24 +277,82 @@ export function GroupReference({
 }: { data?: db.Group | null } & ReferenceProps) {
   return (
     <Reference {...props}>
-      <Reference.Header>
-        <Reference.Title>
-          <Reference.TitleIcon type="Discover" />
-          <Reference.TitleText>Group</Reference.TitleText>
-        </Reference.Title>
-        <Reference.ActionIcon />
-      </Reference.Header>
+      <ContentReferenceHeader type="group" />
       {data && (
         <Reference.Body padding={0}>
-          <ListItem pressable={false} backgroundColor={'transparent'} gap="$m">
-            <ListItem.GroupIcon model={data} />
-            <ListItem.MainContent>
-              <ListItem.Title>{data.title ?? data.id}</ListItem.Title>
-              <ListItem.Subtitle>{data.description}</ListItem.Subtitle>
-            </ListItem.MainContent>
-          </ListItem>
+          {props.contentSize === '$s' ? (
+            data.iconImage ? (
+              <GroupAvatar
+                model={data}
+                width={'100%'}
+                height={'100%'}
+                aspectRatio={'unset'}
+                borderRadius={0}
+              />
+            ) : (
+              <View
+                width="100%"
+                height="100%"
+                alignItems="center"
+                justifyContent="center"
+              >
+                <Text
+                  size={'$label/xl'}
+                  color="$secondaryText"
+                  textAlign="center"
+                  paddingHorizontal="$m"
+                >
+                  {data.title}
+                </Text>
+              </View>
+            )
+          ) : (
+            <ListItem
+              pressable={false}
+              backgroundColor={'transparent'}
+              gap="$m"
+            >
+              <ListItem.GroupIcon model={data} />
+              <ListItem.MainContent>
+                <ListItem.Title>{data.title ?? data.id}</ListItem.Title>
+                <ListItem.Subtitle>{data.description}</ListItem.Subtitle>
+              </ListItem.MainContent>
+            </ListItem>
+          )}
         </Reference.Body>
       )}
     </Reference>
+  );
+}
+
+const typeMeta: Record<string, { label: string; icon: IconType }> = {
+  gallery: {
+    label: 'Gallery Post',
+    icon: 'ChannelGalleries',
+  },
+  notebook: {
+    label: 'Notebook Post',
+    icon: 'ChannelNotebooks',
+  },
+  chat: {
+    label: 'Chat Post',
+    icon: 'ChannelTalk',
+  },
+  group: {
+    label: 'Group',
+    icon: 'Discover',
+  },
+};
+
+function ContentReferenceHeader({ type }: { type: keyof typeof typeMeta }) {
+  const meta = type in typeMeta ? typeMeta[type] : typeMeta['chat'];
+  return (
+    <Reference.Header>
+      <Reference.Title>
+        <Reference.TitleIcon type={meta.icon} />
+        <Reference.TitleText>{meta.label}</Reference.TitleText>
+      </Reference.Title>
+      <Reference.ActionIcon />
+    </Reference.Header>
   );
 }

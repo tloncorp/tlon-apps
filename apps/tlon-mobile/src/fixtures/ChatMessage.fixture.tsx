@@ -1,6 +1,4 @@
 // tamagui-ignore
-import { faker } from '@faker-js/faker';
-import { useQuery } from '@tanstack/react-query';
 import * as db from '@tloncorp/shared/dist/db';
 import {
   AppDataContextProvider,
@@ -8,239 +6,39 @@ import {
   ChatMessage,
   RequestsProvider,
   ScrollView,
+  View,
 } from '@tloncorp/ui/src';
 import { PostBlockSeparator } from '@tloncorp/ui/src/components/Channel/Scroller';
+import { Text } from '@tloncorp/ui/src/components/TextV2';
 import React, { PropsWithChildren } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FixtureWrapper } from './FixtureWrapper';
 import * as content from './contentHelpers';
 import {
-  createFakePost,
-  createFakeReactions,
-  group,
-  randomContactId,
-  tlonLocalBulletinBoard,
-  tlonLocalGettingStarted,
-} from './fakeData';
-
-const exampleContacts = {
-  eleanor: { nickname: 'eleanor', id: randomContactId() },
-  mark: { nickname: 'mark', id: randomContactId() },
-  ted: { nickname: 'ted', id: randomContactId() },
-  met: { nickname: '~met', id: randomContactId() },
-  fabledFaster: { nickname: '~fabled-faster', id: randomContactId() },
-  pictochatter: { nickname: 'pictochatter', id: randomContactId() },
-  palfun: {
-    id: '~palfun-foslup',
-    color: '#48BC2B',
-  },
-  emotive: { nickname: 'emotive', id: randomContactId() },
-  shrubhead: { nickname: 'Shrubhead333', id: randomContactId() },
-  groupAdmin: { nickname: 'Group Admin Guy', id: randomContactId() },
-  ed: { nickname: 'ed', id: randomContactId() },
-  hooncell: { nickname: 'Hooncel420', id: randomContactId() },
-};
-
-const makePost = (
-  contact: db.Contact,
-  content: unknown,
-  extra?: Partial<db.Post>
-) => {
-  const post = createFakePost('chat', JSON.stringify(content));
-  post.authorId = contact.id;
-  post.author = contact;
-  return { ...post, reactions: [], ...extra };
-};
-
-const postWithImage = makePost(
-  exampleContacts.eleanor,
-  [content.block.randomImage(317 * 2, 251 * 2)],
-  {
-    isEdited: true,
-    replyCount: 56,
-    reactions: createFakeReactions({ count: 5, minTotal: 1, maxTotal: 5 }),
-  }
-);
-
-const postWithText = makePost(
-  exampleContacts.ted,
-  [
-    content.verse.inline(
-      'This is a long message. The last message sent in this channel.'
-    ),
-  ],
-  { isEdited: true }
-);
-
-const postWithMention = makePost(
-  exampleContacts.ted,
-  [
-    content.verse.inline(
-      'Ill mention ',
-      content.inline.ship('~fabled-faster'),
-      ' here'
-    ),
-  ],
-  {
-    reactions: createFakeReactions({ count: 1, minTotal: 1, maxTotal: 1 }),
-    replyCount: 0,
-  }
-);
-
-const postWithBlockquote = makePost(
-  exampleContacts.met,
-  [
-    content.verse.inline(
-      content.inline.blockquote(
-        'This is a block-quoted message, using the > character to annotate text as such such go to next.'
-      )
-    ),
-    content.verse.inline('This is what he said. Get it?'),
-  ],
-  {
-    replyCount: 0,
-    isEdited: true,
-  }
-);
-
-const postWithCode = makePost(
-  exampleContacts.hooncell,
-  [
-    content.verse.inline(
-      content.inline.code(`%-  send
-::  forwards compatibility with next-dill
-?@  p.kyz  [%txt p.kyz ~]
-?:  ?=  %hit  -.p.kyz
-[%txt ~]
-?.  ?=  %mod  -.p.kyz
-p.kyz
-=/  =@c
-?@  key.p.kyz  key.p.kyz
-?:  ?=  ?(%bac %del %ret)  -.key.p.kyz 
-  \`@\`-.key.p.kyz
-~-
-?:  ?=  %met  mod.p.kyz  [%met c]  [%ctl c]`)
-    ),
-    content.verse.inline('Does this look correct?'),
-  ],
-  { replyCount: 0 }
-);
-
-const postWithList = makePost(exampleContacts.hooncell, [
-  content.block.list(
-    'ordered',
-    ['helo my list!'],
-    [
-      content.listItem.basic('one'),
-      content.listItem.basic(faker.lorem.paragraphs(1)),
-      content.listItem.basic('two'),
-      content.list(
-        'unordered',
-        ['2 deep'],
-        [
-          content.listItem.basic('one'),
-          content.listItem.basic('two'),
-          content.listItem.basic(faker.lorem.paragraphs(1)),
-        ]
-      ),
-    ]
-  ),
-]);
-
-const referencedChatPost = makePost(exampleContacts.palfun, [
-  content.verse.inline(
-    'This is a normal textual message that’s been referenced and posted elsewhere elsewhere'
-  ),
-]);
-
-const postWithChatReference = makePost(
-  exampleContacts.palfun,
-  [
-    content.block.channelReference(
-      tlonLocalBulletinBoard.id,
-      referencedChatPost.id
-    ),
-    content.verse.inline('Look what I said the other day'),
-  ],
-  { replyCount: 0 }
-);
-
-const postWithImageAndText = makePost(
-  exampleContacts.shrubhead,
-  [
-    content.block.randomImage(317 * 2, 326 * 2),
-    content.verse.inline('Check out my shrub view!'),
-  ],
-  { replyCount: 0 }
-);
-
-const referencedGroup = group;
-
-const postWithGroupReference = makePost(
-  exampleContacts.groupAdmin,
-  [
-    content.block.groupReference(referencedGroup.id),
-    content.verse.inline('Check out my group here'),
-  ],
-  { replyCount: 0 }
-);
-
-const referencedGalleryPost = makePost(
-  exampleContacts.ed,
-  [content.block.randomImage(800, 500)],
-  { type: 'block', channelId: tlonLocalBulletinBoard.id }
-);
-
-const postWithGalleryReference = makePost(
-  exampleContacts.ed,
-  [
-    content.block.channelReference(
-      tlonLocalBulletinBoard.id,
-      referencedGalleryPost.id
-    ),
-  ],
-  { isEdited: false, replyCount: 0 }
-);
-
-const referencedNotebookPost = makePost(
-  exampleContacts.ed,
-  [content.verse.inline(faker.lorem.paragraphs(3))],
-  {
-    type: 'note',
-    title: 'Henri Barbusse',
-    channelId: tlonLocalGettingStarted.id,
-  }
-);
-
-const postWithNotebookReference = makePost(
-  exampleContacts.ed,
-  [
-    content.block.channelReference(
-      tlonLocalGettingStarted.id,
-      referencedNotebookPost.id
-    ),
-    content.verse.inline('Check out my notebook here'),
-  ],
-  { isEdited: false, replyCount: 0 }
-);
-
-const postWithEmoji = makePost(exampleContacts.emotive, [
-  content.verse.inline('🙏🤪🥵', content.inline.break()),
-]);
-
-const postWithSingleEmoji = makePost(exampleContacts.emotive, [
-  content.verse.inline('🙏', content.inline.break()),
-]);
-
-const postWithVideo = makePost(exampleContacts.emotive, [
-  content.block.image({
-    width: 868,
-    alt: 'Screen Recording 2024-08-02 at 9.13.37 AM.mov',
-    src: 'https://storage.googleapis.com/tlon-prod-memex-assets/solfer-magfed/solfer-magfed/2024.8.28..21.6.48..978d.4fdf.3b64.05a1-Screen-Recording-2024-08-02-at-9.13.37 AM.mov',
-    height: 1660,
-  }),
-]);
+  exampleContacts,
+  makePost,
+  postWithBlockquote,
+  postWithChatReference,
+  postWithCode,
+  postWithDeleted,
+  postWithEmoji,
+  postWithGalleryReference,
+  postWithGroupReference,
+  postWithHidden,
+  postWithImage,
+  postWithImageAndText,
+  postWithList,
+  postWithMention,
+  postWithNotebookReference,
+  postWithSingleEmoji,
+  postWithText,
+  postWithVideo,
+  useChannel,
+  useGroup,
+  usePostReference,
+} from './contentHelpers';
+import { createFakeReactions } from './fakeData';
 
 type PostGroup = { divider: 'date' | 'unread' | 'none'; posts: db.Post[] };
 
@@ -355,33 +153,18 @@ const scrollPosts: PostGroup[] = [
   },
 ];
 
-const postsMap: Record<string, db.Post> = Object.fromEntries(
-  [referencedGalleryPost, referencedChatPost, referencedNotebookPost].map(
-    (p) => [p.id, p]
-  )
-);
-
-const usePostReference = ({
-  postId,
-}: {
-  channelId: string;
-  postId: string;
-  replyId?: string;
-}) => useQuery({ queryKey: ['post', postId], queryFn: () => postsMap[postId] });
-
-const useChannel = ({ id }: { id: string }) =>
-  useQuery({
-    queryKey: ['channel', id],
-    queryFn: () => tlonLocalBulletinBoard,
-  });
-
-const useGroup = (id: string) =>
-  useQuery({ queryKey: ['group', id], queryFn: () => group });
-
-function ChatMessageFixtureWrapper({ children }: PropsWithChildren) {
+function ChatMessageFixtureWrapper({
+  children,
+  backgroundColor,
+}: PropsWithChildren<{ backgroundColor?: any }>) {
   const insets = useSafeAreaInsets();
   return (
-    <FixtureWrapper fillWidth fillHeight>
+    <FixtureWrapper
+      fillWidth
+      fillHeight
+      innerBackgroundColor={backgroundColor}
+      backgroundColor={backgroundColor}
+    >
       <AppDataContextProvider contacts={Object.values(exampleContacts)}>
         {/* @ts-expect-error don't care */}
         <RequestsProvider
@@ -404,12 +187,12 @@ function ChatMessageFixtureWrapper({ children }: PropsWithChildren) {
   );
 }
 
-const ScrollFixture = () => {
+const ScrollFixture = ({ postGroups }: { postGroups: PostGroup[] }) => {
   return (
     <ChatMessageFixtureWrapper>
-      {scrollPosts.map((p) => {
+      {postGroups.map((p, i) => {
         return (
-          <React.Fragment key="groupWrapper">
+          <React.Fragment key={'groupWrapper-' + i}>
             {p.divider !== 'none' ? (
               <React.Fragment key="divider">
                 <ChannelDivider
@@ -454,24 +237,71 @@ const SinglePostFixture = ({ post }: { post: db.Post }) => {
   );
 };
 
+const PostVariantsFixture = ({ post }: { post: db.Post }) => {
+  return (
+    <ChatMessageFixtureWrapper backgroundColor="$secondaryBackground">
+      <View padding="$m" gap="$m">
+        <PostSpecimen label="Default" post={post} />
+        <PostSpecimen
+          label="Pending"
+          post={{ ...post, deliveryStatus: 'pending' }}
+        />
+        <PostSpecimen
+          label="Failed"
+          post={{ ...post, deliveryStatus: 'failed' }}
+        />
+        <PostSpecimen label="Sent" post={{ ...post, deliveryStatus: 'sent' }} />
+        <PostSpecimen label="Edited" post={{ ...post, isEdited: true }} />
+        <PostSpecimen label="Hidden" post={{ ...post, hidden: true }} />
+        <PostSpecimen label="Deleted" post={{ ...post, isDeleted: true }} />
+      </View>
+    </ChatMessageFixtureWrapper>
+  );
+};
+
+const PostSpecimen = ({ label, post }: { label: string; post: db.Post }) => {
+  return (
+    <View padding="$m" gap="$m" backgroundColor={'$secondaryBackground'}>
+      <Text size="$label/s">{label}</Text>
+      <View backgroundColor={'$background'} borderRadius="$l">
+        <ChatMessage post={post} showAuthor={true} showReplies={true} />
+      </View>
+    </View>
+  );
+};
+
 export default {
-  all: ScrollFixture,
-  postWithImage: <SinglePostFixture post={postWithImage} />,
-  postWithVideo: <SinglePostFixture post={postWithVideo} />,
-  postWithText: <SinglePostFixture post={postWithText} />,
-  postWithMention: <SinglePostFixture post={postWithMention} />,
-  postWithBlockquote: <SinglePostFixture post={postWithBlockquote} />,
-  postWithCode: <SinglePostFixture post={postWithCode} />,
-  postWithList: <SinglePostFixture post={postWithList} />,
-  postWithChatReference: <SinglePostFixture post={postWithChatReference} />,
-  postWithImageAndText: <SinglePostFixture post={postWithImageAndText} />,
-  postWithGroupReference: <SinglePostFixture post={postWithGroupReference} />,
-  postWithGalleryReference: (
-    <SinglePostFixture post={postWithGalleryReference} />
+  All: <ScrollFixture postGroups={scrollPosts} />,
+  References: (
+    <ScrollFixture
+      postGroups={[
+        {
+          divider: 'none',
+          posts: [
+            postWithChatReference,
+            postWithGroupReference,
+            postWithGalleryReference,
+            postWithNotebookReference,
+          ],
+        },
+      ]}
+    />
   ),
-  postWithNotebookReference: (
-    <SinglePostFixture post={postWithNotebookReference} />
-  ),
-  postWithEmoji: <SinglePostFixture post={postWithEmoji} />,
-  postWithSingleEmoji: <SinglePostFixture post={postWithSingleEmoji} />,
+  MessageStates: <PostVariantsFixture post={postWithText} />,
+  Image: <SinglePostFixture post={postWithImage} />,
+  Video: <SinglePostFixture post={postWithVideo} />,
+  Text: <SinglePostFixture post={postWithText} />,
+  Mention: <SinglePostFixture post={postWithMention} />,
+  Blockquote: <SinglePostFixture post={postWithBlockquote} />,
+  Code: <SinglePostFixture post={postWithCode} />,
+  List: <SinglePostFixture post={postWithList} />,
+  ChatReference: <SinglePostFixture post={postWithChatReference} />,
+  ImageAndText: <SinglePostFixture post={postWithImageAndText} />,
+  GroupReference: <SinglePostFixture post={postWithGroupReference} />,
+  GalleryReference: <SinglePostFixture post={postWithGalleryReference} />,
+  NotebookReference: <SinglePostFixture post={postWithNotebookReference} />,
+  Emoji: <SinglePostFixture post={postWithEmoji} />,
+  SingleEmoji: <SinglePostFixture post={postWithSingleEmoji} />,
+  Deleted: <SinglePostFixture post={postWithDeleted} />,
+  Hidden: <SinglePostFixture post={postWithHidden} />,
 };

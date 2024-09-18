@@ -9,6 +9,7 @@ import {
   ChannelAvatar,
   ContactAvatar,
   GroupAvatar,
+  ImageAvatar,
   SystemIconAvatar,
 } from '../Avatar';
 import ContactName from '../ContactName';
@@ -21,6 +22,7 @@ export interface BaseListItemProps<T> {
   EndContent?: ReactElement | null;
   onPress?: (model: T) => void;
   onLongPress?: (model: T) => void;
+  onPressMenuButton?: (model: T) => void;
   unreadCount?: number;
 }
 
@@ -79,6 +81,8 @@ const ListItemChannelIcon = ChannelAvatar;
 const ListItemContactIcon = ContactAvatar;
 
 const ListItemSystemIcon = SystemIconAvatar;
+
+const ListItemImageIcon = ImageAvatar;
 
 const ListItemMainContent = styled(YStack, {
   name: 'ListItemMainContent',
@@ -178,7 +182,7 @@ const ListItemCount = ({
       {...rest}
     >
       {muted ? (
-        <Icon type="Mute" customSize={[18, 18]} color="$tertiaryText" />
+        <Icon type="Muted" customSize={[18, 18]} color="$tertiaryText" />
       ) : (
         <ListItemCountNumber hidden={!!(muted || count < 1)}>
           {numberWithMax(count, 99)}
@@ -257,6 +261,7 @@ export const ListItem = withStaticProperties(ListItemFrame, {
   ChannelIcon: ListItemChannelIcon,
   ContactIcon: ListItemContactIcon,
   SystemIcon: ListItemSystemIcon,
+  ImageIcon: ListItemImageIcon,
   Dragger,
   Count: ListItemCount,
   MainContent: ListItemMainContent,

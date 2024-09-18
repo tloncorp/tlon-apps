@@ -40,17 +40,15 @@ export const ReserveShipScreen = ({
     state: 'loading',
   });
   const { setShip } = useShip();
-  const { clearLure } = useBranch();
 
   const startShip = useCallback(
     async (shipIds: string[]) => {
       // Fetch statuses for the user's ships and start any required booting/resuming
       const shipsWithStatus = await getShipsWithStatus(shipIds);
       if (!shipsWithStatus) {
-        return setState({
-          state: 'error',
-          error: "Sorry, we couldn't find an active ship for your account.",
-        });
+        // you can only have gotten to this screen if a new hosting account was created and ship
+        // was reserved. If we don't see the ship status, assume it's still booting
+        return setState({ state: 'booting' });
       }
 
       const { status, shipId } = shipsWithStatus;
@@ -118,9 +116,6 @@ export const ReserveShipScreen = ({
         }
       }
 
-      // We are done using the saved lure link, it can be cleared before dropping user in the app
-      clearLure();
-
       // Set the ship info in the main context to navigate to chat view
       setShip({
         ship,
@@ -128,7 +123,7 @@ export const ReserveShipScreen = ({
         authCookie,
       });
     },
-    [user, signUpExtras, navigation, clearLure, setShip]
+    [user, signUpExtras, navigation, setShip]
   );
 
   const reserveShip = useCallback(

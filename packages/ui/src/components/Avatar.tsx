@@ -10,8 +10,7 @@ import {
   useStyle,
 } from 'tamagui';
 
-import { useContact } from '../contexts';
-import { useCalm } from '../contexts/calm';
+import { useCalm, useContact } from '../contexts';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
 import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
@@ -45,6 +44,11 @@ const AvatarFrame = styled(View, {
         height: '$3xl',
         width: '$3xl',
         borderRadius: '$xs',
+      },
+      '$3.5xl': {
+        height: '$3.5xl',
+        width: '$3.5xl',
+        borderRadius: '$s',
       },
       $4xl: {
         height: '$4xl',
@@ -96,10 +100,16 @@ export const ContactAvatar = React.memo(function ContactAvatComponent({
   );
 });
 
+export interface GroupImageShim {
+  id: string;
+  title?: string;
+  iconImage?: string;
+  iconImageColor?: string;
+}
 export const GroupAvatar = React.memo(function GroupAvatarComponent({
   model,
   ...props
-}: { model: db.Group } & AvatarProps) {
+}: { model: db.Group | GroupImageShim } & AvatarProps) {
   const fallback = (
     <TextAvatar
       text={model.title ?? model.id.replace('~', '')}
@@ -216,6 +226,7 @@ export const ImageAvatar = function ImageAvatarComponent({
       <Image
         width={'100%'}
         height={'100%'}
+        contentFit="cover"
         onError={handleLoadError}
         source={{
           uri: imageUrl,
@@ -238,6 +249,7 @@ export const TextAvatar = React.memo(function TextAvatarComponent({
     $xl: 12,
     $2xl: 14,
     $3xl: 16,
+    '$3.5xl': 16,
     $4xl: 16,
     $5xl: 24,
     $9xl: 32,

@@ -1,4 +1,3 @@
-import { BRANCH_DOMAIN, BRANCH_KEY } from '@tloncorp/app/constants';
 import ChatListScreen from '@tloncorp/app/features/top/ChatListScreen';
 import { isDmChannelId } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
@@ -76,8 +75,6 @@ export function ChatListScreenController() {
         navigateToProfile={() => {
           navigate('/profile');
         }}
-        branchKey={BRANCH_KEY}
-        branchDomain={BRANCH_DOMAIN}
       />
       {/*
       <AddGroupSheet

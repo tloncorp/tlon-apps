@@ -76,7 +76,7 @@ export const MessageInputEditor = () => {
         overflow: 'auto',
         height: 'auto',
         fontSize: 16,
-        overflowY: 'hidden',
+        overflowY: 'auto',
         color: useIsDark() ? 'white' : 'black',
         fontFamily:
           "System, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', sans-serif",

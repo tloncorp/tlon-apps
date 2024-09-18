@@ -92,11 +92,11 @@ export type SettingsStackParamList = {
 
 export type OnboardingStackParamList = {
   Welcome: undefined;
-  InventoryCheck: { lure?: string; priorityToken?: string } | undefined;
-  SignUpEmail: { lure?: string; priorityToken?: string } | undefined;
+  InventoryCheck: undefined;
+  SignUpEmail: undefined;
   EULA: undefined;
-  SignUpPassword: { email: string; lure: string; priorityToken?: string };
-  JoinWaitList: { email?: string; lure?: string };
+  SignUpPassword: { email: string };
+  JoinWaitList: { email?: string };
   RequestPhoneVerify: { user: User };
   CheckVerify: { user: User };
   ReserveShip: { user: User; signUpExtras?: SignUpExtras };

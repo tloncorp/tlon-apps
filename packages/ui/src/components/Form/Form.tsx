@@ -51,7 +51,7 @@ export const FieldLabel = React.memo(
     color: '$tertiaryText',
     size: '$label/m',
     paddingHorizontal: '$xl',
-    paddingVertical: '$l',
+    paddingBottom: '$l',
   })
 );
 

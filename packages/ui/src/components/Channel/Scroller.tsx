@@ -22,7 +22,6 @@ import {
   FlatList,
   LayoutChangeEvent,
   ListRenderItem,
-  Platform,
   View as RNView,
   StyleProp,
   ViewStyle,
@@ -364,9 +363,6 @@ const Scroller = forwardRef(
       return (
         <View
           flex={1}
-          // Flatlist doesn't handle inverting this component, so we do it manually.
-          scaleY={inverted ? -1 : 1}
-          rotateY={inverted && Platform.OS === 'android' ? '180deg' : undefined}
           paddingBottom={'$l'}
           paddingHorizontal="$l"
           alignItems="center"
@@ -375,7 +371,7 @@ const Scroller = forwardRef(
           {renderEmptyComponentFn?.()}
         </View>
       );
-    }, [renderEmptyComponentFn, inverted]);
+    }, [renderEmptyComponentFn]);
 
     const handleScroll = useScrollDirectionTracker(setIsAtBottom);
 
@@ -391,7 +387,7 @@ const Scroller = forwardRef(
         {/* {unreadCount && !hasPressedGoToBottom ? (
         <UnreadsButton onPress={pressedGoToBottom} />
       ) : null} */}
-        {posts && (
+        {postsWithNeighbors && (
           <Animated.FlatList<PostWithNeighbors>
             ref={flatListRef as React.RefObject<Animated.FlatList<db.Post>>}
             // This is needed so that we can force a refresh of the list when
@@ -404,7 +400,13 @@ const Scroller = forwardRef(
             keyboardDismissMode="on-drag"
             contentContainerStyle={contentContainerStyle}
             columnWrapperStyle={channelType === 'gallery' && columnWrapperStyle}
-            inverted={inverted}
+            inverted={
+              // https://github.com/facebook/react-native/issues/21196
+              // It looks like this bug has regressed a few times - to avoid
+              // our UI breaking when the bug is fixed, disable `inverted` when
+              // list is empty instead of adversarily transforming the empty component.
+              postsWithNeighbors.length === 0 ? false : inverted
+            }
             initialNumToRender={INITIAL_POSTS_PER_PAGE}
             maxToRenderPerBatch={8}
             windowSize={8}
@@ -633,19 +635,7 @@ const PressableMessage = React.memo(
     function PressableMessageComponent({ isActive, children }, ref) {
       return isActive ? (
         // need the extra React Native View for ref measurement
-        <MotiView
-          animate={{
-            scale: 0.95,
-          }}
-          transition={{
-            scale: {
-              type: 'timing',
-              duration: 50,
-            },
-          }}
-        >
-          <RNView ref={ref}>{children}</RNView>
-        </MotiView>
+        <RNView ref={ref}>{children}</RNView>
       ) : (
         // this fragment is necessary to avoid the TS error about not being able to
         // return undefined

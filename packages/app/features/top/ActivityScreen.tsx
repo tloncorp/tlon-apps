@@ -1,11 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import {
-  ActivityScreenView,
-  AppDataContextProvider,
-  NavBarView,
-  View,
-} from '@tloncorp/ui';
+import { ActivityScreenView, NavBarView, View } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
 // import ErrorBoundary from '../../ErrorBoundary';
@@ -27,7 +22,6 @@ export function ActivityScreen({
   navigateToActivity: () => void;
   navigateToProfile: () => void;
 }) {
-  const { data: contacts } = store.useContacts();
   const isFocused = useIsFocused();
   const currentUserId = useCurrentUserId();
 
@@ -72,30 +66,22 @@ export function ActivityScreen({
   );
 
   return (
-    <AppDataContextProvider contacts={contacts ?? []}>
-      <View backgroundColor="$background" flex={1}>
-        <ActivityScreenView
-          bucketFetchers={bucketedActivity}
-          isFocused={isFocused}
-          goToChannel={handleGoToChannel}
-          goToThread={handleGoToThread}
-          goToGroup={handleGoToGroup}
-          refresh={handleRefreshActivity}
-        />
-        <NavBarView
-          navigateToHome={() => {
-            navigateToChatList();
-          }}
-          navigateToNotifications={() => {
-            navigateToActivity();
-          }}
-          navigateToProfile={() => {
-            navigateToProfile();
-          }}
-          currentRoute="Activity"
-          currentUserId={currentUserId}
-        />
-      </View>
-    </AppDataContextProvider>
+    <View backgroundColor="$background" flex={1}>
+      <ActivityScreenView
+        bucketFetchers={bucketedActivity}
+        isFocused={isFocused}
+        goToChannel={handleGoToChannel}
+        goToThread={handleGoToThread}
+        goToGroup={handleGoToGroup}
+        refresh={handleRefreshActivity}
+      />
+      <NavBarView
+        navigateToHome={navigateToChatList}
+        navigateToNotifications={navigateToActivity}
+        navigateToProfileSettings={navigateToProfile}
+        currentRoute="Activity"
+        currentUserId={currentUserId}
+      />
+    </View>
   );
 }

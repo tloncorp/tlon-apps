@@ -2,9 +2,9 @@ import * as db from '@tloncorp/shared/dist/db';
 import { GroupPrivacy } from '@tloncorp/shared/dist/db/schema';
 import { useCallback, useMemo, useState } from 'react';
 import { SectionList } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, getTokenValue } from 'tamagui';
 
-import { AppDataContextProvider } from '../contexts/appDataContext';
 import { ContactList } from './ContactList';
 import { GenericHeader } from './GenericHeader';
 import { GroupJoinRequestSheet } from './GroupJoinRequestSheet';
@@ -38,6 +38,7 @@ export function GroupMembersScreenView({
   onPressAcceptJoinRequest: (contactId: string) => void;
   onPressRejectJoinRequest: (contactId: string) => void;
 }) {
+  const { bottom } = useSafeAreaInsets();
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const contacts = useMemo(
     () =>
@@ -170,7 +171,7 @@ export function GroupMembersScreenView({
   );
 
   return (
-    <AppDataContextProvider contacts={contacts} currentUserId={currentUserId}>
+    <>
       <View backgroundColor="$background" flex={1}>
         <GenericHeader title="Members" goBack={goBack} />
         <SectionList
@@ -180,6 +181,7 @@ export function GroupMembersScreenView({
           initialNumToRender={11}
           contentContainerStyle={{
             paddingHorizontal: getTokenValue('$l', 'size'),
+            paddingBottom: bottom,
           }}
           windowSize={2}
           renderItem={renderItem}
@@ -222,6 +224,6 @@ export function GroupMembersScreenView({
           onPressReject={() => onPressRejectJoinRequest(selectedContact)}
         />
       )}
-    </AppDataContextProvider>
+    </>
   );
 }
