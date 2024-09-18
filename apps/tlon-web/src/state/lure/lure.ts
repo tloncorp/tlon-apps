@@ -236,7 +236,15 @@ export function useLure(flag: string, disableLoading = false) {
   );
 
   useEffect(() => {
-    if (lure.enabled && !lure.url && group?.meta) {
+    if (!group?.meta) {
+      return;
+    }
+
+    if (lure.enabled && !lure.url) {
+      describe(group.meta);
+    }
+
+    if (lure.enabled && lure.url && checkOldLureToken(lure.url)) {
       describe(group.meta);
     }
   }, [group]);
@@ -293,6 +301,10 @@ export function useLureLinkStatus(flag: string) {
       return 'disabled';
     }
 
+    if (url && checkOldLureToken(url)) {
+      return 'stale';
+    }
+
     if (!url || !fetched || !checked) {
       return 'loading';
     }
@@ -305,4 +317,12 @@ export function useLureLinkStatus(flag: string) {
   }, [supported, fetched, enabled, url, good, checked]);
 
   return { status, shareUrl: deepLinkUrl ?? url, toggle };
+}
+
+function checkOldLureToken(url: string | undefined) {
+  if (!url) return false;
+  const parts = url.split('/');
+  const token = parts.pop();
+  const ship = parts.pop();
+  return ship && token && ship.startsWith('~');
 }
