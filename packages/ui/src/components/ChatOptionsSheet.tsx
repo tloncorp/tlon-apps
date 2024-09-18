@@ -250,16 +250,13 @@ export function GroupOptions({
       title: 'Members',
       endIcon: 'ChevronRight',
       action: () => {
-        if (!group) {
-          return;
-        }
         onPressGroupMembers?.(group.id);
         sheetRef.current.setOpen(false);
       },
     };
 
     const metadataAction: Action = {
-      title: 'Edit metadata',
+      title: 'Edit group info',
       action: () => {
         sheetRef.current.setOpen(false);
         onPressGroupMeta?.(group.id);
@@ -276,23 +273,22 @@ export function GroupOptions({
       endIcon: 'ChevronRight',
     };
 
+    if (currentUserIsAdmin) {
+      actionGroups.push({
+        accent: 'neutral',
+        actions: [manageChannelsAction, managePrivacyAction, metadataAction],
+      });
+    }
+
     actionGroups.push({
       accent: 'neutral',
       actions:
-        group && currentUserIsAdmin
-          ? [
-              manageChannelsAction,
-              managePrivacyAction,
-              goToMembersAction,
-              inviteAction,
-              metadataAction,
-            ]
-          : group.privacy === 'public' || group.privacy === 'private'
-            ? [goToMembersAction, inviteAction]
-            : [goToMembersAction],
+        group.privacy === 'public' || group.privacy === 'private'
+          ? [goToMembersAction, inviteAction]
+          : [goToMembersAction],
     });
 
-    if (group && !group.currentUserIsHost) {
+    if (!group.currentUserIsHost) {
       actionGroups.push({
         accent: 'negative',
         actions: [
@@ -383,11 +379,23 @@ export function ChannelOptions({
     id: channel?.groupId ?? undefined,
   });
   const { data: currentVolumeLevel } = store.useChannelVolumeLevel(channel.id);
+  const currentUser = useCurrentUserId();
   const sheet = useSheet();
   const sheetRef = useRef(sheet);
   sheetRef.current = sheet;
 
-  const { onPressChannelMembers, onPressChannelMeta } = useChatOptions() ?? {};
+  const { onPressChannelMembers, onPressChannelMeta, onPressManageChannels } =
+    useChatOptions() ?? {};
+
+  const currentUserIsAdmin = useMemo(
+    () =>
+      group?.members?.some(
+        (m) =>
+          m.contactId === currentUser &&
+          m.roles?.some((r) => r.roleId === 'admin')
+      ) ?? false,
+    [currentUser, group?.members]
+  );
 
   const { disableNicknames } = useCalm();
   const title = useMemo(() => {
@@ -515,13 +523,33 @@ export function ChannelOptions({
                   },
                 },
                 {
-                  title: 'Edit metadata',
+                  title: 'Edit group info',
                   endIcon: 'ChevronRight',
                   action: () => {
                     if (!channel) {
                       return;
                     }
                     onPressChannelMeta?.(channel.id);
+                    sheetRef.current.setOpen(false);
+                  },
+                },
+              ],
+            } as ActionGroup,
+          ]
+        : []),
+      ...(currentUserIsAdmin
+        ? [
+            {
+              accent: 'neutral',
+              actions: [
+                {
+                  title: 'Manage channels',
+                  endIcon: 'ChevronRight',
+                  action: () => {
+                    if (!group) {
+                      return;
+                    }
+                    onPressManageChannels?.(group.id);
                     sheetRef.current.setOpen(false);
                   },
                 },
@@ -562,7 +590,16 @@ export function ChannelOptions({
         ],
       },
     ];
-  }, [channel, onPressChannelMembers, onPressChannelMeta, setPane, title]);
+  }, [
+    channel,
+    onPressChannelMembers,
+    onPressChannelMeta,
+    setPane,
+    title,
+    currentUserIsAdmin,
+    group,
+    onPressManageChannels,
+  ]);
   return (
     <ChatOptionsSheetContent
       actionGroups={pane === 'initial' ? actionGroups : actionNotifications}
