@@ -121,7 +121,10 @@ export function AddGroupSheet({
     onOpenChange(false);
     // used for resetting components nested within screens after
     // reopening
-    setTimeout(() => setScreenKey((key) => key + 1), 300);
+    setTimeout(() => {
+      setCurrentScreen('Root');
+      setScreenKey((key) => key + 1);
+    }, 300);
   }, [onOpenChange]);
 
   useEffect(() => {
@@ -240,24 +243,6 @@ function RootScreen({
   return (
     <ScreenWrapper withoutSafe>
       <YStack flex={1} gap="$xl">
-        <ActionSheet.ActionGroup>
-          <ActionSheet.Action
-            action={{
-              title: 'New Group',
-              description: 'Create a new group from scratch',
-              endIcon: 'ChevronRight',
-              action: () => goToScreen('InviteUsers'),
-            }}
-          />
-          <ActionSheet.Action
-            action={{
-              title: 'Join a group by username',
-              description: 'Find a group to join',
-              endIcon: 'ChevronRight',
-              action: () => goToFindGroups(),
-            }}
-          />
-        </ActionSheet.ActionGroup>
         <ActionSheet.ActionTitle textAlign="center">
           New Message
         </ActionSheet.ActionTitle>
@@ -268,6 +253,26 @@ function RootScreen({
             onSelect={onSelect}
             onScrollChange={onScrollChange}
             key={screenKey}
+            quickActions={
+              <ActionSheet.ActionGroup paddingVertical="$xl" padding="unset">
+                <ActionSheet.Action
+                  action={{
+                    title: 'New Group',
+                    description: 'Create a new group from scratch',
+                    endIcon: 'ChevronRight',
+                    action: () => goToScreen('InviteUsers'),
+                  }}
+                />
+                <ActionSheet.Action
+                  action={{
+                    title: 'Join a group by username',
+                    description: 'Find a group to join',
+                    endIcon: 'ChevronRight',
+                    action: () => goToFindGroups(),
+                  }}
+                />
+              </ActionSheet.ActionGroup>
+            }
           />
         </View>
       </YStack>

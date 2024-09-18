@@ -28,6 +28,7 @@ export function ContactBook({
   showCancelButton = false,
   onPressCancel,
   explanationComponent,
+  quickActions,
 }: {
   searchPlaceholder?: string;
   searchable?: boolean;
@@ -38,6 +39,7 @@ export function ContactBook({
   showCancelButton?: boolean;
   onPressCancel?: () => void;
   explanationComponent?: React.ReactElement;
+  quickActions?: React.ReactElement;
 }) {
   const contacts = useContacts();
   const contactsIndex = useContactIndex();
@@ -119,6 +121,8 @@ export function ContactBook({
     [onScrollChange]
   );
 
+  const QuickActions = () => quickActions ?? null;
+
   return (
     <View flex={1}>
       {searchable && (
@@ -145,6 +149,7 @@ export function ContactBook({
         <Explanation />
       ) : (
         <View flex={1} onTouchStart={Keyboard.dismiss}>
+          {quickActions && !showSearchResults && <QuickActions />}
           <BlockSectionList
             sections={sections}
             onScroll={handleScroll}
