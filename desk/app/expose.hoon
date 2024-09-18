@@ -40,11 +40,12 @@
       `con.for.u.for
     ::
     ::TODO  if we render replies then we can "unroll" whole chat threads too (:
+    ::TODO  just key off the kind-data, no?
     |^  ?+  p.nest  ~
             %chat
           ?>  ?=(%chat -.kind-data.msg)
           =/  title=tape
-            (trip (rap 3 (turn (first-inline content.msg) flatten-inline:u)))
+            (trip (rap 3 (turn (first-inline:u content.msg) flatten-inline:u)))
           %-  some
           %:  build  "chat"
             (heads title ~)
@@ -1964,29 +1965,6 @@
           $(n (mod n 10))
         ==
       --
-    ::
-    ++  first-inline
-      |=  content=story:d
-      ^-  (list inline:d)
-      ?~  content  ~
-      ?:  ?=(%inline -.i.content)
-        p.i.content
-      ?+  -.p.i.content  $(content t.content)
-        %header   q.p.i.content  ::REVIEW  questionable
-      ::
-          %listing
-        |-
-        ?-  -.p.p.i.content
-          %list  ::TODO  or check listing first?
-                 ?.  =(~ r.p.p.i.content)
-                   r.p.p.i.content
-                 ?~  q.p.p.i.content  ~
-                 =/  r  $(p.p.i.content i.q.p.p.i.content)
-                 ?.  =(~ r)  r
-                 $(q.p.p.i.content t.q.p.p.i.content)
-          %item  p.p.p.i.content
-        ==
-      ==
     --
   ::
   ++  post-from-cite

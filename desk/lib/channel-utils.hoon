@@ -430,7 +430,30 @@
     %task   (rap 3 (turn q.i flatten-inline))
     %break  '\0a'
   ==
-:: ::
+::
+++  first-inline
+  |=  content=story:c
+  ^-  (list inline:c)
+  ?~  content  ~
+  ?:  ?=(%inline -.i.content)
+    p.i.content
+  ?+  -.p.i.content  $(content t.content)
+    %header   q.p.i.content  ::REVIEW  questionable
+  ::
+      %listing
+    |-
+    ?-  -.p.p.i.content
+      %list  ::TODO  or check listing first?
+              ?.  =(~ r.p.p.i.content)
+                r.p.p.i.content
+              ?~  q.p.p.i.content  ~
+              =/  r  $(p.p.i.content i.q.p.p.i.content)
+              ?.  =(~ r)  r
+              $(q.p.p.i.content t.q.p.p.i.content)
+      %item  p.p.p.i.content
+    ==
+  ==
+::
 ++  en-manx  ::NOTE  more commonly, marl, but that's just (list manx)
   |%
   ++  content  story
