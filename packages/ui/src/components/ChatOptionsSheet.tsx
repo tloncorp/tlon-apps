@@ -280,13 +280,20 @@ export function GroupOptions({
       });
     }
 
-    actionGroups.push({
-      accent: 'neutral',
-      actions:
-        group.privacy === 'public' || group.privacy === 'private'
-          ? [goToMembersAction, inviteAction]
-          : [goToMembersAction],
-    });
+    if (currentUserIsAdmin) {
+      actionGroups.push({
+        accent: 'neutral',
+        actions: [goToMembersAction, inviteAction],
+      });
+    } else {
+      actionGroups.push({
+        accent: 'neutral',
+        actions:
+          group.privacy === 'public' || group.privacy === 'private'
+            ? [goToMembersAction, inviteAction]
+            : [goToMembersAction],
+      });
+    }
 
     if (!group.currentUserIsHost) {
       actionGroups.push({
@@ -512,17 +519,6 @@ export function ChannelOptions({
               accent: 'neutral',
               actions: [
                 {
-                  title: 'Members',
-                  endIcon: 'ChevronRight',
-                  action: () => {
-                    if (!channel) {
-                      return;
-                    }
-                    onPressChannelMembers?.(channel.id);
-                    sheetRef.current.setOpen(false);
-                  },
-                },
-                {
                   title: 'Edit group info',
                   endIcon: 'ChevronRight',
                   action: () => {
@@ -530,6 +526,26 @@ export function ChannelOptions({
                       return;
                     }
                     onPressChannelMeta?.(channel.id);
+                    sheetRef.current.setOpen(false);
+                  },
+                },
+              ],
+            } as ActionGroup,
+          ]
+        : []),
+      ...(channel.type === 'groupDm'
+        ? [
+            {
+              accent: 'neutral',
+              actions: [
+                {
+                  title: 'Members',
+                  endIcon: 'ChevronRight',
+                  action: () => {
+                    if (!channel) {
+                      return;
+                    }
+                    onPressChannelMembers?.(channel.id);
                     sheetRef.current.setOpen(false);
                   },
                 },
