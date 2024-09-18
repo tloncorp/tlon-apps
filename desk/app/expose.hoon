@@ -429,9 +429,10 @@
   |=  ole=vase
   ^-  (quip card _this)
   =.  state  !<(state-0 ole)
-  ::TODO  defer, because it scries
-  ::TODO  should update cache entries, styling/content might've changed
-  [(update-widget:e [our now]:bowl open) this]
+  :_  this
+  ::  we must defer refreshing the cache because rendering scries
+  ::
+  [%pass /refresh %arvo %b %wait now.bowl]~
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -521,6 +522,31 @@
   ?+  wire  !!
       [%eyre %connect ~]
     [~ this]  ::TODO  print if not successful
+  ::
+      [%refresh ~]
+    :_  this
+    :-  %+  store:hutils  '/expose/style/shared.css'
+        =/  bod=(unit octs)
+          `(as-octs:mimes:html style-shared)
+        `[| %payload [200 ['content-type' 'text/css'] ~] bod]
+    %+  weld
+      (update-widget:e [our now]:bowl open)
+    %+  murn  ~(tap in open)
+    |=  ref=cite:c
+    ^-  (unit card)  ::TODO  or should this remove from cache also?
+    ::TODO  maybe find a way to dedupe with logic in %show and %handle-http-req
+    ::TODO  reconsider. if we just remove the cache entry, we'll re-render
+    ::      on-demand instead of all-at-once, which may be slow.
+    =/  msg=(unit [=nest:g:c =post:d])
+      (post-from-cite:e our.bowl now.bowl ref)
+    ?~  msg  ~
+    =/  pag=(unit manx)
+      ((render-post:e [our now]:bowl) u.msg)
+    ?~  pag  ~
+    %-  some
+    %+  store:hutils
+      (cat 3 '/expose' (spat (print:c ref)))
+    `[| %payload (paint:hutils %page u.pag)]
   ==
 ::
 ++  on-peek
