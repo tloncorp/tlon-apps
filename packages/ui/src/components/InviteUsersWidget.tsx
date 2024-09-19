@@ -121,7 +121,7 @@ const InviteUsersWidgetComponent = ({
           onSelectedChange={setInvitees}
         />
       </ActionSheet.ContentBlock>
-      <ActionSheet.ContentBlock>
+      <ActionSheet.ContentBlock gap="$l">
         <Button
           hero
           onPress={handleInviteButtonPress}
@@ -132,9 +132,9 @@ const InviteUsersWidgetComponent = ({
         >
           <Button.Text>{buttonText}</Button.Text>
         </Button>
-        {/* <Button hero secondary onPress={handleSkipButtonPress}>
+        <Button hero secondary onPress={handleSkipButtonPress}>
           <Button.Text color="$primaryText">Skip</Button.Text>
-        </Button> */}
+        </Button>
       </ActionSheet.ContentBlock>
     </>
   );
