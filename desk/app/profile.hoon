@@ -10,7 +10,7 @@
 /=  stock-widgets  /app/profile/widgets
 ::
 /*  style-shared  %css  /app/expose/style/shared/css
-/*  style-page    %css  /app/profile/page/css
+/*  style-page    %css  /app/profile/style/page/css
 ::
 |%
 +$  state-0
@@ -137,10 +137,7 @@
     ::
     :-  [%pass /eyre/cache %arvo %e %set-response '/profile' `[| %payload payload]]
     (spout:rudder id payload)
-  ?:  =('/expose/style/shared.css' url.request)
-      :-  [200 ['content-type' 'text/css']~]
-      `(as-octs:mimes:html style-shared)
-  ?:  =('/profile/page.css' url.request)
+  ?:  =('/profile/style/page.css' url.request)
       :-  [200 ['content-type' 'text/css']~]
       `(as-octs:mimes:html style-page)
   %-  paint:rudder
@@ -193,7 +190,7 @@
     ;head
       ;title:"{name}"
       ;link(rel "stylesheet", href "/expose/style/shared.css");
-      ;link(rel "stylesheet", href "/profile/page.css");
+      ;link(rel "stylesheet", href "/profile/style/page.css");
       ;meta(charset "utf-8");
       ;meta(name "viewport", content "width=device-width, initial-scale=1");
     ::
@@ -245,7 +242,6 @@
           :_  ~
       ;div.tlon-badge
         ;a(href "https://tlon.io")
-          ;img@"https://tlon.io/icon.svg"(alt "Tlon logo", width "18");
           ;span
             ; Powered by Tlon
           ==

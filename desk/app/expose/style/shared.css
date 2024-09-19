@@ -1379,6 +1379,7 @@ dialog::backdrop {
     0 0.125em 0.25em var(--selection),
     0 0 1em var(--selection);
   font-size: 0.75em;
+  background: #fff;
 }
 
 @media screen and (min-width: 960px) {
@@ -1391,9 +1392,17 @@ dialog::backdrop {
 .tlon-badge a {
   display: flex;
   align-items: center;
-  color: var(--text-main);
+  color: #000;
   gap: 0.5em;
   text-decoration: none;
+}
+
+.tlon-badge a:before {
+  content: '';
+  width: 18px;
+  height: 18px;
+  background: url("data:image/svg+xml;charset=utf-8,%3C?xml version='1.0' encoding='utf-8'?%3E %3Csvg version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' height='160' width='160' fill='%23000'%3E %3Cpath d='M155 0H5a5 5 0 0 0-5 5v32.5a5 5 0 0 0 5 5h45c5.523 0 10 4.477 10 10v26.25a8.75 8.75 0 1 1-17.5 0V60a5 5 0 0 0-5-5H5a5 5 0 0 0-5 5v90c0 5.523 4.477 10 10 10h140c5.523 0 10-4.477 10-10V60a5 5 0 0 0-5-5h-32.5a5 5 0 0 0-5 5v18.75a8.75 8.75 0 0 1-17.5 0V52.5c0-5.523 4.477-10 10-10h45a5 5 0 0 0 5-5V5a5 5 0 0 0-5-5Z'/%3E %3C/svg%3E");
+  background-size: cover;
 }
 
 /* == HERO BUTTON == */

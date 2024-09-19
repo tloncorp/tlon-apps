@@ -214,7 +214,6 @@
     ++  badge
       ;div.tlon-badge
         ;a(href "https://tlon.io")
-          ;img@"https://tlon.io/icon.svg"(alt "Tlon logo", width "18");
           ;span
             ; Powered by Tlon
           ==
