@@ -214,7 +214,6 @@
     ++  badge
       ;div.tlon-badge
         ;a(href "https://tlon.io")
-          ;img@"https://tlon.io/icon.svg"(alt "Tlon logo", width "18");
           ;span
             ; Powered by Tlon
           ==
@@ -293,7 +292,7 @@
       ?~  aa=(rush i.t.wer.a dum:ag)                |
       ?~  bb=(rush i.t.wer.b dum:ag)                &
       (gth u.aa u.bb)
-    :-  ;style:"{(trip style-shared)} {(trip style-widget)}"
+    :-  ;style:"{(trip style-widget)}"
     =-  (snoc - time-script-node:r)
     %+  murn  cis
     |=  ref=cite:c
