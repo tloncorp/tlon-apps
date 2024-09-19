@@ -1,7 +1,6 @@
 import { getSize } from '@tamagui/get-token';
 import { cloneElement, useContext } from 'react';
 import {
-  SizableText,
   SizeTokens,
   Stack,
   Text,
@@ -14,31 +13,18 @@ import {
 export function FloatingActionButton({
   onPress,
   icon,
-  label,
 }: {
   onPress: () => void;
   icon?: React.ReactNode;
-  label?: string;
 }) {
   return (
     <Button
       paddingHorizontal="$m"
-      paddingVertical="$s"
+      paddingVertical="$m"
       alignItems="center"
       onPress={onPress}
     >
       {icon}
-      {label && (
-        <SizableText
-          ellipsizeMode="tail"
-          numberOfLines={1}
-          fontSize={'$s'}
-          maxWidth={200}
-          height={'$2xl'}
-        >
-          {label}
-        </SizableText>
-      )}
     </Button>
   );
 }
@@ -57,7 +43,7 @@ const ButtonFrame = styled(Stack, {
   },
   borderColor: '$border',
   borderWidth: 1,
-  borderRadius: '$m',
+  borderRadius: '$3xl',
   paddingVertical: '$s',
   paddingHorizontal: '$l',
 });

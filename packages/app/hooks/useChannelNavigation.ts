@@ -68,29 +68,10 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
     navigate(`/dm/${channelQuery.data.id}/search`);
   }, [navigate, channelQuery.data]);
 
-  const performGroupAction = useCallback(
-    async (action: GroupPreviewAction, updatedGroup: db.Group) => {
-      if (action === 'goTo' && updatedGroup.lastPost?.channelId) {
-        const channel = await db.getChannel({
-          id: updatedGroup.lastPost.channelId,
-        });
-        if (channel) {
-          navigate('/group/' + channel.groupId + '/channel/' + channel.id);
-        }
-      }
-
-      if (action === 'joined') {
-        navigate('/');
-      }
-    },
-    [navigate]
-  );
-
   return {
     navigateToPost,
     navigateToRef,
     navigateToImage,
     navigateToSearch,
-    performGroupAction,
   };
 };

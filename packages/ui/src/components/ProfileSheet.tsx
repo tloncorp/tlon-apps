@@ -116,7 +116,12 @@ export function ProfileSheet({
   );
 
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange} snapPoints={['90%']}>
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      snapPointsMode="percent"
+      snapPoints={[90]}
+    >
       <ActionSheet.ScrollableContent>
         <ActionSheet.ContentBlock>
           <ProfileBlock contactId={contactId} />

@@ -412,7 +412,6 @@ export function Channel({
                                     ? setShowAddGalleryPost(true)
                                     : setShowBigInput(true)
                                 }
-                                label="New Post"
                                 icon={
                                   <Icon
                                     type="Add"

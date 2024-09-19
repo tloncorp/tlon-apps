@@ -2,16 +2,14 @@ import { createShortCodeFromTitle } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useState } from 'react';
-import { TextInput } from 'react-native';
-import { getTokenValue } from 'tamagui';
-import { SizableText, XStack, YStack, useTheme } from 'tamagui';
+import { YStack } from 'tamagui';
 
 import { triggerHaptic } from '../../utils';
 import { PrimaryButton } from '../Buttons';
-import { Icon } from '../Icon';
+import { Field, TextInput } from '../Form';
 
 export function CreateGroupWidget(props: {
-  goBack: () => void;
+  invitees: string[];
   onCreatedGroup: ({
     group,
     channel,
@@ -22,7 +20,6 @@ export function CreateGroupWidget(props: {
 }) {
   const [loading, setLoading] = useState(false);
   const [groupName, setGroupName] = useState('');
-  const theme = useTheme();
 
   const onCreateGroup = useCallback(async () => {
     const shortCode = createShortCodeFromTitle(groupName);
@@ -37,6 +34,14 @@ export function CreateGroupWidget(props: {
         title: groupName,
         shortCode,
       });
+
+      if (props.invitees.length > 0) {
+        await store.inviteGroupMembers({
+          groupId: group.id,
+          contactIds: props.invitees,
+        });
+      }
+
       props.onCreatedGroup({ group, channel });
       triggerHaptic('success');
     } catch (e) {
@@ -48,28 +53,16 @@ export function CreateGroupWidget(props: {
 
   return (
     <YStack flex={1} gap="$2xl">
-      <XStack justifyContent="space-between" alignItems="center">
-        <Icon type="ChevronLeft" onPress={() => props.goBack()} />
-        <SizableText fontWeight="$xl">Start a New Group</SizableText>
-        <Icon type="ChevronRight" opacity={0} />
-      </XStack>
-      <SizableText size="$m">What is your group about?</SizableText>
-      {/* TODO: make tamagui input cohere */}
-      <TextInput
-        style={{
-          borderRadius: getTokenValue('$l', 'radius'),
-          borderWidth: 1,
-          borderColor: theme.primaryText.val,
-          padding: getTokenValue('$xl', 'space'),
-          fontSize: 17,
-        }}
-        autoFocus
-        autoComplete="off"
-        spellCheck={false}
-        maxLength={100}
-        onChangeText={setGroupName}
-        placeholder="Group name"
-      />
+      <Field label="Group Name (Required)" required>
+        <TextInput
+          autoFocus
+          autoComplete="off"
+          spellCheck={false}
+          maxLength={100}
+          onChangeText={setGroupName}
+          placeholder="Group name"
+        />
+      </Field>
       <PrimaryButton
         disabled={groupName.length < 3 || loading}
         loading={loading}

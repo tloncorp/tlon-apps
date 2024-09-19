@@ -49,29 +49,10 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
     });
   }, [navigation, channelQuery.data]);
 
-  const performGroupAction = useCallback(
-    async (action: GroupPreviewAction, updatedGroup: db.Group) => {
-      if (action === 'goTo' && updatedGroup.lastPost?.channelId) {
-        const channel = await db.getChannel({
-          id: updatedGroup.lastPost.channelId,
-        });
-        if (channel) {
-          navigation.navigate('Channel', { channel });
-        }
-      }
-
-      if (action === 'joined') {
-        navigation.navigate('ChatList');
-      }
-    },
-    [navigation]
-  );
-
   return {
     navigateToPost,
     navigateToRef,
     navigateToImage,
     navigateToSearch,
-    performGroupAction,
   };
 };
