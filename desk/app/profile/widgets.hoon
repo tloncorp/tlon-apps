@@ -97,6 +97,12 @@
       border-radius: 1em;
       overflow: hidden;
     }
+    .profile-headline-avatar {
+      border-radius: 1em;
+      object-fit: cover;
+      width: 128px;
+      height: 128px;
+    }
     .profile-headline-title {
       display: flex;
       flex-direction: column;
