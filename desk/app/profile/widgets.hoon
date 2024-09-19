@@ -115,6 +115,9 @@
     .profile-headline-username {
       margin: 0;
     }
+    .profile-without-header .profile-headline {
+      margin-left: -2em;
+    }
     .profile-with-header {
       aspect-ratio: 1/1;
       display: flex;
