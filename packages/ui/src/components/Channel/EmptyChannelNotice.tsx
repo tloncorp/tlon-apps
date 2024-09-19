@@ -1,9 +1,10 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useState } from 'react';
-import { View as RNView } from 'react-native';
-import { SizableText } from 'tamagui';
+import { SizableText, YStack } from 'tamagui';
 
+import { useGroup } from '../../contexts';
 import { useIsAdmin } from '../../utils';
+import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 
 export function EmptyChannelNotice({
   channel,
@@ -13,6 +14,7 @@ export function EmptyChannelNotice({
   userId: string;
 }) {
   const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
+  const group = useGroup(channel.groupId ?? '');
   const [isFirstVisit] = useState(() => channel.lastViewedAt == null);
   const isWelcomeChannel = !!channel.isDefaultWelcomeChannel;
   const noticeText = useMemo(() => {
@@ -23,14 +25,19 @@ export function EmptyChannelNotice({
     return 'There are no messages... yet.';
   }, [isGroupAdmin, isFirstVisit, isWelcomeChannel]);
 
-  // this component is usually used within a list view, but there's a bug in RN
-  // with rotating empty placeholders if the list is inverted. This custom styling is a workaround
-  // that gives callers the ability to optionally account for that issue
   return (
-    <RNView>
-      <SizableText textAlign="center" color="$tertiaryText">
-        {noticeText}
-      </SizableText>
-    </RNView>
+    <YStack
+      height="100%"
+      gap="$9xl"
+      justifyContent="flex-end"
+      paddingHorizontal="$xl"
+    >
+      <YStack height="70%" justifyContent="center">
+        <SizableText textAlign="center" color="$tertiaryText">
+          {noticeText}
+        </SizableText>
+      </YStack>
+      <InviteFriendsToTlonButton group={group} />
+    </YStack>
   );
 }

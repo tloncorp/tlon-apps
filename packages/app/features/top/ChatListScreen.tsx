@@ -2,19 +2,19 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import {
+  AddGroupSheet,
   Button,
   ChatList,
   ChatOptionsProvider,
   ChatOptionsSheet,
   ChatOptionsSheetMethods,
-  FloatingAddButton,
+  FloatingActionButton,
   GroupPreviewSheet,
   Icon,
   InviteUsersSheet,
   NavBarView,
   RequestsProvider,
   ScreenHeader,
-  StartDmSheet,
   View,
   WelcomeSheet,
 } from '@tloncorp/ui';
@@ -37,26 +37,25 @@ const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
 };
 
 export default function ChatListScreen({
-  startDmOpen,
-  setStartDmOpen,
-  setAddGroupOpen,
-  navigateToDm,
+  navigateToChannel,
   navigateToGroupChannels,
   navigateToSelectedPost,
   navigateToHome,
   navigateToNotifications,
   navigateToProfile,
+  navigateToFindGroups,
+  navigateToCreateGroup,
 }: {
-  startDmOpen: boolean;
-  setStartDmOpen: (open: boolean) => void;
-  setAddGroupOpen: (open: boolean) => void;
-  navigateToDm: (channel: db.Channel) => void;
+  navigateToChannel: (channel: db.Channel) => void;
   navigateToGroupChannels: (group: db.Group) => void;
   navigateToSelectedPost: (channel: db.Channel, postId?: string | null) => void;
   navigateToHome: () => void;
   navigateToNotifications: () => void;
   navigateToProfile: () => void;
+  navigateToFindGroups: () => void;
+  navigateToCreateGroup: () => void;
 }) {
+  const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
@@ -121,16 +120,32 @@ export default function ChatListScreen({
     };
   }, [chats, pendingChats]);
 
+  const handleNavigateToFindGroups = useCallback(() => {
+    setAddGroupOpen(false);
+    navigateToFindGroups();
+  }, [navigateToFindGroups]);
+
+  const handleNavigateToCreateGroup = useCallback(() => {
+    setAddGroupOpen(false);
+    navigateToCreateGroup();
+  }, [navigateToCreateGroup]);
+
   const goToDm = useCallback(
-    async (participants: string[]) => {
+    async (userId: string) => {
       const dmChannel = await store.upsertDmChannel({
-        participants,
+        participants: [userId],
       });
-      setStartDmOpen(false);
-      navigateToDm(dmChannel);
+      setAddGroupOpen(false);
+      navigateToChannel(dmChannel);
     },
-    [navigateToDm, setStartDmOpen]
+    [navigateToChannel, setAddGroupOpen]
   );
+
+  const handleAddGroupOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setAddGroupOpen(false);
+    }
+  }, []);
 
   const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
@@ -162,15 +177,6 @@ export default function ChatListScreen({
       }
     }
   }, []);
-
-  const handleDmOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open) {
-        setStartDmOpen(false);
-      }
-    },
-    [setStartDmOpen]
-  );
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -280,9 +286,11 @@ export default function ChatListScreen({
             width={'100%'}
             pointerEvents="box-none"
           >
-            <FloatingAddButton
-              setStartDmOpen={setStartDmOpen}
-              setAddGroupOpen={setAddGroupOpen}
+            <FloatingActionButton
+              onPress={() => {
+                setAddGroupOpen(true);
+              }}
+              icon={<Icon type="Add" size="$m" />}
             />
           </View>
           <WelcomeSheet
@@ -290,11 +298,6 @@ export default function ChatListScreen({
             onOpenChange={handleWelcomeOpenChange}
           />
           <ChatOptionsSheet ref={chatOptionsSheetRef} />
-          <StartDmSheet
-            goToDm={goToDm}
-            open={startDmOpen}
-            onOpenChange={handleDmOpenChange}
-          />
           <GroupPreviewSheet
             open={selectedGroup !== null}
             onOpenChange={handleGroupPreviewSheetOpenChange}
@@ -315,6 +318,14 @@ export default function ChatListScreen({
           currentUserId={currentUser}
         />
       </ChatOptionsProvider>
+
+      <AddGroupSheet
+        open={addGroupOpen}
+        onGoToDm={goToDm}
+        onOpenChange={handleAddGroupOpenChange}
+        navigateToFindGroups={handleNavigateToFindGroups}
+        navigateToCreateGroup={handleNavigateToCreateGroup}
+      />
     </RequestsProvider>
   );
 }

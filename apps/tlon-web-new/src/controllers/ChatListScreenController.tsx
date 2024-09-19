@@ -1,38 +1,11 @@
 import ChatListScreen from '@tloncorp/app/features/top/ChatListScreen';
 import { isDmChannelId } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router';
-
-// import AddGroupSheet from '../components/AddGroupSheet';
 
 export function ChatListScreenController() {
   const navigate = useNavigate();
-  const [addGroupOpen, setAddGroupOpen] = useState(false);
-  const [startDmOpen, setStartDmOpen] = useState(false);
-
-  const handleAddGroupOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setAddGroupOpen(false);
-    }
-  }, []);
-
-  const goToChannel = useCallback(
-    ({ channel }: { channel: db.Channel }) => {
-      setStartDmOpen(false);
-      setAddGroupOpen(false);
-      setTimeout(
-        () => navigate(`/group/${channel.groupId}/channel/${channel.id}`),
-        150
-      );
-    },
-    [navigate]
-  );
-
-  const handleGroupCreated = useCallback(
-    ({ channel }: { channel: db.Channel }) => goToChannel({ channel }),
-    [goToChannel]
-  );
 
   const handleNavigateToChannel = useCallback(
     (channel: db.Channel, postId?: string | null) => {
@@ -56,10 +29,7 @@ export function ChatListScreenController() {
   return (
     <>
       <ChatListScreen
-        setStartDmOpen={setStartDmOpen}
-        startDmOpen={startDmOpen}
-        setAddGroupOpen={setAddGroupOpen}
-        navigateToDm={(channel) => {
+        navigateToChannel={(channel) => {
           navigate(`/dm/${channel.id}`);
         }}
         navigateToGroupChannels={(group) => {
@@ -75,14 +45,13 @@ export function ChatListScreenController() {
         navigateToProfile={() => {
           navigate('/profile');
         }}
+        navigateToFindGroups={() => {
+          navigate('/find-groups');
+        }}
+        navigateToCreateGroup={() => {
+          navigate('/create-group');
+        }}
       />
-      {/*
-      <AddGroupSheet
-        open={addGroupOpen}
-        onOpenChange={handleAddGroupOpenChange}
-        onCreatedGroup={handleGroupCreated}
-      />
-      */}
     </>
   );
 }

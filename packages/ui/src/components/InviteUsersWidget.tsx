@@ -93,7 +93,15 @@ const InviteUsersWidgetComponent = ({
     if (status === 'stale') {
       describe(meta);
     }
-  }, [group, branchDomain, branchKey, toggle, status, currentUserIsAdmin]);
+  }, [
+    group,
+    branchDomain,
+    branchKey,
+    toggle,
+    status,
+    currentUserIsAdmin,
+    describe,
+  ]);
 
   const handleSkipButtonPress = useCallback(() => {
     onInviteComplete();
