@@ -1,8 +1,12 @@
+import type * as db from '@tloncorp/shared/dist/db';
 import { CreateGroupView } from '@tloncorp/ui';
-import { useGroupNavigation } from '../../hooks/useGroupNavigation';
 
-export function CreateGroupScreen({ goBack }: { goBack: () => void }) {
-  const { goToChannel } = useGroupNavigation();
-
+export function CreateGroupScreen({
+  goBack,
+  goToChannel,
+}: {
+  goBack: () => void;
+  goToChannel: (channel: db.Channel) => void;
+}) {
   return <CreateGroupView goBack={goBack} navigateToChannel={goToChannel} />;
 }
