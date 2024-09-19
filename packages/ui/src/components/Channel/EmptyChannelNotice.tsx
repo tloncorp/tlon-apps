@@ -1,11 +1,10 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useState } from 'react';
-import { SizableText, YStack } from 'tamagui';
+import { SizableText, View, YStack } from 'tamagui';
 
 import { useGroup } from '../../contexts';
 import { useIsAdmin } from '../../utils';
-import { Button } from '../Button';
-import { InviteUsersSheet } from '../InviteUsersSheet';
+import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 
 export function EmptyChannelNotice({
   channel,
@@ -17,7 +16,6 @@ export function EmptyChannelNotice({
   const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
   const group = useGroup(channel.groupId ?? '');
   const [isFirstVisit] = useState(() => channel.lastViewedAt == null);
-  const [showInviteUsersSheet, setShowInviteUsersSheet] = useState(false);
   const isWelcomeChannel = !!channel.isDefaultWelcomeChannel;
   const noticeText = useMemo(() => {
     if (isGroupAdmin && isFirstVisit && isWelcomeChannel) {
@@ -28,21 +26,18 @@ export function EmptyChannelNotice({
   }, [isGroupAdmin, isFirstVisit, isWelcomeChannel]);
 
   return (
-    <>
-      <YStack gap="$l" paddingHorizontal="$xl">
+    <YStack
+      height="100%"
+      gap="$9xl"
+      justifyContent="flex-end"
+      paddingHorizontal="$xl"
+    >
+      <YStack height="70%" justifyContent="center">
         <SizableText textAlign="center" color="$tertiaryText">
           {noticeText}
         </SizableText>
-        <Button hero onPress={() => setShowInviteUsersSheet(true)}>
-          <Button.Text>Invite People</Button.Text>
-        </Button>
       </YStack>
-      <InviteUsersSheet
-        open={showInviteUsersSheet}
-        onOpenChange={(open) => setShowInviteUsersSheet(open)}
-        group={group}
-        onInviteComplete={() => setShowInviteUsersSheet(false)}
-      />
-    </>
+      <InviteFriendsToTlonButton group={group} />
+    </YStack>
   );
 }
