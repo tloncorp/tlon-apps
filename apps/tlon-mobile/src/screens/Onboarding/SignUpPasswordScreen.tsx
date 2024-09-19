@@ -10,6 +10,7 @@ import {
   useLureMetadata,
   useSignupParams,
 } from '@tloncorp/app/contexts/branch';
+import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import {
   logInHostingUser,
   signUpHostingUser,
@@ -51,6 +52,7 @@ export const SignUpPasswordScreen = ({
   },
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const signupContext = useSignupContext();
   const signupParams = useSignupParams();
   const lureMeta = useLureMetadata();
   const {
@@ -116,6 +118,7 @@ export const SignUpPasswordScreen = ({
         lure: signupParams.lureId,
         priorityToken: signupParams.priorityToken,
       });
+      signupContext.setDidSignup(true);
     } catch (err) {
       console.error('Error signing up user:', err);
       if (err instanceof Error) {

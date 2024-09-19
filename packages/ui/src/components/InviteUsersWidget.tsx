@@ -20,7 +20,7 @@ const InviteUsersWidgetComponent = ({
   const currentUser = useCurrentUserId();
   const branchDomain = useBranchDomain();
   const branchKey = useBranchKey();
-  const { status, shareUrl, toggle } = store.useLureLinkStatus({
+  const { status, shareUrl, toggle, describe } = store.useLureLinkStatus({
     flag: group.id,
     branchDomain: branchDomain,
     branchKey: branchKey,
@@ -76,16 +76,21 @@ const InviteUsersWidgetComponent = ({
   ]);
 
   useEffect(() => {
+    const meta = {
+      title: group.title ?? '',
+      description: group.description ?? '',
+      cover: group.coverImage ?? '',
+      image: group.iconImage ?? '',
+    };
+
     const toggleLink = async () => {
-      await toggle({
-        title: group.title ?? '',
-        description: group.description ?? '',
-        cover: group.coverImage ?? '',
-        image: group.iconImage ?? '',
-      });
+      await toggle(meta);
     };
     if (status === 'disabled' && currentUserIsAdmin) {
       toggleLink();
+    }
+    if (status === 'stale') {
+      describe(meta);
     }
   }, [group, branchDomain, branchKey, toggle, status, currentUserIsAdmin]);
 

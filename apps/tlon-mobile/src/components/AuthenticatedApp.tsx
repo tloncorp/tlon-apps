@@ -1,9 +1,11 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import { useShip } from '@tloncorp/app/contexts/ship';
+import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import useAppForegrounded from '@tloncorp/app/hooks/useAppForegrounded';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
+import { usePostSignup } from '@tloncorp/app/hooks/usePostSignup';
 import { configureClient } from '@tloncorp/app/lib/api';
 import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
@@ -29,6 +31,8 @@ function AuthenticatedApp({
   const { ship, shipUrl } = useShip();
   const currentUserId = useCurrentUserId();
   const session = store.useCurrentSession();
+  const signupContext = useSignupContext();
+  const handlePostSignup = usePostSignup();
   useNotificationListener(notificationListenerProps);
   useDeepLinkListener();
   useNavigationLogging();
@@ -50,8 +54,12 @@ function AuthenticatedApp({
       store.setErrorTrackingUserId(currentUserId);
     }
 
+    if (signupContext.didSignup) {
+      handlePostSignup();
+    }
+
     sync.syncStart();
-  }, [currentUserId, ship, shipUrl]);
+  }, [currentUserId, handlePostSignup, ship, shipUrl, signupContext.didSignup]);
 
   useAppForegrounded(() => {
     // only run these updates if we've initialized the session

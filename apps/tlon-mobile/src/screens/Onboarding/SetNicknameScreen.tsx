@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { requestNotificationToken } from '@tloncorp/app/lib/notifications';
 import { trackError } from '@tloncorp/app/utils/posthog';
 import {
@@ -26,7 +27,7 @@ type FormData = {
 export const SetNicknameScreen = ({
   navigation,
   route: {
-    params: { user, signUpExtras },
+    params: { user },
   },
 }: Props) => {
   const {
@@ -36,19 +37,24 @@ export const SetNicknameScreen = ({
     setValue,
   } = useForm<FormData>({
     defaultValues: {
-      nickname: signUpExtras.nickname,
+      nickname: '',
       notificationToken: undefined,
     },
   });
 
+  const signupContext = useSignupContext();
+
   const onSubmit = handleSubmit(({ nickname, notificationToken }) => {
+    if (nickname) {
+      signupContext.setNickname(nickname);
+    }
+
+    if (notificationToken) {
+      signupContext.setNotificationToken(notificationToken);
+    }
+
     navigation.navigate('SetTelemetry', {
       user,
-      signUpExtras: {
-        ...signUpExtras,
-        nickname,
-        notificationToken,
-      },
     });
   });
 
