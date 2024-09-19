@@ -111,9 +111,48 @@ export default function ChannelScreen({
       return false;
     }
     const { syncedAt, lastPostAt } = channel;
-    if (syncedAt && session.startTime < syncedAt) {
+
+    if (syncedAt == null) {
+      return false;
+    }
+
+    // `syncedAt` is only set when sync endpoint reports that there are no newer posts.
+    // https://github.com/tloncorp/tlon-apps/blob/adde000f4330af7e0a2e19bdfcb295f5eb9fe3da/packages/shared/src/store/sync.ts#L905-L910
+    // We are guaranteed to have the most recent post before `syncedAt`; and
+    // we are guaranteed to have the most recent post after `session.startTime`.
+
+    // This case checks that we have overlap between sync backfill and session subscription.
+    //
+    //   ------------------------| syncedAt
+    //     session.startTime |---------------
+    if (syncedAt >= session.startTime) {
       return true;
-    } else if (lastPostAt && syncedAt && syncedAt > lastPostAt) {
+    }
+
+    // `lastPostAt` is set with the channel's latest post during session init:
+    // https://github.com/tloncorp/tlon-apps/blob/adde000f4330af7e0a2e19bdfcb295f5eb9fe3da/packages/shared/src/store/sync.ts#L1052
+    //
+    // Since we already checked that a session is active, this case checks
+    // that we've hit `syncedAt`'s "no newer posts" at some point _after_ the
+    // channel's most recent post's timestamp.
+    //
+    //          lastPostAt
+    //              v
+    //   ------------------------| syncedAt
+    //
+    // This check would fail if we first caught up via sync, and then later
+    // started a session: in that case, there could be missing posts between
+    // `syncedAt`'s "no newer posts" and the start of the session:
+    //
+    //                lastPostAt (post not received)
+    //                    v
+    //   ----| syncedAt
+    //         session.startTime |---------
+    //
+    // NB: In that case, we *do* have the single latest post for the channel,
+    // but we'd likely be missing all other posts in the gap. Wait until we
+    // filled in the gap to show posts.
+    if (lastPostAt && syncedAt > lastPostAt) {
       return true;
     }
     return false;
