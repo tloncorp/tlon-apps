@@ -19,7 +19,7 @@ export type WebViewStackParamList = {
 };
 
 export type RootStackParamList = {
-  ChatList: undefined;
+  ChatList: { previewGroup: db.Group } | undefined;
   Activity: undefined;
   Profile: undefined;
   Channel: {

@@ -37,6 +37,7 @@ const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
 };
 
 export default function ChatListScreen({
+  previewGroup,
   navigateToChannel,
   navigateToGroupChannels,
   navigateToSelectedPost,
@@ -54,6 +55,7 @@ export default function ChatListScreen({
   navigateToProfile: () => void;
   navigateToFindGroups: () => void;
   navigateToCreateGroup: () => void;
+  previewGroup?: db.Group;
 }) {
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
@@ -81,7 +83,9 @@ export default function ChatListScreen({
   const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
     'all'
   );
-  const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(
+    previewGroup ?? null
+  );
   const [showFilters, setShowFilters] = useState(false);
   const isFocused = useIsFocused();
   const { data: pins } = store.usePins({

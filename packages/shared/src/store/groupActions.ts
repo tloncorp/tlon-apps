@@ -50,6 +50,17 @@ export async function createGroup({
   }
 }
 
+export async function getGroupPreview(groupId: string) {
+  const group = await db.getGroup({ id: groupId });
+  if (group) {
+    return group;
+  }
+
+  const groupPreview = await api.getGroupPreview(groupId);
+  await db.insertUnjoinedGroups([groupPreview]);
+  return groupPreview;
+}
+
 export async function acceptGroupInvitation(group: db.Group) {
   logger.log('accepting group invitation', group.id);
   await db.updateGroup({ id: group.id, joinStatus: 'joining' });

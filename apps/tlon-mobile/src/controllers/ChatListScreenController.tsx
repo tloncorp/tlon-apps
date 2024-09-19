@@ -10,9 +10,11 @@ type ChatListControllerProps = NativeStackScreenProps<
 
 export function ChatListScreenController({
   navigation,
+  route: { params },
 }: ChatListControllerProps) {
   return (
     <ChatListScreen
+      previewGroup={params?.previewGroup}
       navigateToChannel={(channel) => {
         navigation.push('Channel', { channel });
       }}

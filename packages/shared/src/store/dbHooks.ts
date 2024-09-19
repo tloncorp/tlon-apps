@@ -8,6 +8,7 @@ import { useMemo } from 'react';
 import * as api from '../api';
 import * as db from '../db';
 import * as ub from '../urbit';
+import { getGroupPreview } from './groupActions';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import { syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
@@ -361,16 +362,7 @@ export const useGroupPreview = (groupId: string) => {
   const tableDeps = useKeyFromQueryDeps(db.getGroup);
   return useQuery({
     queryKey: ['groupPreview', tableDeps, groupId],
-    queryFn: async () => {
-      const group = await db.getGroup({ id: groupId });
-      if (group) {
-        return group;
-      }
-
-      const groupPreview = await api.getGroupPreview(groupId);
-      await db.insertUnjoinedGroups([groupPreview]);
-      return groupPreview;
-    },
+    queryFn: async () => getGroupPreview(groupId),
   });
 };
 
