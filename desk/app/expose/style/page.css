@@ -1,19 +1,19 @@
 @media screen and (min-width: 960px) {
   body.chat {
-    min-height: 100vh;
     display: flex;
+    overflow: auto;
+    min-height: 100vh;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    overflow: auto;
   }
 }
 
 .expose-content {
-  margin: 0 auto;
   max-width: 40em;
   padding: 2em;
   border-radius: 1.5em;
+  margin: 0 auto;
   background: var(--background);
 }
 
@@ -42,28 +42,28 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 2em;
   padding: 0 0 0.75em;
   border-bottom: 0.125em solid var(--border);
+  gap: 2em;
 }
 
 .author-row time {
-  color: var(--text-muted);
-  background: transparent;
   padding: 0;
+  background: transparent;
+  color: var(--text-muted);
 }
 
 .author {
   display: flex;
   align-items: center;
-  gap: 0.5em;
-  font-weight: 500;
   color: var(--text-muted);
+  font-weight: 500;
+  gap: 0.5em;
 }
 
 .author .avatar {
-  border-radius: 0.25em;
   overflow: hidden;
+  border-radius: 0.25em;
 }
 
 .author .avatar img {
@@ -74,29 +74,29 @@
 
 .tlon-badge {
   position: fixed;
-  bottom: 1em;
   right: 1em;
-  background: var(--background);
-  font-size: 0.75em;
+  bottom: 1em;
   padding: 0.5em 0.75em;
-  border-radius: 0.5em;
   border: 0.125em solid var(--border);
+  border-radius: 0.5em;
+  background: var(--background);
   box-shadow:
     0 0.125em 0.25em var(--selection),
     0 0 1em var(--selection);
+  font-size: 0.75em;
 }
 
 @media screen and (min-width: 960px) {
   .tlon-badge {
-    bottom: 2em;
     right: 2em;
+    bottom: 2em;
   }
 }
 
 .tlon-badge a {
   display: flex;
-  gap: 0.5em;
   align-items: center;
-  text-decoration: none;
   color: var(--text-main);
+  gap: 0.5em;
+  text-decoration: none;
 }

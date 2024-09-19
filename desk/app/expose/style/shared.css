@@ -1,11 +1,11 @@
 :root {
-  --background-body: #ffffff;
-  --background: #ffffff;
+  --background-body: #fff;
+  --background: #fff;
   --background-alt: #f5f5f5;
-  --selection: rgba(24, 24, 24, 0.08);
+  --selection: rgb(24 24 24 / 8%);
   --text-main: #1a1818;
   --text-bright: #1a1818;
-  --text-muted: #666666;
+  --text-muted: #666;
   --links: #008eff;
   --focus: #008eff;
   --border: #e5e5e5;
@@ -13,9 +13,9 @@
   --animation-duration: 0.1s;
   --button-base: #f5f5f5;
   --button-hover: #e5e5e5;
-  --scrollbar-thumb: rgb(244, 244, 244);
+  --scrollbar-thumb: rgb(244 244 244);
   --scrollbar-thumb-hover: var(--button-hover);
-  --form-placeholder: #999999;
+  --form-placeholder: #999;
   --form-text: #1a1818;
   --variable: #2ad546;
   --highlight: #fade7a;
@@ -27,19 +27,19 @@
     --background-body: #1a1818;
     --background: #1a1818;
     --background-alt: #322e2e;
-    --selection: rgba(255, 255, 255, 0.08);
-    --text-main: #ffffff;
+    --selection: rgb(255 255 255 / 8%);
+    --text-main: #fff;
     --text-bright: #fff;
     --text-muted: #b3b3b3;
     --links: #008eff;
     --focus: #008eff;
-    --border: #333333;
-    --code: #ffffff;
+    --border: #333;
+    --code: #fff;
     --animation-duration: 0.1s;
     --button-base: #322e2e;
     --button-hover: #4c4c4c;
     --scrollbar-thumb: var(--button-hover);
-    --scrollbar-thumb-hover: rgb(0, 0, 0);
+    --scrollbar-thumb-hover: rgb(0 0 0);
     --form-placeholder: #808080;
     --form-text: #fff;
     --variable: #2ad546;
@@ -49,7 +49,7 @@
 }
 
 html {
-  scrollbar-color: rgb(244, 244, 244) #ffffff;
+  scrollbar-color: rgb(244 244 244) #fff;
   scrollbar-color: var(--scrollbar-thumb) var(--background-body);
   scrollbar-width: thin;
 }
@@ -61,51 +61,22 @@ html {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    scrollbar-color: #4c4c4c #1a1818;
-    scrollbar-color: var(--scrollbar-thumb) var(--background-body);
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
-    scrollbar-color: #4c4c4c #1a1818;
-    scrollbar-color: var(--scrollbar-thumb) var(--background-body);
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
-    scrollbar-color: #4c4c4c #1a1818;
-    scrollbar-color: var(--scrollbar-thumb) var(--background-body);
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
-    scrollbar-color: #4c4c4c #1a1818;
-    scrollbar-color: var(--scrollbar-thumb) var(--background-body);
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
-    scrollbar-color: #4c4c4c #1a1818;
-    scrollbar-color: var(--scrollbar-thumb) var(--background-body);
-  }
-}
-
 body {
+  padding: 0;
+  margin: 1em;
+  background: #f5f5f5;
+  background: var(--background-alt);
+  color: #1a1818;
+  color: var(--text-main);
   font-family:
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
-    'Roboto',
-    'Oxygen',
-    'Ubuntu',
-    'Cantarell',
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
     'Fira Sans',
     'Droid Sans',
     'Helvetica Neue',
@@ -116,17 +87,11 @@ body {
   font-size: 16px;
   font-weight: 400;
   line-height: 1.6;
-  margin: 1em 1em;
-  padding: 0;
+  text-rendering: optimizelegibility;
   word-wrap: break-word;
-  color: #1a1818;
-  color: var(--text-main);
-  background: #f5f5f5;
-  background: var(--background-alt);
-  text-rendering: optimizeLegibility;
 }
 
-@media screen and (min-width: 40rem) {
+@media screen and (width >= 40rem) {
   body {
     font-size: 20px;
     line-height: 1.8;
@@ -137,109 +102,8 @@ body {
   body {
     background: #322e2e;
     background: var(--background-alt);
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  body {
-    color: #ffffff;
+    color: #fff;
     color: var(--text-main);
-  }
-}
-
-button {
-  transition:
-    background-color 0.1s linear,
-    border-color 0.1s linear,
-    color 0.1s linear,
-    box-shadow 0.1s linear,
-    transform 0.1s ease;
-  transition:
-    background-color var(--animation-duration) linear,
-    border-color var(--animation-duration) linear,
-    color var(--animation-duration) linear,
-    box-shadow var(--animation-duration) linear,
-    transform var(--animation-duration) ease;
-}
-
-@media (prefers-color-scheme: dark) {
-  button {
-    transition:
-      background-color 0.1s linear,
-      border-color 0.1s linear,
-      color 0.1s linear,
-      box-shadow 0.1s linear,
-      transform 0.1s ease;
-    transition:
-      background-color var(--animation-duration) linear,
-      border-color var(--animation-duration) linear,
-      color var(--animation-duration) linear,
-      box-shadow var(--animation-duration) linear,
-      transform var(--animation-duration) ease;
-  }
-}
-
-input {
-  transition:
-    background-color 0.1s linear,
-    border-color 0.1s linear,
-    color 0.1s linear,
-    box-shadow 0.1s linear,
-    transform 0.1s ease;
-  transition:
-    background-color var(--animation-duration) linear,
-    border-color var(--animation-duration) linear,
-    color var(--animation-duration) linear,
-    box-shadow var(--animation-duration) linear,
-    transform var(--animation-duration) ease;
-}
-
-@media (prefers-color-scheme: dark) {
-  input {
-    transition:
-      background-color 0.1s linear,
-      border-color 0.1s linear,
-      color 0.1s linear,
-      box-shadow 0.1s linear,
-      transform 0.1s ease;
-    transition:
-      background-color var(--animation-duration) linear,
-      border-color var(--animation-duration) linear,
-      color var(--animation-duration) linear,
-      box-shadow var(--animation-duration) linear,
-      transform var(--animation-duration) ease;
-  }
-}
-
-textarea {
-  transition:
-    background-color 0.1s linear,
-    border-color 0.1s linear,
-    color 0.1s linear,
-    box-shadow 0.1s linear,
-    transform 0.1s ease;
-  transition:
-    background-color var(--animation-duration) linear,
-    border-color var(--animation-duration) linear,
-    color var(--animation-duration) linear,
-    box-shadow var(--animation-duration) linear,
-    transform var(--animation-duration) ease;
-}
-
-@media (prefers-color-scheme: dark) {
-  textarea {
-    transition:
-      background-color 0.1s linear,
-      border-color 0.1s linear,
-      color 0.1s linear,
-      box-shadow 0.1s linear,
-      transform 0.1s ease;
-    transition:
-      background-color var(--animation-duration) linear,
-      border-color var(--animation-duration) linear,
-      color var(--animation-duration) linear,
-      box-shadow var(--animation-duration) linear,
-      transform var(--animation-duration) ease;
   }
 }
 
@@ -249,82 +113,37 @@ h3,
 h4,
 h5,
 h6 {
-  margin-bottom: 0.6em;
   margin-top: 1.25em;
+  margin-bottom: 0.6em;
   font-size: 1em;
 }
 
 h1 {
-  font-size: 2em;
   margin-top: 0;
   color: #1a1818;
   color: var(--text-bright);
+  font-size: 2em;
   font-weight: 400;
   letter-spacing: -0.025em;
   line-height: 1;
 }
 
-@media (prefers-color-scheme: dark) {
-  h1 {
-    color: #fff;
-    color: var(--text-bright);
-  }
-}
-
-h2 {
-  color: #1a1818;
-  color: var(--text-bright);
-}
-
-@media (prefers-color-scheme: dark) {
-  h2 {
-    color: #fff;
-    color: var(--text-bright);
-  }
-}
-
-h3 {
-  color: #1a1818;
-  color: var(--text-bright);
-}
-
-@media (prefers-color-scheme: dark) {
-  h3 {
-    color: #fff;
-    color: var(--text-bright);
-  }
-}
-
-h4 {
-  color: #1a1818;
-  color: var(--text-bright);
-}
-
-@media (prefers-color-scheme: dark) {
-  h4 {
-    color: #fff;
-    color: var(--text-bright);
-  }
-}
-
-h5 {
-  color: #1a1818;
-  color: var(--text-bright);
-}
-
-@media (prefers-color-scheme: dark) {
-  h5 {
-    color: #fff;
-    color: var(--text-bright);
-  }
-}
-
+h1,
+h2,
+h3,
+h4,
+h5,
 h6 {
   color: #1a1818;
   color: var(--text-bright);
 }
 
 @media (prefers-color-scheme: dark) {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
   h6 {
     color: #fff;
     color: var(--text-bright);
@@ -363,10 +182,10 @@ q::after {
 }
 
 blockquote {
+  padding: 0.5em 1em;
   border-left: 0.25em solid #008eff;
   border-left: 0.25em solid var(--focus);
   margin: 1.5em 0;
-  padding: 0.5em 1em;
   font-style: italic;
 }
 
@@ -378,10 +197,10 @@ blockquote {
 }
 
 q {
+  padding: 0.5em 1em;
   border-left: 0.25em solid #008eff;
   border-left: 0.25em solid var(--focus);
   margin: 1.5em 0;
-  padding: 0.5em 1em;
   font-style: italic;
 }
 
@@ -393,8 +212,8 @@ q {
 }
 
 blockquote > footer {
-  font-style: normal;
   border: 0;
+  font-style: normal;
 }
 
 blockquote cite {
@@ -418,10 +237,10 @@ a[href^='sms\:']::before {
 }
 
 mark {
+  padding: 0 0.125em;
+  border-radius: 0.125em;
   background-color: #fade7a;
   background-color: var(--highlight);
-  border-radius: 0.125em;
-  padding: 0 0.125em 0 0.125em;
   color: #000;
 }
 
@@ -459,17 +278,17 @@ select {
 }
 
 input {
-  color: #1a1818;
-  color: var(--form-text);
-  background-color: #ffffff;
-  background-color: var(--background);
-  font-family: inherit;
-  font-size: inherit;
-  margin-right: 0.25em;
-  margin-bottom: 0.25em;
   padding: 0.5em;
   border: none;
   border-radius: 0.25em;
+  margin-right: 0.25em;
+  margin-bottom: 0.25em;
+  background-color: #fff;
+  background-color: var(--background);
+  color: #1a1818;
+  color: var(--form-text);
+  font-family: inherit;
+  font-size: inherit;
   outline: none;
 }
 
@@ -488,46 +307,41 @@ input {
 }
 
 button {
-  color: #1a1818;
-  color: var(--form-text);
-  background-color: #ffffff;
-  background-color: var(--background);
-  font-family: inherit;
-  font-size: inherit;
-  margin-right: 0.25em;
-  margin-bottom: 0.25em;
   padding: 0.5em;
   border: none;
   border-radius: 0.25em;
+  margin-right: 0.25em;
+  margin-bottom: 0.25em;
+  background-color: var(--button-base);
+  background-color: #f5f5f5;
+  color: #1a1818;
+  color: var(--form-text);
+  font-family: inherit;
+  font-size: inherit;
   outline: none;
 }
 
 @media (prefers-color-scheme: dark) {
   button {
-    background-color: #1a1818;
-    background-color: var(--background);
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  button {
+    background-color: #322e2e;
+    background-color: var(--button-base);
     color: #fff;
     color: var(--form-text);
   }
 }
 
 textarea {
-  color: #1a1818;
-  color: var(--form-text);
-  background-color: #ffffff;
-  background-color: var(--background);
-  font-family: inherit;
-  font-size: inherit;
-  margin-right: 0.25em;
-  margin-bottom: 0.25em;
   padding: 0.5em;
   border: none;
   border-radius: 0.25em;
+  margin-right: 0.25em;
+  margin-bottom: 0.25em;
+  background-color: #fff;
+  background-color: var(--background);
+  color: #1a1818;
+  color: var(--form-text);
+  font-family: inherit;
+  font-size: inherit;
   outline: none;
 }
 
@@ -546,17 +360,17 @@ textarea {
 }
 
 select {
-  color: #1a1818;
-  color: var(--form-text);
-  background-color: #ffffff;
-  background-color: var(--background);
-  font-family: inherit;
-  font-size: inherit;
-  margin-right: 0.25em;
-  margin-bottom: 0.25em;
   padding: 0.5em;
   border: none;
   border-radius: 0.25em;
+  margin-right: 0.25em;
+  margin-bottom: 0.25em;
+  background-color: #fff;
+  background-color: var(--background);
+  color: #1a1818;
+  color: var(--form-text);
+  font-family: inherit;
+  font-size: inherit;
   outline: none;
 }
 
@@ -574,25 +388,11 @@ select {
   }
 }
 
-button {
-  background-color: #f5f5f5;
-  background-color: var(--button-base);
-  padding-right: 1.5em;
-  padding-left: 1.5em;
-}
-
-@media (prefers-color-scheme: dark) {
-  button {
-    background-color: #322e2e;
-    background-color: var(--button-base);
-  }
-}
-
 input[type='submit'] {
-  background-color: #f5f5f5;
-  background-color: var(--button-base);
   padding-right: 1.5em;
   padding-left: 1.5em;
+  background-color: #f5f5f5;
+  background-color: var(--button-base);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -603,10 +403,10 @@ input[type='submit'] {
 }
 
 input[type='reset'] {
-  background-color: #f5f5f5;
-  background-color: var(--button-base);
   padding-right: 1.5em;
   padding-left: 1.5em;
+  background-color: #f5f5f5;
+  background-color: var(--button-base);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -617,10 +417,10 @@ input[type='reset'] {
 }
 
 input[type='button'] {
-  background-color: #f5f5f5;
-  background-color: var(--button-base);
   padding-right: 1.5em;
   padding-left: 1.5em;
+  background-color: #f5f5f5;
+  background-color: var(--button-base);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -686,8 +486,8 @@ input[type='color'] {
 
 input[type='checkbox'],
 input[type='radio'] {
-  height: 1em;
   width: 1em;
+  height: 1em;
 }
 
 input[type='radio'] {
@@ -699,23 +499,23 @@ input {
 }
 
 label {
-  vertical-align: middle;
-  margin-bottom: 0.25em;
   display: inline-block;
+  margin-bottom: 0.25em;
+  vertical-align: middle;
 }
 
-input:not([type='checkbox']):not([type='radio']),
+input:not([type='checkbox'], [type='radio']),
 input[type='range'],
 select,
 button,
 textarea {
-  -webkit-appearance: none;
+  appearance: none;
 }
 
 textarea {
   display: block;
-  margin-right: 0;
   box-sizing: border-box;
+  margin-right: 0;
   resize: vertical;
 }
 
@@ -724,17 +524,17 @@ textarea:not([cols]) {
 }
 
 textarea:not([rows]) {
-  min-height: 2em;
   height: 12em;
+  min-height: 2em;
 }
 
 select {
-  background: #ffffff
+  padding-right: 1.75em;
+  background: #fff
     url("data:image/svg+xml;charset=utf-8,%3C?xml version='1.0' encoding='utf-8'?%3E %3Csvg version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' height='62.5' width='116.9' fill='%23161f27'%3E %3Cpath d='M115.3,1.6 C113.7,0 111.1,0 109.5,1.6 L58.5,52.7 L7.4,1.6 C5.8,0 3.2,0 1.6,1.6 C0,3.2 0,5.8 1.6,7.4 L55.5,61.3 C56.3,62.1 57.3,62.5 58.4,62.5 C59.4,62.5 60.5,62.1 61.3,61.3 L115.2,7.4 C116.9,5.8 116.9,3.2 115.3,1.6Z'/%3E %3C/svg%3E")
     calc(100% - 10.125em) 50% / 10.125em no-repeat;
   background: var(--background) var(--select-arrow) calc(100% - 10.125em) 50% /
     10.125em no-repeat;
-  padding-right: 1.75em;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -853,38 +653,38 @@ textarea:disabled {
   opacity: 0.5;
 }
 
-::-moz-placeholder {
-  color: #999999;
+::placeholder {
+  color: #999;
   color: var(--form-placeholder);
 }
 
-:-ms-input-placeholder {
-  color: #999999;
+:input-placeholder {
+  color: #999;
   color: var(--form-placeholder);
 }
 
-::-ms-input-placeholder {
-  color: #999999;
+::input-placeholder {
+  color: #999;
   color: var(--form-placeholder);
 }
 
 ::placeholder {
-  color: #999999;
+  color: #999;
   color: var(--form-placeholder);
 }
 
 @media (prefers-color-scheme: dark) {
-  ::-moz-placeholder {
+  ::placeholder {
     color: #808080;
     color: var(--form-placeholder);
   }
 
-  :-ms-input-placeholder {
+  :input-placeholder {
     color: #808080;
     color: var(--form-placeholder);
   }
 
-  ::-ms-input-placeholder {
+  ::input-placeholder {
     color: #808080;
     color: var(--form-placeholder);
   }
@@ -896,12 +696,12 @@ textarea:disabled {
 }
 
 fieldset {
+  padding: 0.5em;
   border: 0.125em #008eff solid;
   border: 0.125em var(--focus) solid;
   border-radius: 0.25em;
   margin: 0;
   margin-bottom: 10.125em;
-  padding: 0.5em;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -917,8 +717,8 @@ legend {
 }
 
 input[type='range'] {
-  margin: 0.5em 0;
   padding: 0.5em 0;
+  margin: 0.5em 0;
   background: transparent;
 }
 
@@ -929,11 +729,10 @@ input[type='range']:focus {
 input[type='range']::-webkit-slider-runnable-track {
   width: 100%;
   height: 0.5em;
-  -webkit-transition: 0.2s;
-  transition: 0.2s;
-  background: #ffffff;
-  background: var(--background);
   border-radius: 0.25em;
+  background: #fff;
+  background: var(--background);
+  transition: 0.2s;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -944,27 +743,27 @@ input[type='range']::-webkit-slider-runnable-track {
 }
 
 input[type='range']::-webkit-slider-thumb {
+  width: 1em;
+  height: 1em;
+  border-radius: 50%;
+  margin-top: -0.3em;
+  appearance: none;
+  background: #e5e5e5;
+  background: var(--border);
   box-shadow:
     0 0.125em 0.125em #000,
     0 0 0.125em #0d0d0d;
-  height: 1em;
-  width: 1em;
-  border-radius: 50%;
-  background: #e5e5e5;
-  background: var(--border);
-  -webkit-appearance: none;
-  margin-top: -0.3em;
 }
 
 @media (prefers-color-scheme: dark) {
   input[type='range']::-webkit-slider-thumb {
-    background: #333333;
+    background: #333;
     background: var(--border);
   }
 }
 
 input[type='range']:focus::-webkit-slider-runnable-track {
-  background: #ffffff;
+  background: #fff;
   background: var(--background);
 }
 
@@ -978,11 +777,11 @@ input[type='range']:focus::-webkit-slider-runnable-track {
 input[type='range']::-moz-range-track {
   width: 100%;
   height: 1em;
-  -moz-transition: 0.2s;
-  transition: 0.2s;
-  background: #ffffff;
-  background: var(--background);
   border-radius: 0.25em;
+  background: #fff;
+  background: var(--background);
+  transition: 0.2s;
+  transition: 0.2s;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -993,19 +792,19 @@ input[type='range']::-moz-range-track {
 }
 
 input[type='range']::-moz-range-thumb {
-  box-shadow:
-    0.125em 0.125em 0.125em #000,
-    0 0 0.125em #0d0d0d;
-  height: 1em;
   width: 1em;
+  height: 1em;
   border-radius: 50%;
   background: #e5e5e5;
   background: var(--border);
+  box-shadow:
+    0.125em 0.125em 0.125em #000,
+    0 0 0.125em #0d0d0d;
 }
 
 @media (prefers-color-scheme: dark) {
   input[type='range']::-moz-range-thumb {
-    background: #333333;
+    background: #333;
     background: var(--border);
   }
 }
@@ -1013,17 +812,17 @@ input[type='range']::-moz-range-thumb {
 input[type='range']::-ms-track {
   width: 100%;
   height: 0.5em;
-  background: transparent;
-  border-color: transparent;
   border-width: 10.25em 0;
+  border-color: transparent;
+  background: transparent;
   color: transparent;
 }
 
 input[type='range']::-ms-fill-lower {
-  background: #ffffff;
-  background: var(--background);
   border: 0.125em solid #010101;
   border-radius: 0.25em;
+  background: #fff;
+  background: var(--background);
   box-shadow:
     0.125em 0.125em 0.125em #000,
     0 0 0.125em #0d0d0d;
@@ -1037,10 +836,10 @@ input[type='range']::-ms-fill-lower {
 }
 
 input[type='range']::-ms-fill-upper {
-  background: #ffffff;
-  background: var(--background);
   border: 0.125em solid #010101;
   border-radius: 0.25em;
+  background: #fff;
+  background: var(--background);
   box-shadow:
     0.125em 0.125em 0.125em #000,
     0 0 0.125em #0d0d0d;
@@ -1054,26 +853,26 @@ input[type='range']::-ms-fill-upper {
 }
 
 input[type='range']::-ms-thumb {
-  box-shadow:
-    0.125em 0.125em 0.125em #000,
-    0 0 0.125em #0d0d0d;
-  border: 0.125em solid #000;
-  height: 1em;
   width: 1em;
+  height: 1em;
+  border: 0.125em solid #000;
   border-radius: 50%;
   background: #e5e5e5;
   background: var(--border);
+  box-shadow:
+    0.125em 0.125em 0.125em #000,
+    0 0 0.125em #0d0d0d;
 }
 
 @media (prefers-color-scheme: dark) {
   input[type='range']::-ms-thumb {
-    background: #333333;
+    background: #333;
     background: var(--border);
   }
 }
 
 input[type='range']:focus::-ms-fill-lower {
-  background: #ffffff;
+  background: #fff;
   background: var(--background);
 }
 
@@ -1085,7 +884,7 @@ input[type='range']:focus::-ms-fill-lower {
 }
 
 input[type='range']:focus::-ms-fill-upper {
-  background: #ffffff;
+  background: #fff;
   background: var(--background);
 }
 
@@ -1097,9 +896,9 @@ input[type='range']:focus::-ms-fill-upper {
 }
 
 a {
-  text-decoration: underline;
   color: #008eff;
   color: var(--links);
+  text-decoration: underline;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1114,88 +913,73 @@ a:hover {
 }
 
 code {
-  background: #ffffff;
+  padding: 0.125em 0.25em;
+  border-radius: 0.25em;
+  background: #fff;
   background: var(--background);
   color: #1a1818;
   color: var(--code);
-  padding: 0.125em 0.25em;
-  border-radius: 0.25em;
   font-size: 1em;
-}
-
-@media (prefers-color-scheme: dark) {
-  code {
-    color: #ffffff;
-    color: var(--code);
-  }
 }
 
 @media (prefers-color-scheme: dark) {
   code {
     background: #1a1818;
     background: var(--background);
+    color: #fff;
+    color: var(--code);
   }
 }
 
 samp {
-  background: #ffffff;
+  padding: 0.125em 0.25em;
+  border-radius: 0.25em;
+  background: #fff;
   background: var(--background);
   color: #1a1818;
   color: var(--code);
-  padding: 0.125em 0.25em;
-  border-radius: 0.25em;
   font-size: 1em;
-}
-
-@media (prefers-color-scheme: dark) {
-  samp {
-    color: #ffffff;
-    color: var(--code);
-  }
 }
 
 @media (prefers-color-scheme: dark) {
   samp {
     background: #1a1818;
     background: var(--background);
+    color: #fff;
+    color: var(--code);
   }
 }
 
 time {
-  background: #ffffff;
+  padding: 0.125em 0.25em;
+  border-radius: 0.25em;
+  background: #fff;
   background: var(--background);
   color: #1a1818;
   color: var(--code);
-  padding: 0.125em 0.25em;
-  border-radius: 0.25em;
   font-size: 1em;
-}
-
-@media (prefers-color-scheme: dark) {
-  time {
-    color: #ffffff;
-    color: var(--code);
-  }
 }
 
 @media (prefers-color-scheme: dark) {
   time {
     background: #1a1818;
     background: var(--background);
+    color: #fff;
+    color: var(--code);
   }
 }
 
 pre > code {
-  padding: 0.5em;
   display: block;
+  padding: 0.5em;
   overflow-x: auto;
 }
 
 var {
   color: #2ad546;
   color: var(--variable);
-  font-style: normal;
   font-family: monospace;
+  font-style: normal;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1206,34 +990,24 @@ var {
 }
 
 kbd {
-  background: #ffffff;
-  background: var(--background);
+  padding: 0.125em 0.25em;
   border: 0.125em solid #e5e5e5;
   border: 0.125em solid var(--border);
   border-radius: 0.125em;
+  background: #fff;
+  background: var(--background);
   color: #1a1818;
   color: var(--text-main);
-  padding: 0.125em 0.25em 0.125em 0.25em;
 }
 
 @media (prefers-color-scheme: dark) {
   kbd {
-    color: #ffffff;
-    color: var(--text-main);
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  kbd {
-    border: 0.125em solid #333333;
+    border: 0.125em solid #333;
     border: 0.125em solid var(--border);
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  kbd {
     background: #1a1818;
     background: var(--background);
+    color: #fff;
+    color: var(--text-main);
   }
 }
 
@@ -1251,15 +1025,15 @@ hr {
 
 @media (prefers-color-scheme: dark) {
   hr {
-    border-top: 0.125em solid #333333;
+    border-top: 0.125em solid #333;
     border-top: 0.125em solid var(--border);
   }
 }
 
 table {
-  border-collapse: collapse;
-  margin-bottom: 0.5em;
   width: 100%;
+  margin-bottom: 0.5em;
+  border-collapse: collapse;
   table-layout: fixed;
 }
 
@@ -1282,7 +1056,7 @@ thead {
 
 @media (prefers-color-scheme: dark) {
   thead {
-    border-bottom: 0.125em solid #333333;
+    border-bottom: 0.125em solid #333;
     border-bottom: 0.125em solid var(--border);
   }
 }
@@ -1294,13 +1068,13 @@ tfoot {
 
 @media (prefers-color-scheme: dark) {
   tfoot {
-    border-top: 0.125em solid #333333;
+    border-top: 0.125em solid #333;
     border-top: 0.125em solid var(--border);
   }
 }
 
 tbody tr:nth-child(even) {
-  background-color: #ffffff;
+  background-color: #fff;
   background-color: var(--background);
 }
 
@@ -1324,7 +1098,7 @@ tbody tr:nth-child(even) button {
 }
 
 tbody tr:nth-child(even) button:hover {
-  background-color: #ffffff;
+  background-color: #fff;
   background-color: var(--background-body);
 }
 
@@ -1336,14 +1110,14 @@ tbody tr:nth-child(even) button:hover {
 }
 
 ::-webkit-scrollbar {
-  height: 0.5em;
   width: 0.5em;
+  height: 0.5em;
 }
 
 ::-webkit-scrollbar-track {
-  background: #ffffff;
-  background: var(--background);
   border-radius: 0.25em;
+  background: #fff;
+  background: var(--background);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1354,16 +1128,9 @@ tbody tr:nth-child(even) button:hover {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(244, 244, 244);
-  background: var(--scrollbar-thumb);
   border-radius: 0.25em;
-}
-
-@media (prefers-color-scheme: dark) {
-  ::-webkit-scrollbar-thumb {
-    background: #4c4c4c;
-    background: var(--scrollbar-thumb);
-  }
+  background: rgb(244 244 244);
+  background: var(--scrollbar-thumb);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1380,66 +1147,44 @@ tbody tr:nth-child(even) button:hover {
 
 @media (prefers-color-scheme: dark) {
   ::-webkit-scrollbar-thumb:hover {
-    background: rgb(0, 0, 0);
+    background: rgb(0 0 0);
     background: var(--scrollbar-thumb-hover);
   }
-}
-
-@media (prefers-color-scheme: dark) {
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgb(0, 0, 0);
-    background: var(--scrollbar-thumb-hover);
-  }
-}
-
-::-moz-selection {
-  background-color: rgba(24, 24, 24, 0.08);
-  background-color: var(--selection);
-  color: #1a1818;
-  color: var(--text-bright);
 }
 
 ::selection {
-  background-color: rgba(24, 24, 24, 0.08);
+  background-color: rgb(24 24 24 / 8%);
   background-color: var(--selection);
   color: #1a1818;
   color: var(--text-bright);
 }
 
 @media (prefers-color-scheme: dark) {
-  ::-moz-selection {
+  ::selection {
+    background-color: rgb(255 255 255 / 8%);
+    background-color: var(--selection);
     color: #fff;
     color: var(--text-bright);
   }
 
   ::selection {
+    background-color: rgb(255 255 255 / 8%);
+    background-color: var(--selection);
     color: #fff;
     color: var(--text-bright);
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  ::-moz-selection {
-    background-color: rgba(255, 255, 255, 0.08);
-    background-color: var(--selection);
-  }
-
-  ::selection {
-    background-color: rgba(255, 255, 255, 0.08);
-    background-color: var(--selection);
   }
 }
 
 details {
   display: flex;
+  overflow: hidden;
   flex-direction: column;
   align-items: flex-start;
+  padding: 0.5em 0.5em 0;
+  border-radius: 0.25em;
+  margin: 1em 0;
   background-color: #f5f5f5;
   background-color: var(--background-alt);
-  padding: 0.5em 0.5em 0;
-  margin: 1em 0;
-  border-radius: 0.25em;
-  overflow: hidden;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1463,10 +1208,10 @@ details[open] summary {
 
 summary {
   display: list-item;
-  background-color: #ffffff;
-  background-color: var(--background);
   padding: 0.5em;
   margin: -0.5em -0.5em 0;
+  background-color: #fff;
+  background-color: var(--background);
   cursor: pointer;
   outline: none;
 }
@@ -1494,50 +1239,40 @@ summary::-webkit-details-marker {
 
 @media (prefers-color-scheme: dark) {
   summary::-webkit-details-marker {
-    color: #ffffff;
+    color: #fff;
     color: var(--text-main);
   }
 }
 
 dialog {
+  padding: 0.5em 1.5em;
+  border: none;
+  border-color: #e5e5e5;
+  border-color: var(--border);
+  border-radius: 0.25em;
   background-color: #f5f5f5;
   background-color: var(--background-alt);
   color: #1a1818;
   color: var(--text-main);
-  border: none;
-  border-radius: 0.25em;
-  border-color: #e5e5e5;
-  border-color: var(--border);
-  padding: 0.5em 1.5em;
 }
 
 @media (prefers-color-scheme: dark) {
   dialog {
-    border-color: #333333;
+    border-color: #333;
     border-color: var(--border);
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  dialog {
-    color: #ffffff;
+    background-color: #322e2e;
+    background-color: var(--background-alt);
+    color: #fff;
     color: var(--text-main);
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  dialog {
-    background-color: #322e2e;
-    background-color: var(--background-alt);
-  }
-}
-
 dialog > header:first-child {
-  background-color: #ffffff;
-  background-color: var(--background);
+  padding: 0.5em;
   border-radius: 0.25em 0.25em 0 0;
   margin: -0.5em -1.5em 0.5em;
-  padding: 0.5em;
+  background-color: #fff;
+  background-color: var(--background);
   text-align: center;
 }
 
@@ -1548,16 +1283,10 @@ dialog > header:first-child {
   }
 }
 
-dialog::-webkit-backdrop {
-  background: #0000009c;
-  -webkit-backdrop-filter: blur(0.25em);
-  backdrop-filter: blur(0.25em);
-}
-
 dialog::backdrop {
-  background: #0000009c;
-  -webkit-backdrop-filter: blur(0.25em);
   backdrop-filter: blur(0.25em);
+  backdrop-filter: blur(0.25em);
+  background: #0000009c;
 }
 
 @media print {
