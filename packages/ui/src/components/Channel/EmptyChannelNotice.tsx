@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useState } from 'react';
-import { SizableText, View, YStack } from 'tamagui';
+import { SizableText, YStack } from 'tamagui';
 
 import { useGroup } from '../../contexts';
 import { useIsAdmin } from '../../utils';

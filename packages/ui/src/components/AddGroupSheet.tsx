@@ -181,7 +181,8 @@ export function AddGroupSheet({
       moveOnKeyboardChange
       open={open}
       onOpenChange={dismiss}
-      snapPoints={['90%']}
+      snapPoints={[90]}
+      snapPointsMode="percent"
     >
       <QueryClientProvider client={queryClient}>
         <AppDataContextProvider contacts={contacts ?? null}>

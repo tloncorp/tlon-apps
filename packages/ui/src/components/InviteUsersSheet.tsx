@@ -26,7 +26,12 @@ const InviteUsersSheetComponent = ({
   if (!hasOpened.current || !group) return null;
 
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange} snapPoints={['70%']}>
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      snapPoints={[70]}
+      snapPointsMode="percent"
+    >
       <ActionSheet.Content
         flex={1}
         paddingHorizontal="$xl"
