@@ -130,7 +130,7 @@ export const useLureState = create<LureState>((set, get) => ({
     const { name } = getFlagParts(flag);
     const prevLure = get().lures[flag];
     lureLogger.log('fetching', flag, 'prevLure', prevLure);
-    const [enabled, url, metadata] = await Promise.all([
+    const [enabled, url] = await Promise.all([
       // enabled
       asyncWithDefault(async () => {
         lureLogger.log(performance.now(), 'fetching enabled', flag);
@@ -157,18 +157,9 @@ export const useLureState = create<LureState>((set, get) => ({
           return u;
         });
       }, prevLure?.url),
-      // metadata
-      asyncWithDefault(
-        async () =>
-          scry<LureMetadata>({
-            app: 'reel',
-            path: `/v1/metadata/${flag}`,
-          }),
-        prevLure?.metadata
-      ),
     ]);
 
-    lureLogger.log('fetched', { flag, enabled, url, metadata });
+    lureLogger.log('fetched', { flag, enabled, url });
 
     let deepLinkUrl: string | undefined;
     lureLogger.log('enabled', enabled);
@@ -205,7 +196,6 @@ export const useLureState = create<LureState>((set, get) => ({
           enabled,
           url,
           deepLinkUrl,
-          metadata,
         };
       })
     );

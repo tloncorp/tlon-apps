@@ -29,14 +29,10 @@ const InviteUsersSheetComponent = ({
     <ActionSheet
       open={open}
       onOpenChange={onOpenChange}
-      snapPoints={[70]}
+      snapPoints={[85]}
       snapPointsMode="percent"
     >
-      <ActionSheet.Content
-        flex={1}
-        paddingHorizontal="$xl"
-        paddingBottom={bottom}
-      >
+      <ActionSheet.Content flex={1} paddingBottom={bottom}>
         <InviteUsersWidget group={group} onInviteComplete={onInviteComplete} />
       </ActionSheet.Content>
     </ActionSheet>
