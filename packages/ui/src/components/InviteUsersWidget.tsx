@@ -103,10 +103,6 @@ const InviteUsersWidgetComponent = ({
     describe,
   ]);
 
-  const handleSkipButtonPress = useCallback(() => {
-    onInviteComplete();
-  }, [onInviteComplete]);
-
   const buttonText = useMemo(() => {
     if (invitees.length === 0 && status === 'ready') {
       return `Invite friends that aren't on Tlon`;
@@ -129,7 +125,7 @@ const InviteUsersWidgetComponent = ({
           onSelectedChange={setInvitees}
         />
       </ActionSheet.ContentBlock>
-      <ActionSheet.ContentBlock gap="$l">
+      <ActionSheet.ContentBlock>
         <Button
           hero
           onPress={handleInviteButtonPress}
@@ -139,9 +135,6 @@ const InviteUsersWidgetComponent = ({
           }
         >
           <Button.Text>{buttonText}</Button.Text>
-        </Button>
-        <Button hero secondary onPress={handleSkipButtonPress}>
-          <Button.Text color="$primaryText">Skip</Button.Text>
         </Button>
       </ActionSheet.ContentBlock>
     </>
