@@ -71,32 +71,3 @@
   height: 1.5625em;
   object-fit: cover;
 }
-
-.tlon-badge {
-  position: fixed;
-  right: 1em;
-  bottom: 1em;
-  padding: 0.5em 0.75em;
-  border: 0.125em solid var(--border);
-  border-radius: 0.5em;
-  background: var(--background);
-  box-shadow:
-    0 0.125em 0.25em var(--selection),
-    0 0 1em var(--selection);
-  font-size: 0.75em;
-}
-
-@media screen and (min-width: 960px) {
-  .tlon-badge {
-    right: 2em;
-    bottom: 2em;
-  }
-}
-
-.tlon-badge a {
-  display: flex;
-  align-items: center;
-  color: var(--text-main);
-  gap: 0.5em;
-  text-decoration: none;
-}

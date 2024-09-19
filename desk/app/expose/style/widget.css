@@ -3,7 +3,7 @@
    otherwise style may affect other widgets on the profile
    (alternatively do inline style attributes)
 */
-#groups--expose-all {
+/* #groups--expose-all {
   border: 1px solid red;
 }
 #groups--expose-all a {
@@ -12,4 +12,4 @@
 }
 #groups--expose-all .exposed {
   border: 1px solid black;
-}
+} */
