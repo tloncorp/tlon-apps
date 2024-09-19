@@ -41,6 +41,7 @@ import { AppInfoScreenController } from './controllers/AppInfoScreenController';
 import { BlockedUsersScreenController } from './controllers/BlockedUsersScreenController';
 import { ChannelMembersScreenController } from './controllers/ChannelMembersScreenController';
 import { ChannelSearchScreenController } from './controllers/ChannelSearchScreenController';
+import { CreateGroupScreenController } from './controllers/CreateGroupScreenController';
 import { EditChannelScreenController } from './controllers/EditChannelScreenController';
 import { EditProfileScreenController } from './controllers/EditProfileScreenController';
 import { FeatureFlagScreenController } from './controllers/FeatureFlagScreenController';
@@ -130,6 +131,7 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
         <Route path="/" element={<ChatListScreenController />} />
         <Route path="/activity" element={<ActivityScreenController />} />
         <Route path="/find-groups" element={<FindGroupsScreenController />} />
+        <Route path="/create-group" element={<CreateGroupScreenController />} />
         <Route
           path="/group/:ship/:name"
           index

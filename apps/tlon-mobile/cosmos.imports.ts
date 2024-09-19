@@ -3,33 +3,34 @@
 import { RendererConfig, UserModuleWrappers } from 'react-cosmos-core';
 
 import * as fixture0 from './src/App.fixture';
-import * as fixture51 from './src/fixtures/ActionSheet/AddGalleryPostSheet.fixture';
-import * as fixture50 from './src/fixtures/ActionSheet/AttachmentSheet.fixture';
-import * as fixture49 from './src/fixtures/ActionSheet/ChannelSortActionsSheet.fixture';
-import * as fixture48 from './src/fixtures/ActionSheet/CreateChannelSheet.fixture';
-import * as fixture47 from './src/fixtures/ActionSheet/DeleteSheet.fixture';
-import * as fixture46 from './src/fixtures/ActionSheet/EditSectionNameSheet.fixture';
-import * as fixture45 from './src/fixtures/ActionSheet/GenericActionSheet.fixture';
-import * as fixture44 from './src/fixtures/ActionSheet/GroupJoinRequestSheet.fixture';
-import * as fixture43 from './src/fixtures/ActionSheet/GroupPreviewSheet.fixture';
-import * as fixture42 from './src/fixtures/ActionSheet/ProfileSheet.fixture';
-import * as fixture41 from './src/fixtures/ActionSheet/SendPostRetrySheet.fixture';
-import * as fixture37 from './src/fixtures/Activity.fixture';
-import * as fixture36 from './src/fixtures/AddGroupSheet.fixture';
-import * as fixture35 from './src/fixtures/AttachmentPreviewList.fixture';
-import * as fixture34 from './src/fixtures/AudioEmbed.fixture';
-import * as fixture33 from './src/fixtures/Avatar.fixture';
-import * as fixture32 from './src/fixtures/BlockSectionList.fixture';
-import * as fixture31 from './src/fixtures/Button.fixture';
-import * as fixture30 from './src/fixtures/Channel.fixture';
-import * as fixture29 from './src/fixtures/ChannelDivider.fixture';
-import * as fixture28 from './src/fixtures/ChannelHeader.fixture';
-import * as fixture27 from './src/fixtures/ChannelSwitcherSheet.fixture';
-import * as fixture26 from './src/fixtures/ChatMessage.fixture';
-import * as fixture25 from './src/fixtures/ContactList.fixture';
-import * as fixture40 from './src/fixtures/DetailView/ChatDetailView.fixture';
-import * as fixture39 from './src/fixtures/DetailView/GalleryDetailView.fixture';
-import * as fixture38 from './src/fixtures/DetailView/NotebookDetailView.fixture';
+import * as fixture52 from './src/fixtures/ActionSheet/AddGalleryPostSheet.fixture';
+import * as fixture51 from './src/fixtures/ActionSheet/AttachmentSheet.fixture';
+import * as fixture50 from './src/fixtures/ActionSheet/ChannelSortActionsSheet.fixture';
+import * as fixture49 from './src/fixtures/ActionSheet/CreateChannelSheet.fixture';
+import * as fixture48 from './src/fixtures/ActionSheet/DeleteSheet.fixture';
+import * as fixture47 from './src/fixtures/ActionSheet/EditSectionNameSheet.fixture';
+import * as fixture46 from './src/fixtures/ActionSheet/GenericActionSheet.fixture';
+import * as fixture45 from './src/fixtures/ActionSheet/GroupJoinRequestSheet.fixture';
+import * as fixture44 from './src/fixtures/ActionSheet/GroupPreviewSheet.fixture';
+import * as fixture43 from './src/fixtures/ActionSheet/ProfileSheet.fixture';
+import * as fixture42 from './src/fixtures/ActionSheet/SendPostRetrySheet.fixture';
+import * as fixture38 from './src/fixtures/Activity.fixture';
+import * as fixture37 from './src/fixtures/AddGroupSheet.fixture';
+import * as fixture36 from './src/fixtures/AttachmentPreviewList.fixture';
+import * as fixture35 from './src/fixtures/AudioEmbed.fixture';
+import * as fixture34 from './src/fixtures/Avatar.fixture';
+import * as fixture33 from './src/fixtures/BlockSectionList.fixture';
+import * as fixture32 from './src/fixtures/Button.fixture';
+import * as fixture31 from './src/fixtures/Channel.fixture';
+import * as fixture30 from './src/fixtures/ChannelDivider.fixture';
+import * as fixture29 from './src/fixtures/ChannelHeader.fixture';
+import * as fixture28 from './src/fixtures/ChannelSwitcherSheet.fixture';
+import * as fixture27 from './src/fixtures/ChatMessage.fixture';
+import * as fixture26 from './src/fixtures/ContactList.fixture';
+import * as fixture25 from './src/fixtures/CreateGroup.fixture';
+import * as fixture41 from './src/fixtures/DetailView/ChatDetailView.fixture';
+import * as fixture40 from './src/fixtures/DetailView/GalleryDetailView.fixture';
+import * as fixture39 from './src/fixtures/DetailView/NotebookDetailView.fixture';
 import * as fixture24 from './src/fixtures/FindGroups.fixture';
 import * as fixture23 from './src/fixtures/Form.fixture';
 import * as fixture22 from './src/fixtures/GalleryPost.fixture';
@@ -87,52 +88,53 @@ const fixtures = {
   'src/fixtures/GalleryPost.fixture.tsx': { module: fixture22 },
   'src/fixtures/Form.fixture.tsx': { module: fixture23 },
   'src/fixtures/FindGroups.fixture.tsx': { module: fixture24 },
-  'src/fixtures/ContactList.fixture.tsx': { module: fixture25 },
-  'src/fixtures/ChatMessage.fixture.tsx': { module: fixture26 },
-  'src/fixtures/ChannelSwitcherSheet.fixture.tsx': { module: fixture27 },
-  'src/fixtures/ChannelHeader.fixture.tsx': { module: fixture28 },
-  'src/fixtures/ChannelDivider.fixture.tsx': { module: fixture29 },
-  'src/fixtures/Channel.fixture.tsx': { module: fixture30 },
-  'src/fixtures/Button.fixture.tsx': { module: fixture31 },
-  'src/fixtures/BlockSectionList.fixture.tsx': { module: fixture32 },
-  'src/fixtures/Avatar.fixture.tsx': { module: fixture33 },
-  'src/fixtures/AudioEmbed.fixture.tsx': { module: fixture34 },
-  'src/fixtures/AttachmentPreviewList.fixture.tsx': { module: fixture35 },
-  'src/fixtures/AddGroupSheet.fixture.tsx': { module: fixture36 },
-  'src/fixtures/Activity.fixture.tsx': { module: fixture37 },
+  'src/fixtures/CreateGroup.fixture.tsx': { module: fixture25 },
+  'src/fixtures/ContactList.fixture.tsx': { module: fixture26 },
+  'src/fixtures/ChatMessage.fixture.tsx': { module: fixture27 },
+  'src/fixtures/ChannelSwitcherSheet.fixture.tsx': { module: fixture28 },
+  'src/fixtures/ChannelHeader.fixture.tsx': { module: fixture29 },
+  'src/fixtures/ChannelDivider.fixture.tsx': { module: fixture30 },
+  'src/fixtures/Channel.fixture.tsx': { module: fixture31 },
+  'src/fixtures/Button.fixture.tsx': { module: fixture32 },
+  'src/fixtures/BlockSectionList.fixture.tsx': { module: fixture33 },
+  'src/fixtures/Avatar.fixture.tsx': { module: fixture34 },
+  'src/fixtures/AudioEmbed.fixture.tsx': { module: fixture35 },
+  'src/fixtures/AttachmentPreviewList.fixture.tsx': { module: fixture36 },
+  'src/fixtures/AddGroupSheet.fixture.tsx': { module: fixture37 },
+  'src/fixtures/Activity.fixture.tsx': { module: fixture38 },
   'src/fixtures/DetailView/NotebookDetailView.fixture.tsx': {
-    module: fixture38,
-  },
-  'src/fixtures/DetailView/GalleryDetailView.fixture.tsx': {
     module: fixture39,
   },
-  'src/fixtures/DetailView/ChatDetailView.fixture.tsx': { module: fixture40 },
+  'src/fixtures/DetailView/GalleryDetailView.fixture.tsx': {
+    module: fixture40,
+  },
+  'src/fixtures/DetailView/ChatDetailView.fixture.tsx': { module: fixture41 },
   'src/fixtures/ActionSheet/SendPostRetrySheet.fixture.tsx': {
-    module: fixture41,
+    module: fixture42,
   },
-  'src/fixtures/ActionSheet/ProfileSheet.fixture.tsx': { module: fixture42 },
+  'src/fixtures/ActionSheet/ProfileSheet.fixture.tsx': { module: fixture43 },
   'src/fixtures/ActionSheet/GroupPreviewSheet.fixture.tsx': {
-    module: fixture43,
-  },
-  'src/fixtures/ActionSheet/GroupJoinRequestSheet.fixture.tsx': {
     module: fixture44,
   },
-  'src/fixtures/ActionSheet/GenericActionSheet.fixture.tsx': {
+  'src/fixtures/ActionSheet/GroupJoinRequestSheet.fixture.tsx': {
     module: fixture45,
   },
-  'src/fixtures/ActionSheet/EditSectionNameSheet.fixture.tsx': {
+  'src/fixtures/ActionSheet/GenericActionSheet.fixture.tsx': {
     module: fixture46,
   },
-  'src/fixtures/ActionSheet/DeleteSheet.fixture.tsx': { module: fixture47 },
-  'src/fixtures/ActionSheet/CreateChannelSheet.fixture.tsx': {
-    module: fixture48,
+  'src/fixtures/ActionSheet/EditSectionNameSheet.fixture.tsx': {
+    module: fixture47,
   },
-  'src/fixtures/ActionSheet/ChannelSortActionsSheet.fixture.tsx': {
+  'src/fixtures/ActionSheet/DeleteSheet.fixture.tsx': { module: fixture48 },
+  'src/fixtures/ActionSheet/CreateChannelSheet.fixture.tsx': {
     module: fixture49,
   },
-  'src/fixtures/ActionSheet/AttachmentSheet.fixture.tsx': { module: fixture50 },
+  'src/fixtures/ActionSheet/ChannelSortActionsSheet.fixture.tsx': {
+    module: fixture50,
+  },
+  'src/fixtures/ActionSheet/AttachmentSheet.fixture.tsx': { module: fixture51 },
   'src/fixtures/ActionSheet/AddGalleryPostSheet.fixture.tsx': {
-    module: fixture51,
+    module: fixture52,
   },
 };
 

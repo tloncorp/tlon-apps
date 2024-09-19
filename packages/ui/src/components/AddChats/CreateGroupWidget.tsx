@@ -2,15 +2,13 @@ import { createShortCodeFromTitle } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useState } from 'react';
-import { SizableText, XStack, YStack } from 'tamagui';
+import { YStack } from 'tamagui';
 
 import { triggerHaptic } from '../../utils';
 import { PrimaryButton } from '../Buttons';
 import { Field, TextInput } from '../Form';
-import { Icon } from '../Icon';
 
 export function CreateGroupWidget(props: {
-  goBack: () => void;
   invitees: string[];
   onCreatedGroup: ({
     group,
@@ -55,11 +53,6 @@ export function CreateGroupWidget(props: {
 
   return (
     <YStack flex={1} gap="$2xl">
-      <XStack justifyContent="space-between" alignItems="center">
-        <Icon type="ChevronLeft" onPress={() => props.goBack()} />
-        <SizableText fontWeight="$xl">New Group</SizableText>
-        <Icon type="ChevronRight" opacity={0} />
-      </XStack>
       <Field label="Group Name (Required)" required>
         <TextInput
           autoFocus

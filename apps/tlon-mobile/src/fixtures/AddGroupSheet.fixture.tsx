@@ -11,8 +11,8 @@ export default {
           open
           onOpenChange={() => {}}
           onGoToDm={() => {}}
-          onCreatedGroup={() => {}}
           navigateToFindGroups={() => {}}
+          navigateToCreateGroup={() => {}}
         />
       </AppDataContextProvider>
     </FixtureWrapper>

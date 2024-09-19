@@ -44,6 +44,7 @@ export default function ChatListScreen({
   navigateToNotifications,
   navigateToProfile,
   navigateToFindGroups,
+  navigateToCreateGroup,
 }: {
   navigateToChannel: (channel: db.Channel) => void;
   navigateToGroupChannels: (group: db.Group) => void;
@@ -52,6 +53,7 @@ export default function ChatListScreen({
   navigateToNotifications: () => void;
   navigateToProfile: () => void;
   navigateToFindGroups: () => void;
+  navigateToCreateGroup: () => void;
 }) {
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
@@ -123,6 +125,11 @@ export default function ChatListScreen({
     navigateToFindGroups();
   }, [navigateToFindGroups]);
 
+  const handleNavigateToCreateGroup = useCallback(() => {
+    setAddGroupOpen(false);
+    navigateToCreateGroup();
+  }, [navigateToCreateGroup]);
+
   const goToDm = useCallback(
     async (userId: string) => {
       const dmChannel = await store.upsertDmChannel({
@@ -132,19 +139,6 @@ export default function ChatListScreen({
       navigateToChannel(dmChannel);
     },
     [navigateToChannel, setAddGroupOpen]
-  );
-
-  const goToChannel = useCallback(
-    ({ channel }: { channel: db.Channel }) => {
-      setAddGroupOpen(false);
-      setTimeout(() => navigateToChannel(channel), 150);
-    },
-    [navigateToChannel]
-  );
-
-  const handleGroupCreated = useCallback(
-    ({ channel }: { channel: db.Channel }) => goToChannel({ channel }),
-    [goToChannel]
   );
 
   const handleAddGroupOpenChange = useCallback((open: boolean) => {
@@ -329,8 +323,8 @@ export default function ChatListScreen({
         open={addGroupOpen}
         onGoToDm={goToDm}
         onOpenChange={handleAddGroupOpenChange}
-        onCreatedGroup={handleGroupCreated}
         navigateToFindGroups={handleNavigateToFindGroups}
+        navigateToCreateGroup={handleNavigateToCreateGroup}
       />
     </RequestsProvider>
   );

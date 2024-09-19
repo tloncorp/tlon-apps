@@ -34,6 +34,7 @@ export function ChatListScreenController({
       navigateToFindGroups={() => {
         navigation.navigate('FindGroups');
       }}
+      navigateToCreateGroup={() => navigation.navigate('CreateGroup')}
     />
   );
 }

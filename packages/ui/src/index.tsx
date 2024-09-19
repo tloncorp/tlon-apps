@@ -26,6 +26,7 @@ export * from './components/ContactList';
 export { default as ContactName } from './components/ContactName';
 export * from './components/ContactRow';
 export * from './components/ContentReference';
+export * from './components/CreateGroupView';
 export * from './components/PostContent';
 export * from './components/DeleteSheet';
 export * from './components/EditProfileScreenView';
