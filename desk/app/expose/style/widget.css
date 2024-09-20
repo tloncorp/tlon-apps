@@ -1,15 +1,82 @@
-/* TODO
-   prefer scoping rules to just elements under #groups--expose-all,
-   otherwise style may affect other widgets on the profile
-   (alternatively do inline style attributes)
-*/
-/* #groups--expose-all {
-  border: 1px solid red;
+#groups--expose-all {
+  padding: 0 2em;
+  overflow: hidden;
 }
-#groups--expose-all a {
-  display: block;
-  margin: 1em;
+
+.exposed {
+  width: 100%;
+  padding: 2em 2em;
+  margin-left: -2em;
+  border-bottom: 0.125em solid var(--border);
 }
-#groups--expose-all .exposed {
-  border: 1px solid black;
+
+/* .exposed:hover {
+  background: var(--selection);
 } */
+
+.exposed a {
+  text-decoration: none;
+}
+
+.exposed .content {
+  margin-bottom: 1em;
+}
+
+.exposed .content p:first-of-type {
+  margin-top: 0;
+}
+
+.exposed .content a {
+  color: var(--text-main);
+}
+
+.exposed:last-of-type {
+  border-bottom: none;
+}
+
+.exposed img {
+  border-radius: 0.5em;
+  margin-bottom: 1em;
+}
+
+.exposed h3 {
+  font-size: 2em;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  margin-top: 0;
+}
+
+.exposed .author-row {
+  font-size: 0.8em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2em;
+}
+
+.exposed:last-of-type .author-row {
+  padding-bottom: 0;
+}
+
+.exposed .author-row time {
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.exposed .author {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-weight: 500;
+  gap: 0.5em;
+}
+
+.exposed .author .avatar {
+  overflow: hidden;
+  border-radius: 0.25em;
+  width: 1.5625em;
+  height: 1.5625em;
+  object-fit: cover;
+}

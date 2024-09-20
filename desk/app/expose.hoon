@@ -306,37 +306,47 @@
     =,  post.u.pon
     ?-  -.kind-data.post.u.pon
         %chat
-      ;a.exposed.chat/"/expose{link}"
-        ;div.meta
+      ;div.exposed
+        ;div.content
+          ;a.chat/"/expose{link}"
+            ;*  (story:en-manx:u content)
+          ==  
+        ==
+        ;div.author-row
           ;+  (author-node:r [our now] author)
           ;+  (render-datetime:r sent)
-        ==
-        ;div.content
-          ;*  (story:en-manx:u content)
         ==
       ==
     ::
         %diary
-      ;a.exposed.diary/"/expose{link}"
+      ;div.exposed
         ;*  ?:  =('' image.kind-data)  ~
             :_  ~
-            ;img@"{(trip image.kind-data)}";
-        ;h3:"{(trip title.kind-data)}"
-        ;+  (render-datetime:r sent)
-        ;+  (author-node:r [our now] author)
+            ;a.diary/"/expose{link}"
+              ;img@"{(trip image.kind-data)}";
+            ==
+        ;a.diary/"/expose{link}"
+          ;h3:"{(trip title.kind-data)}"
+        ==
+        ;div.author-row
+          ;+  (author-node:r [our now] author)
+          ;+  (render-datetime:r sent)
+        ==
       ==
     ::
         %heap
       ::TODO  for the kinds of children the div.content gets for heap posts,
       ::      having an %a (grand)parent breaks the html rendering,
       ::      putting the inner divs outside/after the a.exposed
-      ;a.exposed.heap/"/expose{link}"
+      ;div.exposed
         ;div.content
-          ;*  (story:en-manx:u content)
+          ;a.heap/"/expose{link}"
+            ;*  (story:en-manx:u content)
+          ==
         ==
-        ;div.meta
-          ;+  (render-datetime:r sent)
+        ;div.author-row
           ;+  (author-node:r [our now] author)
+          ;+  (render-datetime:r sent)
         ==
       ==
     ==
