@@ -1,4 +1,4 @@
-/-  c=channels, g=groups
+/-  c=channels, g=groups, ci=cite
 ::  convert a post to a preview for a "said" response
 ::
 |%
@@ -415,6 +415,29 @@
       =>  [path=path nest=nest:g ..zuse]  ~+
       .^($-([ship nest] ?) %gx path)
     (test her nest)
+  --
+::
+++  cite
+  |%
+  ++  grab-post
+    |=  [=bowl:gall ref=cite:ci]
+    ^-  (unit [=nest:g =post:c])
+    ?.  ?=(%chan -.ref)
+      ~
+    ::TODO  the whole "deconstruct the ref path" situation is horrendous
+    ?.  ?=([?(%msg %note %curio) @ ~] wer.ref)
+      ~
+    =,  ref
+    =/  base=path
+      %+  weld
+        /(scot %p our.bowl)/channels/(scot %da now.bowl)
+      /v2/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
+    ?.  .^(? %gu base)  ~
+    :+  ~  nest
+    .^  post:c  %gx
+      %+  weld  base
+      /posts/post/(scot %ud (rash i.t.wer dum:ag))/channel-post-2
+    ==
   --
 ::
 ++  flatten-inline
