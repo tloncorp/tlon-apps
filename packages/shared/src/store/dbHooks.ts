@@ -9,7 +9,7 @@ import * as api from '../api';
 import * as db from '../db';
 import * as ub from '../urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
-import { syncPostReference } from './sync';
+import { syncGroupPreviews, syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
@@ -312,14 +312,6 @@ export const useGroups = (options: db.GetGroupsOptions) => {
   });
 };
 
-export const useGroupPreviews = (groupIds: string[]) => {
-  const depsKey = useKeyFromQueryDeps(db.getGroupPreviews);
-  return useQuery({
-    queryKey: ['groupPreviews', depsKey, groupIds],
-    queryFn: () => db.getGroupPreviews(groupIds),
-  });
-};
-
 export const useGroup = (options: { id?: string }) => {
   return useQuery({
     enabled: !!options.id,
@@ -362,14 +354,8 @@ export const useGroupPreview = (groupId: string) => {
   return useQuery({
     queryKey: ['groupPreview', tableDeps, groupId],
     queryFn: async () => {
-      const group = await db.getGroup({ id: groupId });
-      if (group) {
-        return group;
-      }
-
-      const groupPreview = await api.getGroupPreview(groupId);
-      await db.insertUnjoinedGroups([groupPreview]);
-      return groupPreview;
+      const [preview] = await syncGroupPreviews([groupId]);
+      return preview;
     },
   });
 };

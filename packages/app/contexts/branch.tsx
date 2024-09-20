@@ -13,9 +13,11 @@ import branch from 'react-native-branch';
 import { DEFAULT_LURE, DEFAULT_PRIORITY_TOKEN } from '../constants';
 import storage from '../lib/storage';
 import { getPathFromWer } from '../utils/string';
+import { useShip } from './ship';
 
 interface LureData extends DeepLinkMetadata {
   id: string;
+  shouldAutoJoin: boolean;
 }
 
 type Lure = {
@@ -102,6 +104,7 @@ export const useLureMetadata = () => {
 export const BranchProvider = ({ children }: { children: ReactNode }) => {
   const [{ deepLinkPath, lure, priorityToken }, setState] =
     useState(INITIAL_STATE);
+  const { ship } = useShip();
 
   useEffect(() => {
     console.debug('[branch] Subscribing to Branch listener');
@@ -120,6 +123,8 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
               lure: {
                 ...extractLureMetadata(params),
                 id: params.lure as string,
+                // if not already authenticated, we should run Lure's invite auto-join capability after signing in
+                shouldAutoJoin: Boolean(!ship),
               },
               priorityToken: params.token as string | undefined,
             };
