@@ -21,7 +21,8 @@
     ?~  aa=(rush i.t.wer.a dum:ag)                |
     ?~  bb=(rush i.t.wer.b dum:ag)                &
     (gth u.aa u.bb)
-  :-  ;style:"{(trip style-widget)}"
+  :+  ;style:"{(trip style-widget)}"
+    ;h2:"Published content"
   =-  (snoc - time-script-node:r)
   %+  murn  cis
   |=  ref=cite:c
