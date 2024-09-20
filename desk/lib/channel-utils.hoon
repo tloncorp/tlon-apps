@@ -461,7 +461,7 @@
   ?:  ?=(%inline -.i.content)
     p.i.content
   ?+  -.p.i.content  $(content t.content)
-    %header   q.p.i.content  ::REVIEW  questionable
+    %header   q.p.i.content
   ::
       %listing
     |-
