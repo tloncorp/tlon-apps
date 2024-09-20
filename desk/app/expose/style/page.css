@@ -1,8 +1,8 @@
 @media screen and (min-width: 960px) {
-  body.chat {
+  body {
     display: flex;
     overflow: auto;
-    min-height: 100vh;
+    min-height: calc(100vh - 2em);
     flex-direction: column;
     align-items: center;
     justify-content: center;
