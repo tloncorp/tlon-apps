@@ -36,7 +36,9 @@ export const useDeepLinkListener = () => {
         } else {
           // otherwise, treat it as a deeplink and navigate to the group
           if (lure.invitedGroupId) {
-            const group = await store.getGroupPreview(lure.invitedGroupId);
+            const [group] = await store.syncGroupPreviews([
+              lure.invitedGroupId,
+            ]);
             if (group) {
               navigation.reset({
                 index: 1,

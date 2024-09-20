@@ -8,9 +8,8 @@ import { useMemo } from 'react';
 import * as api from '../api';
 import * as db from '../db';
 import * as ub from '../urbit';
-import { getGroupPreview } from './groupActions';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
-import { syncPostReference } from './sync';
+import { syncGroupPreviews, syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
@@ -313,14 +312,6 @@ export const useGroups = (options: db.GetGroupsOptions) => {
   });
 };
 
-export const useGroupPreviews = (groupIds: string[]) => {
-  const depsKey = useKeyFromQueryDeps(db.getGroupPreviews);
-  return useQuery({
-    queryKey: ['groupPreviews', depsKey, groupIds],
-    queryFn: () => db.getGroupPreviews(groupIds),
-  });
-};
-
 export const useGroup = (options: { id?: string }) => {
   return useQuery({
     enabled: !!options.id,
@@ -362,7 +353,10 @@ export const useGroupPreview = (groupId: string) => {
   const tableDeps = useKeyFromQueryDeps(db.getGroup);
   return useQuery({
     queryKey: ['groupPreview', tableDeps, groupId],
-    queryFn: async () => getGroupPreview(groupId),
+    queryFn: async () => {
+      const [preview] = await syncGroupPreviews([groupId]);
+      return preview;
+    },
   });
 };
 
