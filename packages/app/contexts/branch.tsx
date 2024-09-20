@@ -17,7 +17,7 @@ import { useShip } from './ship';
 
 interface LureData extends DeepLinkMetadata {
   id: string;
-  clickedPreAuth: boolean;
+  shouldAutoJoin: boolean;
 }
 
 type Lure = {
@@ -123,7 +123,8 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
               lure: {
                 ...extractLureMetadata(params),
                 id: params.lure as string,
-                clickedPreAuth: Boolean(ship),
+                // if not already authenticated, we should run Lure's invite auto-join capability after signing in
+                shouldAutoJoin: Boolean(!ship),
               },
               priorityToken: params.token as string | undefined,
             };

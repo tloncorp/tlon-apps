@@ -23,7 +23,7 @@ export const useDeepLinkListener = () => {
       (async () => {
         isHandlingLinkRef.current = true;
         // if the lure was clicked prior to authenticating, trigger the automatic join & DM
-        if (lure.clickedPreAuth) {
+        if (lure.shouldAutoJoin) {
           try {
             logger.log(`inviting ship with lure`, ship, signupParams.lureId);
             await inviteShipWithLure({ ship, lure: signupParams.lureId });
