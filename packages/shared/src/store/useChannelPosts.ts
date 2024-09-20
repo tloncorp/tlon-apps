@@ -19,8 +19,17 @@ import { SyncPriority } from './syncQueue';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
 
+type PostQueryPage = {
+  posts: db.Post[];
+  /**
+   * False when a sync page reports that there are no more newer posts.
+   * Obviously, new posts can be made after this is set: in practice, we
+   * should have switched over to a subscription by then.
+   */
+  canFetchNewerPosts: boolean;
+};
 type UseChannelPostsPageParams = db.GetChannelPostsOptions;
-type PostQueryData = InfiniteData<db.Post[], unknown>;
+type PostQueryData = InfiniteData<PostQueryPage, unknown>;
 type SubscriptionPost = [db.Post, string | undefined];
 
 type UseChanelPostsParams = UseChannelPostsPageParams & {
@@ -52,7 +61,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       count: firstPageCount,
     } as UseChannelPostsPageParams,
     refetchOnMount: false,
-    queryFn: async (ctx): Promise<db.Post[]> => {
+    queryFn: async (ctx): Promise<PostQueryPage> => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log('loading posts', queryOptions);
       // We should figure out why this is necessary.
@@ -66,7 +75,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       const cached = await db.getChannelPosts(queryOptions);
       if (cached?.length) {
         postsLogger.log('returning', cached.length, 'posts from db');
-        return cached;
+        return { posts: cached, canFetchNewerPosts: true };
       }
 
       postsLogger.log('no posts found in database, loading from api...');
@@ -84,7 +93,10 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
         secondResult?.length,
         'posts from db after syncing from api'
       );
-      return secondResult ?? [];
+      return {
+        posts: secondResult ?? [],
+        canFetchNewerPosts: res.newer != null,
+      };
     },
     queryKey,
     getNextPageParam: (
@@ -92,7 +104,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       _allPages,
       lastPageParam
     ): UseChannelPostsPageParams | undefined => {
-      const lastPageIsEmpty = !lastPage[lastPage.length - 1]?.id;
+      const lastPageIsEmpty = !lastPage.posts.at(-1)?.id;
       if (lastPageIsEmpty) {
         // If we've only tried to get newer posts + that's failed, try using the
         // same cursor to get older posts instead. This can happen when the
@@ -110,25 +122,21 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       return {
         ...options,
         mode: 'older',
-        cursor: lastPage[lastPage.length - 1]?.id,
+        cursor: lastPage.posts.at(-1)?.id,
       };
     },
     getPreviousPageParam: (
       firstPage,
       _allPages,
-      firstPageParam
+      _firstPageParam
     ): UseChannelPostsPageParams | undefined => {
-      const firstPageIsEmpty = !firstPage[0]?.id;
-      if (
-        firstPageIsEmpty ||
-        (firstPageParam?.mode === 'newest' && options.hasCachedNewest)
-      ) {
+      if (!firstPage.canFetchNewerPosts) {
         return undefined;
       }
       return {
         ...options,
         mode: 'newer',
-        cursor: firstPage[0]?.id,
+        cursor: firstPage.posts[0]?.id,
       };
     },
   });
@@ -147,7 +155,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
   useSubscriptionPostListener(handleNewPost);
 
   const rawPosts = useMemo<db.Post[] | null>(() => {
-    const queryPosts = query.data?.pages.flatMap((p) => p) ?? null;
+    const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
     if (!newPosts.length || query.hasPreviousPage) {
       return queryPosts;
     }
