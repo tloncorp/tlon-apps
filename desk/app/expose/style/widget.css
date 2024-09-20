@@ -15,6 +15,7 @@
 
 .exposed:last-of-type {
   border-bottom: none;
+  padding-bottom: 0;
 }
 
 .exposed a {
