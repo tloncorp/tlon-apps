@@ -27,7 +27,6 @@ import {
 import * as db from '@tloncorp/shared/dist/db';
 import {
   Block,
-  Image,
   Inline,
   JSONContent,
   Story,
@@ -36,6 +35,7 @@ import {
   isInline,
   pathToCite,
 } from '@tloncorp/shared/dist/urbit';
+import * as logic from '@tloncorp/shared/src/logic';
 import {
   forwardRef,
   useCallback,
@@ -51,6 +51,7 @@ import type { WebViewMessageEvent } from 'react-native-webview';
 import { YStack, getToken, useWindowDimensions } from 'tamagui';
 import { XStack } from 'tamagui';
 
+import { useBranchDomain, useBranchKey } from '../../contexts';
 import {
   Attachment,
   UploadedImageAttachment,
@@ -58,6 +59,7 @@ import {
 } from '../../contexts/attachment';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
+import { processReferenceAndUpdateEditor } from './helpers';
 
 const messageInputLogger = createDevLogger('MessageInput', false);
 
@@ -149,6 +151,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       },
     }));
 
+    const branchDomain = useBranchDomain();
+    const branchKey = useBranchKey();
     const [isSending, setIsSending] = useState(false);
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
     const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
@@ -396,75 +400,79 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const handlePaste = useCallback(
       async (pastedText: string) => {
-        if (pastedText) {
-          const isRef = pastedText.match(tiptap.REF_REGEX);
-
-          if (isRef) {
-            const cite = pathToCite(isRef[0]);
-
+        // check for ref from pasted cite paths
+        const citePathAttachment = await processReferenceAndUpdateEditor({
+          editor,
+          pastedText,
+          matchRegex: tiptap.REF_REGEX,
+          processMatch: async (match) => {
+            const cite = pathToCite(match);
             if (cite) {
               const reference = toContentReference(cite);
-              if (reference) {
-                addAttachment({
-                  type: 'reference',
-                  reference,
-                  path: isRef[0],
-                });
-              }
-
-              const json = await editor.getJSON();
-              const inlines = tiptap
-                .JSONToInlines(json)
-                .filter(
-                  (c) =>
-                    typeof c === 'string' ||
-                    (typeof c === 'object' && isInline(c))
-                ) as Inline[];
-              const blocks =
-                tiptap
-                  .JSONToInlines(json)
-                  .filter((c) => typeof c !== 'string' && 'block' in c) || [];
-
-              // then we need to find all the inlines without refs
-              // so we can render the input text without refs
-              const inlinesWithOutRefs = inlines
-                .map((inline) => {
-                  if (typeof inline === 'string') {
-                    const inlineLength = inline.length;
-                    const refLength =
-                      inline.match(tiptap.REF_REGEX)?.[0].length || 0;
-
-                    if (inlineLength === refLength) {
-                      return null;
-                    }
-
-                    return inline.replace(tiptap.REF_REGEX, '');
-                  }
-                  return inline;
-                })
-                .filter((inline) => inline !== null) as string[];
-
-              // we construct a story here so we can insert blocks back in
-              // and then convert it back to tiptap's JSON format
-              const newStory = constructStory(inlinesWithOutRefs);
-
-              if (blocks && blocks.length > 0) {
-                newStory.push(
-                  ...blocks.map((block) => ({
-                    block: block as unknown as Block,
-                  }))
-                );
-              }
-
-              const newJson = tiptap.diaryMixedToJSON(newStory);
-
-              // @ts-expect-error setContent does accept JSONContent
-              editor.setContent(newJson);
+              return reference
+                ? { type: 'reference', reference, path: match }
+                : null;
             }
-          }
+            return null;
+          },
+        });
+        if (citePathAttachment) {
+          addAttachment(citePathAttachment);
+        }
+
+        // check for refs from pasted deeplinks
+        const DEEPLINK_REGEX = new RegExp(`^(https?://)?${branchDomain}/\\S+$`);
+        const deepLinkAttachment = await processReferenceAndUpdateEditor({
+          editor,
+          pastedText,
+          matchRegex: DEEPLINK_REGEX,
+          processMatch: async (deeplink) => {
+            const deeplinkRef = await logic.getReferenceFromDeeplink(
+              deeplink,
+              branchKey
+            );
+            return deeplinkRef
+              ? {
+                  type: 'reference',
+                  reference: deeplinkRef.reference,
+                  path: deeplinkRef.path,
+                }
+              : null;
+          },
+        });
+        if (deepLinkAttachment) {
+          addAttachment(deepLinkAttachment);
+        }
+
+        // check for refs from pasted lure links (after fallback redirect)
+        const TLON_LURE_REGEX =
+          /^(https?:\/\/)?(tlon\.network\/lure\/)(0v[^/]+)$/;
+        const lureLinkAttachment = await processReferenceAndUpdateEditor({
+          editor,
+          pastedText,
+          matchRegex: TLON_LURE_REGEX,
+          processMatch: async (tlonLure) => {
+            const parts = tlonLure.split('/');
+            const token = parts[parts.length - 1];
+            if (!token) return null;
+            const deeplinkRef = await logic.getReferenceFromDeeplink(
+              `https://${branchDomain}/${token}`,
+              branchKey
+            );
+            return deeplinkRef
+              ? {
+                  type: 'reference',
+                  reference: deeplinkRef.reference,
+                  path: deeplinkRef.path,
+                }
+              : null;
+          },
+        });
+        if (lureLinkAttachment) {
+          addAttachment(lureLinkAttachment);
         }
       },
-      [editor, addAttachment]
+      [branchDomain, branchKey, addAttachment, editor]
     );
 
     const onSelectMention = useCallback(

@@ -26,6 +26,26 @@ export const getDeepLink = async (
   return url;
 };
 
+export const getBranchLinkMeta = async (
+  branchUrl: string,
+  branchKey: string
+) => {
+  const params = new URLSearchParams();
+  params.set('url', branchUrl);
+  params.set('branch_key', branchKey);
+  const response = await fetchBranchApi(`/v1/url?${params}`);
+  if (!response.ok) {
+    return undefined;
+  }
+
+  const payload = await response.json();
+  if (!payload || !payload.data) {
+    return undefined;
+  }
+
+  return payload.data;
+};
+
 export type DeepLinkType = 'lure' | 'wer';
 
 export interface DeepLinkMetadata {
@@ -60,6 +80,14 @@ export function extractLureMetadata(branchParams: any) {
     invitedGroupIconImageUrl: branchParams.invitedGroupIconImageUrl,
     invitedGroupiconImageColor: branchParams.invitedGroupiconImageColor,
   };
+}
+
+export function isLureMeta(input: unknown): input is DeepLinkMetadata {
+  if (!input || typeof input !== 'object') {
+    return false;
+  }
+
+  return 'invitedGroupId' in input;
 }
 
 export async function getDmLink(
