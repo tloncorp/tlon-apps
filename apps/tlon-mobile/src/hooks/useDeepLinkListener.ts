@@ -22,39 +22,46 @@ export const useDeepLinkListener = () => {
     if (ship && lure && !isHandlingLinkRef.current) {
       (async () => {
         isHandlingLinkRef.current = true;
-        // if the lure was clicked prior to authenticating, trigger the automatic join & DM
-        if (lure.shouldAutoJoin) {
-          try {
-            logger.log(`inviting ship with lure`, ship, signupParams.lureId);
-            await inviteShipWithLure({ ship, lure: signupParams.lureId });
-          } catch (err) {
-            logger.error('Error inviting ship with lure:', err);
-            if (err instanceof Error) {
-              trackError(err);
+        logger.log(`handling deep link`, lure, signupParams);
+        try {
+          // if the lure was clicked prior to authenticating, trigger the automatic join & DM
+          if (lure.shouldAutoJoin) {
+            try {
+              logger.log(`inviting ship with lure`, ship, signupParams.lureId);
+              await inviteShipWithLure({ ship, lure: signupParams.lureId });
+            } catch (err) {
+              logger.error('Error inviting ship with lure:', err);
+              if (err instanceof Error) {
+                trackError(err);
+              }
+            }
+          } else {
+            // otherwise, treat it as a deeplink and navigate to the group
+            if (lure.invitedGroupId) {
+              const [group] = await store.syncGroupPreviews([
+                lure.invitedGroupId,
+              ]);
+              if (group) {
+                navigation.reset({
+                  index: 1,
+                  routes: [
+                    { name: 'ChatList', params: { previewGroup: group } },
+                  ],
+                });
+              } else {
+                logger.error(
+                  'Failed to navigate to group deeplink',
+                  lure.invitedGroupId
+                );
+              }
             }
           }
-        } else {
-          // otherwise, treat it as a deeplink and navigate to the group
-          if (lure.invitedGroupId) {
-            const [group] = await store.syncGroupPreviews([
-              lure.invitedGroupId,
-            ]);
-            if (group) {
-              navigation.reset({
-                index: 1,
-                routes: [{ name: 'ChatList', params: { previewGroup: group } }],
-              });
-            } else {
-              logger.error(
-                'Failed to navigate to group deeplink',
-                lure.invitedGroupId
-              );
-            }
-          }
+        } catch (e) {
+          logger.error('Failed to handle deep link', lure, e);
+        } finally {
+          clearLure();
+          isHandlingLinkRef.current = false;
         }
-
-        clearLure();
-        isHandlingLinkRef.current = false;
       })();
     }
   }, [ship, signupParams, clearLure, lure, navigation]);
