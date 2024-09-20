@@ -438,6 +438,17 @@
       %+  weld  base
       /posts/post/(scot %ud (rash i.t.wer dum:ag))/channel-post-2
     ==
+  ::
+  ++  from-post
+    |=  [=nest:g =id-post:c =kind-data:c]
+    ^-  cite:ci
+    =/  kind
+      ?-  -.kind-data
+        %chat   %msg
+        %diary  %note
+        %heap   %curio
+      ==
+    [%chan nest /[kind]/(crip (a-co:co id-post))]
   --
 ::
 ++  flatten-inline
