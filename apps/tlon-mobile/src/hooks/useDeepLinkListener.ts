@@ -23,7 +23,7 @@ export const useDeepLinkListener = () => {
       (async () => {
         isHandlingLinkRef.current = true;
         // if the lure was clicked prior to authenticating, trigger the automatic join & DM
-        if (lure.clickedPreAuth) {
+        if (lure.shouldAutoJoin) {
           try {
             logger.log(`inviting ship with lure`, ship, signupParams.lureId);
             await inviteShipWithLure({ ship, lure: signupParams.lureId });
@@ -36,7 +36,9 @@ export const useDeepLinkListener = () => {
         } else {
           // otherwise, treat it as a deeplink and navigate to the group
           if (lure.invitedGroupId) {
-            const group = await store.getGroupPreview(lure.invitedGroupId);
+            const [group] = await store.syncGroupPreviews([
+              lure.invitedGroupId,
+            ]);
             if (group) {
               navigation.reset({
                 index: 1,

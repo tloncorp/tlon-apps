@@ -16,7 +16,7 @@ interface LureMetadata {
   fields: Record<string, string | undefined>;
 }
 
-const LURE_REQUEST_TIMEOUT = 10 * 1000;
+const LURE_REQUEST_TIMEOUT = 3 * 1000;
 
 interface Lure {
   fetched: boolean;
@@ -140,11 +140,16 @@ export const useLureState = create<LureState>((set, get) => ({
             path: `/group-enabled/${flag}`,
           },
           LURE_REQUEST_TIMEOUT
-        ).then((en) => {
-          lureLogger.log(performance.now(), 'enabled fetched', flag);
+        )
+          .then((en) => {
+            lureLogger.log(performance.now(), 'enabled fetched', flag);
 
-          return en;
-        });
+            return en;
+          })
+          .catch((e) => {
+            lureLogger.error(`group-enabled failed`, e);
+            return prevLure?.enabled;
+          });
       }, prevLure?.enabled),
       // url (includes the token as last element of the path)
       asyncWithDefault<string | undefined>(async () => {
@@ -152,10 +157,15 @@ export const useLureState = create<LureState>((set, get) => ({
         return subscribeOnce<string>(
           { app: 'reel', path: `/v1/id-link/${flag}` },
           LURE_REQUEST_TIMEOUT
-        ).then((u) => {
-          lureLogger.log(performance.now(), 'url fetched', u, flag);
-          return u;
-        });
+        )
+          .then((u) => {
+            lureLogger.log(performance.now(), 'url fetched', u, flag);
+            return u;
+          })
+          .catch((e) => {
+            lureLogger.error(`id-link failed`, e);
+            return prevLure?.url;
+          });
       }, prevLure?.url),
     ]);
 
@@ -333,12 +343,12 @@ export function useLureLinkStatus({
       return 'disabled';
     }
 
-    if (url && checkOldLureToken(url)) {
+    if ((url && checkOldLureToken(url)) || (fetched && !url)) {
       return 'stale';
     }
 
-    if (!url || !checkLureToken(url) || !fetched || !checked) {
-      lureLogger.log('loading', fetched, checked, url);
+    if (!url || !checkLureToken(url) || !fetched || !checked || !deepLinkUrl) {
+      lureLogger.log('loading', fetched, checked, url, deepLinkUrl);
       return 'loading';
     }
 
@@ -347,11 +357,11 @@ export function useLureLinkStatus({
     }
 
     return 'ready';
-  }, [supported, fetched, enabled, url, good, checked]);
+  }, [supported, fetched, enabled, url, checked, deepLinkUrl, good]);
 
   lureLogger.log('url', url, 'deepLinkUrl', deepLinkUrl, 'status', status);
 
-  return { status, shareUrl: deepLinkUrl ?? url, toggle, describe };
+  return { status, shareUrl: deepLinkUrl, toggle, describe };
 }
 
 // hack: we get an intermediate state while generating lure links where

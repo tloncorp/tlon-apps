@@ -1,27 +1,20 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, View, XStack, YStack } from 'tamagui';
+import { Text, View, YStack } from 'tamagui';
 
 import {
   AppDataContextProvider,
   useContacts,
   useCurrentUserId,
 } from '../contexts';
-import { ActionSheet } from './ActionSheet';
 import { CreateGroupWidget } from './AddChats';
 import { Button } from './Button';
 import { TextButton } from './Buttons';
 import { ContactBook } from './ContactBook';
 import { GenericHeader } from './GenericHeader';
-import { Icon } from './Icon';
 
 type screen = 'InviteUsers' | 'CreateGroup';
-
-const titles = {
-  InviteUsers: 'Select Members',
-  CreateGroup: 'Create Group',
-};
 
 export function CreateGroupView({
   goBack,
