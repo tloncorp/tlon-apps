@@ -23,7 +23,7 @@
         %-  some
         %:  build  "chat"
           (heads title ~)
-          [chat-prelude]~
+          (prelude ~)
           (story:en-manx:u content.msg)
         ==
       ::
@@ -35,9 +35,9 @@
         %:  build  "diary"
           (heads title ?:(=('' image.kd) ~ `image.kd))
         ::
-          ?:  =('' image.kd)  (diary-prelude title)
+          ?:  =('' image.kd)  (prelude `title)
           :-  ;img.cover@"{(trip image.kd)}"(alt "Cover image");
-          (diary-prelude title)
+          (prelude `title)
         ::
           (story:en-manx:u content.msg)
         ==
@@ -53,7 +53,7 @@
         %-  some
         %:  build  "chat"
           (heads ?:(=("" title) "Gallery item" title) ~)
-          (heap-prelude title)
+          (prelude `title)
           (story:en-manx:u content.msg)
         ==
       ==
@@ -122,32 +122,18 @@
       ==
     ==
   ::
-  ++  chat-prelude
-    ^-  manx
-    ;div.author-row
-      ;+  (author:r bowl author.msg)
-      ;+  (datetime:r sent.msg)
-    ==
-  ::
-  ++  diary-prelude
-    |=  title=tape
+  ++  prelude
+    |=  title=(unit tape)
     ^-  marl
-    :~  ;h1:"{title}"
-        ;div.author-row
-          ;+  (author:r bowl author.msg)
-          ;+  (datetime:r sent.msg)
-        ==
-    ==
-  ::
-  ++  heap-prelude
-    |=  title=tape
-    ^-  marl
-    =-  ?:  =("" title)  [-]~
-        :-  ;h1:"{title}"
-        [-]~
-    ;div.author-row
-      ;+  (author:r bowl author.msg)
-      ;+  (datetime:r sent.msg)
+    =/  main=manx
+      ;div.author-row
+        ;+  (author:r bowl author.msg)
+        ;+  (datetime:r sent.msg)
+      ==
+    ?~  title  [main]~
+    ?:  =("" u.title)  [main]~
+    :~  ;h1:"{u.title}"
+        main
     ==
   --
 --
