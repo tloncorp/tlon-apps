@@ -126,14 +126,9 @@ export function ContactBook({
   return (
     <View flex={1}>
       {searchable && (
-        <XStack
-          alignItems="center"
-          justifyContent="space-between"
-          marginBottom="$xl"
-          gap="$m"
-        >
+        <XStack alignItems="center" justifyContent="space-between" gap="$m">
           <SearchBar
-            padding="$m"
+            paddingHorizontal="$m"
             height="$4xl"
             debounceTime={100}
             onChangeQuery={setQuery}

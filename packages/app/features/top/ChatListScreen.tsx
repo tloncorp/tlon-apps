@@ -262,10 +262,16 @@ export default function ChatListScreen({
           <ScreenHeader
             title={notReadyMessage ?? screenTitle}
             rightControls={
-              <ScreenHeader.IconButton
-                type="Search"
-                onPress={handleSearchInputToggled}
-              />
+              <>
+                <ScreenHeader.IconButton
+                  type="Search"
+                  onPress={handleSearchInputToggled}
+                />
+                <ScreenHeader.IconButton
+                  type="Add"
+                  onPress={() => setAddGroupOpen(true)}
+                />
+              </>
             }
           />
           {chats && chats.unpinned.length ? (
@@ -284,21 +290,7 @@ export default function ChatListScreen({
               onSearchQueryChange={setSearchQuery}
             />
           ) : null}
-          <View
-            zIndex={50}
-            position="absolute"
-            bottom="$s"
-            alignItems="center"
-            width={'100%'}
-            pointerEvents="box-none"
-          >
-            <FloatingActionButton
-              onPress={() => {
-                setAddGroupOpen(true);
-              }}
-              icon={<Icon type="Add" size="$m" />}
-            />
-          </View>
+
           <WelcomeSheet
             open={splashVisible}
             onOpenChange={handleWelcomeOpenChange}
