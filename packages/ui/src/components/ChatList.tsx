@@ -3,7 +3,7 @@ import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
-import {
+import React, {
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -11,7 +11,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import React from 'react';
 import {
   LayoutChangeEvent,
   NativeScrollEvent,
@@ -31,8 +30,7 @@ import Animated, {
 import { Text, View, YStack, useStyle } from 'tamagui';
 
 import { interactionWithTiming } from '../utils/animation';
-import { Icon } from './Icon';
-import { Input } from './Input';
+import { TextInputWithIcon } from './Form';
 import { ChatListItem, InteractableChatListItem } from './ListItem';
 import Pressable from './Pressable';
 import { SectionListHeader } from './SectionList';
@@ -48,7 +46,7 @@ type ChatListSectionData = SectionListData<
   { title: string; data: ChatListItemData[] }
 >;
 
-function ChatListComponent({
+export const ChatList = React.memo(function ChatListComponent({
   pinned,
   unpinned,
   pendingChats,
@@ -58,7 +56,9 @@ function ChatListComponent({
   onSectionChange,
   activeTab,
   setActiveTab,
-  showFilters,
+  showSearchInput,
+  searchQuery,
+  onSearchQueryChange,
 }: store.CurrentChats & {
   pendingChats: store.PendingChats;
   onPressItem?: (chat: Chat) => void;
@@ -67,9 +67,10 @@ function ChatListComponent({
   onSectionChange?: (title: string) => void;
   activeTab: TabName;
   setActiveTab: (tab: TabName) => void;
-  showFilters: boolean;
+  showSearchInput: boolean;
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
 }) {
-  const [searchQuery, setSearchQuery] = useState('');
   const displayData = useFilteredChats({
     pinned,
     unpinned,
@@ -81,7 +82,7 @@ function ChatListComponent({
   const contentContainerStyle = useStyle(
     {
       gap: '$s',
-      paddingHorizontal: '$l',
+      padding: '$l',
       paddingBottom: 100, // bottom nav height + some cushion
     },
     { resolveValues: 'value' }
@@ -160,17 +161,16 @@ function ChatListComponent({
   }, [setActiveTab]);
 
   const handlePressClear = useCallback(() => {
-    setSearchQuery('');
-  }, []);
+    onSearchQueryChange('');
+  }, [onSearchQueryChange]);
 
   return (
     <>
-      <ChatListFilters
+      <ChatListTabs onPressTab={setActiveTab} activeTab={activeTab} />
+      <ChatListSearch
         query={searchQuery}
-        onQueryChange={setSearchQuery}
-        activeTab={activeTab}
-        onPressTab={setActiveTab}
-        isOpen={showFilters}
+        onQueryChange={onSearchQueryChange}
+        isOpen={showSearchInput}
       />
       {searchQuery !== '' && !displayData[0]?.data.length ? (
         <SearchResultsEmpty
@@ -200,9 +200,7 @@ function ChatListComponent({
       )}
     </>
   );
-}
-
-export const ChatList = React.memo(ChatListComponent);
+});
 
 function getChatKey(item: unknown) {
   const chatItem = item as Chat;
@@ -217,9 +215,29 @@ function getChatKey(item: unknown) {
   return `${chatItem.id}-${chatItem.pin?.itemId ?? ''}`;
 }
 
-function ChatListFiltersComponent({
+function ChatListTabs({
   activeTab,
   onPressTab,
+}: {
+  activeTab: TabName;
+  onPressTab: (tab: TabName) => void;
+}) {
+  return (
+    <Tabs>
+      <Tabs.Tab name="all" activeTab={activeTab} onTabPress={onPressTab}>
+        <Tabs.Title active={activeTab === 'all'}>All</Tabs.Title>
+      </Tabs.Tab>
+      <Tabs.Tab name="groups" activeTab={activeTab} onTabPress={onPressTab}>
+        <Tabs.Title active={activeTab === 'groups'}>Groups</Tabs.Title>
+      </Tabs.Tab>
+      <Tabs.Tab name="messages" activeTab={activeTab} onTabPress={onPressTab}>
+        <Tabs.Title active={activeTab === 'messages'}>Messages</Tabs.Title>
+      </Tabs.Tab>
+    </Tabs>
+  );
+}
+
+const ChatListSearch = React.memo(function ChatListSearchComponent({
   isOpen,
   query,
   onQueryChange,
@@ -227,8 +245,6 @@ function ChatListFiltersComponent({
   query: string;
   onQueryChange: (query: string) => void;
   isOpen: boolean;
-  activeTab: TabName;
-  onPressTab: (tab: TabName) => void;
 }) {
   const [contentHeight, setContentHeight] = useState(0);
 
@@ -272,42 +288,21 @@ function ChatListFiltersComponent({
         left={0}
         right={0}
       >
-        <View paddingHorizontal="$l">
-          <Input>
-            <Input.Icon>
-              <Icon type="Search" />
-            </Input.Icon>
-            <Input.Area
-              value={query}
-              onChangeText={onQueryChange}
-              placeholder="Find by name"
-              spellCheck={false}
-              autoCorrect={false}
-              autoCapitalize="none"
-            />
-          </Input>
+        <View paddingHorizontal="$l" paddingTop="$xl">
+          <TextInputWithIcon
+            icon="Search"
+            placeholder="Find by name"
+            value={query}
+            onChangeText={onQueryChange}
+            spellCheck={false}
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
         </View>
-        <Tabs>
-          <Tabs.Tab name="all" activeTab={activeTab} onTabPress={onPressTab}>
-            <Tabs.Title active={activeTab === 'all'}>All</Tabs.Title>
-          </Tabs.Tab>
-          <Tabs.Tab name="groups" activeTab={activeTab} onTabPress={onPressTab}>
-            <Tabs.Title active={activeTab === 'groups'}>Groups</Tabs.Title>
-          </Tabs.Tab>
-          <Tabs.Tab
-            name="messages"
-            activeTab={activeTab}
-            onTabPress={onPressTab}
-          >
-            <Tabs.Title active={activeTab === 'messages'}>Messages</Tabs.Title>
-          </Tabs.Tab>
-        </Tabs>
       </YStack>
     </Animated.View>
   );
-}
-
-const ChatListFilters = React.memo(ChatListFiltersComponent);
+});
 
 function useFilteredChats({
   pinned,
@@ -344,7 +339,12 @@ function useFilteredChats({
         ? [pinnedSection, allSection]
         : [allSection];
     } else {
-      return [{ title: 'Search', data: filterChats(searchResults, activeTab) }];
+      return [
+        {
+          title: 'Search results',
+          data: filterChats(searchResults, activeTab),
+        },
+      ];
     }
   }, [activeTab, pending, searchQuery, searchResults, unpinned, pinned]);
 }

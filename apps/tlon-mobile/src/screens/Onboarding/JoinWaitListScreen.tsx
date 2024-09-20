@@ -4,8 +4,8 @@ import { addUserToWaitlist } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Field,
-  GenericHeader,
   PrimaryButton,
+  ScreenHeader,
   SizableText,
   TextInput,
   View,
@@ -48,10 +48,10 @@ export const JoinWaitListScreen = ({ navigation }: Props) => {
 
   return (
     <View flex={1}>
-      <GenericHeader
+      <ScreenHeader
         title="Join Waitlist"
         showSessionStatus={false}
-        goBack={() => navigation.goBack()}
+        backAction={() => navigation.goBack()}
       />
       <YStack padding="$xl" gap="$2xl">
         <SizableText color="$primaryText">

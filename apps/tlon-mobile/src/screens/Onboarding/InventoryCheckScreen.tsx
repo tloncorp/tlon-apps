@@ -3,9 +3,9 @@ import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import { getHostingAvailability } from '@tloncorp/app/lib/hostingApi';
 import { trackError } from '@tloncorp/app/utils/posthog';
 import {
-  GenericHeader,
   Icon,
   PrimaryButton,
+  ScreenHeader,
   SizableText,
   Text,
   View,
@@ -48,11 +48,11 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
 
   return (
     <View flex={1}>
-      <GenericHeader
+      <ScreenHeader
         title="Welcome to Tlon"
         showSessionStatus={false}
-        goBack={() => navigation.goBack()}
-        showSpinner={isChecking}
+        backAction={() => navigation.goBack()}
+        isLoading={isChecking}
       />
 
       <YStack gap="$2xl" padding="$2xl">

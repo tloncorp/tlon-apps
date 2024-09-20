@@ -1,10 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useRef } from 'react';
 
-import { Button } from '../Button';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
-import { GenericHeader } from '../GenericHeader';
-import { Icon } from '../Icon';
+import { ScreenHeader } from '../ScreenHeader';
 import { BaubleHeader } from './BaubleHeader';
 
 export function ChannelHeader({
@@ -41,29 +39,20 @@ export function ChannelHeader({
 
   return (
     <>
-      <GenericHeader
+      <ScreenHeader
         title={title}
-        goBack={goBack}
-        showSpinner={showSpinner}
-        rightContent={
+        isLoading={showSpinner}
+        leftControls={<ScreenHeader.BackButton onPress={goBack} />}
+        rightControls={
           <>
             {showSearchButton && (
-              <Button
-                backgroundColor="unset"
-                borderColor="transparent"
-                onPress={goToSearch}
-              >
-                <Icon type="Search" />
-              </Button>
+              <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
             )}
             {showMenuButton && (
-              <Button
-                backgroundColor="unset"
-                borderColor="transparent"
+              <ScreenHeader.IconButton
+                type="Overflow"
                 onPress={handlePressOverflowMenu}
-              >
-                <Icon type="Overflow" />
-              </Button>
+              />
             )}
           </>
         }

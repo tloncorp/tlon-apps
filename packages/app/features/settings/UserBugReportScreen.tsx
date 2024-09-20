@@ -3,8 +3,8 @@ import {
   Button,
   Circle,
   FormTextInput,
-  GenericHeader,
   Icon,
+  ScreenHeader,
   SizableText,
   View,
   XStack,
@@ -72,7 +72,10 @@ export function UserBugReportScreen({ onGoBack }: { onGoBack: () => void }) {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }}>
-      <GenericHeader goBack={state === 'initial' ? onGoBack : undefined} />
+      <ScreenHeader
+        title="Report a bug"
+        backAction={state === 'initial' ? onGoBack : undefined}
+      />
       <YStack
         marginTop="$m"
         flex={1}

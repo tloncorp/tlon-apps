@@ -1,8 +1,8 @@
 import * as store from '@tloncorp/shared/dist/store';
 import {
   AppSetting,
-  GenericHeader,
   ListItem,
+  ScreenHeader,
   SizableText,
   Stack,
   View,
@@ -32,7 +32,7 @@ export function AppInfoScreen({
 
   return (
     <View flex={1}>
-      <GenericHeader title="App Info" goBack={onGoBack} />
+      <ScreenHeader title="App info" backAction={onGoBack} />
       <ScrollView>
         <YStack marginTop="$xl" marginHorizontal="$2xl" gap="$s">
           <AppSetting title="Build version" value={BUILD_VERSION} copyable />
