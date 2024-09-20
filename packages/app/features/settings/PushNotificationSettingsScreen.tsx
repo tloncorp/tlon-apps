@@ -4,10 +4,10 @@ import * as store from '@tloncorp/shared/dist/store';
 import * as ub from '@tloncorp/shared/dist/urbit';
 import {
   ChannelListItem,
-  GenericHeader,
   GroupListItem,
   Icon,
   ListItem,
+  ScreenHeader,
   ScrollView,
   SizableText,
   View,
@@ -81,7 +81,7 @@ export function PushNotificationSettingsScreen({
 
   return (
     <View flex={1}>
-      <GenericHeader title="Push Notifications" goBack={onGoBack} />
+      <ScreenHeader title="Push Notifications" backAction={onGoBack} />
       <View marginTop="$m" marginHorizontal="$2xl" flex={1}>
         <SizableText marginLeft="$m" marginTop="$xl" size="$m">
           Configure what kinds of messages will send you notifications.

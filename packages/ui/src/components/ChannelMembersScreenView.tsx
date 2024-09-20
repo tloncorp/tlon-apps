@@ -5,7 +5,7 @@ import { View, getTokenValue } from 'tamagui';
 
 import ContactName from './ContactName';
 import { ListItem } from './ListItem';
-import { GenericHeader } from './ScreenHeader';
+import { ScreenHeader } from './ScreenHeader';
 
 export function ChannelMembersScreenView({
   channel,
@@ -33,9 +33,9 @@ export function ChannelMembersScreenView({
 
   return (
     <View flex={1} backgroundColor="$background">
-      <GenericHeader
+      <ScreenHeader
         title={channel ? 'Loading...' : 'Members'}
-        goBack={goBack}
+        backAction={goBack}
       />
       <FlatList
         data={channel?.members}

@@ -6,7 +6,7 @@ import { View, YStack } from 'tamagui';
 import { Button } from '../Button';
 import { DeleteSheet } from '../DeleteSheet';
 import { FormInput } from '../FormInput';
-import { GenericHeader } from '../ScreenHeader';
+import { ScreenHeader } from '../ScreenHeader';
 
 interface EditChannelScreenViewProps {
   goBack: () => void;
@@ -65,12 +65,11 @@ export function EditChannelScreenView({
         justifyContent="space-between"
         flex={1}
       >
-        <GenericHeader
+        <ScreenHeader
           title="Edit channel"
-          goBack={goBack}
-          showSpinner={isLoading}
+          backAction={goBack}
+          isLoading={isLoading}
         />
-
         <YStack
           backgroundColor="$background"
           gap="$2xl"

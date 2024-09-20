@@ -10,15 +10,13 @@ import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { transformShipURL } from '@tloncorp/app/utils/string';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
 import {
-  Button,
   CheckboxInput,
   Field,
-  GenericHeader,
   Icon,
   KeyboardAvoidingView,
   ListItem,
+  ScreenHeader,
   SizableText,
-  Text,
   TextInput,
   View,
   YStack,
@@ -125,17 +123,17 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
 
   return (
     <View flex={1}>
-      <GenericHeader
+      <ScreenHeader
         title="Connect Ship"
         showSessionStatus={false}
-        goBack={() => navigation.goBack()}
-        showSpinner={isSubmitting}
-        rightContent={
+        backAction={() => navigation.goBack()}
+        isLoading={isSubmitting}
+        rightControls={
           isValid &&
           watch('eulaAgreed') && (
-            <Button minimal onPress={onSubmit}>
-              <Text fontSize={'$m'}>Connect</Text>
-            </Button>
+            <ScreenHeader.TextButton onPress={onSubmit}>
+              Connect
+            </ScreenHeader.TextButton>
           )
         }
       />

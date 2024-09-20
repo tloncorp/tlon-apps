@@ -3,12 +3,10 @@ import { EMAIL_REGEX } from '@tloncorp/app/constants';
 import { requestPasswordReset } from '@tloncorp/app/lib/hostingApi';
 import { trackError } from '@tloncorp/app/utils/posthog';
 import {
-  Button,
   Field,
-  GenericHeader,
   KeyboardAvoidingView,
+  ScreenHeader,
   SizableText,
-  Text,
   TextInput,
   View,
   YStack,
@@ -66,16 +64,16 @@ export const ResetPasswordScreen = ({
 
   return (
     <View flex={1}>
-      <GenericHeader
+      <ScreenHeader
         title="Reset Password"
         showSessionStatus={false}
-        goBack={() => navigation.goBack()}
-        showSpinner={isSubmitting}
-        rightContent={
+        backAction={() => navigation.goBack()}
+        isLoading={isSubmitting}
+        rightControls={
           isValid && (
-            <Button minimal onPress={onSubmit}>
-              <Text fontSize={'$m'}>Submit</Text>
-            </Button>
+            <ScreenHeader.TextButton onPress={onSubmit}>
+              Submit
+            </ScreenHeader.TextButton>
           )
         }
       />

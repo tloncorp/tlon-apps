@@ -8,7 +8,7 @@ import { View, getTokenValue } from 'tamagui';
 import { ContactList } from './ContactList';
 import { GroupJoinRequestSheet } from './GroupJoinRequestSheet';
 import { ProfileSheet } from './ProfileSheet';
-import { GenericHeader } from './ScreenHeader';
+import { ScreenHeader } from './ScreenHeader';
 import { SectionListHeader } from './SectionList';
 
 export function GroupMembersScreenView({
@@ -173,7 +173,7 @@ export function GroupMembersScreenView({
   return (
     <>
       <View backgroundColor="$background" flex={1}>
-        <GenericHeader title="Members" goBack={goBack} />
+        <ScreenHeader title="Members" backAction={goBack} />
         <SectionList
           sections={sectionedData}
           keyExtractor={keyExtractor}

@@ -28,14 +28,6 @@ import { useFeatureFlag } from '../../lib/featureFlags';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 
-const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
-  return (
-    <Button borderWidth={0} onPress={onPress}>
-      <Icon type="Filter" size="$m" />
-    </Button>
-  );
-};
-
 export default function ChatListScreen({
   previewGroup,
   navigateToChannel,
@@ -86,7 +78,7 @@ export default function ChatListScreen({
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(
     previewGroup ?? null
   );
-  const [showFilters, setShowFilters] = useState(false);
+  const [showSearchInput, setShowSearchInput] = useState(false);
   const isFocused = useIsFocused();
   const { data: pins } = store.usePins({
     enabled: isFocused,
@@ -240,11 +232,14 @@ export default function ChatListScreen({
     }
   }, []);
 
-  const headerControls = useMemo(() => {
-    return (
-      <ShowFiltersButton onPress={() => setShowFilters((prev) => !prev)} />
-    );
-  }, []);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearchInputToggled = useCallback(() => {
+    if (showSearchInput) {
+      setSearchQuery('');
+    }
+    setShowSearchInput(!showSearchInput);
+  }, [showSearchInput]);
 
   return (
     <RequestsProvider
@@ -266,7 +261,12 @@ export default function ChatListScreen({
         <View flex={1}>
           <ScreenHeader
             title={notReadyMessage ?? screenTitle}
-            rightControls={headerControls}
+            rightControls={
+              <ScreenHeader.IconButton
+                type="Search"
+                onPress={handleSearchInputToggled}
+              />
+            }
           />
           {chats && chats.unpinned.length ? (
             <ChatList
@@ -279,7 +279,9 @@ export default function ChatListScreen({
               onPressItem={onPressChat}
               onPressMenuButton={onLongPressChat}
               onSectionChange={handleSectionChange}
-              showFilters={showFilters}
+              showSearchInput={showSearchInput}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
             />
           ) : null}
           <View

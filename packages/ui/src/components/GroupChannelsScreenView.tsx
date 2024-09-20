@@ -5,23 +5,9 @@ import { ScrollView, View } from 'tamagui';
 
 import { useChatOptions } from '../contexts/chatOptions';
 import { SimpleActionSheet } from './ActionSheet';
-import { Button } from './Button';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
-import { Icon } from './Icon';
-import { GenericHeader } from './ScreenHeader';
-
-const ChannelSortOptions = ({
-  setShowSortOptions,
-}: {
-  setShowSortOptions: (show: boolean) => void;
-}) => {
-  return (
-    <Button borderWidth={0} onPress={() => setShowSortOptions(true)}>
-      <Icon type="Filter" />
-    </Button>
-  );
-};
+import { ScreenHeader } from './ScreenHeader';
 
 type GroupChannelsScreenViewProps = {
   onChannelPressed: (channel: db.Channel) => void;
@@ -67,16 +53,20 @@ export function GroupChannelsScreenView({
 
   return (
     <View flex={1}>
-      <GenericHeader
+      <ScreenHeader
         title={group ? group?.title ?? 'Untitled' : ''}
-        goBack={onBackPressed}
-        rightContent={
-          <View flexDirection="row" gap="$s">
-            <ChannelSortOptions setShowSortOptions={setShowSortOptions} />
-            <Button borderWidth={0} onPress={handlePressOverflowButton}>
-              <Icon type="Overflow" />
-            </Button>
-          </View>
+        backAction={onBackPressed}
+        rightControls={
+          <>
+            <ScreenHeader.IconButton
+              type="Filter"
+              onPress={() => setShowSortOptions(true)}
+            />
+            <ScreenHeader.IconButton
+              type="Overflow"
+              onPress={handlePressOverflowButton}
+            />
+          </>
         }
       />
       <ScrollView

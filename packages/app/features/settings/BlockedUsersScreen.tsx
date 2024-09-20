@@ -33,10 +33,10 @@ export function BlockedUsersScreen({ onGoBack }: { onGoBack: () => void }) {
 
   return (
     <View flex={1}>
-      <ScreenHeader>
-        <ScreenHeader.BackButton onPress={onGoBack} />
-        <ScreenHeader.Title>Blocked Users</ScreenHeader.Title>
-      </ScreenHeader>
+      <ScreenHeader
+        leftControls={<ScreenHeader.BackButton onPress={onGoBack} />}
+        title="Blocked users"
+      />
       <View flex={1} paddingHorizontal="$xl">
         <BlockedContactsWidget
           blockedContacts={blockedContacts ?? []}

@@ -10,7 +10,7 @@ import { Button } from '../Button';
 import { DraggableItem } from '../DraggableItem';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
-import { GenericHeader } from '../ScreenHeader';
+import { ScreenHeader } from '../ScreenHeader';
 import { ChannelTypeName, CreateChannelSheet } from './CreateChannelSheet';
 import { EditSectionNameSheet } from './EditSectionNameSheet';
 
@@ -527,7 +527,7 @@ export function ManageChannelsScreenView({
         justifyContent="space-between"
         flex={1}
       >
-        <GenericHeader title="Manage channels" goBack={goBack} />
+        <ScreenHeader title="Manage channels" backAction={goBack} />
         <YStack
           backgroundColor="$background"
           gap="$2xl"

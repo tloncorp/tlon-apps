@@ -61,10 +61,9 @@ export function UserProfileScreenView(props: Props) {
   return (
     <View flex={1} backgroundColor={'$secondaryBackground'}>
       <ScreenHeader
+        title="Profile"
         leftControls={<ScreenHeader.BackButton onPress={props.onBack} />}
-      >
-        <ScreenHeader.Title textAlign="center">Profile</ScreenHeader.Title>
-      </ScreenHeader>
+      />
       <ScrollView
         flex={1}
         contentContainerStyle={{

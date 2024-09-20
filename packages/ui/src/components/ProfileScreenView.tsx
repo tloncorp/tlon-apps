@@ -60,9 +60,7 @@ export function ProfileScreenView(props: Props) {
 
   return (
     <>
-      <ScreenHeader>
-        <ScreenHeader.Title textAlign="center">Settings</ScreenHeader.Title>
-      </ScreenHeader>
+      <ScreenHeader title="Settings" />
       <ScrollView>
         <YStack flex={1} padding="$l" gap="$s">
           <ProfileAction

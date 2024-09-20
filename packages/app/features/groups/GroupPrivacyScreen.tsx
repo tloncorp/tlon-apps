@@ -1,8 +1,8 @@
 import { GroupPrivacy } from '@tloncorp/shared/dist/db/schema';
 import * as store from '@tloncorp/shared/dist/store';
 import {
-  GenericHeader,
   GroupPrivacySelector,
+  ScreenHeader,
   View,
   triggerHaptic,
 } from '@tloncorp/ui';
@@ -31,7 +31,7 @@ export function GroupPrivacyScreen({
 
   return (
     <View>
-      <GenericHeader title="Privacy" goBack={onGoBack} />
+      <ScreenHeader title="Privacy" backAction={onGoBack} />
       {group ? (
         <GroupPrivacySelector
           currentValue={group.privacy ?? 'private'}

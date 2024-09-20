@@ -2,19 +2,9 @@ import { useCurrentSession } from '@tloncorp/shared';
 import { PropsWithChildren, ReactNode } from 'react';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  SizableText,
-  View,
-  XStack,
-  isWeb,
-  styled,
-  withStaticProperties,
-} from 'tamagui';
+import { View, XStack, isWeb, styled, withStaticProperties } from 'tamagui';
 
-import { ChevronLeft } from '../assets/icons';
-import { Button } from './Button';
 import { Icon } from './Icon';
-import { IconButton } from './IconButton';
 import { Text } from './TextV2';
 
 export const ScreenHeaderComponent = ({
@@ -22,12 +12,26 @@ export const ScreenHeaderComponent = ({
   title,
   leftControls,
   rightControls,
+  isLoading,
+  backAction,
+  showSessionStatus,
 }: PropsWithChildren<{
   title?: string | ReactNode;
   leftControls?: ReactNode | null;
   rightControls?: ReactNode | null;
+  isLoading?: boolean;
+  backAction?: () => void;
+  showSessionStatus?: boolean;
 }>) => {
   const { top } = useSafeAreaInsets();
+  const resolvedTitle = isLoading ? 'Loading…' : title;
+  const currentSession = useCurrentSession();
+  const textColor =
+    showSessionStatus === false
+      ? '$primaryText'
+      : currentSession
+        ? '$primaryText'
+        : '$tertiaryText';
 
   return (
     <View paddingTop={top} zIndex={50}>
@@ -39,7 +43,7 @@ export const ScreenHeaderComponent = ({
       >
         {typeof title === 'string' ? (
           isWeb ? (
-            <HeaderTitle>{title}</HeaderTitle>
+            <HeaderTitle color={textColor}>{resolvedTitle}</HeaderTitle>
           ) : (
             <Animated.View
               key={title}
@@ -47,13 +51,16 @@ export const ScreenHeaderComponent = ({
               exiting={FadeOutUp}
               style={{ flex: 1 }}
             >
-              <HeaderTitle>{title}</HeaderTitle>
+              <HeaderTitle color={textColor}>{resolvedTitle}</HeaderTitle>
             </Animated.View>
           )
         ) : (
-          title
+          resolvedTitle
         )}
-        <HeaderControls side="left">{leftControls}</HeaderControls>
+        <HeaderControls side="left">
+          {backAction ? <HeaderBackButton onPress={backAction} /> : null}
+          {leftControls}
+        </HeaderControls>
         <HeaderControls side="right">{rightControls}</HeaderControls>
         {children}
       </XStack>
@@ -61,17 +68,29 @@ export const ScreenHeaderComponent = ({
   );
 };
 
+const HeaderIconButton = styled(Icon, {
+  customSize: ['$3xl', '$2xl'],
+  borderRadius: '$m',
+  pressStyle: {
+    opacity: 0.5,
+  },
+});
+
+const HeaderTextButton = styled(Text, {
+  size: '$label/2xl',
+  paddingHorizontal: '$s',
+  pressStyle: {
+    opacity: 0.5,
+  },
+});
+
 const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
-  return (
-    <IconButton backgroundColor={'unset'} onPress={onPress}>
-      <ChevronLeft />
-    </IconButton>
-  );
+  return <HeaderIconButton type="ChevronLeft" onPress={onPress} />;
 };
 
 const HeaderTitle = styled(Text, {
   size: '$label/2xl',
-  textAlign: 'left',
+  textAlign: 'center',
   width: '100%',
 });
 
@@ -79,7 +98,7 @@ const HeaderControls = styled(XStack, {
   position: 'absolute',
   top: 0,
   bottom: 0,
-  gap: '$m',
+  gap: '$xl',
   alignItems: 'center',
   zIndex: 1,
   variants: {
@@ -100,89 +119,6 @@ export const ScreenHeader = withStaticProperties(ScreenHeaderComponent, {
   Controls: HeaderControls,
   Title: HeaderTitle,
   BackButton: HeaderBackButton,
+  IconButton: HeaderIconButton,
+  TextButton: HeaderTextButton,
 });
-
-export function GenericHeader({
-  title,
-  goBack,
-  showSpinner,
-  rightContent,
-  showSessionStatus,
-}: {
-  title?: string;
-  goBack?: () => void;
-  showSpinner?: boolean;
-  rightContent?: React.ReactNode;
-  showSessionStatus?: boolean;
-}) {
-  const insets = useSafeAreaInsets();
-  const currentSession = useCurrentSession();
-  const textColor =
-    showSessionStatus === false
-      ? '$primaryText'
-      : currentSession
-        ? '$primaryText'
-        : '$tertiaryText';
-
-  return (
-    <View paddingTop={insets.top}>
-      <XStack
-        alignItems="center"
-        gap="$m"
-        height="$4xl"
-        justifyContent="space-between"
-        paddingHorizontal="$xl"
-        paddingVertical="$m"
-      >
-        <XStack
-          alignItems="center"
-          justifyContent={!goBack ? 'center' : undefined}
-          gap="$m"
-          flex={1}
-        >
-          {goBack && (
-            <Button
-              onPress={goBack}
-              backgroundColor="unset"
-              borderColor="transparent"
-            >
-              <Icon type="ChevronLeft" />
-            </Button>
-          )}
-          {isWeb ? (
-            <View flex={1}>
-              <SizableText
-                flexShrink={1}
-                numberOfLines={1}
-                color={textColor}
-                size="$m"
-                fontWeight="$xl"
-              >
-                {showSpinner ? 'Loading…' : title}
-              </SizableText>
-            </View>
-          ) : (
-            <Animated.View
-              entering={FadeInDown}
-              exiting={FadeOutUp}
-              style={{ flex: 1 }}
-            >
-              <SizableText
-                flexShrink={1}
-                numberOfLines={1}
-                color={textColor}
-                size="$m"
-                fontWeight="$xl"
-              >
-                {showSpinner ? 'Loading…' : title}
-              </SizableText>
-            </Animated.View>
-          )}
-        </XStack>
-        <XStack gap="$m" alignItems="center">
-          {rightContent}
-        </XStack>
-      </XStack>
-    </View>
-  );
-}
