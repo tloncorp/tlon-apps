@@ -168,8 +168,12 @@ export function convertContent(input: unknown): PostContent {
     return blocks;
   }
 
-  const story: NonNullable<api.PostContent> =
+  const story: api.PostContent =
     typeof input === 'string' ? JSON.parse(input) : input;
+
+  if (!story) {
+    return blocks;
+  }
 
   for (const verse of story) {
     if ('type' in verse && verse.type === 'reference') {
@@ -192,8 +196,13 @@ export function convertContent(input: unknown): PostContent {
 
 export function usePostContent(post: Post): BlockData[] {
   return useMemo(() => {
-    return convertContent(post.content);
-  }, [post.content]);
+    try {
+      return convertContent(post.content);
+    } catch (e) {
+      console.error('Failed to convert post content:', e);
+      return [];
+    }
+  }, [post]);
 }
 
 /**
