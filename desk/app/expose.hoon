@@ -309,8 +309,9 @@
       ;div.exposed
         ;div.content
           ;a.chat/"/expose{link}"
-            ;*  (story:en-manx:u content)
-          ==  
+            ;*  %.  content
+                =<(story(anchors |) en-manx:u)
+          ==
         ==
         ;div.author-row
           ;+  (author-node:r [our now] author)
@@ -341,7 +342,8 @@
       ;div.exposed
         ;div.content
           ;a.heap/"/expose{link}"
-            ;*  (story:en-manx:u content)
+            ;*  %.  content
+                =<(story(anchors |) en-manx:u)
           ==
         ==
         ;div.author-row

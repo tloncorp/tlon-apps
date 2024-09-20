@@ -455,6 +455,10 @@
   ==
 ::
 ++  en-manx  ::NOTE  more commonly, marl, but that's just (list manx)
+  ::  anchors: whether to render <a> tags around images and links.
+  ::           you may not want this when nesting the content inside of another
+  ::           <a>, browsers consider this illegal and will mangle the document.
+  =/  anchors=?  &
   |%
   ++  content  story
   ++  story
@@ -485,11 +489,15 @@
       ;+
       =/  src=tape  (trip src.block)
       ;div.image
-        ;a/"{src}"(target "_blank", rel "noreferrer")
+        ;+
+        =/  img
           ;img@"{src}"
             =height  "{(a-co:co height.block)}"
             =width   "{(a-co:co width.block)}"
             =alt     "{?:(=('' alt.block) "image" (trip alt.block))}";
+        ?.  anchors  img
+        ;a/"{src}"(target "_blank", rel "noreferrer")
+          ;+  img
         ==
       ==
     ::
@@ -611,10 +619,15 @@
         %link
       ::TODO  prefix // if no protocol in url
       =/  url=tape  (trip p.inline)
+      =/  txt=tape  ?:(=('' q.inline) url (trip q.inline))
+      ?.  anchors
+        ;span.faux-a:"{txt}"
       ;a/"{url}"
         =target  "_blank"
         =rel     "noreferrer"
-        ; "{?:(=('' q.inline) url (trip q.inline))}"
+        ::NOTE  sail inserts trailing \0a if we do ; {txt},
+        ::      which looks bad when links get underlined
+        ;+  [%$ [%$ "{txt}"]~]~
       ==
     ::
         %task
