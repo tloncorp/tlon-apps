@@ -10,9 +10,9 @@
   border-bottom: 0.125em solid var(--border);
 }
 
-/* .exposed:hover {
-  background: var(--selection);
-} */
+.exposed:last-of-type {
+  border-bottom: none;
+}
 
 .exposed a {
   text-decoration: none;
@@ -30,8 +30,9 @@
   color: var(--text-main);
 }
 
-.exposed:last-of-type {
-  border-bottom: none;
+.exposed .faux-a {
+  text-decoration: underline;
+  color: var(--links);
 }
 
 .exposed img {

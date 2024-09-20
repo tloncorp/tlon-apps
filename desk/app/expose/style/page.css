@@ -17,6 +17,10 @@
   background: var(--background);
 }
 
+.expose-content > header {
+  margin-bottom: 2em;
+}
+
 .expose-content p:empty {
   display: none;
 }
@@ -39,10 +43,13 @@
 }
 
 .author-row {
+  width: 100%;
+  font-size: 0.8em;
+  margin-left: -2.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 0 0.75em;
+  padding: 0 2.5em 2em;
   border-bottom: 0.125em solid var(--border);
   gap: 2em;
 }
