@@ -8,8 +8,8 @@ import { SimpleActionSheet } from './ActionSheet';
 import { Button } from './Button';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
-import { GenericHeader } from './GenericHeader';
 import { Icon } from './Icon';
+import { GenericHeader } from './ScreenHeader';
 
 const ChannelSortOptions = ({
   setShowSortOptions,

@@ -6,7 +6,7 @@ import { View, YStack } from 'tamagui';
 import { Button } from '../Button';
 import { DeleteSheet } from '../DeleteSheet';
 import { FormInput } from '../FormInput';
-import { GenericHeader } from '../GenericHeader';
+import { GenericHeader } from '../ScreenHeader';
 
 interface EditChannelScreenViewProps {
   goBack: () => void;

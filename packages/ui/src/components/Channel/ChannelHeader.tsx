@@ -3,8 +3,8 @@ import { useCallback, useRef } from 'react';
 
 import { Button } from '../Button';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
-import { GenericHeader } from '../GenericHeader';
 import { Icon } from '../Icon';
+import { GenericHeader } from '../ScreenHeader';
 import { BaubleHeader } from './BaubleHeader';
 
 export function ChannelHeader({

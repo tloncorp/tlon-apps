@@ -1,10 +1,19 @@
+import { useCurrentSession } from '@tloncorp/shared';
 import { PropsWithChildren, ReactNode } from 'react';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { isWeb, styled, withStaticProperties } from 'tamagui';
-import { View, XStack } from 'tamagui';
+import {
+  SizableText,
+  View,
+  XStack,
+  isWeb,
+  styled,
+  withStaticProperties,
+} from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
+import { Button } from './Button';
+import { Icon } from './Icon';
 import { IconButton } from './IconButton';
 import { Text } from './TextV2';
 
@@ -92,3 +101,88 @@ export const ScreenHeader = withStaticProperties(ScreenHeaderComponent, {
   Title: HeaderTitle,
   BackButton: HeaderBackButton,
 });
+
+export function GenericHeader({
+  title,
+  goBack,
+  showSpinner,
+  rightContent,
+  showSessionStatus,
+}: {
+  title?: string;
+  goBack?: () => void;
+  showSpinner?: boolean;
+  rightContent?: React.ReactNode;
+  showSessionStatus?: boolean;
+}) {
+  const insets = useSafeAreaInsets();
+  const currentSession = useCurrentSession();
+  const textColor =
+    showSessionStatus === false
+      ? '$primaryText'
+      : currentSession
+        ? '$primaryText'
+        : '$tertiaryText';
+
+  return (
+    <View paddingTop={insets.top}>
+      <XStack
+        alignItems="center"
+        gap="$m"
+        height="$4xl"
+        justifyContent="space-between"
+        paddingHorizontal="$xl"
+        paddingVertical="$m"
+      >
+        <XStack
+          alignItems="center"
+          justifyContent={!goBack ? 'center' : undefined}
+          gap="$m"
+          flex={1}
+        >
+          {goBack && (
+            <Button
+              onPress={goBack}
+              backgroundColor="unset"
+              borderColor="transparent"
+            >
+              <Icon type="ChevronLeft" />
+            </Button>
+          )}
+          {isWeb ? (
+            <View flex={1}>
+              <SizableText
+                flexShrink={1}
+                numberOfLines={1}
+                color={textColor}
+                size="$m"
+                fontWeight="$xl"
+              >
+                {showSpinner ? 'Loading…' : title}
+              </SizableText>
+            </View>
+          ) : (
+            <Animated.View
+              entering={FadeInDown}
+              exiting={FadeOutUp}
+              style={{ flex: 1 }}
+            >
+              <SizableText
+                flexShrink={1}
+                numberOfLines={1}
+                color={textColor}
+                size="$m"
+                fontWeight="$xl"
+              >
+                {showSpinner ? 'Loading…' : title}
+              </SizableText>
+            </Animated.View>
+          )}
+        </XStack>
+        <XStack gap="$m" alignItems="center">
+          {rightContent}
+        </XStack>
+      </XStack>
+    </View>
+  );
+}

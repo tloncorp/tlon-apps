@@ -7,8 +7,8 @@ import { View, YStack } from 'tamagui';
 import { Button } from './Button';
 import { EditablePofileImages } from './EditableProfileImages';
 import { FormInput } from './FormInput';
-import { GenericHeader } from './GenericHeader';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
+import { GenericHeader } from './ScreenHeader';
 
 export function MetaEditorScreenView({
   title,

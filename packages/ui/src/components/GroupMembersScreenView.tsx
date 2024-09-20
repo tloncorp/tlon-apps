@@ -6,9 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, getTokenValue } from 'tamagui';
 
 import { ContactList } from './ContactList';
-import { GenericHeader } from './GenericHeader';
 import { GroupJoinRequestSheet } from './GroupJoinRequestSheet';
 import { ProfileSheet } from './ProfileSheet';
+import { GenericHeader } from './ScreenHeader';
 import { SectionListHeader } from './SectionList';
 
 export function GroupMembersScreenView({

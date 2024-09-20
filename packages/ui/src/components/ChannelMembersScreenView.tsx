@@ -4,8 +4,8 @@ import { FlatList, ListRenderItemInfo } from 'react-native';
 import { View, getTokenValue } from 'tamagui';
 
 import ContactName from './ContactName';
-import { GenericHeader } from './GenericHeader';
 import { ListItem } from './ListItem';
+import { GenericHeader } from './ScreenHeader';
 
 export function ChannelMembersScreenView({
   channel,

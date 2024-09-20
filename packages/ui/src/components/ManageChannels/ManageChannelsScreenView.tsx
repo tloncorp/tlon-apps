@@ -8,9 +8,9 @@ import { Text, View, XStack, YStack } from 'tamagui';
 
 import { Button } from '../Button';
 import { DraggableItem } from '../DraggableItem';
-import { GenericHeader } from '../GenericHeader';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
+import { GenericHeader } from '../ScreenHeader';
 import { ChannelTypeName, CreateChannelSheet } from './CreateChannelSheet';
 import { EditSectionNameSheet } from './EditSectionNameSheet';
 

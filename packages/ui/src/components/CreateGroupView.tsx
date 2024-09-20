@@ -12,7 +12,7 @@ import { CreateGroupWidget } from './AddChats';
 import { Button } from './Button';
 import { TextButton } from './Buttons';
 import { ContactBook } from './ContactBook';
-import { GenericHeader } from './GenericHeader';
+import { GenericHeader } from './ScreenHeader';
 
 type screen = 'InviteUsers' | 'CreateGroup';
 

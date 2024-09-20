@@ -2,7 +2,7 @@ import { Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, SizableText, View, XStack } from 'tamagui';
 
-import { GenericHeader } from './GenericHeader';
+import { GenericHeader } from './ScreenHeader';
 
 export function FeatureFlagScreenView({
   features,
