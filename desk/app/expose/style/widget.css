@@ -1,5 +1,4 @@
 #groups--expose-all {
-  padding: 0 2em;
   overflow: hidden;
 }
 
@@ -8,6 +7,10 @@
   padding: 2em 2em;
   margin-left: -2em;
   border-bottom: 0.125em solid var(--border);
+}
+
+.exposed:first-of-type {
+  padding-top: 1em;
 }
 
 .exposed:last-of-type {
