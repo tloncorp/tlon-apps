@@ -135,6 +135,9 @@
     ?>  ?=([%bite-2 *] bite)
     :_  this
     =;  caz=(list card)
+      ?~  inviter=(~(get by fields.metadata.bite) 'inviter')
+        ~&("no inviter field for token: {<token.bite>}" ~)
+      ?.  =((slav %p u.inviter) our.bowl)  ~
       =/  wir=^wire  /dm/(scot %p joiner.bite)
       =/  =dock  [our.bowl %chat]
       =/  =id:c  [our now]:bowl
