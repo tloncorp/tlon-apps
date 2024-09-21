@@ -10,7 +10,14 @@
 ++  render
   |=  [=bowl:gall open=(set cite:c)]
   ^-  marl
-  =/  cis=(list cite:c)
+  :+  ;style:"{(trip style-widget)}"
+    ;h2:"Published content"
+  ::
+  ?:  =(~ open)
+    ;+  ;span.crickets:"Nothing yet..."
+  ::
+  =-  (snoc - time-script-node:r)
+  %+  murn
     ::REVIEW  maybe limit to the latest n?
     ::TODO  if we don't limit, at least +turn into posts first, sort by their times
     %+  sort  ~(tap in open)
@@ -22,10 +29,6 @@
     ?~  aa=(rush i.t.wer.a dum:ag)                |
     ?~  bb=(rush i.t.wer.b dum:ag)                &
     (gth u.aa u.bb)
-  :+  ;style:"{(trip style-widget)}"
-    ;h2:"Published content"
-  =-  (snoc - time-script-node:r)
-  %+  murn  cis
   |=  ref=cite:c
   ^-  (unit manx)
   =/  pon=(unit [=nest:g:c =post:d])

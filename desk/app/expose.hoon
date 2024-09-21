@@ -33,8 +33,6 @@
     ^-  (list card)
     ?.  .^(? %gu /(scot %p our.bowl)/profile/(scot %da now.bowl)/$)
       ~
-    ::TODO  should remove widget if no published content?
-    ::      or just show "nothing yet..."
     =;  widget=[%0 desc=@t %marl marl]
       =/  =cage  noun+!>([%command %update-widget %groups %expose-all widget])
       [%pass /profile/widget/all %agent [our.bowl %profile] %poke cage]~
