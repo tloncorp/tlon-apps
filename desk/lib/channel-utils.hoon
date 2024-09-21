@@ -538,7 +538,7 @@
         %cite
       ;+
       ;div.cite
-        ; [reference xx]  ::TODO  link to /expose if chan ref?
+        ; [reference]  ::TODO  link to /expose if chan ref?
       ==
     ::
         %header
@@ -651,8 +651,9 @@
       ;span.tag:"[tag xx]"
     ::
         %link
-      ::TODO  prefix // if no protocol in url
       =/  url=tape  (trip p.inline)
+      =?  url  ?=(~ (find "://" url))
+        (weld "//" url)
       =/  txt=tape  ?:(=('' q.inline) url (trip q.inline))
       ?.  anchors
         ;span.faux-a:"{txt}"

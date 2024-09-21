@@ -12,6 +12,7 @@
   ^-  marl
   =/  cis=(list cite:c)
     ::REVIEW  maybe limit to the latest n?
+    ::TODO  if we don't limit, at least +turn into posts first, sort by their times
     %+  sort  ~(tap in open)
     ::  newest first (assumes id nr in path is a timestamp)
     ::
@@ -69,7 +70,6 @@
     ::TODO  for the kinds of children the div.content gets for heap posts,
     ::      having an %a (grand)parent breaks the html rendering,
     ::      putting the inner divs outside/after the a.exposed
-    ~&  [%heap-content content]
     ;div.exposed
       ;div.content
         ;a.heap/"/expose{link}"

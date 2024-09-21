@@ -14,10 +14,8 @@
     (get-contact:co bowl author.msg)
   ::
   ::TODO  if we render replies then we can "unroll" whole chat threads too (:
-  ::TODO  just key off the kind-data, no?
-  |^  ?+  p.nest  ~
+  |^  ?-  -.kind-data.msg
           %chat
-        ?>  ?=(%chat -.kind-data.msg)
         =/  title=tape
           (trip (rap 3 (turn (first-inline:u content.msg) flatten-inline:u)))
         %-  some
@@ -28,7 +26,6 @@
         ==
       ::
           %diary
-        ?>  ?=(%diary -.kind-data.msg)
         =*  kd  kind-data.msg
         =/  title=tape  (trip title.kd)
         %-  some
@@ -43,7 +40,6 @@
         ==
       ::
           %heap
-        ?>  ?=(%heap -.kind-data.msg)
         =/  title=tape
           ?:  &(?=(^ title.kind-data.msg) !=('' u.title.kind-data.msg))
             (trip u.title.kind-data.msg)

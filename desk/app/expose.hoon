@@ -16,7 +16,7 @@
 |%
 +$  state-0
   $:  %0
-      open=(set cite:c)  ::TODO  could support ranges of msgs?
+      open=(set cite:c)
   ==
 ::
 +$  action
@@ -38,7 +38,7 @@
     =;  widget=[%0 desc=@t %marl marl]
       =/  =cage  noun+!>([%command %update-widget %groups %expose-all widget])
       [%pass /profile/widget/all %agent [our.bowl %profile] %poke cage]~
-    :^  %0  'Publicized content'  %marl
+    :^  %0  'Published content'  %marl
     (render:widget bowl open)
   ::
   ++  refresh-pages
@@ -190,7 +190,8 @@
   ~|  wire
   ?+  wire  !!
       [%eyre %connect ~]
-    [~ this]  ::TODO  print if not successful
+    ~&  >>>  [dap.bowl %failed-to-eyre-connect]
+    [~ this]
   ::
       [%refresh ~]
     :_  this
