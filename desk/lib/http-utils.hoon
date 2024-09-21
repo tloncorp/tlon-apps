@@ -15,8 +15,10 @@
   ^-  query
   (fall (rush url ;~(plug apat:de-purl:html yque:de-purl:html)) [[~ ~] ~])
 ::
-++  press  ::  manx to octs
-  (cork en-xml:html as-octt:mimes:html)
+++  press  ::  manx to html octs
+  |=  =manx
+  %-  as-octt:mimes:html
+  (weld "<!doctype html>\0a" (en-xml:html manx))
 ::
 ++  paint  ::  render response into payload
   |=  =reply
