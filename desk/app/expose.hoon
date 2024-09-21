@@ -265,6 +265,9 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
+      [%x %show ~]
+    ``noun+!>(open)
+  ::
       [?(%x %u) %show *]
     ``loob+!>((~(has in open) (parse:c t.t.path)))
   ==
