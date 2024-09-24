@@ -1,4 +1,5 @@
 import { EditorBridge } from '@10play/tentap-editor';
+import { Editor } from '@tiptap/react';
 import { createDevLogger, tiptap } from '@tloncorp/shared/dist';
 import {
   Block,
@@ -17,7 +18,7 @@ export async function processReferenceAndUpdateEditor({
   matchRegex,
   processMatch,
 }: {
-  editor: EditorBridge;
+  editor: EditorBridge | Editor;
   pastedText: string;
   matchRegex: RegExp;
   processMatch: (match: string) => Promise<Attachment | null>;
@@ -38,8 +39,16 @@ export async function processReferenceAndUpdateEditor({
         const filteredJson = filterRegexFromJson(json, matchRegex);
 
         logger.log(`updating editor`, filteredJson);
-        // @ts-expect-error setContent does accept JSONContent
-        editor.setContent(filteredJson);
+        if ('setContent' in editor) {
+          // EditorBridge native case
+          // @ts-expect-error setContent does accept JSONContent
+          editor.setContent(filteredJson);
+        } else if ('commands' in editor) {
+          // Editor web case
+          editor.commands.setContent(filteredJson);
+        } else {
+          logger.error('Unknown editor type');
+        }
 
         return attachment;
       }
