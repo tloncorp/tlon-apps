@@ -11,7 +11,7 @@
 /-  c=channels, g=groups, ha=hark, activity
 /-  meta
 /+  default-agent, verb, dbug, sparse, neg=negotiate, imp=import-aid
-/+  utils=channel-utils, volume, s=subscriber
+/+  utils=channel-utils, volume, s=subscriber, em=emojimart
 ::  performance, keep warm
 /+  channel-json
 ::
@@ -130,6 +130,7 @@
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
   ?>  ?=(%7 -.old)
+  =+  (tmp-prod-reacts old)
   =.  state  old
   inflate-io
   ::
@@ -144,6 +145,30 @@
         state-0
     ==
   +$  state-7  current-state
+  ::
+  ++  tmp-prod-reacts
+    |=  state-7
+    ^-  ~
+    =<  ~
+    ~>  %bout.[0 'pretending to transform reacts']
+    %-  ~(run by v-channels)
+    |=  chan=v-channel:c
+    ^+  chan
+    =-  chan(posts -)
+    %+  run:on-v-posts:c  posts.chan
+    |=  p=(unit v-post:c)
+    ^+  p
+    ?~  p  ~
+    =-  p(reacts.u -)
+    %-  ~(run by reacts.u.p)
+    |=  r=(rev:c (unit react:c))
+    ^+  r
+    ?~  +.r  r
+    =+  n=(kill:em u.r)
+    ::TODO  produce something like $@(@ $%([%any @t] [%url @t])),
+    ::      throwing unrecognized reacts into %any for preservation
+    r
+  ::
   +$  state-6
     $:  %6
         =v-channels:v6:old:c
