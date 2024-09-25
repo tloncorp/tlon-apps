@@ -1,20 +1,23 @@
+import { useNavigation } from '@react-navigation/native';
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 export const useGroupNavigation = () => {
-  const navigate = useNavigate();
+  const navigation = useNavigation<
+    // @ts-expect-error - TODO: pass navigation handlers into context
+    NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
+  >();
 
   const goToChannel = useCallback(
     async (channel: db.Channel) => {
-      navigate(`/group/${channel.groupId}/channel/${channel.id}`);
+      navigation.navigate('Channel', { channel });
     },
-    [navigate]
+    [navigation]
   );
 
   const goToHome = useCallback(() => {
-    navigate('/');
-  }, [navigate]);
+    navigation.navigate('ChatList');
+  }, [navigation]);
 
   return {
     goToChannel,

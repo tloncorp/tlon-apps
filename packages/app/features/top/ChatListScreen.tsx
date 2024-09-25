@@ -1,3 +1,4 @@
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
@@ -25,8 +26,11 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useIsFocused } from '../../hooks/useIsFocused';
 import { useFeatureFlag } from '../../lib/featureFlags';
+import type { RootStackParamList } from '../../navigation/types';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
 
 const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
   return (
@@ -36,27 +40,12 @@ const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
   );
 };
 
-export default function ChatListScreen({
-  previewGroup,
-  navigateToChannel,
-  navigateToGroupChannels,
-  navigateToSelectedPost,
-  navigateToHome,
-  navigateToNotifications,
-  navigateToProfile,
-  navigateToFindGroups,
-  navigateToCreateGroup,
-}: {
-  navigateToChannel: (channel: db.Channel) => void;
-  navigateToGroupChannels: (group: db.Group) => void;
-  navigateToSelectedPost: (channel: db.Channel, postId?: string | null) => void;
-  navigateToHome: () => void;
-  navigateToNotifications: () => void;
-  navigateToProfile: () => void;
-  navigateToFindGroups: () => void;
-  navigateToCreateGroup: () => void;
-  previewGroup?: db.Group;
-}) {
+export default function ChatListScreen(props: Props) {
+  const {
+    route: { params },
+    navigation: { navigate },
+  } = props;
+  const previewGroup = params?.previewGroup;
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
@@ -126,13 +115,13 @@ export default function ChatListScreen({
 
   const handleNavigateToFindGroups = useCallback(() => {
     setAddGroupOpen(false);
-    navigateToFindGroups();
-  }, [navigateToFindGroups]);
+    navigate('FindGroups');
+  }, [navigate]);
 
   const handleNavigateToCreateGroup = useCallback(() => {
     setAddGroupOpen(false);
-    navigateToCreateGroup();
-  }, [navigateToCreateGroup]);
+    navigate('CreateGroup');
+  }, [navigate]);
 
   const goToDm = useCallback(
     async (userId: string) => {
@@ -140,9 +129,9 @@ export default function ChatListScreen({
         participants: [userId],
       });
       setAddGroupOpen(false);
-      navigateToChannel(dmChannel);
+      props.navigation.push('Channel', { channel: dmChannel });
     },
-    [navigateToChannel, setAddGroupOpen]
+    [props.navigation, setAddGroupOpen]
   );
 
   const handleAddGroupOpenChange = useCallback((open: boolean) => {
@@ -163,12 +152,15 @@ export default function ChatListScreen({
         // Should navigate to channel if it's pinned as a channel
         (!item.pin || item.pin.type === 'group')
       ) {
-        navigateToGroupChannels(item.group);
+        navigate('GroupChannels', { group: item.group });
       } else {
-        navigateToSelectedPost(item, item.firstUnreadPostId);
+        navigate('Channel', {
+          channel: item,
+          selectedPostId: item.firstUnreadPostId,
+        });
       }
     },
-    [navigateToGroupChannels, navigateToSelectedPost, isChannelSwitcherEnabled]
+    [isChannelSwitcherEnabled, navigate]
   );
 
   const onLongPressChat = useCallback((item: db.Channel | db.Group) => {
@@ -315,9 +307,15 @@ export default function ChatListScreen({
           />
         </View>
         <NavBarView
-          navigateToHome={navigateToHome}
-          navigateToNotifications={navigateToNotifications}
-          navigateToProfileSettings={navigateToProfile}
+          navigateToHome={() => {
+            navigate('ChatList');
+          }}
+          navigateToNotifications={() => {
+            navigate('Activity');
+          }}
+          navigateToProfileSettings={() => {
+            navigate('Profile');
+          }}
           currentRoute="ChatList"
           currentUserId={currentUser}
         />

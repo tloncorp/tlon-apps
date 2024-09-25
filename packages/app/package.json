@@ -8,7 +8,8 @@
   },
   "dependencies": {
     "@tloncorp/ui": "workspace:*",
-    "@tloncorp/shared": "workspace:*"
+    "@tloncorp/shared": "workspace:*",
+    "sqlocal": "^0.11.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.55",

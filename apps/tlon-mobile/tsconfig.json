@@ -10,6 +10,9 @@
     "svg.d.ts"
   ],
   "compilerOptions": {
-    "composite": true
+    "composite": true,
+    "paths": {
+      "sqlocal/drizzle": ["node_modules/sqlocal/dist/drizzle"]
+    }
   }
 }

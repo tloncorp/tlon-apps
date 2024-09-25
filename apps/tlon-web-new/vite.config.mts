@@ -116,8 +116,6 @@ export default ({ mode }: { mode: string }) => {
         : [
             '@urbit/sigil-js/dist/core',
             'react-native-device-info',
-            '@react-navigation/bottom-tabs',
-            '@react-navigation/native-stack',
           ],
     output: {
       hashCharacters: 'base36' as any,

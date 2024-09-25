@@ -1,3 +1,4 @@
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   LoadingSpinner,
   ScreenHeader,
@@ -5,17 +6,21 @@ import {
   YStack,
   isWeb,
 } from '@tloncorp/ui';
+import { useResetDb } from '../../hooks/useResetDb';
+import { useWebView } from '../../hooks/useWebview';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
-import type { WebViewProps } from 'react-native-webview';
 
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { checkIfAccountDeleted } from '../../lib/hostingApi';
+import { RootStackParamList } from '../../navigation/types';
 import { getHostingToken, getHostingUserId } from '../../utils/hosting';
 import { getHostingAuthExpired } from '../../utils/hosting';
 
 const MANAGE_ACCOUNT_URL = 'https://tlon.network/account';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'ManageAccount'>;
 
 interface HostingSession {
   cookie: string;
@@ -23,15 +28,9 @@ interface HostingSession {
   isExpired: boolean;
 }
 
-export function ManageAccountScreen({
-  onGoBack,
-  webview,
-  resetDb,
-}: {
-  onGoBack: () => void;
-  webview?: WebViewProps;
-  resetDb?: () => void;
-}) {
+export function ManageAccountScreen(props: Props) {
+  const resetDb = useResetDb();
+  const webview = useWebView();
   const [goingBack, setGoingBack] = useState(false);
   const handleLogout = useHandleLogout({ resetDb });
   const [hostingSession, setHostingSession] = useState<HostingSession | null>(
@@ -44,10 +43,10 @@ export function ManageAccountScreen({
     if (wasDeleted) {
       handleLogout();
     } else {
-      onGoBack();
+      props.navigation.goBack();
       setGoingBack(false);
     }
-  }, [handleLogout, onGoBack]);
+  }, [handleLogout, props.navigation]);
 
   useEffect(() => {
     async function initialize() {
@@ -77,7 +76,7 @@ export function ManageAccountScreen({
         [
           {
             text: 'Cancel',
-            onPress: () => onGoBack(),
+            onPress: () => props.navigation.goBack(),
             style: 'cancel',
           },
           {
@@ -87,7 +86,7 @@ export function ManageAccountScreen({
         ]
       );
     }
-  }, [hostingSession?.isExpired, handleLogout, onGoBack]);
+  }, [hostingSession?.isExpired, handleLogout, props.navigation]);
 
   return (
     <View flex={1}>

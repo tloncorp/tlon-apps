@@ -1,3 +1,4 @@
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ErrorReporter } from '@tloncorp/shared/dist';
 import {
   Button,
@@ -16,8 +17,11 @@ import { Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useIsFocused } from '../../hooks/useIsFocused';
+import { RootStackParamList } from '../../navigation/types';
 
-export function UserBugReportScreen({ onGoBack }: { onGoBack: () => void }) {
+type Props = NativeStackScreenProps<RootStackParamList, 'WompWomp'>;
+
+export function UserBugReportScreen({ navigation }: Props) {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const isFocused = useIsFocused();
   const isFocusedRef = useRef(isFocused);
@@ -63,16 +67,18 @@ export function UserBugReportScreen({ onGoBack }: { onGoBack: () => void }) {
       setState('sent');
       setTimeout(() => {
         if (isFocusedRef.current) {
-          onGoBack();
+          navigation.goBack();
         }
       }, 3000);
     },
-    [onGoBack]
+    [navigation]
   );
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }}>
-      <GenericHeader goBack={state === 'initial' ? onGoBack : undefined} />
+      <GenericHeader
+        goBack={state === 'initial' ? () => navigation.goBack() : undefined}
+      />
       <YStack
         marginTop="$m"
         flex={1}

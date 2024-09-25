@@ -5,6 +5,7 @@
 /* eslint-disable */
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { EditorView } from '@tiptap/pm/view';
+import { setupDb } from '@tloncorp/app/lib/webDb';
 import { PostHogProvider } from 'posthog-js/react';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
@@ -12,7 +13,6 @@ import { createRoot } from 'react-dom/client';
 import _api from './api';
 import App from './app';
 import indexedDBPersistor from './indexedDBPersistor';
-import { setupDb } from './lib/webDb';
 import { analyticsClient, captureError } from './logic/analytics';
 import queryClient from './queryClient';
 import './styles/index.css';
