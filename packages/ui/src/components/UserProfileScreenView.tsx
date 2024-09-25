@@ -205,13 +205,15 @@ const PaddedBlock = styled(YStack, {
 });
 
 export function BioDisplay({ bio }: { bio: string }) {
-  return (
+  return bio.length ? (
     <WidgetPane borderRadius={'$2xl'} padding="$2xl" width="100%">
       <WidgetPane.Title>About</WidgetPane.Title>
       <Text size="$body" trimmed={false}>
-        {bio.length ? bio : 'An enigma'}
+        {bio}
       </Text>
     </WidgetPane>
+  ) : (
+    <></>
   );
 }
 
