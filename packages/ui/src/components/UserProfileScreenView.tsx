@@ -212,9 +212,7 @@ export function BioDisplay({ bio }: { bio: string }) {
         {bio}
       </Text>
     </WidgetPane>
-  ) : (
-    <></>
-  );
+  ) : null;
 }
 
 function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
