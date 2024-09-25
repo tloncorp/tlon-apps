@@ -752,7 +752,7 @@
     =/  =ship  (slav %p ship.pole)
     (ca-peek:(ca-abed:ca-core kind.pole ship name.pole) rest.pole v.pole)
   ::
-      [%u ?(%v0 %v1) =kind:c ship=@ name=@ ~]
+      [%u ?(%v0 %v1 %v2) =kind:c ship=@ name=@ ~]
     =/  =ship  (slav %p ship.pole)
     ``loob+!>((~(has by v-channels) kind.pole ship name.pole))
   ::

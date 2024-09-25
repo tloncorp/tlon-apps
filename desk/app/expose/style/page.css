@@ -1,0 +1,80 @@
+@media screen and (min-width: 960px) {
+  body {
+    display: flex;
+    overflow: auto;
+    min-height: calc(100vh - 2em);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.expose-content {
+  max-width: 40em;
+  padding: 2em;
+  border-radius: 1.5em;
+  margin: 0 auto;
+  background: var(--background);
+}
+
+.expose-content > header {
+  margin-bottom: 2em;
+}
+
+.expose-content p:empty {
+  display: none;
+}
+
+.expose-content img {
+  max-width: 100%;
+  border-radius: 0.5em;
+}
+
+.expose-content > p:last-child {
+  margin-bottom: 0;
+}
+
+.cover {
+  border-radius: 1em;
+}
+
+.cover + h1 {
+  margin-top: 0.6em;
+}
+
+.author-row {
+  width: 100%;
+  font-size: 0.8em;
+  margin-left: -2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2.5em 2em;
+  border-bottom: 0.125em solid var(--border);
+  gap: 2em;
+}
+
+.author-row time {
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.author {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-weight: 500;
+  gap: 0.5em;
+}
+
+.author .avatar {
+  overflow: hidden;
+  border-radius: 0.25em;
+}
+
+.author .avatar img {
+  width: 1.5625em;
+  height: 1.5625em;
+  object-fit: cover;
+}
