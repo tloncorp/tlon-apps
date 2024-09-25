@@ -525,7 +525,6 @@
         =^  caz  inner
           =.  src.bowl  p.gill.sub
           (on-agent:og wire.sub %kick ~)
-          ~(on-agent inner inner-bowl:up)
         =^  caz  state  (play-cards:up caz)
         $(cards (weld cards caz), suz t.suz)
       ::
