@@ -15,6 +15,7 @@ export function ChannelHeader({
   showSpinner,
   showSearchButton = true,
   showMenuButton = false,
+  onPressAddPost,
 }: {
   title: string;
   mode?: 'default' | 'next';
@@ -25,6 +26,7 @@ export function ChannelHeader({
   showSpinner?: boolean;
   showSearchButton?: boolean;
   showMenuButton?: boolean;
+  onPressAddPost?: () => void;
   post?: db.Post;
 }) {
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
@@ -48,6 +50,9 @@ export function ChannelHeader({
             {showSearchButton && (
               <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
             )}
+            {channel.type === 'notebook' || channel.type === 'gallery' ? (
+              <ScreenHeader.IconButton type="Add" onPress={onPressAddPost} />
+            ) : null}
             {showMenuButton && (
               <ScreenHeader.IconButton
                 type="Overflow"

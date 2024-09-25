@@ -51,10 +51,18 @@ export function GroupChannelsScreenView({
     }
   }, [group]);
 
+  const title = group ? group?.title ?? 'Untitled' : '';
+
   return (
     <View flex={1}>
       <ScreenHeader
-        title={group ? group?.title ?? 'Untitled' : ''}
+        // When we're fetching the group from the local database, this component
+        // will initially mount with group undefined, then very quickly load the
+        // group in. Keeping the key consistent as long as the ID is prevents a
+        // full re-render / animation triggering almost immediately after the
+        // component mounts.
+        key={group?.id}
+        title={title}
         backAction={onBackPressed}
         rightControls={
           <>

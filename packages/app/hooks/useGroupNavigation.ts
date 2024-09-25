@@ -16,8 +16,13 @@ export const useGroupNavigation = () => {
     navigate('/');
   }, [navigate]);
 
+  const goToContactHostedGroups = useCallback(() => {
+    navigate('/hosted-groups/:contactId');
+  }, [navigate]);
+
   return {
     goToChannel,
     goToHome,
+    goToContactHostedGroups,
   };
 };

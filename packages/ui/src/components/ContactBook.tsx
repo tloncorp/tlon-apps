@@ -1,19 +1,22 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  Insets,
   Keyboard,
   NativeScrollEvent,
   NativeSyntheticEvent,
   SectionListRenderItemInfo,
+  StyleProp,
+  ViewStyle,
 } from 'react-native';
-import { View, XStack } from 'tamagui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, XStack, useStyle } from 'tamagui';
 
 import { useContactIndex, useContacts } from '../contexts';
 import {
   useAlphabeticallySegmentedContacts,
   useSortedContacts,
 } from '../hooks/contactSorters';
-import { TextButton } from './Buttons';
 import { ContactRow } from './ContactRow';
 import { SearchBar } from './SearchBar';
 import { BlockSectionList } from './SectionList';
@@ -25,8 +28,6 @@ export function ContactBook({
   multiSelect = false,
   onSelectedChange,
   onScrollChange,
-  showCancelButton = false,
-  onPressCancel,
   explanationComponent,
   quickActions,
 }: {
@@ -36,8 +37,6 @@ export function ContactBook({
   multiSelect?: boolean;
   onSelectedChange?: (selected: string[]) => void;
   onScrollChange?: (scrolling: boolean) => void;
-  showCancelButton?: boolean;
-  onPressCancel?: () => void;
   explanationComponent?: React.ReactElement;
   quickActions?: React.ReactElement;
 }) {
@@ -48,8 +47,6 @@ export function ContactBook({
     contactsIndex ?? {}
   );
 
-  const Explanation = () => explanationComponent ?? null;
-
   const [query, setQuery] = useState('');
   const queryContacts = useSortedContacts({
     contacts: contacts ?? [],
@@ -57,6 +54,7 @@ export function ContactBook({
     sortOrder: [],
   });
   const showSearchResults = searchable && query.length > 0;
+
   const sections = useMemo(() => {
     if (showSearchResults) {
       const label = `Contacts matching ‘${query}’`;
@@ -67,6 +65,7 @@ export function ContactBook({
   }, [showSearchResults, query, queryContacts, segmentedContacts]);
 
   const [selected, setSelected] = useState<string[]>([]);
+
   const handleSelect = useCallback(
     (contactId: string) => {
       if (multiSelect) {
@@ -97,6 +96,7 @@ export function ContactBook({
           selectable={multiSelect}
           selected={isSelected}
           onPress={handleSelect}
+          pressStyle={{ backgroundColor: '$shadow' }}
         />
       );
     },
@@ -121,36 +121,52 @@ export function ContactBook({
     [onScrollChange]
   );
 
-  const QuickActions = () => quickActions ?? null;
+  const insets = useSafeAreaInsets();
+
+  const contentContainerStyle = useStyle({
+    paddingBottom: insets.bottom,
+    paddingTop: '$s',
+    paddingHorizontal: '$xl',
+  }) as StyleProp<ViewStyle>;
+
+  const scrollIndicatorInsets = useStyle({
+    bottom: insets.bottom,
+    top: '$xl',
+  }) as Insets;
 
   return (
     <View flex={1}>
       {searchable && (
-        <XStack alignItems="center" justifyContent="space-between" gap="$m">
+        <XStack
+          alignItems="center"
+          justifyContent="space-between"
+          gap="$m"
+          paddingBottom="$s"
+        >
           <SearchBar
-            paddingHorizontal="$m"
+            paddingHorizontal="$xl"
             height="$4xl"
             debounceTime={100}
             onChangeQuery={setQuery}
             placeholder={searchPlaceholder ?? ''}
-            areaProps={{ spellCheck: false }}
+            inputProps={{ spellCheck: false }}
           />
-          {showCancelButton && (
-            <TextButton onPress={() => onPressCancel?.()}>Cancel</TextButton>
-          )}
         </XStack>
       )}
       {!showSearchResults && explanationComponent ? (
-        <Explanation />
+        explanationComponent
       ) : (
         <View flex={1} onTouchStart={Keyboard.dismiss}>
           <BlockSectionList
-            ListHeaderComponent={QuickActions}
+            ListHeaderComponent={!showSearchResults ? quickActions : null}
             sections={sections}
             onScroll={handleScroll}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
             renderItem={renderItem}
+            contentContainerStyle={contentContainerStyle}
+            automaticallyAdjustsScrollIndicatorInsets={false}
+            scrollIndicatorInsets={scrollIndicatorInsets}
           />
         </View>
       )}

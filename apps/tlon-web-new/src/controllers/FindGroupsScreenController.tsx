@@ -4,5 +4,12 @@ import { useNavigate } from 'react-router';
 export function FindGroupsScreenController() {
   const navigate = useNavigate();
 
-  return <FindGroupsScreen onCancel={() => navigate(-1)} />;
+  return (
+    <FindGroupsScreen
+      goBack={() => navigate(-1)}
+      goToUserGroups={({ contactId }) => {
+        navigate(`/find-groups/${contactId}`);
+      }}
+    />
+  );
 }

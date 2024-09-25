@@ -1,5 +1,11 @@
 import { useCurrentSession } from '@tloncorp/shared';
-import { PropsWithChildren, ReactNode } from 'react';
+import {
+  ComponentProps,
+  PropsWithChildren,
+  ReactNode,
+  useEffect,
+  useState,
+} from 'react';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, isWeb, styled, withStaticProperties } from 'tamagui';
@@ -41,19 +47,8 @@ export const ScreenHeaderComponent = ({
         paddingHorizontal="$2xl"
         paddingVertical="$l"
       >
-        {typeof title === 'string' ? (
-          isWeb ? (
-            <HeaderTitle color={textColor}>{resolvedTitle}</HeaderTitle>
-          ) : (
-            <Animated.View
-              key={title}
-              entering={FadeInDown}
-              exiting={FadeOutUp}
-              style={{ flex: 1 }}
-            >
-              <HeaderTitle color={textColor}>{resolvedTitle}</HeaderTitle>
-            </Animated.View>
-          )
+        {typeof resolvedTitle === 'string' ? (
+          <HeaderTitle title={resolvedTitle} color={textColor} />
         ) : (
           resolvedTitle
         )}
@@ -61,7 +56,9 @@ export const ScreenHeaderComponent = ({
           {backAction ? <HeaderBackButton onPress={backAction} /> : null}
           {leftControls}
         </HeaderControls>
-        <HeaderControls side="right">{rightControls}</HeaderControls>
+        <HeaderControls flex={1} side="right">
+          {rightControls}
+        </HeaderControls>
         {children}
       </XStack>
     </View>
@@ -88,11 +85,47 @@ const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
   return <HeaderIconButton type="ChevronLeft" onPress={onPress} />;
 };
 
-const HeaderTitle = styled(Text, {
+const HeaderTitleText = styled(Text, {
   size: '$label/2xl',
   textAlign: 'center',
   width: '100%',
+  paddingHorizontal: '$2xl',
+  numberOfLines: 1,
 });
+
+function HeaderTitle({
+  title,
+  ...props
+}: {
+  title: string;
+} & ComponentProps<typeof HeaderTitleText>) {
+  const hasMounted = useHasMounted();
+  const renderedTitle = <HeaderTitleText {...props}>{title}</HeaderTitleText>;
+
+  return isWeb ? (
+    renderedTitle
+  ) : (
+    <Animated.View
+      key={title}
+      // We only want the animation to trigger when the title changes, not when
+      // it first enters.
+      entering={hasMounted ? FadeInDown : undefined}
+      exiting={FadeOutUp}
+      style={{ flex: 1 }}
+    >
+      {renderedTitle}
+    </Animated.View>
+  );
+}
+function useHasMounted() {
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  return hasMounted;
+}
 
 const HeaderControls = styled(XStack, {
   position: 'absolute',
@@ -117,7 +150,7 @@ const HeaderControls = styled(XStack, {
 
 export const ScreenHeader = withStaticProperties(ScreenHeaderComponent, {
   Controls: HeaderControls,
-  Title: HeaderTitle,
+  Title: HeaderTitleText,
   BackButton: HeaderBackButton,
   IconButton: HeaderIconButton,
   TextButton: HeaderTextButton,

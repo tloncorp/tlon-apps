@@ -11,5 +11,12 @@ type ChatListControllerProps = NativeStackScreenProps<
 export function FindGroupsScreenController({
   navigation,
 }: ChatListControllerProps) {
-  return <FindGroupsScreen onCancel={() => navigation.goBack()} />;
+  return (
+    <FindGroupsScreen
+      goBack={() => navigation.goBack()}
+      goToUserGroups={(params) =>
+        navigation.navigate('ContactHostedGroups', params)
+      }
+    />
+  );
 }

@@ -1,17 +1,13 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useMemo, useRef } from 'react';
-import {
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  ScrollView,
-} from 'react-native';
-import { SizableText, View, XStack, YStack } from 'tamagui';
+import { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, View, YStack } from 'tamagui';
 
 import { Badge } from '../Badge';
-import ContactName from '../ContactName';
-import { ListItem, ListItemProps } from '../ListItem';
-import { LoadingSpinner } from '../LoadingSpinner';
+import { GroupListItem, ListItem, ListItemProps } from '../ListItem';
+import { Text } from '../TextV2';
 
 export function ViewUserGroupsWidget({
   userId,
@@ -42,58 +38,52 @@ export function ViewUserGroupsWidget({
     [onScrollChange]
   );
 
+  const insets = useSafeAreaInsets();
+
   return (
     <View flex={1}>
-      {isLoading ? (
-        <YStack marginTop="$xl" justifyContent="center" alignItems="center">
-          <LoadingSpinner />
-          <SizableText marginTop="$xl" color="$secondaryText">
-            Loading groups hosted by{' '}
-            <ContactName showNickname fontWeight="$xl" userId={userId} />
-          </SizableText>
-        </YStack>
-      ) : isError ? (
-        <YStack marginTop="$xl" justifyContent="center" alignItems="center">
-          <SizableText color="$negativeActionText">
-            Error loading groups hosted by{' '}
-            <ContactName
-              color="$negativeActionText"
-              showNickname
-              fontWeight="$xl"
-              userId={userId}
-            />
-          </SizableText>
-        </YStack>
-      ) : (
+      {
         <>
-          <XStack marginLeft="$m" marginVertical="$xl">
-            <SizableText fontSize="$l">
-              Groups hosted by{' '}
-              <ContactName showNickname fontWeight="$xl" userId={userId} />:
-            </SizableText>
-          </XStack>
           <ScrollView
             onScroll={handleScroll}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
+            contentContainerStyle={{
+              gap: '$s',
+              paddingTop: '$l',
+              paddingHorizontal: '$l',
+              paddingBottom: insets.bottom,
+            }}
           >
-            {data && data.length > 0 ? (
+            {isLoading ? (
+              <PlaceholderMessage text="Loading groups..." />
+            ) : isError ? (
+              <PlaceholderMessage text="Failed to load groups" />
+            ) : data && data.length > 0 ? (
               data?.map((group) => (
                 <GroupPreviewListItem
                   key={group.id}
                   model={group}
-                  onPress={() => onSelectGroup(group)}
+                  onPress={onSelectGroup}
                 />
               ))
             ) : (
-              <SizableText color="$secondaryText" textAlign="center">
-                <ContactName userId={userId} showNickname /> hosts no groups
-              </SizableText>
+              <PlaceholderMessage text="No groups found" />
             )}
           </ScrollView>
         </>
-      )}
+      }
     </View>
+  );
+}
+
+function PlaceholderMessage({ text }: { text: string }) {
+  return (
+    <YStack marginTop="$xl" justifyContent="center" alignItems="center">
+      <Text size="$label/m" color="$tertiaryText">
+        {text}
+      </Text>
+    </YStack>
   );
 }
 
@@ -106,16 +96,16 @@ function GroupPreviewListItem({ model, onPress }: ListItemProps<db.Group>) {
   }, [model.currentUserIsMember, model.privacy]);
 
   return (
-    <ListItem onPress={() => onPress?.(model)}>
-      <ListItem.GroupIcon model={model} />
-      <ListItem.MainContent>
-        <ListItem.Title>{model.title}</ListItem.Title>
-      </ListItem.MainContent>
-      {badgeText && (
-        <ListItem.EndContent justifyContent="center">
-          <Badge text={badgeText} type="neutral" />
-        </ListItem.EndContent>
-      )}
-    </ListItem>
+    <GroupListItem
+      model={model}
+      onPress={onPress}
+      EndContent={
+        badgeText ? (
+          <ListItem.EndContent justifyContent="center">
+            <Badge text={badgeText} type="neutral" />
+          </ListItem.EndContent>
+        ) : undefined
+      }
+    />
   );
 }

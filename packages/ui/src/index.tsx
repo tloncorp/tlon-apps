@@ -24,6 +24,7 @@ export * from './components/ChatOptionsSheet';
 export * from './components/ContactBook';
 export * from './components/ContactList';
 export { default as ContactName } from './components/ContactName';
+export { useContactName } from './components/ContactNameV2';
 export * from './components/ContactRow';
 export * from './components/ContentReference';
 export * from './components/CreateGroupView';

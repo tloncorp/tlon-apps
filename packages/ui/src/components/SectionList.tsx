@@ -1,24 +1,23 @@
 import { getRadius } from '@tamagui/get-token';
 import { useCallback, useMemo } from 'react';
 import {
-  Platform,
   SectionList,
   SectionListData,
   SectionListProps,
   SectionListRenderItemInfo,
 } from 'react-native';
 import { View, styled, withStaticProperties } from 'tamagui';
-import { SizableText } from 'tamagui';
+
+import { Text } from './TextV2';
 
 const SectionListHeaderFrame = styled(View, {
   paddingHorizontal: '$l',
   paddingVertical: '$m',
 });
 
-const SectionListHeaderText = styled(SizableText, {
-  size: '$s',
+const SectionListHeaderText = styled(Text, {
+  size: '$label/s',
   color: '$secondaryText',
-  lineHeight: Platform.OS === 'ios' ? 0 : undefined,
 });
 
 export const SectionListHeader = withStaticProperties(SectionListHeaderFrame, {
