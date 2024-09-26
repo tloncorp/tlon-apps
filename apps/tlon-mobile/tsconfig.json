@@ -11,8 +11,6 @@
   ],
   "compilerOptions": {
     "composite": true,
-    "paths": {
-      "sqlocal/drizzle": ["node_modules/sqlocal/dist/drizzle"]
-    }
+    "moduleSuffixes": [".native", ".ios", ".android", ""]
   }
 }

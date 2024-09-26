@@ -179,7 +179,6 @@ const App = React.memo(function AppComponent() {
 });
 
 function RoutedApp() {
-  const mode = import.meta.env.MODE;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const showDevTools = useShowDevTools();
   const isStandAlone = useIsStandaloneMode();
