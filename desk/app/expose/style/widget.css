@@ -88,13 +88,13 @@
   display: inline-block;
   overflow: hidden;
   border-radius: 0.25em;
-  width: 1.5625em;
-  height: 1.5625em;
+  width: 1.5625rem;
+  height: 1.5625rem;
 }
 
 .exposed .author .avatar img {
   border-radius: 0.25em !important;
-  width: 1.5625em;
-  height: 1.5625em;
+  width: 1.5625rem;
+  height: 1.5625rem;
   object-fit: cover;
 }
