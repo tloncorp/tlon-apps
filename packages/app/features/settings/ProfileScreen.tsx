@@ -1,62 +1,57 @@
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NavBarView, ProfileScreenView, View } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 
 import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useHandleLogout } from '../../hooks/useHandleLogout';
+import { useResetDb } from '../../hooks/useResetDb';
+import { RootStackParamList } from '../../navigation/types';
 import { getHostingToken, getHostingUserId } from '../../utils/hosting';
 
-export default function ProfileScreen({
-  navigateToEditProfile,
-  navigateToErrorReport,
-  navigateToContactProfile,
-  navigateToHome,
-  navigateToNotifications,
-  navigateToProfileSettings,
-  navigateToBlockedUsers,
-  navigateToManageAccount,
-  navigateToAppInfo,
-  navigateToNotificationSettings,
-  handleLogout,
-}: {
-  navigateToEditProfile: () => void;
-  navigateToErrorReport: () => void;
-  navigateToContactProfile: (userId: string) => void;
-  navigateToHome: () => void;
-  navigateToNotifications: () => void;
-  navigateToProfileSettings: () => void;
-  navigateToAppInfo?: () => void;
-  navigateToNotificationSettings: () => void;
-  navigateToBlockedUsers: () => void;
-  navigateToManageAccount: () => void;
-  handleLogout?: () => void;
-}) {
+type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
+
+export default function ProfileScreen(props: Props) {
+  const resetDb = useResetDb();
+  const handleLogout = useHandleLogout({ resetDb });
   const currentUserId = useCurrentUserId();
   const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
 
-  const handleViewProfile = useCallback(() => {
-    navigateToContactProfile(currentUserId);
-  }, [currentUserId, navigateToContactProfile]);
+  const onAppInfoPressed = useCallback(() => {
+    props.navigation.navigate('AppInfo');
+  }, [props.navigation]);
+
+  const onPushNotifPressed = useCallback(() => {
+    props.navigation.navigate('PushNotificationSettings');
+  }, [props.navigation]);
+
+  const onBlockedUsersPressed = useCallback(() => {
+    props.navigation.navigate('BlockedUsers');
+  }, [props.navigation]);
+
+  const onManageAccountPressed = useCallback(() => {
+    props.navigation.navigate('ManageAccount');
+  }, [props.navigation]);
 
   return (
     <View backgroundColor="$background" flex={1}>
       <ProfileScreenView
         hasHostedAuth={hasHostedAuth}
         currentUserId={currentUserId}
-        onEditProfilePressed={navigateToEditProfile}
+        onEditProfilePressed={() => props.navigation.navigate('EditProfile')}
         onLogoutPressed={handleLogout}
-        onSendBugReportPressed={navigateToErrorReport}
-        onAppInfoPressed={navigateToAppInfo}
-        onNotificationSettingsPressed={navigateToNotificationSettings}
-        onBlockedUsersPressed={navigateToBlockedUsers}
-        onManageAccountPressed={navigateToManageAccount}
-        onViewProfile={handleViewProfile}
+        onSendBugReportPressed={() => props.navigation.navigate('WompWomp')}
+        onAppInfoPressed={onAppInfoPressed}
+        onNotificationSettingsPressed={onPushNotifPressed}
+        onBlockedUsersPressed={onBlockedUsersPressed}
+        onManageAccountPressed={onManageAccountPressed}
         dmLink={dmLink}
       />
       <NavBarView
-        navigateToHome={navigateToHome}
-        navigateToNotifications={navigateToNotifications}
-        navigateToProfileSettings={navigateToProfileSettings}
+        navigateToHome={() => props.navigation.navigate('ChatList')}
+        navigateToNotifications={() => props.navigation.navigate('Activity')}
+        navigateToProfileSettings={() => props.navigation.navigate('Profile')}
         currentRoute="Profile"
         currentUserId={currentUserId}
       />

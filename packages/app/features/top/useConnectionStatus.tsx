@@ -1,6 +1,6 @@
 import * as api from '@tloncorp/shared/dist/api';
 import { debounce } from 'lodash';
-import { ConnectionStatus } from 'packages/shared/dist/api';
+import { ConnectionStatus } from '@tloncorp/shared/dist/api';
 import { useEffect, useState } from 'react';
 
 export const useConnectionStatus = (contactId: string) => {

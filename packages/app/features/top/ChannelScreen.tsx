@@ -1,3 +1,4 @@
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
@@ -21,26 +22,19 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useFocusEffect } from '../../hooks/useFocusEffect';
+import { useFocusEffect } from '@react-navigation/native';
 import { useGroupActions } from '../../hooks/useGroupActions';
-import { useIsFocused } from '../../hooks/useIsFocused';
+import { useIsFocused } from '@react-navigation/native';
+import type { RootStackParamList } from '../../navigation/types';
 
 const logger = createDevLogger('ChannelScreen', false);
 
-export default function ChannelScreen({
-  channelFromParams,
-  navigateToDm,
-  navigateToUserProfile,
-  goBack,
-  selectedPostId,
-}: {
-  channelFromParams: db.Channel;
-  navigateToDm: (channel: db.Channel) => void;
-  goBack: () => void;
-  navigateToUserProfile: (userId: string) => void;
-  groupFromParams?: db.Group | null;
-  selectedPostId?: string | null;
-}) {
+type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
+
+export default function ChannelScreen(props: Props) {
+  const channelFromParams = props.route.params.channel;
+  const selectedPostId = props.route.params.selectedPostId;
+
   const currentUserId = useCurrentUserId();
   useFocusEffect(
     useCallback(() => {
@@ -256,16 +250,16 @@ export default function ChannelScreen({
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
-      navigateToDm(dmChannel);
+      props.navigation.push('Channel', { channel: dmChannel });
     },
-    [navigateToDm]
+    [props.navigation]
   );
 
   const handleMarkRead = useCallback(() => {
     if (channel && !channel.isPendingChannel) {
       store.markChannelRead(channel);
     }
-  }, [channel?.id, channel?.groupId, channel?.type]);
+  }, [channel]);
 
   const canUpload = useCanUpload();
 
@@ -283,9 +277,9 @@ export default function ChannelScreen({
 
   const handleGoToUserProfile = useCallback(
     (userId: string) => {
-      navigateToUserProfile(userId);
+      props.navigation.push('UserProfile', { userId });
     },
-    [navigateToUserProfile]
+    [props.navigation]
   );
 
   if (!channel) {
@@ -309,7 +303,7 @@ export default function ChannelScreen({
         group={group}
         posts={posts}
         selectedPostId={selectedPostId}
-        goBack={goBack}
+        goBack={props.navigation.goBack}
         messageSender={sendPost}
         goToPost={navigateToPost}
         goToImageViewer={navigateToImage}

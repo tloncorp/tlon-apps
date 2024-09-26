@@ -8,6 +8,7 @@ import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { usePostSignup } from '@tloncorp/app/hooks/usePostSignup';
 import { configureClient } from '@tloncorp/app/lib/api';
 import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
+import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { initializeCrashReporter, sync } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/dist/store';
@@ -19,7 +20,6 @@ import useNotificationListener, {
   type Props as NotificationListenerProps,
 } from '../hooks/useNotificationListener';
 import { refreshHostingAuth } from '../lib/refreshHostingAuth';
-import { RootStack } from '../navigation/RootStack';
 
 export interface AuthenticatedAppProps {
   notificationListenerProps: NotificationListenerProps;

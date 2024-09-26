@@ -17,7 +17,6 @@ interface Props {
   onNotificationSettingsPressed: () => void;
   onBlockedUsersPressed: () => void;
   onManageAccountPressed: () => void;
-  onViewProfile?: () => void;
   onLogoutPressed?: () => void;
   onSendBugReportPressed?: () => void;
   dmLink?: string;

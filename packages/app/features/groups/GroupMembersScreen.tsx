@@ -2,14 +2,17 @@ import { GroupMembersScreenView } from '@tloncorp/ui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { GroupSettingsStackParamList } from '../../navigation/types';
 
-export function GroupMembersScreen({
-  groupId,
-  onGoBack,
-}: {
-  groupId: string;
-  onGoBack: () => void;
-}) {
+
+type Props = NativeStackScreenProps<
+  GroupSettingsStackParamList,
+  'GroupMembers'
+>;
+
+export function GroupMembersScreen(props: Props) {
+  const { groupId } = props.route.params;
   const {
     groupMembers,
     groupRoles,
@@ -29,7 +32,7 @@ export function GroupMembersScreen({
 
   return (
     <GroupMembersScreenView
-      goBack={onGoBack}
+      goBack={props.navigation.goBack}
       members={groupMembers}
       roles={groupRoles}
       currentUserId={currentUserId}
