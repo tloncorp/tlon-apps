@@ -1,5 +1,5 @@
 import { deSig, preSig } from '@urbit/aura';
-import { Urbit } from '@urbit/http-api';
+import { ChannelStatus, Urbit } from '@urbit/http-api';
 import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '../debug';
@@ -58,6 +58,7 @@ export function configureClient({
   verbose,
   onReset,
   onChannelReset,
+  onChannelStatusChange,
 }: {
   shipName: string;
   shipUrl: string;
@@ -65,14 +66,16 @@ export function configureClient({
   verbose?: boolean;
   onReset?: () => void;
   onChannelReset?: () => void;
+  onChannelStatusChange?: (status: ChannelStatus) => void;
 }) {
   logger.log('configuring client', shipName, shipUrl);
   clientInstance = new Urbit(shipUrl, undefined, undefined, fetchFn);
   clientInstance.ship = deSig(shipName);
   clientInstance.our = preSig(shipName);
   clientInstance.verbose = verbose;
-  clientInstance.on('status-update', (status) => {
-    logger.log('status-update', status);
+  clientInstance.on('status-update', (event) => {
+    logger.log('status-update', event);
+    onChannelStatusChange?.(event.status);
   });
 
   clientInstance.on('fact', (fact) => {

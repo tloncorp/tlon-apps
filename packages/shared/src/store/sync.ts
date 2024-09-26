@@ -1,3 +1,4 @@
+import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
@@ -1010,6 +1011,15 @@ export const handleDiscontinuity = async () => {
 
   // finally, refetch start data
   await syncStart(true);
+};
+
+export const handleChannelStatusChange = async (status: ChannelStatus) => {
+  if (status === 'reconnecting') {
+    updateSession(null);
+  } else if (status === 'reconnected')
+    updateSession({
+      startTime: Date.now(),
+    });
 };
 
 export const syncStart = async (alreadySubscribed?: boolean) => {
