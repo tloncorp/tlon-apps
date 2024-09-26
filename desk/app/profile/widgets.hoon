@@ -92,12 +92,22 @@
       display: flex;
       align-content: center;
       gap: 1em;
+      flex-direction: column;
+    }
+    @media screen and (min-width: 15em) {
+      .profile-headline { 
+        flex-direction: row;
+      }
     }
     .profile-headline-avatar-sigil {
+      flex-shrink: 0;
       border-radius: 1em;
       overflow: hidden;
+      width: 128px;
+      height: 128px;
     }
     .profile-headline-avatar {
+      flex-shrink: 0;
       border-radius: 1em;
       object-fit: cover;
       width: 128px;

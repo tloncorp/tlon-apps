@@ -61,9 +61,16 @@
 .exposed .author-row {
   font-size: 0.8em;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 2em;
+  flex-direction: column;
+}
+
+@media screen and (min-width: 15em) {
+  .exposed .author-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
 }
 
 .exposed:last-of-type .author-row {
