@@ -51,13 +51,20 @@
 .author-row {
   width: 100%;
   font-size: 0.8em;
-  margin-left: -2.5rem;
+  margin-left: -2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 2.5em 2em;
+  padding: 0 2rem 2rem;
   border-bottom: 0.125em solid var(--border);
   gap: 2em;
+}
+
+@media screen and (width >= 40rem) {
+  .author-row {
+    margin-left: -2.5em;
+    padding: 0 2.5em 2em;
+  }
 }
 
 .author-row time {
@@ -79,14 +86,15 @@
 .author .avatar {
   display: inline-block;
   overflow: hidden;
-  width: 1.5625em;
-  height: 1.5625em;
+  width: 1.5625rem;
+  height: 1.5625rem;
   border-radius: 0.25em !important;
+  flex-shrink: 0;
 }
 
 .author .avatar img {
   border-radius: 0.25em !important;
-  width: 1.5625em;
-  height: 1.5625em;
+  width: 1.5625rem;
+  height: 1.5625rem;
   object-fit: cover;
 }
