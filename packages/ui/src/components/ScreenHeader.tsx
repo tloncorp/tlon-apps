@@ -4,8 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isWeb, styled, withStaticProperties } from 'tamagui';
 import { View, XStack } from 'tamagui';
 
-import { ChevronLeft } from '../assets/icons';
-import { IconButton } from './IconButton';
+import { Button } from './Button';
+import { Icon } from './Icon';
 import { Text } from './TextV2';
 
 export const ScreenHeaderComponent = ({
@@ -54,9 +54,9 @@ export const ScreenHeaderComponent = ({
 
 const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
   return (
-    <IconButton backgroundColor={'unset'} onPress={onPress}>
-      <ChevronLeft />
-    </IconButton>
+    <Button onPress={onPress} backgroundColor="unset" borderColor="transparent">
+      <Icon type="ChevronLeft" />
+    </Button>
   );
 };
 

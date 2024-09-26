@@ -8,8 +8,8 @@ import { drizzle } from 'drizzle-orm/sqlite-proxy';
 import { useEffect, useMemo, useState } from 'react';
 import { SQLocalDrizzle } from 'sqlocal/drizzle';
 
-import migrate from './migrator';
-import { TRIGGER_SETUP } from './triggers';
+import migrate from './webMigrator';
+import { TRIGGER_SETUP } from './webTriggers';
 
 const POLL_INTERVAL = 100;
 

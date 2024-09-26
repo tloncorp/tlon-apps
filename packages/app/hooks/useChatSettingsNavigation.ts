@@ -1,56 +1,74 @@
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+
+import type { RootStackParamList } from '../navigation/types';
+import { GroupSettingsStackParamList } from '../navigation/types';
 
 export const useChatSettingsNavigation = () => {
-  const navigate = useNavigate();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  const navigateToGroupSettings = useCallback(
+    <T extends keyof GroupSettingsStackParamList>(
+      screen: T,
+      params: GroupSettingsStackParamList[T]
+    ) => {
+      navigation.navigate('GroupSettings', {
+        screen,
+        params,
+      } as any);
+    },
+    [navigation]
+  );
 
   const onPressGroupMeta = useCallback(
     (groupId: string) => {
-      navigate(`/group/${groupId}/meta`);
+      navigateToGroupSettings('GroupMeta', { groupId });
     },
-    [navigate]
+    [navigateToGroupSettings]
   );
 
   const onPressGroupMembers = useCallback(
     (groupId: string) => {
-      navigate(`/group/${groupId}/members`);
+      navigateToGroupSettings('GroupMembers', { groupId });
     },
-    [navigate]
+    [navigateToGroupSettings]
   );
 
   const onPressManageChannels = useCallback(
     (groupId: string) => {
-      navigate(`/group/${groupId}/manage-channels`);
+      navigateToGroupSettings('ManageChannels', { groupId });
     },
-    [navigate]
+    [navigateToGroupSettings]
   );
 
   const onPressGroupPrivacy = useCallback(
     (groupId: string) => {
-      navigate(`/group/${groupId}/privacy`);
+      navigateToGroupSettings('Privacy', { groupId });
     },
-    [navigate]
+    [navigateToGroupSettings]
   );
 
   const onPressRoles = useCallback(
     (groupId: string) => {
-      navigate(`/group/${groupId}/roles`);
+      navigateToGroupSettings('GroupRoles', { groupId });
     },
-    [navigate]
+    [navigateToGroupSettings]
   );
 
   const onPressChannelMembers = useCallback(
     (channelId: string) => {
-      navigate(`/dm/${channelId}/members`);
+      navigation.navigate('ChannelMembers', { channelId });
     },
-    [navigate]
+    [navigation]
   );
 
   const onPressChannelMeta = useCallback(
     (channelId: string) => {
-      navigate(`/dm/${channelId}/meta`);
+      navigation.navigate('ChannelMeta', { channelId });
     },
-    [navigate]
+    [navigation]
   );
 
   return {

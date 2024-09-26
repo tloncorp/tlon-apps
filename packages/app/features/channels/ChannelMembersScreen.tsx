@@ -1,13 +1,13 @@
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/dist/store';
 import { ChannelMembersScreenView } from '@tloncorp/ui';
 
-export function ChannelMembersScreen({
-  channelId,
-  onGoBack,
-}: {
-  channelId: string;
-  onGoBack: () => void;
-}) {
+import { RootStackParamList } from '../../navigation/types';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'ChannelMembers'>;
+
+export function ChannelMembersScreen(props: Props) {
+  const { channelId } = props.route.params;
   const channelQuery = store.useChannelWithRelations({
     id: channelId,
   });
@@ -15,7 +15,7 @@ export function ChannelMembersScreen({
   return (
     <ChannelMembersScreenView
       channel={channelQuery.data ?? undefined}
-      goBack={onGoBack}
+      goBack={() => props.navigation.goBack()}
     />
   );
 }
