@@ -1,11 +1,18 @@
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FindGroupsView } from '@tloncorp/ui';
 
 import { useGroupActions } from '../../hooks/useGroupActions';
+import type { RootStackParamList } from '../../navigation/types';
 
-export function FindGroupsScreen({ onCancel }: { onCancel: () => void }) {
+type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
+
+export function FindGroupsScreen({ navigation }: Props) {
   const { performGroupAction } = useGroupActions();
 
   return (
-    <FindGroupsView onCancel={onCancel} onGroupAction={performGroupAction} />
+    <FindGroupsView
+      onCancel={() => navigation.goBack()}
+      onGroupAction={performGroupAction}
+    />
   );
 }

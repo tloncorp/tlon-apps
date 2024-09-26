@@ -1,12 +1,30 @@
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type * as db from '@tloncorp/shared/dist/db';
 import { CreateGroupView } from '@tloncorp/ui';
+import { useCallback } from 'react';
 
-export function CreateGroupScreen({
-  goBack,
-  goToChannel,
-}: {
-  goBack: () => void;
-  goToChannel: (channel: db.Channel) => void;
-}) {
-  return <CreateGroupView goBack={goBack} navigateToChannel={goToChannel} />;
+import type { RootStackParamList } from '../../navigation/types';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
+
+export function CreateGroupScreen(props: Props) {
+  const handleGoToChannel = useCallback(
+    (channel: db.Channel) => {
+      props.navigation.reset({
+        index: 1,
+        routes: [
+          { name: 'ChatList' },
+          { name: 'Channel', params: { channel } },
+        ],
+      });
+    },
+    [props.navigation]
+  );
+
+  return (
+    <CreateGroupView
+      goBack={() => props.navigation.goBack()}
+      navigateToChannel={handleGoToChannel}
+    />
+  );
 }

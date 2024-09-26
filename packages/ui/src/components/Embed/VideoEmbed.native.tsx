@@ -3,11 +3,14 @@ import {
   ResizeMode,
   VideoReadyForDisplayEvent,
 } from 'expo-av';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { ComponentProps, useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'tamagui';
 
 import { Icon } from '../Icon';
-import { VideoEmbedProps } from './VideoEmbed';
+
+type VideoEmbedProps = ComponentProps<typeof View> & {
+  video: { width: number; height: number; src: string; alt?: string };
+};
 
 export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
   const videoRef = useRef<ExpoVideo | null>(null);

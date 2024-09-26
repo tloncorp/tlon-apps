@@ -1,18 +1,15 @@
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/dist/store';
 import { EditChannelScreenView } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
+import { GroupSettingsStackParamList } from '../../navigation/types';
 
-export function EditChannelScreen({
-  groupId,
-  channelId,
-  onGoBack,
-}: {
-  groupId: string;
-  channelId: string;
-  onGoBack: () => void;
-}) {
+type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'EditChannel'>;
+
+export function EditChannelScreen(props: Props) {
+  const { groupId, channelId } = props.route.params;
   const { updateChannel, deleteChannel } = useGroupContext({
     groupId,
   });
@@ -24,9 +21,9 @@ export function EditChannelScreen({
     const prevChannel = data;
     if (prevChannel) {
       deleteChannel(prevChannel.id);
-      onGoBack();
+      props.navigation.goBack();
     }
-  }, [data, deleteChannel, onGoBack]);
+  }, [data, deleteChannel, props.navigation]);
 
   const handleSubmit = useCallback(
     (title: string, description?: string) => {
@@ -37,15 +34,15 @@ export function EditChannelScreen({
           title,
           description,
         });
-        onGoBack();
+        props.navigation.goBack();
       }
     },
-    [data, updateChannel, onGoBack]
+    [data, updateChannel, props.navigation]
   );
 
   return (
     <EditChannelScreenView
-      goBack={onGoBack}
+      goBack={props.navigation.goBack}
       isLoading={isLoading}
       channel={data}
       onDeleteChannel={handleDeleteChannel}

@@ -1,16 +1,17 @@
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ManageChannelsScreenView } from '@tloncorp/ui';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
+import { GroupSettingsStackParamList } from '../../navigation/types';
 
-export function ManageChannelsScreen({
-  groupId,
-  onGoBack,
-  onGoToEditChannel,
-}: {
-  groupId: string;
-  onGoBack: () => void;
-  onGoToEditChannel: (channelId: string) => void;
-}) {
+type Props = NativeStackScreenProps<
+  GroupSettingsStackParamList,
+  'ManageChannels'
+>;
+
+export function ManageChannelsScreen(props: Props) {
+  const { groupId } = props.route.params;
+
   const {
     groupNavSectionsWithChannels,
     moveNavSection,
@@ -24,8 +25,10 @@ export function ManageChannelsScreen({
 
   return (
     <ManageChannelsScreenView
-      goBack={onGoBack}
-      goToEditChannel={onGoToEditChannel}
+      goBack={() => props.navigation.goBack()}
+      goToEditChannel={(channelId) => {
+        props.navigation.navigate('EditChannel', { groupId, channelId });
+      }}
       groupNavSectionsWithChannels={groupNavSectionsWithChannels}
       moveNavSection={moveNavSection}
       moveChannelWithinNavSection={moveChannel}
