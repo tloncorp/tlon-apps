@@ -123,7 +123,11 @@
     ^-  marl
     =/  main=manx
       ;div.author-row
-        ;+  (author:r bowl author.msg)
+        ;+  =;  link=(unit @t)
+              (%*(. author:r link link) bowl author.msg)
+            ?.  =(our.bowl author.msg)  ~
+            ?.  .^(? %gu /(scot %p our.bowl)/profile/(scot %da now.bowl)/$)  ~
+            `'/profile'
         ;+  (datetime:r sent.msg)
       ==
     ?~  title  [main]~
