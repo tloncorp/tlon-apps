@@ -89,8 +89,10 @@
 ::
 ++  get-contact
   |=  [=bowl:gall who=@p]
-  ^-  (unit contact)  ~+
-  =/  base=path  /(scot %p our.bowl)/contacts/(scot %da now.bowl)
+  =>  :_  ..get-contact
+      [who=who our=our.bowl now=now.bowl]
+  ~+  ^-  (unit contact)
+  =/  base=path  /(scot %p our)/contacts/(scot %da now)
   ?.  ~+  .^(? %gu (weld base /$))
     ~
   =+  ~+  .^(rol=rolodex %gx (weld base /all/contact-rolodex))
