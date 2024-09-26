@@ -119,7 +119,7 @@
       margin-left: -2em;
     }
     .profile-with-header {
-      aspect-ratio: 1/1;
+      aspect-ratio: 16/10;
       display: flex;
       align-items: flex-end;
     }

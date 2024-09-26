@@ -21,6 +21,12 @@
   margin-bottom: 2em;
 }
 
+.expose-content > header > img {
+  width: 100%;
+  aspect-ratio: 16/10;
+  object-fit: cover;
+}
+
 .expose-content p:empty {
   display: none;
 }
@@ -60,20 +66,26 @@
   color: var(--text-muted);
 }
 
-.author {
+.author,
+.author > a {
   display: flex;
   align-items: center;
   color: var(--text-muted);
   font-weight: 500;
   gap: 0.5em;
+  text-decoration: none;
 }
 
 .author .avatar {
+  display: inline-block;
   overflow: hidden;
-  border-radius: 0.25em;
+  width: 1.5625em;
+  height: 1.5625em;
+  border-radius: 0.25em !important;
 }
 
 .author .avatar img {
+  border-radius: 0.25em !important;
   width: 1.5625em;
   height: 1.5625em;
   object-fit: cover;

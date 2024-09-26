@@ -5,12 +5,25 @@
 ::
 |%
 ++  author
+  =/  link=(unit @t)  ~
   |=  [=bowl:gall author=ship]
   ^-  manx
   =/  aco=(unit contact:co)
     (get-contact:co bowl author)
-  ;div.author
-    ;div.avatar
+  |^  ::TODO  we should just have a bunch of manx construction helpers
+      ::      for stuff like this
+      ?~  link
+        ;div.author
+          ;*  inner
+        ==
+      ;div.author  ;a(href (trip u.link))
+        ;*  inner
+      ==  ==
+  ::
+  ++  inner  ~[avatar name]
+  ::
+  ++  avatar
+    ;span.avatar
       ;+
       ?:  &(?=(^ aco) ?=(^ avatar.u.aco) !=('' u.avatar.u.aco))
         ;img@"{(trip u.avatar.u.aco)}"(alt "Author's avatar");
@@ -25,12 +38,12 @@
       ==
     ==
   ::
-    ;+
+  ++  name
     =*  nom  ;span:"{(scow %p author)}"
     ?~  aco  nom
     ?:  =('' nickname.u.aco)  nom
     ;span(title "{(scow %p author)}"):"{(trip nickname.u.aco)}"
-  ==
+  --
 ::
 ++  datetime  ::TODO  date-only mode
   |=  =time
