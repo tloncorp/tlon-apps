@@ -35,6 +35,8 @@ jobs:
         uses: pnpm/action-setup@v3
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: pnpm build:all
       - name: Create build vars
         id: vars
         run: |
