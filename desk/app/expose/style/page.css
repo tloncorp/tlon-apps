@@ -89,6 +89,7 @@
   width: 1.5625rem;
   height: 1.5625rem;
   border-radius: 0.25em !important;
+  flex-shrink: 0;
 }
 
 .author .avatar img {

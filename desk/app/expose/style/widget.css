@@ -97,6 +97,7 @@
   border-radius: 0.25em;
   width: 1.5625rem;
   height: 1.5625rem;
+  flex-shrink: 0;
 }
 
 .exposed .author .avatar img {
