@@ -6,7 +6,7 @@ import { useCallback, useMemo } from 'react';
 
 // import ErrorBoundary from '../../ErrorBoundary';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useIsFocused } from '../../hooks/useIsFocused';
+import { useIsFocused } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;

@@ -22,9 +22,9 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useFocusEffect } from '../../hooks/useFocusEffect';
+import { useFocusEffect } from '@react-navigation/native';
 import { useGroupActions } from '../../hooks/useGroupActions';
-import { useIsFocused } from '../../hooks/useIsFocused';
+import { useIsFocused } from '@react-navigation/native';
 import type { RootStackParamList } from '../../navigation/types';
 
 const logger = createDevLogger('ChannelScreen', false);

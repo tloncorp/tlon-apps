@@ -16,7 +16,7 @@ import { useForm } from 'react-hook-form';
 import { Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useIsFocused } from '../../hooks/useIsFocused';
+import { useIsFocused } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WompWomp'>;

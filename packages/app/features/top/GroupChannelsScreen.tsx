@@ -10,7 +10,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useIsFocused } from '../../hooks/useIsFocused';
+import { useIsFocused } from '@react-navigation/native';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GroupChannels'>;
