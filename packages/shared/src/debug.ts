@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { useLiveRef } from './logic/utilHooks';
+import { ErrorLogger } from './store/errorLogging';
 import { useCurrentSession } from './store/session';
 
 const customLoggers = new Set<string>();
@@ -65,6 +66,16 @@ export function createDevLogger(tag: string, enabled: boolean) {
             tag,
             message: 'error logged',
           });
+        }
+
+        if (prop === 'logError') {
+          const errorLogger = new ErrorLogger(tag, console);
+          if (typeof args[0] === 'string') {
+            errorLogger.report(new Error(args[0]));
+          } else {
+            errorLogger.report(new Error('Unknown error'));
+          }
+          return;
         }
 
         if (
