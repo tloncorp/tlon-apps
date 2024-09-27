@@ -1015,10 +1015,10 @@ export const handleDiscontinuity = async () => {
 
 export const handleChannelStatusChange = async (status: ChannelStatus) => {
   if (status === 'reconnecting') {
-    updateSession(null);
+    updateSession({ isReconnecting: true });
   } else if (status === 'reconnected')
     updateSession({
-      startTime: Date.now(),
+      isReconnecting: false,
     });
 };
 
