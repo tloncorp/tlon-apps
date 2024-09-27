@@ -1,11 +1,12 @@
+import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ErrorReporter } from '@tloncorp/shared/dist';
 import {
   Button,
   Circle,
   FormTextInput,
-  GenericHeader,
   Icon,
+  ScreenHeader,
   SizableText,
   View,
   XStack,
@@ -16,7 +17,6 @@ import { useForm } from 'react-hook-form';
 import { Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useIsFocused } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WompWomp'>;
@@ -76,8 +76,9 @@ export function UserBugReportScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }}>
-      <GenericHeader
-        goBack={state === 'initial' ? () => navigation.goBack() : undefined}
+      <ScreenHeader
+        title="Report a bug"
+        backAction={state === 'initial' ? onGoBack : undefined}
       />
       <YStack
         marginTop="$m"

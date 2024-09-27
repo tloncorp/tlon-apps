@@ -1,14 +1,19 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
-import { PropsWithChildren, useEffect, useMemo, useState } from 'react';
+import {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { useForm } from 'react-hook-form';
 import { View, YStack } from 'tamagui';
 
-import { Button } from './Button';
 import { EditablePofileImages } from './EditableProfileImages';
 import { FormInput } from './FormInput';
-import { GenericHeader } from './GenericHeader';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
+import { ScreenHeader } from './ScreenHeader';
 
 export function MetaEditorScreenView({
   title,
@@ -50,17 +55,22 @@ export function MetaEditorScreenView({
     }
   }, [chat, modelLoaded, reset, defaultValues]);
 
-  const saveButton = useMemo(() => {
-    return <SaveButton onPress={handleSubmit(onSubmit)} />;
-  }, [handleSubmit, onSubmit]);
+  const runSubmit = useCallback(
+    () => handleSubmit(onSubmit),
+    [handleSubmit, onSubmit]
+  );
 
   return (
     <View backgroundColor="$background" flex={1}>
       <YStack justifyContent="space-between" width="100%" height="100%">
-        <GenericHeader
+        <ScreenHeader
           title={title}
-          goBack={goBack}
-          rightContent={saveButton}
+          backAction={goBack}
+          rightControls={
+            <ScreenHeader.TextButton onPress={runSubmit}>
+              Save
+            </ScreenHeader.TextButton>
+          }
         />
         <KeyboardAvoidingView style={{ flex: 1 }}>
           <YStack gap="$2xl" padding="$xl" alignItems="center" flex={1}>
@@ -92,14 +102,6 @@ export function MetaEditorScreenView({
         </KeyboardAvoidingView>
       </YStack>
     </View>
-  );
-}
-
-export function SaveButton({ onPress }: { onPress: () => void }) {
-  return (
-    <Button minimal onPress={onPress} borderWidth="unset">
-      <Button.Text>Save</Button.Text>
-    </Button>
   );
 }
 

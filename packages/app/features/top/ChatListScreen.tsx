@@ -1,3 +1,4 @@
+import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
@@ -24,21 +25,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useIsFocused } from '@react-navigation/native';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
-
-type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
-
-const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
-  return (
-    <Button borderWidth={0} onPress={onPress}>
-      <Icon type="Filter" size="$m" />
-    </Button>
-  );
-};
 
 export default function ChatListScreen(props: Props) {
   const {
@@ -75,7 +65,7 @@ export default function ChatListScreen(props: Props) {
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(
     previewGroup ?? null
   );
-  const [showFilters, setShowFilters] = useState(false);
+  const [showSearchInput, setShowSearchInput] = useState(false);
   const isFocused = useIsFocused();
   const { data: pins } = store.usePins({
     enabled: isFocused,
@@ -232,11 +222,14 @@ export default function ChatListScreen(props: Props) {
     }
   }, []);
 
-  const headerControls = useMemo(() => {
-    return (
-      <ShowFiltersButton onPress={() => setShowFilters((prev) => !prev)} />
-    );
-  }, []);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearchInputToggled = useCallback(() => {
+    if (showSearchInput) {
+      setSearchQuery('');
+    }
+    setShowSearchInput(!showSearchInput);
+  }, [showSearchInput]);
 
   return (
     <RequestsProvider
@@ -258,7 +251,18 @@ export default function ChatListScreen(props: Props) {
         <View flex={1}>
           <ScreenHeader
             title={notReadyMessage ?? screenTitle}
-            rightControls={headerControls}
+            rightControls={
+              <>
+                <ScreenHeader.IconButton
+                  type="Search"
+                  onPress={handleSearchInputToggled}
+                />
+                <ScreenHeader.IconButton
+                  type="Add"
+                  onPress={() => setAddGroupOpen(true)}
+                />
+              </>
+            }
           />
           {chats && chats.unpinned.length ? (
             <ChatList
@@ -271,24 +275,12 @@ export default function ChatListScreen(props: Props) {
               onPressItem={onPressChat}
               onPressMenuButton={onLongPressChat}
               onSectionChange={handleSectionChange}
-              showFilters={showFilters}
+              showSearchInput={showSearchInput}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
             />
           ) : null}
-          <View
-            zIndex={50}
-            position="absolute"
-            bottom="$s"
-            alignItems="center"
-            width={'100%'}
-            pointerEvents="box-none"
-          >
-            <FloatingActionButton
-              onPress={() => {
-                setAddGroupOpen(true);
-              }}
-              icon={<Icon type="Add" size="$m" />}
-            />
-          </View>
+
           <WelcomeSheet
             open={splashVisible}
             onOpenChange={handleWelcomeOpenChange}

@@ -39,7 +39,6 @@ export * from './components/FloatingActionButton';
 export * from './components/FormInput';
 export * from './components/Form';
 export * from './components/GalleryPost';
-export * from './components/GenericHeader';
 export * from './components/GroupChannelsScreenView';
 export * from './components/GroupMembersScreenView';
 export * from './components/GroupPreviewSheet';

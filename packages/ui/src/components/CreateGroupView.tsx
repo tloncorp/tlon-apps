@@ -10,9 +10,8 @@ import {
 } from '../contexts';
 import { CreateGroupWidget } from './AddChats';
 import { Button } from './Button';
-import { TextButton } from './Buttons';
 import { ContactBook } from './ContactBook';
-import { GenericHeader } from './GenericHeader';
+import { ScreenHeader } from './ScreenHeader';
 
 type screen = 'InviteUsers' | 'CreateGroup';
 
@@ -38,22 +37,22 @@ export function CreateGroupView({
 
   return (
     <View flex={1}>
-      <GenericHeader
+      <ScreenHeader
         title={'Create Group'}
-        goBack={() =>
+        backAction={() =>
           screen === 'InviteUsers' ? goBack() : setScreen('InviteUsers')
         }
         showSessionStatus={false}
-        rightContent={
+        rightControls={
           screen === 'InviteUsers' ? (
-            <TextButton
+            <ScreenHeader.TextButton
               onPress={() => {
                 setInvitees([]);
                 setScreen('CreateGroup');
               }}
             >
               Skip
-            </TextButton>
+            </ScreenHeader.TextButton>
           ) : null
         }
       />

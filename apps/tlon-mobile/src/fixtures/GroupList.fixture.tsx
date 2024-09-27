@@ -102,7 +102,9 @@ export default {
       <ChatList
         activeTab="all"
         setActiveTab={() => {}}
-        showFilters={false}
+        searchQuery=""
+        onSearchQueryChange={() => {}}
+        showSearchInput={false}
         pinned={[groupWithLongTitle, groupWithImage].map((g) =>
           makeChannelSummary({ group: g })
         )}
@@ -121,7 +123,7 @@ export default {
       <ChatList
         activeTab="all"
         setActiveTab={() => {}}
-        showFilters={false}
+        showSearchInput={false}
         pinned={[dmSummary, groupDmSummary]}
         unpinned={[
           groupWithColorAndNoImage,
@@ -130,6 +132,8 @@ export default {
           groupWithNoColorOrImage,
         ].map((g) => makeChannelSummary({ group: g }))}
         pendingChats={[]}
+        searchQuery=""
+        onSearchQueryChange={() => {}}
       />
     </FixtureWrapper>
   ),
@@ -138,10 +142,12 @@ export default {
       <ChatList
         activeTab="all"
         setActiveTab={() => {}}
-        showFilters={false}
+        showSearchInput={false}
         pinned={[]}
         unpinned={[]}
         pendingChats={[]}
+        searchQuery=""
+        onSearchQueryChange={() => {}}
       />
     </FixtureWrapper>
   ),

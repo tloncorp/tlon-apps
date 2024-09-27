@@ -8,7 +8,6 @@ import { Alert } from 'react-native';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootStackParamList } from '../../navigation/types';
 
-
 type Props = NativeStackScreenProps<RootStackParamList, 'BlockedUsers'>;
 
 export function BlockedUsersScreen(props: Props) {
@@ -38,10 +37,10 @@ export function BlockedUsersScreen(props: Props) {
 
   return (
     <View flex={1}>
-      <ScreenHeader>
-        <ScreenHeader.BackButton onPress={() => props.navigation.goBack()} />
-        <ScreenHeader.Title>Blocked Users</ScreenHeader.Title>
-      </ScreenHeader>
+      <ScreenHeader
+        leftControls={<ScreenHeader.BackButton onPress={onGoBack} />}
+        title="Blocked users"
+      />
       <View flex={1} paddingHorizontal="$xl">
         <BlockedContactsWidget
           blockedContacts={blockedContacts ?? []}

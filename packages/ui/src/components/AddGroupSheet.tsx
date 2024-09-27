@@ -1,11 +1,12 @@
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import { useCallback, useEffect, useState } from 'react';
-import { YStack, isWeb } from 'tamagui';
+import { View, YStack, isWeb } from 'tamagui';
 
 import { AppDataContextProvider, useContacts } from '../contexts';
 import { triggerHaptic } from '../utils';
 import { ActionSheet } from './ActionSheet';
 import { ContactBook } from './ContactBook';
+import { ListItem } from './ListItem';
 
 export function AddGroupSheet({
   open,
@@ -73,27 +74,34 @@ export function AddGroupSheet({
                   onScrollChange={setScreenScrolling}
                   key={screenKey}
                   quickActions={
-                    <ActionSheet.ActionGroup
-                      paddingVertical="$xl"
-                      padding="unset"
-                    >
-                      <ActionSheet.Action
-                        action={{
-                          title: 'New Group',
-                          description: 'Create a new group from scratch',
-                          endIcon: 'ChevronRight',
-                          action: () => navigateToCreateGroup(),
-                        }}
-                      />
-                      <ActionSheet.Action
-                        action={{
-                          title: 'Join a group by username',
-                          description: 'Find a group to join',
-                          endIcon: 'ChevronRight',
-                          action: () => navigateToFindGroups(),
-                        }}
-                      />
-                    </ActionSheet.ActionGroup>
+                    <View paddingVertical="$l">
+                      <ListItem onPress={navigateToCreateGroup}>
+                        <ListItem.SystemIcon
+                          icon="Bang"
+                          backgroundColor={'$secondaryBackground'}
+                          rounded
+                        />
+                        <ListItem.MainContent>
+                          <ListItem.Title>Create group</ListItem.Title>
+                          <ListItem.Subtitle>
+                            Create a new group chat
+                          </ListItem.Subtitle>
+                        </ListItem.MainContent>
+                      </ListItem>
+                      <ListItem onPress={navigateToFindGroups}>
+                        <ListItem.SystemIcon
+                          icon="Search"
+                          backgroundColor={'$secondaryBackground'}
+                          rounded
+                        />
+                        <ListItem.MainContent>
+                          <ListItem.Title>Find groups</ListItem.Title>
+                          <ListItem.Subtitle>
+                            Search for users who host groups
+                          </ListItem.Subtitle>
+                        </ListItem.MainContent>
+                      </ListItem>
+                    </View>
                   }
                 />
               </YStack>

@@ -15,15 +15,13 @@ import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
 import {
-  Button,
   CheckboxInput,
   Field,
-  GenericHeader,
   Icon,
   KeyboardAvoidingView,
   ListItem,
+  ScreenHeader,
   SizableText,
-  Text,
   TextInput,
   View,
   YStack,
@@ -149,17 +147,17 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
 
   return (
     <View flex={1}>
-      <GenericHeader
+      <ScreenHeader
         title="Login"
         showSessionStatus={false}
-        goBack={() => navigation.goBack()}
-        showSpinner={isSubmitting}
-        rightContent={
+        backAction={() => navigation.goBack()}
+        isLoading={isSubmitting}
+        rightControls={
           isValid &&
           watch('eulaAgreed') && (
-            <Button minimal onPress={onSubmit}>
-              <Text fontSize={'$m'}>Connect</Text>
-            </Button>
+            <ScreenHeader.TextButton onPress={onSubmit}>
+              Connect
+            </ScreenHeader.TextButton>
           )
         }
       />

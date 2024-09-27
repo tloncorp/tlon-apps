@@ -90,16 +90,16 @@ export function ManageAccountScreen(props: Props) {
 
   return (
     <View flex={1}>
-      <ScreenHeader>
-        <View marginRight="$m">
-          {goingBack ? (
+      <ScreenHeader
+        leftControls={
+          goingBack ? (
             <LoadingSpinner />
           ) : (
             <ScreenHeader.BackButton onPress={handleBack} />
-          )}
-        </View>
-        <ScreenHeader.Title>Manage Account</ScreenHeader.Title>
-      </ScreenHeader>
+          )
+        }
+        title="Manage account"
+      />
       {isWeb && (
         <View flex={1}>
           <iframe

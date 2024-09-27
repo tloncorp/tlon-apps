@@ -1,10 +1,9 @@
+import { useCurrentSession } from '@tloncorp/shared';
 import { PropsWithChildren, ReactNode } from 'react';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { isWeb, styled, withStaticProperties } from 'tamagui';
-import { View, XStack } from 'tamagui';
+import { View, XStack, isWeb, styled, withStaticProperties } from 'tamagui';
 
-import { Button } from './Button';
 import { Icon } from './Icon';
 import { Text } from './TextV2';
 
@@ -13,12 +12,26 @@ export const ScreenHeaderComponent = ({
   title,
   leftControls,
   rightControls,
+  isLoading,
+  backAction,
+  showSessionStatus,
 }: PropsWithChildren<{
   title?: string | ReactNode;
   leftControls?: ReactNode | null;
   rightControls?: ReactNode | null;
+  isLoading?: boolean;
+  backAction?: () => void;
+  showSessionStatus?: boolean;
 }>) => {
   const { top } = useSafeAreaInsets();
+  const resolvedTitle = isLoading ? 'Loading…' : title;
+  const currentSession = useCurrentSession();
+  const textColor =
+    showSessionStatus === false
+      ? '$primaryText'
+      : currentSession
+        ? '$primaryText'
+        : '$tertiaryText';
 
   return (
     <View paddingTop={top} zIndex={50}>
@@ -30,7 +43,7 @@ export const ScreenHeaderComponent = ({
       >
         {typeof title === 'string' ? (
           isWeb ? (
-            <HeaderTitle>{title}</HeaderTitle>
+            <HeaderTitle color={textColor}>{resolvedTitle}</HeaderTitle>
           ) : (
             <Animated.View
               key={title}
@@ -38,13 +51,16 @@ export const ScreenHeaderComponent = ({
               exiting={FadeOutUp}
               style={{ flex: 1 }}
             >
-              <HeaderTitle>{title}</HeaderTitle>
+              <HeaderTitle color={textColor}>{resolvedTitle}</HeaderTitle>
             </Animated.View>
           )
         ) : (
-          title
+          resolvedTitle
         )}
-        <HeaderControls side="left">{leftControls}</HeaderControls>
+        <HeaderControls side="left">
+          {backAction ? <HeaderBackButton onPress={backAction} /> : null}
+          {leftControls}
+        </HeaderControls>
         <HeaderControls side="right">{rightControls}</HeaderControls>
         {children}
       </XStack>
@@ -52,17 +68,29 @@ export const ScreenHeaderComponent = ({
   );
 };
 
+const HeaderIconButton = styled(Icon, {
+  customSize: ['$3xl', '$2xl'],
+  borderRadius: '$m',
+  pressStyle: {
+    opacity: 0.5,
+  },
+});
+
+const HeaderTextButton = styled(Text, {
+  size: '$label/2xl',
+  paddingHorizontal: '$s',
+  pressStyle: {
+    opacity: 0.5,
+  },
+});
+
 const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
-  return (
-    <Button onPress={onPress} backgroundColor="unset" borderColor="transparent">
-      <Icon type="ChevronLeft" />
-    </Button>
-  );
+  return <HeaderIconButton type="ChevronLeft" onPress={onPress} />;
 };
 
 const HeaderTitle = styled(Text, {
   size: '$label/2xl',
-  textAlign: 'left',
+  textAlign: 'center',
   width: '100%',
 });
 
@@ -70,7 +98,7 @@ const HeaderControls = styled(XStack, {
   position: 'absolute',
   top: 0,
   bottom: 0,
-  gap: '$m',
+  gap: '$xl',
   alignItems: 'center',
   zIndex: 1,
   variants: {
@@ -91,4 +119,6 @@ export const ScreenHeader = withStaticProperties(ScreenHeaderComponent, {
   Controls: HeaderControls,
   Title: HeaderTitle,
   BackButton: HeaderBackButton,
+  IconButton: HeaderIconButton,
+  TextButton: HeaderTextButton,
 });
