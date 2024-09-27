@@ -162,6 +162,7 @@ export function GroupOptions({
         actions: [
           {
             title: 'All activity',
+            accent: currentVolumeLevel === 'loud' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('loud');
             },
@@ -169,6 +170,7 @@ export function GroupOptions({
           },
           {
             title: 'Posts, mentions, and replies',
+            accent: currentVolumeLevel === 'medium' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('medium');
             },
@@ -176,6 +178,7 @@ export function GroupOptions({
           },
           {
             title: 'Only mentions and replies',
+            accent: currentVolumeLevel === 'soft' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('soft');
             },
@@ -183,6 +186,7 @@ export function GroupOptions({
           },
           {
             title: 'Nothing',
+            accent: currentVolumeLevel === 'hush' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('hush');
             },
@@ -457,6 +461,7 @@ export function ChannelOptions({
         actions: [
           {
             title: 'All activity',
+            accent: currentVolumeLevel === 'loud' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('loud');
             },
@@ -464,6 +469,7 @@ export function ChannelOptions({
           },
           {
             title: 'Posts, mentions, and replies',
+            accent: currentVolumeLevel === 'medium' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('medium');
             },
@@ -471,6 +477,7 @@ export function ChannelOptions({
           },
           {
             title: 'Only mentions and replies',
+            accent: currentVolumeLevel === 'soft' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('soft');
             },
@@ -478,6 +485,7 @@ export function ChannelOptions({
           },
           {
             title: 'Nothing',
+            accent: currentVolumeLevel === 'hush' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('hush');
             },
