@@ -9,6 +9,7 @@ import { useCopy } from '../hooks/useCopy';
 import { useIsAdmin } from '../utils';
 import { Button } from './Button';
 import { Icon } from './Icon';
+import { LoadingSpinner } from './LoadingSpinner';
 
 export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
   const userId = useCurrentUserId();
@@ -77,7 +78,11 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
     >
       <XStack gap="$xl" alignItems="center">
         <View borderRadius="$3xl" backgroundColor="$background" padding="$s">
-          <Icon type="Send" size="$l" />
+          {status !== 'ready' || typeof shareUrl !== 'string' ? (
+            <LoadingSpinner size="small" />
+          ) : (
+            <Icon type="Send" size="$l" />
+          )}
         </View>
         <Text color="$background" fontSize="$l">
           Invite Friends to Tlon

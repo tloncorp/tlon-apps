@@ -9,6 +9,8 @@ import { useCopy } from '../hooks/useCopy';
 import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
 import { ContactBook } from './ContactBook';
+import { Icon } from './Icon';
+import { LoadingSpinner } from './LoadingSpinner';
 
 const InviteUsersWidgetComponent = ({
   group,
@@ -133,8 +135,12 @@ const InviteUsersWidgetComponent = ({
             invitees.length === 0 &&
             (status !== 'ready' || typeof shareUrl !== 'string')
           }
+          gap="$xl"
         >
-          <Button.Text>{buttonText}</Button.Text>
+          <Button.Text width="auto">{buttonText}</Button.Text>
+          {status !== 'ready' || typeof shareUrl !== 'string' ? (
+            <LoadingSpinner color="$white" size="small" />
+          ) : null}
         </Button>
       </ActionSheet.ContentBlock>
     </>
