@@ -274,6 +274,8 @@ export function MessageInput({
     storeDraft(json);
   });
 
+  // TODO: Looks like paste isn't handled on web yet? When adding support, check
+  // against the corresponding native implementaion
   const handlePaste = useCallback(
     async (pastedText: string) => {
       if (!editor) {

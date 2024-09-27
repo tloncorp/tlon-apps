@@ -104,7 +104,7 @@ export const useLureMetadata = () => {
 export const BranchProvider = ({ children }: { children: ReactNode }) => {
   const [{ deepLinkPath, lure, priorityToken }, setState] =
     useState(INITIAL_STATE);
-  const { ship } = useShip();
+  const { isAuthenticated } = useShip();
 
   useEffect(() => {
     console.debug('[branch] Subscribing to Branch listener');
@@ -124,7 +124,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
                 ...extractLureMetadata(params),
                 id: params.lure as string,
                 // if not already authenticated, we should run Lure's invite auto-join capability after signing in
-                shouldAutoJoin: Boolean(!ship),
+                shouldAutoJoin: !isAuthenticated,
               },
               priorityToken: params.token as string | undefined,
             };
@@ -163,7 +163,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       console.debug('[branch] Unsubscribing from Branch listener');
       unsubscribe();
     };
-  }, []);
+  }, [isAuthenticated]);
 
   const clearLure = useCallback(() => {
     console.debug('[branch] Clearing lure state');
