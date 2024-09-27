@@ -1,7 +1,9 @@
+import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
+import { createDevLogger } from '@tloncorp/shared/src/debug';
 import {
   AddGroupSheet,
   Button,
@@ -24,7 +26,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useIsFocused } from '@react-navigation/native';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 import { identifyTlonEmployee } from '../../utils/posthog';
@@ -77,6 +78,7 @@ export default function ChatListScreen(props: Props) {
   );
   const [showFilters, setShowFilters] = useState(false);
   const isFocused = useIsFocused();
+  const logger = createDevLogger('ChatListScreen', true);
   const { data: pins } = store.usePins({
     enabled: isFocused,
   });
@@ -104,6 +106,39 @@ export default function ChatListScreen(props: Props) {
 
     return null;
   }, [connStatus, chats]);
+
+  /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
+  const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
+  const connectionAttempts = useRef(0);
+
+  useEffect(() => {
+    const checkConnection = () => {
+      if (connStatus === 'Connected') {
+        if (connectionTimeout.current) {
+          clearTimeout(connectionTimeout.current);
+        }
+        connectionAttempts.current = 0;
+      } else {
+        connectionAttempts.current += 1;
+        if (connectionAttempts.current >= 10) {
+          logger.error('Connection not established within 10 seconds');
+          if (connectionTimeout.current) {
+            clearTimeout(connectionTimeout.current);
+          }
+        } else {
+          connectionTimeout.current = setTimeout(checkConnection, 10000);
+        }
+      }
+    };
+
+    checkConnection();
+
+    return () => {
+      if (connectionTimeout.current) {
+        clearTimeout(connectionTimeout.current);
+      }
+    };
+  }, [connStatus, logger]);
 
   const resolvedChats = useMemo(() => {
     return {
