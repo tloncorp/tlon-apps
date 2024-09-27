@@ -111,7 +111,6 @@ export const useLureState = create<LureState>((set, get) => ({
       json: name,
     });
 
-    // return get().fetchLure(flag, branchDomain, branchKey);
   },
   start: async () => {
     const bait = await scry<Bait>({
