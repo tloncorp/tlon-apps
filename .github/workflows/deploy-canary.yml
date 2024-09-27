@@ -29,8 +29,6 @@ jobs:
           run_install: |
             - recursive: true
               args: [--frozen-lockfile]
-      - name: Build packages
-        run: pnpm build:all
       - working-directory: ./apps/tlon-web
         run: pnpm build
       - uses: actions/upload-artifact@v3
