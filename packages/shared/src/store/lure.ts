@@ -78,7 +78,6 @@ export const useLureState = create<LureState>((set, get) => ({
       },
     });
 
-    // return get().fetchLure(flag, branchDomain, branchKey);
   },
   toggle: async (flag, meta, branchDomain, branchKey) => {
     const { name } = getFlagParts(flag);
