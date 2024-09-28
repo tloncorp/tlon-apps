@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "d3b5845c-7fa4-48d9-ba18-3e237654d040",
+  "id": "c5048b06-4a47-473f-b579-03a848864cdc",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -413,6 +413,13 @@
         "is_default_welcome_channel": {
           "name": "is_default_welcome_channel",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "content_configuration": {
+          "name": "content_configuration",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

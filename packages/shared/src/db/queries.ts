@@ -399,7 +399,8 @@ export const insertGroups = createWriteQuery(
                 $channels.description,
                 $channels.addedToGroupAt,
                 $channels.type,
-                $channels.isPendingChannel
+                $channels.isPendingChannel,
+                $channels.contentConfiguration
               ),
             });
         }
