@@ -702,6 +702,8 @@ export const channels = sqliteTable(
      * True if this channel was autocreated during new group creation (on this client)
      */
     isDefaultWelcomeChannel: boolean('is_default_welcome_channel'),
+
+    contentConfiguration: text('content_configuration', { mode: 'json' }),
   },
   (table) => ({
     lastPostIdIndex: index('last_post_id').on(table.lastPostId),

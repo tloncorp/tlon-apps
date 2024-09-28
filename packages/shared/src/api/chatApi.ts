@@ -8,6 +8,10 @@ import {
   getCanonicalPostId,
   toClientMeta,
 } from './apiUtils';
+import {
+  ChannelContentConfiguration,
+  StructuredChannelDescriptionPayload,
+} from './channelContentConfig';
 import { toPostData, toPostReplyData, toReplyMeta } from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe, trackedPoke } from './urbit';
 
@@ -303,7 +307,7 @@ export const getGroupDms = async (): Promise<GetDmsResponse> => {
 export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
   const currentUserId = getCurrentUserId();
   return Object.entries(groupDms)
-    .map(([id, club]) => {
+    .map(([id, club]): db.Channel | null => {
       const joinedMembers = club.team.map(
         (member): db.ChatMember => ({
           contactId: member,
@@ -333,12 +337,32 @@ export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
         return null;
       }
 
+      const metaFields = toClientMeta(club.meta);
+
+      // Decode structured description payload if possible.
+      const decodedDesc =
+        metaFields.description == null
+          ? null
+          : StructuredChannelDescriptionPayload.decodeOrNull(
+              metaFields.description
+            );
+      let contentConfiguration: ChannelContentConfiguration | undefined;
+      if (decodedDesc != null) {
+        // If the `description` field on API was a structured payload, unpack
+        // the payload's interior `description` field into our local
+        // `description` field.
+        metaFields.description = decodedDesc.description;
+
+        contentConfiguration = decodedDesc.channelContentConfiguration;
+      }
+
       return {
         id,
         type: 'groupDm',
-        ...toClientMeta(club.meta),
+        ...metaFields,
         isDmInvite: !isJoined && isInvited,
         members: [...joinedMembers, ...invitedMembers],
+        contentConfiguration,
       };
     })
     .filter(Boolean) as db.Channel[];

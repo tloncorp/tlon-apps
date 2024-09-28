@@ -14,6 +14,10 @@ import {
 } from '../urbit';
 import { parseGroupId, toClientMeta } from './apiUtils';
 import {
+  ChannelContentConfiguration,
+  StructuredChannelDescriptionPayload,
+} from './channelContentConfig';
+import {
   getCurrentUserId,
   poke,
   scry,
@@ -1455,6 +1459,21 @@ function toClientChannel({
   channel: ub.GroupChannel;
   groupId: string;
 }): db.Channel {
+  // Decode structured description payload if possible.
+  let description: string | null = channel.meta.description;
+  const decodedDesc =
+    description == null || description.length === 0
+      ? null
+      : StructuredChannelDescriptionPayload.decodeOrNull(description);
+  let contentConfiguration: ChannelContentConfiguration | undefined;
+  if (decodedDesc != null) {
+    // If the `description` field on API was a structured payload, unpack
+    // the payload's interior `description` field into our local
+    // `description` field.
+    description = omitEmpty(decodedDesc.description ?? '');
+
+    contentConfiguration = decodedDesc.channelContentConfiguration;
+  }
   return {
     id,
     groupId,
@@ -1462,7 +1481,8 @@ function toClientChannel({
     iconImage: omitEmpty(channel.meta.image),
     title: omitEmpty(channel.meta.title),
     coverImage: omitEmpty(channel.meta.cover),
-    description: omitEmpty(channel.meta.description),
+    description,
+    contentConfiguration,
   };
 }
 

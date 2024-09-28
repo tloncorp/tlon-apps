@@ -1,4 +1,8 @@
 import * as api from '../api';
+import {
+  ChannelContentConfiguration,
+  StructuredChannelDescriptionPayload,
+} from '../api/channelContentConfig';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';
@@ -11,8 +15,9 @@ export async function createChannel({
   channelId,
   name,
   title,
-  description,
+  description: rawDescription,
   channelType,
+  contentConfiguration,
 }: {
   groupId: string;
   channelId: string;
@@ -20,18 +25,28 @@ export async function createChannel({
   title: string;
   description?: string;
   channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
+  contentConfiguration?: ChannelContentConfiguration;
 }) {
   // optimistic update
   const newChannel: db.Channel = {
     id: channelId,
     title,
-    description: description ?? '',
+    description: rawDescription,
+    contentConfiguration,
     type: channelType as db.ChannelType,
     groupId,
     addedToGroupAt: Date.now(),
     currentUserIsMember: true,
   };
   await db.insertChannels([newChannel]);
+
+  const encodedDescription =
+    contentConfiguration == null
+      ? rawDescription
+      : StructuredChannelDescriptionPayload.encode({
+          description: rawDescription,
+          channelContentConfiguration: contentConfiguration,
+        });
 
   try {
     await api.addChannelToGroup({ groupId, channelId, sectionId: 'default' });
@@ -41,7 +56,7 @@ export async function createChannel({
       group: groupId,
       name,
       title,
-      description: description ?? '',
+      description: encodedDescription ?? '',
       readers: [],
       writers: [],
     });
