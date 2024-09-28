@@ -395,17 +395,21 @@ export function Channel({
                               showAttachmentButton={channel.type !== 'gallery'}
                             />
                           )}
-                        {!isChatChannel && canWrite && !showBigInput && (
-                          <View
-                            position="absolute"
-                            bottom={bottom}
-                            flex={1}
-                            width="100%"
-                            alignItems="center"
-                          >
-                            {channel.type === 'gallery' &&
-                            (showAddGalleryPost ||
-                              isUploadingGalleryImage) ? null : (
+
+                        {!isChatChannel &&
+                          canWrite &&
+                          !showBigInput &&
+                          !(
+                            channel.type === 'gallery' &&
+                            (showAddGalleryPost || isUploadingGalleryImage)
+                          ) && (
+                            <View
+                              position="absolute"
+                              bottom={bottom}
+                              flex={1}
+                              width="100%"
+                              alignItems="center"
+                            >
                               <FloatingActionButton
                                 onPress={() =>
                                   channel.type === 'gallery'
@@ -420,9 +424,18 @@ export function Channel({
                                   />
                                 }
                               />
-                            )}
-                          </View>
+                            </View>
+                          )}
+
+                        {channel.type === 'gallery' && canWrite && (
+                          <AddGalleryPost
+                            showAddGalleryPost={showAddGalleryPost}
+                            setShowAddGalleryPost={setShowAddGalleryPost}
+                            setShowGalleryInput={setShowBigInput}
+                            onSetImage={handleGalleryImageSet}
+                          />
                         )}
+
                         {!negotiationMatch && isChatChannel && canWrite && (
                           <NegotionMismatchNotice />
                         )}
@@ -431,14 +444,6 @@ export function Channel({
                         )}
                         {!negotiationMatch && isChatChannel && canWrite && (
                           <NegotionMismatchNotice />
-                        )}
-                        {channel.type === 'gallery' && canWrite && (
-                          <AddGalleryPost
-                            showAddGalleryPost={showAddGalleryPost}
-                            setShowAddGalleryPost={setShowAddGalleryPost}
-                            setShowGalleryInput={setShowBigInput}
-                            onSetImage={handleGalleryImageSet}
-                          />
                         )}
                       </YStack>
                     </KeyboardAvoidingView>
