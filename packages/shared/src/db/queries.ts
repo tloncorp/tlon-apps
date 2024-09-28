@@ -79,7 +79,7 @@ import {
   Channel,
   ChannelUnread,
   ChatMember,
-  ClientMeta,
+  ClientMetaNavSection,
   Contact,
   Group,
   GroupNavSection,
@@ -1511,7 +1511,7 @@ export const addNavSectionToGroup = createWriteQuery(
       id: string;
       sectionId: string;
       groupId: string;
-      meta: ClientMeta;
+      meta: ClientMetaNavSection;
     },
     ctx: QueryCtx
   ) => {

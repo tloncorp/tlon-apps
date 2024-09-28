@@ -675,7 +675,7 @@ export type GroupAdd = {
 export type GroupEdit = {
   type: 'editGroup';
   groupId: string;
-  meta: db.ClientMeta;
+  meta: db.ClientMetaGroup;
 };
 
 export type GroupChannelAdd = {
@@ -716,7 +716,7 @@ export type GroupNavSectionAdd = {
   navSectionId: string;
   sectionId: string;
   groupId: string;
-  clientMeta: db.ClientMeta;
+  clientMeta: db.ClientMetaGroup;
 };
 
 export type GroupNavSectionDelete = {
@@ -728,7 +728,7 @@ export type GroupNavSectionEdit = {
   type: 'editNavSection';
   navSectionId: string;
   sectionId: string;
-  clientMeta: db.ClientMeta;
+  clientMeta: db.ClientMetaNavSection;
 };
 
 export type GroupNavSectionMove = {
@@ -776,7 +776,7 @@ export type GroupRoleAdd = {
   type: 'addRole';
   groupId: string;
   roleId: string;
-  meta: db.ClientMeta;
+  meta: db.ClientMetaGroup;
 };
 
 export type GroupRoleDelete = {
@@ -789,7 +789,7 @@ export type GroupRoleEdit = {
   type: 'editRole';
   roleId: string;
   groupId: string;
-  meta: db.ClientMeta;
+  meta: db.ClientMetaGroup;
 };
 
 export type GroupInviteMembers = {

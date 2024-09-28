@@ -4,7 +4,7 @@ import * as ub from '../urbit';
 import {
   deriveFullWrit,
   deriveFullWritReply,
-  fromClientMeta,
+  fromClientMetaChannel,
   getCanonicalPostId,
   toClientMetaChannel,
 } from './apiUtils';
@@ -71,10 +71,10 @@ export const updateDMMeta = async ({
   meta,
 }: {
   channelId: string;
-  meta: db.ClientMeta;
+  meta: db.ClientMetaChannel;
 }) => {
   return await trackedPoke<ub.WritResponse | ub.ClubAction | string[]>(
-    multiDmAction(channelId, { meta: fromClientMeta(meta) }),
+    multiDmAction(channelId, { meta: fromClientMetaChannel(meta) }),
     { app: 'chat', path: '/' },
     (event) => {
       if (!('diff' in event)) {
