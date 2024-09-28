@@ -6,7 +6,7 @@ import {
   deriveFullWritReply,
   fromClientMeta,
   getCanonicalPostId,
-  toClientMeta,
+  toClientMetaChannel,
 } from './apiUtils';
 import { toPostData, toPostReplyData, toReplyMeta } from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe, trackedPoke } from './urbit';
@@ -336,7 +336,7 @@ export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
       return {
         id,
         type: 'groupDm',
-        ...toClientMeta(club.meta),
+        ...toClientMetaChannel(club.meta),
         isDmInvite: !isJoined && isInvited,
         members: [...joinedMembers, ...invitedMembers],
       };

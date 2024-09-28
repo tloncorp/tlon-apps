@@ -20,7 +20,7 @@ export function isColor(value: string) {
   return value[0] === '#';
 }
 
-export function toClientMeta(meta: ub.GroupMeta): db.ClientMeta {
+export function toClientMetaGroup(meta: ub.GroupMeta): db.ClientMeta {
   const iconImage = meta.image;
   const iconImageData = iconImage
     ? isColor(iconImage)
@@ -41,6 +41,10 @@ export function toClientMeta(meta: ub.GroupMeta): db.ClientMeta {
     coverImageColor: coverImageData.coverImageColor ?? null,
     description: meta.description,
   };
+}
+
+export function toClientMetaChannel(meta: ub.GroupMeta): db.ClientMeta {
+  return toClientMetaGroup(meta);
 }
 
 export function fromClientMeta(meta: db.ClientMeta): ub.GroupMeta {

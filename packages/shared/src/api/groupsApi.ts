@@ -12,7 +12,7 @@ import {
   getChannelType,
   getJoinStatusFromGang,
 } from '../urbit';
-import { parseGroupId, toClientMeta } from './apiUtils';
+import { parseGroupId, toClientMetaGroup } from './apiUtils';
 import {
   getCurrentUserId,
   poke,
@@ -955,7 +955,7 @@ export const toGroupUpdate = (
   if ('meta' in updateDiff) {
     return {
       type: 'editGroup',
-      meta: toClientMeta(updateDiff.meta),
+      meta: toClientMetaGroup(updateDiff.meta),
       groupId,
     };
   }
@@ -1138,7 +1138,7 @@ export const toGroupUpdate = (
         navSectionId,
         sectionId,
         groupId,
-        clientMeta: toClientMeta(zoneDelta.add),
+        clientMeta: toClientMetaGroup(zoneDelta.add),
       };
     }
 
@@ -1151,7 +1151,7 @@ export const toGroupUpdate = (
         type: 'editNavSection',
         navSectionId,
         sectionId,
-        clientMeta: toClientMeta(zoneDelta.edit),
+        clientMeta: toClientMetaGroup(zoneDelta.edit),
       };
     }
 
@@ -1324,7 +1324,7 @@ export function toClientGroup(
     const data: db.GroupRole = {
       id: roleId,
       groupId: id,
-      ...toClientMeta(role.meta),
+      ...toClientMetaGroup(role.meta),
     };
     rolesById[roleId] = data;
     return data;
@@ -1333,7 +1333,7 @@ export function toClientGroup(
     id,
     roles,
     privacy: extractGroupPrivacy(group),
-    ...toClientMeta(group.meta),
+    ...toClientMetaGroup(group.meta),
     haveInvite: false,
     currentUserIsMember: isJoined,
     currentUserIsHost: hostUserId === currentUserId,
@@ -1349,7 +1349,7 @@ export function toClientGroup(
           id: `${id}-${zoneId}`,
           sectionId: zoneId,
           groupId: id,
-          ...toClientMeta(zone.meta),
+          ...toClientMetaGroup(zone.meta),
           sectionIndex: i,
           channels: zone.idx.map((channelId, ci) => {
             const data: db.GroupNavSectionChannel = {
@@ -1399,7 +1399,7 @@ export function toClientGroupFromPreview(
     currentUserIsMember: false,
     currentUserIsHost: hostUserId === currentUserId, // should always be false
     privacy: extractGroupPrivacy(preview),
-    ...toClientMeta(preview.meta),
+    ...toClientMetaGroup(preview.meta),
   };
 }
 
@@ -1428,7 +1428,7 @@ export function toClientGroupFromGang(id: string, gang: ub.Gang): db.Group {
     haveInvite: !!gang.invite,
     haveRequestedInvite: gang.claim?.progress === 'knocking',
     joinStatus,
-    ...(gang.preview ? toClientMeta(gang.preview.meta) : {}),
+    ...(gang.preview ? toClientMetaGroup(gang.preview.meta) : {}),
   };
 }
 
