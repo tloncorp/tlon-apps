@@ -24,25 +24,23 @@ import { Attachment, AttachmentProvider } from '../../contexts/attachment';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
 import * as utils from '../../utils';
-import AddGalleryPost from '../AddGalleryPost';
-import { BigInput } from '../BigInput';
 import { ChatMessage } from '../ChatMessage';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { GalleryPost } from '../GalleryPost';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { Icon } from '../Icon';
 import KeyboardAvoidingView from '../KeyboardAvoidingView';
-import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
 import {
   ChatInput,
+  DraftInputConnectedBigInput,
   DraftInputContext,
+  GalleryInput,
 } from '../draftInputs';
 import { ChannelFooter } from './ChannelFooter';
 import { ChannelHeader } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { EmptyChannelNotice } from './EmptyChannelNotice';
-import GalleryImagePreview from './GalleryImagePreview';
 import Scroller, { ScrollAnchor } from './Scroller';
 
 export { INITIAL_POSTS_PER_PAGE } from './Scroller';
@@ -132,7 +130,6 @@ export function Channel({
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [showBigInput, setShowBigInput] = useState(false);
-  const [showAddGalleryPost, setShowAddGalleryPost] = useState(false);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
   const disableNicknames = !!useCalm()?.disableNicknames;
   const title = channel ? utils.getChannelTitle(channel, disableNicknames) : '';
@@ -217,30 +214,21 @@ export function Channel({
   );
 
   const [isUploadingGalleryImage, setIsUploadingGalleryImage] = useState(false);
-  const handleGalleryImageSet = useCallback(
-    (assets?: ImagePickerAsset[] | null) => {
-      setIsUploadingGalleryImage(!!assets);
-    },
-    []
-  );
-
-  const handleGalleryPreviewClosed = useCallback(() => {
-    setIsUploadingGalleryImage(false);
-  }, []);
-
-  const handleMessageSent = useCallback(() => {
-    setIsUploadingGalleryImage(false);
-  }, []);
 
   const handleSetEditingPost = useCallback(
     (post: db.Post | undefined) => {
       setEditingPost?.(post);
-      if (channel.type === 'gallery' || channel.type === 'notebook') {
+      if (channel.type === 'notebook') {
         setShowBigInput(true);
       }
     },
     [setEditingPost, channel.type]
   );
+
+  /** when `null`, input is not shown or presentation is unknown */
+  const [draftInputPresentationMode, setDraftInputPresentationMode] = useState<
+    null | 'fullscreen' | 'inline'
+  >(null);
 
   const draftInputContext = useMemo(
     (): DraftInputContext => ({
@@ -250,7 +238,7 @@ export function Channel({
       editingPost,
       getDraft,
       group,
-      onSent: handleMessageSent,
+      onPresentationModeChange: setDraftInputPresentationMode,
       send: messageSender,
       setEditingPost,
       setShouldBlur: setInputShouldBlur,
@@ -264,7 +252,6 @@ export function Channel({
       editingPost,
       getDraft,
       group,
-      handleMessageSent,
       inputShouldBlur,
       messageSender,
       setEditingPost,
@@ -323,111 +310,61 @@ export function Channel({
                     <KeyboardAvoidingView enabled={!activeMessage}>
                       <YStack alignItems="center" flex={1}>
                         <AnimatePresence>
-                          {showBigInput ? (
-                            <View
-                              key="big-input"
-                              animation="simple"
-                              enterStyle={{
-                                y: 100,
-                                opacity: 0,
-                              }}
-                              exitStyle={{
-                                y: 100,
-                                opacity: 0,
-                              }}
-                              y={0}
-                              opacity={1}
-                              width="100%"
-                            >
-                              <BigInput
-                                channelType={channel.type}
-                                channelId={channel.id}
-                                groupMembers={group?.members ?? []}
-                                shouldBlur={inputShouldBlur}
-                                setShouldBlur={setInputShouldBlur}
-                                send={messageSender}
-                                storeDraft={storeDraft}
-                                clearDraft={clearDraft}
-                                getDraft={getDraft}
-                                editingPost={editingPost}
-                                setEditingPost={setEditingPost}
-                                editPost={editPost}
-                                setShowBigInput={setShowBigInput}
-                                placeholder=""
-                              />
-                            </View>
-                          ) : isUploadingGalleryImage ? (
-                            <GalleryImagePreview
-                              onReset={handleGalleryPreviewClosed}
-                            />
-                          ) : (
-                            <View flex={1} width="100%">
-                              {channel && posts && (
-                                <Scroller
-                                  key={scrollerAnchor?.postId}
-                                  inverted={isChatChannel ? true : false}
-                                  renderItem={renderItem}
-                                  renderEmptyComponent={renderEmptyComponent}
-                                  anchor={scrollerAnchor}
-                                  posts={posts}
-                                  hasNewerPosts={hasNewerPosts}
-                                  hasOlderPosts={hasOlderPosts}
-                                  editingPost={editingPost}
-                                  setEditingPost={handleSetEditingPost}
-                                  editPost={editPost}
-                                  channelType={channel.type}
-                                  channelId={channel.id}
-                                  firstUnreadId={
-                                    initialChannelUnread?.countWithoutThreads ??
-                                    0 > 0
-                                      ? initialChannelUnread?.firstUnreadPostId
-                                      : null
-                                  }
-                                  unreadCount={
-                                    initialChannelUnread?.countWithoutThreads ??
-                                    0
-                                  }
-                                  onPressPost={
-                                    isChatChannel ? undefined : goToPost
-                                  }
-                                  onPressReplies={goToPost}
-                                  onPressImage={goToImageViewer}
-                                  onEndReached={onScrollEndReached}
-                                  onStartReached={onScrollStartReached}
-                                  onPressRetry={onPressRetry}
-                                  onPressDelete={onPressDelete}
-                                  activeMessage={activeMessage}
-                                  setActiveMessage={setActiveMessage}
-                                  ref={flatListRef}
-                                />
-                              )}
-                            </View>
-                          )}
+                          {
+                            // weird predicate is negation of above - this should go away when notebook input is implemented!
+                            (!(channel.type !== 'gallery' && showBigInput) ||
+                              draftInputPresentationMode === 'fullscreen') && (
+                              <View flex={1} width="100%">
+                                {channel && posts && (
+                                  <Scroller
+                                    key={scrollerAnchor?.postId}
+                                    inverted={isChatChannel ? true : false}
+                                    renderItem={renderItem}
+                                    renderEmptyComponent={renderEmptyComponent}
+                                    anchor={scrollerAnchor}
+                                    posts={posts}
+                                    hasNewerPosts={hasNewerPosts}
+                                    hasOlderPosts={hasOlderPosts}
+                                    editingPost={editingPost}
+                                    setEditingPost={handleSetEditingPost}
+                                    editPost={editPost}
+                                    channelType={channel.type}
+                                    channelId={channel.id}
+                                    firstUnreadId={
+                                      initialChannelUnread?.countWithoutThreads ??
+                                      0 > 0
+                                        ? initialChannelUnread?.firstUnreadPostId
+                                        : null
+                                    }
+                                    unreadCount={
+                                      initialChannelUnread?.countWithoutThreads ??
+                                      0
+                                    }
+                                    onPressPost={
+                                      isChatChannel ? undefined : goToPost
+                                    }
+                                    onPressReplies={goToPost}
+                                    onPressImage={goToImageViewer}
+                                    onEndReached={onScrollEndReached}
+                                    onStartReached={onScrollStartReached}
+                                    onPressRetry={onPressRetry}
+                                    onPressDelete={onPressDelete}
+                                    activeMessage={activeMessage}
+                                    setActiveMessage={setActiveMessage}
+                                    ref={flatListRef}
+                                  />
+                                )}
+                              </View>
+                            )
+                          }
                         </AnimatePresence>
-                        {negotiationMatch &&
-                          !channel.isDmInvite &&
-                          !editingPost &&
-                          channel.type === 'gallery' &&
-                          isUploadingGalleryImage &&
-                          canWrite && (
-                            <MessageInput
-                              shouldBlur={inputShouldBlur}
-                              setShouldBlur={setInputShouldBlur}
-                              send={messageSender}
-                              channelId={channel.id}
-                              groupMembers={group?.members ?? []}
-                              storeDraft={storeDraft}
-                              clearDraft={clearDraft}
-                              getDraft={getDraft}
-                              editingPost={editingPost}
-                              setEditingPost={setEditingPost}
-                              editPost={editPost}
-                              channelType={channel.type}
-                              onSend={handleMessageSent}
-                              showInlineAttachments={channel.type !== 'gallery'}
-                              showAttachmentButton={channel.type !== 'gallery'}
-                            />
-                          )}
+
+                        {channel.type === 'notebook' && showBigInput && (
+                          <DraftInputConnectedBigInput
+                            draftInputContext={draftInputContext}
+                            setShowBigInput={setShowBigInput}
+                          />
+                        )}
 
                         {isChatChannel &&
                           negotiationMatch &&
@@ -436,13 +373,13 @@ export function Channel({
                             <ChatInput draftInputContext={draftInputContext} />
                           )}
 
-                        {!isChatChannel &&
+                        {channel.type === 'gallery' && canWrite && (
+                          <GalleryInput draftInputContext={draftInputContext} />
+                        )}
+
+                        {channel.type === 'notebook' &&
                           canWrite &&
-                          !showBigInput &&
-                          !(
-                            channel.type === 'gallery' &&
-                            (showAddGalleryPost || isUploadingGalleryImage)
-                          ) && (
+                          !showBigInput && (
                             <View
                               position="absolute"
                               bottom={bottom}
@@ -451,11 +388,7 @@ export function Channel({
                               alignItems="center"
                             >
                               <FloatingActionButton
-                                onPress={() =>
-                                  channel.type === 'gallery'
-                                    ? setShowAddGalleryPost(true)
-                                    : setShowBigInput(true)
-                                }
+                                onPress={() => setShowBigInput(true)}
                                 icon={
                                   <Icon
                                     type="Add"
@@ -466,15 +399,6 @@ export function Channel({
                               />
                             </View>
                           )}
-
-                        {channel.type === 'gallery' && canWrite && (
-                          <AddGalleryPost
-                            showAddGalleryPost={showAddGalleryPost}
-                            setShowAddGalleryPost={setShowAddGalleryPost}
-                            setShowGalleryInput={setShowBigInput}
-                            onSetImage={handleGalleryImageSet}
-                          />
-                        )}
 
                         {!negotiationMatch && isChatChannel && canWrite && (
                           <NegotionMismatchNotice />

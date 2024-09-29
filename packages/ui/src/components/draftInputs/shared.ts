@@ -9,7 +9,9 @@ export interface DraftInputContext {
   editingPost?: db.Post;
   getDraft: () => Promise<JSONContent>;
   group: db.Group | null;
-  onSent?: () => void;
+  onPresentationModeChange?: (
+    presentationMode: 'inline' | 'fullscreen'
+  ) => void;
   send: (
     content: Story,
     channelId: string,
