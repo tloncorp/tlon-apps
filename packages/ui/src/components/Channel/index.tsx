@@ -353,7 +353,7 @@ export function Channel({
                         {isChatChannel &&
                           negotiationMatch &&
                           !channel.isDmInvite &&
-                          !editingPost && (
+                          canWrite && (
                             <ChatInput draftInputContext={draftInputContext} />
                           )}
 

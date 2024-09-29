@@ -13,13 +13,16 @@ export function ChatInput({
     editingPost,
     getDraft,
     group,
-    onSent,
     send,
     setEditingPost,
     setShouldBlur,
     shouldBlur,
     storeDraft,
   } = draftInputContext;
+  if (editingPost != null) {
+    return null;
+  }
+
   return (
     <MessageInput
       shouldBlur={shouldBlur}
@@ -34,7 +37,6 @@ export function ChatInput({
       setEditingPost={setEditingPost}
       editPost={editPost}
       channelType={channel.type}
-      onSend={onSent}
       showInlineAttachments
       showAttachmentButton
     />
