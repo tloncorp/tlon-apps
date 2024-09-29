@@ -350,28 +350,34 @@ export function Channel({
                           )}
                         </AnimatePresence>
 
-                        {isChatChannel &&
-                          negotiationMatch &&
-                          !channel.isDmInvite &&
-                          canWrite && (
-                            <ChatInput draftInputContext={draftInputContext} />
-                          )}
+                        {canWrite && (
+                          <>
+                            {isChatChannel &&
+                              !channel.isDmInvite &&
+                              (negotiationMatch ? (
+                                <ChatInput
+                                  draftInputContext={draftInputContext}
+                                />
+                              ) : (
+                                <NegotionMismatchNotice />
+                              ))}
 
-                        {channel.type === 'gallery' && canWrite && (
-                          <GalleryInput draftInputContext={draftInputContext} />
-                        )}
+                            {channel.type === 'gallery' && (
+                              <GalleryInput
+                                draftInputContext={draftInputContext}
+                              />
+                            )}
 
-                        {channel.type === 'notebook' && canWrite && (
-                          <NotebookInput
-                            draftInputContext={draftInputContext}
-                          />
+                            {channel.type === 'notebook' && (
+                              <NotebookInput
+                                draftInputContext={draftInputContext}
+                              />
+                            )}
+                          </>
                         )}
 
                         {channel.isDmInvite && (
                           <DmInviteOptions channel={channel} goBack={goBack} />
-                        )}
-                        {!negotiationMatch && isChatChannel && canWrite && (
-                          <NegotionMismatchNotice />
                         )}
                       </YStack>
                     </KeyboardAvoidingView>
