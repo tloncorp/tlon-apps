@@ -34,6 +34,10 @@ import { Icon } from '../Icon';
 import KeyboardAvoidingView from '../KeyboardAvoidingView';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
+import {
+  ChatInput,
+  DraftInputContext,
+} from '../draftInputs';
 import { ChannelFooter } from './ChannelFooter';
 import { ChannelHeader } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
@@ -238,6 +242,36 @@ export function Channel({
     [setEditingPost, channel.type]
   );
 
+  const draftInputContext = useMemo(
+    (): DraftInputContext => ({
+      channel,
+      clearDraft,
+      editPost,
+      editingPost,
+      getDraft,
+      group,
+      onSent: handleMessageSent,
+      send: messageSender,
+      setEditingPost,
+      setShouldBlur: setInputShouldBlur,
+      shouldBlur: inputShouldBlur,
+      storeDraft,
+    }),
+    [
+      channel,
+      clearDraft,
+      editPost,
+      editingPost,
+      getDraft,
+      group,
+      handleMessageSent,
+      inputShouldBlur,
+      messageSender,
+      setEditingPost,
+      storeDraft,
+    ]
+  );
+
   return (
     <ScrollContextProvider>
       <GroupsProvider groups={groups}>
@@ -373,9 +407,8 @@ export function Channel({
                         {negotiationMatch &&
                           !channel.isDmInvite &&
                           !editingPost &&
-                          (isChatChannel ||
-                            (channel.type === 'gallery' &&
-                              isUploadingGalleryImage)) &&
+                          channel.type === 'gallery' &&
+                          isUploadingGalleryImage &&
                           canWrite && (
                             <MessageInput
                               shouldBlur={inputShouldBlur}
@@ -394,6 +427,13 @@ export function Channel({
                               showInlineAttachments={channel.type !== 'gallery'}
                               showAttachmentButton={channel.type !== 'gallery'}
                             />
+                          )}
+
+                        {isChatChannel &&
+                          negotiationMatch &&
+                          !channel.isDmInvite &&
+                          !editingPost && (
+                            <ChatInput draftInputContext={draftInputContext} />
                           )}
 
                         {!isChatChannel &&
