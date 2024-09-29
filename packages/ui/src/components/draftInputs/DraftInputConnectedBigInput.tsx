@@ -32,7 +32,6 @@ export function DraftInputConnectedBigInput({
   return (
     <AnimatePresence>
       <View
-        key="big-input"
         animation="simple"
         enterStyle={{
           y: 100,
