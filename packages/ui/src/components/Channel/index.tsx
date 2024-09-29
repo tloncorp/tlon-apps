@@ -367,9 +367,6 @@ export function Channel({
                           />
                         )}
 
-                        {!negotiationMatch && isChatChannel && canWrite && (
-                          <NegotionMismatchNotice />
-                        )}
                         {channel.isDmInvite && (
                           <DmInviteOptions channel={channel} goBack={goBack} />
                         )}
