@@ -204,13 +204,6 @@ export function Channel({
     [onPressRef, posts, channel]
   );
 
-  const handleSetEditingPost = useCallback(
-    (post: db.Post | undefined) => {
-      setEditingPost?.(post);
-    },
-    [setEditingPost]
-  );
-
   /** when `null`, input is not shown or presentation is unknown */
   const [draftInputPresentationMode, setDraftInputPresentationMode] = useState<
     null | 'fullscreen' | 'inline'
@@ -308,7 +301,7 @@ export function Channel({
                                 hasNewerPosts={hasNewerPosts}
                                 hasOlderPosts={hasOlderPosts}
                                 editingPost={editingPost}
-                                setEditingPost={handleSetEditingPost}
+                                setEditingPost={setEditingPost}
                                 editPost={editPost}
                                 channelType={channel.type}
                                 channelId={channel.id}
