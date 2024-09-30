@@ -18,6 +18,7 @@ import GalleryImagePreview from '../Channel/GalleryImagePreview';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
 import { MessageInput } from '../MessageInput';
+import { ParentAgnosticKeyboardAvoidingView } from '../ParentAgnosticKeyboardAvoidingView';
 import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
 import { DraftInputContext } from './shared';
 
@@ -56,10 +57,13 @@ export function GalleryInput({
     []
   );
 
-  // Notify host when presenting/dismissing big input
+  const isShowingImagePreview = !editingPost && isUploadingGalleryImage;
+
+  // Notify host when changing presentation mode
   useEffect(() => {
-    onPresentationModeChange?.(showBigInput ? 'fullscreen' : 'inline');
-  }, [showBigInput, onPresentationModeChange]);
+    const isFullscreen = showBigInput || isShowingImagePreview;
+    onPresentationModeChange?.(isFullscreen ? 'fullscreen' : 'inline');
+  }, [showBigInput, isShowingImagePreview, onPresentationModeChange]);
 
   // Use big input when editing a post
   const isEditingPost = editingPost != null;
@@ -75,10 +79,6 @@ export function GalleryInput({
             draftInputContext={draftInputContext}
             setShowBigInput={setShowBigInput}
           />
-        )}
-
-        {isUploadingGalleryImage && (
-          <GalleryImagePreview onReset={handleGalleryPreviewClosed} />
         )}
       </AnimatePresence>
 
@@ -97,26 +97,38 @@ export function GalleryInput({
         </View>
       )}
 
-      {!editingPost && isUploadingGalleryImage && (
-        <MessageInput
-          shouldBlur={shouldBlur}
-          setShouldBlur={setShouldBlur}
-          send={send}
-          channelId={channel.id}
-          groupMembers={group?.members ?? []}
-          storeDraft={storeDraft}
-          clearDraft={clearDraft}
-          getDraft={getDraft}
-          editingPost={editingPost}
-          setEditingPost={setEditingPost}
-          editPost={editPost}
-          channelType={channel.type}
-          onSend={() => {
-            setIsUploadingGalleryImage(false);
-          }}
-          showInlineAttachments={false}
-          showAttachmentButton={false}
-        />
+      {isShowingImagePreview && (
+        <YStack
+          alignItems="stretch"
+          flex={1}
+          width={'100%'}
+          bottom={safeAreaInsets.bottom}
+        >
+          <ParentAgnosticKeyboardAvoidingView
+            contentContainerStyle={{ flex: 1 }}
+          >
+            <GalleryImagePreview onReset={handleGalleryPreviewClosed} />
+            <MessageInput
+              shouldBlur={shouldBlur}
+              setShouldBlur={setShouldBlur}
+              send={send}
+              channelId={channel.id}
+              groupMembers={group?.members ?? []}
+              storeDraft={storeDraft}
+              clearDraft={clearDraft}
+              getDraft={getDraft}
+              editingPost={editingPost}
+              setEditingPost={setEditingPost}
+              editPost={editPost}
+              channelType={channel.type}
+              onSend={() => {
+                setIsUploadingGalleryImage(false);
+              }}
+              showInlineAttachments={false}
+              showAttachmentButton={false}
+            />
+          </ParentAgnosticKeyboardAvoidingView>
+        </YStack>
       )}
 
       <AddGalleryPost
