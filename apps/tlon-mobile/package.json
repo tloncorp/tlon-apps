@@ -24,7 +24,8 @@
     "test-ui": "jest",
     "tsc": "tsc --noEmit",
     "build": "pnpm generate",
-    "cosmos": "cosmos-native"
+    "cosmos": "cosmos-native",
+    "eas-build-post-install": "pnpm -w run build:all"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,md,html}": [
