@@ -34,6 +34,7 @@ import {
   GalleryInput,
   NotebookInput,
 } from '../draftInputs';
+import { DraftInputHandle } from '../draftInputs/shared';
 import { ChannelFooter } from './ChannelFooter';
 import { ChannelHeader } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
@@ -126,7 +127,6 @@ export function Channel({
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
-  const [showBigInput, setShowBigInput] = useState(false);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
   const disableNicknames = !!useCalm()?.disableNicknames;
   const title = channel ? utils.getChannelTitle(channel, disableNicknames) : '';
@@ -179,10 +179,6 @@ export function Channel({
     return null;
   }, [channel.type, selectedPostId, initialChannelUnread]);
 
-  const bigInputGoBack = () => {
-    setShowBigInput(false);
-  };
-
   const flatListRef = useRef<FlatList<db.Post>>(null);
 
   const handleRefPress = useCallback(
@@ -220,10 +216,13 @@ export function Channel({
     null | 'fullscreen' | 'inline'
   >(null);
 
+  const draftInputRef = useRef<DraftInputHandle>(null);
+
   const draftInputContext = useMemo(
     (): DraftInputContext => ({
       channel,
       clearDraft,
+      draftInputRef,
       editPost,
       editingPost,
       getDraft,
@@ -284,7 +283,10 @@ export function Channel({
                       mode={headerMode}
                       title={title}
                       goBack={() =>
-                        showBigInput ? bigInputGoBack() : goBack()
+                        draftInputPresentationMode === 'fullscreen' &&
+                        draftInputRef.current != null
+                          ? draftInputRef.current.exitFullscreen()
+                          : goBack()
                       }
                       showSearchButton={isChatChannel}
                       goToSearch={goToSearch}

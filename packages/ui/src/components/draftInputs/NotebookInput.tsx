@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useImperativeHandle, useState } from 'react';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -16,7 +16,8 @@ export function NotebookInput({
 }: {
   draftInputContext: DraftInputContext;
 }) {
-  const { editingPost, onPresentationModeChange } = draftInputContext;
+  const { draftInputRef, editingPost, onPresentationModeChange } =
+    draftInputContext;
   const safeAreaInsets = useSafeAreaInsets();
   const [showBigInput, setShowBigInput] = useState(false);
 
@@ -30,6 +31,12 @@ export function NotebookInput({
   useEffect(() => {
     setShowBigInput(isEditingPost);
   }, [isEditingPost]);
+
+  useImperativeHandle(draftInputRef, () => ({
+    exitFullscreen: () => {
+      setShowBigInput(false);
+    },
+  }));
 
   return (
     <SafeAreaView

@@ -8,7 +8,14 @@ import {
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatePresence, SizableText, View, YStack } from 'tamagui';
@@ -30,6 +37,7 @@ export function GalleryInput({
   const {
     channel,
     clearDraft,
+    draftInputRef,
     editPost,
     editingPost,
     getDraft,
@@ -70,6 +78,12 @@ export function GalleryInput({
   useEffect(() => {
     setShowBigInput(isEditingPost);
   }, [isEditingPost]);
+
+  useImperativeHandle(draftInputRef, () => ({
+    exitFullscreen: () => {
+      setShowBigInput(false);
+    },
+  }));
 
   return (
     <>
