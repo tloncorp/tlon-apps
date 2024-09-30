@@ -8,20 +8,16 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import React from 'react';
 import {
   LayoutChangeEvent,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   SectionList,
   SectionListData,
   SectionListRenderItemInfo,
   StyleProp,
   ViewStyle,
-  ViewToken,
 } from 'react-native';
 import Animated, {
   Easing,
@@ -55,7 +51,6 @@ function ChatListComponent({
   onLongPressItem,
   onPressItem,
   onPressMenuButton,
-  onSectionChange,
   activeTab,
   setActiveTab,
   showFilters,
@@ -126,35 +121,6 @@ function ChatListComponent({
     []
   );
 
-  const isAtTopRef = useRef(true);
-
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length === 0) {
-        return;
-      }
-
-      if (!isAtTopRef.current) {
-        const { section } = viewableItems[0];
-        if (section) {
-          onSectionChange?.(section.title);
-        }
-      }
-    }
-  ).current;
-
-  const handleScroll = useRef(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const atTop = event.nativeEvent.contentOffset.y === 0;
-      if (atTop !== isAtTopRef.current) {
-        isAtTopRef.current = atTop;
-        if (atTop) {
-          onSectionChange?.('Home');
-        }
-      }
-    }
-  ).current;
-
   const handlePressTryAll = useCallback(() => {
     setActiveTab('all');
   }, [setActiveTab]);
@@ -194,8 +160,6 @@ function ChatListComponent({
             waitForInteraction: false,
           }}
           renderSectionHeader={renderSectionHeader}
-          onViewableItemsChanged={onViewableItemsChanged}
-          onMomentumScrollEnd={activeTab === 'all' ? handleScroll : undefined}
         />
       )}
     </>
