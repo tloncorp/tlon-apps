@@ -48,12 +48,11 @@ export function NotebookInput({
       }
     >
       <ParentAgnosticKeyboardAvoidingView>
-        {showBigInput && (
-          <DraftInputConnectedBigInput
-            draftInputContext={draftInputContext}
-            setShowBigInput={setShowBigInput}
-          />
-        )}
+        <DraftInputConnectedBigInput
+          draftInputContext={draftInputContext}
+          setShowBigInput={setShowBigInput}
+          hidden={!showBigInput}
+        />
 
         {!showBigInput && (
           <View

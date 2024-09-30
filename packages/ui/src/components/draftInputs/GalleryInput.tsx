@@ -70,14 +70,11 @@ export function GalleryInput({
 
   return (
     <>
-      <AnimatePresence>
-        {showBigInput && (
-          <DraftInputConnectedBigInput
-            draftInputContext={draftInputContext}
-            setShowBigInput={setShowBigInput}
-          />
-        )}
-      </AnimatePresence>
+      <DraftInputConnectedBigInput
+        draftInputContext={draftInputContext}
+        setShowBigInput={setShowBigInput}
+        hidden={!showBigInput}
+      />
 
       {!showBigInput && !showAddGalleryPost && !isUploadingGalleryImage && (
         <View
