@@ -59,6 +59,7 @@ export * from './components/MessageInput/AttachmentPreviewList';
 export * from './components/NavBarView';
 export * from './components/Modal';
 export * from './components/NavBar';
+export * from './components/ParentAgnosticKeyboardAvoidingView';
 export * from './components/PostScreenView';
 export * from './components/ProfileScreenView';
 export * from './components/ProfileSheet';
