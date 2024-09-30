@@ -124,7 +124,16 @@
                 (flatten:cu content.event)
             ==
           ::
-              ?(%group-ask %group-invite %group-join %group-kick %group-role)
+              %group-invite
+            =+  .^(=gangs:g:a %gx /(scot %p our)/groups/(scot %da now)/gangs/noun)
+            :~  [%ship ship.event]
+                ' sent you an invite to '
+                ?~  gang=(~(get by gangs) group.event)  'a group'
+                ?~  pev.u.gang  'a group'
+                [%emph title.meta.u.pev.u.gang]
+            ==
+          ::
+              ?(%group-ask %group-join %group-kick %group-role)
             =+  .^  =group:g:a  %gx
                   (scot %p our)
                   %groups
@@ -135,12 +144,6 @@
                 %group-ask
               :~  [%ship ship.event]
                   ' has requested to join '
-                  [%emph title.meta.group]
-              ==
-            ::
-                %group-invite
-              :~  [%ship ship.event]
-                  ' sent you an invite to '
                   [%emph title.meta.group]
               ==
             ::
