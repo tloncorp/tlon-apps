@@ -1,7 +1,7 @@
 import * as api from '@tloncorp/shared/dist/api';
 import { ConnectionStatus } from '@tloncorp/shared/dist/api';
+import { useCurrentUserId } from '@tloncorp/ui';
 import { debounce } from 'lodash';
-import { useCurrentUserId } from 'packages/ui/src';
 import { useEffect, useState } from 'react';
 
 export const useConnectionStatus = (contactId: string) => {
