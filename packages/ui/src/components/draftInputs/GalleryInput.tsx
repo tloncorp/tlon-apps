@@ -1,24 +1,7 @@
-import {
-  isChatChannel as getIsChatChannel,
-  useChannel as useChannelFromStore,
-  useGroupPreview,
-  usePostReference as usePostReferenceHook,
-  usePostWithRelations,
-} from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
-import {
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { FlatList } from 'react-native';
+import { useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AnimatePresence, SizableText, View, YStack } from 'tamagui';
+import { AnimatePresence, View, YStack } from 'tamagui';
 
 import AddGalleryPost from '../AddGalleryPost';
 import GalleryImagePreview from '../Channel/GalleryImagePreview';
