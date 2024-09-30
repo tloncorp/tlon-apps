@@ -1874,7 +1874,6 @@
   ::
   ++  di-take-counter
     |=  =diff:dm:c
-    ?<  =(%archive net.dm)
     ?<  (~(has in blocked) ship)
     (di-ingest-diff diff)
   ::

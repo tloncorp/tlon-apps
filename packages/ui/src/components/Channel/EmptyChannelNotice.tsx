@@ -37,7 +37,9 @@ export function EmptyChannelNotice({
           {noticeText}
         </SizableText>
       </YStack>
-      <InviteFriendsToTlonButton group={group} />
+      {isGroupAdmin && isFirstVisit && isWelcomeChannel && (
+        <InviteFriendsToTlonButton group={group} />
+      )}
     </YStack>
   );
 }

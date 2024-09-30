@@ -28,6 +28,26 @@ export const getDeepLink = async (
   return url;
 };
 
+export const getBranchLinkMeta = async (
+  branchUrl: string,
+  branchKey: string
+) => {
+  const params = new URLSearchParams();
+  params.set('url', branchUrl);
+  params.set('branch_key', branchKey);
+  const response = await fetchBranchApi(`/v1/url?${params}`);
+  if (!response.ok) {
+    return undefined;
+  }
+
+  const payload = await response.json();
+  if (!payload || !payload.data) {
+    return undefined;
+  }
+
+  return payload.data;
+};
+
 export type DeepLinkType = 'lure' | 'wer';
 
 export interface DeepLinkMetadata {
@@ -62,6 +82,14 @@ export function extractLureMetadata(branchParams: any) {
     invitedGroupIconImageUrl: branchParams.invitedGroupIconImageUrl,
     invitedGroupiconImageColor: branchParams.invitedGroupiconImageColor,
   };
+}
+
+export function isLureMeta(input: unknown): input is DeepLinkMetadata {
+  if (!input || typeof input !== 'object') {
+    return false;
+  }
+
+  return 'invitedGroupId' in input;
 }
 
 export async function getDmLink(
@@ -104,7 +132,7 @@ export const createDeepLink = async ({
     const isDMLure =
       parts.length === 2 && parts[0] === 'dm' && isValidPatp(parts[1]);
     if (!isDMLure && !getPostInfoFromWer(path)) {
-      console.log(`Invalid path: ${path}`);
+      logger.crumb(`Invalid path: ${path}`);
       return undefined;
     }
   }
@@ -131,7 +159,7 @@ export const createDeepLink = async ({
       () => fallbackUrl
     );
     if (!url) {
-      console.log(`No existing deeplink for ${alias}, creating new one`);
+      logger.crumb(`No existing deeplink for ${alias}, creating new one`);
       const response = await fetchBranchApi('/v1/url', {
         method: 'POST',
         body: JSON.stringify({
@@ -145,6 +173,7 @@ export const createDeepLink = async ({
       }
       ({ url } = (await response.json()) as { url: string });
     }
+    logger.crumb(`Created new deeplink: ${url}`);
     return url;
   } catch (e) {
     logger.trackError('Failed to get or create deeplink', {

@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-export type Session = { startTime: number };
+export type Session = { startTime?: number; isReconnecting?: boolean };
 
 // Session — time when subscriptions were first initialized after which we can assume
 // all new events will be heard
@@ -12,9 +12,18 @@ export function getSession() {
   return session;
 }
 
-export function updateSession(newSession: Session | null) {
-  session = newSession;
+export function triggerSessionListeners() {
   sessionListeners.forEach((listener) => listener(session));
+}
+
+export function updateSession(newSession: Partial<Session> | null) {
+  session = newSession ? { ...session, ...newSession } : null;
+  triggerSessionListeners();
+}
+
+export function setSession(newSession: Session) {
+  session = newSession;
+  triggerSessionListeners();
 }
 
 function subscribeToSession(listener: SessionListener) {
@@ -59,6 +68,10 @@ export function useConnectionStatus() {
 
   if (!currentSession) {
     return 'Connecting';
+  }
+
+  if (currentSession.isReconnecting) {
+    return 'Reconnecting';
   }
 
   if (syncing) {
