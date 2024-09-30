@@ -1,7 +1,9 @@
 import { isValidPatp } from '@urbit/aura';
 
 import { getPostInfoFromWer } from '../api/harkApi';
-import * as urbit from '../urbit';
+import { createDevLogger } from '../debug';
+
+const logger = createDevLogger('branch', true);
 
 const fetchBranchApi = async (path: string, init?: RequestInit) =>
   fetch(`https://api2.branch.io${path}`, init);
@@ -123,23 +125,31 @@ export const createDeepLink = async ({
   } else {
     data.wer = path;
   }
-  let url = await getDeepLink(alias, branchDomain, branchKey).catch(
-    () => fallbackUrl
-  );
-  if (!url) {
-    console.log(`No existing deeplink for ${alias}, creating new one`);
-    const response = await fetchBranchApi('/v1/url', {
-      method: 'POST',
-      body: JSON.stringify({
-        branch_key: branchKey,
-        alias,
-        data,
-      }),
-    });
-    if (!response.ok) {
-      return fallbackUrl;
+
+  try {
+    let url = await getDeepLink(alias, branchDomain, branchKey).catch(
+      () => fallbackUrl
+    );
+    if (!url) {
+      console.log(`No existing deeplink for ${alias}, creating new one`);
+      const response = await fetchBranchApi('/v1/url', {
+        method: 'POST',
+        body: JSON.stringify({
+          branch_key: branchKey,
+          alias,
+          data,
+        }),
+      });
+      if (!response.ok) {
+        return fallbackUrl;
+      }
+      ({ url } = (await response.json()) as { url: string });
     }
-    ({ url } = (await response.json()) as { url: string });
+    return url;
+  } catch (e) {
+    logger.trackError('Failed to get or create deeplink', {
+      errorMessage: e?.message,
+    });
+    return '';
   }
-  return url;
 };

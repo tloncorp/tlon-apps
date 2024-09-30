@@ -353,11 +353,19 @@ export function useLureLinkStatus({
     }
 
     if (checked && !good) {
+      lureLogger.trackError('useLureLinkStatus has error status', {
+        flag,
+        enabled,
+        checked,
+        good,
+        url,
+        deepLinkUrl,
+      });
       return 'error';
     }
 
     return 'ready';
-  }, [supported, fetched, enabled, url, checked, deepLinkUrl, good]);
+  }, [supported, fetched, enabled, url, checked, deepLinkUrl, good, flag]);
 
   lureLogger.log('url', url, 'deepLinkUrl', deepLinkUrl, 'status', status);
 
