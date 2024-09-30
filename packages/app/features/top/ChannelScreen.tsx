@@ -1,5 +1,3 @@
-import { useFocusEffect } from '@react-navigation/native';
-import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
@@ -24,7 +22,9 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useFocusEffect } from '@react-navigation/native';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useIsFocused } from '@react-navigation/native';
 import type { RootStackParamList } from '../../navigation/types';
 
 const logger = createDevLogger('ChannelScreen', false);
@@ -119,8 +119,7 @@ export default function ChannelScreen(props: Props) {
     //
     //   ------------------------| syncedAt
     //     session.startTime |---------------
-    // NOTE: inserted a guard to prevent session.startTime from being undefined
-    if (syncedAt >= session.startTime!) {
+    if (syncedAt >= session.startTime) {
       return true;
     }
 
