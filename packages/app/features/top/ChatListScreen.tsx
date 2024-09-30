@@ -1,9 +1,9 @@
 import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
-import { createDevLogger } from '@tloncorp/shared/src/debug';
 import {
   AddGroupSheet,
   Button,
@@ -30,6 +30,8 @@ import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
+
+const logger = createDevLogger('ChatListScreen', false);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
 
@@ -78,7 +80,6 @@ export default function ChatListScreen(props: Props) {
   );
   const [showFilters, setShowFilters] = useState(false);
   const isFocused = useIsFocused();
-  const logger = createDevLogger('ChatListScreen', true);
   const { data: pins } = store.usePins({
     enabled: isFocused,
   });
@@ -126,7 +127,7 @@ export default function ChatListScreen(props: Props) {
             clearTimeout(connectionTimeout.current);
           }
         } else {
-          connectionTimeout.current = setTimeout(checkConnection, 10000);
+          connectionTimeout.current = setTimeout(checkConnection, 1000);
         }
       }
     };
@@ -138,7 +139,7 @@ export default function ChatListScreen(props: Props) {
         clearTimeout(connectionTimeout.current);
       }
     };
-  }, [connStatus, logger]);
+  }, [connStatus]);
 
   const resolvedChats = useMemo(() => {
     return {

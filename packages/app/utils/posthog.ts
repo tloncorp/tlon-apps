@@ -1,4 +1,5 @@
 import crashlytics from '@react-native-firebase/crashlytics';
+import { initializeErrorLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import PostHog from 'posthog-react-native';
 
@@ -13,17 +14,15 @@ export type OnboardingProperties = {
 
 export let posthog: PostHog | undefined;
 
-export const posthogAsync =
-  process.env.NODE_ENV === 'test'
-    ? undefined
-    : PostHog.initAsync(POST_HOG_API_KEY, {
-        host: 'https://eu.posthog.com',
-        enable: true,
-      });
+export const posthogAsync = PostHog.initAsync(POST_HOG_API_KEY, {
+  host: 'https://eu.posthog.com',
+  enable: true,
+});
 
 posthogAsync?.then((client) => {
   posthog = client;
   crashlytics().setAttribute('analyticsId', client.getDistinctId());
+  initializeErrorLogger(client);
 });
 
 const capture = (event: string, properties?: { [key: string]: any }) => {

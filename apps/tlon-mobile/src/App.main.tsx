@@ -11,7 +11,6 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
-import { POST_HOG_API_KEY } from '@tloncorp/app/constants';
 import { BranchProvider, useBranch } from '@tloncorp/app/contexts/branch';
 import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
 import { SignupProvider } from '@tloncorp/app/contexts/signup';
@@ -22,7 +21,6 @@ import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
-import { initializeErrorLogger } from '@tloncorp/shared/src/store/errorLogging';
 import { LoadingSpinner, PortalProvider, Text, View } from '@tloncorp/ui';
 import { usePreloadedEmojis } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
@@ -74,8 +72,6 @@ const App = ({
   };
 
   usePreloadedEmojis();
-
-  initializeErrorLogger(POST_HOG_API_KEY);
 
   useEffect(() => {
     const unsubscribeFromNetInfo = NetInfo.addEventListener(
