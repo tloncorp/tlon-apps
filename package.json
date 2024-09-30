@@ -16,8 +16,7 @@
     "dev:ios": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios\" \"pnpm --filter '@tloncorp/ui' watch\"",
     "dev:web": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-web' dev-no-ssl\"",
     "test": "pnpm run -r test run -u",
-    "lint:all": "pnpm -r lint",
-    "eas-build-post-install": "pnpm run build:all"
+    "lint:all": "pnpm -r lint"
   },
   "dependencies": {
     "@tloncorp/ui": "workspace:*"
