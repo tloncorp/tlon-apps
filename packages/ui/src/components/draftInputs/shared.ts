@@ -14,6 +14,9 @@ export interface DraftInputHandle {
   exitFullscreen: () => void;
 }
 
+/**
+ * Shared API for all draft inputs.
+ */
 export interface DraftInputContext {
   channel: db.Channel;
   clearDraft: () => void;
@@ -22,6 +25,14 @@ export interface DraftInputContext {
   editingPost?: db.Post;
   getDraft: () => Promise<JSONContent>;
   group: db.Group | null;
+
+  /**
+   * Called when the draft input takes over the entire screen.
+   * (This is useful because `fullscreen` presentation currently reuses the
+   * same container as the channel contents - so when we enter
+   * `fullscreen`, the <Channel> needs to hide its contents to make way for
+   * the input.)
+   */
   onPresentationModeChange?: (
     presentationMode: 'inline' | 'fullscreen'
   ) => void;
