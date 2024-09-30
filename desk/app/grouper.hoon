@@ -172,7 +172,7 @@
         %shut
       ~?  dev-mode  ['inviting to private/secret' joiner.bite]
       =/  =action:groups
-        :-  [our.bowl token.bite]
+        :-  flag
         :-  now.bowl
         :-  %cordon
         [%shut [%add-ships %pending (~(gas in *(set ship)) ~[joiner.bite])]]
