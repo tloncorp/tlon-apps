@@ -273,6 +273,12 @@ export function GroupOptions({
       endIcon: 'ChevronRight',
     };
 
+    const inviteNotice: Action = {
+      accent: 'disabled',
+      title: 'Invites disabled',
+      description: 'Only admins may invite people to this group.',
+    };
+
     if (currentUserIsAdmin) {
       actionGroups.push({
         accent: 'neutral',
@@ -289,9 +295,9 @@ export function GroupOptions({
       actionGroups.push({
         accent: 'neutral',
         actions:
-          group.privacy === 'public' || group.privacy === 'private'
+          group.privacy === 'public'
             ? [goToMembersAction, inviteAction]
-            : [goToMembersAction],
+            : [goToMembersAction, inviteNotice],
       });
     }
 
