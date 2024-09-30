@@ -25,7 +25,7 @@
     "tsc": "tsc --noEmit",
     "build": "pnpm generate",
     "cosmos": "cosmos-native",
-    "eas-build-post-install": "pnpm run build:all"
+    "eas-build-post-install": "pnpm -w run build:all"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,md,html}": [
