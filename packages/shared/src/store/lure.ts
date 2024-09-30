@@ -77,7 +77,6 @@ export const useLureState = create<LureState>((set, get) => ({
         metadata,
       },
     });
-
   },
   toggle: async (flag, meta, branchDomain, branchKey) => {
     const { name } = getFlagParts(flag);
@@ -110,7 +109,6 @@ export const useLureState = create<LureState>((set, get) => ({
       mark: enabled ? 'grouper-enable' : 'grouper-disable',
       json: name,
     });
-
   },
   start: async () => {
     const bait = await scry<Bait>({

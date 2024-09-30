@@ -14,7 +14,7 @@ interface Breadcrumb {
 export type Logger = Console & {
   crumb: (...args: unknown[]) => void;
   sensitiveCrumb: (...args: unknown[]) => void;
-  trackError: (message: string, data: Record<string, any>) => void;
+  trackError: (message: string, data?: Record<string, any>) => void;
 };
 
 const debugBreadcrumbs: Breadcrumb[] = [];
@@ -88,7 +88,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
               typeof args[0] === 'string'
                 ? `[${tag}] ${args[0]}`
                 : 'no message',
-            breadcrumbs: [1, 'hey', { a: 'b' }],
+            breadcrumbs: getCurrentBreadcrumbs(),
           });
           resolvedProp = 'error';
         }
