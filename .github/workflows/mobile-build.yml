@@ -31,6 +31,10 @@ jobs:
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
       - name: Create build vars
         id: vars
         run: |
