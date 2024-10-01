@@ -35,6 +35,7 @@ export type Action = {
   render?: (props: ActionRenderProps) => ReactElement;
   endIcon?: IconType | ReactElement;
   startIcon?: IconType | ReactElement;
+  accent?: Accent;
 };
 
 export type ActionRenderProps = {
@@ -296,16 +297,19 @@ const ActionSheetActionFrame = styled(ListItem, {
   variants: {
     type: {
       positive: {
+        backgroundColor: '$positiveBackground',
         pressStyle: {
           backgroundColor: '$positiveBackground',
         },
       },
       negative: {
+        backgroundColor: '$negativeBackground',
         pressStyle: {
           backgroundColor: '$negativeBackground',
         },
       },
       neutral: {},
+      disabled: {},
     },
   } as const,
 });
@@ -349,11 +353,15 @@ function ActionSheetAction({ action }: { action: Action }) {
     action.render({ action })
   ) : (
     <ActionSheetActionFrame
+      type={action.accent ?? (accent as Accent)}
       onPress={accent !== 'disabled' ? action.action : undefined}
     >
-      {action.startIcon && resolveIcon(action.startIcon)}
+      {action.startIcon &&
+        resolveIcon(action.startIcon, action.accent ?? accent)}
       <ListItem.MainContent>
-        <ActionSheet.ActionTitle>{action.title}</ActionSheet.ActionTitle>
+        <ActionSheet.ActionTitle accent={action.accent ?? accent}>
+          {action.title}
+        </ActionSheet.ActionTitle>
         {action.description && (
           <ActionSheet.ActionDescription>
             {action.description}
@@ -361,15 +369,17 @@ function ActionSheetAction({ action }: { action: Action }) {
         )}
       </ListItem.MainContent>
       {action.endIcon && (
-        <ListItem.EndContent>{resolveIcon(action.endIcon)}</ListItem.EndContent>
+        <ListItem.EndContent>
+          {resolveIcon(action.endIcon, action.accent ?? accent)}
+        </ListItem.EndContent>
       )}
     </ActionSheetActionFrame>
   );
 }
 
-function resolveIcon(icon: IconType | ReactElement) {
+function resolveIcon(icon: IconType | ReactElement, accent: Accent) {
   if (typeof icon === 'string') {
-    return <ActionSheetActionIcon type={icon} />;
+    return <ActionSheetActionIcon accent={accent} type={icon} />;
   }
   return icon;
 }
@@ -386,6 +396,9 @@ const ActionSheetActionIcon = styled(Icon, {
         color: '$negativeActionText',
       },
       neutral: {},
+      disabled: {
+        color: '$tertiaryText',
+      },
     },
   } as const,
 });

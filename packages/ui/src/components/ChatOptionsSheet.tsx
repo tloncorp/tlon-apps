@@ -15,9 +15,11 @@ import React, {
 import { Alert } from 'react-native';
 import { useSheet } from 'tamagui';
 
+import { ChevronLeft } from '../assets/icons';
 import { useCalm, useChatOptions, useCurrentUserId } from '../contexts';
 import * as utils from '../utils';
 import { Action, ActionGroup, ActionSheet } from './ActionSheet';
+import { IconButton } from './IconButton';
 import { ListItem } from './ListItem';
 
 export type ChatType = 'group' | db.ChannelType;
@@ -160,42 +162,40 @@ export function GroupOptions({
         actions: [
           {
             title: 'All activity',
+            accent: currentVolumeLevel === 'loud' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('loud');
             },
-            icon: currentVolumeLevel === 'loud' ? 'Checkmark' : undefined,
+            endIcon: currentVolumeLevel === 'loud' ? 'Checkmark' : undefined,
           },
           {
             title: 'Posts, mentions, and replies',
+            accent: currentVolumeLevel === 'medium' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('medium');
             },
-            icon: currentVolumeLevel === 'medium' ? 'Checkmark' : undefined,
+            endIcon: currentVolumeLevel === 'medium' ? 'Checkmark' : undefined,
           },
           {
             title: 'Only mentions and replies',
+            accent: currentVolumeLevel === 'soft' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('soft');
             },
-            icon: currentVolumeLevel === 'soft' ? 'Checkmark' : undefined,
+            endIcon: currentVolumeLevel === 'soft' ? 'Checkmark' : undefined,
           },
           {
             title: 'Nothing',
+            accent: currentVolumeLevel === 'hush' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('hush');
             },
-            icon: currentVolumeLevel === 'hush' ? 'Checkmark' : undefined,
-          },
-          {
-            title: 'Back',
-            action: () => {
-              setPane('initial');
-            },
+            endIcon: currentVolumeLevel === 'hush' ? 'Checkmark' : undefined,
           },
         ],
       },
     ],
-    [currentVolumeLevel, handleVolumeUpdate, setPane]
+    [currentVolumeLevel, handleVolumeUpdate]
   );
 
   const actionGroups = useMemo(() => {
@@ -273,6 +273,12 @@ export function GroupOptions({
       endIcon: 'ChevronRight',
     };
 
+    const inviteNotice: Action = {
+      accent: 'disabled',
+      title: 'Invites disabled',
+      description: 'Only admins may invite people to this group.',
+    };
+
     if (currentUserIsAdmin) {
       actionGroups.push({
         accent: 'neutral',
@@ -289,9 +295,9 @@ export function GroupOptions({
       actionGroups.push({
         accent: 'neutral',
         actions:
-          group.privacy === 'public' || group.privacy === 'private'
+          group.privacy === 'public'
             ? [goToMembersAction, inviteAction]
-            : [goToMembersAction],
+            : [goToMembersAction, inviteNotice],
       });
     }
 
@@ -331,9 +337,19 @@ export function GroupOptions({
   return (
     <ChatOptionsSheetContent
       actionGroups={pane === 'initial' ? actionGroups : actionNotifications}
-      title={title}
-      subtitle={subtitle}
-      icon={<ListItem.GroupIcon model={group} />}
+      title={pane === 'initial' ? title : 'Notifications for ' + title}
+      subtitle={
+        pane === 'initial' ? subtitle : 'Set what you want to be notified about'
+      }
+      icon={
+        pane === 'initial' ? (
+          <ListItem.GroupIcon model={group} />
+        ) : (
+          <IconButton width="$4xl" onPress={() => setPane('initial')}>
+            <ChevronLeft />
+          </IconButton>
+        )
+      }
     />
   );
 }
@@ -394,6 +410,11 @@ export function ChannelOptions({
   const { onPressChannelMembers, onPressChannelMeta, onPressManageChannels } =
     useChatOptions() ?? {};
 
+  const currentUserIsHost = useMemo(
+    () => group?.currentUserIsHost ?? false,
+    [group?.currentUserIsHost]
+  );
+
   const currentUserIsAdmin = useMemo(
     () =>
       group?.members?.some(
@@ -446,42 +467,40 @@ export function ChannelOptions({
         actions: [
           {
             title: 'All activity',
+            accent: currentVolumeLevel === 'loud' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('loud');
             },
-            icon: currentVolumeLevel === 'loud' ? 'Checkmark' : undefined,
+            endIcon: currentVolumeLevel === 'loud' ? 'Checkmark' : undefined,
           },
           {
             title: 'Posts, mentions, and replies',
+            accent: currentVolumeLevel === 'medium' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('medium');
             },
-            icon: currentVolumeLevel === 'medium' ? 'Checkmark' : undefined,
+            endIcon: currentVolumeLevel === 'medium' ? 'Checkmark' : undefined,
           },
           {
             title: 'Only mentions and replies',
+            accent: currentVolumeLevel === 'soft' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('soft');
             },
-            icon: currentVolumeLevel === 'soft' ? 'Checkmark' : undefined,
+            endIcon: currentVolumeLevel === 'soft' ? 'Checkmark' : undefined,
           },
           {
             title: 'Nothing',
+            accent: currentVolumeLevel === 'hush' ? 'positive' : 'neutral',
             action: () => {
               handleVolumeUpdate('hush');
             },
-            icon: currentVolumeLevel === 'hush' ? 'Checkmark' : undefined,
-          },
-          {
-            title: 'Back',
-            action: () => {
-              setPane('initial');
-            },
+            endIcon: currentVolumeLevel === 'hush' ? 'Checkmark' : undefined,
           },
         ],
       },
     ],
-    [currentVolumeLevel, handleVolumeUpdate, setPane]
+    [currentVolumeLevel, handleVolumeUpdate]
   );
 
   const actionGroups: ActionGroup[] = useMemo(() => {
@@ -491,6 +510,7 @@ export function ChannelOptions({
         actions: [
           {
             title: 'Notifications',
+            endIcon: 'ChevronRight',
             action: () => {
               if (!channel) {
                 return;
@@ -501,7 +521,7 @@ export function ChannelOptions({
           },
           {
             title: channel?.pin ? 'Unpin' : 'Pin',
-            icon: 'Pin',
+            endIcon: 'Pin',
             action: () => {
               if (!channel) {
                 return;
@@ -573,38 +593,43 @@ export function ChannelOptions({
             } as ActionGroup,
           ]
         : []),
-      {
-        accent: 'negative',
-        actions: [
-          {
-            title: `Leave chat`,
-            action: () => {
-              if (!channel) {
-                return;
-              }
-              Alert.alert(
-                `Leave ${title}?`,
-                'This chat will be removed from list',
-                [
-                  {
-                    text: 'Cancel',
-                    onPress: () => console.log('Cancel Pressed'),
-                    style: 'cancel',
+      ...(!currentUserIsHost
+        ? [
+            {
+              accent: 'negative',
+              actions: [
+                {
+                  title: `Leave`,
+                  endIcon: 'LogOut',
+                  action: () => {
+                    if (!channel) {
+                      return;
+                    }
+                    Alert.alert(
+                      `Leave ${title}?`,
+                      'This will be removed from the list',
+                      [
+                        {
+                          text: 'Cancel',
+                          onPress: () => console.log('Cancel Pressed'),
+                          style: 'cancel',
+                        },
+                        {
+                          text: 'Leave',
+                          style: 'destructive',
+                          onPress: () => {
+                            sheetRef.current.setOpen(false);
+                            store.respondToDMInvite({ channel, accept: false });
+                          },
+                        },
+                      ]
+                    );
                   },
-                  {
-                    text: 'Leave',
-                    style: 'destructive',
-                    onPress: () => {
-                      sheetRef.current.setOpen(false);
-                      store.respondToDMInvite({ channel, accept: false });
-                    },
-                  },
-                ]
-              );
-            },
-          },
-        ],
-      },
+                },
+              ],
+            } as ActionGroup,
+          ]
+        : []),
     ];
   }, [
     channel,
@@ -613,15 +638,26 @@ export function ChannelOptions({
     setPane,
     title,
     currentUserIsAdmin,
+    currentUserIsHost,
     group,
     onPressManageChannels,
   ]);
   return (
     <ChatOptionsSheetContent
       actionGroups={pane === 'initial' ? actionGroups : actionNotifications}
-      title={title}
-      subtitle={subtitle}
-      icon={<ListItem.ChannelIcon model={channel} />}
+      title={pane === 'initial' ? title : 'Notifications for ' + title}
+      subtitle={
+        pane === 'initial' ? subtitle : 'Set what you want to be notified about'
+      }
+      icon={
+        pane === 'initial' ? (
+          <ListItem.ChannelIcon model={channel} />
+        ) : (
+          <IconButton width="$4xl" onPress={() => setPane('initial')}>
+            <ChevronLeft />
+          </IconButton>
+        )
+      }
     />
   );
 }

@@ -165,17 +165,7 @@
 ++  render-page
   ^-  manx
   =/  ours=(unit contact:contacts)
-    =,  contacts
-    ::NOTE  we scry for the full rolodex, because we are not guaranteed to
-    ::      have an entry for ourselves, and contacts doesn't expose a "safe"
-    ::      (as in crashless) endpoint for checking
-    =+  .^  =rolodex
-          /gx/(scot %p our.bowl)/contacts/(scot %da now.bowl)/all/contact-rolodex
-        ==
-    =/  =foreign  (~(gut by rolodex) our.bowl *foreign)
-    ?:  ?=([[@ ^] *] foreign)
-      `con.for.foreign
-    ~
+    (get-contact:contacts bowl our.bowl)
   |^  ;html
         ;+  head
         ;+  body

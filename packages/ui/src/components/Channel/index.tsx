@@ -282,6 +282,15 @@ export function Channel({
                           : goBack()
                       }
                       showSearchButton={isChatChannel}
+                      // TODO (appeasing merge)
+                      // showAddButton={
+                      //   !isChatChannel && canWrite && !showBigInput
+                      // }
+                      // onPressAddButton={() =>
+                      //   channel.type === 'gallery'
+                      //     ? setShowAddGalleryPost(true)
+                      //     : setShowBigInput(true)
+                      // }
                       goToSearch={goToSearch}
                       showSpinner={isLoadingPosts}
                       showMenuButton={true}
