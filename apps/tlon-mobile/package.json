@@ -120,7 +120,7 @@
     "@faker-js/faker": "^8.4.1",
     "@jest/globals": "^29.7.0",
     "@react-native/metro-config": "^0.73.5",
-    "@tamagui/babel-plugin": "1.101.3",
+    "@tamagui/babel-plugin": "~1.112.12",
     "@testing-library/react-native": "^12.5.2",
     "@trivago/prettier-plugin-sort-imports": "^4.2.0",
     "@types/react": "^18.2.55",
