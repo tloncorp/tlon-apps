@@ -1,6 +1,6 @@
+import { getPostActions } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { ChatMessageActions, Modal, ZStack } from '@tloncorp/ui';
-import { getPostActions } from 'packages/ui/src/components/ChatMessage/ChatMessageActions/MessageActions';
 import { createRef, useEffect, useState } from 'react';
 import { View } from 'react-native';
 

@@ -8,6 +8,11 @@ export type {
   WebAppAction,
   WebAppCommand,
 } from './types/native';
+export { getPostActions, ChannelAction } from './types/messageActions';
+export {
+  PostCollectionConfiguration,
+  usePostCollectionConfigurationFromChannelType,
+} from './types/PostCollectionConfiguration';
 export { parseActiveTab, trimFullPath } from './logic/navigation';
 export * from './logic';
 export * from './store';

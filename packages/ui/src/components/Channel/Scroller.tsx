@@ -1,4 +1,9 @@
-import { useMutableCallback } from '@tloncorp/shared';
+import {
+  ChannelAction,
+  PostCollectionConfiguration,
+  useMutableCallback,
+  usePostCollectionConfigurationFromChannelType,
+} from '@tloncorp/shared';
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
@@ -24,6 +29,7 @@ import {
   ListRenderItem,
   View as RNView,
   StyleProp,
+  StyleSheet,
   ViewStyle,
 } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -40,10 +46,6 @@ import { useCurrentUserId } from '../../contexts';
 import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
-import {
-  ChannelAction,
-  getPostActions,
-} from '../ChatMessage/ChatMessageActions/MessageActions';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { Modal } from '../Modal';
 import { ChannelDivider } from './ChannelDivider';
@@ -83,77 +85,6 @@ export type ScrollAnchor = {
   type: 'unread' | 'selected';
   postId: string;
 };
-
-interface PostCollectionConfiguration {
-  shouldMaintainVisibleContentPosition: boolean;
-  contentContainerStyle: TamaguiViewStyle;
-  columnCount: 1 | 2;
-
-  /** if true, enables day / unread dividers between elements */
-  dividersEnabled: boolean;
-
-  /** Width/height ratio for a collection element; e.g. 1 for square, 2 for
-   * landscape, 0.5 for portrait. If null, defers to item sizing. */
-  itemAspectRatio: number | null;
-
-  postActions: (options: {
-    post: db.Post;
-    isMuted?: boolean;
-  }) => ChannelAction[];
-}
-
-function usePostCollectionConfigurationFromChannelType(
-  channelType: db.ChannelType
-): PostCollectionConfiguration {
-  const safeAreaInsets = useSafeAreaInsets();
-
-  return useMemo(() => {
-    switch (channelType) {
-      case 'chat':
-      // fallthrough
-      case 'dm':
-      // fallthrough
-      case 'groupDm':
-        return {
-          shouldMaintainVisibleContentPosition: true,
-          contentContainerStyle: {
-            paddingHorizontal: '$m',
-          },
-          columnCount: 1,
-          dividersEnabled: true,
-          itemAspectRatio: null,
-          postActions: (options) => getPostActions({ ...options, channelType }),
-        };
-
-      case 'notebook':
-        return {
-          shouldMaintainVisibleContentPosition: false,
-          contentContainerStyle: {
-            paddingHorizontal: '$m',
-            gap: '$l',
-          },
-          columnCount: 1,
-          dividersEnabled: false,
-          itemAspectRatio: null,
-          postActions: (options) => getPostActions({ ...options, channelType }),
-        };
-
-      case 'gallery':
-        return {
-          shouldMaintainVisibleContentPosition: false,
-          contentContainerStyle: {
-            paddingHorizontal: '$l',
-            paddingBottom: safeAreaInsets.bottom,
-            gap: '$l',
-          },
-          columnCount: 2,
-          dividersEnabled: false,
-          itemAspectRatio: 1,
-          postActions: (options) => getPostActions({ ...options, channelType }),
-        };
-    }
-  }, [channelType, safeAreaInsets]);
-}
 
 /**
  * This scroller makes some assumptions you should not break!
@@ -382,6 +313,17 @@ const Scroller = forwardRef(
       !posts?.length ? { flex: 1 } : collectionConfig.contentContainerStyle
     ) as StyleProp<ViewStyle>;
 
+    // We want to add a safe area inset for gallery, but we can't cleanly
+    // access safe area insets in the PostCollectionConfiguration definition.
+    // Special-case it here.
+    const extracContentContainerStyle = useMemo(
+      () =>
+        !posts?.length || channelType !== 'gallery'
+          ? undefined
+          : { paddingBottom: insets.bottom },
+      [channelType, insets, posts?.length]
+    );
+
     const columnWrapperStyle = useStyle(
       collectionConfig.columnCount === 1
         ? {}
@@ -477,7 +419,10 @@ const Scroller = forwardRef(
             ListEmptyComponent={renderEmptyComponent}
             keyExtractor={getPostId}
             keyboardDismissMode="on-drag"
-            contentContainerStyle={contentContainerStyle}
+            contentContainerStyle={StyleSheet.compose(
+              contentContainerStyle,
+              extracContentContainerStyle
+            )}
             columnWrapperStyle={
               // FlatList raises an error if `columnWrapperStyle` is provided
               // with numColumns=1, even if the style is empty
