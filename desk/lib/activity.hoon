@@ -168,10 +168,12 @@
     ?:  ?=(%none allowed)  |
     =/  type  (event-type incoming-event)
     ?+  type  |
+      %post  &
       %reply  &
-      %dm-invite  &
       %dm-post    &
       %dm-reply   &
+      %dm-invite  &
+      %group-invite  &
       %post-mention  &
       %reply-mention  &
       %dm-post-mention  &
