@@ -68,8 +68,8 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
   }, [group, branchDomain, branchKey, toggle, status, isGroupAdmin, describe]);
 
   if (
-    group?.privacy === 'private' ||
-    (group?.privacy === 'secret' && !isGroupAdmin)
+    (group?.privacy === 'private' ||
+    group?.privacy === 'secret') && !isGroupAdmin
   ) {
     return <Text>Only administrators may invite people to this group.</Text>;
   }
