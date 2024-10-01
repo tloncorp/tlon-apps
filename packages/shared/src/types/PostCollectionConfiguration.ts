@@ -16,17 +16,36 @@ export interface PostCollectionConfiguration {
    * landscape, 0.5 for portrait. If null, defers to item sizing. */
   itemAspectRatio: number | null;
 
+  // TODO: this might make more sense as either a property of a post, or of the
+  // channel's config (separate from collection config)
   postActions: (options: {
     post: db.Post;
     isMuted?: boolean;
   }) => ChannelAction[];
+
+  /**
+   * If true, in the absence of a given title, the channel will be titled in UI
+   * with a comma-separated list of member names.
+   */
+  usesMemberListAsFallbackTitle: boolean;
 }
 
+// Why overload this function instead of just doing a union?
+// If the caller has a non-nullable `channelType`, they can then get a
+// non-nullable return value - nice, right?
 export function usePostCollectionConfigurationFromChannelType(
   channelType: db.ChannelType
-): PostCollectionConfiguration {
+): PostCollectionConfiguration;
+export function usePostCollectionConfigurationFromChannelType(
+  channelType: db.ChannelType | null
+): PostCollectionConfiguration | null;
+export function usePostCollectionConfigurationFromChannelType(
+  channelType: db.ChannelType | null
+): PostCollectionConfiguration | null {
   return useMemo(() => {
     switch (channelType) {
+      case null:
+        return null;
       case 'chat':
       // fallthrough
       case 'dm':
@@ -41,6 +60,7 @@ export function usePostCollectionConfigurationFromChannelType(
           dividersEnabled: true,
           itemAspectRatio: null,
           postActions: (options) => getPostActions({ ...options, channelType }),
+          usesMemberListAsFallbackTitle: channelType !== 'chat',
         };
 
       case 'notebook':
@@ -54,6 +74,7 @@ export function usePostCollectionConfigurationFromChannelType(
           dividersEnabled: false,
           itemAspectRatio: null,
           postActions: (options) => getPostActions({ ...options, channelType }),
+          usesMemberListAsFallbackTitle: false,
         };
 
       case 'gallery':
@@ -71,6 +92,7 @@ export function usePostCollectionConfigurationFromChannelType(
           dividersEnabled: false,
           itemAspectRatio: 1,
           postActions: (options) => getPostActions({ ...options, channelType }),
+          usesMemberListAsFallbackTitle: false,
         };
     }
   }, [channelType]);
