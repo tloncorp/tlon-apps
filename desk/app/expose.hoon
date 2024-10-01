@@ -89,6 +89,7 @@
   :_  this
   :~  [%pass /eyre/connect %arvo %e %connect [~ /expose] dap.bowl]
       [%pass /channels %agent [our.bowl %channels] %watch /v1]
+      [%pass /contacts %agent [our.bowl %contacts] %watch /contact]
   ==
 ::
 ++  on-save  !>(state)
@@ -205,58 +206,86 @@
 ++  on-agent
   |=  [=wire =sign:agent:gall]
   ^-  (quip card _this)
-  ?.  ?=([%channels ~] wire)  [~ this]
-  ?-  -.sign
-    %poke-ack  !!
-    %kick      [[%pass /channels %agent [our.bowl %channels] %watch /v1]~ this]
-  ::
-      %watch-ack
-    ?~  p.sign  [~ this]
-    ~&  >>>  [dap.bowl %rejected-by-channels]
-    [~ this]
-  ::
-      %fact
-    ?.  =(%channel-response-1 p.cage.sign)  [~ this]
-    =+  !<(r-channels:d q.cage.sign)
-    ::REVIEW  should this handle %posts also?
-    ?+  -.r-channel  [~ this]
-        %post
-      =/  new=(unit $@(%del kind-data:d))
-        ?+  -.r-post.r-channel  ~
-            %set
-          ?~  post.r-post.r-channel  `%del
-          `kind-data.u.post.r-post.r-channel
+  ?+  wire  ~&([dap.bowl strange-wire=wire] [~ this])
+      [%channels ~]
+    ?-  -.sign
+      %poke-ack  !!
+      %kick      [[%pass /channels %agent [our.bowl %channels] %watch /v1]~ this]
+    ::
+        %watch-ack
+      ?~  p.sign  [~ this]
+      ~&  >>>  [dap.bowl %rejected-by-channels]
+      [~ this]
+    ::
+        %fact
+      ?.  =(%channel-response-1 p.cage.sign)  [~ this]
+      =+  !<(r-channels:d q.cage.sign)
+      ::REVIEW  should this handle %posts also?
+      ?+  -.r-channel  [~ this]
+          %post
+        =/  new=(unit $@(%del kind-data:d))
+          ?+  -.r-post.r-channel  ~
+              %set
+            ?~  post.r-post.r-channel  `%del
+            `kind-data.u.post.r-post.r-channel
+          ::
+              %essay
+            `kind-data.essay.r-post.r-channel
+          ==
+        ?~  new  [~ this]
+        ?^  u.new
+          ::  post was updated, refresh the relevant page's cache entry
+          ::
+          :_  this
+          =/  ref=cite:c
+            (from-post:cite:u nest id.r-channel u.new)
+          ?.  (~(has in open) ref)  ~
+          %+  weld
+            (refresh-widget:e bowl open)
+          (refresh-pages:e bowl ref ~)
+        ::  post was deleted. if we have it, clear it out.
         ::
-            %essay
-          `kind-data.essay.r-post.r-channel
-        ==
-      ?~  new  [~ this]
-      ?^  u.new
-        ::  post was updated, refresh the relevant page's cache entry
-        ::
-        :_  this
+        ::TODO  this won't hold up in a freeform-channels world...
+        ::      but not sure how else we'd get the msg type info for the cite.
+        =/  =kind-data:d
+          ?-  -.nest
+            %chat   [%chat ~]
+            %diary  [%diary '' '']
+            %heap   [%heap ~]
+          ==
         =/  ref=cite:c
-          (from-post:cite:u nest id.r-channel u.new)
-        ?.  (~(has in open) ref)  ~
-        %+  weld
-          (refresh-widget:e bowl open)
-        (refresh-pages:e bowl ref ~)
-      ::  post was deleted. if we have it, clear it out.
+          (from-post:cite:u nest id.r-channel kind-data)
+        ?.  (~(has in open) ref)  [~ this]
+        =.  open  (~(del in open) ref)
+        :_  this
+        [(clear-page:e ref) (refresh-widget:e bowl open)]
+      ==
+    ==
+  ::
+      [%contacts ~]
+    ?-  -.sign
+      %poke-ack  !!
+      %kick      [[%pass /contacts %agent [our.bowl %conacts] %watch /contact]~ this]
+    ::
+        %watch-ack
+      ?~  p.sign  [~ this]
+      ~&  >>>  [dap.bowl %rejected-by-contacts]
+      [~ this]
+    ::
+        %fact
+      ::  our own contact details changes. assume this affects all pages we're
+      ::  serving, refresh the cache.
+      ::  note that we don't do this kind of reactivity for contact details of
+      ::  other ships. at the extreme, reacting to that accurately in a non-
+      ::  wasteful way would require trawling all content for relevane, which
+      ::  in turn is slow. if we get to the point of wanting that to be
+      ::  fresh(er), we should just set an hourly timer that re-render the
+      ::  entire cache.
       ::
-      ::TODO  this won't hold up in a freeform-channels world...
-      ::      but not sure how else we'd get the msg type info for the cite.
-      =/  =kind-data:d
-        ?-  -.nest
-          %chat   [%chat ~]
-          %diary  [%diary '' '']
-          %heap   [%heap ~]
-        ==
-      =/  ref=cite:c
-        (from-post:cite:u nest id.r-channel kind-data)
-      ?.  (~(has in open) ref)  [~ this]
-      =.  open  (~(del in open) ref)
       :_  this
-      [(clear-page:e ref) (refresh-widget:e bowl open)]
+      %+  weld
+        (refresh-widget:e bowl open)
+      (refresh-pages:e bowl ~(tap in open))
     ==
   ==
 ::

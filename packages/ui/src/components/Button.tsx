@@ -4,13 +4,14 @@ import {
   ColorTokens,
   SizeTokens,
   Stack,
-  Text,
   ThemeTokens,
+  ViewStyle,
   createStyledContext,
   styled,
-  useTheme,
   withStaticProperties,
 } from 'tamagui';
+
+import { Text } from './TextV2';
 
 export const ButtonContext = createStyledContext<{
   size: SizeTokens;
@@ -76,14 +77,12 @@ export const ButtonFrame = styled(Stack, {
     } as const,
     hero: {
       true: {
-        backgroundColor: '$darkBackground',
-        padding: '$xl',
+        backgroundColor: '$primaryText',
+        // placeholder constant -- need to resolve ochre implementation
+        height: 56,
         borderWidth: 0,
-        pressStyle: {
-          backgroundColor: '$gray700',
-        },
         disabledStyle: {
-          backgroundColor: '$gray600',
+          backgroundColor: '$tertiaryText',
         },
       },
     } as const,
@@ -134,6 +133,7 @@ export const ButtonText = styled(Text, {
   context: ButtonContext,
   color: '$primaryText',
   userSelect: 'none',
+  size: '$label/xl',
 
   variants: {
     size: {
@@ -149,13 +149,15 @@ export const ButtonText = styled(Text, {
         },
       },
     },
-    hero: {
-      true: {
-        color: '$white',
-        width: '100%',
-        textAlign: 'center',
-        fontWeight: '400',
-      },
+    hero: (isHero: boolean, { props }: { props: { disabled?: boolean } }) => {
+      return isHero
+        ? {
+            color: props.disabled ? '$secondaryText' : '$background',
+            width: '100%',
+            textAlign: 'center',
+            fontWeight: '400',
+          }
+        : {};
     },
     heroDestructive: {
       true: {
@@ -172,12 +174,7 @@ export const ButtonText = styled(Text, {
         fontWeight: '500',
       },
     },
-
-    // disabled: {
-    //   true: {
-    //     color: '$tertiaryText',
-    //   },
-    // },
+    disabled: {} as Record<'true' | 'false', ViewStyle>,
   } as const,
 });
 

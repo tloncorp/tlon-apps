@@ -1,14 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
-import {
-  Button,
-  GenericHeader,
-  SizableText,
-  Text,
-  View,
-  XStack,
-  YStack,
-} from '@tloncorp/ui';
+import { ScreenHeader, SizableText, View, XStack, YStack } from '@tloncorp/ui';
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useState } from 'react';
 import { Switch } from 'react-native';
@@ -43,13 +35,13 @@ export const SetTelemetryScreen = ({
 
   return (
     <View flex={1}>
-      <GenericHeader
+      <ScreenHeader
         title="Usage Statistics"
         showSessionStatus={false}
-        rightContent={
-          <Button minimal onPress={handleNext}>
-            <Text fontSize="$m">Next</Text>
-          </Button>
+        rightControls={
+          <ScreenHeader.TextButton onPress={handleNext}>
+            Next
+          </ScreenHeader.TextButton>
         }
       />
       <YStack gap="$3xl" padding="$2xl">

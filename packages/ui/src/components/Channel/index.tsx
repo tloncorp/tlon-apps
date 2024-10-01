@@ -27,10 +27,8 @@ import * as utils from '../../utils';
 import AddGalleryPost from '../AddGalleryPost';
 import { BigInput } from '../BigInput';
 import { ChatMessage } from '../ChatMessage';
-import { FloatingActionButton } from '../FloatingActionButton';
 import { GalleryPost } from '../GalleryPost';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
-import { Icon } from '../Icon';
 import KeyboardAvoidingView from '../KeyboardAvoidingView';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
@@ -238,6 +236,14 @@ export function Channel({
     [setEditingPost, channel.type]
   );
 
+  const handlePressAddPost = useCallback(
+    () =>
+      channel.type === 'gallery'
+        ? setShowAddGalleryPost(true)
+        : setShowBigInput(true),
+    [channel.type]
+  );
+
   return (
     <ScrollContextProvider>
       <GroupsProvider groups={groups}>
@@ -282,6 +288,10 @@ export function Channel({
                         showBigInput ? bigInputGoBack() : goBack()
                       }
                       showSearchButton={isChatChannel}
+                      showAddButton={
+                        !isChatChannel && canWrite && !showBigInput
+                      }
+                      onPressAddButton={handlePressAddPost}
                       goToSearch={goToSearch}
                       showSpinner={isLoadingPosts}
                       showMenuButton={true}
@@ -395,34 +405,6 @@ export function Channel({
                               showAttachmentButton={channel.type !== 'gallery'}
                             />
                           )}
-                        {!isChatChannel && canWrite && !showBigInput && (
-                          <View
-                            position="absolute"
-                            bottom={bottom}
-                            flex={1}
-                            width="100%"
-                            alignItems="center"
-                          >
-                            {channel.type === 'gallery' &&
-                            (showAddGalleryPost ||
-                              isUploadingGalleryImage) ? null : (
-                              <FloatingActionButton
-                                onPress={() =>
-                                  channel.type === 'gallery'
-                                    ? setShowAddGalleryPost(true)
-                                    : setShowBigInput(true)
-                                }
-                                icon={
-                                  <Icon
-                                    type="Add"
-                                    size={'$s'}
-                                    marginRight={'$s'}
-                                  />
-                                }
-                              />
-                            )}
-                          </View>
-                        )}
                         {!negotiationMatch && isChatChannel && canWrite && (
                           <NegotionMismatchNotice />
                         )}

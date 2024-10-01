@@ -1,5 +1,5 @@
 import React, { ComponentProps, ReactElement } from 'react';
-import { TextInput as BaseTextInput } from 'react-native';
+import { TextInput as RNTextInput } from 'react-native';
 import { ScrollView, View, XStack, YStack, styled } from 'tamagui';
 
 import { Button } from '../Button';
@@ -9,39 +9,67 @@ import { useBoundHandler } from '../ListItem/listItemUtils';
 import { Text } from '../TextV2';
 import { FieldContext } from './Form';
 
+const StyledTextInput = styled(
+  RNTextInput,
+  {},
+  {
+    isInput: true,
+    accept: {
+      placeholderTextColor: 'color',
+      selectionColor: 'color',
+    } as const,
+  }
+);
+
 // Text input
-export const TextInput = React.memo(
-  styled(
-    BaseTextInput,
-    {
-      context: FieldContext,
-      color: '$primaryText',
-      borderRadius: '$l',
-      borderWidth: 1,
-      borderColor: '$border',
-      placeholderTextColor: '$tertiaryText',
-      fontSize: '$l',
-      padding: '$xl',
-      fontFamily: '$body',
-      textAlignVertical: 'top',
-      variants: {
-        accent: {
-          negative: {
-            backgroundColor: '$negativeBackground',
-            color: '$negativeActionText',
-            borderColor: '$negativeBorder',
-          },
-        },
+
+export const BaseTextInput = styled(StyledTextInput, {
+  context: FieldContext,
+  color: '$primaryText',
+  borderRadius: '$l',
+  borderWidth: 1,
+  borderColor: '$border',
+  placeholderTextColor: '$tertiaryText',
+  fontSize: '$l',
+  padding: '$xl',
+  fontFamily: '$body',
+  textAlignVertical: 'top',
+  variants: {
+    accent: {
+      negative: {
+        backgroundColor: '$negativeBackground',
+        color: '$negativeActionText',
+        borderColor: '$negativeBorder',
       },
     },
-    {
-      isInput: true,
-      accept: {
-        placeholderTextColor: 'color',
-        selectionColor: 'color',
-      } as const,
-    }
-  )
+  },
+});
+
+export const TextInput = React.memo(BaseTextInput);
+
+export const TextInputWithIcon = React.memo(
+  BaseTextInput.styleable<{ icon: IconType }>(({ icon, ...props }, ref) => {
+    return (
+      <XStack
+        borderRadius="$l"
+        borderWidth={1}
+        borderColor="$border"
+        alignItems="center"
+        paddingLeft="$xl"
+        gap="$l"
+      >
+        <Icon type={icon} customSize={['$2xl', '$2xl']} />
+        <BaseTextInput
+          paddingLeft={0}
+          borderWidth={0}
+          borderRadius={0}
+          flex={1}
+          ref={ref}
+          {...props}
+        />
+      </XStack>
+    );
+  })
 );
 
 interface TextInputWithButtonProps extends ComponentProps<typeof TextInput> {

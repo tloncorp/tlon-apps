@@ -330,7 +330,7 @@ export const findGroupsHostedBy = async (userId: string) => {
 
   logger.log('findGroupsHostedBy result', result);
 
-  return result;
+  return toClientGroupsFromPreview(result);
 };
 
 export const createGroup = async ({

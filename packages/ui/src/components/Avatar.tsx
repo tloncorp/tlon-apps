@@ -214,20 +214,25 @@ export const ImageAvatar = function ImageAvatarComponent({
 } & AvatarProps) {
   const calmSettings = useCalm();
   const [loadFailed, setLoadFailed] = useState(false);
-
+  const [isLoading, setIsLoading] = useState(true);
   const handleLoadError = useCallback(() => {
     setLoadFailed(true);
   }, []);
+  const handleLoadEnd = useCallback(() => setIsLoading(false), []);
 
   return imageUrl &&
     (props.ignoreCalm || !calmSettings.disableAvatars) &&
     !loadFailed ? (
-    <AvatarFrame {...props}>
+    <AvatarFrame
+      {...props}
+      {...(isLoading ? { backgroundColor: '$secondaryBackground' } : {})}
+    >
       <Image
         width={'100%'}
         height={'100%'}
         contentFit="cover"
         onError={handleLoadError}
+        onLoadEnd={handleLoadEnd}
         source={{
           uri: imageUrl,
         }}

@@ -8,19 +8,16 @@ import { getHostingAvailability } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   AppInviteDisplay,
-  Button,
-  GenericHeader,
+  Field,
   KeyboardAvoidingView,
+  ScreenHeader,
   SizableText,
-  Text,
   TextInput,
   View,
   YStack,
 } from '@tloncorp/ui';
-import { Field } from '@tloncorp/ui';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { Controller } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 
 import type { OnboardingStackParamList } from '../../types';
 
@@ -89,16 +86,16 @@ export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
 
   return (
     <View flex={1}>
-      <GenericHeader
+      <ScreenHeader
         title="Sign Up"
         showSessionStatus={false}
-        goBack={() => navigation.goBack()}
-        showSpinner={isSubmitting}
-        rightContent={
+        backAction={() => navigation.goBack()}
+        isLoading={isSubmitting}
+        rightControls={
           isValid && (
-            <Button minimal onPress={onSubmit}>
-              <Text fontSize={'$m'}>Next</Text>
-            </Button>
+            <ScreenHeader.TextButton onPress={onSubmit}>
+              Next
+            </ScreenHeader.TextButton>
           )
         }
       />
