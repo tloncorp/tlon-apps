@@ -17,15 +17,15 @@
   // You can add your custom initial props in the dictionary below.
   // They will be passed down to the ViewController used by React Native.
   self.initialProps = @{};
-  
+
   [PushNotificationManager configure];
-  
+
 #if PREVIEW
    [RNBranch useTestInstance];
 #endif
-  
+
   [RNBranch initSessionWithLaunchOptions:launchOptions isReferrable:YES];
-  
+
   // Listen to changes in app-specific cookie storage, and push those to the app group shared
   // storage.
   // Ideally, we'd exclusively use the app group storage for all cookie read/writes, but I could
@@ -60,7 +60,7 @@
   if ([RNBranch application:application openURL:url options:options]) {
     return YES;
   }
-  
+
   return [super application:application openURL:url options:options] || [RCTLinkingManager application:application openURL:url options:options];
 }
 
@@ -70,7 +70,7 @@
   if ([RNBranch continueUserActivity:userActivity]) {
     return YES;
   }
-  
+
   BOOL result = [RCTLinkingManager application:application continueUserActivity:userActivity restorationHandler:restorationHandler];
   return [super application:application continueUserActivity:userActivity restorationHandler:restorationHandler] || result;
 }
@@ -85,12 +85,6 @@
 - (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error
 {
   return [super application:application didFailToRegisterForRemoteNotificationsWithError:error];
-}
-
-// Explicitly define remote notification delegates to ensure compatibility with some third-party libraries
-- (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
-{
-  return [PushNotificationManager handleBackgroundNotification:userInfo completionHandler:completionHandler];
 }
 
 @end

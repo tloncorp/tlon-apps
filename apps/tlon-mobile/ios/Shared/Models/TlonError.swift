@@ -14,4 +14,5 @@ enum TlonError {
     static var NotificationsFetchContacts = "notifications_fetch_contacts"
     static var NotificationsShowBanner = "notifications_show_banner"
     static var NotificationsShowFallback = "notifications_show_fallback"
+    static var NotificationsFetchGangs = "notifications_fetch_gangs"
 }
