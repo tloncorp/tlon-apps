@@ -1,9 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import {
-  GenericHeader,
   GroupPreviewAction,
   GroupPreviewSheet,
+  ScreenHeader,
   ViewUserGroupsWidget,
   useContactName,
 } from '@tloncorp/ui';
@@ -39,9 +39,9 @@ export function ContactHostedGroupsScreen({ route, navigation }: Props) {
 
   return (
     <View flex={1}>
-      <GenericHeader
+      <ScreenHeader
         title={`Groups hosted by ${contactName}`}
-        goBack={goBack}
+        backAction={goBack}
       />
       <ViewUserGroupsWidget userId={contactId} onSelectGroup={onSelectGroup} />
       <GroupPreviewSheet
