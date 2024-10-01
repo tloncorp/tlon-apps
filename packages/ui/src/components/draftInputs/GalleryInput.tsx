@@ -1,9 +1,17 @@
 import { ImagePickerAsset } from 'expo-image-picker';
-import { useCallback, useEffect, useImperativeHandle, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatePresence, View, YStack } from 'tamagui';
 
 import AddGalleryPost from '../AddGalleryPost';
+import { Button } from '../Button';
+import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import GalleryImagePreview from '../Channel/GalleryImagePreview';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
@@ -61,6 +69,22 @@ export function GalleryInput({
   useEffect(() => {
     setShowBigInput(isEditingPost);
   }, [isEditingPost]);
+
+  useRegisterChannelHeaderItem(
+    useMemo(
+      () =>
+        showBigInput ? null : (
+          <Button
+            backgroundColor="unset"
+            borderColor="transparent"
+            onPress={() => setShowAddGalleryPost(true)}
+          >
+            <Icon type="Add" />
+          </Button>
+        ),
+      [showBigInput]
+    )
+  );
 
   useImperativeHandle(draftInputRef, () => ({
     exitFullscreen: () => {

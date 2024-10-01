@@ -1,10 +1,12 @@
-import { useEffect, useImperativeHandle, useState } from 'react';
+import { useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import { View } from 'tamagui';
 
+import { Button } from '../Button';
+import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
 import { ParentAgnosticKeyboardAvoidingView } from '../ParentAgnosticKeyboardAvoidingView';
@@ -31,6 +33,22 @@ export function NotebookInput({
   useEffect(() => {
     setShowBigInput(isEditingPost);
   }, [isEditingPost]);
+
+  useRegisterChannelHeaderItem(
+    useMemo(
+      () =>
+        showBigInput ? null : (
+          <Button
+            backgroundColor="unset"
+            borderColor="transparent"
+            onPress={() => setShowBigInput(true)}
+          >
+            <Icon type="Add" />
+          </Button>
+        ),
+      [showBigInput]
+    )
+  );
 
   useImperativeHandle(draftInputRef, () => ({
     exitFullscreen: () => {

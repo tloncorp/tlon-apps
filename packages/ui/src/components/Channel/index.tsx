@@ -36,7 +36,7 @@ import {
 } from '../draftInputs';
 import { DraftInputHandle } from '../draftInputs/shared';
 import { ChannelFooter } from './ChannelFooter';
-import { ChannelHeader } from './ChannelHeader';
+import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { EmptyChannelNotice } from './EmptyChannelNotice';
 import Scroller, { ScrollAnchor } from './Scroller';
@@ -270,124 +270,125 @@ export function Channel({
                     width="100%"
                     height="100%"
                   >
-                    <ChannelHeader
-                      channel={channel}
-                      group={group}
-                      mode={headerMode}
-                      title={title}
-                      goBack={() =>
-                        draftInputPresentationMode === 'fullscreen' &&
-                        draftInputRef.current != null
-                          ? draftInputRef.current.exitFullscreen()
-                          : goBack()
-                      }
-                      showSearchButton={isChatChannel}
-                      // TODO (appeasing merge)
-                      // showAddButton={
-                      //   !isChatChannel && canWrite && !showBigInput
-                      // }
-                      // onPressAddButton={() =>
-                      //   channel.type === 'gallery'
-                      //     ? setShowAddGalleryPost(true)
-                      //     : setShowBigInput(true)
-                      // }
-                      goToSearch={goToSearch}
-                      showSpinner={isLoadingPosts}
-                      showMenuButton={true}
-                    />
-                    <YStack alignItems="stretch" flex={1}>
-                      <AnimatePresence>
-                        {draftInputPresentationMode !== 'fullscreen' && (
-                          <View flex={1}>
-                            {channel && posts && (
-                              <Scroller
-                                key={scrollerAnchor?.postId}
-                                inverted={isChatChannel ? true : false}
-                                renderItem={renderItem}
-                                renderEmptyComponent={renderEmptyComponent}
-                                anchor={scrollerAnchor}
-                                posts={posts}
-                                hasNewerPosts={hasNewerPosts}
-                                hasOlderPosts={hasOlderPosts}
-                                editingPost={editingPost}
-                                setEditingPost={setEditingPost}
-                                editPost={editPost}
-                                channelType={channel.type}
-                                channelId={channel.id}
-                                firstUnreadId={
-                                  initialChannelUnread?.countWithoutThreads ??
-                                  0 > 0
-                                    ? initialChannelUnread?.firstUnreadPostId
-                                    : null
-                                }
-                                unreadCount={
-                                  initialChannelUnread?.countWithoutThreads ?? 0
-                                }
-                                onPressPost={
-                                  isChatChannel ? undefined : goToPost
-                                }
-                                onPressReplies={goToPost}
-                                onPressImage={goToImageViewer}
-                                onEndReached={onScrollEndReached}
-                                onStartReached={onScrollStartReached}
-                                onPressRetry={onPressRetry}
-                                onPressDelete={onPressDelete}
-                                activeMessage={activeMessage}
-                                setActiveMessage={setActiveMessage}
-                                ref={flatListRef}
-                              />
+                    <ChannelHeaderItemsProvider>
+                      <>
+                        <ChannelHeader
+                          channel={channel}
+                          group={group}
+                          mode={headerMode}
+                          title={title}
+                          goBack={() =>
+                            draftInputPresentationMode === 'fullscreen' &&
+                            draftInputRef.current != null
+                              ? draftInputRef.current.exitFullscreen()
+                              : goBack()
+                          }
+                          showSearchButton={isChatChannel}
+                          goToSearch={goToSearch}
+                          showSpinner={isLoadingPosts}
+                          showMenuButton={true}
+                        />
+                        <YStack alignItems="stretch" flex={1}>
+                          <AnimatePresence>
+                            {draftInputPresentationMode !== 'fullscreen' && (
+                              <View flex={1}>
+                                {channel && posts && (
+                                  <Scroller
+                                    key={scrollerAnchor?.postId}
+                                    inverted={isChatChannel ? true : false}
+                                    renderItem={renderItem}
+                                    renderEmptyComponent={renderEmptyComponent}
+                                    anchor={scrollerAnchor}
+                                    posts={posts}
+                                    hasNewerPosts={hasNewerPosts}
+                                    hasOlderPosts={hasOlderPosts}
+                                    editingPost={editingPost}
+                                    setEditingPost={setEditingPost}
+                                    editPost={editPost}
+                                    channelType={channel.type}
+                                    channelId={channel.id}
+                                    firstUnreadId={
+                                      initialChannelUnread?.countWithoutThreads ??
+                                      0 > 0
+                                        ? initialChannelUnread?.firstUnreadPostId
+                                        : null
+                                    }
+                                    unreadCount={
+                                      initialChannelUnread?.countWithoutThreads ??
+                                      0
+                                    }
+                                    onPressPost={
+                                      isChatChannel ? undefined : goToPost
+                                    }
+                                    onPressReplies={goToPost}
+                                    onPressImage={goToImageViewer}
+                                    onEndReached={onScrollEndReached}
+                                    onStartReached={onScrollStartReached}
+                                    onPressRetry={onPressRetry}
+                                    onPressDelete={onPressDelete}
+                                    activeMessage={activeMessage}
+                                    setActiveMessage={setActiveMessage}
+                                    ref={flatListRef}
+                                  />
+                                )}
+                              </View>
                             )}
-                          </View>
-                        )}
-                      </AnimatePresence>
+                          </AnimatePresence>
 
-                      {canWrite && (
-                        <>
-                          {isChatChannel &&
-                            !channel.isDmInvite &&
-                            (negotiationMatch ? (
-                              <ChatInput
-                                draftInputContext={draftInputContext}
-                              />
-                            ) : (
-                              <SafeAreaView edges={['right', 'left', 'bottom']}>
-                                <NegotionMismatchNotice />
-                              </SafeAreaView>
-                            ))}
+                          {canWrite && (
+                            <>
+                              {isChatChannel &&
+                                !channel.isDmInvite &&
+                                (negotiationMatch ? (
+                                  <ChatInput
+                                    draftInputContext={draftInputContext}
+                                  />
+                                ) : (
+                                  <SafeAreaView
+                                    edges={['right', 'left', 'bottom']}
+                                  >
+                                    <NegotionMismatchNotice />
+                                  </SafeAreaView>
+                                ))}
 
-                          {channel.type === 'gallery' && (
-                            <GalleryInput
-                              draftInputContext={draftInputContext}
-                            />
+                              {channel.type === 'gallery' && (
+                                <GalleryInput
+                                  draftInputContext={draftInputContext}
+                                />
+                              )}
+
+                              {channel.type === 'notebook' && (
+                                <NotebookInput
+                                  draftInputContext={draftInputContext}
+                                />
+                              )}
+                            </>
                           )}
 
-                          {channel.type === 'notebook' && (
-                            <NotebookInput
-                              draftInputContext={draftInputContext}
+                          {channel.isDmInvite && (
+                            <DmInviteOptions
+                              channel={channel}
+                              goBack={goBack}
                             />
                           )}
-                        </>
-                      )}
-
-                      {channel.isDmInvite && (
-                        <DmInviteOptions channel={channel} goBack={goBack} />
-                      )}
-                    </YStack>
-                    {headerMode === 'next' ? (
-                      <ChannelFooter
-                        title={title}
-                        goBack={goBack}
-                        goToChannels={goToChannels}
-                        goToSearch={goToSearch}
-                        showPickerButton={!!group}
-                      />
-                    ) : null}
-                    <GroupPreviewSheet
-                      group={groupPreview ?? undefined}
-                      open={!!groupPreview}
-                      onOpenChange={() => setGroupPreview(null)}
-                      onActionComplete={handleGroupAction}
-                    />
+                        </YStack>
+                        {headerMode === 'next' ? (
+                          <ChannelFooter
+                            title={title}
+                            goBack={goBack}
+                            goToChannels={goToChannels}
+                            goToSearch={goToSearch}
+                            showPickerButton={!!group}
+                          />
+                        ) : null}
+                        <GroupPreviewSheet
+                          group={groupPreview ?? undefined}
+                          open={!!groupPreview}
+                          onOpenChange={() => setGroupPreview(null)}
+                          onActionComplete={handleGroupAction}
+                        />
+                      </>
+                    </ChannelHeaderItemsProvider>
                   </YStack>
                 </View>
               </AttachmentProvider>
