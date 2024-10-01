@@ -17,8 +17,8 @@ const ENABLE_COPY_JSON = __DEV__;
 export default function MessageActions({
   dismiss,
   onReply,
-  channelType,
   post,
+  postActions,
   onEdit,
   onViewReactions,
 }: {
@@ -27,37 +27,12 @@ export default function MessageActions({
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
   post: db.Post;
-  channelType: db.ChannelType;
+  postActions: ChannelAction[];
 }) {
   const currentSession = useCurrentSession();
   const currentUserId = useCurrentUserId();
   const { addAttachment } = useAttachmentContext();
   const channel = useChannelContext();
-  const postActions = useMemo(() => {
-    return getPostActions({
-      post,
-      channelType,
-      isMuted: logic.isMuted(post.volumeSettings?.level, 'thread'),
-    }).filter((action) => {
-      switch (action.id) {
-        case 'startThread':
-          // only show start thread if
-          // 1. the message is delivered
-          // 2. the message isn't a reply
-          // 3. an existing thread for that message doesn't already exist
-          return (
-            !post.deliveryStatus && !post.parentId && post.replyCount === 0
-          );
-        case 'edit':
-          // only show edit for current user's posts
-          return post.authorId === currentUserId;
-        case 'viewReactions':
-          return (post.reactions?.length ?? 0) > 0;
-        default:
-          return true;
-      }
-    });
-  }, [post, channelType, currentUserId]);
 
   return (
     // arbitrary width that looks reasonable given labels
@@ -108,7 +83,7 @@ function CopyJsonAction({ post }: { post: db.Post }) {
   );
 }
 
-interface ChannelAction {
+export interface ChannelAction {
   id: string;
   label: string;
   actionType?: 'destructive';

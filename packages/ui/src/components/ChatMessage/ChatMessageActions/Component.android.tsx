@@ -1,3 +1,4 @@
+import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import * as Haptics from 'expo-haptics';
 import { MotiView } from 'moti';
@@ -12,15 +13,15 @@ import { MessageContainer } from './MessageContainer';
 
 export function ChatMessageActions({
   post,
-  channelType,
+  postActions,
   onDismiss,
   onReply,
   onEdit,
   onViewReactions,
 }: {
   post: db.Post;
+  postActions: ChannelAction[];
   postRef: RefObject<RNView>;
-  channelType: db.ChannelType;
   onDismiss: () => void;
   onReply?: (post: db.Post) => void;
   onViewReactions?: (post: db.Post) => void;
@@ -69,7 +70,7 @@ export function ChatMessageActions({
           <MessageContainer post={post} />
           <MessageActions
             post={post}
-            channelType={channelType}
+            postActions={postActions}
             dismiss={onDismiss}
             onReply={onReply}
             onEdit={onEdit}

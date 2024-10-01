@@ -1,10 +1,10 @@
 import { useMutableCallback } from '@tloncorp/shared';
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 import { isSameDay } from '@tloncorp/shared/dist/logic';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { isEqual } from 'lodash';
-import { MotiView } from 'moti';
 import React, {
   PropsWithChildren,
   ReactElement,
@@ -28,11 +28,22 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, styled, useStyle, useTheme } from 'tamagui';
+import {
+  ViewStyle as TamaguiViewStyle,
+  View,
+  styled,
+  useStyle,
+  useTheme,
+} from 'tamagui';
 
+import { useCurrentUserId } from '../../contexts';
 import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import {
+  ChannelAction,
+  getPostActions,
+} from '../ChatMessage/ChatMessageActions/MessageActions';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { Modal } from '../Modal';
 import { ChannelDivider } from './ChannelDivider';
@@ -72,6 +83,77 @@ export type ScrollAnchor = {
   type: 'unread' | 'selected';
   postId: string;
 };
+
+interface PostCollectionConfiguration {
+  shouldMaintainVisibleContentPosition: boolean;
+  contentContainerStyle: TamaguiViewStyle;
+  columnCount: 1 | 2;
+
+  /** if true, enables day / unread dividers between elements */
+  dividersEnabled: boolean;
+
+  /** Width/height ratio for a collection element; e.g. 1 for square, 2 for
+   * landscape, 0.5 for portrait. If null, defers to item sizing. */
+  itemAspectRatio: number | null;
+
+  postActions: (options: {
+    post: db.Post;
+    isMuted?: boolean;
+  }) => ChannelAction[];
+}
+
+function usePostCollectionConfigurationFromChannelType(
+  channelType: db.ChannelType
+): PostCollectionConfiguration {
+  const safeAreaInsets = useSafeAreaInsets();
+
+  return useMemo(() => {
+    switch (channelType) {
+      case 'chat':
+      // fallthrough
+      case 'dm':
+      // fallthrough
+      case 'groupDm':
+        return {
+          shouldMaintainVisibleContentPosition: true,
+          contentContainerStyle: {
+            paddingHorizontal: '$m',
+          },
+          columnCount: 1,
+          dividersEnabled: true,
+          itemAspectRatio: null,
+          postActions: (options) => getPostActions({ ...options, channelType }),
+        };
+
+      case 'notebook':
+        return {
+          shouldMaintainVisibleContentPosition: false,
+          contentContainerStyle: {
+            paddingHorizontal: '$m',
+            gap: '$l',
+          },
+          columnCount: 1,
+          dividersEnabled: false,
+          itemAspectRatio: null,
+          postActions: (options) => getPostActions({ ...options, channelType }),
+        };
+
+      case 'gallery':
+        return {
+          shouldMaintainVisibleContentPosition: false,
+          contentContainerStyle: {
+            paddingHorizontal: '$l',
+            paddingBottom: safeAreaInsets.bottom,
+            gap: '$l',
+          },
+          columnCount: 2,
+          dividersEnabled: false,
+          itemAspectRatio: 1,
+          postActions: (options) => getPostActions({ ...options, channelType }),
+        };
+    }
+  }, [channelType, safeAreaInsets]);
+}
 
 /**
  * This scroller makes some assumptions you should not break!
@@ -140,6 +222,9 @@ const Scroller = forwardRef(
     },
     ref
   ) => {
+    const collectionConfig =
+      usePostCollectionConfigurationFromChannelType(channelType);
+
     const [isAtBottom, setIsAtBottom] = useState(true);
 
     const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
@@ -185,7 +270,8 @@ const Scroller = forwardRef(
       anchor,
       flatListRef,
       hasNewerPosts,
-      channelType,
+      shouldMaintainVisibleContentPosition:
+        collectionConfig.shouldMaintainVisibleContentPosition,
     });
 
     const theme = useTheme();
@@ -247,7 +333,6 @@ const Scroller = forwardRef(
             unreadCount={unreadCount}
             editingPost={editingPost}
             channelId={channelId}
-            channelType={channelType}
             setEditingPost={setEditingPost}
             setViewReactionsPost={setViewReactionsPost}
             editPost={editPost}
@@ -260,6 +345,8 @@ const Scroller = forwardRef(
             onLongPressPost={handlePostLongPressed}
             activeMessage={activeMessage}
             messageRef={activeMessageRefs.current[post.id]}
+            dividersEnabled={collectionConfig.dividersEnabled}
+            itemAspectRatio={collectionConfig.itemAspectRatio ?? undefined}
             {...anchorScrollLockScrollerItemProps}
           />
         );
@@ -273,7 +360,6 @@ const Scroller = forwardRef(
         editingPost,
         anchorScrollLockScrollerItemProps,
         channelId,
-        channelType,
         setEditingPost,
         editPost,
         showReplies,
@@ -285,40 +371,24 @@ const Scroller = forwardRef(
         handlePostLongPressed,
         activeMessage,
         showDividers,
+        collectionConfig.dividersEnabled,
+        collectionConfig.itemAspectRatio,
       ]
     );
 
     const insets = useSafeAreaInsets();
 
     const contentContainerStyle = useStyle(
-      !posts?.length
-        ? { flex: 1 }
-        : channelType === 'gallery'
-          ? {
-              paddingHorizontal: '$l',
-              paddingTop: headerMode === 'next' ? insets.top + 54 : 0,
-              paddingBottom: insets.bottom,
-              gap: '$l',
-            }
-          : channelType === 'notebook'
-            ? {
-                paddingHorizontal: '$m',
-                paddingTop: headerMode === 'next' ? insets.top + 54 : 0,
-                paddingBottom: insets.bottom,
-                gap: '$l',
-              }
-            : {
-                paddingHorizontal: '$m',
-              }
+      !posts?.length ? { flex: 1 } : collectionConfig.contentContainerStyle
     ) as StyleProp<ViewStyle>;
 
     const columnWrapperStyle = useStyle(
-      channelType === 'gallery'
-        ? {
+      collectionConfig.columnCount === 1
+        ? {}
+        : {
             gap: '$l',
             width: '100%',
           }
-        : {}
     ) as StyleProp<ViewStyle>;
 
     const pendingEvents = useRef({
@@ -386,6 +456,11 @@ const Scroller = forwardRef(
       };
     }, [insets.bottom]);
 
+    const postActions = useListPostActions({
+      activeMessage,
+      collectionConfig,
+    });
+
     return (
       <View flex={1}>
         {/* {unreadCount && !hasPressedGoToBottom ? (
@@ -403,7 +478,13 @@ const Scroller = forwardRef(
             keyExtractor={getPostId}
             keyboardDismissMode="on-drag"
             contentContainerStyle={contentContainerStyle}
-            columnWrapperStyle={channelType === 'gallery' && columnWrapperStyle}
+            columnWrapperStyle={
+              // FlatList raises an error if `columnWrapperStyle` is provided
+              // with numColumns=1, even if the style is empty
+              collectionConfig.columnCount === 1
+                ? undefined
+                : columnWrapperStyle
+            }
             inverted={
               // https://github.com/facebook/react-native/issues/21196
               // It looks like this bug has regressed a few times - to avoid
@@ -414,7 +495,7 @@ const Scroller = forwardRef(
             initialNumToRender={INITIAL_POSTS_PER_PAGE}
             maxToRenderPerBatch={8}
             windowSize={8}
-            numColumns={channelType === 'gallery' ? 2 : 1}
+            numColumns={collectionConfig.columnCount}
             style={style}
             onEndReached={handleEndReached}
             onEndReachedThreshold={1}
@@ -433,9 +514,9 @@ const Scroller = forwardRef(
           {activeMessage !== null && (
             <ChatMessageActions
               post={activeMessage}
+              postActions={postActions}
               postRef={activeMessageRefs.current[activeMessage!.id]}
               onDismiss={() => setActiveMessage(null)}
-              channelType={channelType}
               onReply={onPressReplies}
               onEdit={() => {
                 setEditingPost?.(activeMessage);
@@ -479,7 +560,6 @@ const BaseScrollerItem = ({
   editingPost,
   onLayout,
   channelId,
-  channelType,
   setViewReactionsPost,
   setEditingPost,
   editPost,
@@ -494,6 +574,8 @@ const BaseScrollerItem = ({
   messageRef,
   isSelected,
   isLastPostOfBlock,
+  dividersEnabled,
+  itemAspectRatio,
 }: {
   showUnreadDivider: boolean;
   showAuthor: boolean;
@@ -504,7 +586,6 @@ const BaseScrollerItem = ({
   unreadCount?: number | null;
   onLayout: (post: db.Post, index: number, e: LayoutChangeEvent) => void;
   channelId: string;
-  channelType: db.ChannelType;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onPressReplies?: (post: db.Post) => void;
   showReplies?: boolean;
@@ -520,6 +601,8 @@ const BaseScrollerItem = ({
   messageRef: RefObject<RNView>;
   isSelected: boolean;
   isLastPostOfBlock: boolean;
+  dividersEnabled: boolean;
+  itemAspectRatio?: number;
 }) => {
   const post = useLivePost(item);
 
@@ -531,26 +614,17 @@ const BaseScrollerItem = ({
   );
 
   const dividerType = useMemo(() => {
-    switch (channelType) {
-      case 'chat':
-      // fallthrough
-      case 'dm':
-      // fallthrough
-      case 'groupDm':
-        if (showUnreadDivider) {
-          return 'unread';
-        }
-        if (showDayDivider) {
-          return 'day';
-        }
-        return null;
-
-      case 'gallery':
-      // fallthrough
-      case 'notebook':
-        return null;
+    if (!dividersEnabled) {
+      return null;
     }
-  }, [channelType, showUnreadDivider, showDayDivider]);
+    if (showUnreadDivider) {
+      return 'unread';
+    }
+    if (showDayDivider) {
+      return 'day';
+    }
+    return null;
+  }, [dividersEnabled, showUnreadDivider, showDayDivider]);
 
   const divider = useMemo(() => {
     switch (dividerType) {
@@ -578,13 +652,7 @@ const BaseScrollerItem = ({
   }, [dividerType, post, unreadCount, showDayDivider]);
 
   return (
-    <View
-      onLayout={handleLayout}
-      {...useMemo(
-        () => (channelType === 'gallery' ? { aspectRatio: 1, flex: 0.5 } : {}),
-        [channelType]
-      )}
-    >
+    <View onLayout={handleLayout} flex={1} aspectRatio={itemAspectRatio}>
       {divider}
       <PressableMessage
         ref={messageRef}
@@ -660,7 +728,7 @@ function useAnchorScrollLock({
   posts,
   anchor,
   hasNewerPosts,
-  channelType,
+  shouldMaintainVisibleContentPosition,
 }: {
   flatListRef: RefObject<FlatList<db.Post>>;
 
@@ -668,7 +736,7 @@ function useAnchorScrollLock({
   posts: db.Post[] | null;
   anchor: ScrollAnchor | null | undefined;
   hasNewerPosts?: boolean;
-  channelType: db.ChannelType;
+  shouldMaintainVisibleContentPosition: boolean;
 }) {
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const [needsScrollToAnchor, setNeedsScrollToAnchor] = useState(
@@ -775,7 +843,7 @@ function useAnchorScrollLock({
     }
   );
   const maintainVisibleContentPositionConfig = useMemo(() => {
-    if (!['chat', 'dm', 'groupDm'].includes(channelType)) {
+    if (!shouldMaintainVisibleContentPosition) {
       return undefined;
     }
 
@@ -788,7 +856,7 @@ function useAnchorScrollLock({
       // only enable it when there's nothing newer left to load (so, for new incoming messages only).
       autoscrollToTopThreshold: hasNewerPosts ? undefined : 0,
     };
-  }, [hasNewerPosts, channelType]);
+  }, [hasNewerPosts, shouldMaintainVisibleContentPosition]);
 
   const handleScrollToIndexFailed = useMutableCallback(
     (info: {
@@ -856,4 +924,43 @@ function useAnchorScrollLock({
       ]
     ),
   };
+}
+
+function useListPostActions({
+  activeMessage: post,
+  collectionConfig,
+}: {
+  collectionConfig: PostCollectionConfiguration;
+  activeMessage?: db.Post | null;
+}): ChannelAction[] {
+  const currentUserId = useCurrentUserId();
+  const getPostActions = collectionConfig.postActions;
+  return useMemo(() => {
+    if (post == null) {
+      return [];
+    }
+
+    return getPostActions({
+      post,
+      isMuted: logic.isMuted(post.volumeSettings?.level, 'thread'),
+    }).filter((action) => {
+      switch (action.id) {
+        case 'startThread':
+          // only show start thread if
+          // 1. the message is delivered
+          // 2. the message isn't a reply
+          // 3. an existing thread for that message doesn't already exist
+          return (
+            !post.deliveryStatus && !post.parentId && post.replyCount === 0
+          );
+        case 'edit':
+          // only show edit for current user's posts
+          return post.authorId === currentUserId;
+        case 'viewReactions':
+          return (post.reactions?.length ?? 0) > 0;
+        default:
+          return true;
+      }
+    });
+  }, [post, getPostActions, currentUserId]);
 }
