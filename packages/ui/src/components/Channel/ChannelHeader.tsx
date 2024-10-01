@@ -45,6 +45,7 @@ export function ChannelHeader({
     <>
       <ScreenHeader
         title={title}
+        showSessionStatus
         isLoading={showSpinner}
         leftControls={<ScreenHeader.BackButton onPress={goBack} />}
         rightControls={
