@@ -84,7 +84,9 @@ export function GroupOptionsSheetLoader({
   onOpenChange: (open: boolean) => void;
 }) {
   const groupQuery = store.useGroup({ id: groupId });
-  const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
+  const [pane, setPane] = useState<'initial' | 'edit' | 'notifications'>(
+    'initial'
+  );
   const openChangeHandler = useCallback(
     (open: boolean) => {
       if (!open) {
@@ -108,8 +110,8 @@ export function GroupOptions({
   setPane,
 }: {
   group: db.Group;
-  pane: 'initial' | 'notifications';
-  setPane: (pane: 'initial' | 'notifications') => void;
+  pane: 'initial' | 'edit' | 'notifications';
+  setPane: (pane: 'initial' | 'edit' | 'notifications') => void;
 }) {
   const currentUser = useCurrentUserId();
   const { data: currentVolumeLevel } = store.useGroupVolumeLevel(group.id);
@@ -198,6 +200,45 @@ export function GroupOptions({
     [currentVolumeLevel, handleVolumeUpdate]
   );
 
+  const actionEdit = useMemo(() => {
+    const metadataAction: Action = {
+      title: 'Edit group info',
+      description: 'Change name, description, and image',
+      action: () => {
+        sheetRef.current.setOpen(false);
+        onPressGroupMeta?.(group.id);
+      },
+      endIcon: 'ChevronRight',
+    };
+
+    const manageChannelsAction: Action = {
+      title: 'Manage channels',
+      description: 'Add or remove channels in this group',
+      action: () => {
+        sheetRef.current.setOpen(false);
+        onPressManageChannels?.(group.id);
+      },
+      endIcon: 'ChevronRight',
+    };
+
+    const managePrivacyAction: Action = {
+      title: 'Privacy',
+      description: 'Change who can find or join this group',
+      action: () => {
+        sheetRef.current.setOpen(false);
+        onPressGroupPrivacy?.(group.id);
+      },
+      endIcon: 'ChevronRight',
+    };
+    const actionEdit: ActionGroup[] = [
+      {
+        accent: 'neutral',
+        actions: [metadataAction, manageChannelsAction, managePrivacyAction],
+      },
+    ];
+    return actionEdit;
+  }, [group.id, onPressGroupMeta, onPressGroupPrivacy, onPressManageChannels]);
+
   const actionGroups = useMemo(() => {
     const groupRef = logic.getGroupReferencePath(group.id);
 
@@ -228,20 +269,10 @@ export function GroupOptions({
       },
     ];
 
-    const manageChannelsAction: Action = {
-      title: 'Manage channels',
+    const editAction: Action = {
+      title: 'Edit group',
       action: () => {
-        sheetRef.current.setOpen(false);
-        onPressManageChannels?.(group.id);
-      },
-      endIcon: 'ChevronRight',
-    };
-
-    const managePrivacyAction: Action = {
-      title: 'Privacy',
-      action: () => {
-        sheetRef.current.setOpen(false);
-        onPressGroupPrivacy?.(group.id);
+        setPane('edit');
       },
       endIcon: 'ChevronRight',
     };
@@ -253,15 +284,6 @@ export function GroupOptions({
         onPressGroupMembers?.(group.id);
         sheetRef.current.setOpen(false);
       },
-    };
-
-    const metadataAction: Action = {
-      title: 'Edit group info',
-      action: () => {
-        sheetRef.current.setOpen(false);
-        onPressGroupMeta?.(group.id);
-      },
-      endIcon: 'ChevronRight',
     };
 
     const inviteAction: Action = {
@@ -282,7 +304,7 @@ export function GroupOptions({
     if (currentUserIsAdmin) {
       actionGroups.push({
         accent: 'neutral',
-        actions: [manageChannelsAction, managePrivacyAction, metadataAction],
+        actions: [editAction],
       });
     }
 
@@ -318,28 +340,48 @@ export function GroupOptions({
     }
     return actionGroups;
   }, [
-    isPinned,
-    onTogglePinned,
     group,
+    isPinned,
     currentUserIsAdmin,
     setPane,
-    onPressManageChannels,
+    onTogglePinned,
     onPressGroupMembers,
-    onPressGroupMeta,
-    onPressLeave,
     onPressInvite,
-    onPressGroupPrivacy,
+    onPressLeave,
   ]);
 
-  const memberCount = group?.members?.length ?? 0;
+  const memberCount = group?.members?.length
+    ? group.members.length.toLocaleString()
+    : 0;
   const title = group?.title ?? 'Loading…';
-  const subtitle = memberCount ? `Group with ${memberCount} members` : '';
+  const privacy = group?.privacy
+    ? group.privacy.charAt(0).toUpperCase() + group.privacy.slice(1)
+    : '';
+  const subtitle = memberCount
+    ? `${privacy} group with ${memberCount} member${group.members?.length === 1 ? '' : 's'}`
+    : '';
   return (
     <ChatOptionsSheetContent
-      actionGroups={pane === 'initial' ? actionGroups : actionNotifications}
-      title={pane === 'initial' ? title : 'Notifications for ' + title}
+      actionGroups={
+        pane === 'initial'
+          ? actionGroups
+          : pane === 'notifications'
+            ? actionNotifications
+            : actionEdit
+      }
+      title={
+        pane === 'initial'
+          ? title
+          : pane === 'notifications'
+            ? 'Notifications for ' + title
+            : 'Edit ' + title
+      }
       subtitle={
-        pane === 'initial' ? subtitle : 'Set what you want to be notified about'
+        pane === 'initial'
+          ? subtitle
+          : pane === 'notifications'
+            ? 'Set what you want to be notified about'
+            : 'Edit group details'
       }
       icon={
         pane === 'initial' ? (

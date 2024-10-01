@@ -2,7 +2,6 @@ import { isValidPatp } from '@urbit/aura';
 
 import { getPostInfoFromWer } from '../api/harkApi';
 import { createDevLogger } from '../debug';
-import * as urbit from '../urbit';
 
 const logger = createDevLogger('branch', true);
 
@@ -154,22 +153,32 @@ export const createDeepLink = async ({
   } else {
     data.wer = path;
   }
-  let url = await getDeepLink(alias, branchDomain, branchKey).catch(() => null);
-  if (!url) {
-    logger.crumb(`No existing deeplink for ${alias}, creating new one`);
-    const response = await fetchBranchApi('/v1/url', {
-      method: 'POST',
-      body: JSON.stringify({
-        branch_key: branchKey,
-        alias,
-        data,
-      }),
-    });
-    if (!response.ok) {
-      return fallbackUrl;
+
+  try {
+    let url = await getDeepLink(alias, branchDomain, branchKey).catch(
+      () => fallbackUrl
+    );
+    if (!url) {
+      logger.crumb(`No existing deeplink for ${alias}, creating new one`);
+      const response = await fetchBranchApi('/v1/url', {
+        method: 'POST',
+        body: JSON.stringify({
+          branch_key: branchKey,
+          alias,
+          data,
+        }),
+      });
+      if (!response.ok) {
+        return fallbackUrl;
+      }
+      ({ url } = (await response.json()) as { url: string });
     }
-    ({ url } = (await response.json()) as { url: string });
+    logger.crumb(`Created new deeplink: ${url}`);
+    return url;
+  } catch (e) {
+    logger.trackError('Failed to get or create deeplink', {
+      errorMessage: e?.message,
+    });
+    return '';
   }
-  logger.crumb('returning deeplink', url);
-  return url;
 };

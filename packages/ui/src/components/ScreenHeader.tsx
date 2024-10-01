@@ -35,9 +35,9 @@ export const ScreenHeaderComponent = ({
   const textColor =
     showSessionStatus === false
       ? '$primaryText'
-      : currentSession
-        ? '$primaryText'
-        : '$tertiaryText';
+      : currentSession?.isReconnecting || !currentSession
+        ? '$tertiaryText'
+        : '$primaryText';
 
   return (
     <View paddingTop={top} zIndex={50}>

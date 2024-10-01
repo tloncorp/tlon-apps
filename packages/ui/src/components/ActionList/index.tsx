@@ -24,14 +24,20 @@ const ActionFrame = styled(ListItemFrame, {
 function Action(
   props: PropsWithChildren<ComponentProps<typeof ActionFrame>> & {
     actionType?: 'destructive';
+    disabled?: boolean;
   }
 ) {
-  const { children, actionType, ...rest } = props;
+  const { children, actionType, disabled, ...rest } = props;
+
+  const textColor = disabled
+    ? '$secondaryText'
+    : actionType === 'destructive'
+      ? '$red'
+      : undefined;
+
   return (
     <ActionFrame {...rest}>
-      <ListItem.Title color={actionType === 'destructive' ? '$red' : undefined}>
-        {children}
-      </ListItem.Title>
+      <ListItem.Title color={textColor}>{children}</ListItem.Title>
     </ActionFrame>
   );
 }

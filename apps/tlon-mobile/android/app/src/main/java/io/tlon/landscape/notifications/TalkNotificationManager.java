@@ -18,6 +18,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.Date;
+import java.util.Iterator;
 
 import io.invertase.firebase.crashlytics.ReactNativeFirebaseCrashlyticsNativeHelper;
 import io.tlon.landscape.AppLifecycleManager;
@@ -75,10 +76,11 @@ public class TalkNotificationManager {
                     @Override
                     public void onComplete(JSONObject response) {
                         final Contact contact = new Contact(yarn.senderId, response);
+                        final String channelId = yarn.channelId.orElse("");
                         createNotificationTitle(api, yarn, contact, title -> {
                             Bundle data = new Bundle();
                             data.putString("wer", yarn.wer);
-                            data.putString("channelId", yarn.channelId);
+                            data.putString("channelId", channelId);
                             data.putInt("notificationId", id);
                             sendNotification(
                                     context,
@@ -109,9 +111,9 @@ public class TalkNotificationManager {
     }
 
     private static void createNotificationTitle(TalkApi api, Yarn yarn, Contact contact, TalkNotificationContentCallback callback) {
-        if (yarn.isGroup) {
-            final String fallbackTitle = yarn.channelId.replace("chat/", "");
-            api.fetchGroupChannel(yarn.channelId, new TalkObjectCallback() {
+        if (yarn.isGroup && yarn.channelId.isPresent()) {
+            final String fallbackTitle = yarn.channelId.get().replace("chat/", "");
+            api.fetchGroupChannel(yarn.channelId.get(), new TalkObjectCallback() {
                 @Override
                 public void onComplete(JSONObject response) {
                     try {
@@ -131,18 +133,49 @@ public class TalkNotificationManager {
             return;
         }
 
-        if (yarn.isClub) {
-            api.fetchClub(yarn.channelId, new TalkObjectCallback() {
+        if (yarn.isGroup && yarn.groupId.isPresent() && !yarn.channelId.isPresent()) {
+            // this only works for group invites, if we start handling other events, we need to
+            // also fetch groups and prioritize that metadata over gangs
+            api.fetchGangs(new TalkObjectCallback() {
+                final String groupId = yarn.groupId.get();
                 @Override
                 public void onComplete(JSONObject response) {
-                    Club club = new Club(yarn.channelId, response);
+                    try {
+                        JSONObject group = response.getJSONObject(groupId);
+                        if (group.isNull("preview")) {
+                            callback.onComplete(groupId);
+                            return;
+                        }
+
+                        String title = group.getJSONObject("preview").getJSONObject("meta").getString("title");
+                        callback.onComplete(title.isEmpty() ? groupId : title);
+                    } catch (JSONException e) {
+                        callback.onComplete(groupId);
+                    }
+                }
+
+                @Override
+                public void onError(VolleyError error) {
+                    ReactNativeFirebaseCrashlyticsNativeHelper.recordNativeException(new Exception("notifications_fetch_groups", error));
+                    callback.onComplete(groupId);
+                }
+            });
+
+            return;
+        }
+
+        if (yarn.isClub && yarn.channelId.isPresent()) {
+            api.fetchClub(yarn.channelId.get(), new TalkObjectCallback() {
+                @Override
+                public void onComplete(JSONObject response) {
+                    Club club = new Club(yarn.channelId.get(), response);
                     callback.onComplete(club.displayName);
                 }
 
                 @Override
                 public void onError(VolleyError error) {
                     ReactNativeFirebaseCrashlyticsNativeHelper.recordNativeException(new Exception("notifications_fetch_club", error));
-                    callback.onComplete(yarn.channelId);
+                    callback.onComplete(yarn.channelId.get());
                 }
             });
             return;
