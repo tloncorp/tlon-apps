@@ -64,7 +64,10 @@ export default function MessageActions({
     <ActionList width={220}>
       {postActions.map((action, index) => (
         <ActionList.Action
-          disabled={action.networkDependent && currentSession?.isReconnecting}
+          disabled={
+            action.networkDependent &&
+            (!currentSession || currentSession?.isReconnecting)
+          }
           onPress={() =>
             handleAction({
               id: action.id,
@@ -260,7 +263,10 @@ export async function handleAction({
   currentSession: Session | null;
   isNetworkDependent: boolean;
 }) {
-  if (isNetworkDependent && currentSession?.isReconnecting) {
+  if (
+    isNetworkDependent &&
+    (!currentSession || currentSession?.isReconnecting)
+  ) {
     Alert.alert(
       'App is disconnected',
       'This action is unavailable while the app is in a disconnected state.'

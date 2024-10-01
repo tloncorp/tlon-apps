@@ -35,7 +35,7 @@ export const ScreenHeaderComponent = ({
   const textColor =
     showSessionStatus === false
       ? '$primaryText'
-      : currentSession?.isReconnecting
+      : currentSession?.isReconnecting || !currentSession
         ? '$tertiaryText'
         : '$primaryText';
 
