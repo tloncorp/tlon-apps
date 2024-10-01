@@ -1,9 +1,9 @@
 import * as db from '@tloncorp/shared/dist/db';
-import React from 'react';
+import React, { useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ActionSheet } from './ActionSheet';
 import { InviteUsersWidget } from './InviteUsersWidget';
-import { Sheet } from './Sheet';
 
 const InviteUsersSheetComponent = ({
   open,
@@ -17,30 +17,25 @@ const InviteUsersSheetComponent = ({
   onInviteComplete: () => void;
 }) => {
   const { bottom } = useSafeAreaInsets();
+  const hasOpened = useRef(open);
 
-  if (!group) {
-    return null;
+  if (!hasOpened.current && open) {
+    hasOpened.current = true;
   }
 
+  if (!hasOpened.current || !group) return null;
+
   return (
-    <Sheet
+    <ActionSheet
       open={open}
       onOpenChange={onOpenChange}
       snapPoints={[85]}
-      modal
-      dismissOnSnapToBottom
-      animation="quick"
+      snapPointsMode="percent"
     >
-      <Sheet.Overlay />
-      <Sheet.LazyFrame
-        paddingTop="$s"
-        paddingHorizontal="$2xl"
-        paddingBottom={bottom}
-      >
-        <Sheet.Handle marginBottom="$l" />
+      <ActionSheet.Content flex={1} paddingBottom={bottom}>
         <InviteUsersWidget group={group} onInviteComplete={onInviteComplete} />
-      </Sheet.LazyFrame>
-    </Sheet>
+      </ActionSheet.Content>
+    </ActionSheet>
   );
 };
 

@@ -9,6 +9,7 @@ import {
   ChannelAvatar,
   ContactAvatar,
   GroupAvatar,
+  ImageAvatar,
   SystemIconAvatar,
 } from '../Avatar';
 import ContactName from '../ContactName';
@@ -80,6 +81,8 @@ const ListItemChannelIcon = ChannelAvatar;
 const ListItemContactIcon = ContactAvatar;
 
 const ListItemSystemIcon = SystemIconAvatar;
+
+const ListItemImageIcon = ImageAvatar;
 
 const ListItemMainContent = styled(YStack, {
   name: 'ListItemMainContent',
@@ -258,6 +261,7 @@ export const ListItem = withStaticProperties(ListItemFrame, {
   ChannelIcon: ListItemChannelIcon,
   ContactIcon: ListItemContactIcon,
   SystemIcon: ListItemSystemIcon,
+  ImageIcon: ListItemImageIcon,
   Dragger,
   Count: ListItemCount,
   MainContent: ListItemMainContent,

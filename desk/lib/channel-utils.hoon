@@ -1,4 +1,4 @@
-/-  c=channels, g=groups
+/-  c=channels, g=groups, ci=cite
 ::  convert a post to a preview for a "said" response
 ::
 |%
@@ -415,5 +415,265 @@
       =>  [path=path nest=nest:g ..zuse]  ~+
       .^($-([ship nest] ?) %gx path)
     (test her nest)
+  --
+::
+++  cite
+  |%
+  ++  grab-post
+    |=  [=bowl:gall ref=cite:ci]
+    ^-  (unit [=nest:g =post:c])
+    ?.  ?=(%chan -.ref)
+      ~
+    ::TODO  the whole "deconstruct the ref path" situation is horrendous
+    ?.  ?=([?(%msg %note %curio) @ ~] wer.ref)
+      ~
+    =,  ref
+    =/  base=path
+      %+  weld
+        /(scot %p our.bowl)/channels/(scot %da now.bowl)
+      /v2/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
+    ?.  .^(? %gu base)  ~
+    :+  ~  nest
+    .^  post:c  %gx
+      %+  weld  base
+      /posts/post/(scot %ud (rash i.t.wer dum:ag))/channel-post-2
+    ==
+  ::
+  ++  from-post
+    |=  [=nest:g =id-post:c =kind-data:c]
+    ^-  cite:ci
+    =/  kind
+      ?-  -.kind-data
+        %chat   %msg
+        %diary  %note
+        %heap   %curio
+      ==
+    [%chan nest /[kind]/(crip (a-co:co id-post))]
+  --
+::
+++  flatten-inline
+  |=  i=inline:c
+  ^-  cord
+  ?@  i  i
+  ?-  -.i
+    ?(%italics %bold %strike %blockquote)  (rap 3 (turn p.i flatten-inline))
+    ?(%inline-code %code %tag)  p.i
+    %ship   (scot %p p.i)
+    %block  q.i
+    %link   q.i
+    %task   (rap 3 (turn q.i flatten-inline))
+    %break  '\0a'
+  ==
+::
+++  first-inline
+  |=  content=story:c
+  ^-  (list inline:c)
+  ?~  content  ~
+  ?:  ?=(%inline -.i.content)
+    p.i.content
+  ?+  -.p.i.content  $(content t.content)
+    %header   q.p.i.content
+  ::
+      %listing
+    |-
+    ?-  -.p.p.i.content
+      %list  ::TODO  or check listing first?
+              ?.  =(~ r.p.p.i.content)
+                r.p.p.i.content
+              ?~  q.p.p.i.content  ~
+              =/  r  $(p.p.i.content i.q.p.p.i.content)
+              ?.  =(~ r)  r
+              $(q.p.p.i.content t.q.p.p.i.content)
+      %item  p.p.p.i.content
+    ==
+  ==
+::
+++  en-manx  ::NOTE  more commonly, marl, but that's just (list manx)
+  ::  anchors: whether to render <a> tags around images and links.
+  ::           you may not want this when nesting the content inside of another
+  ::           <a>, browsers consider this illegal and will mangle the document.
+  =/  anchors=?  &
+  |%
+  ++  content  story
+  ++  story
+    |=  content=story:c
+    ^-  marl
+    (zing (turn content verse))
+  ::
+  ++  verse
+    |=  =verse:c
+    ^-  marl
+    ?-  -.verse
+      %block  (block p.verse)
+    ::
+        %inline
+      ;+
+      ?:  ?=([[%break ~] ~] p.verse)
+        ;br;
+      ;p
+        ;*  (turn p.verse inline)
+      ==
+    ==
+  ::
+  ++  block
+    |=  =block:c
+    ^-  marl
+    ?-  -.block
+        %image
+      ;+
+      =/  src=tape  (trip src.block)
+      ;div.image
+        ;+
+        =/  img
+          ;img@"{src}"
+            =height  "{(a-co:co height.block)}"
+            =width   "{(a-co:co width.block)}"
+            =alt     "{?:(=('' alt.block) "image" (trip alt.block))}";
+        ?.  anchors  img
+        ;a/"{src}"(target "_blank", rel "noreferrer")
+          ;+  img
+        ==
+      ==
+    ::
+        %cite
+      ;+
+      ;div.cite
+        ; [reference]  ::TODO  link to /expose if chan ref?
+      ==
+    ::
+        %header
+      ;+
+      ?-  p.block
+        %h1  ;h1  ;*  (turn q.block inline)  ==
+        %h2  ;h2  ;*  (turn q.block inline)  ==
+        %h3  ;h3  ;*  (turn q.block inline)  ==
+        %h4  ;h4  ;*  (turn q.block inline)  ==
+        %h5  ;h5  ;*  (turn q.block inline)  ==
+        %h6  ;h6  ;*  (turn q.block inline)  ==
+      ==
+    ::
+        %listing
+      ?-  -.p.block
+          %item
+        |-  ^-  marl
+        ?:  ?=([[%break ~] ~] p.p.block)
+          ~  ::  filter out trailing newlines
+        ?~  p.p.block  ~
+        :-  (inline i.p.p.block)
+        $(p.p.block t.p.p.block)
+      ::
+          %list
+        %+  weld
+          `marl`(turn r.p.block inline)
+        ^-  marl
+        ;+
+        ?-  p.p.block
+            %ordered
+          ;ol
+            ;*  %+  turn  q.p.block
+                |=  l=listing:c
+                ;li
+                  ;*  (^block %listing l)
+                ==
+          ==
+        ::
+            %unordered
+          ;ul
+            ;*  %+  turn  q.p.block
+                |=  l=listing:c
+                ;li
+                  ;*  (^block %listing l)
+                ==
+          ==
+        ::
+            %tasklist
+          ;ul.tasklist
+            ;*  %+  turn  q.p.block
+                |=  l=listing:c
+                ;li
+                  ;*  (^block %listing l)
+                ==
+          ==
+        ==
+      ==
+    ::
+        %rule
+      ;+  ;hr;
+    ::
+        %code
+      ;+
+      ;pre
+        ;code:"{(trip code.block)}"
+      ==
+    ==
+  ::
+  ++  inline
+    |=  =inline:c
+    ^-  manx
+    ?@  inline
+      ;span:"{(trip inline)}"
+    ?-  -.inline
+        %italics
+      ;em
+        ;*  (turn p.inline ^inline)
+      ==
+    ::
+        %bold
+      ;strong
+        ;*  (turn p.inline ^inline)
+      ==
+    ::
+        %strike
+      ;s
+        ;*  (turn p.inline ^inline)
+      ==
+    ::
+        %blockquote
+      ;blockquote
+        ;*  (turn p.inline ^inline)
+      ==
+    ::
+        %inline-code
+      ;code.inline-code:"{(trip p.inline)}"
+    ::
+        %code
+      ;pre.code
+        ;code:"{(trip p.inline)}"
+      ==
+    ::
+        %ship
+      ;span.ship:"{(scow %p p.inline)}"
+    ::
+        %block
+      ;span.block:"[block xx]"
+    ::
+        %tag
+      ;span.tag:"[tag xx]"
+    ::
+        %link
+      =/  url=tape  (trip p.inline)
+      =?  url  ?=(~ (find "://" url))
+        (weld "//" url)
+      =/  txt=tape  ?:(=('' q.inline) url (trip q.inline))
+      ?.  anchors
+        ;span.faux-a:"{txt}"
+      ;a/"{url}"
+        =target  "_blank"
+        =rel     "noreferrer"
+        ::NOTE  sail inserts trailing \0a if we do ; {txt},
+        ::      which looks bad when links get underlined
+        ;+  [%$ [%$ "{txt}"]~]~
+      ==
+    ::
+        %task
+      ;div.task
+        ;+  ?.  p.inline  ;input(type "checkbox", disabled "");
+            ;input(type "checkbox", checked "", disabled "");
+        ;*  (turn q.inline ^inline)
+      ==
+    ::
+        %break
+      ;br;
+    ==
   --
 --

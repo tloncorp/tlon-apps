@@ -1,34 +1,17 @@
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChannelSearch } from '@tloncorp/shared/dist';
 import type * as db from '@tloncorp/shared/dist/db';
 import { Button, SearchBar, SearchResults, XStack, YStack } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function ChannelSearchScreen({
-  channel,
-  navigateToChannel,
-  navigateToReply,
-  cancelSearch,
-}: {
-  channel: db.Channel;
-  navigateToChannel: ({
-    channel,
-    selectedPostId,
-  }: {
-    channel: db.Channel;
-    selectedPostId?: string;
-  }) => void;
-  navigateToReply: ({
-    id,
-    authorId,
-    channelId,
-  }: {
-    id: string;
-    authorId: string;
-    channelId: string;
-  }) => void;
-  cancelSearch: () => void;
-}) {
+import type { RootStackParamList } from '../../navigation/types';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'ChannelSearch'>;
+
+export default function ChannelSearchScreen(props: Props) {
+  const channel = props.route.params.channel;
+
   const [query, setQuery] = useState('');
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
     useChannelSearch(channel, query);
@@ -36,19 +19,21 @@ export default function ChannelSearchScreen({
   const navigateToPost = useCallback(
     (post: db.Post) => {
       if (post.parentId) {
-        navigateToReply({
-          id: post.parentId,
-          authorId: post.authorId,
-          channelId: channel.id,
+        props.navigation.replace('Post', {
+          post: {
+            id: post.parentId,
+            channelId: post.channelId,
+            authorId: post.authorId,
+          },
         });
       } else {
-        navigateToChannel({
+        props.navigation.navigate('Channel', {
           channel,
           selectedPostId: post.id,
         });
       }
     },
-    [channel, navigateToChannel, navigateToReply]
+    [channel, props.navigation]
   );
 
   return (
@@ -59,7 +44,7 @@ export default function ChannelSearchScreen({
             onChangeQuery={setQuery}
             placeholder={`Search ${channel.title}`}
           />
-          <Button minimal onPress={() => cancelSearch()}>
+          <Button minimal onPress={() => props.navigation.pop()}>
             <Button.Text>Cancel</Button.Text>
           </Button>
         </XStack>

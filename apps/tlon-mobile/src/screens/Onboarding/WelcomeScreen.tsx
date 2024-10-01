@@ -1,7 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import {
   ActionSheet,
+  AppInviteDisplay,
   PrimaryButton,
   SizableText,
   View,
@@ -16,6 +18,7 @@ import type { OnboardingStackParamList } from '../../types';
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Welcome'>;
 
 export const WelcomeScreen = ({ navigation }: Props) => {
+  const lureMeta = useLureMetadata();
   const isDarkMode = useIsDarkMode();
   const { bottom } = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
@@ -35,6 +38,13 @@ export const WelcomeScreen = ({ navigation }: Props) => {
         }}
         source={bgSource}
       >
+        {lureMeta ? (
+          <AppInviteDisplay
+            metadata={lureMeta}
+            marginHorizontal="$3xl"
+            marginBottom="$4xl"
+          />
+        ) : null}
         <YStack gap="$4xl" justifyContent="center" alignItems="center">
           <PrimaryButton
             backgroundColor="$blue"

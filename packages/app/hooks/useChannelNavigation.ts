@@ -1,9 +1,7 @@
-import { isGroupChannelId } from '@tloncorp/shared/dist';
+import { useNavigation } from '@react-navigation/native';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { GroupPreviewAction } from '@tloncorp/ui';
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
   // Model context
@@ -11,86 +9,49 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
     id: channelId,
   });
 
-  const navigate = useNavigate();
+  const navigation = useNavigation<
+    // @ts-expect-error - TODO: pass navigation handlers into context
+    NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
+  >();
 
   const navigateToPost = useCallback(
     (post: db.Post) => {
-      isGroupChannelId(post.channelId)
-        ? navigate(
-            '/group/' +
-              post.groupId +
-              '/channel/' +
-              post.channelId +
-              '/post/' +
-              post.authorId +
-              '/' +
-              post.id
-          )
-        : navigate(
-            '/dm/' + post.channelId + '/post/' + post.authorId + '/' + post.id
-          );
+      navigation.push('Post', { post });
     },
-    [navigate]
+    [navigation]
   );
 
   const navigateToRef = useCallback(
     (channel: db.Channel, post: db.Post) => {
       if (channel.id === channelId) {
-        navigate(
-          '/group/' + channel.groupId + '/channel/' + channel.id + '/' + post.id
-        );
+        navigation.navigate('Channel', { channel, selectedPostId: post.id });
       } else {
-        navigate(
-          '/group/' + channel.groupId + '/channel/' + channel.id + '/' + post.id
-        );
+        navigation.replace('Channel', { channel, selectedPostId: post.id });
       }
     },
-    [navigate, channelId]
+    [navigation, channelId]
   );
 
   const navigateToImage = useCallback(
     (post: db.Post, uri?: string) => {
-      navigate(`/image/${post.id}/${encodeURIComponent(uri ?? '')}`);
+      navigation.navigate('ImageViewer', { post, uri });
     },
-    [navigate]
+    [navigation]
   );
 
   const navigateToSearch = useCallback(() => {
     if (!channelQuery.data) {
       return;
     }
-    if (isGroupChannelId(channelQuery.data.id)) {
-      navigate(
-        `/group/${channelQuery.data.groupId}/channel/${channelQuery.data.id}/search`
-      );
-      return;
-    }
-    navigate(`/dm/${channelQuery.data.id}/search`);
-  }, [navigate, channelQuery.data]);
-
-  const performGroupAction = useCallback(
-    async (action: GroupPreviewAction, updatedGroup: db.Group) => {
-      if (action === 'goTo' && updatedGroup.lastPost?.channelId) {
-        const channel = await db.getChannel({
-          id: updatedGroup.lastPost.channelId,
-        });
-        if (channel) {
-          navigate('/group/' + channel.groupId + '/channel/' + channel.id);
-        }
-      }
-
-      if (action === 'joined') {
-        navigate('/');
-      }
-    },
-    [navigate]
-  );
+    navigation.push('ChannelSearch', {
+      channel: channelQuery.data ?? null,
+    });
+  }, [navigation, channelQuery.data]);
 
   return {
     navigateToPost,
     navigateToRef,
     navigateToImage,
     navigateToSearch,
-    performGroupAction,
   };
 };

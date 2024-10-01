@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useBranch } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
+import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import {
   allocateReservedShip,
   getHostingUser,
@@ -9,17 +9,13 @@ import {
   getShipsWithStatus,
   reserveShip as reserveShipApi,
 } from '@tloncorp/app/lib/hostingApi';
-import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { getShipFromCookie, getShipUrl } from '@tloncorp/app/utils/ship';
 import {
   configureApi,
   getLandscapeAuthCookie,
-  updateNickname,
-  updateTelemetrySetting,
 } from '@tloncorp/shared/dist/api';
 import { Spinner, Text, View, YStack } from '@tloncorp/ui';
-import { preSig } from '@urbit/aura';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
@@ -30,7 +26,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'ReserveShip'>;
 export const ReserveShipScreen = ({
   navigation,
   route: {
-    params: { user, signUpExtras },
+    params: { user },
   },
 }: Props) => {
   const [{ state, error }, setState] = useState<{
@@ -39,30 +35,28 @@ export const ReserveShipScreen = ({
   }>({
     state: 'loading',
   });
+  const signupContext = useSignupContext();
   const { setShip } = useShip();
-  const { clearLure } = useBranch();
 
   const startShip = useCallback(
     async (shipIds: string[]) => {
       // Fetch statuses for the user's ships and start any required booting/resuming
       const shipsWithStatus = await getShipsWithStatus(shipIds);
       if (!shipsWithStatus) {
-        return setState({
-          state: 'error',
-          error: "Sorry, we couldn't find an active ship for your account.",
-        });
+        // you can only have gotten to this screen if a new hosting account was created and ship
+        // was reserved. If we don't see the ship status, assume it's still booting
+        return setState({ state: 'booting' });
       }
 
       const { status, shipId } = shipsWithStatus;
 
       // If user is in the sign up flow, send them to fill out some extra details
       if (
-        signUpExtras?.nickname === undefined &&
-        signUpExtras?.telemetry === undefined
+        signupContext.nickname === undefined &&
+        signupContext.telemetry === undefined
       ) {
         return navigation.navigate('SetNickname', {
           user: await getHostingUser(user.id),
-          signUpExtras: { nickname: preSig(shipId) },
         });
       }
 
@@ -85,42 +79,6 @@ export const ReserveShipScreen = ({
       const ship = getShipFromCookie(authCookie);
       configureApi(ship, shipUrl);
 
-      if (signUpExtras?.nickname) {
-        try {
-          await updateNickname(signUpExtras.nickname);
-        } catch (err) {
-          console.error('Error setting nickname:', err);
-          if (err instanceof Error) {
-            trackError(err);
-          }
-        }
-      }
-
-      if (signUpExtras?.notificationToken) {
-        try {
-          await connectNotifyProvider(signUpExtras.notificationToken);
-        } catch (err) {
-          console.error('Error connecting push notifications provider:', err);
-          if (err instanceof Error) {
-            trackError(err);
-          }
-        }
-      }
-
-      if (signUpExtras?.telemetry !== undefined) {
-        try {
-          await updateTelemetrySetting(signUpExtras.telemetry);
-        } catch (err) {
-          console.error('Error setting telemetry:', err);
-          if (err instanceof Error) {
-            trackError(err);
-          }
-        }
-      }
-
-      // We are done using the saved lure link, it can be cleared before dropping user in the app
-      clearLure();
-
       // Set the ship info in the main context to navigate to chat view
       setShip({
         ship,
@@ -128,7 +86,13 @@ export const ReserveShipScreen = ({
         authCookie,
       });
     },
-    [user, signUpExtras, navigation, clearLure, setShip]
+    [
+      navigation,
+      setShip,
+      signupContext.nickname,
+      signupContext.telemetry,
+      user.id,
+    ]
   );
 
   const reserveShip = useCallback(

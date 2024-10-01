@@ -19,13 +19,15 @@ export type WebViewStackParamList = {
 };
 
 export type RootStackParamList = {
-  ChatList: undefined;
+  ChatList: { previewGroup: db.Group } | undefined;
   Activity: undefined;
   Profile: undefined;
   Channel: {
     channel: db.Channel;
     selectedPostId?: string | null;
   };
+  FindGroups: undefined;
+  CreateGroup: undefined;
   GroupChannels: {
     group: db.Group;
   };
@@ -92,17 +94,16 @@ export type SettingsStackParamList = {
 
 export type OnboardingStackParamList = {
   Welcome: undefined;
-  InventoryCheck: { lure?: string; priorityToken?: string } | undefined;
-  SignUpEmail: { lure?: string; priorityToken?: string } | undefined;
+  InventoryCheck: undefined;
+  SignUpEmail: undefined;
   EULA: undefined;
-  SignUpPassword: { email: string; lure: string; priorityToken?: string };
-  JoinWaitList: { email?: string; lure?: string };
+  SignUpPassword: { email: string };
+  JoinWaitList: { email?: string };
   RequestPhoneVerify: { user: User };
   CheckVerify: { user: User };
-  ReserveShip: { user: User; signUpExtras?: SignUpExtras };
-  SetNickname: { user: User; signUpExtras: SignUpExtras };
-  SetNotifications: { user: User; signUpExtras: SignUpExtras };
-  SetTelemetry: { user: User; signUpExtras: SignUpExtras };
+  ReserveShip: { user: User };
+  SetNickname: { user: User };
+  SetTelemetry: { user: User };
   TlonLogin: undefined;
   ShipLogin: undefined;
   ResetPassword: { email?: string };

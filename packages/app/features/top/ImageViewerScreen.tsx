@@ -1,18 +1,19 @@
-import * as store from '@tloncorp/shared/dist/store';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ImageViewerScreenView } from '@tloncorp/ui';
 
-export default function ImageViewerScreen({
-  postId,
-  uri,
-  goBack,
-}: {
-  postId: string;
-  uri: string;
-  goBack: () => void;
-}) {
-  const { data: post } = store.usePostWithRelations({
-    id: postId,
-  });
+import type { RootStackParamList } from '../../navigation/types';
 
-  return <ImageViewerScreenView post={post} uri={uri} goBack={goBack} />;
+type Props = NativeStackScreenProps<RootStackParamList, 'ImageViewer'>;
+
+export default function ImageViewerScreen(props: Props) {
+  const postParam = props.route.params.post;
+  const uriParam = props.route.params.uri;
+
+  return (
+    <ImageViewerScreenView
+      post={postParam}
+      uri={uriParam}
+      goBack={() => props.navigation.pop()}
+    />
+  );
 }

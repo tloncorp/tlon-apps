@@ -1,3 +1,4 @@
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { BlockedContactsWidget, ScreenHeader, View } from '@tloncorp/ui';
@@ -5,8 +6,12 @@ import { useCallback } from 'react';
 import { Alert } from 'react-native';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { RootStackParamList } from '../../navigation/types';
 
-export function BlockedUsersScreen({ onGoBack }: { onGoBack: () => void }) {
+
+type Props = NativeStackScreenProps<RootStackParamList, 'BlockedUsers'>;
+
+export function BlockedUsersScreen(props: Props) {
   const currentUserId = useCurrentUserId();
   const { data: calm } = store.useCalmSettings({ userId: currentUserId });
   const { data: blockedContacts } = store.useBlockedContacts();
@@ -34,7 +39,7 @@ export function BlockedUsersScreen({ onGoBack }: { onGoBack: () => void }) {
   return (
     <View flex={1}>
       <ScreenHeader>
-        <ScreenHeader.BackButton onPress={onGoBack} />
+        <ScreenHeader.BackButton onPress={() => props.navigation.goBack()} />
         <ScreenHeader.Title>Blocked Users</ScreenHeader.Title>
       </ScreenHeader>
       <View flex={1} paddingHorizontal="$xl">

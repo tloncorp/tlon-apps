@@ -108,7 +108,7 @@ export const PostReference = ({
 }: ReferenceProps & { channelId: string; post?: db.Post | null }) => {
   const channelType = getChannelType(channelId);
   return (
-    <Reference {...props}>
+    <Reference {...props} hasData={!!post}>
       <ContentReferenceHeader type={channelType} />
       {post?.type === 'block' ? (
         <BlockReferenceContent post={post} />

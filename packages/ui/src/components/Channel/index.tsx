@@ -284,7 +284,7 @@ export function Channel({
                       showSearchButton={isChatChannel}
                       goToSearch={goToSearch}
                       showSpinner={isLoadingPosts}
-                      showMenuButton={false}
+                      showMenuButton={true}
                     />
                     <KeyboardAvoidingView enabled={!activeMessage}>
                       <YStack alignItems="center" flex={1}>
@@ -412,7 +412,6 @@ export function Channel({
                                     ? setShowAddGalleryPost(true)
                                     : setShowBigInput(true)
                                 }
-                                label="New Post"
                                 icon={
                                   <Icon
                                     type="Add"
