@@ -1,5 +1,6 @@
 import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
@@ -26,6 +27,8 @@ import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
+
+const logger = createDevLogger('ChatListScreen', false);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
 
@@ -93,6 +96,39 @@ export default function ChatListScreen(props: Props) {
 
     return null;
   }, [connStatus, chats]);
+
+  /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
+  const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
+  const connectionAttempts = useRef(0);
+
+  useEffect(() => {
+    const checkConnection = () => {
+      if (connStatus === 'Connected') {
+        if (connectionTimeout.current) {
+          clearTimeout(connectionTimeout.current);
+        }
+        connectionAttempts.current = 0;
+      } else {
+        connectionAttempts.current += 1;
+        if (connectionAttempts.current >= 10) {
+          logger.error('Connection not established within 10 seconds');
+          if (connectionTimeout.current) {
+            clearTimeout(connectionTimeout.current);
+          }
+        } else {
+          connectionTimeout.current = setTimeout(checkConnection, 1000);
+        }
+      }
+    };
+
+    checkConnection();
+
+    return () => {
+      if (connectionTimeout.current) {
+        clearTimeout(connectionTimeout.current);
+      }
+    };
+  }, [connStatus]);
 
   const resolvedChats = useMemo(() => {
     return {
