@@ -98,6 +98,7 @@ export type OnboardingStackParamList = {
   SignUpEmail: undefined;
   EULA: undefined;
   SignUpPassword: { email: string };
+  InviteLink: undefined;
   JoinWaitList: { email?: string };
   RequestPhoneVerify: { user: User };
   CheckVerify: { user: User };

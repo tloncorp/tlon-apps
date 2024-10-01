@@ -1,5 +1,6 @@
 import React, { ComponentProps, ReactElement } from 'react';
 import { TextInput as BaseTextInput } from 'react-native';
+import { TouchableOpacity } from 'react-native-gesture-handler';
 import { ScrollView, View, XStack, YStack, styled } from 'tamagui';
 
 import { Button } from '../Button';
@@ -10,7 +11,6 @@ import { Text } from '../TextV2';
 import { FieldContext } from './Form';
 
 // Text input
-
 export const TextInput = React.memo(
   styled(
     BaseTextInput,
@@ -44,6 +44,36 @@ export const TextInput = React.memo(
     }
   )
 );
+
+interface TextInputWithButtonProps extends ComponentProps<typeof TextInput> {
+  buttonText: string;
+  onButtonPress: () => void;
+}
+
+export const TextInputWithButton: React.FC<TextInputWithButtonProps> =
+  React.memo(function TextInputWithButtonRaw({
+    buttonText,
+    onButtonPress,
+    ...textInputProps
+  }) {
+    return (
+      <XStack
+        borderWidth={1}
+        borderColor="$border"
+        borderRadius="$l"
+        padding="$l"
+      >
+        <TextInput padding={0} flex={1} borderWidth={0} {...textInputProps} />
+        <Button
+          onPress={onButtonPress}
+          backgroundColor="$secondaryBackground"
+          padding="$l"
+        >
+          <Button.Text>{buttonText}</Button.Text>
+        </Button>
+      </XStack>
+    );
+  });
 
 // Toggle group
 
