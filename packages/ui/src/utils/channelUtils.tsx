@@ -20,10 +20,7 @@ export function useChannelMemberName(member: db.ChatMember) {
   return getChannelMemberName(member, disableNicknames);
 }
 
-export function getChannelTitle(
-  channel: db.Channel,
-  disableNicknames: boolean
-) {
+function getChannelTitle(channel: db.Channel, disableNicknames: boolean) {
   if (channel.type === 'dm') {
     const member = channel.members?.[0];
     if (!member) {
@@ -41,9 +38,12 @@ export function getChannelTitle(
   }
 }
 
-export function useChannelTitle(channel: db.Channel) {
+export function useChannelTitle(channel: db.Channel | null) {
   const { disableNicknames } = useCalm();
-  return getChannelTitle(channel, disableNicknames);
+  return useMemo(
+    () => (channel == null ? null : getChannelTitle(channel, disableNicknames)),
+    [channel, disableNicknames]
+  );
 }
 
 export function isDmChannel(channel: db.Channel): boolean {

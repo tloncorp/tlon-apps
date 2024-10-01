@@ -16,7 +16,7 @@ import { Alert } from 'react-native';
 import { useSheet } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
-import { useCalm, useChatOptions, useCurrentUserId } from '../contexts';
+import { useChatOptions, useCurrentUserId } from '../contexts';
 import * as utils from '../utils';
 import { Action, ActionGroup, ActionSheet } from './ActionSheet';
 import { IconButton } from './IconButton';
@@ -535,12 +535,7 @@ export function ChannelOptions({
     [currentUser, group?.members]
   );
 
-  const { disableNicknames } = useCalm();
-  const title = useMemo(() => {
-    return channel
-      ? utils.getChannelTitle(channel, disableNicknames)
-      : 'Loading...';
-  }, [channel, disableNicknames]);
+  const title = utils.useChannelTitle(channel);
 
   const subtitle = useMemo(() => {
     if (!channel) {
@@ -703,7 +698,7 @@ export function ChannelOptions({
             } as ActionGroup,
           ]
         : []),
-     // TODO: redefine in a more readable way.
+      // TODO: redefine in a more readable way.
       ...(group &&
       !['groupDm', 'dm'].includes(channel.type) &&
       (group.privacy === 'public' ||
@@ -791,10 +786,22 @@ export function ChannelOptions({
     onPressInvite,
     title,
   ]);
+
+  const displayTitle = useMemo((): string => {
+    if (pane === 'initial') {
+      return title ?? '';
+    }
+    if (title == null) {
+      return 'Notifications';
+    } else {
+      return 'Notifications for ' + title;
+    }
+  }, [title, pane]);
+
   return (
     <ChatOptionsSheetContent
       actionGroups={pane === 'initial' ? actionGroups : actionNotifications}
-      title={pane === 'initial' ? title : 'Notifications for ' + title}
+      title={displayTitle}
       subtitle={
         pane === 'initial' ? subtitle : 'Set what you want to be notified about'
       }

@@ -5,7 +5,7 @@ import React, { PropsWithChildren, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, styled } from 'tamagui';
 
 import { useCalm } from '../../contexts';
-import { getChannelTitle } from '../../utils';
+import { useChannelTitle } from '../../utils';
 import { ChannelAvatar, ContactAvatar, GroupAvatar } from '../Avatar';
 import { Icon } from '../Icon';
 import { Text } from '../TextV2';
@@ -70,16 +70,17 @@ export function ActivityListItemContent({
     return (isGroupUnread(unread) ? unread.notifyCount : unread?.count) ?? 0;
   }, [unread]);
 
-  const title = !channel
-    ? group
-      ? group.title ?? ''
-      : ''
-    : channel.type === 'dm'
-      ? 'Direct message'
-      : channel.type === 'groupDm'
-        ? 'Group chat'
-        : (group?.title ? group.title + ': ' : '') +
-          getChannelTitle(channel, calm.disableNicknames);
+  const channelTitle = useChannelTitle(channel ?? null);
+  const title =
+    channel == null || channelTitle == null
+      ? group
+        ? group.title ?? ''
+        : ''
+      : channel.type === 'dm'
+        ? 'Direct message'
+        : channel.type === 'groupDm'
+          ? 'Group chat'
+          : (group?.title ? group.title + ': ' : '') + channelTitle;
 
   return (
     <ActivitySummaryFrame

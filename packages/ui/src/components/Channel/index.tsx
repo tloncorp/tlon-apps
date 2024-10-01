@@ -17,7 +17,6 @@ import {
   ChannelProvider,
   GroupsProvider,
   NavigationProvider,
-  useCalm,
   useCurrentUserId,
 } from '../../contexts';
 import { Attachment, AttachmentProvider } from '../../contexts/attachment';
@@ -128,8 +127,7 @@ export function Channel({
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
-  const disableNicknames = !!useCalm()?.disableNicknames;
-  const title = channel ? utils.getChannelTitle(channel, disableNicknames) : '';
+  const title = utils.useChannelTitle(channel);
   const groups = useMemo(() => (group ? [group] : null), [group]);
   const currentUserId = useCurrentUserId();
   const canWrite = utils.useCanWrite(channel, currentUserId);
@@ -278,7 +276,7 @@ export function Channel({
                           channel={channel}
                           group={group}
                           mode={headerMode}
-                          title={title}
+                          title={title ?? ''}
                           goBack={() =>
                             draftInputPresentationMode === 'fullscreen' &&
                             draftInputRef.current != null
@@ -377,7 +375,7 @@ export function Channel({
                         </YStack>
                         {headerMode === 'next' ? (
                           <ChannelFooter
-                            title={title}
+                            title={title ?? ''}
                             goBack={goBack}
                             goToChannels={goToChannels}
                             goToSearch={goToSearch}
