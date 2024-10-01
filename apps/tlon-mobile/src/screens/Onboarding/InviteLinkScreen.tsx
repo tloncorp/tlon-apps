@@ -1,13 +1,10 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import {
-  BRANCH_DOMAIN,
-  BRANCH_KEY,
-  EMAIL_REGEX,
-} from '@tloncorp/app/constants';
+import { BRANCH_DOMAIN, BRANCH_KEY } from '@tloncorp/app/constants';
 import { useBranch, useLureMetadata } from '@tloncorp/app/contexts/branch';
 import {
   DeepLinkData,
+  createInviteLinkRegex,
   extractNormalizedInviteLink,
   getMetadaFromInviteLink,
 } from '@tloncorp/shared/dist';
@@ -26,6 +23,8 @@ import { Controller, useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 
 import type { OnboardingStackParamList } from '../../types';
+
+const INVITE_LINK_REGEX = createInviteLinkRegex(BRANCH_DOMAIN);
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'InviteLink'>;
 
@@ -61,10 +60,10 @@ export const InviteLinkScreen = ({ navigation }: Props) => {
         );
         if (inviteLinkMeta) {
           setLure(inviteLinkMeta as DeepLinkData);
-        } else {
-          trigger('inviteLink');
+          return;
         }
       }
+      trigger('inviteLink');
     }
     handleInviteLinkChange();
   }, [inviteLinkValue, setLure, trigger]);
@@ -107,9 +106,8 @@ export const InviteLinkScreen = ({ navigation }: Props) => {
               control={control}
               name="inviteLink"
               rules={{
-                required: 'Please provide a valid invite link.',
                 pattern: {
-                  value: EMAIL_REGEX,
+                  value: INVITE_LINK_REGEX,
                   message: 'Invite link not recognized.',
                 },
               }}

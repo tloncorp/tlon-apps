@@ -47,11 +47,10 @@ export function extractNormalizedInviteLink(
   url: string,
   branchDomain: string
 ): string | null {
-  const INVITE_LINK_REGEX = new RegExp(
-    `^(https?://)?(${branchDomain}/|tlon\\.network/lure/)0v[^/]+$`
-  );
-
+  if (!url) return null;
+  const INVITE_LINK_REGEX = createInviteLinkRegex(branchDomain);
   const match = url.match(INVITE_LINK_REGEX);
+
   if (match) {
     const parts = match[0].split('/');
     const token = parts[parts.length - 1];
