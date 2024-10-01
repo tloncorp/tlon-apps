@@ -282,6 +282,14 @@ export function Channel({
                         showBigInput ? bigInputGoBack() : goBack()
                       }
                       showSearchButton={isChatChannel}
+                      showAddButton={
+                        !isChatChannel && canWrite && !showBigInput
+                      }
+                      onPressAddButton={() =>
+                        channel.type === 'gallery'
+                          ? setShowAddGalleryPost(true)
+                          : setShowBigInput(true)
+                      }
                       goToSearch={goToSearch}
                       showSpinner={isLoadingPosts}
                       showMenuButton={true}
@@ -395,34 +403,6 @@ export function Channel({
                               showAttachmentButton={channel.type !== 'gallery'}
                             />
                           )}
-                        {!isChatChannel && canWrite && !showBigInput && (
-                          <View
-                            position="absolute"
-                            bottom={bottom}
-                            flex={1}
-                            width="100%"
-                            alignItems="center"
-                          >
-                            {channel.type === 'gallery' &&
-                            (showAddGalleryPost ||
-                              isUploadingGalleryImage) ? null : (
-                              <FloatingActionButton
-                                onPress={() =>
-                                  channel.type === 'gallery'
-                                    ? setShowAddGalleryPost(true)
-                                    : setShowBigInput(true)
-                                }
-                                icon={
-                                  <Icon
-                                    type="Add"
-                                    size={'$s'}
-                                    marginRight={'$s'}
-                                  />
-                                }
-                              />
-                            )}
-                          </View>
-                        )}
                         {!negotiationMatch && isChatChannel && canWrite && (
                           <NegotionMismatchNotice />
                         )}
