@@ -55,14 +55,11 @@ export const InviteLinkScreen = ({ navigation }: Props) => {
         BRANCH_DOMAIN
       );
       if (extractedLink) {
-        // check for invite link
         const inviteLinkMeta = await getMetadaFromInviteLink(
           extractedLink,
           BRANCH_KEY
         );
         if (inviteLinkMeta) {
-          // set the lure
-          console.log(`got a lure!`, inviteLinkMeta);
           setLure(inviteLinkMeta as DeepLinkData);
         } else {
           trigger('inviteLink');
@@ -76,7 +73,6 @@ export const InviteLinkScreen = ({ navigation }: Props) => {
   // to signup
   useEffect(() => {
     if (lureMeta) {
-      console.log(`we have an invite now!`);
       setHasInvite(true);
     }
   }, [lureMeta]);
