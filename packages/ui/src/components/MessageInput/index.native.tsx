@@ -163,7 +163,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const titleInputHeight = 48;
     const inputBasePadding = getToken('$s', 'space');
     const imageInputButtonHeight = 50;
-    const maxInputHeight = useMemo(
+    const maxInputHeightBasic = useMemo(
       () => height - headerHeight - bottom - top,
       [height, bottom, top, headerHeight]
     );
@@ -176,6 +176,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       [height, basicOffset, bottom, inputBasePadding]
     );
     const [bigInputHeight, setBigInputHeight] = useState(bigInputHeightBasic);
+    const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
     const [mentionText, setMentionText] = useState<string>();
     const [showMentionPopup, setShowMentionPopup] = useState(false);
 
@@ -747,7 +748,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           if (payload === containerHeight) {
             return;
           }
-          if (containerHeight > maxInputHeight) {
+          if (containerHeight > maxInputHeightBasic) {
             return;
           }
           setContainerHeight(payload);
@@ -791,7 +792,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         editorCrashed,
         setEditorCrashed,
         containerHeight,
-        maxInputHeight,
+        maxInputHeightBasic,
       ]
     );
 
@@ -812,7 +813,18 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           setBigInputHeight(bigInputHeightBasic);
         });
       }
-    }, [bigInput, bigInputHeightBasic]);
+
+      if (!bigInput) {
+        Keyboard.addListener('keyboardDidShow', () => {
+          const keyboardHeight = Keyboard.metrics()?.height || 300;
+          setMaxInputHeight(maxInputHeightBasic - keyboardHeight);
+        });
+
+        Keyboard.addListener('keyboardDidHide', () => {
+          setMaxInputHeight(maxInputHeightBasic);
+        });
+      }
+    }, [bigInput, bigInputHeightBasic, maxInputHeightBasic]);
 
     // we need to check if the app within the webview actually loaded
     useEffect(() => {
