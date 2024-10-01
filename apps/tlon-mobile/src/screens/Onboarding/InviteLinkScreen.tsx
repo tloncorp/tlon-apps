@@ -93,7 +93,6 @@ export const InviteLinkScreen = ({ navigation }: Props) => {
         padding="$2xl"
         gap="$2xl"
         onPress={() => Keyboard.dismiss()}
-        // backgroundColor="orange"
         flex={1}
       >
         {!hasInvite ? (

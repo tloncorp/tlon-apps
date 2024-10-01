@@ -63,7 +63,13 @@ export const TextInputWithButton: React.FC<TextInputWithButtonProps> =
         borderRadius="$l"
         padding="$l"
       >
-        <TextInput padding={0} flex={1} borderWidth={0} {...textInputProps} />
+        <TextInput
+          padding={0}
+          flex={1}
+          borderWidth={0}
+          textAlignVertical="unset"
+          {...textInputProps}
+        />
         <Button
           onPress={onButtonPress}
           backgroundColor="$secondaryBackground"
