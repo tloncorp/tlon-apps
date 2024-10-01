@@ -1,9 +1,11 @@
 import Clipboard from '@react-native-clipboard/clipboard';
+import { type Session, useCurrentSession } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
 import { useMemo } from 'react';
+import { Alert } from 'react-native';
 
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
@@ -27,6 +29,7 @@ export default function MessageActions({
   post: db.Post;
   channelType: db.ChannelType;
 }) {
+  const currentSession = useCurrentSession();
   const currentUserId = useCurrentUserId();
   const { addAttachment } = useAttachmentContext();
   const channel = useChannelContext();
@@ -61,6 +64,7 @@ export default function MessageActions({
     <ActionList width={220}>
       {postActions.map((action, index) => (
         <ActionList.Action
+          disabled={action.networkDependent && currentSession?.isReconnecting}
           onPress={() =>
             handleAction({
               id: action.id,
@@ -73,6 +77,8 @@ export default function MessageActions({
               onEdit,
               onViewReactions,
               addAttachment,
+              currentSession,
+              isNetworkDependent: action.networkDependent,
             })
           }
           key={action.id}
@@ -103,6 +109,7 @@ interface ChannelAction {
   id: string;
   label: string;
   actionType?: 'destructive';
+  networkDependent: boolean;
 }
 export function getPostActions({
   post,
@@ -116,48 +123,112 @@ export function getPostActions({
   switch (channelType) {
     case 'gallery':
       return [
-        { id: 'startThread', label: 'Comment on post' },
-        { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
-        { id: 'copyRef', label: 'Copy link to post' },
-        { id: 'edit', label: 'Edit post' },
-        { id: 'report', label: 'Report post' },
-        { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
-        { id: 'delete', label: 'Delete message', actionType: 'destructive' },
+        { id: 'startThread', label: 'Comment on post', networkDependent: true },
+        {
+          id: 'muteThread',
+          label: isMuted ? 'Unmute thread' : 'Mute thread',
+          networkDependent: true,
+        },
+        { id: 'copyRef', label: 'Copy link to post', networkDependent: false },
+        { id: 'edit', label: 'Edit post', networkDependent: true },
+        { id: 'report', label: 'Report post', networkDependent: true },
+        {
+          id: 'visibility',
+          label: post?.hidden ? 'Show post' : 'Hide post',
+          networkDependent: true,
+        },
+        {
+          id: 'delete',
+          label: 'Delete message',
+          actionType: 'destructive',
+          networkDependent: true,
+        },
       ];
     case 'notebook':
       return [
-        { id: 'startThread', label: 'Comment on post' },
-        { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
-        { id: 'copyRef', label: 'Copy link to post' },
-        { id: 'edit', label: 'Edit post' },
-        { id: 'report', label: 'Report post' },
-        { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
-        { id: 'delete', label: 'Delete message', actionType: 'destructive' },
+        { id: 'startThread', label: 'Comment on post', networkDependent: true },
+        {
+          id: 'muteThread',
+          label: isMuted ? 'Unmute thread' : 'Mute thread',
+          networkDependent: true,
+        },
+        { id: 'copyRef', label: 'Copy link to post', networkDependent: false },
+        { id: 'edit', label: 'Edit post', networkDependent: true },
+        { id: 'report', label: 'Report post', networkDependent: true },
+        {
+          id: 'visibility',
+          label: post?.hidden ? 'Show post' : 'Hide post',
+          networkDependent: true,
+        },
+        {
+          id: 'delete',
+          label: 'Delete message',
+          actionType: 'destructive',
+          networkDependent: true,
+        },
       ];
     case 'dm':
     case 'groupDm':
       return [
         // { id: 'quote', label: 'Quote' },
-        { id: 'startThread', label: 'Start thread' },
-        { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
-        { id: 'viewReactions', label: 'View reactions' },
-        { id: 'copyText', label: 'Copy message text' },
-        { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
-        { id: 'delete', label: 'Delete message', actionType: 'destructive' },
+        { id: 'startThread', label: 'Start thread', networkDependent: true },
+        {
+          id: 'muteThread',
+          label: isMuted ? 'Unmute thread' : 'Mute thread',
+          networkDependent: true,
+        },
+        {
+          id: 'viewReactions',
+          label: 'View reactions',
+          networkDependent: false,
+        },
+        { id: 'copyText', label: 'Copy message text', networkDependent: false },
+        {
+          id: 'visibility',
+          label: post?.hidden ? 'Show post' : 'Hide post',
+          networkDependent: true,
+        },
+        {
+          id: 'delete',
+          label: 'Delete message',
+          actionType: 'destructive',
+          networkDependent: true,
+        },
       ];
     case 'chat':
     default:
       return [
-        { id: 'quote', label: 'Quote' },
-        { id: 'startThread', label: 'Start thread' },
-        { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
-        { id: 'viewReactions', label: 'View reactions' },
-        { id: 'copyRef', label: 'Copy link to message' },
-        { id: 'copyText', label: 'Copy message text' },
-        { id: 'edit', label: 'Edit message' },
-        { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
-        { id: 'report', label: 'Report message' },
-        { id: 'delete', label: 'Delete message', actionType: 'destructive' },
+        { id: 'quote', label: 'Quote', networkDependent: true },
+        { id: 'startThread', label: 'Start thread', networkDependent: true },
+        {
+          id: 'muteThread',
+          label: isMuted ? 'Unmute thread' : 'Mute thread',
+          networkDependent: true,
+        },
+        {
+          id: 'viewReactions',
+          label: 'View reactions',
+          networkDependent: false,
+        },
+        {
+          id: 'copyRef',
+          label: 'Copy link to message',
+          networkDependent: false,
+        },
+        { id: 'copyText', label: 'Copy message text', networkDependent: false },
+        { id: 'edit', label: 'Edit message', networkDependent: true },
+        {
+          id: 'visibility',
+          label: post?.hidden ? 'Show post' : 'Hide post',
+          networkDependent: true,
+        },
+        { id: 'report', label: 'Report message', networkDependent: true },
+        {
+          id: 'delete',
+          label: 'Delete message',
+          actionType: 'destructive',
+          networkDependent: true,
+        },
       ];
   }
 }
@@ -173,6 +244,8 @@ export async function handleAction({
   onEdit,
   onViewReactions,
   addAttachment,
+  currentSession,
+  isNetworkDependent,
 }: {
   id: string;
   post: db.Post;
@@ -184,7 +257,17 @@ export async function handleAction({
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
+  currentSession: Session | null;
+  isNetworkDependent: boolean;
 }) {
+  if (isNetworkDependent && currentSession?.isReconnecting) {
+    Alert.alert(
+      'App is disconnected',
+      'This action is unavailable while the app is in a disconnected state.'
+    );
+    return;
+  }
+
   const [path, reference] = logic.postToContentReference(post);
 
   switch (id) {

@@ -49,6 +49,7 @@ export function ChannelHeader({
         title={title}
         goBack={goBack}
         showSpinner={showSpinner}
+        showSessionStatus
         rightContent={
           <>
             {showSearchButton && (

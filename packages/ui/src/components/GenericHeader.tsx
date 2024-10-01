@@ -24,9 +24,9 @@ export function GenericHeader({
   const textColor =
     showSessionStatus === false
       ? '$primaryText'
-      : currentSession
-        ? '$primaryText'
-        : '$tertiaryText';
+      : currentSession?.isReconnecting
+        ? '$tertiaryText'
+        : '$primaryText';
 
   return (
     <View paddingTop={insets.top}>
