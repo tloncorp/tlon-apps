@@ -130,7 +130,7 @@ export function EmojiPickerSheet(
                 marginHorizontal="$m"
                 onChangeQuery={handleQueryChange}
                 onFocus={handleInputFocus}
-                areaProps={{ spellCheck: false, autoComplete: 'off' }}
+                inputProps={{ spellCheck: false, autoComplete: 'off' }}
               />
             </View>
             <View onTouchStart={() => Keyboard.dismiss()}>

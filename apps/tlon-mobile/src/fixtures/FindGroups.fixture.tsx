@@ -7,7 +7,7 @@ export default {
   basic: (
     <FixtureWrapper fillWidth fillHeight>
       <AppDataContextProvider contacts={initialContacts}>
-        <FindGroupsView onCancel={() => {}} onGroupAction={() => {}} />
+        <FindGroupsView goBack={() => {}} goToContactHostedGroups={() => {}} />
       </AppDataContextProvider>
     </FixtureWrapper>
   ),

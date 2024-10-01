@@ -1,6 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type * as db from '@tloncorp/shared/dist/db';
-import type { WebViewProps } from 'react-native-webview';
 
 export type SignUpExtras = {
   nickname?: string;
@@ -28,6 +27,9 @@ export type RootStackParamList = {
     selectedPostId?: string | null;
   };
   FindGroups: undefined;
+  ContactHostedGroups: {
+    contactId: string;
+  };
   CreateGroup: undefined;
   GroupChannels: {
     group: db.Group;
