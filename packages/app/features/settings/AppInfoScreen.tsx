@@ -2,8 +2,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   AppSetting,
-  GenericHeader,
   ListItem,
+  ScreenHeader,
   SizableText,
   Stack,
   View,
@@ -35,9 +35,9 @@ export function AppInfoScreen(props: Props) {
 
   return (
     <View flex={1}>
-      <GenericHeader
-        title="App Info"
-        goBack={() => props.navigation.goBack()}
+      <ScreenHeader
+        title="App info"
+        backAction={() => props.navigation.goBack()}
       />
       <ScrollView>
         <YStack marginTop="$xl" marginHorizontal="$2xl" gap="$s">

@@ -5,23 +5,9 @@ import { ScrollView, View } from 'tamagui';
 
 import { useChatOptions } from '../contexts/chatOptions';
 import { SimpleActionSheet } from './ActionSheet';
-import { Button } from './Button';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
-import { GenericHeader } from './GenericHeader';
-import { Icon } from './Icon';
-
-const ChannelSortOptions = ({
-  setShowSortOptions,
-}: {
-  setShowSortOptions: (show: boolean) => void;
-}) => {
-  return (
-    <Button borderWidth={0} onPress={() => setShowSortOptions(true)}>
-      <Icon type="Filter" />
-    </Button>
-  );
-};
+import { ScreenHeader } from './ScreenHeader';
 
 type GroupChannelsScreenViewProps = {
   onChannelPressed: (channel: db.Channel) => void;
@@ -65,18 +51,30 @@ export function GroupChannelsScreenView({
     }
   }, [group]);
 
+  const title = group ? group?.title ?? 'Untitled' : '';
+
   return (
     <View flex={1}>
-      <GenericHeader
-        title={group ? group?.title ?? 'Untitled' : ''}
-        goBack={onBackPressed}
-        rightContent={
-          <View flexDirection="row" gap="$s">
-            <ChannelSortOptions setShowSortOptions={setShowSortOptions} />
-            <Button borderWidth={0} onPress={handlePressOverflowButton}>
-              <Icon type="Overflow" />
-            </Button>
-          </View>
+      <ScreenHeader
+        // When we're fetching the group from the local database, this component
+        // will initially mount with group undefined, then very quickly load the
+        // group in. Keeping the key consistent as long as the ID is prevents a
+        // full re-render / animation triggering almost immediately after the
+        // component mounts.
+        key={group?.id}
+        title={title}
+        backAction={onBackPressed}
+        rightControls={
+          <>
+            <ScreenHeader.IconButton
+              type="Filter"
+              onPress={() => setShowSortOptions(true)}
+            />
+            <ScreenHeader.IconButton
+              type="Overflow"
+              onPress={handlePressOverflowButton}
+            />
+          </>
         }
       />
       <ScrollView
