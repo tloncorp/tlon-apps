@@ -11,8 +11,8 @@ import {
 import {
   AppInviteDisplay,
   Field,
-  GenericHeader,
   PrimaryButton,
+  ScreenHeader,
   SizableText,
   TextInputWithButton,
   View,
@@ -84,10 +84,10 @@ export const InviteLinkScreen = ({ navigation }: Props) => {
 
   return (
     <View flex={1}>
-      <GenericHeader
+      <ScreenHeader
         title="Have an invite?"
         showSessionStatus={false}
-        goBack={() => navigation.goBack()}
+        backAction={() => navigation.goBack()}
       />
       <YStack
         padding="$2xl"
