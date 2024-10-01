@@ -72,6 +72,43 @@ export const TextInputWithIcon = React.memo(
   })
 );
 
+interface TextInputWithButtonProps extends ComponentProps<typeof TextInput> {
+  buttonText: string;
+  onButtonPress: () => void;
+}
+
+// Needs polish, I know we just talked about Ochre conformance plz forgive
+export const TextInputWithButton: React.FC<TextInputWithButtonProps> =
+  React.memo(function TextInputWithButtonRaw({
+    buttonText,
+    onButtonPress,
+    ...textInputProps
+  }) {
+    return (
+      <XStack
+        borderWidth={1}
+        borderColor="$border"
+        borderRadius="$l"
+        padding="$l"
+      >
+        <TextInput
+          padding={0}
+          flex={1}
+          borderWidth={0}
+          textAlignVertical="unset"
+          {...textInputProps}
+        />
+        <Button
+          onPress={onButtonPress}
+          backgroundColor="$secondaryBackground"
+          padding="$l"
+        >
+          <Button.Text>{buttonText}</Button.Text>
+        </Button>
+      </XStack>
+    );
+  });
+
 // Toggle group
 
 export const ToggleGroupInput = ({

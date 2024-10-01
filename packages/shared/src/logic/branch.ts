@@ -61,7 +61,7 @@ export interface DeepLinkMetadata {
   invitedGroupIconImageUrl?: string;
   invitedGroupiconImageColor?: string;
 }
-interface DeepLinkData extends DeepLinkMetadata {
+export interface DeepLinkData extends DeepLinkMetadata {
   $desktop_url: string;
   $canonical_url: string;
   wer?: string;

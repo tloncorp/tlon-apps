@@ -34,7 +34,7 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
       if (enabled) {
         navigation.navigate('SignUpEmail');
       } else {
-        navigation.navigate('JoinWaitList', {});
+        navigation.navigate('InviteLink');
       }
     } catch (err) {
       console.error('Error checking hosting availability:', err);
