@@ -4,9 +4,8 @@ import {
   initClient,
 } from '@google-cloud/recaptcha-enterprise-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { DEFAULT_LURE, RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
+import { RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
 import {
-  useBranch,
   useLureMetadata,
   useSignupParams,
 } from '@tloncorp/app/contexts/branch';
@@ -19,15 +18,13 @@ import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   AppInviteDisplay,
-  Button,
   CheckboxInput,
   Field,
-  GenericHeader,
   Icon,
   KeyboardAvoidingView,
   ListItem,
+  ScreenHeader,
   SizableText,
-  Text,
   TextInput,
   View,
   YStack,
@@ -182,17 +179,17 @@ export const SignUpPasswordScreen = ({
 
   return (
     <View flex={1}>
-      <GenericHeader
+      <ScreenHeader
         title="Set Password"
         showSessionStatus={false}
-        goBack={() => navigation.goBack()}
-        showSpinner={isSubmitting}
-        rightContent={
+        backAction={() => navigation.goBack()}
+        isLoading={isSubmitting}
+        rightControls={
           isValid &&
           watch('eulaAgreed') && (
-            <Button minimal onPress={onSubmit}>
-              <Text fontSize="$m">Next</Text>
-            </Button>
+            <ScreenHeader.TextButton onPress={onSubmit}>
+              Next
+            </ScreenHeader.TextButton>
           )
         }
       />

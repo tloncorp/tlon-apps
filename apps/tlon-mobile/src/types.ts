@@ -27,6 +27,9 @@ export type RootStackParamList = {
     selectedPostId?: string | null;
   };
   FindGroups: undefined;
+  ContactHostedGroups: {
+    contactId: string;
+  };
   CreateGroup: undefined;
   GroupChannels: {
     group: db.Group;
@@ -98,6 +101,7 @@ export type OnboardingStackParamList = {
   SignUpEmail: undefined;
   EULA: undefined;
   SignUpPassword: { email: string };
+  InviteLink: undefined;
   JoinWaitList: { email?: string };
   RequestPhoneVerify: { user: User };
   CheckVerify: { user: User };

@@ -34,6 +34,7 @@ import AuthenticatedApp from './components/AuthenticatedApp';
 import { CheckVerifyScreen } from './screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from './screens/Onboarding/EULAScreen';
 import { InventoryCheckScreen } from './screens/Onboarding/InventoryCheckScreen';
+import { InviteLinkScreen } from './screens/Onboarding/InviteLinkScreen';
 import { JoinWaitListScreen } from './screens/Onboarding/JoinWaitListScreen';
 import { RequestPhoneVerifyScreen } from './screens/Onboarding/RequestPhoneVerifyScreen';
 import { ReserveShipScreen } from './screens/Onboarding/ReserveShipScreen';
@@ -110,6 +111,10 @@ const App = ({
               component={SignUpEmailScreen}
             />
             <OnboardingStack.Screen name="EULA" component={EULAScreen} />
+            <OnboardingStack.Screen
+              name="InviteLink"
+              component={InviteLinkScreen}
+            />
             <OnboardingStack.Screen
               name="InventoryCheck"
               component={InventoryCheckScreen}
