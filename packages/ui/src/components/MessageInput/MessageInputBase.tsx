@@ -1,4 +1,5 @@
 import type { EditorBridge } from '@10play/tentap-editor';
+import { useCurrentSession } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
@@ -92,6 +93,9 @@ export const MessageInputContainer = ({
   onPressEdit?: () => void;
   goBack?: () => void;
 }>) => {
+  const currentSession = useCurrentSession();
+  const isDisconnected =
+    !currentSession || currentSession.isReconnecting === true;
   const { canUpload } = useAttachmentContext();
   if (isEditing) {
     return (
@@ -125,7 +129,7 @@ export const MessageInputContainer = ({
           {children}
           <View marginBottom="$xs">
             <Button
-              disabled={disableSend || isSending}
+              disabled={disableSend || isSending || isDisconnected}
               onPress={onPressEdit}
               backgroundColor="unset"
               borderColor="transparent"
@@ -190,7 +194,7 @@ export const MessageInputContainer = ({
         ) : (
           <View marginBottom="$xs">
             <Button
-              disabled={disableSend || isSending}
+              disabled={disableSend || isSending || isDisconnected}
               onPress={onPressSend}
               backgroundColor="unset"
               borderColor="transparent"
