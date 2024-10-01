@@ -1,6 +1,5 @@
 import React, { ComponentProps, ReactElement } from 'react';
 import { TextInput as BaseTextInput } from 'react-native';
-import { TouchableOpacity } from 'react-native-gesture-handler';
 import { ScrollView, View, XStack, YStack, styled } from 'tamagui';
 
 import { Button } from '../Button';
@@ -50,6 +49,7 @@ interface TextInputWithButtonProps extends ComponentProps<typeof TextInput> {
   onButtonPress: () => void;
 }
 
+// Needs polish, I know we just talked about Ochre conformance plz forgive
 export const TextInputWithButton: React.FC<TextInputWithButtonProps> =
   React.memo(function TextInputWithButtonRaw({
     buttonText,

@@ -6,22 +6,17 @@ import {
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
 import { useBranch, useLureMetadata } from '@tloncorp/app/contexts/branch';
-import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   DeepLinkData,
-  createInviteLinkRegex,
   extractNormalizedInviteLink,
   getMetadaFromInviteLink,
 } from '@tloncorp/shared/dist';
 import {
-  ActionSheet,
   AppInviteDisplay,
   Field,
-  FieldLabel,
   GenericHeader,
   PrimaryButton,
   SizableText,
-  TextInput,
   TextInputWithButton,
   View,
   YStack,
@@ -31,22 +26,6 @@ import { Controller, useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 
 import type { OnboardingStackParamList } from '../../types';
-
-// const onSubmit = async (data: FormData) => {
-//   try {
-//     await addUserToWaitlist({ email: data.inviteLink });
-//     trackOnboardingAction({
-//       actionName: 'Waitlist Joined',
-//     });
-//     navigation.popToTop();
-//   } catch (err) {
-//     console.error('Error joining waitlist:', err);
-//     if (err instanceof Error) {
-//       setRemoteError(err.message);
-//       trackError(err);
-//     }
-//   }
-// };
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'InviteLink'>;
 
@@ -61,8 +40,7 @@ export const InviteLinkScreen = ({ navigation }: Props) => {
 
   const {
     control,
-    handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors },
     setValue,
     watch,
     trigger,
