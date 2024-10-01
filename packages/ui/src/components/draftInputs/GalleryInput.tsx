@@ -7,16 +7,16 @@ import {
   useState,
 } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AnimatePresence, View, YStack } from 'tamagui';
+import { View, YStack } from 'tamagui';
 
 import AddGalleryPost from '../AddGalleryPost';
-import { Button } from '../Button';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import GalleryImagePreview from '../Channel/GalleryImagePreview';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
 import { MessageInput } from '../MessageInput';
 import { ParentAgnosticKeyboardAvoidingView } from '../ParentAgnosticKeyboardAvoidingView';
+import { ScreenHeader } from '../ScreenHeader';
 import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
 import { DraftInputContext } from './shared';
 
@@ -74,13 +74,10 @@ export function GalleryInput({
     useMemo(
       () =>
         showBigInput ? null : (
-          <Button
-            backgroundColor="unset"
-            borderColor="transparent"
+          <ScreenHeader.IconButton
+            type="Add"
             onPress={() => setShowAddGalleryPost(true)}
-          >
-            <Icon type="Add" />
-          </Button>
+          />
         ),
       [showBigInput]
     )

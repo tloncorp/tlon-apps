@@ -1,8 +1,8 @@
 import { debounce } from 'lodash';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
-import { Input as TInput, View } from 'tamagui';
-import { Circle } from 'tamagui';
+import { Circle, View, XStack } from 'tamagui';
 
+import { TextInput, TextInputWithIcon } from './Form';
 import { Icon } from './Icon';
 import { Input } from './Input';
 
@@ -10,13 +10,13 @@ export function SearchBar({
   placeholder,
   onChangeQuery,
   debounceTime = 300,
-  areaProps,
+  inputProps,
   ...rest
 }: {
   placeholder?: string;
   onChangeQuery: (query: string) => void;
   debounceTime?: number;
-  areaProps?: ComponentProps<typeof TInput>;
+  inputProps?: ComponentProps<typeof TextInput>;
 } & ComponentProps<typeof Input>) {
   const [value, setValue] = useState('');
   const debouncedOnChangeQuery = useMemo(
@@ -51,34 +51,34 @@ export function SearchBar({
       flexDirection="column"
       justifyContent="center"
       alignItems="center"
+      {...rest}
     >
-      <Input size="$m" {...rest} search>
-        <Input.Icon>
-          <Icon type="Search" color="$secondaryText" />
-        </Input.Icon>
-
-        <Input.Area
-          placeholder={placeholder ?? 'Search...'}
-          value={value}
-          onChangeText={onTextChange}
-          {...areaProps}
-        />
-
-        <Input.Icon
-          onPress={() => onTextChange('')}
-          disabled={value === ''}
-          opacity={value === '' ? 0 : undefined}
+      <TextInputWithIcon
+        icon="Search"
+        value={value}
+        onChangeText={onTextChange}
+        placeholder={placeholder}
+        {...inputProps}
+      />
+      <XStack
+        alignItems="center"
+        position="absolute"
+        right={'$3xl'}
+        top={0}
+        height="100%"
+        onPress={() => onTextChange('')}
+        disabled={value === ''}
+        opacity={value === '' ? 0 : undefined}
+      >
+        <Circle
+          justifyContent="center"
+          alignItems="center"
+          size="$xl"
+          backgroundColor="$secondaryText"
         >
-          <Circle
-            justifyContent="center"
-            alignItems="center"
-            size="$xl"
-            backgroundColor="$secondaryText"
-          >
-            <Icon size="$s" type="Close" color="$secondaryBackground" />
-          </Circle>
-        </Input.Icon>
-      </Input>
+          <Icon size="$s" type="Close" color="$secondaryBackground" />
+        </Circle>
+      </XStack>
     </View>
   );
 }

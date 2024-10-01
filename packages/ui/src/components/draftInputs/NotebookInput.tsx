@@ -5,11 +5,11 @@ import {
 } from 'react-native-safe-area-context';
 import { View } from 'tamagui';
 
-import { Button } from '../Button';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
 import { ParentAgnosticKeyboardAvoidingView } from '../ParentAgnosticKeyboardAvoidingView';
+import { ScreenHeader } from '../ScreenHeader';
 import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
 import { DraftInputContext } from './shared';
 
@@ -38,13 +38,10 @@ export function NotebookInput({
     useMemo(
       () =>
         showBigInput ? null : (
-          <Button
-            backgroundColor="unset"
-            borderColor="transparent"
+          <ScreenHeader.IconButton
+            type="Add"
             onPress={() => setShowBigInput(true)}
-          >
-            <Icon type="Add" />
-          </Button>
+          />
         ),
       [showBigInput]
     )

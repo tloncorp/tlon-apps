@@ -19,8 +19,16 @@ export const useGroupNavigation = () => {
     navigation.navigate('ChatList');
   }, [navigation]);
 
+  const goToContactHostedGroups = useCallback(
+    ({ contactId }: { contactId: string }) => {
+      navigation.navigate('ContactHostedGroups', { contactId });
+    },
+    [navigation]
+  );
+
   return {
     goToChannel,
     goToHome,
+    goToContactHostedGroups,
   };
 };

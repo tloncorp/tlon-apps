@@ -3,11 +3,9 @@ import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { requestPhoneVerify } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
-  Button,
   Field,
-  GenericHeader,
+  ScreenHeader,
   SizableText,
-  Text,
   View,
   YStack,
   useTheme,
@@ -78,15 +76,15 @@ export const RequestPhoneVerifyScreen = ({
 
   return (
     <View flex={1} padding="$l" backgroundColor="$background">
-      <GenericHeader
+      <ScreenHeader
         title="Confirm"
         showSessionStatus={false}
-        goBack={() => navigation.goBack()}
-        showSpinner={isSubmitting}
-        rightContent={
-          <Button minimal onPress={onSubmit} disabled={isSubmitting}>
-            <Text fontSize={'$m'}>Next</Text>
-          </Button>
+        backAction={() => navigation.goBack()}
+        isLoading={isSubmitting}
+        rightControls={
+          <ScreenHeader.TextButton onPress={onSubmit} disabled={isSubmitting}>
+            Next
+          </ScreenHeader.TextButton>
         }
       />
       <YStack gap="$l" padding="$2xl">

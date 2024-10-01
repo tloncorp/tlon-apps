@@ -903,6 +903,22 @@ export async function syncPosts(
       older: response.older,
     });
   }
+
+  if (response.deletedPosts?.length) {
+    if (options.count && response.deletedPosts.length === options.count) {
+      // if the number of deleted ("null") posts matches the requested count,
+      // we should fetch more posts to ensure we're not missing any.
+      // if we don't do this, we may assume we're up to date when we're not.
+      await syncPosts(
+        {
+          ...options,
+          count: options.count * 2,
+        },
+        ctx
+      );
+    }
+  }
+
   if (!response.newer) {
     await db.updateChannel({
       id: options.channelId,
