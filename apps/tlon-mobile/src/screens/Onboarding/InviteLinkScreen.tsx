@@ -87,8 +87,6 @@ export const InviteLinkScreen = ({ navigation }: Props) => {
     setValue('inviteLink', clipboardContents);
   }, [setValue]);
 
-  // https://sa96e.test-app.link/0v3.u6rbg.974h9.um97p.et55s.ohkg3
-
   return (
     <View flex={1}>
       <GenericHeader
