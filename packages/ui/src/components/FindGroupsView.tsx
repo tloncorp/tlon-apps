@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { Text, View, YStack } from 'tamagui';
 
 import { ContactBook } from './ContactBook';
-import { GenericHeader } from './GenericHeader';
+import { ScreenHeader } from './ScreenHeader';
 
 export function FindGroupsView({
   goBack,
@@ -21,7 +21,7 @@ export function FindGroupsView({
 
   return (
     <View flex={1}>
-      <GenericHeader title="Find groups" goBack={goBack} />
+      <ScreenHeader title="Find groups" backAction={goBack} />
       <ContactBook
         searchable
         searchPlaceholder="Search by nickname or user ID"

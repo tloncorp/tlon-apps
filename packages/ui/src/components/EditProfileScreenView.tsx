@@ -16,7 +16,6 @@ import {
 } from './Form';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { ScreenHeader } from './ScreenHeader';
-import { Text } from './TextV2';
 
 interface Props {
   onGoBack: () => void;
@@ -89,28 +88,15 @@ export function EditProfileScreenView(props: Props) {
 
   return (
     <View flex={1}>
-      <ScreenHeader>
-        <ScreenHeader.Controls side="left">
-          <Text
-            size="$label/2xl"
-            onPress={handlePressCancel}
-            paddingHorizontal="$s"
-          >
-            Cancel
-          </Text>
-        </ScreenHeader.Controls>
-        <ScreenHeader.Title textAlign="center">Edit Profile</ScreenHeader.Title>
-        <ScreenHeader.Controls side="right">
-          <Text
-            size="$label/2xl"
-            onPress={handlePressDone}
-            color="$positiveActionText"
-            paddingHorizontal="$s"
-          >
+      <ScreenHeader
+        backAction={handlePressCancel}
+        title="Edit Profile"
+        rightControls={
+          <ScreenHeader.TextButton onPress={handlePressDone}>
             Done
-          </Text>
-        </ScreenHeader.Controls>
-      </ScreenHeader>
+          </ScreenHeader.TextButton>
+        }
+      />
 
       <KeyboardAvoidingView>
         <ScrollView>

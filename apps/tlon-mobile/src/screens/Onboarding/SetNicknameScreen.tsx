@@ -3,11 +3,9 @@ import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { requestNotificationToken } from '@tloncorp/app/lib/notifications';
 import { trackError } from '@tloncorp/app/utils/posthog';
 import {
-  Button,
   Field,
-  GenericHeader,
+  ScreenHeader,
   SizableText,
-  Text,
   TextInput,
   View,
   YStack,
@@ -85,14 +83,10 @@ export const SetNicknameScreen = ({
 
   return (
     <View flex={1}>
-      <GenericHeader
+      <ScreenHeader
         title="Nickname"
         showSessionStatus={false}
-        rightContent={
-          <Button minimal onPress={onSubmit}>
-            <Text fontSize="$m">Next</Text>
-          </Button>
-        }
+        rightControls={<ScreenHeader.TextButton onPress={onSubmit} />}
       />
       <YStack gap="$xl" padding="$2xl">
         <SizableText color="$primaryText">

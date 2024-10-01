@@ -27,10 +27,8 @@ import * as utils from '../../utils';
 import AddGalleryPost from '../AddGalleryPost';
 import { BigInput } from '../BigInput';
 import { ChatMessage } from '../ChatMessage';
-import { FloatingActionButton } from '../FloatingActionButton';
 import { GalleryPost } from '../GalleryPost';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
-import { Icon } from '../Icon';
 import KeyboardAvoidingView from '../KeyboardAvoidingView';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
@@ -238,6 +236,14 @@ export function Channel({
     [setEditingPost, channel.type]
   );
 
+  const handlePressAddPost = useCallback(
+    () =>
+      channel.type === 'gallery'
+        ? setShowAddGalleryPost(true)
+        : setShowBigInput(true),
+    [channel.type]
+  );
+
   return (
     <ScrollContextProvider>
       <GroupsProvider groups={groups}>
@@ -285,11 +291,7 @@ export function Channel({
                       showAddButton={
                         !isChatChannel && canWrite && !showBigInput
                       }
-                      onPressAddButton={() =>
-                        channel.type === 'gallery'
-                          ? setShowAddGalleryPost(true)
-                          : setShowBigInput(true)
-                      }
+                      onPressAddButton={handlePressAddPost}
                       goToSearch={goToSearch}
                       showSpinner={isLoadingPosts}
                       showMenuButton={true}
