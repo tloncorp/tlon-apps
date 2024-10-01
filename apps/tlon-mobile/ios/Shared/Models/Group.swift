@@ -21,3 +21,11 @@ struct Group: Codable {
     let channels: [String: GroupChannel]
     let meta: GroupMeta
 }
+
+struct Gang: Codable {
+    let preview: GangPreview?
+}
+
+struct GangPreview: Codable {
+  let meta: GroupMeta
+}

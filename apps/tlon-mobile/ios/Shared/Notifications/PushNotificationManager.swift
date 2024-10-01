@@ -135,7 +135,7 @@ enum NotificationCategory: String {
         content: UNMutableNotificationContent = UNMutableNotificationContent()
     ) async -> (UNNotificationContent, INSendMessageIntent?) {
         content.interruptionLevel = .active
-        content.threadIdentifier = yarn.channelID
+        content.threadIdentifier = yarn.rope.thread
         content.title = await yarn.getTitle()
         content.body = yarn.body
         content.categoryIdentifier = yarn.category.rawValue

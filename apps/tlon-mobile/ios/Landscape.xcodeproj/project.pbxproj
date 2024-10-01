@@ -12,6 +12,11 @@
 		3DC46BC1B669DF8F5F059CA8 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ACB38DC4FF4D6377774BF5F /* ExpoModulesProvider.swift */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		4ACCD7281520ED84DDC2759A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 74D2BEF1344CF71A07C17F5E /* PrivacyInfo.xcprivacy */; };
+		5A1EB9532CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
+		5A1EB9542CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
+		5A1EB9552CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
+		5A1EB9562CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
+		5A1EB9572CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
 		630DE0B72C51A0F80053603B /* Error+isAFTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */; };
 		630DE0C52C51A8780053603B /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
 		630DE0C62C51A8780053603B /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
@@ -225,6 +230,7 @@
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Landscape/Info.plist; sourceTree = "<group>"; };
 		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = Landscape/main.m; sourceTree = "<group>"; };
 		3B0B210E999A7E0E1A345468 /* Pods-Landscape-preview.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape-preview.release.xcconfig"; path = "Target Support Files/Pods-Landscape-preview/Pods-Landscape-preview.release.xcconfig"; sourceTree = "<group>"; };
+		5A1EB9522CAC451A00029EDC /* GroupStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupStore.swift; sourceTree = "<group>"; };
 		630DE0B82C51A1500053603B /* LandscapePreview-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "LandscapePreview-Bridging-Header.h"; path = "Landscape/LandscapePreview-Bridging-Header.h"; sourceTree = "<group>"; };
 		630DE0E22C51A8790053603B /* Notifications-preview.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Notifications-preview.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserDefaults+appGroup.swift"; sourceTree = "<group>"; };
@@ -269,11 +275,11 @@
 		70F99A8E2B2D2B5700D77256 /* LandscapeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LandscapeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		70F99A972B2D2B6E00D77256 /* YarnTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YarnTests.swift; sourceTree = "<group>"; };
 		74633B6584F10A6AA2FEE339 /* Pods-Landscape.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape.release.xcconfig"; path = "Target Support Files/Pods-Landscape/Pods-Landscape.release.xcconfig"; sourceTree = "<group>"; };
-		74D2BEF1344CF71A07C17F5E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Landscape/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		74D2BEF1344CF71A07C17F5E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = Landscape/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		79BDD5DCE15A385BB361AED1 /* Pods_Landscape.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Landscape.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		7A4D352CD337FB3A3BF06240 /* Pods-Landscape.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape.release.xcconfig"; path = "Target Support Files/Pods-Landscape/Pods-Landscape.release.xcconfig"; sourceTree = "<group>"; };
 		8ACB38DC4FF4D6377774BF5F /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Landscape-preview/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		9D6B23EFDEDD5888235A22BB /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Landscape/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		9D6B23EFDEDD5888235A22BB /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = Landscape/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = Landscape/SplashScreen.storyboard; sourceTree = "<group>"; };
 		B35AC6CF758CAFC9D112A69F /* Pods-Landscape.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape.debug.xcconfig"; path = "Target Support Files/Pods-Landscape/Pods-Landscape.debug.xcconfig"; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
@@ -438,6 +444,7 @@
 				6374ACF82C4ACD5000E637C0 /* LoginStore.swift */,
 				700B635F2A71E0810017F40F /* SettingsStore.swift */,
 				7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */,
+				5A1EB9522CAC451A00029EDC /* GroupStore.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";
@@ -1180,6 +1187,7 @@
 				7083A16C2AFB01A30022404A /* TlonError.swift in Sources */,
 				632793BE2C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */,
 				7036E3542ACD0FC90020A9FB /* UserDefaultsStore.swift in Sources */,
+				5A1EB9532CAC451A00029EDC /* GroupStore.swift in Sources */,
 				70D3865A2A609BFC00AFB46E /* PocketNotificationsAPI.swift in Sources */,
 				C83014822C7BA74C00D9A5CA /* UIFont+SystemDesign.m in Sources */,
 				70D3865B2A609BFC00AFB46E /* PocketAPI.swift in Sources */,
@@ -1226,6 +1234,7 @@
 				63E27E0E2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				630DE0CF2C51A8780053603B /* PocketUserAPI.swift in Sources */,
 				630DE0D02C51A8780053603B /* UserDefaultsStore.swift in Sources */,
+				5A1EB9572CAC451A00029EDC /* GroupStore.swift in Sources */,
 				630DE0D12C51A8780053603B /* ContactStore.swift in Sources */,
 				630DE0D22C51A8780053603B /* NotificationService.swift in Sources */,
 				630DE0D32C51A8780053603B /* ClubStore.swift in Sources */,
@@ -1257,6 +1266,7 @@
 				63E27E0D2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				632793C62C4AE56F00F942B1 /* PocketUserAPI.swift in Sources */,
 				632793C42C4AE53A00F942B1 /* UserDefaultsStore.swift in Sources */,
+				5A1EB9562CAC451A00029EDC /* GroupStore.swift in Sources */,
 				632793C32C4AE53500F942B1 /* ContactStore.swift in Sources */,
 				6374ACE22C49DA9600E637C0 /* NotificationService.swift in Sources */,
 				632793CB2C4AE7D900F942B1 /* ClubStore.swift in Sources */,
@@ -1280,6 +1290,7 @@
 				70DBBFEC2B7C60B50021EA96 /* TlonError.swift in Sources */,
 				632793BF2C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */,
 				70DBBFED2B7C60B50021EA96 /* UserDefaultsStore.swift in Sources */,
+				5A1EB9542CAC451A00029EDC /* GroupStore.swift in Sources */,
 				70DBBFEE2B7C60B50021EA96 /* PocketNotificationsAPI.swift in Sources */,
 				70DBBFEF2B7C60B50021EA96 /* PocketAPI.swift in Sources */,
 				70DBBFF02B7C60B50021EA96 /* PushNotificationManager.swift in Sources */,
@@ -1326,6 +1337,7 @@
 				70F99AA92B2D337600D77256 /* GroupChannelStore.swift in Sources */,
 				70F99A9F2B2D336800D77256 /* Group.swift in Sources */,
 				70F99AA32B2D336E00D77256 /* PocketUserAPI.swift in Sources */,
+				5A1EB9552CAC451A00029EDC /* GroupStore.swift in Sources */,
 				70F99AA22B2D336E00D77256 /* UrbitAPI.swift in Sources */,
 				70F99AAA2B2D337600D77256 /* SettingsStore.swift in Sources */,
 				70F99AA62B2D336E00D77256 /* PocketChatAPI.swift in Sources */,
