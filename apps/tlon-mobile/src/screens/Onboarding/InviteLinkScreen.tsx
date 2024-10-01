@@ -97,10 +97,15 @@ export const InviteLinkScreen = ({ navigation }: Props) => {
       >
         {!hasInvite ? (
           <>
-            <SizableText color="$primaryText">
-              If someone invited you to Tlon, you can skip the waitlist. Click
-              your invite link now or paste it below.
-            </SizableText>
+            <View paddingHorizontal="$m" gap="$xl">
+              <SizableText color="$primaryText">
+                We&apos;re growing slowly. Invites let you skip the waitlist
+                because we know someone wants to talk to you here.
+              </SizableText>
+              <SizableText color="$primaryText">
+                Click your invite link now or paste it below.
+              </SizableText>
+            </View>
             <Controller
               control={control}
               name="inviteLink"
