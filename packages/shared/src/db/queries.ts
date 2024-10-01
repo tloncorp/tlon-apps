@@ -531,6 +531,31 @@ export const insertGroups = createWriteQuery(
   ]
 );
 
+export const insertGroupPreviews = createWriteQuery(
+  'insert group previews',
+  ({ groups }: { groups: Group[] }, ctx: QueryCtx) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      if (groups.length === 0) return;
+      for (const group of groups) {
+        await txCtx.db
+          .insert($groups)
+          .values(group)
+          .onConflictDoUpdate({
+            target: $groups.id,
+            set: conflictUpdateSet(
+              $groups.iconImage,
+              $groups.coverImage,
+              $groups.title,
+              $groups.description,
+              $groups.privacy
+            ),
+          });
+      }
+    });
+  },
+  ['groups']
+);
+
 export const updateGroup = createWriteQuery(
   'updateGroup',
   async (group: Partial<Group> & { id: string }, ctx: QueryCtx) => {

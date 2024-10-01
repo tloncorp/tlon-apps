@@ -6,7 +6,7 @@ import { initialContacts } from './fakeData';
 export default {
   basic: (
     <FixtureWrapper>
-      <AppDataContextProvider contacts={initialContacts}>
+      <AppDataContextProvider contacts={initialContacts} currentUserId="zod">
         <AddGroupSheet
           open
           onOpenChange={() => {}}

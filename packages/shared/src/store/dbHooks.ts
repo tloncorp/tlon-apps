@@ -389,12 +389,10 @@ export const useGroupsHostedBy = (userId: string) => {
     queryFn: async () => {
       // query backend for all groups the ship hosts
       const groups = await api.findGroupsHostedBy(userId);
-
-      const clientGroups = api.toClientGroupsFromPreview(groups);
       // insert any we didn't already have
-      await db.insertGroups({ groups: clientGroups, overWrite: false });
+      await db.insertGroupPreviews({ groups });
 
-      const groupIds = clientGroups.map((g) => g.id);
+      const groupIds = groups.map((g) => g.id);
       const groupPreviews = await db.getGroupPreviews(groupIds);
       return groupPreviews;
     },
