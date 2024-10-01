@@ -24,6 +24,7 @@
    [RNBranch useTestInstance];
 #endif
   
+  [[RNBranch branch] checkPasteboardOnInstall];
   [RNBranch initSessionWithLaunchOptions:launchOptions isReferrable:YES];
   
   // Listen to changes in app-specific cookie storage, and push those to the app group shared
