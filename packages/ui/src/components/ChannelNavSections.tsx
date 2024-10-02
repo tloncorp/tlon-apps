@@ -11,12 +11,14 @@ export default function ChannelNavSections({
   onSelect,
   sortBy,
   paddingBottom,
+  onLongPress,
 }: {
   group: db.Group;
   channels: db.Channel[];
   onSelect: (channel: any) => void;
   sortBy: 'recency' | 'arranged';
   paddingBottom?: number;
+  onLongPress: (channel: db.Channel) => void;
 }) {
   const unGroupedChannels = useMemo(
     () =>
@@ -56,6 +58,7 @@ export default function ChannelNavSections({
             model={item}
             onPress={onSelect}
             useTypeIcon={true}
+            onLongPress={onLongPress}
           />
         ))}
       </YStack>
@@ -97,6 +100,7 @@ export default function ChannelNavSections({
               key={item.id}
               model={item}
               onPress={onSelect}
+              onLongPress={onLongPress}
               useTypeIcon={true}
             />
           ))}

@@ -56,6 +56,15 @@ export function GroupChannelsScreenView({
 
   const title = group ? group?.title ?? 'Untitled' : '';
 
+  const handleOpenChannelOptions = useCallback(
+    (channel: db.Channel) => {
+      if (group) {
+        chatOptionsSheetRef.current?.open(channel.id, channel.type);
+      }
+    },
+    [group]
+  );
+
   return (
     <View flex={1}>
       <ScreenHeader
@@ -94,6 +103,7 @@ export function GroupChannelsScreenView({
             channels={groupOptions.groupChannels}
             onSelect={onChannelPressed}
             sortBy={sortBy || 'recency'}
+            onLongPress={handleOpenChannelOptions}
           />
         ) : null}
       </ScrollView>
