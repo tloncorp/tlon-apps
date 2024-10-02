@@ -55,7 +55,7 @@ export function AddGroupSheet({
       snapPointsMode="percent"
     >
       <ActionSheet.SimpleHeader title="Start a chat"></ActionSheet.SimpleHeader>
-      <YStack flex={1} paddingHorizontal={isWeb ? '$xl' : 0}>
+      <YStack flex={1} paddingHorizontal="$2xl">
         <ContactBook
           searchable
           searchPlaceholder="Username or ID"

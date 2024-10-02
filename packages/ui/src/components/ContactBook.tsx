@@ -124,7 +124,6 @@ export function ContactBook({
   const contentContainerStyle = useStyle({
     paddingBottom: insets.bottom,
     paddingTop: '$s',
-    paddingHorizontal: '$xl',
   }) as StyleProp<ViewStyle>;
 
   const scrollIndicatorInsets = useStyle({
@@ -142,7 +141,6 @@ export function ContactBook({
           paddingBottom="$s"
         >
           <SearchBar
-            paddingHorizontal="$xl"
             height="$4xl"
             debounceTime={100}
             onChangeQuery={setQuery}
