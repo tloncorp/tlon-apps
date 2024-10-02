@@ -640,11 +640,10 @@ export function ChannelOptions({
           ]
         : []),
       ...(group &&
-      channel.type !== 'groupDm' &&
-      channel.type !== 'dm' &&
+      !['groupDm', 'dm'].includes(channel.type) &&
       (group.privacy === 'public' ||
         (currentUserIsAdmin &&
-          (group.privacy === 'private' || group.privacy === 'secret')))
+          ['private', 'secret'].includes(group.privacy ?? '')))
         ? [
             {
               accent: 'neutral',
@@ -662,10 +661,9 @@ export function ChannelOptions({
           ]
         : []),
       ...(group &&
-      channel.type !== 'groupDm' &&
-      channel.type !== 'dm' &&
+      !['groupDm', 'dm'].includes(channel.type) &&
       !currentUserIsAdmin &&
-      (group.privacy === 'private' || group.privacy === 'secret')
+      ['private', 'secret'].includes(group.privacy ?? '')
         ? [
             {
               accent: 'disabled',
