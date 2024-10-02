@@ -68,8 +68,8 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
   }, [group, branchDomain, branchKey, toggle, status, isGroupAdmin, describe]);
 
   if (
-    (group?.privacy === 'private' ||
-    group?.privacy === 'secret') && !isGroupAdmin
+    (group?.privacy === 'private' || group?.privacy === 'secret') &&
+    !isGroupAdmin
   ) {
     return <Text>Only administrators may invite people to this group.</Text>;
   }
@@ -83,27 +83,31 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
       width="100%"
       justifyContent="space-between"
     >
-      <XStack gap="$xl" alignItems="center">
-        <View
-          borderRadius="$3xl"
-          backgroundColor={
-            status !== 'ready' || typeof shareUrl !== 'string'
-              ? '$background'
-              : '$transparent'
-          }
-          padding="$s"
-        >
-          {status !== 'ready' || typeof shareUrl !== 'string' ? (
+      <XStack gap="$xl" paddingHorizontal="$m" alignItems="center">
+        <View>
+          {status === 'error' || status === 'disabled' || status === 'stale' ? (
+            <Icon type="Close" size="$l" color="$background" />
+          ) : null}
+          {status === 'loading' && (
             <LoadingSpinner size="small" color="$background" />
-          ) : (
+          )}
+          {status === 'ready' && (
             <Icon type="Send" size="$l" color="$background" />
           )}
         </View>
-        <Text color="$background" fontSize="$l">
-          Invite Friends to Tlon
+        <Text flex={1} color="$background" fontSize="$l">
+          {status === 'disabled' && 'Public invite links are disabled'}
+          {status === 'stale' && 'Public invite links is stale'}
+          {status === 'error' && 'Error generating invite link'}
+          {status === 'loading' && 'Generating invite link...'}
+          {status === 'ready' &&
+            typeof shareUrl === 'string' &&
+            'Invite Friends to Tlon'}
         </Text>
+        {status === 'ready' && (
+          <Icon type="ChevronRight" size="$l" color="$background" />
+        )}
       </XStack>
-      <Icon type="ChevronRight" size="$l" color="$background" />
     </Button>
   );
 }
