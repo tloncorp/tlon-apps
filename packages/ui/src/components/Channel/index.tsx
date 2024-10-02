@@ -2,6 +2,7 @@ import {
   isChatChannel as getIsChatChannel,
   useChannel as useChannelFromStore,
   useGroupPreview,
+  usePostCollectionConfigurationFromChannelType,
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
@@ -132,6 +133,10 @@ export function Channel({
   const currentUserId = useCurrentUserId();
   const canWrite = utils.useCanWrite(channel, currentUserId);
 
+  const postCollectionConfig = usePostCollectionConfigurationFromChannelType(
+    channel.type
+  );
+
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
   const renderItem = isChatChannel
     ? ChatMessage
@@ -163,19 +168,31 @@ export function Channel({
   }, [hasLoaded, markRead]);
 
   const scrollerAnchor: ScrollAnchor | null = useMemo(() => {
-    if (channel.type === 'notebook') {
-      return null;
-    } else if (selectedPostId) {
+    // NB: technical behavior change: previously, we would avoid scroll-to-selected on notebooks.
+    // afaict, there's no way to select a post in a notebook, so the UX should be the same.
+    // (also, I personally think it's confusing to user to block scroll-to on selection for notebooks)
+    if (selectedPostId) {
       return { type: 'selected', postId: selectedPostId };
-    } else if (
-      channel.type !== 'gallery' &&
-      initialChannelUnread?.countWithoutThreads &&
-      initialChannelUnread.firstUnreadPostId
-    ) {
-      return { type: 'unread', postId: initialChannelUnread.firstUnreadPostId };
     }
+
+    if (postCollectionConfig.enableUnreadAnchor) {
+      if (
+        initialChannelUnread?.countWithoutThreads &&
+        initialChannelUnread.firstUnreadPostId
+      ) {
+        return {
+          type: 'unread',
+          postId: initialChannelUnread.firstUnreadPostId,
+        };
+      }
+    }
+
     return null;
-  }, [channel.type, selectedPostId, initialChannelUnread]);
+  }, [
+    postCollectionConfig.enableUnreadAnchor,
+    selectedPostId,
+    initialChannelUnread,
+  ]);
 
   const flatListRef = useRef<FlatList<db.Post>>(null);
 

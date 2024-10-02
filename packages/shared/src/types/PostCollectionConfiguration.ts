@@ -28,6 +28,11 @@ export interface PostCollectionConfiguration {
    * with a comma-separated list of member names.
    */
   usesMemberListAsFallbackTitle: boolean;
+
+  /**
+   * If true, entering channel scrolls to the viewer's first unread post.
+   */
+  enableUnreadAnchor: boolean;
 }
 
 // Why overload this function instead of just doing a union?
@@ -61,6 +66,7 @@ export function usePostCollectionConfigurationFromChannelType(
           itemAspectRatio: null,
           postActions: (options) => getPostActions({ ...options, channelType }),
           usesMemberListAsFallbackTitle: channelType !== 'chat',
+          enableUnreadAnchor: true,
         };
 
       case 'notebook':
@@ -75,6 +81,7 @@ export function usePostCollectionConfigurationFromChannelType(
           itemAspectRatio: null,
           postActions: (options) => getPostActions({ ...options, channelType }),
           usesMemberListAsFallbackTitle: false,
+          enableUnreadAnchor: false,
         };
 
       case 'gallery':
@@ -93,6 +100,7 @@ export function usePostCollectionConfigurationFromChannelType(
           itemAspectRatio: 1,
           postActions: (options) => getPostActions({ ...options, channelType }),
           usesMemberListAsFallbackTitle: false,
+          enableUnreadAnchor: false,
         };
     }
   }, [channelType]);
