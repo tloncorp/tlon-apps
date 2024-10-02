@@ -1,6 +1,13 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
-import { ScreenHeader, SizableText, View, XStack, YStack } from '@tloncorp/ui';
+import {
+  PrimaryButton,
+  ScreenHeader,
+  SizableText,
+  View,
+  XStack,
+  YStack,
+} from '@tloncorp/ui';
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useState } from 'react';
 import { Switch } from 'react-native';
@@ -35,15 +42,7 @@ export const SetTelemetryScreen = ({
 
   return (
     <View flex={1}>
-      <ScreenHeader
-        title="Usage Statistics"
-        showSessionStatus={false}
-        rightControls={
-          <ScreenHeader.TextButton onPress={handleNext}>
-            Next
-          </ScreenHeader.TextButton>
-        }
-      />
+      <ScreenHeader title="Usage Statistics" showSessionStatus={false} />
       <YStack gap="$3xl" padding="$2xl">
         <SizableText color="$primaryText">
           We&rsquo;re trying to make the app better and knowing how people use
@@ -64,6 +63,7 @@ export const SetTelemetryScreen = ({
           </SizableText>
           <Switch value={isEnabled} onValueChange={setIsEnabled} />
         </XStack>
+        <PrimaryButton onPress={handleNext}>Next</PrimaryButton>
       </YStack>
     </View>
   );
