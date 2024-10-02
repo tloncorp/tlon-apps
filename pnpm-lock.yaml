@@ -150,6 +150,9 @@ importers:
       '@react-navigation/native-stack':
         specifier: ^6.9.13
         version: 6.9.18(@react-navigation/native@6.1.10(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-safe-area-context@4.9.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-screens@3.29.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+      '@shopify/flash-list':
+        specifier: 1.6.3
+        version: 1.6.3(@babel/runtime@7.25.6)(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tanstack/react-query':
         specifier: ~5.32.1
         version: 5.32.1(react@18.2.0)
@@ -4967,6 +4970,13 @@ packages:
 
   '@segment/loosely-validate-event@2.0.0':
     resolution: {integrity: sha512-ZMCSfztDBqwotkl848ODgVcAmN4OItEWDCkshcKz0/W6gGSQayuuCtWV/MlodFivAZD793d6UgANd6wCXUfrIw==}
+
+  '@shopify/flash-list@1.6.3':
+    resolution: {integrity: sha512-XM2iu4CeD9SOEUxaGG3UkxfUxGPWG9yacga1yQSgskAjUsRDFTsD3y4Dyon9n8MfDwgrRpEwuijd+7NeQQoWaQ==}
+    peerDependencies:
+      '@babel/runtime': '*'
+      react: '*'
+      react-native: '*'
 
   '@sideway/address@4.1.5':
     resolution: {integrity: sha512-IqO/DUQHUkPeixNQ8n0JA6102hT9CmaljNTPmQ1u8MEhBo/R4Q8eKLN/vGZxuebwOroDB4cbpjheD4+/sKFK4Q==}
@@ -11513,6 +11523,12 @@ packages:
     resolution: {integrity: sha512-HFM8rkZ+i3zrV+4LQjwQ0W+ez98pApMGM3HUrN04j3CqzPOzl9nmP15Y8YXNm8QHGv/eacOVEjqhmWpkRV0NAw==}
     engines: {node: '>= 0.10'}
 
+  recyclerlistview@4.2.0:
+    resolution: {integrity: sha512-uuBCi0c+ggqHKwrzPX4Z/mJOzsBbjZEAwGGmlwpD/sD7raXixdAbdJ6BTcAmuWG50Cg4ru9p12M94Njwhr/27A==}
+    peerDependencies:
+      react: '>= 15.2.1'
+      react-native: '>= 0.30.0'
+
   redent@3.0.0:
     resolution: {integrity: sha512-6tDA8g98We0zd0GvVeMT9arEOnTw9qM03L9cJXaCjrip1OO764RDBLBfrB4cwzNGDj5OA5ioymC9GkizgWJDUg==}
     engines: {node: '>=8'}
@@ -12507,6 +12523,9 @@ packages:
   ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
 
+  ts-object-utils@0.0.5:
+    resolution: {integrity: sha512-iV0GvHqOmilbIKJsfyfJY9/dNHCs969z3so90dQWsO1eMMozvTpnB1MEaUbb3FYtZTGjv5sIy/xmslEz0Rg2TA==}
+
   tsc-files@1.1.4:
     resolution: {integrity: sha512-RePsRsOLru3BPpnf237y1Xe1oCGta8rmSYzM76kYo5tLGsv5R2r3s64yapYorGTPuuLyfS9NVbh9ydzmvNie2w==}
     hasBin: true
@@ -12515,6 +12534,9 @@ packages:
 
   tslib@1.14.1:
     resolution: {integrity: sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==}
+
+  tslib@2.4.0:
+    resolution: {integrity: sha512-d6xOpEDfsi2CZVlPQzGeux8XMwLT9hssAsaPYExaQMuYskwb+x1x7J371tWlbBdWHroy99KnVB6qIkUbs5X3UQ==}
 
   tslib@2.6.2:
     resolution: {integrity: sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==}
@@ -17783,6 +17805,14 @@ snapshots:
     dependencies:
       component-type: 1.2.2
       join-component: 1.1.0
+
+  '@shopify/flash-list@1.6.3(@babel/runtime@7.25.6)(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
+    dependencies:
+      '@babel/runtime': 7.25.6
+      react: 18.2.0
+      react-native: 0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0)
+      recyclerlistview: 4.2.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+      tslib: 2.4.0
 
   '@sideway/address@4.1.5':
     dependencies:
@@ -26090,6 +26120,14 @@ snapshots:
     dependencies:
       resolve: 1.22.8
 
+  recyclerlistview@4.2.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0):
+    dependencies:
+      lodash.debounce: 4.0.8
+      prop-types: 15.8.1
+      react: 18.2.0
+      react-native: 0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0)
+      ts-object-utils: 0.0.5
+
   redent@3.0.0:
     dependencies:
       indent-string: 4.0.0
@@ -27233,11 +27271,15 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
+  ts-object-utils@0.0.5: {}
+
   tsc-files@1.1.4(typescript@5.4.5):
     dependencies:
       typescript: 5.4.5
 
   tslib@1.14.1: {}
+
+  tslib@2.4.0: {}
 
   tslib@2.6.2: {}
 

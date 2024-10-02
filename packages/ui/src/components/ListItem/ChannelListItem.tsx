@@ -1,6 +1,6 @@
 import type * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
@@ -25,6 +25,14 @@ export function ChannelListItem({
   const firstMemberId = model.members?.[0]?.contactId ?? '';
   const memberCount = model.members?.length ?? 0;
 
+  const handlePress = useRef(() => {
+    onPress?.(model);
+  }).current;
+
+  const handleLongPress = useRef(() => {
+    onLongPress?.(model);
+  }).current;
+
   const { subtitle, subtitleIcon } = useMemo(() => {
     if (model.type === 'dm' || model.type === 'groupDm') {
       return {
@@ -45,11 +53,7 @@ export function ChannelListItem({
   }, [model, firstMemberId, memberCount]);
 
   return (
-    <ListItem
-      {...props}
-      onPress={useBoundHandler(model, onPress)}
-      onLongPress={useBoundHandler(model, onLongPress)}
-    >
+    <ListItem {...props} onPress={handlePress} onLongPress={handleLongPress}>
       <ListItem.ChannelIcon
         model={model}
         useTypeIcon={useTypeIcon}

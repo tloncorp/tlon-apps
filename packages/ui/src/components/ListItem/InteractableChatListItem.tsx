@@ -55,24 +55,21 @@ function BaseInteractableChatRow({
     }
   }, [isMuted, mutedState]);
 
-  const handleAction = useCallback(
-    async (actionId: 'pin' | 'mute') => {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      utils.triggerHaptic('swipeAction');
-      switch (actionId) {
-        case 'pin':
-          model.pin ? store.unpinItem(model.pin) : store.pinItem(model);
-          break;
-        case 'mute':
-          isMuted ? store.unmuteChat(model) : store.muteChat(model);
-          break;
-        default:
-          break;
-      }
-      swipeableRef.current?.close();
-    },
-    [model, isMuted]
-  );
+  const handleAction = useRef(async (actionId: 'pin' | 'mute') => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    utils.triggerHaptic('swipeAction');
+    switch (actionId) {
+      case 'pin':
+        model.pin ? store.unpinItem(model.pin) : store.pinItem(model);
+        break;
+      case 'mute':
+        isMuted ? store.unmuteChat(model) : store.muteChat(model);
+        break;
+      default:
+        break;
+    }
+    swipeableRef.current?.close();
+  }).current;
 
   const renderRightActions = useCallback(
     (progress: SharedValue<number>, drag: SharedValue<number>) => {

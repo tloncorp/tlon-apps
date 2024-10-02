@@ -1,3 +1,4 @@
+import { ContentStyle, FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
@@ -10,13 +11,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import {
-  FlatList,
-  LayoutChangeEvent,
-  ListRenderItem,
-  StyleProp,
-  ViewStyle,
-} from 'react-native';
+import { LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -45,7 +40,6 @@ export const ChatList = React.memo(function ChatListComponent({
   onLongPressItem,
   onPressItem,
   onPressMenuButton,
-  onSectionChange,
   activeTab,
   setActiveTab,
   showSearchInput,
@@ -84,12 +78,11 @@ export const ChatList = React.memo(function ChatListComponent({
 
   const contentContainerStyle = useStyle(
     {
-      gap: '$s',
       padding: '$l',
       paddingBottom: 100, // bottom nav height + some cushion
     },
     { resolveValues: 'value' }
-  ) as StyleProp<ViewStyle>;
+  ) as ContentStyle;
 
   const renderItem: ListRenderItem<ChatListItemData> = useCallback(
     ({ item }) => {
@@ -131,25 +124,6 @@ export const ChatList = React.memo(function ChatListComponent({
     onSearchQueryChange('');
   }, [onSearchQueryChange]);
 
-  const getItemLayout = useCallback(
-    (data: ChatListItemData[], index: number) => {
-      const sectionHeadersBefore =
-        index === 0 ? 0 : index < pinned.length + 1 ? 1 : 2;
-      const sectionHeaderSpaceBefore = sectionHeadersBefore * 42;
-      const itemsBefore = index - sectionHeadersBefore;
-      const itemSpaceBefore =
-        itemsBefore *
-        (getTokenValue('$6xl', 'size') + getTokenValue('$s', 'space'));
-      return {
-        length: isSectionHeader(data[index])
-          ? 42
-          : getTokenValue('$6xl', 'size'),
-        offset: sectionHeaderSpaceBefore + itemSpaceBefore,
-        index,
-      };
-    },
-    [pinned]
-  );
   return (
     <>
       <ChatListTabs onPressTab={setActiveTab} activeTab={activeTab} />
@@ -165,17 +139,32 @@ export const ChatList = React.memo(function ChatListComponent({
           onPressTryAll={handlePressTryAll}
         />
       ) : (
-        <FlatList
+        <FlashList
           data={listItems}
           contentContainerStyle={contentContainerStyle}
           keyExtractor={getChatKey}
           renderItem={renderItem}
-          getItemLayout={getItemLayout}
+          getItemType={getItemType}
+          estimatedItemSize={getTokenValue('$6xl', 'size')}
         />
       )}
     </>
   );
 });
+
+function getItemType(item: ChatListItemData) {
+  return isSectionHeader(item)
+    ? 'sectionHeader'
+    : logic.isGroup(item)
+      ? 'group'
+      : logic.isChannel(item)
+        ? item.type === 'dm' ||
+          item.type === 'groupDm' ||
+          item.pin?.type === 'channel'
+          ? 'channel'
+          : 'groupAdapter'
+        : 'default';
+}
 
 function isSectionHeader(data: ChatListItemData): data is SectionHeaderData {
   return 'type' in data && data.type === 'sectionHeader';
