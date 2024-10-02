@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View } from 'tamagui';
 
 import { useChatOptions } from '../contexts/chatOptions';
-import { SimpleActionSheet } from './ActionSheet';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
 import {
@@ -37,8 +36,6 @@ export function GroupChannelsScreenView({
   const group = groupOptions?.group;
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
-
-  // const [showSortOptions, setShowSortOptions] = useState(false);
   const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
   const insets = useSafeAreaInsets();
 
@@ -50,15 +47,6 @@ export function GroupChannelsScreenView({
 
     getSortByPreference();
   }, [setSortBy]);
-
-  // const handleSortByChanged = useCallback(
-  //   (newSortBy: 'recency' | 'arranged') => {
-  //     setSortBy(newSortBy);
-  //     setShowSortOptions(false);
-  //     db.storeChannelSortPreference(newSortBy);
-  //   },
-  //   []
-  // );
 
   const handlePressOverflowButton = useCallback(() => {
     if (group) {
@@ -85,10 +73,6 @@ export function GroupChannelsScreenView({
               type="Add"
               onPress={() => setShowCreateChannel(true)}
             />
-            {/* <ScreenHeader.IconButton
-              type="Filter"
-              onPress={() => setShowSortOptions(true)}
-            /> */}
             <ScreenHeader.IconButton
               type="Overflow"
               onPress={handlePressOverflowButton}
@@ -109,7 +93,7 @@ export function GroupChannelsScreenView({
             group={group}
             channels={groupOptions.groupChannels}
             onSelect={onChannelPressed}
-            sortBy={sortBy}
+            sortBy={sortBy || 'recency'}
           />
         ) : null}
       </ScrollView>
@@ -126,44 +110,7 @@ export function GroupChannelsScreenView({
           }
         />
       )}
-
-      {/* <ChannelSortActionsSheet
-        open={showSortOptions}
-        onOpenChange={setShowSortOptions}
-        onSelectSort={handleSortByChanged}
-      /> */}
-      <ChatOptionsSheet ref={chatOptionsSheetRef} />
+      <ChatOptionsSheet ref={chatOptionsSheetRef} setSortBy={setSortBy} />
     </View>
-  );
-}
-
-export function ChannelSortActionsSheet({
-  open,
-  onOpenChange,
-  onSelectSort,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSelectSort: (sortBy: db.ChannelSortPreference) => void;
-}) {
-  return (
-    <SimpleActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      actions={[
-        {
-          title: 'Sort by recency',
-          action: () => {
-            onSelectSort('recency');
-          },
-        },
-        {
-          title: 'Sort by arrangement',
-          action: () => {
-            onSelectSort('arranged');
-          },
-        },
-      ]}
-    />
   );
 }

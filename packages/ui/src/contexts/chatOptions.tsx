@@ -23,6 +23,7 @@ export type ChatOptionsContextValue = {
   onPressChannelMeta: (channelId: string) => void;
   onTogglePinned: () => void;
   onPressLeave: () => Promise<void>;
+  onSelectSort: (sortBy: 'recency' | 'arranged') => void;
 } | null;
 
 const ChatOptionsContext = createContext<ChatOptionsContextValue>(null);
@@ -45,6 +46,7 @@ type ChatOptionsProviderProps = {
   onPressChannelMembers: (channelId: string) => void;
   onPressChannelMeta: (channelId: string) => void;
   onPressRoles: (groupId: string) => void;
+  onSelectSort: (sortBy: 'recency' | 'arranged') => void;
 };
 
 export const ChatOptionsProvider = ({
@@ -80,6 +82,10 @@ export const ChatOptionsProvider = ({
     }
   }, [group]);
 
+  const onSelectSort = useCallback((sortBy: 'recency' | 'arranged') => {
+    db.storeChannelSortPreference(sortBy);
+  }, []);
+
   const contextValue: ChatOptionsContextValue = {
     pinned,
     useGroup,
@@ -95,6 +101,7 @@ export const ChatOptionsProvider = ({
     onTogglePinned,
     onPressChannelMembers,
     onPressChannelMeta,
+    onSelectSort,
   };
 
   return (
