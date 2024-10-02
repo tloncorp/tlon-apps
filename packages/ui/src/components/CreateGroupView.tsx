@@ -51,28 +51,28 @@ export function CreateGroupView({
         }
       />
       {screen === 'InviteUsers' ? (
-        <YStack flex={1} paddingBottom={bottom}>
+        <YStack flex={1} paddingBottom={bottom} paddingHorizontal="$2xl">
           <ContactBook
             multiSelect
             searchable
             searchPlaceholder="Filter by nickname, @p"
             onSelectedChange={setInvitees}
           />
-          <View padding="$xl">
-            <Button
-              hero
-              onPress={() => {
-                setScreen('CreateGroup');
-              }}
-              disabled={invitees.length === 0}
-            >
-              <Button.Text>
-                {invitees.length === 0
-                  ? 'Invite'
-                  : `Invite ${invitees.length} and continue`}
-              </Button.Text>
-            </Button>
-          </View>
+
+          <Button
+            marginTop="$m"
+            hero
+            onPress={() => {
+              setScreen('CreateGroup');
+            }}
+            disabled={invitees.length === 0}
+          >
+            <Button.Text>
+              {invitees.length === 0
+                ? 'Invite'
+                : `Invite ${invitees.length} and continue`}
+            </Button.Text>
+          </Button>
         </YStack>
       ) : (
         <CreateGroupWidget
