@@ -8,26 +8,21 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import {
+  FlatList,
   LayoutChangeEvent,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  SectionList,
-  SectionListData,
-  SectionListRenderItemInfo,
+  ListRenderItem,
   StyleProp,
   ViewStyle,
-  ViewToken,
 } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import { Text, View, YStack, useStyle } from 'tamagui';
+import { Text, View, YStack, getTokenValue, useStyle } from 'tamagui';
 
 import { interactionWithTiming } from '../utils/animation';
 import { TextInputWithIcon } from './Form';
@@ -40,11 +35,8 @@ export type Chat = db.Channel | db.Group;
 
 export type TabName = 'all' | 'groups' | 'messages';
 
-type ChatListItemData = Chat;
-type ChatListSectionData = SectionListData<
-  Chat,
-  { title: string; data: ChatListItemData[] }
->;
+type SectionHeaderData = { type: 'sectionHeader'; title: string };
+type ChatListItemData = Chat | SectionHeaderData;
 
 export const ChatList = React.memo(function ChatListComponent({
   pinned,
@@ -79,6 +71,17 @@ export const ChatList = React.memo(function ChatListComponent({
     activeTab,
   });
 
+  const listItems: ChatListItemData[] = useMemo(
+    () =>
+      displayData.flatMap((section) => {
+        return [
+          { title: section.title, type: 'sectionHeader' },
+          ...section.data,
+        ];
+      }),
+    [displayData]
+  );
+
   const contentContainerStyle = useStyle(
     {
       gap: '$s',
@@ -88,13 +91,17 @@ export const ChatList = React.memo(function ChatListComponent({
     { resolveValues: 'value' }
   ) as StyleProp<ViewStyle>;
 
-  const renderItem = useCallback(
-    ({
-      item,
-    }: SectionListRenderItemInfo<ChatListItemData, ChatListSectionData>) => {
+  const renderItem: ListRenderItem<ChatListItemData> = useCallback(
+    ({ item }) => {
       const itemModel = item as Chat;
 
-      if (logic.isChannel(itemModel)) {
+      if (isSectionHeader(item)) {
+        return (
+          <SectionListHeader>
+            <SectionListHeader.Text>{item.title}</SectionListHeader.Text>
+          </SectionListHeader>
+        );
+      } else if (logic.isChannel(itemModel)) {
         return (
           <InteractableChatListItem
             model={itemModel}
@@ -116,46 +123,6 @@ export const ChatList = React.memo(function ChatListComponent({
     [onPressItem, onLongPressItem, onPressMenuButton]
   );
 
-  const renderSectionHeader = useCallback(
-    ({ section }: { section: ChatListSectionData }) => {
-      return (
-        <SectionListHeader>
-          <SectionListHeader.Text>{section.title}</SectionListHeader.Text>
-        </SectionListHeader>
-      );
-    },
-    []
-  );
-
-  const isAtTopRef = useRef(true);
-
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length === 0) {
-        return;
-      }
-
-      if (!isAtTopRef.current) {
-        const { section } = viewableItems[0];
-        if (section) {
-          onSectionChange?.(section.title);
-        }
-      }
-    }
-  ).current;
-
-  const handleScroll = useRef(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const atTop = event.nativeEvent.contentOffset.y === 0;
-      if (atTop !== isAtTopRef.current) {
-        isAtTopRef.current = atTop;
-        if (atTop) {
-          onSectionChange?.('Home');
-        }
-      }
-    }
-  ).current;
-
   const handlePressTryAll = useCallback(() => {
     setActiveTab('all');
   }, [setActiveTab]);
@@ -164,6 +131,25 @@ export const ChatList = React.memo(function ChatListComponent({
     onSearchQueryChange('');
   }, [onSearchQueryChange]);
 
+  const getItemLayout = useCallback(
+    (data: ChatListItemData[], index: number) => {
+      const sectionHeadersBefore =
+        index === 0 ? 0 : index < pinned.length + 1 ? 1 : 2;
+      const sectionHeaderSpaceBefore = sectionHeadersBefore * 42;
+      const itemsBefore = index - sectionHeadersBefore;
+      const itemSpaceBefore =
+        itemsBefore *
+        (getTokenValue('$6xl', 'size') + getTokenValue('$s', 'space'));
+      return {
+        length: isSectionHeader(data[index])
+          ? 42
+          : getTokenValue('$6xl', 'size'),
+        offset: sectionHeaderSpaceBefore + itemSpaceBefore,
+        index,
+      };
+    },
+    [pinned]
+  );
   return (
     <>
       <ChatListTabs onPressTab={setActiveTab} activeTab={activeTab} />
@@ -179,34 +165,29 @@ export const ChatList = React.memo(function ChatListComponent({
           onPressTryAll={handlePressTryAll}
         />
       ) : (
-        <SectionList
-          sections={displayData}
+        <FlatList
+          data={listItems}
           contentContainerStyle={contentContainerStyle}
           keyExtractor={getChatKey}
-          stickySectionHeadersEnabled={false}
           renderItem={renderItem}
-          maxToRenderPerBatch={6}
-          initialNumToRender={11}
-          windowSize={2}
-          viewabilityConfig={{
-            minimumViewTime: 0,
-            itemVisiblePercentThreshold: 0,
-            waitForInteraction: false,
-          }}
-          renderSectionHeader={renderSectionHeader}
-          onViewableItemsChanged={onViewableItemsChanged}
-          onMomentumScrollEnd={activeTab === 'all' ? handleScroll : undefined}
+          getItemLayout={getItemLayout}
         />
       )}
     </>
   );
 });
 
-function getChatKey(item: unknown) {
-  const chatItem = item as Chat;
+function isSectionHeader(data: ChatListItemData): data is SectionHeaderData {
+  return 'type' in data && data.type === 'sectionHeader';
+}
 
-  if (!chatItem || typeof chatItem !== 'object' || !chatItem.id) {
+function getChatKey(chatItem: ChatListItemData) {
+  if (!chatItem || typeof chatItem !== 'object') {
     return 'invalid-item';
+  }
+
+  if (isSectionHeader(chatItem)) {
+    return chatItem.title;
   }
 
   if (logic.isGroup(chatItem)) {
