@@ -1719,6 +1719,7 @@
           |
       ==
     =.  di-core  di-core(ship s, dm new)
+    ?:  =(src our):bowl  di-core
     (di-activity [%invite ~] *story:d &)
   ::
   ++  di-area  `path`/dm/(scot %p ship)
