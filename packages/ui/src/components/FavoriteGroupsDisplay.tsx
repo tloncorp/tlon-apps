@@ -83,17 +83,13 @@ export function FavoriteGroupsDisplay(props: {
 
   return (
     <WidgetPane
+      padding="$xl"
+      borderWidth={1}
+      borderColor="$border"
       backgroundColor={
         props.secondaryColors ? '$secondaryBackground' : '$background'
       }
     >
-      <WidgetPane.Title
-        marginLeft="$s"
-        marginBottom="$s"
-        color={props.secondaryColors ? '$secondaryText' : '$tertiaryText'}
-      >
-        Favorite Groups
-      </WidgetPane.Title>
       {compositeGroups.length === 0 ? (
         <></>
       ) : (
@@ -147,11 +143,6 @@ export function FavoriteGroupsDisplay(props: {
                 : '$secondaryBackground',
             }}
           >
-            <ListItem.SystemIcon
-              icon="Add"
-              backgroundColor="unset"
-              color={props.secondaryColors ? '$secondaryText' : '$tertiaryText'}
-            />
             <ListItem.MainContent>
               <ListItem.Title>Add a group</ListItem.Title>
             </ListItem.MainContent>

@@ -1,20 +1,21 @@
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import {
+  AddGroupSheet,
   Button,
   ChatList,
   ChatOptionsProvider,
   ChatOptionsSheet,
   ChatOptionsSheetMethods,
-  FloatingAddButton,
+  FloatingActionButton,
   GroupPreviewSheet,
   Icon,
   InviteUsersSheet,
   NavBarView,
   RequestsProvider,
   ScreenHeader,
-  StartDmSheet,
   View,
   WelcomeSheet,
 } from '@tloncorp/ui';
@@ -23,10 +24,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useIsFocused } from '../../hooks/useIsFocused';
+import { useIsFocused } from '@react-navigation/native';
 import { useFeatureFlag } from '../../lib/featureFlags';
+import type { RootStackParamList } from '../../navigation/types';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
 
 const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
   return (
@@ -36,27 +40,13 @@ const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
   );
 };
 
-export default function ChatListScreen({
-  startDmOpen,
-  setStartDmOpen,
-  setAddGroupOpen,
-  navigateToDm,
-  navigateToGroupChannels,
-  navigateToSelectedPost,
-  navigateToHome,
-  navigateToNotifications,
-  navigateToProfile,
-}: {
-  startDmOpen: boolean;
-  setStartDmOpen: (open: boolean) => void;
-  setAddGroupOpen: (open: boolean) => void;
-  navigateToDm: (channel: db.Channel) => void;
-  navigateToGroupChannels: (group: db.Group) => void;
-  navigateToSelectedPost: (channel: db.Channel, postId?: string | null) => void;
-  navigateToHome: () => void;
-  navigateToNotifications: () => void;
-  navigateToProfile: () => void;
-}) {
+export default function ChatListScreen(props: Props) {
+  const {
+    route: { params },
+    navigation: { navigate },
+  } = props;
+  const previewGroup = params?.previewGroup;
+  const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
@@ -82,7 +72,9 @@ export default function ChatListScreen({
   const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
     'all'
   );
-  const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(
+    previewGroup ?? null
+  );
   const [showFilters, setShowFilters] = useState(false);
   const isFocused = useIsFocused();
   const { data: pins } = store.usePins({
@@ -98,6 +90,21 @@ export default function ChatListScreen({
 
   const currentUser = useCurrentUserId();
 
+  const connStatus = store.useConnectionStatus();
+  const notReadyMessage: string | null = useMemo(() => {
+    // if not fully connected yet, show status
+    if (connStatus !== 'Connected') {
+      return `${connStatus}...`;
+    }
+
+    // if still loading the screen data, show loading
+    if (!chats || (!chats.unpinned.length && !chats.pinned.length)) {
+      return 'Loading...';
+    }
+
+    return null;
+  }, [connStatus, chats]);
+
   const resolvedChats = useMemo(() => {
     return {
       pinned: chats?.pinned ?? [],
@@ -106,16 +113,32 @@ export default function ChatListScreen({
     };
   }, [chats, pendingChats]);
 
+  const handleNavigateToFindGroups = useCallback(() => {
+    setAddGroupOpen(false);
+    navigate('FindGroups');
+  }, [navigate]);
+
+  const handleNavigateToCreateGroup = useCallback(() => {
+    setAddGroupOpen(false);
+    navigate('CreateGroup');
+  }, [navigate]);
+
   const goToDm = useCallback(
-    async (participants: string[]) => {
+    async (userId: string) => {
       const dmChannel = await store.upsertDmChannel({
-        participants,
+        participants: [userId],
       });
-      setStartDmOpen(false);
-      navigateToDm(dmChannel);
+      setAddGroupOpen(false);
+      props.navigation.push('Channel', { channel: dmChannel });
     },
-    [navigateToDm, setStartDmOpen]
+    [props.navigation, setAddGroupOpen]
   );
+
+  const handleAddGroupOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setAddGroupOpen(false);
+    }
+  }, []);
 
   const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
@@ -129,12 +152,15 @@ export default function ChatListScreen({
         // Should navigate to channel if it's pinned as a channel
         (!item.pin || item.pin.type === 'group')
       ) {
-        navigateToGroupChannels(item.group);
+        navigate('GroupChannels', { group: item.group });
       } else {
-        navigateToSelectedPost(item, item.firstUnreadPostId);
+        navigate('Channel', {
+          channel: item,
+          selectedPostId: item.firstUnreadPostId,
+        });
       }
     },
-    [navigateToGroupChannels, navigateToSelectedPost, isChannelSwitcherEnabled]
+    [isChannelSwitcherEnabled, navigate]
   );
 
   const onLongPressChat = useCallback((item: db.Channel | db.Group) => {
@@ -147,15 +173,6 @@ export default function ChatListScreen({
       }
     }
   }, []);
-
-  const handleDmOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open) {
-        setStartDmOpen(false);
-      }
-    },
-    [setStartDmOpen]
-  );
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -240,11 +257,7 @@ export default function ChatListScreen({
       >
         <View flex={1}>
           <ScreenHeader
-            title={
-              !chats || (!chats.unpinned.length && !chats.pinned.length)
-                ? 'Loading…'
-                : screenTitle
-            }
+            title={notReadyMessage ?? screenTitle}
             rightControls={headerControls}
           />
           {chats && chats.unpinned.length ? (
@@ -269,9 +282,11 @@ export default function ChatListScreen({
             width={'100%'}
             pointerEvents="box-none"
           >
-            <FloatingAddButton
-              setStartDmOpen={setStartDmOpen}
-              setAddGroupOpen={setAddGroupOpen}
+            <FloatingActionButton
+              onPress={() => {
+                setAddGroupOpen(true);
+              }}
+              icon={<Icon type="Add" size="$m" />}
             />
           </View>
           <WelcomeSheet
@@ -279,11 +294,6 @@ export default function ChatListScreen({
             onOpenChange={handleWelcomeOpenChange}
           />
           <ChatOptionsSheet ref={chatOptionsSheetRef} />
-          <StartDmSheet
-            goToDm={goToDm}
-            open={startDmOpen}
-            onOpenChange={handleDmOpenChange}
-          />
           <GroupPreviewSheet
             open={selectedGroup !== null}
             onOpenChange={handleGroupPreviewSheetOpenChange}
@@ -298,18 +308,26 @@ export default function ChatListScreen({
         </View>
         <NavBarView
           navigateToHome={() => {
-            navigateToHome();
+            navigate('ChatList');
           }}
           navigateToNotifications={() => {
-            navigateToNotifications();
+            navigate('Activity');
           }}
-          navigateToProfile={() => {
-            navigateToProfile();
+          navigateToProfileSettings={() => {
+            navigate('Profile');
           }}
           currentRoute="ChatList"
           currentUserId={currentUser}
         />
       </ChatOptionsProvider>
+
+      <AddGroupSheet
+        open={addGroupOpen}
+        onGoToDm={goToDm}
+        onOpenChange={handleAddGroupOpenChange}
+        navigateToFindGroups={handleNavigateToFindGroups}
+        navigateToCreateGroup={handleNavigateToCreateGroup}
+      />
     </RequestsProvider>
   );
 }

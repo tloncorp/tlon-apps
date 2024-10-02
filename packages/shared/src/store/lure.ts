@@ -3,10 +3,10 @@ import produce from 'immer';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import create from 'zustand';
 
-import { poke, scry, subscribeOnce } from '../api/urbit';
+import { getCurrentUserId, poke, scry, subscribeOnce } from '../api/urbit';
+import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { createDeepLink } from '../logic/branch';
-import { getPreviewTracker } from '../logic/subscriptionTracking';
+import { DeepLinkMetadata, createDeepLink } from '../logic/branch';
 import { asyncWithDefault, getFlagParts } from '../logic/utils';
 import { stringToTa } from '../urbit';
 import { GroupMeta } from '../urbit/groups';
@@ -16,7 +16,7 @@ interface LureMetadata {
   fields: Record<string, string | undefined>;
 }
 
-const LURE_REQUEST_TIMEOUT = 10 * 1000;
+const LURE_REQUEST_TIMEOUT = 3 * 1000;
 
 interface Lure {
   fetched: boolean;
@@ -56,7 +56,7 @@ interface LureState {
   start: () => Promise<void>;
 }
 
-const lureLogger = createDevLogger('lure', false);
+const lureLogger = createDevLogger('lure', true);
 
 function groupsDescribe(meta: GroupMeta) {
   return {
@@ -78,14 +78,13 @@ export const useLureState = create<LureState>((set, get) => ({
       },
     });
 
-    return get().fetchLure(flag, branchDomain, branchKey);
   },
   toggle: async (flag, meta, branchDomain, branchKey) => {
     const { name } = getFlagParts(flag);
     const lure = get().lures[flag];
     const enabled = !lure?.enabled;
     if (!enabled) {
-      lureLogger.log('not enabled, poking reel-undescribe', flag);
+      lureLogger.crumb('not enabled, poking reel-undescribe', flag);
       await poke({
         app: 'reel',
         mark: 'reel-undescribe',
@@ -112,7 +111,6 @@ export const useLureState = create<LureState>((set, get) => ({
       json: name,
     });
 
-    return get().fetchLure(flag, branchDomain, branchKey);
   },
   start: async () => {
     const bait = await scry<Bait>({
@@ -129,58 +127,74 @@ export const useLureState = create<LureState>((set, get) => ({
   fetchLure: async (flag, branchDomain, branchKey) => {
     const { name } = getFlagParts(flag);
     const prevLure = get().lures[flag];
-    lureLogger.log('fetching', flag, 'prevLure', prevLure);
-    const [enabled, url, metadata] = await Promise.all([
+    lureLogger.crumb('fetching', flag, 'prevLure', prevLure);
+    const [enabled, url] = await Promise.all([
       // enabled
       asyncWithDefault(async () => {
-        lureLogger.log(performance.now(), 'fetching enabled', flag);
+        lureLogger.crumb(performance.now(), 'fetching enabled', flag);
         return subscribeOnce<boolean>(
           {
             app: 'grouper',
             path: `/group-enabled/${flag}`,
           },
           LURE_REQUEST_TIMEOUT
-        ).then((en) => {
-          lureLogger.log(performance.now(), 'enabled fetched', flag);
+        )
+          .then((en) => {
+            lureLogger.crumb(performance.now(), 'enabled fetched', flag);
 
-          return en;
-        });
+            return en;
+          })
+          .catch((e) => {
+            lureLogger.error(`group-enabled failed`, e);
+            return prevLure?.enabled;
+          });
       }, prevLure?.enabled),
-      // url
+      // url (includes the token as last element of the path)
       asyncWithDefault<string | undefined>(async () => {
-        lureLogger.log(performance.now(), 'fetching url', flag);
+        lureLogger.crumb(performance.now(), 'fetching url', flag);
         return subscribeOnce<string>(
           { app: 'reel', path: `/v1/id-link/${flag}` },
-          4500
-        ).then((u) => {
-          lureLogger.log(performance.now(), 'url fetched', u, flag);
-          return u;
-        });
+          LURE_REQUEST_TIMEOUT
+        )
+          .then((u) => {
+            lureLogger.crumb(performance.now(), 'url fetched', u, flag);
+            return u;
+          })
+          .catch((e) => {
+            lureLogger.error(`id-link failed`, e);
+            return prevLure?.url;
+          });
       }, prevLure?.url),
-      // metadata
-      asyncWithDefault(
-        async () =>
-          scry<LureMetadata>({
-            app: 'reel',
-            path: `/metadata/${flag}`,
-          }),
-        prevLure?.metadata
-      ),
     ]);
 
-    lureLogger.log('fetched', flag, enabled, url, metadata);
+    lureLogger.crumb('fetched', { flag, enabled, url });
 
     let deepLinkUrl: string | undefined;
-    lureLogger.log('enabled', enabled);
-    if (enabled && url) {
-      deepLinkUrl = await createDeepLink(
-        url,
-        'lure',
-        flag,
+    lureLogger.crumb('enabled', enabled);
+    if (enabled && checkLureToken(url)) {
+      const currentUserId = getCurrentUserId();
+      const group = await db.getGroup({ id: flag });
+      const user = await db.getContact({ id: currentUserId });
+      const metadata: DeepLinkMetadata = {
+        inviterUserId: currentUserId,
+        inviterNickname: user?.nickname ?? undefined,
+        inviterAvatarImage: user?.avatarImage ?? undefined,
+        invitedGroupId: flag,
+        invitedGroupTitle: group?.title ?? undefined,
+        invitedGroupDescription: group?.description ?? undefined,
+        invitedGroupIconImageUrl: group?.iconImage ?? undefined,
+        invitedGroupiconImageColor: group?.iconImageColor ?? undefined,
+      };
+
+      deepLinkUrl = await createDeepLink({
+        fallbackUrl: url,
+        type: 'lure',
+        path: flag,
         branchDomain,
-        branchKey
-      );
-      lureLogger.log('deepLinkUrl created', deepLinkUrl);
+        branchKey,
+        metadata,
+      });
+      lureLogger.crumb('deepLinkUrl created', deepLinkUrl);
     }
 
     set(
@@ -190,7 +204,6 @@ export const useLureState = create<LureState>((set, get) => ({
           enabled,
           url,
           deepLinkUrl,
-          metadata,
         };
       })
     );
@@ -201,7 +214,7 @@ const selLure = (flag: string) => (s: LureState) => ({
   lure: s.lures[flag] || { fetched: false, url: '' },
   bait: s.bait,
 });
-const { shouldLoad, newAttempt, finished } = getPreviewTracker(30 * 1000);
+
 export function useLure({
   flag,
   branchDomain,
@@ -213,28 +226,37 @@ export function useLure({
   branchKey: string;
   disableLoading?: boolean;
 }) {
+  const fetchLure = useLureState((state) => state.fetchLure);
   const { bait, lure } = useLureState(selLure(flag));
 
-  lureLogger.log('bait', bait);
-  lureLogger.log('lure', lure);
+  lureLogger.crumb('bait', bait);
+  lureLogger.crumb('lure', lure);
 
-  useEffect(() => {
-    if (!bait || disableLoading || !shouldLoad(flag)) {
-      lureLogger.log('skipping', flag, bait, disableLoading, !shouldLoad(flag));
-      return;
-    }
+  const canCheckForUpdate = useMemo(() => {
+    return Boolean(bait && !disableLoading);
+  }, [bait, disableLoading]);
 
-    lureLogger.log('fetching', flag, branchDomain, branchKey);
+  const uninitialized = useMemo(() => {
+    return Boolean(
+      (lure.enabled || !lure.fetched) &&
+        (!lure.url || !checkLureToken(lure.url) || !lure.deepLinkUrl)
+    );
+  }, [lure]);
 
-    newAttempt(flag);
-    useLureState
-      .getState()
-      .fetchLure(flag, branchDomain, branchKey)
-      .finally(() => finished(flag));
-  }, [bait, flag, branchDomain, branchKey, disableLoading]);
+  lureLogger.crumb('lure fetcher', { canCheckForUpdate, uninitialized });
+  useQuery({
+    queryKey: ['lureFetcher', flag],
+    queryFn: async () => {
+      lureLogger.crumb('fetching', flag, branchDomain, branchKey);
+      await fetchLure(flag, branchDomain, branchKey);
+      return true;
+    },
+    enabled: canCheckForUpdate && uninitialized,
+    refetchInterval: 5000,
+  });
 
   const toggle = async (meta: GroupMeta) => {
-    lureLogger.log('toggling', flag, meta, branchDomain, branchKey);
+    lureLogger.crumb('toggling', flag, meta, branchDomain, branchKey);
     return useLureState.getState().toggle(flag, meta, branchDomain, branchKey);
   };
 
@@ -247,7 +269,7 @@ export function useLure({
     [flag, branchDomain, branchKey]
   );
 
-  lureLogger.log('useLure', flag, bait, lure, describe);
+  lureLogger.crumb('useLure', flag, bait, lure, describe);
 
   return {
     ...lure,
@@ -259,7 +281,7 @@ export function useLure({
 
 export function useLureLinkChecked(url: string | undefined, enabled: boolean) {
   const prevData = useRef<boolean | undefined>(false);
-  const pathEncodedUrl = stringToTa(url || '');
+  const pathEncodedUrl = stringToTa(url ?? '');
   const { data, ...query } = useQuery({
     queryKey: ['lure-check', url],
     queryFn: async () =>
@@ -267,13 +289,13 @@ export function useLureLinkChecked(url: string | undefined, enabled: boolean) {
         { app: 'grouper', path: `/v1/check-link/${pathEncodedUrl}` },
         4500
       ),
-    enabled: enabled && !!url,
+    enabled: enabled && Boolean(url),
     refetchInterval: 5000,
   });
 
   prevData.current = data;
 
-  lureLogger.log('useLureLinkChecked', url, data);
+  lureLogger.crumb('useLureLinkChecked', url, data);
 
   return {
     ...query,
@@ -291,14 +313,15 @@ export function useLureLinkStatus({
   branchDomain: string;
   branchKey: string;
 }) {
-  const { supported, fetched, enabled, url, deepLinkUrl, toggle } = useLure({
-    flag,
-    branchDomain,
-    branchKey,
-  });
+  const { supported, fetched, enabled, url, deepLinkUrl, toggle, describe } =
+    useLure({
+      flag,
+      branchDomain,
+      branchKey,
+    });
   const { good, checked } = useLureLinkChecked(url, !!enabled);
 
-  lureLogger.log('useLureLinkStatus', {
+  lureLogger.crumb('useLureLinkStatus', {
     flag,
     supported,
     fetched,
@@ -318,8 +341,12 @@ export function useLureLinkStatus({
       return 'disabled';
     }
 
-    if (!url || !fetched || !checked) {
-      lureLogger.log('loading', fetched, checked, url);
+    if ((url && checkOldLureToken(url)) || (fetched && !url)) {
+      return 'stale';
+    }
+
+    if (!url || !checkLureToken(url) || !fetched || !checked || !deepLinkUrl) {
+      lureLogger.crumb('loading', fetched, checked, url, deepLinkUrl);
       return 'loading';
     }
 
@@ -328,9 +355,26 @@ export function useLureLinkStatus({
     }
 
     return 'ready';
-  }, [supported, fetched, enabled, url, good, checked]);
+  }, [supported, fetched, enabled, url, checked, deepLinkUrl, good]);
 
-  lureLogger.log('url', url, 'deepLinkUrl', deepLinkUrl, 'status', status);
+  lureLogger.crumb('url', url, 'deepLinkUrl', deepLinkUrl, 'status', status);
 
-  return { status, shareUrl: deepLinkUrl ?? url, toggle };
+  return { status, shareUrl: deepLinkUrl, toggle, describe };
+}
+
+// hack: we get an intermediate state while generating lure links where
+// the returned token will be incorrect. Once it's a @uv we know
+// we have the right one
+function checkLureToken(url: string | undefined) {
+  if (!url) return false;
+  const token = url.split('/').pop();
+  return token && token.startsWith('0v');
+}
+
+function checkOldLureToken(url: string | undefined) {
+  if (!url) return false;
+  const parts = url.split('/');
+  const token = parts.pop();
+  const ship = parts.pop();
+  return ship && token && ship.startsWith('~');
 }

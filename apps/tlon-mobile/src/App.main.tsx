@@ -13,6 +13,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider, useBranch } from '@tloncorp/app/contexts/branch';
 import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
+import { SignupProvider } from '@tloncorp/app/contexts/signup';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useScreenOptions } from '@tloncorp/app/hooks/useScreenOptions';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
@@ -107,7 +108,6 @@ const App = ({
             <OnboardingStack.Screen
               name="SignUpEmail"
               component={SignUpEmailScreen}
-              initialParams={{ lure, priorityToken }}
             />
             <OnboardingStack.Screen name="EULA" component={EULAScreen} />
             <OnboardingStack.Screen
@@ -209,23 +209,25 @@ export default function ConnectedApp(props: Props) {
                     enable: process.env.NODE_ENV !== 'test',
                   }}
                 >
-                  <GestureHandlerRootView style={{ flex: 1 }}>
-                    <SafeAreaProvider>
-                      <MigrationCheck>
-                        <QueryClientProvider client={queryClient}>
-                          <PortalProvider>
-                            <App {...props} />
-                          </PortalProvider>
+                  <SignupProvider>
+                    <GestureHandlerRootView style={{ flex: 1 }}>
+                      <SafeAreaProvider>
+                        <MigrationCheck>
+                          <QueryClientProvider client={queryClient}>
+                            <PortalProvider>
+                              <App {...props} />
+                            </PortalProvider>
 
-                          {__DEV__ && (
-                            <DevTools
-                              navigationContainerRef={navigationContainerRef}
-                            />
-                          )}
-                        </QueryClientProvider>
-                      </MigrationCheck>
-                    </SafeAreaProvider>
-                  </GestureHandlerRootView>
+                            {__DEV__ && (
+                              <DevTools
+                                navigationContainerRef={navigationContainerRef}
+                              />
+                            )}
+                          </QueryClientProvider>
+                        </MigrationCheck>
+                      </SafeAreaProvider>
+                    </GestureHandlerRootView>
+                  </SignupProvider>
                 </PostHogProvider>
               </BranchProvider>
             </NavigationContainer>

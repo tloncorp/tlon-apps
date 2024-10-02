@@ -1,3 +1,4 @@
+import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
@@ -13,7 +14,7 @@ import {
 } from '../store/useActivityFetchers';
 import { ErrorReporter } from './errorReporting';
 import { useLureState } from './lure';
-import { updateSession } from './session';
+import { updateIsSyncing, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
@@ -680,7 +681,6 @@ export const handleContactUpdate = async (update: api.ContactsUpdate) => {
 };
 
 export const handleStorageUpdate = async (update: api.StorageUpdate) => {
-  console.log('storage update', update);
   switch (update.type) {
     case 'storageCredentialsChanged': {
       await db.setStorageCredentials(update.credentials);
@@ -1013,7 +1013,17 @@ export const handleDiscontinuity = async () => {
   await syncStart(true);
 };
 
+export const handleChannelStatusChange = async (status: ChannelStatus) => {
+  if (status === 'reconnecting') {
+    updateSession({ isReconnecting: true });
+  } else if (status === 'reconnected')
+    updateSession({
+      isReconnecting: false,
+    });
+};
+
 export const syncStart = async (alreadySubscribed?: boolean) => {
+  updateIsSyncing(true);
   const reporter = new ErrorReporter('sync start', logger);
   reporter.log(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
@@ -1089,13 +1099,15 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     }),
   ];
 
-  Promise.all(lowPriorityPromises)
+  await Promise.all(lowPriorityPromises)
     .then(() => {
       reporter.log(`finished low priority sync`);
     })
     .catch((e) => {
       reporter.report(e);
     });
+
+  updateIsSyncing(false);
 };
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {

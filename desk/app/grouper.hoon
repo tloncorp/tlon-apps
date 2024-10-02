@@ -135,6 +135,9 @@
     ?>  ?=([%bite-2 *] bite)
     :_  this
     =;  caz=(list card)
+      ?~  inviter=(~(get by fields.metadata.bite) 'inviter')
+        ~&("no inviter field for token: {<token.bite>}" ~)
+      ?.  =((slav %p u.inviter) our.bowl)  ~
       =/  wir=^wire  /dm/(scot %p joiner.bite)
       =/  =dock  [our.bowl %chat]
       =/  =id:c  [our now]:bowl
@@ -169,7 +172,7 @@
         %shut
       ~?  dev-mode  ['inviting to private/secret' joiner.bite]
       =/  =action:groups
-        :-  [our.bowl token.bite]
+        :-  flag
         :-  now.bowl
         :-  %cordon
         [%shut [%add-ships %pending (~(gas in *(set ship)) ~[joiner.bite])]]

@@ -5,6 +5,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Optional;
 
 public class Yarn {
 
@@ -12,7 +13,8 @@ public class Yarn {
     public Boolean isGroup;
     public Boolean isClub;
     public String wer;
-    public String channelId;
+    public Optional<String> channelId;
+    public Optional<String> groupId;
     public String senderId;
     public String contentText;
 
@@ -62,18 +64,22 @@ public class Yarn {
 
         isGroup = !rope.isNull("group");
         isValidNotification = rope.getString("desk").equals("groups") &&
-                !thread.endsWith("/channel/edit") &&
+                (!thread.endsWith("/channel/edit") &&
                 !thread.endsWith("/channel/add") &&
                 !thread.endsWith("/channel/del") &&
                 !thread.endsWith("/joins") &&
-                !thread.endsWith("/leaves") &&
-                (!rope.isNull("channel") || !isGroup);
+                !thread.endsWith("/leaves") ||
+                !isGroup);
         wer = yarnObject.getString("wer");
-        channelId = isGroup ? rope.getString("channel") : thread.replace("/dm/", "").replace("/club/", "");
-        isClub = channelId.startsWith("0v");
+        groupId = !isGroup ? Optional.empty() :
+                Optional.of(rope.getString("group"));
+        channelId = isGroup ?
+                rope.isNull("channel") ? Optional.empty() : Optional.of(rope.getString("channel"))
+                : Optional.of(thread.replace("/dm/", "").replace("/club/", ""));
+        isClub = channelId.isPresent() && channelId.get().startsWith("0v");
         contentText = String.join("", parts);
-        if (senderId == null && channelId.startsWith("~")) {
-            senderId = channelId;
+        if (senderId == null && channelId.isPresent() && channelId.get().startsWith("~")) {
+            senderId = channelId.get();
         }
     }
 

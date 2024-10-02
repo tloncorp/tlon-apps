@@ -86,4 +86,19 @@
 ::
 +$  news                  ::  local
   [who=ship con=$@(~ contact)]
+::
+++  get-contact
+  |=  [=bowl:gall who=@p]
+  =>  :_  ..get-contact
+      [who=who our=our.bowl now=now.bowl]
+  ~+  ^-  (unit contact)
+  =/  base=path  /(scot %p our)/contacts/(scot %da now)
+  ?.  ~+  .^(? %gu (weld base /$))
+    ~
+  =+  ~+  .^(rol=rolodex %gx (weld base /all/contact-rolodex))
+  ?~  for=(~(get by rol) who)
+    ~
+  ?.  ?=([[@ ^] *] u.for)
+    ~
+  `con.for.u.for
 --

@@ -1,63 +1,68 @@
-import { useNavigation } from '@react-navigation/native';
-import type { NavigationProp } from '@react-navigation/native';
-import { useBranch } from '@tloncorp/app/contexts/branch';
+import { NavigationProp, useNavigation } from '@react-navigation/native';
+import { useBranch, useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { inviteShipWithLure } from '@tloncorp/app/lib/hostingApi';
 import { trackError } from '@tloncorp/app/utils/posthog';
-import { useEffect } from 'react';
-import { Alert } from 'react-native';
+import { createDevLogger } from '@tloncorp/shared/dist';
+import * as store from '@tloncorp/shared/dist/store';
+import { useEffect, useRef } from 'react';
 
 import { RootStackParamList } from '../types';
 
+const logger = createDevLogger('deeplinkHandler', true);
+
 export const useDeepLinkListener = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const isHandlingLinkRef = useRef(false);
   const { ship } = useShip();
-  const { lure, deepLinkPath, clearLure, clearDeepLink } = useBranch();
+  const signupParams = useSignupParams();
+  const { clearLure, lure } = useBranch();
 
-  // If lure is present, invite it and mark as handled
   useEffect(() => {
-    if (ship && lure) {
+    if (ship && lure && !isHandlingLinkRef.current) {
       (async () => {
+        isHandlingLinkRef.current = true;
+        logger.log(`handling deep link`, lure, signupParams);
         try {
-          await inviteShipWithLure({ ship, lure });
-          Alert.alert(
-            '',
-            'Your invitation to the group is on its way. It will appear in the Groups list.',
-            [
-              {
-                text: 'OK',
-                onPress: () => null,
-              },
-            ],
-            { cancelable: true }
-          );
-        } catch (err) {
-          console.error(
-            '[useDeepLinkListener] Error inviting ship with lure:',
-            err
-          );
-          if (err instanceof Error) {
-            trackError(err);
+          // if the lure was clicked prior to authenticating, trigger the automatic join & DM
+          if (lure.shouldAutoJoin) {
+            try {
+              logger.log(`inviting ship with lure`, ship, signupParams.lureId);
+              await inviteShipWithLure({ ship, lure: signupParams.lureId });
+            } catch (err) {
+              logger.error('Error inviting ship with lure:', err);
+              if (err instanceof Error) {
+                trackError(err);
+              }
+            }
+          } else {
+            // otherwise, treat it as a deeplink and navigate to the group
+            if (lure.invitedGroupId) {
+              const [group] = await store.syncGroupPreviews([
+                lure.invitedGroupId,
+              ]);
+              if (group) {
+                navigation.reset({
+                  index: 1,
+                  routes: [
+                    { name: 'ChatList', params: { previewGroup: group } },
+                  ],
+                });
+              } else {
+                logger.error(
+                  'Failed to navigate to group deeplink',
+                  lure.invitedGroupId
+                );
+              }
+            }
           }
+        } catch (e) {
+          logger.error('Failed to handle deep link', lure, e);
+        } finally {
+          clearLure();
+          isHandlingLinkRef.current = false;
         }
-
-        clearLure();
       })();
     }
-  }, [ship, lure, clearLure]);
-
-  // If deep link clicked, broadcast that navigation update to the webview and mark as handled
-  useEffect(() => {
-    // TODO: hook up deep links without webview
-    // if (deepLinkPath && webviewContext.appLoaded) {
-    // console.debug(
-    // '[useDeepLinkListener] Setting webview path:',
-    // deepLinkPath
-    // );
-    // webviewContext.setGotoPath(deepLinkPath);
-    // const tab = parseActiveTab(deepLinkPath) ?? 'Groups';
-    // navigation.navigate(tab, { screen: 'Webview' });
-    // clearDeepLink();
-    // }
-  }, [deepLinkPath, navigation, clearDeepLink]);
+  }, [ship, signupParams, clearLure, lure, navigation]);
 };

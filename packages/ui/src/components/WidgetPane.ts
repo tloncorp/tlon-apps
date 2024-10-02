@@ -1,15 +1,17 @@
-import { SizableText, styled, withStaticProperties } from 'tamagui';
-import { YStack } from 'tamagui';
+import { YStack, styled, withStaticProperties } from 'tamagui';
+
+import { Text } from './TextV2';
 
 const WidgetPaneFrame = styled(YStack, {
   backgroundColor: '$background',
-  borderRadius: '$3xl',
+  borderRadius: '$l',
   padding: '$2xl',
 });
 
-const WidgetPaneTitle = styled(SizableText, {
+const WidgetPaneTitle = styled(Text, {
   color: '$tertiaryText',
-  fontSize: '$l',
+  size: '$label/xl',
+  trimmed: false,
   marginBottom: '$m',
 });
 

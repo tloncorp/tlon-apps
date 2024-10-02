@@ -9,7 +9,7 @@ import * as api from '../api';
 import * as db from '../db';
 import * as ub from '../urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
-import { syncPostReference } from './sync';
+import { syncGroupPreviews, syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
@@ -289,8 +289,9 @@ export const useLiveGroupUnread = (unread: db.GroupUnread | null) => {
 };
 
 export const useLiveUnread = (
-  unread: db.ChannelUnread | db.ThreadUnreadState | null
+  unread: db.ChannelUnread | db.ThreadUnreadState | db.GroupUnread | null
 ) => {
+  const isGroup = useMemo(() => unread && 'groupId' in unread, [unread]);
   const isThread = useMemo(() => unread && 'threadId' in unread, [unread]);
   const threadUnread = useLiveThreadUnread(
     isThread ? (unread as db.ThreadUnreadState) : null
@@ -298,21 +299,16 @@ export const useLiveUnread = (
   const channelUnread = useLiveChannelUnread(
     isThread ? null : (unread as db.ChannelUnread | null)
   );
-  return isThread ? threadUnread : channelUnread;
+  const groupUnread = useLiveGroupUnread(
+    isGroup ? (unread as db.GroupUnread) : null
+  );
+  return isThread ? threadUnread : isGroup ? groupUnread : channelUnread;
 };
 
 export const useGroups = (options: db.GetGroupsOptions) => {
   return useQuery({
     queryKey: ['groups'],
     queryFn: () => db.getGroups(options).then((r) => r ?? null),
-  });
-};
-
-export const useGroupPreviews = (groupIds: string[]) => {
-  const depsKey = useKeyFromQueryDeps(db.getGroupPreviews);
-  return useQuery({
-    queryKey: ['groupPreviews', depsKey, groupIds],
-    queryFn: () => db.getGroupPreviews(groupIds),
   });
 };
 
@@ -358,14 +354,8 @@ export const useGroupPreview = (groupId: string) => {
   return useQuery({
     queryKey: ['groupPreview', tableDeps, groupId],
     queryFn: async () => {
-      const group = await db.getGroup({ id: groupId });
-      if (group) {
-        return group;
-      }
-
-      const groupPreview = await api.getGroupPreview(groupId);
-      await db.insertUnjoinedGroups([groupPreview]);
-      return groupPreview;
+      const [preview] = await syncGroupPreviews([groupId]);
+      return preview;
     },
   });
 };

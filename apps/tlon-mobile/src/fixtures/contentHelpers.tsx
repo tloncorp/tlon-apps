@@ -545,6 +545,28 @@ export const postWithSingleEmoji = makePost(exampleContacts.emotive, [
   verse.inline('🙏', inline.break()),
 ]);
 
+export const postsByType = {
+  image: postWithImage,
+  text: postWithText,
+  mention: postWithMention,
+  blockquote: postWithBlockquote,
+  code: postWithCode,
+  list: postWithList,
+  link: postWithLink,
+  chatReference: postWithChatReference,
+  imageAndText: postWithImageAndText,
+  groupReference: postWithGroupReference,
+  groupReferenceNoAvatar: postWithGroupReferenceNoAvatar,
+  longNote: postWithLongNote,
+  galleryReference: postWithGalleryReference,
+  notebookReference: postWithNotebookReference,
+  video: postWithVideo,
+  deleted: postWithDeleted,
+  hidden: postWithHidden,
+  emoji: postWithEmoji,
+  singleEmoji: postWithSingleEmoji,
+};
+
 const postsMap: Record<string, db.Post> = Object.fromEntries(
   [
     referencedGalleryPost,

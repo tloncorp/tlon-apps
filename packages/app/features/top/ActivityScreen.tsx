@@ -1,3 +1,4 @@
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { ActivityScreenView, NavBarView, View } from '@tloncorp/ui';
@@ -5,23 +6,12 @@ import { useCallback, useMemo } from 'react';
 
 // import ErrorBoundary from '../../ErrorBoundary';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useIsFocused } from '../../hooks/useIsFocused';
+import { useIsFocused } from '@react-navigation/native';
+import { RootStackParamList } from '../../navigation/types';
 
-export function ActivityScreen({
-  navigateToChannel,
-  navigateToThread,
-  navigateToGroup,
-  navigateToChatList,
-  navigateToActivity,
-  navigateToProfile,
-}: {
-  navigateToChannel: (channel: db.Channel, selectedPostId?: string) => void;
-  navigateToThread: (post: db.Post) => void;
-  navigateToGroup: (group: db.Group) => void;
-  navigateToChatList: () => void;
-  navigateToActivity: () => void;
-  navigateToProfile: () => void;
-}) {
+type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
+
+export function ActivityScreen(props: Props) {
   const isFocused = useIsFocused();
   const currentUserId = useCurrentUserId();
 
@@ -42,9 +32,9 @@ export function ActivityScreen({
 
   const handleGoToChannel = useCallback(
     (channel: db.Channel, selectedPostId?: string) => {
-      navigateToChannel(channel, selectedPostId);
+      props.navigation.navigate('Channel', { channel, selectedPostId });
     },
-    [navigateToChannel]
+    [props.navigation]
   );
 
   // TODO: if diary or gallery, figure out a way to pop open the comment
@@ -52,17 +42,20 @@ export function ActivityScreen({
   const handleGoToThread = useCallback(
     (post: db.Post) => {
       // TODO: we have no way to route to specific thread message rn
-      navigateToThread(post);
+      props.navigation.navigate('Post', { post });
     },
-    [navigateToThread]
+    [props.navigation]
   );
 
   const handleGoToGroup = useCallback(
     (group: db.Group) => {
       store.markGroupRead(group);
-      navigateToGroup(group);
+      props.navigation.navigate('GroupSettings', {
+        screen: 'GroupMembers',
+        params: { groupId: group.id },
+      });
     },
-    [navigateToGroup]
+    [props.navigation]
   );
 
   return (
@@ -76,15 +69,9 @@ export function ActivityScreen({
         refresh={handleRefreshActivity}
       />
       <NavBarView
-        navigateToHome={() => {
-          navigateToChatList();
-        }}
-        navigateToNotifications={() => {
-          navigateToActivity();
-        }}
-        navigateToProfile={() => {
-          navigateToProfile();
-        }}
+        navigateToHome={() => props.navigation.navigate('ChatList')}
+        navigateToNotifications={() => props.navigation.navigate('Activity')}
+        navigateToProfileSettings={() => props.navigation.navigate('Profile')}
         currentRoute="Activity"
         currentUserId={currentUserId}
       />

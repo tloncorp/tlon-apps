@@ -15,6 +15,8 @@ export function ChannelHeader({
   goBack,
   goToSearch,
   showSpinner,
+  showAddButton = false,
+  onPressAddButton,
   showSearchButton = true,
   showMenuButton = false,
 }: {
@@ -25,6 +27,8 @@ export function ChannelHeader({
   goBack?: () => void;
   goToSearch?: () => void;
   showSpinner?: boolean;
+  showAddButton?: boolean;
+  onPressAddButton?: () => void;
   showSearchButton?: boolean;
   showMenuButton?: boolean;
   post?: db.Post;
@@ -54,6 +58,15 @@ export function ChannelHeader({
                 onPress={goToSearch}
               >
                 <Icon type="Search" />
+              </Button>
+            )}
+            {showAddButton && (
+              <Button
+                backgroundColor="unset"
+                borderColor="transparent"
+                onPress={onPressAddButton}
+              >
+                <Icon type="Add" />
               </Button>
             )}
             {showMenuButton && (

@@ -5,13 +5,13 @@ import { AvatarNavIcon, NavBar, NavIcon } from './NavBar';
 export const NavBarView = ({
   navigateToHome,
   navigateToNotifications,
-  navigateToProfile,
+  navigateToProfileSettings,
   currentRoute,
   currentUserId,
 }: {
   navigateToHome: () => void;
   navigateToNotifications: () => void;
-  navigateToProfile: () => void;
+  navigateToProfileSettings: () => void;
   currentRoute: string;
   currentUserId: string;
 }) => {
@@ -29,19 +29,19 @@ export const NavBarView = ({
         // hasUnreads={(unreadCount?.channels ?? 0) > 0}
         // intentionally leave undotted for now
         hasUnreads={false}
-        onPress={() => navigateToHome()}
+        onPress={navigateToHome}
       />
       <NavIcon
         type="Notifications"
         activeType="NotificationsFilled"
         hasUnreads={haveUnreadUnseenActivity}
         isActive={isRouteActive('Activity')}
-        onPress={() => navigateToNotifications()}
+        onPress={navigateToNotifications}
       />
       <AvatarNavIcon
         id={currentUserId}
         focused={isRouteActive('Profile')}
-        onPress={() => navigateToProfile()}
+        onPress={navigateToProfileSettings}
       />
     </NavBar>
   );

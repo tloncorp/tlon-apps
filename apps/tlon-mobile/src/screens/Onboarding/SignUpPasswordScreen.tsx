@@ -4,7 +4,13 @@ import {
   initClient,
 } from '@google-cloud/recaptcha-enterprise-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
+import { DEFAULT_LURE, RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
+import {
+  useBranch,
+  useLureMetadata,
+  useSignupParams,
+} from '@tloncorp/app/contexts/branch';
+import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import {
   logInHostingUser,
   signUpHostingUser,
@@ -12,6 +18,7 @@ import {
 import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
+  AppInviteDisplay,
   Button,
   CheckboxInput,
   Field,
@@ -41,10 +48,13 @@ type FormData = {
 export const SignUpPasswordScreen = ({
   navigation,
   route: {
-    params: { email, lure, priorityToken },
+    params: { email },
   },
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const signupContext = useSignupContext();
+  const signupParams = useSignupParams();
+  const lureMeta = useLureMetadata();
   const {
     control,
     setFocus,
@@ -105,9 +115,10 @@ export const SignUpPasswordScreen = ({
         email,
         password,
         recaptchaToken,
-        lure,
-        priorityToken,
+        lure: signupParams.lureId,
+        priorityToken: signupParams.priorityToken,
       });
+      signupContext.setDidSignup(true);
     } catch (err) {
       console.error('Error signing up user:', err);
       if (err instanceof Error) {
@@ -124,7 +135,7 @@ export const SignUpPasswordScreen = ({
     trackOnboardingAction({
       actionName: 'Account Created',
       email,
-      lure,
+      lure: signupParams.lureId,
     });
 
     try {
@@ -187,6 +198,7 @@ export const SignUpPasswordScreen = ({
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
         <YStack gap="$xl" padding="$2xl">
+          {lureMeta ? <AppInviteDisplay metadata={lureMeta} /> : null}
           <SizableText color="$primaryText">
             Please set a strong password with at least 8 characters.
           </SizableText>

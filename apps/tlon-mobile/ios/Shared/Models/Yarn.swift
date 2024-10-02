@@ -18,12 +18,11 @@ struct Yarn: Decodable {
     // Flag group invitations and group-meta events as invalid
     var isValidNotification: Bool {
         (rope.desk == "groups") &&
-            !rope.thread.hasSuffix("/channel/edit") &&
+            (!rope.thread.hasSuffix("/channel/edit") &&
             !rope.thread.hasSuffix("/channel/add") &&
             !rope.thread.hasSuffix("/channel/del") &&
             !rope.thread.hasSuffix("/joins") &&
-            !rope.thread.hasSuffix("/leaves") &&
-            (rope.channel != nil || !isGroup)
+            !rope.thread.hasSuffix("/leaves") || !isGroup)
     }
 
     var isGroup: Bool {
@@ -31,7 +30,7 @@ struct Yarn: Decodable {
     }
 
     var isClub: Bool {
-        channelID.starts(with: "0v")
+      (channelID ?? "").starts(with: "0v")
     }
 
     var isInvitation: Bool {
@@ -42,12 +41,20 @@ struct Yarn: Decodable {
         isInvitation ? .invitation : .message
     }
 
-    var channelID: String {
+    var channelID: String? {
+        if isGroup && rope.channel == nil {
+          return nil
+        }
+      
         if isGroup, let channel = rope.channel {
             return channel
         }
 
         return rope.thread.replacingOccurrences(of: "/dm/", with: "").replacingOccurrences(of: "/club/", with: "")
+    }
+  
+    var groupID: String? {
+        return rope.group
     }
 
     var senderShipName: String? {
@@ -109,25 +116,34 @@ struct Yarn: Decodable {
             return ""
         }
 
-        var displayName: String?
+        var displayName: String? = channelID ?? groupID
 
-        if isGroup {
+        if let channelID {
+          if isGroup {
             do {
-                let groupChannel = try await GroupChannelStore.sharedInstance.getOrFetchItem(channelID)
-                displayName = groupChannel?.meta.title
+              let groupChannel = try await GroupChannelStore.sharedInstance.getOrFetchItem(channelID)
+              displayName = groupChannel?.meta.title
             } catch {
-                error.logWithDomain(TlonError.NotificationsFetchGroupChannel)
+              error.logWithDomain(TlonError.NotificationsFetchGroupChannel)
             }
-        } else {
+          } else {
             do {
-                let club = try await ClubStore.sharedInstance.getOrFetchItem(channelID)
-                displayName = club?.displayName
+              let club = try await ClubStore.sharedInstance.getOrFetchItem(channelID)
+              displayName = club?.displayName
             } catch {
-                error.logWithDomain(TlonError.NotificationsFetchClub)
+              error.logWithDomain(TlonError.NotificationsFetchClub)
+            }
+          }
+        } else if let groupID {
+            do {
+              let group = try await GroupStore.sharedInstance.getOrFetchItem(groupID)
+              displayName = group?.preview?.meta.title
+            } catch {
+              error.logWithDomain(TlonError.NotificationsFetchGangs)
             }
         }
 
-        return displayName ?? channelID
+        return displayName ?? ""
     }
 }
 

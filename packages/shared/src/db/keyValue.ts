@@ -9,7 +9,7 @@ import {
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 
-const logger = createDevLogger('keyValueStore', true);
+const logger = createDevLogger('keyValueStore', false);
 
 export const ACTIVITY_SEEN_MARKER_QUERY_KEY = [
   'activity',

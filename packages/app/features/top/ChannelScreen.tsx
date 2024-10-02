@@ -1,3 +1,6 @@
+import { useFocusEffect } from '@react-navigation/native';
+import { useIsFocused } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
@@ -21,25 +24,17 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useFocusEffect } from '../../hooks/useFocusEffect';
-import { useIsFocused } from '../../hooks/useIsFocused';
+import { useGroupActions } from '../../hooks/useGroupActions';
+import type { RootStackParamList } from '../../navigation/types';
 
 const logger = createDevLogger('ChannelScreen', false);
 
-export default function ChannelScreen({
-  channelFromParams,
-  navigateToDm,
-  navigateToUserProfile,
-  goBack,
-  selectedPostId,
-}: {
-  channelFromParams: db.Channel;
-  navigateToDm: (channel: db.Channel) => void;
-  goBack: () => void;
-  navigateToUserProfile: (userId: string) => void;
-  groupFromParams?: db.Group | null;
-  selectedPostId?: string | null;
-}) {
+type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
+
+export default function ChannelScreen(props: Props) {
+  const channelFromParams = props.route.params.channel;
+  const selectedPostId = props.route.params.selectedPostId;
+
   const currentUserId = useCurrentUserId();
   useFocusEffect(
     useCallback(() => {
@@ -99,13 +94,10 @@ export default function ChannelScreen({
     uploaderKey: `${currentChannelId}`,
   });
 
-  const {
-    navigateToImage,
-    navigateToPost,
-    navigateToRef,
-    navigateToSearch,
-    performGroupAction,
-  } = useChannelNavigation({ channelId: currentChannelId });
+  const { navigateToImage, navigateToPost, navigateToRef, navigateToSearch } =
+    useChannelNavigation({ channelId: currentChannelId });
+
+  const { performGroupAction } = useGroupActions();
 
   const session = store.useCurrentSession();
   const hasCachedNewest = useMemo(() => {
@@ -113,9 +105,48 @@ export default function ChannelScreen({
       return false;
     }
     const { syncedAt, lastPostAt } = channel;
-    if (syncedAt && session.startTime < syncedAt) {
+
+    if (syncedAt == null) {
+      return false;
+    }
+
+    // `syncedAt` is only set when sync endpoint reports that there are no newer posts.
+    // https://github.com/tloncorp/tlon-apps/blob/adde000f4330af7e0a2e19bdfcb295f5eb9fe3da/packages/shared/src/store/sync.ts#L905-L910
+    // We are guaranteed to have the most recent post before `syncedAt`; and
+    // we are guaranteed to have the most recent post after `session.startTime`.
+
+    // This case checks that we have overlap between sync backfill and session subscription.
+    //
+    //   ------------------------| syncedAt
+    //     session.startTime |---------------
+    if (syncedAt >= (session.startTime ?? 0)) {
       return true;
-    } else if (lastPostAt && syncedAt && syncedAt > lastPostAt) {
+    }
+
+    // `lastPostAt` is set with the channel's latest post during session init:
+    // https://github.com/tloncorp/tlon-apps/blob/adde000f4330af7e0a2e19bdfcb295f5eb9fe3da/packages/shared/src/store/sync.ts#L1052
+    //
+    // Since we already checked that a session is active, this case checks
+    // that we've hit `syncedAt`'s "no newer posts" at some point _after_ the
+    // channel's most recent post's timestamp.
+    //
+    //          lastPostAt
+    //              v
+    //   ------------------------| syncedAt
+    //
+    // This check would fail if we first caught up via sync, and then later
+    // started a session: in that case, there could be missing posts between
+    // `syncedAt`'s "no newer posts" and the start of the session:
+    //
+    //                lastPostAt (post not received)
+    //                    v
+    //   ----| syncedAt
+    //         session.startTime |---------
+    //
+    // NB: In that case, we *do* have the single latest post for the channel,
+    // but we'd likely be missing all other posts in the gap. Wait until we
+    // filled in the gap to show posts.
+    if (lastPostAt && syncedAt > lastPostAt) {
       return true;
     }
     return false;
@@ -219,16 +250,16 @@ export default function ChannelScreen({
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
-      navigateToDm(dmChannel);
+      props.navigation.push('Channel', { channel: dmChannel });
     },
-    [navigateToDm]
+    [props.navigation]
   );
 
   const handleMarkRead = useCallback(() => {
     if (channel && !channel.isPendingChannel) {
       store.markChannelRead(channel);
     }
-  }, [channel?.id, channel?.groupId, channel?.type]);
+  }, [channel]);
 
   const canUpload = useCanUpload();
 
@@ -246,9 +277,9 @@ export default function ChannelScreen({
 
   const handleGoToUserProfile = useCallback(
     (userId: string) => {
-      navigateToUserProfile(userId);
+      props.navigation.push('UserProfile', { userId });
     },
-    [navigateToUserProfile]
+    [props.navigation]
   );
 
   if (!channel) {
@@ -272,7 +303,7 @@ export default function ChannelScreen({
         group={group}
         posts={posts}
         selectedPostId={selectedPostId}
-        goBack={goBack}
+        goBack={props.navigation.goBack}
         messageSender={sendPost}
         goToPost={navigateToPost}
         goToImageViewer={navigateToImage}

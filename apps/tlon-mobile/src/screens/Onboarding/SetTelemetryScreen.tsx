@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import {
   Button,
   GenericHeader,
@@ -20,13 +21,16 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetTelemetry'>;
 export const SetTelemetryScreen = ({
   navigation,
   route: {
-    params: { user, signUpExtras },
+    params: { user },
   },
 }: Props) => {
   const [isEnabled, setIsEnabled] = useState(true);
   const postHog = usePostHog();
+  const signupContext = useSignupContext();
 
   const handleNext = useCallback(() => {
+    signupContext.setTelemetry(isEnabled);
+
     if (!isEnabled) {
       postHog?.optOut();
       branch.disableTracking(true);
@@ -34,9 +38,8 @@ export const SetTelemetryScreen = ({
 
     navigation.push('ReserveShip', {
       user,
-      signUpExtras: { ...signUpExtras, telemetry: isEnabled },
     });
-  }, [isEnabled, user, postHog, navigation, signUpExtras]);
+  }, [isEnabled, user, postHog, navigation, signupContext]);
 
   return (
     <View flex={1}>

@@ -1,0 +1,27 @@
+.widget-column {
+  max-width: 30em;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2em;
+}
+
+.widget-column .widget {
+  width: calc(100% - 4em);
+  position: relative;
+}
+
+.widget h2 {
+  margin-top: 0;
+  font-weight: 400;
+  font-size: 0.8em;
+  color: var(--text-muted);
+}
+
+.widget p:empty {
+  display: none;
+}
+
+.widget p:not(:empty):last-child {
+  margin-bottom: 0;
+}

@@ -1,10 +1,20 @@
 import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { EditProfileScreenView, GroupsProvider, View } from '@tloncorp/ui';
+import {
+  AttachmentProvider,
+  EditProfileScreenView,
+  GroupsProvider,
+} from '@tloncorp/ui';
 import { useCallback } from 'react';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-export function EditProfileScreen({ onGoBack }: { onGoBack: () => void }) {
+
+import { RootStackParamList } from '../../navigation/types';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
+
+export function EditProfileScreen({ navigation }: Props) {
   const { data: groups } = store.useGroups({ includeUnjoined: true });
 
   const onSaveProfile = useCallback(
@@ -18,23 +28,21 @@ export function EditProfileScreen({ onGoBack }: { onGoBack: () => void }) {
       if (update.pinnedGroups) {
         store.updateProfilePinnedGroups(update.pinnedGroups);
       }
-      onGoBack();
+      navigation.goBack();
     },
-    [onGoBack]
+    [navigation]
   );
 
   const canUpload = store.useCanUpload();
 
   return (
     <GroupsProvider groups={groups ?? []}>
-      <View flex={1}>
+      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
         <EditProfileScreenView
-          canUpload={canUpload}
-          uploadAsset={store.uploadAsset}
-          onGoBack={onGoBack}
+          onGoBack={() => navigation.goBack()}
           onSaveProfile={onSaveProfile}
         />
-      </View>
+      </AttachmentProvider>
     </GroupsProvider>
   );
 }

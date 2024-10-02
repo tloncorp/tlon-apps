@@ -146,7 +146,7 @@
     =+  !<(=flag:g vase)
     ?>  from-self
     ?<  =(our.bowl p.flag)
-    go-abet:go-leave:(go-abed:group-core flag)
+    go-abet:(go-leave:(go-abed:group-core flag) &)
   ::
       %group-create
     ?>  from-self
@@ -1031,17 +1031,16 @@
     --
   ::
   ++  go-leave
-    =/  joined-channels
-      %-  ~(gas in *(set nest:g))
-      %+  murn  ~(tap in channels.group)
-      |=  [ch=nest:g =channel:g]
-      [~ ch]
+    |=  send-remove=?
+    =/  joined-channels  ~(tap in ~(key by channels.group))
     =.  cor
-      (emil (leave-channels:go-pass ~(tap in joined-channels)))
+      (emil (leave-channels:go-pass joined-channels))
     =.  cor
       (submit-activity [%del %group flag])
-    =.  cor  (emit remove-self:go-pass)
-    =.  cor  (emit %give %fact ~[/groups /groups/ui] group-leave+!>(flag))
+    =?  cor  send-remove
+      (emit remove-self:go-pass)
+    =.  cor
+      (emit %give %fact ~[/groups /groups/ui] group-leave+!>(flag))
     go-core(gone &)
   ::
   ++  go-init
@@ -1392,7 +1391,7 @@
       %zone     (go-zone-update +.diff)
       %meta     (go-meta-update p.diff)
       %secret   (go-secret-update p.diff)
-      %del      go-core(gone &)
+      %del      (go-leave |)
       %flag-content  (go-flag-content +:diff)
     ==
   ::
@@ -1778,7 +1777,7 @@
         =.  go-core  (go-activity %kick i.ships)
         $(ships t.ships)
       ?:  (~(has in ships) our.bowl)
-        go-core(gone &)
+        (go-leave |)
       go-core
     ::
         %add-sects

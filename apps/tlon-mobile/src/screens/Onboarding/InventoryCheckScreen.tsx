@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { DEFAULT_LURE, DEFAULT_PRIORITY_TOKEN } from '@tloncorp/app/constants';
+import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import { getHostingAvailability } from '@tloncorp/app/lib/hostingApi';
 import { trackError } from '@tloncorp/app/utils/posthog';
 import {
@@ -19,15 +19,8 @@ import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'InventoryCheck'>;
 
-export const InventoryCheckScreen = ({
-  navigation,
-  route: {
-    params: {
-      lure = DEFAULT_LURE,
-      priorityToken = DEFAULT_PRIORITY_TOKEN,
-    } = {},
-  },
-}: Props) => {
+export const InventoryCheckScreen = ({ navigation }: Props) => {
+  const signupParams = useSignupParams();
   const [isChecking, setIsChecking] = useState(false);
 
   const checkAvailability = async () => {
@@ -35,13 +28,13 @@ export const InventoryCheckScreen = ({
 
     try {
       const { enabled } = await getHostingAvailability({
-        lure,
-        priorityToken,
+        lure: signupParams.lureId,
+        priorityToken: signupParams.priorityToken,
       });
       if (enabled) {
-        navigation.navigate('SignUpEmail', { lure, priorityToken });
+        navigation.navigate('SignUpEmail');
       } else {
-        navigation.navigate('JoinWaitList', { lure });
+        navigation.navigate('JoinWaitList', {});
       }
     } catch (err) {
       console.error('Error checking hosting availability:', err);
