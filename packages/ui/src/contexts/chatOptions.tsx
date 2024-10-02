@@ -23,7 +23,7 @@ export type ChatOptionsContextValue = {
   onPressChannelMeta: (channelId: string) => void;
   onTogglePinned: () => void;
   onPressLeave: () => Promise<void>;
-  onSelectSort: (sortBy: 'recency' | 'arranged') => void;
+  onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
 } | null;
 
 const ChatOptionsContext = createContext<ChatOptionsContextValue>(null);
@@ -46,7 +46,7 @@ type ChatOptionsProviderProps = {
   onPressChannelMembers: (channelId: string) => void;
   onPressChannelMeta: (channelId: string) => void;
   onPressRoles: (groupId: string) => void;
-  onSelectSort: (sortBy: 'recency' | 'arranged') => void;
+  onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
 };
 
 export const ChatOptionsProvider = ({
