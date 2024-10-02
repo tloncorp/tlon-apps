@@ -639,6 +639,7 @@ export function ChannelOptions({
             } as ActionGroup,
           ]
         : []),
+     // TODO: redefine in a more readable way.
       ...(group &&
       !['groupDm', 'dm'].includes(channel.type) &&
       (group.privacy === 'public' ||
