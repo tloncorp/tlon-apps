@@ -513,8 +513,12 @@ export function ChannelOptions({
   const sheetRef = useRef(sheet);
   sheetRef.current = sheet;
 
-  const { onPressChannelMembers, onPressChannelMeta, onPressManageChannels } =
-    useChatOptions() ?? {};
+  const {
+    onPressChannelMembers,
+    onPressChannelMeta,
+    onPressManageChannels,
+    onPressInvite,
+  } = useChatOptions() ?? {};
 
   const currentUserIsHost = useMemo(
     () => group?.currentUserIsHost ?? false,
@@ -699,6 +703,44 @@ export function ChannelOptions({
             } as ActionGroup,
           ]
         : []),
+     // TODO: redefine in a more readable way.
+      ...(group &&
+      !['groupDm', 'dm'].includes(channel.type) &&
+      (group.privacy === 'public' ||
+        (currentUserIsAdmin &&
+          ['private', 'secret'].includes(group.privacy ?? '')))
+        ? [
+            {
+              accent: 'neutral',
+              actions: [
+                {
+                  title: 'Invite people',
+                  action: () => {
+                    sheetRef.current.setOpen(false);
+                    onPressInvite?.(group);
+                  },
+                  endIcon: 'ChevronRight',
+                },
+              ],
+            } as ActionGroup,
+          ]
+        : []),
+      ...(group &&
+      !['groupDm', 'dm'].includes(channel.type) &&
+      !currentUserIsAdmin &&
+      ['private', 'secret'].includes(group.privacy ?? '')
+        ? [
+            {
+              accent: 'disabled',
+              actions: [
+                {
+                  title: 'Invites disabled',
+                  description: 'Only admins may invite people to this group.',
+                },
+              ],
+            } as ActionGroup,
+          ]
+        : []),
       ...(!currentUserIsHost
         ? [
             {
@@ -739,14 +781,15 @@ export function ChannelOptions({
     ];
   }, [
     channel,
-    onPressChannelMembers,
-    onPressChannelMeta,
-    setPane,
-    title,
     currentUserIsAdmin,
-    currentUserIsHost,
     group,
+    currentUserIsHost,
+    setPane,
+    onPressChannelMeta,
+    onPressChannelMembers,
     onPressManageChannels,
+    onPressInvite,
+    title,
   ]);
   return (
     <ChatOptionsSheetContent
