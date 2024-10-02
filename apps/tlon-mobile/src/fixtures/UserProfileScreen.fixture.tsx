@@ -37,6 +37,9 @@ function ProfileScreenFixture() {
           userId="~fabled-faster"
           onBack={() => {}}
           connectionStatus={{ complete: true, status: 'yes' }}
+          onPressGroup={() => {
+            console.log('group pressed');
+          }}
         />
       </AppDataContextProvider>
     </FixtureWrapper>
