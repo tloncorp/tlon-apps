@@ -17,6 +17,7 @@ import {
   ChannelSwitcherSheet,
   ChatOptionsProvider,
   INITIAL_POSTS_PER_PAGE,
+  InviteUsersSheet,
   useCurrentUserId,
 } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
@@ -61,6 +62,8 @@ export default function ChannelScreen(props: Props) {
   );
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
+  const [inviteSheetGroup, setInviteSheetGroup] =
+    React.useState<db.Group | null>();
   const [currentChannelId, setCurrentChannelId] = React.useState(
     channelFromParams.id
   );
@@ -282,6 +285,12 @@ export default function ChannelScreen(props: Props) {
     [props.navigation]
   );
 
+  const handleInviteSheetOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setInviteSheetGroup(null);
+    }
+  }, []);
+
   if (!channel) {
     return null;
   }
@@ -291,6 +300,9 @@ export default function ChannelScreen(props: Props) {
       groupId={channelFromParams?.id}
       pinned={pinnedItems}
       useGroup={store.useGroup}
+      onPressInvite={(group) => {
+        setInviteSheetGroup(group);
+      }}
       {...chatOptionsNavProps}
     >
       <Channel
@@ -333,13 +345,21 @@ export default function ChannelScreen(props: Props) {
         canUpload={canUpload}
       />
       {group && (
-        <ChannelSwitcherSheet
-          open={channelNavOpen}
-          onOpenChange={(open) => setChannelNavOpen(open)}
-          group={group}
-          channels={group?.channels || []}
-          onSelect={handleChannelSelected}
-        />
+        <>
+          <ChannelSwitcherSheet
+            open={channelNavOpen}
+            onOpenChange={(open) => setChannelNavOpen(open)}
+            group={group}
+            channels={group?.channels || []}
+            onSelect={handleChannelSelected}
+          />
+          <InviteUsersSheet
+            open={inviteSheetGroup !== null}
+            onOpenChange={handleInviteSheetOpenChange}
+            onInviteComplete={() => setInviteSheetGroup(null)}
+            group={inviteSheetGroup ?? undefined}
+          />
+        </>
       )}
     </ChatOptionsProvider>
   );
