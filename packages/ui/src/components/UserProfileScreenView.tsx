@@ -27,6 +27,7 @@ interface Props {
   userId: string;
   onBack: () => void;
   connectionStatus: api.ConnectionStatus | null;
+  onPressGroup: (group: db.Group) => void;
 }
 
 export function UserProfileScreenView(props: Props) {
@@ -57,6 +58,13 @@ export function UserProfileScreenView(props: Props) {
           )
         ? 'offline'
         : 'online';
+
+  const onPressGroup = useCallback(
+    (group: db.Group) => {
+      props.onPressGroup(group);
+    },
+    [props]
+  );
 
   return (
     <View flex={1} backgroundColor={'$secondaryBackground'}>
@@ -95,6 +103,7 @@ export function UserProfileScreenView(props: Props) {
               alignItems="center"
               key={group.id}
               width={i === 0 ? '100%' : (windowDimensions.width - 36) / 2}
+              onPress={() => onPressGroup(group)}
             >
               <GroupAvatar model={group} size="$4xl" />
               <YStack gap="$m" alignItems="center">
@@ -286,7 +295,7 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
 
   return (
     <XStack gap="$m" width={'100%'}>
-      <ProfileButton title="Message" onPress={handleMessageUser} />
+      <ProfileButton title="Message" onPress={handleMessageUser} hero />
       <ProfileButton
         title={isBlocked ? 'Unblock' : 'Block'}
         onPress={handleBlock}
@@ -295,7 +304,11 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   );
 }
 
-function ProfileButton(props: { title: string; onPress: () => void }) {
+function ProfileButton(props: {
+  title: string;
+  onPress: () => void;
+  hero?: boolean;
+}) {
   return (
     <Button
       flexGrow={1}
@@ -305,8 +318,14 @@ function ProfileButton(props: { title: string; onPress: () => void }) {
       paddingHorizontal="$2xl"
       borderRadius="$2xl"
       onPress={props.onPress}
+      hero={props.hero}
     >
-      <Text size="$label/xl">{props.title}</Text>
+      <Text
+        size="$label/xl"
+        color={props.hero ? '$background' : '$primaryText'}
+      >
+        {props.title}
+      </Text>
     </Button>
   );
 }
