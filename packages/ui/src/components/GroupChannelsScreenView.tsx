@@ -7,23 +7,38 @@ import { useChatOptions } from '../contexts/chatOptions';
 import { SimpleActionSheet } from './ActionSheet';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
+import {
+  ChannelTypeName,
+  CreateChannelSheet,
+} from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
 
 type GroupChannelsScreenViewProps = {
   onChannelPressed: (channel: db.Channel) => void;
   onBackPressed: () => void;
   currentUser: string;
+  createChannel: ({
+    title,
+    description,
+    channelType,
+  }: {
+    title: string;
+    description: string;
+    channelType: ChannelTypeName;
+  }) => Promise<void>;
 };
 
 export function GroupChannelsScreenView({
   onChannelPressed,
   onBackPressed,
+  createChannel,
 }: GroupChannelsScreenViewProps) {
   const groupOptions = useChatOptions();
   const group = groupOptions?.group;
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
 
-  const [showSortOptions, setShowSortOptions] = useState(false);
+  // const [showSortOptions, setShowSortOptions] = useState(false);
   const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
   const insets = useSafeAreaInsets();
 
@@ -36,14 +51,14 @@ export function GroupChannelsScreenView({
     getSortByPreference();
   }, [setSortBy]);
 
-  const handleSortByChanged = useCallback(
-    (newSortBy: 'recency' | 'arranged') => {
-      setSortBy(newSortBy);
-      setShowSortOptions(false);
-      db.storeChannelSortPreference(newSortBy);
-    },
-    []
-  );
+  // const handleSortByChanged = useCallback(
+  //   (newSortBy: 'recency' | 'arranged') => {
+  //     setSortBy(newSortBy);
+  //     setShowSortOptions(false);
+  //     db.storeChannelSortPreference(newSortBy);
+  //   },
+  //   []
+  // );
 
   const handlePressOverflowButton = useCallback(() => {
     if (group) {
@@ -67,9 +82,13 @@ export function GroupChannelsScreenView({
         rightControls={
           <>
             <ScreenHeader.IconButton
+              type="Add"
+              onPress={() => setShowCreateChannel(true)}
+            />
+            {/* <ScreenHeader.IconButton
               type="Filter"
               onPress={() => setShowSortOptions(true)}
-            />
+            /> */}
             <ScreenHeader.IconButton
               type="Overflow"
               onPress={handlePressOverflowButton}
@@ -94,11 +113,25 @@ export function GroupChannelsScreenView({
           />
         ) : null}
       </ScrollView>
-      <ChannelSortActionsSheet
+
+      {showCreateChannel && (
+        <CreateChannelSheet
+          onOpenChange={(open) => setShowCreateChannel(open)}
+          createChannel={async ({ title, description, channelType }) =>
+            createChannel({
+              title,
+              description,
+              channelType,
+            })
+          }
+        />
+      )}
+
+      {/* <ChannelSortActionsSheet
         open={showSortOptions}
         onOpenChange={setShowSortOptions}
         onSelectSort={handleSortByChanged}
-      />
+      /> */}
       <ChatOptionsSheet ref={chatOptionsSheetRef} />
     </View>
   );
