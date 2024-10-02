@@ -86,7 +86,11 @@ export const SetNicknameScreen = ({
       <ScreenHeader
         title="Nickname"
         showSessionStatus={false}
-        rightControls={<ScreenHeader.TextButton onPress={onSubmit} />}
+        rightControls={
+          <ScreenHeader.TextButton onPress={onSubmit}>
+            Next
+          </ScreenHeader.TextButton>
+        }
       />
       <YStack gap="$xl" padding="$2xl">
         <SizableText color="$primaryText">
