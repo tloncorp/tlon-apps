@@ -1,5 +1,5 @@
 import { sync } from '@tloncorp/shared';
-import type * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import * as ub from '@tloncorp/shared/dist/urbit';
@@ -30,47 +30,53 @@ export type ChatOptionsSheetMethods = {
 
 export type ChatOptionsSheetRef = React.Ref<ChatOptionsSheetMethods>;
 
-const ChatOptionsSheetComponent = React.forwardRef<ChatOptionsSheetMethods>(
-  function ChatOptionsSheetImpl(props, ref) {
-    const [open, setOpen] = useState(false);
-    const [chat, setChat] = useState<{ type: ChatType; id: string } | null>(
-      null
-    );
+type ChatOptionsSheetProps = {
+  // We pass in setSortBy from GroupChannelsScreenView to live-update the sort
+  // preference in the channel list.
+  setSortBy?: (sortBy: db.ChannelSortPreference) => void;
+};
 
-    useImperativeHandle(
-      ref,
-      () => ({
-        open: (chatId, chatType) => {
-          setOpen(true);
-          setChat({ id: chatId, type: chatType });
-        },
-      }),
-      []
-    );
+const ChatOptionsSheetComponent = React.forwardRef<
+  ChatOptionsSheetMethods,
+  ChatOptionsSheetProps
+>(function ChatOptionsSheetImpl(props, ref) {
+  const [open, setOpen] = useState(false);
+  const [chat, setChat] = useState<{ type: ChatType; id: string } | null>(null);
 
-    if (!chat || !open) {
-      return null;
-    }
+  useImperativeHandle(
+    ref,
+    () => ({
+      open: (chatId, chatType) => {
+        setOpen(true);
+        setChat({ id: chatId, type: chatType });
+      },
+    }),
+    []
+  );
 
-    if (chat.type === 'group') {
-      return (
-        <GroupOptionsSheetLoader
-          groupId={chat.id}
-          open={open}
-          onOpenChange={setOpen}
-        />
-      );
-    }
+  if (!chat || !open) {
+    return null;
+  }
 
+  if (chat.type === 'group') {
     return (
-      <ChannelOptionsSheetLoader
-        channelId={chat.id}
+      <GroupOptionsSheetLoader
+        groupId={chat.id}
         open={open}
         onOpenChange={setOpen}
+        setSortBy={props.setSortBy}
       />
     );
   }
-);
+
+  return (
+    <ChannelOptionsSheetLoader
+      channelId={chat.id}
+      open={open}
+      onOpenChange={setOpen}
+    />
+  );
+});
 
 export const ChatOptionsSheet = React.memo(ChatOptionsSheetComponent);
 
@@ -78,15 +84,17 @@ export function GroupOptionsSheetLoader({
   groupId,
   open,
   onOpenChange,
+  setSortBy,
 }: {
   groupId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  setSortBy?: (sortBy: db.ChannelSortPreference) => void;
 }) {
   const groupQuery = store.useGroup({ id: groupId });
-  const [pane, setPane] = useState<'initial' | 'edit' | 'notifications'>(
-    'initial'
-  );
+  const [pane, setPane] = useState<
+    'initial' | 'edit' | 'notifications' | 'sort'
+  >('initial');
   const openChangeHandler = useCallback(
     (open: boolean) => {
       if (!open) {
@@ -99,7 +107,12 @@ export function GroupOptionsSheetLoader({
 
   return groupQuery.data ? (
     <ActionSheet open={open} onOpenChange={openChangeHandler}>
-      <GroupOptions group={groupQuery.data} pane={pane} setPane={setPane} />
+      <GroupOptions
+        group={groupQuery.data}
+        pane={pane}
+        setPane={setPane}
+        setSortBy={setSortBy}
+      />
     </ActionSheet>
   ) : null;
 }
@@ -108,10 +121,12 @@ export function GroupOptions({
   group,
   pane,
   setPane,
+  setSortBy,
 }: {
   group: db.Group;
-  pane: 'initial' | 'edit' | 'notifications';
-  setPane: (pane: 'initial' | 'edit' | 'notifications') => void;
+  pane: 'initial' | 'edit' | 'notifications' | 'sort';
+  setPane: (pane: 'initial' | 'edit' | 'notifications' | 'sort') => void;
+  setSortBy?: (sortBy: db.ChannelSortPreference) => void;
 }) {
   const currentUser = useCurrentUserId();
   const { data: currentVolumeLevel } = store.useGroupVolumeLevel(group.id);
@@ -127,6 +142,7 @@ export function GroupOptions({
     onPressGroupPrivacy,
     onPressLeave,
     onTogglePinned,
+    onSelectSort,
   } = useChatOptions() ?? {};
 
   useEffect(() => {
@@ -269,6 +285,16 @@ export function GroupOptions({
       },
     ];
 
+    if (group.channels && group.channels.length > 1) {
+      actionGroups[0].actions.push({
+        title: 'Sort channels',
+        endIcon: 'ChevronRight',
+        action: () => {
+          setPane('sort');
+        },
+      });
+    }
+
     const editAction: Action = {
       title: 'Edit group',
       action: () => {
@@ -350,6 +376,32 @@ export function GroupOptions({
     onPressLeave,
   ]);
 
+  const actionSort: ActionGroup[] = useMemo(() => {
+    return [
+      {
+        accent: 'neutral',
+        actions: [
+          {
+            title: 'Sort by recency',
+            action: () => {
+              onSelectSort?.('recency');
+              setSortBy?.('recency');
+              sheetRef.current.setOpen(false);
+            },
+          },
+          {
+            title: 'Sort by arrangement',
+            action: () => {
+              onSelectSort?.('arranged');
+              setSortBy?.('arranged');
+              sheetRef.current.setOpen(false);
+            },
+          },
+        ],
+      },
+    ];
+  }, [onSelectSort, setSortBy]);
+
   const memberCount = group?.members?.length
     ? group.members.length.toLocaleString()
     : 0;
@@ -367,21 +419,33 @@ export function GroupOptions({
           ? actionGroups
           : pane === 'notifications'
             ? actionNotifications
-            : actionEdit
+            : pane === 'edit'
+              ? actionEdit
+              : pane === 'sort'
+                ? actionSort
+                : []
       }
       title={
         pane === 'initial'
           ? title
           : pane === 'notifications'
             ? 'Notifications for ' + title
-            : 'Edit ' + title
+            : pane === 'edit'
+              ? 'Edit ' + title
+              : pane === 'sort'
+                ? 'Sort channels in ' + title
+                : ''
       }
       subtitle={
         pane === 'initial'
           ? subtitle
           : pane === 'notifications'
             ? 'Set what you want to be notified about'
-            : 'Edit group details'
+            : pane === 'sort'
+              ? 'Choose your display preference'
+              : pane === 'edit'
+                ? 'Edit group details'
+                : ''
       }
       icon={
         pane === 'initial' ? (

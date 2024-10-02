@@ -1,3 +1,4 @@
+import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
@@ -10,13 +11,15 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useIsFocused } from '@react-navigation/native';
+import { useGroupContext } from '../../hooks/useGroupContext';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GroupChannels'>;
 
 export function GroupChannelsScreen({ navigation, route }: Props) {
   const groupParam = route.params.group;
+  const { id } = route.params.group;
+
   const currentUser = useCurrentUserId();
   const isFocused = useIsFocused();
   const { data: pins } = store.usePins({
@@ -25,6 +28,7 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>(
     null
   );
+  const { createChannel } = useGroupContext({ groupId: id });
 
   const pinnedItems = useMemo(() => {
     return pins ?? [];
@@ -57,6 +61,7 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
         onChannelPressed={handleChannelSelected}
         onBackPressed={handleGoBackPressed}
         currentUser={currentUser}
+        createChannel={createChannel}
       />
       <InviteUsersSheet
         open={inviteSheetGroup !== null}
