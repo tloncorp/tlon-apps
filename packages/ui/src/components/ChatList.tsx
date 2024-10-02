@@ -86,18 +86,16 @@ export const ChatList = React.memo(function ChatListComponent({
 
   const renderItem: ListRenderItem<ChatListItemData> = useCallback(
     ({ item }) => {
-      const itemModel = item as Chat;
-
       if (isSectionHeader(item)) {
         return (
           <SectionListHeader>
             <SectionListHeader.Text>{item.title}</SectionListHeader.Text>
           </SectionListHeader>
         );
-      } else if (logic.isChannel(itemModel)) {
+      } else if (logic.isChannel(item)) {
         return (
           <InteractableChatListItem
-            model={itemModel}
+            model={item}
             onPress={onPressItem}
             onLongPress={onLongPressItem}
             onPressMenuButton={onPressMenuButton}
@@ -106,7 +104,7 @@ export const ChatList = React.memo(function ChatListComponent({
       } else {
         return (
           <ChatListItem
-            model={itemModel}
+            model={item}
             onPress={onPressItem}
             onLongPress={onLongPressItem}
           />

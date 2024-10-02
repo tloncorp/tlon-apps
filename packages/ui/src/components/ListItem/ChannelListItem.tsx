@@ -1,12 +1,11 @@
 import type * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
 import { ListItem, type ListItemProps } from './ListItem';
-import { useBoundHandler } from './listItemUtils';
 
 export function ChannelListItem({
   model,
@@ -25,13 +24,13 @@ export function ChannelListItem({
   const firstMemberId = model.members?.[0]?.contactId ?? '';
   const memberCount = model.members?.length ?? 0;
 
-  const handlePress = useRef(() => {
+  const handlePress = logic.useMutableCallback(() => {
     onPress?.(model);
-  }).current;
+  });
 
-  const handleLongPress = useRef(() => {
+  const handleLongPress = logic.useMutableCallback(() => {
     onLongPress?.(model);
-  }).current;
+  });
 
   const { subtitle, subtitleIcon } = useMemo(() => {
     if (model.type === 'dm' || model.type === 'groupDm') {
