@@ -62,7 +62,6 @@ export const DetailView = ({
           inverted
           renderItem={ChatMessage}
           channelType="chat"
-          channelId={post.channelId}
           editingPost={editingPost}
           setEditingPost={setEditingPost}
           editPost={editPost}
@@ -94,7 +93,6 @@ export const DetailView = ({
     onPressDelete,
     onPressImage,
     onPressRetry,
-    post.channelId,
     resolvedPosts,
     setActiveMessage,
     setEditingPost,

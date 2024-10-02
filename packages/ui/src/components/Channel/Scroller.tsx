@@ -103,7 +103,6 @@ const Scroller = forwardRef(
       renderEmptyComponent: renderEmptyComponentFn,
       posts,
       channelType,
-      channelId,
       firstUnreadId,
       unreadCount,
       onStartReached,
@@ -129,7 +128,6 @@ const Scroller = forwardRef(
       renderEmptyComponent?: () => ReactElement;
       posts: db.Post[] | null;
       channelType: db.ChannelType;
-      channelId: string;
       firstUnreadId?: string | null;
       unreadCount?: number | null;
       onStartReached?: () => void;
@@ -263,7 +261,6 @@ const Scroller = forwardRef(
             Component={renderItem}
             unreadCount={unreadCount}
             editingPost={editingPost}
-            channelId={channelId}
             setEditingPost={setEditingPost}
             setViewReactionsPost={setViewReactionsPost}
             editPost={editPost}
@@ -290,7 +287,6 @@ const Scroller = forwardRef(
         unreadCount,
         editingPost,
         anchorScrollLockScrollerItemProps,
-        channelId,
         setEditingPost,
         editPost,
         showReplies,
@@ -504,7 +500,6 @@ const BaseScrollerItem = ({
   unreadCount,
   editingPost,
   onLayout,
-  channelId,
   setViewReactionsPost,
   setEditingPost,
   editPost,
@@ -530,7 +525,6 @@ const BaseScrollerItem = ({
   Component: RenderItemType;
   unreadCount?: number | null;
   onLayout: (post: db.Post, index: number, e: LayoutChangeEvent) => void;
-  channelId: string;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onPressReplies?: (post: db.Post) => void;
   showReplies?: boolean;

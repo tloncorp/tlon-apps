@@ -306,7 +306,6 @@ export function Channel({
                                     setEditingPost={setEditingPost}
                                     editPost={editPost}
                                     channelType={channel.type}
-                                    channelId={channel.id}
                                     firstUnreadId={
                                       initialChannelUnread?.countWithoutThreads ??
                                       0 > 0
