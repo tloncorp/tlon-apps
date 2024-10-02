@@ -2,7 +2,7 @@ import {
   ChannelAction,
   PostCollectionConfiguration,
   useMutableCallback,
-  usePostCollectionConfigurationFromChannelType,
+  usePostCollectionConfigurationFromChannel,
 } from '@tloncorp/shared';
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
@@ -34,13 +34,7 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  ViewStyle as TamaguiViewStyle,
-  View,
-  styled,
-  useStyle,
-  useTheme,
-} from 'tamagui';
+import { View, styled, useStyle, useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts';
 import { useLivePost } from '../../contexts/requests';
@@ -102,7 +96,7 @@ const Scroller = forwardRef(
       renderItem,
       renderEmptyComponent: renderEmptyComponentFn,
       posts,
-      channelType,
+      channel,
       firstUnreadId,
       unreadCount,
       onStartReached,
@@ -127,7 +121,7 @@ const Scroller = forwardRef(
       renderItem: RenderItemType;
       renderEmptyComponent?: () => ReactElement;
       posts: db.Post[] | null;
-      channelType: db.ChannelType;
+      channel: db.Channel;
       firstUnreadId?: string | null;
       unreadCount?: number | null;
       onStartReached?: () => void;
@@ -151,8 +145,7 @@ const Scroller = forwardRef(
     },
     ref
   ) => {
-    const collectionConfig =
-      usePostCollectionConfigurationFromChannelType(channelType);
+    const collectionConfig = usePostCollectionConfigurationFromChannel(channel);
 
     const [isAtBottom, setIsAtBottom] = useState(true);
 
@@ -314,10 +307,10 @@ const Scroller = forwardRef(
     // Special-case it here.
     const extracContentContainerStyle = useMemo(
       () =>
-        !posts?.length || channelType !== 'gallery'
+        !posts?.length || channel.type !== 'gallery'
           ? undefined
           : { paddingBottom: insets.bottom },
-      [channelType, insets, posts?.length]
+      [channel.type, insets, posts?.length]
     );
 
     const columnWrapperStyle = useStyle(
@@ -409,7 +402,7 @@ const Scroller = forwardRef(
             ref={flatListRef as React.RefObject<Animated.FlatList<db.Post>>}
             // This is needed so that we can force a refresh of the list when
             // we need to switch from 1 to 2 columns or vice versa.
-            key={channelType}
+            key={channel.type}
             data={postsWithNeighbors}
             renderItem={listRenderItem}
             ListEmptyComponent={renderEmptyComponent}

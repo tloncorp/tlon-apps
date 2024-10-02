@@ -1,8 +1,8 @@
+import { usePostCollectionConfigurationFromChannel } from '@tloncorp/shared';
 import {
   isChatChannel as getIsChatChannel,
   useChannel as useChannelFromStore,
   useGroupPreview,
-  usePostCollectionConfigurationFromChannelType,
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
@@ -133,9 +133,8 @@ export function Channel({
   const currentUserId = useCurrentUserId();
   const canWrite = utils.useCanWrite(channel, currentUserId);
 
-  const postCollectionConfig = usePostCollectionConfigurationFromChannelType(
-    channel.type
-  );
+  const postCollectionConfig =
+    usePostCollectionConfigurationFromChannel(channel);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
   const renderItem = isChatChannel
@@ -322,7 +321,7 @@ export function Channel({
                                     editingPost={editingPost}
                                     setEditingPost={setEditingPost}
                                     editPost={editPost}
-                                    channelType={channel.type}
+                                    channel={channel}
                                     firstUnreadId={
                                       initialChannelUnread?.countWithoutThreads ??
                                       0 > 0

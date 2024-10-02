@@ -36,20 +36,24 @@ export interface PostCollectionConfiguration {
 }
 
 // Why overload this function instead of just doing a union?
-// If the caller has a non-nullable `channelType`, they can then get a
+// If the caller has a non-nullable `channel`, they can then get a
 // non-nullable return value - nice, right?
-export function usePostCollectionConfigurationFromChannelType(
-  channelType: db.ChannelType
+export function usePostCollectionConfigurationFromChannel(
+  channel: db.Channel
 ): PostCollectionConfiguration;
-export function usePostCollectionConfigurationFromChannelType(
-  channelType: db.ChannelType | null
+export function usePostCollectionConfigurationFromChannel(
+  channel: db.Channel | null
 ): PostCollectionConfiguration | null;
-export function usePostCollectionConfigurationFromChannelType(
-  channelType: db.ChannelType | null
+export function usePostCollectionConfigurationFromChannel(
+  channel: db.Channel | null
 ): PostCollectionConfiguration | null {
+  const channelType = channel?.type;
+
   return useMemo(() => {
     switch (channelType) {
       case null:
+      // fallthrough
+      case undefined:
         return null;
       case 'chat':
       // fallthrough

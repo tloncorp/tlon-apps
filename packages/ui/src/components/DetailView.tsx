@@ -12,6 +12,7 @@ import { Text } from './TextV2';
 
 export interface DetailViewProps {
   post: db.Post;
+  channel: db.Channel;
   initialPostUnread?: db.ThreadUnreadState | null;
   children?: JSX.Element;
   editingPost?: db.Post;
@@ -34,6 +35,7 @@ export interface DetailViewProps {
 
 export const DetailView = ({
   post,
+  channel,
   initialPostUnread,
   editingPost,
   setEditingPost,
@@ -46,10 +48,7 @@ export const DetailView = ({
   activeMessage,
   headerMode,
 }: DetailViewProps) => {
-  const channelType = useMemo(
-    () => urbit.getChannelType(post.channelId),
-    [post.channelId]
-  );
+  const channelType = channel.type;
   const isChat = channelType !== 'notebook' && channelType !== 'gallery';
   const resolvedPosts = useMemo(() => {
     return isChat && posts ? [...posts, post] : posts;
@@ -61,7 +60,7 @@ export const DetailView = ({
         <Scroller
           inverted
           renderItem={ChatMessage}
-          channelType="chat"
+          channel={channel}
           editingPost={editingPost}
           setEditingPost={setEditingPost}
           editPost={editPost}

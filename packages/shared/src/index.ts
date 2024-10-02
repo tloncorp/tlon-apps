@@ -11,7 +11,7 @@ export type {
 export { getPostActions, ChannelAction } from './types/messageActions';
 export {
   PostCollectionConfiguration,
-  usePostCollectionConfigurationFromChannelType,
+  usePostCollectionConfigurationFromChannel,
 } from './types/PostCollectionConfiguration';
 export { parseActiveTab, trimFullPath } from './logic/navigation';
 export * from './logic';

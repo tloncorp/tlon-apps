@@ -1,4 +1,4 @@
-import { usePostCollectionConfigurationFromChannelType } from '@tloncorp/shared';
+import { usePostCollectionConfigurationFromChannel } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
 import { useMemberRoles } from '@tloncorp/shared/dist/store';
 import { useMemo } from 'react';
@@ -48,8 +48,8 @@ function getChannelTitle({
 export function useChannelTitle(channel: db.Channel | null) {
   const { disableNicknames } = useCalm();
   const usesMemberListAsFallbackTitle =
-    usePostCollectionConfigurationFromChannelType(
-      channel?.type ?? null
+    usePostCollectionConfigurationFromChannel(
+      channel
     )?.usesMemberListAsFallbackTitle;
 
   return useMemo(
