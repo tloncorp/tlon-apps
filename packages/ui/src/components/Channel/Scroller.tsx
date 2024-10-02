@@ -437,7 +437,10 @@ const Scroller = forwardRef(
                 setEditingPost?.(activeMessage);
                 setActiveMessage(null);
               }}
-              onViewReactions={setViewReactionsPost}
+              onViewReactions={(post) => {
+                setViewReactionsPost(post);
+                setActiveMessage(null);
+              }}
             />
           )}
         </Modal>
