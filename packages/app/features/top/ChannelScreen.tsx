@@ -35,12 +35,32 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 export default function ChannelScreen(props: Props) {
   const channelFromParams = props.route.params.channel;
   const selectedPostId = props.route.params.selectedPostId;
+  const [currentChannelId, setCurrentChannelId] = React.useState(
+    channelFromParams.id
+  );
+
+  const {
+    negotiationStatus,
+    getDraft,
+    storeDraft,
+    clearDraft,
+    editingPost,
+    setEditingPost,
+    editPost,
+    channel,
+    group,
+    headerMode,
+  } = useChannelContext({
+    channelId: currentChannelId,
+    draftKey: currentChannelId,
+    uploaderKey: `${currentChannelId}`,
+  });
 
   const currentUserId = useCurrentUserId();
   useFocusEffect(
     useCallback(() => {
-      if (channelFromParams.group?.isNew) {
-        store.markGroupVisited(channelFromParams.group);
+      if (group?.isNew) {
+        store.markGroupVisited(group);
       }
 
       if (!channelFromParams.isPendingChannel) {
@@ -48,7 +68,7 @@ export default function ChannelScreen(props: Props) {
           priority: store.SyncPriority.High,
         });
       }
-    }, [channelFromParams])
+    }, [channelFromParams, group])
   );
   useFocusEffect(
     useCallback(
@@ -68,6 +88,7 @@ export default function ChannelScreen(props: Props) {
     channelFromParams.id
   );
 
+
   // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
   // time
   const [initialChannelUnread, setInitialChannelUnread] =
@@ -79,23 +100,6 @@ export default function ChannelScreen(props: Props) {
     }
     initializeChannelUnread();
   }, [currentChannelId]);
-
-  const {
-    negotiationStatus,
-    getDraft,
-    storeDraft,
-    clearDraft,
-    editingPost,
-    setEditingPost,
-    editPost,
-    channel,
-    group,
-    headerMode,
-  } = useChannelContext({
-    channelId: currentChannelId,
-    draftKey: currentChannelId,
-    uploaderKey: `${currentChannelId}`,
-  });
 
   const { navigateToImage, navigateToPost, navigateToRef, navigateToSearch } =
     useChannelNavigation({ channelId: currentChannelId });
