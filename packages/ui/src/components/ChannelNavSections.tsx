@@ -18,7 +18,7 @@ export default function ChannelNavSections({
   onSelect: (channel: any) => void;
   sortBy: 'recency' | 'arranged';
   paddingBottom?: number;
-  onLongPress: (channel: db.Channel) => void;
+  onLongPress?: (channel: any) => void;
 }) {
   const unGroupedChannels = useMemo(
     () =>
