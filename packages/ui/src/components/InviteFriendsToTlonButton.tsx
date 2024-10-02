@@ -85,10 +85,10 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
     >
       <XStack gap="$xl" paddingHorizontal="$m" alignItems="center">
         <View>
-          {status === 'error' || status === 'disabled' || status === 'stale' ? (
+          {status === 'error' || status === 'disabled' ? (
             <Icon type="Close" size="$l" color="$background" />
           ) : null}
-          {status === 'loading' && (
+          {(status === 'loading' || status === 'stale') && (
             <LoadingSpinner size="small" color="$background" />
           )}
           {status === 'ready' && (
@@ -97,9 +97,9 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
         </View>
         <Text flex={1} color="$background" fontSize="$l">
           {status === 'disabled' && 'Public invite links are disabled'}
-          {status === 'stale' && 'Public invite links is stale'}
           {status === 'error' && 'Error generating invite link'}
-          {status === 'loading' && 'Generating invite link...'}
+          {(status === 'loading' || status === 'stale') &&
+            'Generating invite link...'}
           {status === 'ready' &&
             typeof shareUrl === 'string' &&
             'Invite Friends to Tlon'}
