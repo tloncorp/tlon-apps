@@ -1,9 +1,9 @@
 import * as db from '../db';
 import * as ub from '../urbit';
-import { client, scry } from './urbit';
+import { client } from './urbit';
 
 export const getSettings = async () => {
-  const results = await scry<ub.GroupsDeskSettings>({
+  const results = await client.scry<ub.GroupsDeskSettings>({
     app: 'settings',
     path: '/desk/groups',
   });
@@ -121,12 +121,12 @@ export interface Pikes {
 }
 
 export async function getAppInfo(): Promise<db.AppInfo> {
-  const pikes = await scry<Pikes>({
+  const pikes = await client.scry<Pikes>({
     app: 'hood',
     path: '/kiln/pikes',
   });
   const charges = (
-    await scry<ChargeUpdateInitial>({
+    await client.scry<ChargeUpdateInitial>({
       app: 'docket',
       path: '/charges',
     })

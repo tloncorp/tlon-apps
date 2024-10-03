@@ -1,8 +1,8 @@
 import * as ub from '../urbit';
-import { poke, scry, subscribe, unsubscribe } from './urbit';
+import { client } from './urbit';
 
 export const getLastConnectionStatus = async (contactId: string) => {
-  const result = await scry<ub.ConnectionUpdate>({
+  const result = await client.scry<ub.ConnectionUpdate>({
     app: 'vitals',
     path: `/ship/${contactId}`,
   });
@@ -13,7 +13,7 @@ export const checkConnectionStatus = async (
   contactId: string,
   callback: (data: ConnectionStatus) => void
 ) => {
-  const subscription = await subscribe<ub.ConnectionUpdate>(
+  const subscription = await client.subscribe<ub.ConnectionUpdate>(
     {
       app: 'vitals',
       path: `/status/${contactId}`,
@@ -21,12 +21,12 @@ export const checkConnectionStatus = async (
     (e) => {
       callback(toConnectionStatus(e));
       if ('complete' in e.status) {
-        setTimeout(() => unsubscribe(subscription), 1000);
+        setTimeout(() => client.unsubscribe(subscription), 1000);
       }
     }
   );
 
-  return poke({
+  return client.poke({
     app: 'vitals',
     mark: 'run-check',
     json: contactId,

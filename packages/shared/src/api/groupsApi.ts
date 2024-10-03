@@ -13,14 +13,7 @@ import {
   getJoinStatusFromGang,
 } from '../urbit';
 import { parseGroupId, toClientMeta } from './apiUtils';
-import {
-  getCurrentUserId,
-  poke,
-  scry,
-  subscribe,
-  subscribeOnce,
-  trackedPoke,
-} from './urbit';
+import { client, getCurrentUserId } from './urbit';
 
 const logger = createDevLogger('groupsApi', false);
 
@@ -39,7 +32,7 @@ function groupAction(flag: string, diff: ub.GroupDiff): Poke<ub.GroupAction> {
 }
 
 export const getPinnedItems = async () => {
-  const pinnedItems = await scry<ub.PinnedGroupsResponse>({
+  const pinnedItems = await client.scry<ub.PinnedGroupsResponse>({
     app: 'groups-ui',
     path: '/pins',
   });
@@ -67,7 +60,7 @@ export function acceptGroupJoin({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
+  return client.poke(
     groupAction(groupId, {
       cordon: {
         shut: {
@@ -88,7 +81,7 @@ export function rejectGroupJoin({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
+  return client.poke(
     groupAction(groupId, {
       cordon: {
         shut: {
@@ -103,7 +96,7 @@ export function rejectGroupJoin({
 }
 
 export function cancelGroupJoin(groupId: string) {
-  return poke({
+  return client.poke({
     app: 'groups',
     mark: 'group-cancel',
     json: groupId,
@@ -117,7 +110,7 @@ export function inviteGroupMembers({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
+  return client.poke(
     groupAction(groupId, {
       cordon: {
         shut: {
@@ -138,7 +131,7 @@ export function addGroupMembers({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
+  return client.poke(
     groupAction(groupId, {
       fleet: {
         ships: contactIds,
@@ -152,7 +145,7 @@ export function addGroupMembers({
 
 export function rescindGroupInvitationRequest(groupId: string) {
   logger.log('api rescinding', groupId);
-  return poke({
+  return client.poke({
     app: 'groups',
     mark: 'group-rescind',
     json: groupId,
@@ -166,7 +159,7 @@ export async function kickUsersFromGroup({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
+  return client.poke(
     groupAction(groupId, {
       fleet: {
         ships: contactIds,
@@ -185,7 +178,7 @@ export async function banUsersFromGroup({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
+  return client.poke(
     groupAction(groupId, {
       cordon: {
         open: {
@@ -203,7 +196,7 @@ export async function unbanUsersFromGroup({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
+  return client.poke(
     groupAction(groupId, {
       cordon: {
         open: {
@@ -215,7 +208,7 @@ export async function unbanUsersFromGroup({
 }
 
 export async function leaveGroup(groupId: string) {
-  return poke({
+  return client.poke({
     app: 'groups',
     mark: 'group-leave',
     json: groupId,
@@ -224,7 +217,7 @@ export async function leaveGroup(groupId: string) {
 
 export function requestGroupInvitation(groupId: string) {
   logger.log('api knocking', groupId);
-  return poke({
+  return client.poke({
     app: 'groups',
     mark: 'group-knock',
     json: groupId,
@@ -247,7 +240,7 @@ export async function updateGroupPrivacy(params: {
         },
       },
     });
-    await poke(action);
+    await client.poke(action);
   } else {
     // Only swap if it's currently public. If moving between secret and private, we keep
     // the existing cordon to avoid losing pending requests.
@@ -262,13 +255,13 @@ export async function updateGroupPrivacy(params: {
           },
         },
       });
-      await poke(cordonSwapAction);
+      await client.poke(cordonSwapAction);
     }
 
     const secretAction = groupAction(params.groupId, {
       secret: params.newPrivacy === 'secret',
     });
-    await poke(secretAction);
+    await client.poke(secretAction);
   }
 }
 
@@ -287,7 +280,7 @@ export const getPinnedItemType = (rawItem: string) => {
 };
 
 export const unpinItem = async (itemId: string) => {
-  return await poke({
+  return await client.poke({
     app: 'groups-ui',
     mark: 'ui-action',
     json: {
@@ -299,7 +292,7 @@ export const unpinItem = async (itemId: string) => {
 };
 
 export const pinItem = async (itemId: string) => {
-  return await poke({
+  return await client.poke({
     app: 'groups-ui',
     mark: 'ui-action',
     json: {
@@ -311,7 +304,7 @@ export const pinItem = async (itemId: string) => {
 };
 
 export const getGroupPreview = async (groupId: string) => {
-  const result = await subscribeOnce<ub.GroupPreview>({
+  const result = await client.subscribeOnce<ub.GroupPreview>({
     app: 'groups',
     path: `/gangs/${groupId}/preview`,
   });
@@ -320,7 +313,7 @@ export const getGroupPreview = async (groupId: string) => {
 };
 
 export const findGroupsHostedBy = async (userId: string) => {
-  const result = await subscribeOnce<ub.GroupIndex>(
+  const result = await client.subscribeOnce<ub.GroupIndex>(
     {
       app: 'groups',
       path: `/gangs/index/${userId}`,
@@ -356,7 +349,7 @@ export const createGroup = async ({
     secret: false,
   };
 
-  return trackedPoke<ub.GroupAction>(
+  return client.trackedPoke<ub.GroupAction>(
     {
       app: 'groups',
       mark: 'group-create',
@@ -380,7 +373,7 @@ export const createGroup = async ({
 export const getGroup = async (groupId: string) => {
   const path = `/groups/${groupId}/v1`;
 
-  const groupData = await scry<ub.Group>({ app: 'groups', path });
+  const groupData = await client.scry<ub.Group>({ app: 'groups', path });
   return toClientGroup(groupId, groupData, true);
 };
 
@@ -394,7 +387,7 @@ export const getGroups = async (
   }
 ) => {
   const path = includeMembers ? '/groups' : '/groups/light';
-  const groupData = await scry<ub.Groups>({ app: 'groups', path });
+  const groupData = await client.scry<ub.Groups>({ app: 'groups', path });
   return toClientGroups(groupData, true);
 };
 
@@ -405,7 +398,7 @@ export const updateGroupMeta = async ({
   groupId: string;
   meta: ub.GroupMeta;
 }) => {
-  return await trackedPoke<ub.GroupAction>(
+  return await client.trackedPoke<ub.GroupAction>(
     groupAction(groupId, {
       meta,
     }),
@@ -422,7 +415,7 @@ export const updateGroupMeta = async ({
 };
 
 export const deleteGroup = async (groupId: string) => {
-  return await trackedPoke<ub.GroupAction>(
+  return await client.trackedPoke<ub.GroupAction>(
     groupAction(groupId, {
       del: null,
     }),
@@ -445,7 +438,7 @@ export const addNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
-  return await trackedPoke<ub.GroupAction>(
+  return await client.trackedPoke<ub.GroupAction>(
     groupAction(groupId, {
       zone: {
         zone: navSection.sectionId,
@@ -478,7 +471,7 @@ export const deleteNavSection = async ({
   sectionId: string;
   groupId: string;
 }) => {
-  return await poke(
+  return await client.poke(
     groupAction(groupId, {
       zone: {
         zone: sectionId,
@@ -497,7 +490,7 @@ export const updateNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
-  return await poke(
+  return await client.poke(
     groupAction(groupId, {
       zone: {
         zone: navSection.sectionId,
@@ -523,7 +516,7 @@ export const moveNavSection = async ({
   navSectionId: string;
   index: number;
 }) => {
-  return await poke(
+  return await client.poke(
     groupAction(groupId, {
       zone: {
         zone: navSectionId,
@@ -545,7 +538,7 @@ export const addChannelToNavSection = async ({
   channelId: string;
 }) => {
   logger.log('addChannelToNavSection', { groupId, navSectionId, channelId });
-  return await trackedPoke<ub.GroupAction>(
+  return await client.trackedPoke<ub.GroupAction>(
     groupAction(groupId, {
       channel: {
         nest: channelId,
@@ -575,7 +568,7 @@ export const addChannelToGroup = async ({
   groupId: string;
   sectionId: string;
 }) => {
-  return await trackedPoke<ub.GroupAction>(
+  return await client.trackedPoke<ub.GroupAction>(
     groupAction(groupId, {
       channel: {
         nest: channelId,
@@ -605,7 +598,7 @@ export const updateChannel = async ({
   channelId: string;
   channel: GroupChannel;
 }) => {
-  return await poke(
+  return await client.poke(
     groupAction(groupId, {
       channel: {
         nest: channelId,
@@ -624,7 +617,7 @@ export const deleteChannel = async ({
   groupId: string;
   channelId: string;
 }) => {
-  return await poke(
+  return await client.poke(
     groupAction(groupId, {
       channel: {
         nest: channelId,
@@ -647,7 +640,7 @@ export const moveChannel = async ({
   navSectionId: string;
   index: number;
 }) => {
-  return await poke(
+  return await client.poke(
     groupAction(groupId, {
       zone: {
         zone: navSectionId,
@@ -918,7 +911,7 @@ export type GroupUpdate =
 export const subscribeGroups = async (
   eventHandler: (update: GroupUpdate) => void
 ) => {
-  subscribe<ub.GroupAction>(
+  client.subscribe<ub.GroupAction>(
     { app: 'groups', path: '/groups/ui' },
     (groupUpdateEvent) => {
       logger.log('groupUpdateEvent', { groupUpdateEvent });
@@ -926,10 +919,13 @@ export const subscribeGroups = async (
     }
   );
 
-  subscribe({ app: 'groups', path: '/gangs/updates' }, (rawEvent: ub.Gangs) => {
-    logger.log('gangsUpdateEvent:', rawEvent);
-    eventHandler(toGangsGroupsUpdate(rawEvent));
-  });
+  client.subscribe(
+    { app: 'groups', path: '/gangs/updates' },
+    (rawEvent: ub.Gangs) => {
+      logger.log('gangsUpdateEvent:', rawEvent);
+      eventHandler(toGangsGroupsUpdate(rawEvent));
+    }
+  );
 };
 
 export const toGroupUpdate = (
@@ -1491,7 +1487,7 @@ function omitEmpty(val: string) {
 }
 
 export const joinGroup = async (id: string) =>
-  poke({
+  client.poke({
     app: 'groups',
     mark: 'group-join',
     json: {
@@ -1501,7 +1497,7 @@ export const joinGroup = async (id: string) =>
   });
 
 export const rejectGroupInvitation = async (id: string) =>
-  poke({
+  client.poke({
     app: 'groups',
     mark: 'invite-decline',
     json: id,

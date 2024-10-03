@@ -9,12 +9,12 @@ import {
   toClientMeta,
 } from './apiUtils';
 import { toPostData, toPostReplyData, toReplyMeta } from './postsApi';
-import { getCurrentUserId, poke, scry, subscribe, trackedPoke } from './urbit';
+import { client, getCurrentUserId } from './urbit';
 
 const logger = createDevLogger('chatApi', false);
 
 export const markChatRead = (whom: string) =>
-  poke({
+  client.poke({
     app: 'chat',
     mark: 'chat-remark-action',
     json: {
@@ -30,7 +30,7 @@ export const createGroupDm = ({
   id: string;
   members: string[];
 }) => {
-  return poke({
+  return client.poke({
     app: 'chat',
     mark: 'chat-club-create',
     json: {
@@ -50,7 +50,7 @@ export const respondToDMInvite = ({
   const currentUserId = getCurrentUserId();
 
   if (channel.type === 'dm') {
-    return poke({
+    return client.poke({
       app: 'chat',
       mark: 'chat-dm-rsvp',
       json: {
@@ -63,7 +63,7 @@ export const respondToDMInvite = ({
   const action = multiDmAction(channel.id, {
     team: { ship: currentUserId, ok: accept },
   });
-  return poke(action);
+  return client.poke(action);
 };
 
 export const updateDMMeta = async ({
@@ -73,7 +73,7 @@ export const updateDMMeta = async ({
   channelId: string;
   meta: db.ClientMeta;
 }) => {
-  return await trackedPoke<ub.WritResponse | ub.ClubAction | string[]>(
+  return await client.trackedPoke<ub.WritResponse | ub.ClubAction | string[]>(
     multiDmAction(channelId, { meta: fromClientMeta(meta) }),
     { app: 'chat', path: '/' },
     (event) => {
@@ -100,7 +100,7 @@ export type ChatEvent =
 export function subscribeToChatUpdates(
   eventHandler: (event: ChatEvent) => void
 ) {
-  subscribe(
+  client.subscribe(
     {
       app: 'chat',
       path: '/',
@@ -236,11 +236,11 @@ export function subscribeToChatUpdates(
 }
 
 export function getBlockedUsers() {
-  return scry<ub.BlockedShips>({ app: 'chat', path: '/blocked' });
+  return client.scry<ub.BlockedShips>({ app: 'chat', path: '/blocked' });
 }
 
 export function blockUser(userId: string) {
-  return poke({
+  return client.poke({
     app: 'chat',
     mark: 'chat-block-ship',
     json: { ship: userId },
@@ -248,7 +248,7 @@ export function blockUser(userId: string) {
 }
 
 export function unblockUser(userId: string) {
-  return poke({
+  return client.poke({
     app: 'chat',
     mark: 'chat-unblock-ship',
     json: { ship: userId },
@@ -272,7 +272,7 @@ function multiDmAction(id: string, delta: ub.ClubDelta) {
 export type GetDmsResponse = db.Channel[];
 
 export const getDms = async (): Promise<GetDmsResponse> => {
-  const result = (await scry({ app: 'chat', path: '/dm' })) as string[];
+  const result = (await client.scry({ app: 'chat', path: '/dm' })) as string[];
   return toClientDms(result);
 };
 
@@ -296,7 +296,10 @@ export const toClientDm = (id: string, isInvite?: boolean): db.Channel => {
 };
 
 export const getGroupDms = async (): Promise<GetDmsResponse> => {
-  const result = (await scry({ app: 'chat', path: '/clubs' })) as ub.Clubs;
+  const result = (await client.scry({
+    app: 'chat',
+    path: '/clubs',
+  })) as ub.Clubs;
   return toClientGroupDms(result);
 };
 

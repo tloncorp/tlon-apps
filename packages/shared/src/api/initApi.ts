@@ -10,7 +10,7 @@ import {
   toClientPinnedItems,
 } from './groupsApi';
 import { toClientHiddenPosts } from './postsApi';
-import { scry } from './urbit';
+import { client } from './urbit';
 
 export interface InitData {
   pins: db.Pin[];
@@ -26,7 +26,7 @@ export interface InitData {
 }
 
 export const getInitData = async () => {
-  const response = await scry<ub.GroupsInit4>({
+  const response = await client.scry<ub.GroupsInit4>({
     app: 'groups-ui',
     path: '/v4/init',
   });

@@ -1,7 +1,7 @@
 import * as db from '../db';
 import { normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
-import { poke, scry, subscribe } from './urbit';
+import { client } from './urbit';
 
 export const getContacts = async () => {
   const results = await scry<ub.ContactRolodex>({
@@ -12,7 +12,7 @@ export const getContacts = async () => {
 };
 
 export const addContacts = async (contactIds: string[]) => {
-  return poke({
+  return client.poke({
     app: 'contacts',
     mark: 'contact-action',
     json: { heed: contactIds },
@@ -47,7 +47,7 @@ export const updateCurrentUserProfile = async (update: ProfileUpdate) => {
     edit: editedFields,
   };
 
-  return poke({
+  return client.poke({
     app: 'contacts',
     mark: 'contact-action',
     json: action,
@@ -56,7 +56,7 @@ export const updateCurrentUserProfile = async (update: ProfileUpdate) => {
 
 export const addPinnedGroup = async (groupId: string) => {
   const update: ub.ContactEdit = { edit: [{ 'add-group': groupId }] };
-  return poke({
+  return client.poke({
     app: 'contacts',
     mark: 'contact-action',
     json: update,
@@ -65,7 +65,7 @@ export const addPinnedGroup = async (groupId: string) => {
 
 export const removePinnedGroup = async (groupId: string) => {
   const update: ub.ContactEdit = { edit: [{ 'del-group': groupId }] };
-  return poke({
+  return client.poke({
     app: 'contacts',
     mark: 'contact-action',
     json: update,
@@ -79,7 +79,7 @@ export type ContactsUpdate =
 export const subscribeToContactUpdates = (
   handler: (update: ContactsUpdate) => void
 ) => {
-  subscribe(
+  client.subscribe(
     {
       app: 'contacts',
       path: '/news',

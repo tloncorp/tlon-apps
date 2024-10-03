@@ -12,7 +12,7 @@ import {
   isGroupChannelId,
 } from './apiUtils';
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
-import { scry, subscribe, trackedPoke } from './urbit';
+import { client } from './urbit';
 
 const logger = createDevLogger('channelsSub', false);
 
@@ -81,7 +81,7 @@ export type ChannelsUpdate =
   | WritersUpdate;
 
 export const createChannel = async (channelPayload: ub.Create) => {
-  return trackedPoke<ub.ChannelsResponse>(
+  return client.trackedPoke<ub.ChannelsResponse>(
     {
       app: 'channels',
       mark: 'channel-action',
@@ -103,7 +103,7 @@ export const createChannel = async (channelPayload: ub.Create) => {
 export const subscribeToChannelsUpdates = async (
   eventHandler: (update: ChannelsUpdate) => void
 ) => {
-  subscribe(
+  client.subscribe(
     { app: 'channels', path: '/v1' },
     (rawEvent: ub.ChannelsSubscribeResponse) => {
       eventHandler(toChannelsUpdate(rawEvent));
@@ -298,7 +298,7 @@ export const createNewGroupDefaultChannel = async ({
     writers: [],
   };
 
-  return trackedPoke<ub.ChannelsResponse>(
+  return client.trackedPoke<ub.ChannelsResponse>(
     {
       app: 'channels',
       mark: 'channel-action',
@@ -330,7 +330,7 @@ export const searchChannel = async (params: {
   let response;
   if (isGroupChannel) {
     // channels agent
-    response = await scry<ub.ChannelScam>({
+    response = await client.scry<ub.ChannelScam>({
       app: 'channels',
       path: `/${params.channel.id}/search/bounded/text/${
         params.cursor ? formatUd(bigInt(params.cursor ?? 0)) : ''
@@ -339,7 +339,7 @@ export const searchChannel = async (params: {
   } else {
     // chat agent
     const type = params.channel.type === 'dm' ? 'dm' : 'club';
-    response = await scry<ub.ChatScam>({
+    response = await client.scry<ub.ChatScam>({
       app: 'chat',
       path: `/${type}/${params.channel.id}/search/bounded/text/${
         params.cursor ? formatUd(bigInt(params.cursor ?? 0)) : ''

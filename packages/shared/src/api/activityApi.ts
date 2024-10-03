@@ -12,12 +12,12 @@ import {
   parseGroupId,
   udToDate,
 } from './apiUtils';
-import { poke, scry, subscribe } from './urbit';
+import { client } from './urbit';
 
 const logger = createDevLogger('activityApi', false);
 
 export async function getGroupAndChannelUnreads() {
-  const activity = await scry<ub.Activity>({
+  const activity = await client.scry<ub.Activity>({
     app: 'activity',
     path: '/v4/activity',
   });
@@ -44,7 +44,7 @@ export async function getThreadUnreadsByChannel(channel: db.Channel) {
   } else {
     scryPath = `/v4/activity/dm-threads/${channel.id}/`;
   }
-  const activity = await scry<ub.Activity>({
+  const activity = await client.scry<ub.Activity>({
     app: 'activity',
     path: scryPath,
   });
@@ -53,7 +53,7 @@ export async function getThreadUnreadsByChannel(channel: db.Channel) {
   return deserialized.threadActivity;
 }
 export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
-  const settings = await scry<ub.VolumeSettings>({
+  const settings = await client.scry<ub.VolumeSettings>({
     app: 'activity',
     path: '/volume-settings',
   });
@@ -62,7 +62,7 @@ export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
 
 export const ACTIVITY_SOURCE_PAGESIZE = 30;
 export async function getInitialActivity() {
-  const response = await scry<ub.InitActivityFeeds>({
+  const response = await client.scry<ub.InitActivityFeeds>({
     app: 'activity',
     path: `/v5/feed/init/${ACTIVITY_SOURCE_PAGESIZE}`,
   });
@@ -104,7 +104,7 @@ export async function getPagedActivityByBucket({
   );
   const urbitCursor = formatUd(unixToDa(cursor).toString());
   const path = `/v5/feed/${bucket}/${ACTIVITY_SOURCE_PAGESIZE}/${urbitCursor}/`;
-  const { feed, summaries } = await scry<ub.ActivityFeed>({
+  const { feed, summaries } = await client.scry<ub.ActivityFeed>({
     app: 'activity',
     path,
   });
@@ -318,7 +318,7 @@ export type ActivityEvent =
   | { type: 'addActivityEvent'; events: db.ActivityEvent[] };
 
 export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
-  subscribe<ub.ActivityUpdate>(
+  client.subscribe<ub.ActivityUpdate>(
     { app: 'activity', path: '/v4' },
     async (update: ub.ActivityUpdate) => {
       logger.log(
@@ -506,7 +506,7 @@ export const readGroup = async (group: db.Group) => {
   });
   logger.log(`reading group ${group.id}`, action);
 
-  return backOff(() => poke(action), {
+  return backOff(() => client.poke(action), {
     delayFirstAttempt: false,
     startingDelay: 2000,
     numOfAttempts: 4,
@@ -529,7 +529,7 @@ export const readChannel = async (channel: db.Channel) => {
   logger.log(`reading channel ${channel.id}`, action);
 
   // simple retry logic to avoid failed read leading to lingering unread state
-  return backOff(() => poke(action), {
+  return backOff(() => client.poke(action), {
     delayFirstAttempt: false,
     startingDelay: 2000,
     numOfAttempts: 4,
@@ -601,7 +601,7 @@ export const readThread = async ({
   });
 
   // simple retry logic to avoid failed read leading to lingering unread state
-  return backOff(() => poke(action), {
+  return backOff(() => client.poke(action), {
     delayFirstAttempt: false,
     startingDelay: 2000,
     numOfAttempts: 4,
@@ -813,7 +813,7 @@ export async function adjustVolumeSetting(
   volume: ub.VolumeMap | null
 ) {
   const action = activityAction({ adjust: { source, volume } });
-  return poke(action);
+  return client.poke(action);
 }
 
 // This is a global, top level filter for which kinds of activity events are allowed to send
@@ -823,11 +823,11 @@ export async function setPushNotificationsSetting(
   allow: ub.PushNotificationsSetting
 ) {
   const action = activityAction({ 'allow-notifications': allow });
-  return poke(action);
+  return client.poke(action);
 }
 
 export async function getPushNotificationsSetting(): Promise<ub.PushNotificationsSetting> {
-  return scry<ub.PushNotificationsSetting>({
+  return client.scry<ub.PushNotificationsSetting>({
     app: 'activity',
     path: '/notifications-allowed',
   });

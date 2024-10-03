@@ -58,7 +58,7 @@ export function useNegotiation(app: string, agent: string) {
   );
 
   useEffect(() => {
-    api.subscribe(
+    api.client.subscribe(
       {
         app,
         path: `/~/negotiate/notify/json`,
@@ -71,7 +71,7 @@ export function useNegotiation(app: string, agent: string) {
     queryKey,
     staleTime: 5000,
     queryFn: () =>
-      api.scry({
+      api.client.scry({
         app,
         path: '/~/negotiate/status/json',
       }),
@@ -139,7 +139,7 @@ export function useForceNegotiationUpdate(ships: string[], app: string) {
       const responses: Promise<number | undefined>[] = [];
       shipsToCheck.forEach((ship) => {
         responses.push(
-          api.poke({
+          api.client.poke({
             app,
             mark: 'chat-negotiate',
             json: ship,

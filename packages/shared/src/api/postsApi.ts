@@ -33,7 +33,7 @@ import {
   udToDate,
   with404Handler,
 } from './apiUtils';
-import { poke, scry, subscribeOnce } from './urbit';
+import { client } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
 
@@ -106,7 +106,10 @@ export async function getPostReference({
   const path = `/said/${channelId}/post/${postId}${
     replyId ? '/' + replyId : ''
   }`;
-  const data = await subscribeOnce<ub.Said>({ app: 'channels', path }, 3000);
+  const data = await client.subscribeOnce<ub.Said>(
+    { app: 'channels', path },
+    3000
+  );
   const post = toPostReference(data);
   // The returned post id can be different than the postId we requested?? But the
   // post is going to be requested by the original id, so set manually :/
@@ -171,7 +174,7 @@ export const sendPost = async ({
       `${delta.add.memo.author}/${formatUd(unixToDa(delta.add.memo.sent).toString())}`,
       delta
     );
-    await poke(action);
+    await client.poke(action);
     return;
   }
 
@@ -183,7 +186,7 @@ export const sendPost = async ({
     metadata,
   });
 
-  await poke(
+  await client.poke(
     channelPostAction(channelId, {
       add: essay,
     })
@@ -238,7 +241,7 @@ export const editPost = async ({
     };
 
     logger.log('sending action', action);
-    await poke(channelAction(channelId, action));
+    await client.poke(channelAction(channelId, action));
     logger.log('action sent');
     return;
   }
@@ -261,7 +264,7 @@ export const editPost = async ({
   });
 
   logger.log('sending action', action);
-  await poke(action);
+  await client.poke(action);
   logger.log('action sent');
 };
 
@@ -299,7 +302,7 @@ export const sendReply = async ({
     };
 
     const action = chatAction(channelId, `${parentAuthor}/${parentId}`, delta);
-    await poke(action);
+    await client.poke(action);
     return;
   }
 
@@ -317,7 +320,7 @@ export const sendReply = async ({
   };
 
   const action = channelPostAction(channelId, postAction);
-  await poke(action);
+  await client.poke(action);
 };
 
 export type GetChannelPostsOptions = {
@@ -362,7 +365,7 @@ export const getChannelPosts = async ({
     ]
   );
   const response = await with404Handler(
-    scry<ub.PagedWrits>({
+    client.scry<ub.PagedWrits>({
       app,
       path,
     }),
@@ -386,7 +389,7 @@ export const getLatestPosts = async ({
   afterCursor?: Cursor;
   count?: number;
 }): Promise<GetLatestPostsResponse> => {
-  const { channels, dms } = await scry<ub.CombinedHeads>({
+  const { channels, dms } = await client.scry<ub.CombinedHeads>({
     app: 'groups-ui',
     path: formatScryPath(
       'v1/heads',
@@ -427,7 +430,7 @@ export const getChangedPosts = async ({
       server does not implement this endpoint for non-group channels`
     );
   }
-  const response = await scry<ub.PagedPosts>({
+  const response = await client.scry<ub.PagedPosts>({
     app: 'channels',
     path: formatScryPath(
       `v1/${channelId}/posts/changes`,
@@ -457,7 +460,7 @@ export async function addReaction({
 
   if (isDmOrGroupDm) {
     if (isDmChannelId(channelId)) {
-      await poke({
+      await client.poke({
         app: 'chat',
         mark: 'chat-dm-action',
         json: {
@@ -475,7 +478,7 @@ export async function addReaction({
       });
       return;
     } else {
-      await poke({
+      await client.poke({
         app: 'chat',
         mark: 'chat-club-action-0',
         json: {
@@ -500,7 +503,7 @@ export async function addReaction({
     }
   }
 
-  await poke({
+  await client.poke({
     app: 'channels',
     mark: 'channel-action',
     json: {
@@ -536,7 +539,7 @@ export async function removeReaction({
 
   if (isDmOrGroupDm) {
     if (isDmChannelId(channelId)) {
-      return poke({
+      return client.poke({
         app: 'chat',
         mark: 'chat-dm-action',
         json: {
@@ -550,7 +553,7 @@ export async function removeReaction({
         },
       });
     } else {
-      return poke({
+      return client.poke({
         app: 'chat',
         mark: 'chat-club-action-0',
         json: {
@@ -571,7 +574,7 @@ export async function removeReaction({
     }
   }
 
-  return await poke({
+  return await client.poke({
     app: 'channels',
     mark: 'channel-action',
     json: {
@@ -602,7 +605,7 @@ export async function showPost(post: db.Post) {
       },
     };
 
-    return poke(action);
+    return client.poke(action);
   }
 
   const writId = `${post.authorId}/${post.id}`;
@@ -615,7 +618,7 @@ export async function showPost(post: db.Post) {
     },
   };
 
-  return poke(action);
+  return client.poke(action);
 }
 
 export async function hidePost(post: db.Post) {
@@ -630,7 +633,7 @@ export async function hidePost(post: db.Post) {
       },
     };
 
-    return poke(action);
+    return client.poke(action);
   }
 
   const writId = `${post.authorId}/${post.id}`;
@@ -642,7 +645,7 @@ export async function hidePost(post: db.Post) {
     },
   };
 
-  return poke(action);
+  return client.poke(action);
 }
 
 export const toClientHiddenPosts = (hiddenPostIds: string[]) => {
@@ -678,11 +681,11 @@ export async function reportPost(
     },
   };
 
-  return await poke(action);
+  return await client.poke(action);
 }
 
 export const getHiddenPosts = async () => {
-  const hiddenPosts = await scry<HiddenPosts>({
+  const hiddenPosts = await client.scry<HiddenPosts>({
     app: 'channels',
     path: '/hidden-posts',
   });
@@ -691,7 +694,7 @@ export const getHiddenPosts = async () => {
 };
 
 export const getHiddenDMPosts = async () => {
-  const hiddenDMPosts = await scry<HiddenMessages>({
+  const hiddenDMPosts = await client.scry<HiddenMessages>({
     app: 'chat',
     path: '/hidden-messages',
   });
@@ -708,7 +711,7 @@ export async function deletePost(channelId: string, postId: string) {
 
   // todo: we need to use a tracked poke here (or settle on a different pattern
   // for expressing request response semantics)
-  return await poke(action);
+  return await client.poke(action);
 }
 
 export const getPostWithReplies = async ({
@@ -745,7 +748,7 @@ export const getPostWithReplies = async ({
     throw new Error('invalid channel id');
   }
 
-  const post = await scry<ub.Post>({
+  const post = await client.scry<ub.Post>({
     app,
     path,
   });

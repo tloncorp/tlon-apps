@@ -1,7 +1,7 @@
-import { poke } from './urbit';
+import { client } from './urbit';
 
 export const updateTelemetrySetting = async (isEnabled: boolean) =>
-  poke({
+  client.poke({
     app: 'settings',
     mark: 'settings-event',
     json: {

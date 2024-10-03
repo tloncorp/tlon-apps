@@ -1,6 +1,6 @@
 import * as ub from '../urbit';
 import { StorageConfiguration, StorageCredentials } from './upload';
-import { scry, subscribe } from './urbit';
+import { client } from './urbit';
 
 export type StorageUpdateCredentials = ub.StorageUpdateCredentials & {
   type: 'storageCredentialsChanged';
@@ -68,7 +68,7 @@ export type StorageUpdate =
 export const subscribeToStorageUpdates = async (
   eventHandler: (update: StorageUpdate) => void
 ) => {
-  subscribe<ub.StorageUpdate>({ app: 'storage', path: '/all' }, (e) => {
+  client.subscribe<ub.StorageUpdate>({ app: 'storage', path: '/all' }, (e) => {
     eventHandler(toStorageUpdate(e));
   });
 };
@@ -103,7 +103,7 @@ function toStorageUpdate(e: ub.StorageUpdate): StorageUpdate {
 
 export const getStorageConfiguration =
   async (): Promise<StorageConfiguration> => {
-    const configuration = await scry<{
+    const configuration = await client.scry<{
       'storage-update': StorageUpdateConfiguration;
     }>({
       app: 'storage',
@@ -113,7 +113,7 @@ export const getStorageConfiguration =
   };
 
 export const getStorageCredentials = async (): Promise<StorageCredentials> => {
-  const credentials = await scry<{
+  const credentials = await client.scry<{
     'storage-update': StorageUpdateCredentials;
   }>({
     app: 'storage',
