@@ -17,12 +17,10 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import { Text, View, XStack, YStack, getTokenValue, useStyle } from 'tamagui';
+import { Text, View, YStack, getTokenValue, useStyle } from 'tamagui';
 
 import { interactionWithTiming } from '../utils/animation';
-import { TextInputWithIcon, TextInputWithIconAndButton } from './Form';
-import { Icon } from './Icon';
-import { IconButton } from './IconButton';
+import { TextInputWithIconAndButton } from './Form';
 import { ChatListItem, InteractableChatListItem } from './ListItem';
 import Pressable from './Pressable';
 import { SectionListHeader } from './SectionList';
