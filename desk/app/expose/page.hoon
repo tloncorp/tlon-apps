@@ -75,7 +75,7 @@
     |=  [title=tape img=(unit @t)]
     ;head
       ;title:"{title}"
-      ;link(rel "stylesheet", href "/expose/style/shared.css");
+      ;link(rel "stylesheet", href "/profile/style/shared.css");
       ;style:"{(trip style-page)}"
     ::
       ;meta(charset "utf-8");

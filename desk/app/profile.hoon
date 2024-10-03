@@ -9,7 +9,7 @@
 /+  dbug, verb, sigil, hutils=http-utils
 /=  stock-widgets  /app/profile/widgets
 ::
-/*  style-shared  %css  /app/expose/style/shared/css
+/*  style-shared  %css  /app/profile/style/shared/css
 /*  style-page    %css  /app/profile/style/page/css
 ::
 |%
@@ -130,30 +130,41 @@
 ++  serve
   |=  order:hutils
   ^-  (list card)
-  =;  payload=simple-payload:http
-    ?.  =('/profile' url.request)  (spout:hutils id payload)
-    ::  if we got requested the profile page, that means it's not in cache.
-    ::  serve the response, but also add it into cache.
-    ::
-    :-  (store:hutils '/profile' `[| %payload payload])
+  =;  [cache=? payload=simple-payload:http]
+    ?.  cache  (spout:hutils id payload)
+    :-  (store:hutils url.request `[| %payload payload])
     (spout:hutils id payload)
+  ?:  =('/profile/style/shared.css' url.request)
+    :-  &
+    :-  [200 ['content-type' 'text/css']~]
+    `(as-octs:mimes:html style-shared)
   ?:  =('/profile/style/page.css' url.request)
-      :-  [200 ['content-type' 'text/css']~]
-      `(as-octs:mimes:html style-page)
-  %-  paint:hutils
-  =/  =query:hutils  (purse:hutils url.request)
+    :-  &
+    :-  [200 ['content-type' 'text/css']~]
+    `(as-octs:mimes:html style-page)
   ::  if the request is not for /profile, we redirect to landscape
   ::
+  =/  =query:hutils  (purse:hutils url.request)
   ?.  ?=([%profile ~] site.query)
-    [%move '/apps/landscape/']
-  [%page render-page]
+    [| (paint:hutils %move '/apps/landscape/')]
+  [& (paint:hutils %page render-page)]
 ::
 ++  update-cache
   ^-  (list card)
-  ?.  bound  ~
-  =/  payload=simple-payload:http
-    (paint:hutils %page render-page)
-  [%pass /eyre/cache %arvo %e %set-response '/profile' `[| %payload payload]]~
+  :~  %+  store:hutils  '/profile'
+      ?.  bound  ~
+      `[| %payload (paint:hutils %page render-page)]
+    ::
+      %+  store:hutils  '/profile/style/shared.css'
+      :^  ~  |  %payload
+      :-  [200 ['content-type' 'text/css']~]
+      `(as-octs:mimes:html style-shared)
+    ::
+      %+  store:hutils  '/profile/style/page.css'
+      :^  ~  |  %payload
+      :-  [200 ['content-type' 'text/css']~]
+      `(as-octs:mimes:html style-page)
+  ==
 ::
 ++  update-group-widgets
   ^-  (quip card _state)
@@ -179,7 +190,7 @@
       "{(trip nickname.u.ours)} ({ship})"
     ;head
       ;title:"{name}"
-      ;link(rel "stylesheet", href "/expose/style/shared.css");
+      ;link(rel "stylesheet", href "/profile/style/shared.css");
       ;link(rel "stylesheet", href "/profile/style/page.css");
       ;meta(charset "utf-8");
       ;meta(name "viewport", content "width=device-width, initial-scale=1");
