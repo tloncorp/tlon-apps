@@ -6,7 +6,6 @@ import {
   StorageConfiguration,
   StorageCredentials,
   client,
-  scry,
 } from '../../api';
 import { createDevLogger } from '../../debug';
 import { desig } from '../../urbit';
@@ -99,12 +98,14 @@ export const getMemexUpload = async ({
   uploadKey: string;
 }) => {
   const currentUser = api.getCurrentUserId();
-  const token = await scry<string>({
-    app: 'genuine',
-    path: '/secret',
-  }).catch((e) => {
-    throw new Error('Failed to get secret');
-  });
+  const token = await client
+    .scry<string>({
+      app: 'genuine',
+      path: '/secret',
+    })
+    .catch((e) => {
+      throw new Error('Failed to get secret');
+    });
 
   const uploadParams: MemexUploadParams = {
     token,

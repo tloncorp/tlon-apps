@@ -84,6 +84,7 @@ export const ReserveShipScreen = ({
         ship,
         shipUrl,
         authCookie,
+        authType: 'hosted',
       });
     },
     [

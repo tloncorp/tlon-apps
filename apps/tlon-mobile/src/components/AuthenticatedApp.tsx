@@ -12,7 +12,11 @@ import { cancelFetch, configureClient } from '@tloncorp/app/lib/api';
 import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
-import { initializeCrashReporter, sync } from '@tloncorp/shared';
+import {
+  createDevLogger,
+  initializeCrashReporter,
+  sync,
+} from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
 import { getShipAccessCode } from 'packages/app/lib/hostingApi';
@@ -23,7 +27,9 @@ import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener, {
   type Props as NotificationListenerProps,
 } from '../hooks/useNotificationListener';
-import { OnboardingStackParamList, RootStackParamList } from '../types';
+import { OnboardingStackParamList } from '../types';
+
+const appLogger = createDevLogger('app', false);
 
 export interface AuthenticatedAppProps {
   notificationListenerProps: NotificationListenerProps;
@@ -32,7 +38,7 @@ export interface AuthenticatedAppProps {
 function AuthenticatedApp({
   notificationListenerProps,
 }: AuthenticatedAppProps) {
-  const { ship, shipUrl, authType } = useShip();
+  const { ship, shipUrl, authType, setShip } = useShip();
   const currentUserId = useCurrentUserId();
   const signupContext = useSignupContext();
   const handlePostSignup = usePostSignup();
@@ -53,17 +59,28 @@ function AuthenticatedApp({
       shipName: ship ?? '',
       shipUrl: shipUrl ?? '',
       verbose: __DEV__,
-      getCode: async () => {
-        if (!ship) {
-          throw new Error('Trying to retrieve +code, no ship set');
-        }
+      getCode:
+        authType === 'self'
+          ? undefined
+          : async () => {
+              appLogger.log('Getting ship access code', { ship, authType });
+              if (!ship) {
+                throw new Error('Trying to retrieve +code, no ship set');
+              }
 
-        const { code } = await getShipAccessCode(ship);
-        return code;
-      },
+              const { code } = await getShipAccessCode(ship);
+              return code;
+            },
       handleAuthFailure: () => {
+        setShip({
+          ship: undefined,
+          shipUrl,
+          authType,
+          authCookie: undefined,
+        });
         if (authType === 'self') {
           navigation.navigate('ShipLogin');
+          return;
         }
 
         navigation.navigate('TlonLogin');

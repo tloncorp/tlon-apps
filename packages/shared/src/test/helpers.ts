@@ -4,7 +4,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import tmp from 'tmp';
 import { MockedFunction, beforeAll, beforeEach, vi } from 'vitest';
 
-import { scry } from '../api/urbit';
+import { client as api } from '../api/urbit';
 import { setClient } from '../db';
 import { AnySqliteDatabase } from '../db/client';
 import * as schema from '../db/schema';
@@ -47,9 +47,9 @@ export function setupDatabaseTestSuite() {
 }
 
 export function setScryOutput<T>(output: T) {
-  vi.mocked(scry).mockImplementationOnce(async () => output);
+  vi.mocked(api.scry).mockImplementationOnce(async () => output);
 }
 
 export function setScryOutputs<T>(outputs: T[]) {
-  vi.mocked(scry).mockImplementation(async () => outputs.shift()!);
+  vi.mocked(api.scry).mockImplementation(async () => outputs.shift()!);
 }

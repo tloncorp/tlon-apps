@@ -30,7 +30,7 @@ type State = ShipInfo & {
 };
 
 type ContextValue = State & {
-  setShip: (shipInfo: ShipInfo, authCookie?: string) => void;
+  setShip: (shipInfo: ShipInfo) => void;
   clearShip: () => void;
 };
 

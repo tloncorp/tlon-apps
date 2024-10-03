@@ -1,5 +1,10 @@
 import { deSig, preSig } from '@urbit/aura';
-import { ChannelStatus, Urbit } from '@urbit/http-api';
+import {
+  ChannelStatus,
+  PokeInterface,
+  SubscriptionRequestInterface,
+  Urbit,
+} from '@urbit/http-api';
 import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '../debug';
@@ -102,7 +107,7 @@ export const configureApi = (shipName: string, shipUrl: string) => {
   logger.log('Configured new Urbit API for', shipName);
 };
 
-class Client {
+export class Client {
   private client: Urbit;
 
   shipName: string;
@@ -182,13 +187,12 @@ class Client {
     handler: (update: T) => void,
     resubscribing = false
   ) {
-    logger.log(
-      resubscribing ? 'resubscribing to' : 'subscribing to',
-      printEndpoint(endpoint)
-    );
-
-    const doSub = () =>
-      this.client.subscribe({
+    const doSub = (err?: (error: any, id: string) => void) => {
+      logger.log(
+        resubscribing ? 'resubscribing to' : 'subscribing to',
+        printEndpoint(endpoint)
+      );
+      return this.client.subscribe({
         app: endpoint.app,
         path: endpoint.path,
         event: (event: any, mark: string, id?: number) => {
@@ -220,17 +224,30 @@ class Client {
           logger.log('subscription quit on', printEndpoint(endpoint));
           this.subscribe(endpoint, handler, true);
         },
-        err: (error) => {
+        err: (error, id) => {
           logger.error(`subscribe error on ${printEndpoint(endpoint)}:`, error);
+
+          if (err) {
+            logger.log(
+              'calling error handler for subscription',
+              printEndpoint(endpoint)
+            );
+            err(error, id);
+          }
         },
       });
+    };
 
-    try {
-      return doSub();
-    } catch (err) {
+    const retry = async (err: any) => {
       logger.error('bad subscribe', printEndpoint(endpoint), err);
       await this.auth();
       return doSub();
+    };
+
+    try {
+      return doSub(retry);
+    } catch (err) {
+      return retry(err);
     }
   }
 
@@ -257,20 +274,23 @@ class Client {
 
   async poke({ app, mark, json }: PokeParams) {
     logger.log('poke', app, mark, json);
-    try {
-      return this.client.poke({
+    const doPoke = (params?: Partial<PokeInterface<any>>) =>
+      this.client.poke({
+        ...params,
         app,
         mark,
         json,
       });
-    } catch (err) {
+    const retry = async (err: any) => {
       logger.log('bad poke', app, mark, json, err);
       await this.auth();
-      return this.client.poke({
-        app,
-        mark,
-        json,
-      });
+      return doPoke();
+    };
+
+    try {
+      return doPoke({ onError: retry });
+    } catch (err) {
+      retry(err);
     }
   }
 
@@ -312,12 +332,12 @@ class Client {
     try {
       return this.client.scry<T>({ app, path });
     } catch (res) {
+      logger.log('bad scry', app, path, res.status);
       if (res.status === 403) {
         logger.log('scry failed with 403, authing to try again');
         await this.auth();
         return this.client.scry<T>({ app, path });
       }
-      logger.log('bad scry', app, path, res.status);
       const body = await res.text();
       throw new BadResponseError(res.status, body);
     }
@@ -333,32 +353,45 @@ class Client {
       throw new Error('Unable to authenticate with urbit');
     }
 
-    let tries = 0;
-    const code = await this.getCode();
-    return new Promise<string>((resolve, reject) => {
-      const tryAuth = async () => {
-        const authCookie = await getLandscapeAuthCookie(this.shipUrl, code);
+    try {
+      let tries = 0;
+      logger.log('getting urbit code');
+      const code = await this.getCode();
+      return new Promise<string>((resolve, reject) => {
+        const tryAuth = async () => {
+          logger.log('trying to auth with code', code);
+          const authCookie = await getLandscapeAuthCookie(this.shipUrl, code);
 
-        if (!authCookie && tries < 3) {
-          tries++;
-          setTimeout(tryAuth, 1000 + 2 ** tries * 1000);
-          return;
-        }
-
-        if (!authCookie) {
-          if (this.handleAuthFailure) {
-            return this.handleAuthFailure();
+          if (!authCookie && tries < 3) {
+            logger.log('auth failed, trying again', tries);
+            tries++;
+            setTimeout(tryAuth, 1000 + 2 ** tries * 1000);
+            return;
           }
 
-          reject(new Error("Couldn't authenticate with urbit"));
+          if (!authCookie) {
+            if (this.handleAuthFailure) {
+              logger.log('auth failed, calling auth failure handler');
+              return this.handleAuthFailure();
+            }
+
+            reject(new Error("Couldn't authenticate with urbit"));
+            return;
+          }
+
+          resolve(authCookie);
           return;
-        }
+        };
 
-        resolve(authCookie);
-        return;
-      };
+        tryAuth();
+      });
+    } catch (e) {
+      logger.error('error getting urbit code', e);
+      if (this.handleAuthFailure) {
+        return this.handleAuthFailure();
+      }
 
-      tryAuth();
-    });
+      throw e;
+    }
   }
 }

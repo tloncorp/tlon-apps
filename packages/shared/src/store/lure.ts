@@ -3,7 +3,7 @@ import produce from 'immer';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import create from 'zustand';
 
-import { getCurrentUserId, poke, scry, subscribeOnce } from '../api/urbit';
+import { client, getCurrentUserId } from '../api/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { DeepLinkMetadata, createDeepLink } from '../logic/branch';
@@ -69,7 +69,7 @@ export const useLureState = create<LureState>((set, get) => ({
   bait: null,
   lures: {},
   describe: async (flag, metadata, branchDomain, branchKey) => {
-    await poke({
+    await client.poke({
       app: 'reel',
       mark: 'reel-describe',
       json: {
@@ -84,7 +84,7 @@ export const useLureState = create<LureState>((set, get) => ({
     const enabled = !lure?.enabled;
     if (!enabled) {
       lureLogger.crumb('not enabled, poking reel-undescribe', flag);
-      await poke({
+      await client.poke({
         app: 'reel',
         mark: 'reel-undescribe',
         json: {
@@ -104,14 +104,14 @@ export const useLureState = create<LureState>((set, get) => ({
       })
     );
 
-    await poke({
+    await client.poke({
       app: 'grouper',
       mark: enabled ? 'grouper-enable' : 'grouper-disable',
       json: name,
     });
   },
   start: async () => {
-    const bait = await scry<Bait>({
+    const bait = await client.scry<Bait>({
       app: 'reel',
       path: '/bait',
     });
@@ -130,13 +130,14 @@ export const useLureState = create<LureState>((set, get) => ({
       // enabled
       asyncWithDefault(async () => {
         lureLogger.crumb(performance.now(), 'fetching enabled', flag);
-        return subscribeOnce<boolean>(
-          {
-            app: 'grouper',
-            path: `/group-enabled/${flag}`,
-          },
-          LURE_REQUEST_TIMEOUT
-        )
+        return client
+          .subscribeOnce<boolean>(
+            {
+              app: 'grouper',
+              path: `/group-enabled/${flag}`,
+            },
+            LURE_REQUEST_TIMEOUT
+          )
           .then((en) => {
             lureLogger.crumb(performance.now(), 'enabled fetched', flag);
 
@@ -150,10 +151,11 @@ export const useLureState = create<LureState>((set, get) => ({
       // url (includes the token as last element of the path)
       asyncWithDefault<string | undefined>(async () => {
         lureLogger.crumb(performance.now(), 'fetching url', flag);
-        return subscribeOnce<string>(
-          { app: 'reel', path: `/v1/id-link/${flag}` },
-          LURE_REQUEST_TIMEOUT
-        )
+        return client
+          .subscribeOnce<string>(
+            { app: 'reel', path: `/v1/id-link/${flag}` },
+            LURE_REQUEST_TIMEOUT
+          )
           .then((u) => {
             lureLogger.crumb(performance.now(), 'url fetched', u, flag);
             return u;
@@ -283,7 +285,7 @@ export function useLureLinkChecked(url: string | undefined, enabled: boolean) {
   const { data, ...query } = useQuery({
     queryKey: ['lure-check', url],
     queryFn: async () =>
-      subscribeOnce<boolean>(
+      client.subscribeOnce<boolean>(
         { app: 'grouper', path: `/v1/check-link/${pathEncodedUrl}` },
         4500
       ),

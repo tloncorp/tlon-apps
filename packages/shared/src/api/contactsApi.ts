@@ -4,7 +4,7 @@ import * as ub from '../urbit';
 import { client } from './urbit';
 
 export const getContacts = async () => {
-  const results = await scry<ub.ContactRolodex>({
+  const results = await client.scry<ub.ContactRolodex>({
     app: 'contacts',
     path: '/all',
   });

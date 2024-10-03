@@ -92,14 +92,12 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
               );
               if (authCookie) {
                 if (await isEulaAgreed()) {
-                  setShip(
-                    {
-                      ship: shipId,
-                      shipUrl,
-                      authCookie,
-                    },
-                    authCookie
-                  );
+                  setShip({
+                    ship: shipId,
+                    shipUrl,
+                    authCookie,
+                    authType: 'hosted',
+                  });
                 } else {
                   setRemoteError(
                     'Please agree to the End User License Agreement to continue.'

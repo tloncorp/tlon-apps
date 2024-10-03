@@ -96,6 +96,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
             ship: shipId,
             shipUrl,
             authCookie,
+            authType: 'self',
           });
         } else {
           setRemoteError(

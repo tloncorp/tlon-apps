@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import { vi } from 'vitest';
 
+import { Client } from '../api/urbit';
 import { addCustomEnabledLoggers } from '../debug';
 
 // @ts-expect-error needed to import files that reference __DEV__
@@ -30,8 +31,10 @@ export function mockUrbit() {
     const mod = await importOriginal<typeof import('../api/urbit')>();
     const out: typeof mod = {
       ...mod,
-      scry: vi.fn(),
-      trackedPoke: vi.fn(),
+      client: vi.mocked({
+        scry: vi.fn(),
+        trackedPoke: vi.fn(),
+      } as any as Client),
       getCurrentUserId: () => '~solfer-magfed',
     };
     return out;
