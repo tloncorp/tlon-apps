@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { ViewStyle as TamaguiViewStyle } from 'tamagui';
 
 import * as db from '../db';
-import { ChannelAction, getPostActions } from '../types/messageActions';
+import { ChannelAction, getPostActions } from './ChannelActions';
 
 export interface PostCollectionConfiguration {
   shouldMaintainVisibleContentPosition: boolean;
