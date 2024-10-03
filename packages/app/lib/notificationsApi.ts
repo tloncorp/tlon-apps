@@ -1,10 +1,10 @@
-import { poke } from '@tloncorp/shared/dist/api';
+import { client } from '@tloncorp/shared/dist/api';
 import { Platform } from 'react-native';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../constants';
 
 export const connectNotifyProvider = async (address: string) => {
-  await poke({
+  await client.poke({
     app: 'notify',
     mark: 'notify-client-action',
     json: {
