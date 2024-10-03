@@ -109,6 +109,50 @@ export const TextInputWithButton: React.FC<TextInputWithButtonProps> =
     );
   });
 
+interface TextInputWithIconAndButtonProps
+  extends ComponentProps<typeof TextInput> {
+  icon: IconType;
+  buttonText: string;
+  onButtonPress: () => void;
+}
+
+export const TextInputWithIconAndButton = React.memo(
+  function TextInputWithIconAndButtonRaw({
+    icon,
+    buttonText,
+    onButtonPress,
+    ...textInputProps
+  }: TextInputWithIconAndButtonProps) {
+    return (
+      <XStack
+        borderWidth={1}
+        borderColor="$border"
+        borderRadius="$l"
+        paddingHorizontal="$xl"
+        alignItems="center"
+        gap="$l"
+      >
+        <Icon type={icon} customSize={['$2xl', '$2xl']} />
+        <TextInput
+          paddingLeft={0}
+          borderWidth={0}
+          borderRadius={0}
+          flex={1}
+          {...textInputProps}
+        />
+        <Button
+          padding="$l"
+          onPress={onButtonPress}
+          backgroundColor="$secondaryBackground"
+          marginRight="$-m"
+        >
+          <Button.Text size="$label/m">{buttonText}</Button.Text>
+        </Button>
+      </XStack>
+    );
+  }
+);
+
 // Toggle group
 
 export const ToggleGroupInput = ({
