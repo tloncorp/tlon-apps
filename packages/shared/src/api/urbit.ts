@@ -12,11 +12,6 @@ import { getLandscapeAuthCookie } from './landscapeApi';
 
 const logger = createDevLogger('urbit', false);
 
-const config = {
-  shipName: '',
-  shipUrl: '',
-};
-
 let clientInstance: Client | null = null;
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -100,12 +95,6 @@ export function removeUrbitClient() {
 function printEndpoint(endpoint: UrbitEndpoint) {
   return `${endpoint.app}${endpoint.path}`;
 }
-
-export const configureApi = (shipName: string, shipUrl: string) => {
-  config.shipName = deSig(shipName);
-  config.shipUrl = shipUrl;
-  logger.log('Configured new Urbit API for', shipName);
-};
 
 export class Client {
   private client: Urbit;

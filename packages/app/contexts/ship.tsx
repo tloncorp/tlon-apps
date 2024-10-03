@@ -1,5 +1,4 @@
 import crashlytics from '@react-native-firebase/crashlytics';
-import { configureApi } from '@tloncorp/shared/dist/api';
 import { preSig } from '@urbit/aura';
 import type { ReactNode } from 'react';
 import {
@@ -86,9 +85,6 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
 
       // Save context state
       setShipInfo(nextShipInfo);
-
-      // Configure API
-      configureApi(ship, normalizedShipUrl);
 
       // Configure analytics
       crashlytics().setAttribute(
