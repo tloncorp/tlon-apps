@@ -9,6 +9,7 @@ import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { usePostSignup } from '@tloncorp/app/hooks/usePostSignup';
 import { cancelFetch, configureClient } from '@tloncorp/app/lib/api';
+import { getShipAccessCode } from '@tloncorp/app/lib/hostingApi';
 import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
@@ -19,7 +20,6 @@ import {
 } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
-import { getShipAccessCode } from 'packages/app/lib/hostingApi';
 import { useCallback, useEffect } from 'react';
 import { AppStateStatus } from 'react-native';
 
