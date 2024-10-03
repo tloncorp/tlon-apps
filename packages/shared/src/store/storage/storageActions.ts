@@ -17,7 +17,7 @@ import {
   hasHostingUploadCreds,
 } from './storageUtils';
 
-const logger = createDevLogger('storageActions', true);
+const logger = createDevLogger('storageActions', false);
 
 export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
   logger.crumb(
@@ -104,22 +104,33 @@ const performUpload = async (asset: ImagePickerAsset, isWeb = false) => {
       credentials,
       forcePathStyle: true,
     });
+
+    const headers = {
+      'Content-Type': asset.mimeType ?? 'application/octet-stream',
+      'Cache-Control': 'public, max-age=3600',
+      'x-amz-acl': 'public-read', // necessary for digital ocean spaces
+    };
+
     const command = new PutObjectCommand({
       Bucket: config.currentBucket,
       Key: fileKey,
-      ContentType: asset.mimeType ?? 'application/octet-stream',
-      CacheControl: 'public, max-age=3600',
-      ACL: 'public-read',
+      ContentType: headers['Content-Type'],
+      CacheControl: headers['Cache-Control'],
+      ACL: headers['x-amz-acl'],
     });
-    const signedUrl = await getSignedUrl(client, command);
+
+    const signedUrl = await getSignedUrl(client, command, {
+      expiresIn: 3600,
+      signableHeaders: new Set(Object.keys(headers)),
+    });
+
+    logger.log('Signed URL:', signedUrl);
+    logger.log('Headers to be sent:', headers);
+
     await uploadFile(
       signedUrl,
       resizedAsset.uri,
-      {
-        'Content-Type': asset.mimeType ?? 'application/octet-stream',
-        'Cache-Control': 'public, max-age=3600',
-        'x-amz-acl': 'public-read', // necessary for digital ocean spaces
-      },
+      headers,
       isWeb
     );
     return config.publicUrlBase
@@ -138,6 +149,8 @@ async function uploadFile(
   isWeb = false
 ) {
   logger.log('uploading', assetUri, 'to', presignedUrl, 'isWeb', isWeb);
+  const isDigitalOcean = presignedUrl.includes('digitaloceanspaces.com');
+
   if (isWeb) {
     let body: Blob | string = assetUri;
 
@@ -159,7 +172,7 @@ async function uploadFile(
     const response = await fetch(presignedUrl, {
       method: 'PUT',
       body: body,
-      headers,
+      headers: isDigitalOcean ? headers : undefined,
     });
     if (!response.ok) {
       throw new Error(`Got bad upload response ${response.status}`);
@@ -168,7 +181,7 @@ async function uploadFile(
   } else {
     const response = await FileSystem.uploadAsync(presignedUrl, assetUri, {
       httpMethod: 'PUT',
-      headers,
+      headers: isDigitalOcean ? headers : undefined,
     });
 
     if (response.status !== 200) {
