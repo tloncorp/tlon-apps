@@ -127,10 +127,12 @@ const performUpload = async (asset: ImagePickerAsset, isWeb = false) => {
     logger.log('Signed URL:', signedUrl);
     logger.log('Headers to be sent:', headers);
 
+    const isDigitalOcean = signedUrl.includes('digitaloceanspaces.com');
+
     await uploadFile(
       signedUrl,
       resizedAsset.uri,
-      headers,
+      isDigitalOcean ? headers : undefined,
       isWeb
     );
     return config.publicUrlBase
@@ -149,7 +151,6 @@ async function uploadFile(
   isWeb = false
 ) {
   logger.log('uploading', assetUri, 'to', presignedUrl, 'isWeb', isWeb);
-  const isDigitalOcean = presignedUrl.includes('digitaloceanspaces.com');
 
   if (isWeb) {
     let body: Blob | string = assetUri;
@@ -172,7 +173,7 @@ async function uploadFile(
     const response = await fetch(presignedUrl, {
       method: 'PUT',
       body: body,
-      headers: isDigitalOcean ? headers : undefined,
+      headers,
     });
     if (!response.ok) {
       throw new Error(`Got bad upload response ${response.status}`);
@@ -181,7 +182,7 @@ async function uploadFile(
   } else {
     const response = await FileSystem.uploadAsync(presignedUrl, assetUri, {
       httpMethod: 'PUT',
-      headers: isDigitalOcean ? headers : undefined,
+      headers,
     });
 
     if (response.status !== 200) {
