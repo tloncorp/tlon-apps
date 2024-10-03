@@ -219,11 +219,15 @@ export const ImageAvatar = function ImageAvatarComponent({
     setLoadFailed(true);
   }, []);
   const handleLoadEnd = useCallback(() => setIsLoading(false), []);
+  // TODO: figure out how to sanitize svgs so we can support svg avatars
+  const isSVG = imageUrl?.endsWith('.svg');
 
   return imageUrl &&
+    !isSVG &&
     (props.ignoreCalm || !calmSettings.disableAvatars) &&
     !loadFailed ? (
     <AvatarFrame
+      key={imageUrl}
       {...props}
       {...(isLoading ? { backgroundColor: '$secondaryBackground' } : {})}
     >
@@ -307,6 +311,7 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
       backgroundColor={colors.backgroundColor}
     >
       <UrbitSigil
+        key={contactId}
         colors={colors}
         size={innerSigilSize ?? sigilSize * 0.5}
         contactId={contactId}
