@@ -6,7 +6,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import * as db from '../db';
-import { createDevLogger } from '../debug';
+import { createDevLogger, waitForContinue } from '../debug';
 import {
   useDebouncedValue,
   useLiveRef,
@@ -70,6 +70,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
         queryOptions.mode === 'newest' &&
         !options.hasCachedNewest
       ) {
+        await waitForContinue('sync newest', '__continueChannelSync');
         await sync.syncPosts(queryOptions, { priority: SyncPriority.High });
       }
       const cached = await db.getChannelPosts(queryOptions);

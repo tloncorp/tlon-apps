@@ -242,3 +242,23 @@ export const useLogLifecycleEvents = (
     return () => console.log(label, 'unmounted');
   }, []);
 };
+
+export function deferred(): Promise<void> & { resolve: () => void } {
+  let resolve = () => {};
+  const prom = new Promise<void>((r) => {
+    resolve = () => r();
+  });
+  return Object.assign(prom, { resolve });
+}
+
+export async function waitForContinue(
+  label?: string,
+  globalContinueKey = '__continue'
+) {
+  console.log(
+    `waitForContinue: pausing for ${label} (continue with \`${globalContinueKey}()\`)`
+  );
+  const def = deferred();
+  Object.assign(global, { [globalContinueKey]: def.resolve });
+  await def;
+}

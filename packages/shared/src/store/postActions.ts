@@ -2,6 +2,7 @@ import * as api from '../api';
 import { toPostContent } from '../api';
 import { PostContent, toUrbitStory } from '../api/postsApi';
 import * as db from '../db';
+import { waitForContinue } from '../debug';
 import { createDevLogger } from '../debug';
 import * as urbit from '../urbit';
 import * as sync from './sync';
@@ -50,6 +51,7 @@ export async function sendPost({
   sync.handleAddPost(cachePost);
   try {
     logger.crumb('sending post to backend');
+    await waitForContinue('api.sendPost', '__continueSend');
     await api.sendPost({
       channelId: channel.id,
       authorId,
