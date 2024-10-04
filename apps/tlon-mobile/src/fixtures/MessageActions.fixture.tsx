@@ -1,6 +1,6 @@
+import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { ChatMessageActions, Modal, ZStack } from '@tloncorp/ui';
-import { ChannelAction } from 'packages/shared/dist';
 import { createRef, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
