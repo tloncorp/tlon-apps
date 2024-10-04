@@ -57,4 +57,5 @@ export const FieldLabel = React.memo(
 
 export const FieldErrorMessage = styled(FieldLabel, {
   color: '$negativeActionText',
+  paddingTop: '$l',
 });

@@ -1,5 +1,5 @@
 import { DeepLinkMetadata, createDevLogger } from '@tloncorp/shared/dist';
-import { extractLureMetadata } from '@tloncorp/shared/src/logic';
+import { DeepLinkData, extractLureMetadata } from '@tloncorp/shared/src/logic';
 import {
   type ReactNode,
   createContext,
@@ -30,6 +30,7 @@ type State = Lure & {
 };
 
 type ContextValue = State & {
+  setLure: (metadata: DeepLinkData) => void;
   clearLure: () => void;
   clearDeepLink: () => void;
 };
@@ -165,6 +166,26 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [isAuthenticated]);
 
+  const setLure = useCallback(
+    (metadata: DeepLinkData) => {
+      const nextLure: Lure = {
+        lure: {
+          ...metadata,
+          id: metadata.lure as string,
+          // if not already authenticated, we should run Lure's invite auto-join capability after signing in
+          shouldAutoJoin: !isAuthenticated,
+        },
+        priorityToken: undefined,
+      };
+      setState({
+        ...nextLure,
+        deepLinkPath: undefined,
+      });
+      saveLure(nextLure);
+    },
+    [isAuthenticated]
+  );
+
   const clearLure = useCallback(() => {
     console.debug('[branch] Clearing lure state');
     setState((curr) => ({
@@ -189,6 +210,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         deepLinkPath,
         lure,
         priorityToken,
+        setLure,
         clearLure,
         clearDeepLink,
       }}

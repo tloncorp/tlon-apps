@@ -67,6 +67,13 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
     }
   }, [group, branchDomain, branchKey, toggle, status, isGroupAdmin, describe]);
 
+  if (
+    (group?.privacy === 'private' || group?.privacy === 'secret') &&
+    !isGroupAdmin
+  ) {
+    return <Text>Only administrators may invite people to this group.</Text>;
+  }
+
   return (
     <Button
       hero
@@ -76,19 +83,31 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
       width="100%"
       justifyContent="space-between"
     >
-      <XStack gap="$xl" alignItems="center">
-        <View borderRadius="$3xl" backgroundColor="$background" padding="$s">
-          {status !== 'ready' || typeof shareUrl !== 'string' ? (
-            <LoadingSpinner size="small" />
-          ) : (
-            <Icon type="Send" size="$l" />
+      <XStack gap="$xl" paddingHorizontal="$m" alignItems="center">
+        <View>
+          {status === 'error' || status === 'disabled' ? (
+            <Icon type="Close" size="$l" color="$background" />
+          ) : null}
+          {(status === 'loading' || status === 'stale') && (
+            <LoadingSpinner size="small" color="$background" />
+          )}
+          {status === 'ready' && (
+            <Icon type="Send" size="$l" color="$background" />
           )}
         </View>
-        <Text color="$background" fontSize="$l">
-          Invite Friends to Tlon
+        <Text flex={1} color="$background" fontSize="$l">
+          {status === 'disabled' && 'Public invite links are disabled'}
+          {status === 'error' && 'Error generating invite link'}
+          {(status === 'loading' || status === 'stale') &&
+            'Generating invite link...'}
+          {status === 'ready' &&
+            typeof shareUrl === 'string' &&
+            'Invite Friends to Tlon'}
         </Text>
+        {status === 'ready' && (
+          <Icon type="ChevronRight" size="$l" color="$background" />
+        )}
       </XStack>
-      <Icon type="ChevronRight" size="$xl" color="$background" />
     </Button>
   );
 }

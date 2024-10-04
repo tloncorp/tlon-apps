@@ -32,7 +32,7 @@ function ContactRowItemRaw({
   );
 
   return (
-    <ListItem onPress={handlePress(contact.id)} {...rest}>
+    <ListItem onPress={handlePress(contact.id)} pressable {...rest}>
       <ListItem.ContactIcon contactId={contact.id} />
       <ListItem.MainContent>
         <XStack alignItems="center">

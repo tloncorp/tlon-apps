@@ -1,9 +1,0 @@
-diff --git a/lib/module/components/Pressable/PressableProps.js b/lib/module/components/Pressable/PressableProps.js
-index c67a50450dcfa4e698dd8c78d0f56c7588925d6d..2060389e45fba2d5eb44ce7c456b0f9e02c72729 100644
---- a/lib/module/components/Pressable/PressableProps.js
-+++ b/lib/module/components/Pressable/PressableProps.js
-@@ -1,2 +1,3 @@
--export {};
-+const PressableProps = {};
-+export { PressableProps };
- //# sourceMappingURL=PressableProps.js.map

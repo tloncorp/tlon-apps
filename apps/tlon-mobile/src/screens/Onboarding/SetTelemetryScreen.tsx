@@ -1,10 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import {
-  Button,
-  GenericHeader,
+  PrimaryButton,
+  ScreenHeader,
   SizableText,
-  Text,
   View,
   XStack,
   YStack,
@@ -43,15 +42,7 @@ export const SetTelemetryScreen = ({
 
   return (
     <View flex={1}>
-      <GenericHeader
-        title="Usage Statistics"
-        showSessionStatus={false}
-        rightContent={
-          <Button minimal onPress={handleNext}>
-            <Text fontSize="$m">Next</Text>
-          </Button>
-        }
-      />
+      <ScreenHeader title="Usage Statistics" showSessionStatus={false} />
       <YStack gap="$3xl" padding="$2xl">
         <SizableText color="$primaryText">
           We&rsquo;re trying to make the app better and knowing how people use
@@ -72,6 +63,7 @@ export const SetTelemetryScreen = ({
           </SizableText>
           <Switch value={isEnabled} onValueChange={setIsEnabled} />
         </XStack>
+        <PrimaryButton onPress={handleNext}>Next</PrimaryButton>
       </YStack>
     </View>
   );
