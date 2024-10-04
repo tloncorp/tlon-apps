@@ -115,6 +115,7 @@ export default {
           groupWithNoColorOrImage,
         ].map((g) => makeChannelSummary({ group: g }))}
         pendingChats={[]}
+        onSearchToggle={() => {}}
       />
     </FixtureWrapper>
   ),
@@ -134,6 +135,7 @@ export default {
         pendingChats={[]}
         searchQuery=""
         onSearchQueryChange={() => {}}
+        onSearchToggle={() => {}}
       />
     </FixtureWrapper>
   ),
@@ -148,6 +150,7 @@ export default {
         pendingChats={[]}
         searchQuery=""
         onSearchQueryChange={() => {}}
+        onSearchToggle={() => {}}
       />
     </FixtureWrapper>
   ),
