@@ -15,7 +15,7 @@ import storage from '../lib/storage';
 import { getPathFromWer } from '../utils/string';
 import { useShip } from './ship';
 
-interface LureData extends DeepLinkMetadata {
+export interface LureData extends DeepLinkMetadata {
   id: string;
   shouldAutoJoin: boolean;
 }
@@ -61,7 +61,7 @@ const getSavedLure = async () => {
 
 const clearSavedLure = async () => storage.remove({ key: STORAGE_KEY });
 
-const Context = createContext({} as ContextValue);
+export const Context = createContext({} as ContextValue);
 
 export const useBranch = () => {
   const context = useContext(Context);

@@ -31,8 +31,17 @@ function AppInviteDisplayRaw({
   return (
     // provider needed to support calm settings usage down the tree
     <AppDataContextProvider>
-      <ListItem backgroundColor="$secondaryBackground" {...rest}>
+      <ListItem
+        pressable={false}
+        backgroundColor="$background"
+        borderColor="$border"
+        borderWidth={1}
+        alignItems="center"
+        {...rest}
+      >
         <ListItem.GroupIcon
+          width={100}
+          height={100}
           model={groupShim}
           backgroundColor={groupShim.iconImageColor ?? '$secondaryBorder'}
         />

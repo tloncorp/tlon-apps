@@ -571,7 +571,7 @@ export const group: db.Group = {
   coverImage: null,
   coverImageColor: '#000000',
   iconImage: 'https://tlon.io/local-icon.svg',
-  iconImageColor: '#FFFFFF',
+  iconImageColor: '#000000',
   currentUserIsMember: true,
   lastPostAt: null,
   lastPostId: null,

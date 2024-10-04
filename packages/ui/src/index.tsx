@@ -73,10 +73,13 @@ export * from './components/UserProfileScreenView';
 export * from './components/View';
 export * from './components/WelcomeSheet';
 export * from './components/AppInviteDisplay';
+export * from './components/Image';
+export * as FormV2 from './components/Form';
 export * from './contexts';
 export * from './tamagui.config';
 export * from './types';
 export * from './utils';
+export * as TextV2 from './components/TextV2';
 
 export {
   Circle,

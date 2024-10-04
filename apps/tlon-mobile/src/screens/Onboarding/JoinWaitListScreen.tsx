@@ -4,15 +4,15 @@ import { addUserToWaitlist } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Field,
-  PrimaryButton,
   ScreenHeader,
-  SizableText,
   TextInput,
+  TextV2,
   View,
   YStack,
 } from '@tloncorp/ui';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { Alert } from 'react-native';
 
 import type { OnboardingStackParamList } from '../../types';
 
@@ -36,9 +36,15 @@ export const JoinWaitListScreen = ({ navigation }: Props) => {
       trackOnboardingAction({
         actionName: 'Waitlist Joined',
       });
-      navigation.popToTop();
+      Alert.alert('Success', 'You have been added to the waitlist.', [
+        {
+          text: 'OK',
+          onPress: () => navigation.popToTop(),
+        },
+      ]);
     } catch (err) {
       console.error('Error joining waitlist:', err);
+      Alert.alert('Failed', 'Unable to add you to the waitlist.');
       if (err instanceof Error) {
         setRemoteError(err.message);
         trackError(err);
@@ -47,18 +53,26 @@ export const JoinWaitListScreen = ({ navigation }: Props) => {
   };
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         title="Join Waitlist"
         showSessionStatus={false}
         backAction={() => navigation.goBack()}
+        rightControls={
+          <ScreenHeader.TextButton
+            disabled={!isValid}
+            onPress={handleSubmit(onSubmit)}
+          >
+            Submit
+          </ScreenHeader.TextButton>
+        }
       />
-      <YStack padding="$xl" gap="$2xl">
-        <SizableText color="$primaryText">
-          We&rsquo;ve given out all available accounts for today, but
-          we&rsquo;ll have more soon. If you&rsquo;d like, we can let you know
-          via email when they&rsquo;re ready.
-        </SizableText>
+      <YStack paddingHorizontal="$2xl" gap="$m">
+        <View padding="$xl">
+          <TextV2.Text size="$body" color="$primaryText">
+            We&rsquo;ll let you know as soon as space is available.
+          </TextV2.Text>
+        </View>
         <Controller
           control={control}
           name="email"
@@ -70,7 +84,7 @@ export const JoinWaitListScreen = ({ navigation }: Props) => {
             },
           }}
           render={({ field: { onChange, onBlur, value } }) => (
-            <Field label="Email" error={errors.email?.message}>
+            <Field label="Email" error={errors.email?.message} paddingTop="$m">
               <TextInput
                 placeholder="sampel@pal.net"
                 onBlur={onBlur}
@@ -84,17 +98,10 @@ export const JoinWaitListScreen = ({ navigation }: Props) => {
           )}
         />
         {remoteError ? (
-          <SizableText fontSize="$s" color="$negativeActionText">
+          <TextV2.Text fontSize="$s" color="$negativeActionText">
             {remoteError}
-          </SizableText>
+          </TextV2.Text>
         ) : null}
-        <View>
-          {isValid && (
-            <PrimaryButton onPress={handleSubmit(onSubmit)} alignSelf="center">
-              Notify Me
-            </PrimaryButton>
-          )}
-        </View>
       </YStack>
     </View>
   );

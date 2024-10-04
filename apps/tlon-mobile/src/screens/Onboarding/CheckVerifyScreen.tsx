@@ -1,19 +1,10 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import {
-  checkPhoneVerify,
-  requestPhoneVerify,
-  resendEmailVerification,
-  verifyEmailDigits,
-} from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { formatPhoneNumber } from '@tloncorp/app/utils/string';
 import {
-  Button,
   Field,
   ScreenHeader,
-  SizableText,
-  Text,
   TextInput,
+  TextV2,
   View,
   XStack,
   YStack,
@@ -22,6 +13,7 @@ import { createRef, useMemo, useState } from 'react';
 import type { TextInputKeyPressEventData } from 'react-native';
 import { TextInput as RNTextInput } from 'react-native';
 
+import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'CheckVerify'>;
@@ -45,6 +37,7 @@ export const CheckVerifyScreen = ({
       Array.from({ length: codeLength }).map(() => createRef<RNTextInput>()),
     []
   );
+  const { hostingApi } = useOnboardingContext();
 
   const handleKeyPress = async (
     index: number,
@@ -84,9 +77,9 @@ export const CheckVerifyScreen = ({
 
     try {
       if (isEmail) {
-        await verifyEmailDigits(user.email, code);
+        await hostingApi.verifyEmailDigits(user.email, code);
       } else {
-        await checkPhoneVerify(user.id, code);
+        await hostingApi.checkPhoneVerify(user.id, code);
       }
 
       trackOnboardingAction({
@@ -108,9 +101,9 @@ export const CheckVerifyScreen = ({
   const handleResend = async () => {
     try {
       if (isEmail) {
-        await resendEmailVerification(user.id);
+        await hostingApi.resendEmailVerification(user.id);
       } else {
-        await requestPhoneVerify(user.id, user.phoneNumber ?? '');
+        await hostingApi.requestPhoneVerify(user.id, user.phoneNumber ?? '');
       }
     } catch (err) {
       console.error('Error resending verification code:', err);
@@ -122,42 +115,48 @@ export const CheckVerifyScreen = ({
   };
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
-        title="Confirmation"
+        title="Confirm code"
         backAction={() => navigation.goBack()}
         isLoading={isSubmitting}
       />
-      <YStack padding="$2xl" gap="$2xl">
-        <SizableText color="$primaryText">
-          We&rsquo;ve sent a confirmation code to{' '}
-          {isEmail ? user.email : formatPhoneNumber(user.phoneNumber ?? '')}.
-        </SizableText>
-        <Field label="Code" error={error}>
-          <XStack gap="$s" justifyContent="space-between">
+      <YStack padding="$2xl" gap="$6xl">
+        <Field
+          label="Check your email for a confirmation code"
+          error={error}
+          justifyContent="center"
+          alignItems="center"
+        >
+          <XStack gap="$s">
             {Array.from({ length: codeLength }).map((_, i) => (
               <TextInput
                 textAlign="center"
-                flex={1}
                 key={i}
                 ref={inputRefs[i]}
                 onKeyPress={({ nativeEvent }) =>
                   handleKeyPress(i, nativeEvent.key)
                 }
+                placeholder="5"
                 onChangeText={(text) => handleChangeText(i, text)}
                 value={code.length > i ? code[i] : ''}
                 keyboardType="numeric"
                 maxLength={1}
+                paddingHorizontal="$xl"
+                paddingVertical="$xl"
+                width="$4xl"
               />
             ))}
           </XStack>
         </Field>
-        <SizableText color="$primaryText">
-          Didn&rsquo;t receive a code?
-        </SizableText>
-        <Button secondary onPress={handleResend}>
-          <Text>Send a new code</Text>
-        </Button>
+        <TextV2.Text
+          size="$label/m"
+          textAlign="center"
+          onPress={handleResend}
+          pressStyle={{ opacity: 0.5 }}
+        >
+          Request a new code
+        </TextV2.Text>
       </YStack>
     </View>
   );

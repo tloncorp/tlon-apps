@@ -79,6 +79,13 @@ const HeaderTextButton = styled(Text, {
   pressStyle: {
     opacity: 0.5,
   },
+  variants: {
+    disabled: {
+      true: {
+        color: '$tertiaryText',
+      },
+    },
+  },
 });
 
 const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
