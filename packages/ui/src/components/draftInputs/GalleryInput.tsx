@@ -111,7 +111,7 @@ export function GalleryInput({
           >
             <FloatingActionButton
               onPress={() => setShowAddGalleryPost(true)}
-              icon={<Icon type="Add" size={'$s'} marginRight={'$s'} />}
+              icon={<Icon type="Add" size={'$m'} />}
             />
           </View>
         )}

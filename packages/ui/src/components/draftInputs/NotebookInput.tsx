@@ -79,7 +79,7 @@ export function NotebookInput({
           >
             <FloatingActionButton
               onPress={() => setShowBigInput(true)}
-              icon={<Icon type="Add" size={'$s'} marginRight={'$s'} />}
+              icon={<Icon type="Add" size={'$m'} />}
             />
           </View>
         )}
