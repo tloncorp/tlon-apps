@@ -16,7 +16,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %6
+    $:  %7
         =v-channels:c
         =pimp:imp
     ==
@@ -92,27 +92,102 @@
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
-  ?>  ?=(%6 -.old)
+  =?  old  ?=(%6 -.old)  (state-6-to-7 old)
+  ?>  ?=(%7 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-6 state-5 state-4 state-3 state-2 state-1 state-0)
-  +$  state-6  current-state
+  +$  versioned-state  $%(state-7 state-6 state-5 state-4 state-3 state-2 state-1 state-0)
+  +$  state-7  current-state
+  +$  state-6
+    $:  %6
+      =v-channels:v7:old:c
+      =pimp:imp
+    ==
   +$  state-5
     $:  %5
         =v-channels:v6:old:c
         =pimp:imp
     ==
+  ++  state-6-to-7
+    |=  state-6
+    ^-  state-7
+    [%7 (v-channels-6-to-7 v-channels) pimp]
+  ++  v-channels-6-to-7
+    |=  vc=v-channels:v7:old:c
+    ^-  v-channels:c
+    %-  ~(run by vc)
+    |=  v=v-channel:v7:old:c
+    ^-  v-channel:c
+    =/  [count=@ud =v-posts:c]
+      (v-posts-6-to-7 posts.v)
+    %=  v
+      posts    v-posts
+      |1.-     [count |1.-:v]  
+      log      (log-6-to-7 log.v)
+      future   (future-6-to-7 future.v)
+    ==
+  ++  v-posts-6-to-7
+    |=  vp=v-posts:v7:old:c
+    ^-  [@ud v-posts:c]
+    =|  posts=v-posts:c
+    %-  (rep:mo-v-posts:v7:old:c vp)
+    |=  [[=id-post:c post=(unit v-post:v7:old:c)] count=@ud =_posts]
+    ^+  [count posts]
+    :-  +(count)
+    ?~  post  posts
+    ::
+    ::  insert seq into seal
+    =/  new-post=v-post:c
+      u.post(|1.- [+(count) |1.-.post])
+    (put:on-v-posts:c posts id-post `new-post)
+  ++  log-6-to-7
+    |=  l=log:v-channel:v7:old:c
+    ^-  log:v-channel:c
+    =|  seq-log=(map id-post:c @ud)
+    =|  =log:c
+    =<  +
+    %-  (rep:mo-log:v7:old:c l)
+    |=  [[=time =u-channel:v7:old:c] [count=@ud =_seq-log] =_log]
+    ^+  [[count seq-log] log]
+    ?.  ?=(%post -.u-channel)
+      :-  [count seq-log]
+      (put:log-on:c log time u-channel)
+    ?.  ?=(%set -.u-post.u-channel)
+      :-  [count seq-log]
+      (put:log-on:c log time u-channel)
+    ?~  post.u-post.u-channel
+      :-  [count seq-log]
+      (put:log-on:c log time %post id.u-channel %set ~)
+    ::  seq is increased only for a new post
+    ::
+    =/  seq=@ud
+      %+  fall
+        (~(get by seq-log) id.u-channel)
+      +(count)
+    =*  post  u.post.u-post.u-channel
+    =/  =u-post:c
+      :-  %set
+      (some post(|1.- [+(count) |1.-.post]))
+    :-  :-  +(count)
+        (~(put by seq-log) id.u-channel +(count))
+    (put:log-on:c log time %post id.u-channel u-post)
+  ++  future-6-to-7
+    |=  f=future:v-channel:v7:old:c
+    ^-  future:v-channel:c
+    ::  channel future is defunct
+    ::
+    *future:v-channel:c
   ++  state-5-to-6
     |=  state-5
     ^-  state-6
     [%6 (v-channels-5-to-6 v-channels) pimp]
   ++  v-channels-5-to-6
     |=  vc=v-channels:v6:old:c
-    ^-  v-channels:c
+    ^-  v-channels:v7:old:c
     %-  ~(run by vc)
     |=  v=v-channel:v6:old:c
-    ^-  v-channel:c
+    ^-  v-channel:v7:old:c
     v(pending [pending.v *last-updated:c])
   +$  state-4
     $:  %4
@@ -129,59 +204,69 @@
     s(- %4, v-channels (~(run by v-channels.s) v-channel-2-to-3))
   ::
   ++  v-channel-2-to-3
-    |=  v=v-channel-2
-    ^-  v-channel:v6:old:c
-    v(future [future.v *pending-messages:c])
+  |=  v=v-channel-2
+  ^-  v-channel:v6:old:c
+  v(future [future.v *pending-messages:c])
   ++  v-channels-2  (map nest:c v-channel-2)
   ++  v-channel-2
-    |^  ,[global:v-channel:c local]
-    +$  local
-      $:  =net:c
-          =log:c
-          =remark:c
-          =window:v-channel:c
-          =future:v-channel:c
-      ==
-    --
+  |^  ,[global:v-channel:v7:old:c local]
+  +$  local
+    $:  =net:c
+        =log:v7:old:c
+        =remark:c
+        =window:v-channel:c
+        =future:v-channel:v7:old:c
+    ==
+  :: ++  v-channel-2
+  ::   |^  ,[global:v-channel:c local]
+  ::   +$  local
+  ::     $:  =net:c
+  ::         =log:c
+  ::         =remark:c
+  ::         =window:v-channel:c
+  ::         =future:v-channel:c
+  ::     ==
+  ::   --
+  --
   ::
   +$  state-3  [%3 v-channels=v-channels-2]
   +$  state-2  [%2 v-channels=v-channels-2]
   ++  state-2-to-3
-    |=  old=state-2
-    ^-  state-3
-    [%3 +.old]
+  |=  old=state-2
+  ^-  state-3
+  [%3 +.old]
   ::
   ::  %1 to %2
   ::
   +$  state-1
-    $:  %1
-        v-channels=(map nest:c v-channel-1)
-    ==
+  $:  %1
+  v-channels=(map nest:c v-channel-1)
+  ==
   ++  v-channel-1
-    |^  ,[global local]
-    +$  global
-      $:  posts=v-posts-1
-          order=(rev:c order=arranged-posts:c)
-          view=(rev:c =view:c)
-          sort=(rev:c =sort:c)
-          perm=(rev:c =perm:c)
-      ==
-    +$  window    window:v-channel:c
-    +$  future    [=window diffs=(jug id-post:c u-post-1)]
-    +$  local     [=net:c log=log-1 =remark:c =window =future]
-    --
+  |^  ,[global local]
+  +$  global
+  $:  posts=v-posts-1
+  order=(rev:c order=arranged-posts:c)
+  view=(rev:c =view:c)
+  sort=(rev:c =sort:c)
+  perm=(rev:c =perm:c)
+  ==
+  +$  window    window:v-channel:c
+  +$  future    [=window diffs=(jug id-post:c u-post-1)]
+  +$  local     [=net:c log=log-1 =remark:c =window =future]
+  --
   +$  log-1           ((mop time u-channel-1) lte)
   ++  log-on-1        ((on time u-channel-1) lte)
   +$  u-channel-1     $%  $<(%post u-channel:c)
-                          [%post id=id-post:c u-post=u-post-1]
-                      ==
+  [%post id=id-post:c u-post=u-post-1]
+  ==
   +$  u-post-1        $%  $<(?(%set %reply) u-post:c)
-                          [%set post=(unit v-post-1)]
-                          [%reply id=id-reply:c u-reply=u-reply-1]
-                      ==
+  [%set post=(unit v-post-1)]
+  [%reply id=id-reply:c u-reply=u-reply-1]
+  ==
   +$  u-reply-1       $%  $<(%set u-reply:c)
-                          [%set reply=(unit v-reply-1)]
-                      ==
+  [%set reply=(unit v-reply-1)]
+  ==
   +$  v-posts-1       ((mop id-post:c (unit v-post-1)) lte)
   ++  on-v-posts-1    ((on id-post:c (unit v-post-1)) lte)
   +$  v-post-1        [v-seal-1 (rev:c essay:c)]
@@ -190,13 +275,13 @@
   ++  on-v-replies-1  ((on id-reply:c (unit v-reply-1)) lte)
   +$  v-reply-1       [v-reply-seal:c memo:c]
   ++  state-1-to-2
-    |=  s=state-1
-    ^-  state-2
-    s(- %2, v-channels (~(run by v-channels.s) v-channel-1-to-2))
+  |=  s=state-1
+  ^-  state-2
+  s(- %2, v-channels (~(run by v-channels.s) v-channel-1-to-2))
   ++  v-channel-1-to-2
-    |=  v=v-channel-1
-    ^-  v-channel-2
-    %=  v
+  |=  v=v-channel-1
+  ^-  v-channel-2
+  %=  v
       posts   (v-posts-1-to-2 posts.v)
       log     (log-1-to-2 log.v)
       future  (future-1-to-2 future.v)
@@ -206,16 +291,16 @@
     (run:log-on-1 l u-channel-1-to-2)
   ++  u-channel-1-to-2
     |=  u=u-channel-1
-    ^-  u-channel:c
+    ^-  u-channel:v7:old:c
     ?.  ?=([%post *] u)  u
     u(u-post (u-post-1-to-2 u-post.u))
   ++  future-1-to-2
     |=  f=future:v-channel-1
-    ^-  future:v-channel:c
+    ^-  future:v-channel:v7:old:c
     f(diffs (~(run by diffs.f) |=(s=(set u-post-1) (~(run in s) u-post-1-to-2))))
   ++  u-post-1-to-2
     |=  u=u-post-1
-    ^-  u-post:c
+    ^-  u-post:v7:old:c
     ?+  u  u
       [%set ~ *]           u(u.post (v-post-1-to-2 u.post.u))
       [%reply * %set ~ *]  u(u.reply.u-reply (v-reply-1-to-2 u.reply.u-reply.u))
@@ -655,7 +740,7 @@
         =/  post  (get:on-v-posts:c posts.channel now.bowl)
         ?~  post  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
-      =/  new=v-post:c  [[id ~ ~] 0 essay.c-post]
+      =/  new=v-post:c  [[id +(count.channel) ~ ~] 0 essay.c-post]
       :-  `[%post id %set ~ new]
       (put:on-v-posts:c posts.channel id ~ new)
     ::
@@ -762,11 +847,23 @@
     |=  =u-channel:c
     ^+  ca-core
     =/  time
+      ::  XX this loop appears three times. why
+      ::  not create a gate to find next available time?
+      ::
       |-
       =/  reply  (get:log-on:c log.channel now.bowl)
       ?~  reply  now.bowl
       $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
     =/  =update:c  [time u-channel]
+    ::  increase count for every new post
+    ::
+    =?  count.channel  ?&  ?=(%post -.u-channel)
+                           ?=(%set -.u-post.u-channel)
+                           ?=(^ post.u-post.u-channel)
+                       ==
+      =+  seq.u.post.u-post.u-channel
+      ?>((gth - count.channel) -)
+    ::
     =.  log.channel  (put:log-on:c log.channel update)
     (ca-give-update update)
   ::

@@ -46,12 +46,12 @@
 ::
 ++  uv-channels-3
   |=  [=v-channels:c full=?]
-  ^-  channels:c
+  ^-  channels:v7:old:c
   %-  ~(run by v-channels)
   |=  channel=v-channel:c
-  ^-  channel:c
+  ^-  channel:v7:old:c
   =/  base
-    %*  .  *channel:c
+    %*  .  *channel:v7:old:c
       perm     +.perm.channel
       view     +.view.channel
       sort     +.sort.channel
@@ -76,11 +76,11 @@
 ::
 ++  uv-posts-2
   |=  =v-posts:c
-  ^-  posts:c
-  %+  gas:on-posts:c  *posts:c
+  ^-  posts:v7:old:c
+  %+  gas:on-posts:v7:old:c  *posts:v7:old:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(unit v-post:c)]
-  ^-  [id-post:c (unit post:c)]
+  ^-  [id-post:c (unit post:v7:old:c)]
   [id-post ?~(v-post ~ `(uv-post-2 u.v-post))]
 ::
 ++  s-posts
@@ -113,9 +113,20 @@
 ::
 ++  uv-post-2
   |=  =v-post:c
+  ^-  post:v7:old:c
+  :_  +.v-post
+  :*  id.v-post
+      (uv-reacts reacts.v-post)
+      (uv-replies-2 id.v-post replies.v-post)
+      (get-reply-meta v-post)
+  ==
+::
+++  uv-post-3
+  |=  =v-post:c
   ^-  post:c
   :_  +.v-post
   :*  id.v-post
+      seq.v-post
       (uv-reacts reacts.v-post)
       (uv-replies-2 id.v-post replies.v-post)
       (get-reply-meta v-post)
@@ -125,12 +136,13 @@
   |=  =post:c
   ^-  simple-post:c
   :_  +>.post
+  =-  [- |2]:-
   -.post(replies (s-replies replies.post))
 ::
 ++  suv-post
   |=  =v-post:c
   ^-  simple-post:c
-  (s-post (uv-post-2 v-post))
+  (s-post (uv-post-3 v-post))
 ::
 ++  uv-posts-without-replies
   |=  =v-posts:c
@@ -143,11 +155,11 @@
 ::
 ++  uv-posts-without-replies-2
   |=  =v-posts:c
-  ^-  posts:c
-  %+  gas:on-posts:c  *posts:c
+  ^-  posts:v7:old:c
+  %+  gas:on-posts:v7:old:c  *posts:v7:old:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(unit v-post:c)]
-  ^-  [id-post:c (unit post:c)]
+  ^-  [id-post:c (unit post:v7:old:c)]
   [id-post ?~(v-post ~ `(uv-post-without-replies-2 u.v-post))]
 ::
 ++  suv-posts-without-replies
@@ -180,9 +192,20 @@
 ::
 ++  uv-post-without-replies-2
   |=  post=v-post:c
+  ^-  post:v7:old:c
+  :_  +.post
+  :*  id.post
+      (uv-reacts reacts.post)
+      *replies:c
+      (get-reply-meta post)
+  ==
+::
+++  uv-post-without-replies-3
+  |=  post=v-post:c
   ^-  post:c
   :_  +.post
   :*  id.post
+      seq.post
       (uv-reacts reacts.post)
       *replies:c
       (get-reply-meta post)
@@ -191,7 +214,7 @@
 ++  suv-post-without-replies
   |=  post=v-post:c
   ^-  simple-post:c
-  (s-post (uv-post-without-replies-2 post))
+  (s-post (uv-post-without-replies-3 post))
 ::
 ++  uv-replies
   |=  [parent-id=id-post:c =v-replies:c]

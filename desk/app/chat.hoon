@@ -1067,6 +1067,7 @@
     :-  [%chat flag]
     =/  posts=v-posts:d  (convert-posts pact.chat)
     %*    .  *v-channel:d
+        count   (wyt:on-v-posts:d posts)
         posts   posts
         log     ?.(log ~ (convert-log pact.chat posts perm.chat log.chat))
         perm    [1 perm.chat]
@@ -1096,20 +1097,26 @@
       %+  ~(put by reply-index)  u.parent-time
       (put:on-v-replies:d old-replies time `(convert-quip time writ))
     %+  gas:on-v-posts:d  *v-posts:d
-    %+  murn  writs
-    |=  [=time =writ:t]
-    ^-  (unit [id-post:d (unit v-post:d)])
-    ?^  replying.writ  ~
+    =|  posts=(list [id-post:d (unit v-post:d)])
+    =<  +
+    %+  roll  writs
+    |=  [[=time =writ:t] count=@ud =_posts]
+    ^+  [count posts]
+    ?^  replying.writ
+      [count posts]
     ::  this writ is a top-level message. incorporate the replies to it found
     ::  by the above code.
     ::
     =/  replies=v-replies:d  (~(gut by reply-index) time *v-replies:d)
-    (some time `(convert-post time writ replies))
+    =.  count  +(count)
+    :-  count
+    :_  posts
+    [time `(convert-post time count writ replies)]
   ::
   ++  convert-post
-    |=  [id=@da old=writ:t replies=v-replies:d]
+    |=  [id=@da seq=@ud old=writ:t replies=v-replies:d]
     ^-  v-post:d
-    [[id replies (convert-feels feels.old)] %0 (convert-essay +.old)]
+    [[id seq replies (convert-feels feels.old)] %0 (convert-essay +.old)]
   ::
   ++  convert-feels
     |=  old=(map ship feel:t)

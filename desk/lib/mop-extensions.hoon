@@ -155,4 +155,20 @@
       (items-with-remainder l.a (dec q.right-result))
     [(zing ~[p.left-result ~[n.a] p.right-result]) q.left-result]
   --
+::  +rep: reduce to product, left to right
+::
+++  rep
+  |=  a=(tree item)
+  |*  b=_=>(~ |=([* *] +<+))
+  |-
+  ?~  a  +<+.b
+  $(a r.a, +<+.b $(a l.a, +<+.b (b n.a +<+.b)))
+::  +req: reduce to product, right to left
+::
+++  req
+  |=  a=(tree item)
+  |*  b=_=>(~ |=([* *] +<+))
+  |-
+  ?~  a  +<+.b
+  $(a l.a, +<+.b $(a r.a, +<+.b (b n.a +<+.b)))
 --

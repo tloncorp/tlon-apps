@@ -38,6 +38,8 @@
   ::
   +$  global
     $:  posts=v-posts
+        ::  .count: number of posted
+        count=@ud
         order=(rev order=arranged-posts)
         view=(rev =view)
         sort=(rev =sort)
@@ -79,11 +81,12 @@
 +$  id-reply      time
 +$  v-replies     ((mop id-reply (unit v-reply)) lte)
 ++  on-v-replies  ((on id-reply (unit v-reply)) lte)
-++  mo-v-replies  ((mp time (unit v-reply)) lte)
+++  mo-v-replies  ((mp id-reply (unit v-reply)) lte)
 ::  $v-seal: host-side data for a post
 ::
 +$  v-seal  $+  channel-seal
   $:  id=id-post
+      seq=@ud
       replies=v-replies
       reacts=v-reacts
   ==
@@ -266,7 +269,9 @@
 ::  $log: a time ordered history of modifications to a channel
 ::
 +$  log     ((mop time u-channel) lte)
+::  XX unify mop convention: on-log, on-posts
 ++  log-on  ((on time u-channel) lte)
+++  mo-log  ((mp time u-channel) lte)
 ::
 ::  $create-channel: represents a request to create a channel
 ::
@@ -507,10 +512,12 @@
 +$  simple-post  [simple-seal essay]
 +$  seal
   $:  id=id-post
+      seq=@ud
       =reacts
       =replies
       =reply-meta
   ==
+::XX  does $simple-seal need .seq?
 +$  simple-seal
   $:  id=id-post
       =reacts
@@ -529,17 +536,102 @@
 ++  on-simple-replies  ((on id-reply simple-reply) lte)
 ++  old
   |%
+  ++  v7
+    |%
+    +$  v-channels  (map nest v-channel)
+    ++  v-channel
+      |^  ,[global local]
+      +$  global
+        $:  posts=v-posts
+            order=(rev order=arranged-posts)
+            view=(rev =view)
+            sort=(rev =sort)
+            perm=(rev =perm)
+        ==
+      +$  local
+        $:  =net:^v-channel
+            =log
+            =remark:^v-channel
+            =window:^v-channel
+            =future
+            pending=pending-messages:^v-channel
+            =last-updated:^v-channel
+        ==
+      +$  future
+        [=window:^v-channel diffs=(jug id-post u-post)]
+      --
+    +$  v-post      [v-seal (rev essay)]
+    +$  v-posts     ((mop id-post (unit v-post)) lte)
+    ++  on-v-posts  ((on id-post (unit v-post)) lte)
+    ++  mo-v-posts  ((mp id-post (unit v-post)) lte)
+    +$  v-seal  
+      $+  v-seal-v7
+      $:  id=id-post
+          replies=v-replies
+          reacts=v-reacts
+      ==
+    +$  channels  (map nest channel)
+    ++  channel
+      |^  ,[global local]
+      +$  global
+        $:  =posts
+            order=arranged-posts
+            =view
+            =sort
+            =perm
+        ==
+      ::
+      +$  local
+        $:  =net
+            =remark
+            pending=pending-messages
+        ==
+      --
+    +$  post   [seal [rev=@ud essay]]
+    +$  seal
+      $:  id=id-post
+          =reacts
+          =replies
+          =reply-meta
+      ==
+    +$  posts   ((mop id-post (unit post)) lte)
+    ++  on-posts    ((on id-post (unit post)) lte)
+    +$  log     ((mop time u-channel) lte)
+    ++  log-on  ((on time u-channel) lte)
+    ++  mo-log  ((mp time u-channel) lte)
+    +$  paged-posts
+      $:  =posts
+          newer=(unit time)
+          older=(unit time)
+          total=@ud
+      ==
+    +$  channel-heads  (list [=nest recency=time latest=(unit post)])
+    +$  u-channel
+      $%  [%create =perm]
+          [%order (rev order=arranged-posts)]
+          [%view (rev =view)]
+          [%sort (rev =sort)]
+          [%perm (rev =perm)]
+          [%post id=id-post =u-post]
+      ==
+    +$  u-post
+      $%  [%set post=(unit v-post)]
+          [%reacts reacts=v-reacts]
+          [%essay (rev =essay)]
+          [%reply id=id-reply =u-reply]
+      ==
+    --
   ++  v6
     |%
     ++  v-channels  (map nest v-channel)
     ++  v-channel
-      |^  ,[global:^v-channel local]
+      |^  ,[global:v-channel:v7 local]
       +$  local
         $:  =net
-            =log
+            =log:v-channel:v7
             =remark
             =window:^v-channel
-            =future:^v-channel
+            =future:v-channel:v7
             pending=pending-messages
         ==
       --

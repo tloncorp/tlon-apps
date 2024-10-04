@@ -1,6 +1,6 @@
 /-  d=channels
 /+  j=channel-json
-|_  =log:d
+|_  =log:v7:old:d
 ++  grad  %noun
 ++  grow
   |%

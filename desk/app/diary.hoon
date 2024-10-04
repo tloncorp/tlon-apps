@@ -611,15 +611,20 @@
     |=  old=notes:a
     ^-  v-posts:d
     %+  gas:on-v-posts:d  *v-posts:d
-    %+  turn  (tap:on:notes:a old)
-    |=  [=time =note:a]
-    ^-  [id-post:d (unit v-post:d)]
-    [time `(convert-note time note)]
+    =|  posts=(list [id-post:d (unit v-post:d)])
+    =<  +
+    %+  roll  (tap:on:notes:a old)
+    |=  [[=time =note:a] count=@ud =_posts]
+    ^+  [count posts]
+    =.  count  +(count)
+    :-  count
+    :_  posts
+    [time `(convert-note time count note)]
   ::
   ++  convert-note
-    |=  [id=@da old=note:a]
+    |=  [id=@da seq=@ud old=note:a]
     ^-  v-post:d
-    :-  [id (convert-quips quips.old) (convert-feels feels.old)]
+    :-  [id seq (convert-quips quips.old) (convert-feels feels.old)]
     [%0 (convert-essay +.old)]
   ::
   ++  convert-quips
