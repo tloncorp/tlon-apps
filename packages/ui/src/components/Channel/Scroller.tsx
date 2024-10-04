@@ -1,12 +1,9 @@
 import {
-  ChannelAction,
-  PostCollectionConfiguration,
   useMutableCallback,
   usePostCollectionConfigurationFromChannel,
 } from '@tloncorp/shared';
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
 import { isSameDay } from '@tloncorp/shared/dist/logic';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { isEqual } from 'lodash';
@@ -29,14 +26,12 @@ import {
   ListRenderItem,
   View as RNView,
   StyleProp,
-  StyleSheet,
   ViewStyle,
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, styled, useStyle, useTheme } from 'tamagui';
 
-import { useCurrentUserId } from '../../contexts';
 import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
@@ -299,25 +294,38 @@ const Scroller = forwardRef(
     const insets = useSafeAreaInsets();
 
     const contentContainerStyle = useStyle(
-      !posts?.length ? { flex: 1 } : collectionConfig.contentContainerStyle
-    ) as StyleProp<ViewStyle>;
+      useMemo(() => {
+        if (!posts?.length) {
+          return { flex: 1 };
+        }
 
-    // We want to add a safe area inset for gallery/notebook, but we can't
-    // cleanly access safe area insets in the PostCollectionConfiguration
-    // definition.
-    // Special-case it here.
-    const extracContentContainerStyle = useMemo(() => {
-      if (!posts?.length) {
-        return undefined;
-      }
-      if (['notebook', 'gallery'].includes(channel.type)) {
-        return {
-          paddingBottom: insets.bottom,
-          paddingTop: headerMode === 'next' ? insets.top + 54 : 0,
-        };
-      }
-      return undefined;
-    }, [channel.type, insets, posts?.length, headerMode]);
+        switch (collectionConfig.type) {
+          case 'compact-list-bottom-to-top': {
+            return {
+              paddingHorizontal: '$m',
+            };
+          }
+
+          case 'comfy-list-top-to-bottom': {
+            return {
+              paddingHorizontal: '$m',
+              gap: '$l',
+              paddingBottom: insets.bottom,
+              paddingTop: headerMode === 'next' ? insets.top + 54 : 0,
+            };
+          }
+
+          case 'grid': {
+            return {
+              paddingHorizontal: '$m',
+              gap: '$l',
+              paddingBottom: insets.bottom,
+              paddingTop: headerMode === 'next' ? insets.top + 54 : 0,
+            };
+          }
+        }
+      }, [insets, posts?.length, headerMode, collectionConfig.type])
+    ) as StyleProp<ViewStyle>;
 
     const columnWrapperStyle = useStyle(
       collectionConfig.columnCount === 1
@@ -409,10 +417,7 @@ const Scroller = forwardRef(
             ListEmptyComponent={renderEmptyComponent}
             keyExtractor={getPostId}
             keyboardDismissMode="on-drag"
-            contentContainerStyle={StyleSheet.compose(
-              contentContainerStyle,
-              extracContentContainerStyle
-            )}
+            contentContainerStyle={contentContainerStyle}
             columnWrapperStyle={
               // FlatList raises an error if `columnWrapperStyle` is provided
               // with numColumns=1, even if the style is empty

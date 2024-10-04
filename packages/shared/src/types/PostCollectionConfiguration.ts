@@ -1,12 +1,11 @@
 import { useMemo } from 'react';
-import { ViewStyle as TamaguiViewStyle } from 'tamagui';
 
 import * as db from '../db';
 import * as ChannelAction from './ChannelActions';
 
 export interface PostCollectionConfiguration {
   shouldMaintainVisibleContentPosition: boolean;
-  contentContainerStyle: TamaguiViewStyle;
+  type: 'compact-list-bottom-to-top' | 'comfy-list-top-to-bottom' | 'grid';
   columnCount: 1 | 2;
 
   /** if true, enables day / unread dividers between elements */
@@ -54,10 +53,8 @@ export function usePostCollectionConfigurationFromChannel(
       // fallthrough
       case 'groupDm':
         return {
+          type: 'compact-list-bottom-to-top',
           shouldMaintainVisibleContentPosition: true,
-          contentContainerStyle: {
-            paddingHorizontal: '$m',
-          },
           columnCount: 1,
           dividersEnabled: true,
           itemAspectRatio: null,
@@ -68,11 +65,8 @@ export function usePostCollectionConfigurationFromChannel(
 
       case 'notebook':
         return {
+          type: 'comfy-list-top-to-bottom',
           shouldMaintainVisibleContentPosition: false,
-          contentContainerStyle: {
-            paddingHorizontal: '$m',
-            gap: '$l',
-          },
           columnCount: 1,
           dividersEnabled: false,
           itemAspectRatio: null,
@@ -83,15 +77,8 @@ export function usePostCollectionConfigurationFromChannel(
 
       case 'gallery':
         return {
+          type: 'grid',
           shouldMaintainVisibleContentPosition: false,
-          contentContainerStyle: {
-            paddingHorizontal: '$l',
-            gap: '$l',
-
-            // We can't access safe area insets from this package :(
-            // Special-case this at call-site.
-            // paddingBottom: safeAreaInsets.bottom,
-          },
           columnCount: 2,
           dividersEnabled: false,
           itemAspectRatio: 1,
