@@ -240,13 +240,18 @@ export function useDisplaySpecForChannelActionId(
   label: string;
 } {
   const isMuted = logic.isMuted(post.volumeSettings?.level, 'thread');
+  const postTerm = useMemo(() => {
+    return ['dm', 'groupDm', 'chat'].includes(channel?.type)
+      ? 'message'
+      : 'post';
+  }, [channel?.type]);
 
   return useMemo(() => {
     switch (id) {
       case 'copyRef':
         return {
           label:
-            channel?.type === 'chat'
+            postTerm === 'message'
               ? 'Copy link to message'
               : 'Copy link to post',
         };
@@ -255,11 +260,13 @@ export function useDisplaySpecForChannelActionId(
         return { label: 'Copy message text' };
 
       case 'delete':
-        return { label: 'Delete message' };
+        return {
+          label: postTerm === 'message' ? 'Delete message' : 'Delete post',
+        };
 
       case 'edit':
         return {
-          label: channel?.type === 'chat' ? 'Edit message' : 'Edit post',
+          label: postTerm === 'message' ? 'Edit message' : 'Edit post',
         };
 
       case 'muteThread':
@@ -270,7 +277,7 @@ export function useDisplaySpecForChannelActionId(
 
       case 'report':
         return {
-          label: channel?.type === 'chat' ? 'Report message' : 'Report post',
+          label: postTerm === 'message' ? 'Report message' : 'Report post',
         };
 
       case 'startThread':
@@ -283,8 +290,11 @@ export function useDisplaySpecForChannelActionId(
       case 'viewReactions':
         return { label: 'View reactions' };
 
-      case 'visibility':
-        return { label: post.hidden ? 'Show post' : 'Hide post' };
+      case 'visibility': {
+        const showMsg = postTerm === 'message' ? 'Show message' : 'Show post';
+        const hideMsg = postTerm === 'message' ? 'Hide message' : 'Hide post';
+        return { label: post.hidden ? showMsg : hideMsg };
+      }
     }
-  }, [channel?.type, isMuted, post.hidden, id]);
+  }, [channel?.type, isMuted, post.hidden, id, postTerm]);
 }
