@@ -5,7 +5,14 @@ import * as ChannelAction from './ChannelActions';
 
 export interface PostCollectionConfiguration {
   shouldMaintainVisibleContentPosition: boolean;
+
+  /**
+   * High-level type of collection - specificity is to indicate that e.g.
+   * `comy-list-top-to-bottom` is different from simply a inverted
+   * `compact-list-bottom-to-top`.
+   */
   type: 'compact-list-bottom-to-top' | 'comfy-list-top-to-bottom' | 'grid';
+
   columnCount: 1 | 2;
 
   /** if true, enables day / unread dividers between elements */
