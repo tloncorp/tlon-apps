@@ -7,6 +7,7 @@ import { View, XStack, YStack } from 'tamagui';
 import AuthorRow from '../AuthorRow';
 import { Icon } from '../Icon';
 import { MessageInput } from '../MessageInput';
+import { ParentAgnosticKeyboardAvoidingView } from '../ParentAgnosticKeyboardAvoidingView';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
@@ -94,20 +95,22 @@ const ChatMessage = ({
 
   const messageInputForEditing = useMemo(
     () => (
-      <MessageInput
-        groupMembers={[]}
-        storeDraft={() => {}}
-        clearDraft={() => {}}
-        getDraft={async () => ({})}
-        shouldBlur={false}
-        setShouldBlur={() => {}}
-        send={async () => {}}
-        channelId={post.channelId}
-        editingPost={post}
-        editPost={editPost}
-        setEditingPost={setEditingPost}
-        channelType="chat"
-      />
+      <ParentAgnosticKeyboardAvoidingView>
+        <MessageInput
+          groupMembers={[]}
+          storeDraft={() => {}}
+          clearDraft={() => {}}
+          getDraft={async () => ({})}
+          shouldBlur={false}
+          setShouldBlur={() => {}}
+          send={async () => {}}
+          channelId={post.channelId}
+          editingPost={post}
+          editPost={editPost}
+          setEditingPost={setEditingPost}
+          channelType="chat"
+        />
+      </ParentAgnosticKeyboardAvoidingView>
     ),
     [post, editPost, setEditingPost]
   );

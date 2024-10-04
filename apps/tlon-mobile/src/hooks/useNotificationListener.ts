@@ -29,6 +29,7 @@ interface BaseNotificationData {
 interface WerNotificationData extends BaseNotificationData {
   type: 'wer';
   channelId: string;
+  postInfo: { id: string; authorId: string; isDm: boolean } | null;
   wer: string;
 }
 interface UnrecognizedNotificationData extends BaseNotificationData {
@@ -63,12 +64,13 @@ function payloadFromNotification(
     meta: { errorsFromExtension: payload.notificationServiceExtensionErrors },
   };
 
-  // welcome to my validation library
+  // welcome to my validation library ;)
   if (payload.wer != null && payload.channelId != null) {
     return {
       ...baseNotificationData,
       type: 'wer',
       channelId: payload.channelId,
+      postInfo: api.getPostInfoFromWer(payload.wer),
       wer: payload.wer,
     };
   }
@@ -86,18 +88,8 @@ export default function useNotificationListener({
   const { data: isTlonEmployee } = store.useIsTlonEmployee();
   const [channelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
-  const [{ postInfo, channelId, isDm }, setGotoData] = useState<{
-    path?: string;
-    isDm?: boolean;
-    postInfo?: { id: string; authorId: string } | null;
-    channelId?: string;
-  }>({
-    path: notificationPath,
-    channelId: notificationChannelId,
-  });
-
-  const resetGotoData = () =>
-    setGotoData({ path: undefined, channelId: undefined, postInfo: undefined });
+  const [notifToProcess, setNotifToProcess] =
+    useState<WerNotificationData | null>(null);
 
   // Start notifications prompt
   useEffect(() => {
@@ -130,29 +122,22 @@ export default function useNotificationListener({
           // https://linear.app/tlon/issue/TLON-2551/multiple-notifications-that-lead-to-nowhere-crash-app
           // We're seeing cases where `data` is null here - not sure why this is happening.
           // Log the notification and don't try to navigate.
-          if (isTlonEmployee) {
-            posthog.trackError({
-              message: 'Failed to get notification payload',
-              properties: response.notification.request,
-            });
-          }
+          posthog.trackError({
+            message: 'Failed to get notification payload',
+            properties: isTlonEmployee
+              ? response.notification.request
+              : undefined,
+          });
           return;
         }
 
         const { actionIdentifier, userText } = response;
-        const postInfo = api.getPostInfoFromWer(data.wer);
-        const isDm = api.getIsDmFromWer(data.wer);
         if (actionIdentifier === 'markAsRead' && data.channelId) {
           markChatRead(data.channelId);
         } else if (actionIdentifier === 'reply' && userText) {
           // TODO: this is unhandled, when is actionIdentifier = reply?
         } else if (data.channelId) {
-          setGotoData({
-            path: data.wer,
-            isDm,
-            postInfo,
-            channelId: data.channelId,
-          });
+          setNotifToProcess(data);
         }
       }
     );
@@ -165,7 +150,8 @@ export default function useNotificationListener({
 
   // If notification tapped, push channel on stack
   useEffect(() => {
-    if (channelId) {
+    if (notifToProcess && notifToProcess.channelId) {
+      const { channelId, postInfo } = notifToProcess;
       const goToChannel = async () => {
         const channel = await db.getChannelWithRelations({ id: channelId });
         if (!channel) {
@@ -206,7 +192,7 @@ export default function useNotificationListener({
             routes: routeStack,
           })
         );
-        resetGotoData();
+        setNotifToProcess(null);
         return true;
       };
 
@@ -232,20 +218,13 @@ export default function useNotificationListener({
             }
             crashlytics().recordError(
               new Error(
-                `Notification listener: failed to navigate to ${isDm ? 'DM ' : ''}channel ${postInfo?.id ? ' thread' : ''}`
+                `Notification listener: failed to navigate to ${postInfo?.isDm ? 'DM ' : ''}channel ${postInfo?.id ? ' thread' : ''}`
               )
             );
-            resetGotoData();
+            setNotifToProcess(null);
           }
         }
       })();
     }
-  }, [
-    channelId,
-    postInfo,
-    navigation,
-    isDm,
-    isTlonEmployee,
-    channelSwitcherEnabled,
-  ]);
+  }, [notifToProcess, navigation, isTlonEmployee, channelSwitcherEnabled]);
 }

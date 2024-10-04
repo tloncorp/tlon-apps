@@ -107,6 +107,7 @@ const Scroller = forwardRef(
       hasNewerPosts,
       activeMessage,
       setActiveMessage,
+      headerMode,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -133,7 +134,7 @@ const Scroller = forwardRef(
       activeMessage: db.Post | null;
       setActiveMessage: (post: db.Post | null) => void;
       ref?: RefObject<{ scrollToIndex: (params: { index: number }) => void }>;
-
+      headerMode: 'default' | 'next';
       // Unused
       hasOlderPosts?: boolean;
     },
@@ -295,12 +296,15 @@ const Scroller = forwardRef(
         : channelType === 'gallery'
           ? {
               paddingHorizontal: '$l',
+              paddingTop: headerMode === 'next' ? insets.top + 54 : 0,
               paddingBottom: insets.bottom,
               gap: '$l',
             }
           : channelType === 'notebook'
             ? {
                 paddingHorizontal: '$m',
+                paddingTop: headerMode === 'next' ? insets.top + 54 : 0,
+                paddingBottom: insets.bottom,
                 gap: '$l',
               }
             : {
@@ -437,7 +441,10 @@ const Scroller = forwardRef(
                 setEditingPost?.(activeMessage);
                 setActiveMessage(null);
               }}
-              onViewReactions={setViewReactionsPost}
+              onViewReactions={(post) => {
+                setViewReactionsPost(post);
+                setActiveMessage(null);
+              }}
             />
           )}
         </Modal>

@@ -10,6 +10,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { StyleProp, ViewStyle } from 'react-native';
 import Swipeable, {
   SwipeableMethods,
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -54,7 +55,7 @@ function BaseInteractableChatRow({
     }
   }, [isMuted, mutedState]);
 
-  const handleAction = useCallback(
+  const handleAction = logic.useMutableCallback(
     async (actionId: 'pin' | 'mute') => {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       utils.triggerHaptic('swipeAction');
@@ -69,8 +70,7 @@ function BaseInteractableChatRow({
           break;
       }
       swipeableRef.current?.close();
-    },
-    [model, isMuted]
+    }
   );
 
   const renderRightActions = useCallback(
@@ -149,26 +149,28 @@ function BaseRightActions({
   const handlePin = useBoundHandler('pin', handleAction);
   const handleMute = useBoundHandler('mute', handleAction);
 
-  const containerStyle = useAnimatedStyle(
+  const containerWidthStyle = useAnimatedStyle(
     () => ({
       width: Math.abs(drag.value),
-      flexDirection: 'row',
-      overflow: 'hidden',
     }),
     [drag]
   );
 
+  const containerStyle: StyleProp<ViewStyle> = useMemo(() => {
+    return [
+      containerWidthStyle,
+      {
+        flexDirection: 'row',
+        overflow: 'hidden',
+        borderBottomRightRadius: getTokenValue('$m', 'radius'),
+        borderTopRightRadius: getTokenValue('$m', 'radius'),
+      },
+    ] as const;
+  }, [containerWidthStyle]);
+
   return (
     <View width={160} justifyContent="flex-end" flexDirection="row">
-      <Animated.View
-        style={[
-          containerStyle,
-          {
-            borderBottomRightRadius: getTokenValue('$m', 'radius'),
-            borderTopRightRadius: getTokenValue('$m', 'radius'),
-          },
-        ]}
-      >
+      <Animated.View style={containerStyle}>
         <Action
           backgroundColor="$blueSoft"
           color="$darkBackground"

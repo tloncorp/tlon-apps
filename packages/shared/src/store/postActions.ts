@@ -6,7 +6,7 @@ import { createDevLogger } from '../debug';
 import * as urbit from '../urbit';
 import * as sync from './sync';
 
-const logger = createDevLogger('postActions', true);
+const logger = createDevLogger('postActions', false);
 
 export async function sendPost({
   channel,

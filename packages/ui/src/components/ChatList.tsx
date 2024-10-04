@@ -1,34 +1,26 @@
+import { ContentStyle, FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
-import {
+import React, {
   useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
-import React from 'react';
-import {
-  LayoutChangeEvent,
-  SectionList,
-  SectionListData,
-  SectionListRenderItemInfo,
-  StyleProp,
-  ViewStyle,
-} from 'react-native';
+import { LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import { Text, View, YStack, useStyle } from 'tamagui';
+import { Text, View, YStack, getTokenValue, useStyle } from 'tamagui';
 
 import { interactionWithTiming } from '../utils/animation';
-import { Icon } from './Icon';
-import { Input } from './Input';
+import { TextInputWithIconAndButton } from './Form';
 import { ChatListItem, InteractableChatListItem } from './ListItem';
 import Pressable from './Pressable';
 import { SectionListHeader } from './SectionList';
@@ -38,13 +30,10 @@ export type Chat = db.Channel | db.Group;
 
 export type TabName = 'all' | 'groups' | 'messages';
 
-type ChatListItemData = Chat;
-type ChatListSectionData = SectionListData<
-  Chat,
-  { title: string; data: ChatListItemData[] }
->;
+type SectionHeaderData = { type: 'sectionHeader'; title: string };
+type ChatListItemData = Chat | SectionHeaderData;
 
-function ChatListComponent({
+export const ChatList = React.memo(function ChatListComponent({
   pinned,
   unpinned,
   pendingChats,
@@ -53,7 +42,10 @@ function ChatListComponent({
   onPressMenuButton,
   activeTab,
   setActiveTab,
-  showFilters,
+  showSearchInput,
+  searchQuery,
+  onSearchQueryChange,
+  onSearchToggle,
 }: store.CurrentChats & {
   pendingChats: store.PendingChats;
   onPressItem?: (chat: Chat) => void;
@@ -62,9 +54,11 @@ function ChatListComponent({
   onSectionChange?: (title: string) => void;
   activeTab: TabName;
   setActiveTab: (tab: TabName) => void;
-  showFilters: boolean;
+  showSearchInput: boolean;
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
+  onSearchToggle: () => void;
 }) {
-  const [searchQuery, setSearchQuery] = useState('');
   const displayData = useFilteredChats({
     pinned,
     unpinned,
@@ -73,25 +67,37 @@ function ChatListComponent({
     activeTab,
   });
 
+  const listItems: ChatListItemData[] = useMemo(
+    () =>
+      displayData.flatMap((section) => {
+        return [
+          { title: section.title, type: 'sectionHeader' },
+          ...section.data,
+        ];
+      }),
+    [displayData]
+  );
+
   const contentContainerStyle = useStyle(
     {
-      gap: '$s',
-      paddingHorizontal: '$l',
+      padding: '$l',
       paddingBottom: 100, // bottom nav height + some cushion
     },
     { resolveValues: 'value' }
-  ) as StyleProp<ViewStyle>;
+  ) as ContentStyle;
 
-  const renderItem = useCallback(
-    ({
-      item,
-    }: SectionListRenderItemInfo<ChatListItemData, ChatListSectionData>) => {
-      const itemModel = item as Chat;
-
-      if (logic.isChannel(itemModel)) {
+  const renderItem: ListRenderItem<ChatListItemData> = useCallback(
+    ({ item }) => {
+      if (isSectionHeader(item)) {
+        return (
+          <SectionListHeader>
+            <SectionListHeader.Text>{item.title}</SectionListHeader.Text>
+          </SectionListHeader>
+        );
+      } else if (logic.isChannel(item)) {
         return (
           <InteractableChatListItem
-            model={itemModel}
+            model={item}
             onPress={onPressItem}
             onLongPress={onLongPressItem}
             onPressMenuButton={onPressMenuButton}
@@ -100,7 +106,7 @@ function ChatListComponent({
       } else {
         return (
           <ChatListItem
-            model={itemModel}
+            model={item}
             onPress={onPressItem}
             onLongPress={onLongPressItem}
           />
@@ -110,33 +116,27 @@ function ChatListComponent({
     [onPressItem, onLongPressItem, onPressMenuButton]
   );
 
-  const renderSectionHeader = useCallback(
-    ({ section }: { section: ChatListSectionData }) => {
-      return (
-        <SectionListHeader>
-          <SectionListHeader.Text>{section.title}</SectionListHeader.Text>
-        </SectionListHeader>
-      );
-    },
-    []
-  );
-
   const handlePressTryAll = useCallback(() => {
     setActiveTab('all');
   }, [setActiveTab]);
 
   const handlePressClear = useCallback(() => {
-    setSearchQuery('');
-  }, []);
+    onSearchQueryChange('');
+  }, [onSearchQueryChange]);
+
+  const handlePressClose = useCallback(() => {
+    onSearchToggle();
+  }, [onSearchToggle]);
 
   return (
     <>
-      <ChatListFilters
+      <ChatListTabs onPressTab={setActiveTab} activeTab={activeTab} />
+      <ChatListSearch
         query={searchQuery}
-        onQueryChange={setSearchQuery}
-        activeTab={activeTab}
-        onPressTab={setActiveTab}
-        isOpen={showFilters}
+        onQueryChange={onSearchQueryChange}
+        isOpen={showSearchInput}
+        onPressClear={handlePressClear}
+        onPressClose={handlePressClose}
       />
       {searchQuery !== '' && !displayData[0]?.data.length ? (
         <SearchResultsEmpty
@@ -145,34 +145,44 @@ function ChatListComponent({
           onPressTryAll={handlePressTryAll}
         />
       ) : (
-        <SectionList
-          sections={displayData}
+        <FlashList
+          data={listItems}
           contentContainerStyle={contentContainerStyle}
           keyExtractor={getChatKey}
-          stickySectionHeadersEnabled={false}
           renderItem={renderItem}
-          maxToRenderPerBatch={6}
-          initialNumToRender={11}
-          windowSize={2}
-          viewabilityConfig={{
-            minimumViewTime: 0,
-            itemVisiblePercentThreshold: 0,
-            waitForInteraction: false,
-          }}
-          renderSectionHeader={renderSectionHeader}
+          getItemType={getItemType}
+          estimatedItemSize={getTokenValue('$6xl', 'size')}
         />
       )}
     </>
   );
+});
+
+function getItemType(item: ChatListItemData) {
+  return isSectionHeader(item)
+    ? 'sectionHeader'
+    : logic.isGroup(item)
+      ? 'group'
+      : logic.isChannel(item)
+        ? item.type === 'dm' ||
+          item.type === 'groupDm' ||
+          item.pin?.type === 'channel'
+          ? 'channel'
+          : 'groupAdapter'
+        : 'default';
 }
 
-export const ChatList = React.memo(ChatListComponent);
+function isSectionHeader(data: ChatListItemData): data is SectionHeaderData {
+  return 'type' in data && data.type === 'sectionHeader';
+}
 
-function getChatKey(item: unknown) {
-  const chatItem = item as Chat;
-
-  if (!chatItem || typeof chatItem !== 'object' || !chatItem.id) {
+function getChatKey(chatItem: ChatListItemData) {
+  if (!chatItem || typeof chatItem !== 'object') {
     return 'invalid-item';
+  }
+
+  if (isSectionHeader(chatItem)) {
+    return chatItem.title;
   }
 
   if (logic.isGroup(chatItem)) {
@@ -181,18 +191,40 @@ function getChatKey(item: unknown) {
   return `${chatItem.id}-${chatItem.pin?.itemId ?? ''}`;
 }
 
-function ChatListFiltersComponent({
+function ChatListTabs({
   activeTab,
   onPressTab,
+}: {
+  activeTab: TabName;
+  onPressTab: (tab: TabName) => void;
+}) {
+  return (
+    <Tabs>
+      <Tabs.Tab name="all" activeTab={activeTab} onTabPress={onPressTab}>
+        <Tabs.Title active={activeTab === 'all'}>All</Tabs.Title>
+      </Tabs.Tab>
+      <Tabs.Tab name="groups" activeTab={activeTab} onTabPress={onPressTab}>
+        <Tabs.Title active={activeTab === 'groups'}>Groups</Tabs.Title>
+      </Tabs.Tab>
+      <Tabs.Tab name="messages" activeTab={activeTab} onTabPress={onPressTab}>
+        <Tabs.Title active={activeTab === 'messages'}>Messages</Tabs.Title>
+      </Tabs.Tab>
+    </Tabs>
+  );
+}
+
+const ChatListSearch = React.memo(function ChatListSearchComponent({
   isOpen,
   query,
   onQueryChange,
+  onPressClear,
+  onPressClose,
 }: {
   query: string;
   onQueryChange: (query: string) => void;
   isOpen: boolean;
-  activeTab: TabName;
-  onPressTab: (tab: TabName) => void;
+  onPressClear: () => void;
+  onPressClose: () => void;
 }) {
   const [contentHeight, setContentHeight] = useState(0);
 
@@ -236,42 +268,23 @@ function ChatListFiltersComponent({
         left={0}
         right={0}
       >
-        <View paddingHorizontal="$l">
-          <Input>
-            <Input.Icon>
-              <Icon type="Search" />
-            </Input.Icon>
-            <Input.Area
-              value={query}
-              onChangeText={onQueryChange}
-              placeholder="Find by name"
-              spellCheck={false}
-              autoCorrect={false}
-              autoCapitalize="none"
-            />
-          </Input>
+        <View paddingHorizontal="$l" paddingTop="$xl">
+          <TextInputWithIconAndButton
+            icon="Search"
+            placeholder="Find by name"
+            value={query}
+            onChangeText={onQueryChange}
+            spellCheck={false}
+            autoCorrect={false}
+            autoCapitalize="none"
+            buttonText={query !== '' ? 'Clear' : 'Close'}
+            onButtonPress={query !== '' ? onPressClear : onPressClose}
+          />
         </View>
-        <Tabs>
-          <Tabs.Tab name="all" activeTab={activeTab} onTabPress={onPressTab}>
-            <Tabs.Title active={activeTab === 'all'}>All</Tabs.Title>
-          </Tabs.Tab>
-          <Tabs.Tab name="groups" activeTab={activeTab} onTabPress={onPressTab}>
-            <Tabs.Title active={activeTab === 'groups'}>Groups</Tabs.Title>
-          </Tabs.Tab>
-          <Tabs.Tab
-            name="messages"
-            activeTab={activeTab}
-            onTabPress={onPressTab}
-          >
-            <Tabs.Title active={activeTab === 'messages'}>Messages</Tabs.Title>
-          </Tabs.Tab>
-        </Tabs>
       </YStack>
     </Animated.View>
   );
-}
-
-const ChatListFilters = React.memo(ChatListFiltersComponent);
+});
 
 function useFilteredChats({
   pinned,
@@ -308,7 +321,12 @@ function useFilteredChats({
         ? [pinnedSection, allSection]
         : [allSection];
     } else {
-      return [{ title: 'Search', data: filterChats(searchResults, activeTab) }];
+      return [
+        {
+          title: 'Search results',
+          data: filterChats(searchResults, activeTab),
+        },
+      ];
     }
   }, [activeTab, pending, searchQuery, searchResults, unpinned, pinned]);
 }

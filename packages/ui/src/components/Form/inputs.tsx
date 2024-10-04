@@ -1,5 +1,5 @@
 import React, { ComponentProps, ReactElement } from 'react';
-import { TextInput as BaseTextInput } from 'react-native';
+import { TextInput as RNTextInput } from 'react-native';
 import { ScrollView, View, XStack, YStack, styled } from 'tamagui';
 
 import { Button } from '../Button';
@@ -9,40 +9,148 @@ import { useBoundHandler } from '../ListItem/listItemUtils';
 import { Text } from '../TextV2';
 import { FieldContext } from './Form';
 
+const StyledTextInput = styled(
+  RNTextInput,
+  {},
+  {
+    isInput: true,
+    accept: {
+      placeholderTextColor: 'color',
+      selectionColor: 'color',
+    } as const,
+  }
+);
+
 // Text input
 
-export const TextInput = React.memo(
-  styled(
-    BaseTextInput,
-    {
-      context: FieldContext,
-      color: '$primaryText',
-      borderRadius: '$l',
-      borderWidth: 1,
-      borderColor: '$border',
-      placeholderTextColor: '$tertiaryText',
-      fontSize: '$l',
-      padding: '$xl',
-      fontFamily: '$body',
-      textAlignVertical: 'top',
-      variants: {
-        accent: {
-          negative: {
-            backgroundColor: '$negativeBackground',
-            color: '$negativeActionText',
-            borderColor: '$negativeBorder',
-          },
-        },
+export const BaseTextInput = styled(StyledTextInput, {
+  context: FieldContext,
+  color: '$primaryText',
+  borderRadius: '$l',
+  borderWidth: 1,
+  borderColor: '$border',
+  placeholderTextColor: '$tertiaryText',
+  fontSize: '$l',
+  padding: '$xl',
+  fontFamily: '$body',
+  textAlignVertical: 'top',
+  variants: {
+    accent: {
+      negative: {
+        backgroundColor: '$negativeBackground',
+        color: '$negativeActionText',
+        borderColor: '$negativeBorder',
       },
     },
-    {
-      isInput: true,
-      accept: {
-        placeholderTextColor: 'color',
-        selectionColor: 'color',
-      } as const,
-    }
-  )
+  },
+});
+
+export const TextInput = React.memo(BaseTextInput);
+
+export const TextInputWithIcon = React.memo(
+  BaseTextInput.styleable<{ icon: IconType }>(({ icon, ...props }, ref) => {
+    return (
+      <XStack
+        borderRadius="$l"
+        borderWidth={1}
+        borderColor="$border"
+        alignItems="center"
+        paddingLeft="$xl"
+        gap="$l"
+      >
+        <Icon type={icon} customSize={['$2xl', '$2xl']} />
+        <BaseTextInput
+          paddingLeft={0}
+          borderWidth={0}
+          borderRadius={0}
+          flex={1}
+          ref={ref}
+          {...props}
+        />
+      </XStack>
+    );
+  })
+);
+
+interface TextInputWithButtonProps extends ComponentProps<typeof TextInput> {
+  buttonText: string;
+  onButtonPress: () => void;
+}
+
+// Needs polish, I know we just talked about Ochre conformance plz forgive
+export const TextInputWithButton: React.FC<TextInputWithButtonProps> =
+  React.memo(function TextInputWithButtonRaw({
+    buttonText,
+    onButtonPress,
+    ...textInputProps
+  }) {
+    return (
+      <XStack
+        borderWidth={1}
+        borderColor="$border"
+        borderRadius="$l"
+        padding="$l"
+      >
+        <TextInput
+          padding={0}
+          flex={1}
+          borderWidth={0}
+          textAlignVertical="unset"
+          {...textInputProps}
+        />
+        <Button
+          onPress={onButtonPress}
+          backgroundColor="$secondaryBackground"
+          padding="$l"
+        >
+          <Button.Text>{buttonText}</Button.Text>
+        </Button>
+      </XStack>
+    );
+  });
+
+interface TextInputWithIconAndButtonProps
+  extends ComponentProps<typeof TextInput> {
+  icon: IconType;
+  buttonText: string;
+  onButtonPress: () => void;
+}
+
+export const TextInputWithIconAndButton = React.memo(
+  function TextInputWithIconAndButtonRaw({
+    icon,
+    buttonText,
+    onButtonPress,
+    ...textInputProps
+  }: TextInputWithIconAndButtonProps) {
+    return (
+      <XStack
+        borderWidth={1}
+        borderColor="$border"
+        borderRadius="$l"
+        paddingHorizontal="$xl"
+        alignItems="center"
+        gap="$l"
+      >
+        <Icon type={icon} customSize={['$2xl', '$2xl']} />
+        <TextInput
+          paddingLeft={0}
+          borderWidth={0}
+          borderRadius={0}
+          flex={1}
+          {...textInputProps}
+        />
+        <Button
+          padding="$l"
+          onPress={onButtonPress}
+          backgroundColor="$secondaryBackground"
+          marginRight="$-m"
+        >
+          <Button.Text size="$label/m">{buttonText}</Button.Text>
+        </Button>
+      </XStack>
+    );
+  }
 );
 
 // Toggle group

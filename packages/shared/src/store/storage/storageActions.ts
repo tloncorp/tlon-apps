@@ -17,7 +17,7 @@ import {
   hasHostingUploadCreds,
 } from './storageUtils';
 
-const logger = createDevLogger('storageActions', true);
+const logger = createDevLogger('storageActions', false);
 
 export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
   logger.crumb(
@@ -104,22 +104,35 @@ const performUpload = async (asset: ImagePickerAsset, isWeb = false) => {
       credentials,
       forcePathStyle: true,
     });
+
+    const headers = {
+      'Content-Type': asset.mimeType ?? 'application/octet-stream',
+      'Cache-Control': 'public, max-age=3600',
+      'x-amz-acl': 'public-read', // necessary for digital ocean spaces
+    };
+
     const command = new PutObjectCommand({
       Bucket: config.currentBucket,
       Key: fileKey,
-      ContentType: asset.mimeType ?? 'application/octet-stream',
-      CacheControl: 'public, max-age=3600',
-      ACL: 'public-read',
+      ContentType: headers['Content-Type'],
+      CacheControl: headers['Cache-Control'],
+      ACL: headers['x-amz-acl'],
     });
-    const signedUrl = await getSignedUrl(client, command);
+
+    const signedUrl = await getSignedUrl(client, command, {
+      expiresIn: 3600,
+      signableHeaders: new Set(Object.keys(headers)),
+    });
+
+    logger.log('Signed URL:', signedUrl);
+    logger.log('Headers to be sent:', headers);
+
+    const isDigitalOcean = signedUrl.includes('digitaloceanspaces.com');
+
     await uploadFile(
       signedUrl,
       resizedAsset.uri,
-      {
-        'Content-Type': asset.mimeType ?? 'application/octet-stream',
-        'Cache-Control': 'public, max-age=3600',
-        'x-amz-acl': 'public-read', // necessary for digital ocean spaces
-      },
+      isDigitalOcean ? headers : undefined,
       isWeb
     );
     return config.publicUrlBase
@@ -138,6 +151,7 @@ async function uploadFile(
   isWeb = false
 ) {
   logger.log('uploading', assetUri, 'to', presignedUrl, 'isWeb', isWeb);
+
   if (isWeb) {
     let body: Blob | string = assetUri;
 

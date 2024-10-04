@@ -17,6 +17,7 @@ import {
   ChannelSwitcherSheet,
   ChatOptionsProvider,
   INITIAL_POSTS_PER_PAGE,
+  InviteUsersSheet,
   useCurrentUserId,
 } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
@@ -34,48 +35,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 export default function ChannelScreen(props: Props) {
   const channelFromParams = props.route.params.channel;
   const selectedPostId = props.route.params.selectedPostId;
-
-  const currentUserId = useCurrentUserId();
-  useFocusEffect(
-    useCallback(() => {
-      if (channelFromParams.group?.isNew) {
-        store.markGroupVisited(channelFromParams.group);
-      }
-
-      if (!channelFromParams.isPendingChannel) {
-        store.syncChannelThreadUnreads(channelFromParams.id, {
-          priority: store.SyncPriority.High,
-        });
-      }
-    }, [channelFromParams])
-  );
-  useFocusEffect(
-    useCallback(
-      () =>
-        // Mark the channel as visited when we unfocus/leave this screen
-        () => {
-          store.markChannelVisited(channelFromParams);
-        },
-      [channelFromParams]
-    )
-  );
-
-  const [channelNavOpen, setChannelNavOpen] = React.useState(false);
   const [currentChannelId, setCurrentChannelId] = React.useState(
     channelFromParams.id
   );
-
-  // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
-  // time
-  const [initialChannelUnread, setInitialChannelUnread] =
-    React.useState<db.ChannelUnread | null>(null);
-  useEffect(() => {
-    async function initializeChannelUnread() {
-      const unread = await db.getChannelUnread({ channelId: currentChannelId });
-      setInitialChannelUnread(unread ?? null);
-    }
-    initializeChannelUnread();
-  }, [currentChannelId]);
 
   const {
     negotiationStatus,
@@ -93,6 +55,47 @@ export default function ChannelScreen(props: Props) {
     draftKey: currentChannelId,
     uploaderKey: `${currentChannelId}`,
   });
+
+  const currentUserId = useCurrentUserId();
+  useFocusEffect(
+    useCallback(() => {
+      if (group?.isNew) {
+        store.markGroupVisited(group);
+      }
+
+      if (!channelFromParams.isPendingChannel) {
+        store.syncChannelThreadUnreads(channelFromParams.id, {
+          priority: store.SyncPriority.High,
+        });
+      }
+    }, [channelFromParams, group])
+  );
+  useFocusEffect(
+    useCallback(
+      () =>
+        // Mark the channel as visited when we unfocus/leave this screen
+        () => {
+          store.markChannelVisited(channelFromParams);
+        },
+      [channelFromParams]
+    )
+  );
+
+  const [channelNavOpen, setChannelNavOpen] = React.useState(false);
+  const [inviteSheetGroup, setInviteSheetGroup] =
+    React.useState<db.Group | null>();
+
+  // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
+  // time
+  const [initialChannelUnread, setInitialChannelUnread] =
+    React.useState<db.ChannelUnread | null>(null);
+  useEffect(() => {
+    async function initializeChannelUnread() {
+      const unread = await db.getChannelUnread({ channelId: currentChannelId });
+      setInitialChannelUnread(unread ?? null);
+    }
+    initializeChannelUnread();
+  }, [currentChannelId]);
 
   const { navigateToImage, navigateToPost, navigateToRef, navigateToSearch } =
     useChannelNavigation({ channelId: currentChannelId });
@@ -282,6 +285,12 @@ export default function ChannelScreen(props: Props) {
     [props.navigation]
   );
 
+  const handleInviteSheetOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setInviteSheetGroup(null);
+    }
+  }, []);
+
   if (!channel) {
     return null;
   }
@@ -291,6 +300,9 @@ export default function ChannelScreen(props: Props) {
       groupId={channelFromParams?.id}
       pinned={pinnedItems}
       useGroup={store.useGroup}
+      onPressInvite={(group) => {
+        setInviteSheetGroup(group);
+      }}
       {...chatOptionsNavProps}
     >
       <Channel
@@ -333,13 +345,21 @@ export default function ChannelScreen(props: Props) {
         canUpload={canUpload}
       />
       {group && (
-        <ChannelSwitcherSheet
-          open={channelNavOpen}
-          onOpenChange={(open) => setChannelNavOpen(open)}
-          group={group}
-          channels={group?.channels || []}
-          onSelect={handleChannelSelected}
-        />
+        <>
+          <ChannelSwitcherSheet
+            open={channelNavOpen}
+            onOpenChange={(open) => setChannelNavOpen(open)}
+            group={group}
+            channels={group?.channels || []}
+            onSelect={handleChannelSelected}
+          />
+          <InviteUsersSheet
+            open={inviteSheetGroup !== null}
+            onOpenChange={handleInviteSheetOpenChange}
+            onInviteComplete={() => setInviteSheetGroup(null)}
+            group={inviteSheetGroup ?? undefined}
+          />
+        </>
       )}
     </ChatOptionsProvider>
   );

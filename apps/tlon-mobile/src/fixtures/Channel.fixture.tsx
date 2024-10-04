@@ -22,6 +22,7 @@ import {
   createFakePosts,
   group,
   initialContacts,
+  tlonLocalBulletinBoard,
   tlonLocalGettingStarted,
   tlonLocalIntros,
 } from './fakeData';
@@ -142,6 +143,24 @@ export const ChannelFixture = (props: {
   );
 };
 
+export const GalleryChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
+  const switcher = useChannelSwitcher(tlonLocalBulletinBoard);
+
+  const [posts] = useState(() => createFakePosts(10, 'block'));
+
+  return (
+    <ChannelFixtureWrapper theme={props.theme}>
+      <Channel
+        {...baseProps}
+        posts={posts}
+        channel={switcher.activeChannel}
+        goToChannels={() => switcher.open()}
+      />
+      <SwitcherFixture switcher={switcher} />
+    </ChannelFixtureWrapper>
+  );
+};
+
 export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
   const switcher = useChannelSwitcher(tlonLocalGettingStarted);
 
@@ -157,7 +176,6 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
     </ChannelFixtureWrapper>
   );
 };
-
 const ChannelFixtureWithImage = () => {
   const switcher = useChannelSwitcher(tlonLocalIntros);
   const [imageAttachment, setImageAttachment] = useState<string | null>(null);
@@ -493,6 +511,7 @@ export default {
       })}
     />
   ),
+  gallery: <GalleryChannelFixture />,
   notebook: <NotebookChannelFixture />,
   chatWithImage: <ChannelFixtureWithImage />,
   negotiationMismatch: <ChannelFixture negotiationMatch={false} />,

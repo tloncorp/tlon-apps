@@ -1,45 +1,48 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View } from 'tamagui';
+import { ScrollView, View, YStack } from 'tamagui';
 
+import { useCurrentUserId } from '../contexts';
 import { useChatOptions } from '../contexts/chatOptions';
-import { SimpleActionSheet } from './ActionSheet';
-import { Button } from './Button';
+import { useIsAdmin } from '../utils/channelUtils';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
-import { GenericHeader } from './GenericHeader';
-import { Icon } from './Icon';
-
-const ChannelSortOptions = ({
-  setShowSortOptions,
-}: {
-  setShowSortOptions: (show: boolean) => void;
-}) => {
-  return (
-    <Button borderWidth={0} onPress={() => setShowSortOptions(true)}>
-      <Icon type="Filter" />
-    </Button>
-  );
-};
+import { LoadingSpinner } from './LoadingSpinner';
+import {
+  ChannelTypeName,
+  CreateChannelSheet,
+} from './ManageChannels/CreateChannelSheet';
+import { ScreenHeader } from './ScreenHeader';
 
 type GroupChannelsScreenViewProps = {
   onChannelPressed: (channel: db.Channel) => void;
   onBackPressed: () => void;
   currentUser: string;
+  createChannel: ({
+    title,
+    description,
+    channelType,
+  }: {
+    title: string;
+    description: string;
+    channelType: ChannelTypeName;
+  }) => Promise<void>;
 };
 
 export function GroupChannelsScreenView({
   onChannelPressed,
   onBackPressed,
+  createChannel,
 }: GroupChannelsScreenViewProps) {
   const groupOptions = useChatOptions();
   const group = groupOptions?.group;
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
-
-  const [showSortOptions, setShowSortOptions] = useState(false);
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
   const insets = useSafeAreaInsets();
+  const userId = useCurrentUserId();
+  const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
 
   useEffect(() => {
     const getSortByPreference = async () => {
@@ -50,89 +53,87 @@ export function GroupChannelsScreenView({
     getSortByPreference();
   }, [setSortBy]);
 
-  const handleSortByChanged = useCallback(
-    (newSortBy: 'recency' | 'arranged') => {
-      setSortBy(newSortBy);
-      setShowSortOptions(false);
-      db.storeChannelSortPreference(newSortBy);
-    },
-    []
-  );
-
   const handlePressOverflowButton = useCallback(() => {
     if (group) {
       chatOptionsSheetRef.current?.open(group.id, 'group');
     }
   }, [group]);
 
+  const title = group ? group?.title ?? 'Untitled' : '';
+
+  const handleOpenChannelOptions = useCallback(
+    (channel: db.Channel) => {
+      if (group) {
+        chatOptionsSheetRef.current?.open(channel.id, channel.type);
+      }
+    },
+    [group]
+  );
+
   return (
     <View flex={1}>
-      <GenericHeader
-        title={group ? group?.title ?? 'Untitled' : ''}
-        goBack={onBackPressed}
-        rightContent={
-          <View flexDirection="row" gap="$s">
-            <ChannelSortOptions setShowSortOptions={setShowSortOptions} />
-            <Button borderWidth={0} onPress={handlePressOverflowButton}>
-              <Icon type="Overflow" />
-            </Button>
-          </View>
+      <ScreenHeader
+        // When we're fetching the group from the local database, this component
+        // will initially mount with group undefined, then very quickly load the
+        // group in. Keeping the key consistent as long as the ID is prevents a
+        // full re-render / animation triggering almost immediately after the
+        // component mounts.
+        key={group?.id}
+        title={title}
+        backAction={onBackPressed}
+        rightControls={
+          <>
+            {isGroupAdmin && (
+              <ScreenHeader.IconButton
+                type="Add"
+                onPress={() => setShowCreateChannel(true)}
+              />
+            )}
+            <ScreenHeader.IconButton
+              type="Overflow"
+              onPress={handlePressOverflowButton}
+            />
+          </>
         }
       />
-      <ScrollView
-        contentContainerStyle={{
-          gap: '$s',
-          paddingTop: '$l',
-          paddingHorizontal: '$l',
-          paddingBottom: insets.bottom,
-        }}
-      >
-        {group && groupOptions.groupChannels ? (
+      {group &&
+      groupOptions.groupChannels &&
+      groupOptions.groupChannels.length ? (
+        <ScrollView
+          contentContainerStyle={{
+            gap: '$s',
+            paddingTop: '$l',
+            paddingHorizontal: '$l',
+            paddingBottom: insets.bottom,
+          }}
+        >
           <ChannelNavSections
             group={group}
             channels={groupOptions.groupChannels}
             onSelect={onChannelPressed}
-            sortBy={sortBy}
+            sortBy={sortBy || 'recency'}
+            onLongPress={handleOpenChannelOptions}
           />
-        ) : null}
-      </ScrollView>
-      <ChannelSortActionsSheet
-        open={showSortOptions}
-        onOpenChange={setShowSortOptions}
-        onSelectSort={handleSortByChanged}
-      />
-      <ChatOptionsSheet ref={chatOptionsSheetRef} />
-    </View>
-  );
-}
+        </ScrollView>
+      ) : (
+        <YStack flex={1} justifyContent="center" alignItems="center">
+          <LoadingSpinner />
+        </YStack>
+      )}
 
-export function ChannelSortActionsSheet({
-  open,
-  onOpenChange,
-  onSelectSort,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSelectSort: (sortBy: db.ChannelSortPreference) => void;
-}) {
-  return (
-    <SimpleActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      actions={[
-        {
-          title: 'Sort by recency',
-          action: () => {
-            onSelectSort('recency');
-          },
-        },
-        {
-          title: 'Sort by arrangement',
-          action: () => {
-            onSelectSort('arranged');
-          },
-        },
-      ]}
-    />
+      {showCreateChannel && (
+        <CreateChannelSheet
+          onOpenChange={(open) => setShowCreateChannel(open)}
+          createChannel={async ({ title, description, channelType }) =>
+            createChannel({
+              title,
+              description,
+              channelType,
+            })
+          }
+        />
+      )}
+      <ChatOptionsSheet ref={chatOptionsSheetRef} setSortBy={setSortBy} />
+    </View>
   );
 }

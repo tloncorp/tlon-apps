@@ -114,7 +114,9 @@ export function configureClient({
   subWatchers = {};
 }
 
-export function removeUrbitClient() {
+export async function removeUrbitClient() {
+  clientInstance?.reset();
+  await clientInstance?.delete();
   clientInstance = null;
 }
 

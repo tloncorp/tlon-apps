@@ -29,6 +29,7 @@ export interface DetailViewProps {
   onPressDelete: (post: db.Post) => void;
   setActiveMessage: (post: db.Post | null) => void;
   activeMessage: db.Post | null;
+  headerMode: 'default' | 'next';
 }
 
 export const DetailView = ({
@@ -43,6 +44,7 @@ export const DetailView = ({
   onPressDelete,
   setActiveMessage,
   activeMessage,
+  headerMode,
 }: DetailViewProps) => {
   const channelType = useMemo(
     () => urbit.getChannelType(post.channelId),
@@ -79,6 +81,7 @@ export const DetailView = ({
           unreadCount={initialPostUnread?.count ?? 0}
           activeMessage={activeMessage}
           setActiveMessage={setActiveMessage}
+          headerMode={headerMode}
         />
       </View>
     );
@@ -95,6 +98,7 @@ export const DetailView = ({
     resolvedPosts,
     setActiveMessage,
     setEditingPost,
+    headerMode,
   ]);
 
   return isChat ? (

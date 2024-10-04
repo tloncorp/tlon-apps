@@ -1,17 +1,16 @@
+import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   AddGroupSheet,
-  Button,
   ChatList,
   ChatOptionsProvider,
   ChatOptionsSheet,
   ChatOptionsSheetMethods,
-  FloatingActionButton,
   GroupPreviewSheet,
-  Icon,
   InviteUsersSheet,
   NavBarView,
   RequestsProvider,
@@ -24,21 +23,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useIsFocused } from '@react-navigation/native';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
+const logger = createDevLogger('ChatListScreen', false);
 
-const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
-  return (
-    <Button borderWidth={0} onPress={onPress}>
-      <Icon type="Filter" size="$m" />
-    </Button>
-  );
-};
+type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
 
 export default function ChatListScreen(props: Props) {
   const {
@@ -75,7 +67,7 @@ export default function ChatListScreen(props: Props) {
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(
     previewGroup ?? null
   );
-  const [showFilters, setShowFilters] = useState(false);
+  const [showSearchInput, setShowSearchInput] = useState(false);
   const isFocused = useIsFocused();
   const { data: pins } = store.usePins({
     enabled: isFocused,
@@ -104,6 +96,39 @@ export default function ChatListScreen(props: Props) {
 
     return null;
   }, [connStatus, chats]);
+
+  /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
+  const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
+  const connectionAttempts = useRef(0);
+
+  useEffect(() => {
+    const checkConnection = () => {
+      if (connStatus === 'Connected') {
+        if (connectionTimeout.current) {
+          clearTimeout(connectionTimeout.current);
+        }
+        connectionAttempts.current = 0;
+      } else {
+        connectionAttempts.current += 1;
+        if (connectionAttempts.current >= 10) {
+          logger.error('Connection not established within 10 seconds');
+          if (connectionTimeout.current) {
+            clearTimeout(connectionTimeout.current);
+          }
+        } else {
+          connectionTimeout.current = setTimeout(checkConnection, 1000);
+        }
+      }
+    };
+
+    checkConnection();
+
+    return () => {
+      if (connectionTimeout.current) {
+        clearTimeout(connectionTimeout.current);
+      }
+    };
+  }, [connStatus]);
 
   const resolvedChats = useMemo(() => {
     return {
@@ -232,11 +257,14 @@ export default function ChatListScreen(props: Props) {
     }
   }, []);
 
-  const headerControls = useMemo(() => {
-    return (
-      <ShowFiltersButton onPress={() => setShowFilters((prev) => !prev)} />
-    );
-  }, []);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearchInputToggled = useCallback(() => {
+    if (showSearchInput) {
+      setSearchQuery('');
+    }
+    setShowSearchInput(!showSearchInput);
+  }, [showSearchInput]);
 
   return (
     <RequestsProvider
@@ -258,7 +286,18 @@ export default function ChatListScreen(props: Props) {
         <View flex={1}>
           <ScreenHeader
             title={notReadyMessage ?? screenTitle}
-            rightControls={headerControls}
+            rightControls={
+              <>
+                <ScreenHeader.IconButton
+                  type="Search"
+                  onPress={handleSearchInputToggled}
+                />
+                <ScreenHeader.IconButton
+                  type="Add"
+                  onPress={() => setAddGroupOpen(true)}
+                />
+              </>
+            }
           />
           {chats && chats.unpinned.length ? (
             <ChatList
@@ -271,24 +310,13 @@ export default function ChatListScreen(props: Props) {
               onPressItem={onPressChat}
               onPressMenuButton={onLongPressChat}
               onSectionChange={handleSectionChange}
-              showFilters={showFilters}
+              showSearchInput={showSearchInput}
+              onSearchToggle={handleSearchInputToggled}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
             />
           ) : null}
-          <View
-            zIndex={50}
-            position="absolute"
-            bottom="$s"
-            alignItems="center"
-            width={'100%'}
-            pointerEvents="box-none"
-          >
-            <FloatingActionButton
-              onPress={() => {
-                setAddGroupOpen(true);
-              }}
-              icon={<Icon type="Add" size="$m" />}
-            />
-          </View>
+
           <WelcomeSheet
             open={splashVisible}
             onOpenChange={handleWelcomeOpenChange}
