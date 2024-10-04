@@ -9,12 +9,10 @@ import {
   getMetadaFromInviteLink,
 } from '@tloncorp/shared/dist';
 import {
-  AppInviteDisplay,
   Field,
-  PrimaryButton,
   ScreenHeader,
-  SizableText,
   TextInputWithButton,
+  TextV2,
   View,
   YStack,
 } from '@tloncorp/ui';
@@ -26,13 +24,16 @@ import type { OnboardingStackParamList } from '../../types';
 
 const INVITE_LINK_REGEX = createInviteLinkRegex(BRANCH_DOMAIN);
 
-type Props = NativeStackScreenProps<OnboardingStackParamList, 'InviteLink'>;
+type Props = NativeStackScreenProps<
+  OnboardingStackParamList,
+  'PasteInviteLink'
+>;
 
 type FormData = {
   inviteLink: string;
 };
 
-export const InviteLinkScreen = ({ navigation }: Props) => {
+export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   const lureMeta = useLureMetadata();
   const { setLure } = useBranch();
   const [hasInvite, setHasInvite] = useState<boolean>(Boolean(lureMeta));
@@ -60,6 +61,7 @@ export const InviteLinkScreen = ({ navigation }: Props) => {
         );
         if (inviteLinkMeta) {
           setLure(inviteLinkMeta as DeepLinkData);
+          navigation.navigate('SignUpEmail');
           return;
         }
       }
@@ -83,72 +85,63 @@ export const InviteLinkScreen = ({ navigation }: Props) => {
   }, [setValue]);
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
-        title="Have an invite?"
+        title={hasInvite ? 'Accept invite' : 'Claim invite'}
         showSessionStatus={false}
         backAction={() => navigation.goBack()}
+        rightControls={
+          <ScreenHeader.TextButton
+            disabled={!hasInvite}
+            onPress={() => navigation.navigate('SignUpEmail')}
+          >
+            Next
+          </ScreenHeader.TextButton>
+        }
       />
       <YStack
-        padding="$2xl"
-        gap="$2xl"
+        paddingHorizontal="$2xl"
+        gap="$m"
         onPress={() => Keyboard.dismiss()}
         flex={1}
       >
-        {!hasInvite ? (
-          <>
-            <View paddingHorizontal="$m" gap="$xl">
-              <SizableText color="$primaryText">
-                We&apos;re growing slowly. Invites let you skip the waitlist
-                because we know someone wants to talk to you here.
-              </SizableText>
-              <SizableText color="$primaryText">
-                Click your invite link now or paste it below.
-              </SizableText>
-            </View>
-            <Controller
-              control={control}
-              name="inviteLink"
-              rules={{
-                pattern: {
-                  value: INVITE_LINK_REGEX,
-                  message: 'Invite link not recognized.',
-                },
-              }}
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Field label="Invite Link" error={errors.inviteLink?.message}>
-                  <TextInputWithButton
-                    placeholder="join.tlon.io/0v4.pca0n.evapv..."
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    value={value}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    buttonText="Paste"
-                    onButtonPress={onHandlePasteClick}
-                  />
-                </Field>
-              )}
-            />
-
-            <PrimaryButton
-              onPress={() => navigation.navigate('JoinWaitList', {})}
+        <View padding="$xl" gap="$xl">
+          <TextV2.Text size="$body" color="$primaryText">
+            We&apos;re growing slowly. {'\n\n'}Invites let you skip the waitlist
+            because we know someone wants to talk to you here.
+            {'\n\n'}
+            Click your invite link now or paste it below.
+          </TextV2.Text>
+        </View>
+        <Controller
+          control={control}
+          name="inviteLink"
+          rules={{
+            pattern: {
+              value: INVITE_LINK_REGEX,
+              message: 'Invite link not recognized.',
+            },
+          }}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <Field
+              label="Invite Link"
+              error={errors.inviteLink?.message}
+              paddingTop="$l"
             >
-              I don&apos;t have an invite
-            </PrimaryButton>
-          </>
-        ) : (
-          <>
-            <SizableText marginLeft="$m" color="$positiveActionText">
-              Invite found!
-            </SizableText>
-            <AppInviteDisplay metadata={lureMeta!} />
-            <PrimaryButton onPress={() => navigation.navigate('SignUpEmail')}>
-              Sign up
-            </PrimaryButton>
-          </>
-        )}
+              <TextInputWithButton
+                placeholder="join.tlon.io/0v4.pca0n.evapv..."
+                onBlur={onBlur}
+                onChangeText={onChange}
+                value={value}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                buttonText="Paste"
+                onButtonPress={onHandlePasteClick}
+              />
+            </Field>
+          )}
+        />
       </YStack>
     </View>
   );

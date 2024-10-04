@@ -4,10 +4,12 @@ import { requestNotificationToken } from '@tloncorp/app/lib/notifications';
 import { trackError } from '@tloncorp/app/utils/posthog';
 import {
   Field,
+  Image,
   ScreenHeader,
-  SizableText,
   TextInput,
+  TextV2,
   View,
+  XStack,
   YStack,
 } from '@tloncorp/ui';
 import { useEffect } from 'react';
@@ -31,7 +33,7 @@ export const SetNicknameScreen = ({
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
     setValue,
   } = useForm<FormData>({
     defaultValues: {
@@ -82,29 +84,44 @@ export const SetNicknameScreen = ({
   }, [setValue]);
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor={'$secondaryBackground'}>
       <ScreenHeader
         title="Nickname"
         showSessionStatus={false}
         rightControls={
-          <ScreenHeader.TextButton onPress={onSubmit}>
+          <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
             Next
           </ScreenHeader.TextButton>
         }
       />
-      <YStack gap="$xl" padding="$2xl">
-        <SizableText color="$primaryText">
+      <YStack gap="$xl" paddingHorizontal="$2xl">
+        <XStack justifyContent="center" paddingTop="$l">
+          <Image
+            height={155}
+            aspectRatio={862 / 609}
+            source={require('../../../assets/images/faces.png')}
+          />
+        </XStack>
+
+        <TextV2.Text size="$body" padding="$xl">
           Choose the nickname you want to use on the Tlon network. By default,
           you will use a pseudonymous identifier.
-        </SizableText>
+        </TextV2.Text>
         <Controller
           control={control}
           name="nickname"
+          rules={{
+            required: 'Please enter a nickname.',
+            minLength: {
+              value: 1,
+              message: 'Please enter a nickname.',
+            },
+          }}
           render={({ field: { onChange, onBlur, value } }) => (
             <Field label="Nickname" error={errors.nickname?.message}>
               <TextInput
                 value={value}
-                placeholder="Choose a display name"
+                placeholder="Sampel Palnet"
                 onBlur={onBlur}
                 onChangeText={onChange}
                 onSubmitEditing={onSubmit}
