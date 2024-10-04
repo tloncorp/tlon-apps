@@ -31,16 +31,16 @@ interface LayoutStruct {
 export function ChatMessageActions({
   post,
   postRef,
+  postActionIds,
   onDismiss,
   width,
   height,
   onReply,
   onEdit,
   onViewReactions,
-  postActions,
 }: {
   post: db.Post;
-  postActions: ChannelAction[];
+  postActionIds: ChannelAction.Id[];
   postRef: RefObject<RNView>;
   onDismiss: () => void;
   width?: DimensionValue;
@@ -151,7 +151,7 @@ export function ChatMessageActions({
           <MessageContainer post={post} />
           <MessageActions
             post={post}
-            postActions={postActions}
+            postActionIds={postActionIds}
             dismiss={onDismiss}
             onReply={onReply}
             onEdit={onEdit}

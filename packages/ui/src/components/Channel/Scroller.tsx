@@ -387,11 +387,6 @@ const Scroller = forwardRef(
       };
     }, [insets.bottom]);
 
-    const postActions = useListPostActions({
-      activeMessage,
-      collectionConfig,
-    });
-
     return (
       <View flex={1}>
         {/* {unreadCount && !hasPressedGoToBottom ? (
@@ -448,7 +443,7 @@ const Scroller = forwardRef(
           {activeMessage !== null && (
             <ChatMessageActions
               post={activeMessage}
-              postActions={postActions}
+              postActionIds={collectionConfig.postActionIds}
               postRef={activeMessageRefs.current[activeMessage!.id]}
               onDismiss={() => setActiveMessage(null)}
               onReply={onPressReplies}
@@ -856,43 +851,4 @@ function useAnchorScrollLock({
       ]
     ),
   };
-}
-
-function useListPostActions({
-  activeMessage: post,
-  collectionConfig,
-}: {
-  collectionConfig: PostCollectionConfiguration;
-  activeMessage?: db.Post | null;
-}): ChannelAction[] {
-  const currentUserId = useCurrentUserId();
-  const getPostActions = collectionConfig.postActions;
-  return useMemo(() => {
-    if (post == null) {
-      return [];
-    }
-
-    return getPostActions({
-      post,
-      isMuted: logic.isMuted(post.volumeSettings?.level, 'thread'),
-    }).filter((action) => {
-      switch (action.id) {
-        case 'startThread':
-          // only show start thread if
-          // 1. the message is delivered
-          // 2. the message isn't a reply
-          // 3. an existing thread for that message doesn't already exist
-          return (
-            !post.deliveryStatus && !post.parentId && post.replyCount === 0
-          );
-        case 'edit':
-          // only show edit for current user's posts
-          return post.authorId === currentUserId;
-        case 'viewReactions':
-          return (post.reactions?.length ?? 0) > 0;
-        default:
-          return true;
-      }
-    });
-  }, [post, getPostActions, currentUserId]);
 }

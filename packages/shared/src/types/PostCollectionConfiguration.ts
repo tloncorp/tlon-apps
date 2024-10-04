@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { ViewStyle as TamaguiViewStyle } from 'tamagui';
 
 import * as db from '../db';
-import { ChannelAction, getPostActions } from './ChannelActions';
+import * as ChannelAction from './ChannelActions';
 
 export interface PostCollectionConfiguration {
   shouldMaintainVisibleContentPosition: boolean;
@@ -16,13 +16,6 @@ export interface PostCollectionConfiguration {
    * landscape, 0.5 for portrait. If null, defers to item sizing. */
   itemAspectRatio: number | null;
 
-  // TODO: this might make more sense as either a property of a post, or of the
-  // channel's config (separate from collection config)
-  postActions: (options: {
-    post: db.Post;
-    isMuted?: boolean;
-  }) => ChannelAction[];
-
   /**
    * If true, in the absence of a given title, the channel will be titled in UI
    * with a comma-separated list of member names.
@@ -33,6 +26,8 @@ export interface PostCollectionConfiguration {
    * If true, entering channel scrolls to the viewer's first unread post.
    */
   enableUnreadAnchor: boolean;
+
+  postActionIds: ChannelAction.Id[];
 }
 
 // Why overload this function instead of just doing a union?
@@ -47,10 +42,8 @@ export function usePostCollectionConfigurationFromChannel(
 export function usePostCollectionConfigurationFromChannel(
   channel: db.Channel | null
 ): PostCollectionConfiguration | null {
-  const channelType = channel?.type;
-
   return useMemo(() => {
-    switch (channelType) {
+    switch (channel?.type) {
       case null:
       // fallthrough
       case undefined:
@@ -68,8 +61,8 @@ export function usePostCollectionConfigurationFromChannel(
           columnCount: 1,
           dividersEnabled: true,
           itemAspectRatio: null,
-          postActions: (options) => getPostActions({ ...options, channelType }),
-          usesMemberListAsFallbackTitle: channelType !== 'chat',
+          postActionIds: ChannelAction.channelActionIdsFor({ channel }),
+          usesMemberListAsFallbackTitle: channel.type !== 'chat',
           enableUnreadAnchor: true,
         };
 
@@ -83,7 +76,7 @@ export function usePostCollectionConfigurationFromChannel(
           columnCount: 1,
           dividersEnabled: false,
           itemAspectRatio: null,
-          postActions: (options) => getPostActions({ ...options, channelType }),
+          postActionIds: ChannelAction.channelActionIdsFor({ channel }),
           usesMemberListAsFallbackTitle: false,
           enableUnreadAnchor: false,
         };
@@ -102,10 +95,10 @@ export function usePostCollectionConfigurationFromChannel(
           columnCount: 2,
           dividersEnabled: false,
           itemAspectRatio: 1,
-          postActions: (options) => getPostActions({ ...options, channelType }),
+          postActionIds: ChannelAction.channelActionIdsFor({ channel }),
           usesMemberListAsFallbackTitle: false,
           enableUnreadAnchor: false,
         };
     }
-  }, [channelType]);
+  }, [channel]);
 }

@@ -1,3 +1,4 @@
+export * as ChannelAction from './types/ChannelActions';
 export type { GroupMeta } from './types/groups';
 export type {
   NativeWebViewOptions,
@@ -8,7 +9,6 @@ export type {
   WebAppAction,
   WebAppCommand,
 } from './types/native';
-export { getPostActions, ChannelAction } from './types/ChannelActions';
 export {
   PostCollectionConfiguration,
   usePostCollectionConfigurationFromChannel,

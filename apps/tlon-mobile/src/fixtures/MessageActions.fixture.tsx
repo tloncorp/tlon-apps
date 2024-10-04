@@ -1,6 +1,6 @@
-import { getPostActions } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { ChatMessageActions, Modal, ZStack } from '@tloncorp/ui';
+import { ChannelAction } from 'packages/shared/dist';
 import { createRef, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
@@ -23,8 +23,10 @@ function MessageActions() {
     }
   }, []);
 
-  const [postActions] = useState(() =>
-    getPostActions({ post, channelType: currentChannel?.type ?? 'chat' })
+  const [postActionIds] = useState(() =>
+    currentChannel == null
+      ? []
+      : ChannelAction.channelActionIdsFor({ channel: currentChannel })
   );
 
   if (currentChannel) {
@@ -32,7 +34,7 @@ function MessageActions() {
       <Modal visible={true} onDismiss={() => null}>
         <ChatMessageActions
           post={post}
-          postActions={postActions}
+          postActionIds={postActionIds}
           postRef={refStub}
           onDismiss={() => null}
         />

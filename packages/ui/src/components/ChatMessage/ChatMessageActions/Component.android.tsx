@@ -13,14 +13,14 @@ import { MessageContainer } from './MessageContainer';
 
 export function ChatMessageActions({
   post,
-  postActions,
+  postActionIds,
   onDismiss,
   onReply,
   onEdit,
   onViewReactions,
 }: {
   post: db.Post;
-  postActions: ChannelAction[];
+  postActionIds: ChannelAction.Id[];
   postRef: RefObject<RNView>;
   onDismiss: () => void;
   onReply?: (post: db.Post) => void;
@@ -70,7 +70,7 @@ export function ChatMessageActions({
           <MessageContainer post={post} />
           <MessageActions
             post={post}
-            postActions={postActions}
+            postActionIds={postActionIds}
             dismiss={onDismiss}
             onReply={onReply}
             onEdit={onEdit}
