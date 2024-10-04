@@ -3,7 +3,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack } from 'tamagui';
 
+import { useCurrentUserId } from '../contexts';
 import { useChatOptions } from '../contexts/chatOptions';
+import { useIsAdmin } from '../utils/channelUtils';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
 import { LoadingSpinner } from './LoadingSpinner';
@@ -39,6 +41,8 @@ export function GroupChannelsScreenView({
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
   const insets = useSafeAreaInsets();
+  const userId = useCurrentUserId();
+  const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
 
   useEffect(() => {
     const getSortByPreference = async () => {
@@ -79,10 +83,12 @@ export function GroupChannelsScreenView({
         backAction={onBackPressed}
         rightControls={
           <>
-            <ScreenHeader.IconButton
-              type="Add"
-              onPress={() => setShowCreateChannel(true)}
-            />
+            {isGroupAdmin && (
+              <ScreenHeader.IconButton
+                type="Add"
+                onPress={() => setShowCreateChannel(true)}
+              />
+            )}
             <ScreenHeader.IconButton
               type="Overflow"
               onPress={handlePressOverflowButton}
