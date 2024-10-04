@@ -163,7 +163,18 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     const newerPosts = newPosts.filter(
       (p) => !newestQueryPostId || p.id > newestQueryPostId
     );
-    return newestQueryPostId ? [...newerPosts, ...queryPosts] : newPosts;
+    // Deduping is necessary because the query data may not have been updated
+    // at this point and we may have already added the post.
+    // This is most likely to happen in bad network conditions or when the
+    // ship is under heavy load.
+    // This seems to be caused by an async issue where clearMatchedPendingPosts
+    // is called before the new post is added to the query data.
+    // TODO: Figure out why this is happening.
+    const dedupedQueryPosts =
+      queryPosts?.filter(
+        (p) => !newerPosts.some((newer) => newer.sentAt === p.sentAt)
+      ) ?? [];
+    return newestQueryPostId ? [...newerPosts, ...dedupedQueryPosts] : newPosts;
   }, [query.data, query.hasPreviousPage, newPosts]);
 
   const posts = useOptimizedQueryResults(rawPosts);
