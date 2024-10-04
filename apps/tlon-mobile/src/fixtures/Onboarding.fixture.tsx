@@ -6,9 +6,10 @@ import {
 import { DeepLinkData } from 'packages/shared/dist';
 import { PropsWithChildren, useState } from 'react';
 
-import { OnboardingStack } from '../OnboardingStack';
+import { OnboardingStack, OnboardingStackNavigator } from '../OnboardingStack';
 import { OnboardingProvider } from '../lib/OnboardingContext';
 import { SetNicknameScreen } from '../screens/Onboarding/SetNicknameScreen';
+import { SignUpPasswordScreen } from '../screens/Onboarding/SignUpPasswordScreen';
 import { User } from '../types';
 import { exampleContacts } from './contentHelpers';
 import { group } from './fakeData';
@@ -107,13 +108,28 @@ export default {
     </OnboardingFixture>
   ),
   Nickname: (
-    <OnboardingFixture hasGroupInvite={false}>
-      <SetNicknameScreen
-        // @ts-expect-error partial implementation
-        navigation={{ addListener: () => {} }}
-        // @ts-expect-error partial implementation
-        route={{ params: {} }}
-      />
+    <OnboardingFixture hasGroupInvite={true}>
+      <OnboardingStackNavigator.Navigator
+        screenOptions={{ headerShown: false }}
+      >
+        <OnboardingStackNavigator.Screen
+          name="SetNickname"
+          component={SetNicknameScreen}
+        />
+      </OnboardingStackNavigator.Navigator>
+    </OnboardingFixture>
+  ),
+  Password: (
+    <OnboardingFixture hasGroupInvite={true}>
+      <OnboardingStackNavigator.Navigator
+        screenOptions={{ headerShown: false }}
+      >
+        <OnboardingStackNavigator.Screen
+          name="SignUpPassword"
+          initialParams={{ email: 'dan@oda.co' }}
+          component={SignUpPasswordScreen}
+        />
+      </OnboardingStackNavigator.Navigator>
     </OnboardingFixture>
   ),
 };

@@ -53,7 +53,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
               <YStack
                 alignItems="stretch"
                 gap="$2xl"
-                padding="$3.5xl"
+                padding="$3xl"
                 borderRadius="$2xl"
                 backgroundColor="$shadow"
                 borderColor="$shadow"

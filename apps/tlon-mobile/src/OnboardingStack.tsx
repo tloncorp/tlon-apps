@@ -18,7 +18,7 @@ import { TlonLoginScreen } from './screens/Onboarding/TlonLoginScreen';
 import { WelcomeScreen } from './screens/Onboarding/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
 
-const OnboardingStackNavigator =
+export const OnboardingStackNavigator =
   createNativeStackNavigator<OnboardingStackParamList>();
 
 export function OnboardingStack() {
