@@ -54,6 +54,7 @@ export const DetailViewFixture = ({
             markRead={() => {}}
             canUpload={true}
             handleGoToUserProfile={() => {}}
+            headerMode="default"
           />
         </RequestsProvider>
       </AppDataContextProvider>
