@@ -226,6 +226,7 @@ export function Channel({
       setShouldBlur: setInputShouldBlur,
       shouldBlur: inputShouldBlur,
       storeDraft,
+      headerMode: headerMode ?? 'default',
     }),
     [
       channel,
@@ -238,6 +239,7 @@ export function Channel({
       messageSender,
       setEditingPost,
       storeDraft,
+      headerMode,
     ]
   );
 

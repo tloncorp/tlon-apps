@@ -39,6 +39,7 @@ export function GalleryInput({
     setShouldBlur,
     shouldBlur,
     storeDraft,
+    headerMode,
   } = draftInputContext;
   const safeAreaInsets = useSafeAreaInsets();
 
@@ -97,20 +98,23 @@ export function GalleryInput({
         hidden={!showBigInput}
       />
 
-      {!showBigInput && !showAddGalleryPost && !isUploadingGalleryImage && (
-        <View
-          position="absolute"
-          bottom={safeAreaInsets.bottom}
-          flex={1}
-          width="100%"
-          alignItems="center"
-        >
-          <FloatingActionButton
-            onPress={() => setShowAddGalleryPost(true)}
-            icon={<Icon type="Add" size={'$s'} marginRight={'$s'} />}
-          />
-        </View>
-      )}
+      {headerMode === 'next' &&
+        !showBigInput &&
+        !showAddGalleryPost &&
+        !isUploadingGalleryImage && (
+          <View
+            position="absolute"
+            bottom={safeAreaInsets.bottom}
+            flex={1}
+            width="100%"
+            alignItems="center"
+          >
+            <FloatingActionButton
+              onPress={() => setShowAddGalleryPost(true)}
+              icon={<Icon type="Add" size={'$s'} marginRight={'$s'} />}
+            />
+          </View>
+        )}
 
       {isShowingImagePreview && (
         <YStack
