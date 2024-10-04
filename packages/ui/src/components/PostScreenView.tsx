@@ -67,7 +67,7 @@ export function PostScreenView({
   onPressRetry: (post: db.Post) => void;
   onPressDelete: (post: db.Post) => void;
   negotiationMatch: boolean;
-  headerMode?: 'default' | 'next';
+  headerMode: 'default' | 'next';
   canUpload: boolean;
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
@@ -128,6 +128,7 @@ export function PostScreenView({
                   goBack={goBack}
                   activeMessage={activeMessage}
                   setActiveMessage={setActiveMessage}
+                  headerMode={headerMode}
                 />
               ) : null}
 
