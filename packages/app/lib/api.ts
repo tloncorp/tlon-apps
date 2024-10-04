@@ -1,5 +1,5 @@
 import * as api from '@tloncorp/shared/dist/api';
-import { ChannelStatus } from '@urbit/http-api';
+import { ClientParams } from 'packages/shared/src/api';
 //@ts-expect-error no typedefs
 import { fetch as streamingFetch } from 'react-native-fetch-api';
 //@ts-expect-error no typedefs
@@ -47,28 +47,9 @@ export const cancelFetch = () => {
   abortController = new AbortController();
 };
 
-export function configureClient({
-  shipName,
-  shipUrl,
-  onReset,
-  onChannelReset,
-  onChannelStatusChange,
-  verbose,
-}: {
-  shipName: string;
-  shipUrl: string;
-  onReset?: () => void;
-  onChannelReset?: () => void;
-  onChannelStatusChange?: (status: ChannelStatus) => void;
-  verbose?: boolean;
-}) {
+export function configureClient(params: Omit<ClientParams, 'fetchFn'>) {
   api.configureClient({
-    shipName,
-    shipUrl,
+    ...params,
     fetchFn: apiFetch,
-    onReset,
-    onChannelReset,
-    onChannelStatusChange,
-    verbose,
   });
 }
