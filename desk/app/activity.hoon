@@ -1304,7 +1304,11 @@
       `mute:a
     $(entries t.entries)
   ::  set any overrides from previous volume settings
-  =.  cor  (adjust [%base ~] `(~(got by old-volumes:a) base.volume))
+  =.  cor
+    %+  adjust  [%base ~]
+    ::  use new default since we set all channels to old default
+    ?:  =(%soft base.volume)  default-volumes:a
+    `(~(got by old-volumes:a) base.volume)
   =.  cor
     =/  entries  ~(tap by chan.volume)
     |-
