@@ -302,16 +302,22 @@ const Scroller = forwardRef(
       !posts?.length ? { flex: 1 } : collectionConfig.contentContainerStyle
     ) as StyleProp<ViewStyle>;
 
-    // We want to add a safe area inset for gallery, but we can't cleanly
-    // access safe area insets in the PostCollectionConfiguration definition.
+    // We want to add a safe area inset for gallery/notebook, but we can't
+    // cleanly access safe area insets in the PostCollectionConfiguration
+    // definition.
     // Special-case it here.
-    const extracContentContainerStyle = useMemo(
-      () =>
-        !posts?.length || channel.type !== 'gallery'
-          ? undefined
-          : { paddingBottom: insets.bottom },
-      [channel.type, insets, posts?.length]
-    );
+    const extracContentContainerStyle = useMemo(() => {
+      if (!posts?.length) {
+        return undefined;
+      }
+      if (['notebook', 'gallery'].includes(channel.type)) {
+        return {
+          paddingBottom: insets.bottom,
+          paddingTop: headerMode === 'next' ? insets.top + 54 : 0,
+        };
+      }
+      return undefined;
+    }, [channel.type, insets, posts?.length, headerMode]);
 
     const columnWrapperStyle = useStyle(
       collectionConfig.columnCount === 1
