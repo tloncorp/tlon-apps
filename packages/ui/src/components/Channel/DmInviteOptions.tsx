@@ -1,6 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YStack } from 'tamagui';
 
 import { Button } from '../Button';
@@ -12,6 +13,8 @@ export function DmInviteOptions({
   channel: db.Channel;
   goBack: () => void;
 }) {
+  const { bottom } = useSafeAreaInsets();
+
   const accept = useCallback(() => {
     store.respondToDMInvite({ channel, accept: true });
   }, [channel]);
@@ -31,7 +34,12 @@ export function DmInviteOptions({
   }, [channel, goBack]);
 
   return (
-    <YStack marginHorizontal="$2xl" marginTop="$4xl" gap="$m">
+    <YStack
+      marginHorizontal="$2xl"
+      marginTop="$2xl"
+      gap="$m"
+      marginBottom={bottom}
+    >
       <Button hero onPress={accept}>
         <Button.Text>Accept</Button.Text>
       </Button>
