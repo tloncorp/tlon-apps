@@ -173,7 +173,22 @@ export const useLureState = create<LureState>((set, get) => ({
       const currentUserId = getCurrentUserId();
       const group = await db.getGroup({ id: flag });
       const user = await db.getContact({ id: currentUserId });
+      const name = group?.title || group?.id;
+      const title = name ? `Join ${name}` : undefined;
+      const description = group?.description ?? undefined;
+      const image = group?.coverImage ?? group?.iconImage ?? undefined;
       const metadata: DeepLinkMetadata = {
+        $og_title: title,
+        $og_description: description,
+        $og_image_url: image,
+        $twitter_title: title,
+        $twitter_description: description,
+        $twitter_image_url: image,
+        $twitter_card: group?.coverImage
+          ? 'summary_large_image'
+          : group?.iconImage
+            ? 'summary'
+            : undefined,
         inviterUserId: currentUserId,
         inviterNickname: user?.nickname ?? undefined,
         inviterAvatarImage: user?.avatarImage ?? undefined,

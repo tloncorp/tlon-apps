@@ -23,7 +23,24 @@ export const getDeepLink = async (alias: string) => {
 };
 
 export type DeepLinkType = 'lure' | 'wer';
-interface DeepLinkData {
+export interface DeepLinkMetadata {
+  $og_title?: string;
+  $og_description?: string;
+  $og_image_url?: string;
+  $twitter_title?: string;
+  $twitter_description?: string;
+  $twitter_image_url?: string;
+  $twitter_card?: string;
+  inviterUserId?: string;
+  inviterNickname?: string;
+  inviterAvatarImage?: string;
+  invitedGroupId?: string;
+  invitedGroupTitle?: string;
+  invitedGroupDescription?: string;
+  invitedGroupIconImageUrl?: string;
+  invitedGroupiconImageColor?: string;
+}
+export interface DeepLinkData extends DeepLinkMetadata {
   $desktop_url: string;
   $canonical_url: string;
   lure?: string;
@@ -40,7 +57,8 @@ export async function getDmLink(): Promise<string> {
 export const createDeepLink = async (
   fallbackUrl: string | undefined,
   type: DeepLinkType,
-  path: string
+  path: string,
+  metadata?: DeepLinkMetadata
 ) => {
   if (!fallbackUrl || !path) {
     return undefined;
@@ -64,6 +82,7 @@ export const createDeepLink = async (
   const token = parsedURL.pathname.split('/').pop();
   const alias = token || path.replace('~', '').replace('/', '-');
   const data: DeepLinkData = {
+    ...(metadata || {}),
     $desktop_url: fallbackUrl,
     $canonical_url: fallbackUrl,
   };
