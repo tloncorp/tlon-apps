@@ -16,7 +16,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 
@@ -36,7 +36,6 @@ type FormData = {
 export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   const lureMeta = useLureMetadata();
   const { setLure } = useBranch();
-  const [hasInvite, setHasInvite] = useState<boolean>(Boolean(lureMeta));
 
   const {
     control,
@@ -61,7 +60,6 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
         );
         if (inviteLinkMeta) {
           setLure(inviteLinkMeta as DeepLinkData);
-          navigation.navigate('SignUpEmail');
           return;
         }
       }
@@ -74,9 +72,12 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   // to signup
   useEffect(() => {
     if (lureMeta) {
-      setHasInvite(true);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Welcome' }, { name: 'SignUpEmail' }],
+      });
     }
-  }, [lureMeta]);
+  }, [lureMeta, navigation]);
 
   // handle paste button click
   const onHandlePasteClick = useCallback(async () => {
@@ -87,12 +88,12 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
-        title={hasInvite ? 'Accept invite' : 'Claim invite'}
+        title="Claim Invite"
         showSessionStatus={false}
         backAction={() => navigation.goBack()}
         rightControls={
           <ScreenHeader.TextButton
-            disabled={!hasInvite}
+            disabled={!lureMeta}
             onPress={() => navigation.navigate('SignUpEmail')}
           >
             Next
