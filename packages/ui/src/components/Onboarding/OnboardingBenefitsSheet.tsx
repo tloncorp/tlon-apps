@@ -23,7 +23,7 @@ export function OnboardingBenefitsSheet({
 
           <YStack gap="$l">
             <Text fontSize={32} fontWeight={'400'} size="$title/l">
-              Welcome to Tlon
+              Welcome to TM
             </Text>
             <Text size="$body" color="$tertiaryText">
               A messenger you can actually trust.
