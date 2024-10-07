@@ -239,11 +239,13 @@ export function buildPendingSingleDmChannel(
 
   return {
     id,
+    contactId: dmPartnerId,
     type: 'dm',
     currentUserIsMember: true,
     postCount: 0,
     unreadCount: 0,
     isPendingChannel: true,
+    isDmInvite: false,
     members: [partnerMember],
   };
 }
