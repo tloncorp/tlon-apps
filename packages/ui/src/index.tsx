@@ -59,6 +59,7 @@ export * from './components/MessageInput/AttachmentPreviewList';
 export * from './components/NavBarView';
 export * from './components/Modal';
 export * from './components/NavBar';
+export * from './components/Onboarding';
 export * from './components/ParentAgnosticKeyboardAvoidingView';
 export * from './components/PostScreenView';
 export * from './components/ProfileScreenView';
@@ -72,11 +73,13 @@ export * from './components/UrbitSigil';
 export * from './components/UserProfileScreenView';
 export * from './components/View';
 export * from './components/WelcomeSheet';
-export * from './components/AppInviteDisplay';
+export * from './components/Image';
+export * as Form from './components/Form';
 export * from './contexts';
 export * from './tamagui.config';
 export * from './types';
 export * from './utils';
+export * as TlonText from './components/TextV2';
 
 export {
   Circle,

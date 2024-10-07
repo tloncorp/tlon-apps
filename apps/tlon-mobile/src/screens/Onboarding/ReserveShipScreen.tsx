@@ -1,24 +1,14 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
-import {
-  allocateReservedShip,
-  getHostingUser,
-  getReservableShips,
-  getShipAccessCode,
-  getShipsWithStatus,
-  reserveShip as reserveShipApi,
-} from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { getShipFromCookie, getShipUrl } from '@tloncorp/app/utils/ship';
-import {
-  configureApi,
-  getLandscapeAuthCookie,
-} from '@tloncorp/shared/dist/api';
+import { configureApi } from '@tloncorp/shared/dist/api';
 import { Spinner, Text, View, YStack } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
+import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ReserveShip'>;
@@ -35,13 +25,15 @@ export const ReserveShipScreen = ({
   }>({
     state: 'loading',
   });
+  const { hostingApi, getLandscapeAuthCookie } = useOnboardingContext();
   const signupContext = useSignupContext();
   const { setShip } = useShip();
 
   const startShip = useCallback(
     async (shipIds: string[]) => {
       // Fetch statuses for the user's ships and start any required booting/resuming
-      const shipsWithStatus = await getShipsWithStatus(shipIds);
+      const shipsWithStatus = await hostingApi.getShipsWithStatus(shipIds);
+      console.log('shipsWithStatus', shipsWithStatus);
       if (!shipsWithStatus) {
         // you can only have gotten to this screen if a new hosting account was created and ship
         // was reserved. If we don't see the ship status, assume it's still booting
@@ -56,7 +48,7 @@ export const ReserveShipScreen = ({
         signupContext.telemetry === undefined
       ) {
         return navigation.navigate('SetNickname', {
-          user: await getHostingUser(user.id),
+          user: await hostingApi.getHostingUser(user.id),
         });
       }
 
@@ -66,7 +58,7 @@ export const ReserveShipScreen = ({
       }
 
       // If it's ready, fetch the access code and auth cookie
-      const { code: accessCode } = await getShipAccessCode(shipId);
+      const { code: accessCode } = await hostingApi.getShipAccessCode(shipId);
       const shipUrl = getShipUrl(shipId);
       const authCookie = await getLandscapeAuthCookie(shipUrl, accessCode);
       if (!authCookie) {
@@ -87,6 +79,8 @@ export const ReserveShipScreen = ({
       });
     },
     [
+      getLandscapeAuthCookie,
+      hostingApi,
       navigation,
       setShip,
       signupContext.nickname,
@@ -103,7 +97,7 @@ export const ReserveShipScreen = ({
       if (shipIds.length === 0) {
         try {
           // Get list of reservable ships and choose one that's ready for distribution
-          const ships = await getReservableShips(user.id);
+          const ships = await hostingApi.getReservableShips(user.id);
           const ship = ships.find(
             ({ id, readyForDistribution }) =>
               id !== skipShipId && readyForDistribution
@@ -117,13 +111,14 @@ export const ReserveShipScreen = ({
           }
 
           // Reserve this ship and check it was successful
-          const { reservedBy } = await reserveShipApi(user.id, ship.id);
+          const { reservedBy } = await hostingApi.reserveShip(user.id, ship.id);
+          console.log('reserved', user, reservedBy);
           if (reservedBy !== user.id) {
             return reserveShip(ship.id);
           }
 
           // Finish allocating this ship to the user
-          await allocateReservedShip(user.id);
+          await hostingApi.allocateReservedShip(user.id);
           shipIds.push(ship.id);
           trackOnboardingAction({
             actionName: 'Urbit ID Selected',
