@@ -1,5 +1,7 @@
-import { Button, View } from '@tloncorp/ui';
 import { ComponentProps, PropsWithChildren } from 'react';
+import { View } from 'tamagui';
+
+import { Button } from '../Button';
 
 export function OnboardingButton({
   secondary,
