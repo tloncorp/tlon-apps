@@ -6,7 +6,7 @@ import {
   DEFAULT_INVITE_LINK_URL,
 } from '@tloncorp/app/constants';
 import { useBranch, useLureMetadata } from '@tloncorp/app/contexts/branch';
-import { trackError } from '@tloncorp/app/utils/posthog';
+import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   DeepLinkData,
   createInviteLinkRegex,
@@ -98,6 +98,11 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   // to signup
   useEffect(() => {
     if (lureMeta) {
+      trackOnboardingAction({
+        actionName: 'Invite Link Added',
+        lure: lureMeta.id,
+      });
+
       navigation.reset({
         index: 0,
         routes: [{ name: 'Welcome' }, { name: 'SignUpEmail' }],
