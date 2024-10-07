@@ -2039,7 +2039,8 @@
       =/  =action:g  [flag now.bowl %cordon %shut %del-ships %ask ships]
       (poke-host /rescind act:mar:g !>(action))
     ++  get-preview
-      =/  =wire  (welp ga-area /preview)
+      |=  invite=?
+      =/  =wire  (welp ga-area ?:(invite /preview/invite /preview))
       =/  =dock  [p.flag dap.bowl]
       =/  =path  /groups/(scot %p p.flag)/[q.flag]/preview
       =/  watch  [%pass wire %agent dock %watch path]
@@ -2075,23 +2076,23 @@
   ++  ga-watch
     |=  =(pole knot)
     ^+  ga-core
-    =.  cor  get-preview:ga-pass
+    =.  cor  (get-preview:ga-pass |)
     ga-core
   ::
   ++  ga-give-update
     (give %fact ~[/gangs/updates] gangs+!>((~(put by xeno) flag gang)))
   ++  ga-agent
-    |=  [=wire =sign:agent:gall]
+    |=  [=(pole knot) =sign:agent:gall]
     ^+  ga-core
-    ?+    wire  ~|(bad-agent-take/wire !!)
+    ?+    pole  ~|(bad-agent-take/pole !!)
           [%invite ~]
         ?>  ?=(%poke-ack -.sign)
         :: ?~  p.sign  ga-core
         :: %-  (slog leaf/"Failed to invite {<ship>}" u.p.sign)
         ga-core
       ::
-          [%preview ~]
-        ?+  -.sign  ~|(weird-take/[wire -.sign] !!)
+          [%preview inv=?(~ [%invite ~])]
+        ?+  -.sign  ~|(weird-take/[pole -.sign] !!)
           %kick  ga-core  ::  kick for single response sub, just take it
           %watch-ack
           ?~  p.sign  ga-core :: TODO: report retreival failure
@@ -2111,19 +2112,10 @@
           ?:  from-self  ga-core
           ?~  pev.gang   ga-core
           ?~  vit.gang   ga-core
-          =/  link  /find
-          =/  =new-yarn:ha
-            %-  spin
-            :*  [`flag ~ q.byk.bowl /(scot %p p.flag)/[q.flag]/invite]
-                link
-                `['Join Group' link]
-                :~  [%ship src.bowl]
-                    ' sent you an invite to '
-                    [%emph title.meta.u.pev.gang]
-                ==
-            ==
-          =?  cor  !(~(has by groups) flag)
-            (emit (pass-hark new-yarn))
+          ::  only send invites if this came from ga-invite and we
+          ::  aren't already in the group somehow
+          ?~  inv.pole   ga-core
+          ?:  (~(has by groups) flag)  ga-core
           (ga-activity %group-invite src.bowl)
           ::
         ==
@@ -2176,6 +2168,9 @@
   ++  ga-invite
     |=  =invite:g
     ^+  ga-core
+    ::  prevent spamming invites
+    ?:  ?=(~ vit.gang)  ga-core
+    ?:  (~(has by groups) p.invite)  ga-core
     %-  (log |.("received invite: {<invite>}"))
     ?:  &(?=(^ cam.gang) ?=(%knocking progress.u.cam.gang))
       %-  (log |.("was knocking: {<gang>}"))
@@ -2183,7 +2178,7 @@
       ?>  =(p.flag src.bowl)
       (ga-start-join join-all.u.cam.gang)
     =.  vit.gang  `invite
-    =.  cor  get-preview:ga-pass
+    =.  cor  (get-preview:ga-pass &)
     =.  cor  ga-give-update
     ga-core
   ::
