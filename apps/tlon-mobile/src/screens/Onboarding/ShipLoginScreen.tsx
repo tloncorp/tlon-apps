@@ -18,7 +18,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { setEulaAgreed } from 'packages/app/utils/eula';
+import { setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
