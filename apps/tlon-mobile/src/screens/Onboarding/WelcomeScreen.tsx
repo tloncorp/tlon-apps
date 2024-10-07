@@ -1,10 +1,10 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import {
   ActionSheet,
   Button,
   Image,
+  OnboardingButton,
   OnboardingInviteBlock,
   SizableText,
   TlonText,
@@ -12,9 +12,8 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/ui';
-import { OnboardingButton } from '@tloncorp/ui';
 import { OnboardingBenefitsSheet } from '@tloncorp/ui/src/components/Onboarding/OnboardingBenefitsSheet';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -28,6 +27,10 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   const lureMeta = useLureMetadata();
   const { bottom, top } = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
+
+  const handlePressInvite = useCallback(() => {
+    navigation.navigate('SignUpEmail');
+  }, [navigation]);
 
   return (
     <View flex={1} backgroundColor={'$secondaryBackground'} paddingTop={top}>
@@ -55,13 +58,13 @@ export const WelcomeScreen = ({ navigation }: Props) => {
                 backgroundColor="$shadow"
                 borderColor="$shadow"
                 borderWidth={1}
+                pressStyle={{
+                  opacity: 0.5,
+                }}
+                onPress={handlePressInvite}
               >
                 <OnboardingInviteBlock metadata={lureMeta} />
-                <OnboardingButton
-                  onPress={() => {
-                    navigation.navigate('SignUpEmail');
-                  }}
-                >
+                <OnboardingButton onPress={handlePressInvite}>
                   <Button.Text>Join with new account</Button.Text>
                 </OnboardingButton>
               </YStack>
