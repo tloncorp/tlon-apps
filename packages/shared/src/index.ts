@@ -11,7 +11,11 @@ export type {
 } from './types/native';
 export {
   PostCollectionConfiguration,
-  usePostCollectionConfigurationFromChannel,
+  PostCollectionLayout,
+  PostCollectionLayoutType,
+  postCollectionConfigurationFromChannel,
+  postCollectionLayoutForType,
+  postCollectionLayoutTypeFromChannel,
 } from './types/PostCollectionConfiguration';
 export { parseActiveTab, trimFullPath } from './logic/navigation';
 export * from './logic';

@@ -1,4 +1,7 @@
-import { usePostCollectionConfigurationFromChannel } from '@tloncorp/shared';
+import {
+  postCollectionLayoutForType,
+  postCollectionLayoutTypeFromChannel,
+} from '@tloncorp/shared';
 import {
   isChatChannel as getIsChatChannel,
   useChannel as useChannelFromStore,
@@ -133,8 +136,11 @@ export function Channel({
   const currentUserId = useCurrentUserId();
   const canWrite = utils.useCanWrite(channel, currentUserId);
 
-  const postCollectionConfig =
-    usePostCollectionConfigurationFromChannel(channel);
+  const collectionLayout = useMemo(
+    () =>
+      postCollectionLayoutForType(postCollectionLayoutTypeFromChannel(channel)),
+    [channel]
+  );
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
   const renderItem = isChatChannel
@@ -174,7 +180,7 @@ export function Channel({
       return { type: 'selected', postId: selectedPostId };
     }
 
-    if (postCollectionConfig.enableUnreadAnchor) {
+    if (collectionLayout.enableUnreadAnchor) {
       if (
         initialChannelUnread?.countWithoutThreads &&
         initialChannelUnread.firstUnreadPostId
@@ -188,7 +194,7 @@ export function Channel({
 
     return null;
   }, [
-    postCollectionConfig.enableUnreadAnchor,
+    collectionLayout.enableUnreadAnchor,
     selectedPostId,
     initialChannelUnread,
   ]);
@@ -323,8 +329,8 @@ export function Channel({
                                     editPost={editPost}
                                     channel={channel}
                                     firstUnreadId={
-                                      initialChannelUnread?.countWithoutThreads ??
-                                      0 > 0
+                                      (initialChannelUnread?.countWithoutThreads ??
+                                      0 > 0)
                                         ? initialChannelUnread?.firstUnreadPostId
                                         : null
                                     }

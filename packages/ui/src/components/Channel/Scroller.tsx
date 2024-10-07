@@ -1,6 +1,8 @@
 import {
+  postCollectionConfigurationFromChannel,
+  postCollectionLayoutForType,
+  postCollectionLayoutTypeFromChannel,
   useMutableCallback,
-  usePostCollectionConfigurationFromChannel,
 } from '@tloncorp/shared';
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
@@ -140,7 +142,18 @@ const Scroller = forwardRef(
     },
     ref
   ) => {
-    const collectionConfig = usePostCollectionConfigurationFromChannel(channel);
+    const collectionLayoutType = useMemo(
+      () => postCollectionLayoutTypeFromChannel(channel),
+      [channel]
+    );
+    const collectionLayout = useMemo(
+      () => postCollectionLayoutForType(collectionLayoutType),
+      [collectionLayoutType]
+    );
+    const collectionConfig = useMemo(
+      () => postCollectionConfigurationFromChannel(channel),
+      [channel]
+    );
 
     const [isAtBottom, setIsAtBottom] = useState(true);
 
@@ -188,7 +201,7 @@ const Scroller = forwardRef(
       flatListRef,
       hasNewerPosts,
       shouldMaintainVisibleContentPosition:
-        collectionConfig.shouldMaintainVisibleContentPosition,
+        collectionLayout.shouldMaintainVisibleContentPosition,
     });
 
     const theme = useTheme();
@@ -261,8 +274,8 @@ const Scroller = forwardRef(
             onLongPressPost={handlePostLongPressed}
             activeMessage={activeMessage}
             messageRef={activeMessageRefs.current[post.id]}
-            dividersEnabled={collectionConfig.dividersEnabled}
-            itemAspectRatio={collectionConfig.itemAspectRatio ?? undefined}
+            dividersEnabled={collectionLayout.dividersEnabled}
+            itemAspectRatio={collectionLayout.itemAspectRatio ?? undefined}
             {...anchorScrollLockScrollerItemProps}
           />
         );
@@ -286,8 +299,8 @@ const Scroller = forwardRef(
         handlePostLongPressed,
         activeMessage,
         showDividers,
-        collectionConfig.dividersEnabled,
-        collectionConfig.itemAspectRatio,
+        collectionLayout.dividersEnabled,
+        collectionLayout.itemAspectRatio,
       ]
     );
 
@@ -299,7 +312,7 @@ const Scroller = forwardRef(
           return { flex: 1 };
         }
 
-        switch (collectionConfig.type) {
+        switch (collectionLayoutType) {
           case 'compact-list-bottom-to-top': {
             return {
               paddingHorizontal: '$m',
@@ -324,11 +337,11 @@ const Scroller = forwardRef(
             };
           }
         }
-      }, [insets, posts?.length, headerMode, collectionConfig.type])
+      }, [insets, posts?.length, headerMode, collectionLayoutType])
     ) as StyleProp<ViewStyle>;
 
     const columnWrapperStyle = useStyle(
-      collectionConfig.columnCount === 1
+      collectionLayout.columnCount === 1
         ? {}
         : {
             gap: '$l',
@@ -421,7 +434,7 @@ const Scroller = forwardRef(
             columnWrapperStyle={
               // FlatList raises an error if `columnWrapperStyle` is provided
               // with numColumns=1, even if the style is empty
-              collectionConfig.columnCount === 1
+              collectionLayout.columnCount === 1
                 ? undefined
                 : columnWrapperStyle
             }
@@ -435,7 +448,7 @@ const Scroller = forwardRef(
             initialNumToRender={INITIAL_POSTS_PER_PAGE}
             maxToRenderPerBatch={8}
             windowSize={8}
-            numColumns={collectionConfig.columnCount}
+            numColumns={collectionLayout.columnCount}
             style={style}
             onEndReached={handleEndReached}
             onEndReachedThreshold={1}
