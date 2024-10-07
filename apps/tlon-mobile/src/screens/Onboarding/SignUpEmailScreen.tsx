@@ -4,14 +4,12 @@ import {
   useLureMetadata,
   useSignupParams,
 } from '@tloncorp/app/contexts/branch';
-import { getHostingAvailability } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
-  AppInviteDisplay,
   Field,
   KeyboardAvoidingView,
+  OnboardingInviteBlock,
   ScreenHeader,
-  SizableText,
   TextInput,
   View,
   YStack,
@@ -19,6 +17,7 @@ import {
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
+import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignUpEmail'>;
@@ -29,6 +28,7 @@ type FormData = {
 
 export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { hostingApi } = useOnboardingContext();
 
   const signupParams = useSignupParams();
   const lureMeta = useLureMetadata();
@@ -45,7 +45,7 @@ export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
     setIsSubmitting(true);
 
     try {
-      const { enabled, validEmail } = await getHostingAvailability({
+      const { enabled, validEmail } = await hostingApi.getHostingAvailability({
         email,
         lure: signupParams.lureId,
         priorityToken: signupParams.priorityToken,
@@ -85,27 +85,21 @@ export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
   });
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
-        title="Sign Up"
+        title="Accept invite"
         showSessionStatus={false}
         backAction={() => navigation.goBack()}
         isLoading={isSubmitting}
         rightControls={
-          isValid && (
-            <ScreenHeader.TextButton onPress={onSubmit}>
-              Next
-            </ScreenHeader.TextButton>
-          )
+          <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
+            Next
+          </ScreenHeader.TextButton>
         }
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
-        <YStack gap="$2xl" padding="$2xl">
-          {lureMeta ? <AppInviteDisplay metadata={lureMeta} /> : null}
-          <SizableText>
-            Enter your email address. You&rsquo;ll use it to log in to Tlon and
-            we&rsquo;ll email you the occasional service update.
-          </SizableText>
+        <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">
+          {lureMeta ? <OnboardingInviteBlock metadata={lureMeta} /> : null}
           <Controller
             control={control}
             name="email"
@@ -117,13 +111,17 @@ export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
               },
             }}
             render={({ field: { onChange, onBlur, value } }) => (
-              <Field label="Email" error={errors.email?.message}>
+              <Field
+                label="Enter your email to claim"
+                error={errors.email?.message}
+              >
                 <TextInput
                   placeholder="sampel@pal.net"
                   onBlur={() => {
                     onBlur();
                     trigger('email');
                   }}
+                  backgroundColor={'$background'}
                   onChangeText={onChange}
                   onSubmitEditing={onSubmit}
                   value={value}

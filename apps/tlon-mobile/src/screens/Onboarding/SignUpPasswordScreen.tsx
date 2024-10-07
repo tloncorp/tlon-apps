@@ -1,37 +1,22 @@
-import {
-  RecaptchaAction,
-  execute,
-  initClient,
-} from '@google-cloud/recaptcha-enterprise-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
-import {
-  useLureMetadata,
-  useSignupParams,
-} from '@tloncorp/app/contexts/branch';
+import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
-import {
-  logInHostingUser,
-  signUpHostingUser,
-} from '@tloncorp/app/lib/hostingApi';
-import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
+import { setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
-  AppInviteDisplay,
-  CheckboxInput,
   Field,
-  Icon,
   KeyboardAvoidingView,
-  ListItem,
   ScreenHeader,
-  SizableText,
   TextInput,
+  TlonText,
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
+import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignUpPassword'>;
@@ -51,25 +36,25 @@ export const SignUpPasswordScreen = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const signupContext = useSignupContext();
   const signupParams = useSignupParams();
-  const lureMeta = useLureMetadata();
+  const { initRecaptcha, execRecaptchaLogin, hostingApi } =
+    useOnboardingContext();
   const {
     control,
     setFocus,
     handleSubmit,
     formState: { errors, isValid },
     setError,
-    trigger,
-    watch,
   } = useForm<FormData>({
     defaultValues: {
       eulaAgreed: false,
     },
-    mode: 'onChange',
+    mode: 'onBlur',
   });
 
-  const handleEula = () => {
+  const handlePressEula = useCallback(() => {
+    console.log('PRess eula');
     navigation.navigate('EULA');
-  };
+  }, [navigation]);
 
   const onSubmit = handleSubmit(async (params) => {
     const { password } = params;
@@ -77,7 +62,7 @@ export const SignUpPasswordScreen = ({
 
     let recaptchaToken: string | undefined;
     try {
-      recaptchaToken = await execute(RecaptchaAction.LOGIN(), 10_000);
+      recaptchaToken = await execRecaptchaLogin();
     } catch (err) {
       console.error('Error executing reCAPTCHA:', err);
       if (err instanceof Error) {
@@ -98,17 +83,8 @@ export const SignUpPasswordScreen = ({
       return;
     }
 
-    if (!isEulaAgreed()) {
-      setError('eulaAgreed', {
-        type: 'custom',
-        message: 'Please agree to the End User License Agreement to continue.',
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
     try {
-      await signUpHostingUser({
+      await hostingApi.signUpHostingUser({
         email,
         password,
         recaptchaToken,
@@ -136,7 +112,7 @@ export const SignUpPasswordScreen = ({
     });
 
     try {
-      const user = await logInHostingUser({
+      const user = await hostingApi.logInHostingUser({
         email,
         password,
       });
@@ -163,7 +139,7 @@ export const SignUpPasswordScreen = ({
   useEffect(() => {
     (async () => {
       try {
-        await initClient(RECAPTCHA_SITE_KEY, 10_000);
+        await initRecaptcha(RECAPTCHA_SITE_KEY, 10_000);
       } catch (err) {
         console.error('Error initializing reCAPTCHA client:', err);
         if (err instanceof Error) {
@@ -178,111 +154,104 @@ export const SignUpPasswordScreen = ({
   }, []);
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
-        title="Set Password"
+        title="Create account"
         showSessionStatus={false}
         backAction={() => navigation.goBack()}
         isLoading={isSubmitting}
         rightControls={
-          isValid &&
-          watch('eulaAgreed') && (
-            <ScreenHeader.TextButton onPress={onSubmit}>
-              Next
-            </ScreenHeader.TextButton>
-          )
+          <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
+            Next
+          </ScreenHeader.TextButton>
         }
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
-        <YStack gap="$xl" padding="$2xl">
-          {lureMeta ? <AppInviteDisplay metadata={lureMeta} /> : null}
-          <SizableText color="$primaryText">
-            Please set a strong password with at least 8 characters.
-          </SizableText>
-          <Controller
-            control={control}
-            name="password"
-            rules={{
-              required: 'Password must be at least 8 characters.',
-              minLength: {
-                value: 8,
-                message: 'Password must be at least 8 characters.',
-              },
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Field label="Password" error={errors.password?.message}>
-                <TextInput
-                  placeholder="Choose a password"
-                  onBlur={() => {
-                    onBlur();
-                    trigger('password');
-                  }}
-                  onChangeText={onChange}
-                  onSubmitEditing={() => setFocus('confirmPassword')}
-                  value={value}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                  enablesReturnKeyAutomatically
-                />
-              </Field>
-            )}
-          />
-          <Controller
-            control={control}
-            name="confirmPassword"
-            rules={{
-              required: 'Enter the password again for confirmation.',
-              validate: (value, { password }) =>
-                value === password || 'Passwords must match.',
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Field
-                label="Confirm Password"
-                error={errors.confirmPassword?.message}
-              >
-                <TextInput
-                  placeholder="Confirm password"
-                  onBlur={() => {
-                    onBlur();
-                    trigger('confirmPassword');
-                  }}
-                  onChangeText={onChange}
-                  onSubmitEditing={onSubmit}
-                  value={value}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="send"
-                  enablesReturnKeyAutomatically
-                />
-              </Field>
-            )}
-          />
-          <Controller
-            control={control}
-            name="eulaAgreed"
-            render={({ field: { onChange, value } }) => (
-              <CheckboxInput
-                option={{
-                  title:
-                    'I have read and agree to the End User License Agreement',
-                  value: 'agreed',
+        <YStack gap="$m" paddingHorizontal="$2xl" paddingVertical="$l">
+          {/* {lureMeta ? <AppInviteDisplay metadata={lureMeta} /> : null} */}
+          <View padding="$xl">
+            <TlonText.Text size="$body" color="$primaryText">
+              Please set a strong password with at least 8 characters.
+            </TlonText.Text>
+          </View>
+          <YStack gap="$2xl">
+            <Controller
+              control={control}
+              name="password"
+              rules={{
+                required: 'Password must be at least 8 characters.',
+                minLength: {
+                  value: 8,
+                  message: 'Password must be at least 8 characters.',
+                },
+              }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Field
+                  label="Password"
+                  error={errors.password?.message}
+                  paddingTop="$m"
+                >
+                  <TextInput
+                    placeholder="Choose a password"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    onSubmitEditing={() => setFocus('confirmPassword')}
+                    value={value}
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    enablesReturnKeyAutomatically
+                  />
+                </Field>
+              )}
+            />
+            <Controller
+              control={control}
+              name="confirmPassword"
+              rules={{
+                required: 'Enter the password again for confirmation.',
+                validate: (value, { password }) =>
+                  value === password || 'Passwords must match.',
+              }}
+              render={({ field: { onChange, onBlur, value, ref } }) => (
+                <Field
+                  paddingTop="$m"
+                  label="Confirm Password"
+                  error={errors.confirmPassword?.message}
+                >
+                  <TextInput
+                    placeholder="Confirm password"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    onSubmitEditing={onSubmit}
+                    value={value}
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="send"
+                    ref={ref}
+                    enablesReturnKeyAutomatically
+                  />
+                </Field>
+              )}
+            />
+          </YStack>
+          <View padding="$xl">
+            <TlonText.Text size="$label/s" color="$tertiaryText">
+              By registering you agree to Tlon&rsquo;s{' '}
+              <TlonText.RawText
+                pressStyle={{
+                  opacity: 0.5,
                 }}
-                checked={value}
-                onChange={() => onChange(!value)}
-              />
-            )}
-          />
-          <ListItem onPress={handleEula}>
-            <ListItem.MainContent>
-              <ListItem.Title>End User License Agreement</ListItem.Title>
-            </ListItem.MainContent>
-            <ListItem.EndContent>
-              <Icon type="ChevronRight" color="$primaryText" />
-            </ListItem.EndContent>
-          </ListItem>
+                textDecorationLine="underline"
+                textDecorationDistance={10}
+                onPress={handlePressEula}
+              >
+                Terms of Service
+              </TlonText.RawText>
+            </TlonText.Text>
+          </View>
         </YStack>
       </KeyboardAvoidingView>
     </View>

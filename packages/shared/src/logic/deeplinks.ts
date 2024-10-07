@@ -49,7 +49,7 @@ export function extractNormalizedInviteLink(
 ): string | null {
   if (!url) return null;
   const INVITE_LINK_REGEX = createInviteLinkRegex(branchDomain);
-  const match = url.match(INVITE_LINK_REGEX);
+  const match = url.trim().match(INVITE_LINK_REGEX);
 
   if (match) {
     const parts = match[0].split('/');

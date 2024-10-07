@@ -76,6 +76,7 @@ export function GalleryInput({
       () =>
         showBigInput ? null : (
           <ScreenHeader.IconButton
+            key="gallery"
             type="Add"
             onPress={() => setShowAddGalleryPost(true)}
           />

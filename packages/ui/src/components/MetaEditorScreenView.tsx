@@ -56,7 +56,7 @@ export function MetaEditorScreenView({
   }, [chat, modelLoaded, reset, defaultValues]);
 
   const runSubmit = useCallback(
-    () => handleSubmit(onSubmit),
+    () => handleSubmit(onSubmit)(),
     [handleSubmit, onSubmit]
   );
 
