@@ -6,6 +6,7 @@ import {
   DEFAULT_INVITE_LINK_URL,
 } from '@tloncorp/app/constants';
 import { useBranch, useLureMetadata } from '@tloncorp/app/contexts/branch';
+import { trackError } from '@tloncorp/app/utils/posthog';
 import {
   DeepLinkData,
   createInviteLinkRegex,
@@ -20,7 +21,6 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { trackError } from 'packages/app/utils/posthog';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
