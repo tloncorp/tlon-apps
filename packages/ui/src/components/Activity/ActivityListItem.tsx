@@ -61,10 +61,10 @@ export function ActivityListItemContent({
   const channel: db.Channel | undefined = newestPost.channel ?? undefined;
   const modelUnread =
     summary.type === 'post'
-      ? newestPost.channel?.unread ?? null
+      ? (newestPost.channel?.unread ?? null)
       : summary.type === 'group-ask'
-        ? newestPost.group?.unread ?? null
-        : newestPost.parent?.threadUnread ?? null;
+        ? (newestPost.group?.unread ?? null)
+        : (newestPost.parent?.threadUnread ?? null);
   const { data: unread } = store.useLiveUnread(modelUnread);
   const unreadCount = useMemo(() => {
     return (isGroupUnread(unread) ? unread.notifyCount : unread?.count) ?? 0;
