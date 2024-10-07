@@ -6,7 +6,7 @@ import {
   Field,
   ScreenHeader,
   TextInput,
-  TextV2,
+  TlonText,
   View,
   YStack,
 } from '@tloncorp/ui';
@@ -69,9 +69,9 @@ export const JoinWaitListScreen = ({ navigation }: Props) => {
       />
       <YStack paddingHorizontal="$2xl" gap="$m">
         <View padding="$xl">
-          <TextV2.Text size="$body" color="$primaryText">
+          <TlonText.Text size="$body" color="$primaryText">
             We&rsquo;ll let you know as soon as space is available.
-          </TextV2.Text>
+          </TlonText.Text>
         </View>
         <Controller
           control={control}
@@ -98,9 +98,9 @@ export const JoinWaitListScreen = ({ navigation }: Props) => {
           )}
         />
         {remoteError ? (
-          <TextV2.Text fontSize="$s" color="$negativeActionText">
+          <TlonText.Text fontSize="$s" color="$negativeActionText">
             {remoteError}
-          </TextV2.Text>
+          </TlonText.Text>
         ) : null}
       </YStack>
     </View>

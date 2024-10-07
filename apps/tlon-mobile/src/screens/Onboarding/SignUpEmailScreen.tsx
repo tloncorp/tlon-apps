@@ -6,9 +6,9 @@ import {
 } from '@tloncorp/app/contexts/branch';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
-  AppInviteDisplay,
   Field,
   KeyboardAvoidingView,
+  OnboardingInviteBlock,
   ScreenHeader,
   TextInput,
   View,
@@ -99,7 +99,7 @@ export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
         <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">
-          {lureMeta ? <AppInviteDisplay metadata={lureMeta} /> : null}
+          {lureMeta ? <OnboardingInviteBlock metadata={lureMeta} /> : null}
           <Controller
             control={control}
             name="email"

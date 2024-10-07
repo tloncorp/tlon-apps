@@ -4,12 +4,12 @@ import {
   Field,
   ScreenHeader,
   TextInput,
-  TextV2,
+  TlonText,
   View,
   XStack,
   YStack,
 } from '@tloncorp/ui';
-import { createRef, useMemo, useState } from 'react';
+import { createRef, useCallback, useMemo, useState } from 'react';
 import type { TextInputKeyPressEventData } from 'react-native';
 import { TextInput as RNTextInput } from 'react-native';
 
@@ -32,71 +32,46 @@ export const CheckVerifyScreen = ({
   const [code, setCode] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
-  const inputRefs = useMemo(
-    () =>
-      Array.from({ length: codeLength }).map(() => createRef<RNTextInput>()),
-    []
-  );
   const { hostingApi } = useOnboardingContext();
 
-  const handleKeyPress = async (
-    index: number,
-    key: TextInputKeyPressEventData['key']
-  ) => {
-    if (key === 'Backspace' && !code[index] && index > 0) {
-      inputRefs[index - 1].current?.focus();
-    }
-  };
+  const handleSubmit = useCallback(
+    async (code: string) => {
+      setIsSubmitting(true);
 
-  const handleChangeText = (index: number, text: string) => {
-    const nextCode = [...code];
-    if (text.length === 0) {
-      nextCode[index] = '';
-    } else {
-      for (let i = 0; i < text.length; i += 1) {
-        nextCode[index + i] = text.charAt(i);
-      }
-    }
+      try {
+        if (isEmail) {
+          await hostingApi.verifyEmailDigits(user.email, code);
+        } else {
+          await hostingApi.checkPhoneVerify(user.id, code);
+        }
 
-    if (nextCode.length === codeLength && nextCode.every(Boolean)) {
-      handleSubmit(nextCode.join(''));
-    } else if (index < inputRefs.length - 1 && nextCode[index]) {
-      for (let i = index + 1; i < inputRefs.length; i += 1) {
-        if (!nextCode[i]) {
-          inputRefs[i].current?.focus();
-          break;
+        trackOnboardingAction({
+          actionName: 'Verification Submitted',
+        });
+
+        navigation.navigate('ReserveShip', { user });
+      } catch (err) {
+        console.error('Error submitting verification:', err);
+        if (err instanceof Error) {
+          setError(err.message);
+          trackError(err);
         }
       }
-    }
 
-    setCode(nextCode.slice(0, codeLength));
-  };
+      setIsSubmitting(false);
+    },
+    [hostingApi, isEmail, navigation, user]
+  );
 
-  const handleSubmit = async (code: string) => {
-    setIsSubmitting(true);
-
-    try {
-      if (isEmail) {
-        await hostingApi.verifyEmailDigits(user.email, code);
-      } else {
-        await hostingApi.checkPhoneVerify(user.id, code);
+  const handleCodeChanged = useCallback(
+    (nextCode: string[]) => {
+      setCode(nextCode);
+      if (nextCode.length === codeLength && nextCode.every(Boolean)) {
+        handleSubmit(nextCode.join(''));
       }
-
-      trackOnboardingAction({
-        actionName: 'Verification Submitted',
-      });
-
-      navigation.navigate('ReserveShip', { user });
-    } catch (err) {
-      console.error('Error submitting verification:', err);
-      if (err instanceof Error) {
-        setError(err.message);
-        trackError(err);
-      }
-    }
-
-    setIsSubmitting(false);
-  };
+    },
+    [codeLength, handleSubmit]
+  );
 
   const handleResend = async () => {
     try {
@@ -122,42 +97,98 @@ export const CheckVerifyScreen = ({
         isLoading={isSubmitting}
       />
       <YStack padding="$2xl" gap="$6xl">
-        <Field
-          label="Check your email for a confirmation code"
+        <CodeInput
+          value={code}
+          length={codeLength}
+          onChange={handleCodeChanged}
           error={error}
-          justifyContent="center"
-          alignItems="center"
-        >
-          <XStack gap="$s">
-            {Array.from({ length: codeLength }).map((_, i) => (
-              <TextInput
-                textAlign="center"
-                key={i}
-                ref={inputRefs[i]}
-                onKeyPress={({ nativeEvent }) =>
-                  handleKeyPress(i, nativeEvent.key)
-                }
-                placeholder="5"
-                onChangeText={(text) => handleChangeText(i, text)}
-                value={code.length > i ? code[i] : ''}
-                keyboardType="numeric"
-                maxLength={1}
-                paddingHorizontal="$xl"
-                paddingVertical="$xl"
-                width="$4xl"
-              />
-            ))}
-          </XStack>
-        </Field>
-        <TextV2.Text
+        />
+        <TlonText.Text
           size="$label/m"
           textAlign="center"
           onPress={handleResend}
           pressStyle={{ opacity: 0.5 }}
         >
           Request a new code
-        </TextV2.Text>
+        </TlonText.Text>
       </YStack>
     </View>
   );
 };
+
+function CodeInput({
+  length,
+  value,
+  onChange,
+  error,
+}: {
+  length: number;
+  value: string[];
+  onChange?: (value: string[]) => void;
+  error?: string;
+}) {
+  const inputRefs = useMemo(
+    () => Array.from({ length }).map(() => createRef<RNTextInput>()),
+    [length]
+  );
+
+  const handleChangeText = useCallback(
+    (index: number, text: string) => {
+      const nextCode = [...value];
+      if (text.length === 0) {
+        nextCode[index] = '';
+      } else {
+        for (let i = 0; i < text.length; i += 1) {
+          nextCode[index + i] = text.charAt(i);
+        }
+      }
+      if (index < inputRefs.length - 1 && nextCode[index]) {
+        for (let i = index + 1; i < inputRefs.length; i += 1) {
+          if (!nextCode[i]) {
+            inputRefs[i].current?.focus();
+            break;
+          }
+        }
+      }
+      onChange?.(nextCode.slice(0, length));
+    },
+    [onChange, value, inputRefs, length]
+  );
+
+  const handleKeyPress = async (
+    index: number,
+    key: TextInputKeyPressEventData['key']
+  ) => {
+    if (key === 'Backspace' && !value[index] && index > 0) {
+      inputRefs[index - 1].current?.focus();
+    }
+  };
+
+  return (
+    <Field
+      label="Check your email for a confirmation code"
+      error={error}
+      justifyContent="center"
+      alignItems="center"
+    >
+      <XStack gap="$s">
+        {Array.from({ length }).map((_, i) => (
+          <TextInput
+            textAlign="center"
+            key={i}
+            ref={inputRefs[i]}
+            onKeyPress={({ nativeEvent }) => handleKeyPress(i, nativeEvent.key)}
+            placeholder="5"
+            onChangeText={(text) => handleChangeText(i, text)}
+            value={value.length > i ? value[i] : ''}
+            keyboardType="numeric"
+            maxLength={1}
+            paddingHorizontal="$xl"
+            paddingVertical="$xl"
+            width="$4xl"
+          />
+        ))}
+      </XStack>
+    </Field>
+  );
+}

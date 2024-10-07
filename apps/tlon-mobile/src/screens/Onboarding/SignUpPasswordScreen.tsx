@@ -1,23 +1,19 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
-import {
-  useLureMetadata,
-  useSignupParams,
-} from '@tloncorp/app/contexts/branch';
+import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
-  AppInviteDisplay,
   Field,
   KeyboardAvoidingView,
   ScreenHeader,
   TextInput,
-  TextV2,
+  TlonText,
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { useOnboardingContext } from '../../lib/OnboardingContext';
@@ -40,7 +36,6 @@ export const SignUpPasswordScreen = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const signupContext = useSignupContext();
   const signupParams = useSignupParams();
-  const lureMeta = useLureMetadata();
   const { initRecaptcha, execRecaptchaLogin, hostingApi } =
     useOnboardingContext();
   const {
@@ -49,14 +44,17 @@ export const SignUpPasswordScreen = ({
     handleSubmit,
     formState: { errors, isValid },
     setError,
-    trigger,
-    watch,
   } = useForm<FormData>({
     defaultValues: {
       eulaAgreed: false,
     },
     mode: 'onBlur',
   });
+
+  const handlePressEula = useCallback(() => {
+    console.log('PRess eula');
+    navigation.navigate('EULA');
+  }, [navigation]);
 
   const onSubmit = handleSubmit(async (params) => {
     const { password } = params;
@@ -172,9 +170,9 @@ export const SignUpPasswordScreen = ({
         <YStack gap="$m" paddingHorizontal="$2xl" paddingVertical="$l">
           {/* {lureMeta ? <AppInviteDisplay metadata={lureMeta} /> : null} */}
           <View padding="$xl">
-            <TextV2.Text size="$body" color="$primaryText">
+            <TlonText.Text size="$body" color="$primaryText">
               Please set a strong password with at least 8 characters.
-            </TextV2.Text>
+            </TlonText.Text>
           </View>
           <YStack gap="$2xl">
             <Controller
@@ -239,15 +237,21 @@ export const SignUpPasswordScreen = ({
               )}
             />
           </YStack>
-          <TextV2.Text padding="$xl" size="$label/s" color="$tertiaryText">
-            By registering you agree to Tlon&rsquo;s{' '}
-            <TextV2.RawText
-              textDecorationLine="underline"
-              textDecorationDistance={10}
-            >
-              Terms of Service
-            </TextV2.RawText>
-          </TextV2.Text>
+          <View padding="$xl">
+            <TlonText.Text size="$label/s" color="$tertiaryText">
+              By registering you agree to Tlon&rsquo;s{' '}
+              <TlonText.RawText
+                pressStyle={{
+                  opacity: 0.5,
+                }}
+                textDecorationLine="underline"
+                textDecorationDistance={10}
+                onPress={handlePressEula}
+              >
+                Terms of Service
+              </TlonText.RawText>
+            </TlonText.Text>
+          </View>
         </YStack>
       </KeyboardAvoidingView>
     </View>

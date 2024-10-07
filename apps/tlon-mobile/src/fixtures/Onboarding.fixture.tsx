@@ -8,9 +8,21 @@ import { PropsWithChildren, useState } from 'react';
 
 import { OnboardingStack, OnboardingStackNavigator } from '../OnboardingStack';
 import { OnboardingProvider } from '../lib/OnboardingContext';
+import { CheckVerifyScreen } from '../screens/Onboarding/CheckVerifyScreen';
+import { EULAScreen } from '../screens/Onboarding/EULAScreen';
+import { InventoryCheckScreen } from '../screens/Onboarding/InventoryCheckScreen';
+import { JoinWaitListScreen } from '../screens/Onboarding/JoinWaitListScreen';
+import { PasteInviteLinkScreen } from '../screens/Onboarding/PasteInviteLinkScreen';
+import { RequestPhoneVerifyScreen } from '../screens/Onboarding/RequestPhoneVerifyScreen';
+import { ReserveShipScreen } from '../screens/Onboarding/ReserveShipScreen';
 import { SetNicknameScreen } from '../screens/Onboarding/SetNicknameScreen';
+import { SetTelemetryScreen } from '../screens/Onboarding/SetTelemetryScreen';
+import { ShipLoginScreen } from '../screens/Onboarding/ShipLoginScreen';
+import { SignUpEmailScreen } from '../screens/Onboarding/SignUpEmailScreen';
 import { SignUpPasswordScreen } from '../screens/Onboarding/SignUpPasswordScreen';
-import { User } from '../types';
+import { TlonLoginScreen } from '../screens/Onboarding/TlonLoginScreen';
+import { WelcomeScreen } from '../screens/Onboarding/WelcomeScreen';
+import { OnboardingStackParamList, User } from '../types';
 import { exampleContacts } from './contentHelpers';
 import { group } from './fakeData';
 
@@ -96,6 +108,30 @@ function OnboardingFixture({
   );
 }
 
+function SingleScreenFixture<T extends keyof OnboardingStackParamList>({
+  routeName,
+  params,
+  Component,
+}: {
+  routeName: T;
+  params?: OnboardingStackParamList[T];
+  Component: React.ComponentType<any>;
+}) {
+  return (
+    <OnboardingFixture hasGroupInvite={true}>
+      <OnboardingStackNavigator.Navigator
+        screenOptions={{ headerShown: false }}
+      >
+        <OnboardingStackNavigator.Screen
+          name={routeName}
+          initialParams={params}
+          component={Component}
+        />
+      </OnboardingStackNavigator.Navigator>
+    </OnboardingFixture>
+  );
+}
+
 export default {
   Stack: (
     <OnboardingFixture hasGroupInvite={false}>
@@ -108,28 +144,87 @@ export default {
     </OnboardingFixture>
   ),
   Nickname: (
-    <OnboardingFixture hasGroupInvite={true}>
-      <OnboardingStackNavigator.Navigator
-        screenOptions={{ headerShown: false }}
-      >
-        <OnboardingStackNavigator.Screen
-          name="SetNickname"
-          component={SetNicknameScreen}
-        />
-      </OnboardingStackNavigator.Navigator>
-    </OnboardingFixture>
+    <SingleScreenFixture
+      routeName="SetNickname"
+      params={{ user: sampleUser }}
+      Component={SetNicknameScreen}
+    />
   ),
   Password: (
-    <OnboardingFixture hasGroupInvite={true}>
-      <OnboardingStackNavigator.Navigator
-        screenOptions={{ headerShown: false }}
-      >
-        <OnboardingStackNavigator.Screen
-          name="SignUpPassword"
-          initialParams={{ email: 'dan@oda.co' }}
-          component={SignUpPasswordScreen}
-        />
-      </OnboardingStackNavigator.Navigator>
-    </OnboardingFixture>
+    <SingleScreenFixture
+      routeName="SignUpPassword"
+      params={{ email: '' }}
+      Component={SignUpPasswordScreen}
+    />
+  ),
+  JoinWaitlist: (
+    <SingleScreenFixture
+      routeName="SignUpPassword"
+      params={{ email: '' }}
+      Component={JoinWaitListScreen}
+    />
+  ),
+  RequestPhoneVerify: (
+    <SingleScreenFixture
+      routeName="RequestPhoneVerify"
+      Component={RequestPhoneVerifyScreen}
+      params={{ user: sampleUser }}
+    />
+  ),
+  CheckVerify: (
+    <SingleScreenFixture
+      routeName="CheckVerify"
+      Component={CheckVerifyScreen}
+      params={{ user: sampleUser }}
+    />
+  ),
+  ReserveShip: (
+    <SingleScreenFixture
+      routeName="ReserveShip"
+      Component={ReserveShipScreen}
+      params={{ user: sampleUser }}
+    />
+  ),
+  SetNickname: (
+    <SingleScreenFixture
+      routeName="SetNickname"
+      Component={SetNicknameScreen}
+      params={{ user: sampleUser }}
+    />
+  ),
+  SetTelemetry: (
+    <SingleScreenFixture
+      routeName="SetTelemetry"
+      Component={SetTelemetryScreen}
+      params={{ user: sampleUser }}
+    />
+  ),
+  Welcome: (
+    <SingleScreenFixture routeName={'Welcome'} Component={WelcomeScreen} />
+  ),
+  InventoryCheck: (
+    <SingleScreenFixture
+      routeName={'InventoryCheck'}
+      Component={InventoryCheckScreen}
+    />
+  ),
+  SignUpEmail: (
+    <SingleScreenFixture
+      routeName={'SignUpEmail'}
+      Component={SignUpEmailScreen}
+    />
+  ),
+  EULA: <SingleScreenFixture routeName={'EULA'} Component={EULAScreen} />,
+  PasteInviteLink: (
+    <SingleScreenFixture
+      routeName={'PasteInviteLink'}
+      Component={PasteInviteLinkScreen}
+    />
+  ),
+  TlonLogin: (
+    <SingleScreenFixture routeName={'TlonLogin'} Component={TlonLoginScreen} />
+  ),
+  ShipLogin: (
+    <SingleScreenFixture routeName={'ShipLogin'} Component={ShipLoginScreen} />
   ),
 };

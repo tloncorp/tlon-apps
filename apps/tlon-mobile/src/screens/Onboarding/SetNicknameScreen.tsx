@@ -7,7 +7,7 @@ import {
   Image,
   ScreenHeader,
   TextInput,
-  TextV2,
+  TlonText,
   View,
   XStack,
   YStack,
@@ -103,10 +103,10 @@ export const SetNicknameScreen = ({
           />
         </XStack>
 
-        <TextV2.Text size="$body" padding="$xl">
+        <TlonText.Text size="$body" padding="$xl">
           Choose the nickname you want to use on the Tlon network. By default,
           you will use a pseudonymous identifier.
-        </TextV2.Text>
+        </TlonText.Text>
         <Controller
           control={control}
           name="nickname"

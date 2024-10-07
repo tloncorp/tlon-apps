@@ -1,6 +1,10 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { BRANCH_DOMAIN, BRANCH_KEY } from '@tloncorp/app/constants';
+import {
+  BRANCH_DOMAIN,
+  BRANCH_KEY,
+  DEFAULT_INVITE_LINK_URL,
+} from '@tloncorp/app/constants';
 import { useBranch, useLureMetadata } from '@tloncorp/app/contexts/branch';
 import {
   DeepLinkData,
@@ -12,11 +16,11 @@ import {
   Field,
   ScreenHeader,
   TextInputWithButton,
-  TextV2,
+  TlonText,
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 
@@ -36,6 +40,7 @@ type FormData = {
 export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   const lureMeta = useLureMetadata();
   const { setLure } = useBranch();
+  const [hasInvite, setHasInvite] = useState<boolean>(Boolean(lureMeta));
 
   const {
     control,
@@ -43,7 +48,11 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
     setValue,
     watch,
     trigger,
-  } = useForm<FormData>();
+  } = useForm<FormData>({
+    defaultValues: {
+      inviteLink: DEFAULT_INVITE_LINK_URL,
+    },
+  });
 
   // watch for changes to the input & check for valid invite links
   const inviteLinkValue = watch('inviteLink');
@@ -60,6 +69,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
         );
         if (inviteLinkMeta) {
           setLure(inviteLinkMeta as DeepLinkData);
+          navigation.navigate('SignUpEmail');
           return;
         }
       }
@@ -72,12 +82,9 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   // to signup
   useEffect(() => {
     if (lureMeta) {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Welcome' }, { name: 'SignUpEmail' }],
-      });
+      setHasInvite(true);
     }
-  }, [lureMeta, navigation]);
+  }, [lureMeta]);
 
   // handle paste button click
   const onHandlePasteClick = useCallback(async () => {
@@ -88,12 +95,12 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
-        title="Claim Invite"
+        title={hasInvite ? 'Accept invite' : 'Claim invite'}
         showSessionStatus={false}
         backAction={() => navigation.goBack()}
         rightControls={
           <ScreenHeader.TextButton
-            disabled={!lureMeta}
+            disabled={!hasInvite}
             onPress={() => navigation.navigate('SignUpEmail')}
           >
             Next
@@ -107,12 +114,12 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
         flex={1}
       >
         <View padding="$xl" gap="$xl">
-          <TextV2.Text size="$body" color="$primaryText">
+          <TlonText.Text size="$body" color="$primaryText">
             We&apos;re growing slowly. {'\n\n'}Invites let you skip the waitlist
             because we know someone wants to talk to you here.
             {'\n\n'}
             Click your invite link now or paste it below.
-          </TextV2.Text>
+          </TlonText.Text>
         </View>
         <Controller
           control={control}

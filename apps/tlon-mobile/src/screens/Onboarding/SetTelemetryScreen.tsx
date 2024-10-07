@@ -3,7 +3,7 @@ import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import {
   ScreenHeader,
   SizableText,
-  TextV2,
+  TlonText,
   View,
   XStack,
   YStack,
@@ -53,10 +53,10 @@ export const SetTelemetryScreen = ({
       />
       <YStack gap="$xl" paddingHorizontal="$2xl">
         <View padding="$xl">
-          <TextV2.Text size="$body" color="$primaryText">
+          <TlonText.Text size="$body" color="$primaryText">
             We&rsquo;re trying to make the app better and knowing how people use
             the app really helps.
-          </TextV2.Text>
+          </TlonText.Text>
         </View>
 
         <XStack

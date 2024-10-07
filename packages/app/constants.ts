@@ -29,6 +29,7 @@ export const DEFAULT_LURE = extra.defaultLure ?? '~nibset-napwyn/tlon';
 export const DEFAULT_PRIORITY_TOKEN = extra.defaultPriorityToken ?? 'mobile';
 export const DEFAULT_TLON_LOGIN_EMAIL = extra.defaultTlonLoginEmail ?? '';
 export const DEFAULT_TLON_LOGIN_PASSWORD = extra.defaultTlonLoginPassword ?? '';
+export const DEFAULT_INVITE_LINK_URL = extra.defaultInviteLinkUrl ?? '';
 export const DEFAULT_SHIP_LOGIN_URL = extra.defaultShipLoginUrl ?? '';
 export const DEFAULT_SHIP_LOGIN_ACCESS_CODE =
   extra.defaultShipLoginAccessCode ?? '';

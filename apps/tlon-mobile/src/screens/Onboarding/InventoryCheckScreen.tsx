@@ -58,11 +58,7 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
 
       <YStack gap="$2xl" padding="$2xl">
         <View borderRadius="$xl" overflow="hidden">
-          <Image
-            style={{ width: '100%', height: 188 }}
-            resizeMode={'cover'}
-            source={require('../../../assets/images/welcome_blocks.jpg')}
-          />
+          <Image style={{ width: '100%', height: 188 }} resizeMode={'cover'} />
         </View>
 
         <View>

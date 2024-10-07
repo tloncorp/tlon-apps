@@ -30,6 +30,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     defaultPriorityToken: process.env.DEFAULT_PRIORITY_TOKEN,
     defaultTlonLoginEmail: process.env.DEFAULT_TLON_LOGIN_EMAIL,
     defaultTlonLoginPassword: process.env.DEFAULT_TLON_LOGIN_PASSWORD,
+    defaultInviteLinkUrl: process.env.DEFAULT_INVITE_LINK_URL,
     defaultShipLoginUrl: process.env.DEFAULT_SHIP_LOGIN_URL,
     defaultShipLoginAccessCode: process.env.DEFAULT_SHIP_LOGIN_ACCESS_CODE,
     recaptchaSiteKeyAndroid: process.env.RECAPTCHA_SITE_KEY_ANDROID,
