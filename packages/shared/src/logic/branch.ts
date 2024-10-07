@@ -18,6 +18,11 @@ export const getDeepLink = async (
   params.set('branch_key', branchKey);
   const response = await fetchBranchApi(`/v1/url?${params}`);
   if (!response.ok) {
+    const badRequestInfo = await response.json();
+    logger.trackError('branch request failed', {
+      responseStatus: response.status,
+      responseJson: badRequestInfo,
+    });
     return undefined;
   }
   const {
@@ -37,6 +42,11 @@ export const getBranchLinkMeta = async (
   params.set('branch_key', branchKey);
   const response = await fetchBranchApi(`/v1/url?${params}`);
   if (!response.ok) {
+    const badRequestInfo = await response.json();
+    logger.trackError('branch request failed', {
+      responseStatus: response.status,
+      responseJson: badRequestInfo,
+    });
     return undefined;
   }
 
