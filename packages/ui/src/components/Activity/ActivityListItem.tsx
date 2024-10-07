@@ -71,16 +71,21 @@ export function ActivityListItemContent({
   }, [unread]);
 
   const channelTitle = useChannelTitle(channel ?? null);
-  const title =
-    channel == null || channelTitle == null
-      ? group
-        ? group.title ?? ''
-        : ''
-      : channel.type === 'dm'
-        ? 'Direct message'
-        : channel.type === 'groupDm'
-          ? 'Group chat'
-          : (group?.title ? group.title + ': ' : '') + channelTitle;
+  const title = useMemo(() => {
+    if (channel == null || channelTitle == null) {
+      return group?.title ?? '';
+    }
+    if (channel.type === 'dm') {
+      return 'Direct message';
+    }
+    if (channel.type === 'groupDm') {
+      return 'Group chat';
+    }
+    if (group?.title) {
+      return `${group.title}: ${channelTitle}`;
+    }
+    return channelTitle;
+  }, [channelTitle, channel, group]);
 
   return (
     <ActivitySummaryFrame
