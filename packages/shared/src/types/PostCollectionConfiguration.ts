@@ -88,7 +88,7 @@ export function postCollectionLayoutForType(
     case 'comfy-list-top-to-bottom':
       return {
         columnCount: 1,
-        dividersEnabled: false,
+        dividersEnabled: true,
         enableUnreadAnchor: false,
         itemAspectRatio: null,
         shouldMaintainVisibleContentPosition: false,
@@ -105,6 +105,10 @@ export function postCollectionLayoutForType(
   }
 }
 
+/**
+ * Configuration for a post collection which may depend on the channel type or
+ * other runtime factors.
+ */
 export interface PostCollectionConfiguration {
   /**
    * What actions should we show in the post context menu?
