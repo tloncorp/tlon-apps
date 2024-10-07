@@ -3,10 +3,14 @@ import { RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
 import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { setEulaAgreed } from '@tloncorp/app/utils/eula';
-import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { createDevLogger } from '@tloncorp/shared';
 import {
+  Button,
   Field,
   KeyboardAvoidingView,
+  ListItem,
+  Modal,
   ScreenHeader,
   TextInput,
   TlonText,
@@ -15,6 +19,8 @@ import {
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { useWindowDimensions } from 'react-native';
+import { getTokenValue } from 'tamagui';
 
 import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
@@ -27,6 +33,8 @@ type FormData = {
   eulaAgreed: boolean;
 };
 
+const logger = createDevLogger('SignUpPassword', true);
+
 export const SignUpPasswordScreen = ({
   navigation,
   route: {
@@ -34,6 +42,9 @@ export const SignUpPasswordScreen = ({
   },
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [recaptchaError, setRecaptchaError] = useState<Error | null>(null);
+  const [recaptchaReInitError, setRecaptchaReInitError] =
+    useState<Error | null>(null);
   const signupContext = useSignupContext();
   const signupParams = useSignupParams();
   const { initRecaptcha, execRecaptchaLogin, hostingApi } =
@@ -50,9 +61,9 @@ export const SignUpPasswordScreen = ({
     },
     mode: 'onBlur',
   });
+  const { height } = useWindowDimensions();
 
   const handlePressEula = useCallback(() => {
-    console.log('PRess eula');
     navigation.navigate('EULA');
   }, [navigation]);
 
@@ -66,11 +77,10 @@ export const SignUpPasswordScreen = ({
     } catch (err) {
       console.error('Error executing reCAPTCHA:', err);
       if (err instanceof Error) {
-        setError('password', {
-          type: 'custom',
-          message: err.message,
+        setRecaptchaError(err);
+        logger.trackError('Error executing reCAPTCHA', {
+          thrownErrorMessage: err.message,
         });
-        trackError(err);
       }
     }
 
@@ -78,7 +88,7 @@ export const SignUpPasswordScreen = ({
       await setEulaAgreed();
     }
 
-    if (!recaptchaToken) {
+    if (!recaptchaToken || recaptchaError || recaptchaReInitError) {
       setIsSubmitting(false);
       return;
     }
@@ -99,7 +109,9 @@ export const SignUpPasswordScreen = ({
           type: 'custom',
           message: err.message,
         });
-        trackError(err);
+        logger.trackError('Error signing up user', {
+          thrownErrorMessage: err.message,
+        });
       }
       setIsSubmitting(false);
       return;
@@ -128,7 +140,9 @@ export const SignUpPasswordScreen = ({
           type: 'custom',
           message: err.message,
         });
-        trackError(err);
+        logger.trackError('Error logging in user', {
+          thrownErrorMessage: err.message,
+        });
       }
     }
 
@@ -143,15 +157,37 @@ export const SignUpPasswordScreen = ({
       } catch (err) {
         console.error('Error initializing reCAPTCHA client:', err);
         if (err instanceof Error) {
-          setError('password', {
-            type: 'custom',
-            message: err.message,
+          setRecaptchaError(err);
+          logger.trackError('Error initializing reCAPTCHA client', {
+            thrownErrorMessage: err.message,
+            siteKey: RECAPTCHA_SITE_KEY,
           });
-          trackError(err);
         }
       }
     })();
   }, []);
+
+  // Re-initialize reCAPTCHA client if an error occurred
+  useEffect(() => {
+    if (recaptchaError && !recaptchaReInitError) {
+      (async () => {
+        try {
+          await initRecaptcha(RECAPTCHA_SITE_KEY, 10_000);
+          setRecaptchaError(null);
+          await onSubmit();
+        } catch (err) {
+          console.error('Error re-initializing reCAPTCHA client:', err);
+          if (err instanceof Error) {
+            logger.trackError('Error re-initializing reCAPTCHA client', {
+              thrownErrorMessage: err.message,
+              siteKey: RECAPTCHA_SITE_KEY,
+            });
+            setRecaptchaReInitError(err);
+          }
+        }
+      })();
+    }
+  }, [recaptchaError]);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
@@ -254,6 +290,26 @@ export const SignUpPasswordScreen = ({
           </View>
         </YStack>
       </KeyboardAvoidingView>
+      <Modal visible={recaptchaReInitError !== null}>
+        <ListItem padding="$2xl" top={height / 3} left={getTokenValue('$s')}>
+          <YStack gap="$2xl">
+            <TlonText.Text size="$body">
+              We encountered an error reaching Google's reCAPTCHA service.
+            </TlonText.Text>
+            <TlonText.Text size="$body">
+              This may be due to a network issue or a problem with the service
+              itself.
+            </TlonText.Text>
+            <TlonText.Text size="$body">
+              A retry may resolve the issue. If the problem persists, please
+              contact support.
+            </TlonText.Text>
+            <Button onPress={() => setRecaptchaReInitError(null)}>
+              <Button.Text>Retry</Button.Text>
+            </Button>
+          </YStack>
+        </ListItem>
+      </Modal>
     </View>
   );
 };
