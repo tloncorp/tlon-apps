@@ -51,6 +51,13 @@ export const getBranchLinkMeta = async (
 export type DeepLinkType = 'lure' | 'wer';
 
 export interface DeepLinkMetadata {
+  $og_title?: string;
+  $og_description?: string;
+  $og_image_url?: string;
+  $twitter_title?: string;
+  $twitter_description?: string;
+  $twitter_image_url?: string;
+  $twitter_card?: string;
   inviterUserId?: string;
   inviterNickname?: string;
   inviterAvatarImage?: string;
@@ -145,8 +152,6 @@ export const createDeepLink = async ({
     $canonical_url: fallbackUrl,
     ...(metadata ?? {}),
   };
-  data['$desktop_url'] = fallbackUrl;
-  data['$canonical_url'] = fallbackUrl;
 
   if (type === 'lure') {
     data.lure = token;
