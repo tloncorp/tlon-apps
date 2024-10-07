@@ -2169,7 +2169,7 @@
     |=  =invite:g
     ^+  ga-core
     ::  prevent spamming invites
-    ?:  ?=(~ vit.gang)  ga-core
+    ?.  ?=(~ vit.gang)  ga-core
     ?:  (~(has by groups) p.invite)  ga-core
     %-  (log |.("received invite: {<invite>}"))
     ?:  &(?=(^ cam.gang) ?=(%knocking progress.u.cam.gang))
