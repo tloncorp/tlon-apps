@@ -46,7 +46,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       : process.env.BRANCH_DOMAIN_PROD,
   },
   ios: {
-    runtimeVersion: '4.0.1',
+    runtimeVersion: '4.0.2',
     // demo builds triggered by GitHub require this to be explicitly set rather than handled
     // elsewhere
     bundleIdentifier:
@@ -56,7 +56,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
   },
   android: {
-    runtimeVersion: '4.0.1',
+    runtimeVersion: '4.0.2',
   },
   plugins: [
     '@react-native-firebase/app',
