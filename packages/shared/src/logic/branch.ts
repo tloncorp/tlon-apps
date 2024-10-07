@@ -171,7 +171,7 @@ export const createDeepLink = async ({
 
   try {
     let url = await getDeepLink(alias, branchDomain, branchKey).catch(
-      () => fallbackUrl
+      () => null
     );
     if (!url) {
       logger.crumb(`No existing deeplink for ${alias}, creating new one`);
