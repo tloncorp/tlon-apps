@@ -6,7 +6,6 @@ import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
 import { ListItem, type ListItemProps } from './ListItem';
-import { useBoundHandler } from './listItemUtils';
 
 export function ChannelListItem({
   model,
@@ -24,6 +23,14 @@ export function ChannelListItem({
   const title = utils.useChannelTitle(model);
   const firstMemberId = model.members?.[0]?.contactId ?? '';
   const memberCount = model.members?.length ?? 0;
+
+  const handlePress = logic.useMutableCallback(() => {
+    onPress?.(model);
+  });
+
+  const handleLongPress = logic.useMutableCallback(() => {
+    onLongPress?.(model);
+  });
 
   const { subtitle, subtitleIcon } = useMemo(() => {
     if (model.type === 'dm' || model.type === 'groupDm') {
@@ -45,11 +52,7 @@ export function ChannelListItem({
   }, [model, firstMemberId, memberCount]);
 
   return (
-    <ListItem
-      {...props}
-      onPress={useBoundHandler(model, onPress)}
-      onLongPress={useBoundHandler(model, onLongPress)}
-    >
+    <ListItem {...props} onPress={handlePress} onLongPress={handleLongPress}>
       <ListItem.ChannelIcon
         model={model}
         useTypeIcon={useTypeIcon}

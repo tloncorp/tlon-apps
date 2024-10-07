@@ -52,7 +52,7 @@ export function CreateGroupWidget(props: {
   }, [groupName, props]);
 
   return (
-    <YStack flex={1} gap="$2xl">
+    <YStack flex={1} gap="$2xl" padding="$2xl">
       <Field label="Group Name (Required)" required>
         <TextInput
           autoFocus

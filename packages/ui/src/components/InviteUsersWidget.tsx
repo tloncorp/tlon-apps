@@ -1,16 +1,11 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Share } from 'react-native';
-import { isWeb } from 'tamagui';
+import React, { useCallback, useMemo, useState } from 'react';
 
-import { useBranchDomain, useBranchKey, useCurrentUserId } from '../contexts';
-import { useCopy } from '../hooks/useCopy';
 import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
 import { ContactBook } from './ContactBook';
-import { Icon } from './Icon';
-import { LoadingSpinner } from './LoadingSpinner';
+import { InviteFriendsToTlonButton } from './InviteFriendsToTlonButton';
 
 const InviteUsersWidgetComponent = ({
   group,
@@ -20,105 +15,29 @@ const InviteUsersWidgetComponent = ({
   onInviteComplete: () => void;
 }) => {
   const [invitees, setInvitees] = useState<string[]>([]);
-  const currentUser = useCurrentUserId();
-  const branchDomain = useBranchDomain();
-  const branchKey = useBranchKey();
-  const { status, shareUrl, toggle, describe } = store.useLureLinkStatus({
-    flag: group.id,
-    branchDomain: branchDomain,
-    branchKey: branchKey,
-  });
-  const { doCopy } = useCopy(shareUrl || '');
-  const currentUserIsAdmin = useMemo(
-    () =>
-      group?.members?.some(
-        (m) =>
-          m.contactId === currentUser &&
-          m.roles?.some((r) => r.roleId === 'admin')
-      ) ?? false,
-    [currentUser, group?.members]
-  );
 
-  const handleInviteButtonPress = useCallback(async () => {
-    if (invitees.length === 0 && shareUrl && status === 'ready') {
-      if (isWeb) {
-        if (navigator.share !== undefined) {
-          await navigator.share({
-            title: `Join ${group.title} on Tlon`,
-            url: shareUrl,
-          });
-          return;
-        }
-
-        doCopy();
-        return;
-      }
-
-      await Share.share({
-        message: `Join ${group.title} on Tlon: ${shareUrl}`,
-        title: `Join ${group.title} on Tlon`,
-      });
-
-      return;
-    }
-
+  const handleInviteGroupMembers = useCallback(async () => {
     await store.inviteGroupMembers({
       groupId: group.id,
       contactIds: invitees,
     });
 
     onInviteComplete();
-  }, [
-    invitees,
-    group.id,
-    onInviteComplete,
-    shareUrl,
-    group.title,
-    doCopy,
-    status,
-  ]);
-
-  useEffect(() => {
-    const meta = {
-      title: group.title ?? '',
-      description: group.description ?? '',
-      cover: group.coverImage ?? '',
-      image: group.iconImage ?? '',
-    };
-
-    const toggleLink = async () => {
-      await toggle(meta);
-    };
-    if (status === 'disabled' && currentUserIsAdmin) {
-      toggleLink();
-    }
-    if (status === 'stale') {
-      describe(meta);
-    }
-  }, [
-    group,
-    branchDomain,
-    branchKey,
-    toggle,
-    status,
-    currentUserIsAdmin,
-    describe,
-  ]);
+  }, [invitees, group.id, onInviteComplete]);
 
   const buttonText = useMemo(() => {
-    if (invitees.length === 0 && status === 'ready') {
-      return `Invite friends that aren't on Tlon`;
-    }
-
     if (invitees.length === 0) {
-      return `Invite`;
+      return `Select people to invite`;
     }
 
     return `Invite ${invitees.length} and continue`;
-  }, [invitees, status]);
+  }, [invitees]);
 
   return (
     <>
+      <ActionSheet.ContentBlock>
+        <InviteFriendsToTlonButton group={group} />
+      </ActionSheet.ContentBlock>
       <ActionSheet.ContentBlock flex={1}>
         <ContactBook
           multiSelect
@@ -130,17 +49,11 @@ const InviteUsersWidgetComponent = ({
       <ActionSheet.ContentBlock>
         <Button
           hero
-          onPress={handleInviteButtonPress}
-          disabled={
-            invitees.length === 0 &&
-            (status !== 'ready' || typeof shareUrl !== 'string')
-          }
+          onPress={handleInviteGroupMembers}
+          disabled={invitees.length === 0}
           gap="$xl"
         >
           <Button.Text width="auto">{buttonText}</Button.Text>
-          {status !== 'ready' || typeof shareUrl !== 'string' ? (
-            <LoadingSpinner color="$white" size="small" />
-          ) : null}
         </Button>
       </ActionSheet.ContentBlock>
     </>

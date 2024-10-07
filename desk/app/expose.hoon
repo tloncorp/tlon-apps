@@ -11,7 +11,6 @@
 ::
 /=  page    /app/expose/page
 /=  widget  /app/expose/widget
-/*  style-shared  %css  /app/expose/style/shared/css
 ::
 |%
 +$  state-0
@@ -157,10 +156,7 @@
       :_  (spout:hutils rid payload)
       ::  if we handled a request here, make sure it's cached for next time
       ::
-      [%pass /eyre/cache %arvo %e %set-response url.request `[| %payload payload]]
-    ?:  =('/expose/style/shared.css' url.request)
-      :-  [200 ['content-type' 'text/css']~]
-      `(as-octs:mimes:html style-shared)
+      (store:hutils url.request `[| %payload payload])
     =/  ref=(unit cite:c)
       (rush url.request (sear purse:c ;~(pfix (jest '/expose') stap)))
     ?~  ref
@@ -194,10 +190,6 @@
   ::
       [%refresh ~]
     :_  this
-    :-  %+  store:hutils  '/expose/style/shared.css'
-        =/  bod=(unit octs)
-          `(as-octs:mimes:html style-shared)
-        `[| %payload [200 ['content-type' 'text/css'] ~] bod]
     %+  weld
       (refresh-widget:e bowl open)
     (refresh-pages:e bowl ~(tap in open))

@@ -16,6 +16,7 @@ import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChannelSearchScreen from '../features/top/ChannelSearchScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
+import { ContactHostedGroupsScreen } from '../features/top/ContactHostedGroupsScreen';
 import { CreateGroupScreen } from '../features/top/CreateGroupScreen';
 import { FindGroupsScreen } from '../features/top/FindGroupsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
@@ -70,6 +71,10 @@ export function RootStack() {
       {/* individual screens */}
       <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
       <Root.Screen name="FindGroups" component={FindGroupsScreen} />
+      <Root.Screen
+        name="ContactHostedGroups"
+        component={ContactHostedGroupsScreen}
+      />
       <Root.Screen name="CreateGroup" component={CreateGroupScreen} />
       <Root.Screen name="Channel" component={ChannelScreen} />
       <Root.Screen name="ChannelSearch" component={ChannelSearchScreen} />

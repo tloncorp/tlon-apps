@@ -44,7 +44,7 @@ export function NotebookPost({
   showDate?: boolean;
   viewMode?: 'activity';
   isHighlighted?: boolean;
-  size?: '$l' | '$s';
+  size?: '$l' | '$s' | '$xs';
 }) {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const handleLongPress = useCallback(() => {
@@ -92,6 +92,7 @@ export function NotebookPost({
           post={post}
           showDate={showDate}
           showAuthor={showAuthor && viewMode !== 'activity'}
+          size={size}
         />
 
         {viewMode !== 'activity' && (
@@ -135,11 +136,13 @@ function NotebookPostHeader({
   showDate,
   showAuthor,
   post,
+  size,
   ...props
 }: {
   showAuthor?: boolean;
   showDate?: boolean;
   post: db.Post;
+  size?: '$l' | '$s' | '$xs';
 } & ComponentProps<typeof NotebookPostHeaderFrame>) {
   const formattedDate = useMemo(() => {
     return makePrettyShortDate(new Date(post.receivedAt));
@@ -147,7 +150,7 @@ function NotebookPostHeader({
 
   return (
     <NotebookPostHeaderFrame {...props}>
-      {post.image && (
+      {post.image && size !== '$xs' && (
         <NotebookPostHeroImage
           source={{
             uri: post.image,
@@ -226,7 +229,7 @@ const NotebookPostFrame = styled(View, {
         paddingBottom: '$l',
       },
     },
-    size: {} as Record<'$s' | '$l', ViewStyle>,
+    size: {} as Record<'$s' | '$l' | '$xs', ViewStyle>,
   } as const,
 });
 

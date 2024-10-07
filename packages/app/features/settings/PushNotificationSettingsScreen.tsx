@@ -5,10 +5,10 @@ import * as store from '@tloncorp/shared/dist/store';
 import * as ub from '@tloncorp/shared/dist/urbit';
 import {
   ChannelListItem,
-  GenericHeader,
   GroupListItem,
   Icon,
   ListItem,
+  ScreenHeader,
   ScrollView,
   SizableText,
   View,
@@ -82,9 +82,9 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
 
   return (
     <View flex={1}>
-      <GenericHeader
+      <ScreenHeader
         title="Push Notifications"
-        goBack={() => navigation.goBack()}
+        backAction={() => navigation.goBack()}
       />
       <View marginTop="$m" marginHorizontal="$2xl" flex={1}>
         <SizableText marginLeft="$m" marginTop="$xl" size="$m">

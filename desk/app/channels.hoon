@@ -727,7 +727,7 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?>  ?=(^ pole)
-  =?  +.pole  !?=([?(%v0 %v1 %v2 %v3) *] +.pole)
+  =?  +.pole  !?=([?(%v0 %v1 %v2 %v3 %v4) *] +.pole)
     [%v0 +.pole]
   ?+    pole  [~ ~]
       [%x ?(%v0 %v1) %channels ~]   ``channels+!>((uv-channels-1:utils v-channels))

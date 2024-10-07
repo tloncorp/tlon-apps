@@ -10,7 +10,7 @@ import { formatPhoneNumber } from '@tloncorp/app/utils/string';
 import {
   Button,
   Field,
-  GenericHeader,
+  ScreenHeader,
   SizableText,
   Text,
   TextInput,
@@ -123,10 +123,10 @@ export const CheckVerifyScreen = ({
 
   return (
     <View flex={1}>
-      <GenericHeader
+      <ScreenHeader
         title="Confirmation"
-        goBack={() => navigation.goBack()}
-        showSpinner={isSubmitting}
+        backAction={() => navigation.goBack()}
+        isLoading={isSubmitting}
       />
       <YStack padding="$2xl" gap="$2xl">
         <SizableText color="$primaryText">
