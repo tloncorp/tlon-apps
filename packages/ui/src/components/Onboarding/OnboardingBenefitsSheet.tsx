@@ -1,12 +1,16 @@
 import { ActionSheet, Icon, Image, View, XStack, YStack } from '@tloncorp/ui';
-import { useState } from 'react';
 
 import { Text } from '../TextV2';
 
-export function OnboardingBenefitsSheet() {
-  const [open, setOpen] = useState(true);
+export function OnboardingBenefitsSheet({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+}) {
   return (
-    <ActionSheet open={open} onOpenChange={setOpen}>
+    <ActionSheet open={open} onOpenChange={onOpenChange}>
       <ActionSheet.Content>
         <YStack gap="$3.5xl" paddingHorizontal="$2xl">
           <View borderRadius="$2xl" overflow="hidden">

@@ -1,5 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
+import { setDidShowBenefitsSheet } from '@tloncorp/shared/dist/db';
+import { useDidShowBenefitsSheet } from '@tloncorp/shared/dist/store';
 import {
   ActionSheet,
   Button,
@@ -27,6 +29,16 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   const lureMeta = useLureMetadata();
   const { bottom, top } = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
+  const { data: didShowBenefitsSheet } = useDidShowBenefitsSheet();
+
+  const handleBenefitsSheetOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setTimeout(() => {
+        setDidShowBenefitsSheet(true);
+      }, 1000);
+    }
+    setOpen(open);
+  }, []);
 
   const handlePressInvite = useCallback(() => {
     navigation.navigate('SignUpEmail');
@@ -121,7 +133,10 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           </ActionSheet.ActionGroup>
         </ActionSheet.Content>
       </ActionSheet>
-      <OnboardingBenefitsSheet />
+      <OnboardingBenefitsSheet
+        open={!didShowBenefitsSheet}
+        onOpenChange={handleBenefitsSheetOpenChange}
+      />
     </View>
   );
 };

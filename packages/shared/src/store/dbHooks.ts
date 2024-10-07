@@ -100,6 +100,13 @@ export const useAppInfo = () => {
   });
 };
 
+export const useDidShowBenefitsSheet = () => {
+  return useQuery({
+    queryKey: db.SHOW_BENEFITS_SHEET_QUERY_KEY,
+    queryFn: db.getDidShowBenefitsSheet,
+  });
+};
+
 export const useActivitySeenMarker = () => {
   return useQuery({
     queryKey: db.ACTIVITY_SEEN_MARKER_QUERY_KEY,

@@ -23,6 +23,7 @@ export const PUSH_NOTIFICATIONS_SETTING_QUERY_KEY = [
 export const IS_TLON_EMPLOYEE_QUERY_KEY = ['settings', 'isTlonEmployee'];
 export const APP_INFO_QUERY_KEY = ['settings', 'appInfo'];
 export const BASE_VOLUME_SETTING_QUERY_KEY = ['volume', 'base'];
+export const SHOW_BENEFITS_SHEET_QUERY_KEY = ['showBenefitsSheet'];
 
 export type ChannelSortPreference = 'recency' | 'arranged';
 export async function storeChannelSortPreference(
@@ -184,4 +185,15 @@ export async function getAppInfoSettings(): Promise<AppInfo | null> {
   const storedAppInfo = await AsyncStorage.getItem(`settings:appInfo`);
   const appInfo = storedAppInfo ? (JSON.parse(storedAppInfo) as AppInfo) : null;
   return appInfo;
+}
+
+export async function setDidShowBenefitsSheet(didShow: boolean) {
+  await AsyncStorage.setItem('didShowBenefitsSheet', didShow.toString());
+  queryClient.invalidateQueries({ queryKey: SHOW_BENEFITS_SHEET_QUERY_KEY });
+  logger.log('stored didShowBenefitsSheet', didShow);
+}
+
+export async function getDidShowBenefitsSheet() {
+  const didShow = await AsyncStorage.getItem('didShowBenefitsSheet');
+  return didShow === 'true' ? true : false;
 }
