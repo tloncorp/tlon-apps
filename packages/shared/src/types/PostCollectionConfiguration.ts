@@ -88,7 +88,7 @@ export function postCollectionLayoutForType(
     case 'comfy-list-top-to-bottom':
       return {
         columnCount: 1,
-        dividersEnabled: true,
+        dividersEnabled: false,
         enableUnreadAnchor: false,
         itemAspectRatio: null,
         shouldMaintainVisibleContentPosition: false,
