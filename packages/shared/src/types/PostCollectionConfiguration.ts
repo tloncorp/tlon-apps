@@ -5,8 +5,8 @@ import * as ChannelAction from './ChannelActions';
  * How do we want to lay out a collection of posts, at a high level?
  */
 export type PostCollectionLayoutType =
-  | 'compact-list-bottom-to-top' // think: chat
   | 'comfy-list-top-to-bottom' // think: notebook
+  | 'compact-list-bottom-to-top' // think: chat
   | 'grid'; // think: gallery
 
 // Why overload this function instead of just doing a union?
@@ -50,15 +50,15 @@ export function postCollectionLayoutTypeFromChannel(
  * `PostCollectionConfiguration` instead.
  */
 export interface PostCollectionLayout {
-  /**
-   * When new content comes in, should we try to keep the user's scroll position?
-   */
-  shouldMaintainVisibleContentPosition: boolean;
-
   columnCount: 1 | 2;
 
   /** if true, enables day / unread dividers between elements */
   dividersEnabled: boolean;
+
+  /**
+   * If true, entering channel scrolls to the viewer's first unread post.
+   */
+  enableUnreadAnchor: boolean;
 
   /**
    * Width/height ratio for a collection element; e.g. 1 for square, 2 for
@@ -67,9 +67,9 @@ export interface PostCollectionLayout {
   itemAspectRatio: number | null;
 
   /**
-   * If true, entering channel scrolls to the viewer's first unread post.
+   * When new content comes in, should we try to keep the user's scroll position?
    */
-  enableUnreadAnchor: boolean;
+  shouldMaintainVisibleContentPosition: boolean;
 }
 
 export function postCollectionLayoutForType(
@@ -78,44 +78,44 @@ export function postCollectionLayoutForType(
   switch (layoutType) {
     case 'compact-list-bottom-to-top':
       return {
-        shouldMaintainVisibleContentPosition: true,
         columnCount: 1,
         dividersEnabled: true,
-        itemAspectRatio: null,
         enableUnreadAnchor: true,
+        itemAspectRatio: null,
+        shouldMaintainVisibleContentPosition: true,
       };
 
     case 'comfy-list-top-to-bottom':
       return {
-        shouldMaintainVisibleContentPosition: false,
         columnCount: 1,
         dividersEnabled: false,
-        itemAspectRatio: null,
         enableUnreadAnchor: false,
+        itemAspectRatio: null,
+        shouldMaintainVisibleContentPosition: false,
       };
 
     case 'grid':
       return {
-        shouldMaintainVisibleContentPosition: false,
         columnCount: 2,
         dividersEnabled: false,
-        itemAspectRatio: 1,
         enableUnreadAnchor: false,
+        itemAspectRatio: 1,
+        shouldMaintainVisibleContentPosition: false,
       };
   }
 }
 
 export interface PostCollectionConfiguration {
   /**
+   * What actions should we show in the post context menu?
+   */
+  postActionIds: ChannelAction.Id[];
+
+  /**
    * If true, in the absence of a given title, the channel will be titled in UI
    * with a comma-separated list of member names.
    */
   usesMemberListAsFallbackTitle: boolean;
-
-  /**
-   * What actions should we show in the post context menu?
-   */
-  postActionIds: ChannelAction.Id[];
 }
 
 export function postCollectionConfigurationFromChannel(
