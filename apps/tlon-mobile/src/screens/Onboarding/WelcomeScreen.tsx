@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
-import { setDidShowBenefitsSheet } from '@tloncorp/shared/src/db';
-import { useDidShowBenefitsSheet } from '@tloncorp/shared/src/store';
+import { setDidShowBenefitsSheet } from '@tloncorp/shared/dist/db';
+import { useDidShowBenefitsSheet } from '@tloncorp/shared/dist/store';
 import {
   ActionSheet,
   Button,
