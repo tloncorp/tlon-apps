@@ -7,7 +7,7 @@ import {
   DeepLinkData,
   QueryClientProvider,
   queryClient,
-} from 'packages/shared/dist';
+} from '@tloncorp/shared/dist';
 import { PropsWithChildren, useState } from 'react';
 
 import { OnboardingStack, OnboardingStackNavigator } from '../OnboardingStack';
