@@ -3,7 +3,7 @@ import { RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
 import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { setEulaAgreed } from '@tloncorp/app/utils/eula';
-import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
 import {
   Button,
@@ -78,8 +78,9 @@ export const SignUpPasswordScreen = ({
       console.error('Error executing reCAPTCHA:', err);
       if (err instanceof Error) {
         setRecaptchaError(err);
-        logger.crumb('Error executing reCAPTCHA:', err);
-        trackError(err);
+        logger.trackError('Error executing reCAPTCHA', {
+          thrownErrorMessage: err.message,
+        });
       }
     }
 
@@ -108,7 +109,9 @@ export const SignUpPasswordScreen = ({
           type: 'custom',
           message: err.message,
         });
-        trackError(err);
+        logger.trackError('Error signing up user', {
+          thrownErrorMessage: err.message,
+        });
       }
       setIsSubmitting(false);
       return;
@@ -137,8 +140,9 @@ export const SignUpPasswordScreen = ({
           type: 'custom',
           message: err.message,
         });
-        trackError(err);
-        logger.crumb('Error logging in user:', err);
+        logger.trackError('Error logging in user', {
+          thrownErrorMessage: err.message,
+        });
       }
     }
 
@@ -154,8 +158,8 @@ export const SignUpPasswordScreen = ({
         console.error('Error initializing reCAPTCHA client:', err);
         if (err instanceof Error) {
           setRecaptchaError(err);
-          trackError(err);
-          logger.crumb('Error initializing reCAPTCHA client:', err, {
+          logger.trackError('Error initializing reCAPTCHA client', {
+            thrownErrorMessage: err.message,
             siteKey: RECAPTCHA_SITE_KEY,
           });
         }
@@ -174,11 +178,11 @@ export const SignUpPasswordScreen = ({
         } catch (err) {
           console.error('Error re-initializing reCAPTCHA client:', err);
           if (err instanceof Error) {
-            logger.crumb('Error re-initializing reCAPTCHA client:', err, {
+            logger.trackError('Error re-initializing reCAPTCHA client', {
+              thrownErrorMessage: err.message,
               siteKey: RECAPTCHA_SITE_KEY,
             });
             setRecaptchaReInitError(err);
-            trackError(err);
           }
         }
       })();
