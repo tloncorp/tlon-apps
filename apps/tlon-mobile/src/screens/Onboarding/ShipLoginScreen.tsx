@@ -18,6 +18,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
+import { setEulaAgreed } from 'packages/app/utils/eula';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -66,9 +67,15 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     return true;
   }, []);
 
+  const handlePressEula = useCallback(() => {
+    navigation.navigate('EULA');
+  }, [navigation]);
+
   const onSubmit = handleSubmit(async (params) => {
     const { shipUrl: rawShipUrl, accessCode } = params;
     setIsSubmitting(true);
+
+    setEulaAgreed();
 
     const shipUrl = transformShipURL(rawShipUrl);
     setFormattedShipUrl(shipUrl);
@@ -202,6 +209,21 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
               )}
             />
           </YStack>
+          <View padding="$xl">
+            <TlonText.Text size="$label/s" color="$tertiaryText">
+              By logging in you agree to Tlon&rsquo;s{' '}
+              <TlonText.RawText
+                pressStyle={{
+                  opacity: 0.5,
+                }}
+                textDecorationLine="underline"
+                textDecorationDistance={10}
+                onPress={handlePressEula}
+              >
+                Terms of Service
+              </TlonText.RawText>
+            </TlonText.Text>
+          </View>
         </YStack>
       </KeyboardAvoidingView>
     </View>

@@ -84,9 +84,7 @@ export const SignUpPasswordScreen = ({
       }
     }
 
-    if (params.eulaAgreed) {
-      await setEulaAgreed();
-    }
+    await setEulaAgreed();
 
     if (!recaptchaToken || recaptchaError || recaptchaReInitError) {
       setIsSubmitting(false);

@@ -24,7 +24,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import type { OnboardingStackParamList } from '../../types';
@@ -63,16 +63,14 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
     navigation.navigate('ResetPassword', { email });
   };
 
-  const handleEula = () => {
+  const handlePressEula = useCallback(() => {
     navigation.navigate('EULA');
-  };
+  }, [navigation]);
 
   const onSubmit = handleSubmit(async (params) => {
     setIsSubmitting(true);
 
-    if (params.eulaAgreed) {
-      await setEulaAgreed();
-    }
+    await setEulaAgreed();
 
     try {
       const user = await logInHostingUser(params);
@@ -237,6 +235,21 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
               Forgot password?
             </TlonText.Text>
           </YStack>
+          <View padding="$xl">
+            <TlonText.Text size="$label/s" color="$tertiaryText">
+              By logging in you agree to Tlon&rsquo;s{' '}
+              <TlonText.RawText
+                pressStyle={{
+                  opacity: 0.5,
+                }}
+                textDecorationLine="underline"
+                textDecorationDistance={10}
+                onPress={handlePressEula}
+              >
+                Terms of Service
+              </TlonText.RawText>
+            </TlonText.Text>
+          </View>
         </YStack>
       </KeyboardAvoidingView>
     </View>
