@@ -70,6 +70,8 @@ export interface PostCollectionLayout {
    * When new content comes in, should we try to keep the user's scroll position?
    */
   shouldMaintainVisibleContentPosition: boolean;
+
+  scrollDirection: 'bottom-to-top' | 'top-to-bottom';
 }
 
 export function postCollectionLayoutForType(
@@ -83,6 +85,7 @@ export function postCollectionLayoutForType(
         enableUnreadAnchor: true,
         itemAspectRatio: null,
         shouldMaintainVisibleContentPosition: true,
+        scrollDirection: 'bottom-to-top',
       };
 
     case 'comfy-list-top-to-bottom':
@@ -92,6 +95,7 @@ export function postCollectionLayoutForType(
         enableUnreadAnchor: false,
         itemAspectRatio: null,
         shouldMaintainVisibleContentPosition: false,
+        scrollDirection: 'top-to-bottom',
       };
 
     case 'grid':
@@ -101,6 +105,7 @@ export function postCollectionLayoutForType(
         enableUnreadAnchor: false,
         itemAspectRatio: 1,
         shouldMaintainVisibleContentPosition: false,
+        scrollDirection: 'top-to-bottom',
       };
   }
 }

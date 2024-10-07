@@ -317,7 +317,10 @@ export function Channel({
                                 {channel && posts && (
                                   <Scroller
                                     key={scrollerAnchor?.postId}
-                                    inverted={isChatChannel ? true : false}
+                                    inverted={
+                                      collectionLayout.scrollDirection ===
+                                      'bottom-to-top'
+                                    }
                                     renderItem={renderItem}
                                     renderEmptyComponent={renderEmptyComponent}
                                     anchor={scrollerAnchor}
