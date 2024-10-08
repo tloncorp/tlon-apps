@@ -12,7 +12,7 @@
 +$  init-3
   $:  groups=groups-ui:g
       =gangs:g
-      =channels:d
+      =channels:v7:old:d
       =activity:v3:old:a
       pins=(list whom)
       chat=chat-1
@@ -21,7 +21,7 @@
 +$  init-2
   $:  groups=groups-ui:g
       =gangs:g
-      =channels:d
+      =channels:v7:old:d
       activity=activity:v2:old:a
       pins=(list whom)
       chat=chat-1
@@ -31,7 +31,7 @@
 +$  init-1
   $:  groups=groups-ui:g
       =gangs:g
-      =channels:d
+      =channels:v7:old:d
       =unreads:d
       pins=(list whom)
       chat=chat-0
@@ -48,7 +48,7 @@
       profile=?
   ==
 ::
-+$  mixed-heads  [chan=channel-heads:d chat=chat-heads:c]
++$  mixed-heads  [chan=channel-heads:v7:old:d chat=chat-heads:c]
 ::
 +$  channel-0
   $:  =channels:v1:old:d

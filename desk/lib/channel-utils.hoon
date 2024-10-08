@@ -60,7 +60,7 @@
     ==
   ?.  full  base
   %_  base
-    posts   (uv-posts-2 posts.channel)
+    posts   (uv-posts-3 posts.channel)
     net     net.channel
     remark  remark.channel
   ==
@@ -76,12 +76,21 @@
 ::
 ++  uv-posts-2
   |=  =v-posts:c
+  ^-  posts:v7:old:c
+  %+  gas:on-posts:v7:old:c  *posts:v7:old:c
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(unit v-post:c)]
+  ^-  [id-post:c (unit post:v7:old:c)]
+  [id-post ?~(v-post ~ `(uv-post-2 u.v-post))]
+::
+++  uv-posts-3
+  |=  =v-posts:c
   ^-  posts:c
   %+  gas:on-posts:c  *posts:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(unit v-post:c)]
   ^-  [id-post:c (unit post:c)]
-  [id-post ?~(v-post ~ `(uv-post-2 u.v-post))]
+  [id-post ?~(v-post ~ `(uv-post-3 u.v-post))]
 ::
 ++  s-posts
   |=  =posts:c
@@ -113,9 +122,20 @@
 ::
 ++  uv-post-2
   |=  =v-post:c
+  ^-  post:v7:old:c
+  :_  +.v-post
+  :*  id.v-post
+      (uv-reacts reacts.v-post)
+      (uv-replies-2 id.v-post replies.v-post)
+      (get-reply-meta v-post)
+  ==
+::
+++  uv-post-3
+  |=  =v-post:c
   ^-  post:c
   :_  +.v-post
   :*  id.v-post
+      seq.v-post
       (uv-reacts reacts.v-post)
       (uv-replies-2 id.v-post replies.v-post)
       (get-reply-meta v-post)
@@ -125,12 +145,13 @@
   |=  =post:c
   ^-  simple-post:c
   :_  +>.post
+  =-  [- |2]:-
   -.post(replies (s-replies replies.post))
 ::
 ++  suv-post
   |=  =v-post:c
   ^-  simple-post:c
-  (s-post (uv-post-2 v-post))
+  (s-post (uv-post-3 v-post))
 ::
 ++  uv-posts-without-replies
   |=  =v-posts:c
@@ -143,12 +164,21 @@
 ::
 ++  uv-posts-without-replies-2
   |=  =v-posts:c
+  ^-  posts:v7:old:c
+  %+  gas:on-posts:v7:old:c  *posts:v7:old:c
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(unit v-post:c)]
+  ^-  [id-post:c (unit post:v7:old:c)]
+  [id-post ?~(v-post ~ `(uv-post-without-replies-2 u.v-post))]
+::
+++  uv-posts-without-replies-3
+  |=  =v-posts:c
   ^-  posts:c
   %+  gas:on-posts:c  *posts:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(unit v-post:c)]
   ^-  [id-post:c (unit post:c)]
-  [id-post ?~(v-post ~ `(uv-post-without-replies-2 u.v-post))]
+  [id-post ?~(v-post ~ `(uv-post-without-replies-3 u.v-post))]
 ::
 ++  suv-posts-without-replies
   |=  =v-posts:c
@@ -180,9 +210,20 @@
 ::
 ++  uv-post-without-replies-2
   |=  post=v-post:c
+  ^-  post:v7:old:c
+  :_  +.post
+  :*  id.post
+      (uv-reacts reacts.post)
+      *replies:c
+      (get-reply-meta post)
+  ==
+::
+++  uv-post-without-replies-3
+  |=  post=v-post:c
   ^-  post:c
   :_  +.post
   :*  id.post
+      seq.post
       (uv-reacts reacts.post)
       *replies:c
       (get-reply-meta post)
@@ -191,7 +232,7 @@
 ++  suv-post-without-replies
   |=  post=v-post:c
   ^-  simple-post:c
-  (s-post (uv-post-without-replies-2 post))
+  (s-post (uv-post-without-replies-3 post))
 ::
 ++  uv-replies
   |=  [parent-id=id-post:c =v-replies:c]
@@ -252,6 +293,53 @@
   |=  [=ship (rev:c react=(unit react:c))]
   ?~  react  ~
   (some ship u.react)
+::
+++  seal-1
+  |=  =seal:c
+  ^-  seal:v7:old:c
+  %*  .  *seal:v7:old:c
+    id       id.seal
+    reacts   reacts.seal
+    replies  replies.seal
+    reply-meta  reply-meta.seal
+  ==
+::
+++  post-1
+  |=  =post:c
+  ^-  post:v7:old:c
+  %*  .  *post:v7:old:c
+    -  (seal-1 -.post)
+    +  +.post
+  ==
+::
+++  posts-1
+  |=  =posts:c
+  ^-  posts:v7:old:c
+  %+  gas:on-posts:v7:old:c  *posts:v7:old:c
+  %+  turn  (tap:on-posts:c posts)
+  |=  [=id-post:c post=(unit post:c)]
+  ^-  [id-post:c (unit post:v7:old:c)]
+  :-  id-post
+  ?~  post  ~
+  %-  some
+  (post-1 u.post)
+::
+++  r-channels-1
+  |=  =r-channels:c
+  ^-  r-channels:v7:old:c
+  =+  r-channel=r-channel.r-channels
+  :-  nest.r-channels
+  ^-  r-channel:v7:old:c
+  ?+  r-channel  r-channel
+    [%posts *]
+  :-  %posts
+  (posts-1 posts.r-channel)
+  ::
+    [%post id=id-post:c %set *]
+  ?~  post.r-post.r-channel
+    r-channel
+  r-channel(post.r-post `(post-1 u.post.r-post.r-channel))
+  ==
 ::
 ++  said
   |=  [=nest:c =plan:c posts=v-posts:c]
@@ -374,6 +462,81 @@
     $(entries +.entries)
   =.  replyers  (~(put in replyers) author.u.reply)
   $(entries +.entries)
+::
+++  channel-head-1
+  =|  slip=_|
+  |=  [since=(unit id-post:c) =nest:c v-channel:c]
+  ^-  (unit [_nest time (unit post:v7:old:c)])
+  ::  if there is no latest post, give nothing
+  ::
+  ?~  vp=(ram:on-v-posts:c posts)  ~
+  ::  if latest was deleted, try the next-latest message instead
+  ::
+  ?~  val.u.vp
+    $(slip &, posts +:(pop:on-v-posts:c posts))
+  =*  result
+    `[nest recency.remark `(uv-post-without-replies-2 u.val.u.vp)]
+  ::  if the request is bounded, check that latest message is "in bounds"
+  ::  (and not presumably already known by the requester)
+  ::
+  ?:  ?|  ?=(~ since)
+          |((gth key.u.vp u.since) (gth recency.remark u.since))
+      ==
+    ::  latest is in range (or recency was changed), give it directly
+    ::
+    result
+  ::  "out of bounds", ...but! latest may have changed itself, or only
+  ::  be latest because something else was deleted. the latter case we
+  ::  already detected, and so easily branch on here:
+  ::
+  ?:  slip  result
+  ::  edits are detected through changelogs. look at the relevant log range,
+  ::  and see if any update affects the latest post.
+  ::NOTE  if our mops were the other way around, we could +dip:on instead
+  ::
+  =;  changed=?
+    ?.(changed ~ result)
+  %+  lien  (bap:log-on:c (lot:log-on:c log since ~))
+  |=  [key=time val=u-channel:c]
+  &(?=([%post * %set *] val) =(id.val key.u.vp))
+::
+++  channel-head-2
+  =|  slip=_|
+  |=  [since=(unit id-post:c) =nest:c v-channel:c]
+  ^-  (unit [_nest time (unit post:c)])
+  ::  if there is no latest post, give nothing
+  ::
+  ?~  vp=(ram:on-v-posts:c posts)  ~
+  ::  if latest was deleted, try the next-latest message instead
+  ::
+  ?~  val.u.vp
+    $(slip &, posts +:(pop:on-v-posts:c posts))
+  =*  result
+    `[nest recency.remark `(uv-post-without-replies-3 u.val.u.vp)]
+  ::  if the request is bounded, check that latest message is "in bounds"
+  ::  (and not presumably already known by the requester)
+  ::
+  ?:  ?|  ?=(~ since)
+          |((gth key.u.vp u.since) (gth recency.remark u.since))
+      ==
+    ::  latest is in range (or recency was changed), give it directly
+    ::
+    result
+  ::  "out of bounds", ...but! latest may have changed itself, or only
+  ::  be latest because something else was deleted. the latter case we
+  ::  already detected, and so easily branch on here:
+  ::
+  ?:  slip  result
+  ::  edits are detected through changelogs. look at the relevant log range,
+  ::  and see if any update affects the latest post.
+  ::NOTE  if our mops were the other way around, we could +dip:on instead
+  ::
+  =;  changed=?
+    ?.(changed ~ result)
+  %+  lien  (bap:log-on:c (lot:log-on:c log since ~))
+  |=  [key=time val=u-channel:c]
+  &(?=([%post * %set *] val) =(id.val key.u.vp))
+::
 ++  perms
   |_  [our=@p now=@da =nest:c group=flag:g]
   ++  am-host  =(our ship.nest)
