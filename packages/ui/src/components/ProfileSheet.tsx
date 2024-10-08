@@ -115,8 +115,6 @@ export function ProfileSheet({
     <ActionSheet
       open={open}
       onOpenChange={onOpenChange}
-      // snapPointsMode="percent"
-      // snapPoints={[90]}
     >
       <ActionSheet.ScrollableContent>
         <ActionSheet.ContentBlock>
