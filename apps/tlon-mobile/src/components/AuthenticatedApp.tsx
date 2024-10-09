@@ -13,6 +13,7 @@ import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { initializeCrashReporter, sync } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
+import { ENABLED_LOGGERS } from 'packages/app/constants';
 import { useCallback, useEffect } from 'react';
 import { AppStateStatus } from 'react-native';
 
@@ -32,6 +33,7 @@ function AuthenticatedApp({
   const currentUserId = useCurrentUserId();
   const signupContext = useSignupContext();
   const handlePostSignup = usePostSignup();
+  const session = store.useCurrentSession();
   useNotificationListener(notificationListenerProps);
   useDeepLinkListener();
   useNavigationLogging();
@@ -41,8 +43,15 @@ function AuthenticatedApp({
     configureClient({
       shipName: ship ?? '',
       shipUrl: shipUrl ?? '',
-      onReset: () => sync.syncStart(),
-      onChannelReset: () => sync.handleDiscontinuity(),
+      verbose: ENABLED_LOGGERS.includes('urbit'),
+      onReset: () => sync.syncStart(true),
+      onChannelReset: () => {
+        const threshold = __DEV__ ? 60 * 1000 : 12 * 60 * 60 * 1000; // 12 hours
+        const lastReconnect = session?.startTime ?? 0;
+        if (Date.now() - lastReconnect >= threshold) {
+          sync.handleDiscontinuity();
+        }
+      },
       onChannelStatusChange: sync.handleChannelStatusChange,
     });
 

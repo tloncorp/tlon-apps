@@ -22,6 +22,7 @@ interface Watcher {
 type Watchers = Record<string, Map<string, Watcher>>;
 
 let clientInstance: Urbit | null = null;
+let handleChannelReset: (() => void) | undefined;
 let subWatchers: Watchers = {};
 
 export const client = new Proxy(
@@ -56,7 +57,7 @@ export function configureClient({
   shipUrl,
   fetchFn,
   verbose,
-  onReset,
+  onReconnect,
   onChannelReset,
   onChannelStatusChange,
 }: {
@@ -64,7 +65,7 @@ export function configureClient({
   shipUrl: string;
   fetchFn?: typeof fetch;
   verbose?: boolean;
-  onReset?: () => void;
+  onReconnect?: () => void;
   onChannelReset?: () => void;
   onChannelStatusChange?: (status: ChannelStatus) => void;
 }) {
@@ -73,9 +74,23 @@ export function configureClient({
   clientInstance.ship = deSig(shipName);
   clientInstance.our = preSig(shipName);
   clientInstance.verbose = verbose;
+  handleChannelReset = onChannelReset;
+  subWatchers = {};
+
+  clientInstance.onReconnect = () => {
+    logger.log('client reconnected');
+    onChannelStatusChange?.('reconnected');
+    onReconnect?.();
+  };
+
+  clientInstance.onRetry = () => {
+    logger.log('client retrying');
+    onChannelStatusChange?.('reconnecting');
+  };
+
+  // the below event handlers will only fire if verbose is set to true
   clientInstance.on('status-update', (event) => {
     logger.log('status-update', event);
-    onChannelStatusChange?.(event.status);
   });
 
   clientInstance.on('fact', (fact) => {
@@ -83,19 +98,6 @@ export function configureClient({
       'received message',
       runIfDev(() => escapeLog(JSON.stringify(fact)))
     );
-  });
-
-  clientInstance.onReconnect = () => {
-    logger.log('client reconnect');
-  };
-
-  clientInstance.on('reset', () => {
-    logger.log('client reset');
-    Object.values(subWatchers).forEach((watchers) => {
-      watchers.forEach((watcher) => watcher.reject('Client reset'));
-    });
-    subWatchers = {};
-    onReset?.();
   });
 
   clientInstance.on('seamless-reset', () => {
@@ -108,10 +110,7 @@ export function configureClient({
 
   clientInstance.on('channel-reaped', () => {
     logger.log('client channel-reaped');
-    onChannelReset?.();
   });
-
-  subWatchers = {};
 }
 
 export async function removeUrbitClient() {
@@ -131,17 +130,13 @@ function printEndpoint(endpoint: UrbitEndpoint) {
 
 export function subscribe<T>(
   endpoint: UrbitEndpoint,
-  handler: (update: T) => void,
-  resubscribing = false
+  handler: (update: T) => void
 ) {
   if (!clientInstance) {
     throw new Error('Tried to subscribe, but Urbit client is not initialized');
   }
 
-  logger.log(
-    resubscribing ? 'resubscribing to' : 'subscribing to',
-    printEndpoint(endpoint)
-  );
+  logger.log('subscribing to', printEndpoint(endpoint));
 
   return clientInstance.subscribe({
     app: endpoint.app,
@@ -173,7 +168,7 @@ export function subscribe<T>(
     },
     quit: () => {
       logger.log('subscription quit on', printEndpoint(endpoint));
-      subscribe(endpoint, handler, true);
+      handleChannelReset?.();
     },
     err: (error) => {
       logger.error(`subscribe error on ${printEndpoint(endpoint)}:`, error);
