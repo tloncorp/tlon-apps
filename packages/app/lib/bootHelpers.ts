@@ -15,6 +15,7 @@ export enum NodeBootPhase {
   RESERVING = 'reserving',
   BOOTING = 'booting',
   AUTHENTICATING = 'authenticating',
+  CONNECTING = 'connecting',
   CHECKING_FOR_INVITE = 'checking-for-invite',
   ACCEPTING_INVITES = 'accepting-invites',
   READY = 'ready',

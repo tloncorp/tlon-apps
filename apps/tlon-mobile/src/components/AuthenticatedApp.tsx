@@ -32,19 +32,23 @@ function AuthenticatedApp({
   const currentUserId = useCurrentUserId();
   const signupContext = useSignupContext();
   const handlePostSignup = usePostSignup();
+  const connectionStatus = store.useConnectionStatus();
   useNotificationListener(notificationListenerProps);
   useDeepLinkListener();
   useNavigationLogging();
   useNetworkLogger();
 
   useEffect(() => {
-    configureClient({
-      shipName: ship ?? '',
-      shipUrl: shipUrl ?? '',
-      onReset: () => sync.syncStart(),
-      onChannelReset: () => sync.handleDiscontinuity(),
-      onChannelStatusChange: sync.handleChannelStatusChange,
-    });
+    // TODO: i think we need a proper idle state?
+    if (connectionStatus !== 'Connected') {
+      configureClient({
+        shipName: ship ?? '',
+        shipUrl: shipUrl ?? '',
+        onReset: () => sync.syncStart(),
+        onChannelReset: () => sync.handleDiscontinuity(),
+        onChannelStatusChange: sync.handleChannelStatusChange,
+      });
+    }
 
     initializeCrashReporter(crashlytics(), PlatformState);
 

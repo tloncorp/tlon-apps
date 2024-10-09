@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
+import { NodeBootPhase } from '@tloncorp/app/lib/bootHelpers';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { getShipFromCookie, getShipUrl } from '@tloncorp/app/utils/ship';
 import { configureApi } from '@tloncorp/shared/dist/api';
@@ -25,166 +26,169 @@ export const ReserveShipScreen = ({
   }>({
     state: 'loading',
   });
-  const { hostingApi, getLandscapeAuthCookie } = useOnboardingContext();
+
   const signupContext = useSignupContext();
-  const { setShip } = useShip();
 
-  const startShip = useCallback(
-    async (shipIds: string[]) => {
-      // Fetch statuses for the user's ships and start any required booting/resuming
-      const shipsWithStatus = await hostingApi.getShipsWithStatus(shipIds);
-      console.log('shipsWithStatus', shipsWithStatus);
-      if (!shipsWithStatus) {
-        // you can only have gotten to this screen if a new hosting account was created and ship
-        // was reserved. If we don't see the ship status, assume it's still booting
-        return setState({ state: 'booting' });
-      }
+  // const { hostingApi, getLandscapeAuthCookie } = useOnboardingContext();
+  // const signupContext = useSignupContext();
+  // const { setShip } = useShip();
 
-      const { status, shipId } = shipsWithStatus;
+  // const startShip = useCallback(
+  //   async (shipIds: string[]) => {
+  //     // Fetch statuses for the user's ships and start any required booting/resuming
+  //     const shipsWithStatus = await hostingApi.getShipsWithStatus(shipIds);
+  //     console.log('shipsWithStatus', shipsWithStatus);
+  //     if (!shipsWithStatus) {
+  //       // you can only have gotten to this screen if a new hosting account was created and ship
+  //       // was reserved. If we don't see the ship status, assume it's still booting
+  //       return setState({ state: 'booting' });
+  //     }
 
-      // If user is in the sign up flow, send them to fill out some extra details
-      if (
-        signupContext.nickname === undefined &&
-        signupContext.telemetry === undefined
-      ) {
-        return navigation.navigate('SetNickname', {
-          user: await hostingApi.getHostingUser(user.id),
-        });
-      }
+  //     const { status, shipId } = shipsWithStatus;
 
-      // If it's not ready, show the booting message
-      if (status !== 'Ready') {
-        return setState({ state: 'booting' });
-      }
+  //     // If user is in the sign up flow, send them to fill out some extra details
+  //     if (
+  //       signupContext.nickname === undefined &&
+  //       signupContext.telemetry === undefined
+  //     ) {
+  //       return navigation.navigate('SetNickname', {
+  //         user: await hostingApi.getHostingUser(user.id),
+  //       });
+  //     }
 
-      // If it's ready, fetch the access code and auth cookie
-      const { code: accessCode } = await hostingApi.getShipAccessCode(shipId);
-      const shipUrl = getShipUrl(shipId);
-      const authCookie = await getLandscapeAuthCookie(shipUrl, accessCode);
-      if (!authCookie) {
-        return setState({
-          state: 'error',
-          error: "Sorry, we couldn't log you into your ship.",
-        });
-      }
+  //     // If it's not ready, show the booting message
+  //     if (status !== 'Ready') {
+  //       return setState({ state: 'booting' });
+  //     }
 
-      const ship = getShipFromCookie(authCookie);
-      configureApi(ship, shipUrl);
+  //     // If it's ready, fetch the access code and auth cookie
+  //     const { code: accessCode } = await hostingApi.getShipAccessCode(shipId);
+  //     const shipUrl = getShipUrl(shipId);
+  //     const authCookie = await getLandscapeAuthCookie(shipUrl, accessCode);
+  //     if (!authCookie) {
+  //       return setState({
+  //         state: 'error',
+  //         error: "Sorry, we couldn't log you into your ship.",
+  //       });
+  //     }
 
-      // Set the ship info in the main context to navigate to chat view
-      setShip({
-        ship,
-        shipUrl,
-        authCookie,
-      });
-    },
-    [
-      getLandscapeAuthCookie,
-      hostingApi,
-      navigation,
-      setShip,
-      signupContext.nickname,
-      signupContext.telemetry,
-      user.id,
-    ]
-  );
+  //     const ship = getShipFromCookie(authCookie);
+  //     configureApi(ship, shipUrl);
 
-  const reserveShip = useCallback(
-    async (skipShipId?: string) => {
-      const shipIds = user.ships ?? [];
+  //     // Set the ship info in the main context to navigate to chat view
+  //     setShip({
+  //       ship,
+  //       shipUrl,
+  //       authCookie,
+  //     });
+  //   },
+  //   [
+  //     getLandscapeAuthCookie,
+  //     hostingApi,
+  //     navigation,
+  //     setShip,
+  //     signupContext.nickname,
+  //     signupContext.telemetry,
+  //     user.id,
+  //   ]
+  // );
 
-      // User doesn't have any ships assigned to them yet
-      if (shipIds.length === 0) {
-        try {
-          // Get list of reservable ships and choose one that's ready for distribution
-          const ships = await hostingApi.getReservableShips(user.id);
-          const ship = ships.find(
-            ({ id, readyForDistribution }) =>
-              id !== skipShipId && readyForDistribution
-          );
-          if (!ship) {
-            return setState({
-              state: 'error',
-              error:
-                'Sorry, we could no longer find a ship for you. Please try again later.',
-            });
-          }
+  // const reserveShip = useCallback(
+  //   async (skipShipId?: string) => {
+  //     const shipIds = user.ships ?? [];
 
-          // Reserve this ship and check it was successful
-          const { reservedBy } = await hostingApi.reserveShip(user.id, ship.id);
-          console.log('reserved', user, reservedBy);
-          if (reservedBy !== user.id) {
-            return reserveShip(ship.id);
-          }
+  //     // User doesn't have any ships assigned to them yet
+  //     if (shipIds.length === 0) {
+  //       try {
+  //         // Get list of reservable ships and choose one that's ready for distribution
+  //         const ships = await hostingApi.getReservableShips(user.id);
+  //         const ship = ships.find(
+  //           ({ id, readyForDistribution }) =>
+  //             id !== skipShipId && readyForDistribution
+  //         );
+  //         if (!ship) {
+  //           return setState({
+  //             state: 'error',
+  //             error:
+  //               'Sorry, we could no longer find a ship for you. Please try again later.',
+  //           });
+  //         }
 
-          // Finish allocating this ship to the user
-          await hostingApi.allocateReservedShip(user.id);
-          shipIds.push(ship.id);
-          trackOnboardingAction({
-            actionName: 'Urbit ID Selected',
-            ship: ship.id,
-          });
-        } catch (err) {
-          console.error('Error reserving ship:', err);
-          if (err instanceof Error) {
-            trackError(err);
-          }
+  //         // Reserve this ship and check it was successful
+  //         const { reservedBy } = await hostingApi.reserveShip(user.id, ship.id);
+  //         console.log('reserved', user, reservedBy);
+  //         if (reservedBy !== user.id) {
+  //           return reserveShip(ship.id);
+  //         }
 
-          return setState({
-            state: 'error',
-            error:
-              'We were not able to reserve your ship. Please try again later.',
-          });
-        }
-      }
+  //         // Finish allocating this ship to the user
+  //         await hostingApi.allocateReservedShip(user.id);
+  //         shipIds.push(ship.id);
+  //         trackOnboardingAction({
+  //           actionName: 'Urbit ID Selected',
+  //           ship: ship.id,
+  //         });
+  //       } catch (err) {
+  //         console.error('Error reserving ship:', err);
+  //         if (err instanceof Error) {
+  //           trackError(err);
+  //         }
 
-      // Start the ship
-      try {
-        await startShip(shipIds);
-      } catch (err) {
-        console.error('Error starting ship:', err);
-        if (err instanceof Error) {
-          trackError(err);
-        }
+  //         return setState({
+  //           state: 'error',
+  //           error:
+  //             'We were not able to reserve your ship. Please try again later.',
+  //         });
+  //       }
+  //     }
 
-        return setState({
-          state: 'error',
-          error: "Sorry, we couldn't boot your ship. Please try again later.",
-        });
-      }
-    },
-    [user]
-  );
+  //     // Start the ship
+  //     try {
+  //       await startShip(shipIds);
+  //     } catch (err) {
+  //       console.error('Error starting ship:', err);
+  //       if (err instanceof Error) {
+  //         trackError(err);
+  //       }
 
-  useEffect(() => {
-    reserveShip();
-  }, [reserveShip]);
+  //       return setState({
+  //         state: 'error',
+  //         error: "Sorry, we couldn't boot your ship. Please try again later.",
+  //       });
+  //     }
+  //   },
+  //   [user]
+  // );
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
+  // useEffect(() => {
+  //   reserveShip();
+  // }, [reserveShip]);
 
-    if (state === 'booting') {
-      timer = setInterval(reserveShip, 5_000);
-    }
+  // useEffect(() => {
+  //   let timer: NodeJS.Timeout;
 
-    return () => {
-      if (timer) {
-        clearInterval(timer);
-      }
-    };
-  }, [state]);
+  //   if (state === 'booting') {
+  //     timer = setInterval(reserveShip, 5_000);
+  //   }
 
-  useEffect(() => {
-    if (error) {
-      Alert.alert('An error occurred', error, [
-        {
-          text: 'OK',
-          onPress: () => navigation.popToTop(),
-          style: 'cancel',
-        },
-      ]);
-    }
-  }, [error, navigation]);
+  //   return () => {
+  //     if (timer) {
+  //       clearInterval(timer);
+  //     }
+  //   };
+  // }, [state]);
+
+  // useEffect(() => {
+  //   if (error) {
+  //     Alert.alert('An error occurred', error, [
+  //       {
+  //         text: 'OK',
+  //         onPress: () => navigation.popToTop(),
+  //         style: 'cancel',
+  //       },
+  //     ]);
+  //   }
+  // }, [error, navigation]);
 
   // Disable back button if no error occurred
   useEffect(
@@ -196,6 +200,12 @@ export const ReserveShipScreen = ({
       }),
     [navigation, error]
   );
+
+  useEffect(() => {
+    if (signupContext.bootPhase === NodeBootPhase.IDLE) {
+      signupContext.initializeBootSequence();
+    }
+  }, [signupContext]);
 
   return (
     <View flex={1} padding="$2xl" alignItems="center" justifyContent="center">
@@ -213,7 +223,7 @@ export const ReserveShipScreen = ({
             Booting your ship...
           </Text>
           <Text textAlign="center" color="$secondaryText" fontSize="$m">
-            This may take a few minutes.
+            {signupContext.bootPhase}
           </Text>
         </YStack>
       ) : null}

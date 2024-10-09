@@ -5,11 +5,14 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 
+import { configureClient } from '../lib/api';
 import { NodeBootPhase } from '../lib/bootHelpers';
 import BootHelpers from '../lib/bootHelpers';
+import { getShipFromCookie } from '../utils/ship';
 import { useLureMetadata } from './branch';
 import { useShip } from './ship';
 
@@ -31,6 +34,7 @@ interface SignupContext extends SignupValues {
   setNotificationToken: (notificationToken: string | undefined) => void;
   setTelemetry: (telemetry: boolean) => void;
   setDidSignup: (didSignup: boolean) => void;
+  initializeBootSequence: () => void;
   clear: () => void;
 }
 
@@ -43,6 +47,7 @@ const defaultContext: SignupContext = {
   setNotificationToken: () => {},
   setTelemetry: () => {},
   setDidSignup: () => {},
+  initializeBootSequence: () => {},
   clear: () => {},
 };
 
@@ -53,6 +58,7 @@ const SignupContext = createContext<SignupContext>(defaultContext);
 export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
   const [values, setValues] = useState<SignupValues>(defaultContext);
   const { setShip } = useShip();
+  const connectionStatus = store.useConnectionStatus();
   const lureMeta = useLureMetadata();
 
   const setBootPhase = useCallback((bootPhase: NodeBootPhase) => {
@@ -71,91 +77,115 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [values]);
 
-  const runBootSequence = useCallback(async () => {
+  const runBootPhase = useCallback(async (): Promise<NodeBootPhase> => {
     const { hostingUser, bootPhase } = values;
-    logger.log(`running boot sequence phase: ${bootPhase}`);
 
     if (!hostingUser) {
       logger.log('no hosting user found, skipping');
-      return;
+      return bootPhase;
     }
 
+    //
     // Step 1: reserve a node
+    //
     if (bootPhase === NodeBootPhase.RESERVING) {
       const reservedNodeId = await BootHelpers.reserveNode(hostingUser.id);
       setValues((current) => ({
         ...current,
         reservedNodeId,
-        bootPhase: NodeBootPhase.BOOTING,
       }));
       logger.log(`reserved node`, reservedNodeId);
-      return;
+      return NodeBootPhase.BOOTING;
     }
 
+    // you should not be able to advance past here unless reservedNodeId is set
     if (!values.reservedNodeId) {
       throw new Error(
         `cannot run boot phase ${bootPhase} without a reserved node`
       );
     }
 
+    //
     // Step 2: confirm the node has finished booting on hosting
+    //
     if (bootPhase === NodeBootPhase.BOOTING) {
       const isReady = await BootHelpers.checkNodeBooted(values.reservedNodeId);
       if (isReady) {
-        setValues((current) => ({
-          ...current,
-          bootPhase: NodeBootPhase.AUTHENTICATING,
-        }));
         logger.log('checked hosting, node is ready');
-      } else {
-        logger.log('checked hosting, node still booting');
+        return NodeBootPhase.AUTHENTICATING;
       }
-      return;
+
+      logger.log('checked hosting, node still booting');
+      return NodeBootPhase.BOOTING;
     }
 
+    //
     // Step 3: authenticate with the node itself
+    //
     if (bootPhase === NodeBootPhase.AUTHENTICATING) {
       const auth = await BootHelpers.authenticateNode(values.reservedNodeId);
+      const ship = getShipFromCookie(auth.authCookie);
+
       setShip({
-        ship: auth.nodeId,
+        ship,
         shipUrl: auth.nodeUrl,
         authCookie: auth.authCookie,
       });
 
       // TODO: connect to the API client?
+      configureClient({
+        shipName: ship,
+        shipUrl: auth.nodeUrl,
+        onReset: () => store.syncStart(),
+        onChannelReset: () => store.handleDiscontinuity(),
+        onChannelStatusChange: store.handleChannelStatusChange,
+      });
 
-      const signedUpWithInvite = Boolean(lureMeta?.id);
-      setValues((current) => ({
-        ...current,
-        bootPhase: signedUpWithInvite
-          ? NodeBootPhase.CHECKING_FOR_INVITE
-          : NodeBootPhase.READY,
-      }));
-      return;
+      logger.log(`authenticated with node`);
+      return NodeBootPhase.CONNECTING;
     }
 
+    //
+    // finish connecting to the node
+    //
+    if (bootPhase === NodeBootPhase.CONNECTING) {
+      await wait(1000);
+      if (connectionStatus === 'Connected') {
+        logger.log(`finished connecting to node`);
+        const signedUpWithInvite = Boolean(lureMeta?.id);
+        return signedUpWithInvite
+          ? NodeBootPhase.CHECKING_FOR_INVITE
+          : NodeBootPhase.READY;
+      }
+
+      logger.log(`still connecting to node`);
+      return NodeBootPhase.CONNECTING;
+    }
+
+    //
     // Step 4 [optional]: if we used an invite code to signup, see if we got the invites
+    //
     if (bootPhase === NodeBootPhase.CHECKING_FOR_INVITE) {
       const { invitedDm, invitedGroup } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
 
       if (invitedDm && invitedGroup) {
-        setValues((current) => ({
-          ...current,
-          bootPhase: NodeBootPhase.ACCEPTING_INVITES,
-        }));
         logger.log('confirmed node has the invites');
-      } else {
-        logger.log('checked node for invites, not yet found');
+        return NodeBootPhase.ACCEPTING_INVITES;
       }
-      return;
+
+      logger.log('checked node for invites, not yet found');
+      return NodeBootPhase.CHECKING_FOR_INVITE;
     }
 
+    //
     // Step 5 [optional]: join the invited groups
+    //
     if (bootPhase === NodeBootPhase.ACCEPTING_INVITES) {
       const { invitedDm, invitedGroup } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
 
+      // if we have invites, accept them
       if (invitedDm && invitedDm.isDmInvite) {
         logger.log(`accepting dm invitation`);
         await store.respondToDMInvite({ channel: invitedDm, accept: true });
@@ -170,7 +200,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         await store.joinGroup(invitedGroup);
       }
 
-      // give the join & accept some time to process, the hard refresh data
+      // give it some time to process, then hard refresh the data
       await wait(2000);
       if (invitedGroup) {
         await store.syncGroup(invitedGroup?.id);
@@ -179,6 +209,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         await store.syncDms();
       }
 
+      // check if we successfully joined
       const { invitedDm: updatedDm, invitedGroup: updatedGroup } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
 
@@ -190,27 +221,55 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         updatedGroup.channels.length > 0;
 
       if (dmIsGood && groupIsGood) {
-        setValues((current) => ({
-          ...current,
-          bootPhase: NodeBootPhase.READY,
-        }));
         logger.log('successfully accepted invites');
-      } else {
-        logger.log('still waiting on invites to be accepted');
+        return NodeBootPhase.READY;
       }
-      return;
-    }
-  }, [lureMeta, setShip, values]);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (values.bootPhase !== NodeBootPhase.READY) {
-      timer = setInterval(() => {
-        runBootSequence();
-      }, 5000);
+      logger.log('still waiting on invites to be accepted');
+      return NodeBootPhase.ACCEPTING_INVITES;
     }
-    return () => clearInterval(timer);
-  }, [values.bootPhase, runBootSequence]);
+
+    return bootPhase;
+  }, [connectionStatus, lureMeta, setShip, values]);
+
+  const isRunningRef = useRef(false);
+  const lastRunPhaseRef = useRef(values.bootPhase);
+  const lastRunErrored = useRef(false);
+  useEffect(() => {
+    const runBootSequence = async () => {
+      // prevent simultaneous runs
+      if (isRunningRef.current) {
+        return;
+      }
+
+      isRunningRef.current = true;
+
+      try {
+        // if rerunning failed step, wait before retry
+        const lastRunDidNotAdvance =
+          values.bootPhase === lastRunPhaseRef.current;
+        if (lastRunDidNotAdvance || lastRunErrored.current) {
+          await wait(3000);
+        }
+
+        lastRunPhaseRef.current = values.bootPhase;
+        lastRunErrored.current = false;
+
+        logger.log(`running boot sequence phase: ${values.bootPhase}`);
+        const nextBootPhase = await runBootPhase(); // TODO: i'm scared this will lock up if it hangs
+        setBootPhase(nextBootPhase);
+      } catch (e) {
+        lastRunErrored.current = true;
+        // handle
+      } finally {
+        isRunningRef.current = false;
+      }
+    };
+
+    if (![NodeBootPhase.IDLE, NodeBootPhase.READY].includes(values.bootPhase)) {
+      runBootSequence();
+    }
+  }, [runBootPhase, setBootPhase, values.bootPhase]);
 
   const setNickname = useCallback((nickname: string | undefined) => {
     setValues((current) => ({
@@ -259,6 +318,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         setNotificationToken,
         setTelemetry,
         setDidSignup,
+        initializeBootSequence,
         clear,
       }}
     >
