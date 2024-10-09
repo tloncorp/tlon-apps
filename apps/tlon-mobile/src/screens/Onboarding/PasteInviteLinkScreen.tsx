@@ -6,6 +6,7 @@ import {
   DEFAULT_INVITE_LINK_URL,
 } from '@tloncorp/app/constants';
 import { useBranch, useLureMetadata } from '@tloncorp/app/contexts/branch';
+import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   DeepLinkData,
   createInviteLinkRegex,
@@ -20,7 +21,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 
@@ -53,6 +54,8 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
     },
   });
 
+  const [metadataError, setMetadataError] = useState<string | null>(null);
+
   // watch for changes to the input & check for valid invite links
   const inviteLinkValue = watch('inviteLink');
   useEffect(() => {
@@ -61,14 +64,29 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
         inviteLinkValue,
         BRANCH_DOMAIN
       );
+      setMetadataError(null);
       if (extractedLink) {
-        const inviteLinkMeta = await getMetadaFromInviteLink(
-          extractedLink,
-          BRANCH_KEY
-        );
-        if (inviteLinkMeta) {
-          setLure(inviteLinkMeta as DeepLinkData);
-          return;
+        try {
+          const inviteLinkMeta = await getMetadaFromInviteLink(
+            extractedLink,
+            BRANCH_KEY
+          );
+          if (inviteLinkMeta) {
+            setLure(inviteLinkMeta as DeepLinkData);
+            return;
+          } else {
+            throw new Error('Failed to retrieve invite metadata');
+          }
+        } catch (e) {
+          trackError({
+            message: e.message,
+            properties: {
+              inviteLink: extractedLink,
+              branchDomain: BRANCH_DOMAIN,
+              branchKey: BRANCH_KEY,
+            },
+          });
+          setMetadataError('Unable to load invite');
         }
       }
       trigger('inviteLink');
@@ -80,6 +98,11 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   // to signup
   useEffect(() => {
     if (lureMeta) {
+      trackOnboardingAction({
+        actionName: 'Invite Link Added',
+        lure: lureMeta.id,
+      });
+
       navigation.reset({
         index: 0,
         routes: [{ name: 'Welcome' }, { name: 'SignUpEmail' }],
@@ -134,7 +157,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
           render={({ field: { onChange, onBlur, value } }) => (
             <Field
               label="Invite Link"
-              error={errors.inviteLink?.message}
+              error={metadataError ?? errors.inviteLink?.message}
               paddingTop="$l"
             >
               <TextInputWithButton

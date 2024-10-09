@@ -17,12 +17,6 @@ export interface DetailViewProps {
   children?: JSX.Element;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (
-    post: db.Post,
-    content: urbit.Story,
-    parentId?: string,
-    metadata?: db.PostMetadata
-  ) => Promise<void>;
   posts?: db.Post[];
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   goBack?: () => void;
@@ -39,7 +33,6 @@ export const DetailView = ({
   initialPostUnread,
   editingPost,
   setEditingPost,
-  editPost,
   posts,
   onPressImage,
   onPressRetry,
@@ -63,7 +56,6 @@ export const DetailView = ({
           channel={channel}
           editingPost={editingPost}
           setEditingPost={setEditingPost}
-          editPost={editPost}
           posts={resolvedPosts ?? null}
           showReplies={false}
           showDividers={isChat}
@@ -85,7 +77,6 @@ export const DetailView = ({
     );
   }, [
     activeMessage,
-    editPost,
     editingPost,
     initialPostUnread,
     isChat,

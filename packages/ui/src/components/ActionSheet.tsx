@@ -5,8 +5,10 @@ import {
   PropsWithChildren,
   ReactElement,
   useContext,
+  useEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import { Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -87,12 +89,30 @@ const ActionSheetComponent = ({
     hasOpened.current = true;
   }
 
+  // Delay hiding modal until sheet animation completes
+  const [modalIsVisible, setModalIsVisible] = useState(open);
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    if (open) {
+      setModalIsVisible(true);
+    } else {
+      timeout = setTimeout(() => {
+        setModalIsVisible(false);
+      }, 800);
+    }
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
+  }, [open]);
+
   // Sheets are heavy; we don't want to render until we need to
   if (!hasOpened.current) return null;
 
   return (
     <Modal
-      visible={open}
+      visible={modalIsVisible}
       onRequestClose={() => onOpenChange(false)}
       transparent
       animationType="none"

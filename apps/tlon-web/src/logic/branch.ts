@@ -92,7 +92,7 @@ export const createDeepLink = async (
     data.wer = path;
   }
 
-  let url = await getDeepLink(alias).catch(() => fallbackUrl);
+  let url = await getDeepLink(alias).catch(() => null);
   if (!url) {
     console.log(`No existing deeplink for ${alias}, creating new one`);
     const response = await fetchBranchApi('/v1/url', {

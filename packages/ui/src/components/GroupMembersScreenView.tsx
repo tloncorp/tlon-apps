@@ -24,6 +24,7 @@ export function GroupMembersScreenView({
   onPressUnban,
   onPressAcceptJoinRequest,
   onPressRejectJoinRequest,
+  onPressGoToDm,
 }: {
   goBack: () => void;
   members: db.ChatMember[];
@@ -37,6 +38,7 @@ export function GroupMembersScreenView({
   onPressUnban: (contactId: string) => void;
   onPressAcceptJoinRequest: (contactId: string) => void;
   onPressRejectJoinRequest: (contactId: string) => void;
+  onPressGoToDm: (contactId: string) => void;
 }) {
   const { bottom } = useSafeAreaInsets();
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
@@ -207,6 +209,7 @@ export function GroupMembersScreenView({
           onPressKick={() => onPressKick(selectedContact)}
           onPressBan={() => onPressBan(selectedContact)}
           onPressUnban={() => onPressUnban(selectedContact)}
+          onPressGoToDm={() => onPressGoToDm(selectedContact)}
         />
       )}
       {selectedContact !== null && selectedIsRequest && (

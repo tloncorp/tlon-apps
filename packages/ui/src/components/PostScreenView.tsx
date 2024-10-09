@@ -22,6 +22,7 @@ export function PostScreenView({
   initialThreadUnread,
   parentPost,
   posts,
+  isLoadingPosts,
   sendReply,
   markRead,
   goBack,
@@ -46,6 +47,7 @@ export function PostScreenView({
   group?: db.Group | null;
   parentPost: db.Post | null;
   posts: db.Post[] | null;
+  isLoadingPosts: boolean;
   sendReply: (content: urbit.Story, channelId: string) => Promise<void>;
   markRead: () => void;
   goBack?: () => void;
@@ -110,6 +112,7 @@ export function PostScreenView({
               title={headerTitle}
               goBack={goBack}
               showSearchButton={false}
+              showSpinner={isLoadingPosts}
               post={parentPost ?? undefined}
               mode={headerMode}
             />
@@ -122,7 +125,6 @@ export function PostScreenView({
                   onPressImage={handleGoToImage}
                   editingPost={editingPost}
                   setEditingPost={setEditingPost}
-                  editPost={editPost}
                   onPressRetry={onPressRetry}
                   onPressDelete={onPressDelete}
                   posts={postsWithoutParent}

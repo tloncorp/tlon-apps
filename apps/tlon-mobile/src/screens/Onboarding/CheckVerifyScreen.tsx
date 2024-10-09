@@ -182,7 +182,6 @@ function CodeInput({
             onChangeText={(text) => handleChangeText(i, text)}
             value={value.length > i ? value[i] : ''}
             keyboardType="numeric"
-            maxLength={1}
             paddingHorizontal="$xl"
             paddingVertical="$xl"
             width="$4xl"

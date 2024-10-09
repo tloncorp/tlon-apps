@@ -329,7 +329,6 @@ export function Channel({
                                     hasOlderPosts={hasOlderPosts}
                                     editingPost={editingPost}
                                     setEditingPost={setEditingPost}
-                                    editPost={editPost}
                                     channel={channel}
                                     firstUnreadId={
                                       (initialChannelUnread?.countWithoutThreads ??
