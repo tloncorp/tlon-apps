@@ -209,6 +209,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const editor = useEditorBridge({
       customSource: editorHtml,
+      // setting autofocus to true if we have editPost here doesn't seem to work
+      // so we're using a useEffect to set it
       autofocus: false,
       bridgeExtensions,
     });
@@ -331,6 +333,12 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       resetAttachments,
       addAttachment,
     ]);
+
+    useEffect(() => {
+      if (editor && !shouldBlur && !editorState.isFocused && !!editingPost) {
+        editor.focus();
+      }
+    }, [shouldBlur, editor, editorState, editingPost]);
 
     useEffect(() => {
       if (editor && shouldBlur && editorState.isFocused) {

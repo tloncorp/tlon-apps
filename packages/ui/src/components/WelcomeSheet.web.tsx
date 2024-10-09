@@ -43,7 +43,7 @@ function WelcomeSheetComponent({
               />
             </View>
             <YStack gap="$xs">
-              <Text fontSize="$l2">Welcome to Tlon</Text>
+              <Text fontSize="$l2">Welcome to TM</Text>
               <Text fontSize="$l" color="$tertiaryText">
                 A messenger you can finally trust.
               </Text>

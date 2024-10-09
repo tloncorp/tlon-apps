@@ -87,6 +87,13 @@ const FormFixture = () => {
         >
           <Button.Text>Reseet</Button.Text>
         </Button>
+        <Form.Field label="Find Friends">
+          <Form.TextInputWithIconAndButton
+            icon="Search"
+            buttonText="Clear"
+            onButtonPress={() => {}}
+          />
+        </Form.Field>
       </Form.FormFrame>
     </ScrollView>
   );

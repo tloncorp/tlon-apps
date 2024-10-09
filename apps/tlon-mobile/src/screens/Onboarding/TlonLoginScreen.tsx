@@ -15,18 +15,16 @@ import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
 import {
-  CheckboxInput,
   Field,
-  Icon,
   KeyboardAvoidingView,
-  ListItem,
+  OnboardingTextBlock,
   ScreenHeader,
-  SizableText,
   TextInput,
+  TlonText,
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import type { OnboardingStackParamList } from '../../types';
@@ -65,16 +63,14 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
     navigation.navigate('ResetPassword', { email });
   };
 
-  const handleEula = () => {
+  const handlePressEula = useCallback(() => {
     navigation.navigate('EULA');
-  };
+  }, [navigation]);
 
   const onSubmit = handleSubmit(async (params) => {
     setIsSubmitting(true);
 
-    if (params.eulaAgreed) {
-      await setEulaAgreed();
-    }
+    await setEulaAgreed();
 
     try {
       const user = await logInHostingUser(params);
@@ -146,117 +142,112 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
   return (
     <View flex={1}>
       <ScreenHeader
-        title="Login"
+        title="Tlon Login"
         showSessionStatus={false}
         backAction={() => navigation.goBack()}
         isLoading={isSubmitting}
         rightControls={
-          isValid &&
-          watch('eulaAgreed') && (
-            <ScreenHeader.TextButton onPress={onSubmit}>
-              Connect
-            </ScreenHeader.TextButton>
-          )
+          <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
+            Submit
+          </ScreenHeader.TextButton>
         }
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
-        <YStack gap="$2xl" padding="$2xl">
-          <SizableText color="$primaryText">
-            Enter the email and password associated with your Tlon account.
-          </SizableText>
-          {remoteError ? (
-            <SizableText color="$negativeActionText">{remoteError}</SizableText>
-          ) : null}
+        <YStack gap="$m" paddingHorizontal="$2xl">
+          <OnboardingTextBlock>
+            <TlonText.Text size="$body" color="$primaryText">
+              Enter the email and password associated with your Tlon account.
+            </TlonText.Text>
+            <TlonText.Text size="$body" color="$negativeActionText">
+              {remoteError}
+            </TlonText.Text>
+          </OnboardingTextBlock>
 
-          <Controller
-            control={control}
-            rules={{
-              required: 'Please enter a valid email address.',
-              pattern: {
-                value: EMAIL_REGEX,
-                message: 'Please enter a valid email address.',
-              },
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Field label="Email" error={errors.email?.message}>
-                <TextInput
-                  placeholder="Email Address"
-                  onBlur={() => {
-                    onBlur();
-                    trigger('email');
-                  }}
-                  onChangeText={onChange}
-                  onSubmitEditing={() => setFocus('password')}
-                  value={value}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                  enablesReturnKeyAutomatically
-                />
-              </Field>
-            )}
-            name="email"
-          />
-          <Controller
-            control={control}
-            rules={{
-              required: 'Please enter a password.',
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Field label="Password" error={errors.password?.message}>
-                <TextInput
-                  placeholder="Password"
-                  onBlur={() => {
-                    onBlur();
-                    trigger('password');
-                  }}
-                  onChangeText={onChange}
-                  onSubmitEditing={onSubmit}
-                  value={value}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="send"
-                  enablesReturnKeyAutomatically
-                />
-              </Field>
-            )}
-            name="password"
-          />
-          <Controller
-            control={control}
-            name="eulaAgreed"
-            render={({ field: { onChange, value } }) => (
-              <CheckboxInput
-                option={{
-                  title:
-                    'I have read and agree to the End User License Agreement',
-                  value: 'agreed',
-                }}
-                checked={value}
-                onChange={() => onChange(!value)}
-              />
-            )}
-          />
-          <YStack>
-            <ListItem onPress={handleEula}>
-              <ListItem.MainContent>
-                <ListItem.Title>End User License Agreement</ListItem.Title>
-              </ListItem.MainContent>
-              <ListItem.EndContent>
-                <Icon type="ChevronRight" color="$primaryText" />
-              </ListItem.EndContent>
-            </ListItem>
-            <ListItem onPress={handleForgotPassword}>
-              <ListItem.MainContent>
-                <ListItem.Title>Forgot password?</ListItem.Title>
-              </ListItem.MainContent>
-              <ListItem.EndContent>
-                <Icon type="ChevronRight" color="$primaryText" />
-              </ListItem.EndContent>
-            </ListItem>
+          <YStack gap="$2xl">
+            <Controller
+              control={control}
+              rules={{
+                required: 'Please enter a valid email address.',
+                pattern: {
+                  value: EMAIL_REGEX,
+                  message: 'Please enter a valid email address.',
+                },
+              }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Field
+                  label="Email"
+                  error={errors.email?.message}
+                  paddingTop="$m"
+                >
+                  <TextInput
+                    placeholder="Email Address"
+                    onBlur={() => {
+                      onBlur();
+                      trigger('email');
+                    }}
+                    onChangeText={onChange}
+                    onSubmitEditing={() => setFocus('password')}
+                    value={value}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    enablesReturnKeyAutomatically
+                  />
+                </Field>
+              )}
+              name="email"
+            />
+            <Controller
+              control={control}
+              rules={{
+                required: 'Please enter a password.',
+              }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Field label="Password" error={errors.password?.message}>
+                  <TextInput
+                    placeholder="Password"
+                    onBlur={() => {
+                      onBlur();
+                      trigger('password');
+                    }}
+                    onChangeText={onChange}
+                    onSubmitEditing={onSubmit}
+                    value={value}
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="send"
+                    enablesReturnKeyAutomatically
+                  />
+                </Field>
+              )}
+              name="password"
+            />
+            <TlonText.Text
+              size="$label/m"
+              color="$primaryText"
+              textAlign="center"
+              onPress={handleForgotPassword}
+            >
+              Forgot password?
+            </TlonText.Text>
           </YStack>
+          <View padding="$xl">
+            <TlonText.Text size="$label/s" color="$tertiaryText">
+              By logging in you agree to Tlon&rsquo;s{' '}
+              <TlonText.RawText
+                pressStyle={{
+                  opacity: 0.5,
+                }}
+                textDecorationLine="underline"
+                textDecorationDistance={10}
+                onPress={handlePressEula}
+              >
+                Terms of Service
+              </TlonText.RawText>
+            </TlonText.Text>
+          </View>
         </YStack>
       </KeyboardAvoidingView>
     </View>

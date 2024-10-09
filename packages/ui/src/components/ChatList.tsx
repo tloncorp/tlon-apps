@@ -20,7 +20,7 @@ import Animated, {
 import { Text, View, YStack, getTokenValue, useStyle } from 'tamagui';
 
 import { interactionWithTiming } from '../utils/animation';
-import { TextInputWithIcon } from './Form';
+import { TextInputWithIconAndButton } from './Form';
 import { ChatListItem, InteractableChatListItem } from './ListItem';
 import Pressable from './Pressable';
 import { SectionListHeader } from './SectionList';
@@ -45,6 +45,7 @@ export const ChatList = React.memo(function ChatListComponent({
   showSearchInput,
   searchQuery,
   onSearchQueryChange,
+  onSearchToggle,
 }: store.CurrentChats & {
   pendingChats: store.PendingChats;
   onPressItem?: (chat: Chat) => void;
@@ -56,6 +57,7 @@ export const ChatList = React.memo(function ChatListComponent({
   showSearchInput: boolean;
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
+  onSearchToggle: () => void;
 }) {
   const displayData = useFilteredChats({
     pinned,
@@ -122,6 +124,10 @@ export const ChatList = React.memo(function ChatListComponent({
     onSearchQueryChange('');
   }, [onSearchQueryChange]);
 
+  const handlePressClose = useCallback(() => {
+    onSearchToggle();
+  }, [onSearchToggle]);
+
   return (
     <>
       <ChatListTabs onPressTab={setActiveTab} activeTab={activeTab} />
@@ -129,6 +135,8 @@ export const ChatList = React.memo(function ChatListComponent({
         query={searchQuery}
         onQueryChange={onSearchQueryChange}
         isOpen={showSearchInput}
+        onPressClear={handlePressClear}
+        onPressClose={handlePressClose}
       />
       {searchQuery !== '' && !displayData[0]?.data.length ? (
         <SearchResultsEmpty
@@ -209,10 +217,14 @@ const ChatListSearch = React.memo(function ChatListSearchComponent({
   isOpen,
   query,
   onQueryChange,
+  onPressClear,
+  onPressClose,
 }: {
   query: string;
   onQueryChange: (query: string) => void;
   isOpen: boolean;
+  onPressClear: () => void;
+  onPressClose: () => void;
 }) {
   const [contentHeight, setContentHeight] = useState(0);
 
@@ -257,7 +269,7 @@ const ChatListSearch = React.memo(function ChatListSearchComponent({
         right={0}
       >
         <View paddingHorizontal="$l" paddingTop="$xl">
-          <TextInputWithIcon
+          <TextInputWithIconAndButton
             icon="Search"
             placeholder="Find by name"
             value={query}
@@ -265,6 +277,8 @@ const ChatListSearch = React.memo(function ChatListSearchComponent({
             spellCheck={false}
             autoCorrect={false}
             autoCapitalize="none"
+            buttonText={query !== '' ? 'Clear' : 'Close'}
+            onButtonPress={query !== '' ? onPressClear : onPressClose}
           />
         </View>
       </YStack>

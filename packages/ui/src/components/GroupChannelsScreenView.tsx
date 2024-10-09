@@ -1,11 +1,14 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View } from 'tamagui';
+import { ScrollView, View, YStack } from 'tamagui';
 
+import { useCurrentUserId } from '../contexts';
 import { useChatOptions } from '../contexts/chatOptions';
+import { useIsAdmin } from '../utils/channelUtils';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
+import { LoadingSpinner } from './LoadingSpinner';
 import {
   ChannelTypeName,
   CreateChannelSheet,
@@ -38,6 +41,8 @@ export function GroupChannelsScreenView({
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
   const insets = useSafeAreaInsets();
+  const userId = useCurrentUserId();
+  const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
 
   useEffect(() => {
     const getSortByPreference = async () => {
@@ -78,10 +83,12 @@ export function GroupChannelsScreenView({
         backAction={onBackPressed}
         rightControls={
           <>
-            <ScreenHeader.IconButton
-              type="Add"
-              onPress={() => setShowCreateChannel(true)}
-            />
+            {isGroupAdmin && (
+              <ScreenHeader.IconButton
+                type="Add"
+                onPress={() => setShowCreateChannel(true)}
+              />
+            )}
             <ScreenHeader.IconButton
               type="Overflow"
               onPress={handlePressOverflowButton}
@@ -89,15 +96,17 @@ export function GroupChannelsScreenView({
           </>
         }
       />
-      <ScrollView
-        contentContainerStyle={{
-          gap: '$s',
-          paddingTop: '$l',
-          paddingHorizontal: '$l',
-          paddingBottom: insets.bottom,
-        }}
-      >
-        {group && groupOptions.groupChannels ? (
+      {group &&
+      groupOptions.groupChannels &&
+      groupOptions.groupChannels.length ? (
+        <ScrollView
+          contentContainerStyle={{
+            gap: '$s',
+            paddingTop: '$l',
+            paddingHorizontal: '$l',
+            paddingBottom: insets.bottom,
+          }}
+        >
           <ChannelNavSections
             group={group}
             channels={groupOptions.groupChannels}
@@ -105,8 +114,12 @@ export function GroupChannelsScreenView({
             sortBy={sortBy || 'recency'}
             onLongPress={handleOpenChannelOptions}
           />
-        ) : null}
-      </ScrollView>
+        </ScrollView>
+      ) : (
+        <YStack flex={1} justifyContent="center" alignItems="center">
+          <LoadingSpinner />
+        </YStack>
+      )}
 
       {showCreateChannel && (
         <CreateChannelSheet

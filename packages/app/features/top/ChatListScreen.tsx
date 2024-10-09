@@ -311,6 +311,7 @@ export default function ChatListScreen(props: Props) {
               onPressMenuButton={onLongPressChat}
               onSectionChange={handleSectionChange}
               showSearchInput={showSearchInput}
+              onSearchToggle={handleSearchInputToggled}
               searchQuery={searchQuery}
               onSearchQueryChange={setSearchQuery}
             />

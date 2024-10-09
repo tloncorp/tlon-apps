@@ -89,7 +89,7 @@ export function Channel({
   channel: db.Channel;
   initialChannelUnread?: db.ChannelUnread | null;
   selectedPostId?: string | null;
-  headerMode?: 'default' | 'next';
+  headerMode: 'default' | 'next';
   posts: db.Post[] | null;
   group: db.Group | null;
   goBack: () => void;
@@ -226,6 +226,7 @@ export function Channel({
       setShouldBlur: setInputShouldBlur,
       shouldBlur: inputShouldBlur,
       storeDraft,
+      headerMode: headerMode,
     }),
     [
       channel,
@@ -238,6 +239,7 @@ export function Channel({
       messageSender,
       setEditingPost,
       storeDraft,
+      headerMode,
     ]
   );
 
@@ -329,6 +331,7 @@ export function Channel({
                                     activeMessage={activeMessage}
                                     setActiveMessage={setActiveMessage}
                                     ref={flatListRef}
+                                    headerMode={headerMode}
                                   />
                                 )}
                               </View>

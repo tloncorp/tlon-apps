@@ -175,28 +175,26 @@ const ListItemCount = ({
   return (
     <Stack
       paddingHorizontal={'$m'}
-      backgroundColor={
-        count < 1 ? undefined : muted ? undefined : '$secondaryBackground'
-      }
+      backgroundColor={count < 1 ? undefined : '$secondaryBackground'}
       borderRadius="$l"
       {...rest}
     >
-      {muted ? (
-        <Icon type="Muted" customSize={[18, 18]} color="$tertiaryText" />
-      ) : (
-        <ListItemCountNumber hidden={!!(muted || count < 1)}>
+      <ListItemCountNumber hidden={count < 1}>
+        {muted && (
+          <Icon type="Muted" customSize={[12, 12]} color="$secondaryText" />
+        )}
+        <SizableText size="$s" color="$secondaryText">
           {numberWithMax(count, 99)}
-        </ListItemCountNumber>
-      )}
+        </SizableText>
+      </ListItemCountNumber>
     </Stack>
   );
 };
 
-const ListItemCountNumber = styled(SizableText, {
+const ListItemCountNumber = styled(XStack, {
   name: 'ListItemCountNumber',
-  size: '$s',
-  color: '$secondaryText',
-  textAlign: 'center',
+  gap: '$s',
+  alignItems: 'center',
   variants: {
     hidden: {
       true: {

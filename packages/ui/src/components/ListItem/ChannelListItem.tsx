@@ -53,23 +53,9 @@ export function ChannelListItem({
 
   return (
     <ListItem {...props} onPress={handlePress} onLongPress={handleLongPress}>
-      <ListItem.ChannelIcon
-        model={model}
-        useTypeIcon={useTypeIcon}
-        opacity={
-          logic.isMuted(model.volumeSettings?.level, 'channel') ? 0.2 : 1
-        }
-      />
+      <ListItem.ChannelIcon model={model} useTypeIcon={useTypeIcon} />
       <ListItem.MainContent>
-        <ListItem.Title
-          color={
-            logic.isMuted(model.volumeSettings?.level, 'channel')
-              ? '$tertiaryText'
-              : undefined
-          }
-        >
-          {title}
-        </ListItem.Title>
+        <ListItem.Title>{title}</ListItem.Title>
         {customSubtitle ? (
           <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
         ) : (

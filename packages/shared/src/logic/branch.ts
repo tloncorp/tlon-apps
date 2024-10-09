@@ -18,6 +18,11 @@ export const getDeepLink = async (
   params.set('branch_key', branchKey);
   const response = await fetchBranchApi(`/v1/url?${params}`);
   if (!response.ok) {
+    const badRequestInfo = await response.json();
+    logger.trackError('branch request failed', {
+      responseStatus: response.status,
+      responseJson: badRequestInfo,
+    });
     return undefined;
   }
   const {
@@ -37,6 +42,11 @@ export const getBranchLinkMeta = async (
   params.set('branch_key', branchKey);
   const response = await fetchBranchApi(`/v1/url?${params}`);
   if (!response.ok) {
+    const badRequestInfo = await response.json();
+    logger.trackError('branch request failed', {
+      responseStatus: response.status,
+      responseJson: badRequestInfo,
+    });
     return undefined;
   }
 
@@ -51,6 +61,13 @@ export const getBranchLinkMeta = async (
 export type DeepLinkType = 'lure' | 'wer';
 
 export interface DeepLinkMetadata {
+  $og_title?: string;
+  $og_description?: string;
+  $og_image_url?: string;
+  $twitter_title?: string;
+  $twitter_description?: string;
+  $twitter_image_url?: string;
+  $twitter_card?: string;
   inviterUserId?: string;
   inviterNickname?: string;
   inviterAvatarImage?: string;
@@ -145,8 +162,6 @@ export const createDeepLink = async ({
     $canonical_url: fallbackUrl,
     ...(metadata ?? {}),
   };
-  data['$desktop_url'] = fallbackUrl;
-  data['$canonical_url'] = fallbackUrl;
 
   if (type === 'lure') {
     data.lure = token;
@@ -156,7 +171,7 @@ export const createDeepLink = async ({
 
   try {
     let url = await getDeepLink(alias, branchDomain, branchKey).catch(
-      () => fallbackUrl
+      () => null
     );
     if (!url) {
       logger.crumb(`No existing deeplink for ${alias}, creating new one`);

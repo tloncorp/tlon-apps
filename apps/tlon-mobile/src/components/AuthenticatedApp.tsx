@@ -58,7 +58,6 @@ function AuthenticatedApp({
     configureClient({
       shipName: ship ?? '',
       shipUrl: shipUrl ?? '',
-      verbose: __DEV__,
       getCode:
         authType === 'self'
           ? undefined

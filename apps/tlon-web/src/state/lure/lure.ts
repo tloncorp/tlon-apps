@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { GroupMeta } from '@tloncorp/shared/dist/urbit/groups';
 import produce from 'immer';
+import { Contact } from 'packages/shared/dist/urbit';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import create from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import api from '@/api';
-import { createDeepLink } from '@/logic/branch';
+import { DeepLinkMetadata, createDeepLink } from '@/logic/branch';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import {
   asyncWithDefault,
@@ -18,6 +19,7 @@ import {
   stringToTa,
 } from '@/logic/utils';
 
+import { useContact } from '../contact';
 import { useGroup } from '../groups';
 import { useLocalState } from '../local';
 
@@ -44,9 +46,17 @@ type Lures = Record<string, Lure>;
 interface LureState {
   bait: Bait | null;
   lures: Lures;
-  fetchLure: (flag: string, fetchIfData?: boolean) => Promise<void>;
-  describe: (flag: string, metadata: LureMetadata) => Promise<void>;
-  toggle: (flag: string, metadata: GroupMeta) => Promise<void>;
+  fetchLure: (flag: string, linkMetadata: DeepLinkMetadata) => Promise<void>;
+  describe: (
+    flag: string,
+    lureMetadata: LureMetadata,
+    linkMetadata: DeepLinkMetadata
+  ) => Promise<void>;
+  toggle: (
+    flag: string,
+    lureMetadata: LureMetadata,
+    linkMetadata: DeepLinkMetadata
+  ) => Promise<void>;
   start: () => Promise<void>;
 }
 
@@ -69,19 +79,19 @@ export const useLureState = create<LureState>(
     (set, get) => ({
       bait: null,
       lures: {},
-      describe: async (flag, metadata) => {
+      describe: async (flag, lureMetadata, linkMetadata) => {
         await api.poke({
           app: 'reel',
           mark: 'reel-describe',
           json: {
             token: flag,
-            metadata,
+            metadata: lureMetadata,
           },
         });
 
-        return get().fetchLure(flag);
+        return get().fetchLure(flag, linkMetadata);
       },
-      toggle: async (flag, meta) => {
+      toggle: async (flag, lureMetadata, linkMetadata) => {
         const { name } = getFlagParts(flag);
         const lure = get().lures[flag];
         const enabled = !lure?.enabled;
@@ -94,7 +104,7 @@ export const useLureState = create<LureState>(
             },
           });
         } else {
-          get().describe(flag, groupsDescribe(meta));
+          get().describe(flag, lureMetadata, linkMetadata);
         }
 
         set(
@@ -112,7 +122,7 @@ export const useLureState = create<LureState>(
           json: name,
         });
 
-        return get().fetchLure(flag);
+        return get().fetchLure(flag, linkMetadata);
       },
       start: async () => {
         const bait = await api.scry<Bait>({
@@ -126,7 +136,7 @@ export const useLureState = create<LureState>(
           })
         );
       },
-      fetchLure: async (flag) => {
+      fetchLure: async (flag, linkMetadata) => {
         const prevLure = get().lures[flag];
         const [enabled, url, metadata] = await Promise.all([
           // enabled
@@ -176,7 +186,7 @@ export const useLureState = create<LureState>(
 
         let deepLinkUrl: string | undefined;
         if (enabled && url) {
-          deepLinkUrl = await createDeepLink(url, 'lure', flag);
+          deepLinkUrl = await createDeepLink(url, 'lure', flag, linkMetadata);
         }
 
         set(
@@ -200,6 +210,44 @@ export const useLureState = create<LureState>(
   )
 );
 
+function getLureMetadata(flag: string, meta: GroupMeta, profile: Contact) {
+  const title = `Join ${meta.title || flag}`;
+  const description = meta.description || '';
+  const image = meta.cover || meta.image || undefined;
+  const iconIsColor = meta.image ? meta.image.startsWith('#') : false;
+
+  return {
+    $og_title: title,
+    $og_description: description,
+    $og_image_url: image,
+    $twitter_title: title,
+    $twitter_description: description,
+    $twitter_image_url: image,
+    $twitter_card: meta.cover
+      ? 'summary_large_image'
+      : meta.image
+        ? 'summary'
+        : undefined,
+    inviterUserId: window.our,
+    inviterNickname: profile.nickname || undefined,
+    inviterAvatarImage: profile.avatar || undefined,
+    invitedGroupId: flag,
+    invitedGroupTitle: title,
+    invitedGroupDescription: title,
+    invitedGroupIconImageUrl:
+      meta.image && !iconIsColor ? meta.image : undefined,
+    invitedGroupiconImageColor:
+      meta.image && iconIsColor ? meta.image : undefined,
+  };
+}
+
+const emptyMeta = {
+  title: '',
+  description: '',
+  image: '',
+  cover: '',
+};
+
 const selLure = (flag: string) => (s: LureState) => ({
   lure: s.lures[flag] || { fetched: false, url: '' },
   bait: s.bait,
@@ -208,31 +256,39 @@ const { shouldLoad, newAttempt, finished } = getPreviewTracker(30 * 1000);
 export function useLure(flag: string, disableLoading = false) {
   const { bait, lure } = useLureState(selLure(flag));
   const group = useGroup(flag);
+  const contact = useContact(window.our);
+  const linkMetadata = useMemo(() => {
+    return getLureMetadata(flag, group?.meta || emptyMeta, contact);
+  }, [group, contact]);
 
   useEffect(() => {
-    if (!bait || disableLoading || !shouldLoad(flag)) {
+    if (!bait || disableLoading || !shouldLoad(flag) || !group) {
       return;
     }
 
     newAttempt(flag);
     useLureState
       .getState()
-      .fetchLure(flag)
+      .fetchLure(flag, linkMetadata)
       .finally(() => finished(flag));
-  }, [bait, flag, disableLoading]);
+  }, [bait, group, linkMetadata, flag, disableLoading]);
 
   const toggle = useCallback(
     (meta: GroupMeta) => async () => {
-      return useLureState.getState().toggle(flag, meta);
+      return useLureState
+        .getState()
+        .toggle(flag, groupsDescribe(meta), linkMetadata);
     },
-    [flag]
+    [flag, linkMetadata]
   );
 
   const describe = useCallback(
     (meta: GroupMeta) => {
-      return useLureState.getState().describe(flag, groupsDescribe(meta));
+      return useLureState
+        .getState()
+        .describe(flag, groupsDescribe(meta), linkMetadata);
     },
-    [flag]
+    [flag, linkMetadata]
   );
 
   useEffect(() => {

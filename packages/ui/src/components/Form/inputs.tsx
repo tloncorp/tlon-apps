@@ -29,6 +29,7 @@ export const BaseTextInput = styled(StyledTextInput, {
   borderRadius: '$l',
   borderWidth: 1,
   borderColor: '$border',
+  backgroundColor: '$background',
   placeholderTextColor: '$tertiaryText',
   fontSize: '$l',
   padding: '$xl',
@@ -77,6 +78,39 @@ interface TextInputWithButtonProps extends ComponentProps<typeof TextInput> {
   onButtonPress: () => void;
 }
 
+const TextInputWithButtonFrame = styled(XStack, {
+  context: FieldContext,
+  borderWidth: 1,
+  borderColor: '$border',
+  borderRadius: '$l',
+  backgroundColor: '$background',
+  variants: {
+    accent: {
+      negative: {
+        backgroundColor: '$negativeBackground',
+        color: '$negativeActionText',
+        borderColor: '$negativeBorder',
+      },
+    },
+  } as const,
+});
+
+const TextInputButton = styled(Button, {
+  context: FieldContext,
+  backgroundColor: '$secondaryBackground',
+  padding: '$l',
+  borderRadius: '$m',
+  variants: {
+    accent: {
+      negative: {
+        backgroundColor: '$negativeBackground',
+        color: '$negativeActionText',
+        borderColor: '$negativeBorder',
+      },
+    },
+  } as const,
+});
+
 // Needs polish, I know we just talked about Ochre conformance plz forgive
 export const TextInputWithButton: React.FC<TextInputWithButtonProps> =
   React.memo(function TextInputWithButtonRaw({
@@ -85,29 +119,65 @@ export const TextInputWithButton: React.FC<TextInputWithButtonProps> =
     ...textInputProps
   }) {
     return (
-      <XStack
-        borderWidth={1}
-        borderColor="$border"
-        borderRadius="$l"
-        padding="$l"
-      >
+      <TextInputWithButtonFrame>
         <TextInput
-          padding={0}
           flex={1}
           borderWidth={0}
           textAlignVertical="unset"
           {...textInputProps}
         />
+        <View padding="$l">
+          <TextInputButton onPress={onButtonPress}>
+            <Button.Text>{buttonText}</Button.Text>
+          </TextInputButton>
+        </View>
+      </TextInputWithButtonFrame>
+    );
+  });
+
+interface TextInputWithIconAndButtonProps
+  extends ComponentProps<typeof TextInput> {
+  icon: IconType;
+  buttonText: string;
+  onButtonPress: () => void;
+}
+
+export const TextInputWithIconAndButton = React.memo(
+  function TextInputWithIconAndButtonRaw({
+    icon,
+    buttonText,
+    onButtonPress,
+    ...textInputProps
+  }: TextInputWithIconAndButtonProps) {
+    return (
+      <XStack
+        borderWidth={1}
+        borderColor="$border"
+        borderRadius="$l"
+        paddingHorizontal="$xl"
+        alignItems="center"
+        gap="$l"
+      >
+        <Icon type={icon} customSize={['$2xl', '$2xl']} />
+        <TextInput
+          paddingLeft={0}
+          borderWidth={0}
+          borderRadius={0}
+          flex={1}
+          {...textInputProps}
+        />
         <Button
+          padding="$l"
           onPress={onButtonPress}
           backgroundColor="$secondaryBackground"
-          padding="$l"
+          marginRight="$-m"
         >
-          <Button.Text>{buttonText}</Button.Text>
+          <Button.Text size="$label/m">{buttonText}</Button.Text>
         </Button>
       </XStack>
     );
-  });
+  }
+);
 
 // Toggle group
 

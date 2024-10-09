@@ -18,7 +18,7 @@ export function NotebookInput({
 }: {
   draftInputContext: DraftInputContext;
 }) {
-  const { draftInputRef, editingPost, onPresentationModeChange } =
+  const { draftInputRef, editingPost, onPresentationModeChange, headerMode } =
     draftInputContext;
   const safeAreaInsets = useSafeAreaInsets();
   const [showBigInput, setShowBigInput] = useState(false);
@@ -39,6 +39,7 @@ export function NotebookInput({
       () =>
         showBigInput ? null : (
           <ScreenHeader.IconButton
+            key="notebook"
             type="Add"
             onPress={() => setShowBigInput(true)}
           />
@@ -69,7 +70,7 @@ export function NotebookInput({
           hidden={!showBigInput}
         />
 
-        {!showBigInput && (
+        {headerMode === 'next' && !showBigInput && (
           <View
             position="absolute"
             bottom={safeAreaInsets.bottom}
@@ -79,7 +80,7 @@ export function NotebookInput({
           >
             <FloatingActionButton
               onPress={() => setShowBigInput(true)}
-              icon={<Icon type="Add" size={'$s'} marginRight={'$s'} />}
+              icon={<Icon type="Add" size={'$m'} />}
             />
           </View>
         )}

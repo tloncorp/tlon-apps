@@ -37,6 +37,7 @@ export default (
       storeDraft={() => {}}
       clearDraft={() => {}}
       canUpload={true}
+      headerMode="default"
     />
   </AppDataContextProvider>
 );
