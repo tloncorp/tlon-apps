@@ -121,7 +121,6 @@ export function PostScreenView({
                   onPressImage={handleGoToImage}
                   editingPost={editingPost}
                   setEditingPost={setEditingPost}
-                  editPost={editPost}
                   onPressRetry={onPressRetry}
                   onPressDelete={onPressDelete}
                   posts={postsWithoutParent}

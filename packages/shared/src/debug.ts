@@ -242,3 +242,20 @@ export const useLogLifecycleEvents = (
     return () => console.log(label, 'unmounted');
   }, []);
 };
+
+/**
+ * Logs a message when any property of an object changes. Uses shallow equality
+ * check to determine whether a change has occurred.
+ */
+export function useObjectChangeLogging(
+  o: Record<string, unknown>,
+  logger: Console = window.console
+) {
+  const lastValues = useRef(o);
+  Object.entries(o).forEach(([k, v]) => {
+    if (v !== lastValues.current[k]) {
+      logger.log('[change]', k, 'old:', lastValues.current[k], 'new:', v);
+      lastValues.current[k] = v;
+    }
+  });
+}

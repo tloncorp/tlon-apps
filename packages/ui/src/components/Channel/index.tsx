@@ -306,7 +306,6 @@ export function Channel({
                                     hasOlderPosts={hasOlderPosts}
                                     editingPost={editingPost}
                                     setEditingPost={setEditingPost}
-                                    editPost={editPost}
                                     channelType={channel.type}
                                     channelId={channel.id}
                                     firstUnreadId={
