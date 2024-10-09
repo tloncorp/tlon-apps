@@ -64,7 +64,7 @@ type RenderItemFunction = (props: {
   isHighlighted?: boolean;
 }) => ReactElement | null;
 
-type RenderItemType =
+export type RenderItemType =
   | RenderItemFunction
   | React.MemoExoticComponent<RenderItemFunction>;
 
