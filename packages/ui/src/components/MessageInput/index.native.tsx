@@ -419,8 +419,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       async (pastedText: string) => {
         messageInputLogger.log('Pasted text', pastedText);
         // check for ref from pasted cite paths
+        const editorJson = await editor.getJSON();
         const citePathAttachment = await processReferenceAndUpdateEditor({
           editor,
+          editorJson,
           pastedText,
           matchRegex: tiptap.REF_REGEX,
           processMatch: async (match) => {
@@ -442,6 +444,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         const DEEPLINK_REGEX = new RegExp(`^(https?://)?${branchDomain}/\\S+$`);
         const deepLinkAttachment = await processReferenceAndUpdateEditor({
           editor,
+          editorJson,
           pastedText,
           matchRegex: DEEPLINK_REGEX,
           processMatch: async (deeplink) => {
@@ -467,6 +470,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           /^(https?:\/\/)?(tlon\.network\/lure\/)(0v[^/]+)$/;
         const lureLinkAttachment = await processReferenceAndUpdateEditor({
           editor,
+          editorJson,
           pastedText,
           matchRegex: TLON_LURE_REGEX,
           processMatch: async (tlonLure) => {
