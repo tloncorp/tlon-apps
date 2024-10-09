@@ -44,7 +44,7 @@ function AuthenticatedApp({
       shipName: ship ?? '',
       shipUrl: shipUrl ?? '',
       verbose: ENABLED_LOGGERS.includes('urbit'),
-      onReset: () => sync.syncStart(true),
+      onReconnect: () => sync.syncStart(true),
       onChannelReset: () => {
         const threshold = __DEV__ ? 60 * 1000 : 12 * 60 * 60 * 1000; // 12 hours
         const lastReconnect = session?.startTime ?? 0;

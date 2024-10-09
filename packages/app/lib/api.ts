@@ -50,14 +50,14 @@ export const cancelFetch = () => {
 export function configureClient({
   shipName,
   shipUrl,
-  onReset,
+  onReconnect,
   onChannelReset,
   onChannelStatusChange,
   verbose,
 }: {
   shipName: string;
   shipUrl: string;
-  onReset?: () => void;
+  onReconnect?: () => void;
   onChannelReset?: () => void;
   onChannelStatusChange?: (status: ChannelStatus) => void;
   verbose?: boolean;
@@ -66,7 +66,7 @@ export function configureClient({
     shipName,
     shipUrl,
     fetchFn: apiFetch,
-    onReset,
+    onReconnect,
     onChannelReset,
     onChannelStatusChange,
     verbose,
