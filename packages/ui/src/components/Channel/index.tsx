@@ -18,6 +18,7 @@ import {
   ChannelProvider,
   GroupsProvider,
   NavigationProvider,
+  useChannelContext,
   useCurrentUserId,
 } from '../../contexts';
 import { Attachment, AttachmentProvider } from '../../contexts/attachment';
@@ -39,7 +40,7 @@ import { ChannelFooter } from './ChannelFooter';
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { EmptyChannelNotice } from './EmptyChannelNotice';
-import Scroller, { ScrollAnchor } from './Scroller';
+import Scroller, { RenderItemType, ScrollAnchor } from './Scroller';
 
 export { INITIAL_POSTS_PER_PAGE } from './Scroller';
 
@@ -139,11 +140,6 @@ export function Channel({
   );
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
-  const renderItem = isChatChannel
-    ? ChatMessage
-    : channel.type === 'notebook'
-      ? NotebookPost
-      : GalleryPost;
 
   const renderEmptyComponent = useCallback(() => {
     return <EmptyChannelNotice channel={channel} userId={currentUserId} />;
@@ -317,7 +313,7 @@ export function Channel({
                                       collectionLayout.scrollDirection ===
                                       'bottom-to-top'
                                     }
-                                    renderItem={renderItem}
+                                    renderItem={PostView}
                                     renderEmptyComponent={renderEmptyComponent}
                                     anchor={scrollerAnchor}
                                     posts={posts}
@@ -437,3 +433,26 @@ function NegotionMismatchNotice() {
     </View>
   );
 }
+
+const PostView: RenderItemType = (props) => {
+  const channel = useChannelContext();
+
+  const SpecificPostComponent = useMemo(() => {
+    switch (channel.type) {
+      case 'chat':
+      // fallthrough
+      case 'dm':
+      // fallthrough
+      case 'groupDm':
+        return ChatMessage;
+
+      case 'notebook':
+        return NotebookPost;
+
+      case 'gallery':
+        return GalleryPost;
+    }
+  }, [channel.type]);
+
+  return <SpecificPostComponent {...props} />;
+};
