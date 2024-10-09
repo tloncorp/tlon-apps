@@ -119,6 +119,7 @@ const App = React.memo(function AppComponent() {
   const handleError = useErrorHandler();
   const isDarkMode = useIsDark();
   const currentUserId = useCurrentUserId();
+  const session = store.useCurrentSession();
   const [dbIsLoaded, setDbIsLoaded] = useState(false);
   const [startedSync, setStartedSync] = useState(false);
 
@@ -132,8 +133,14 @@ const App = React.memo(function AppComponent() {
     api.configureClient({
       shipName: currentUserId,
       shipUrl: '',
-      onReset: () => sync.syncStart(),
-      onChannelReset: () => sync.handleDiscontinuity(),
+      onReconnect: () => sync.syncStart(true),
+      onChannelReset: () => {
+        const threshold = __DEV__ ? 60 * 1000 : 12 * 60 * 60 * 1000; // 12 hours
+        const lastReconnect = session?.startTime ?? 0;
+        if (Date.now() - lastReconnect >= threshold) {
+          sync.handleDiscontinuity();
+        }
+      },
     });
     const syncStart = async () => {
       await sync.syncStart(startedSync);

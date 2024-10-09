@@ -8,7 +8,10 @@ import { getLandscapeAuthCookie } from './landscapeApi';
 const logger = createDevLogger('urbit', false);
 
 interface Config
-  extends Pick<ClientParams, 'getCode' | 'handleAuthFailure' | 'shipUrl'> {
+  extends Pick<
+    ClientParams,
+    'getCode' | 'handleAuthFailure' | 'shipUrl' | 'onChannelReset'
+  > {
   client: Urbit | null;
   subWatchers: Watchers;
   pendingAuth: Promise<string | void> | null;
@@ -51,7 +54,7 @@ export interface ClientParams {
   fetchFn?: typeof fetch;
   getCode?: () => Promise<string>;
   handleAuthFailure?: () => void;
-  onReset?: () => void;
+  onReconnect?: () => void;
   onChannelReset?: () => void;
   onChannelStatusChange?: (status: ChannelStatus) => void;
 }
@@ -61,6 +64,7 @@ const config: Config = {
   shipUrl: '',
   subWatchers: {},
   pendingAuth: null,
+  onChannelReset: undefined,
   getCode: undefined,
   handleAuthFailure: undefined,
 };
@@ -99,7 +103,7 @@ export function configureClient({
   fetchFn,
   getCode,
   handleAuthFailure,
-  onReset,
+  onReconnect,
   onChannelReset,
   onChannelStatusChange,
 }: ClientParams) {
@@ -109,12 +113,25 @@ export function configureClient({
   config.client.our = preSig(shipName);
   config.client.verbose = verbose;
   config.shipUrl = shipUrl;
+  config.onChannelReset = onChannelReset;
   config.getCode = getCode;
   config.handleAuthFailure = handleAuthFailure;
+  config.subWatchers = {};
 
+  config.client.onReconnect = () => {
+    logger.log('client reconnected');
+    onChannelStatusChange?.('reconnected');
+    onReconnect?.();
+  };
+
+  config.client.onRetry = () => {
+    logger.log('client retrying');
+    onChannelStatusChange?.('reconnecting');
+  };
+
+  // the below event handlers will only fire if verbose is set to true
   config.client.on('status-update', (event) => {
     logger.log('status-update', event);
-    onChannelStatusChange?.(event.status);
   });
 
   config.client.on('fact', (fact) => {
@@ -122,19 +139,6 @@ export function configureClient({
       'received message',
       runIfDev(() => escapeLog(JSON.stringify(fact)))
     );
-  });
-
-  config.client.onReconnect = () => {
-    logger.log('client reconnect');
-  };
-
-  config.client.on('reset', () => {
-    logger.log('client reset');
-    Object.values(config.subWatchers).forEach((watchers) => {
-      watchers.forEach((watcher) => watcher.reject('Client reset'));
-    });
-    config.subWatchers = {};
-    onReset?.();
   });
 
   config.client.on('seamless-reset', () => {
@@ -147,14 +151,12 @@ export function configureClient({
 
   config.client.on('channel-reaped', () => {
     logger.log('client channel-reaped');
-    onChannelReset?.();
   });
-
-  config.subWatchers = {};
 }
 
 export function removeUrbitClient() {
   config.client = null;
+  config.subWatchers = {};
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {
@@ -163,8 +165,7 @@ function printEndpoint(endpoint: UrbitEndpoint) {
 
 export async function subscribe<T>(
   endpoint: UrbitEndpoint,
-  handler: (update: T) => void,
-  resubscribing = false
+  handler: (update: T) => void
 ): Promise<number> {
   const doSub = async (err?: (error: any, id: string) => void) => {
     if (!config.client) {
@@ -173,10 +174,7 @@ export async function subscribe<T>(
     if (config.pendingAuth) {
       await config.pendingAuth;
     }
-    logger.log(
-      resubscribing ? 'resubscribing to' : 'subscribing to',
-      printEndpoint(endpoint)
-    );
+    logger.log('subscribing to', printEndpoint(endpoint));
     return config.client.subscribe({
       app: endpoint.app,
       path: endpoint.path,
@@ -207,7 +205,7 @@ export async function subscribe<T>(
       },
       quit: () => {
         logger.log('subscription quit on', printEndpoint(endpoint));
-        subscribe(endpoint, handler, true);
+        config.onChannelReset?.();
       },
       err: (error, id) => {
         logger.error(`subscribe error on ${printEndpoint(endpoint)}:`, error);

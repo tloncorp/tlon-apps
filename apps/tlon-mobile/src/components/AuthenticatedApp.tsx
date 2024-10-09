@@ -1,6 +1,7 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { useAppStatusChange } from '@tloncorp/app/hooks/useAppStatusChange';
@@ -42,6 +43,7 @@ function AuthenticatedApp({
   const currentUserId = useCurrentUserId();
   const signupContext = useSignupContext();
   const handlePostSignup = usePostSignup();
+  const session = store.useCurrentSession();
   useNotificationListener(notificationListenerProps);
   useDeepLinkListener();
   useNavigationLogging();
@@ -58,6 +60,7 @@ function AuthenticatedApp({
     configureClient({
       shipName: ship ?? '',
       shipUrl: shipUrl ?? '',
+      verbose: ENABLED_LOGGERS.includes('urbit'),
       getCode:
         authType === 'self'
           ? undefined
@@ -84,8 +87,14 @@ function AuthenticatedApp({
 
         navigation.navigate('TlonLogin');
       },
-      onReset: () => sync.syncStart(),
-      onChannelReset: () => sync.handleDiscontinuity(),
+      onReconnect: () => sync.syncStart(true),
+      onChannelReset: () => {
+        const threshold = __DEV__ ? 60 * 1000 : 12 * 60 * 60 * 1000; // 12 hours
+        const lastReconnect = session?.startTime ?? 0;
+        if (Date.now() - lastReconnect >= threshold) {
+          sync.handleDiscontinuity();
+        }
+      },
       onChannelStatusChange: sync.handleChannelStatusChange,
     });
 
