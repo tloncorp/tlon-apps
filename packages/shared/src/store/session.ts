@@ -66,6 +66,10 @@ export function useConnectionStatus() {
   const currentSession = useCurrentSession();
   const syncing = useSyncing();
 
+  if (!syncing && !currentSession) {
+    return 'Idle';
+  }
+
   if (!currentSession) {
     return 'Connecting';
   }

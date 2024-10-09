@@ -1,5 +1,5 @@
+import { createDevLogger } from '@tloncorp/shared/dist';
 import * as store from '@tloncorp/shared/dist/store';
-import { createDevLogger } from 'packages/shared/dist';
 import {
   createContext,
   useCallback,
@@ -30,6 +30,7 @@ interface SignupValues {
 }
 
 interface SignupContext extends SignupValues {
+  setHostingUser: (hostingUser: { id: string }) => void;
   setNickname: (nickname: string | undefined) => void;
   setNotificationToken: (notificationToken: string | undefined) => void;
   setTelemetry: (telemetry: boolean) => void;
@@ -48,6 +49,7 @@ const defaultContext: SignupContext = {
   setTelemetry: () => {},
   setDidSignup: () => {},
   initializeBootSequence: () => {},
+  setHostingUser: () => {},
   clear: () => {},
 };
 
@@ -124,7 +126,9 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     //
     if (bootPhase === NodeBootPhase.AUTHENTICATING) {
       const auth = await BootHelpers.authenticateNode(values.reservedNodeId);
+      console.log(`got auth`, auth);
       const ship = getShipFromCookie(auth.authCookie);
+      console.log(`ship`, ship, auth.nodeId, auth.authCookie);
 
       setShip({
         ship,
@@ -134,12 +138,13 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
 
       // TODO: connect to the API client?
       configureClient({
-        shipName: ship,
+        shipName: auth.nodeId,
         shipUrl: auth.nodeUrl,
         onReset: () => store.syncStart(),
         onChannelReset: () => store.handleDiscontinuity(),
         onChannelStatusChange: store.handleChannelStatusChange,
       });
+      store.syncStart();
 
       logger.log(`authenticated with node`);
       return NodeBootPhase.CONNECTING;
@@ -151,14 +156,14 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     if (bootPhase === NodeBootPhase.CONNECTING) {
       await wait(1000);
       if (connectionStatus === 'Connected') {
-        logger.log(`finished connecting to node`);
+        logger.log(`connection to node established`);
         const signedUpWithInvite = Boolean(lureMeta?.id);
         return signedUpWithInvite
           ? NodeBootPhase.CHECKING_FOR_INVITE
           : NodeBootPhase.READY;
       }
 
-      logger.log(`still connecting to node`);
+      logger.log(`still connecting to node`, connectionStatus);
       return NodeBootPhase.CONNECTING;
     }
 
@@ -185,6 +190,9 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       const { invitedDm, invitedGroup } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
 
+      console.log(`invitedDm`, invitedDm);
+      console.log(`invitedGroup`, invitedGroup);
+
       // if we have invites, accept them
       if (invitedDm && invitedDm.isDmInvite) {
         logger.log(`accepting dm invitation`);
@@ -203,10 +211,18 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       // give it some time to process, then hard refresh the data
       await wait(2000);
       if (invitedGroup) {
-        await store.syncGroup(invitedGroup?.id);
+        try {
+          await store.syncGroup(invitedGroup?.id);
+        } catch (e) {
+          logger.error('failed to sync group?', e.body);
+        }
       }
       if (invitedDm) {
-        await store.syncDms();
+        try {
+          await store.syncDms();
+        } catch (e) {
+          logger.error('failed to sync dms?', e);
+        }
       }
 
       // check if we successfully joined
@@ -225,7 +241,11 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         return NodeBootPhase.READY;
       }
 
-      logger.log('still waiting on invites to be accepted');
+      logger.log(
+        'still waiting on invites to be accepted',
+        `dm: ${dmIsGood}`,
+        `group: ${groupIsGood}`
+      );
       return NodeBootPhase.ACCEPTING_INVITES;
     }
 
@@ -259,7 +279,10 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         const nextBootPhase = await runBootPhase(); // TODO: i'm scared this will lock up if it hangs
         setBootPhase(nextBootPhase);
       } catch (e) {
+        logger.error('boot phase errored', e.message, e);
         lastRunErrored.current = true;
+        setBootPhase(values.bootPhase);
+
         // handle
       } finally {
         isRunningRef.current = false;
@@ -270,6 +293,13 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       runBootSequence();
     }
   }, [runBootPhase, setBootPhase, values.bootPhase]);
+
+  const setHostingUser = useCallback((hostingUser: { id: string }) => {
+    setValues((current) => ({
+      ...current,
+      hostingUser,
+    }));
+  }, []);
 
   const setNickname = useCallback((nickname: string | undefined) => {
     setValues((current) => ({
@@ -314,6 +344,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     <SignupContext.Provider
       value={{
         ...values,
+        setHostingUser,
         setNickname,
         setNotificationToken,
         setTelemetry,

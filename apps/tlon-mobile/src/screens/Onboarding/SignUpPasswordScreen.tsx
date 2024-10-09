@@ -126,6 +126,7 @@ export const SignUpPasswordScreen = ({
         email,
         password,
       });
+      signupContext.setHostingUser(user);
       if (user.requirePhoneNumberVerification) {
         navigation.navigate('RequestPhoneVerify', { user });
       } else {

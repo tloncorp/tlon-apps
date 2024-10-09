@@ -215,6 +215,9 @@ export const ReserveShipScreen = ({
           <Text textAlign="center" color="$primaryText">
             Getting your ship ready...
           </Text>
+          <Text textAlign="center" color="$secondaryText" fontSize="$m">
+            {signupContext.bootPhase}
+          </Text>
         </YStack>
       ) : state === 'booting' ? (
         <YStack alignItems="center" gap="$xl">

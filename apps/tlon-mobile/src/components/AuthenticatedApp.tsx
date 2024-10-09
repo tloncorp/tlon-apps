@@ -40,7 +40,8 @@ function AuthenticatedApp({
 
   useEffect(() => {
     // TODO: i think we need a proper idle state?
-    if (connectionStatus !== 'Connected') {
+    console.log(`authenticated app connection status: ${connectionStatus}`);
+    if (connectionStatus === 'Idle') {
       configureClient({
         shipName: ship ?? '',
         shipUrl: shipUrl ?? '',
@@ -62,7 +63,14 @@ function AuthenticatedApp({
     }
 
     sync.syncStart();
-  }, [currentUserId, handlePostSignup, ship, shipUrl, signupContext.didSignup]);
+  }, [
+    connectionStatus,
+    currentUserId,
+    handlePostSignup,
+    ship,
+    shipUrl,
+    signupContext.didSignup,
+  ]);
 
   const handleAppStatusChange = useCallback((status: AppStateStatus) => {
     if (status === 'active') {

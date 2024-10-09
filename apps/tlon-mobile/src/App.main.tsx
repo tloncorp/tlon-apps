@@ -12,8 +12,12 @@ import {
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider, useBranch } from '@tloncorp/app/contexts/branch';
 import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
-import { SignupProvider } from '@tloncorp/app/contexts/signup';
+import {
+  SignupProvider,
+  useSignupContext,
+} from '@tloncorp/app/contexts/signup';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { NodeBootPhase } from '@tloncorp/app/lib/bootHelpers';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
@@ -50,7 +54,7 @@ const App = ({
 
   const { isLoading, isAuthenticated } = useShip();
   const [connected, setConnected] = useState(true);
-  const { lure, priorityToken } = useBranch();
+  const signupContext = useSignupContext();
 
   usePreloadedEmojis();
 
@@ -73,7 +77,10 @@ const App = ({
           <View flex={1} alignItems="center" justifyContent="center">
             <LoadingSpinner />
           </View>
-        ) : isAuthenticated ? (
+        ) : isAuthenticated &&
+          [NodeBootPhase.IDLE, NodeBootPhase.READY].includes(
+            signupContext.bootPhase
+          ) ? (
           <AuthenticatedApp
             notificationListenerProps={{
               notificationPath,
