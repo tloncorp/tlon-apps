@@ -1,18 +1,20 @@
+import { CommonActions } from '@react-navigation/native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as store from '@tloncorp/shared/dist/store';
 import { GroupMembersScreenView } from '@tloncorp/ui';
+import { useCallback } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { GroupSettingsStackParamList } from '../../navigation/types';
-
 
 type Props = NativeStackScreenProps<
   GroupSettingsStackParamList,
   'GroupMembers'
 >;
 
-export function GroupMembersScreen(props: Props) {
-  const { groupId } = props.route.params;
+export function GroupMembersScreen({ route, navigation }: Props) {
+  const { groupId } = route.params;
   const {
     groupMembers,
     groupRoles,
@@ -30,9 +32,28 @@ export function GroupMembersScreen(props: Props) {
 
   const currentUserId = useCurrentUserId();
 
+  const handleGoToDm = useCallback(
+    async (participants: string[]) => {
+      const dmChannel = await store.upsertDmChannel({
+        participants,
+      });
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 1,
+          routes: [
+            { name: 'ChatList' },
+            { name: 'Channel', params: { channel: dmChannel } },
+          ],
+        })
+      );
+    },
+    [navigation]
+  );
+
   return (
     <GroupMembersScreenView
-      goBack={props.navigation.goBack}
+      goBack={() => navigation.goBack()}
+      onPressGoToDm={(contactId: string) => handleGoToDm([contactId])}
       members={groupMembers}
       roles={groupRoles}
       currentUserId={currentUserId}

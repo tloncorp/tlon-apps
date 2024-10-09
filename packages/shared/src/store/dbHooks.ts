@@ -357,9 +357,10 @@ export const useMemberRoles = (chatId: string, userId: string) => {
 };
 
 export const useGroupPreview = (groupId: string) => {
-  const tableDeps = useKeyFromQueryDeps(db.getGroup);
   return useQuery({
-    queryKey: ['groupPreview', tableDeps, groupId],
+    queryKey: ['groupPreview', groupId],
+    refetchOnReconnect: false,
+    refetchOnMount: false,
     queryFn: async () => {
       const [preview] = await syncGroupPreviews([groupId]);
       return preview;

@@ -391,7 +391,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           blocks.length === 0 &&
           attachments.length === 0;
 
-        messageInputLogger.log('Editor is empty', isEmpty);
+        messageInputLogger.log('Editor is empty?', isEmpty);
 
         if (isEmpty !== editorIsEmpty) {
           messageInputLogger.log('Setting editorIsEmpty', isEmpty);
@@ -402,7 +402,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [editor, attachments, editorIsEmpty, initialHeight]);
 
     editor._onContentUpdate = async () => {
-      messageInputLogger.log('Content updated');
+      messageInputLogger.log(
+        'Content updated, update draft and check for mention text'
+      );
+
       const json = await editor.getJSON();
       const inlines = (
         tiptap
@@ -417,15 +420,17 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         (inline) => typeof inline === 'string' && inline.match(/\B[~@]/)
       ) as string | undefined;
       // extract the mention text from the mention inline
-      const mentionText = mentionInline
+      const mentionTextFromInline = mentionInline
         ? mentionInline.slice((mentionInline.match(/\B[~@]/)?.index ?? -1) + 1)
         : null;
-      if (mentionText !== null) {
+      if (mentionTextFromInline !== null) {
+        messageInputLogger.log('Mention text', mentionTextFromInline);
         // if we have a mention text, we show the mention popup
         setShowMentionPopup(true);
-        setMentionText(mentionText);
+        setMentionText(mentionTextFromInline);
       } else {
         setShowMentionPopup(false);
+        setMentionText('');
       }
 
       messageInputLogger.log('Storing draft', json);
@@ -435,6 +440,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const handlePaste = useCallback(
       async (pastedText: string) => {
+        messageInputLogger.log('Pasted text', pastedText);
         // check for ref from pasted cite paths
         const citePathAttachment = await processReferenceAndUpdateEditor({
           editor,
@@ -512,6 +518,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const onSelectMention = useCallback(
       async (contact: db.Contact) => {
+        messageInputLogger.log('Selected mention', contact);
         const json = await editor.getJSON();
         const inlines = tiptap.JSONToInlines(json);
 
@@ -566,7 +573,20 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
         const newJson = tiptap.diaryMixedToJSON(newStory);
 
-        messageInputLogger.log('Setting new content', newJson);
+        // insert empty text node after mention
+        newJson.content?.map((node) => {
+          const containsMention = node.content?.some(
+            (n) => n.type === 'mention'
+          );
+          if (containsMention) {
+            node.content?.push({
+              type: 'text',
+              text: ' ',
+            });
+          }
+        });
+
+        messageInputLogger.log('onSelectMention, setting new content', newJson);
         // @ts-expect-error setContent does accept JSONContent
         editor.setContent(newJson);
         storeDraft(newJson);
