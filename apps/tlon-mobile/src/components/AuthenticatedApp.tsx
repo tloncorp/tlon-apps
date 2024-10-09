@@ -61,14 +61,6 @@ function AuthenticatedApp({
       shipName: ship ?? '',
       shipUrl: shipUrl ?? '',
       verbose: ENABLED_LOGGERS.includes('urbit'),
-      onReconnect: () => sync.syncStart(true),
-      onChannelReset: () => {
-        const threshold = __DEV__ ? 60 * 1000 : 12 * 60 * 60 * 1000; // 12 hours
-        const lastReconnect = session?.startTime ?? 0;
-        if (Date.now() - lastReconnect >= threshold) {
-          sync.handleDiscontinuity();
-        }
-      },
       getCode:
         authType === 'self'
           ? undefined
@@ -94,6 +86,14 @@ function AuthenticatedApp({
         }
 
         navigation.navigate('TlonLogin');
+      },
+      onReconnect: () => sync.syncStart(true),
+      onChannelReset: () => {
+        const threshold = __DEV__ ? 60 * 1000 : 12 * 60 * 60 * 1000; // 12 hours
+        const lastReconnect = session?.startTime ?? 0;
+        if (Date.now() - lastReconnect >= threshold) {
+          sync.handleDiscontinuity();
+        }
       },
       onChannelStatusChange: sync.handleChannelStatusChange,
     });
