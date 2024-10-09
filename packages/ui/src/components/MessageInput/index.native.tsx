@@ -236,11 +236,13 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       }
     }, [editor, ref]);
 
+    const lastEditingPost = useRef<db.Post | undefined>(editingPost);
+
     useEffect(() => {
       if (!hasSetInitialContent && editorState.isReady) {
         try {
           getDraft().then((draft) => {
-            if (draft) {
+            if (!editingPost && draft) {
               const inlines = tiptap.JSONToInlines(draft);
               const newInlines = inlines
                 .map((inline) => {
@@ -255,12 +257,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 .filter((inline) => inline !== null) as Inline[];
               const newStory = constructStory(newInlines);
               const tiptapContent = tiptap.diaryMixedToJSON(newStory);
+              messageInputLogger.log('Setting draft content', tiptapContent);
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(tiptapContent);
               setEditorIsEmpty(false);
             }
 
-            if (editingPost?.content) {
+            if (editingPost && editingPost.content) {
+              messageInputLogger.log('Editing post', editingPost);
               const {
                 story,
                 references: postReferences,
@@ -303,8 +307,13 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                   (c) => !('type' in c) && !('block' in c && 'image' in c.block)
                 ) as Story
               );
+              messageInputLogger.log(
+                'Setting edit post content',
+                tiptapContent
+              );
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(tiptapContent);
+              setEditorIsEmpty(false);
             }
 
             if (editingPost?.image) {
@@ -335,6 +344,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     ]);
 
     useEffect(() => {
+      if (editingPost && lastEditingPost.current?.id !== editingPost.id) {
+        messageInputLogger.log('Editing post changed', editingPost);
+        lastEditingPost.current = editingPost;
+        setHasSetInitialContent(false);
+      }
+    }, [editingPost]);
+
+    useEffect(() => {
       if (editor && !shouldBlur && !editorState.isFocused && !!editingPost) {
         editor.focus();
       }
@@ -348,6 +365,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [shouldBlur, editor, editorState, setShouldBlur]);
 
     useEffect(() => {
+      messageInputLogger.log('Checking if editor is empty');
+
       editor.getJSON().then((json: JSONContent) => {
         const inlines = tiptap
           .JSONToInlines(json)
@@ -375,10 +394,12 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         messageInputLogger.log('Editor is empty?', isEmpty);
 
         if (isEmpty !== editorIsEmpty) {
+          messageInputLogger.log('Setting editorIsEmpty', isEmpty);
           setEditorIsEmpty(isEmpty);
+          setContainerHeight(initialHeight);
         }
       });
-    }, [editor, attachments, editorIsEmpty]);
+    }, [editor, attachments, editorIsEmpty, initialHeight]);
 
     editor._onContentUpdate = async () => {
       messageInputLogger.log(
@@ -411,6 +432,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         setShowMentionPopup(false);
         setMentionText('');
       }
+
+      messageInputLogger.log('Storing draft', json);
 
       storeDraft(json);
     };
@@ -868,6 +891,13 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const titleIsEmpty = useMemo(() => !title || title.length === 0, [title]);
 
+    const handleCancelEditing = useCallback(() => {
+      setEditingPost?.(undefined);
+      editor.setContent('');
+      clearDraft();
+      clearAttachments();
+    }, [setEditingPost, editor, clearDraft, clearAttachments]);
+
     return (
       <MessageInputContainer
         setShouldBlur={setShouldBlur}
@@ -880,7 +910,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         showMentionPopup={showMentionPopup}
         isEditing={!!editingPost}
         isSending={isSending}
-        cancelEditing={() => setEditingPost?.(undefined)}
+        cancelEditing={handleCancelEditing}
         showAttachmentButton={showAttachmentButton}
         floatingActionButton={floatingActionButton}
         disableSend={

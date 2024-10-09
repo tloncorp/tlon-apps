@@ -1,13 +1,10 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { Story } from '@tloncorp/shared/dist/urbit';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
 import AuthorRow from '../AuthorRow';
 import { Icon } from '../Icon';
-import { MessageInput } from '../MessageInput';
-import { ParentAgnosticKeyboardAvoidingView } from '../ParentAgnosticKeyboardAvoidingView';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
@@ -26,9 +23,6 @@ const ChatMessage = ({
   onPressRetry,
   onPressDelete,
   showReplies,
-  editing,
-  editPost,
-  setEditingPost,
   setViewReactionsPost,
   isHighlighted,
 }: {
@@ -43,9 +37,6 @@ const ChatMessage = ({
   onLongPress?: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => void;
   onPressDelete?: (post: db.Post) => void;
-  editing?: boolean;
-  editPost?: (post: db.Post, content: Story) => Promise<void>;
-  setEditingPost?: (post: db.Post | undefined) => void;
   setViewReactionsPost?: (post: db.Post) => void;
   isHighlighted?: boolean;
 }) => {
@@ -92,28 +83,6 @@ const ChatMessage = ({
     onPressDelete?.(post);
     setShowRetrySheet(false);
   }, [onPressDelete, post]);
-
-  const messageInputForEditing = useMemo(
-    () => (
-      <ParentAgnosticKeyboardAvoidingView>
-        <MessageInput
-          groupMembers={[]}
-          storeDraft={() => {}}
-          clearDraft={() => {}}
-          getDraft={async () => ({})}
-          shouldBlur={false}
-          setShouldBlur={() => {}}
-          send={async () => {}}
-          channelId={post.channelId}
-          editingPost={post}
-          editPost={editPost}
-          setEditingPost={setEditingPost}
-          channelType="chat"
-        />
-      </ParentAgnosticKeyboardAvoidingView>
-    ),
-    [post, editPost, setEditingPost]
-  );
 
   const content = usePostContent(post);
 
@@ -165,16 +134,12 @@ const ChatMessage = ({
         />
       ) : null}
       <View paddingLeft={!isNotice && '$4xl'}>
-        {editing ? (
-          messageInputForEditing
-        ) : (
-          <ChatContentRenderer
-            content={content}
-            isNotice={post.type === 'notice'}
-            onPressImage={handleImagePressed}
-            onLongPress={handleLongPress}
-          />
-        )}
+        <ChatContentRenderer
+          content={content}
+          isNotice={post.type === 'notice'}
+          onPressImage={handleImagePressed}
+          onLongPress={handleLongPress}
+        />
       </View>
 
       <ReactionsDisplay
@@ -235,9 +200,6 @@ export default memo(ChatMessage, (prev, next) => {
   const areOtherPropsEqual =
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
-    prev.editing === next.editing &&
-    prev.editPost === next.editPost &&
-    prev.setEditingPost === next.setEditingPost &&
     prev.onPressReplies === next.onPressReplies &&
     prev.onPressImage === next.onPressImage &&
     prev.onLongPress === next.onLongPress &&
