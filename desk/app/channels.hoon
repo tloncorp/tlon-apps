@@ -181,17 +181,18 @@
     %-  ~(run by vc)
     |=  v=v-channel:v7:old:c
     ^-  v-channel:c
+    =/  [log=log:v-channel:c mod=(map id-post:c time)]
+      (log-7-to-8 log.v)
     =/  [count=@ud =v-posts:c]
-      (v-posts-7-to-8 posts.v)
+      (v-posts-7-to-8 posts.v mod)
     %=  v
       posts    v-posts
-      ::  insert count
       |1.-     [count |1.-:v]
-      log      (log-7-to-8 log.v)
+      log      log
       future   (future-7-to-8 future.v)
     ==
   ++  v-posts-7-to-8
-    |=  vp=v-posts:v7:old:c
+    |=  [vp=v-posts:v7:old:c mod=(map id-post:c time)]
     ^-  [@ud v-posts:c]
     =|  posts=v-posts:c
     %-  (rep:mo-v-posts:v7:old:c vp)
@@ -199,46 +200,57 @@
     ^+  [count posts]
     :-  +(count)
     ?~  post  posts
+    ::  insert seq and modified-at into seal
     ::
-    ::  insert seq into seal
     =/  new-post=v-post:c
-      u.post(|1.- [+(count) |1.-.post])
+      =/  new-seal=v-seal:c
+        =+  mat=(~(got by mod) id-post)
+        -.u.post(|1 [+(count) mat |1.-.u.post])
+      [new-seal +.u.post]
     (put:on-v-posts:c posts id-post `new-post)
+  ::
   ++  log-7-to-8
     |=  l=log:v-channel:v7:old:c
-    ^-  log:v-channel:c
+    ^-  [log:v-channel:c (map id-post:c @da)]
     =|  seq-log=(map id-post:c @ud)
     =|  =log:c
+    =|  mod=(map id-post:c @da)
     =<  +
     %-  (rep:mo-log:v7:old:c l)
-    |=  [[=time =u-channel:v7:old:c] [count=@ud =_seq-log] =_log]
-    ^+  [[count seq-log] log]
+    |=  [[=time =u-channel:v7:old:c] [count=@ud =_seq-log] =_log =_mod]
+    ^+  [[count seq-log] log mod]
     ?.  ?=(%post -.u-channel)
       :-  [count seq-log]
+      :_  mod
       (put:log-on:c log time u-channel)
     ?.  ?=(%set -.u-post.u-channel)
       :-  [count seq-log]
+      :_  mod
       (put:log-on:c log time u-channel)
     ?~  post.u-post.u-channel
       :-  [count seq-log]
+      :_  mod
       (put:log-on:c log time %post id.u-channel %set ~)
-    ::  seq should only be increased for a new post
+    ::  increment .seq only for a new post
     ::
-    =/  seq=@ud
-      %+  fall
-        (~(get by seq-log) id.u-channel)
-      +(count)
+    =^  seq=@ud  count
+      ?~  seq=(~(get by seq-log) id.u-channel)
+        =.  count  +(count)
+        [count count]
+      [u.seq count]
     =*  post  u.post.u-post.u-channel
     =/  =u-post:c
       :-  %set
-      (some post(|1.- [+(count) |1.-.post]))
-    :-  :-  +(count)
-        (~(put by seq-log) id.u-channel +(count))
+      (some post(|1.- [seq time |1.-.post]))
+    :-  :-  count
+        (~(put by seq-log) id.u-channel count)
+    :_  (~(put by mod) id.u-channel time)
     (put:log-on:c log time %post id.u-channel u-post)
+  ::
   ++  future-7-to-8
     |=  f=future:v-channel:v7:old:c
     ^-  future:v-channel:c
-    ::  channel future is defunct
+    ::  channel future is defunct for now
     ::
     *future:v-channel:c
   ::
@@ -866,7 +878,7 @@
     ::
       [%x %v3 %heads since=?(~ [u=@ ~])]
     =/  since=(unit id-post:c)
-      ?~  since.pole  ~
+     ?~  since.pole  ~
       ?^  tim=(slaw %da u.since.pole)  `u.tim
       `(slav %ud u.since.pole)
     :^  ~  ~  %channel-heads-2

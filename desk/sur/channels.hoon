@@ -87,6 +87,7 @@
 +$  v-seal  $+  channel-seal
   $:  id=id-post
       seq=@ud
+      mod-at=@da
       replies=v-replies
       reacts=v-reacts
   ==
@@ -204,6 +205,10 @@
   ==
 ::  $react: either an emoji identifier like :diff or a URL for custom
 +$  react     @ta
+:: +$  react
+::   $@  @t         ::  direct unicode character representation
+::   $%  [%any @t]  ::  any string representation (for backcompat)
+::   ==
 +$  v-reacts  (map ship (rev (unit react)))
 +$  client-id  [author=ship sent=time]
 +$  pending-posts  (map client-id essay)
@@ -513,11 +518,12 @@
 +$  seal
   $:  id=id-post
       seq=@ud
+      mod-at=@da
       =reacts
       =replies
       =reply-meta
   ==
-::XX  does $simple-seal need .seq?
+::XX  does $simple-seal need .seq or .mod-at?
 +$  simple-seal
   $:  id=id-post
       =reacts

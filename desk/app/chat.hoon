@@ -680,6 +680,12 @@
       [%club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
     cu-abet:(cu-agent:(cu-abed id) rest.pole sign)
+  ::
+      [%hark ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf/"Failed to hark" u.p.sign)
+    cor
   ==
 ++  give-kick
   |=  [pas=(list path) =cage]
@@ -817,12 +823,24 @@
   |=  [=whom:c =unread:unreads:c]
   (give %fact ~[/unreads] chat-unread-update+!>([whom unread]))
 ::
+++  want-hark
+  |=  kind=?(%msg %to-us)
+  %+  (fit-level:volume [our now]:bowl)  ~
+  ?-  kind
+    %to-us  %soft
+    %msg    %loud
+  ==
+::
 ++  pass-hark
   |=  =cage
   ^-  card
   =/  =wire  /hark
   =/  =dock  [our.bowl %hark]
   [%pass wire %agent dock %poke cage]
+++  pass-yarn
+  |=  =new-yarn:ha
+  =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
+  (pass-hark cage)
 ::
 ++  pass-activity
   =,  activity
@@ -1049,6 +1067,7 @@
     :-  [%chat flag]
     =/  posts=v-posts:d  (convert-posts pact.chat)
     %*    .  *v-channel:d
+        count   (wyt:on-v-posts:d posts)
         posts   posts
         log     ?.(log ~ (convert-log pact.chat posts perm.chat log.chat))
         perm    [1 perm.chat]
@@ -1078,20 +1097,31 @@
       %+  ~(put by reply-index)  u.parent-time
       (put:on-v-replies:d old-replies time `(convert-quip time writ))
     %+  gas:on-v-posts:d  *v-posts:d
-    %+  murn  writs
-    |=  [=time =writ:t]
-    ^-  (unit [id-post:d (unit v-post:d)])
-    ?^  replying.writ  ~
+    =|  posts=(list [id-post:d (unit v-post:d)])
+    =<  +
+    %+  roll  writs
+    |=  [[=time =writ:t] count=@ud =_posts]
+    ^+  [count posts]
+    ?^  replying.writ
+      [count posts]
     ::  this writ is a top-level message. incorporate the replies to it found
     ::  by the above code.
     ::
     =/  replies=v-replies:d  (~(gut by reply-index) time *v-replies:d)
-    (some time `(convert-post time writ replies))
+    =.  count  +(count)
+    :-  count
+    :_  posts
+    [time `(convert-post time count writ replies)]
   ::
   ++  convert-post
-    |=  [id=@da old=writ:t replies=v-replies:d]
+    |=  [id=@da seq=@ud old=writ:t replies=v-replies:d]
     ^-  v-post:d
-    [[id replies (convert-feels feels.old)] %0 (convert-essay +.old)]
+    =/  modified-at=@da
+      %-  ~(rep in replied.old)
+      |=  [[=ship =time] mod=_id]
+      ?:((gth time mod) time mod)
+    :-  [id seq modified-at replies (convert-feels feels.old)]
+    [%0 (convert-essay +.old)]
   ::
   ++  convert-feels
     |=  old=(map ship feel:t)
@@ -1243,23 +1273,16 @@
     =/  uid  `@uv`(shax (jam ['clubs' (add counter eny.bowl)]))
     [uid cu-core(counter +(counter))]
   ::
-  ++  cu-activity
-    =,  activity
-    |=  $:  $=  concern
-            $%  [%invite ~]
-                [%post key=message-key]
-                [%delete-post key=message-key]
-                [%reply key=message-key top=message-key]
-                [%delete-reply key=message-key top=message-key]
-            ==
-            content=story:d
-            mention=?
-        ==
-    ?.  ?|  =(net.crew.club %done)
-            &(=(net.crew.club %invited) =(%invite -.concern))
-        ==
-      cu-core
-    =.  cor  (pass-activity [%club id] concern content mention)
+  ++  cu-spin
+    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
+    =/  rope  [~ ~ %groups /club/(scot %uv id)]
+    =/  link  (welp /dm/(scot %uv id) rest)
+    [& & rope con link but]
+  ::
+  ++  cu-activity  !.
+    |*  a=*
+    =.  cor  (pass-activity [%club id] a)
     cu-core
   ::
   ++  cu-pass
@@ -1397,6 +1420,18 @@
         =/  concern  [%post p.diff.delta now.bowl]
         =/  mention  (was-mentioned:utils content.memo our.bowl)
         =.  cu-core  (cu-activity concern content.memo mention)
+        ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
+        ?^  kind.q.diff.delta  (cu-give-writs-diff diff.delta)
+        =/  new-yarn
+          %^  cu-spin
+            ~
+            :~  [%ship author.memo]
+                ': '
+                (flatten:utils content.memo)
+            ==
+          ~
+        =?  cor  (want-hark %to-us)
+          (emit (pass-yarn new-yarn))
         (cu-give-writs-diff diff.delta)
       ::
           %del
@@ -1437,6 +1472,18 @@
           =/  concern  [%reply [id.q.diff.delta now.bowl] top-con]
           =/  mention  (was-mentioned:utils content.memo our.bowl)
           =.  cu-core  (cu-activity concern content.memo mention)
+          ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
+          =/  new-yarn
+            %^  cu-spin
+              /message/(scot %p p.id.op)/(scot %ud q.id.op)
+              :~  [%ship author.memo]  ' replied to '
+                  [%emph (flatten:utils content.op)]  ': '
+                  [%ship author.memo]  ': '
+                  (flatten:utils content.memo)
+              ==
+            ~
+          =?  cor  (want-hark %to-us)
+            (emit (pass-yarn new-yarn))
           (cu-give-writs-diff diff.delta)
         ==
       ==
@@ -1684,29 +1731,22 @@
           |
       ==
     =.  di-core  di-core(ship s, dm new)
-    ?:  =(src our):bowl  di-core
     (di-activity [%invite ~] *story:d &)
   ::
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-area-writs  `path`/dm/(scot %p ship)/writs
   ::
-  ++  di-activity
-    |=  $:  $=  concern
-            $%  [%invite ~]
-                [%post key=message-key:activity]
-                [%delete-post key=message-key:activity]
-                [%reply key=message-key:activity top=message-key:activity]
-                [%delete-reply key=message-key:activity top=message-key:activity]
-            ==
-            content=story:d
-            mention=?
-        ==
-    ?.  ?|  =(net.dm %done)
-            &(=(net.dm %invited) =(%invite -.concern))
-        ==
-      di-core
-    =.  cor  (pass-activity [%ship ship] concern content mention)
+  ++  di-activity  !.
+    |*  a=*
+    =.  cor  (pass-activity [%ship ship] a)
     di-core
+  ::
+  ++  di-spin
+    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
+    =/  rope  [~ ~ %groups /dm/(scot %p ship)]
+    =/  link  (welp /dm/(scot %p ship) rest)
+    [& & rope con link but]
   ::
   ++  di-proxy
     |=  =diff:dm:c
@@ -1772,9 +1812,23 @@
       =.  recency.remark.dm  now.bowl
       =?  cor  &(!=(old-unread di-unread) !=(net.dm %invited))
         (give-unread ship/ship di-unread)
-      =/  concern  [%post p.diff now.bowl]
+      =/  concern
+        ?:  =(net.dm %invited)  [%invite ~]
+        [%post p.diff now.bowl]
       =/  mention  (was-mentioned:utils content.memo our.bowl)
       =.  di-core  (di-activity concern content.memo mention)
+      ?:  from-self    (di-give-writs-diff diff)
+      ?^  kind.q.diff  (di-give-writs-diff diff)
+      =/  new-yarn
+        %^  di-spin  ~
+          :~  [%ship author.memo]
+              ?:  =(net.dm %invited)  ' has invited you to a direct message'
+              ': '
+              ?:(=(net.dm %invited) '' (flatten:utils content.memo))
+          ==
+        ~
+      =?  cor  (want-hark %to-us)
+        (emit (pass-yarn new-yarn))
       (di-give-writs-diff diff)
     ::
         %del
@@ -1814,12 +1868,25 @@
         =/  concern  [%reply [id.q.diff now.bowl] top-con]
         =/  mention  (was-mentioned:utils content.memo our.bowl)
         =.  di-core  (di-activity concern content.memo mention)
+        ?:  =(our.bowl author.memo)  (di-give-writs-diff diff)
+        =*  op  writ.u.entry
+        =/  new-yarn
+          %^  di-spin  /message/(scot %p p.id.op)/(scot %ud q.id.op)
+            :~  [%ship author.memo]  ' replied to '
+                [%emph (flatten:utils content.op)]  ': '
+                [%ship author.memo]  ': '
+                (flatten:utils content.memo)
+            ==
+          ~
+        =?  cor  (want-hark %to-us)
+          (emit (pass-yarn new-yarn))
         (di-give-writs-diff diff)
       ==
     ==
   ::
   ++  di-take-counter
     |=  =diff:dm:c
+    ?<  =(%archive net.dm)
     ?<  (~(has in blocked) ship)
     (di-ingest-diff diff)
   ::
@@ -1862,6 +1929,13 @@
       ?~  p.sign  di-core
       ::  TODO: handle?
       %-  (slog leaf/"Failed to add contact" u.p.sign)
+      di-core
+    ::
+        [%hark ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  di-core
+      ::  TODO: handle?
+      %-  (slog leaf/"Failed to notify about dm {<ship>}" u.p.sign)
       di-core
     ::
         [%proxy *]

@@ -244,6 +244,7 @@
     %-  pairs
     :~  id+(id id.seal)
         seq+(seq seq.seal)
+        mod-at+(mod-at mod-at.seal)
         reacts+(reacts reacts.seal)
         replies+(replies replies.seal)
         meta+(reply-meta reply-meta.seal)
@@ -329,6 +330,10 @@
   ++  seq
     |=  =@ud
     s+`@t`(rsh 4 (scot %ud ud))
+  ::
+  ++  mod-at
+    |=  =@da
+    s+`@t`(rsh 4 (scot %ui da))
   ::
   ++  client-id-string
     |=  cid=client-id:c

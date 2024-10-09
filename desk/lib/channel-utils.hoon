@@ -136,6 +136,7 @@
   :_  +.v-post
   :*  id.v-post
       seq.v-post
+      mod-at.v-post
       (uv-reacts reacts.v-post)
       (uv-replies-2 id.v-post replies.v-post)
       (get-reply-meta v-post)
@@ -145,8 +146,9 @@
   |=  =post:c
   ^-  simple-post:c
   :_  +>.post
-  =-  [- |2]:-
-  -.post(replies (s-replies replies.post))
+  =/  seal  -.post(replies (s-replies replies.post))
+  ::  remove .seq and .mod-at
+  [- |3]:seal
 ::
 ++  suv-post
   |=  =v-post:c
@@ -224,6 +226,7 @@
   :_  +.post
   :*  id.post
       seq.post
+      mod-at.post
       (uv-reacts reacts.post)
       *replies:c
       (get-reply-meta post)
