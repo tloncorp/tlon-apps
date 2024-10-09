@@ -1,4 +1,6 @@
 import crashlytics from '@react-native-firebase/crashlytics';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
@@ -8,10 +10,15 @@ import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { usePostSignup } from '@tloncorp/app/hooks/usePostSignup';
 import { cancelFetch, configureClient } from '@tloncorp/app/lib/api';
+import { getShipAccessCode } from '@tloncorp/app/lib/hostingApi';
 import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
-import { initializeCrashReporter, sync } from '@tloncorp/shared';
+import {
+  createDevLogger,
+  initializeCrashReporter,
+  sync,
+} from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
 import { useCallback, useEffect } from 'react';
@@ -21,6 +28,9 @@ import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener, {
   type Props as NotificationListenerProps,
 } from '../hooks/useNotificationListener';
+import { OnboardingStackParamList } from '../types';
+
+const appLogger = createDevLogger('app', false);
 
 export interface AuthenticatedAppProps {
   notificationListenerProps: NotificationListenerProps;
@@ -29,7 +39,7 @@ export interface AuthenticatedAppProps {
 function AuthenticatedApp({
   notificationListenerProps,
 }: AuthenticatedAppProps) {
-  const { ship, shipUrl } = useShip();
+  const { ship, shipUrl, authType, setShip } = useShip();
   const currentUserId = useCurrentUserId();
   const signupContext = useSignupContext();
   const handlePostSignup = usePostSignup();
@@ -38,6 +48,13 @@ function AuthenticatedApp({
   useDeepLinkListener();
   useNavigationLogging();
   useNetworkLogger();
+  const navigation =
+    useNavigation<
+      NativeStackNavigationProp<
+        OnboardingStackParamList,
+        'TlonLogin' | 'ShipLogin'
+      >
+    >();
 
   useEffect(() => {
     configureClient({
@@ -51,6 +68,32 @@ function AuthenticatedApp({
         if (Date.now() - lastReconnect >= threshold) {
           sync.handleDiscontinuity();
         }
+      },
+      getCode:
+        authType === 'self'
+          ? undefined
+          : async () => {
+              appLogger.log('Getting ship access code', { ship, authType });
+              if (!ship) {
+                throw new Error('Trying to retrieve +code, no ship set');
+              }
+
+              const { code } = await getShipAccessCode(ship);
+              return code;
+            },
+      handleAuthFailure: () => {
+        setShip({
+          ship: undefined,
+          shipUrl,
+          authType,
+          authCookie: undefined,
+        });
+        if (authType === 'self') {
+          navigation.navigate('ShipLogin');
+          return;
+        }
+
+        navigation.navigate('TlonLogin');
       },
       onChannelStatusChange: sync.handleChannelStatusChange,
     });

@@ -3,7 +3,6 @@ import { useShip } from '@tloncorp/app/contexts/ship';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { getShipFromCookie, getShipUrl } from '@tloncorp/app/utils/ship';
-import { configureApi } from '@tloncorp/shared/dist/api';
 import { Spinner, Text, View, YStack } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
@@ -69,13 +68,12 @@ export const ReserveShipScreen = ({
       }
 
       const ship = getShipFromCookie(authCookie);
-      configureApi(ship, shipUrl);
-
       // Set the ship info in the main context to navigate to chat view
       setShip({
         ship,
         shipUrl,
         authCookie,
+        authType: 'hosted',
       });
     },
     [
