@@ -41,6 +41,9 @@ const ChatOptionsSheetComponent = React.forwardRef<
   ChatOptionsSheetProps
 >(function ChatOptionsSheetImpl(props, ref) {
   const [open, setOpen] = useState(false);
+  const hasOpenedRef = useRef(open);
+  hasOpenedRef.current = hasOpenedRef.current || open;
+
   const [chat, setChat] = useState<{ type: ChatType; id: string } | null>(null);
 
   useImperativeHandle(
@@ -54,7 +57,7 @@ const ChatOptionsSheetComponent = React.forwardRef<
     []
   );
 
-  if (!chat || !open) {
+  if (!chat || !hasOpenedRef.current) {
     return null;
   }
 
@@ -703,7 +706,7 @@ export function ChannelOptions({
             } as ActionGroup,
           ]
         : []),
-     // TODO: redefine in a more readable way.
+      // TODO: redefine in a more readable way.
       ...(group &&
       !['groupDm', 'dm'].includes(channel.type) &&
       (group.privacy === 'public' ||
