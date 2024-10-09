@@ -1,4 +1,5 @@
 import crashlytics from '@react-native-firebase/crashlytics';
+import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { useAppStatusChange } from '@tloncorp/app/hooks/useAppStatusChange';
@@ -13,7 +14,6 @@ import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { initializeCrashReporter, sync } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
-import { ENABLED_LOGGERS } from 'packages/app/constants';
 import { useCallback, useEffect } from 'react';
 import { AppStateStatus } from 'react-native';
 
