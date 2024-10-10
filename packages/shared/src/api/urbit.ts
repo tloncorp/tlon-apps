@@ -96,6 +96,7 @@ export const getCurrentUserIsHosted = () => {
   return client.url.endsWith('tlon.network');
 };
 
+let configureCount = 0;
 export function configureClient({
   shipName,
   shipUrl,
@@ -108,7 +109,10 @@ export function configureClient({
   onChannelStatusChange,
 }: ClientParams) {
   logger.log('configuring client', shipName, shipUrl);
-  config.client = new Urbit(shipUrl, '', '', fetchFn);
+  if (configureCount++ > 0) {
+    logger.error('client already configured');
+  }
+  config.client = config.client || new Urbit(shipUrl, '', '', fetchFn);
   config.client.ship = deSig(shipName);
   config.client.our = preSig(shipName);
   config.client.verbose = verbose;

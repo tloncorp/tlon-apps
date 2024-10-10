@@ -6,6 +6,7 @@ import {
   NavigationContainer,
   useNavigationContainerRef,
 } from '@react-navigation/native';
+import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { checkDb, useMigrations } from '@tloncorp/app/lib/webDb';
@@ -13,7 +14,6 @@ import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/dist/api';
 import * as store from '@tloncorp/shared/dist/store';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
@@ -119,9 +119,9 @@ const App = React.memo(function AppComponent() {
   const handleError = useErrorHandler();
   const isDarkMode = useIsDark();
   const currentUserId = useCurrentUserId();
-  const session = store.useCurrentSession();
   const [dbIsLoaded, setDbIsLoaded] = useState(false);
   const [startedSync, setStartedSync] = useState(false);
+  const configureClient = useConfigureUrbitClient();
 
   useEffect(() => {
     handleError(() => {
@@ -130,17 +130,9 @@ const App = React.memo(function AppComponent() {
   }, [handleError]);
 
   useEffect(() => {
-    api.configureClient({
+    configureClient({
       shipName: currentUserId,
       shipUrl: '',
-      onReconnect: () => sync.syncStart(true),
-      onChannelReset: () => {
-        const threshold = __DEV__ ? 60 * 1000 : 12 * 60 * 60 * 1000; // 12 hours
-        const lastReconnect = session?.startTime ?? 0;
-        if (Date.now() - lastReconnect >= threshold) {
-          sync.handleDiscontinuity();
-        }
-      },
     });
     const syncStart = async () => {
       await sync.syncStart(startedSync);
