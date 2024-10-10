@@ -105,10 +105,23 @@ export function ChannelHeader({
     return <BaubleHeader channel={channel} group={group} />;
   }
 
+  const titleWidth = () => {
+    if (showSearchButton && showMenuButton) {
+      return 55;
+    } else if (contextItems.length > 0 && showMenuButton) {
+      return 55;
+    } else if (showSearchButton || showMenuButton) {
+      return 75;
+    } else {
+      return 100;
+    }
+  };
+
   return (
     <>
       <ScreenHeader
         title={title}
+        titleWidth={titleWidth()}
         showSessionStatus
         isLoading={showSpinner}
         leftControls={<ScreenHeader.BackButton onPress={goBack} />}
