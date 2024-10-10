@@ -6,13 +6,17 @@ import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { useAppStatusChange } from '@tloncorp/app/hooks/useAppStatusChange';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
+import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { usePostSignup } from '@tloncorp/app/hooks/usePostSignup';
+import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { cancelFetch } from '@tloncorp/app/lib/api';
+import { getShipAccessCode } from '@tloncorp/app/lib/hostingApi';
 import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
+import { trackError } from '@tloncorp/app/utils/posthog';
 import {
   createDevLogger,
   initializeCrashReporter,
@@ -20,10 +24,6 @@ import {
 } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
-import { useHandleLogout } from 'packages/app/hooks/useHandleLogout';
-import { useResetDb } from 'packages/app/hooks/useResetDb';
-import { getShipAccessCode } from 'packages/app/lib/hostingApi';
-import { trackError } from 'packages/app/utils/posthog';
 import { useCallback, useEffect } from 'react';
 import { AppStateStatus } from 'react-native';
 
