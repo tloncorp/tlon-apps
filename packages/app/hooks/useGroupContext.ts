@@ -1,12 +1,5 @@
-import { sync } from '@tloncorp/shared';
-import {
-  ChannelContentConfiguration,
-  CollectionRendererId,
-  DraftInputId,
-  PostContentRendererId,
-} from '@tloncorp/shared/dist/api';
+import { sync, useCreateChannel } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
-import { assembleNewChannelIdAndName } from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo } from 'react';
 
@@ -106,42 +99,11 @@ export const useGroupContext = ({
     }
   }, [group]);
 
-  const { data: existingChannels } = store.useAllChannels({
-    enabled: isFocused,
+  const createChannel = useCreateChannel({
+    group,
+    currentUserId,
+    disabled: !isFocused,
   });
-
-  const createChannel = useCallback(
-    async ({
-      title,
-      description,
-      channelType,
-    }: {
-      title: string;
-      description?: string;
-      channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
-    }) => {
-      const { name, id } = assembleNewChannelIdAndName({
-        title,
-        channelType,
-        existingChannels: existingChannels ?? [],
-        currentUserId,
-      });
-
-      if (group) {
-        await store.createChannel({
-          groupId: group.id,
-          name,
-          channelId: id,
-          title,
-          description,
-          channelType,
-          contentConfiguration:
-            channelContentConfigurationForChannelType(channelType),
-        });
-      }
-    },
-    [group, currentUserId, existingChannels]
-  );
 
   const deleteChannel = useCallback(
     async (channelId: string) => {
@@ -404,30 +366,3 @@ export const useGroupContext = ({
     groupPrivacyType,
   };
 };
-
-function channelContentConfigurationForChannelType(
-  channelType: Omit<db.Channel['type'], 'dm' | 'groupDm'>
-): ChannelContentConfiguration {
-  switch (channelType) {
-    case 'chat':
-      return {
-        draftInput: DraftInputId.chat,
-        defaultPostContentRenderer: PostContentRendererId.chat,
-        defaultPostCollectionRenderer: CollectionRendererId.chat,
-      };
-    case 'notebook':
-      return {
-        draftInput: DraftInputId.notebook,
-        defaultPostContentRenderer: PostContentRendererId.notebook,
-        defaultPostCollectionRenderer: CollectionRendererId.notebook,
-      };
-    case 'gallery':
-      return {
-        draftInput: DraftInputId.gallery,
-        defaultPostContentRenderer: PostContentRendererId.gallery,
-        defaultPostCollectionRenderer: CollectionRendererId.gallery,
-      };
-  }
-
-  throw new Error('Unknown channel type');
-}
