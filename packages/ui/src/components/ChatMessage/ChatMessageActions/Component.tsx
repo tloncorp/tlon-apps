@@ -1,3 +1,4 @@
+import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import * as Haptics from 'expo-haptics';
 import { RefObject, useEffect, useState } from 'react';
@@ -30,7 +31,7 @@ interface LayoutStruct {
 export function ChatMessageActions({
   post,
   postRef,
-  channelType,
+  postActionIds,
   onDismiss,
   width,
   height,
@@ -39,8 +40,8 @@ export function ChatMessageActions({
   onViewReactions,
 }: {
   post: db.Post;
+  postActionIds: ChannelAction.Id[];
   postRef: RefObject<RNView>;
-  channelType: db.ChannelType;
   onDismiss: () => void;
   width?: DimensionValue;
   height?: DimensionValue;
@@ -150,7 +151,7 @@ export function ChatMessageActions({
           <MessageContainer post={post} />
           <MessageActions
             post={post}
-            channelType={channelType}
+            postActionIds={postActionIds}
             dismiss={onDismiss}
             onReply={onReply}
             onEdit={onEdit}
