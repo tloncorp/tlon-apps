@@ -1,4 +1,5 @@
 import {
+  DraftInputId,
   postCollectionLayoutForType,
   postCollectionLayoutTypeFromChannel,
 } from '@tloncorp/shared';
@@ -371,7 +372,7 @@ export function Channel({
                                     (negotiationMatch ? (
                                       <DraftInputView
                                         draftInputContext={draftInputContext}
-                                        type="tlon.r0.input.chat"
+                                        type={DraftInputId.chat}
                                       />
                                     ) : (
                                       <SafeAreaView
@@ -384,14 +385,14 @@ export function Channel({
                                   {channel.type === 'gallery' && (
                                     <DraftInputView
                                       draftInputContext={draftInputContext}
-                                      type="tlon.r0.input.gallery"
+                                      type={DraftInputId.gallery}
                                     />
                                   )}
 
                                   {channel.type === 'notebook' && (
                                     <DraftInputView
                                       draftInputContext={draftInputContext}
-                                      type="tlon.r0.input.notebook"
+                                      type={DraftInputId.notebook}
                                     />
                                   )}
                                 </>

@@ -1,3 +1,4 @@
+import { DraftInputId, PostContentRendererId } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import {
@@ -11,6 +12,7 @@ import {
 
 import { ChatMessage } from '../components/ChatMessage';
 import { GalleryPost } from '../components/GalleryPost';
+import { NotebookPost } from '../components/NotebookPost';
 import {
   ChatInput,
   DraftInputContext,
@@ -44,8 +46,12 @@ type DraftInputRendererComponent = React.ComponentType<{
 }>;
 
 interface PostContentRendererContextValue {
-  renderers: Readonly<{ [id: string]: RenderItemType }>;
-  inputs: Readonly<{ [id: string]: DraftInputRendererComponent }>;
+  renderers: Readonly<
+    Partial<{ [Id in PostContentRendererId]: RenderItemType }>
+  >;
+  inputs: Readonly<
+    Partial<{ [Id in DraftInputId]: DraftInputRendererComponent }>
+  >;
 
   // TODO: Remove
   registerRenderer: (
@@ -80,13 +86,14 @@ export function PostContentRendererContextProvider({
   children: React.ReactNode;
 }) {
   const [renderers, setRenderers] = useState<{ [id: string]: RenderItemType }>({
-    'tlon.r0.content.chat': ChatMessage,
-    'tlon.r0.content.gallery': GalleryPost,
+    [PostContentRendererId.chat]: ChatMessage,
+    [PostContentRendererId.gallery]: GalleryPost,
+    [PostContentRendererId.notebook]: NotebookPost,
   });
   const [inputs] = useState<{ [id: string]: DraftInputRendererComponent }>({
-    'tlon.r0.input.chat': ChatInput,
-    'tlon.r0.input.gallery': GalleryInput,
-    'tlon.r0.input.notebook': NotebookInput,
+    [DraftInputId.chat]: ChatInput,
+    [DraftInputId.gallery]: GalleryInput,
+    [DraftInputId.notebook]: NotebookInput,
   });
 
   const registerRenderer = useCallback(

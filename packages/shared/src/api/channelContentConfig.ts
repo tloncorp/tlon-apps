@@ -2,20 +2,22 @@ type PostContent = 'TODO: PostContent';
 
 type RenderTarget = JSX.Element;
 
-type DraftInputId = string;
-type PostContentRendererId = Nominal<string, 'PostContentRendererId'>;
-
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace PostContentRendererId {
-  export function create(id: string): PostContentRendererId {
-    return id as PostContentRendererId;
-  }
+export enum CollectionRendererId {
+  notebook = 'tlon.r0.collection.notebook',
+  chat = 'tlon.r0.collection.chat',
+  gallery = 'tlon.r0.collection.gallery',
 }
 
-export enum CollectionRendererId {
-  notebook = 'tlon.r0.notebook',
-  chat = 'tlon.r0.chat',
-  gallery = 'tlon.r0.gallery',
+export enum DraftInputId {
+  notebook = 'tlon.r0.input.notebook',
+  chat = 'tlon.r0.input.chat',
+  gallery = 'tlon.r0.input.gallery',
+}
+
+export enum PostContentRendererId {
+  notebook = 'tlon.r0.input.notebook',
+  chat = 'tlon.r0.input.chat',
+  gallery = 'tlon.r0.input.gallery',
 }
 
 /**
@@ -79,9 +81,3 @@ export namespace StructuredChannelDescriptionPayload {
     }
   }
 }
-
-// -------- Helpers below here -------- //
-
-type _NominalTag<Tag> = { __nominalTag: Tag };
-
-type Nominal<BaseType, Tag> = BaseType & _NominalTag<Tag>;
