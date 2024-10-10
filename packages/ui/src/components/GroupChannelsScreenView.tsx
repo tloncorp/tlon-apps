@@ -8,33 +8,19 @@ import { useIsAdmin } from '../utils/channelUtils';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
 import { LoadingSpinner } from './LoadingSpinner';
-import {
-  ChannelTypeName,
-  CreateChannelSheet,
-} from './ManageChannels/CreateChannelSheet';
+import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
 
 type GroupChannelsScreenViewProps = {
   group: db.Group | null;
   onChannelPressed: (channel: db.Channel) => void;
   onBackPressed: () => void;
-  currentUser: string;
-  createChannel: ({
-    title,
-    description,
-    channelType,
-  }: {
-    title: string;
-    description?: string;
-    channelType: ChannelTypeName;
-  }) => Promise<void>;
 };
 
 export function GroupChannelsScreenView({
   group,
   onChannelPressed,
   onBackPressed,
-  createChannel,
 }: GroupChannelsScreenViewProps) {
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
@@ -127,16 +113,10 @@ export function GroupChannelsScreenView({
         </YStack>
       )}
 
-      {showCreateChannel && (
+      {showCreateChannel && group && (
         <CreateChannelSheet
           onOpenChange={(open) => setShowCreateChannel(open)}
-          createChannel={async ({ title, description, channelType }) =>
-            createChannel({
-              title,
-              description,
-              channelType,
-            })
-          }
+          group={group}
         />
       )}
       <ChatOptionsSheet ref={chatOptionsSheetRef} setSortBy={setSortBy} />

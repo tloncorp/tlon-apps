@@ -1,6 +1,9 @@
+import { useCreateChannel } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/dist/db';
 import { useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 
+import { useCurrentUserId } from '../../contexts';
 import { ActionSheet } from '../ActionSheet';
 import { Button } from '../Button';
 import * as Form from '../Form';
@@ -30,18 +33,10 @@ const channelTypes: Form.ListItemInputOption<ChannelTypeName>[] = [
 
 export function CreateChannelSheet({
   onOpenChange,
-  createChannel,
+  group,
 }: {
   onOpenChange: (open: boolean) => void;
-  createChannel: ({
-    title,
-    description,
-    channelType,
-  }: {
-    title: string;
-    description?: string;
-    channelType: ChannelTypeName;
-  }) => void;
+  group: db.Group;
 }) {
   const { control, handleSubmit } = useForm({
     defaultValues: {
@@ -50,6 +45,11 @@ export function CreateChannelSheet({
     },
   });
 
+  const currentUserId = useCurrentUserId();
+  const createChannel = useCreateChannel({
+    group,
+    currentUserId,
+  });
   const handlePressSave = useCallback(
     async (data: { title: string; channelType: string }) => {
       createChannel({
