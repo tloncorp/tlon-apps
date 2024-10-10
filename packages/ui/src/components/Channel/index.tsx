@@ -1,4 +1,8 @@
-import { layoutForType, layoutTypeFromChannel } from '@tloncorp/shared';
+import {
+  DraftInputId,
+  layoutForType,
+  layoutTypeFromChannel,
+} from '@tloncorp/shared';
 import {
   isChatChannel as getIsChatChannel,
   useChannel as useChannelFromStore,
@@ -362,7 +366,7 @@ export function Channel({
                                     (negotiationMatch ? (
                                       <DraftInputView
                                         draftInputContext={draftInputContext}
-                                        type="tlon.r0.input.chat"
+                                        type={DraftInputId.chat}
                                       />
                                     ) : (
                                       <SafeAreaView
@@ -375,14 +379,14 @@ export function Channel({
                                   {channel.type === 'gallery' && (
                                     <DraftInputView
                                       draftInputContext={draftInputContext}
-                                      type="tlon.r0.input.gallery"
+                                      type={DraftInputId.gallery}
                                     />
                                   )}
 
                                   {channel.type === 'notebook' && (
                                     <DraftInputView
                                       draftInputContext={draftInputContext}
-                                      type="tlon.r0.input.notebook"
+                                      type={DraftInputId.notebook}
                                     />
                                   )}
                                 </>

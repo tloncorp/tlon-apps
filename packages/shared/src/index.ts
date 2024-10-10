@@ -17,6 +17,11 @@ export {
   layoutForType,
   layoutTypeFromChannel,
 } from './types/PostCollectionConfiguration';
+export {
+  CollectionRendererId,
+  DraftInputId,
+  PostContentRendererId,
+} from './api/channelContentConfig';
 export { parseActiveTab, trimFullPath } from './logic/navigation';
 export * from './logic';
 export * from './store';

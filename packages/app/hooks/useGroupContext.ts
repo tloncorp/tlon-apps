@@ -2,6 +2,7 @@ import { sync } from '@tloncorp/shared';
 import {
   ChannelContentConfiguration,
   CollectionRendererId,
+  DraftInputId,
   PostContentRendererId,
 } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
@@ -410,26 +411,20 @@ function channelContentConfigurationForChannelType(
   switch (channelType) {
     case 'chat':
       return {
-        draftInput: 'tlon.r0.input.chat',
-        defaultPostContentRenderer: PostContentRendererId.create(
-          'tlon.r0.content.chat'
-        ),
+        draftInput: DraftInputId.chat,
+        defaultPostContentRenderer: PostContentRendererId.chat,
         defaultPostCollectionRenderer: CollectionRendererId.chat,
       };
     case 'notebook':
       return {
-        draftInput: 'tlon.r0.input.notebook',
-        defaultPostContentRenderer: PostContentRendererId.create(
-          'tlon.r0.content.notebook'
-        ),
+        draftInput: DraftInputId.notebook,
+        defaultPostContentRenderer: PostContentRendererId.notebook,
         defaultPostCollectionRenderer: CollectionRendererId.notebook,
       };
     case 'gallery':
       return {
-        draftInput: 'tlon.r0.input.gallery',
-        defaultPostContentRenderer: PostContentRendererId.create(
-          'tlon.r0.content.gallery'
-        ),
+        draftInput: DraftInputId.gallery,
+        defaultPostContentRenderer: PostContentRendererId.gallery,
         defaultPostCollectionRenderer: CollectionRendererId.gallery,
       };
   }
