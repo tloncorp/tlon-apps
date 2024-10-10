@@ -1,4 +1,8 @@
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { NavigationProp } from '@react-navigation/native';
+import {
+  NativeStackNavigationProp,
+  createNativeStackNavigator,
+} from '@react-navigation/native-stack';
 
 import { EditChannelScreen } from '../features/groups/EditChannelScreen';
 import { GroupMembersScreen } from '../features/groups/GroupMembersScreen';
@@ -10,10 +14,37 @@ import { GroupSettingsStackParamList } from './types';
 
 const GroupSettings = createNativeStackNavigator<GroupSettingsStackParamList>();
 
-export function GroupSettingsStack() {
+type GroupMetaProps = {
+  navigation: NativeStackNavigationProp<
+    GroupSettingsStackParamList,
+    'GroupMeta'
+  >;
+  route: {
+    key: string;
+    name: 'GroupMeta';
+    params: {
+      groupId: string;
+    };
+  };
+};
+
+export function GroupSettingsStack({
+  navigation,
+}: {
+  navigation: NavigationProp<GroupSettingsStackParamList>;
+}) {
+  const navigateToHome = () => {
+    navigation.navigate('ChatList' as never);
+  };
+
   return (
     <GroupSettings.Navigator screenOptions={{ headerShown: false }}>
-      <GroupSettings.Screen name="GroupMeta" component={GroupMetaScreen} />
+      <GroupSettings.Screen
+        name="GroupMeta"
+        component={(props: GroupMetaProps) => (
+          <GroupMetaScreen {...props} navigateToHome={navigateToHome} />
+        )}
+      />
       <GroupSettings.Screen
         name="GroupMembers"
         component={GroupMembersScreen}
