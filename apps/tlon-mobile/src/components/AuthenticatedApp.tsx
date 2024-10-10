@@ -23,6 +23,7 @@ import { ZStack } from '@tloncorp/ui';
 import { useHandleLogout } from 'packages/app/hooks/useHandleLogout';
 import { useResetDb } from 'packages/app/hooks/useResetDb';
 import { getShipAccessCode } from 'packages/app/lib/hostingApi';
+import { trackError } from 'packages/app/utils/posthog';
 import { useCallback, useEffect } from 'react';
 import { AppStateStatus } from 'react-native';
 
@@ -78,6 +79,10 @@ function AuthenticatedApp({
                 ship,
                 authType,
               });
+              trackError({
+                message:
+                  'Hosted ship logged out of urbit, getting ship access code',
+              });
               if (!ship) {
                 throw new Error('Trying to retrieve +code, no ship set');
               }
@@ -86,6 +91,9 @@ function AuthenticatedApp({
               return code;
             },
       handleAuthFailure: async () => {
+        trackError({
+          message: 'Failed to authenticate with ship, redirecting to login',
+        });
         await logout();
         if (authType === 'self') {
           navigation.navigate('ShipLogin');
