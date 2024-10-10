@@ -10,20 +10,34 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for changes in develop
+        id: changes
+        run: |
+          git fetch origin develop
+          if [ $(git rev-list HEAD...origin/develop --count) -eq 0 ]; then
+            echo "No changes in develop"
+            exit 0
       - name: Set up Node.js
+        if: steps.changes.outputs.changes != '0'
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
       - name: Set up Expo and EAS
+        if: steps.changes.outputs.changes != '0'
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
       - name: Setup PNPM
+        if: steps.changes.outputs.changes != '0'
         uses: pnpm/action-setup@v3
       - name: Install dependencies
+        if: steps.changes.outputs.changes != '0'
         run: pnpm install --frozen-lockfile
       - name: Build for selected platforms
+        if: steps.changes.outputs.changes != '0'
         working-directory: ./apps/tlon-mobile
         run: |
           eas build --profile preview --platform all --non-interactive --auto-submit
