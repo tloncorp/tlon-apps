@@ -16,9 +16,10 @@ jobs:
         id: changes
         run: |
           git fetch origin develop
-          if [ $(git rev-list HEAD...origin/develop --count) -eq 0 ]; then
-            echo "No changes in develop"
+          if [ $(git rev-list --since="24 hours ago" origin/develop --count) -eq 0 ]; then
+            echo "No changes in develop in the past 24 hours"
             exit 0
+          fi
       - name: Set up Node.js
         if: steps.changes.outputs.changes != '0'
         uses: actions/setup-node@v4
