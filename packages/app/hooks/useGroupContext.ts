@@ -1,4 +1,9 @@
 import { sync } from '@tloncorp/shared';
+import {
+  ChannelContentConfiguration,
+  CollectionRendererId,
+  PostContentRendererId,
+} from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { assembleNewChannelIdAndName } from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
@@ -129,6 +134,8 @@ export const useGroupContext = ({
           title,
           description,
           channelType,
+          contentConfiguration:
+            channelContentConfigurationForChannelType(channelType),
         });
       }
     },
@@ -396,3 +403,36 @@ export const useGroupContext = ({
     groupPrivacyType,
   };
 };
+
+function channelContentConfigurationForChannelType(
+  channelType: Omit<db.Channel['type'], 'dm' | 'groupDm'>
+): ChannelContentConfiguration {
+  switch (channelType) {
+    case 'chat':
+      return {
+        draftInput: 'tlon.r0.input.chat',
+        defaultPostContentRenderers: {
+          chat: PostContentRendererId.create('tlon.r0.content.chat'),
+        },
+        defaultPostCollectionRenderer: CollectionRendererId.chat,
+      };
+    case 'notebook':
+      return {
+        draftInput: 'tlon.r0.input.notebook',
+        defaultPostContentRenderers: {
+          block: PostContentRendererId.create('tlon.r0.content.notebook'),
+        },
+        defaultPostCollectionRenderer: CollectionRendererId.notebook,
+      };
+    case 'gallery':
+      return {
+        draftInput: 'tlon.r0.input.gallery',
+        defaultPostContentRenderers: {
+          chat: PostContentRendererId.create('tlon.r0.content.gallery'),
+        },
+        defaultPostCollectionRenderer: CollectionRendererId.gallery,
+      };
+  }
+
+  throw new Error('Unknown channel type');
+}

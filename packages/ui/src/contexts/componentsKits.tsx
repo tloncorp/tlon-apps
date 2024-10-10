@@ -1,0 +1,118 @@
+import * as db from '@tloncorp/shared/dist/db';
+import { Story } from '@tloncorp/shared/dist/urbit';
+import {
+  ReactElement,
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from 'react';
+
+import { ChatMessage } from '../components/ChatMessage';
+import { GalleryPost } from '../components/GalleryPost';
+import {
+  ChatInput,
+  DraftInputContext,
+  GalleryInput,
+  NotebookInput,
+} from '../components/draftInputs';
+
+type RenderItemFunction = (props: {
+  post: db.Post;
+  showAuthor?: boolean;
+  showReplies?: boolean;
+  onPress?: (post: db.Post) => void;
+  onPressReplies?: (post: db.Post) => void;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onLongPress?: (post: db.Post) => void;
+  editing?: boolean;
+  setEditingPost?: (post: db.Post | undefined) => void;
+  setViewReactionsPost?: (post: db.Post) => void;
+  editPost?: (post: db.Post, content: Story) => Promise<void>;
+  onPressRetry: (post: db.Post) => void;
+  onPressDelete: (post: db.Post) => void;
+  isHighlighted?: boolean;
+}) => ReactElement | null;
+
+export type RenderItemType =
+  | RenderItemFunction
+  | React.MemoExoticComponent<RenderItemFunction>;
+
+type DraftInputRendererComponent = React.ComponentType<{
+  draftInputContext: DraftInputContext;
+}>;
+
+interface PostContentRendererContextValue {
+  renderers: Readonly<{ [id: string]: RenderItemType }>;
+  inputs: Readonly<{ [id: string]: DraftInputRendererComponent }>;
+
+  // TODO: Remove
+  registerRenderer: (
+    id: string,
+    renderer: RenderItemType
+  ) => { unregister: () => void };
+}
+
+const _globalContextValue: PostContentRendererContextValue = {
+  renderers: {},
+  inputs: {},
+  registerRenderer(id, renderer) {
+    this.renderers[id] = renderer;
+    return {
+      unregister: () => {
+        delete this.renderers[id];
+      },
+    };
+  },
+};
+
+const PostContentRendererContext =
+  createContext<PostContentRendererContextValue>(_globalContextValue);
+
+export function usePostContentRenderersContext() {
+  return useContext(PostContentRendererContext);
+}
+
+export function PostContentRendererContextProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [renderers, setRenderers] = useState<{ [id: string]: RenderItemType }>({
+    'tlon.r0.content.chat': ChatMessage,
+    'tlon.r0.content.gallery': GalleryPost,
+  });
+  const [inputs] = useState<{ [id: string]: DraftInputRendererComponent }>({
+    'tlon.r0.input.chat': ChatInput,
+    'tlon.r0.input.gallery': GalleryInput,
+    'tlon.r0.input.notebook': NotebookInput,
+  });
+
+  const registerRenderer = useCallback(
+    (id: string, renderer: RenderItemType) => {
+      setRenderers((prev) => ({ ...prev, [id]: renderer }));
+      return {
+        unregister: () => {
+          setRenderers((prev) => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+          });
+        },
+      };
+    },
+    [setRenderers]
+  );
+
+  const value = useMemo(
+    () => ({ renderers, inputs, registerRenderer }),
+    [renderers, inputs, registerRenderer]
+  );
+
+  return (
+    <PostContentRendererContext.Provider value={value}>
+      {children}
+    </PostContentRendererContext.Provider>
+  );
+}
