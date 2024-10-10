@@ -39,12 +39,11 @@ export function GroupSettingsStack({
 
   return (
     <GroupSettings.Navigator screenOptions={{ headerShown: false }}>
-      <GroupSettings.Screen
-        name="GroupMeta"
-        component={(props: GroupMetaProps) => (
+      <GroupSettings.Screen name="GroupMeta">
+        {(props: GroupMetaProps) => (
           <GroupMetaScreen {...props} navigateToHome={navigateToHome} />
         )}
-      />
+      </GroupSettings.Screen>
       <GroupSettings.Screen
         name="GroupMembers"
         component={GroupMembersScreen}
