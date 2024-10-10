@@ -9,7 +9,6 @@ import {
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
-import { ChannelContentConfiguration } from 'packages/shared/dist/api';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -256,10 +255,6 @@ export function Channel({
     ]
   );
 
-  const channelContentConfiguration = channel.contentConfiguration as
-    | ChannelContentConfiguration
-    | undefined;
-
   return (
     <ScrollContextProvider>
       <GroupsProvider groups={groups}>
@@ -360,7 +355,7 @@ export function Channel({
                             </AnimatePresence>
 
                             {canWrite &&
-                              (channelContentConfiguration == null ? (
+                              (channel.contentConfiguration == null ? (
                                 <>
                                   {isChatChannel &&
                                     !channel.isDmInvite &&
@@ -394,7 +389,7 @@ export function Channel({
                               ) : (
                                 <DraftInputView
                                   draftInputContext={draftInputContext}
-                                  type={channelContentConfiguration.draftInput}
+                                  type={channel.contentConfiguration.draftInput}
                                 />
                               ))}
 
@@ -457,9 +452,7 @@ const PostView: RenderItemType = (props) => {
   const { renderers } = usePostContentRenderersContext();
 
   const SpecificPostComponent = useMemo(() => {
-    const contentConfig = channel.contentConfiguration as
-      | ChannelContentConfiguration
-      | undefined;
+    const contentConfig = channel.contentConfiguration;
     if (contentConfig != null) {
       const rendererId =
         contentConfig.defaultPostContentRenderers[props.post.type];
