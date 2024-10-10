@@ -454,8 +454,7 @@ const PostView: RenderItemType = (props) => {
   const SpecificPostComponent = useMemo(() => {
     const contentConfig = channel.contentConfiguration;
     if (contentConfig != null) {
-      const rendererId =
-        contentConfig.defaultPostContentRenderers[props.post.type];
+      const rendererId = contentConfig.defaultPostContentRenderer;
       if (rendererId != null && renderers[rendererId] != null) {
         return renderers[rendererId];
       }
@@ -476,7 +475,7 @@ const PostView: RenderItemType = (props) => {
       case 'gallery':
         return GalleryPost;
     }
-  }, [channel.type, channel.contentConfiguration, props.post.type, renderers]);
+  }, [channel.type, channel.contentConfiguration, renderers]);
 
   return <SpecificPostComponent {...props} />;
 };

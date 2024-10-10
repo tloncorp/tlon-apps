@@ -411,25 +411,25 @@ function channelContentConfigurationForChannelType(
     case 'chat':
       return {
         draftInput: 'tlon.r0.input.chat',
-        defaultPostContentRenderers: {
-          chat: PostContentRendererId.create('tlon.r0.content.chat'),
-        },
+        defaultPostContentRenderer: PostContentRendererId.create(
+          'tlon.r0.content.chat'
+        ),
         defaultPostCollectionRenderer: CollectionRendererId.chat,
       };
     case 'notebook':
       return {
         draftInput: 'tlon.r0.input.notebook',
-        defaultPostContentRenderers: {
-          block: PostContentRendererId.create('tlon.r0.content.notebook'),
-        },
+        defaultPostContentRenderer: PostContentRendererId.create(
+          'tlon.r0.content.notebook'
+        ),
         defaultPostCollectionRenderer: CollectionRendererId.notebook,
       };
     case 'gallery':
       return {
         draftInput: 'tlon.r0.input.gallery',
-        defaultPostContentRenderers: {
-          chat: PostContentRendererId.create('tlon.r0.content.gallery'),
-        },
+        defaultPostContentRenderer: PostContentRendererId.create(
+          'tlon.r0.content.gallery'
+        ),
         defaultPostCollectionRenderer: CollectionRendererId.gallery,
       };
   }

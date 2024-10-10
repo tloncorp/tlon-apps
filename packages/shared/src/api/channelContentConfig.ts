@@ -3,7 +3,6 @@ type PostContent = 'TODO: PostContent';
 type RenderTarget = JSX.Element;
 
 type DraftInputId = string;
-type PostContentType = 'block' | 'chat' | 'notice' | 'note' | 'reply';
 type PostContentRendererId = Nominal<string, 'PostContentRendererId'>;
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -34,9 +33,7 @@ export interface ChannelContentConfiguration {
    * This spec takes precedence over the client's default renderer mapping, but
    * does not take precedence over any mapping specified in a post's metadata.
    */
-  defaultPostContentRenderers: Partial<{
-    [Match in PostContentType]: PostContentRendererId;
-  }>;
+  defaultPostContentRenderer: PostContentRendererId;
 
   /**
    * How should we render the entire collection of posts? (list, grid, etc)
