@@ -7,7 +7,6 @@ import {
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import { isSameDay } from '@tloncorp/shared/dist/logic';
-import { Story } from '@tloncorp/shared/dist/urbit';
 import { isEqual } from 'lodash';
 import React, {
   PropsWithChildren,
@@ -34,6 +33,7 @@ import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, styled, useStyle, useTheme } from 'tamagui';
 
+import { RenderItemType } from '../../contexts/componentsKits';
 import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
@@ -46,27 +46,6 @@ interface PostWithNeighbors {
   newer: db.Post | null;
   older: db.Post | null;
 }
-
-type RenderItemFunction = (props: {
-  post: db.Post;
-  showAuthor?: boolean;
-  showReplies?: boolean;
-  onPress?: (post: db.Post) => void;
-  onPressReplies?: (post: db.Post) => void;
-  onPressImage?: (post: db.Post, imageUri?: string) => void;
-  onLongPress?: (post: db.Post) => void;
-  editing?: boolean;
-  setEditingPost?: (post: db.Post | undefined) => void;
-  setViewReactionsPost?: (post: db.Post) => void;
-  editPost?: (post: db.Post, content: Story) => Promise<void>;
-  onPressRetry: (post: db.Post) => void;
-  onPressDelete: (post: db.Post) => void;
-  isHighlighted?: boolean;
-}) => ReactElement | null;
-
-export type RenderItemType =
-  | RenderItemFunction
-  | React.MemoExoticComponent<RenderItemFunction>;
 
 const logger = createDevLogger('scroller', false);
 
