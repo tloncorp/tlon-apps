@@ -62,11 +62,43 @@ export function useSyncing() {
   return useSyncExternalStore(subscribeToIsSyncing, getSyncing);
 }
 
+// Initialized Client — whether the client has been initialized
+let initializedClient: boolean = false;
+type InitializedClientListener = (initialized: boolean) => void;
+const initializedClientListeners: InitializedClientListener[] = [];
+
+export function getInitializedClient() {
+  return initializedClient;
+}
+
+export function updateInitializedClient(newValue: boolean) {
+  initializedClient = newValue;
+  initializedClientListeners.forEach((listener) => listener(newValue));
+}
+
+function subscribeToInitializedClient(listener: InitializedClientListener) {
+  initializedClientListeners.push(listener);
+  return () => {
+    initializedClientListeners.splice(
+      initializedClientListeners.indexOf(listener),
+      1
+    );
+  };
+}
+
+export function useInitializedClient() {
+  return useSyncExternalStore(
+    subscribeToInitializedClient,
+    getInitializedClient
+  );
+}
+
 export function useConnectionStatus() {
   const currentSession = useCurrentSession();
   const syncing = useSyncing();
+  const initializedClient = useInitializedClient();
 
-  if (!syncing && !currentSession) {
+  if (!initializedClient) {
     return 'Idle';
   }
 

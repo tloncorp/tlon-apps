@@ -202,8 +202,12 @@ export const ReserveShipScreen = ({
   );
 
   useEffect(() => {
-    if (signupContext.bootPhase === NodeBootPhase.IDLE) {
-      signupContext.initializeBootSequence();
+    // if (signupContext.bootPhase === NodeBootPhase.IDLE) {
+    //   signupContext.initializeBootSequence();
+    // }
+
+    if (!signupContext.didCompleteSignup) {
+      signupContext.setDidCompleteSignup(true);
     }
   }, [signupContext]);
 

@@ -10,14 +10,13 @@ import {
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
-import { BranchProvider, useBranch } from '@tloncorp/app/contexts/branch';
+import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
 import {
   SignupProvider,
   useSignupContext,
 } from '@tloncorp/app/contexts/signup';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { NodeBootPhase } from '@tloncorp/app/lib/bootHelpers';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
@@ -77,10 +76,7 @@ const App = ({
           <View flex={1} alignItems="center" justifyContent="center">
             <LoadingSpinner />
           </View>
-        ) : isAuthenticated &&
-          [NodeBootPhase.IDLE, NodeBootPhase.READY].includes(
-            signupContext.bootPhase
-          ) ? (
+        ) : isAuthenticated && !signupContext.isOngoing ? (
           <AuthenticatedApp
             notificationListenerProps={{
               notificationPath,

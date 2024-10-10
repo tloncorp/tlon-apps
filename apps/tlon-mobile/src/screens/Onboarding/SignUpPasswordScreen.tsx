@@ -126,7 +126,7 @@ export const SignUpPasswordScreen = ({
         email,
         password,
       });
-      signupContext.setHostingUser(user);
+      // signupContext.setHostingUser(user);
       if (user.requirePhoneNumberVerification) {
         navigation.navigate('RequestPhoneVerify', { user });
       } else {
@@ -188,12 +188,17 @@ export const SignUpPasswordScreen = ({
     }
   }, [recaptchaError]);
 
+  const goBackHandler = useCallback(() => {
+    signupContext.setDidSignup(false);
+    navigation.goBack();
+  }, [navigation, signupContext]);
+
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         title="Create account"
         showSessionStatus={false}
-        backAction={() => navigation.goBack()}
+        backAction={goBackHandler}
         isLoading={isSubmitting}
         rightControls={
           <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>

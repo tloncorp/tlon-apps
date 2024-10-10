@@ -1,4 +1,8 @@
 import * as api from '@tloncorp/shared/dist/api';
+import {
+  getInitializedClient,
+  updateInitializedClient,
+} from '@tloncorp/shared/dist/store';
 import { ChannelStatus } from '@urbit/http-api';
 //@ts-expect-error no typedefs
 import { fetch as streamingFetch } from 'react-native-fetch-api';
@@ -62,13 +66,17 @@ export function configureClient({
   onChannelStatusChange?: (status: ChannelStatus) => void;
   verbose?: boolean;
 }) {
-  api.configureClient({
-    shipName,
-    shipUrl,
-    fetchFn: apiFetch,
-    onReset,
-    onChannelReset,
-    onChannelStatusChange,
-    verbose,
-  });
+  const clientInitialized = getInitializedClient();
+  if (!clientInitialized) {
+    api.configureClient({
+      shipName,
+      shipUrl,
+      fetchFn: apiFetch,
+      onReset,
+      onChannelReset,
+      onChannelStatusChange,
+      verbose,
+    });
+    updateInitializedClient(true);
+  }
 }

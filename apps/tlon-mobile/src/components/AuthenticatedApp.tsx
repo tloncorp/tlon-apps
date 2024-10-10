@@ -40,16 +40,13 @@ function AuthenticatedApp({
 
   useEffect(() => {
     // TODO: i think we need a proper idle state?
-    console.log(`authenticated app connection status: ${connectionStatus}`);
-    if (connectionStatus === 'Idle') {
-      configureClient({
-        shipName: ship ?? '',
-        shipUrl: shipUrl ?? '',
-        onReset: () => sync.syncStart(),
-        onChannelReset: () => sync.handleDiscontinuity(),
-        onChannelStatusChange: sync.handleChannelStatusChange,
-      });
-    }
+    // configureClient({
+    //   shipName: ship ?? '',
+    //   shipUrl: shipUrl ?? '',
+    //   onReset: () => sync.syncStart(),
+    //   onChannelReset: () => sync.handleDiscontinuity(),
+    //   onChannelStatusChange: sync.handleChannelStatusChange,
+    // });
 
     initializeCrashReporter(crashlytics(), PlatformState);
 
@@ -58,19 +55,12 @@ function AuthenticatedApp({
       store.setErrorTrackingUserId(currentUserId);
     }
 
-    if (signupContext.didSignup) {
-      handlePostSignup();
-    }
+    // if (signupContext.didSignup) {
+    //   handlePostSignup();
+    // }
 
-    sync.syncStart();
-  }, [
-    connectionStatus,
-    currentUserId,
-    handlePostSignup,
-    ship,
-    shipUrl,
-    signupContext.didSignup,
-  ]);
+    // sync.syncStart();
+  }, [currentUserId, handlePostSignup, ship, shipUrl]);
 
   const handleAppStatusChange = useCallback((status: AppStateStatus) => {
     if (status === 'active') {
