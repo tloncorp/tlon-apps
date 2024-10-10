@@ -21,6 +21,8 @@ import {
 } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
+import { useHandleLogout } from 'packages/app/hooks/useHandleLogout.native';
+import { useResetDb } from 'packages/app/hooks/useResetDb.native';
 import { useCallback, useEffect } from 'react';
 import { AppStateStatus } from 'react-native';
 
@@ -48,6 +50,13 @@ function AuthenticatedApp({
   useDeepLinkListener();
   useNavigationLogging();
   useNetworkLogger();
+  const resetDb = useResetDb();
+  const logout = useHandleLogout({
+    resetDb: () => {
+      appLogger.log('Resetting db on logout');
+      resetDb();
+    },
+  });
   const navigation =
     useNavigation<
       NativeStackNavigationProp<
@@ -73,13 +82,8 @@ function AuthenticatedApp({
               const { code } = await getShipAccessCode(ship);
               return code;
             },
-      handleAuthFailure: () => {
-        setShip({
-          ship: undefined,
-          shipUrl,
-          authType,
-          authCookie: undefined,
-        });
+      handleAuthFailure: async () => {
+        await logout();
         if (authType === 'self') {
           navigation.navigate('ShipLogin');
           return;
@@ -87,7 +91,7 @@ function AuthenticatedApp({
 
         navigation.navigate('TlonLogin');
       },
-      onReconnect: () => sync.syncStart(true),
+      onReconnect: () => sync.handleDiscontinuity(),
       onChannelReset: () => {
         const threshold = __DEV__ ? 60 * 1000 : 12 * 60 * 60 * 1000; // 12 hours
         const lastReconnect = session?.startTime ?? 0;

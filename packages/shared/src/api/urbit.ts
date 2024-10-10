@@ -223,7 +223,7 @@ export async function subscribe<T>(
 
   const retry = async (err: any) => {
     logger.error('bad subscribe', printEndpoint(endpoint), err);
-    config.pendingAuth = auth();
+    config.pendingAuth = reauth();
     return doSub();
   };
 
@@ -249,7 +249,7 @@ export async function subscribeOnce<T>(
     return config.client.subscribeOnce<T>(endpoint.app, endpoint.path, timeout);
   } catch (err) {
     logger.error('bad subscribeOnce', printEndpoint(endpoint), err);
-    await auth();
+    await reauth();
     return config.client.subscribeOnce<T>(endpoint.app, endpoint.path, timeout);
   }
 }
@@ -265,7 +265,7 @@ export async function unsubscribe(id: number) {
     return config.client.unsubscribe(id);
   } catch (err) {
     logger.error('bad unsubscribe', id, err);
-    await auth();
+    await reauth();
     return config.client.unsubscribe(id);
   }
 }
@@ -288,7 +288,7 @@ export async function poke({ app, mark, json }: PokeParams) {
   };
   const retry = async (err: any) => {
     logger.log('bad poke', app, mark, json, err);
-    await auth();
+    await reauth();
     return doPoke();
   };
 
@@ -349,7 +349,7 @@ export async function scry<T>({ app, path }: { app: string; path: string }) {
     logger.log('bad scry', app, path, res.status);
     if (res.status === 403) {
       logger.log('scry failed with 403, authing to try again');
-      await auth();
+      await reauth();
       return config.client.scry<T>({ app, path });
     }
     const body = await res.text();
@@ -357,7 +357,7 @@ export async function scry<T>({ app, path }: { app: string; path: string }) {
   }
 }
 
-async function auth() {
+async function reauth() {
   if (!config.getCode) {
     console.warn('No getCode function provided for auth');
     if (config.handleAuthFailure) {
@@ -368,7 +368,7 @@ async function auth() {
   }
 
   if (config.pendingAuth) {
-    await config.pendingAuth;
+    return config.pendingAuth;
   }
 
   try {
@@ -407,7 +407,7 @@ async function auth() {
       tryAuth();
     });
 
-    return config.pendingAuth;
+    return await config.pendingAuth;
   } catch (e) {
     logger.error('error getting urbit code', e);
     config.pendingAuth = null;
