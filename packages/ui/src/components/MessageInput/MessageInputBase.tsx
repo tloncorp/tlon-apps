@@ -13,6 +13,7 @@ import { Button } from '../Button';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
 import { LoadingSpinner } from '../LoadingSpinner';
+import { GalleryDraftType } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
 
@@ -26,9 +27,9 @@ export interface MessageInputProps {
   ) => Promise<void>;
   channelId: string;
   groupMembers: db.ChatMember[];
-  storeDraft: (draft: JSONContent) => void;
-  clearDraft: () => void;
-  getDraft: () => Promise<JSONContent>;
+  storeDraft: (draft: JSONContent, draftType?: GalleryDraftType) => void;
+  clearDraft: (draftType?: GalleryDraftType) => void;
+  getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (
@@ -44,6 +45,7 @@ export interface MessageInputProps {
   backgroundColor?: ThemeTokens;
   placeholder?: string;
   bigInput?: boolean;
+  draftType?: GalleryDraftType;
   title?: string;
   image?: ImagePickerAsset;
   showInlineAttachments?: boolean;
