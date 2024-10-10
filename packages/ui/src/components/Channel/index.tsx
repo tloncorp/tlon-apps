@@ -27,9 +27,9 @@ import {
 } from '../../contexts';
 import { Attachment, AttachmentProvider } from '../../contexts/attachment';
 import {
-  PostContentRendererContextProvider,
+  ComponentsKitContextProvider,
   RenderItemType,
-  usePostContentRenderersContext,
+  useComponentsKitContext,
 } from '../../contexts/componentsKits';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
@@ -263,7 +263,7 @@ export function Channel({
     <ScrollContextProvider>
       <GroupsProvider groups={groups}>
         <ChannelProvider value={{ channel }}>
-          <PostContentRendererContextProvider>
+          <ComponentsKitContextProvider>
             <RequestsProvider
               usePost={usePost}
               usePostReference={usePostReference}
@@ -426,7 +426,7 @@ export function Channel({
                 </AttachmentProvider>
               </NavigationProvider>
             </RequestsProvider>
-          </PostContentRendererContextProvider>
+          </ComponentsKitContextProvider>
         </ChannelProvider>
       </GroupsProvider>
     </ScrollContextProvider>
@@ -453,15 +453,23 @@ function NegotionMismatchNotice() {
 
 const PostView: RenderItemType = (props) => {
   const channel = useChannelContext();
-  const { renderers } = usePostContentRenderersContext();
+  const { renderers } = useComponentsKitContext();
 
   const SpecificPostComponent = useMemo(() => {
-    const contentConfig = channel.contentConfiguration;
-    if (contentConfig != null) {
-      const rendererId = contentConfig.defaultPostContentRenderer;
-      if (rendererId != null && renderers[rendererId] != null) {
-        return renderers[rendererId];
+    // why do this iife?
+    // without it, TypeScript thinks the value from `renderers[]` may be null.
+    // sad!
+    const rendererFromContentConfig = (() => {
+      const contentConfig = channel.contentConfiguration;
+      if (
+        contentConfig != null &&
+        renderers[contentConfig.defaultPostContentRenderer] != null
+      ) {
+        return renderers[contentConfig.defaultPostContentRenderer];
       }
+    })();
+    if (rendererFromContentConfig != null) {
+      return rendererFromContentConfig;
     }
 
     // content config did not provide a renderer, fall back to default
@@ -486,9 +494,9 @@ const PostView: RenderItemType = (props) => {
 
 function DraftInputView(props: {
   draftInputContext: DraftInputContext;
-  type: string;
+  type: DraftInputId;
 }) {
-  const { inputs } = usePostContentRenderersContext();
+  const { inputs } = useComponentsKitContext();
   const InputComponent = inputs[props.type];
   if (InputComponent) {
     return <InputComponent draftInputContext={props.draftInputContext} />;
