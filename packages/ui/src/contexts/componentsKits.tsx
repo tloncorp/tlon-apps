@@ -45,7 +45,7 @@ type DraftInputRendererComponent = React.ComponentType<{
   draftInputContext: DraftInputContext;
 }>;
 
-interface PostContentRendererContextValue {
+interface ComponentsKitContextValue {
   renderers: Readonly<
     Partial<{ [Id in PostContentRendererId]: RenderItemType }>
   >;
@@ -60,7 +60,7 @@ interface PostContentRendererContextValue {
   ) => { unregister: () => void };
 }
 
-const _globalContextValue: PostContentRendererContextValue = {
+const _globalContextValue: ComponentsKitContextValue = {
   renderers: {},
   inputs: {},
   registerRenderer(id, renderer) {
@@ -73,14 +73,14 @@ const _globalContextValue: PostContentRendererContextValue = {
   },
 };
 
-const PostContentRendererContext =
-  createContext<PostContentRendererContextValue>(_globalContextValue);
+const ComponentsKitContext =
+  createContext<ComponentsKitContextValue>(_globalContextValue);
 
-export function usePostContentRenderersContext() {
-  return useContext(PostContentRendererContext);
+export function useComponentsKitContext() {
+  return useContext(ComponentsKitContext);
 }
 
-export function PostContentRendererContextProvider({
+export function ComponentsKitContextProvider({
   children,
 }: {
   children: React.ReactNode;
@@ -118,8 +118,8 @@ export function PostContentRendererContextProvider({
   );
 
   return (
-    <PostContentRendererContext.Provider value={value}>
+    <ComponentsKitContext.Provider value={value}>
       {children}
-    </PostContentRendererContext.Provider>
+    </ComponentsKitContext.Provider>
   );
 }
