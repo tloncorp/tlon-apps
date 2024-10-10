@@ -53,6 +53,7 @@ export interface MessageInputProps {
   // for external access to height
   setHeight?: (height: number) => void;
   goBack?: () => void;
+  shouldAutoFocus?: boolean;
   ref?: React.RefObject<{
     editor: EditorBridge | null;
     setEditor: (editor: EditorBridge) => void;

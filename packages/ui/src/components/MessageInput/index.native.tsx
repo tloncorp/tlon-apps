@@ -137,6 +137,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       image,
       channelType,
       setHeight,
+      shouldAutoFocus,
       goBack,
       onSend,
     },
@@ -157,6 +158,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
     const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
     const [containerHeight, setContainerHeight] = useState(initialHeight);
+    const [hasAutoFocused, setHasAutoFocused] = useState(false);
     const { bottom, top } = useSafeAreaInsets();
     const { height } = useWindowDimensions();
     const headerHeight = 48;
@@ -209,8 +211,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const editor = useEditorBridge({
       customSource: editorHtml,
-      // setting autofocus to true if we have editPost here doesn't seem to work
-      // so we're using a useEffect to set it
       autofocus: false,
       bridgeExtensions,
     });
@@ -352,10 +352,29 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [editingPost]);
 
     useEffect(() => {
-      if (editor && !shouldBlur && !editorState.isFocused && !!editingPost) {
+      if (
+        editor &&
+        !shouldBlur &&
+        !editorState.isFocused &&
+        !!editingPost &&
+        !hasAutoFocused
+      ) {
         editor.focus();
+        setHasAutoFocused(true);
       }
-    }, [shouldBlur, editor, editorState, editingPost]);
+    }, [shouldBlur, editor, editorState, editingPost, hasAutoFocused]);
+
+    useEffect(() => {
+      if (
+        editor &&
+        shouldAutoFocus &&
+        !editorState.isFocused &&
+        !hasAutoFocused
+      ) {
+        editor.focus();
+        setHasAutoFocused(true);
+      }
+    }, [shouldAutoFocus, editor, editorState, hasAutoFocused]);
 
     useEffect(() => {
       if (editor && shouldBlur && editorState.isFocused) {

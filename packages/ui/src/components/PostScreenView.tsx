@@ -146,6 +146,9 @@ export function PostScreenView({
                   clearDraft={clearDraft}
                   channelType="chat"
                   getDraft={getDraft}
+                  shouldAutoFocus={
+                    channel.type === 'chat' && parentPost?.replyCount === 0
+                  }
                 />
               )}
               {!negotiationMatch && channel && canWrite && (
