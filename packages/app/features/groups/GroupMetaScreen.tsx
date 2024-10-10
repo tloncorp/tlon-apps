@@ -14,7 +14,12 @@ import { BRANCH_DOMAIN, BRANCH_KEY } from '../../constants';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 
-type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'GroupMeta'>;
+type Props = NativeStackScreenProps<
+  GroupSettingsStackParamList,
+  'GroupMeta'
+> & {
+  navigateToHome: () => void;
+};
 
 export function GroupMetaScreen(props: Props) {
   const { groupId } = props.route.params;
@@ -49,6 +54,11 @@ export function GroupMetaScreen(props: Props) {
     setShowDeleteSheet(true);
   }, []);
 
+  const handleDeleteGroup = useCallback(() => {
+    deleteGroup();
+    props.navigateToHome();
+  }, [deleteGroup, props]);
+
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
       <MetaEditorScreenView
@@ -65,7 +75,7 @@ export function GroupMetaScreen(props: Props) {
           itemTypeDescription="group"
           open={showDeleteSheet}
           onOpenChange={setShowDeleteSheet}
-          deleteAction={deleteGroup}
+          deleteAction={handleDeleteGroup}
         />
       </MetaEditorScreenView>
     </AttachmentProvider>
