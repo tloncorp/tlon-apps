@@ -155,6 +155,7 @@ export function BigInput({
           placeholder={placeholder}
           bigInput
           channelType={channelType}
+          draftType={channelType === 'gallery' ? 'text' : undefined}
           ref={editorRef}
         />
       </View>

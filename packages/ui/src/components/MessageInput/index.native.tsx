@@ -133,6 +133,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       initialHeight = DEFAULT_MESSAGE_INPUT_HEIGHT,
       placeholder = 'Message',
       bigInput = false,
+      draftType,
       title,
       image,
       channelType,
@@ -241,7 +242,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     useEffect(() => {
       if (!hasSetInitialContent && editorState.isReady) {
         try {
-          getDraft().then((draft) => {
+          getDraft(draftType).then((draft) => {
             if (!editingPost && draft) {
               const inlines = tiptap.JSONToInlines(draft);
               const newInlines = inlines
@@ -336,6 +337,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [
       editor,
       getDraft,
+      draftType,
       hasSetInitialContent,
       editorState.isReady,
       editingPost,
@@ -435,7 +437,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
       messageInputLogger.log('Storing draft', json);
 
-      storeDraft(json);
+      storeDraft(json, draftType);
     };
 
     const handlePaste = useCallback(
@@ -593,11 +595,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         messageInputLogger.log('onSelectMention, setting new content', newJson);
         // @ts-expect-error setContent does accept JSONContent
         editor.setContent(newJson);
-        storeDraft(newJson);
+        storeDraft(newJson, draftType);
         setMentionText('');
         setShowMentionPopup(false);
       },
-      [editor, storeDraft]
+      [editor, storeDraft, draftType]
     );
 
     const sendMessage = useCallback(
@@ -695,7 +697,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         onSend?.();
         editor.setContent('');
         clearAttachments();
-        clearDraft();
+        clearDraft(draftType);
         setShowBigInput?.(false);
       },
       [
@@ -713,6 +715,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         channelType,
         send,
         channelId,
+        draftType,
       ]
     );
 
@@ -898,9 +901,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const handleCancelEditing = useCallback(() => {
       setEditingPost?.(undefined);
       editor.setContent('');
-      clearDraft();
+      clearDraft(draftType);
       clearAttachments();
-    }, [setEditingPost, editor, clearDraft, clearAttachments]);
+    }, [setEditingPost, editor, clearDraft, clearAttachments, draftType]);
 
     return (
       <MessageInputContainer
