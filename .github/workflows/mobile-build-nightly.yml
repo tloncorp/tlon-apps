@@ -1,0 +1,52 @@
+name: Build Tlon Mobile Nightly
+on:
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Create mobile builds
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for changes in develop
+        id: changes
+        run: |
+          git fetch origin develop
+          if [ $(git rev-list --since="24 hours ago" origin/develop --count) -eq 0 ]; then
+            echo "No changes in develop in the past 24 hours"
+            echo "::set-output name=changes::0"
+            exit 0
+          else
+            echo "::set-output name=changes::1"
+          fi
+      - name: Set up Node.js
+        if: steps.changes.outputs.changes != '0'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Set up Expo and EAS
+        if: steps.changes.outputs.changes != '0'
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Setup PNPM
+        if: steps.changes.outputs.changes != '0'
+        uses: pnpm/action-setup@v3
+      - name: Install dependencies
+        if: steps.changes.outputs.changes != '0'
+        run: pnpm install --frozen-lockfile
+      - name: Build for selected platforms
+        if: steps.changes.outputs.changes != '0'
+        working-directory: ./apps/tlon-mobile
+        run: |
+          eas build --profile preview --platform all --non-interactive --auto-submit
+        env:
+          EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
+          EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
+          NOTIFY_PROVIDER: "binnec-dozzod-marnus"
+          NOTIFY_SERVICE: "tlon-preview-release"
