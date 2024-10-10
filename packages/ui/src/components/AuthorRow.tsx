@@ -94,11 +94,18 @@ export function ChatAuthorRow({
 
   const firstRole = roles?.[0];
 
+  const shouldTruncate = showEditedIndicator || firstRole || deliveryStatus === 'failed';
+
   return (
     <XStack gap="$l" alignItems="center" {...props} onPress={openProfile}>
       <ContactAvatar size="$2xl" contactId={authorId} />
       <XStack gap="$l" alignItems="flex-end">
-        <ContactName size="$label/2xl" contactId={authorId} />
+        <ContactName
+          size="$label/2xl"
+          contactId={authorId}
+          numberOfLines={1}
+          maxWidth={shouldTruncate ? '55%' : '100%'}
+        />
         {timeDisplay && (
           <Text color="$secondaryText" size="$label/m">
             {timeDisplay}
@@ -112,7 +119,7 @@ export function ChatAuthorRow({
         {firstRole && <RoleBadge role={firstRole} />}
         {deliveryStatus === 'failed' ? (
           <Text size="$label/m" color="$negativeActionText">
-            Failed to send
+            Tap to retry
           </Text>
         ) : null}
       </XStack>

@@ -56,7 +56,7 @@ const ChatMessage = ({
   }, [onPress, post.deliveryStatus]);
 
   const handlePress = useCallback(() => {
-    if (onPress) {
+    if (onPress && post.deliveryStatus !== 'failed') {
       onPress(post);
     } else if (post.deliveryStatus === 'failed') {
       setShowRetrySheet(true);
@@ -139,6 +139,7 @@ const ChatMessage = ({
           isNotice={post.type === 'notice'}
           onPressImage={handleImagePressed}
           onLongPress={handleLongPress}
+          onPress={shouldHandlePress ? handlePress : undefined}
         />
       </View>
 
