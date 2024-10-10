@@ -1,0 +1,34 @@
+name: Build Tlon Mobile Nightly
+on:
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Create mobile builds
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Set up Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build for selected platforms
+        working-directory: ./apps/tlon-mobile
+        run: |
+          eas build --profile preview --platform all --non-interactive --auto-submit
+        env:
+          EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
+          EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
+          NOTIFY_PROVIDER: "binnec-dozzod-marnus"
+          NOTIFY_SERVICE: "tlon-preview-release"
