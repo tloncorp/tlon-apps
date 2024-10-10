@@ -155,6 +155,7 @@ export function BigInput({
           placeholder={placeholder}
           bigInput
           channelType={channelType}
+          shouldAutoFocus
           ref={editorRef}
         />
       </View>
