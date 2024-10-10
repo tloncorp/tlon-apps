@@ -1,4 +1,4 @@
-import { sync, useCurrentSession } from '@tloncorp/shared/dist';
+import { getSession, sync, updateSession } from '@tloncorp/shared/dist';
 import { ClientParams } from '@tloncorp/shared/dist/api';
 import { useCallback } from 'react';
 
@@ -8,16 +8,22 @@ import { configureClient } from '../lib/api';
 type PickPartial<T, K extends keyof T> = Pick<T, K> & Partial<Omit<T, K>>;
 
 export function useConfigureUrbitClient() {
-  const session = useCurrentSession();
-
   return useCallback(
     (params: PickPartial<ClientParams, 'shipName' | 'shipUrl'>) => {
       configureClient({
         verbose: ENABLED_LOGGERS.includes('urbit'),
-        onReconnect: () => sync.handleDiscontinuity(),
+        onReconnect: () => {
+          const threshold = 5 * 60 * 1000; // 5 minutes
+          const lastReconnect = getSession()?.startTime ?? 0;
+          if (Date.now() - lastReconnect >= threshold) {
+            sync.handleDiscontinuity();
+          } else {
+            updateSession({ startTime: Date.now() });
+          }
+        },
         onChannelReset: () => {
           const threshold = __DEV__ ? 60 * 1000 : 12 * 60 * 60 * 1000; // 12 hours
-          const lastReconnect = session?.startTime ?? 0;
+          const lastReconnect = getSession()?.startTime ?? 0;
           if (Date.now() - lastReconnect >= threshold) {
             sync.handleDiscontinuity();
           }
@@ -27,6 +33,6 @@ export function useConfigureUrbitClient() {
         ...params,
       });
     },
-    [session]
+    []
   );
 }
