@@ -1,10 +1,9 @@
 import type { EditorBridge } from '@10play/tentap-editor';
-import { useCurrentSession } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { memo } from 'react';
-import { PropsWithChildren, useMemo } from 'react';
+import { PropsWithChildren } from 'react';
 import { SpaceTokens } from 'tamagui';
 import { ThemeTokens, View, XStack, YStack } from 'tamagui';
 
@@ -95,11 +94,6 @@ export const MessageInputContainer = memo(
     onPressEdit?: () => void;
     goBack?: () => void;
   }>) => {
-    const currentSession = useCurrentSession();
-    const isDisconnected = useMemo(
-      () => !currentSession || currentSession.isReconnecting === true,
-      [currentSession]
-    );
     const { canUpload } = useAttachmentContext();
 
     return (
@@ -164,11 +158,11 @@ export const MessageInputContainer = memo(
           ) : (
             <View marginBottom="$xs">
               <Button
-                disabled={disableSend || isSending || isDisconnected}
+                disabled={disableSend || isSending}
                 onPress={isEditing ? onPressEdit : onPressSend}
                 backgroundColor="unset"
                 borderColor="transparent"
-                opacity={disableSend || isDisconnected ? 0.5 : 1}
+                opacity={disableSend ? 0.5 : 1}
               >
                 {isSending ? (
                   <View width="$2xl" height="$2xl">
