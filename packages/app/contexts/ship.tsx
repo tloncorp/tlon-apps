@@ -1,5 +1,4 @@
 import crashlytics from '@react-native-firebase/crashlytics';
-import { configureApi } from '@tloncorp/shared/dist/api';
 import { preSig } from '@urbit/aura';
 import type { ReactNode } from 'react';
 import {
@@ -17,6 +16,7 @@ import { transformShipURL } from '../utils/string';
 const { UrbitModule } = NativeModules;
 
 export type ShipInfo = {
+  authType: 'self' | 'hosted';
   ship: string | undefined;
   shipUrl: string | undefined;
   authCookie: string | undefined;
@@ -29,7 +29,7 @@ type State = ShipInfo & {
 };
 
 type ContextValue = State & {
-  setShip: (shipInfo: ShipInfo, authCookie?: string) => void;
+  setShip: (shipInfo: ShipInfo) => void;
   clearShip: () => void;
 };
 
@@ -46,6 +46,7 @@ export const useShip = () => {
 };
 
 const emptyShip: ShipInfo = {
+  authType: 'hosted',
   ship: undefined,
   shipUrl: undefined,
   authCookie: undefined,
@@ -55,64 +56,69 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [shipInfo, setShipInfo] = useState(emptyShip);
 
-  const setShip = useCallback(({ ship, shipUrl, authCookie }: ShipInfo) => {
-    // Clear all saved ship info if either required field is empty
-    if (!ship || !shipUrl) {
-      // Remove from React Native storage
-      clearShipInfo();
+  const setShip = useCallback(
+    ({ ship, shipUrl, authCookie, authType }: ShipInfo) => {
+      // Clear all saved ship info if either required field is empty
+      if (!ship || !shipUrl) {
+        // Remove from React Native storage
+        clearShipInfo();
 
-      // Clear context state
-      setShipInfo(emptyShip);
+        // Clear context state
+        setShipInfo(emptyShip);
 
-      // Clear native storage
-      UrbitModule.clearUrbit();
-      return;
-    }
+        // Clear native storage
+        UrbitModule.clearUrbit();
+        return;
+      }
 
-    // The passed shipUrl should already be normalized, but defensively ensure it is
-    const normalizedShipUrl = transformShipURL(shipUrl);
-    const nextShipInfo = { ship, shipUrl: normalizedShipUrl, authCookie };
+      // The passed shipUrl should already be normalized, but defensively ensure it is
+      const normalizedShipUrl = transformShipURL(shipUrl);
+      const nextShipInfo = {
+        ship,
+        shipUrl: normalizedShipUrl,
+        authCookie,
+        authType,
+      };
 
-    // Save to React Native stoage
-    saveShipInfo(nextShipInfo);
+      // Save to React Native stoage
+      saveShipInfo(nextShipInfo);
 
-    // Save context state
-    setShipInfo(nextShipInfo);
+      // Save context state
+      setShipInfo(nextShipInfo);
 
-    // Configure API
-    configureApi(ship, normalizedShipUrl);
+      // Configure analytics
+      crashlytics().setAttribute(
+        'isHosted',
+        normalizedShipUrl.includes('.tlon.network') ? 'true' : 'false'
+      );
 
-    // Configure analytics
-    crashlytics().setAttribute(
-      'isHosted',
-      normalizedShipUrl.includes('.tlon.network') ? 'true' : 'false'
-    );
+      // If cookie was passed in, use it, otherwise fetch from ship
+      // TODO: This may not be necessary, as I *believe* auth cookie will always
+      // be stored on successful login.
+      if (authCookie) {
+        // Save to native storage
+        UrbitModule.setUrbit(ship, normalizedShipUrl, authCookie);
+      } else {
+        // Run this in the background
+        (async () => {
+          // Fetch the root ship URL and parse headers
+          const response = await fetch(normalizedShipUrl, {
+            credentials: 'include',
+          });
+          const fetchedAuthCookie = response.headers.get('set-cookie');
+          if (fetchedAuthCookie) {
+            setShipInfo({ ...nextShipInfo, authCookie: fetchedAuthCookie });
+            saveShipInfo({ ...nextShipInfo, authCookie: fetchedAuthCookie });
+            // Save to native storage
+            UrbitModule.setUrbit(ship, normalizedShipUrl, fetchedAuthCookie);
+          }
+        })();
+      }
 
-    // If cookie was passed in, use it, otherwise fetch from ship
-    // TODO: This may not be necessary, as I *believe* auth cookie will always
-    // be stored on successful login.
-    if (authCookie) {
-      // Save to native storage
-      UrbitModule.setUrbit(ship, normalizedShipUrl, authCookie);
-    } else {
-      // Run this in the background
-      (async () => {
-        // Fetch the root ship URL and parse headers
-        const response = await fetch(normalizedShipUrl, {
-          credentials: 'include',
-        });
-        const fetchedAuthCookie = response.headers.get('set-cookie');
-        if (fetchedAuthCookie) {
-          setShipInfo({ ...nextShipInfo, authCookie: fetchedAuthCookie });
-          saveShipInfo({ ...nextShipInfo, authCookie: fetchedAuthCookie });
-          // Save to native storage
-          UrbitModule.setUrbit(ship, normalizedShipUrl, fetchedAuthCookie);
-        }
-      })();
-    }
-
-    setIsLoading(false);
-  }, []);
+      setIsLoading(false);
+    },
+    []
+  );
 
   useEffect(() => {
     const loadConnection = async () => {

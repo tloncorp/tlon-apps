@@ -5,6 +5,7 @@ import {
   DEFAULT_SHIP_LOGIN_URL,
 } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
+import { setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { transformShipURL } from '@tloncorp/app/utils/string';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
@@ -18,7 +19,6 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -90,6 +90,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
           ship: shipId,
           shipUrl,
           authCookie,
+          authType: 'self',
         });
       } else {
         setRemoteError(
