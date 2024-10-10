@@ -30,14 +30,10 @@ const channelTypes: Form.ListItemInputOption<ChannelTypeName>[] = [
 
 export function CreateChannelSheet({
   onOpenChange,
-  createChannel,
+  group,
 }: {
   onOpenChange: (open: boolean) => void;
-  createChannel: ({
-    title,
-    description,
-    channelType,
-  }: {
+  group: db.Group;
     title: string;
     description: string;
     channelType: ChannelTypeName;
@@ -51,6 +47,11 @@ export function CreateChannelSheet({
     },
   });
 
+  const currentUserId = useCurrentUserId();
+  const createChannel = useCreateChannel({
+    group,
+    currentUserId,
+  });
   const handlePressSave = useCallback(
     async (data: {
       title: string;

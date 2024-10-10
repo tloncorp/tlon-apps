@@ -1,5 +1,5 @@
 import { CreateChannelSheet } from '@tloncorp/ui/src/components/ManageChannels/CreateChannelSheet';
 
-export default (
-  <CreateChannelSheet onOpenChange={() => {}} createChannel={() => {}} />
-);
+import { group } from '../fakeData';
+
+export default <CreateChannelSheet group={group} onOpenChange={() => {}} />;
