@@ -21,6 +21,7 @@ import {
   GalleryInput,
   NotebookInput,
 } from '../components/draftInputs';
+import { ButtonInput } from '../components/draftInputs/ButtonInput';
 
 type RenderItemFunction = (props: {
   post: db.Post;
@@ -98,6 +99,13 @@ export function ComponentsKitContextProvider({
     [DraftInputId.gallery]: GalleryInput,
     [DraftInputId.notebook]: NotebookInput,
     [DraftInputId.picto]: StandaloneDrawingInput,
+    [DraftInputId.yo]: ({ draftInputContext }) => (
+      <ButtonInput
+        draftInputContext={draftInputContext}
+        messageText="Yo"
+        labelText="Yo"
+      />
+    ),
   });
 
   const registerRenderer = useCallback(

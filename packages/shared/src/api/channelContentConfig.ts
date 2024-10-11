@@ -13,6 +13,7 @@ export enum DraftInputId {
   chat = 'tlon.r0.input.chat',
   gallery = 'tlon.r0.input.gallery',
   picto = 'tlon.r0.input.picto',
+  yo = 'tlon.r0.input.yo',
 }
 
 export enum PostContentRendererId {
