@@ -60,7 +60,7 @@
       "@tiptap/suggestion": "2.6.0",
       "@tiptap/extension-mention": "2.6.0",
       "@tiptap/extension-hard-break": "2.6.0",
-      "@urbit/http-api": "3.1.0-dev-3",
+      "@urbit/http-api": "3.2.0-dev",
       "@urbit/api": "2.2.0",
       "prosemirror-model": "1.19.3",
       "prosemirror-view": "1.33.4",

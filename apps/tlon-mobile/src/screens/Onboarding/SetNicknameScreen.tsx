@@ -11,6 +11,7 @@ import {
   View,
   XStack,
   YStack,
+  useTheme,
 } from '@tloncorp/ui';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -30,6 +31,12 @@ export const SetNicknameScreen = ({
     params: { user },
   },
 }: Props) => {
+  const theme = useTheme();
+
+  const facesImage = theme.dark
+    ? require('../../../assets/images/faces-dark.png')
+    : require('../../../assets/images/faces.png');
+
   const {
     control,
     handleSubmit,
@@ -96,11 +103,7 @@ export const SetNicknameScreen = ({
       />
       <YStack gap="$xl" paddingHorizontal="$2xl">
         <XStack justifyContent="center" paddingTop="$l">
-          <Image
-            height={155}
-            aspectRatio={862 / 609}
-            source={require('../../../assets/images/faces.png')}
-          />
+          <Image height={155} aspectRatio={862 / 609} source={facesImage} />
         </XStack>
 
         <TlonText.Text size="$body" padding="$xl">

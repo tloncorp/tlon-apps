@@ -70,6 +70,14 @@ export function GroupChannelsScreenView({
     [group]
   );
 
+  const titleWidth = useCallback(() => {
+    if (isGroupAdmin) {
+      return 55;
+    } else {
+      return 75;
+    }
+  }, [isGroupAdmin]);
+
   return (
     <View flex={1}>
       <ScreenHeader
@@ -80,6 +88,7 @@ export function GroupChannelsScreenView({
         // component mounts.
         key={group?.id}
         title={title}
+        titleWidth={titleWidth()}
         backAction={onBackPressed}
         rightControls={
           <>

@@ -4,6 +4,7 @@ import {
   updateInitializedClient,
 } from '@tloncorp/shared/dist/store';
 import { ChannelStatus } from '@urbit/http-api';
+import { ClientParams } from 'packages/shared/src/api';
 //@ts-expect-error no typedefs
 import { fetch as streamingFetch } from 'react-native-fetch-api';
 //@ts-expect-error no typedefs
@@ -51,34 +52,15 @@ export const cancelFetch = () => {
   abortController = new AbortController();
 };
 
-export function configureClient({
-  shipName,
-  shipUrl,
-  onReset,
-  onChannelReset,
-  onChannelStatusChange,
-  verbose,
-}: {
-  shipName: string;
-  shipUrl: string;
-  onReset?: () => void;
-  onChannelReset?: () => void;
-  onChannelStatusChange?: (status: ChannelStatus) => void;
-  verbose?: boolean;
-}) {
+export function configureClient(params: Omit<ClientParams, 'fetchFn'>) {
   const clientInitialized = getInitializedClient();
   if (!clientInitialized) {
     api.configureClient({
-      shipName,
-      shipUrl,
+      ...params,
       fetchFn: apiFetch,
-      onReset,
-      onChannelReset,
-      onChannelStatusChange,
-      verbose,
     });
     updateInitializedClient(true);
   } else {
-    console.log(`skippingn client configuration, already initialized`);
+    console.log(`skipping client configuration, already initialized`);
   }
 }

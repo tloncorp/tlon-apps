@@ -43,6 +43,7 @@ export default function ChannelSearchScreen(props: Props) {
           <SearchBar
             onChangeQuery={setQuery}
             placeholder={`Search ${channel.title}`}
+            inputProps={{ autoFocus: true }}
           />
           <Button minimal onPress={() => props.navigation.pop()}>
             <Button.Text>Cancel</Button.Text>

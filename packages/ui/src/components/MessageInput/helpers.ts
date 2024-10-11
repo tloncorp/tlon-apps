@@ -4,6 +4,7 @@ import { createDevLogger, tiptap } from '@tloncorp/shared/dist';
 import {
   Block,
   Inline,
+  JSONContent,
   constructStory,
   isInline,
 } from '@tloncorp/shared/dist/urbit';
@@ -14,10 +15,12 @@ const logger = createDevLogger('processReference', true);
 
 export async function processReferenceAndUpdateEditor({
   editor,
+  editorJson,
   pastedText,
   matchRegex,
   processMatch,
 }: {
+  editorJson: JSONContent;
   editor: EditorBridge | Editor;
   pastedText: string;
   matchRegex: RegExp;
@@ -29,14 +32,13 @@ export async function processReferenceAndUpdateEditor({
 
     if (match) {
       logger.log('found match', match[0]);
-      const attachment = await processMatch(match[0]);
+      const attachment = processMatch(match[0]);
 
       if (attachment) {
         logger.log('extracted attachment', attachment);
 
         // remove the attachments corresponding text from the editor
-        const json = await editor.getJSON();
-        const filteredJson = filterRegexFromJson(json, matchRegex);
+        const filteredJson = filterRegexFromJson(editorJson, matchRegex);
 
         logger.log(`updating editor`, filteredJson);
         if ('setContent' in editor) {

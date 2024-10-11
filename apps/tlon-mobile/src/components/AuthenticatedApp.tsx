@@ -1,14 +1,25 @@
 import crashlytics from '@react-native-firebase/crashlytics';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useAppStatusChange } from '@tloncorp/app/hooks/useAppStatusChange';
+import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
+import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
+import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { cancelFetch, configureClient } from '@tloncorp/app/lib/api';
+import { getShipAccessCode } from '@tloncorp/app/lib/hostingApi';
 import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
-import { initializeCrashReporter, sync } from '@tloncorp/shared';
+import { trackError } from '@tloncorp/app/utils/posthog';
+import {
+  createDevLogger,
+  initializeCrashReporter,
+  sync,
+} from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
 import { useCallback, useEffect } from 'react';
@@ -18,28 +29,75 @@ import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener, {
   type Props as NotificationListenerProps,
 } from '../hooks/useNotificationListener';
+import { OnboardingStackParamList } from '../types';
 
 export interface AuthenticatedAppProps {
   notificationListenerProps: NotificationListenerProps;
 }
 
+const appLogger = createDevLogger('app', false);
+
 function AuthenticatedApp({
   notificationListenerProps,
 }: AuthenticatedAppProps) {
-  const { ship, shipUrl } = useShip();
+  const shipInfo = useShip();
+  const { ship, shipUrl, authType } = shipInfo;
   const currentUserId = useCurrentUserId();
+  const configureClient = useConfigureUrbitClient();
   useNotificationListener(notificationListenerProps);
   useDeepLinkListener();
   useNavigationLogging();
   useNetworkLogger();
+  const resetDb = useResetDb();
+  const logout = useHandleLogout({
+    resetDb: () => {
+      appLogger.log('Resetting db on logout');
+      resetDb();
+    },
+  });
+  const navigation =
+    useNavigation<
+      NativeStackNavigationProp<
+        OnboardingStackParamList,
+        'TlonLogin' | 'ShipLogin'
+      >
+    >();
 
   useEffect(() => {
     configureClient({
       shipName: ship ?? '',
       shipUrl: shipUrl ?? '',
-      onReset: () => sync.syncStart(),
-      onChannelReset: () => sync.handleDiscontinuity(),
-      onChannelStatusChange: sync.handleChannelStatusChange,
+      getCode:
+        authType === 'self'
+          ? undefined
+          : async () => {
+              appLogger.log('Getting ship access code', {
+                ship,
+                authType,
+              });
+              trackError({
+                message:
+                  'Hosted ship logged out of urbit, getting ship access code',
+              });
+              if (!ship) {
+                throw new Error('Trying to retrieve +code, no ship set');
+              }
+
+              const { code } = await getShipAccessCode(ship);
+              return code;
+            },
+      handleAuthFailure: async () => {
+        trackError({
+          message: 'Failed to authenticate with ship, redirecting to login',
+        });
+        await logout();
+        if (authType === 'self') {
+          navigation.navigate('ShipLogin');
+          return;
+        }
+
+        navigation.navigate('TlonLogin');
+      },
     });
 
     initializeCrashReporter(crashlytics(), PlatformState);
