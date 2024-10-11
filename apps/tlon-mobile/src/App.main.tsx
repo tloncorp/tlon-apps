@@ -2,6 +2,7 @@ import { useAsyncStorageDevTools } from '@dev-plugins/async-storage';
 import { useReactNavigationDevTools } from '@dev-plugins/react-navigation';
 import { useReactQueryDevTools } from '@dev-plugins/react-query';
 import NetInfo from '@react-native-community/netinfo';
+import crashlytics from '@react-native-firebase/crashlytics';
 import {
   DarkTheme,
   DefaultTheme,
@@ -10,14 +11,19 @@ import {
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
-import { BranchProvider, useBranch } from '@tloncorp/app/contexts/branch';
+import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
-import { SignupProvider } from '@tloncorp/app/contexts/signup';
+import {
+  SignupProvider,
+  useSignupContext,
+} from '@tloncorp/app/contexts/signup';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
+import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
+import { initializeCrashReporter } from '@tloncorp/shared/dist';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import {
   LoadingSpinner,
@@ -36,6 +42,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
 
+initializeCrashReporter(crashlytics(), PlatformState);
+
 type Props = {
   wer?: string;
   channelId?: string;
@@ -50,7 +58,7 @@ const App = ({
 
   const { isLoading, isAuthenticated } = useShip();
   const [connected, setConnected] = useState(true);
-  const { lure, priorityToken } = useBranch();
+  const signupContext = useSignupContext();
 
   usePreloadedEmojis();
 
@@ -73,7 +81,7 @@ const App = ({
           <View flex={1} alignItems="center" justifyContent="center">
             <LoadingSpinner />
           </View>
-        ) : isAuthenticated ? (
+        ) : isAuthenticated && !signupContext.isOngoing ? (
           <AuthenticatedApp
             notificationListenerProps={{
               notificationPath,

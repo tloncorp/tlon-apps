@@ -2,16 +2,14 @@ import crashlytics from '@react-native-firebase/crashlytics';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { useAppStatusChange } from '@tloncorp/app/hooks/useAppStatusChange';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
-import { usePostSignup } from '@tloncorp/app/hooks/usePostSignup';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
-import { cancelFetch } from '@tloncorp/app/lib/api';
+import { cancelFetch, configureClient } from '@tloncorp/app/lib/api';
 import { getShipAccessCode } from '@tloncorp/app/lib/hostingApi';
 import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
@@ -45,8 +43,6 @@ function AuthenticatedApp({
   const shipInfo = useShip();
   const { ship, shipUrl, authType } = shipInfo;
   const currentUserId = useCurrentUserId();
-  const signupContext = useSignupContext();
-  const handlePostSignup = usePostSignup();
   const configureClient = useConfigureUrbitClient();
   useNotificationListener(notificationListenerProps);
   useDeepLinkListener();
@@ -68,55 +64,15 @@ function AuthenticatedApp({
     >();
 
   useEffect(() => {
-    configureClient({
-      shipName: ship ?? '',
-      shipUrl: shipUrl ?? '',
-      getCode:
-        authType === 'self'
-          ? undefined
-          : async () => {
-              appLogger.log('Getting ship access code', {
-                ship,
-                authType,
-              });
-              trackError({
-                message:
-                  'Hosted ship logged out of urbit, getting ship access code',
-              });
-              if (!ship) {
-                throw new Error('Trying to retrieve +code, no ship set');
-              }
-
-              const { code } = await getShipAccessCode(ship);
-              return code;
-            },
-      handleAuthFailure: async () => {
-        trackError({
-          message: 'Failed to authenticate with ship, redirecting to login',
-        });
-        await logout();
-        if (authType === 'self') {
-          navigation.navigate('ShipLogin');
-          return;
-        }
-
-        navigation.navigate('TlonLogin');
-      },
-    });
-
-    initializeCrashReporter(crashlytics(), PlatformState);
+    configureClient();
 
     // TODO: remove, for use in Beta testing only
     if (currentUserId) {
       store.setErrorTrackingUserId(currentUserId);
     }
 
-    if (signupContext.didSignup) {
-      handlePostSignup();
-    }
-
     sync.syncStart();
-  }, [currentUserId, handlePostSignup, ship, shipUrl, signupContext.didSignup]);
+  }, [currentUserId, ship, shipUrl]);
 
   const handleAppStatusChange = useCallback((status: AppStateStatus) => {
     if (status === 'active') {

@@ -1,4 +1,9 @@
 import * as api from '@tloncorp/shared/dist/api';
+import {
+  getInitializedClient,
+  updateInitializedClient,
+} from '@tloncorp/shared/dist/store';
+import { ChannelStatus } from '@urbit/http-api';
 import { ClientParams } from 'packages/shared/src/api';
 //@ts-expect-error no typedefs
 import { fetch as streamingFetch } from 'react-native-fetch-api';
@@ -47,9 +52,16 @@ export const cancelFetch = () => {
   abortController = new AbortController();
 };
 
+// TODO: can this just get moved into the hook?
 export function configureClient(params: Omit<ClientParams, 'fetchFn'>) {
-  api.configureClient({
-    ...params,
-    fetchFn: apiFetch,
-  });
+  const clientInitialized = getInitializedClient();
+  if (!clientInitialized) {
+    api.configureClient({
+      ...params,
+      fetchFn: apiFetch,
+    });
+    updateInitializedClient(true);
+  } else {
+    console.log(`skipping client configuration, already initialized`);
+  }
 }
