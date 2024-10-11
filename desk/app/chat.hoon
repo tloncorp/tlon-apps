@@ -1702,6 +1702,7 @@
             mention=?
         ==
     ?.  ?|  =(net.dm %done)
+            =(net.dm %inviting)
             &(=(net.dm %invited) =(%invite -.concern))
         ==
       di-core
@@ -1748,6 +1749,7 @@
   ::
   ++  di-ingest-diff
     |=  =diff:dm:c
+    =?  net.dm  &(?=(%inviting net.dm) !from-self)  %done
     =/  =wire  /contacts/(scot %p ship)
     =/  =cage  [act:mar:contacts !>(`action:contacts`[%heed ~[ship]])]
     =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke cage)
