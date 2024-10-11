@@ -1,11 +1,9 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { useAppStatusChange } from '@tloncorp/app/hooks/useAppStatusChange';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
-import { usePostSignup } from '@tloncorp/app/hooks/usePostSignup';
 import { cancelFetch, configureClient } from '@tloncorp/app/lib/api';
 import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
@@ -30,7 +28,6 @@ function AuthenticatedApp({
 }: AuthenticatedAppProps) {
   const { ship, shipUrl } = useShip();
   const currentUserId = useCurrentUserId();
-  const handlePostSignup = usePostSignup();
   useNotificationListener(notificationListenerProps);
   useDeepLinkListener();
   useNavigationLogging();
@@ -53,7 +50,7 @@ function AuthenticatedApp({
     }
 
     sync.syncStart();
-  }, [currentUserId, handlePostSignup, ship, shipUrl]);
+  }, [currentUserId, ship, shipUrl]);
 
   const handleAppStatusChange = useCallback((status: AppStateStatus) => {
     if (status === 'active') {
