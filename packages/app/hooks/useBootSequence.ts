@@ -15,23 +15,35 @@ const logger = createDevLogger('boot sequence', true);
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+interface BootSequenceReport {
+  startedAt: number;
+  completedAt: number;
+}
+
 /*
-  Handles making sure hosted nodes are ready to go during signup. Two main components:
-    
-    runBootPhase — executes a single step of the boot process, returns the next step in the sequence
+  Takes a fresh hosting account and holds its hand until it has a node that's ready to transition
+  to a logged in state.
+  
+  Two main components:  
+    runBootPhase — executes a single boot step, returns the next step in the sequence
     runBootSequence — repeatedly executes runBootPhase until the sequence is complete
 
   The hook remains idle until passed a hosted user. Gives up after HANDLE_INVITES_TIMEOUT seconds if
   we're stuck processing invites, but the node is otherwise ready. Exposes the current boot phase to
   the caller.
 */
-export function useBootSequence(hostingUser: { id: string } | null) {
+export function useBootSequence({
+  hostingUser,
+}: {
+  hostingUser: { id: string } | null;
+}) {
   const { setShip } = useShip();
   const connectionStatus = store.useConnectionStatus();
   const lureMeta = useLureMetadata();
 
   const [bootPhase, setBootPhase] = useState(NodeBootPhase.IDLE);
   const [reservedNodeId, setReservedNodeId] = useState<string | null>(null);
+  const [report, setReport] = useState<BootSequenceReport | null>(null);
 
   const isRunningRef = useRef(false);
   const lastRunPhaseRef = useRef(bootPhase);
@@ -48,7 +60,7 @@ export function useBootSequence(hostingUser: { id: string } | null) {
 
   const runBootPhase = useCallback(async (): Promise<NodeBootPhase> => {
     if (!hostingUser) {
-      logger.log('no hosting user found, skipping');
+      logger.crumb('no hosting user found, skipping');
       return bootPhase;
     }
 
@@ -58,7 +70,7 @@ export function useBootSequence(hostingUser: { id: string } | null) {
     if (bootPhase === NodeBootPhase.RESERVING) {
       const reservedNodeId = await BootHelpers.reserveNode(hostingUser.id);
       setReservedNodeId(reservedNodeId);
-      logger.log(`reserved node`, reservedNodeId);
+      logger.crumb(`reserved node`, reservedNodeId);
       return NodeBootPhase.BOOTING;
     }
 
@@ -75,11 +87,11 @@ export function useBootSequence(hostingUser: { id: string } | null) {
     if (bootPhase === NodeBootPhase.BOOTING) {
       const isReady = await BootHelpers.checkNodeBooted(reservedNodeId);
       if (isReady) {
-        logger.log('checked hosting, node is ready');
+        logger.crumb('checked hosting, node is ready');
         return NodeBootPhase.AUTHENTICATING;
       }
 
-      logger.log('checked hosting, node still booting');
+      logger.crumb('checked hosting, node still booting');
       return NodeBootPhase.BOOTING;
     }
 
@@ -88,9 +100,7 @@ export function useBootSequence(hostingUser: { id: string } | null) {
     //
     if (bootPhase === NodeBootPhase.AUTHENTICATING) {
       const auth = await BootHelpers.authenticateNode(reservedNodeId);
-      console.log(`got auth`, auth);
       const ship = getShipFromCookie(auth.authCookie);
-      console.log(`ship`, ship, auth.nodeId, auth.authCookie);
 
       setShip({
         ship,
@@ -107,7 +117,7 @@ export function useBootSequence(hostingUser: { id: string } | null) {
       });
       store.syncStart();
 
-      logger.log(`authenticated with node`);
+      logger.crumb(`authenticated with node`);
       return NodeBootPhase.CONNECTING;
     }
 
@@ -117,14 +127,14 @@ export function useBootSequence(hostingUser: { id: string } | null) {
     if (bootPhase === NodeBootPhase.CONNECTING) {
       await wait(1000);
       if (connectionStatus === 'Connected') {
-        logger.log(`connection to node established`);
+        logger.crumb(`connection to node established`);
         const signedUpWithInvite = Boolean(lureMeta?.id);
         return signedUpWithInvite
           ? NodeBootPhase.CHECKING_FOR_INVITE
           : NodeBootPhase.READY;
       }
 
-      logger.log(`still connecting to node`, connectionStatus);
+      logger.crumb(`still connecting to node`, connectionStatus);
       return NodeBootPhase.CONNECTING;
     }
 
@@ -136,11 +146,11 @@ export function useBootSequence(hostingUser: { id: string } | null) {
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
 
       if (invitedDm && invitedGroup) {
-        logger.log('confirmed node has the invites');
+        logger.crumb('confirmed node has the invites');
         return NodeBootPhase.ACCEPTING_INVITES;
       }
 
-      logger.log('checked node for invites, not yet found');
+      logger.crumb('checked node for invites, not yet found');
       return NodeBootPhase.CHECKING_FOR_INVITE;
     }
 
@@ -153,12 +163,12 @@ export function useBootSequence(hostingUser: { id: string } | null) {
 
       // if we have invites, accept them
       if (tlonTeamDM && tlonTeamDM.isDmInvite) {
-        logger.log(`accepting dm invitation`);
+        logger.crumb(`accepting dm invitation`);
         await store.respondToDMInvite({ channel: tlonTeamDM, accept: true });
       }
 
       if (invitedDm && invitedDm.isDmInvite) {
-        logger.log(`accepting dm invitation`);
+        logger.crumb(`accepting dm invitation`);
         await store.respondToDMInvite({ channel: invitedDm, accept: true });
       }
 
@@ -167,7 +177,7 @@ export function useBootSequence(hostingUser: { id: string } | null) {
         !invitedGroup.currentUserIsMember &&
         invitedGroup.haveInvite
       ) {
-        logger.log('accepting group invitation');
+        logger.crumb('accepting group invitation');
         await store.joinGroup(invitedGroup);
       }
 
@@ -204,18 +214,18 @@ export function useBootSequence(hostingUser: { id: string } | null) {
         updatedGroup.channels.length > 0;
 
       if (dmIsGood && groupIsGood) {
-        logger.log('successfully accepted invites');
+        logger.crumb('successfully accepted invites');
         if (updatedTlonTeamDm) {
           store.pinItem(updatedTlonTeamDm);
         }
         return NodeBootPhase.READY;
       }
 
-      logger.log(
+      logger.crumb(
         'still waiting on invites to be accepted',
-        `dm: ${dmIsGood}`,
-        `group: ${groupIsGood}`,
-        `tlonTeam: ${tlonTeamIsGood}`
+        `dm is ready: ${dmIsGood}`,
+        `group is ready: ${groupIsGood}`,
+        `tlonTeam is ready: ${tlonTeamIsGood}`
       );
       return NodeBootPhase.ACCEPTING_INVITES;
     }
@@ -246,6 +256,7 @@ export function useBootSequence(hostingUser: { id: string } | null) {
         // if rerunning failed step, wait before retry
         const lastRunDidNotAdvance = bootPhase === lastRunPhaseRef.current;
         if (lastRunDidNotAdvance || lastRunErrored.current) {
+          logger.crumb('waiting before retrying last phase');
           await wait(3000);
         }
 
@@ -256,11 +267,13 @@ export function useBootSequence(hostingUser: { id: string } | null) {
         const nextBootPhase = await runBootPhase();
         setBootPhase(nextBootPhase);
       } catch (e) {
-        logger.error(`${bootPhase} errored`, e.message, e);
+        logger.trackError('runBootPhase error', {
+          bootPhase,
+          errorMessage: e.message,
+          errorStack: e.stack,
+        });
         lastRunErrored.current = true;
         setBootPhase(bootPhase);
-
-        // handle
       } finally {
         isRunningRef.current = false;
       }
@@ -274,7 +287,7 @@ export function useBootSequence(hostingUser: { id: string } | null) {
       NodeBootPhase.CHECKING_FOR_INVITE,
     ].includes(bootPhase);
     if (isInOptionalPhase && beenRunningTooLong) {
-      logger.log('timed out waiting for invites, proceeding');
+      logger.trackError('accept invites abort');
       setBootPhase(NodeBootPhase.READY);
       return;
     }
@@ -284,7 +297,18 @@ export function useBootSequence(hostingUser: { id: string } | null) {
     }
   }, [runBootPhase, setBootPhase, bootPhase]);
 
+  // once finished, set the report
+  useEffect(() => {
+    if (bootPhase === NodeBootPhase.READY && report === null) {
+      setReport({
+        startedAt: sequenceStartTimeRef.current,
+        completedAt: Date.now(),
+      });
+    }
+  }, [bootPhase, report]);
+
   return {
     bootPhase,
+    bootReport: report,
   };
 }

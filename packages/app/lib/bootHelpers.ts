@@ -1,13 +1,9 @@
-import { configureApi } from '@tloncorp/shared/dist/api';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
-import { useCallback, useEffect, useState } from 'react';
 
 import { LureData } from '../contexts/branch';
-import { useShip } from '../contexts/ship';
-import { useSignupContext } from '../contexts/signup';
 import * as hostingApi from '../lib/hostingApi';
-import { trackError, trackOnboardingAction } from '../utils/posthog';
+import { trackOnboardingAction } from '../utils/posthog';
 import { getShipFromCookie, getShipUrl } from '../utils/ship';
 
 export enum NodeBootPhase {
@@ -35,7 +31,6 @@ export async function reserveNode(
   skipShipIds: string[] = []
 ): Promise<string> {
   const user = await hostingApi.getHostingUser(hostingUserId);
-  // const shipIds = user.ships ?? [];
 
   // if the hosting user already has a ship tied to their account, use that
   if (user.ships?.length) {
@@ -58,26 +53,15 @@ export async function reserveNode(
   }
 
   await hostingApi.allocateReservedShip(hostingUserId);
-  // shipIds.push(ship.id);
   trackOnboardingAction({
     actionName: 'Urbit ID Selected',
     ship: ship.id,
   });
 
   return ship.id;
-  // } catch (err) {
-  //   console.error('Error reserving ship:', err);
-  //   if (err instanceof Error) {
-  //     trackError(err);
-  //     // setError(err.message);
-  //   }
-  //   // setStatus(NodeBootPhase.ERROR);
-  //   // return false;
-  // }
 }
 
 async function checkNodeBooted(nodeId: string): Promise<boolean> {
-  // try {
   const shipsWithStatus = await hostingApi.getShipsWithStatus([nodeId]);
   if (!shipsWithStatus) {
     return false;
@@ -90,34 +74,6 @@ async function checkNodeBooted(nodeId: string): Promise<boolean> {
   }
 
   return true;
-
-  // const { code: accessCode } = await hostingApi.getShipAccessCode(shipId);
-  // const shipUrl = getShipUrl(shipId);
-  // const authCookie = await getLandscapeAuthCookie(shipUrl, accessCode);
-  // if (!authCookie) {
-  //   throw new Error("Couldn't log you into your ship.");
-  // }
-
-  // const ship = getShipFromCookie(authCookie);
-  // configureApi(ship, shipUrl);
-
-  // setShip({
-  //   ship,
-  //   shipUrl,
-  //   authCookie,
-  // });
-
-  // setStatus(NodeBootPhase.READY);
-  // return NodeBootPhase.READY;
-  // } catch (err) {
-  //   console.error('Error starting ship:', err);
-  //   if (err instanceof Error) {
-  //     trackError(err);
-  //     // setError(err.message);
-  //   }
-  //   // setStatus(NodeBootPhase.ERROR);
-  //   return NodeBootPhase.ERROR;
-  // }
 }
 
 async function authenticateNode(
@@ -140,9 +96,7 @@ async function authenticateNode(
   };
 }
 
-async function getInvitedGroupAndDm(
-  lureMeta: LureData | null
-): Promise<{
+async function getInvitedGroupAndDm(lureMeta: LureData | null): Promise<{
   invitedDm: db.Channel | null;
   tlonTeamDM: db.Channel | null;
   invitedGroup: db.Group | null;

@@ -1,16 +1,18 @@
 import { createDevLogger } from '@tloncorp/shared/dist';
+import * as api from '@tloncorp/shared/dist/api';
+import * as store from '@tloncorp/shared/dist/store';
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
 
 import { useBootSequence } from '../hooks/useBootSequence';
 import { NodeBootPhase } from '../lib/bootHelpers';
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+import { connectNotifyProvider } from '../lib/notificationsApi';
 
 const logger = createDevLogger('signup', true);
 
@@ -24,6 +26,7 @@ export interface SignupParams {
   hostingUser: { id: string } | null;
   reservedNodeId: string | null;
   bootPhase: NodeBootPhase;
+  userWasReadyAt?: number;
 }
 
 type SignupValues = Omit<SignupParams, 'bootPhase'>;
@@ -61,7 +64,7 @@ const SignupContext = createContext<SignupContext>({
 
 export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
   const [values, setValues] = useState<SignupValues>(defaultValues);
-  const { bootPhase } = useBootSequence(values.hostingUser);
+  const { bootPhase, bootReport } = useBootSequence(values);
 
   const isOngoing = useMemo(() => {
     return (
@@ -70,10 +73,18 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     );
   }, [values.didBeginSignup, values.didCompleteSignup, bootPhase]);
 
+  const setDidSignup = useCallback((didBeginSignup: boolean) => {
+    setValues((current) => ({
+      ...current,
+      didBeginSignup,
+    }));
+  }, []);
+
   const setDidCompleteSignup = useCallback((value: boolean) => {
     setValues((current) => ({
       ...current,
       didCompleteSignup: value,
+      userWasReadyAt: Date.now(),
     }));
   }, []);
 
@@ -108,16 +119,36 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     }));
   }, []);
 
-  const setDidSignup = useCallback((didBeginSignup: boolean) => {
-    setValues((current) => ({
-      ...current,
-      didBeginSignup,
-    }));
-  }, []);
-
   const clear = useCallback(() => {
+    logger.log('clearing signup context');
     setValues(defaultValues);
   }, []);
+
+  useEffect(() => {
+    if (
+      values.didBeginSignup &&
+      values.didCompleteSignup &&
+      bootPhase === NodeBootPhase.READY
+    ) {
+      logger.log('running post-signup actions');
+      const postSignupParams = {
+        nickname: values.nickname,
+        telemetry: values.telemetry,
+        notificationToken: values.notificationToken,
+      };
+      handlePostSignup(postSignupParams);
+      clear();
+      logger.trackEvent('hosted signup report', {
+        bootDuration: bootReport
+          ? bootReport.completedAt - bootReport.startedAt
+          : null,
+        userSatWaitingFor: values.userWasReadyAt
+          ? Date.now() - values.userWasReadyAt
+          : null,
+        timeUnit: 'ms',
+      });
+    }
+  }, [values, bootPhase, clear, bootReport]);
 
   return (
     <SignupContext.Provider
@@ -147,4 +178,45 @@ export function useSignupContext() {
   }
 
   return context;
+}
+
+async function handlePostSignup(params: {
+  nickname?: string;
+  telemetry?: boolean;
+  notificationToken?: string;
+}) {
+  if (params.nickname) {
+    try {
+      await store.updateCurrentUserProfile({
+        nickname: params.nickname,
+      });
+    } catch (e) {
+      logger.trackError('post signup: failed to set nickname', {
+        errorMessage: e.message,
+        errorStack: e.stack,
+      });
+    }
+  }
+
+  if (typeof params.telemetry !== 'undefined') {
+    try {
+      await api.updateTelemetrySetting(params.telemetry);
+    } catch (e) {
+      logger.trackError('post signup: failed to set telemetry', {
+        errorMessage: e.message,
+        errorStack: e.stack,
+      });
+    }
+  }
+
+  if (params.notificationToken) {
+    try {
+      await connectNotifyProvider(params.notificationToken);
+    } catch (e) {
+      logger.trackError('post signup: failed to set notification token', {
+        errorMessage: e.message,
+        errorStack: e.stack,
+      });
+    }
+  }
 }
