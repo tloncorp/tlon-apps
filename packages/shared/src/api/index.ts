@@ -2,7 +2,6 @@ export * from './channelContentConfig';
 export * from './channelsApi';
 export * from './chatApi';
 export * from './contactsApi';
-export * from './contactsApi';
 export * from './groupsApi';
 export * from './landscapeApi';
 export * from './postsApi';

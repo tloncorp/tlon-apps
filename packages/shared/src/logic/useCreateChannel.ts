@@ -6,8 +6,10 @@ import {
   DraftInputId,
   PostContentRendererId,
 } from '../api/channelContentConfig';
-import * as db from '../db';
-import * as store from '../store';
+import { assembleNewChannelIdAndName } from '../db/modelBuilders';
+import * as db from '../db/types';
+import { createChannel } from '../store/channelActions';
+import { useCurrentChats, usePendingChats } from '../store/dbHooks';
 
 export function useCreateChannel({
   group,
@@ -18,8 +20,8 @@ export function useCreateChannel({
   currentUserId: string;
   disabled?: boolean;
 }) {
-  const { data: pendingChats } = store.usePendingChats({ enabled: !disabled });
-  const { data: currentChatData } = store.useCurrentChats({
+  const { data: pendingChats } = usePendingChats({ enabled: !disabled });
+  const { data: currentChatData } = useCurrentChats({
     enabled: !disabled,
   });
 
@@ -33,7 +35,7 @@ export function useCreateChannel({
       description: string;
       channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
     }) => {
-      const { name, id } = db.assembleNewChannelIdAndName({
+      const { name, id } = assembleNewChannelIdAndName({
         title,
         channelType,
         currentChatData,
@@ -42,7 +44,7 @@ export function useCreateChannel({
       });
 
       if (group) {
-        await store.createChannel({
+        await createChannel({
           groupId: group.id,
           name,
           channelId: id,
