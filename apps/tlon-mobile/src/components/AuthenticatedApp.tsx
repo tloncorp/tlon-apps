@@ -64,41 +64,7 @@ function AuthenticatedApp({
     >();
 
   useEffect(() => {
-    configureClient({
-      shipName: ship ?? '',
-      shipUrl: shipUrl ?? '',
-      getCode:
-        authType === 'self'
-          ? undefined
-          : async () => {
-              appLogger.log('Getting ship access code', {
-                ship,
-                authType,
-              });
-              trackError({
-                message:
-                  'Hosted ship logged out of urbit, getting ship access code',
-              });
-              if (!ship) {
-                throw new Error('Trying to retrieve +code, no ship set');
-              }
-
-              const { code } = await getShipAccessCode(ship);
-              return code;
-            },
-      handleAuthFailure: async () => {
-        trackError({
-          message: 'Failed to authenticate with ship, redirecting to login',
-        });
-        await logout();
-        if (authType === 'self') {
-          navigation.navigate('ShipLogin');
-          return;
-        }
-
-        navigation.navigate('TlonLogin');
-      },
-    });
+    configureClient();
 
     initializeCrashReporter(crashlytics(), PlatformState);
 

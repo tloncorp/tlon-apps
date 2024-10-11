@@ -52,6 +52,7 @@ export const cancelFetch = () => {
   abortController = new AbortController();
 };
 
+// TODO: can this just get moved into the hook?
 export function configureClient(params: Omit<ClientParams, 'fetchFn'>) {
   const clientInitialized = getInitializedClient();
   if (!clientInitialized) {

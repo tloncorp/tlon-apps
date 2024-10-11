@@ -8,6 +8,7 @@ import { configureClient } from '../lib/api';
 import { NodeBootPhase } from '../lib/bootHelpers';
 import BootHelpers from '../lib/bootHelpers';
 import { getShipFromCookie } from '../utils/ship';
+import { useConfigureUrbitClient } from './useConfigureUrbitClient';
 
 const HANDLE_INVITES_TIMEOUT = 1000 * 30;
 
@@ -40,6 +41,7 @@ export function useBootSequence({
   const { setShip } = useShip();
   const connectionStatus = store.useConnectionStatus();
   const lureMeta = useLureMetadata();
+  const configureUrbitClient = useConfigureUrbitClient();
 
   const [bootPhase, setBootPhase] = useState(NodeBootPhase.IDLE);
   const [reservedNodeId, setReservedNodeId] = useState<string | null>(null);
@@ -106,15 +108,17 @@ export function useBootSequence({
         ship,
         shipUrl: auth.nodeUrl,
         authCookie: auth.authCookie,
+        authType: 'hosted',
       });
 
-      configureClient({
-        shipName: auth.nodeId,
-        shipUrl: auth.nodeUrl,
-        onReset: () => store.syncStart(),
-        onChannelReset: () => store.handleDiscontinuity(),
-        onChannelStatusChange: store.handleChannelStatusChange,
-      });
+      // configureClient({
+      //   shipName: auth.nodeId,
+      //   shipUrl: auth.nodeUrl,
+      //   onReset: () => store.syncStart(),
+      //   onChannelReset: () => store.handleDiscontinuity(),
+      //   onChannelStatusChange: store.handleChannelStatusChange,
+      // });
+      configureUrbitClient();
       store.syncStart();
 
       logger.crumb(`authenticated with node`);
