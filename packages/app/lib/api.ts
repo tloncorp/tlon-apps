@@ -78,5 +78,7 @@ export function configureClient({
       verbose,
     });
     updateInitializedClient(true);
+  } else {
+    console.log(`skippingn client configuration, already initialized`);
   }
 }

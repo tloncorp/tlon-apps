@@ -18,6 +18,19 @@ export enum NodeBootPhase {
   ERROR = 'error',
 }
 
+export const BootPhaseExplanations: Record<NodeBootPhase, string> = {
+  [NodeBootPhase.IDLE]: 'Waiting to start',
+  [NodeBootPhase.RESERVING]: 'Reserving your p2p node',
+  [NodeBootPhase.BOOTING]: 'Booting your p2p node',
+  [NodeBootPhase.AUTHENTICATING]: 'Authenticating with your node',
+  [NodeBootPhase.CONNECTING]: 'Establishing a connection to your node',
+  [NodeBootPhase.CHECKING_FOR_INVITE]: 'Confirming your invites were received',
+  [NodeBootPhase.ACCEPTING_INVITES]:
+    'Initializing the conversations you were invited to',
+  [NodeBootPhase.READY]: 'Your node is ready',
+  [NodeBootPhase.ERROR]: 'Your node errored while initializing',
+};
+
 export default {
   NodeBootPhase,
   reserveNode,
