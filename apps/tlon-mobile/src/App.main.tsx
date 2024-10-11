@@ -2,6 +2,7 @@ import { useAsyncStorageDevTools } from '@dev-plugins/async-storage';
 import { useReactNavigationDevTools } from '@dev-plugins/react-navigation';
 import { useReactQueryDevTools } from '@dev-plugins/react-query';
 import NetInfo from '@react-native-community/netinfo';
+import crashlytics from '@react-native-firebase/crashlytics';
 import {
   DarkTheme,
   DefaultTheme,
@@ -18,9 +19,11 @@ import {
 } from '@tloncorp/app/contexts/signup';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
+import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
+import { initializeCrashReporter } from '@tloncorp/shared/dist';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import {
   LoadingSpinner,
@@ -38,6 +41,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
+
+initializeCrashReporter(crashlytics(), PlatformState);
 
 type Props = {
   wer?: string;

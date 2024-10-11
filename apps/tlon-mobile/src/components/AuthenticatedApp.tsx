@@ -66,8 +66,6 @@ function AuthenticatedApp({
   useEffect(() => {
     configureClient();
 
-    initializeCrashReporter(crashlytics(), PlatformState);
-
     // TODO: remove, for use in Beta testing only
     if (currentUserId) {
       store.setErrorTrackingUserId(currentUserId);

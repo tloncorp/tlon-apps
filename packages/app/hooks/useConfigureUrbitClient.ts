@@ -4,6 +4,7 @@ import {
   sync,
   updateSession,
 } from '@tloncorp/shared/dist';
+import { ClientParams } from '@tloncorp/shared/dist/api';
 import { useCallback } from 'react';
 
 import { ENABLED_LOGGERS } from '../constants';
@@ -25,53 +26,56 @@ export function useConfigureUrbitClient() {
     },
   });
 
-  return useCallback(() => {
-    configureClient({
-      shipName: ship ?? '',
-      shipUrl: shipUrl ?? '',
-      verbose: ENABLED_LOGGERS.includes('urbit'),
-      onReconnect: () => {
-        const threshold = 5 * 60 * 1000; // 5 minutes
-        const lastReconnect = getSession()?.startTime ?? 0;
-        if (Date.now() - lastReconnect >= threshold) {
-          sync.handleDiscontinuity();
-        } else {
-          updateSession({ startTime: Date.now() });
-        }
-      },
-      onChannelReset: () => {
-        const threshold = __DEV__ ? 60 * 1000 : 12 * 60 * 60 * 1000; // 12 hours
-        const lastReconnect = getSession()?.startTime ?? 0;
-        if (Date.now() - lastReconnect >= threshold) {
-          sync.handleDiscontinuity();
-        }
-      },
-      onChannelStatusChange: sync.handleChannelStatusChange,
-      getCode:
-        authType === 'self'
-          ? undefined
-          : async () => {
-              appLogger.log('Getting ship access code', {
-                ship,
-                authType,
-              });
-              appLogger.trackError(
-                'Hosted ship logged out of urbit, getting ship access code'
-              );
-              if (!ship) {
-                throw new Error('Trying to retrieve +code, no ship set');
-              }
+  return useCallback(
+    (params?: Partial<ClientParams>) => {
+      configureClient({
+        shipName: params?.shipName ?? ship ?? '',
+        shipUrl: params?.shipUrl ?? shipUrl ?? '',
+        verbose: ENABLED_LOGGERS.includes('urbit'),
+        onReconnect: () => {
+          const threshold = 5 * 60 * 1000; // 5 minutes
+          const lastReconnect = getSession()?.startTime ?? 0;
+          if (Date.now() - lastReconnect >= threshold) {
+            sync.handleDiscontinuity();
+          } else {
+            updateSession({ startTime: Date.now() });
+          }
+        },
+        onChannelReset: () => {
+          const threshold = __DEV__ ? 60 * 1000 : 12 * 60 * 60 * 1000; // 12 hours
+          const lastReconnect = getSession()?.startTime ?? 0;
+          if (Date.now() - lastReconnect >= threshold) {
+            sync.handleDiscontinuity();
+          }
+        },
+        onChannelStatusChange: sync.handleChannelStatusChange,
+        getCode:
+          authType === 'self'
+            ? undefined
+            : async () => {
+                appLogger.log('Getting ship access code', {
+                  ship,
+                  authType,
+                });
+                appLogger.trackError(
+                  'Hosted ship logged out of urbit, getting ship access code'
+                );
+                if (!ship) {
+                  throw new Error('Trying to retrieve +code, no ship set');
+                }
 
-              const { code } = await getShipAccessCode(ship);
-              return code;
-            },
-      handleAuthFailure: async () => {
-        appLogger.trackError(
-          'Failed to authenticate with ship, redirecting to login'
-        );
-        await logout();
-        // TODO: route them to hosted sign in vs log in?
-      },
-    });
-  }, [authType, logout, ship, shipUrl]);
+                const { code } = await getShipAccessCode(ship);
+                return code;
+              },
+        handleAuthFailure: async () => {
+          appLogger.trackError(
+            'Failed to authenticate with ship, redirecting to login'
+          );
+          await logout();
+          // TODO: route them to hosted sign in vs log in?
+        },
+      });
+    },
+    [authType, logout, ship, shipUrl]
+  );
 }

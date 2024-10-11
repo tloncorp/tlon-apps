@@ -118,7 +118,7 @@ export function useBootSequence({
       //   onChannelReset: () => store.handleDiscontinuity(),
       //   onChannelStatusChange: store.handleChannelStatusChange,
       // });
-      configureUrbitClient();
+      configureUrbitClient({ shipName: auth.nodeId, shipUrl: auth.nodeUrl });
       store.syncStart();
 
       logger.crumb(`authenticated with node`);
