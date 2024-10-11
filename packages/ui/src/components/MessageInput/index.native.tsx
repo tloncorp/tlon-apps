@@ -138,6 +138,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       image,
       channelType,
       setHeight,
+      shouldAutoFocus,
       goBack,
       onSend,
     },
@@ -210,9 +211,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const editor = useEditorBridge({
       customSource: editorHtml,
-      // setting autofocus to true if we have editPost here doesn't seem to work
-      // so we're using a useEffect to set it
-      autofocus: false,
+      autofocus: shouldAutoFocus || false,
       bridgeExtensions,
     });
     const editorState = useBridgeState(editor);
@@ -354,10 +353,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [editingPost]);
 
     useEffect(() => {
-      if (editor && !shouldBlur && !editorState.isFocused && !!editingPost) {
+      if (editor && !shouldBlur && shouldAutoFocus && !editorState.isFocused) {
         editor.focus();
       }
-    }, [shouldBlur, editor, editorState, editingPost]);
+    }, [shouldAutoFocus, editor, editorState, shouldBlur]);
 
     useEffect(() => {
       if (editor && shouldBlur && editorState.isFocused) {
