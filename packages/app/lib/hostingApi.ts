@@ -64,10 +64,12 @@ const hostingFetch = async <T extends object>(
   const responseText = await response.text();
 
   if (__DEV__) {
-    console.debug('Response:', responseText);
+    console.debug('Response:', response.status, responseText);
   }
 
-  const result = JSON.parse(responseText) as HostingError | T;
+  const result = !responseText
+    ? { message: 'Empty response' }
+    : (JSON.parse(responseText) as HostingError | T);
   if (!response.ok) {
     throw new Error(
       'message' in result ? result.message : 'An unknown error has occurred.'
