@@ -1702,7 +1702,6 @@
             mention=?
         ==
     ?.  ?|  =(net.dm %done)
-            =(net.dm %inviting)
             &(=(net.dm %invited) =(%invite -.concern))
         ==
       di-core
