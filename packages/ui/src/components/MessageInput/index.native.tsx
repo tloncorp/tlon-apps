@@ -158,7 +158,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
     const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
     const [containerHeight, setContainerHeight] = useState(initialHeight);
-    const [hasAutoFocused, setHasAutoFocused] = useState(false);
     const { bottom, top } = useSafeAreaInsets();
     const { height } = useWindowDimensions();
     const headerHeight = 48;
@@ -211,7 +210,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const editor = useEditorBridge({
       customSource: editorHtml,
-      autofocus: false,
+      autofocus: shouldAutoFocus || false,
       bridgeExtensions,
     });
     const editorState = useBridgeState(editor);
@@ -352,29 +351,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [editingPost]);
 
     useEffect(() => {
-      if (
-        editor &&
-        !shouldBlur &&
-        !editorState.isFocused &&
-        !!editingPost &&
-        !hasAutoFocused
-      ) {
+      if (editor && !shouldBlur && shouldAutoFocus && !editorState.isFocused) {
         editor.focus();
-        setHasAutoFocused(true);
       }
-    }, [shouldBlur, editor, editorState, editingPost, hasAutoFocused]);
-
-    useEffect(() => {
-      if (
-        editor &&
-        shouldAutoFocus &&
-        !editorState.isFocused &&
-        !hasAutoFocused
-      ) {
-        editor.focus();
-        setHasAutoFocused(true);
-      }
-    }, [shouldAutoFocus, editor, editorState, hasAutoFocused]);
+    }, [shouldAutoFocus, editor, editorState, shouldBlur]);
 
     useEffect(() => {
       if (editor && shouldBlur && editorState.isFocused) {

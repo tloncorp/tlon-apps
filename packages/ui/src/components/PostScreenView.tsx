@@ -134,7 +134,7 @@ export function PostScreenView({
                 />
               ) : null}
 
-              {negotiationMatch && !editingPost && channel && canWrite && (
+              {negotiationMatch && channel && canWrite && (
                 <MessageInput
                   placeholder="Reply"
                   shouldBlur={inputShouldBlur}
@@ -144,10 +144,14 @@ export function PostScreenView({
                   groupMembers={groupMembers}
                   storeDraft={storeDraft}
                   clearDraft={clearDraft}
+                  editingPost={editingPost}
+                  setEditingPost={setEditingPost}
+                  editPost={editPost}
                   channelType="chat"
                   getDraft={getDraft}
                   shouldAutoFocus={
-                    channel.type === 'chat' && parentPost?.replyCount === 0
+                    (channel.type === 'chat' && parentPost?.replyCount === 0) ||
+                    !!editingPost
                   }
                 />
               )}

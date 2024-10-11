@@ -39,6 +39,7 @@ export function ChatInput({
           setEditingPost={setEditingPost}
           editPost={editPost}
           channelType={channel.type}
+          shouldAutoFocus={!!editingPost}
           showInlineAttachments
           showAttachmentButton
         />
