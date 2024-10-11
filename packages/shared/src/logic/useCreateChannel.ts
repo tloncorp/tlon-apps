@@ -29,10 +29,12 @@ export function useCreateChannel({
       title,
       description,
       channelType,
+      contentConfiguration,
     }: {
       title: string;
       description?: string;
       channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
+      contentConfiguration?: ChannelContentConfiguration;
     }) => {
       const { name, id } = assembleNewChannelIdAndName({
         title,
@@ -50,11 +52,8 @@ export function useCreateChannel({
           description,
           channelType: channelType === 'custom' ? 'chat' : channelType,
           contentConfiguration:
-            channelType === 'custom'
-              ? (() => {
-                  throw new Error('Not implemented');
-                })()
-              : channelContentConfigurationForChannelType(channelType),
+            contentConfiguration ??
+            channelContentConfigurationForChannelType(channelType),
         });
       }
     },
