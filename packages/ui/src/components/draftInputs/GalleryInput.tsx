@@ -136,6 +136,7 @@ export function GalleryInput({
               groupMembers={group?.members ?? []}
               storeDraft={storeDraft}
               clearDraft={clearDraft}
+              draftType="caption"
               getDraft={getDraft}
               editingPost={editingPost}
               setEditingPost={setEditingPost}
