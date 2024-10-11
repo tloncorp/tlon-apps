@@ -1161,6 +1161,12 @@ PODS:
     - React-Core
   - react-native-safe-area-context (4.9.0):
     - React-Core
+  - react-native-skia (1.4.2):
+    - glog
+    - RCT-Folly (= 2022.05.16.00)
+    - React
+    - React-callinvoker
+    - React-Core
   - react-native-webview (13.6.4):
     - glog
     - RCT-Folly (= 2022.05.16.00)
@@ -1465,6 +1471,7 @@ DEPENDENCIES:
   - react-native-get-random-values (from `../../../node_modules/react-native-get-random-values`)
   - "react-native-netinfo (from `../../../node_modules/@react-native-community/netinfo`)"
   - react-native-safe-area-context (from `../../../node_modules/react-native-safe-area-context`)
+  - "react-native-skia (from `../../../node_modules/@shopify/react-native-skia`)"
   - react-native-webview (from `../../../node_modules/react-native-webview`)
   - React-nativeconfig (from `../../../node_modules/react-native/ReactCommon`)
   - React-NativeModulesApple (from `../../../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
@@ -1672,6 +1679,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/@react-native-community/netinfo"
   react-native-safe-area-context:
     :path: "../../../node_modules/react-native-safe-area-context"
+  react-native-skia:
+    :path: "../../../node_modules/@shopify/react-native-skia"
   react-native-webview:
     :path: "../../../node_modules/react-native-webview"
   React-nativeconfig:
@@ -1837,6 +1846,7 @@ SPEC CHECKSUMS:
   react-native-get-random-values: 21325b2244dfa6b58878f51f9aa42821e7ba3d06
   react-native-netinfo: 3aa5637c18834966e0c932de8ae1ae56fea20a97
   react-native-safe-area-context: b97eb6f9e3b7f437806c2ce5983f479f8eb5de4b
+  react-native-skia: c7d8d8a380d4dbf8463343e2738bceaf49a9c084
   react-native-webview: ad868affda04ff2b204de83546193bc0325a8280
   React-nativeconfig: 44cd3076b158c39cb6758f238cd3e65953e989c0
   React-NativeModulesApple: af58ca346cf42c3bb4dab9173b6edd0c83c2a21c
@@ -1880,7 +1890,7 @@ SPEC CHECKSUMS:
   sqlite3: f163dbbb7aa3339ad8fc622782c2d9d7b72f7e9c
   tentap: 4871503ab3d587fe80fe13f6fe712fde98b57525
   UMAppLoader: 5df85360d65cabaef544be5424ac64672e648482
-  Yoga: fb61b2337c7688c81a137e5560b3cbb515289f91
+  Yoga: 4dbfeceb9bb0f62899d0a53d37a1ddd58898d3f2
 
 PODFILE CHECKSUM: 0cb7a78e5777e69c86c1bf4bb5135fd660376dbe
 

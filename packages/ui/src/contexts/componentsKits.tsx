@@ -10,7 +10,9 @@ import {
   useState,
 } from 'react';
 
+import { PictoMessage } from '../components/Channel/PictoMessage';
 import { ChatMessage } from '../components/ChatMessage';
+import { StandaloneDrawingInput } from '../components/DrawingInput';
 import { GalleryPost } from '../components/GalleryPost';
 import { NotebookPost } from '../components/NotebookPost';
 import {
@@ -89,11 +91,13 @@ export function ComponentsKitContextProvider({
     [PostContentRendererId.chat]: ChatMessage,
     [PostContentRendererId.gallery]: GalleryPost,
     [PostContentRendererId.notebook]: NotebookPost,
+    [PostContentRendererId.picto]: PictoMessage,
   });
   const [inputs] = useState<{ [id: string]: DraftInputRendererComponent }>({
     [DraftInputId.chat]: ChatInput,
     [DraftInputId.gallery]: GalleryInput,
     [DraftInputId.notebook]: NotebookInput,
+    [DraftInputId.picto]: StandaloneDrawingInput,
   });
 
   const registerRenderer = useCallback(
