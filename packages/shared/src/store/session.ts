@@ -65,9 +65,6 @@ export function useSyncing() {
 export function useConnectionStatus() {
   const currentSession = useCurrentSession();
   const syncing = useSyncing();
-  if (syncing) {
-    return 'Syncing';
-  }
 
   if (!currentSession) {
     return 'Connecting';
@@ -75,6 +72,10 @@ export function useConnectionStatus() {
 
   if (currentSession.isReconnecting) {
     return 'Reconnecting';
+  }
+
+  if (syncing) {
+    return 'Syncing';
   }
 
   return 'Connected';
