@@ -1,9 +1,12 @@
+import { createDevLogger } from '@tloncorp/shared/dist';
 import { MessageAttachments } from '@tloncorp/shared/dist/api';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { ActionGroup, ActionSheet, createActionGroup } from './ActionSheet';
 import { ListItem } from './ListItem';
+
+const logger = createDevLogger('AttachmentSheet', true);
 
 export default function AttachmentSheet({
   isOpen: showAttachmentSheet,
@@ -24,36 +27,42 @@ export default function AttachmentSheet({
     ImagePicker.useCameraPermissions();
 
   const takePicture = useCallback(async () => {
-    onOpenChange(false);
-    // The image picker is attempting to mount inside the sheet, but
-    // the sheet closes before the picker can mount. This adds
-    // a slight timeout to let the picker have enough time to mount.
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false,
-      quality: 0.5,
-      exif: false,
-    });
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.5,
+        exif: false,
+      });
 
-    if (!result.canceled) {
-      onAttachmentsSet(result.assets);
+      onOpenChange(false);
+
+      if (!result.canceled) {
+        onAttachmentsSet(result.assets);
+      }
+    } catch (e) {
+      console.error('Error taking picture', e);
+      logger.trackError('Error taking picture', { error: e });
     }
   }, [onAttachmentsSet, onOpenChange]);
 
   const pickImage = useCallback(async () => {
-    onOpenChange(false);
-    // See the comment above about the picker not mounting in time.
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false,
-      quality: 0.5,
-      exif: false,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.5,
+        exif: false,
+      });
 
-    if (!result.canceled) {
-      onAttachmentsSet(result.assets);
+      onOpenChange(false);
+
+      if (!result.canceled) {
+        onAttachmentsSet(result.assets);
+      }
+    } catch (e) {
+      console.error('Error picking image', e);
+      logger.trackError('Error picking image', { error: e });
     }
   }, [onAttachmentsSet, onOpenChange]);
 

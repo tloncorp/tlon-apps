@@ -20,6 +20,7 @@ export default (
   >
     <PostScreenView
       handleGoToUserProfile={() => {}}
+      isLoadingPosts={false}
       editPost={async () => {}}
       onPressRetry={() => {}}
       onPressDelete={() => {}}

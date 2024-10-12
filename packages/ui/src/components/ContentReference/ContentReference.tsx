@@ -2,6 +2,7 @@
 import { ContentReference } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { getChannelType } from '@tloncorp/shared/dist/urbit';
+import React from 'react';
 import { ComponentProps, useCallback } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
@@ -246,7 +247,7 @@ const PostReferenceAuthorName = styled(Text, {
 
 // Group reference
 
-export function GroupReferenceLoader({
+export function GroupReferenceLoaderComponent({
   groupId,
   openOnPress = true,
   ...props
@@ -270,6 +271,8 @@ export function GroupReferenceLoader({
     />
   );
 }
+
+const GroupReferenceLoader = React.memo(GroupReferenceLoaderComponent);
 
 export function GroupReference({
   data,

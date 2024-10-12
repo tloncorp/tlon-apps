@@ -67,20 +67,29 @@ export const useChannelContext = ({
 
   // Draft
 
-  const getDraft = useCallback(async () => {
-    try {
-      const draft = await storage.load({ key: `draft-${draftKey}` });
+  type GalleryDraftType = 'caption' | 'text';
 
-      return draft;
-    } catch (e) {
-      return null;
-    }
-  }, [draftKey]);
+  const getDraft = useCallback(
+    async (draftType?: GalleryDraftType) => {
+      try {
+        const draft = await storage.load({
+          key: `draft-${draftKey}${draftType ? `-${draftType}` : ''}`,
+        });
+        return draft;
+      } catch (e) {
+        return null;
+      }
+    },
+    [draftKey]
+  );
 
   const storeDraft = useCallback(
-    async (draft: JSONContent) => {
+    async (draft: JSONContent, draftType?: GalleryDraftType) => {
       try {
-        await storage.save({ key: `draft-${draftKey}`, data: draft });
+        await storage.save({
+          key: `draft-${draftKey}${draftType ? `-${draftType}` : ''}`,
+          data: draft,
+        });
       } catch (e) {
         return;
       }
@@ -88,13 +97,18 @@ export const useChannelContext = ({
     [draftKey]
   );
 
-  const clearDraft = useCallback(async () => {
-    try {
-      await storage.remove({ key: `draft-${draftKey}` });
-    } catch (e) {
-      return;
-    }
-  }, [draftKey]);
+  const clearDraft = useCallback(
+    async (draftType?: GalleryDraftType) => {
+      try {
+        await storage.remove({
+          key: `draft-${draftKey}${draftType ? `-${draftType}` : ''}`,
+        });
+      } catch (e) {
+        return;
+      }
+    },
+    [draftKey]
+  );
 
   // Contacts
 

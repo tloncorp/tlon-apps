@@ -4,8 +4,9 @@ import { requestPhoneVerify } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Field,
+  OnboardingTextBlock,
   ScreenHeader,
-  SizableText,
+  TlonText,
   View,
   YStack,
   useTheme,
@@ -75,7 +76,7 @@ export const RequestPhoneVerifyScreen = ({
   });
 
   return (
-    <View flex={1} padding="$l" backgroundColor="$background">
+    <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         title="Confirm"
         showSessionStatus={false}
@@ -87,18 +88,27 @@ export const RequestPhoneVerifyScreen = ({
           </ScreenHeader.TextButton>
         }
       />
-      <YStack gap="$l" padding="$2xl">
-        <SizableText color="$primaryText">
-          Tlon is a platform for humans. We want to make sure you&rsquo;re one
-          too. We&rsquo;ll send you a verification code to the phone number you
-          enter below.
-        </SizableText>
-        {remoteError ? (
-          <SizableText color="$negativeActionText" fontSize="$s">
-            {remoteError}
-          </SizableText>
-        ) : null}
-        <View display="flex" flexDirection="row" alignItems="center" gap="$m">
+      <YStack gap="$m" paddingHorizontal="$2xl">
+        <OnboardingTextBlock>
+          <TlonText.Text size="$body" color="$primaryText">
+            Tlon is a platform for humans. We want to make sure you&rsquo;re one
+            too. We&rsquo;ll send you a verification code to the phone number
+            you enter below.
+          </TlonText.Text>
+          {remoteError ? (
+            <TlonText.Text color="$negativeActionText" fontSize="$s">
+              {remoteError}
+            </TlonText.Text>
+          ) : null}
+        </OnboardingTextBlock>
+
+        <View
+          display="flex"
+          flexDirection="row"
+          alignItems="center"
+          gap="$m"
+          paddingTop="$m"
+        >
           <Controller
             name="phoneNumber"
             control={control}
@@ -120,6 +130,7 @@ export const RequestPhoneVerifyScreen = ({
                     borderWidth: 1,
                     borderColor: theme.border.val,
                     borderRadius: 8,
+                    backgroundColor: theme.background.val,
                   }}
                   textStyle={{
                     color: theme.primaryText.val,

@@ -100,6 +100,13 @@ export const useAppInfo = () => {
   });
 };
 
+export const useDidShowBenefitsSheet = () => {
+  return useQuery({
+    queryKey: db.SHOW_BENEFITS_SHEET_QUERY_KEY,
+    queryFn: db.getDidShowBenefitsSheet,
+  });
+};
+
 export const useActivitySeenMarker = () => {
   return useQuery({
     queryKey: db.ACTIVITY_SEEN_MARKER_QUERY_KEY,
@@ -350,9 +357,10 @@ export const useMemberRoles = (chatId: string, userId: string) => {
 };
 
 export const useGroupPreview = (groupId: string) => {
-  const tableDeps = useKeyFromQueryDeps(db.getGroup);
   return useQuery({
-    queryKey: ['groupPreview', tableDeps, groupId],
+    queryKey: ['groupPreview', groupId],
+    refetchOnReconnect: false,
+    refetchOnMount: false,
     queryFn: async () => {
       const [preview] = await syncGroupPreviews([groupId]);
       return preview;

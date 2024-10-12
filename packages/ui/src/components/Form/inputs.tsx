@@ -29,6 +29,7 @@ export const BaseTextInput = styled(StyledTextInput, {
   borderRadius: '$l',
   borderWidth: 1,
   borderColor: '$border',
+  backgroundColor: '$background',
   placeholderTextColor: '$tertiaryText',
   fontSize: '$l',
   padding: '$xl',
@@ -77,6 +78,39 @@ interface TextInputWithButtonProps extends ComponentProps<typeof TextInput> {
   onButtonPress: () => void;
 }
 
+const TextInputWithButtonFrame = styled(XStack, {
+  context: FieldContext,
+  borderWidth: 1,
+  borderColor: '$border',
+  borderRadius: '$l',
+  backgroundColor: '$background',
+  variants: {
+    accent: {
+      negative: {
+        backgroundColor: '$negativeBackground',
+        color: '$negativeActionText',
+        borderColor: '$negativeBorder',
+      },
+    },
+  } as const,
+});
+
+const TextInputButton = styled(Button, {
+  context: FieldContext,
+  backgroundColor: '$secondaryBackground',
+  padding: '$l',
+  borderRadius: '$m',
+  variants: {
+    accent: {
+      negative: {
+        backgroundColor: '$negativeBackground',
+        color: '$negativeActionText',
+        borderColor: '$negativeBorder',
+      },
+    },
+  } as const,
+});
+
 // Needs polish, I know we just talked about Ochre conformance plz forgive
 export const TextInputWithButton: React.FC<TextInputWithButtonProps> =
   React.memo(function TextInputWithButtonRaw({
@@ -85,27 +119,19 @@ export const TextInputWithButton: React.FC<TextInputWithButtonProps> =
     ...textInputProps
   }) {
     return (
-      <XStack
-        borderWidth={1}
-        borderColor="$border"
-        borderRadius="$l"
-        padding="$l"
-      >
+      <TextInputWithButtonFrame>
         <TextInput
-          padding={0}
           flex={1}
           borderWidth={0}
           textAlignVertical="unset"
           {...textInputProps}
         />
-        <Button
-          onPress={onButtonPress}
-          backgroundColor="$secondaryBackground"
-          padding="$l"
-        >
-          <Button.Text>{buttonText}</Button.Text>
-        </Button>
-      </XStack>
+        <View padding="$l">
+          <TextInputButton onPress={onButtonPress}>
+            <Button.Text>{buttonText}</Button.Text>
+          </TextInputButton>
+        </View>
+      </TextInputWithButtonFrame>
     );
   });
 

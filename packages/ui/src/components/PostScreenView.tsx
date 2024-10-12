@@ -22,6 +22,7 @@ export function PostScreenView({
   initialThreadUnread,
   parentPost,
   posts,
+  isLoadingPosts,
   sendReply,
   markRead,
   goBack,
@@ -46,6 +47,7 @@ export function PostScreenView({
   group?: db.Group | null;
   parentPost: db.Post | null;
   posts: db.Post[] | null;
+  isLoadingPosts: boolean;
   sendReply: (content: urbit.Story, channelId: string) => Promise<void>;
   markRead: () => void;
   goBack?: () => void;
@@ -110,6 +112,7 @@ export function PostScreenView({
               title={headerTitle}
               goBack={goBack}
               showSearchButton={false}
+              showSpinner={isLoadingPosts}
               post={parentPost ?? undefined}
               mode={headerMode}
             />
@@ -121,7 +124,6 @@ export function PostScreenView({
                   onPressImage={handleGoToImage}
                   editingPost={editingPost}
                   setEditingPost={setEditingPost}
-                  editPost={editPost}
                   onPressRetry={onPressRetry}
                   onPressDelete={onPressDelete}
                   posts={postsWithoutParent}
@@ -132,7 +134,7 @@ export function PostScreenView({
                 />
               ) : null}
 
-              {negotiationMatch && !editingPost && channel && canWrite && (
+              {negotiationMatch && channel && canWrite && (
                 <MessageInput
                   placeholder="Reply"
                   shouldBlur={inputShouldBlur}
@@ -142,8 +144,15 @@ export function PostScreenView({
                   groupMembers={groupMembers}
                   storeDraft={storeDraft}
                   clearDraft={clearDraft}
+                  editingPost={editingPost}
+                  setEditingPost={setEditingPost}
+                  editPost={editPost}
                   channelType="chat"
                   getDraft={getDraft}
+                  shouldAutoFocus={
+                    (channel.type === 'chat' && parentPost?.replyCount === 0) ||
+                    !!editingPost
+                  }
                 />
               )}
               {!negotiationMatch && channel && canWrite && (

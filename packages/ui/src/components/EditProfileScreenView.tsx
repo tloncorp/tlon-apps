@@ -9,20 +9,16 @@ import { ScrollView, View, YStack } from 'tamagui';
 import { useContact, useCurrentUserId } from '../contexts';
 import { EditablePofileImages } from './EditableProfileImages';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
-import {
-  ControlledField,
-  ControlledTextField,
-  ControlledTextareaField,
-} from './Form';
+import { ControlledTextField, ControlledTextareaField, Field } from './Form';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { ScreenHeader } from './ScreenHeader';
 
 interface Props {
   onGoBack: () => void;
-  onSaveProfile: (update: {
-    profile: api.ProfileUpdate | null;
-    pinnedGroups?: db.Group[] | null;
-  }) => void;
+  onSaveProfile: (update: api.ProfileUpdate | null) => void;
+  onUpdatePinnedGroups: (groups: db.Group[]) => void;
+  onUpdateCoverImage: (coverImage: string) => void;
+  onUpdateAvatarImage: (avatarImage: string) => void;
 }
 
 export function EditProfileScreenView(props: Props) {
@@ -39,43 +35,20 @@ export function EditProfileScreenView(props: Props) {
     control,
     handleSubmit,
     formState: { errors, isDirty },
-    setValue,
   } = useForm({
     defaultValues: {
       nickname: userContact?.nickname ?? '',
       bio: userContact?.bio ?? '',
-      avatarImage: userContact?.avatarImage ?? '',
-      coverImage: userContact?.coverImage ?? '',
-      pinnedGroups: userContact?.pinnedGroups?.map((pin) => pin.group) ?? [],
     },
   });
 
   const onSavePressed = useCallback(() => {
-    // only pass pins to the save handler if changes were made
-    const initialPinnedIds = userContact?.pinnedGroups
-      ?.map((pin) => pin.group?.id)
-      .filter(Boolean) as string[];
-    const newPinnedIds = pinnedGroups.map((group) => group.id);
-    const didEditPinnedGroups =
-      initialPinnedIds.length !== newPinnedIds.length ||
-      !initialPinnedIds.every((id) => newPinnedIds.includes(id));
-
     if (isDirty) {
       return handleSubmit((formData) => {
-        props.onSaveProfile({
-          profile: formData,
-          pinnedGroups: didEditPinnedGroups ? pinnedGroups : undefined,
-        });
+        props.onSaveProfile(formData);
       })();
     }
-
-    if (didEditPinnedGroups) {
-      return props.onSaveProfile({
-        profile: null,
-        pinnedGroups,
-      });
-    }
-  }, [handleSubmit, isDirty, pinnedGroups, props, userContact?.pinnedGroups]);
+  }, [handleSubmit, isDirty, props]);
 
   const handlePressDone = () => {
     props.onGoBack();
@@ -85,6 +58,14 @@ export function EditProfileScreenView(props: Props) {
   const handlePressCancel = () => {
     props.onGoBack();
   };
+
+  const handleUpdatePinnedGroups = useCallback(
+    (groups: db.Group[]) => {
+      setPinnedGroups(groups);
+      props.onUpdatePinnedGroups(groups);
+    },
+    [props]
+  );
 
   return (
     <View flex={1}>
@@ -108,16 +89,8 @@ export function EditProfileScreenView(props: Props) {
             <View paddingHorizontal="$xl">
               <EditablePofileImages
                 contact={userContact ?? db.getFallbackContact(currentUserId)}
-                onSetCoverUrl={useCallback(
-                  (url: string) =>
-                    setValue('coverImage', url, { shouldDirty: true }),
-                  [setValue]
-                )}
-                onSetIconUrl={useCallback(
-                  (url: string) =>
-                    setValue('avatarImage', url, { shouldDirty: true }),
-                  [setValue]
-                )}
+                onSetCoverUrl={props.onUpdateCoverImage}
+                onSetIconUrl={props.onUpdateAvatarImage}
               />
             </View>
             <View paddingHorizontal="$2xl" gap="$2xl">
@@ -151,18 +124,13 @@ export function EditProfileScreenView(props: Props) {
                 }}
               />
 
-              <ControlledField
-                name={'pinnedGroups'}
-                label="Pinned groups"
-                control={control}
-                renderInput={({ field: { onChange, value } }) => (
-                  <FavoriteGroupsDisplay
-                    groups={pinnedGroups}
-                    onUpdate={setPinnedGroups}
-                    editable
-                  />
-                )}
-              />
+              <Field label="Pinned groups">
+                <FavoriteGroupsDisplay
+                  groups={pinnedGroups}
+                  onUpdate={handleUpdatePinnedGroups}
+                  editable
+                />
+              </Field>
             </View>
           </YStack>
         </ScrollView>

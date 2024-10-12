@@ -28,20 +28,9 @@ export const GroupListItem = ({
       onPress={useBoundHandler(model, onPress)}
       onLongPress={useBoundHandler(model, onLongPress)}
     >
-      <ListItem.GroupIcon
-        model={model}
-        opacity={logic.isMuted(model.volumeSettings?.level, 'group') ? 0.2 : 1}
-      />
+      <ListItem.GroupIcon model={model} />
       <ListItem.MainContent>
-        <ListItem.Title
-          color={
-            logic.isMuted(model.volumeSettings?.level, 'group')
-              ? '$tertiaryText'
-              : undefined
-          }
-        >
-          {title}
-        </ListItem.Title>
+        <ListItem.Title>{title}</ListItem.Title>
         {customSubtitle && (
           <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
         )}

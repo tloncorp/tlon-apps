@@ -16,6 +16,7 @@ import { Text } from './TextV2';
 export const ScreenHeaderComponent = ({
   children,
   title,
+  titleWidth = 100,
   leftControls,
   rightControls,
   isLoading,
@@ -23,6 +24,7 @@ export const ScreenHeaderComponent = ({
   showSessionStatus,
 }: PropsWithChildren<{
   title?: string | ReactNode;
+  titleWidth?: 100 | 75 | 55;
   leftControls?: ReactNode | null;
   rightControls?: ReactNode | null;
   isLoading?: boolean;
@@ -42,13 +44,18 @@ export const ScreenHeaderComponent = ({
   return (
     <View paddingTop={top} zIndex={50}>
       <XStack
-        alignItems="center"
         height="$4xl"
         paddingHorizontal="$2xl"
         paddingVertical="$l"
+        alignItems="center"
+        justifyContent="center"
       >
         {typeof resolvedTitle === 'string' ? (
-          <HeaderTitle title={resolvedTitle} color={textColor} />
+          <HeaderTitle
+            title={resolvedTitle}
+            color={textColor}
+            titleWidth={titleWidth}
+          />
         ) : (
           resolvedTitle
         )}
@@ -79,6 +86,13 @@ const HeaderTextButton = styled(Text, {
   pressStyle: {
     opacity: 0.5,
   },
+  variants: {
+    disabled: {
+      true: {
+        color: '$tertiaryText',
+      },
+    },
+  },
 });
 
 const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
@@ -95,9 +109,11 @@ const HeaderTitleText = styled(Text, {
 
 function HeaderTitle({
   title,
+  titleWidth = 100,
   ...props
 }: {
   title: string;
+  titleWidth?: 100 | 75 | 55;
 } & ComponentProps<typeof HeaderTitleText>) {
   const hasMounted = useHasMounted();
   const renderedTitle = <HeaderTitleText {...props}>{title}</HeaderTitleText>;
@@ -111,7 +127,10 @@ function HeaderTitle({
       // it first enters.
       entering={hasMounted ? FadeInDown : undefined}
       exiting={FadeOutUp}
-      style={{ flex: 1 }}
+      style={{
+        flex: 1,
+        maxWidth: `${titleWidth}%`,
+      }}
     >
       {renderedTitle}
     </Animated.View>

@@ -1,6 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSignupParams } from '@tloncorp/app/contexts/branch';
-import { getHostingAvailability } from '@tloncorp/app/lib/hostingApi';
 import { trackError } from '@tloncorp/app/utils/posthog';
 import {
   Icon,
@@ -15,6 +14,7 @@ import {
 import { useState } from 'react';
 import { Image } from 'react-native';
 
+import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'InventoryCheck'>;
@@ -22,19 +22,20 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'InventoryCheck'>;
 export const InventoryCheckScreen = ({ navigation }: Props) => {
   const signupParams = useSignupParams();
   const [isChecking, setIsChecking] = useState(false);
+  const { hostingApi } = useOnboardingContext();
 
   const checkAvailability = async () => {
     setIsChecking(true);
 
     try {
-      const { enabled } = await getHostingAvailability({
+      const { enabled } = await hostingApi.getHostingAvailability({
         lure: signupParams.lureId,
         priorityToken: signupParams.priorityToken,
       });
       if (enabled) {
         navigation.navigate('SignUpEmail');
       } else {
-        navigation.navigate('InviteLink');
+        navigation.navigate('PasteInviteLink');
       }
     } catch (err) {
       console.error('Error checking hosting availability:', err);
@@ -49,7 +50,7 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
   return (
     <View flex={1}>
       <ScreenHeader
-        title="Welcome to Tlon"
+        title="Welcome to TM"
         showSessionStatus={false}
         backAction={() => navigation.goBack()}
         isLoading={isChecking}
@@ -57,11 +58,7 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
 
       <YStack gap="$2xl" padding="$2xl">
         <View borderRadius="$xl" overflow="hidden">
-          <Image
-            style={{ width: '100%', height: 188 }}
-            resizeMode={'cover'}
-            source={require('../../../assets/images/welcome_blocks.jpg')}
-          />
+          <Image style={{ width: '100%', height: 188 }} resizeMode={'cover'} />
         </View>
 
         <View>

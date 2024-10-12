@@ -39,6 +39,7 @@ export function NotebookInput({
       () =>
         showBigInput ? null : (
           <ScreenHeader.IconButton
+            key="notebook"
             type="Add"
             onPress={() => setShowBigInput(true)}
           />

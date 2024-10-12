@@ -1,9 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import {
-  PrimaryButton,
   ScreenHeader,
   SizableText,
+  TlonText,
   View,
   XStack,
   YStack,
@@ -41,13 +41,28 @@ export const SetTelemetryScreen = ({
   }, [isEnabled, user, postHog, navigation, signupContext]);
 
   return (
-    <View flex={1}>
-      <ScreenHeader title="Usage Statistics" showSessionStatus={false} />
-      <YStack gap="$3xl" padding="$2xl">
-        <SizableText color="$primaryText">
-          We&rsquo;re trying to make the app better and knowing how people use
-          the app really helps.
-        </SizableText>
+    <View flex={1} backgroundColor="$secondaryBackground">
+      <ScreenHeader
+        title="Usage Statistics"
+        showSessionStatus={false}
+        rightControls={
+          <ScreenHeader.TextButton onPress={handleNext}>
+            Next
+          </ScreenHeader.TextButton>
+        }
+      />
+      <YStack gap="$xl" paddingHorizontal="$2xl">
+        <View padding="$xl">
+          <TlonText.Text size="$body" color="$primaryText" marginBottom="$2xl">
+            We&rsquo;re trying to make the app better and knowing how people use
+            the app really helps.
+          </TlonText.Text>
+          <TlonText.Text size="$body" color="$primaryText">
+            These stats are anonymous, for product development purposes only,
+            and we don&rsquo;t share them with anyone.
+          </TlonText.Text>
+        </View>
+
         <XStack
           backgroundColor="$background"
           borderRadius="$l"
@@ -63,7 +78,6 @@ export const SetTelemetryScreen = ({
           </SizableText>
           <Switch value={isEnabled} onValueChange={setIsEnabled} />
         </XStack>
-        <PrimaryButton onPress={handleNext}>Next</PrimaryButton>
       </YStack>
     </View>
   );

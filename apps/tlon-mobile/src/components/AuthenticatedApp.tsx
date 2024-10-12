@@ -42,7 +42,6 @@ function AuthenticatedApp({
       shipName: ship ?? '',
       shipUrl: shipUrl ?? '',
       onReset: () => sync.syncStart(),
-      verbose: __DEV__,
       onChannelReset: () => sync.handleDiscontinuity(),
       onChannelStatusChange: sync.handleChannelStatusChange,
     });

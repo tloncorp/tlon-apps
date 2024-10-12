@@ -76,6 +76,7 @@ export function GalleryInput({
       () =>
         showBigInput ? null : (
           <ScreenHeader.IconButton
+            key="gallery"
             type="Add"
             onPress={() => setShowAddGalleryPost(true)}
           />
@@ -135,6 +136,7 @@ export function GalleryInput({
               groupMembers={group?.members ?? []}
               storeDraft={storeDraft}
               clearDraft={clearDraft}
+              draftType="caption"
               getDraft={getDraft}
               editingPost={editingPost}
               setEditingPost={setEditingPost}

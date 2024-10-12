@@ -5,7 +5,7 @@ import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // TODO: replace input with our own input component
-import { Input, ScrollView, View, YStack, getToken } from 'tamagui';
+import { Input, View, YStack, getToken } from 'tamagui';
 
 import { ImageAttachment, useAttachmentContext } from '../contexts/attachment';
 import AttachmentSheet from './AttachmentSheet';
@@ -155,6 +155,8 @@ export function BigInput({
           placeholder={placeholder}
           bigInput
           channelType={channelType}
+          shouldAutoFocus
+          draftType={channelType === 'gallery' ? 'text' : undefined}
           ref={editorRef}
         />
       </View>
