@@ -51,11 +51,13 @@ export default function PostScreen(props: Props) {
   const { data: post } = store.usePostWithThreadUnreads({
     id: postParam.id,
   });
-  const { data: threadPosts } = store.useThreadPosts({
-    postId: postParam.id,
-    authorId: postParam.authorId,
-    channelId: postParam.channelId,
-  });
+  const { data: threadPosts, isLoading: isLoadingPosts } = store.useThreadPosts(
+    {
+      postId: postParam.id,
+      authorId: postParam.authorId,
+      channelId: postParam.channelId,
+    }
+  );
 
   const posts = useMemo(() => {
     return post ? [...(threadPosts ?? []), post] : null;
@@ -123,6 +125,7 @@ export default function PostScreen(props: Props) {
       canUpload={canUpload}
       parentPost={post}
       posts={posts}
+      isLoadingPosts={isLoadingPosts}
       channel={channel}
       initialThreadUnread={initialThreadUnread}
       goBack={props.navigation.goBack}

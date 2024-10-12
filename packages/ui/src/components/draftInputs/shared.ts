@@ -2,6 +2,8 @@ import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { Dispatch, SetStateAction } from 'react';
 
+export type GalleryDraftType = 'caption' | 'text';
+
 export interface DraftInputHandle {
   /**
    * @deprecated
@@ -19,11 +21,11 @@ export interface DraftInputHandle {
  */
 export interface DraftInputContext {
   channel: db.Channel;
-  clearDraft: () => void;
+  clearDraft: (draftType?: GalleryDraftType) => void;
   draftInputRef?: React.Ref<DraftInputHandle>;
   editPost: (post: db.Post, content: Story) => Promise<void>;
   editingPost?: db.Post;
-  getDraft: () => Promise<JSONContent>;
+  getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent>;
   group: db.Group | null;
   headerMode: 'default' | 'next';
 
@@ -45,5 +47,5 @@ export interface DraftInputContext {
   setEditingPost?: (update: db.Post | undefined) => void;
   setShouldBlur: Dispatch<SetStateAction<boolean>>;
   shouldBlur: boolean;
-  storeDraft: (content: JSONContent) => void;
+  storeDraft: (content: JSONContent, draftType?: GalleryDraftType) => void;
 }

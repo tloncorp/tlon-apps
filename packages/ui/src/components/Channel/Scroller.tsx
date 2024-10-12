@@ -101,7 +101,6 @@ const Scroller = forwardRef(
       showReplies = true,
       editingPost,
       setEditingPost,
-      editPost,
       onPressRetry,
       onPressDelete,
       hasNewerPosts,
@@ -127,7 +126,6 @@ const Scroller = forwardRef(
       showReplies?: boolean;
       editingPost?: db.Post;
       setEditingPost?: (post: db.Post | undefined) => void;
-      editPost?: (post: db.Post, content: Story) => Promise<void>;
       onPressRetry: (post: db.Post) => void;
       onPressDelete: (post: db.Post) => void;
       hasNewerPosts?: boolean;
@@ -245,12 +243,9 @@ const Scroller = forwardRef(
             isLastPostOfBlock={isLastPostOfBlock}
             Component={renderItem}
             unreadCount={unreadCount}
-            editingPost={editingPost}
             channelId={channelId}
             channelType={channelType}
-            setEditingPost={setEditingPost}
             setViewReactionsPost={setViewReactionsPost}
-            editPost={editPost}
             onPressRetry={onPressRetry}
             onPressDelete={onPressDelete}
             showReplies={showReplies}
@@ -270,12 +265,9 @@ const Scroller = forwardRef(
         firstUnreadId,
         renderItem,
         unreadCount,
-        editingPost,
         anchorScrollLockScrollerItemProps,
         channelId,
         channelType,
-        setEditingPost,
-        editPost,
         showReplies,
         onPressImage,
         onPressReplies,
@@ -398,6 +390,9 @@ const Scroller = forwardRef(
             // we need to switch from 1 to 2 columns or vice versa.
             key={channelType}
             data={postsWithNeighbors}
+            // Disabled to prevent the user from accidentally blurring the edit
+            // input while they're typing.
+            scrollEnabled={!editingPost}
             renderItem={listRenderItem}
             ListEmptyComponent={renderEmptyComponent}
             keyExtractor={getPostId}
@@ -476,13 +471,10 @@ const BaseScrollerItem = ({
   showAuthor,
   Component,
   unreadCount,
-  editingPost,
   onLayout,
   channelId,
   channelType,
   setViewReactionsPost,
-  setEditingPost,
-  editPost,
   showReplies,
   onPressImage,
   onPressReplies,
@@ -508,10 +500,7 @@ const BaseScrollerItem = ({
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onPressReplies?: (post: db.Post) => void;
   showReplies?: boolean;
-  editingPost?: db.Post;
   setViewReactionsPost?: (post: db.Post) => void;
-  setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (post: db.Post, content: Story) => Promise<void>;
   onPressPost?: (post: db.Post) => void;
   onLongPressPost: (post: db.Post) => void;
   onPressRetry: (post: db.Post) => void;
@@ -593,10 +582,7 @@ const BaseScrollerItem = ({
         <Component
           isHighlighted={isSelected}
           post={post}
-          editing={editingPost && editingPost?.id === item.id}
-          setEditingPost={setEditingPost}
           setViewReactionsPost={setViewReactionsPost}
-          editPost={editPost}
           showAuthor={showAuthor}
           showReplies={showReplies}
           onPressReplies={post.isDeleted ? undefined : onPressReplies}
@@ -625,9 +611,6 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
   const areOtherPropsEqual =
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
-    prev.editingPost === next.editingPost &&
-    prev.editPost === next.editPost &&
-    prev.setEditingPost === next.setEditingPost &&
     prev.onPressReplies === next.onPressReplies &&
     prev.onPressImage === next.onPressImage &&
     prev.onPressPost === next.onPressPost &&

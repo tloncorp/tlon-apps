@@ -680,7 +680,7 @@ export const channels = sqliteTable(
     lastPostId: text('last_post_id'),
     lastPostAt: timestamp('last_post_at'),
     isPendingChannel: boolean('is_cached_pending_channel'),
-    isDmInvite: boolean('is_dm_invite'),
+    isDmInvite: boolean('is_dm_invite').default(false),
 
     /**
      * Last time we ran a sync, in local time

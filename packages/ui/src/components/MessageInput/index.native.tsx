@@ -133,10 +133,12 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       initialHeight = DEFAULT_MESSAGE_INPUT_HEIGHT,
       placeholder = 'Message',
       bigInput = false,
+      draftType,
       title,
       image,
       channelType,
       setHeight,
+      shouldAutoFocus,
       goBack,
       onSend,
     },
@@ -209,9 +211,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const editor = useEditorBridge({
       customSource: editorHtml,
-      // setting autofocus to true if we have editPost here doesn't seem to work
-      // so we're using a useEffect to set it
-      autofocus: false,
+      autofocus: shouldAutoFocus || false,
       bridgeExtensions,
     });
     const editorState = useBridgeState(editor);
@@ -236,11 +236,13 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       }
     }, [editor, ref]);
 
+    const lastEditingPost = useRef<db.Post | undefined>(editingPost);
+
     useEffect(() => {
       if (!hasSetInitialContent && editorState.isReady) {
         try {
-          getDraft().then((draft) => {
-            if (draft) {
+          getDraft(draftType).then((draft) => {
+            if (!editingPost && draft) {
               const inlines = tiptap.JSONToInlines(draft);
               const newInlines = inlines
                 .map((inline) => {
@@ -255,12 +257,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 .filter((inline) => inline !== null) as Inline[];
               const newStory = constructStory(newInlines);
               const tiptapContent = tiptap.diaryMixedToJSON(newStory);
+              messageInputLogger.log('Setting draft content', tiptapContent);
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(tiptapContent);
               setEditorIsEmpty(false);
             }
 
-            if (editingPost?.content) {
+            if (editingPost && editingPost.content) {
+              messageInputLogger.log('Editing post', editingPost);
               const {
                 story,
                 references: postReferences,
@@ -303,8 +307,13 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                   (c) => !('type' in c) && !('block' in c && 'image' in c.block)
                 ) as Story
               );
+              messageInputLogger.log(
+                'Setting edit post content',
+                tiptapContent
+              );
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(tiptapContent);
+              setEditorIsEmpty(false);
             }
 
             if (editingPost?.image) {
@@ -327,6 +336,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [
       editor,
       getDraft,
+      draftType,
       hasSetInitialContent,
       editorState.isReady,
       editingPost,
@@ -335,10 +345,18 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     ]);
 
     useEffect(() => {
-      if (editor && !shouldBlur && !editorState.isFocused && !!editingPost) {
+      if (editingPost && lastEditingPost.current?.id !== editingPost.id) {
+        messageInputLogger.log('Editing post changed', editingPost);
+        lastEditingPost.current = editingPost;
+        setHasSetInitialContent(false);
+      }
+    }, [editingPost]);
+
+    useEffect(() => {
+      if (editor && !shouldBlur && shouldAutoFocus && !editorState.isFocused) {
         editor.focus();
       }
-    }, [shouldBlur, editor, editorState, editingPost]);
+    }, [shouldAutoFocus, editor, editorState, shouldBlur]);
 
     useEffect(() => {
       if (editor && shouldBlur && editorState.isFocused) {
@@ -348,6 +366,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [shouldBlur, editor, editorState, setShouldBlur]);
 
     useEffect(() => {
+      messageInputLogger.log('Checking if editor is empty');
+
       editor.getJSON().then((json: JSONContent) => {
         const inlines = tiptap
           .JSONToInlines(json)
@@ -372,13 +392,21 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           blocks.length === 0 &&
           attachments.length === 0;
 
+        messageInputLogger.log('Editor is empty?', isEmpty);
+
         if (isEmpty !== editorIsEmpty) {
+          messageInputLogger.log('Setting editorIsEmpty', isEmpty);
           setEditorIsEmpty(isEmpty);
+          setContainerHeight(initialHeight);
         }
       });
-    }, [editor, attachments, editorIsEmpty]);
+    }, [editor, attachments, editorIsEmpty, initialHeight]);
 
     editor._onContentUpdate = async () => {
+      messageInputLogger.log(
+        'Content updated, update draft and check for mention text'
+      );
+
       const json = await editor.getJSON();
       const inlines = (
         tiptap
@@ -393,25 +421,32 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         (inline) => typeof inline === 'string' && inline.match(/\B[~@]/)
       ) as string | undefined;
       // extract the mention text from the mention inline
-      const mentionText = mentionInline
+      const mentionTextFromInline = mentionInline
         ? mentionInline.slice((mentionInline.match(/\B[~@]/)?.index ?? -1) + 1)
         : null;
-      if (mentionText !== null) {
+      if (mentionTextFromInline !== null) {
+        messageInputLogger.log('Mention text', mentionTextFromInline);
         // if we have a mention text, we show the mention popup
         setShowMentionPopup(true);
-        setMentionText(mentionText);
+        setMentionText(mentionTextFromInline);
       } else {
         setShowMentionPopup(false);
+        setMentionText('');
       }
 
-      storeDraft(json);
+      messageInputLogger.log('Storing draft', json);
+
+      storeDraft(json, draftType);
     };
 
     const handlePaste = useCallback(
       async (pastedText: string) => {
+        messageInputLogger.log('Pasted text', pastedText);
         // check for ref from pasted cite paths
+        const editorJson = await editor.getJSON();
         const citePathAttachment = await processReferenceAndUpdateEditor({
           editor,
+          editorJson,
           pastedText,
           matchRegex: tiptap.REF_REGEX,
           processMatch: async (match) => {
@@ -433,6 +468,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         const DEEPLINK_REGEX = new RegExp(`^(https?://)?${branchDomain}/\\S+$`);
         const deepLinkAttachment = await processReferenceAndUpdateEditor({
           editor,
+          editorJson,
           pastedText,
           matchRegex: DEEPLINK_REGEX,
           processMatch: async (deeplink) => {
@@ -458,6 +494,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           /^(https?:\/\/)?(tlon\.network\/lure\/)(0v[^/]+)$/;
         const lureLinkAttachment = await processReferenceAndUpdateEditor({
           editor,
+          editorJson,
           pastedText,
           matchRegex: TLON_LURE_REGEX,
           processMatch: async (tlonLure) => {
@@ -486,6 +523,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const onSelectMention = useCallback(
       async (contact: db.Contact) => {
+        messageInputLogger.log('Selected mention', contact);
         const json = await editor.getJSON();
         const inlines = tiptap.JSONToInlines(json);
 
@@ -540,13 +578,27 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
         const newJson = tiptap.diaryMixedToJSON(newStory);
 
+        // insert empty text node after mention
+        newJson.content?.map((node) => {
+          const containsMention = node.content?.some(
+            (n) => n.type === 'mention'
+          );
+          if (containsMention) {
+            node.content?.push({
+              type: 'text',
+              text: ' ',
+            });
+          }
+        });
+
+        messageInputLogger.log('onSelectMention, setting new content', newJson);
         // @ts-expect-error setContent does accept JSONContent
         editor.setContent(newJson);
-        storeDraft(newJson);
+        storeDraft(newJson, draftType);
         setMentionText('');
         setShowMentionPopup(false);
       },
-      [editor, storeDraft]
+      [editor, storeDraft, draftType]
     );
 
     const sendMessage = useCallback(
@@ -644,7 +696,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         onSend?.();
         editor.setContent('');
         clearAttachments();
-        clearDraft();
+        clearDraft(draftType);
         setShowBigInput?.(false);
       },
       [
@@ -662,6 +714,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         channelType,
         send,
         channelId,
+        draftType,
       ]
     );
 
@@ -844,6 +897,13 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const titleIsEmpty = useMemo(() => !title || title.length === 0, [title]);
 
+    const handleCancelEditing = useCallback(() => {
+      setEditingPost?.(undefined);
+      editor.setContent('');
+      clearDraft(draftType);
+      clearAttachments();
+    }, [setEditingPost, editor, clearDraft, clearAttachments, draftType]);
+
     return (
       <MessageInputContainer
         setShouldBlur={setShouldBlur}
@@ -856,7 +916,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         showMentionPopup={showMentionPopup}
         isEditing={!!editingPost}
         isSending={isSending}
-        cancelEditing={() => setEditingPost?.(undefined)}
+        cancelEditing={handleCancelEditing}
         showAttachmentButton={showAttachmentButton}
         floatingActionButton={floatingActionButton}
         disableSend={

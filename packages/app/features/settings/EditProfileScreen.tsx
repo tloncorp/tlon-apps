@@ -1,5 +1,5 @@
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   AttachmentProvider,
@@ -7,8 +7,6 @@ import {
   GroupsProvider,
 } from '@tloncorp/ui';
 import { useCallback } from 'react';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-
 
 import { RootStackParamList } from '../../navigation/types';
 
@@ -18,20 +16,22 @@ export function EditProfileScreen({ navigation }: Props) {
   const { data: groups } = store.useGroups({ includeUnjoined: true });
 
   const onSaveProfile = useCallback(
-    (update: {
-      profile: api.ProfileUpdate | null;
-      pinnedGroups?: db.Group[] | null;
-    }) => {
-      if (update.profile) {
-        store.updateCurrentUserProfile(update.profile);
-      }
-      if (update.pinnedGroups) {
-        store.updateProfilePinnedGroups(update.pinnedGroups);
+    (update: api.ProfileUpdate | null) => {
+      if (update) {
+        store.updateCurrentUserProfile(update);
       }
       navigation.goBack();
     },
     [navigation]
   );
+
+  const onUpdateCoverImage = useCallback((coverImage: string) => {
+    store.updateCurrentUserProfile({ coverImage });
+  }, []);
+
+  const onUpdateAvatarImage = useCallback((avatarImage: string) => {
+    store.updateCurrentUserProfile({ avatarImage });
+  }, []);
 
   const canUpload = store.useCanUpload();
 
@@ -41,6 +41,9 @@ export function EditProfileScreen({ navigation }: Props) {
         <EditProfileScreenView
           onGoBack={() => navigation.goBack()}
           onSaveProfile={onSaveProfile}
+          onUpdatePinnedGroups={store.updateProfilePinnedGroups}
+          onUpdateCoverImage={onUpdateCoverImage}
+          onUpdateAvatarImage={onUpdateAvatarImage}
         />
       </AttachmentProvider>
     </GroupsProvider>

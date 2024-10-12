@@ -34,7 +34,7 @@ import {
   GalleryInput,
   NotebookInput,
 } from '../draftInputs';
-import { DraftInputHandle } from '../draftInputs/shared';
+import { DraftInputHandle, GalleryDraftType } from '../draftInputs/shared';
 import { ChannelFooter } from './ChannelFooter';
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
@@ -111,9 +111,9 @@ export function Channel({
   usePostReference: typeof usePostReferenceHook;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   useChannel: typeof useChannelFromStore;
-  storeDraft: (draft: JSONContent) => void;
-  clearDraft: () => void;
-  getDraft: () => Promise<JSONContent>;
+  storeDraft: (draft: JSONContent, draftType?: GalleryDraftType) => void;
+  clearDraft: (draftType?: GalleryDraftType) => void;
+  getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => Promise<void>;
@@ -306,7 +306,6 @@ export function Channel({
                                     hasOlderPosts={hasOlderPosts}
                                     editingPost={editingPost}
                                     setEditingPost={setEditingPost}
-                                    editPost={editPost}
                                     channelType={channel.type}
                                     channelId={channel.id}
                                     firstUnreadId={

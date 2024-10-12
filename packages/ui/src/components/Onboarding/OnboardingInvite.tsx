@@ -1,10 +1,10 @@
 import { DeepLinkMetadata } from '@tloncorp/shared/dist';
 import React, { ComponentProps } from 'react';
 
-import { AppDataContextProvider } from '../contexts';
-import { ListItem } from './ListItem';
+import { AppDataContextProvider } from '../../contexts';
+import { ListItem } from '../ListItem';
 
-function AppInviteDisplayRaw({
+export const OnboardingInviteBlock = React.memo(function OnboardingInviteBlock({
   metadata,
   ...rest
 }: { metadata: DeepLinkMetadata } & ComponentProps<typeof ListItem>) {
@@ -31,8 +31,17 @@ function AppInviteDisplayRaw({
   return (
     // provider needed to support calm settings usage down the tree
     <AppDataContextProvider>
-      <ListItem backgroundColor="$secondaryBackground" {...rest}>
+      <ListItem
+        pressable={false}
+        backgroundColor="$background"
+        borderColor="$border"
+        borderWidth={1}
+        alignItems="center"
+        {...rest}
+      >
         <ListItem.GroupIcon
+          width={100}
+          height={100}
           model={groupShim}
           backgroundColor={groupShim.iconImageColor ?? '$secondaryBorder'}
         />
@@ -47,6 +56,4 @@ function AppInviteDisplayRaw({
       </ListItem>
     </AppDataContextProvider>
   );
-}
-
-export const AppInviteDisplay = React.memo(AppInviteDisplayRaw);
+});

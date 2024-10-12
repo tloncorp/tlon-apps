@@ -22,9 +22,6 @@ export function ChatInput({
     shouldBlur,
     storeDraft,
   } = draftInputContext;
-  if (editingPost != null) {
-    return null;
-  }
 
   return (
     <SafeAreaView edges={['right', 'left', 'bottom']}>
@@ -42,6 +39,7 @@ export function ChatInput({
           setEditingPost={setEditingPost}
           editPost={editPost}
           channelType={channel.type}
+          shouldAutoFocus={!!editingPost}
           showInlineAttachments
           showAttachmentButton
         />

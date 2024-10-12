@@ -8,7 +8,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'EULA'>;
 
 export const EULAScreen = ({ navigation }: Props) => {
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor={'$secondaryBackground'}>
       <ScreenHeader
         title="EULA"
         showSessionStatus={false}
