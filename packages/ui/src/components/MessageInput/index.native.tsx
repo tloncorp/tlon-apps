@@ -107,7 +107,6 @@ export const DEFAULT_MESSAGE_INPUT_HEIGHT = 44;
 
 export interface MessageInputHandle {
   editor: EditorBridge | null;
-  setEditor: (editor: EditorBridge) => void;
 }
 
 export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
@@ -144,19 +143,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     },
     ref
   ) => {
-    const localEditorRef = useRef<EditorBridge | null>(null);
-
-    useImperativeHandle(ref, () => ({
-      editor: localEditorRef.current,
-      setEditor: (editor: EditorBridge) => {
-        localEditorRef.current = editor;
-      },
-    }));
-
     const branchDomain = useBranchDomain();
     const branchKey = useBranchKey();
     const [isSending, setIsSending] = useState(false);
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
+    const [hasAutoFocused, setHasAutoFocused] = useState(false);
     const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
     const [containerHeight, setContainerHeight] = useState(initialHeight);
     const { bottom, top } = useSafeAreaInsets();
@@ -217,6 +208,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const editorState = useBridgeState(editor);
     const webviewRef = editor.webviewRef;
 
+    useImperativeHandle(ref, () => ({
+      editor,
+    }));
+
     const reloadWebview = useCallback(
       (reason: string) => {
         webviewRef.current?.reload();
@@ -225,16 +220,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       },
       [webviewRef]
     );
-
-    useEffect(() => {
-      if (editor) {
-        localEditorRef.current = editor;
-      }
-
-      if (ref && typeof ref === 'object' && ref.current) {
-        ref.current.setEditor(editor);
-      }
-    }, [editor, ref]);
 
     const lastEditingPost = useRef<db.Post | undefined>(editingPost);
 
@@ -353,21 +338,29 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [editingPost]);
 
     useEffect(() => {
-      if (editor && !shouldBlur && shouldAutoFocus && !editorState.isFocused) {
+      if (
+        editor &&
+        editorState.isReady &&
+        !shouldBlur &&
+        shouldAutoFocus &&
+        !editorState.isFocused &&
+        !hasAutoFocused
+      ) {
         editor.focus();
+        messageInputLogger.log('Auto focused editor');
+        setHasAutoFocused(true);
       }
-    }, [shouldAutoFocus, editor, editorState, shouldBlur]);
+    }, [shouldAutoFocus, editor, editorState, shouldBlur, hasAutoFocused]);
 
     useEffect(() => {
       if (editor && shouldBlur && editorState.isFocused) {
         editor.blur();
+        messageInputLogger.log('Blurred editor');
         setShouldBlur(false);
       }
     }, [shouldBlur, editor, editorState, setShouldBlur]);
 
     useEffect(() => {
-      messageInputLogger.log('Checking if editor is empty');
-
       editor.getJSON().then((json: JSONContent) => {
         const inlines = tiptap
           .JSONToInlines(json)
@@ -392,10 +385,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           blocks.length === 0 &&
           attachments.length === 0;
 
-        messageInputLogger.log('Editor is empty?', isEmpty);
-
         if (isEmpty !== editorIsEmpty) {
-          messageInputLogger.log('Setting editorIsEmpty', isEmpty);
           setEditorIsEmpty(isEmpty);
           setContainerHeight(initialHeight);
         }
