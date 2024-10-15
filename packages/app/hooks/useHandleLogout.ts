@@ -1,4 +1,7 @@
-import { createDevLogger } from '@tloncorp/shared/dist';
+import {
+  createDevLogger,
+  updateInitializedClient,
+} from '@tloncorp/shared/dist';
 import * as api from '@tloncorp/shared/dist/api';
 import { useCallback } from 'react';
 
