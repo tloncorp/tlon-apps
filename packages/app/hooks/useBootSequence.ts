@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useLureMetadata } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
-import { configureClient } from '../lib/api';
 import { NodeBootPhase } from '../lib/bootHelpers';
 import BootHelpers from '../lib/bootHelpers';
 import { getShipFromCookie } from '../utils/ship';
@@ -24,8 +23,8 @@ interface BootSequenceReport {
 /*
   Takes a fresh hosting account and holds its hand until it has a node that's ready to transition
   to a logged in state.
-  
-  Two main components:  
+
+  Two main components:
     runBootPhase — executes a single boot step, returns the next step in the sequence
     runBootSequence — repeatedly executes runBootPhase until the sequence is complete
 
@@ -111,13 +110,6 @@ export function useBootSequence({
         authType: 'hosted',
       });
 
-      // configureClient({
-      //   shipName: auth.nodeId,
-      //   shipUrl: auth.nodeUrl,
-      //   onReset: () => store.syncStart(),
-      //   onChannelReset: () => store.handleDiscontinuity(),
-      //   onChannelStatusChange: store.handleChannelStatusChange,
-      // });
       configureUrbitClient({ shipName: auth.nodeId, shipUrl: auth.nodeUrl });
       store.syncStart();
 
