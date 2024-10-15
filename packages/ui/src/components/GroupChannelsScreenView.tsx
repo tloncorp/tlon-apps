@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts';
-import { useChatOptions } from '../contexts/chatOptions';
 import { useIsAdmin } from '../utils/channelUtils';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
@@ -16,6 +15,7 @@ import {
 import { ScreenHeader } from './ScreenHeader';
 
 type GroupChannelsScreenViewProps = {
+  group: db.Group | null;
   onChannelPressed: (channel: db.Channel) => void;
   onBackPressed: () => void;
   currentUser: string;
@@ -31,12 +31,11 @@ type GroupChannelsScreenViewProps = {
 };
 
 export function GroupChannelsScreenView({
+  group,
   onChannelPressed,
   onBackPressed,
   createChannel,
 }: GroupChannelsScreenViewProps) {
-  const groupOptions = useChatOptions();
-  const group = groupOptions?.group;
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
@@ -105,9 +104,7 @@ export function GroupChannelsScreenView({
           </>
         }
       />
-      {group &&
-      groupOptions.groupChannels &&
-      groupOptions.groupChannels.length ? (
+      {group && group.channels && group.channels.length ? (
         <ScrollView
           contentContainerStyle={{
             gap: '$s',
@@ -118,7 +115,7 @@ export function GroupChannelsScreenView({
         >
           <ChannelNavSections
             group={group}
-            channels={groupOptions.groupChannels}
+            channels={group.channels}
             onSelect={onChannelPressed}
             sortBy={sortBy || 'recency'}
             onLongPress={handleOpenChannelOptions}
