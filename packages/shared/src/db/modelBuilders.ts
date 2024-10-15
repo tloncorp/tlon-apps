@@ -9,7 +9,6 @@ import {
 import * as db from '../db';
 import * as logic from '../logic';
 import { convertToAscii } from '../logic';
-import { CurrentChats, PendingChats } from '../store';
 import * as ub from '../urbit';
 import { getChannelKindFromType } from '../urbit';
 import * as types from './types';
@@ -17,22 +16,14 @@ import * as types from './types';
 export function assembleNewChannelIdAndName({
   title,
   channelType,
-  currentChatData,
-  pendingChats,
+  existingChannels,
   currentUserId,
 }: {
   title: string;
   channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
-  currentChatData?: CurrentChats | null;
-  pendingChats?: PendingChats | null;
+  existingChannels: db.Channel[];
   currentUserId: string;
 }) {
-  const existingChannels = [
-    ...(pendingChats ?? []),
-    ...(currentChatData?.pinned ?? []),
-    ...(currentChatData?.unpinned ?? []),
-  ];
-
   const titleIsNumber = Number.isInteger(Number(title));
   // we need unique channel names that are valid for urbit's @tas type
   const tempChannelName = titleIsNumber
@@ -47,7 +38,7 @@ export function assembleNewChannelIdAndName({
     );
   };
 
-  const randomSmallNumber = Math.floor(Math.random() * 100);
+  const randomSmallNumber = Math.floor(Math.random() * 1000);
   const channelName = existingChannel()
     ? `${tempChannelName}-${randomSmallNumber}`
     : tempChannelName;
