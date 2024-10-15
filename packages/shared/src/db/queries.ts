@@ -1065,7 +1065,7 @@ export const removeChatMembers = createWriteQuery(
         )
       );
   },
-  ['chatMembers']
+  ['chatMembers', 'groups']
 );
 
 export const getUnreadsCount = createReadQuery(
