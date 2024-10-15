@@ -1463,7 +1463,11 @@ export const insertChannels = createWriteQuery(
         .values(channels)
         .onConflictDoUpdate({
           target: $channels.id,
-          set: conflictUpdateSetAll($channels, ['lastPostId', 'lastPostAt']),
+          set: conflictUpdateSetAll($channels, [
+            'lastPostId',
+            'lastPostAt',
+            'currentUserIsMember',
+          ]),
         });
 
       for (const channel of channels) {

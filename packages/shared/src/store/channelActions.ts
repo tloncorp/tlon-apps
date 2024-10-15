@@ -29,6 +29,7 @@ export async function createChannel({
     type: channelType as db.ChannelType,
     groupId,
     addedToGroupAt: Date.now(),
+    currentUserIsMember: true,
   };
   await db.insertChannels([newChannel]);
 

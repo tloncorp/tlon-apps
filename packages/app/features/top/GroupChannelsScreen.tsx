@@ -28,7 +28,7 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>(
     null
   );
-  const { createChannel } = useGroupContext({ groupId: id, isFocused });
+  const { group, createChannel } = useGroupContext({ groupId: id, isFocused });
 
   const pinnedItems = useMemo(() => {
     return pins ?? [];
@@ -62,6 +62,7 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
         onBackPressed={handleGoBackPressed}
         currentUser={currentUser}
         createChannel={createChannel}
+        group={group}
       />
       <InviteUsersSheet
         open={inviteSheetGroup !== null}
