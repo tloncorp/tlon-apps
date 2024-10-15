@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { FlatList } from 'react-native';
 import { View, YStack } from 'tamagui';
 
@@ -24,6 +24,7 @@ export interface DetailViewProps {
   setActiveMessage: (post: db.Post | null) => void;
   activeMessage: db.Post | null;
   headerMode: 'default' | 'next';
+  editorIsFocused: boolean;
 }
 
 export const DetailView = ({
@@ -38,6 +39,7 @@ export const DetailView = ({
   setActiveMessage,
   activeMessage,
   headerMode,
+  editorIsFocused,
 }: DetailViewProps) => {
   const channelType = useMemo(
     () => urbit.getChannelType(post.channelId),
@@ -47,6 +49,13 @@ export const DetailView = ({
   const resolvedPosts = useMemo(() => {
     return isChat && posts ? [...posts, post] : posts;
   }, [posts, post, isChat]);
+  const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    if (editorIsFocused) {
+      flatListRef.current?.scrollToIndex({ index: 1, animated: true });
+    }
+  }, [editorIsFocused]);
 
   const scroller = useMemo(() => {
     return (
@@ -97,6 +106,7 @@ export const DetailView = ({
   ) : (
     <FlatList
       data={isChat ? ['posts'] : ['header', 'posts']}
+      ref={flatListRef}
       renderItem={({ item }) => {
         if (item === 'header') {
           return (

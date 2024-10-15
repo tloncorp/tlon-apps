@@ -3,7 +3,7 @@ import type * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
@@ -16,6 +16,7 @@ import { ChannelHeader } from './Channel/ChannelHeader';
 import { DetailView } from './DetailView';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { MessageInput } from './MessageInput';
+import { TlonEditorBridge } from './MessageInput/toolbarActions.native';
 
 export function PostScreenView({
   channel,
@@ -81,6 +82,16 @@ export function PostScreenView({
     () => posts?.filter((p) => p.id !== parentPost?.id) ?? [],
     [posts, parentPost]
   );
+  const editorRef = useRef<{
+    editor: TlonEditorBridge | null;
+  }>(null);
+  const [editorIsFocused, setEditorIsFocused] = useState(false);
+
+  // We track the editor focus state to determine when we need to scroll to the
+  // bottom of the screen when the keyboard is opened/editor is focused.
+  editorRef.current?.editor?._subscribeToEditorStateUpdate((editorState) => {
+    setEditorIsFocused(editorState.isFocused);
+  });
 
   const { bottom } = useSafeAreaInsets();
 
@@ -131,6 +142,7 @@ export function PostScreenView({
                   activeMessage={activeMessage}
                   setActiveMessage={setActiveMessage}
                   headerMode={headerMode}
+                  editorIsFocused={editorIsFocused}
                 />
               ) : null}
 
@@ -153,6 +165,7 @@ export function PostScreenView({
                     (channel.type === 'chat' && parentPost?.replyCount === 0) ||
                     !!editingPost
                   }
+                  ref={editorRef}
                 />
               )}
               {!negotiationMatch && channel && canWrite && (
