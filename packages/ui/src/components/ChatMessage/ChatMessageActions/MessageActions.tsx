@@ -4,6 +4,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
+import { useIsAdmin } from '../../../utils';
 import { useMemo } from 'react';
 import { Alert } from 'react-native';
 
@@ -33,16 +34,7 @@ export default function MessageActions({
   const currentUserId = useCurrentUserId();
   const { addAttachment } = useAttachmentContext();
   const channel = useChannelContext();
-  const { data: group } = store.useGroup({ id: post.groupId ?? '' });
-  const currenUserIsAdmin = useMemo(
-    () =>
-      group?.members?.some(
-        (member) =>
-          member?.contactId === currentUserId &&
-          member.roles.some((role) => role.roleId === 'admin')
-      ),
-    [group?.members, currentUserId]
-  );
+  const currenUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
   const postActions = useMemo(() => {
     return getPostActions({
       post,
