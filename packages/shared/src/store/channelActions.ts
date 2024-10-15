@@ -18,14 +18,14 @@ export async function createChannel({
   channelId: string;
   name: string;
   title: string;
-  description: string;
+  description?: string;
   channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
 }) {
   // optimistic update
   const newChannel: db.Channel = {
     id: channelId,
     title,
-    description,
+    description: description ?? '',
     type: channelType as db.ChannelType,
     groupId,
     addedToGroupAt: Date.now(),
@@ -41,7 +41,7 @@ export async function createChannel({
       group: groupId,
       name,
       title,
-      description,
+      description: description ?? '',
       readers: [],
       writers: [],
     });

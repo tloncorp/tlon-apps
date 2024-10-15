@@ -25,7 +25,7 @@ type GroupChannelsScreenViewProps = {
     channelType,
   }: {
     title: string;
-    description: string;
+    description?: string;
     channelType: ChannelTypeName;
   }) => Promise<void>;
 };

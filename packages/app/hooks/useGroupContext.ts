@@ -111,7 +111,7 @@ export const useGroupContext = ({
       channelType,
     }: {
       title: string;
-      description: string;
+      description?: string;
       channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
     }) => {
       const { name, id } = assembleNewChannelIdAndName({
