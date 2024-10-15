@@ -4,6 +4,8 @@ import { useLiveRef } from './logic/utilHooks';
 import { useCurrentSession } from './store/session';
 
 const customLoggers = new Set<string>();
+let logger: Console | null = null;
+let forceEnabled = false;
 
 interface Breadcrumb {
   tag: string;
@@ -36,6 +38,14 @@ export function getCurrentBreadcrumbs() {
 
 export function addCustomEnabledLoggers(loggers: string[]) {
   loggers.forEach((logger) => customLoggers.add(logger));
+}
+
+export function initializeLogger(loggerInput: Console) {
+  logger = loggerInput;
+}
+
+export function toggleAllLogs(on: boolean) {
+  forceEnabled = on;
 }
 
 interface ErrorLoggerStub {
@@ -94,10 +104,10 @@ export function createDevLogger(tag: string, enabled: boolean) {
         }
 
         if (
-          (enabled || customLoggers.has(tag)) &&
+          (forceEnabled || enabled || customLoggers.has(tag)) &&
           process.env.NODE_ENV !== 'production'
         ) {
-          const val = Reflect.get(target, resolvedProp, receiver);
+          const val = Reflect.get(logger || target, resolvedProp, receiver);
           const prefix = `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`;
           val(prefix, ...args);
         }

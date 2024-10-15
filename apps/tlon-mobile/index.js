@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
+import { initializeDebug } from '@tloncorp/app/lib/debug';
 // Setup custom dev menu items
 import '@tloncorp/app/lib/devMenuItems';
 import { setupDb } from '@tloncorp/app/lib/nativeDb';
@@ -12,6 +13,8 @@ import { TailwindProvider } from 'tailwind-rn';
 
 import App from './src/App';
 import utilities from './tailwind.json';
+
+initializeDebug();
 
 // Modifies fetch to support server sent events which
 // are required for Urbit client subscriptions

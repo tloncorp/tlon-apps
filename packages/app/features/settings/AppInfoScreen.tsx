@@ -2,11 +2,14 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   AppSetting,
+  Button,
   ListItem,
   ScreenHeader,
   SizableText,
   Stack,
+  Text,
   View,
+  XStack,
   YStack,
 } from '@tloncorp/ui';
 import { preSig } from '@urbit/aura';
@@ -14,10 +17,11 @@ import * as Application from 'expo-application';
 import * as Updates from 'expo-updates';
 import { useMemo } from 'react';
 import { useCallback } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Switch } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
+import { toggleDebug, uploadLogs, useDebugStore } from '../../lib/debug';
 import { getEasUpdateDisplay } from '../../lib/platformHelpers';
 import { RootStackParamList } from '../../navigation/types';
 
@@ -27,6 +31,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AppInfo'>;
 
 export function AppInfoScreen(props: Props) {
   const { data: appInfo } = store.useAppInfo();
+  const { enabled, logs, logsUrl } = useDebugStore();
   const easUpdateDisplay = useMemo(() => getEasUpdateDisplay(Updates), []);
 
   const onPressPreviewFeatures = useCallback(() => {
@@ -73,6 +78,33 @@ export function AppInfoScreen(props: Props) {
                 Cannot load app info settings
               </SizableText>
             </View>
+          )}
+
+          <XStack
+            key="debug-toggle"
+            justifyContent="space-between"
+            alignItems="center"
+            padding="$l"
+          >
+            <SizableText flexShrink={1}>Enable Developer Logs</SizableText>
+            <Switch
+              style={{ flexShrink: 0 }}
+              value={enabled}
+              onValueChange={toggleDebug}
+            ></Switch>
+          </XStack>
+
+          {enabled && logs.length > 0 && (
+            <Stack>
+              <Button
+                onPress={() => {
+                  uploadLogs();
+                }}
+              >
+                <Text>Upload logs ({logs.length})</Text>
+              </Button>
+              <Text>{logsUrl}</Text>
+            </Stack>
           )}
 
           <Stack marginTop="$xl">

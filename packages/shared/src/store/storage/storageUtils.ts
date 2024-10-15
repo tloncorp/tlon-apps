@@ -13,10 +13,10 @@ import { desig } from '../../urbit';
 
 const logger = createDevLogger('storage utils', true);
 
-export const fetchImageFromUri = async (
+export const fetchFileFromUri = async (
   uri: string,
-  height: number,
-  width: number
+  height?: number,
+  width?: number
 ) => {
   try {
     const response = await fetch(uri);
@@ -26,7 +26,7 @@ export const fetchImageFromUri = async (
     const file: RNFile = {
       uri,
       blob,
-      name: name ?? 'channel-image',
+      name: name ?? 'file',
       type: blob.type,
       height,
       width,
@@ -84,20 +84,16 @@ export const getIsHosted = () => {
   return isHosted;
 };
 
-interface MemexUploadParams {
+export interface MemexUploadParams {
   token: string;
   contentLength: number;
   contentType: string;
   fileName: string;
 }
 
-export const getMemexUpload = async ({
-  file,
-  uploadKey,
-}: {
-  file: api.RNFile;
-  uploadKey: string;
-}) => {
+export const getMemexUpload = async (
+  params: Omit<MemexUploadParams, 'token'>
+) => {
   const currentUser = api.getCurrentUserId();
   const token = await scry<string>({
     app: 'genuine',
@@ -108,9 +104,7 @@ export const getMemexUpload = async ({
 
   const uploadParams: MemexUploadParams = {
     token,
-    contentLength: file.blob.size,
-    contentType: file.type,
-    fileName: uploadKey,
+    ...params,
   };
 
   const endpoint = `${MEMEX_BASE_URL}/v1/${desig(currentUser)}/upload`;
