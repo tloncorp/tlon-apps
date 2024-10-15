@@ -28,7 +28,7 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>(
     null
   );
-  const { createChannel } = useGroupContext({ groupId: id });
+  const { createChannel } = useGroupContext({ groupId: id, isFocused });
 
   const pinnedItems = useMemo(() => {
     return pins ?? [];
