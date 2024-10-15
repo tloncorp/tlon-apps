@@ -1,6 +1,5 @@
-import { sync } from '@tloncorp/shared';
+import { sync, useCreateChannel } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
-import { assembleNewChannelIdAndName } from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo } from 'react';
 
@@ -64,7 +63,7 @@ export const useGroupContext = ({
   }, [groupNavSections, groupChannels]);
 
   const setGroupMetadata = useCallback(
-    async (metadata: db.ClientMeta) => {
+    async (metadata: db.ClientMetaGroup) => {
       if (group) {
         await store.updateGroupMeta({
           ...group,
@@ -100,44 +99,11 @@ export const useGroupContext = ({
     }
   }, [group]);
 
-  const { data: pendingChats } = store.usePendingChats({
-    enabled: isFocused,
+  const createChannel = useCreateChannel({
+    group,
+    currentUserId,
+    disabled: !isFocused,
   });
-  const { data: currentChatData } = store.useCurrentChats({
-    enabled: isFocused,
-  });
-
-  const createChannel = useCallback(
-    async ({
-      title,
-      description,
-      channelType,
-    }: {
-      title: string;
-      description: string;
-      channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
-    }) => {
-      const { name, id } = assembleNewChannelIdAndName({
-        title,
-        channelType,
-        currentChatData,
-        pendingChats,
-        currentUserId,
-      });
-
-      if (group) {
-        await store.createChannel({
-          groupId: group.id,
-          name,
-          channelId: id,
-          title,
-          description,
-          channelType,
-        });
-      }
-    },
-    [group, currentUserId, currentChatData, pendingChats]
-  );
 
   const deleteChannel = useCallback(
     async (channelId: string) => {

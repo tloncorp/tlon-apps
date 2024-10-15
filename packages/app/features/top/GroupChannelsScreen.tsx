@@ -10,17 +10,13 @@ import {
 import { useCallback, useMemo, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useGroupContext } from '../../hooks/useGroupContext';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GroupChannels'>;
 
 export function GroupChannelsScreen({ navigation, route }: Props) {
   const groupParam = route.params.group;
-  const { id } = route.params.group;
 
-  const currentUser = useCurrentUserId();
   const isFocused = useIsFocused();
   const { data: pins } = store.usePins({
     enabled: isFocused,
@@ -28,7 +24,6 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>(
     null
   );
-  const { createChannel } = useGroupContext({ groupId: id });
 
   const pinnedItems = useMemo(() => {
     return pins ?? [];
@@ -60,8 +55,6 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
       <GroupChannelsScreenView
         onChannelPressed={handleChannelSelected}
         onBackPressed={handleGoBackPressed}
-        currentUser={currentUser}
-        createChannel={createChannel}
       />
       <InviteUsersSheet
         open={inviteSheetGroup !== null}

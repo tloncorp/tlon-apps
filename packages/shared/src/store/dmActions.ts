@@ -82,7 +82,10 @@ export async function unblockUser(userId: string) {
   }
 }
 
-export async function updateDMMeta(channelId: string, meta: db.ClientMeta) {
+export async function updateDMMeta(
+  channelId: string,
+  meta: db.ClientMetaChannel
+) {
   logger.log('updating channel', channelId, meta);
 
   const existingChannel = await db.getChannel({ id: channelId });

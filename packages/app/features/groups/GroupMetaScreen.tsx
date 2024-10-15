@@ -30,7 +30,7 @@ export function GroupMetaScreen(props: Props) {
   });
 
   const handleSubmit = useCallback(
-    (data: db.ClientMeta) => {
+    (data: db.ClientMetaGroup) => {
       setGroupMetadata(data);
       props.navigation.goBack();
       if (enabled) {

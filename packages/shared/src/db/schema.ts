@@ -8,6 +8,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
+import { ChannelContentConfiguration } from '../api';
 import { ExtendedEventType, NotificationLevel, Rank } from '../urbit';
 
 const boolean = (name: string) => {
@@ -702,6 +703,10 @@ export const channels = sqliteTable(
      * True if this channel was autocreated during new group creation (on this client)
      */
     isDefaultWelcomeChannel: boolean('is_default_welcome_channel'),
+
+    contentConfiguration: text('content_configuration', {
+      mode: 'json',
+    }).$type<ChannelContentConfiguration>(),
   },
   (table) => ({
     lastPostIdIndex: index('last_post_id').on(table.lastPostId),

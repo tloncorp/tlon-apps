@@ -263,7 +263,7 @@ export async function deleteGroup(group: db.Group) {
 
 export async function addNavSection(
   group: db.Group,
-  navSectionMeta: db.ClientMeta
+  navSectionMeta: db.ClientMetaNavSection
 ) {
   const newSectionId = createSectionId();
   const groupNavSectionId = `${group.id}-${newSectionId}`;

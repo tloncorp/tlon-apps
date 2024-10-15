@@ -54,6 +54,17 @@ export type ClientMeta = Pick<
   | 'coverImageColor'
   | 'iconImageColor'
 >;
+export type ClientMetaGroup = ClientMeta;
+export type ClientMetaNavSection = ClientMeta;
+export type ClientMetaChannel = Pick<
+  Channel,
+  | 'title'
+  | 'coverImage'
+  | 'iconImage'
+  | 'description'
+  | 'coverImageColor'
+  | 'iconImageColor'
+>;
 export type GroupMemberInvite = BaseModel<'groupMemberInvites'>;
 export type GroupMemberBan = BaseModel<'groupMemberBans'>;
 export type GroupJoinRequest = BaseModel<'groupJoinRequests'>;

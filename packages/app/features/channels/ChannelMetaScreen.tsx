@@ -15,7 +15,7 @@ export function ChannelMetaScreen(props: Props) {
   const canUpload = useCanUpload();
 
   const handleSubmit = useCallback(
-    (meta: db.ClientMeta) => {
+    (meta: db.ClientMetaChannel) => {
       store.updateDMMeta(channelId, meta);
       () => props.navigation.goBack();
     },

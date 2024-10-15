@@ -13,11 +13,11 @@ export function ManageChannelsScreen(props: Props) {
   const { groupId } = props.route.params;
 
   const {
+    group,
     groupNavSectionsWithChannels,
     moveNavSection,
     moveChannel,
     moveChannelToNavSection,
-    createChannel,
     createNavSection,
     deleteNavSection,
     updateNavSection,
@@ -29,11 +29,11 @@ export function ManageChannelsScreen(props: Props) {
       goToEditChannel={(channelId) => {
         props.navigation.navigate('EditChannel', { groupId, channelId });
       }}
+      group={group}
       groupNavSectionsWithChannels={groupNavSectionsWithChannels}
       moveNavSection={moveNavSection}
       moveChannelWithinNavSection={moveChannel}
       moveChannelToNavSection={moveChannelToNavSection}
-      createChannel={createChannel}
       createNavSection={createNavSection}
       deleteNavSection={deleteNavSection}
       updateNavSection={updateNavSection}
