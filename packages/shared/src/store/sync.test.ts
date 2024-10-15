@@ -145,128 +145,54 @@ test('syncs dms', async () => {
     id: '~solfer-magfed',
     includeMembers: true,
   });
-  expect(singleChannel).toEqual({
-    id: '~solfer-magfed',
-    type: 'dm',
-    groupId: null,
-    contactId: '~solfer-magfed',
-    iconImage: null,
-    iconImageColor: null,
-    coverImage: null,
-    coverImageColor: null,
-    title: '',
-    description: '',
-    addedToGroupAt: null,
-    currentUserIsMember: null,
-    postCount: null,
-    unreadCount: null,
-    firstUnreadPostId: null,
-    lastPostId: null,
-    lastPostAt: null,
-    syncedAt: null,
-    remoteUpdatedAt: null,
-    isPendingChannel: null,
-    isDmInvite: false,
-    isDefaultWelcomeChannel: null,
-    lastViewedAt: null,
-    members: [
-      {
-        chatId: '~solfer-magfed',
-        contactId: '~solfer-magfed',
-        contact: null,
-        joinedAt: null,
-        membershipType: 'channel',
-        status: null,
-      },
-    ],
-  });
+  expect(singleChannel).toEqual(
+    db.buildChannel({
+      id: '~solfer-magfed',
+      type: 'dm',
+      contactId: '~solfer-magfed',
+      title: '',
+      description: '',
+      members: [
+        {
+          chatId: '~solfer-magfed',
+          contactId: '~solfer-magfed',
+          contact: null,
+          joinedAt: null,
+          membershipType: 'channel',
+          status: null,
+        },
+      ],
+    })
+  );
   const groupDmChannel = await db.getChannel({
     id: groupDmId,
     includeMembers: true,
   });
-  expect(groupDmChannel).toEqual({
-    id: '0v4.00000.qd4p2.it253.qs53q.s53qs',
-    type: 'groupDm',
-    groupId: null,
-    contactId: null,
-    iconImage: null,
-    iconImageColor: '#f0ebbd',
-    coverImage: null,
-    coverImageColor: null,
-    title: 'Pensacola 2024-04',
-    description: '',
-    addedToGroupAt: null,
-    currentUserIsMember: null,
-    postCount: null,
-    unreadCount: null,
-    firstUnreadPostId: null,
-    lastPostId: null,
-    lastPostAt: null,
-    syncedAt: null,
-    remoteUpdatedAt: null,
-    isPendingChannel: null,
-    isDmInvite: false,
-    isDefaultWelcomeChannel: null,
-    lastViewedAt: null,
-    members: [
-      {
-        chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
-        contactId: '~finned-palmer',
-        contact: null,
-        joinedAt: null,
-        membershipType: 'channel',
-        status: 'joined',
-      },
-      {
-        chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
-        contact: null,
-        contactId: '~latter-bolden',
-        joinedAt: null,
-        membershipType: 'channel',
-        status: 'invited',
-      },
-      {
-        chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
-        contactId: '~nocsyx-lassul',
-        contact: null,
-        joinedAt: null,
-        membershipType: 'channel',
-        status: 'joined',
-      },
-      {
-        chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
-        contactId: '~palfun-foslup',
-        contact: null,
-        joinedAt: null,
-        membershipType: 'channel',
-        status: 'joined',
-      },
-      {
-        chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
-        contactId: '~pondus-watbel',
-        contact: null,
-        joinedAt: null,
-        membershipType: 'channel',
-        status: 'joined',
-      },
-      {
-        chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
-        contactId: '~rilfun-lidlen',
-        contact: null,
-        joinedAt: null,
-        membershipType: 'channel',
-        status: 'joined',
-      },
-      {
-        chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
-        contactId: '~solfer-magfed',
-        contact: null,
-        joinedAt: null,
-        membershipType: 'channel',
-        status: 'joined',
-      },
-    ],
-  });
+  expect(groupDmChannel).toEqual(
+    db.buildChannel({
+      id: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+      type: 'groupDm',
+      contactId: null,
+      iconImageColor: '#f0ebbd',
+      title: 'Pensacola 2024-04',
+      description: '',
+      members: db
+        .buildChatMembers({
+          chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+          membershipType: 'channel',
+        })
+        .add(
+          { contactId: '~finned-palmer', status: 'joined' },
+          { contactId: '~latter-bolden', status: 'invited' },
+          { contactId: '~nocsyx-lassul', status: 'joined' },
+          { contactId: '~palfun-foslup', status: 'joined' },
+          { contactId: '~pondus-watbel', status: 'joined' },
+          { contactId: '~rilfun-lidlen', status: 'joined' },
+          { contactId: '~solfer-magfed', status: 'joined' }
+        )
+        .build(),
+    })
+  );
 });
 
 const groupId = '~solfer-magfed/test-group';
