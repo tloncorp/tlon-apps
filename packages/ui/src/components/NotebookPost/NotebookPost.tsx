@@ -88,31 +88,48 @@ export function NotebookPost({
         pressStyle={{ backgroundColor: '$secondaryBackground' }}
         disabled={viewMode === 'activity'}
       >
-        <NotebookPostHeader
-          post={post}
-          showDate={showDate}
-          showAuthor={showAuthor && viewMode !== 'activity'}
-          size={size}
-        />
-
-        {viewMode !== 'activity' && (
-          <Text
-            size="$body"
-            color="$secondaryText"
-            numberOfLines={3}
-            paddingBottom={showReplies && hasReplies ? 0 : '$m'}
+        {post.hidden || post.isDeleted ? (
+          <XStack
+            gap="$s"
+            paddingVertical="$xl"
+            justifyContent="center"
+            alignItems="center"
           >
-            {post.textContent}
-          </Text>
-        )}
+            <Text color="$tertiaryText" size="$body">
+              {post.hidden
+                ? 'You have hidden this post.'
+                : 'This post has been deleted.'}
+            </Text>
+          </XStack>
+        ) : (
+          <>
+            <NotebookPostHeader
+              post={post}
+              showDate={showDate}
+              showAuthor={showAuthor && viewMode !== 'activity'}
+              size={size}
+            />
 
-        {showReplies && hasReplies ? (
-          <ChatMessageReplySummary
-            post={post}
-            showTime={false}
-            textColor="$tertiaryText"
-          />
-        ) : null}
+            {viewMode !== 'activity' && (
+              <Text
+                size="$body"
+                color="$secondaryText"
+                numberOfLines={3}
+                paddingBottom={showReplies && hasReplies ? 0 : '$m'}
+              >
+                {post.textContent}
+              </Text>
+            )}
+
+            {showReplies && hasReplies ? (
+              <ChatMessageReplySummary
+                post={post}
+                showTime={false}
+                textColor="$tertiaryText"
+              />
+            ) : null}
+          </>
+        )}
 
         {post.deliveryStatus === 'failed' ? (
           <XStack alignItems="center" justifyContent="flex-end">
