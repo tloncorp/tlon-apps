@@ -772,7 +772,7 @@ export const addChatMembers = createWriteQuery(
         .onConflictDoNothing();
     });
   },
-  ['chatMembers']
+  ['chatMembers', 'groups']
 );
 
 export const addGroupInvites = createWriteQuery(
