@@ -58,7 +58,6 @@ export interface MessageInputProps {
   shouldAutoFocus?: boolean;
   ref?: React.RefObject<{
     editor: EditorBridge | null;
-    setEditor: (editor: EditorBridge) => void;
   }>;
 }
 
