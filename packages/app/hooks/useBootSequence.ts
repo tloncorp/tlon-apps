@@ -1,10 +1,10 @@
 import { createDevLogger } from '@tloncorp/shared/dist';
+import { NodeBootPhase } from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useLureMetadata } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
-import { NodeBootPhase } from '../lib/bootHelpers';
 import BootHelpers from '../lib/bootHelpers';
 import { getShipFromCookie } from '../utils/ship';
 import { useConfigureUrbitClient } from './useConfigureUrbitClient';

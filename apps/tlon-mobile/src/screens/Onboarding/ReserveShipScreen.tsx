@@ -1,7 +1,13 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
-import { BootPhaseExplanations } from '@tloncorp/app/lib/bootHelpers';
-import { Spinner, Text, View, YStack } from '@tloncorp/ui';
+import {
+  NodeInitStatusWidget,
+  Spinner,
+  Text,
+  View,
+  YStack,
+} from '@tloncorp/ui';
 import { useEffect } from 'react';
 
 import type { OnboardingStackParamList } from '../../types';
@@ -10,6 +16,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'ReserveShip'>;
 
 export const ReserveShipScreen = ({ navigation }: Props) => {
   const signupContext = useSignupContext();
+  const lureMeta = useLureMetadata();
 
   // Disable back button once you reach this screen
   useEffect(
@@ -33,9 +40,13 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
         <Text textAlign="center" color="$primaryText">
           Setting up your new p2p node
         </Text>
-        <Text textAlign="center" color="$secondaryText" fontSize="$m">
+        {/* <Text textAlign="center" color="$secondaryText" fontSize="$m">
           {BootPhaseExplanations[signupContext.bootPhase]}
-        </Text>
+        </Text> */}
+        <NodeInitStatusWidget
+          bootPhase={signupContext.bootPhase}
+          hasInvite={Boolean(lureMeta)}
+        />
       </YStack>
     </View>
   );

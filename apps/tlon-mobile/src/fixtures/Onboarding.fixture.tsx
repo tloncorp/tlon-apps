@@ -3,6 +3,7 @@ import {
   Context as BranchContext,
   LureData,
 } from '@tloncorp/app/contexts/branch';
+import { SignupProvider } from '@tloncorp/app/contexts/signup';
 import {
   DeepLinkData,
   QueryClientProvider,
@@ -95,20 +96,22 @@ function OnboardingFixture({
           },
         }}
       >
-        <BranchContext.Provider
-          value={{
-            lure,
-            setLure: setLure as unknown as (data: DeepLinkData) => void,
-            clearLure: () => setLure(undefined),
-            clearDeepLink: () => {},
-            deepLinkPath: undefined,
-            priorityToken: undefined,
-          }}
-        >
-          <NavigationContainer>
-            {children ?? <OnboardingStack />}
-          </NavigationContainer>
-        </BranchContext.Provider>
+        <SignupProvider fixtureMode>
+          <BranchContext.Provider
+            value={{
+              lure,
+              setLure: setLure as unknown as (data: DeepLinkData) => void,
+              clearLure: () => setLure(undefined),
+              clearDeepLink: () => {},
+              deepLinkPath: undefined,
+              priorityToken: undefined,
+            }}
+          >
+            <NavigationContainer>
+              {children ?? <OnboardingStack />}
+            </NavigationContainer>
+          </BranchContext.Provider>
+        </SignupProvider>
       </OnboardingProvider>
     </QueryClientProvider>
   );

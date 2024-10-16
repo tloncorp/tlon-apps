@@ -57,6 +57,7 @@ export * from './components/ManageChannels/ManageChannelsScreenView';
 export * from './components/MessageInput';
 export * from './components/MessageInput/AttachmentPreviewList';
 export * from './components/NavBarView';
+export * from './components/NodeInitStatusWidget';
 export * from './components/Modal';
 export * from './components/NavBar';
 export * from './components/Onboarding';
