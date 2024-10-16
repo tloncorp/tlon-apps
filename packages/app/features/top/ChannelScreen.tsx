@@ -198,6 +198,12 @@ export default function ChannelScreen(props: Props) {
         }),
   });
 
+  const filteredPosts = useMemo(
+    () =>
+      channel?.type !== 'chat' ? posts?.filter((p) => !p.isDeleted) : posts,
+    [posts, channel]
+  );
+
   const sendPost = useCallback(
     async (content: Story, _channelId: string, metadata?: db.PostMetadata) => {
       if (!channel) {
@@ -313,7 +319,7 @@ export default function ChannelScreen(props: Props) {
         hasNewerPosts={postsQuery.hasPreviousPage}
         hasOlderPosts={postsQuery.hasNextPage}
         group={group}
-        posts={posts}
+        posts={filteredPosts ?? null}
         selectedPostId={selectedPostId}
         goBack={props.navigation.goBack}
         messageSender={sendPost}

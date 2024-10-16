@@ -64,6 +64,10 @@ export function GalleryPost({
 
   const handleLongPress = useBoundHandler(post, onLongPress);
 
+  if (post.isDeleted) {
+    return null;
+  }
+
   return (
     <GalleryPostFrame
       onPress={handlePress}
