@@ -74,7 +74,7 @@ export function NotebookPost({
     onPress?.(post);
   }, [post, onPress]);
 
-  if (!post) {
+  if (!post || post.isDeleted) {
     return null;
   }
 
@@ -88,7 +88,7 @@ export function NotebookPost({
         pressStyle={{ backgroundColor: '$secondaryBackground' }}
         disabled={viewMode === 'activity'}
       >
-        {post.hidden || post.isDeleted ? (
+        {post.hidden ? (
           <XStack
             gap="$s"
             paddingVertical="$xl"
@@ -96,9 +96,7 @@ export function NotebookPost({
             alignItems="center"
           >
             <Text color="$tertiaryText" size="$body">
-              {post.hidden
-                ? 'You have hidden this post.'
-                : 'This post has been deleted.'}
+              You have hidden this post.
             </Text>
           </XStack>
         ) : (
