@@ -3,11 +3,11 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { PostScreenView, useCurrentUserId } from '@tloncorp/ui';
-import { useGroupActions } from 'packages/app/hooks/useGroupActions';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
+import { useGroupActions } from '../../hooks/useGroupActions';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
@@ -31,10 +31,9 @@ export default function PostScreen(props: Props) {
     uploaderKey: `${postParam.channelId}/${postParam.id}`,
   });
 
-  const { navigateToImage, navigateToRef } =
-    useChannelNavigation({
-      channelId: postParam.channelId,
-    });
+  const { navigateToImage, navigateToRef } = useChannelNavigation({
+    channelId: postParam.channelId,
+  });
 
   const currentUserId = useCurrentUserId();
 
