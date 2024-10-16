@@ -39,6 +39,9 @@ export default (
       clearDraft={() => {}}
       canUpload={true}
       headerMode="default"
+      onPressRef={() => {}}
+      onGroupAction={() => {}}
+      goToDm={() => {}}
     />
   </AppDataContextProvider>
 );
