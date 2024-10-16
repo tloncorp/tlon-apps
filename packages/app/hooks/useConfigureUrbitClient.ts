@@ -4,7 +4,8 @@ import {
   sync,
   updateSession,
 } from '@tloncorp/shared/dist';
-import { ClientParams, configureClient } from '@tloncorp/shared/dist/api';
+import { ClientParams } from '@tloncorp/shared/dist/api';
+import { configureClient } from '@tloncorp/shared/dist/store';
 import { useCallback } from 'react';
 //@ts-expect-error no typedefs
 import { fetch as streamingFetch } from 'react-native-fetch-api';
