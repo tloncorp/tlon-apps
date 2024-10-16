@@ -772,7 +772,7 @@ export const addChatMembers = createWriteQuery(
         .onConflictDoNothing();
     });
   },
-  ['chatMembers']
+  ['chatMembers', 'groups']
 );
 
 export const addGroupInvites = createWriteQuery(
@@ -1065,7 +1065,7 @@ export const removeChatMembers = createWriteQuery(
         )
       );
   },
-  ['chatMembers']
+  ['chatMembers', 'groups']
 );
 
 export const getUnreadsCount = createReadQuery(
