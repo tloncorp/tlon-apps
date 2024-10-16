@@ -4,6 +4,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
+import { useIsAdmin } from '../../../utils';
 import { useMemo } from 'react';
 import { Alert } from 'react-native';
 
@@ -33,6 +34,7 @@ export default function MessageActions({
   const currentUserId = useCurrentUserId();
   const { addAttachment } = useAttachmentContext();
   const channel = useChannelContext();
+  const currenUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
   const postActions = useMemo(() => {
     return getPostActions({
       post,
@@ -51,13 +53,16 @@ export default function MessageActions({
         case 'edit':
           // only show edit for current user's posts
           return post.authorId === currentUserId;
+        case 'delete':
+          // only show delete for current user's posts
+          return post.authorId === currentUserId || currenUserIsAdmin;
         case 'viewReactions':
           return (post.reactions?.length ?? 0) > 0;
         default:
           return true;
       }
     });
-  }, [post, channelType, currentUserId]);
+  }, [post, channelType, currentUserId, currenUserIsAdmin]);
 
   return (
     // arbitrary width that looks reasonable given labels

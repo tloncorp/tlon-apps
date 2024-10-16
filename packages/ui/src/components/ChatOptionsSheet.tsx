@@ -18,6 +18,7 @@ import { useSheet } from 'tamagui';
 import { ChevronLeft } from '../assets/icons';
 import { useCalm, useChatOptions, useCurrentUserId } from '../contexts';
 import * as utils from '../utils';
+import { useIsAdmin } from '../utils';
 import { Action, ActionGroup, ActionSheet } from './ActionSheet';
 import { IconButton } from './IconButton';
 import { ListItem } from './ListItem';
@@ -151,15 +152,7 @@ export function GroupOptions({
 
   const isPinned = group?.pin;
 
-  const currentUserIsAdmin = useMemo(
-    () =>
-      group?.members?.some(
-        (m) =>
-          m.contactId === currentUser &&
-          m.roles?.some((r) => r.roleId === 'admin')
-      ) ?? false,
-    [currentUser, group?.members]
-  );
+  const currentUserIsAdmin = useIsAdmin(group.id, currentUser);
 
   const handleVolumeUpdate = useCallback(
     (newLevel: string) => {
@@ -525,15 +518,7 @@ export function ChannelOptions({
     [group?.currentUserIsHost]
   );
 
-  const currentUserIsAdmin = useMemo(
-    () =>
-      group?.members?.some(
-        (m) =>
-          m.contactId === currentUser &&
-          m.roles?.some((r) => r.roleId === 'admin')
-      ) ?? false,
-    [currentUser, group?.members]
-  );
+  const currentUserIsAdmin = useIsAdmin(channel.groupId ?? '', currentUser);
 
   const { disableNicknames } = useCalm();
   const title = useMemo(() => {
@@ -703,7 +688,7 @@ export function ChannelOptions({
             } as ActionGroup,
           ]
         : []),
-     // TODO: redefine in a more readable way.
+      // TODO: redefine in a more readable way.
       ...(group &&
       !['groupDm', 'dm'].includes(channel.type) &&
       (group.privacy === 'public' ||
