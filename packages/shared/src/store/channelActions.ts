@@ -173,7 +173,7 @@ export async function markChannelRead(params: MarkChannelReadParams) {
   try {
     await api.readChannel(params);
   } catch (e) {
-    console.error('Failed to read channel', e);
+    console.error('Failed to read channel', params, e);
     // rollback optimistic update
     if (existingUnread) {
       await db.insertChannelUnreads([existingUnread]);
