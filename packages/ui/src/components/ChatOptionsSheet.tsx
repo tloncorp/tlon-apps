@@ -754,7 +754,17 @@ export function ChannelOptions({
                           onPress: () => {
                             sheetRef.current.setOpen(false);
                             onPressLeave?.();
-                            store.respondToDMInvite({ channel, accept: false });
+                            if (
+                              channel.type === 'dm' ||
+                              channel.type === 'groupDm'
+                            ) {
+                              store.respondToDMInvite({
+                                channel,
+                                accept: false,
+                              });
+                            } else {
+                              store.leaveGroupChannel(channel.id);
+                            }
                           },
                         },
                       ]
