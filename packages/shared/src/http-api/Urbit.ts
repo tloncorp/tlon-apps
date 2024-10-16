@@ -525,6 +525,9 @@ export class Urbit {
 
       if (this.our !== this.ship) {
         console.log('our name does not match ship name');
+        console.log('our:', this.our);
+        console.log('ship:', this.ship);
+        console.log('messages:', json);
         throw new AuthError('invalid session');
       }
 

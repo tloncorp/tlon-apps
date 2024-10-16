@@ -105,8 +105,6 @@ export function internalConfigureClient({
 }: ClientParams) {
   logger.log('configuring client', shipName, shipUrl);
   config.client = config.client || new Urbit(shipUrl, '', '');
-  config.client.ship = deSig(shipName);
-  config.client.our = preSig(shipName);
   config.client.verbose = verbose;
   config.shipUrl = shipUrl;
   config.onQuitOrReset = onQuitOrReset;
