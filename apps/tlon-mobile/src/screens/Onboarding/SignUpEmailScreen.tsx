@@ -4,7 +4,11 @@ import {
   useLureMetadata,
   useSignupParams,
 } from '@tloncorp/app/contexts/branch';
-import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import {
+  identifyTlonEmployee,
+  trackError,
+  trackOnboardingAction,
+} from '@tloncorp/app/utils/posthog';
 import {
   Field,
   KeyboardAvoidingView,
@@ -61,6 +65,9 @@ export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
         });
         trackError({ message: 'Ineligible email address' });
       } else {
+        if (email.endsWith('@tlon.io')) {
+          identifyTlonEmployee();
+        }
         trackOnboardingAction({
           actionName: 'Email submitted',
           email,
