@@ -378,7 +378,10 @@ export function createMultiDmId(seed = Date.now()) {
 
 export function getJoinStatusFromGang(gang: ubg.Gang): GroupJoinStatus | null {
   if (gang.claim?.progress) {
-    if (gang.claim?.progress === 'adding') {
+    if (
+      gang.claim?.progress === 'adding' ||
+      gang.claim?.progress === 'watching'
+    ) {
       return 'joining';
     }
 

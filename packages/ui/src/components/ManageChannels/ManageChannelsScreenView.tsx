@@ -194,7 +194,7 @@ interface ManageChannelsScreenViewProps {
     channelType,
   }: {
     title: string;
-    description: string;
+    description?: string;
     channelType: ChannelTypeName;
   }) => Promise<void>;
   createNavSection: ({ title }: { title: string }) => Promise<void>;
