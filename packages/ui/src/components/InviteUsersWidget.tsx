@@ -10,9 +10,11 @@ import { InviteFriendsToTlonButton } from './InviteFriendsToTlonButton';
 const InviteUsersWidgetComponent = ({
   group,
   onInviteComplete,
+  onShareInvite,
 }: {
   group: db.Group;
   onInviteComplete: () => void;
+  onShareInvite?: () => void;
 }) => {
   const [invitees, setInvitees] = useState<string[]>([]);
 
@@ -36,7 +38,7 @@ const InviteUsersWidgetComponent = ({
   return (
     <>
       <ActionSheet.ContentBlock>
-        <InviteFriendsToTlonButton group={group} />
+        <InviteFriendsToTlonButton group={group} onShare={onShareInvite} />
       </ActionSheet.ContentBlock>
       <ActionSheet.ContentBlock flex={1}>
         <ContactBook

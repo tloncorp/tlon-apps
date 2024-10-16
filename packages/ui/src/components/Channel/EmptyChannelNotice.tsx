@@ -9,9 +9,11 @@ import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 export function EmptyChannelNotice({
   channel,
   userId,
+  onShareInvite,
 }: {
   channel: db.Channel;
   userId: string;
+  onShareInvite?: () => void;
 }) {
   const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
   const group = useGroup(channel.groupId ?? '');
@@ -38,7 +40,7 @@ export function EmptyChannelNotice({
         </SizableText>
       </YStack>
       {isGroupAdmin && isWelcomeChannel && (
-        <InviteFriendsToTlonButton group={group} />
+        <InviteFriendsToTlonButton group={group} onShare={onShareInvite} />
       )}
     </YStack>
   );

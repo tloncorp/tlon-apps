@@ -10,11 +10,13 @@ const InviteUsersSheetComponent = ({
   onOpenChange,
   group,
   onInviteComplete,
+  onShareInvite,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   group?: db.Group;
   onInviteComplete: () => void;
+  onShareInvite?: () => void;
 }) => {
   const { bottom } = useSafeAreaInsets();
   const hasOpened = useRef(open);
@@ -33,7 +35,11 @@ const InviteUsersSheetComponent = ({
       snapPointsMode="percent"
     >
       <ActionSheet.Content flex={1} paddingBottom={bottom}>
-        <InviteUsersWidget group={group} onInviteComplete={onInviteComplete} />
+        <InviteUsersWidget
+          group={group}
+          onShareInvite={onShareInvite}
+          onInviteComplete={onInviteComplete}
+        />
       </ActionSheet.Content>
     </ActionSheet>
   );

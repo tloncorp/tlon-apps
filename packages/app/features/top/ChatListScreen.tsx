@@ -25,7 +25,7 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
-import { identifyTlonEmployee } from '../../utils/posthog';
+import { identifyTlonEmployee, trackInviteShared } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 
 const logger = createDevLogger('ChatListScreen', false);
@@ -332,6 +332,9 @@ export default function ChatListScreen(props: Props) {
             onOpenChange={handleInviteSheetOpenChange}
             onInviteComplete={() => setInviteSheetGroup(null)}
             group={inviteSheetGroup ?? undefined}
+            onShareInvite={() =>
+              trackInviteShared(inviteSheetGroup?.id, currentUser)
+            }
           />
         </View>
         <NavBarView

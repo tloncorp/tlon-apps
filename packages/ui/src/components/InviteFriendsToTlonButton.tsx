@@ -11,7 +11,13 @@ import { Button } from './Button';
 import { Icon } from './Icon';
 import { LoadingSpinner } from './LoadingSpinner';
 
-export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
+export function InviteFriendsToTlonButton({
+  group,
+  onShare,
+}: {
+  group?: db.Group;
+  onShare?: () => void;
+}) {
   const userId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
   const branchDomain = useBranchDomain();
@@ -38,14 +44,21 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
         return;
       }
 
-      await Share.share({
-        message: `Join ${group.title} on Tlon: ${shareUrl}`,
-        title: `Join ${group.title} on Tlon`,
-      });
+      try {
+        const result = await Share.share({
+          message: `Join ${group.title} on Tlon: ${shareUrl}`,
+          title: `Join ${group.title} on Tlon`,
+        });
 
+        if (result.action === Share.sharedAction) {
+          onShare?.();
+        }
+      } catch (error) {
+        console.error('Error sharing:', error);
+      }
       return;
     }
-  }, [group, shareUrl, doCopy, status]);
+  }, [shareUrl, status, group, doCopy, onShare]);
 
   useEffect(() => {
     const meta = {
