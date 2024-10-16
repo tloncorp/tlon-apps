@@ -3,7 +3,6 @@ import { ChannelStatus, PokeInterface, Urbit } from '@urbit/http-api';
 import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '../debug';
-// import { getInitializedClient, updateInitializedClient } from '../store';
 import { getLandscapeAuthCookie } from './landscapeApi';
 
 const logger = createDevLogger('urbit', false);
