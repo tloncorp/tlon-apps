@@ -3,7 +3,8 @@ import type * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
@@ -14,6 +15,7 @@ import { BigInput } from './BigInput';
 import { ChannelFooter } from './Channel/ChannelFooter';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import { DetailView } from './DetailView';
+import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { MessageInput } from './MessageInput';
 import { TlonEditorBridge } from './MessageInput/toolbarActions.native';
@@ -39,6 +41,9 @@ export function PostScreenView({
   editPost,
   onPressRetry,
   onPressDelete,
+  onPressRef,
+  onGroupAction,
+  goToDm,
   negotiationMatch,
   headerMode,
   canUpload,
@@ -69,6 +74,9 @@ export function PostScreenView({
   ) => Promise<void>;
   onPressRetry: (post: db.Post) => void;
   onPressDelete: (post: db.Post) => void;
+  onPressRef: (channel: db.Channel, post: db.Post) => void;
+  onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
+  goToDm: (participants: string[]) => void;
   negotiationMatch: boolean;
   headerMode: 'default' | 'next';
   canUpload: boolean;
@@ -86,6 +94,8 @@ export function PostScreenView({
     editor: TlonEditorBridge | null;
   }>(null);
   const [editorIsFocused, setEditorIsFocused] = useState(false);
+  const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   // We track the editor focus state to determine when we need to scroll to the
   // bottom of the screen when the keyboard is opened/editor is focused.
@@ -112,9 +122,49 @@ export function PostScreenView({
     return editingPost && editingPost.id === parentPost?.id;
   }, [editingPost, parentPost]);
 
+  const onPressGroupRef = useCallback((group: db.Group) => {
+    setGroupPreview(group);
+  }, []);
+
+  const handleGroupAction = useCallback(
+    (action: GroupPreviewAction, group: db.Group) => {
+      onGroupAction(action, group);
+      setGroupPreview(null);
+    },
+    [onGroupAction]
+  );
+
+  const handleRefPress = useCallback(
+    (refChannel: db.Channel, post: db.Post) => {
+      const anchorIndex = posts?.findIndex((p) => p.id === post.id) ?? -1;
+
+      if (
+        refChannel.id === channel.id &&
+        anchorIndex !== -1 &&
+        flatListRef.current
+      ) {
+        // If the post is already loaded, scroll to it
+        flatListRef.current?.scrollToIndex({
+          index: anchorIndex,
+          animated: false,
+          viewPosition: 0.5,
+        });
+        return;
+      }
+
+      onPressRef(refChannel, post);
+    },
+    [onPressRef, posts, channel]
+  );
+
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
-      <NavigationProvider onGoToUserProfile={handleGoToUserProfile}>
+      <NavigationProvider
+        onGoToUserProfile={handleGoToUserProfile}
+        onPressRef={handleRefPress}
+        onPressGroupRef={onPressGroupRef}
+        onPressGoToDm={goToDm}
+      >
         <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
           <YStack flex={1} backgroundColor={'$background'}>
             <ChannelHeader
@@ -143,6 +193,7 @@ export function PostScreenView({
                   setActiveMessage={setActiveMessage}
                   headerMode={headerMode}
                   editorIsFocused={editorIsFocused}
+                  flatListRef={flatListRef}
                 />
               ) : null}
 
@@ -212,6 +263,12 @@ export function PostScreenView({
                 />
               )}
             </KeyboardAvoidingView>
+            <GroupPreviewSheet
+              group={groupPreview ?? undefined}
+              open={!!groupPreview}
+              onOpenChange={() => setGroupPreview(null)}
+              onActionComplete={handleGroupAction}
+            />
           </YStack>
         </View>
       </NavigationProvider>
