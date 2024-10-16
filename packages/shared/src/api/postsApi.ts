@@ -3,6 +3,7 @@ import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { IMAGE_URL_REGEX } from '../logic';
 import * as ub from '../urbit';
 import {
   ClubAction,
@@ -824,15 +825,11 @@ export function toPostData(
   channelId: string,
   post: ub.Post | ub.Writ | ub.PostDataResponse
 ): db.Post {
-  const getPostType = (
-    channelId: string,
-    post: ub.Post | ub.PostDataResponse
-  ) => {
+  const channelType = channelId.split('/')[0];
+  const getPostType = (post: ub.Post | ub.PostDataResponse) => {
     if (isNotice(post)) {
       return 'notice';
     }
-
-    const channelType = channelId.split('/')[0];
 
     if (channelType === 'chat') {
       return 'chat';
@@ -844,7 +841,7 @@ export function toPostData(
       return 'chat';
     }
   };
-  const type = getPostType(channelId, post);
+  const type = getPostType(post);
   const kindData = post?.essay['kind-data'];
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
@@ -858,6 +855,35 @@ export function toPostData(
     ? getReplyData(id, channelId, post)
     : null;
 
+  // This is used for backwards compatibility with older gallery posts from
+  // the old web frontend, where a user could just link an image that would be
+  // rendered as a an image post in a gallery. This is not a feature that is
+  // supported by the current frontend, but we still need to be able to render
+  // these posts correctly.
+  const galleryImageLink =
+    channelType === 'heap' &&
+    content &&
+    content.length === 1 &&
+    'inline' in content[0] &&
+    content[0].inline.length === 1 &&
+    typeof content[0].inline[0] === 'object' &&
+    'link' in content[0].inline[0] &&
+    content[0].inline[0].link.href.match(IMAGE_URL_REGEX)
+      ? content[0].inline[0].link.href
+      : null;
+
+  const galleryImageLinkContent: ub.Verse[] = [
+    {
+      block: {
+        // @ts-expect-error - we don't know image size
+        image: {
+          src: galleryImageLink ?? '',
+          alt: 'heap image',
+        },
+      },
+    },
+  ];
+
   return {
     id,
     channelId,
@@ -868,7 +894,9 @@ export function toPostData(
     image: metadata?.image ?? '',
     authorId: post.essay.author,
     isEdited: 'revision' in post && post.revision !== '0',
-    content: JSON.stringify(content),
+    content: galleryImageLink
+      ? JSON.stringify(galleryImageLinkContent)
+      : JSON.stringify(content),
     textContent: getTextContent(post?.essay.content),
     sentAt: post.essay.sent,
     receivedAt: getReceivedAtFromId(id),
