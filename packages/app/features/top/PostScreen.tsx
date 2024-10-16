@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
+import { useGroupActions } from '../../hooks/useGroupActions';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
@@ -30,7 +31,7 @@ export default function PostScreen(props: Props) {
     uploaderKey: `${postParam.channelId}/${postParam.id}`,
   });
 
-  const { navigateToImage } = useChannelNavigation({
+  const { navigateToImage, navigateToRef } = useChannelNavigation({
     channelId: postParam.channelId,
   });
 
@@ -119,6 +120,18 @@ export default function PostScreen(props: Props) {
     [props.navigation]
   );
 
+  const { performGroupAction } = useGroupActions();
+
+  const handleGoToDm = useCallback(
+    async (participants: string[]) => {
+      const dmChannel = await store.upsertDmChannel({
+        participants,
+      });
+      props.navigation.push('Channel', { channel: dmChannel });
+    },
+    [props.navigation]
+  );
+
   return currentUserId && channel && post ? (
     <PostScreenView
       handleGoToUserProfile={handleGoToUserProfile}
@@ -140,6 +153,9 @@ export default function PostScreen(props: Props) {
       editingPost={editingPost}
       onPressDelete={handleDeletePost}
       onPressRetry={handleRetrySend}
+      onPressRef={navigateToRef}
+      onGroupAction={performGroupAction}
+      goToDm={handleGoToDm}
       setEditingPost={setEditingPost}
       editPost={editPost}
       negotiationMatch={negotiationStatus.matchedOrPending}
