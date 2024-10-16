@@ -56,6 +56,9 @@ export const DetailViewFixture = ({
             canUpload={true}
             handleGoToUserProfile={() => {}}
             headerMode="default"
+            onPressRef={() => {}}
+            onGroupAction={() => {}}
+            goToDm={() => {}}
           />
         </RequestsProvider>
       </AppDataContextProvider>
