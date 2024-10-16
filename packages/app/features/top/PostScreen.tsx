@@ -3,6 +3,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { PostScreenView, useCurrentUserId } from '@tloncorp/ui';
+import { useGroupActions } from 'packages/app/hooks/useGroupActions';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useChannelContext } from '../../hooks/useChannelContext';
@@ -30,9 +31,10 @@ export default function PostScreen(props: Props) {
     uploaderKey: `${postParam.channelId}/${postParam.id}`,
   });
 
-  const { navigateToImage } = useChannelNavigation({
-    channelId: postParam.channelId,
-  });
+  const { navigateToImage, navigateToRef } =
+    useChannelNavigation({
+      channelId: postParam.channelId,
+    });
 
   const currentUserId = useCurrentUserId();
 
@@ -119,6 +121,18 @@ export default function PostScreen(props: Props) {
     [props.navigation]
   );
 
+  const { performGroupAction } = useGroupActions();
+
+  const handleGoToDm = useCallback(
+    async (participants: string[]) => {
+      const dmChannel = await store.upsertDmChannel({
+        participants,
+      });
+      props.navigation.push('Channel', { channel: dmChannel });
+    },
+    [props.navigation]
+  );
+
   return currentUserId && channel && post ? (
     <PostScreenView
       handleGoToUserProfile={handleGoToUserProfile}
@@ -140,6 +154,9 @@ export default function PostScreen(props: Props) {
       editingPost={editingPost}
       onPressDelete={handleDeletePost}
       onPressRetry={handleRetrySend}
+      onPressRef={navigateToRef}
+      onGroupAction={performGroupAction}
+      goToDm={handleGoToDm}
       setEditingPost={setEditingPost}
       editPost={editPost}
       negotiationMatch={negotiationStatus.matchedOrPending}
