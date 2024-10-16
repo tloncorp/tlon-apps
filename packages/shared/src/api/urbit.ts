@@ -3,7 +3,6 @@ import { ChannelStatus, PokeInterface, Urbit } from '@urbit/http-api';
 import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '../debug';
-import { getInitializedClient, updateInitializedClient } from '../store';
 import { getLandscapeAuthCookie } from './landscapeApi';
 
 const logger = createDevLogger('urbit', false);
@@ -102,7 +101,7 @@ export const getCurrentUserIsHosted = () => {
   return client.url.endsWith('tlon.network');
 };
 
-export function configureClient({
+export function internalConfigureClient({
   shipName,
   shipUrl,
   verbose,
@@ -114,12 +113,6 @@ export function configureClient({
   onChannelReset,
   onChannelStatusChange,
 }: ClientParams) {
-  const clientInitialized = getInitializedClient();
-  if (clientInitialized) {
-    logger.log('client already initialized, skipping');
-    return;
-  }
-
   logger.log('configuring client', shipName, shipUrl);
   config.client = config.client || new Urbit(shipUrl, '', '', fetchFn);
   config.client.ship = deSig(shipName);
@@ -166,16 +159,13 @@ export function configureClient({
   config.client.on('channel-reaped', () => {
     logger.log('client channel-reaped');
   });
-
-  updateInitializedClient(true);
 }
 
-export function removeUrbitClient() {
+export function internalRemoveClient() {
   config.client?.delete();
   config.cancelFetch?.();
   config.client = null;
   config.subWatchers = {};
-  updateInitializedClient(false);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {
