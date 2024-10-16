@@ -47,6 +47,7 @@ type ChatOptionsProviderProps = {
   onPressChannelMeta: (channelId: string) => void;
   onPressRoles: (groupId: string) => void;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
+  navigateOnLeave?: () => void;
 };
 
 export const ChatOptionsProvider = ({
@@ -62,6 +63,7 @@ export const ChatOptionsProvider = ({
   onPressChannelMembers,
   onPressChannelMeta,
   onPressRoles,
+  navigateOnLeave,
 }: ChatOptionsProviderProps) => {
   const groupQuery = useGroup({ id: groupId ?? '' });
   const group = groupId ? groupQuery.data ?? null : null;
@@ -80,7 +82,8 @@ export const ChatOptionsProvider = ({
     if (group) {
       await store.leaveGroup(group.id);
     }
-  }, [group]);
+    navigateOnLeave?.();
+  }, [group, navigateOnLeave]);
 
   const onSelectSort = useCallback((sortBy: 'recency' | 'arranged') => {
     db.storeChannelSortPreference(sortBy);

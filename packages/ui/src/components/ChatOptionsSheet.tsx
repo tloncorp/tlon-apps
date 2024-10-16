@@ -511,6 +511,7 @@ export function ChannelOptions({
     onPressChannelMeta,
     onPressManageChannels,
     onPressInvite,
+    onPressLeave,
   } = useChatOptions() ?? {};
 
   const currentUserIsHost = useMemo(
@@ -752,6 +753,7 @@ export function ChannelOptions({
                           style: 'destructive',
                           onPress: () => {
                             sheetRef.current.setOpen(false);
+                            onPressLeave?.();
                             store.respondToDMInvite({ channel, accept: false });
                           },
                         },
@@ -774,6 +776,7 @@ export function ChannelOptions({
     onPressChannelMembers,
     onPressManageChannels,
     onPressInvite,
+    onPressLeave,
     title,
   ]);
   return (
