@@ -48,6 +48,10 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
     navigation.goBack();
   }, [navigation]);
 
+  const handleShareInvite = useCallback((lure: string) => {
+    trackInviteShared(lure);
+  }, []);
+
   return (
     <ChatOptionsProvider
       groupId={groupParam.id}
@@ -74,7 +78,7 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
         }}
         group={inviteSheetGroup ?? undefined}
         onInviteComplete={() => setInviteSheetGroup(null)}
-        onShareInvite={() => trackInviteShared(group?.id, currentUser)}
+        onShareInvite={handleShareInvite}
       />
     </ChatOptionsProvider>
   );

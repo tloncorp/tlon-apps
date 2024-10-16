@@ -14,7 +14,7 @@ const InviteUsersWidgetComponent = ({
 }: {
   group: db.Group;
   onInviteComplete: () => void;
-  onShareInvite?: () => void;
+  onShareInvite?: (lure: string) => void;
 }) => {
   const [invitees, setInvitees] = useState<string[]>([]);
 

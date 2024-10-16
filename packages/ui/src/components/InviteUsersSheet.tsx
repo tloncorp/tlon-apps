@@ -16,7 +16,7 @@ const InviteUsersSheetComponent = ({
   onOpenChange: (open: boolean) => void;
   group?: db.Group;
   onInviteComplete: () => void;
-  onShareInvite?: () => void;
+  onShareInvite?: (lure: string) => void;
 }) => {
   const { bottom } = useSafeAreaInsets();
   const hasOpened = useRef(open);

@@ -298,6 +298,10 @@ export default function ChannelScreen(props: Props) {
     }
   }, []);
 
+  const handleShareInvite = useCallback((lure: string) => {
+    trackInviteShared(lure);
+  }, []);
+
   if (!channel) {
     return null;
   }
@@ -350,7 +354,7 @@ export default function ChannelScreen(props: Props) {
         editPost={editPost}
         negotiationMatch={negotiationStatus.matchedOrPending}
         canUpload={canUpload}
-        onShareInvite={() => trackInviteShared(group?.id, currentUserId)}
+        onShareInvite={handleShareInvite}
       />
       {group && (
         <>
@@ -366,7 +370,7 @@ export default function ChannelScreen(props: Props) {
             onOpenChange={handleInviteSheetOpenChange}
             onInviteComplete={() => setInviteSheetGroup(null)}
             group={inviteSheetGroup ?? undefined}
-            onShareInvite={() => trackInviteShared(group.id, currentUserId)}
+            onShareInvite={handleShareInvite}
           />
         </>
       )}

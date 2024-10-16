@@ -70,6 +70,6 @@ export const identifyTlonEmployee = () => {
   db.setIsTlonEmployee(true);
 };
 
-export const trackInviteShared = (group: string | undefined, user: string) => {
-  capture('invite_shared', { group, user });
+export const trackInviteShared = (lure: string) => {
+  capture('Invite Link Shared', { lure });
 };

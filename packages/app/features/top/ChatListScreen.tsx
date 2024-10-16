@@ -266,6 +266,10 @@ export default function ChatListScreen(props: Props) {
     setShowSearchInput(!showSearchInput);
   }, [showSearchInput]);
 
+  const handleShareInvite = useCallback((lure: string) => {
+    trackInviteShared(lure);
+  }, []);
+
   return (
     <RequestsProvider
       usePostReference={store.usePostReference}
@@ -332,9 +336,7 @@ export default function ChatListScreen(props: Props) {
             onOpenChange={handleInviteSheetOpenChange}
             onInviteComplete={() => setInviteSheetGroup(null)}
             group={inviteSheetGroup ?? undefined}
-            onShareInvite={() =>
-              trackInviteShared(inviteSheetGroup?.id, currentUser)
-            }
+            onShareInvite={handleShareInvite}
           />
         </View>
         <NavBarView

@@ -16,7 +16,7 @@ export function InviteFriendsToTlonButton({
   onShare,
 }: {
   group?: db.Group;
-  onShare?: () => void;
+  onShare?: (lure: string) => void;
 }) {
   const userId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
@@ -51,7 +51,7 @@ export function InviteFriendsToTlonButton({
         });
 
         if (result.action === Share.sharedAction) {
-          onShare?.();
+          onShare?.(shareUrl.split('/').pop() ?? '');
         }
       } catch (error) {
         console.error('Error sharing:', error);

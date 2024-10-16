@@ -13,7 +13,7 @@ export function EmptyChannelNotice({
 }: {
   channel: db.Channel;
   userId: string;
-  onShareInvite?: () => void;
+  onShareInvite?: (lure: string) => void;
 }) {
   const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
   const group = useGroup(channel.groupId ?? '');
