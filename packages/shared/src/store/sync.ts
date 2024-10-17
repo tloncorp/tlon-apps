@@ -201,7 +201,19 @@ export const syncContacts = async (ctx?: SyncCtx) => {
   const contacts = await syncQueue.add('contacts', ctx, () =>
     api.getContacts()
   );
-  await db.insertContacts(contacts);
+  logger.log('got contacts from api', contacts);
+  try {
+    await db.insertContacts(contacts);
+  } catch (e) {
+    logger.error('error inserting contacts', e);
+  }
+
+  try {
+    const newContacts = await db.getContacts();
+    logger.log('got contacts from db', newContacts);
+  } catch (e) {
+    logger.error('error getting contacts from db', e);
+  }
 };
 
 export const syncPinnedItems = async (ctx?: SyncCtx) => {

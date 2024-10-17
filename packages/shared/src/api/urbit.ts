@@ -81,14 +81,14 @@ export const client = new Proxy(
 ) as Urbit;
 
 export const getCurrentUserId = () => {
-  if (!client.our) {
+  if (!client.nodeId) {
     throw new Error('Client not initialized');
   }
-  return client.our;
+  return client.nodeId;
 };
 
 export const getCurrentUserIsHosted = () => {
-  if (!client.our) {
+  if (!client.nodeId) {
     throw new Error('Client not initialized');
   }
 
@@ -108,7 +108,7 @@ export function internalConfigureClient({
   logger.log('configuring client', shipName, shipUrl);
   config.client = config.client || new Urbit(shipUrl, '', '', fetchFn);
   config.client.verbose = verbose;
-  config.client.ship = desig(shipName);
+  config.client.nodeId = shipName;
   config.shipUrl = shipUrl;
   config.onQuitOrReset = onQuitOrReset;
   config.getCode = getCode;

@@ -1,5 +1,6 @@
 import { isBrowser } from 'browser-or-node';
 
+import { desig } from '../urbit';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
 import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
 import {
@@ -83,7 +84,7 @@ export class Urbit {
   /**
    * Identity of the ship we're connected to
    */
-  ship?: string | null;
+  nodeId?: string | null;
 
   /**
    * Our identity, with which we are authenticated into the ship
@@ -169,7 +170,7 @@ export class Urbit {
       code
     );
     airlock.verbose = verbose;
-    airlock.ship = ship;
+    airlock.nodeId = ship;
     await airlock.connect();
     await airlock.poke({
       app: 'hood',
@@ -209,7 +210,7 @@ export class Urbit {
    *
    */
   async getShipName(): Promise<void> {
-    if (this.ship) {
+    if (this.nodeId) {
       return Promise.resolve();
     }
 
@@ -218,7 +219,7 @@ export class Urbit {
       credentials: 'include',
     });
     const name = await nameResp.text();
-    this.ship = name.substring(1);
+    this.nodeId = name;
   }
 
   /**
@@ -235,7 +236,7 @@ export class Urbit {
       credentials: 'include',
     });
     const name = await nameResp.text();
-    this.our = name.substring(1);
+    this.our = name;
   }
 
   /**
@@ -266,8 +267,8 @@ export class Urbit {
         throw new Error('Login failed with status ' + response.status);
       }
       const cookie = response.headers.get('set-cookie');
-      if (!this.ship && cookie) {
-        this.ship = new RegExp(/urbauth-~([\w-]+)/).exec(cookie)?.[1];
+      if (!this.nodeId && cookie) {
+        this.nodeId = new RegExp(/urbauth-~([\w-]+)/).exec(cookie)?.[1];
       }
       if (!isBrowser) {
         this.cookie = cookie || undefined;
@@ -527,10 +528,10 @@ export class Urbit {
       }
       await Promise.all([this.getOurName(), this.getShipName()]);
 
-      if (this.our !== this.ship) {
+      if (this.our !== this.nodeId) {
         console.log('our name does not match ship name');
         console.log('our:', this.our);
-        console.log('ship:', this.ship);
+        console.log('ship:', this.nodeId);
         console.log('messages:', json);
         throw new AuthError('invalid session');
       }
@@ -596,7 +597,7 @@ export class Urbit {
     const { app, mark, json, ship, onSuccess, onError } = {
       onSuccess: () => {},
       onError: () => {},
-      ship: this.ship,
+      ship: desig(this.nodeId ?? ''),
       ...params,
     };
 
@@ -637,7 +638,7 @@ export class Urbit {
       err: () => {},
       event: () => {},
       quit: () => {},
-      ship: this.ship,
+      ship: desig(this.nodeId ?? ''),
       resubOnQuit: true,
       ...params,
     };
