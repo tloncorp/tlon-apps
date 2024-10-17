@@ -14,12 +14,7 @@ import { LoadingSpinner } from './LoadingSpinner';
 
 const logger = createDevLogger('InviteButton', true);
 
-export function InviteFriendsToTlonButton({
-  group,
-}: {
-  group?: db.Group;
-  onShare?: (lure: string) => void;
-}) {
+export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
   const userId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
   const branchDomain = useBranchDomain();
