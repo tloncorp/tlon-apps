@@ -1042,12 +1042,7 @@ export const handleDiscontinuity = async () => {
 };
 
 export const handleChannelStatusChange = async (status: ChannelStatus) => {
-  if (status === 'reconnecting') {
-    updateSession({ isReconnecting: true });
-  } else if (status === 'reconnected')
-    updateSession({
-      isReconnecting: false,
-    });
+  updateSession({ channelStatus: status });
 };
 
 export const syncStart = async (alreadySubscribed?: boolean) => {

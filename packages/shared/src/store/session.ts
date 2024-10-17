@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react';
 
-export type Session = { startTime?: number; isReconnecting?: boolean };
+import { ChannelStatus } from '../http-api';
+
+export type Session = { startTime?: number; channelStatus?: ChannelStatus };
 
 // Session — time when subscriptions were first initialized after which we can assume
 // all new events will be heard
@@ -106,7 +108,7 @@ export function useConnectionStatus() {
     return 'Connecting';
   }
 
-  if (currentSession.isReconnecting) {
+  if (currentSession.channelStatus === 'reconnecting') {
     return 'Reconnecting';
   }
 
@@ -114,5 +116,9 @@ export function useConnectionStatus() {
     return 'Syncing';
   }
 
-  return 'Connected';
+  if (['active', 'reconnected'].includes(currentSession.channelStatus ?? '')) {
+    return 'Connected';
+  }
+
+  return 'Connecting';
 }
