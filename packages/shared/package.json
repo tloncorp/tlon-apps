@@ -28,13 +28,10 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.21.0",
     "@urbit/aura": "^1.0.0",
-    "@urbit/http-api": "3.2.0-dev",
     "any-ascii": "^0.3.1",
     "big-integer": "^1.6.52",
     "browser-or-node": "^3.0.0",
     "exponential-backoff": "^3.1.1",
-    "react-native-fetch-api": "^3.0.0",
-    "react-native-polyfill-globals": "^3.1.0",
     "sorted-btree": "^1.8.1"
   },
   "devDependencies": {

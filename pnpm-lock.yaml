@@ -1542,6 +1542,12 @@ importers:
       react-native-device-info:
         specifier: ^10.8.0
         version: 10.12.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))
+      react-native-fetch-api:
+        specifier: ^3.0.0
+        version: 3.0.0
+      react-native-polyfill-globals:
+        specifier: ^3.1.0
+        version: 3.1.0(base-64@1.0.0)(react-native-fetch-api@3.0.0)(react-native-get-random-values@1.11.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0)))(react-native-url-polyfill@2.0.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0)))(text-encoding@0.7.0)(web-streams-polyfill@3.3.3)
       sqlocal:
         specifier: ^0.11.1
         version: 0.11.1(drizzle-orm@0.30.9(patch_hash=cegrec33e6f7d6ltk7vff5r7w4)(@op-engineering/op-sqlite@5.0.5(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(@opentelemetry/api@1.8.0)(@types/better-sqlite3@7.6.9)(@types/react@18.2.55)(better-sqlite3@9.4.5)(react@18.2.0))
