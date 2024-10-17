@@ -237,10 +237,43 @@ export default function ChannelScreen(props: Props) {
       if (!channel) {
         throw new Error('Tried to retry send before channel loaded');
       }
-      await store.retrySendPost({
-        channel,
-        post,
-      });
+
+      if (post.deliveryStatus === 'failed') {
+        await store.retrySendPost({
+          channel,
+          post,
+        });
+      }
+
+      if (post.editStatus === 'failed' && post.lastEditContent) {
+        const postFromDb = await db.getPost({ postId: post.id });
+        let metadata: db.PostMetadata | undefined;
+        if (post.lastEditTitle) {
+          metadata = {
+            title: post.lastEditTitle ?? undefined,
+          };
+        }
+
+        if (post.lastEditImage) {
+          metadata = {
+            ...metadata,
+            image: post.lastEditImage ?? undefined,
+          };
+        }
+
+        await store.editPost({
+          post,
+          content: JSON.parse(postFromDb?.lastEditContent as string) as Story,
+          parentId: post.parentId ?? undefined,
+          metadata,
+        });
+      }
+
+      if (post.deleteStatus === 'failed') {
+        await store.deletePost({
+          post,
+        });
+      }
     },
     [channel]
   );

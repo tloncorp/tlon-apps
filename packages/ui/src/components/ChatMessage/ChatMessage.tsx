@@ -6,7 +6,10 @@ import { View, XStack, YStack } from 'tamagui';
 import AuthorRow from '../AuthorRow';
 import { Icon } from '../Icon';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
-import { usePostContent } from '../PostContent/contentUtils';
+import {
+  usePostContent,
+  usePostLastEditContent,
+} from '../PostContent/contentUtils';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { Text } from '../TextV2';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -47,21 +50,26 @@ const ChatMessage = ({
     showAuthor = false;
   }
 
+  const deliveryFailed =
+    post.deliveryStatus === 'failed' ||
+    post.editStatus === 'failed' ||
+    post.deleteStatus === 'failed';
+
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
   }, [onPressReplies, post]);
 
   const shouldHandlePress = useMemo(() => {
-    return Boolean(onPress || post.deliveryStatus === 'failed');
-  }, [onPress, post.deliveryStatus]);
+    return Boolean(onPress || deliveryFailed);
+  }, [onPress, deliveryFailed]);
 
   const handlePress = useCallback(() => {
-    if (onPress && post.deliveryStatus !== 'failed') {
+    if (onPress && !deliveryFailed) {
       onPress(post);
-    } else if (post.deliveryStatus === 'failed') {
+    } else if (deliveryFailed) {
       setShowRetrySheet(true);
     }
-  }, [post, onPress]);
+  }, [post, onPress, deliveryFailed]);
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -85,6 +93,7 @@ const ChatMessage = ({
   }, [onPressDelete, post]);
 
   const content = usePostContent(post);
+  const lastEditContent = usePostLastEditContent(post);
 
   if (!post) {
     return null;
@@ -130,12 +139,14 @@ const ChatMessage = ({
           type={post.type}
           disabled={hideProfilePreview}
           deliveryStatus={post.deliveryStatus}
+          editStatus={post.editStatus}
+          deleteStatus={post.deleteStatus}
           showEditedIndicator={!!post.isEdited}
         />
       ) : null}
       <View paddingLeft={!isNotice && '$4xl'}>
         <ChatContentRenderer
-          content={content}
+          content={post.editStatus === 'failed' ? lastEditContent : content}
           isNotice={post.type === 'notice'}
           onPressImage={handleImagePressed}
           onLongPress={handleLongPress}
@@ -160,6 +171,7 @@ const ChatMessage = ({
       ) : null}
       <SendPostRetrySheet
         open={showRetrySheet}
+        post={post}
         onOpenChange={setShowRetrySheet}
         onPressRetry={handleRetryPressed}
         onPressDelete={handleDeletePressed}

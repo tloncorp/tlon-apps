@@ -243,6 +243,18 @@ export function Channel({
     ]
   );
 
+  const handleGoBack = useCallback(() => {
+    if (
+      draftInputPresentationMode === 'fullscreen' &&
+      draftInputRef.current != null
+    ) {
+      draftInputRef.current.exitFullscreen();
+      setEditingPost?.(undefined);
+    } else {
+      goBack();
+    }
+  }, [goBack, draftInputPresentationMode, draftInputRef, setEditingPost]);
+
   return (
     <ScrollContextProvider>
       <GroupsProvider groups={groups}>
@@ -279,12 +291,7 @@ export function Channel({
                           group={group}
                           mode={headerMode}
                           title={title}
-                          goBack={() =>
-                            draftInputPresentationMode === 'fullscreen' &&
-                            draftInputRef.current != null
-                              ? draftInputRef.current.exitFullscreen()
-                              : goBack()
-                          }
+                          goBack={handleGoBack}
                           showSearchButton={isChatChannel}
                           goToSearch={goToSearch}
                           showSpinner={isLoadingPosts}
@@ -377,7 +384,7 @@ export function Channel({
                         {headerMode === 'next' ? (
                           <ChannelFooter
                             title={title}
-                            goBack={goBack}
+                            goBack={handleGoBack}
                             goToChannels={goToChannels}
                             goToSearch={goToSearch}
                             showPickerButton={!!group}

@@ -146,6 +146,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const branchDomain = useBranchDomain();
     const branchKey = useBranchKey();
     const [isSending, setIsSending] = useState(false);
+    const [sendError, setSendError] = useState(false);
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
     const [hasAutoFocused, setHasAutoFocused] = useState(false);
     const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
@@ -225,6 +226,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     useEffect(() => {
       if (!hasSetInitialContent && editorState.isReady) {
+        messageInputLogger.log('Setting initial content');
         try {
           getDraft(draftType).then((draft) => {
             if (!editingPost && draft) {
@@ -246,8 +248,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(tiptapContent);
               setEditorIsEmpty(false);
+              messageInputLogger.log('set has set initial content');
+              setHasSetInitialContent(true);
             }
 
+            messageInputLogger.log('Editing post?', editingPost);
             if (editingPost && editingPost.content) {
               messageInputLogger.log('Editing post', editingPost);
               const {
@@ -299,6 +304,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(tiptapContent);
               setEditorIsEmpty(false);
+              messageInputLogger.log('set has set initial content');
+              setHasSetInitialContent(true);
             }
 
             if (editingPost?.image) {
@@ -314,8 +321,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           });
         } catch (e) {
           messageInputLogger.error('Error getting draft', e);
-        } finally {
-          setHasSetInitialContent(true);
         }
       }
     }, [
@@ -397,7 +402,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         'Content updated, update draft and check for mention text'
       );
 
-      const json = await editor.getJSON();
+      const json = (await editor.getJSON()) as JSONContent;
       const inlines = (
         tiptap
           .JSONToInlines(json)
@@ -425,6 +430,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       }
 
       messageInputLogger.log('Storing draft', json);
+
+      if (
+        json.content?.length === 1 &&
+        json.content[0].type === 'paragraph' &&
+        !json.content[0].content
+      ) {
+        clearDraft(draftType);
+      }
 
       storeDraft(json, draftType);
     };
@@ -715,8 +728,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           await sendMessage(isEdit);
         } catch (e) {
           console.error('failed to send', e);
+          setSendError(true);
         }
         setIsSending(false);
+        setSendError(false);
       },
       [sendMessage]
     );
@@ -889,6 +904,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const handleCancelEditing = useCallback(() => {
       setEditingPost?.(undefined);
+      setHasSetInitialContent(false);
       editor.setContent('');
       clearDraft(draftType);
       clearAttachments();
@@ -900,6 +916,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         onPressSend={handleSend}
         onPressEdit={handleEdit}
         containerHeight={containerHeight}
+        sendError={sendError}
         mentionText={mentionText}
         groupMembers={groupMembers}
         onSelectMention={onSelectMention}

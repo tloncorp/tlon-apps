@@ -157,6 +157,14 @@ export function PostScreenView({
     [onPressRef, posts, channel]
   );
 
+  const handleGoBack = useCallback(() => {
+    if (isEditingParent) {
+      console.log('setEditingPost', undefined);
+      setEditingPost?.(undefined);
+    }
+    goBack?.();
+  }, [goBack, isEditingParent, setEditingPost]);
+
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
       <NavigationProvider
@@ -171,7 +179,7 @@ export function PostScreenView({
               channel={channel}
               group={channel.group}
               title={headerTitle}
-              goBack={goBack}
+              goBack={handleGoBack}
               showSearchButton={false}
               showSpinner={isLoadingPosts}
               post={parentPost ?? undefined}
