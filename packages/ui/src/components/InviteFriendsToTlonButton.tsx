@@ -1,3 +1,4 @@
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect } from 'react';
@@ -10,6 +11,8 @@ import { useIsAdmin } from '../utils';
 import { Button } from './Button';
 import { Icon } from './Icon';
 import { LoadingSpinner } from './LoadingSpinner';
+
+const logger = createDevLogger('InviteButton', true);
 
 export function InviteFriendsToTlonButton({
   group,
@@ -51,14 +54,15 @@ export function InviteFriendsToTlonButton({
         });
 
         if (result.action === Share.sharedAction) {
-          onShare?.(shareUrl.split('/').pop() ?? '');
+          // onShare?.(shareUrl.split('/').pop() ?? '');
+          // logger.trackeve
         }
       } catch (error) {
         console.error('Error sharing:', error);
       }
       return;
     }
-  }, [shareUrl, status, group, doCopy, onShare]);
+  }, [shareUrl, status, group, doCopy]);
 
   useEffect(() => {
     const meta = {
