@@ -517,6 +517,7 @@ export class Urbit {
       method: 'PUT',
       body: JSON.stringify(json),
     });
+
     if (!response.ok) {
       throw new Error('Failed to PUT channel');
     }
