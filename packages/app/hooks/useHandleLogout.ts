@@ -1,5 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as api from '@tloncorp/shared/dist/api';
+import * as store from '@tloncorp/shared/dist/store';
 import { useCallback } from 'react';
 
 import { useBranch } from '../contexts/branch';
@@ -18,7 +19,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
 
   const handleLogout = useCallback(async () => {
     api.queryClient.clear();
-    api.removeUrbitClient();
+    store.removeClient();
     clearShip();
     clearShipInfo();
     removeHostingToken();

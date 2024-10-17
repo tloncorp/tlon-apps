@@ -20,6 +20,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       projectId,
     },
     postHogApiKey: process.env.POST_HOG_API_KEY,
+    postHogInDev: process.env.POST_HOG_IN_DEV,
     notifyProvider: process.env.NOTIFY_PROVIDER,
     notifyService: process.env.NOTIFY_SERVICE,
     apiUrl: process.env.API_URL,

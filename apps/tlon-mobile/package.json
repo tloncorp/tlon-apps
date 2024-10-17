@@ -62,7 +62,7 @@
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
     "@urbit/aura": "^1.0.0",
-    "@urbit/http-api": "^3.1.0-dev-3",
+    "@urbit/http-api": "3.2.0-dev",
     "classnames": "^2.3.2",
     "dotenv-expand": "^11.0.6",
     "expo": "^50.0.6",
