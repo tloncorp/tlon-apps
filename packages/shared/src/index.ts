@@ -13,9 +13,9 @@ export {
   PostCollectionConfiguration,
   PostCollectionLayout,
   PostCollectionLayoutType,
-  postCollectionConfigurationFromChannel,
-  postCollectionLayoutForType,
-  postCollectionLayoutTypeFromChannel,
+  configurationFromChannel,
+  layoutForType,
+  layoutTypeFromChannel,
 } from './types/PostCollectionConfiguration';
 export { parseActiveTab, trimFullPath } from './logic/navigation';
 export * from './logic';

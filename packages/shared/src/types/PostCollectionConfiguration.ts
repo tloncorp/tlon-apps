@@ -12,13 +12,13 @@ export type PostCollectionLayoutType =
 // Why overload this function instead of just doing a union?
 // If the caller has a non-nullable `channel`, they can then get a
 // non-nullable return value - nice, right?
-export function postCollectionLayoutTypeFromChannel(
+export function layoutTypeFromChannel(
   channel: db.Channel
 ): PostCollectionLayoutType;
-export function postCollectionLayoutTypeFromChannel(
+export function layoutTypeFromChannel(
   channel: db.Channel | null
 ): PostCollectionLayoutType | null;
-export function postCollectionLayoutTypeFromChannel(
+export function layoutTypeFromChannel(
   channel: db.Channel | null
 ): PostCollectionLayoutType | null {
   switch (channel?.type) {
@@ -74,7 +74,7 @@ export interface PostCollectionLayout {
   scrollDirection: 'bottom-to-top' | 'top-to-bottom';
 }
 
-export function postCollectionLayoutForType(
+export function layoutForType(
   layoutType: PostCollectionLayoutType
 ): PostCollectionLayout {
   switch (layoutType) {
@@ -127,13 +127,13 @@ export interface PostCollectionConfiguration {
   usesMemberListAsFallbackTitle: boolean;
 }
 
-export function postCollectionConfigurationFromChannel(
+export function configurationFromChannel(
   channel: db.Channel
 ): PostCollectionConfiguration;
-export function postCollectionConfigurationFromChannel(
+export function configurationFromChannel(
   channel: db.Channel | null
 ): PostCollectionConfiguration | null;
-export function postCollectionConfigurationFromChannel(
+export function configurationFromChannel(
   channel: db.Channel | null
 ): PostCollectionConfiguration | null {
   switch (channel?.type) {

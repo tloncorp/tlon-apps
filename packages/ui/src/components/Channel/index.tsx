@@ -1,7 +1,4 @@
-import {
-  postCollectionLayoutForType,
-  postCollectionLayoutTypeFromChannel,
-} from '@tloncorp/shared';
+import { layoutForType, layoutTypeFromChannel } from '@tloncorp/shared';
 import {
   isChatChannel as getIsChatChannel,
   useChannel as useChannelFromStore,
@@ -137,8 +134,7 @@ export function Channel({
   const canWrite = utils.useCanWrite(channel, currentUserId);
 
   const collectionLayout = useMemo(
-    () =>
-      postCollectionLayoutForType(postCollectionLayoutTypeFromChannel(channel)),
+    () => layoutForType(layoutTypeFromChannel(channel)),
     [channel]
   );
 
@@ -331,8 +327,8 @@ export function Channel({
                                     setEditingPost={setEditingPost}
                                     channel={channel}
                                     firstUnreadId={
-                                      (initialChannelUnread?.countWithoutThreads ??
-                                      0 > 0)
+                                      initialChannelUnread?.countWithoutThreads ??
+                                      0 > 0
                                         ? initialChannelUnread?.firstUnreadPostId
                                         : null
                                     }

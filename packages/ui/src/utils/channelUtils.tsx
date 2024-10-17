@@ -1,4 +1,4 @@
-import { postCollectionConfigurationFromChannel } from '@tloncorp/shared';
+import { configurationFromChannel } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
 import { useMemberRoles } from '@tloncorp/shared/dist/store';
 import { useMemo } from 'react';
@@ -37,9 +37,9 @@ function getChannelTitle({
     // (There should be no path to titling a 1:1 DM in-app.)
     return channelTitle
       ? channelTitle
-      : (members
+      : members
           ?.map((member) => getChannelMemberName(member, disableNicknames))
-          .join(', ') ?? 'No title');
+          .join(', ') ?? 'No title';
   } else {
     return channelTitle ?? 'Untitled channel';
   }
@@ -48,9 +48,7 @@ function getChannelTitle({
 export function useChannelTitle(channel: db.Channel | null) {
   const { disableNicknames } = useCalm();
   const usesMemberListAsFallbackTitle = useMemo(
-    () =>
-      postCollectionConfigurationFromChannel(channel)
-        ?.usesMemberListAsFallbackTitle,
+    () => configurationFromChannel(channel)?.usesMemberListAsFallbackTitle,
     [channel]
   );
 

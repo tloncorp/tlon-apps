@@ -1,7 +1,7 @@
 import {
-  postCollectionConfigurationFromChannel,
-  postCollectionLayoutForType,
-  postCollectionLayoutTypeFromChannel,
+  configurationFromChannel,
+  layoutForType,
+  layoutTypeFromChannel,
   useMutableCallback,
 } from '@tloncorp/shared';
 import { createDevLogger } from '@tloncorp/shared/dist';
@@ -141,15 +141,15 @@ const Scroller = forwardRef(
     ref
   ) => {
     const collectionLayoutType = useMemo(
-      () => postCollectionLayoutTypeFromChannel(channel),
+      () => layoutTypeFromChannel(channel),
       [channel]
     );
     const collectionLayout = useMemo(
-      () => postCollectionLayoutForType(collectionLayoutType),
+      () => layoutForType(collectionLayoutType),
       [collectionLayoutType]
     );
     const collectionConfig = useMemo(
-      () => postCollectionConfigurationFromChannel(channel),
+      () => configurationFromChannel(channel),
       [channel]
     );
 
