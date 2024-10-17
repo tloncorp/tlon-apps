@@ -227,10 +227,6 @@ export class Urbit {
    *
    */
   async getOurName(): Promise<void> {
-    if (this.our) {
-      return Promise.resolve();
-    }
-
     const nameResp = await this.fetchFn(`${this.url}/~/name`, {
       method: 'get',
       credentials: 'include',

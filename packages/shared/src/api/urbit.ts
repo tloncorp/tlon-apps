@@ -2,7 +2,7 @@ import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '../debug';
 import { AuthError, ChannelStatus, PokeInterface, Urbit } from '../http-api';
-import { desig } from '../urbit';
+import { desig, preSig } from '../urbit';
 import { getLandscapeAuthCookie } from './landscapeApi';
 
 const logger = createDevLogger('urbit', false);
@@ -108,7 +108,7 @@ export function internalConfigureClient({
   logger.log('configuring client', shipName, shipUrl);
   config.client = config.client || new Urbit(shipUrl, '', '', fetchFn);
   config.client.verbose = verbose;
-  config.client.nodeId = shipName;
+  config.client.nodeId = preSig(shipName);
   config.shipUrl = shipUrl;
   config.onQuitOrReset = onQuitOrReset;
   config.getCode = getCode;
