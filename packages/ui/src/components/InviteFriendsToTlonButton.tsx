@@ -54,8 +54,9 @@ export function InviteFriendsToTlonButton({
         });
 
         if (result.action === Share.sharedAction) {
-          // onShare?.(shareUrl.split('/').pop() ?? '');
-          // logger.trackeve
+          logger.trackEvent(AnalyticsEvent.InviteShared, {
+            inviteId: shareUrl.split('/').pop() ?? null,
+          });
         }
       } catch (error) {
         console.error('Error sharing:', error);

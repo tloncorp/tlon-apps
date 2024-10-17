@@ -98,7 +98,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
           if (args[0] && typeof args[0] === 'string') {
             const customProps =
               args[1] && typeof args[1] === 'object' ? args[1] : {};
-            remoteLoggerInstance?.capture('app_error', {
+            remoteLoggerInstance?.capture(args[0], {
               ...customProps,
               message: `[${tag}] ${args[0]}`,
             });
