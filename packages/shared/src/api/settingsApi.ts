@@ -1,6 +1,6 @@
 import * as db from '../db';
 import * as ub from '../urbit';
-import { client, scry } from './urbit';
+import { getCurrentUserId, scry } from './urbit';
 
 export const getSettings = async () => {
   const results = await scry<ub.GroupsDeskSettings>({
@@ -30,12 +30,8 @@ const toClientSidebarSort = (
 export const toClientSettings = (
   settings: ub.GroupsDeskSettings
 ): db.Settings => {
-  if (!client.ship) {
-    throw new Error('Client not configured');
-  }
-
   return {
-    userId: client.ship,
+    userId: getCurrentUserId(),
     theme: settings.desk.display?.theme,
     disableAppTileUnreads: settings.desk.calmEngine?.disableAppTileUnreads,
     disableAvatars: settings.desk.calmEngine?.disableAvatars,
