@@ -290,3 +290,21 @@ export async function upsertDmChannel({
   logger.log(`returning new pending dm`, newDm);
   return newDm;
 }
+
+export async function leaveGroupChannel(channelId: string) {
+  const channel = await db.getChannel({ id: channelId });
+  if (!channel) {
+    throw new Error('Channel not found');
+  }
+
+  // optimistic update
+  await db.updateChannel({ id: channelId, currentUserIsMember: false });
+
+  try {
+    await api.leaveChannel(channelId);
+  } catch (e) {
+    console.error('Failed to leave chat channel', e);
+    // rollback optimistic update
+    await db.updateChannel({ id: channelId, currentUserIsMember: true });
+  }
+}
