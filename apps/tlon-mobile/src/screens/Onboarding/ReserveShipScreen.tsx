@@ -31,11 +31,12 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
       <YStack alignItems="center" gap="$xl">
         <Spinner size="large" />
         <Text textAlign="center" color="$primaryText">
-          Setting up your new p2p node
+          Booting your new P2P node for the first time...
         </Text>
-        <Text textAlign="center" color="$secondaryText" fontSize="$m">
+        {/* TOOD: add back in when design is ready */}
+        {/* <Text textAlign="center" color="$secondaryText" fontSize="$m">
           {BootPhaseExplanations[signupContext.bootPhase]}
-        </Text>
+        </Text> */}
       </YStack>
     </View>
   );

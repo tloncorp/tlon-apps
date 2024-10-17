@@ -110,6 +110,8 @@ export function useBootSequence({
         authType: 'hosted',
       });
 
+      await wait(2000);
+
       configureUrbitClient({ shipName: auth.nodeId, shipUrl: auth.nodeUrl });
       store.syncStart();
 
@@ -229,6 +231,7 @@ export function useBootSequence({
     return bootPhase;
   }, [
     bootPhase,
+    configureUrbitClient,
     connectionStatus,
     hostingUser,
     lureMeta,
@@ -236,6 +239,9 @@ export function useBootSequence({
     setShip,
   ]);
 
+  // we increment a counter to ensure the effect executes after every run, even if
+  // the step didn't advance
+  const [bootStepCounter, setBootCounter] = useState(0);
   useEffect(() => {
     const runBootSequence = async () => {
       // prevent simultaneous runs
@@ -272,6 +278,7 @@ export function useBootSequence({
         setBootPhase(bootPhase);
       } finally {
         isRunningRef.current = false;
+        setBootCounter((c) => c + 1);
       }
     };
 
@@ -291,7 +298,7 @@ export function useBootSequence({
     if (![NodeBootPhase.IDLE, NodeBootPhase.READY].includes(bootPhase)) {
       runBootSequence();
     }
-  }, [runBootPhase, setBootPhase, bootPhase]);
+  }, [runBootPhase, setBootPhase, bootPhase, bootStepCounter]);
 
   // once finished, set the report
   useEffect(() => {
