@@ -1,3 +1,4 @@
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect } from 'react';
@@ -10,6 +11,8 @@ import { useIsAdmin } from '../utils';
 import { Button } from './Button';
 import { Icon } from './Icon';
 import { LoadingSpinner } from './LoadingSpinner';
+
+const logger = createDevLogger('InviteButton', true);
 
 export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
   const userId = useCurrentUserId();
@@ -38,14 +41,23 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
         return;
       }
 
-      await Share.share({
-        message: `Join ${group.title} on Tlon: ${shareUrl}`,
-        title: `Join ${group.title} on Tlon`,
-      });
+      try {
+        const result = await Share.share({
+          message: `Join ${group.title} on Tlon: ${shareUrl}`,
+          title: `Join ${group.title} on Tlon`,
+        });
 
+        if (result.action === Share.sharedAction) {
+          logger.trackEvent(AnalyticsEvent.InviteShared, {
+            inviteId: shareUrl.split('/').pop() ?? null,
+          });
+        }
+      } catch (error) {
+        console.error('Error sharing:', error);
+      }
       return;
     }
-  }, [group, shareUrl, doCopy, status]);
+  }, [shareUrl, status, group, doCopy]);
 
   useEffect(() => {
     const meta = {
