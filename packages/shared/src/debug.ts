@@ -15,6 +15,7 @@ export type Logger = Console & {
   crumb: (...args: unknown[]) => void;
   sensitiveCrumb: (...args: unknown[]) => void;
   trackError: (message: string, data?: Record<string, any>) => void;
+  trackEvent: (eventId: string, data?: Record<string, any>) => void;
 };
 
 const debugBreadcrumbs: Breadcrumb[] = [];
@@ -42,10 +43,10 @@ interface ErrorLoggerStub {
   capture: (event: string, data: Record<string, unknown>) => void;
 }
 
-let errorLoggerInstance: ErrorLoggerStub | null = null;
+let remoteLoggerInstance: ErrorLoggerStub | null = null;
 export function initializeErrorLogger(errorLoggerInput: ErrorLoggerStub) {
   if (errorLoggerInput) {
-    errorLoggerInstance = errorLoggerInput;
+    remoteLoggerInstance = errorLoggerInput;
   }
 }
 
@@ -82,7 +83,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
         if (prop === 'trackError') {
           const customProps =
             args[1] && typeof args[1] === 'object' ? args[1] : {};
-          errorLoggerInstance?.capture('app_error', {
+          remoteLoggerInstance?.capture('app_error', {
             ...customProps,
             message:
               typeof args[0] === 'string'
@@ -91,6 +92,18 @@ export function createDevLogger(tag: string, enabled: boolean) {
             breadcrumbs: getCurrentBreadcrumbs(),
           });
           resolvedProp = 'error';
+        }
+
+        if (prop == 'trackEvent') {
+          if (args[0] && typeof args[0] === 'string') {
+            const customProps =
+              args[1] && typeof args[1] === 'object' ? args[1] : {};
+            remoteLoggerInstance?.capture(args[0], {
+              ...customProps,
+              message: `[${tag}] ${args[0]}`,
+            });
+          }
+          resolvedProp = 'log';
         }
 
         if (

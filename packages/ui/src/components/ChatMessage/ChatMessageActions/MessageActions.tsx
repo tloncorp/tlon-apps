@@ -1,5 +1,4 @@
 import Clipboard from '@react-native-clipboard/clipboard';
-import { type Session, useCurrentSession } from '@tloncorp/shared';
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
@@ -65,7 +64,7 @@ function ConnectedAction({
   onViewReactions?: (post: db.Post) => void;
 }) {
   const currentUserId = useCurrentUserId();
-  const currentSession = useCurrentSession();
+  const connectionStatus = store.useConnectionStatus();
   const channel = useChannelContext();
   const { addAttachment } = useAttachmentContext();
   const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
@@ -106,10 +105,7 @@ function ConnectedAction({
 
   return (
     <ActionList.Action
-      disabled={
-        action.isNetworkDependent &&
-        (!currentSession || currentSession?.isReconnecting)
-      }
+      disabled={action.isNetworkDependent && connectionStatus !== 'Connected'}
       onPress={() =>
         handleAction({
           id: actionId,
@@ -122,7 +118,7 @@ function ConnectedAction({
           onEdit,
           onViewReactions,
           addAttachment,
-          currentSession,
+          isConnected: connectionStatus === 'Connected',
           isNetworkDependent: action.isNetworkDependent,
         })
       }
@@ -158,7 +154,7 @@ export async function handleAction({
   onEdit,
   onViewReactions,
   addAttachment,
-  currentSession,
+  isConnected,
   isNetworkDependent,
 }: {
   id: ChannelAction.Id;
@@ -171,13 +167,10 @@ export async function handleAction({
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
-  currentSession: Session | null;
+  isConnected: boolean;
   isNetworkDependent: boolean;
 }) {
-  if (
-    isNetworkDependent &&
-    (!currentSession || currentSession?.isReconnecting)
-  ) {
+  if (isNetworkDependent && !isConnected) {
     Alert.alert(
       'App is disconnected',
       'This action is unavailable while the app is in a disconnected state.'

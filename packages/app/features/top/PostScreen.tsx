@@ -65,7 +65,7 @@ export default function PostScreen(props: Props) {
   }, [post, threadPosts]);
 
   const markRead = useCallback(() => {
-    if (channel && post && threadPosts) {
+    if (channel && post && threadPosts && threadPosts.length > 0) {
       store.markThreadRead({
         channel,
         parentPost: post,

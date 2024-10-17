@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import * as api from '../api';
 import { queryClient } from '../api';
 import { MatchingEvent, MatchingResponse } from '../urbit/negotiation';
-import { getShipInfo } from './storage';
 
 function negotiationUpdater(
   event: MatchingEvent | null,
@@ -107,10 +106,10 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
     return { ...rest, match: false, haveAllNegotiations: false };
   }
 
-  const shipInfo = getShipInfo();
+  const us = api.getCurrentUserId();
 
   const shipKeys = ships
-    .filter((ship) => ship !== shipInfo.ship)
+    .filter((ship) => ship !== us)
     .map((ship) => `${ship}/${agent}`);
 
   const allShipsMatch = shipKeys.every(

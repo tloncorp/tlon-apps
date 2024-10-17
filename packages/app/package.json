@@ -7,8 +7,10 @@
     "test": "vitest --watch false"
   },
   "dependencies": {
-    "@tloncorp/ui": "workspace:*",
     "@tloncorp/shared": "workspace:*",
+    "@tloncorp/ui": "workspace:*",
+    "react-native-fetch-api": "^3.0.0",
+    "react-native-polyfill-globals": "^3.1.0",
     "sqlocal": "^0.11.1"
   },
   "devDependencies": {
@@ -17,8 +19,8 @@
   },
   "peerDependencies": {
     "@react-native-firebase/perf": "19.2.2",
-    "react-native-device-info": "^10.8.0",
     "lodash": "^4.17.21",
+    "react-native-device-info": "^10.8.0",
     "zustand": "^3.7.2"
   }
 }
