@@ -1,10 +1,4 @@
 import { isBrowser } from 'browser-or-node';
-//@ts-expect-error no typedefs
-import { fetch as streamingFetch } from 'react-native-fetch-api';
-//@ts-expect-error no typedefs
-import { polyfill as polyfillEncoding } from 'react-native-polyfill-globals/src/encoding';
-//@ts-expect-error no typedefs
-import { polyfill as polyfillReadableStream } from 'react-native-polyfill-globals/src/readable-stream';
 
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
 import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
@@ -24,11 +18,6 @@ import {
   headers,
 } from './types';
 import EventEmitter, { hexString } from './utils';
-
-polyfillReadableStream();
-polyfillEncoding();
-
-let abortController = new AbortController();
 
 /**
  * A class for interacting with an urbit ship, given its URL and code
@@ -87,6 +76,11 @@ export class Urbit {
     new Map();
 
   /**
+   * Our abort controller, used to close the connection
+   */
+  private abort = new AbortController();
+
+  /**
    * Identity of the ship we're connected to
    */
   ship?: string | null;
@@ -106,6 +100,11 @@ export class Urbit {
    */
   private errorCount = 0;
 
+  /**
+   * Custom fetch implementation to use.
+   */
+  fetchFn: typeof fetch = (...args) => fetch(...args);
+
   /** This is basic interpolation to get the channel URL of an instantiated Urbit connection. */
   private get channelUrl(): string {
     return `${this.url}/~/channel/${this.uid}`;
@@ -120,7 +119,7 @@ export class Urbit {
       credentials: isBrowser ? 'include' : undefined,
       accept: '*',
       headers,
-      signal: abortController.signal,
+      signal: this.abort.signal,
       reactNative: { textStreaming: true },
     };
   }
@@ -136,10 +135,14 @@ export class Urbit {
   constructor(
     public url: string,
     public code?: string,
-    public desk?: string
+    public desk?: string,
+    fetchFn?: typeof fetch
   ) {
     if (isBrowser) {
       window.addEventListener('beforeunload', this.delete);
+    }
+    if (fetchFn) {
+      this.fetchFn = fetchFn;
     }
     return this;
   }
@@ -210,7 +213,7 @@ export class Urbit {
       return Promise.resolve();
     }
 
-    const nameResp = await streamingFetch(`${this.url}/~/host`, {
+    const nameResp = await this.fetchFn(`${this.url}/~/host`, {
       method: 'get',
       credentials: 'include',
     });
@@ -227,7 +230,7 @@ export class Urbit {
       return Promise.resolve();
     }
 
-    const nameResp = await streamingFetch(`${this.url}/~/name`, {
+    const nameResp = await this.fetchFn(`${this.url}/~/name`, {
       method: 'get',
       credentials: 'include',
     });
@@ -251,7 +254,7 @@ export class Urbit {
           : 'Connecting from node context'
       );
     }
-    return streamingFetch(`${this.url}/~/login`, {
+    return this.fetchFn(`${this.url}/~/login`, {
       method: 'post',
       body: `password=${this.code}`,
       credentials: 'include',
@@ -304,7 +307,7 @@ export class Urbit {
         ...this.fetchOptions,
         openWhenHidden: true,
         responseTimeout: 25000,
-        fetch: streamingFetch,
+        fetch: this.fetchFn,
         onopen: async (response, isReconnect) => {
           if (this.verbose) {
             console.log('Opened eventsource', response);
@@ -509,7 +512,7 @@ export class Urbit {
   }
 
   private async sendJSONtoChannel(...json: (Message | Ack)[]): Promise<void> {
-    const response = await streamingFetch(this.channelUrl, {
+    const response = await this.fetchFn(this.channelUrl, {
       ...this.fetchOptions,
       method: 'PUT',
       body: JSON.stringify(json),
@@ -690,16 +693,12 @@ export class Urbit {
     });
   }
 
-  abort() {
-    abortController.abort();
-    abortController = new AbortController();
-  }
-
   /**
    * Deletes the connection to a channel.
    */
   async delete() {
-    this.abort();
+    this.abort.abort();
+    this.abort = new AbortController();
     const body = JSON.stringify([
       {
         id: this.getEventId(),
@@ -709,7 +708,7 @@ export class Urbit {
     if (isBrowser) {
       navigator.sendBeacon(this.channelUrl, body);
     } else {
-      const response = await streamingFetch(this.channelUrl, {
+      const response = await this.fetchFn(this.channelUrl, {
         ...this.fetchOptions,
         method: 'POST',
         body: body,
@@ -738,7 +737,7 @@ export class Urbit {
    */
   async scry<T = any>(params: Scry): Promise<T> {
     const { app, path } = params;
-    const response = await streamingFetch(
+    const response = await this.fetchFn(
       `${this.url}/~/scry/${app}${path}.json`,
       this.fetchOptions
     );
@@ -771,7 +770,7 @@ export class Urbit {
     if (!desk) {
       throw new Error('Must supply desk to run thread from');
     }
-    const res = await streamingFetch(
+    const res = await this.fetchFn(
       `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}.json`,
       {
         ...this.fetchOptions,

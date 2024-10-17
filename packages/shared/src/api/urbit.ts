@@ -1,4 +1,3 @@
-import { deSig, preSig } from '@urbit/aura';
 import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '../debug';
@@ -51,6 +50,7 @@ export interface ClientParams {
   shipName: string;
   shipUrl: string;
   verbose?: boolean;
+  fetchFn?: typeof fetch;
   getCode?: () => Promise<string>;
   handleAuthFailure?: () => void;
   onQuitOrReset?: () => void;
@@ -98,13 +98,14 @@ export function internalConfigureClient({
   shipName,
   shipUrl,
   verbose,
+  fetchFn,
   getCode,
   handleAuthFailure,
   onQuitOrReset,
   onChannelStatusChange,
 }: ClientParams) {
   logger.log('configuring client', shipName, shipUrl);
-  config.client = config.client || new Urbit(shipUrl, '', '');
+  config.client = config.client || new Urbit(shipUrl, '', '', fetchFn);
   config.client.verbose = verbose;
   config.shipUrl = shipUrl;
   config.onQuitOrReset = onQuitOrReset;
