@@ -226,7 +226,7 @@ export const ListItemPostPreview = ({
           {': '}
         </>
       ) : null}
-      {post.textContent ?? ''}
+      {post.hidden ? '(This post has been hidden)' : post.textContent ?? ''}
     </ListItemSubtitle>
   );
 };
