@@ -1,3 +1,4 @@
+import { configurationFromChannel } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
 import { useMemberRoles } from '@tloncorp/shared/dist/store';
 import { useMemo } from 'react';
@@ -20,30 +21,49 @@ export function useChannelMemberName(member: db.ChatMember) {
   return getChannelMemberName(member, disableNicknames);
 }
 
-export function getChannelTitle(
-  channel: db.Channel,
-  disableNicknames: boolean
-) {
-  if (channel.type === 'dm') {
-    const member = channel.members?.[0];
-    if (!member) {
-      return channel.id;
-    }
-    return getChannelMemberName(member, disableNicknames);
-  } else if (channel.type === 'groupDm') {
-    return channel.title
-      ? channel.title
-      : channel.members
+function getChannelTitle({
+  usesMemberListAsFallbackTitle,
+  channelTitle,
+  members,
+  disableNicknames,
+}: {
+  usesMemberListAsFallbackTitle: boolean;
+  channelTitle?: string | null;
+  members?: db.ChatMember[] | null;
+  disableNicknames: boolean;
+}) {
+  if (usesMemberListAsFallbackTitle) {
+    // NB: This has the potential to use a DM's given title if it has one.
+    // (There should be no path to titling a 1:1 DM in-app.)
+    return channelTitle
+      ? channelTitle
+      : members
           ?.map((member) => getChannelMemberName(member, disableNicknames))
           .join(', ') ?? 'No title';
   } else {
-    return channel.title ?? 'Untitled channel';
+    return channelTitle ?? 'Untitled channel';
   }
 }
 
-export function useChannelTitle(channel: db.Channel) {
+export function useChannelTitle(channel: db.Channel | null) {
   const { disableNicknames } = useCalm();
-  return getChannelTitle(channel, disableNicknames);
+  const usesMemberListAsFallbackTitle = useMemo(
+    () => configurationFromChannel(channel)?.usesMemberListAsFallbackTitle,
+    [channel]
+  );
+
+  return useMemo(
+    () =>
+      channel == null || usesMemberListAsFallbackTitle == null
+        ? null
+        : getChannelTitle({
+            usesMemberListAsFallbackTitle,
+            channelTitle: channel.title,
+            members: channel.members,
+            disableNicknames,
+          }),
+    [channel, disableNicknames, usesMemberListAsFallbackTitle]
+  );
 }
 
 export function isDmChannel(channel: db.Channel): boolean {
