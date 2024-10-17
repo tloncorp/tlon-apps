@@ -1,9 +1,4 @@
-import {
-  createDevLogger,
-  getSession,
-  sync,
-  updateSession,
-} from '@tloncorp/shared/dist';
+import { createDevLogger, sync } from '@tloncorp/shared/dist';
 import { ClientParams } from '@tloncorp/shared/dist/api';
 import { configureClient } from '@tloncorp/shared/dist/store';
 import { useCallback } from 'react';
@@ -24,6 +19,8 @@ polyfillReadableStream();
 polyfillEncoding();
 
 let abortController = new AbortController();
+
+const clientLogger = createDevLogger('configure client', true);
 
 const apiFetch: typeof fetch = (input, { ...init } = {}) => {
   // Wire our injected AbortController up to the one passed in by the client.
@@ -55,13 +52,6 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
   return streamingFetch(input, newInit);
 };
 
-export const cancelFetch = () => {
-  abortController.abort();
-  abortController = new AbortController();
-};
-
-const clientLogger = createDevLogger('configure client', false);
-
 export function useConfigureUrbitClient() {
   const shipInfo = useShip();
   const { ship, shipUrl, authType } = shipInfo;
@@ -79,23 +69,7 @@ export function useConfigureUrbitClient() {
         shipUrl: params?.shipUrl ?? shipUrl ?? '',
         verbose: ENABLED_LOGGERS.includes('urbit'),
         fetchFn: apiFetch,
-        cancelFetch,
-        onReconnect: () => {
-          const threshold = 5 * 60 * 1000; // 5 minutes
-          const lastReconnect = getSession()?.startTime ?? 0;
-          if (Date.now() - lastReconnect >= threshold) {
-            sync.handleDiscontinuity();
-          } else {
-            updateSession({ startTime: Date.now() });
-          }
-        },
-        onChannelReset: () => {
-          const threshold = __DEV__ ? 60 * 1000 : 12 * 60 * 60 * 1000; // 12 hours
-          const lastReconnect = getSession()?.startTime ?? 0;
-          if (Date.now() - lastReconnect >= threshold) {
-            sync.handleDiscontinuity();
-          }
-        },
+        onQuitOrReset: sync.handleDiscontinuity,
         onChannelStatusChange: sync.handleChannelStatusChange,
         getCode:
           authType === 'self'
@@ -116,6 +90,9 @@ export function useConfigureUrbitClient() {
                 return code;
               },
         handleAuthFailure: async () => {
+          clientLogger.error(
+            'Failed to authenticate with ship, redirecting to login'
+          );
           clientLogger.trackError(
             'Failed to authenticate with ship, redirecting to login'
           );
