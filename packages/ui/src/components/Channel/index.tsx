@@ -70,7 +70,6 @@ export function Channel({
   useGroup,
   usePostReference,
   onGroupAction,
-  onShareInvite,
   useChannel,
   storeDraft,
   clearDraft,
@@ -111,7 +110,6 @@ export function Channel({
   useGroup: typeof useGroupPreview;
   usePostReference: typeof usePostReferenceHook;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
-  onShareInvite?: (lure: string) => void;
   useChannel: typeof useChannelFromStore;
   storeDraft: (draft: JSONContent, draftType?: GalleryDraftType) => void;
   clearDraft: (draftType?: GalleryDraftType) => void;
@@ -144,14 +142,8 @@ export function Channel({
       : GalleryPost;
 
   const renderEmptyComponent = useCallback(() => {
-    return (
-      <EmptyChannelNotice
-        channel={channel}
-        userId={currentUserId}
-        onShareInvite={onShareInvite}
-      />
-    );
-  }, [currentUserId, channel, onShareInvite]);
+    return <EmptyChannelNotice channel={channel} userId={currentUserId} />;
+  }, [currentUserId, channel]);
 
   const onPressGroupRef = useCallback((group: db.Group) => {
     setGroupPreview(group);

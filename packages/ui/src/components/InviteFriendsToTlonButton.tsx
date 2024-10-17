@@ -16,7 +16,6 @@ const logger = createDevLogger('InviteButton', true);
 
 export function InviteFriendsToTlonButton({
   group,
-  onShare,
 }: {
   group?: db.Group;
   onShare?: (lure: string) => void;

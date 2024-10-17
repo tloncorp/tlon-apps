@@ -13,7 +13,6 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import type { RootStackParamList } from '../../navigation/types';
-import { trackInviteShared } from '../../utils/posthog';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GroupChannels'>;
 
@@ -48,10 +47,6 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
     navigation.goBack();
   }, [navigation]);
 
-  const handleShareInvite = useCallback((lure: string) => {
-    trackInviteShared(lure);
-  }, []);
-
   return (
     <ChatOptionsProvider
       groupId={groupParam.id}
@@ -78,7 +73,6 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
         }}
         group={inviteSheetGroup ?? undefined}
         onInviteComplete={() => setInviteSheetGroup(null)}
-        onShareInvite={handleShareInvite}
       />
     </ChatOptionsProvider>
   );

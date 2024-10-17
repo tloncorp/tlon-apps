@@ -27,7 +27,6 @@ import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import type { RootStackParamList } from '../../navigation/types';
-import { trackInviteShared } from '../../utils/posthog';
 
 const logger = createDevLogger('ChannelScreen', false);
 
@@ -298,10 +297,6 @@ export default function ChannelScreen(props: Props) {
     }
   }, []);
 
-  const handleShareInvite = useCallback((lure: string) => {
-    trackInviteShared(lure);
-  }, []);
-
   if (!channel) {
     return null;
   }
@@ -354,7 +349,6 @@ export default function ChannelScreen(props: Props) {
         editPost={editPost}
         negotiationMatch={negotiationStatus.matchedOrPending}
         canUpload={canUpload}
-        onShareInvite={handleShareInvite}
       />
       {group && (
         <>
@@ -370,7 +364,6 @@ export default function ChannelScreen(props: Props) {
             onOpenChange={handleInviteSheetOpenChange}
             onInviteComplete={() => setInviteSheetGroup(null)}
             group={inviteSheetGroup ?? undefined}
-            onShareInvite={handleShareInvite}
           />
         </>
       )}

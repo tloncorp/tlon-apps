@@ -69,7 +69,3 @@ export const identifyTlonEmployee = () => {
   posthog.identify(UUID, { isTlonEmployee: true });
   db.setIsTlonEmployee(true);
 };
-
-export const trackInviteShared = (lure: string) => {
-  capture('Invite Link Shared', { lure });
-};
