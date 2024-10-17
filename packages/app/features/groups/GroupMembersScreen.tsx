@@ -56,6 +56,7 @@ export function GroupMembersScreen({ route, navigation }: Props) {
       onPressGoToDm={(contactId: string) => handleGoToDm([contactId])}
       members={groupMembers}
       roles={groupRoles}
+      groupId={groupId}
       currentUserId={currentUserId}
       onPressBan={banUser}
       onPressUnban={unbanUser}

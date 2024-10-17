@@ -17,22 +17,14 @@ import { useCallback, useEffect } from 'react';
 import { AppStateStatus } from 'react-native';
 
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
-import useNotificationListener, {
-  type Props as NotificationListenerProps,
-} from '../hooks/useNotificationListener';
+import useNotificationListener from '../hooks/useNotificationListener';
 
-export interface AuthenticatedAppProps {
-  notificationListenerProps: NotificationListenerProps;
-}
-
-function AuthenticatedApp({
-  notificationListenerProps,
-}: AuthenticatedAppProps) {
+function AuthenticatedApp() {
   const { ship, shipUrl } = useShip();
   const currentUserId = useCurrentUserId();
   const signupContext = useSignupContext();
   const handlePostSignup = usePostSignup();
-  useNotificationListener(notificationListenerProps);
+  useNotificationListener();
   useDeepLinkListener();
   useNavigationLogging();
   useNetworkLogger();
@@ -78,12 +70,10 @@ function AuthenticatedApp({
   );
 }
 
-export default function ConnectedAuthenticatedApp(
-  props: AuthenticatedAppProps
-) {
+export default function ConnectedAuthenticatedApp() {
   return (
     <AppDataProvider>
-      <AuthenticatedApp {...props} />
+      <AuthenticatedApp />
     </AppDataProvider>
   );
 }

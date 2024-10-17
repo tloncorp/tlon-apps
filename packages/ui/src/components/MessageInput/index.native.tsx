@@ -107,7 +107,6 @@ export const DEFAULT_MESSAGE_INPUT_HEIGHT = 44;
 
 export interface MessageInputHandle {
   editor: EditorBridge | null;
-  setEditor: (editor: EditorBridge) => void;
 }
 
 export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
@@ -133,28 +132,22 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       initialHeight = DEFAULT_MESSAGE_INPUT_HEIGHT,
       placeholder = 'Message',
       bigInput = false,
+      draftType,
       title,
       image,
       channelType,
       setHeight,
+      shouldAutoFocus,
       goBack,
       onSend,
     },
     ref
   ) => {
-    const localEditorRef = useRef<EditorBridge | null>(null);
-
-    useImperativeHandle(ref, () => ({
-      editor: localEditorRef.current,
-      setEditor: (editor: EditorBridge) => {
-        localEditorRef.current = editor;
-      },
-    }));
-
     const branchDomain = useBranchDomain();
     const branchKey = useBranchKey();
     const [isSending, setIsSending] = useState(false);
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
+    const [hasAutoFocused, setHasAutoFocused] = useState(false);
     const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
     const [containerHeight, setContainerHeight] = useState(initialHeight);
     const { bottom, top } = useSafeAreaInsets();
@@ -209,13 +202,15 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const editor = useEditorBridge({
       customSource: editorHtml,
-      // setting autofocus to true if we have editPost here doesn't seem to work
-      // so we're using a useEffect to set it
-      autofocus: false,
+      autofocus: shouldAutoFocus || false,
       bridgeExtensions,
     });
     const editorState = useBridgeState(editor);
     const webviewRef = editor.webviewRef;
+
+    useImperativeHandle(ref, () => ({
+      editor,
+    }));
 
     const reloadWebview = useCallback(
       (reason: string) => {
@@ -226,22 +221,12 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       [webviewRef]
     );
 
-    useEffect(() => {
-      if (editor) {
-        localEditorRef.current = editor;
-      }
-
-      if (ref && typeof ref === 'object' && ref.current) {
-        ref.current.setEditor(editor);
-      }
-    }, [editor, ref]);
-
     const lastEditingPost = useRef<db.Post | undefined>(editingPost);
 
     useEffect(() => {
       if (!hasSetInitialContent && editorState.isReady) {
         try {
-          getDraft().then((draft) => {
+          getDraft(draftType).then((draft) => {
             if (!editingPost && draft) {
               const inlines = tiptap.JSONToInlines(draft);
               const newInlines = inlines
@@ -336,6 +321,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [
       editor,
       getDraft,
+      draftType,
       hasSetInitialContent,
       editorState.isReady,
       editingPost,
@@ -352,21 +338,29 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [editingPost]);
 
     useEffect(() => {
-      if (editor && !shouldBlur && !editorState.isFocused && !!editingPost) {
+      if (
+        editor &&
+        editorState.isReady &&
+        !shouldBlur &&
+        shouldAutoFocus &&
+        !editorState.isFocused &&
+        !hasAutoFocused
+      ) {
         editor.focus();
+        messageInputLogger.log('Auto focused editor');
+        setHasAutoFocused(true);
       }
-    }, [shouldBlur, editor, editorState, editingPost]);
+    }, [shouldAutoFocus, editor, editorState, shouldBlur, hasAutoFocused]);
 
     useEffect(() => {
       if (editor && shouldBlur && editorState.isFocused) {
         editor.blur();
+        messageInputLogger.log('Blurred editor');
         setShouldBlur(false);
       }
     }, [shouldBlur, editor, editorState, setShouldBlur]);
 
     useEffect(() => {
-      messageInputLogger.log('Checking if editor is empty');
-
       editor.getJSON().then((json: JSONContent) => {
         const inlines = tiptap
           .JSONToInlines(json)
@@ -391,10 +385,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           blocks.length === 0 &&
           attachments.length === 0;
 
-        messageInputLogger.log('Editor is empty?', isEmpty);
-
         if (isEmpty !== editorIsEmpty) {
-          messageInputLogger.log('Setting editorIsEmpty', isEmpty);
           setEditorIsEmpty(isEmpty);
           setContainerHeight(initialHeight);
         }
@@ -435,15 +426,17 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
       messageInputLogger.log('Storing draft', json);
 
-      storeDraft(json);
+      storeDraft(json, draftType);
     };
 
     const handlePaste = useCallback(
       async (pastedText: string) => {
         messageInputLogger.log('Pasted text', pastedText);
         // check for ref from pasted cite paths
+        const editorJson = await editor.getJSON();
         const citePathAttachment = await processReferenceAndUpdateEditor({
           editor,
+          editorJson,
           pastedText,
           matchRegex: tiptap.REF_REGEX,
           processMatch: async (match) => {
@@ -465,6 +458,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         const DEEPLINK_REGEX = new RegExp(`^(https?://)?${branchDomain}/\\S+$`);
         const deepLinkAttachment = await processReferenceAndUpdateEditor({
           editor,
+          editorJson,
           pastedText,
           matchRegex: DEEPLINK_REGEX,
           processMatch: async (deeplink) => {
@@ -490,6 +484,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           /^(https?:\/\/)?(tlon\.network\/lure\/)(0v[^/]+)$/;
         const lureLinkAttachment = await processReferenceAndUpdateEditor({
           editor,
+          editorJson,
           pastedText,
           matchRegex: TLON_LURE_REGEX,
           processMatch: async (tlonLure) => {
@@ -589,11 +584,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         messageInputLogger.log('onSelectMention, setting new content', newJson);
         // @ts-expect-error setContent does accept JSONContent
         editor.setContent(newJson);
-        storeDraft(newJson);
+        storeDraft(newJson, draftType);
         setMentionText('');
         setShowMentionPopup(false);
       },
-      [editor, storeDraft]
+      [editor, storeDraft, draftType]
     );
 
     const sendMessage = useCallback(
@@ -691,7 +686,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         onSend?.();
         editor.setContent('');
         clearAttachments();
-        clearDraft();
+        clearDraft(draftType);
         setShowBigInput?.(false);
       },
       [
@@ -709,6 +704,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         channelType,
         send,
         channelId,
+        draftType,
       ]
     );
 
@@ -894,9 +890,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const handleCancelEditing = useCallback(() => {
       setEditingPost?.(undefined);
       editor.setContent('');
-      clearDraft();
+      clearDraft(draftType);
       clearAttachments();
-    }, [setEditingPost, editor, clearDraft, clearAttachments]);
+    }, [setEditingPost, editor, clearDraft, clearAttachments, draftType]);
 
     return (
       <MessageInputContainer

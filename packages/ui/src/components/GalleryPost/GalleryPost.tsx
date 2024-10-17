@@ -64,6 +64,10 @@ export function GalleryPost({
 
   const handleLongPress = useBoundHandler(post, onLongPress);
 
+  if (post.isDeleted) {
+    return null;
+  }
+
   return (
     <GalleryPostFrame
       onPress={handlePress}
@@ -107,6 +111,8 @@ export function GalleryPostDetailView({ post }: { post: db.Post }) {
   const formattedDate = useMemo(() => {
     return makePrettyShortDate(new Date(post.receivedAt));
   }, [post.receivedAt]);
+  const content = usePostContent(post);
+  const isImagePost = content.some((block) => block.type === 'image');
 
   return (
     <View paddingBottom="$xs" borderBottomWidth={1} borderColor="$border">
@@ -114,14 +120,16 @@ export function GalleryPostDetailView({ post }: { post: db.Post }) {
         <GalleryContentRenderer embedded post={post} size="$l" />
       </View>
 
-      <View gap="$xl" padding="$xl">
+      <View gap="$2xl" padding="$xl">
         <DetailViewAuthorRow authorId={post.authorId} color="$primaryText" />
 
         {post.title && <Text size="$body">{post.title}</Text>}
 
         <Text size="$body" color="$tertiaryText">
-          {formattedDate}
+          Added {formattedDate}
         </Text>
+
+        {isImagePost && <CaptionContentRenderer content={content} />}
       </View>
     </View>
   );
@@ -263,6 +271,18 @@ const noWrapperPadding = {
     padding: 0,
   },
 } as const;
+
+const CaptionContentRenderer = createContentRenderer({
+  blockSettings: {
+    paragraph: {
+      size: '$body',
+      ...noWrapperPadding,
+    },
+    image: {
+      display: 'none',
+    },
+  },
+});
 
 const LargeContentRenderer = createContentRenderer({
   blockSettings: {

@@ -22,6 +22,7 @@ export const SendPostRetrySheet = ({
       {
         title: 'Delete',
         action: onPressDelete,
+        accent: 'negative'
       },
     ],
     [onPressRetry, onPressDelete]

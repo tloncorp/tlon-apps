@@ -53,9 +53,13 @@ export const SetTelemetryScreen = ({
       />
       <YStack gap="$xl" paddingHorizontal="$2xl">
         <View padding="$xl">
-          <TlonText.Text size="$body" color="$primaryText">
+          <TlonText.Text size="$body" color="$primaryText" marginBottom="$2xl">
             We&rsquo;re trying to make the app better and knowing how people use
             the app really helps.
+          </TlonText.Text>
+          <TlonText.Text size="$body" color="$primaryText">
+            These stats are anonymous, for product development purposes only,
+            and we don&rsquo;t share them with anyone.
           </TlonText.Text>
         </View>
 

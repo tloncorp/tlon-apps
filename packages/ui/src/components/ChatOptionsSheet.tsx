@@ -18,6 +18,7 @@ import { useSheet } from 'tamagui';
 import { ChevronLeft } from '../assets/icons';
 import { useChatOptions, useCurrentUserId } from '../contexts';
 import * as utils from '../utils';
+import { useIsAdmin } from '../utils';
 import { Action, ActionGroup, ActionSheet } from './ActionSheet';
 import { IconButton } from './IconButton';
 import { ListItem } from './ListItem';
@@ -41,9 +42,6 @@ const ChatOptionsSheetComponent = React.forwardRef<
   ChatOptionsSheetProps
 >(function ChatOptionsSheetImpl(props, ref) {
   const [open, setOpen] = useState(false);
-  const hasOpenedRef = useRef(open);
-  hasOpenedRef.current = hasOpenedRef.current || open;
-
   const [chat, setChat] = useState<{ type: ChatType; id: string } | null>(null);
 
   useImperativeHandle(
@@ -57,7 +55,7 @@ const ChatOptionsSheetComponent = React.forwardRef<
     []
   );
 
-  if (!chat || !hasOpenedRef.current) {
+  if (!chat || !open) {
     return null;
   }
 
@@ -154,15 +152,7 @@ export function GroupOptions({
 
   const isPinned = group?.pin;
 
-  const currentUserIsAdmin = useMemo(
-    () =>
-      group?.members?.some(
-        (m) =>
-          m.contactId === currentUser &&
-          m.roles?.some((r) => r.roleId === 'admin')
-      ) ?? false,
-    [currentUser, group?.members]
-  );
+  const currentUserIsAdmin = useIsAdmin(group.id, currentUser);
 
   const handleVolumeUpdate = useCallback(
     (newLevel: string) => {
@@ -521,6 +511,7 @@ export function ChannelOptions({
     onPressChannelMeta,
     onPressManageChannels,
     onPressInvite,
+    onPressLeave,
   } = useChatOptions() ?? {};
 
   const currentUserIsHost = useMemo(
@@ -528,15 +519,7 @@ export function ChannelOptions({
     [group?.currentUserIsHost]
   );
 
-  const currentUserIsAdmin = useMemo(
-    () =>
-      group?.members?.some(
-        (m) =>
-          m.contactId === currentUser &&
-          m.roles?.some((r) => r.roleId === 'admin')
-      ) ?? false,
-    [currentUser, group?.members]
-  );
+  const currentUserIsAdmin = useIsAdmin(channel.groupId ?? '', currentUser);
 
   const title = utils.useChannelTitle(channel);
 
@@ -765,7 +748,18 @@ export function ChannelOptions({
                           style: 'destructive',
                           onPress: () => {
                             sheetRef.current.setOpen(false);
-                            store.respondToDMInvite({ channel, accept: false });
+                            onPressLeave?.();
+                            if (
+                              channel.type === 'dm' ||
+                              channel.type === 'groupDm'
+                            ) {
+                              store.respondToDMInvite({
+                                channel,
+                                accept: false,
+                              });
+                            } else {
+                              store.leaveGroupChannel(channel.id);
+                            }
                           },
                         },
                       ]
@@ -787,6 +781,7 @@ export function ChannelOptions({
     onPressChannelMembers,
     onPressManageChannels,
     onPressInvite,
+    onPressLeave,
     title,
   ]);
 

@@ -38,11 +38,6 @@ interface UnrecognizedNotificationData extends BaseNotificationData {
 
 type NotificationData = WerNotificationData | UnrecognizedNotificationData;
 
-export type Props = {
-  notificationPath?: string;
-  notificationChannelId?: string;
-};
-
 function payloadFromNotification(
   notification: Notification
 ): NotificationData | null {
@@ -80,10 +75,7 @@ function payloadFromNotification(
   };
 }
 
-export default function useNotificationListener({
-  notificationPath,
-  notificationChannelId,
-}: Props) {
+export default function useNotificationListener() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { data: isTlonEmployee } = store.useIsTlonEmployee();
   const [channelSwitcherEnabled] = useFeatureFlag('channelSwitcher');

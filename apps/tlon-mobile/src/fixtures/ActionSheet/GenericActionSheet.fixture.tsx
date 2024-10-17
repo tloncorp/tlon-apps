@@ -3,12 +3,10 @@ import {
   ActionGroup,
   ActionSheet,
 } from '@tloncorp/ui/src/components/ActionSheet';
-import { useFixtureInput } from 'react-cosmos/client';
 
 import { FixtureWrapper } from '../FixtureWrapper';
 
 const ActionSheetFixture = () => {
-  const [open] = useFixtureInput('open', true);
   const actionGroups: ActionGroup[] = [
     {
       accent: 'positive',
@@ -69,7 +67,7 @@ const ActionSheetFixture = () => {
       <ActionSheet
         snapPointsMode="mixed"
         snapPoints={['90%']}
-        open={open}
+        open={true}
         onOpenChange={(open: boolean) => console.log('Open Change', open)}
       >
         <ActionSheet.Header>

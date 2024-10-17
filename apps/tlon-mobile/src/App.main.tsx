@@ -36,16 +36,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
 
-type Props = {
-  wer?: string;
-  channelId?: string;
-};
-
 // Android notification tap handler passes initial params here
-const App = ({
-  wer: notificationPath,
-  channelId: notificationChannelId,
-}: Props) => {
+const App = () => {
   const isDarkMode = useIsDarkMode();
 
   const { isLoading, isAuthenticated } = useShip();
@@ -74,12 +66,7 @@ const App = ({
             <LoadingSpinner />
           </View>
         ) : isAuthenticated ? (
-          <AuthenticatedApp
-            notificationListenerProps={{
-              notificationPath,
-              notificationChannelId,
-            }}
-          />
+          <AuthenticatedApp />
         ) : (
           <OnboardingStack />
         )
@@ -114,7 +101,7 @@ function MigrationCheck({ children }: PropsWithChildren) {
   return <>{children}</>;
 }
 
-export default function ConnectedApp(props: Props) {
+export default function ConnectedApp() {
   const isDarkMode = useIsDarkMode();
   const navigationContainerRef = useNavigationContainerRef();
 
@@ -141,7 +128,7 @@ export default function ConnectedApp(props: Props) {
                         <MigrationCheck>
                           <QueryClientProvider client={queryClient}>
                             <PortalProvider>
-                              <App {...props} />
+                              <App />
                             </PortalProvider>
 
                             {__DEV__ && (

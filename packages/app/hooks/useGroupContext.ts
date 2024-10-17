@@ -100,10 +100,7 @@ export const useGroupContext = ({
     }
   }, [group]);
 
-  const { data: pendingChats } = store.usePendingChats({
-    enabled: isFocused,
-  });
-  const { data: currentChatData } = store.useCurrentChats({
+  const { data: existingChannels } = store.useAllChannels({
     enabled: isFocused,
   });
 
@@ -114,14 +111,13 @@ export const useGroupContext = ({
       channelType,
     }: {
       title: string;
-      description: string;
+      description?: string;
       channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
     }) => {
       const { name, id } = assembleNewChannelIdAndName({
         title,
         channelType,
-        currentChatData,
-        pendingChats,
+        existingChannels: existingChannels ?? [],
         currentUserId,
       });
 
@@ -136,7 +132,7 @@ export const useGroupContext = ({
         });
       }
     },
-    [group, currentUserId, currentChatData, pendingChats]
+    [group, currentUserId, existingChannels]
   );
 
   const deleteChannel = useCallback(

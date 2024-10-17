@@ -11,6 +11,7 @@ import { Alert } from 'react-native';
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
 import { useCopy } from '../../../hooks/useCopy';
+import { useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
 
 const ENABLE_COPY_JSON = __DEV__;
@@ -67,6 +68,7 @@ function ConnectedAction({
   const currentSession = useCurrentSession();
   const channel = useChannelContext();
   const { addAttachment } = useAttachmentContext();
+  const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
 
   const { label } = useDisplaySpecForChannelActionId(actionId, {
     post,
@@ -88,12 +90,15 @@ function ConnectedAction({
       case 'edit':
         // only show edit for current user's posts
         return post.authorId === currentUserId;
+      case 'delete':
+        // only show delete for current user's posts
+        return post.authorId === currentUserId || currentUserIsAdmin;
       case 'viewReactions':
         return (post.reactions?.length ?? 0) > 0;
       default:
         return true;
     }
-  }, [post, actionId, currentUserId]);
+  }, [post, actionId, currentUserId, currentUserIsAdmin]);
 
   if (!visible) {
     return null;

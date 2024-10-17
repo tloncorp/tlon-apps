@@ -1,10 +1,9 @@
 import type { EditorBridge } from '@10play/tentap-editor';
-import { useCurrentSession } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { memo } from 'react';
-import { PropsWithChildren, useMemo } from 'react';
+import { PropsWithChildren } from 'react';
 import { SpaceTokens } from 'tamagui';
 import { ThemeTokens, View, XStack, YStack } from 'tamagui';
 
@@ -13,6 +12,7 @@ import { Button } from '../Button';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
 import { LoadingSpinner } from '../LoadingSpinner';
+import { GalleryDraftType } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
 
@@ -26,9 +26,9 @@ export interface MessageInputProps {
   ) => Promise<void>;
   channelId: string;
   groupMembers: db.ChatMember[];
-  storeDraft: (draft: JSONContent) => void;
-  clearDraft: () => void;
-  getDraft: () => Promise<JSONContent>;
+  storeDraft: (draft: JSONContent, draftType?: GalleryDraftType) => void;
+  clearDraft: (draftType?: GalleryDraftType) => void;
+  getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (
@@ -44,6 +44,7 @@ export interface MessageInputProps {
   backgroundColor?: ThemeTokens;
   placeholder?: string;
   bigInput?: boolean;
+  draftType?: GalleryDraftType;
   title?: string;
   image?: ImagePickerAsset;
   showInlineAttachments?: boolean;
@@ -54,9 +55,9 @@ export interface MessageInputProps {
   // for external access to height
   setHeight?: (height: number) => void;
   goBack?: () => void;
+  shouldAutoFocus?: boolean;
   ref?: React.RefObject<{
     editor: EditorBridge | null;
-    setEditor: (editor: EditorBridge) => void;
   }>;
 }
 
@@ -95,11 +96,6 @@ export const MessageInputContainer = memo(
     onPressEdit?: () => void;
     goBack?: () => void;
   }>) => {
-    const currentSession = useCurrentSession();
-    const isDisconnected = useMemo(
-      () => !currentSession || currentSession.isReconnecting === true,
-      [currentSession]
-    );
     const { canUpload } = useAttachmentContext();
 
     return (
@@ -164,11 +160,11 @@ export const MessageInputContainer = memo(
           ) : (
             <View marginBottom="$xs">
               <Button
-                disabled={disableSend || isSending || isDisconnected}
+                disabled={disableSend || isSending}
                 onPress={isEditing ? onPressEdit : onPressSend}
                 backgroundColor="unset"
                 borderColor="transparent"
-                opacity={disableSend || isDisconnected ? 0.5 : 1}
+                opacity={disableSend ? 0.5 : 1}
               >
                 {isSending ? (
                   <View width="$2xl" height="$2xl">
