@@ -375,3 +375,24 @@ export const searchChannel = async (params: {
 
   return { posts, cursor };
 };
+
+export const leaveChannel = async (channelId: string) => {
+  return trackedPoke<ub.ChannelsResponse>(
+    {
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        channel: {
+          nest: channelId,
+          action: {
+            leave: null,
+          },
+        },
+      },
+    },
+    { app: 'channels', path: '/v1' },
+    (event) => {
+      return 'leave' in event.response && event.response.leave === channelId;
+    }
+  );
+};
