@@ -111,7 +111,7 @@ export function Channel({
   useGroup: typeof useGroupPreview;
   usePostReference: typeof usePostReferenceHook;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
-  onShareInvite: (lure: string) => void;
+  onShareInvite?: (lure: string) => void;
   useChannel: typeof useChannelFromStore;
   storeDraft: (draft: JSONContent, draftType?: GalleryDraftType) => void;
   clearDraft: (draftType?: GalleryDraftType) => void;

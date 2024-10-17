@@ -112,6 +112,7 @@ const baseProps: ComponentProps<typeof Channel> = {
   canUpload: true,
   onPressRetry: () => {},
   onPressDelete: () => {},
+  onShareInvite: () => {},
 } as const;
 
 export const ChannelFixture = (props: {
