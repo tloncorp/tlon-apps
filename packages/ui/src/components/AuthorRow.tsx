@@ -38,6 +38,8 @@ type AuthorRowProps = ComponentProps<typeof XStack> & {
   sent?: number;
   roles?: string[];
   deliveryStatus?: db.PostDeliveryStatus | null;
+  deleteStatus?: db.PostDeliveryStatus | null;
+  editStatus?: db.PostDeliveryStatus | null;
   type?: db.PostType;
   detailView?: boolean;
   showEditedIndicator?: boolean;
@@ -59,17 +61,41 @@ export default function AuthorRow({ ...props }: AuthorRowProps) {
 export function DetailViewAuthorRow({
   authorId,
   color,
+  showEditedIndicator,
+  deliveryStatus,
+  deleteStatus,
+  editStatus,
   ...props
-}: { authorId: string; color?: ColorTokens } & ComponentProps<typeof XStack>) {
+}: {
+  authorId: string;
+  showEditedIndicator?: boolean;
+  deliveryStatus?: db.PostDeliveryStatus | null;
+  editStatus?: db.PostDeliveryStatus | null;
+  deleteStatus?: db.PostDeliveryStatus | null;
+  color?: ColorTokens;
+} & ComponentProps<typeof XStack>) {
   const openProfile = useNavigateToProfile(authorId);
+  const deliveryFailed =
+    deliveryStatus === 'failed' ||
+    editStatus === 'failed' ||
+    deleteStatus === 'failed';
+  const shouldTruncate = showEditedIndicator || deliveryFailed;
+
   return (
     <XStack gap="$l" alignItems="center" {...props} onPress={openProfile}>
       <ContactAvatar size="$2xl" contactId={authorId} />
       <ContactName
         contactId={authorId}
         size="$label/l"
+        numberOfLines={1}
+        maxWidth={shouldTruncate ? '55%' : '100%'}
         color={color ?? '$secondaryText'}
       />
+      {deliveryFailed ? (
+        <Text size="$label/m" color="$negativeActionText">
+          Tap to retry
+        </Text>
+      ) : null}
     </XStack>
   );
 }
@@ -80,6 +106,8 @@ export function ChatAuthorRow({
   sent,
   roles,
   deliveryStatus,
+  editStatus,
+  deleteStatus,
   ...props
 }: AuthorRowProps) {
   const openProfile = useNavigateToProfile(authorId);
@@ -94,7 +122,12 @@ export function ChatAuthorRow({
 
   const firstRole = roles?.[0];
 
-  const shouldTruncate = showEditedIndicator || firstRole || deliveryStatus === 'failed';
+  const deliveryFailed =
+    deliveryStatus === 'failed' ||
+    editStatus === 'failed' ||
+    deleteStatus === 'failed';
+
+  const shouldTruncate = showEditedIndicator || firstRole || deliveryFailed;
 
   return (
     <XStack gap="$l" alignItems="center" {...props} onPress={openProfile}>
@@ -117,7 +150,7 @@ export function ChatAuthorRow({
           </Text>
         )}
         {firstRole && <RoleBadge role={firstRole} />}
-        {deliveryStatus === 'failed' ? (
+        {deliveryFailed ? (
           <Text size="$label/m" color="$negativeActionText">
             Tap to retry
           </Text>
