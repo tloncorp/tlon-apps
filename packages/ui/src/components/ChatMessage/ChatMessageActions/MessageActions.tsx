@@ -4,13 +4,13 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
-import { useIsAdmin } from '../../../utils';
 import { useMemo } from 'react';
 import { Alert } from 'react-native';
 
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
 import { useCopy } from '../../../hooks/useCopy';
+import { useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
 
 const ENABLE_COPY_JSON = __DEV__;
@@ -30,7 +30,7 @@ export default function MessageActions({
   post: db.Post;
   channelType: db.ChannelType;
 }) {
-  const currentSession = useCurrentSession();
+  const connectionStatus = store.useConnectionStatus();
   const currentUserId = useCurrentUserId();
   const { addAttachment } = useAttachmentContext();
   const channel = useChannelContext();
@@ -69,10 +69,7 @@ export default function MessageActions({
     <ActionList width={220}>
       {postActions.map((action, index) => (
         <ActionList.Action
-          disabled={
-            action.networkDependent &&
-            (!currentSession || currentSession?.isReconnecting)
-          }
+          disabled={action.networkDependent && connectionStatus !== 'Connected'}
           onPress={() =>
             handleAction({
               id: action.id,
@@ -85,7 +82,7 @@ export default function MessageActions({
               onEdit,
               onViewReactions,
               addAttachment,
-              currentSession,
+              isConnected: connectionStatus === 'Connected',
               isNetworkDependent: action.networkDependent,
             })
           }
@@ -252,7 +249,7 @@ export async function handleAction({
   onEdit,
   onViewReactions,
   addAttachment,
-  currentSession,
+  isConnected,
   isNetworkDependent,
 }: {
   id: string;
@@ -265,13 +262,10 @@ export async function handleAction({
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
-  currentSession: Session | null;
+  isConnected: boolean;
   isNetworkDependent: boolean;
 }) {
-  if (
-    isNetworkDependent &&
-    (!currentSession || currentSession?.isReconnecting)
-  ) {
+  if (isNetworkDependent && !isConnected) {
     Alert.alert(
       'App is disconnected',
       'This action is unavailable while the app is in a disconnected state.'
