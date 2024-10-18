@@ -228,26 +228,26 @@ const CustomChannelConfigurationForm = forwardRef<{
     <>
       <ActionSheet.FormBlock>
         <Form.ControlledRadioField
-          name="draftInput"
-          label="Draft input"
+          name="defaultPostCollectionRenderer"
+          label="Collection renderer"
           control={control}
-          options={options.inputs}
+          options={options.collection}
         />
       </ActionSheet.FormBlock>
       <ActionSheet.FormBlock>
         <Form.ControlledRadioField
           name="defaultPostContentRenderer"
-          label="Post content renderer"
+          label="Post renderer"
           control={control}
           options={options.content}
         />
       </ActionSheet.FormBlock>
       <ActionSheet.FormBlock>
         <Form.ControlledRadioField
-          name="defaultPostCollectionRenderer"
-          label="Collection renderer"
+          name="draftInput"
+          label="Draft input"
           control={control}
-          options={options.collection}
+          options={options.inputs}
         />
       </ActionSheet.FormBlock>
     </>
