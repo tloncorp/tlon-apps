@@ -48,21 +48,35 @@ export interface ChannelContentConfiguration {
  */
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace StructuredChannelDescriptionPayload {
-  type Encoded = string;
+  type Encoded = string | null | undefined;
   interface Decoded {
-    channelContentConfiguration: ChannelContentConfiguration;
+    channelContentConfiguration?: ChannelContentConfiguration;
     description?: string;
   }
 
   export function encode(payload: Decoded): Encoded {
     return JSON.stringify(payload);
   }
-  export function decodeOrNull(encoded: Encoded): Decoded | null {
+
+  /**
+   * Attempts to decode a `description` string into a structured payload.
+   *
+   * - If `description` is null/undefined, returns a payload with no
+   *   description nor configuration.
+   * - If `description` is not valid JSON, returns a payload with the
+   *   description as the input string.
+   * - If `description` validates as the expected
+   *   `StructuredChannelDescriptionPayload` JSON, returns the decoded payload.
+   */
+  export function decode(encoded: Encoded): Decoded {
     // TODO: This should be validated - we'll be deserializing untrusted data
+    if (encoded == null) {
+      return {};
+    }
     try {
       return JSON.parse(encoded);
     } catch (_err) {
-      return null;
+      return { description: encoded.length === 0 ? undefined : encoded };
     }
   }
 }

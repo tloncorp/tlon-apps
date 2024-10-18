@@ -339,22 +339,12 @@ export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
 
       const metaFields = toClientMeta(club.meta);
 
-      // Decode structured description payload if possible.
-      const decodedDesc =
-        metaFields.description == null
-          ? null
-          : StructuredChannelDescriptionPayload.decodeOrNull(
-              metaFields.description
-            );
-      let contentConfiguration: ChannelContentConfiguration | undefined;
-      if (decodedDesc != null) {
-        // If the `description` field on API was a structured payload, unpack
-        // the payload's interior `description` field into our local
-        // `description` field.
-        metaFields.description = decodedDesc.description;
-
-        contentConfiguration = decodedDesc.channelContentConfiguration;
-      }
+      // Channel meta is different from other metas, since we can overload the
+      // `description` to fit other channel-specific data.
+      // Attempt to decode that extra info here.
+      const decodedDesc = StructuredChannelDescriptionPayload.decode(
+        metaFields.description
+      );
 
       return {
         id,
@@ -362,7 +352,8 @@ export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
         ...metaFields,
         isDmInvite: !isJoined && isInvited,
         members: [...joinedMembers, ...invitedMembers],
-        contentConfiguration,
+        contentConfiguration: decodedDesc.channelContentConfiguration,
+        description: decodedDesc.description,
       };
     })
     .filter(Boolean) as db.Channel[];
