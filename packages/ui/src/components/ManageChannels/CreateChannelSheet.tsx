@@ -91,39 +91,36 @@ export function CreateChannelSheet({
   );
 
   return (
-    <>
-      <ActionSheet moveOnKeyboardChange open onOpenChange={onOpenChange}>
-        <ActionSheet.SimpleHeader title="Create a new channel" />
-        <ActionSheet.ScrollableContent maxHeight={500}>
-          <ActionSheet.FormBlock>
-            <Form.ControlledTextField
-              control={control}
-              name="title"
-              label="Title"
-              inputProps={{ placeholder: 'Channel title' }}
-              rules={{ required: 'Channel title is required' }}
-            />
-          </ActionSheet.FormBlock>
-          <ActionSheet.FormBlock>
-            <Form.ControlledListItemField
-              label="Channel type"
-              options={channelTypes}
-              control={control}
-              name={'channelType'}
-            />
-          </ActionSheet.FormBlock>
-          {watch('channelType') === 'custom' && (
-            <CustomChannelConfigurationForm ref={customChannelConfigRef} />
-          )}
-          <ActionSheet.FormBlock>
-            <Button onPress={handleSubmit(handlePressSave)} hero>
-              <Button.Text>Create channel</Button.Text>
-            </Button>
-          </ActionSheet.FormBlock>
-        </ActionSheet.ScrollableContent>
-      </ActionSheet>
-      ;
-    </>
+    <ActionSheet moveOnKeyboardChange open onOpenChange={onOpenChange}>
+      <ActionSheet.SimpleHeader title="Create a new channel" />
+      <ActionSheet.ScrollableContent maxHeight={500}>
+        <ActionSheet.FormBlock>
+          <Form.ControlledTextField
+            control={control}
+            name="title"
+            label="Title"
+            inputProps={{ placeholder: 'Channel title' }}
+            rules={{ required: 'Channel title is required' }}
+          />
+        </ActionSheet.FormBlock>
+        <ActionSheet.FormBlock>
+          <Form.ControlledListItemField
+            label="Channel type"
+            options={channelTypes}
+            control={control}
+            name={'channelType'}
+          />
+        </ActionSheet.FormBlock>
+        {watch('channelType') === 'custom' && (
+          <CustomChannelConfigurationForm ref={customChannelConfigRef} />
+        )}
+        <ActionSheet.FormBlock>
+          <Button onPress={handleSubmit(handlePressSave)} hero>
+            <Button.Text>Create channel</Button.Text>
+          </Button>
+        </ActionSheet.FormBlock>
+      </ActionSheet.ScrollableContent>
+    </ActionSheet>
   );
 }
 
