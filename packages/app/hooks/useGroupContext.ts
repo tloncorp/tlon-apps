@@ -99,12 +99,6 @@ export const useGroupContext = ({
     }
   }, [group]);
 
-  const createChannel = useCreateChannel({
-    group,
-    currentUserId,
-    disabled: !isFocused,
-  });
-
   const deleteChannel = useCallback(
     async (channelId: string) => {
       if (group) {
@@ -339,7 +333,6 @@ export const useGroupContext = ({
     setGroupMetadata,
     setGroupPrivacy,
     deleteGroup,
-    createChannel,
     deleteChannel,
     updateChannel,
     createNavSection,
