@@ -10,6 +10,7 @@ import {
   removeHostingToken,
   removeHostingUserId,
 } from '../utils/hosting';
+import { clearSplashDismissed } from '../utils/splash';
 
 const logger = createDevLogger('logout', true);
 
@@ -27,6 +28,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
     removeHostingAuthTracking();
     clearLure();
     clearDeepLink();
+    clearSplashDismissed();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');
       return;
