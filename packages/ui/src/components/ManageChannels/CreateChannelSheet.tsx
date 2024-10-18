@@ -158,8 +158,6 @@ function labelForDraftInput(draftInputId: DraftInputId): string {
       return 'Gallery';
     case DraftInputId.notebook:
       return 'Notebook';
-    case DraftInputId.yo:
-      return 'Yo';
   }
 }
 function labelForContentRenderer(r: PostContentRendererId): string {
@@ -200,7 +198,6 @@ const CustomChannelConfigurationForm = forwardRef<{
         DraftInputId.chat,
         DraftInputId.gallery,
         DraftInputId.notebook,
-        DraftInputId.yo,
       ].map((id) => ({
         title: labelForDraftInput(id),
         value: id,

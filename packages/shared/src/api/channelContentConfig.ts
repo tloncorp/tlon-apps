@@ -8,7 +8,6 @@ export enum DraftInputId {
   notebook = 'tlon.r0.input.notebook',
   chat = 'tlon.r0.input.chat',
   gallery = 'tlon.r0.input.gallery',
-  yo = 'tlon.r0.input.yo',
 }
 
 export enum PostContentRendererId {
