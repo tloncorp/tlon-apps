@@ -1,7 +1,14 @@
 import * as $ from 'drizzle-orm';
+import { pick } from 'lodash';
 import { expect, test, vi } from 'vitest';
 
-import { toClientGroup } from '../api';
+import { StructuredChannelDescriptionPayload, toClientGroup } from '../api';
+import '../api/channelContentConfig';
+import {
+  CollectionRendererId,
+  DraftInputId,
+  PostContentRendererId,
+} from '../api/channelContentConfig';
 import * as db from '../db';
 import rawNewestPostData from '../test/channelNewestPost.json';
 import rawChannelPostWithRepliesData from '../test/channelPostWithReplies.json';
@@ -297,5 +304,33 @@ test('syncs thread posts', async () => {
   const posts = await db.getPosts();
   expect(posts.length).toEqual(
     Object.keys(channelPostWithRepliesData.seal.replies).length + 1
+  );
+});
+
+test('syncs groups, decoding structured description payloads', async () => {
+  const groupId = '~fabled-faster/new-york';
+  const groupWithScdp = pick(groupsData, groupId);
+  const channelId = 'chat/~tormut-bolpub/nyc-housing-7361';
+  const channel = groupWithScdp['~fabled-faster/new-york'].channels[channelId];
+  const descriptionText = 'cheers';
+  const channelContentConfiguration = {
+    draftInput: DraftInputId.chat,
+    defaultPostContentRenderer: PostContentRendererId.notebook,
+    defaultPostCollectionRenderer: CollectionRendererId.gallery,
+  };
+  channel.meta.description = StructuredChannelDescriptionPayload.encode({
+    description: descriptionText,
+    channelContentConfiguration,
+  })!;
+  setScryOutput(groupsData);
+  await syncGroups();
+  const pins = Object.keys(groupsData).slice(0, 3);
+  setScryOutput(pins);
+  await syncPinnedItems();
+  const channelFromDb = await db.getChannel({ id: channelId });
+  expect(channelFromDb).toBeTruthy();
+  expect(channelFromDb!.description).toEqual(descriptionText);
+  expect(channelFromDb!.contentConfiguration).toMatchObject(
+    channelContentConfiguration
   );
 });
