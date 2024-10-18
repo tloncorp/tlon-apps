@@ -18,6 +18,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'GroupChannels'>;
 
 export function GroupChannelsScreen({ navigation, route }: Props) {
   const groupParam = route.params.group;
+  const { id } = route.params.group;
 
   const isFocused = useIsFocused();
   const { data: pins } = store.usePins({
@@ -26,7 +27,7 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>(
     null
   );
-  const { group } = useGroupContext({ groupId: groupParam.id, isFocused });
+  const { group } = useGroupContext({ groupId: id, isFocused });
 
   const pinnedItems = useMemo(() => {
     return pins ?? [];
