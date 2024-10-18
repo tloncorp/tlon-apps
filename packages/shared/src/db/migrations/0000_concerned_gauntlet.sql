@@ -59,7 +59,7 @@ CREATE TABLE `channels` (
 	`last_post_id` text,
 	`last_post_at` integer,
 	`is_cached_pending_channel` integer,
-	`is_dm_invite` integer,
+	`is_dm_invite` integer DEFAULT false,
 	`synced_at` integer,
 	`remote_updated_at` integer,
 	`last_viewed_at` integer,
@@ -266,6 +266,11 @@ CREATE TABLE `posts` (
 	`is_edited` integer,
 	`is_deleted` integer,
 	`delivery_status` text,
+	`edit_status` text,
+	`delete_status` text,
+	`last_edit_content` text,
+	`last_edit_title` text,
+	`last_edit_image` text,
 	`synced_at` integer NOT NULL,
 	`backend_time` text
 );

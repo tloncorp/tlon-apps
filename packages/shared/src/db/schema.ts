@@ -777,6 +777,11 @@ export const posts = sqliteTable(
     isEdited: boolean('is_edited'),
     isDeleted: boolean('is_deleted'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
+    editStatus: text('edit_status').$type<PostDeliveryStatus>(),
+    deleteStatus: text('delete_status').$type<PostDeliveryStatus>(),
+    lastEditContent: text('last_edit_content', { mode: 'json' }),
+    lastEditTitle: text('last_edit_title'),
+    lastEditImage: text('last_edit_image'),
     syncedAt: timestamp('synced_at').notNull(),
     // backendTime translates to an unfortunate alternative timestamp that is used
     // in some places by the backend agents as part of a composite key for identifying a post.

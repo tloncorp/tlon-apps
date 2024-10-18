@@ -89,6 +89,7 @@ export function MessageInput({
 
   const [containerHeight, setContainerHeight] = useState(initialHeight);
   const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState(false);
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [imageOnEditedPost, setImageOnEditedPost] = useState<Image | null>();
   const [editorIsEmpty, setEditorIsEmpty] = useState(attachments.length === 0);
@@ -531,8 +532,10 @@ export function MessageInput({
         await sendMessage(isEdit);
       } catch (e) {
         console.error('failed to send', e);
+        setSendError(true);
       }
       setIsSending(false);
+      setSendError(false);
     },
     [sendMessage]
   );
@@ -564,6 +567,7 @@ export function MessageInput({
       showMentionPopup={showMentionPopup}
       isEditing={!!editingPost}
       isSending={isSending}
+      sendError={sendError}
       cancelEditing={() => setEditingPost?.(undefined)}
       showAttachmentButton={showAttachmentButton}
       floatingActionButton={floatingActionButton}

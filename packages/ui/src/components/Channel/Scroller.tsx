@@ -73,6 +73,7 @@ const Scroller = forwardRef(
       renderEmptyComponent: renderEmptyComponentFn,
       posts,
       channel,
+      detailView,
       firstUnreadId,
       unreadCount,
       onStartReached,
@@ -97,6 +98,7 @@ const Scroller = forwardRef(
       renderEmptyComponent?: () => ReactElement;
       posts: db.Post[] | null;
       channel: db.Channel;
+      detailView?: boolean;
       firstUnreadId?: string | null;
       unreadCount?: number | null;
       onStartReached?: () => void;
@@ -120,7 +122,7 @@ const Scroller = forwardRef(
     ref
   ) => {
     const collectionLayoutType = useMemo(
-      () => layoutTypeFromChannel(channel),
+      () => layoutTypeFromChannel(channel, detailView),
       [channel]
     );
     const collectionLayout = useMemo(
