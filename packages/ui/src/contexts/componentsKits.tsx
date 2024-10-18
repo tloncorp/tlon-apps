@@ -1,14 +1,7 @@
 import { DraftInputId, PostContentRendererId } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
-import {
-  ReactElement,
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from 'react';
+import { ReactElement, createContext, useContext, useMemo } from 'react';
 
 import { PictoMessage } from '../components/Channel/PictoMessage';
 import { ChatMessage } from '../components/ChatMessage';
@@ -55,25 +48,11 @@ interface ComponentsKitContextValue {
   inputs: Readonly<
     Partial<{ [Id in DraftInputId]: DraftInputRendererComponent }>
   >;
-
-  // TODO: Remove
-  registerRenderer: (
-    id: string,
-    renderer: RenderItemType
-  ) => { unregister: () => void };
 }
 
 const _globalContextValue: ComponentsKitContextValue = {
   renderers: {},
   inputs: {},
-  registerRenderer(id, renderer) {
-    this.renderers[id] = renderer;
-    return {
-      unregister: () => {
-        delete this.renderers[id];
-      },
-    };
-  },
 };
 
 const ComponentsKitContext =
@@ -83,50 +62,37 @@ export function useComponentsKitContext() {
   return useContext(ComponentsKitContext);
 }
 
+const BUILTIN_CONTENT_RENDERERS: { [id: string]: RenderItemType } = {
+  [PostContentRendererId.chat]: ChatMessage,
+  [PostContentRendererId.gallery]: GalleryPost,
+  [PostContentRendererId.notebook]: NotebookPost,
+  [PostContentRendererId.picto]: PictoMessage,
+};
+const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
+  [DraftInputId.chat]: ChatInput,
+  [DraftInputId.gallery]: GalleryInput,
+  [DraftInputId.notebook]: NotebookInput,
+  [DraftInputId.picto]: StandaloneDrawingInput,
+  [DraftInputId.yo]: ({ draftInputContext }) => (
+    <ButtonInput
+      draftInputContext={draftInputContext}
+      messageText="Yo"
+      labelText="Yo"
+    />
+  ),
+};
+
 export function ComponentsKitContextProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [renderers, setRenderers] = useState<{ [id: string]: RenderItemType }>({
-    [PostContentRendererId.chat]: ChatMessage,
-    [PostContentRendererId.gallery]: GalleryPost,
-    [PostContentRendererId.notebook]: NotebookPost,
-    [PostContentRendererId.picto]: PictoMessage,
-  });
-  const [inputs] = useState<{ [id: string]: DraftInputRendererComponent }>({
-    [DraftInputId.chat]: ChatInput,
-    [DraftInputId.gallery]: GalleryInput,
-    [DraftInputId.notebook]: NotebookInput,
-    [DraftInputId.picto]: StandaloneDrawingInput,
-    [DraftInputId.yo]: ({ draftInputContext }) => (
-      <ButtonInput
-        draftInputContext={draftInputContext}
-        messageText="Yo"
-        labelText="Yo"
-      />
-    ),
-  });
-
-  const registerRenderer = useCallback(
-    (id: string, renderer: RenderItemType) => {
-      setRenderers((prev) => ({ ...prev, [id]: renderer }));
-      return {
-        unregister: () => {
-          setRenderers((prev) => {
-            const next = { ...prev };
-            delete next[id];
-            return next;
-          });
-        },
-      };
-    },
-    [setRenderers]
-  );
-
   const value = useMemo(
-    () => ({ renderers, inputs, registerRenderer }),
-    [renderers, inputs, registerRenderer]
+    () => ({
+      renderers: BUILTIN_CONTENT_RENDERERS,
+      inputs: BUILTIN_DRAFT_INPUTS,
+    }),
+    []
   );
 
   return (
