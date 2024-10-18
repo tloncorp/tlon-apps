@@ -1,5 +1,5 @@
 import crashlytics from '@react-native-firebase/crashlytics';
-import * as store from '@tloncorp/shared/dist/store';
+import { createDevLogger } from '@tloncorp/shared';
 import { SizableText, View } from '@tloncorp/ui';
 import { Component, ErrorInfo, ReactNode } from 'react';
 
@@ -12,6 +12,8 @@ interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
 }
+
+const logger = createDevLogger('error-boundary', false);
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
@@ -26,11 +28,8 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     try {
       // If was thrown from within AuthenticatedApp, use enhanced error reporting
-      const reporter = new store.ErrorReporter(
-        'Error boundary caught an error'
-      );
-      reporter.log(JSON.stringify(errorInfo));
-      reporter.report(error);
+      logger.crumb(JSON.stringify(errorInfo));
+      logger.trackError(error.message, error);
     } catch (e) {
       // Otherwise fallback what we have at hand
       crashlytics().recordError(error);

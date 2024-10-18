@@ -1,4 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useDebugStore } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   AppSetting,
@@ -15,13 +16,13 @@ import {
 import { preSig } from '@urbit/aura';
 import * as Application from 'expo-application';
 import * as Updates from 'expo-updates';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useCallback } from 'react';
-import { Platform, Switch } from 'react-native';
+import { Alert, Platform, Switch } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
-import { toggleDebug, uploadLogs, useDebugStore } from '../../lib/debug';
+import { toggleDebug } from '../../lib/debug';
 import { getEasUpdateDisplay } from '../../lib/platformHelpers';
 import { RootStackParamList } from '../../navigation/types';
 
@@ -31,12 +32,24 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AppInfo'>;
 
 export function AppInfoScreen(props: Props) {
   const { data: appInfo } = store.useAppInfo();
-  const { enabled, logs, logsUrl } = useDebugStore();
+  const { enabled, logs, logsUrl, uploadLogs } = useDebugStore();
   const easUpdateDisplay = useMemo(() => getEasUpdateDisplay(Updates), []);
 
   const onPressPreviewFeatures = useCallback(() => {
     props.navigation.navigate('FeatureFlags');
   }, [props.navigation]);
+
+  useEffect(() => {
+    Alert.alert(
+      'Debug mode enabled',
+      'Debug mode is now enabled. You may experience some degraded performance, because logs will be captured as you use the app. To get the best capture, you should kill the app and open it again.',
+      [
+        {
+          text: 'OK',
+        },
+      ]
+    );
+  }, [enabled]);
 
   return (
     <View flex={1}>

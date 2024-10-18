@@ -1,4 +1,3 @@
-import crashlytics from '@react-native-firebase/crashlytics';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { useAppStatusChange } from '@tloncorp/app/hooks/useAppStatusChange';
@@ -10,8 +9,7 @@ import { cancelFetch, configureClient } from '@tloncorp/app/lib/api';
 import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
-import { initializeCrashReporter, sync } from '@tloncorp/shared';
-import * as store from '@tloncorp/shared/dist/store';
+import { sync, useDebugStore } from '@tloncorp/shared';
 import { ZStack } from '@tloncorp/ui';
 import { useCallback, useEffect } from 'react';
 import { AppStateStatus } from 'react-native';
@@ -46,12 +44,7 @@ function AuthenticatedApp({
       onChannelStatusChange: sync.handleChannelStatusChange,
     });
 
-    initializeCrashReporter(crashlytics(), PlatformState);
-
-    // TODO: remove, for use in Beta testing only
-    if (currentUserId) {
-      store.setErrorTrackingUserId(currentUserId);
-    }
+    useDebugStore.getState().initializePlatform(PlatformState);
 
     if (signupContext.didSignup) {
       handlePostSignup();

@@ -1,16 +1,31 @@
 import { useEffect, useRef } from 'react';
+import create from 'zustand';
 
+import * as db from './db';
 import { useLiveRef } from './logic/utilHooks';
 import { useCurrentSession } from './store/session';
 
-const customLoggers = new Set<string>();
-let logger: Console | null = null;
-let forceEnabled = false;
+const BREADCRUMB_LIMIT = 100;
 
 interface Breadcrumb {
   tag: string;
   message?: string | null;
   sensitive?: string | null;
+}
+
+interface DebugPlatformState {
+  network: string;
+  battery: string;
+  easUpdate: string;
+}
+
+type PlatformState = {
+  getDebugInfo: () => Promise<DebugPlatformState | null>;
+};
+
+interface Log {
+  timestamp: number;
+  message: string;
 }
 
 export type Logger = Console & {
@@ -19,44 +34,115 @@ export type Logger = Console & {
   trackError: (message: string, data?: Record<string, any>) => void;
 };
 
-const debugBreadcrumbs: Breadcrumb[] = [];
-const BREADCRUMB_LIMIT = 100;
-
-function addBreadcrumb(crumb: Breadcrumb) {
-  debugBreadcrumbs.push(crumb);
-  if (debugBreadcrumbs.length >= BREADCRUMB_LIMIT) {
-    debugBreadcrumbs.shift();
-  }
-}
-
-export function getCurrentBreadcrumbs() {
-  const includeSensitiveContext = true; // TODO: handle accordingly
-  return debugBreadcrumbs.map((crumb) => {
-    return `[${crumb.tag}] ${crumb.message ?? ''}${includeSensitiveContext && crumb.sensitive ? crumb.sensitive : ''}`;
-  });
-}
-
-export function addCustomEnabledLoggers(loggers: string[]) {
-  loggers.forEach((logger) => customLoggers.add(logger));
-}
-
-export function initializeLogger(loggerInput: Console) {
-  logger = loggerInput;
-}
-
-export function toggleAllLogs(on: boolean) {
-  forceEnabled = on;
-}
-
 interface ErrorLoggerStub {
   capture: (event: string, data: Record<string, unknown>) => void;
 }
 
-let errorLoggerInstance: ErrorLoggerStub | null = null;
-export function initializeErrorLogger(errorLoggerInput: ErrorLoggerStub) {
-  if (errorLoggerInput) {
-    errorLoggerInstance = errorLoggerInput;
+interface DebugStore {
+  enabled: boolean;
+  debugBreadcrumbs: Breadcrumb[];
+  customLoggers: Set<string>;
+  errorLogger: ErrorLoggerStub | null;
+  logs: Log[];
+  logsUrl: string | null;
+  platform: PlatformState | null;
+  toggle: (enabled: boolean) => void;
+  appendLog: (log: Log) => void;
+  uploadLogs: () => Promise<void>;
+  addBreadcrumb: (crumb: Breadcrumb) => void;
+  getBreadcrumbs: () => string[];
+  addCustomEnabledLoggers: (loggers: string[]) => void;
+  initializePlatform: (platform: PlatformState) => void;
+  initializeErrorLogger: (errorLoggerInput: ErrorLoggerStub) => void;
+}
+
+export const useDebugStore = create<DebugStore>((set, get) => ({
+  enabled: false,
+  customLoggers: new Set<string>(),
+  errorLogger: null,
+  debugBreadcrumbs: [],
+  logs: [],
+  logsUrl: null,
+  platform: null,
+  toggle: (enabled) => {
+    set(() => ({
+      enabled,
+    }));
+  },
+  appendLog: (log: Log) => {
+    set((state) => ({
+      logs: [...state.logs, log],
+    }));
+  },
+  uploadLogs: async () => {
+    const { errorLogger, platform, debugBreadcrumbs } = get();
+    const debugInfo = await platform?.getDebugInfo();
+
+    errorLogger?.capture('debug_logs', {
+      logs: get().logs,
+      breadcrumbs: debugBreadcrumbs,
+      debugInfo,
+    });
+  },
+  addBreadcrumb: (crumb: Breadcrumb) => {
+    set((state) => {
+      const debugBreadcrumbs = state.debugBreadcrumbs.slice();
+      debugBreadcrumbs.push(crumb);
+
+      if (debugBreadcrumbs.length >= BREADCRUMB_LIMIT) {
+        debugBreadcrumbs.shift();
+      }
+
+      return state;
+    });
+  },
+  getBreadcrumbs: () => {
+    const { debugBreadcrumbs } = get();
+    const includeSensitiveContext = true; // TODO: handle accordingly
+    return debugBreadcrumbs.map((crumb) => {
+      return `[${crumb.tag}] ${crumb.message ?? ''}${includeSensitiveContext && crumb.sensitive ? crumb.sensitive : ''}`;
+    });
+  },
+  addCustomEnabledLoggers: (loggers) => {
+    set((state) => {
+      loggers.forEach((logger) => state.customLoggers.add(logger));
+      return state;
+    });
+  },
+  initializePlatform: (platform) => {
+    set(() => ({
+      platform,
+    }));
+  },
+  initializeErrorLogger: (errorLoggerInput) => {
+    set(() => ({
+      errorLogger: errorLoggerInput,
+    }));
+  },
+}));
+
+export function addCustomEnabledLoggers(loggers: string[]) {
+  return useDebugStore.getState().addCustomEnabledLoggers(loggers);
+}
+
+async function getDebugInfo() {
+  let appInfo = null;
+  let platformState = null;
+  const { platform } = useDebugStore.getState();
+  try {
+    appInfo = await db.getAppInfoSettings();
+    platformState = await platform?.getDebugInfo();
+  } catch (e) {
+    console.error('Failed to get app info or platform state', e);
   }
+
+  return {
+    groupsSource: appInfo?.groupsSyncNode,
+    groupsHash: appInfo?.groupsHash,
+    network: platformState?.network,
+    battery: platformState?.battery,
+    easUpdate: platformState?.easUpdate,
+  };
 }
 
 export function createDevLogger(tag: string, enabled: boolean) {
@@ -64,6 +150,12 @@ export function createDevLogger(tag: string, enabled: boolean) {
     get(target: Console, prop: string | symbol, receiver) {
       return (...args: unknown[]) => {
         let resolvedProp = prop;
+        const {
+          enabled: debugEnabled,
+          errorLogger,
+          customLoggers,
+          addBreadcrumb,
+        } = useDebugStore.getState();
 
         if (prop === 'crumb') {
           addBreadcrumb({
@@ -92,23 +184,36 @@ export function createDevLogger(tag: string, enabled: boolean) {
         if (prop === 'trackError') {
           const customProps =
             args[1] && typeof args[1] === 'object' ? args[1] : {};
-          errorLoggerInstance?.capture('app_error', {
-            ...customProps,
-            message:
-              typeof args[0] === 'string'
-                ? `[${tag}] ${args[0]}`
-                : 'no message',
-            breadcrumbs: getCurrentBreadcrumbs(),
-          });
+          const report = (debugInfo: any = undefined) =>
+            errorLogger?.capture('app_error', {
+              ...customProps,
+              debugInfo,
+              message:
+                typeof args[0] === 'string'
+                  ? `[${tag}] ${args[0]}`
+                  : 'no message',
+              breadcrumbs: useDebugStore.getState().getBreadcrumbs(),
+            });
+          getDebugInfo()
+            .then(report)
+            .catch(() => report());
           resolvedProp = 'error';
         }
 
-        if (
-          (forceEnabled || enabled || customLoggers.has(tag)) &&
-          process.env.NODE_ENV !== 'production'
-        ) {
-          const val = Reflect.get(logger || target, resolvedProp, receiver);
-          const prefix = `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`;
+        if (!(debugEnabled || enabled || customLoggers.has(tag))) {
+          return;
+        }
+
+        const prefix = `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`;
+        if (debugEnabled) {
+          useDebugStore.getState().appendLog({
+            timestamp: Date.now(),
+            message: `${prefix} ${stringifyArgs(...args)}`,
+          });
+        }
+
+        if (__DEV__) {
+          const val = Reflect.get(target, resolvedProp, receiver);
           val(prefix, ...args);
         }
       };
@@ -268,4 +373,23 @@ export function useObjectChangeLogging(
       lastValues.current[k] = v;
     }
   });
+}
+
+function stringifyArgs(...args: unknown[]): string {
+  return args
+    .map((arg) => {
+      if (!arg) {
+        return JSON.stringify(arg);
+      }
+      if (typeof arg === 'string') {
+        return arg;
+      }
+
+      if (typeof arg === 'object' && 'toString' in arg) {
+        return arg.toString();
+      }
+
+      return JSON.stringify(arg);
+    })
+    .join(' ');
 }
