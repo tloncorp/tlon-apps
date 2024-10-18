@@ -22,28 +22,22 @@ import {
   ChannelProvider,
   GroupsProvider,
   NavigationProvider,
-  useChannelContext,
   useCurrentUserId,
 } from '../../contexts';
 import { Attachment, AttachmentProvider } from '../../contexts/attachment';
-import {
-  ComponentsKitContextProvider,
-  RenderItemType,
-  useComponentsKitContext,
-} from '../../contexts/componentsKits';
+import { ComponentsKitContextProvider } from '../../contexts/componentsKits';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
 import * as utils from '../../utils';
-import { ChatMessage } from '../ChatMessage';
-import { GalleryPost } from '../GalleryPost';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
-import { NotebookPost } from '../NotebookPost';
 import { DraftInputContext } from '../draftInputs';
 import { DraftInputHandle, GalleryDraftType } from '../draftInputs/shared';
 import { ChannelFooter } from './ChannelFooter';
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
+import { DraftInputView } from './DraftInputView';
 import { EmptyChannelNotice } from './EmptyChannelNotice';
+import { PostView } from './PostView';
 import Scroller, { ScrollAnchor } from './Scroller';
 
 export { INITIAL_POSTS_PER_PAGE } from './Scroller';
@@ -449,56 +443,4 @@ function NegotionMismatchNotice() {
       </View>
     </View>
   );
-}
-
-const PostView: RenderItemType = (props) => {
-  const channel = useChannelContext();
-  const { renderers } = useComponentsKitContext();
-
-  const SpecificPostComponent = useMemo(() => {
-    // why do this iife?
-    // without it, TypeScript thinks the value from `renderers[]` may be null.
-    // sad!
-    const rendererFromContentConfig = (() => {
-      const contentConfig = channel.contentConfiguration;
-      if (
-        contentConfig != null &&
-        renderers[contentConfig.defaultPostContentRenderer] != null
-      ) {
-        return renderers[contentConfig.defaultPostContentRenderer];
-      }
-    })();
-    if (rendererFromContentConfig != null) {
-      return rendererFromContentConfig;
-    }
-
-    // content config did not provide a renderer, fall back to default
-    switch (channel.type) {
-      case 'chat':
-      // fallthrough
-      case 'dm':
-      // fallthrough
-      case 'groupDm':
-        return ChatMessage;
-
-      case 'notebook':
-        return NotebookPost;
-
-      case 'gallery':
-        return GalleryPost;
-    }
-  }, [channel.type, channel.contentConfiguration, renderers]);
-
-  return <SpecificPostComponent {...props} />;
-};
-
-function DraftInputView(props: {
-  draftInputContext: DraftInputContext;
-  type: DraftInputId;
-}) {
-  const { inputs } = useComponentsKitContext();
-  const InputComponent = inputs[props.type];
-  if (InputComponent) {
-    return <InputComponent draftInputContext={props.draftInputContext} />;
-  }
 }
