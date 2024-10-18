@@ -56,11 +56,18 @@ export function GalleryPost({
     setShowRetrySheet(false);
   }, [onPressDelete, post]);
 
+  const deliveryFailed =
+    post.deliveryStatus === 'failed' ||
+    post.editStatus === 'failed' ||
+    post.deleteStatus === 'failed';
+
   const handlePress = useCallback(() => {
-    post.deliveryStatus === 'failed'
-      ? () => setShowRetrySheet(true)
-      : onPress?.(post);
-  }, [onPress, post]);
+    if (onPress && !deliveryFailed) {
+      onPress(post);
+    } else if (deliveryFailed) {
+      setShowRetrySheet(true);
+    }
+  }, [onPress, deliveryFailed, post]);
 
   const handleLongPress = useBoundHandler(post, onLongPress);
 
@@ -84,22 +91,31 @@ export function GalleryPost({
           width="100%"
           pointerEvents="none"
         >
-          {post.deliveryStatus === 'failed' ? (
-            <XStack alignItems="center" paddingLeft="$xl" paddingBottom="$xl">
-              <Text color="$negativeActionText" size="$label/s">
-                Message failed to send
+          <XStack alignItems="center" gap="$xl" padding="$m" {...props}>
+            <ContactAvatar size="$2xl" contactId={post.authorId} />
+            {deliveryFailed && (
+              <Text
+                // applying some shadow here because we could be rendering it
+                // on top of an image
+                shadowOffset={{
+                  width: 0,
+                  height: 1,
+                }}
+                shadowOpacity={0.8}
+                shadowColor="$redSoft"
+                color="$negativeActionText"
+                size="$label/s"
+              >
+                Tap to retry
               </Text>
-            </XStack>
-          ) : (
-            <XStack padding="$m" {...props}>
-              <ContactAvatar size="$2xl" contactId={post.authorId} />
-            </XStack>
-          )}
+            )}
+          </XStack>
         </View>
       )}
       <SendPostRetrySheet
         open={showRetrySheet}
         onOpenChange={setShowRetrySheet}
+        post={post}
         onPressDelete={handleDeletePressed}
         onPressRetry={handleRetryPressed}
       />
