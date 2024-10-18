@@ -73,7 +73,7 @@ const App = () => {
           <View flex={1} alignItems="center" justifyContent="center">
             <LoadingSpinner />
           </View>
-        ) : isAuthenticated && !signupContext.isOngoing ? (
+        ) : isAuthenticated && !signupContext.didBeginSignup ? (
           <AuthenticatedApp />
         ) : (
           <OnboardingStack />
