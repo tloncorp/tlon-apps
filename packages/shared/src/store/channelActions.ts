@@ -15,6 +15,8 @@ export async function createChannel({
   channelId,
   name,
   title,
+  // Alias to `rawDescription`, since we might need to synthesize a new
+  // `description` API value by merging with `contentConfiguration` below.
   description: rawDescription,
   channelType,
   contentConfiguration,
@@ -40,6 +42,9 @@ export async function createChannel({
   };
   await db.insertChannels([newChannel]);
 
+  // If we have a `contentConfiguration`, we need to merge these fields to make
+  // a `StructuredChannelDescriptionPayload`, and use that as the `description`
+  // on the API.
   const encodedDescription =
     contentConfiguration == null
       ? rawDescription

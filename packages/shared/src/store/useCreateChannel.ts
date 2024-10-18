@@ -61,6 +61,12 @@ export function useCreateChannel({
   );
 }
 
+/**
+ * Creates a `ChannelContentConfiguration` matching our built-in legacy
+ * channel types. With this configuration in place, we can treat these channels
+ * as we would any other custom channel, and avoid switching on `channel.type`
+ * in client code.
+ */
 function channelContentConfigurationForChannelType(
   channelType: Omit<db.Channel['type'], 'dm' | 'groupDm'>
 ): ChannelContentConfiguration {

@@ -327,6 +327,18 @@ interface ChatMembersBuilder {
   build(): db.ChatMember[];
 }
 
+/**
+ * Build a list of chat members, specifying common fields in one place.
+ *
+ * ```ts
+ * const channel = {
+ *   members: buildChatMembers({ chatId: '1', membershipType: 'channel' })
+ *     .add({ contactId: '2', status: 'joined' })
+ *     .add({ contactId: '3', status: 'invited' })
+ *     .build()
+ * };
+ * ```
+ */
 export function buildChatMembers(
   commonFields: Pick<db.ChatMember, 'chatId' | 'membershipType'>
 ): ChatMembersBuilder {
