@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { NodeBootPhase } from '@tloncorp/app/lib/bootHelpers';
 import {
@@ -11,7 +12,6 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useLureMetadata } from 'packages/app/contexts/branch';
 import { useEffect, useMemo } from 'react';
 
 import type { OnboardingStackParamList } from '../../types';
