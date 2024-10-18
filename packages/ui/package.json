@@ -53,7 +53,6 @@
   },
   "peerDependencies": {
     "@10play/tentap-editor": "~0.5.11",
-    "@shopify/react-native-skia": "^1.3.9",
     "@urbit/sigil-js": "^2.2.0",
     "expo-image": "*",
     "react": "*",
