@@ -1,7 +1,3 @@
-type PostContent = 'TODO: PostContent';
-
-type RenderTarget = JSX.Element;
-
 export enum CollectionRendererId {
   notebook = 'tlon.r0.collection.notebook',
   chat = 'tlon.r0.collection.chat',
@@ -44,20 +40,6 @@ export interface ChannelContentConfiguration {
    * How should we render the entire collection of posts? (list, grid, etc)
    */
   defaultPostCollectionRenderer: CollectionRendererId;
-}
-
-/**
- * How does a given post content renderer render a post content?
- */
-export interface PostContentRendererDescription {
-  render: (props: { content: PostContent }) => RenderTarget;
-}
-
-/**
- * How does a given draft input render its controls?
- */
-export interface DraftInputDescription<Payload> {
-  render: (props: { ref: React.Ref<{ value: Payload }> }) => RenderTarget;
 }
 
 /**
