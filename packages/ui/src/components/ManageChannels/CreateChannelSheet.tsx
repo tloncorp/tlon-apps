@@ -101,14 +101,25 @@ export function CreateChannelSheet({
   );
 
   return (
-    <ActionSheet moveOnKeyboardChange open onOpenChange={onOpenChange}>
+    <ActionSheet
+      moveOnKeyboardChange
+      open
+      onOpenChange={onOpenChange}
+      {
+        // With the taller sheet content from custom channel form, the sheet is too
+        // tall and scrolling doesn't work.
+        // When that happens, change snap points from `fit` (i.e. defined by
+        // content) to a fixed percent height.
+        ...(enableCustomChannels
+          ? {
+              snapPoints: [85],
+              snapPointsMode: 'percent',
+            }
+          : null)
+      }
+    >
       <ActionSheet.SimpleHeader title="Create a new channel" />
-      <ActionSheet.ScrollableContent
-        maxHeight={
-          // Custom channel configuration form makes this too tall, and scrolling doesn't work.
-          enableCustomChannels ? 500 : undefined
-        }
-      >
+      <ActionSheet.ScrollableContent>
         <ActionSheet.FormBlock>
           <Form.ControlledTextField
             control={control}
