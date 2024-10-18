@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useLureMetadata } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
-import { NodeBootPhase } from '../lib/bootHelpers';
+import { BootPhaseNames, NodeBootPhase } from '../lib/bootHelpers';
 import BootHelpers from '../lib/bootHelpers';
 import { getShipFromCookie } from '../utils/ship';
 import { useConfigureUrbitClient } from './useConfigureUrbitClient';
@@ -264,7 +264,7 @@ export function useBootSequence({
 
         lastRunPhaseRef.current = bootPhase;
         lastRunErrored.current = false;
-        logger.log(`running boot sequence phase: ${bootPhase}`);
+        logger.log(`running boot sequence phase: ${BootPhaseNames[bootPhase]}`);
 
         const nextBootPhase = await runBootPhase();
         setBootPhase(nextBootPhase);

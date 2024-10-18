@@ -7,15 +7,15 @@ import { trackOnboardingAction } from '../utils/posthog';
 import { getShipFromCookie, getShipUrl } from '../utils/ship';
 
 export enum NodeBootPhase {
-  IDLE = 'idle',
-  RESERVING = 'reserving',
-  BOOTING = 'booting',
-  AUTHENTICATING = 'authenticating',
-  CONNECTING = 'connecting',
-  CHECKING_FOR_INVITE = 'checking-for-invite',
-  ACCEPTING_INVITES = 'accepting-invites',
-  READY = 'ready',
-  ERROR = 'error',
+  IDLE = 1,
+  RESERVING = 2,
+  BOOTING = 3,
+  AUTHENTICATING = 4,
+  CONNECTING = 5,
+  CHECKING_FOR_INVITE = 6,
+  ACCEPTING_INVITES = 7,
+  READY = 200,
+  ERROR = 400,
 }
 
 export const BootPhaseExplanations: Record<NodeBootPhase, string> = {
@@ -29,6 +29,18 @@ export const BootPhaseExplanations: Record<NodeBootPhase, string> = {
     'Initializing the conversations you were invited to',
   [NodeBootPhase.READY]: 'Your node is ready',
   [NodeBootPhase.ERROR]: 'Your node errored while initializing',
+};
+
+export const BootPhaseNames: Record<NodeBootPhase, string> = {
+  [NodeBootPhase.IDLE]: 'Idle',
+  [NodeBootPhase.RESERVING]: 'Reserving',
+  [NodeBootPhase.BOOTING]: 'Booting',
+  [NodeBootPhase.AUTHENTICATING]: 'Authenticating',
+  [NodeBootPhase.CONNECTING]: 'Connecting',
+  [NodeBootPhase.CHECKING_FOR_INVITE]: 'Checking for Invites',
+  [NodeBootPhase.ACCEPTING_INVITES]: 'Accepting Invites',
+  [NodeBootPhase.READY]: 'Ready',
+  [NodeBootPhase.ERROR]: 'Error',
 };
 
 export default {

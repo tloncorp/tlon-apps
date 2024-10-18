@@ -130,23 +130,31 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       values.didCompleteSignup &&
       bootPhase === NodeBootPhase.READY
     ) {
-      logger.log('running post-signup actions');
-      const postSignupParams = {
-        nickname: values.nickname,
-        telemetry: values.telemetry,
-        notificationToken: values.notificationToken,
-      };
-      handlePostSignup(postSignupParams);
-      clear();
-      logger.trackEvent('hosted signup report', {
-        bootDuration: bootReport
-          ? bootReport.completedAt - bootReport.startedAt
-          : null,
-        userSatWaitingFor: values.userWasReadyAt
-          ? Date.now() - values.userWasReadyAt
-          : null,
-        timeUnit: 'ms',
-      });
+      try {
+        logger.log('running post-signup actions');
+        const postSignupParams = {
+          nickname: values.nickname,
+          telemetry: values.telemetry,
+          notificationToken: values.notificationToken,
+        };
+        handlePostSignup(postSignupParams);
+        logger.trackEvent('hosted signup report', {
+          bootDuration: bootReport
+            ? bootReport.completedAt - bootReport.startedAt
+            : null,
+          userSatWaitingFor: values.userWasReadyAt
+            ? Date.now() - values.userWasReadyAt
+            : null,
+          timeUnit: 'ms',
+        });
+      } catch (e) {
+        logger.trackError('post signup error', {
+          errorMessage: e.message,
+          errorStack: e.stack,
+        });
+      } finally {
+        setTimeout(() => clear(), 2000);
+      }
     }
   }, [values, bootPhase, clear, bootReport]);
 
