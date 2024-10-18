@@ -13,6 +13,10 @@ export const featureMeta = {
     default: false,
     label: 'Enable collecting and reporting performance data',
   },
+  customChannels: {
+    default: false,
+    label: 'Enable creating custom channels',
+  },
 } satisfies Record<string, { default: boolean; label: string }>;
 
 export type FeatureName = keyof typeof featureMeta;

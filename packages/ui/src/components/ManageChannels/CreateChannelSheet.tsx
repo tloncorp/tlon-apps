@@ -53,9 +53,11 @@ const channelTypes: Form.ListItemInputOption<ChannelTypeName>[] = [
 export function CreateChannelSheet({
   onOpenChange,
   group,
+  enableCustomChannels = false,
 }: {
   onOpenChange: (open: boolean) => void;
   group: db.Group;
+  enableCustomChannels?: boolean;
 }) {
   const customChannelConfigRef =
     useRef<ElementRef<typeof CustomChannelConfigurationForm>>(null);
@@ -90,10 +92,23 @@ export function CreateChannelSheet({
     [createChannel, onOpenChange]
   );
 
+  const availableChannelTypes = useMemo(
+    () =>
+      enableCustomChannels
+        ? channelTypes
+        : channelTypes.filter((t) => t.value !== 'custom'),
+    [enableCustomChannels]
+  );
+
   return (
     <ActionSheet moveOnKeyboardChange open onOpenChange={onOpenChange}>
       <ActionSheet.SimpleHeader title="Create a new channel" />
-      <ActionSheet.ScrollableContent maxHeight={500}>
+      <ActionSheet.ScrollableContent
+        maxHeight={
+          // Custom channel configuration form makes this too tall, and scrolling doesn't work.
+          enableCustomChannels ? 500 : undefined
+        }
+      >
         <ActionSheet.FormBlock>
           <Form.ControlledTextField
             control={control}
@@ -106,7 +121,7 @@ export function CreateChannelSheet({
         <ActionSheet.FormBlock>
           <Form.ControlledListItemField
             label="Channel type"
-            options={channelTypes}
+            options={availableChannelTypes}
             control={control}
             name={'channelType'}
           />

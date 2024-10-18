@@ -7,6 +7,7 @@ import {
   GroupChannelsScreenView,
   InviteUsersSheet,
 } from '@tloncorp/ui';
+import { useFeatureFlag } from 'packages/app/lib/featureFlags';
 import { useCallback, useMemo, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -44,6 +45,8 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
     navigation.goBack();
   }, [navigation]);
 
+  const [enableCustomChannels] = useFeatureFlag('customChannels');
+
   return (
     <ChatOptionsProvider
       groupId={groupParam.id}
@@ -58,6 +61,7 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
         onChannelPressed={handleChannelSelected}
         onBackPressed={handleGoBackPressed}
         group={group}
+        enableCustomChannels={enableCustomChannels}
       />
       <InviteUsersSheet
         open={inviteSheetGroup !== null}

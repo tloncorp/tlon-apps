@@ -15,12 +15,14 @@ type GroupChannelsScreenViewProps = {
   group: db.Group | null;
   onChannelPressed: (channel: db.Channel) => void;
   onBackPressed: () => void;
+  enableCustomChannels?: boolean;
 };
 
 export function GroupChannelsScreenView({
   group,
   onChannelPressed,
   onBackPressed,
+  enableCustomChannels = false,
 }: GroupChannelsScreenViewProps) {
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
@@ -117,6 +119,7 @@ export function GroupChannelsScreenView({
         <CreateChannelSheet
           onOpenChange={(open) => setShowCreateChannel(open)}
           group={group}
+          enableCustomChannels={enableCustomChannels}
         />
       )}
       <ChatOptionsSheet ref={chatOptionsSheetRef} setSortBy={setSortBy} />
