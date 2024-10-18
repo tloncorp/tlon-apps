@@ -43,7 +43,7 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
         title={
           signupContext.bootPhase < NodeBootPhase.READY
             ? "We're setting you up"
-            : 'Setup complete!!'
+            : 'Setup complete!'
         }
         showSessionStatus={false}
       />
