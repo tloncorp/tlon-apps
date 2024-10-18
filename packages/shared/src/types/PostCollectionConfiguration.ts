@@ -13,13 +13,16 @@ export type PostCollectionLayoutType =
 // If the caller has a non-nullable `channel`, they can then get a
 // non-nullable return value - nice, right?
 export function layoutTypeFromChannel(
-  channel: db.Channel
+  channel: db.Channel,
+  detailView?: boolean
 ): PostCollectionLayoutType;
 export function layoutTypeFromChannel(
-  channel: db.Channel | null
+  channel: db.Channel | null,
+  detailView?: boolean
 ): PostCollectionLayoutType | null;
 export function layoutTypeFromChannel(
-  channel: db.Channel | null
+  channel: db.Channel | null,
+  detailView?: boolean
 ): PostCollectionLayoutType | null {
   switch (channel?.type) {
     case null:
@@ -35,9 +38,15 @@ export function layoutTypeFromChannel(
       return 'compact-list-bottom-to-top';
 
     case 'notebook':
+      if (detailView) {
+        return 'compact-list-bottom-to-top';
+      }
       return 'comfy-list-top-to-bottom';
 
     case 'gallery':
+      if (detailView) {
+        return 'compact-list-bottom-to-top';
+      }
       return 'grid';
   }
 }
