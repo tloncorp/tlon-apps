@@ -26,15 +26,7 @@ export const useDeepLinkListener = () => {
         try {
           // if the lure was clicked prior to authenticating, trigger the automatic join & DM
           if (lure.shouldAutoJoin) {
-            try {
-              logger.log(`inviting ship with lure`, ship, signupParams.lureId);
-              await inviteShipWithLure({ ship, lure: signupParams.lureId });
-            } catch (err) {
-              logger.error('Error inviting ship with lure:', err);
-              if (err instanceof Error) {
-                trackError(err);
-              }
-            }
+            // no-op for now, hosting will handle
           } else {
             // otherwise, treat it as a deeplink and navigate to the group
             if (lure.invitedGroupId) {

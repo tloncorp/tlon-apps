@@ -189,6 +189,7 @@ export function PostScreenView({
               {parentPost ? (
                 <DetailView
                   post={parentPost}
+                  channel={channel}
                   initialPostUnread={initialThreadUnread}
                   onPressImage={handleGoToImage}
                   editingPost={editingPost}

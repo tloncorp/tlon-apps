@@ -1,3 +1,4 @@
+import { layoutForType, layoutTypeFromChannel } from '@tloncorp/shared';
 import {
   isChatChannel as getIsChatChannel,
   useChannel as useChannelFromStore,
@@ -17,7 +18,6 @@ import {
   ChannelProvider,
   GroupsProvider,
   NavigationProvider,
-  useCalm,
   useCurrentUserId,
 } from '../../contexts';
 import { Attachment, AttachmentProvider } from '../../contexts/attachment';
@@ -128,11 +128,15 @@ export function Channel({
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
-  const disableNicknames = !!useCalm()?.disableNicknames;
-  const title = channel ? utils.getChannelTitle(channel, disableNicknames) : '';
+  const title = utils.useChannelTitle(channel);
   const groups = useMemo(() => (group ? [group] : null), [group]);
   const currentUserId = useCurrentUserId();
   const canWrite = utils.useCanWrite(channel, currentUserId);
+
+  const collectionLayout = useMemo(
+    () => layoutForType(layoutTypeFromChannel(channel)),
+    [channel]
+  );
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
   const renderItem = isChatChannel
@@ -165,19 +169,31 @@ export function Channel({
   }, [hasLoaded, markRead]);
 
   const scrollerAnchor: ScrollAnchor | null = useMemo(() => {
-    if (channel.type === 'notebook') {
-      return null;
-    } else if (selectedPostId) {
+    // NB: technical behavior change: previously, we would avoid scroll-to-selected on notebooks.
+    // afaict, there's no way to select a post in a notebook, so the UX should be the same.
+    // (also, I personally think it's confusing to user to block scroll-to on selection for notebooks)
+    if (selectedPostId) {
       return { type: 'selected', postId: selectedPostId };
-    } else if (
-      channel.type !== 'gallery' &&
-      initialChannelUnread?.countWithoutThreads &&
-      initialChannelUnread.firstUnreadPostId
-    ) {
-      return { type: 'unread', postId: initialChannelUnread.firstUnreadPostId };
     }
+
+    if (collectionLayout.enableUnreadAnchor) {
+      if (
+        initialChannelUnread?.countWithoutThreads &&
+        initialChannelUnread.firstUnreadPostId
+      ) {
+        return {
+          type: 'unread',
+          postId: initialChannelUnread.firstUnreadPostId,
+        };
+      }
+    }
+
     return null;
-  }, [channel.type, selectedPostId, initialChannelUnread]);
+  }, [
+    collectionLayout.enableUnreadAnchor,
+    selectedPostId,
+    initialChannelUnread,
+  ]);
 
   const flatListRef = useRef<FlatList<db.Post>>(null);
 
@@ -290,7 +306,7 @@ export function Channel({
                           channel={channel}
                           group={group}
                           mode={headerMode}
-                          title={title}
+                          title={title ?? ''}
                           goBack={handleGoBack}
                           showSearchButton={isChatChannel}
                           goToSearch={goToSearch}
@@ -304,7 +320,10 @@ export function Channel({
                                 {channel && posts && (
                                   <Scroller
                                     key={scrollerAnchor?.postId}
-                                    inverted={isChatChannel ? true : false}
+                                    inverted={
+                                      collectionLayout.scrollDirection ===
+                                      'bottom-to-top'
+                                    }
                                     renderItem={renderItem}
                                     renderEmptyComponent={renderEmptyComponent}
                                     anchor={scrollerAnchor}
@@ -313,8 +332,7 @@ export function Channel({
                                     hasOlderPosts={hasOlderPosts}
                                     editingPost={editingPost}
                                     setEditingPost={setEditingPost}
-                                    channelType={channel.type}
-                                    channelId={channel.id}
+                                    channel={channel}
                                     firstUnreadId={
                                       initialChannelUnread?.countWithoutThreads ??
                                       0 > 0
@@ -383,8 +401,7 @@ export function Channel({
                         </YStack>
                         {headerMode === 'next' ? (
                           <ChannelFooter
-                            title={title}
-                            goBack={handleGoBack}
+                            title={title ?? ''}
                             goToChannels={goToChannels}
                             goToSearch={goToSearch}
                             showPickerButton={!!group}

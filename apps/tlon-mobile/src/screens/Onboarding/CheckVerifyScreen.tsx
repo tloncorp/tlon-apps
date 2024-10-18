@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Field,
@@ -33,6 +34,7 @@ export const CheckVerifyScreen = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const { hostingApi } = useOnboardingContext();
+  const signupContext = useSignupContext();
 
   const handleSubmit = useCallback(
     async (code: string) => {
@@ -49,7 +51,8 @@ export const CheckVerifyScreen = ({
           actionName: 'Verification Submitted',
         });
 
-        navigation.navigate('ReserveShip', { user });
+        signupContext.setHostingUser(user);
+        navigation.navigate('SetNickname', { user });
       } catch (err) {
         console.error('Error submitting verification:', err);
         if (err instanceof Error) {
@@ -60,7 +63,7 @@ export const CheckVerifyScreen = ({
 
       setIsSubmitting(false);
     },
-    [hostingApi, isEmail, navigation, user]
+    [hostingApi, isEmail, navigation, signupContext, user]
   );
 
   const handleCodeChanged = useCallback(

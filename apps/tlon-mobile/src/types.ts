@@ -123,6 +123,8 @@ export type User = {
   verified: boolean;
 };
 
+export type HostingUser = User;
+
 export type ReservableShip = {
   id: string;
   readyForDistribution: boolean;
