@@ -7,11 +7,11 @@ import {
   GroupChannelsScreenView,
   InviteUsersSheet,
 } from '@tloncorp/ui';
-import { useFeatureFlag } from 'packages/app/lib/featureFlags';
 import { useCallback, useMemo, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
+import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GroupChannels'>;
