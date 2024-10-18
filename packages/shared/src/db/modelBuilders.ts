@@ -282,7 +282,7 @@ export function buildChannel(
     coverImage: null,
     coverImageColor: null,
     currentUserIsMember: null,
-    description: '',
+    description: null,
     firstUnreadPostId: null,
     groupId: null,
     iconImage: null,

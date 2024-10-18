@@ -175,7 +175,8 @@ test('syncs dms', async () => {
       contactId: null,
       iconImageColor: '#f0ebbd',
       title: 'Pensacola 2024-04',
-      description: '',
+      // nb: we coerce empty description strings to null
+      description: null,
       members: db
         .buildChatMembers({
           chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
