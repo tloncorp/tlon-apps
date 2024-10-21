@@ -25,7 +25,6 @@ export function MicInput({
     }
     try {
       const u = await performUpload({ uri: recordingUri, isImage: false });
-      console.log('upload', u);
       await draftInputContext.send(audioPost(u), draftInputContext.channel.id);
     } catch (err) {
       console.error('failed upload', err);
@@ -33,10 +32,8 @@ export function MicInput({
   }, [recordingUri, draftInputContext]);
 
   const startRecording = useCallback(async () => {
-    console.log('Recording...', permissionResponse);
     setIsRecording(true);
     if (permissionResponse?.status !== 'granted') {
-      console.log('Requesting permission..');
       await requestPermission();
     }
     await Audio.setAudioModeAsync({
@@ -44,7 +41,6 @@ export function MicInput({
       playsInSilentModeIOS: true,
     });
 
-    console.log('Starting recording..');
     const { recording } = await Audio.Recording.createAsync(
       Audio.RecordingOptionsPresets.LOW_QUALITY
     );
