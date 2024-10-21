@@ -170,6 +170,8 @@ function labelForContentRenderer(r: PostContentRendererId): string {
       return 'Gallery';
     case PostContentRendererId.notebook:
       return 'Notebook';
+    case PostContentRendererId.audio:
+      return 'Audio';
   }
 }
 function labelForCollectionLayout(l: CollectionRendererId): string {
@@ -209,6 +211,7 @@ const CustomChannelConfigurationForm = forwardRef<{
         PostContentRendererId.chat,
         PostContentRendererId.gallery,
         PostContentRendererId.notebook,
+        PostContentRendererId.audio,
       ].map((id) => ({
         title: labelForContentRenderer(id),
         value: id,

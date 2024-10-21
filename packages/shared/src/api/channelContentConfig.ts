@@ -15,6 +15,7 @@ export enum PostContentRendererId {
   notebook = 'tlon.r0.content.notebook',
   chat = 'tlon.r0.content.chat',
   gallery = 'tlon.r0.content.gallery',
+  audio = 'tlon.r0.content.audio',
 }
 
 /**
