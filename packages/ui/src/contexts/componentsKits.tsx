@@ -10,6 +10,7 @@ import {
   ChatInput,
   DraftInputContext,
   GalleryInput,
+  MicInput,
   NotebookInput,
 } from '../components/draftInputs';
 
@@ -68,6 +69,7 @@ const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   [DraftInputId.chat]: ChatInput,
   [DraftInputId.gallery]: GalleryInput,
   [DraftInputId.notebook]: NotebookInput,
+  [DraftInputId.mic]: MicInput,
 };
 
 export function ComponentsKitContextProvider({

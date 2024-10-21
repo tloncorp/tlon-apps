@@ -54,6 +54,7 @@
   "peerDependencies": {
     "@10play/tentap-editor": "~0.5.11",
     "@urbit/sigil-js": "^2.2.0",
+    "expo-av": "~13.10.5",
     "expo-image": "*",
     "react": "*",
     "react-native-reanimated": "*",
