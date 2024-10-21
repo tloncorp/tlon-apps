@@ -34,6 +34,7 @@ export function ProfileScreenView(props: Props) {
       },
       {
         text: 'Log out',
+        style: 'destructive',
         onPress: props.onLogoutPressed,
       },
     ]);
