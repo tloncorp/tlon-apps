@@ -230,6 +230,14 @@ export const getPins = createReadQuery(
   ['pins']
 );
 
+export const getAllChannels = createReadQuery(
+  'getAllChannels',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.channels.findMany();
+  },
+  ['channels']
+);
+
 export const getChats = createReadQuery(
   'getChats',
   async (ctx: QueryCtx): Promise<Channel[]> => {
@@ -772,7 +780,7 @@ export const addChatMembers = createWriteQuery(
         .onConflictDoNothing();
     });
   },
-  ['chatMembers']
+  ['chatMembers', 'groups']
 );
 
 export const addGroupInvites = createWriteQuery(
@@ -1065,7 +1073,7 @@ export const removeChatMembers = createWriteQuery(
         )
       );
   },
-  ['chatMembers']
+  ['chatMembers', 'groups']
 );
 
 export const getUnreadsCount = createReadQuery(
@@ -1455,7 +1463,11 @@ export const insertChannels = createWriteQuery(
         .values(channels)
         .onConflictDoUpdate({
           target: $channels.id,
-          set: conflictUpdateSetAll($channels, ['lastPostId', 'lastPostAt']),
+          set: conflictUpdateSetAll($channels, [
+            'lastPostId',
+            'lastPostAt',
+            'currentUserIsMember',
+          ]),
         });
 
       for (const channel of channels) {

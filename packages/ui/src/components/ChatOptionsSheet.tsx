@@ -16,8 +16,9 @@ import { Alert } from 'react-native';
 import { useSheet } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
-import { useCalm, useChatOptions, useCurrentUserId } from '../contexts';
+import { useChatOptions, useCurrentUserId } from '../contexts';
 import * as utils from '../utils';
+import { useIsAdmin } from '../utils';
 import { Action, ActionGroup, ActionSheet } from './ActionSheet';
 import { IconButton } from './IconButton';
 import { ListItem } from './ListItem';
@@ -151,15 +152,7 @@ export function GroupOptions({
 
   const isPinned = group?.pin;
 
-  const currentUserIsAdmin = useMemo(
-    () =>
-      group?.members?.some(
-        (m) =>
-          m.contactId === currentUser &&
-          m.roles?.some((r) => r.roleId === 'admin')
-      ) ?? false,
-    [currentUser, group?.members]
-  );
+  const currentUserIsAdmin = useIsAdmin(group.id, currentUser);
 
   const handleVolumeUpdate = useCallback(
     (newLevel: string) => {
@@ -518,6 +511,7 @@ export function ChannelOptions({
     onPressChannelMeta,
     onPressManageChannels,
     onPressInvite,
+    onPressLeave,
   } = useChatOptions() ?? {};
 
   const currentUserIsHost = useMemo(
@@ -525,22 +519,9 @@ export function ChannelOptions({
     [group?.currentUserIsHost]
   );
 
-  const currentUserIsAdmin = useMemo(
-    () =>
-      group?.members?.some(
-        (m) =>
-          m.contactId === currentUser &&
-          m.roles?.some((r) => r.roleId === 'admin')
-      ) ?? false,
-    [currentUser, group?.members]
-  );
+  const currentUserIsAdmin = useIsAdmin(channel.groupId ?? '', currentUser);
 
-  const { disableNicknames } = useCalm();
-  const title = useMemo(() => {
-    return channel
-      ? utils.getChannelTitle(channel, disableNicknames)
-      : 'Loading...';
-  }, [channel, disableNicknames]);
+  const title = utils.useChannelTitle(channel);
 
   const subtitle = useMemo(() => {
     if (!channel) {
@@ -703,7 +684,7 @@ export function ChannelOptions({
             } as ActionGroup,
           ]
         : []),
-     // TODO: redefine in a more readable way.
+      // TODO: redefine in a more readable way.
       ...(group &&
       !['groupDm', 'dm'].includes(channel.type) &&
       (group.privacy === 'public' ||
@@ -767,7 +748,18 @@ export function ChannelOptions({
                           style: 'destructive',
                           onPress: () => {
                             sheetRef.current.setOpen(false);
-                            store.respondToDMInvite({ channel, accept: false });
+                            onPressLeave?.();
+                            if (
+                              channel.type === 'dm' ||
+                              channel.type === 'groupDm'
+                            ) {
+                              store.respondToDMInvite({
+                                channel,
+                                accept: false,
+                              });
+                            } else {
+                              store.leaveGroupChannel(channel.id);
+                            }
                           },
                         },
                       ]
@@ -789,12 +781,25 @@ export function ChannelOptions({
     onPressChannelMembers,
     onPressManageChannels,
     onPressInvite,
+    onPressLeave,
     title,
   ]);
+
+  const displayTitle = useMemo((): string => {
+    if (pane === 'initial') {
+      return title ?? '';
+    }
+    if (title == null) {
+      return 'Notifications';
+    } else {
+      return 'Notifications for ' + title;
+    }
+  }, [title, pane]);
+
   return (
     <ChatOptionsSheetContent
       actionGroups={pane === 'initial' ? actionGroups : actionNotifications}
-      title={pane === 'initial' ? title : 'Notifications for ' + title}
+      title={displayTitle}
       subtitle={
         pane === 'initial' ? subtitle : 'Set what you want to be notified about'
       }

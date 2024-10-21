@@ -1,3 +1,4 @@
+export * as ChannelAction from './types/ChannelActions';
 export type { GroupMeta } from './types/groups';
 export type {
   NativeWebViewOptions,
@@ -8,6 +9,14 @@ export type {
   WebAppAction,
   WebAppCommand,
 } from './types/native';
+export {
+  PostCollectionConfiguration,
+  PostCollectionLayout,
+  PostCollectionLayoutType,
+  configurationFromChannel,
+  layoutForType,
+  layoutTypeFromChannel,
+} from './types/PostCollectionConfiguration';
 export { parseActiveTab, trimFullPath } from './logic/navigation';
 export * from './logic';
 export * from './store';

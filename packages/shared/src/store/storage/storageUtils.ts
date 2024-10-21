@@ -40,22 +40,12 @@ export const fetchFileFromUri = async (
 
 export type SizedImage = { uri: string; width: number; height: number };
 
-export const getShipInfo = () => {
-  const { ship, url } = client;
-
-  if (!ship) {
-    return { ship: '', shipUrl: '' };
-  }
-
-  return { ship: preSig(ship), shipUrl: url };
-};
-
 export const hasHostingUploadCreds = (
   configuration: StorageConfiguration | null,
   credentials: StorageCredentials | null
 ) => {
   return (
-    getIsHosted() &&
+    api.getCurrentUserIsHosted() &&
     (configuration?.service === 'presigned-url' ||
       !hasCustomS3Creds(configuration, credentials))
   );
@@ -77,12 +67,6 @@ export const hasCustomS3Creds = (
 };
 
 const MEMEX_BASE_URL = 'https://memex.tlon.network';
-
-export const getIsHosted = () => {
-  const shipInfo = getShipInfo();
-  const isHosted = shipInfo?.shipUrl?.endsWith('tlon.network');
-  return isHosted;
-};
 
 export interface MemexUploadParams {
   token: string;
@@ -136,6 +120,6 @@ export const getMemexUpload = async (
 };
 
 export const getHostingUploadURL = async () => {
-  const isHosted = getIsHosted();
+  const isHosted = api.getCurrentUserIsHosted();
   return isHosted ? MEMEX_BASE_URL : '';
 };

@@ -1,11 +1,10 @@
-import { EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useRef, useState } from 'react';
 import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // TODO: replace input with our own input component
-import { Input, ScrollView, View, YStack, getToken } from 'tamagui';
+import { Input, View, YStack, getToken } from 'tamagui';
 
 import { ImageAttachment, useAttachmentContext } from '../contexts/attachment';
 import AttachmentSheet from './AttachmentSheet';
@@ -38,7 +37,6 @@ export function BigInput({
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const editorRef = useRef<{
     editor: TlonEditorBridge | null;
-    setEditor: (editor: EditorBridge) => void;
   }>(null);
   const { top } = useSafeAreaInsets();
   const { width } = Dimensions.get('screen');
@@ -155,6 +153,8 @@ export function BigInput({
           placeholder={placeholder}
           bigInput
           channelType={channelType}
+          // TODO: figure out why autofocus breaks backspace
+          // shouldAutoFocus
           draftType={channelType === 'gallery' ? 'text' : undefined}
           ref={editorRef}
         />

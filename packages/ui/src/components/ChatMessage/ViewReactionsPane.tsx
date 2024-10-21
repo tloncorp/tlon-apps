@@ -1,5 +1,10 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+} from 'react-native';
 import { View } from 'tamagui';
 
 import { triggerHaptic } from '../../utils';
@@ -10,7 +15,13 @@ import { ToggleGroupInput } from '../Form';
 import { ContactListItem } from '../ListItem';
 import { Text } from '../TextV2';
 
-export function ViewReactionsPane({ post }: { post: db.Post }) {
+export function ViewReactionsPane({
+  post,
+  setIsScrolling,
+}: {
+  post: db.Post;
+  setIsScrolling?: (isScrolling: boolean) => void;
+}) {
   const groupedReactions = useGroupedReactions(post.reactions ?? []);
 
   const allReactions = useMemo(() => {
@@ -49,6 +60,41 @@ export function ViewReactionsPane({ post }: { post: db.Post }) {
     setCurrentTab(newTab);
   }, []);
 
+  const scrollPosition = useRef(0);
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrollPosition.current = event.nativeEvent.contentOffset.y;
+    },
+    []
+  );
+  const onTouchStart = useCallback(() => {
+    if (scrollPosition.current > 0) {
+      setIsScrolling?.(true);
+    }
+  }, [setIsScrolling]);
+  const onTouchEnd = useCallback(
+    () => setIsScrolling?.(false),
+    [setIsScrolling]
+  );
+
+  const renderItem = useCallback(
+    ({ reaction }: { reaction: { value: string; userId: string } }) => {
+      return (
+        <ContactListItem
+          size="$4xl"
+          contactId={reaction.userId}
+          showNickname
+          showUserId
+          showEndContent
+          endContent={
+            <Text size="$emoji/m">{getNativeEmoji(reaction.value)}</Text>
+          }
+        ></ContactListItem>
+      );
+    },
+    []
+  );
+
   return (
     <View flex={1}>
       <ActionSheet.FormBlock paddingBottom={0}>
@@ -58,28 +104,20 @@ export function ViewReactionsPane({ post }: { post: db.Post }) {
           options={tabs}
         />
       </ActionSheet.FormBlock>
-      <ActionSheet.ScrollableContent
-        paddingTop="$xl"
-        contentContainerStyle={{ flex: 1 }}
-      >
+      <ActionSheet.Content paddingVertical="$xl" flex={1}>
         <ActionSheet.FormBlock flex={1}>
           <ActionSheet.ActionGroupContent borderWidth={0}>
-            {tabData.map((reaction) => (
-              <ContactListItem
-                size="$4xl"
-                key={reaction.userId}
-                contactId={reaction.userId}
-                showNickname
-                showUserId
-                showEndContent
-                endContent={
-                  <Text size="$emoji/m">{getNativeEmoji(reaction.value)}</Text>
-                }
-              ></ContactListItem>
-            ))}
+            <FlatList
+              data={tabData}
+              renderItem={({ item }) => renderItem({ reaction: item })}
+              keyExtractor={(item) => item.userId + item.value}
+              onScroll={handleScroll}
+              onTouchStart={onTouchStart}
+              onTouchEnd={onTouchEnd}
+            />
           </ActionSheet.ActionGroupContent>
         </ActionSheet.FormBlock>
-      </ActionSheet.ScrollableContent>
+      </ActionSheet.Content>
     </View>
   );
 }

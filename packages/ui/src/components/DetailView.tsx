@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { FlatList } from 'react-native';
 import { View, YStack } from 'tamagui';
 
@@ -12,6 +12,7 @@ import { Text } from './TextV2';
 
 export interface DetailViewProps {
   post: db.Post;
+  channel: db.Channel;
   initialPostUnread?: db.ThreadUnreadState | null;
   children?: JSX.Element;
   editingPost?: db.Post;
@@ -24,10 +25,13 @@ export interface DetailViewProps {
   setActiveMessage: (post: db.Post | null) => void;
   activeMessage: db.Post | null;
   headerMode: 'default' | 'next';
+  editorIsFocused: boolean;
+  flatListRef?: React.RefObject<FlatList>;
 }
 
 export const DetailView = ({
   post,
+  channel,
   initialPostUnread,
   editingPost,
   setEditingPost,
@@ -38,15 +42,20 @@ export const DetailView = ({
   setActiveMessage,
   activeMessage,
   headerMode,
+  editorIsFocused,
+  flatListRef,
 }: DetailViewProps) => {
-  const channelType = useMemo(
-    () => urbit.getChannelType(post.channelId),
-    [post.channelId]
-  );
+  const channelType = channel.type;
   const isChat = channelType !== 'notebook' && channelType !== 'gallery';
   const resolvedPosts = useMemo(() => {
     return isChat && posts ? [...posts, post] : posts;
   }, [posts, post, isChat]);
+
+  useEffect(() => {
+    if (editorIsFocused && flatListRef) {
+      flatListRef.current?.scrollToIndex({ index: 1, animated: true });
+    }
+  }, [editorIsFocused, flatListRef]);
 
   const scroller = useMemo(() => {
     return (
@@ -54,8 +63,8 @@ export const DetailView = ({
         <Scroller
           inverted
           renderItem={ChatMessage}
-          channelType="chat"
-          channelId={post.channelId}
+          channel={channel}
+          detailView
           editingPost={editingPost}
           setEditingPost={setEditingPost}
           posts={resolvedPosts ?? null}
@@ -85,11 +94,11 @@ export const DetailView = ({
     onPressDelete,
     onPressImage,
     onPressRetry,
-    post.channelId,
     resolvedPosts,
     setActiveMessage,
     setEditingPost,
     headerMode,
+    channel
   ]);
 
   return isChat ? (
@@ -97,6 +106,7 @@ export const DetailView = ({
   ) : (
     <FlatList
       data={isChat ? ['posts'] : ['header', 'posts']}
+      ref={flatListRef}
       renderItem={({ item }) => {
         if (item === 'header') {
           return (

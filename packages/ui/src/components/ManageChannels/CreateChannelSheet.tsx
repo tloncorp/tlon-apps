@@ -39,27 +39,21 @@ export function CreateChannelSheet({
     channelType,
   }: {
     title: string;
-    description: string;
+    description?: string;
     channelType: ChannelTypeName;
   }) => void;
 }) {
   const { control, handleSubmit } = useForm({
     defaultValues: {
       title: '',
-      description: '',
       channelType: 'chat',
     },
   });
 
   const handlePressSave = useCallback(
-    async (data: {
-      title: string;
-      description: string;
-      channelType: string;
-    }) => {
+    async (data: { title: string; channelType: string }) => {
       createChannel({
         title: data.title,
-        description: data.description,
         channelType: data.channelType as ChannelTypeName,
       });
       onOpenChange(false);
@@ -78,15 +72,6 @@ export function CreateChannelSheet({
             label="Title"
             inputProps={{ placeholder: 'Channel title' }}
             rules={{ required: 'Channel title is required' }}
-          />
-        </ActionSheet.FormBlock>
-        <ActionSheet.FormBlock>
-          <Form.ControlledTextField
-            control={control}
-            name="description"
-            label="Description"
-            inputProps={{ placeholder: 'Channel description' }}
-            rules={{ required: 'Channel description is required' }}
           />
         </ActionSheet.FormBlock>
         <ActionSheet.FormBlock>

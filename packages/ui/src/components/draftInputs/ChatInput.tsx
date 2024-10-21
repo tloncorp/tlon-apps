@@ -39,6 +39,8 @@ export function ChatInput({
           setEditingPost={setEditingPost}
           editPost={editPost}
           channelType={channel.type}
+          // TODO: figure out why autoFocus breaks backspace
+          // shouldAutoFocus={!!editingPost}
           showInlineAttachments
           showAttachmentButton
         />

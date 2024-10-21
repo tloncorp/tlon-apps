@@ -5,6 +5,7 @@ import { SectionList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, getTokenValue } from 'tamagui';
 
+import { useIsAdmin } from '../utils';
 import { ContactList } from './ContactList';
 import { GroupJoinRequestSheet } from './GroupJoinRequestSheet';
 import { ProfileSheet } from './ProfileSheet';
@@ -15,6 +16,7 @@ export function GroupMembersScreenView({
   goBack,
   members,
   roles,
+  groupId,
   bannedUsers,
   joinRequests,
   groupPrivacyType,
@@ -30,6 +32,7 @@ export function GroupMembersScreenView({
   members: db.ChatMember[];
   roles: db.GroupRole[];
   currentUserId: string;
+  groupId: string;
   bannedUsers: db.GroupMemberBan[];
   joinRequests: db.GroupJoinRequest[];
   groupPrivacyType: GroupPrivacy;
@@ -160,17 +163,7 @@ export function GroupMembersScreenView({
     [roles]
   );
 
-  const currentUserIsAdmin = useMemo(
-    () =>
-      members.some(
-        (m) =>
-          m.contactId === currentUserId &&
-          m.roles !== undefined &&
-          m.roles !== null &&
-          m.roles.some((r) => r.roleId === 'admin')
-      ),
-    [members, currentUserId]
-  );
+  const currentUserIsAdmin = useIsAdmin(groupId, currentUserId);
 
   return (
     <>

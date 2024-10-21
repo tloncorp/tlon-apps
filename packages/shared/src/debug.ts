@@ -39,6 +39,7 @@ export type Logger = Console & {
   crumb: (...args: unknown[]) => void;
   sensitiveCrumb: (...args: unknown[]) => void;
   trackError: (message: string, data?: Record<string, any>) => void;
+  trackEvent: (eventId: string, data?: Record<string, any>) => void;
 };
 
 interface ErrorLoggerStub {
@@ -229,6 +230,18 @@ export function createDevLogger(tag: string, enabled: boolean) {
             .then(report)
             .catch(() => report());
           resolvedProp = 'error';
+        }
+
+        if (prop == 'trackEvent') {
+          if (args[0] && typeof args[0] === 'string') {
+            const customProps =
+              args[1] && typeof args[1] === 'object' ? args[1] : {};
+            errorLogger?.capture(args[0], {
+              ...customProps,
+              message: `[${tag}] ${args[0]}`,
+            });
+          }
+          resolvedProp = 'log';
         }
 
         if (!(debugEnabled || enabled || customLoggers.has(tag))) {

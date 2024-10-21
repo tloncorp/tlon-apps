@@ -82,6 +82,7 @@ export default function ChannelNavSections({
             section={section}
             channels={sectionChannels}
             onSelect={onSelect}
+            onLongPress={onLongPress}
           />
         );
       })}

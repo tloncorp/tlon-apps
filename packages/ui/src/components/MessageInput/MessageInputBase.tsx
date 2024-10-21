@@ -55,9 +55,9 @@ export interface MessageInputProps {
   // for external access to height
   setHeight?: (height: number) => void;
   goBack?: () => void;
+  shouldAutoFocus?: boolean;
   ref?: React.RefObject<{
     editor: EditorBridge | null;
-    setEditor: (editor: EditorBridge) => void;
   }>;
 }
 
@@ -67,6 +67,7 @@ export const MessageInputContainer = memo(
     onPressSend,
     setShouldBlur,
     containerHeight,
+    sendError,
     showMentionPopup = false,
     showAttachmentButton = true,
     floatingActionButton = false,
@@ -83,6 +84,7 @@ export const MessageInputContainer = memo(
     setShouldBlur: (shouldBlur: boolean) => void;
     onPressSend: () => void;
     containerHeight: number;
+    sendError: boolean;
     showMentionPopup?: boolean;
     showAttachmentButton?: boolean;
     floatingActionButton?: boolean;
@@ -153,7 +155,12 @@ export const MessageInputContainer = memo(
               {disableSend ? null : (
                 <FloatingActionButton
                   onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
-                  icon={<Icon type="ArrowUp" />}
+                  icon={
+                    <Icon
+                      color={sendError ? 'red' : undefined}
+                      type={sendError ? 'Refresh' : 'ArrowUp'}
+                    />
+                  }
                 />
               )}
             </View>

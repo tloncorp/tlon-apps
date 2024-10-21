@@ -14,7 +14,10 @@ import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
 import { Image } from '../Image';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
-import { usePostContent } from '../PostContent/contentUtils';
+import {
+  usePostContent,
+  usePostLastEditContent,
+} from '../PostContent/contentUtils';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { Text } from '../TextV2';
 
@@ -61,20 +64,25 @@ export function NotebookPost({
     setShowRetrySheet(false);
   }, [onPressDelete, post]);
 
+  const deliveryFailed =
+    post.deliveryStatus === 'failed' ||
+    post.editStatus === 'failed' ||
+    post.deleteStatus === 'failed';
+
   const handlePress = useCallback(() => {
     if (post.hidden || post.isDeleted) {
       return;
     }
 
-    if (post.deliveryStatus === 'failed') {
+    if (deliveryFailed) {
       setShowRetrySheet(true);
       return;
     }
 
     onPress?.(post);
-  }, [post, onPress]);
+  }, [post, onPress, deliveryFailed]);
 
-  if (!post) {
+  if (!post || post.isDeleted) {
     return null;
   }
 
@@ -88,31 +96,46 @@ export function NotebookPost({
         pressStyle={{ backgroundColor: '$secondaryBackground' }}
         disabled={viewMode === 'activity'}
       >
-        <NotebookPostHeader
-          post={post}
-          showDate={showDate}
-          showAuthor={showAuthor && viewMode !== 'activity'}
-          size={size}
-        />
-
-        {viewMode !== 'activity' && (
-          <Text
-            size="$body"
-            color="$secondaryText"
-            numberOfLines={3}
-            paddingBottom={showReplies && hasReplies ? 0 : '$m'}
+        {post.hidden ? (
+          <XStack
+            gap="$s"
+            paddingVertical="$xl"
+            justifyContent="center"
+            alignItems="center"
           >
-            {post.textContent}
-          </Text>
-        )}
+            <Text color="$tertiaryText" size="$body">
+              You have hidden this post.
+            </Text>
+          </XStack>
+        ) : (
+          <>
+            <NotebookPostHeader
+              post={post}
+              showDate={showDate}
+              showAuthor={showAuthor && viewMode !== 'activity'}
+              size={size}
+            />
 
-        {showReplies && hasReplies ? (
-          <ChatMessageReplySummary
-            post={post}
-            showTime={false}
-            textColor="$tertiaryText"
-          />
-        ) : null}
+            {viewMode !== 'activity' && (
+              <Text
+                size="$body"
+                color="$secondaryText"
+                numberOfLines={3}
+                paddingBottom={showReplies && hasReplies ? 0 : '$m'}
+              >
+                {post.textContent}
+              </Text>
+            )}
+
+            {showReplies && hasReplies ? (
+              <ChatMessageReplySummary
+                post={post}
+                showTime={false}
+                textColor="$tertiaryText"
+              />
+            ) : null}
+          </>
+        )}
 
         {post.deliveryStatus === 'failed' ? (
           <XStack alignItems="center" justifyContent="flex-end">
@@ -124,6 +147,7 @@ export function NotebookPost({
       </NotebookPostFrame>
       <SendPostRetrySheet
         open={showRetrySheet}
+        post={post}
         onOpenChange={setShowRetrySheet}
         onPressRetry={handleRetryPressed}
         onPressDelete={handleDeletePressed}
@@ -153,12 +177,19 @@ function NotebookPostHeader({
       {post.image && size !== '$xs' && (
         <NotebookPostHeroImage
           source={{
-            uri: post.image,
+            uri:
+              post.editStatus === 'failed' || post.editStatus === 'pending'
+                ? post.lastEditImage ?? undefined
+                : post.image,
           }}
         />
       )}
 
-      <NotebookPostTitle>{post.title ?? 'Untitled Post'}</NotebookPostTitle>
+      <NotebookPostTitle>
+        {post.editStatus === 'failed' || post.editStatus === 'pending'
+          ? post.lastEditTitle ?? 'Untitled Post'
+          : post.title ?? 'Untitled Post'}
+      </NotebookPostTitle>
 
       {showDate && (
         <Text size="$body" color="$tertiaryText">
@@ -166,13 +197,22 @@ function NotebookPostHeader({
         </Text>
       )}
 
-      {showAuthor && <DetailViewAuthorRow authorId={post.authorId} />}
+      {showAuthor && (
+        <DetailViewAuthorRow
+          authorId={post.authorId}
+          deliveryStatus={post.deliveryStatus}
+          editStatus={post.editStatus}
+          deleteStatus={post.deleteStatus}
+        />
+      )}
     </NotebookPostHeaderFrame>
   );
 }
 
 export function NotebookPostDetailView({ post }: { post: db.Post }) {
   const content = usePostContent(post);
+  const lastEditContent = usePostLastEditContent(post);
+
   return (
     <NotebookPostFrame
       embedded
@@ -192,7 +232,11 @@ export function NotebookPostDetailView({ post }: { post: db.Post }) {
         marginTop="$-l"
         marginHorizontal="$-l"
         paddingHorizontal="$xl"
-        content={content}
+        content={
+          post.editStatus === 'failed' || post.editStatus === 'pending'
+            ? lastEditContent
+            : content
+        }
       />
     </NotebookPostFrame>
   );

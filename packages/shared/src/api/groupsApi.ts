@@ -921,13 +921,13 @@ export const subscribeGroups = async (
   subscribe<ub.GroupAction>(
     { app: 'groups', path: '/groups/ui' },
     (groupUpdateEvent) => {
-      logger.log('groupUpdateEvent', { groupUpdateEvent });
+      logger.log('groupUpdateEvent', groupUpdateEvent);
       eventHandler(toGroupUpdate(groupUpdateEvent));
     }
   );
 
   subscribe({ app: 'groups', path: '/gangs/updates' }, (rawEvent: ub.Gangs) => {
-    logger.log('gangsUpdateEvent:', rawEvent);
+    logger.log('gangsUpdateEvent', rawEvent);
     eventHandler(toGangsGroupsUpdate(rawEvent));
   });
 };
@@ -1337,6 +1337,8 @@ export function toClientGroup(
     haveInvite: false,
     currentUserIsMember: isJoined,
     currentUserIsHost: hostUserId === currentUserId,
+    // if meta is unset, it's still in the join process
+    joinStatus: !group.meta || group.meta.title === '' ? 'joining' : undefined,
     hostUserId,
     flaggedPosts,
     navSections: group['zone-ord']

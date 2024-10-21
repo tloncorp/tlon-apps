@@ -14,6 +14,7 @@
     "dev:shared": "pnpm --filter '@tloncorp/shared' dev",
     "dev:android": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' android\"",
     "dev:ios": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios\" \"pnpm --filter '@tloncorp/ui' watch\"",
+    "dev:ios:preview": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios:preview\" \"pnpm --filter '@tloncorp/ui' watch\"",
     "dev:web": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-web' dev-no-ssl\"",
     "test": "pnpm run -r test run -u",
     "lint:all": "pnpm -r lint"
@@ -59,7 +60,7 @@
       "@tiptap/suggestion": "2.6.0",
       "@tiptap/extension-mention": "2.6.0",
       "@tiptap/extension-hard-break": "2.6.0",
-      "@urbit/http-api": "3.1.0-dev-3",
+      "@urbit/http-api": "3.2.0-dev",
       "@urbit/api": "2.2.0",
       "prosemirror-model": "1.19.3",
       "prosemirror-view": "1.33.4",

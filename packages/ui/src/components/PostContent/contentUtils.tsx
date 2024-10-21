@@ -205,6 +205,17 @@ export function usePostContent(post: Post): BlockData[] {
   }, [post]);
 }
 
+export function usePostLastEditContent(post: Post): BlockData[] {
+  return useMemo(() => {
+    try {
+      return convertContent(post.lastEditContent);
+    } catch (e) {
+      console.error('Failed to convert post content:', e);
+      return [];
+    }
+  }, [post]);
+}
+
 /**
  * Convert an array of inlines to an array of blocks. The existing inline will
  * be split if it contains block-like inlines (again, blockquote, code block,

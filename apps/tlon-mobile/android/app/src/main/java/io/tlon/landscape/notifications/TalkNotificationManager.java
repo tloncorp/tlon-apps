@@ -13,6 +13,7 @@ import androidx.core.app.Person;
 
 import com.android.volley.TimeoutError;
 import com.android.volley.VolleyError;
+import android.util.Log;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -49,13 +50,18 @@ public class TalkNotificationManager {
     }
 
     public static void handleNotification(Context context, String uid) {
+        Log.d("TalkNotificationManager", "handleNotification: " + uid);
+        // Disabled for now, was causing issues with notifications not showing up
+        // while the app wasn't in the foreground (or even when it was killed)
         // Skip showing notifications when app is in foreground
-        if (AppLifecycleManager.isInForeground) {
-            return;
-        }
+        // if (AppLifecycleManager.isInForeground) {
+        // Log.d("TalkNotificationManager", "App is in foreground, skipping notification");
+        // return;
+        // }
 
         final TalkApi api = new TalkApi(context);
         final int id = UvParser.getIntCompatibleFromUv(uid);
+        Log.d("TalkNotificationManager", "fetching yarn: " + uid + " " + id);
         api.fetchYarn(uid, new TalkObjectCallback() {
             @Override
             public void onComplete(JSONObject response) {
@@ -67,16 +73,21 @@ public class TalkNotificationManager {
                     return;
                 }
 
+                Log.d("TalkNotificationManager", "handleNotification, yarn: " + yarn.toString());
+
                 // Skip if not a valid push notification
                 if (!yarn.isValidNotification) {
+                  Log.d("TalkNotificationManager", "Invalid notification, skipping");
                     return;
                 }
 
+                Log.d("TalkNotificationManager", "fetching contact: " + yarn.senderId);
                 api.fetchContact(yarn.senderId, new TalkObjectCallback() {
                     @Override
                     public void onComplete(JSONObject response) {
                         final Contact contact = new Contact(yarn.senderId, response);
                         final String channelId = yarn.channelId.orElse("");
+                        Log.d("TalkNotificationManager", "handleNotification, contact: " + contact.toString());
                         createNotificationTitle(api, yarn, contact, title -> {
                             Bundle data = new Bundle();
                             data.putString("wer", yarn.wer);
@@ -185,6 +196,7 @@ public class TalkNotificationManager {
     }
 
     private static void sendNotification(Context context, int id, Person person, String title, String text, Boolean isGroupConversation, Bundle data) {
+        Log.d("TalkNotificationManager", "sendNotification: " + id + " " + title + " " + text + " " + isGroupConversation);
         Intent tapIntent = new Intent(context, MainActivity.class);
         tapIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         tapIntent.replaceExtras(data);

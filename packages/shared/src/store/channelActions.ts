@@ -18,17 +18,18 @@ export async function createChannel({
   channelId: string;
   name: string;
   title: string;
-  description: string;
+  description?: string;
   channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
 }) {
   // optimistic update
   const newChannel: db.Channel = {
     id: channelId,
     title,
-    description,
+    description: description ?? '',
     type: channelType as db.ChannelType,
     groupId,
     addedToGroupAt: Date.now(),
+    currentUserIsMember: true,
   };
   await db.insertChannels([newChannel]);
 
@@ -40,7 +41,7 @@ export async function createChannel({
       group: groupId,
       name,
       title,
-      description,
+      description: description ?? '',
       readers: [],
       writers: [],
     });
@@ -173,7 +174,7 @@ export async function markChannelRead(params: MarkChannelReadParams) {
   try {
     await api.readChannel(params);
   } catch (e) {
-    console.error('Failed to read channel', e);
+    console.error('Failed to read channel', params, e);
     // rollback optimistic update
     if (existingUnread) {
       await db.insertChannelUnreads([existingUnread]);
@@ -288,4 +289,22 @@ export async function upsertDmChannel({
   await db.insertChannels([newDm]);
   logger.log(`returning new pending dm`, newDm);
   return newDm;
+}
+
+export async function leaveGroupChannel(channelId: string) {
+  const channel = await db.getChannel({ id: channelId });
+  if (!channel) {
+    throw new Error('Channel not found');
+  }
+
+  // optimistic update
+  await db.updateChannel({ id: channelId, currentUserIsMember: false });
+
+  try {
+    await api.leaveChannel(channelId);
+  } catch (e) {
+    console.error('Failed to leave chat channel', e);
+    // rollback optimistic update
+    await db.updateChannel({ id: channelId, currentUserIsMember: true });
+  }
 }

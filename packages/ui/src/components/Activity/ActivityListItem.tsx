@@ -5,7 +5,7 @@ import React, { PropsWithChildren, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, styled } from 'tamagui';
 
 import { useCalm } from '../../contexts';
-import { getChannelTitle } from '../../utils';
+import { useChannelTitle } from '../../utils';
 import { ChannelAvatar, ContactAvatar, GroupAvatar } from '../Avatar';
 import { Icon } from '../Icon';
 import { Text } from '../TextV2';
@@ -61,25 +61,31 @@ export function ActivityListItemContent({
   const channel: db.Channel | undefined = newestPost.channel ?? undefined;
   const modelUnread =
     summary.type === 'post'
-      ? newestPost.channel?.unread ?? null
+      ? (newestPost.channel?.unread ?? null)
       : summary.type === 'group-ask'
-        ? newestPost.group?.unread ?? null
-        : newestPost.parent?.threadUnread ?? null;
+        ? (newestPost.group?.unread ?? null)
+        : (newestPost.parent?.threadUnread ?? null);
   const { data: unread } = store.useLiveUnread(modelUnread);
   const unreadCount = useMemo(() => {
     return (isGroupUnread(unread) ? unread.notifyCount : unread?.count) ?? 0;
   }, [unread]);
 
-  const title = !channel
-    ? group
-      ? group.title ?? ''
-      : ''
-    : channel.type === 'dm'
-      ? 'Direct message'
-      : channel.type === 'groupDm'
-        ? 'Group chat'
-        : (group?.title ? group.title + ': ' : '') +
-          getChannelTitle(channel, calm.disableNicknames);
+  const channelTitle = useChannelTitle(channel ?? null);
+  const title = useMemo(() => {
+    if (channel == null || channelTitle == null) {
+      return group?.title ?? '';
+    }
+    if (channel.type === 'dm') {
+      return 'Direct message';
+    }
+    if (channel.type === 'groupDm') {
+      return 'Group chat';
+    }
+    if (group?.title) {
+      return `${group.title}: ${channelTitle}`;
+    }
+    return channelTitle;
+  }, [channelTitle, channel, group]);
 
   return (
     <ActivitySummaryFrame

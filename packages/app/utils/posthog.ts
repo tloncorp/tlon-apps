@@ -15,7 +15,7 @@ export type OnboardingProperties = {
 export let posthog: PostHog | undefined;
 
 export const posthogAsync =
-  process.env.NODE_ENV === 'test'
+  process.env.NODE_ENV === 'test' && !process.env.POST_HOG_IN_DEV
     ? undefined
     : PostHog.initAsync(POST_HOG_API_KEY, {
         host: 'https://eu.posthog.com',
