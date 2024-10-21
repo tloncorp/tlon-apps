@@ -11,7 +11,7 @@ import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
 import { setUploadState } from './storageUploadState';
 import {
-  fetchImageFromUri,
+  fetchFileFromUri,
   getMemexUpload,
   hasCustomS3Creds,
   hasHostingUploadCreds,
@@ -30,7 +30,7 @@ export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
   logger.log('full asset', asset);
   setUploadState(asset.uri, { status: 'uploading', localUri: asset.uri });
   try {
-    const remoteUri = await performUpload(asset, isWeb);
+    const remoteUri = await performUpload({ ...asset, isImage: true }, isWeb);
     logger.crumb('upload succeeded');
     logger.log('final uri', remoteUri);
     setUploadState(asset.uri, { status: 'success', remoteUri });
@@ -41,7 +41,19 @@ export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
   }
 };
 
-const performUpload = async (asset: ImagePickerAsset, isWeb = false) => {
+type UploadableAsset = {
+  uri: string;
+  mimeType?: string;
+} & (
+  | { isImage: false }
+  | {
+      isImage: true;
+      width: number;
+      height: number;
+    }
+);
+
+export const performUpload = async (asset: UploadableAsset, isWeb = false) => {
   logger.log('performing upload', asset.uri, 'isWeb', isWeb);
   const [config, credentials] = await Promise.all([
     db.getStorageConfiguration(),
@@ -52,27 +64,35 @@ const performUpload = async (asset: ImagePickerAsset, isWeb = false) => {
     throw new Error('unable to upload: missing storage configuration');
   }
 
-  logger.log('resizing asset', asset.uri);
-  const resizedAsset = await manipulateAsync(
-    asset.uri,
-    [
-      {
-        resize: asset.width > asset.height ? { width: 1200 } : { height: 1200 },
-      },
-    ],
-    { compress: 0.75 }
-  );
+  let assetToUpload = asset;
+
+  if (asset.isImage) {
+    logger.log('resizing asset', asset.uri);
+    assetToUpload = {
+      ...(await manipulateAsync(
+        asset.uri,
+        [
+          {
+            resize:
+              asset.width > asset.height ? { width: 1200 } : { height: 1200 },
+          },
+        ],
+        { compress: 0.75 }
+      )),
+      isImage: true,
+    };
+  }
 
   const fileKey = `${deSig(getCurrentUserId())}/${deSig(
     formatDa(unixToDa(new Date().getTime()))
-  )}-${resizedAsset.uri.split('/').pop()}`;
+  )}-${assetToUpload.uri.split('/').pop()}`;
   logger.log('asset key:', fileKey);
 
   if (hasHostingUploadCreds(config, credentials)) {
-    const file = await fetchImageFromUri(
-      resizedAsset.uri,
-      resizedAsset.height,
-      resizedAsset.width
+    const file = await fetchFileFromUri(
+      assetToUpload.uri,
+      assetToUpload.isImage ? assetToUpload.height : undefined,
+      assetToUpload.isImage ? assetToUpload.width : undefined
     );
     if (!file) {
       throw new Error('unable to fetch image from uri');
@@ -83,7 +103,7 @@ const performUpload = async (asset: ImagePickerAsset, isWeb = false) => {
     });
     await uploadFile(
       uploadUrl,
-      resizedAsset.uri,
+      assetToUpload.uri,
       {
         'Cache-Control': 'public, max-age=3600',
         'Content-Type': file.type,
@@ -106,7 +126,7 @@ const performUpload = async (asset: ImagePickerAsset, isWeb = false) => {
     });
 
     const headers = {
-      'Content-Type': asset.mimeType ?? 'application/octet-stream',
+      'Content-Type': assetToUpload.mimeType ?? 'application/octet-stream',
       'Cache-Control': 'public, max-age=3600',
       'x-amz-acl': 'public-read', // necessary for digital ocean spaces
     };
@@ -131,7 +151,7 @@ const performUpload = async (asset: ImagePickerAsset, isWeb = false) => {
 
     await uploadFile(
       signedUrl,
-      resizedAsset.uri,
+      assetToUpload.uri,
       isDigitalOcean ? headers : undefined,
       isWeb
     );

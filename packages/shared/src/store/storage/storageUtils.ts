@@ -13,10 +13,10 @@ import { desig } from '../../urbit';
 
 const logger = createDevLogger('storage utils', true);
 
-export const fetchImageFromUri = async (
+export const fetchFileFromUri = async (
   uri: string,
-  height: number,
-  width: number
+  height?: number,
+  width?: number
 ) => {
   try {
     const response = await fetch(uri);
