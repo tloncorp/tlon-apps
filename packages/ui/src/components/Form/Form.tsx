@@ -12,6 +12,11 @@ export const FormFrame = styled(YStack, {
   gap: '$2xl',
 });
 
+export const FormText = styled(Text, {
+  size: '$body',
+  padding: '$xl',
+});
+
 // Single field
 
 export const FieldContext = createStyledContext<{ accent?: Accent }>({
