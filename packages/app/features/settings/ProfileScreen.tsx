@@ -34,6 +34,10 @@ export default function ProfileScreen(props: Props) {
     props.navigation.navigate('ManageAccount');
   }, [props.navigation]);
 
+  const onExperimentalFeaturesPressed = useCallback(() => {
+    props.navigation.navigate('FeatureFlags');
+  }, [props.navigation]);
+
   return (
     <View backgroundColor="$background" flex={1}>
       <ProfileScreenView
@@ -46,6 +50,7 @@ export default function ProfileScreen(props: Props) {
         onNotificationSettingsPressed={onPushNotifPressed}
         onBlockedUsersPressed={onBlockedUsersPressed}
         onManageAccountPressed={onManageAccountPressed}
+        onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
         dmLink={dmLink}
       />
       <NavBarView

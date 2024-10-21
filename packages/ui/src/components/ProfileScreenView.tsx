@@ -19,6 +19,7 @@ interface Props {
   onManageAccountPressed: () => void;
   onLogoutPressed?: () => void;
   onSendBugReportPressed?: () => void;
+  onExperimentalFeaturesPressed?: () => void;
   dmLink?: string;
 }
 
@@ -121,6 +122,12 @@ export function ProfileScreenView(props: Props) {
             leftIcon="Send"
             rightIcon={'ChevronRight'}
             onPress={props.onSendBugReportPressed}
+          />
+          <ProfileAction
+            title="Experimental features"
+            leftIcon="Bang"
+            rightIcon={'ChevronRight'}
+            onPress={props.onExperimentalFeaturesPressed}
           />
           <ProfileAction
             title="Log out"
