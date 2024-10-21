@@ -56,7 +56,7 @@
     "allowNonAppliedPatches": true,
     "overrides": {
       "typescript": "5.4.5",
-      "@10play/tentap-editor": "0.5.11",
+      "@10play/tentap-editor": "0.5.21",
       "@tiptap/suggestion": "2.6.0",
       "@tiptap/extension-mention": "2.6.0",
       "@tiptap/extension-hard-break": "2.6.0",

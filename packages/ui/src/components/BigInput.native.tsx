@@ -153,8 +153,7 @@ export function BigInput({
           placeholder={placeholder}
           bigInput
           channelType={channelType}
-          // TODO: figure out why autofocus breaks backspace
-          // shouldAutoFocus
+          shouldAutoFocus
           draftType={channelType === 'gallery' ? 'text' : undefined}
           ref={editorRef}
         />
