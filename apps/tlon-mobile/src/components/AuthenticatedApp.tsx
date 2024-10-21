@@ -6,10 +6,9 @@ import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { usePostSignup } from '@tloncorp/app/hooks/usePostSignup';
 import { cancelFetch, configureClient } from '@tloncorp/app/lib/api';
-import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
-import { sync, useDebugStore } from '@tloncorp/shared';
+import { sync } from '@tloncorp/shared';
 import { ZStack } from '@tloncorp/ui';
 import { useCallback, useEffect } from 'react';
 import { AppStateStatus } from 'react-native';
@@ -43,8 +42,6 @@ function AuthenticatedApp({
       onChannelReset: () => sync.handleDiscontinuity(),
       onChannelStatusChange: sync.handleChannelStatusChange,
     });
-
-    useDebugStore.getState().initializePlatform(PlatformState);
 
     if (signupContext.didSignup) {
       handlePostSignup();

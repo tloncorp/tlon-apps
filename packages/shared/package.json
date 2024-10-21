@@ -30,8 +30,9 @@
     "@urbit/aura": "^1.0.0",
     "any-ascii": "^0.3.1",
     "big-integer": "^1.6.52",
+    "exponential-backoff": "^3.1.1",
     "sorted-btree": "^1.8.1",
-    "exponential-backoff": "^3.1.1"
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.9",

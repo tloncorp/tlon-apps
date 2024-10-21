@@ -211,14 +211,16 @@ export default function ChatListScreen(props: Props) {
     }
   }, []);
 
-  const { pinned: pinnedChats, unpinned } = resolvedChats;
-  const allChats = [...pinnedChats, ...unpinned];
-  const isTlonEmployee = !!allChats.find(
-    (obj) => obj.groupId === TLON_EMPLOYEE_GROUP
-  );
-  if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
-    identifyTlonEmployee();
-  }
+  const isTlonEmployee = useMemo(() => {
+    const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
+    return !!allChats.find((obj) => obj.groupId === TLON_EMPLOYEE_GROUP);
+  }, [resolvedChats]);
+
+  useEffect(() => {
+    if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
+      identifyTlonEmployee();
+    }
+  }, [isTlonEmployee]);
 
   const handleSectionChange = useCallback(
     (title: string) => {

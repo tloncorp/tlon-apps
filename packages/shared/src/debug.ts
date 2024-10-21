@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import create from 'zustand';
 
-import * as db from './db';
 import { useLiveRef } from './logic/utilHooks';
 import { useCurrentSession } from './store/session';
 
+const MAX_POSTHOG_EVENT_SIZE = 1000;
 const BREADCRUMB_LIMIT = 100;
 
 interface Breadcrumb {
@@ -17,6 +18,12 @@ interface DebugPlatformState {
   network: string;
   battery: string;
   easUpdate: string;
+}
+
+interface AppInfo {
+  groupsVersion: string;
+  groupsHash: string;
+  groupsSyncNode: string;
 }
 
 type PlatformState = {
@@ -44,15 +51,19 @@ interface DebugStore {
   customLoggers: Set<string>;
   errorLogger: ErrorLoggerStub | null;
   logs: Log[];
-  logsUrl: string | null;
+  logId: string | null;
+  appInfo: AppInfo | null;
   platform: PlatformState | null;
   toggle: (enabled: boolean) => void;
   appendLog: (log: Log) => void;
-  uploadLogs: () => Promise<void>;
+  uploadLogs: () => Promise<string>;
   addBreadcrumb: (crumb: Breadcrumb) => void;
   getBreadcrumbs: () => string[];
   addCustomEnabledLoggers: (loggers: string[]) => void;
-  initializePlatform: (platform: PlatformState) => void;
+  initializeDebugInfo: (
+    platform: PlatformState,
+    appInfo: AppInfo | null
+  ) => void;
   initializeErrorLogger: (errorLoggerInput: ErrorLoggerStub) => void;
 }
 
@@ -62,8 +73,9 @@ export const useDebugStore = create<DebugStore>((set, get) => ({
   errorLogger: null,
   debugBreadcrumbs: [],
   logs: [],
-  logsUrl: null,
+  logId: null,
   platform: null,
+  appInfo: null,
   toggle: (enabled) => {
     set(() => ({
       enabled,
@@ -75,14 +87,35 @@ export const useDebugStore = create<DebugStore>((set, get) => ({
     }));
   },
   uploadLogs: async () => {
-    const { errorLogger, platform, debugBreadcrumbs } = get();
-    const debugInfo = await platform?.getDebugInfo();
+    const { logs, errorLogger, platform, appInfo, debugBreadcrumbs } = get();
+    const platformInfo = await platform?.getDebugInfo();
+    const debugInfo = {
+      ...appInfo,
+      ...platformInfo,
+    };
+    const infoSize = roughMeasure(debugInfo);
+    const crumbSize = roughMeasure(debugBreadcrumbs);
+    const mappedLogs = logs.map((log) => log.message);
+    const runSize = MAX_POSTHOG_EVENT_SIZE - crumbSize - infoSize;
+    const runs = splitLogs(mappedLogs, runSize);
+    const logId = uuidv4();
 
-    errorLogger?.capture('debug_logs', {
-      logs: get().logs,
-      breadcrumbs: debugBreadcrumbs,
-      debugInfo,
-    });
+    for (let i = 0; i < runs.length; i++) {
+      errorLogger?.capture('debug_logs', {
+        logId,
+        page: `Page ${i + 1} of ${runs.length}`,
+        logs: runs[i],
+        breadcrumbs: debugBreadcrumbs,
+        debugInfo,
+      });
+    }
+
+    set(() => ({
+      logs: [],
+      logId,
+    }));
+
+    return logId;
   },
   addBreadcrumb: (crumb: Breadcrumb) => {
     set((state) => {
@@ -109,7 +142,7 @@ export const useDebugStore = create<DebugStore>((set, get) => ({
       return state;
     });
   },
-  initializePlatform: (platform) => {
+  initializeDebugInfo: (platform, appInfo) => {
     set(() => ({
       platform,
     }));
@@ -126,11 +159,9 @@ export function addCustomEnabledLoggers(loggers: string[]) {
 }
 
 async function getDebugInfo() {
-  let appInfo = null;
   let platformState = null;
-  const { platform } = useDebugStore.getState();
+  const { platform, appInfo } = useDebugStore.getState();
   try {
-    appInfo = await db.getAppInfoSettings();
     platformState = await platform?.getDebugInfo();
   } catch (e) {
     console.error('Failed to get app info or platform state', e);
@@ -392,4 +423,28 @@ function stringifyArgs(...args: unknown[]): string {
       return JSON.stringify(arg);
     })
     .join(' ');
+}
+
+function roughMeasure(obj: any): number {
+  return JSON.stringify(obj).length;
+}
+
+function splitLogs(logs: string[], maxSize: number): string[][] {
+  const splits = [];
+  let currentSize = 0;
+  let currentSplit: string[] = [];
+
+  for (const log of logs) {
+    const logSize = log.length;
+    if (currentSize + logSize > maxSize) {
+      splits.push(currentSplit);
+      currentSplit = [log];
+      currentSize = logSize;
+    }
+
+    currentSplit.push(log);
+    currentSize += logSize;
+  }
+
+  return splits;
 }
