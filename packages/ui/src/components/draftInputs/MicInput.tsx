@@ -67,21 +67,18 @@ export function MicInput({
       style={{ padding: 8, gap: 8 }}
     >
       <Button
-        style={{
-          backgroundColor: 'hsla(0, 0%, 0%, 0.1)',
-          height: 60,
-          fontWeight: 'bold',
-        }}
+        backgroundColor={'$background'}
+        fontWeight={'$l'}
+        style={{ height: 60 }}
         onPress={isRecording ? stopRecording : startRecording}
       >
         {isRecording ? 'Stop' : 'Record'}
       </Button>
       <Button
-        style={{
-          backgroundColor: 'hsla(0, 0%, 0%, 0.1)',
-          height: 60,
-          fontWeight: 'bold',
-        }}
+        backgroundColor={'$secondaryBackground'}
+        fontWeight={'$l'}
+        style={{ height: 60 }}
+        disabledStyle={{ opacity: 0.5 }}
         onPress={send}
         disabled={recordingUri == null}
       >
