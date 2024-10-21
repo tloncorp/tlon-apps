@@ -5,7 +5,7 @@ import create from 'zustand';
 import { useLiveRef } from './logic/utilHooks';
 import { useCurrentSession } from './store/session';
 
-const MAX_POSTHOG_EVENT_SIZE = 1000;
+const MAX_POSTHOG_EVENT_SIZE = 1_000_000;
 const BREADCRUMB_LIMIT = 100;
 
 interface Breadcrumb {
