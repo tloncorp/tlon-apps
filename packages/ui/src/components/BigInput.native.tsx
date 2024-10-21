@@ -1,4 +1,3 @@
-import { EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useRef, useState } from 'react';
 import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
@@ -154,7 +153,8 @@ export function BigInput({
           placeholder={placeholder}
           bigInput
           channelType={channelType}
-          shouldAutoFocus
+          // TODO: figure out why autofocus breaks backspace
+          // shouldAutoFocus
           draftType={channelType === 'gallery' ? 'text' : undefined}
           ref={editorRef}
         />

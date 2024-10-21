@@ -230,6 +230,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         try {
           getDraft(draftType).then((draft) => {
             if (!editingPost && draft) {
+              messageInputLogger.log(
+                'Not editing and we have draft content',
+                draft
+              );
               const inlines = tiptap.JSONToInlines(draft);
               const newInlines = inlines
                 .map((inline) => {
@@ -244,15 +248,19 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 .filter((inline) => inline !== null) as Inline[];
               const newStory = constructStory(newInlines);
               const tiptapContent = tiptap.diaryMixedToJSON(newStory);
-              messageInputLogger.log('Setting draft content', tiptapContent);
+              messageInputLogger.log(
+                'Setting content with draft',
+                tiptapContent
+              );
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(tiptapContent);
               setEditorIsEmpty(false);
-              messageInputLogger.log('set has set initial content');
+              messageInputLogger.log(
+                'set has set initial content, not editing'
+              );
               setHasSetInitialContent(true);
             }
 
-            messageInputLogger.log('Editing post?', editingPost);
             if (editingPost && editingPost.content) {
               messageInputLogger.log('Editing post', editingPost);
               const {
@@ -298,13 +306,13 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 ) as Story
               );
               messageInputLogger.log(
-                'Setting edit post content',
+                'Setting content with edit post content',
                 tiptapContent
               );
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(tiptapContent);
               setEditorIsEmpty(false);
-              messageInputLogger.log('set has set initial content');
+              messageInputLogger.log('set has set initial content, editing');
               setHasSetInitialContent(true);
             }
 
@@ -351,6 +359,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         !editorState.isFocused &&
         !hasAutoFocused
       ) {
+        messageInputLogger.log('Auto focusing editor', editorState);
         editor.focus();
         messageInputLogger.log('Auto focused editor');
         setHasAutoFocused(true);
@@ -391,6 +400,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           attachments.length === 0;
 
         if (isEmpty !== editorIsEmpty) {
+          messageInputLogger.log('Editor is empty?', isEmpty);
           setEditorIsEmpty(isEmpty);
           setContainerHeight(initialHeight);
         }
@@ -771,6 +781,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const handleMessage = useCallback(
       async (event: WebViewMessageEvent) => {
         const { data } = event.nativeEvent;
+        messageInputLogger.log('[webview] Message from editor', data);
         if (data === 'enter') {
           handleAddNewLine();
           return;
@@ -868,7 +879,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     );
 
     useEffect(() => {
+      messageInputLogger.log('Setting up keyboard listeners');
       if (bigInput) {
+        messageInputLogger.log('Setting up keyboard listeners for big input');
         Keyboard.addListener('keyboardDidShow', () => {
           // we should always have the keyboard height here but just in case
           const keyboardHeight = Keyboard.metrics()?.height || 300;
@@ -881,6 +894,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       }
 
       if (!bigInput) {
+        messageInputLogger.log('Setting up keyboard listeners for basic input');
         Keyboard.addListener('keyboardDidShow', () => {
           const keyboardHeight = Keyboard.metrics()?.height || 300;
           setMaxInputHeight(maxInputHeightBasic - keyboardHeight);
@@ -895,6 +909,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     // we need to check if the app within the webview actually loaded
     useEffect(() => {
       if (editorCrashed) {
+        messageInputLogger.warn('Editor crashed', editorCrashed);
         // if it hasn't loaded yet, we need to try loading the content again
         reloadWebview(`Editor crashed: ${editorCrashed}`);
       }
