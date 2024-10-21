@@ -221,10 +221,11 @@ export function PostScreenView({
                   editPost={editPost}
                   channelType="chat"
                   getDraft={getDraft}
-                  shouldAutoFocus={
-                    (channel.type === 'chat' && parentPost?.replyCount === 0) ||
-                    !!editingPost
-                  }
+                  // TODO: figure out why autofocus breaks backspace
+                  // shouldAutoFocus={
+                  // (channel.type === 'chat' && parentPost?.replyCount === 0) ||
+                  // !!editingPost
+                  // }
                   ref={editorRef}
                 />
               )}
