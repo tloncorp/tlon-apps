@@ -12,6 +12,7 @@ import {
   GalleryInput,
   NotebookInput,
 } from '../components/draftInputs';
+import { ButtonInput } from '../components/draftInputs/ButtonInput';
 
 type RenderItemFunction = (props: {
   post: db.Post;
@@ -68,6 +69,13 @@ const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   [DraftInputId.chat]: ChatInput,
   [DraftInputId.gallery]: GalleryInput,
   [DraftInputId.notebook]: NotebookInput,
+  [DraftInputId.yo]: ({ draftInputContext }) => (
+    <ButtonInput
+      draftInputContext={draftInputContext}
+      messageText="Yo"
+      labelText="Yo"
+    />
+  ),
 };
 
 export function ComponentsKitContextProvider({
