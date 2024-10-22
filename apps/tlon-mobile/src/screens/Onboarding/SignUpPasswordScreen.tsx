@@ -1,5 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
+import {
+  DEFAULT_ONBOARDING_PASSWORD,
+  RECAPTCHA_SITE_KEY,
+} from '@tloncorp/app/constants';
 import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { setEulaAgreed } from '@tloncorp/app/utils/eula';
@@ -58,6 +61,8 @@ export const SignUpPasswordScreen = ({
   } = useForm<FormData>({
     defaultValues: {
       eulaAgreed: false,
+      password: DEFAULT_ONBOARDING_PASSWORD ?? '',
+      confirmPassword: DEFAULT_ONBOARDING_PASSWORD ?? '',
     },
     mode: 'onBlur',
   });
@@ -99,7 +104,7 @@ export const SignUpPasswordScreen = ({
         lure: signupParams.lureId,
         priorityToken: signupParams.priorityToken,
       });
-      signupContext.setDidSignup(true);
+      signupContext.setOnboardingValues({ password });
     } catch (err) {
       console.error('Error signing up user:', err);
       if (err instanceof Error) {
@@ -189,9 +194,8 @@ export const SignUpPasswordScreen = ({
   }, [recaptchaError]);
 
   const goBackHandler = useCallback(() => {
-    signupContext.setDidSignup(false);
     navigation.goBack();
-  }, [navigation, signupContext]);
+  }, [navigation]);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">

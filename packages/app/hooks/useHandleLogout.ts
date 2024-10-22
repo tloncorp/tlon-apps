@@ -5,6 +5,7 @@ import { useCallback } from 'react';
 
 import { useBranch } from '../contexts/branch';
 import { clearShipInfo, useShip } from '../contexts/ship';
+import { useSignupContext } from '../contexts/signup';
 import {
   removeHostingAuthTracking,
   removeHostingToken,
@@ -17,6 +18,7 @@ const logger = createDevLogger('logout', true);
 export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
   const { clearShip } = useShip();
   const { clearLure, clearDeepLink } = useBranch();
+  const signupContext = useSignupContext();
 
   const handleLogout = useCallback(async () => {
     api.queryClient.clear();
@@ -29,13 +31,14 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
     clearLure();
     clearDeepLink();
     clearSplashDismissed();
+    signupContext.clear();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');
       return;
     }
     // delay DB reset to next tick to avoid race conditions
     setTimeout(() => resetDb());
-  }, [clearDeepLink, clearLure, clearShip, resetDb]);
+  }, [clearDeepLink, clearLure, clearShip, resetDb, signupContext]);
 
   return handleLogout;
 }
