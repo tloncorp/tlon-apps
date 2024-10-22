@@ -28,9 +28,9 @@ interface BootSequenceReport {
     runBootPhase — executes a single boot step, returns the next step in the sequence
     runBootSequence — repeatedly executes runBootPhase until the sequence is complete
 
-  The hook remains idle until passed a hosted user. Gives up after HANDLE_INVITES_TIMEOUT seconds if
-  we're stuck processing invites, but the node is otherwise ready. Exposes the current boot phase to
-  the caller.
+  The hook remains idle until explicitly kicked off by the caller. Gives up after HANDLE_INVITES_TIMEOUT 
+  seconds if we're stuck processing invites, but the node is otherwise ready. Exposes the current boot 
+  phase to the caller.
 */
 export function useBootSequence({
   hostingUser,
@@ -50,14 +50,6 @@ export function useBootSequence({
   const lastRunPhaseRef = useRef(bootPhase);
   const lastRunErrored = useRef(false);
   const sequenceStartTimeRef = useRef<number>(0);
-
-  // detect when we're ready to start the sequence, kick things off
-  // by advancing past IDLE
-  // useEffect(() => {
-  //   if (bootPhase === NodeBootPhase.IDLE && hostingUser?.id) {
-  //     setBootPhase(NodeBootPhase.RESERVING);
-  //   }
-  // }, [bootPhase, hostingUser]);
 
   const kickOffBootSequence = useCallback(() => {
     setBootPhase(NodeBootPhase.RESERVING);
