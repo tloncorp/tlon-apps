@@ -51,7 +51,7 @@ export const CheckVerifyScreen = ({
           actionName: 'Verification Submitted',
         });
 
-        signupContext.setHostingUser(user);
+        signupContext.setOnboardingValues({ hostingUser: user });
         signupContext.kickOffBootSequence();
         navigation.navigate('SetNickname', { user });
       } catch (err) {

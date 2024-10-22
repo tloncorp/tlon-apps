@@ -53,13 +53,10 @@ export const SetNicknameScreen = ({
   const signupContext = useSignupContext();
 
   const onSubmit = handleSubmit(({ nickname, notificationToken }) => {
-    if (nickname) {
-      signupContext.setOnboardingValues({ nickname });
-    }
-
-    if (notificationToken) {
-      signupContext.setOnboardingValues({ notificationToken });
-    }
+    signupContext.setOnboardingValues({
+      nickname,
+      notificationToken,
+    });
 
     navigation.navigate('SetTelemetry', {
       user,

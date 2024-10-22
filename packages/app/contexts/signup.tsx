@@ -17,7 +17,6 @@ const defaultValues: SignupValues = {
 };
 
 interface SignupContext extends SignupParams {
-  setHostingUser: (hostingUser: { id: string }) => void;
   setOnboardingValues: (newValues: Partial<SignupValues>) => void;
   kickOffBootSequence: () => void;
   handlePostSignup: () => void;
@@ -25,7 +24,6 @@ interface SignupContext extends SignupParams {
 }
 
 const defaultMethods = {
-  setHostingUser: () => {},
   setOnboardingValues: () => {},
   handlePostSignup: () => {},
   kickOffBootSequence: () => {},
@@ -52,16 +50,6 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       setValues((current) => ({
         ...current,
         ...newValues,
-      }));
-    },
-    [setValues]
-  );
-
-  const setHostingUser = useCallback(
-    (hostingUser: { id: string }) => {
-      setValues((current) => ({
-        ...current,
-        hostingUser,
       }));
     },
     [setValues]
@@ -111,7 +99,6 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         ...values,
         bootPhase,
-        setHostingUser,
         setOnboardingValues,
         handlePostSignup,
         kickOffBootSequence,

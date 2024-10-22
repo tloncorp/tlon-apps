@@ -1,10 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  UseMutationResult,
-  UseQueryResult,
-  useMutation,
-  useQuery,
-} from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
 import {
   StorageConfiguration,
@@ -265,12 +260,6 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
   return { getValue, setValue, resetValue, useValue, useStorageItem };
 };
 
-export const currentOnboardingRoute = createStorageItem<string | null>({
-  key: 'currentOnboardingRoute',
-  defaultValue: null,
-});
-export const useCurrentOnboardingRoute = currentOnboardingRoute.useStorageItem;
-
 export const signupData = createStorageItem<SignupParams>({
   key: 'signupData',
   defaultValue: {
@@ -279,12 +268,3 @@ export const signupData = createStorageItem<SignupParams>({
     bootPhase: NodeBootPhase.IDLE,
   },
 });
-
-// in component
-// const didShowBenefitsSheet = useDidShowBenefitsSheet();
-// OR
-// const { value, setValue } = useDidShowBenefitsSheet();
-
-// import {didShowBenefitsSheet } from '../store/kv';
-
-// didshowBenefitsSheet.useValue()
