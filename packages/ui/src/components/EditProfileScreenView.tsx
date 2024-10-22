@@ -2,14 +2,20 @@ import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Keyboard } from 'react-native';
+import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, YStack } from 'tamagui';
+import { ScrollView, View, XStack } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts';
-import { EditablePofileImages } from './EditableProfileImages';
+import { SigilAvatar } from './Avatar';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
-import { ControlledTextField, ControlledTextareaField, Field } from './Form';
+import {
+  ControlledImageField,
+  ControlledTextField,
+  ControlledTextareaField,
+  Field,
+  FormFrame,
+} from './Form';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { ScreenHeader } from './ScreenHeader';
 
@@ -34,29 +40,45 @@ export function EditProfileScreenView(props: Props) {
   const {
     control,
     handleSubmit,
-    formState: { errors, isDirty },
+    formState: { isDirty, isValid },
   } = useForm({
+    mode: 'onChange',
     defaultValues: {
       nickname: userContact?.nickname ?? '',
       bio: userContact?.bio ?? '',
+      avatarImage: userContact?.avatarImage ?? undefined,
     },
   });
 
-  const onSavePressed = useCallback(() => {
+  const handlePressDone = useCallback(() => {
     if (isDirty) {
-      return handleSubmit((formData) => {
+      handleSubmit((formData) => {
         props.onSaveProfile(formData);
+        props.onGoBack();
       })();
+    } else {
+      props.onGoBack();
     }
   }, [handleSubmit, isDirty, props]);
 
-  const handlePressDone = () => {
-    props.onGoBack();
-    onSavePressed();
-  };
-
   const handlePressCancel = () => {
-    props.onGoBack();
+    if (isDirty) {
+      Alert.alert('Discard changes?', 'Your changes will not be saved.', [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            props.onGoBack();
+          },
+        },
+      ]);
+    } else {
+      props.onGoBack();
+    }
   };
 
   const handleUpdatePinnedGroups = useCallback(
@@ -70,69 +92,97 @@ export function EditProfileScreenView(props: Props) {
   return (
     <View flex={1}>
       <ScreenHeader
-        backAction={handlePressCancel}
         title="Edit Profile"
+        leftControls={
+          <ScreenHeader.TextButton onPress={handlePressCancel}>
+            Cancel
+          </ScreenHeader.TextButton>
+        }
         rightControls={
-          <ScreenHeader.TextButton onPress={handlePressDone}>
+          <ScreenHeader.TextButton
+            onPress={handlePressDone}
+            color="$positiveActionText"
+            disabled={!isValid}
+          >
             Done
           </ScreenHeader.TextButton>
         }
       />
 
       <KeyboardAvoidingView>
-        <ScrollView>
-          <YStack
-            onTouchStart={Keyboard.dismiss}
-            gap="$2xl"
-            paddingBottom={insets.bottom}
-          >
-            <View paddingHorizontal="$xl">
-              <EditablePofileImages
-                contact={userContact ?? db.getFallbackContact(currentUserId)}
-                onSetCoverUrl={props.onUpdateCoverImage}
-                onSetIconUrl={props.onUpdateAvatarImage}
-              />
-            </View>
-            <View paddingHorizontal="$2xl" gap="$2xl">
-              <ControlledTextField
-                name="nickname"
-                label="Nickname"
-                control={control}
-                inputProps={{ placeholder: userContact?.id }}
-                rules={{
-                  maxLength: {
-                    value: 30,
-                    message: 'Your nickname is limited to 30 characters',
-                  },
-                }}
-              />
-
-              <ControlledTextareaField
-                name="bio"
-                label="Bio"
-                control={control}
-                inputProps={{
-                  placeholder: 'About yourself',
-                  numberOfLines: 5,
-                  multiline: true,
-                }}
-                rules={{
-                  maxLength: {
-                    value: 300,
-                    message: 'Your bio is limited to 300 characters',
-                  },
-                }}
-              />
-
-              <Field label="Pinned groups">
-                <FavoriteGroupsDisplay
-                  groups={pinnedGroups}
-                  onUpdate={handleUpdatePinnedGroups}
-                  editable
+        <ScrollView keyboardDismissMode="on-drag">
+          <FormFrame paddingBottom={insets.bottom}>
+            <XStack alignItems="flex-end" gap="$m">
+              <View flex={1}>
+                <ControlledTextField
+                  name="nickname"
+                  label="Nickname"
+                  control={control}
+                  renderInputContainer={({ children }) => {
+                    return (
+                      <XStack gap="$m">
+                        <View flex={1}>{children}</View>
+                        <SigilAvatar
+                          contactId={currentUserId}
+                          width={56}
+                          height={56}
+                          borderRadius="$l"
+                          size="custom"
+                        />
+                      </XStack>
+                    );
+                  }}
+                  inputProps={{ placeholder: userContact?.id }}
+                  rules={{
+                    maxLength: {
+                      value: 30,
+                      message: 'Your nickname is limited to 30 characters',
+                    },
+                  }}
                 />
-              </Field>
-            </View>
-          </YStack>
+              </View>
+            </XStack>
+
+            <ControlledImageField
+              label="Avatar image"
+              name="avatarImage"
+              hideError={true}
+              control={control}
+              inputProps={{
+                buttonLabel: 'Change avatar image',
+              }}
+              rules={{
+                pattern: {
+                  value: /^(?!file).+/,
+                  message: 'Image has not finished uploading',
+                },
+              }}
+            />
+
+            <ControlledTextareaField
+              name="bio"
+              label="Bio"
+              control={control}
+              inputProps={{
+                placeholder: 'About yourself',
+                numberOfLines: 5,
+                multiline: true,
+              }}
+              rules={{
+                maxLength: {
+                  value: 300,
+                  message: 'Your bio is limited to 300 characters',
+                },
+              }}
+            />
+
+            <Field label="Pinned groups">
+              <FavoriteGroupsDisplay
+                groups={pinnedGroups}
+                onUpdate={handleUpdatePinnedGroups}
+              />
+            </Field>
+          </FormFrame>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
