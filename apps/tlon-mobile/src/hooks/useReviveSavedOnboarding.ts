@@ -93,9 +93,11 @@ export function useReviveSavedOnboarding() {
     }
 
     if (inviteMeta) {
-      logger.log(`attempting to revive onboarding session`, savedSignup);
+      logger.crumb(`attempting to revive onboarding session`, {
+        email: savedSignup.email,
+      });
       const routeStack = await getOnboardingRouteStack(savedSignup);
-      logger.log(`computed onboarding route stack`, routeStack);
+      logger.crumb(`computed onboarding route stack`, routeStack);
 
       if (routeStack) {
         logger.trackEvent(AnalyticsEvent.OnboardingSessionRevived, {

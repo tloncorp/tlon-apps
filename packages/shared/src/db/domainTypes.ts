@@ -7,9 +7,7 @@ export interface SignupParams {
   nickname?: string;
   notificationToken?: string;
   telemetry?: boolean;
-  didBeginSignup?: boolean;
-  didCompleteSignup?: boolean;
-  isOngoing?: boolean;
+  didCompleteOnboarding?: boolean;
   hostingUser: { id: string } | null;
   reservedNodeId: string | null;
   bootPhase: NodeBootPhase;

@@ -1,5 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { EMAIL_REGEX } from '@tloncorp/app/constants';
+import {
+  DEFAULT_ONBOARDING_TLON_EMAIL,
+  EMAIL_REGEX,
+} from '@tloncorp/app/constants';
 import {
   useLureMetadata,
   useSignupParams,
@@ -31,6 +34,11 @@ type FormData = {
   email: string;
 };
 
+function genDefaultEmail() {
+  const entropy = String(Math.random()).slice(2, 12);
+  return `${DEFAULT_ONBOARDING_TLON_EMAIL}+test${entropy}@tlon.io`;
+}
+
 export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { hostingApi } = useOnboardingContext();
@@ -45,7 +53,11 @@ export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
     formState: { errors, isValid },
     setError,
     trigger,
-  } = useForm<FormData>();
+  } = useForm<FormData>({
+    defaultValues: {
+      email: DEFAULT_ONBOARDING_TLON_EMAIL ? genDefaultEmail() : '',
+    },
+  });
 
   const onSubmit = handleSubmit(async ({ email }) => {
     setIsSubmitting(true);

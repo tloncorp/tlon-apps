@@ -53,11 +53,15 @@ export function useBootSequence({
 
   // detect when we're ready to start the sequence, kick things off
   // by advancing past IDLE
-  useEffect(() => {
-    if (bootPhase === NodeBootPhase.IDLE && hostingUser?.id) {
-      setBootPhase(NodeBootPhase.RESERVING);
-    }
-  }, [bootPhase, hostingUser]);
+  // useEffect(() => {
+  //   if (bootPhase === NodeBootPhase.IDLE && hostingUser?.id) {
+  //     setBootPhase(NodeBootPhase.RESERVING);
+  //   }
+  // }, [bootPhase, hostingUser]);
+
+  const kickOffBootSequence = useCallback(() => {
+    setBootPhase(NodeBootPhase.RESERVING);
+  }, [setBootPhase]);
 
   const runBootPhase = useCallback(async (): Promise<NodeBootPhase> => {
     if (!hostingUser) {
@@ -290,7 +294,7 @@ export function useBootSequence({
       NodeBootPhase.CHECKING_FOR_INVITE,
     ].includes(bootPhase);
     if (isInOptionalPhase && beenRunningTooLong) {
-      logger.trackError('accept invites abort');
+      logger.trackError('accept invites abort', { inviteId: lureMeta?.id });
       setBootPhase(NodeBootPhase.READY);
       return;
     }
@@ -298,7 +302,7 @@ export function useBootSequence({
     if (![NodeBootPhase.IDLE, NodeBootPhase.READY].includes(bootPhase)) {
       runBootSequence();
     }
-  }, [runBootPhase, setBootPhase, bootPhase, bootStepCounter]);
+  }, [runBootPhase, setBootPhase, bootPhase, bootStepCounter, lureMeta?.id]);
 
   // once finished, set the report
   useEffect(() => {
@@ -312,6 +316,7 @@ export function useBootSequence({
 
   return {
     bootPhase,
+    kickOffBootSequence,
     bootReport: report,
   };
 }

@@ -16,7 +16,7 @@ import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import { NodeBootPhase, SignupParams } from './domainTypes';
 
-const logger = createDevLogger('keyValueStore', false);
+const logger = createDevLogger('keyValueStore', true);
 
 export const ACTIVITY_SEEN_MARKER_QUERY_KEY = [
   'activity',
@@ -230,6 +230,7 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
   const resetValue = async (): Promise<T> => {
     await AsyncStorage.setItem(key, serialize(defaultValue));
     queryClient.invalidateQueries({ queryKey: [key] });
+    logger.log(`reset value ${key}`);
     return defaultValue;
   };
 
@@ -244,10 +245,12 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
 
     await AsyncStorage.setItem(key, serialize(newValue));
     queryClient.invalidateQueries({ queryKey: [key] });
+    logger.log(`set value ${key}`, newValue);
   };
 
   function useValue() {
-    // TODo
+    const { data: value } = useQuery({ queryKey: [key], queryFn: getValue });
+    return value === undefined ? defaultValue : value;
   }
 
   function useStorageItem() {
@@ -259,7 +262,7 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
     };
   }
 
-  return { getValue, setValue, resetValue, useStorageItem };
+  return { getValue, setValue, resetValue, useValue, useStorageItem };
 };
 
 export const currentOnboardingRoute = createStorageItem<string | null>({

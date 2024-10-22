@@ -2,14 +2,7 @@ import { createDevLogger } from '@tloncorp/shared/dist';
 import * as api from '@tloncorp/shared/dist/api';
 import { SignupParams, signupData } from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect } from 'react';
 
 import { useBootSequence } from '../hooks/useBootSequence';
 import { NodeBootPhase } from '../lib/bootHelpers';
@@ -25,25 +18,17 @@ const defaultValues: SignupValues = {
 
 interface SignupContext extends SignupParams {
   setHostingUser: (hostingUser: { id: string }) => void;
-  setNickname: (nickname: string | undefined) => void;
-  setNotificationToken: (notificationToken: string | undefined) => void;
-  setTelemetry: (telemetry: boolean) => void;
-  setDidSignup: (didSignup: boolean) => void;
-  setDidCompleteSignup: (value: boolean) => void;
   setOnboardingValues: (newValues: Partial<SignupValues>) => void;
+  kickOffBootSequence: () => void;
   handlePostSignup: () => void;
   clear: () => void;
 }
 
 const defaultMethods = {
-  setNickname: () => {},
-  setNotificationToken: () => {},
-  setTelemetry: () => {},
-  setDidSignup: () => {},
   setHostingUser: () => {},
-  setDidCompleteSignup: () => {},
   setOnboardingValues: () => {},
   handlePostSignup: () => {},
+  kickOffBootSequence: () => {},
   clear: () => {},
 };
 
@@ -54,20 +39,13 @@ const SignupContext = createContext<SignupContext>({
 });
 
 export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
-  // const [values, setValues] = useState<SignupValues>(defaultValues);
   const {
     value: values,
     setValue: setValues,
     resetValue: resetValues,
   } = signupData.useStorageItem();
-  const { bootPhase, bootReport } = useBootSequence(values);
-
-  const isOngoing = useMemo(() => {
-    return (
-      values.didBeginSignup &&
-      (!values.didCompleteSignup || bootPhase !== NodeBootPhase.READY)
-    );
-  }, [values.didBeginSignup, values.didCompleteSignup, bootPhase]);
+  const { bootPhase, bootReport, kickOffBootSequence } =
+    useBootSequence(values);
 
   const setOnboardingValues = useCallback(
     (newValues: Partial<SignupValues>) => {
@@ -76,59 +54,23 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         ...newValues,
       }));
     },
-    []
+    [setValues]
   );
 
-  const setDidSignup = useCallback((didBeginSignup: boolean) => {
-    setValues((current) => ({
-      ...current,
-      didBeginSignup,
-    }));
-  }, []);
-
-  const setDidCompleteSignup = useCallback((value: boolean) => {
-    setValues((current) => ({
-      ...current,
-      didCompleteSignup: value,
-      userWasReadyAt: Date.now(),
-    }));
-  }, []);
-
-  const setHostingUser = useCallback((hostingUser: { id: string }) => {
-    setValues((current) => ({
-      ...current,
-      hostingUser,
-    }));
-  }, []);
-
-  const setNickname = useCallback((nickname: string | undefined) => {
-    setValues((current) => ({
-      ...current,
-      nickname,
-    }));
-  }, []);
-
-  const setNotificationToken = useCallback(
-    (notificationToken: string | undefined) => {
+  const setHostingUser = useCallback(
+    (hostingUser: { id: string }) => {
       setValues((current) => ({
         ...current,
-        notificationToken,
+        hostingUser,
       }));
     },
-    []
+    [setValues]
   );
-
-  const setTelemetry = useCallback((telemetry: boolean) => {
-    setValues((current) => ({
-      ...current,
-      telemetry,
-    }));
-  }, []);
 
   const clear = useCallback(() => {
     logger.log('clearing signup context');
     resetValues();
-  }, []);
+  }, [resetValues]);
 
   const handlePostSignup = useCallback(() => {
     try {
@@ -159,11 +101,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
   }, [values, bootReport, clear]);
 
   useEffect(() => {
-    if (
-      values.didBeginSignup &&
-      values.didCompleteSignup &&
-      bootPhase === NodeBootPhase.READY
-    ) {
+    if (values.didCompleteOnboarding && bootPhase === NodeBootPhase.READY) {
       handlePostSignup();
     }
   }, [values, bootPhase, clear, bootReport, handlePostSignup]);
@@ -173,15 +111,10 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         ...values,
         bootPhase,
-        isOngoing,
         setHostingUser,
-        setNickname,
-        setNotificationToken,
-        setTelemetry,
-        setDidSignup,
-        setDidCompleteSignup,
         setOnboardingValues,
         handlePostSignup,
+        kickOffBootSequence,
         clear,
       }}
     >

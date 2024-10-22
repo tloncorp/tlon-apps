@@ -52,6 +52,7 @@ export const CheckVerifyScreen = ({
         });
 
         signupContext.setHostingUser(user);
+        signupContext.kickOffBootSequence();
         navigation.navigate('SetNickname', { user });
       } catch (err) {
         console.error('Error submitting verification:', err);
