@@ -1,4 +1,5 @@
 import {
+  PostCollectionLayoutType,
   configurationFromChannel,
   layoutForType,
   layoutTypeFromChannel,
@@ -94,7 +95,7 @@ const Scroller = forwardRef(
       renderEmptyComponent: renderEmptyComponentFn,
       posts,
       channel,
-      detailView,
+      collectionLayoutType,
       firstUnreadId,
       unreadCount,
       onStartReached,
@@ -119,7 +120,7 @@ const Scroller = forwardRef(
       renderEmptyComponent?: () => ReactElement;
       posts: db.Post[] | null;
       channel: db.Channel;
-      detailView?: boolean;
+      collectionLayoutType: PostCollectionLayoutType;
       firstUnreadId?: string | null;
       unreadCount?: number | null;
       onStartReached?: () => void;
@@ -142,10 +143,6 @@ const Scroller = forwardRef(
     },
     ref
   ) => {
-    const collectionLayoutType = useMemo(
-      () => layoutTypeFromChannel(channel, detailView),
-      [channel]
-    );
     const collectionLayout = useMemo(
       () => layoutForType(collectionLayoutType),
       [collectionLayoutType]

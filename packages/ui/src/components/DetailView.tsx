@@ -64,7 +64,7 @@ export const DetailView = ({
           inverted
           renderItem={ChatMessage}
           channel={channel}
-          detailView
+          collectionLayoutType="compact-list-bottom-to-top"
           editingPost={editingPost}
           setEditingPost={setEditingPost}
           posts={resolvedPosts ?? null}
@@ -98,7 +98,7 @@ export const DetailView = ({
     setActiveMessage,
     setEditingPost,
     headerMode,
-    channel
+    channel,
   ]);
 
   return isChat ? (
