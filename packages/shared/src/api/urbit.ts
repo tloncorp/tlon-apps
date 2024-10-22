@@ -197,7 +197,9 @@ export async function subscribe<T>(
         config.onQuitOrReset?.();
       },
       err: (error, id) => {
-        logger.error(`subscribe error on ${printEndpoint(endpoint)}:`, error);
+        logger.trackError(`subscribe error on ${printEndpoint(endpoint)}`, {
+          stack: error,
+        });
 
         if (err) {
           logger.log(
@@ -241,7 +243,16 @@ export async function subscribeOnce<T>(
   try {
     return config.client.subscribeOnce<T>(endpoint.app, endpoint.path, timeout);
   } catch (err) {
-    logger.error('bad subscribeOnce', printEndpoint(endpoint), err);
+    if (err !== 'timeout' && err !== 'quit') {
+      logger.trackError(`bad subscribeOnce ${printEndpoint(endpoint)}`, {
+        stack: err,
+      });
+    } else if (err === 'timeout') {
+      logger.error('subscribeOnce timed out', printEndpoint(endpoint));
+    } else {
+      logger.error('subscribeOnce quit', printEndpoint(endpoint));
+    }
+
     if (!(err instanceof AuthError)) {
       throw err;
     }
@@ -286,7 +297,10 @@ export async function poke({ app, mark, json }: PokeParams) {
     });
   };
   const retry = async (err: any) => {
-    logger.log('bad poke', app, mark, json, err);
+    logger.trackError(`bad poke to ${app} with mark ${mark}`, {
+      stack: err,
+      body: json,
+    });
     if (!(err instanceof AuthError)) {
       throw err;
     }
