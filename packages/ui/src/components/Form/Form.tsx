@@ -35,20 +35,32 @@ export const Field = React.memo(
     label?: string;
     error?: string;
     required?: boolean;
-  }>(({ children, label, required, error, ...props }, ref) => {
-    return (
-      <FieldFrame {...props} ref={ref} accent={error ? 'negative' : 'neutral'}>
-        {label ? (
-          <FieldLabel>
-            {label}
-            {required ? '*' : null}
-          </FieldLabel>
-        ) : null}
-        {children}
-        {error && <FieldErrorMessage>{error}</FieldErrorMessage>}
-      </FieldFrame>
-    );
-  })
+    renderInputContainer?: (props: {
+      children: React.ReactNode;
+    }) => React.ReactNode;
+  }>(
+    (
+      { children, label, required, error, renderInputContainer, ...props },
+      ref
+    ) => {
+      return (
+        <FieldFrame
+          {...props}
+          ref={ref}
+          accent={error ? 'negative' : 'neutral'}
+        >
+          {label ? (
+            <FieldLabel>
+              {label}
+              {required ? '*' : null}
+            </FieldLabel>
+          ) : null}
+          {renderInputContainer ? renderInputContainer({ children }) : children}
+          {error && <FieldErrorMessage>{error}</FieldErrorMessage>}
+        </FieldFrame>
+      );
+    }
+  )
 );
 
 export const FieldLabel = React.memo(

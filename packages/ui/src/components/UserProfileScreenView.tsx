@@ -28,6 +28,7 @@ interface Props {
   onBack: () => void;
   connectionStatus: api.ConnectionStatus | null;
   onPressGroup: (group: db.Group) => void;
+  onPressEdit: () => void;
 }
 
 export function UserProfileScreenView(props: Props) {
@@ -71,6 +72,13 @@ export function UserProfileScreenView(props: Props) {
       <ScreenHeader
         title="Profile"
         leftControls={<ScreenHeader.BackButton onPress={props.onBack} />}
+        rightControls={
+          props.userId === currentUserId ? (
+            <ScreenHeader.TextButton onPress={props.onPressEdit}>
+              Edit
+            </ScreenHeader.TextButton>
+          ) : null
+        }
       />
       <ScrollView
         flex={1}

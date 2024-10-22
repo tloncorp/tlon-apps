@@ -12,7 +12,7 @@ import { TlonLogo } from './TlonLogo';
 interface Props {
   currentUserId: string;
   hasHostedAuth: boolean;
-  onEditProfilePressed?: () => void;
+  onProfilePressed?: () => void;
   onAppInfoPressed?: () => void;
   onNotificationSettingsPressed: () => void;
   onBlockedUsersPressed: () => void;
@@ -66,9 +66,9 @@ export function ProfileScreenView(props: Props) {
         <YStack flex={1} padding="$l" gap="$s">
           <ProfileAction
             leftIcon={<ContactAvatar contactId={props.currentUserId} />}
-            title="Edit profile"
+            title="Profile"
             subtitle={props.currentUserId}
-            onPress={props.onEditProfilePressed}
+            onPress={props.onProfilePressed}
             rightIcon={'ChevronRight'}
           />
           {showDmLure && props.dmLink !== '' && (
