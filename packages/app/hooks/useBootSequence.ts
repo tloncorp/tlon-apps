@@ -52,8 +52,10 @@ export function useBootSequence({
   const sequenceStartTimeRef = useRef<number>(0);
 
   const kickOffBootSequence = useCallback(() => {
-    setBootPhase(NodeBootPhase.RESERVING);
-  }, [setBootPhase]);
+    if (bootPhase === NodeBootPhase.IDLE) {
+      setBootPhase(NodeBootPhase.RESERVING);
+    }
+  }, [bootPhase]);
 
   const runBootPhase = useCallback(async (): Promise<NodeBootPhase> => {
     if (!hostingUser) {
