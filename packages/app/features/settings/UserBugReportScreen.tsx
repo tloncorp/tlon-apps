@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ErrorReporter } from '@tloncorp/shared/dist';
+import { createDevLogger } from '@tloncorp/shared';
 import {
   Button,
   ControlledTextareaField,
@@ -17,6 +17,8 @@ import { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WompWomp'>;
 
+const logger = createDevLogger('bug-report', false);
+
 export function UserBugReportScreen({ navigation }: Props) {
   const { control, handleSubmit } = useForm({
     defaultValues: {
@@ -26,14 +28,11 @@ export function UserBugReportScreen({ navigation }: Props) {
 
   const sendBugReport = useCallback(
     (submission: { additionalNotes: string }) => {
-      const reporter = new ErrorReporter(
-        'User manually submitted a bug report'
-      );
       if (submission.additionalNotes) {
-        reporter.log(`User attached notes:`);
-        reporter.log(submission.additionalNotes);
+        logger.crumb(`User attached notes:`);
+        logger.crumb(submission.additionalNotes);
       }
-      reporter.report(null);
+      logger.trackError('User manually submitted a bug report');
       Alert.alert(
         'Bug report sent',
         'Our team will investigate. Thank you for your feedback!',

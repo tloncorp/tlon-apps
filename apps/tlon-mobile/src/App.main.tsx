@@ -23,7 +23,6 @@ import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
-import { initializeCrashReporter } from '@tloncorp/shared/dist';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import {
   LoadingSpinner,
@@ -41,8 +40,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
-
-initializeCrashReporter(crashlytics(), PlatformState);
 
 // Android notification tap handler passes initial params here
 const App = () => {
