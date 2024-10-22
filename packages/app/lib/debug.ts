@@ -12,7 +12,7 @@ storage
     useDebugStore.getState().toggle(enabled);
   });
 
-export const toggleDebug = async (enabled: boolean) => {
+export const setDebug = async (enabled: boolean) => {
   console.log(`Debug mode ${enabled ? 'enabled' : 'disabled'}`);
   useDebugStore.getState().toggle(enabled);
 

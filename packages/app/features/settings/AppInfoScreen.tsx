@@ -24,7 +24,7 @@ import { getEmailClients, openComposer } from 'react-native-email-link';
 import { ScrollView } from 'react-native-gesture-handler';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
-import { toggleDebug } from '../../lib/debug';
+import { setDebug } from '../../lib/debug';
 import { getEasUpdateDisplay } from '../../lib/platformHelpers';
 import { RootStackParamList } from '../../navigation/types';
 
@@ -72,7 +72,7 @@ export function AppInfoScreen(props: Props) {
   }, [props.navigation]);
 
   const toggleDebugFlag = useCallback((enabled: boolean) => {
-    toggleDebug(enabled);
+    setDebug(enabled);
     if (!enabled) {
       return;
     }
