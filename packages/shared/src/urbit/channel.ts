@@ -1,5 +1,5 @@
 import { parseUd } from '@urbit/aura';
-import { BigInteger } from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
@@ -662,7 +662,7 @@ export function newPostTupleArray(
     data.pages
       .map((page) => {
         const pagePosts = Object.entries(page.posts).map(
-          ([k, v]) => [parseUd(k), v] as PostTuple
+          ([k, v]) => [bigInt(parseUd(k)), v] as PostTuple
         );
 
         return pagePosts;

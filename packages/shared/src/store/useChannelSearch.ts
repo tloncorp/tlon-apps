@@ -80,7 +80,7 @@ export function useInfiniteChannelSearch(channel: db.Channel, query: string) {
     const lastValidCursor = params.findLast(
       (page) => page.cursor !== null
     )?.cursor;
-    return lastValidCursor ? new Date(daToUnix(bigInt(lastValidCursor))) : null;
+    return lastValidCursor ? new Date(daToUnix(BigInt(lastValidCursor))) : null;
   }, [data]);
 
   return {

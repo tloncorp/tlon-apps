@@ -333,7 +333,7 @@ export const searchChannel = async (params: {
     response = await scry<ub.ChannelScam>({
       app: 'channels',
       path: `/${params.channel.id}/search/bounded/text/${
-        params.cursor ? formatUd(bigInt(params.cursor ?? 0)) : ''
+        params.cursor ? formatUd(BigInt(params.cursor ?? 0)) : ''
       }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
     });
   } else {
@@ -342,7 +342,7 @@ export const searchChannel = async (params: {
     response = await scry<ub.ChatScam>({
       app: 'chat',
       path: `/${type}/${params.channel.id}/search/bounded/text/${
-        params.cursor ? formatUd(bigInt(params.cursor ?? 0)) : ''
+        params.cursor ? formatUd(BigInt(params.cursor ?? 0)) : ''
       }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
     });
   }

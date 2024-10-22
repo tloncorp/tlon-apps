@@ -22,7 +22,7 @@ let abortController = new AbortController();
 
 const clientLogger = createDevLogger('configure client', true);
 
-const apiFetch: typeof fetch = (input, { ...init } = {}) => {
+const apiFetch: typeof fetch = (input, init: RequestInit = {}) => {
   // Wire our injected AbortController up to the one passed in by the client.
   if (init.signal) {
     init.signal.onabort = () => {
@@ -31,14 +31,17 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
     };
   }
 
-  const headers = new Headers(init.headers);
+  const headers = { ...init.headers };
   // The urbit client is inconsistent about sending cookies, sometimes causing
   // the server to send back a new, anonymous, cookie, which is sent on all
   // subsequent requests and screws everything up. This ensures that explicit
   // cookie headers are never set, delegating all cookie handling to the
   // native http client.
-  headers.delete('Cookie');
-  headers.delete('cookie');
+
+  // @ts-expect-error doesn't like indexing
+  delete headers['Cookie'];
+  // @ts-expect-error doesn't like indexing
+  delete headers['cookie'];
   const newInit: RequestInit = {
     ...init,
     headers,

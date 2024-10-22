@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '../debug';
-import { AuthError, ChannelStatus, PokeInterface, Urbit } from '../http-api';
+import { AuthError, ChannelStatus, Poke, Urbit } from '../new-http-api';
 import { desig, preSig } from '../urbit';
 import { getLandscapeAuthCookie } from './landscapeApi';
 
@@ -106,8 +106,14 @@ export function internalConfigureClient({
   onChannelStatusChange,
 }: ClientParams) {
   logger.log('configuring client', shipName, shipUrl);
-  config.client = config.client || new Urbit(shipUrl, '', '', fetchFn);
-  config.client.verbose = verbose;
+  config.client =
+    config.client ||
+    Urbit.setupChannel({
+      url: shipUrl,
+      mode: 'json',
+      verbose,
+      fetch: fetchFn,
+    });
   config.client.nodeId = preSig(shipName);
   config.shipUrl = shipUrl;
   config.onQuitOrReset = onQuitOrReset;
@@ -121,7 +127,7 @@ export function internalConfigureClient({
     onChannelStatusChange?.(event.status);
   });
 
-  config.client.on('fact', (fact) => {
+  config.client.on('event', (fact) => {
     logger.log(
       'received message',
       runIfDev(() => escapeLog(JSON.stringify(fact)))
@@ -129,16 +135,12 @@ export function internalConfigureClient({
   });
 
   config.client.on('seamless-reset', () => {
-    logger.log('client seamless-reset');
+    logger.log('channel reaped, client seamless-reset');
     config.onQuitOrReset?.();
   });
 
   config.client.on('error', (error) => {
     logger.log('client error', error);
-  });
-
-  config.client.on('channel-reaped', () => {
-    logger.log('client channel-reaped');
   });
 }
 
@@ -156,7 +158,7 @@ export async function subscribe<T>(
   endpoint: UrbitEndpoint,
   handler: (update: T) => void
 ): Promise<number> {
-  const doSub = async (err?: (error: any, id: string) => void) => {
+  const doSub = async (err?: (error: any) => void) => {
     if (!config.client) {
       throw new Error('Client not initialized');
     }
@@ -167,7 +169,7 @@ export async function subscribe<T>(
     return config.client.subscribe({
       app: endpoint.app,
       path: endpoint.path,
-      event: (event: any, mark: string, id?: number) => {
+      onFact: (mark: string, event: any) => {
         logger.debug(
           `got subscription event on ${printEndpoint(endpoint)}:`,
           event
@@ -192,11 +194,11 @@ export async function subscribe<T>(
         // then pass the event along to the subscription handler
         handler(event);
       },
-      quit: () => {
-        logger.log('subscription quit on', printEndpoint(endpoint));
+      onKick: () => {
+        logger.log('subscription kick on', printEndpoint(endpoint));
         config.onQuitOrReset?.();
       },
-      err: (error, id) => {
+      onNack: (error: string) => {
         logger.error(`subscribe error on ${printEndpoint(endpoint)}:`, error);
 
         if (err) {
@@ -204,7 +206,7 @@ export async function subscribe<T>(
             'calling error handler for subscription',
             printEndpoint(endpoint)
           );
-          err(error, id);
+          err(error);
         }
       },
     });
@@ -271,7 +273,7 @@ export async function unsubscribe(id: number) {
 
 export async function poke({ app, mark, json }: PokeParams) {
   logger.log('poke', app, mark, json);
-  const doPoke = async (params?: Partial<PokeInterface<any>>) => {
+  const doPoke = async (params?: Partial<Poke>) => {
     if (!config.client) {
       throw new Error('Client not initialized');
     }
@@ -282,7 +284,7 @@ export async function poke({ app, mark, json }: PokeParams) {
       ...params,
       app,
       mark,
-      json,
+      data: json,
     });
   };
   const retry = async (err: any) => {
@@ -347,13 +349,13 @@ export async function scry<T>({ app, path }: { app: string; path: string }) {
   }
   logger.log('scry', app, path);
   try {
-    return await config.client.scry<T>({ app, path });
+    return await config.client.scryForJson<T>({ app, path });
   } catch (res) {
-    logger.log('bad scry', app, path, res.status);
+    logger.log('bad scry', app, path, res);
     if (res.status === 403) {
       logger.log('scry failed with 403, authing to try again');
       await reauth();
-      return config.client.scry<T>({ app, path });
+      return config.client.scryForJson<T>({ app, path });
     }
     const body = await res.text();
     throw new BadResponseError(res.status, body);

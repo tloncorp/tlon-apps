@@ -421,7 +421,7 @@ export function extractGroupPrivacy(
 }
 
 export function createSectionId() {
-  const idParts = formatUv(bigInt(Date.now())).split('.');
+  const idParts = formatUv(BigInt(Date.now())).split('.');
   const newSectionId = `z${idParts[idParts.length - 1]}`;
 
   return newSectionId;
