@@ -35,6 +35,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 export default function ChannelScreen(props: Props) {
   const channelFromParams = props.route.params.channel;
   const selectedPostId = props.route.params.selectedPostId;
+  const startDraft = props.route.params.startDraft;
   const [currentChannelId, setCurrentChannelId] = React.useState(
     channelFromParams.id
   );
@@ -382,6 +383,7 @@ export default function ChannelScreen(props: Props) {
         editPost={editPost}
         negotiationMatch={negotiationStatus.matchedOrPending}
         canUpload={canUpload}
+        startDraft={startDraft}
       />
       {group && (
         <>

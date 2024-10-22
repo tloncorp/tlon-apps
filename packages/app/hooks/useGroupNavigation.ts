@@ -2,6 +2,8 @@ import { useNavigation } from '@react-navigation/native';
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback } from 'react';
 
+import { RootStackParamList } from '../navigation/types';
+
 export const useGroupNavigation = () => {
   const navigation = useNavigation<
     // @ts-expect-error - TODO: pass navigation handlers into context
@@ -9,8 +11,16 @@ export const useGroupNavigation = () => {
   >();
 
   const goToChannel = useCallback(
-    async (channel: db.Channel) => {
-      navigation.navigate('Channel', { channel });
+    async (
+      channel: db.Channel | string,
+      params?: Omit<RootStackParamList['Channel'], 'channel'>
+    ) => {
+      if (typeof channel === 'string') {
+        const channelObj = await db.getChannel({ id: channel });
+        navigation.navigate('Channel', { channel: channelObj, ...params });
+      } else {
+        navigation.navigate('Channel', { channel, ...params });
+      }
     },
     [navigation]
   );

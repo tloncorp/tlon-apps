@@ -84,6 +84,7 @@ export function Channel({
   hasNewerPosts,
   hasOlderPosts,
   initialAttachments,
+  startDraft,
 }: {
   channel: db.Channel;
   initialChannelUnread?: db.ChannelUnread | null;
@@ -123,6 +124,7 @@ export function Channel({
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
   canUpload: boolean;
+  startDraft?: boolean;
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
@@ -269,6 +271,12 @@ export function Channel({
     () => layoutTypeFromChannel(channel),
     [channel]
   );
+
+  useEffect(() => {
+    if (startDraft) {
+      draftInputRef.current?.startDraft?.();
+    }
+  }, [startDraft]);
 
   return (
     <ScrollContextProvider>
