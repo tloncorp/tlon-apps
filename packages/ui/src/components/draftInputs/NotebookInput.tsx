@@ -52,6 +52,10 @@ export function NotebookInput({
     exitFullscreen: () => {
       setShowBigInput(false);
     },
+
+    startDraft: () => {
+      setShowBigInput(true);
+    },
   }));
 
   return (
