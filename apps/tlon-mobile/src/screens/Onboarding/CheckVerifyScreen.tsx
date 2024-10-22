@@ -104,6 +104,7 @@ export const CheckVerifyScreen = ({
           value={code}
           length={codeLength}
           onChange={handleCodeChanged}
+          isEmail={isEmail}
           error={error}
         />
         <TlonText.Text
@@ -122,10 +123,12 @@ export const CheckVerifyScreen = ({
 function CodeInput({
   length,
   value,
+  isEmail,
   onChange,
   error,
 }: {
   length: number;
+  isEmail: boolean;
   value: string[];
   onChange?: (value: string[]) => void;
   error?: string;
@@ -169,7 +172,7 @@ function CodeInput({
 
   return (
     <Field
-      label="Check your email for a confirmation code"
+      label={`Check your ${isEmail ? 'email' : 'phone'} for a confirmation code`}
       error={error}
       justifyContent="center"
       alignItems="center"

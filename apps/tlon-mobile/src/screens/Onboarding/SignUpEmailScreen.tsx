@@ -4,6 +4,7 @@ import {
   useLureMetadata,
   useSignupParams,
 } from '@tloncorp/app/contexts/branch';
+import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import {
   identifyTlonEmployee,
   trackError,
@@ -18,7 +19,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { useOnboardingContext } from '../../lib/OnboardingContext';
@@ -35,6 +36,7 @@ export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
   const { hostingApi } = useOnboardingContext();
 
   const signupParams = useSignupParams();
+  const signupContext = useSignupContext();
   const lureMeta = useLureMetadata();
 
   const {
@@ -73,6 +75,10 @@ export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
           email,
           lure: signupParams.lureId,
         });
+
+        signupContext.setOnboardingValues({
+          email,
+        });
         navigation.navigate('SignUpPassword', {
           email,
         });
@@ -91,12 +97,17 @@ export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
     setIsSubmitting(false);
   });
 
+  const goBack = useCallback(() => {
+    signupContext.clear();
+    navigation.goBack();
+  }, [navigation, signupContext]);
+
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         title="Accept invite"
         showSessionStatus={false}
-        backAction={() => navigation.goBack()}
+        backAction={goBack}
         isLoading={isSubmitting}
         rightControls={
           <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>

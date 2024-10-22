@@ -1,5 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as api from '@tloncorp/shared/dist/api';
+import { SignupParams, signupData } from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   createContext,
@@ -16,22 +17,8 @@ import { connectNotifyProvider } from '../lib/notificationsApi';
 
 const logger = createDevLogger('signup', true);
 
-export interface SignupParams {
-  nickname?: string;
-  notificationToken?: string;
-  telemetry?: boolean;
-  didBeginSignup?: boolean;
-  didCompleteSignup?: boolean;
-  isOngoing?: boolean;
-  hostingUser: { id: string } | null;
-  reservedNodeId: string | null;
-  bootPhase: NodeBootPhase;
-  userWasReadyAt?: number;
-}
-
 type SignupValues = Omit<SignupParams, 'bootPhase'>;
 const defaultValues: SignupValues = {
-  nickname: undefined,
   hostingUser: null,
   reservedNodeId: null,
 };
@@ -43,6 +30,8 @@ interface SignupContext extends SignupParams {
   setTelemetry: (telemetry: boolean) => void;
   setDidSignup: (didSignup: boolean) => void;
   setDidCompleteSignup: (value: boolean) => void;
+  setOnboardingValues: (newValues: Partial<SignupValues>) => void;
+  handlePostSignup: () => void;
   clear: () => void;
 }
 
@@ -53,6 +42,8 @@ const defaultMethods = {
   setDidSignup: () => {},
   setHostingUser: () => {},
   setDidCompleteSignup: () => {},
+  setOnboardingValues: () => {},
+  handlePostSignup: () => {},
   clear: () => {},
 };
 
@@ -63,7 +54,12 @@ const SignupContext = createContext<SignupContext>({
 });
 
 export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
-  const [values, setValues] = useState<SignupValues>(defaultValues);
+  // const [values, setValues] = useState<SignupValues>(defaultValues);
+  const {
+    value: values,
+    setValue: setValues,
+    resetValue: resetValues,
+  } = signupData.useStorageItem();
   const { bootPhase, bootReport } = useBootSequence(values);
 
   const isOngoing = useMemo(() => {
@@ -72,6 +68,16 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       (!values.didCompleteSignup || bootPhase !== NodeBootPhase.READY)
     );
   }, [values.didBeginSignup, values.didCompleteSignup, bootPhase]);
+
+  const setOnboardingValues = useCallback(
+    (newValues: Partial<SignupValues>) => {
+      setValues((current) => ({
+        ...current,
+        ...newValues,
+      }));
+    },
+    []
+  );
 
   const setDidSignup = useCallback((didBeginSignup: boolean) => {
     setValues((current) => ({
@@ -121,8 +127,36 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
 
   const clear = useCallback(() => {
     logger.log('clearing signup context');
-    setValues(defaultValues);
+    resetValues();
   }, []);
+
+  const handlePostSignup = useCallback(() => {
+    try {
+      logger.log('running post-signup actions');
+      const postSignupParams = {
+        nickname: values.nickname,
+        telemetry: values.telemetry,
+        notificationToken: values.notificationToken,
+      };
+      runPostSignupActions(postSignupParams);
+      logger.trackEvent('hosted signup report', {
+        bootDuration: bootReport
+          ? bootReport.completedAt - bootReport.startedAt
+          : null,
+        userSatWaitingFor: values.userWasReadyAt
+          ? Date.now() - values.userWasReadyAt
+          : null,
+        timeUnit: 'ms',
+      });
+    } catch (e) {
+      logger.trackError('post signup error', {
+        errorMessage: e.message,
+        errorStack: e.stack,
+      });
+    } finally {
+      setTimeout(() => clear(), 2000);
+    }
+  }, [values, bootReport, clear]);
 
   useEffect(() => {
     if (
@@ -130,33 +164,9 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       values.didCompleteSignup &&
       bootPhase === NodeBootPhase.READY
     ) {
-      try {
-        logger.log('running post-signup actions');
-        const postSignupParams = {
-          nickname: values.nickname,
-          telemetry: values.telemetry,
-          notificationToken: values.notificationToken,
-        };
-        handlePostSignup(postSignupParams);
-        logger.trackEvent('hosted signup report', {
-          bootDuration: bootReport
-            ? bootReport.completedAt - bootReport.startedAt
-            : null,
-          userSatWaitingFor: values.userWasReadyAt
-            ? Date.now() - values.userWasReadyAt
-            : null,
-          timeUnit: 'ms',
-        });
-      } catch (e) {
-        logger.trackError('post signup error', {
-          errorMessage: e.message,
-          errorStack: e.stack,
-        });
-      } finally {
-        setTimeout(() => clear(), 2000);
-      }
+      handlePostSignup();
     }
-  }, [values, bootPhase, clear, bootReport]);
+  }, [values, bootPhase, clear, bootReport, handlePostSignup]);
 
   return (
     <SignupContext.Provider
@@ -170,6 +180,8 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         setTelemetry,
         setDidSignup,
         setDidCompleteSignup,
+        setOnboardingValues,
+        handlePostSignup,
         clear,
       }}
     >
@@ -188,7 +200,7 @@ export function useSignupContext() {
   return context;
 }
 
-async function handlePostSignup(params: {
+async function runPostSignupActions(params: {
   nickname?: string;
   telemetry?: boolean;
   notificationToken?: string;

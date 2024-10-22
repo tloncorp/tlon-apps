@@ -100,6 +100,7 @@ export const SignUpPasswordScreen = ({
         priorityToken: signupParams.priorityToken,
       });
       signupContext.setDidSignup(true);
+      signupContext.setOnboardingValues({ password });
     } catch (err) {
       console.error('Error signing up user:', err);
       if (err instanceof Error) {

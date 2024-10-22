@@ -55,6 +55,10 @@ export const RequestPhoneVerifyScreen = ({
       trackOnboardingAction({
         actionName: 'Phone Verification Requested',
       });
+      console.log('bl: heading to check verify with user', {
+        ...user,
+        phoneNumber,
+      });
       navigation.navigate('CheckVerify', {
         user: {
           ...user,
