@@ -192,6 +192,7 @@ function CodeInput({
             paddingHorizontal="$xl"
             paddingVertical="$xl"
             width="$4xl"
+            textContentType={!isEmail ? 'oneTimeCode' : undefined}
           />
         ))}
       </XStack>
