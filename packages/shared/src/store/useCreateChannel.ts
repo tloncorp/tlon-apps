@@ -50,7 +50,7 @@ export function useCreateChannel({
           channelId: id,
           title,
           description,
-          channelType: channelType === 'custom' ? 'chat' : channelType,
+          channelType,
           contentConfiguration:
             contentConfiguration ??
             channelContentConfigurationForChannelType(channelType),

@@ -81,6 +81,8 @@ export function CreateChannelSheet({
       let contentConfiguration: ChannelContentConfiguration | undefined;
       if (data.channelType === 'custom') {
         contentConfiguration = customChannelConfigRef.current?.getFormValue();
+        // HACK: We don't have a custom channel type yet, so call it a chat
+        data.channelType = 'chat';
       }
       createChannel({
         title: data.title,
