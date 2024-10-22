@@ -1,9 +1,12 @@
+// TODO: Seems like we need something totally different for web than this.
+// Branch context and methods removed here because a) it's not used and
+// b) it breaks the web build because it relies on react-native-branch,
+// which isn't made for web.
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as api from '@tloncorp/shared/dist/api';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback } from 'react';
 
-import { useBranch } from '../contexts/branch';
 import { clearShipInfo, useShip } from '../contexts/ship';
 import {
   removeHostingAuthTracking,
@@ -16,7 +19,6 @@ const logger = createDevLogger('logout', true);
 
 export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
   const { clearShip } = useShip();
-  const { clearLure, clearDeepLink } = useBranch();
 
   const handleLogout = useCallback(async () => {
     api.queryClient.clear();
@@ -26,8 +28,6 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
     removeHostingToken();
     removeHostingUserId();
     removeHostingAuthTracking();
-    clearLure();
-    clearDeepLink();
     clearSplashDismissed();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');
@@ -35,7 +35,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
     }
     // delay DB reset to next tick to avoid race conditions
     setTimeout(() => resetDb());
-  }, [clearDeepLink, clearLure, clearShip, resetDb]);
+  }, [clearShip, resetDb]);
 
   return handleLogout;
 }

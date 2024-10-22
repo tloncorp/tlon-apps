@@ -1,3 +1,5 @@
+// This signup context lives here in the mobile app because this path can only
+// be reached by the mobile app and it's only used by the mobile app.
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as api from '@tloncorp/shared/dist/api';
 import * as store from '@tloncorp/shared/dist/store';
@@ -10,9 +12,9 @@ import {
   useState,
 } from 'react';
 
-import { useBootSequence } from '../hooks/useBootSequence';
-import { NodeBootPhase } from '../lib/bootHelpers';
-import { connectNotifyProvider } from '../lib/notificationsApi';
+import { useBootSequence } from '@tloncorp/app/hooks/useBootSequence';
+import { NodeBootPhase } from '@tloncorp/app/lib/bootHelpers';
+import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
 
 const logger = createDevLogger('signup', true);
 

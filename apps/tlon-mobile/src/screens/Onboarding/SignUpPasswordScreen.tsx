@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
 import { useSignupParams } from '@tloncorp/app/contexts/branch';
-import { useSignupContext } from '@tloncorp/app/contexts/signup';
+import { useSignupContext } from '.././../lib/signupContext';
 import { setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';

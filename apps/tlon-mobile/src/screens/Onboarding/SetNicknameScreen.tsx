@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useSignupContext } from '@tloncorp/app/contexts/signup';
+import { useSignupContext } from '.././../lib/signupContext';
 import { requestNotificationToken } from '@tloncorp/app/lib/notifications';
 import { trackError } from '@tloncorp/app/utils/posthog';
 import {

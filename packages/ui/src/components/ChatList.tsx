@@ -1,4 +1,4 @@
-import { ContentStyle, FlashList, ListRenderItem } from '@shopify/flash-list';
+import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
@@ -17,7 +17,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import { Text, View, YStack, getTokenValue, useStyle } from 'tamagui';
+import { Text, View, YStack, getTokenValue } from 'tamagui';
 
 import { interactionWithTiming } from '../utils/animation';
 import { TextInputWithIconAndButton } from './Form';
@@ -78,13 +78,13 @@ export const ChatList = React.memo(function ChatListComponent({
     [displayData]
   );
 
-  const contentContainerStyle = useStyle(
-    {
-      padding: '$l',
-      paddingBottom: 100, // bottom nav height + some cushion
-    },
-    { resolveValues: 'value' }
-  ) as ContentStyle;
+  // removed the use of useStyle here because it was causing FlashList to
+  // peg the CPU and freeze the app on web
+  // see: https://github.com/Shopify/flash-list/pull/852
+  const contentContainerStyle = {
+    padding: getTokenValue('$l', 'size'),
+    paddingBottom: 100, // bottom nav height + some cushion
+  };
 
   const renderItem: ListRenderItem<ChatListItemData> = useCallback(
     ({ item }) => {
