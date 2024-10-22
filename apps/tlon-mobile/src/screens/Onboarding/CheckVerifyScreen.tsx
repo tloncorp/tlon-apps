@@ -51,7 +51,8 @@ export const CheckVerifyScreen = ({
           actionName: 'Verification Submitted',
         });
 
-        signupContext.setHostingUser(user);
+        signupContext.setOnboardingValues({ hostingUser: user });
+        signupContext.kickOffBootSequence();
         navigation.navigate('SetNickname', { user });
       } catch (err) {
         console.error('Error submitting verification:', err);
@@ -104,6 +105,7 @@ export const CheckVerifyScreen = ({
           value={code}
           length={codeLength}
           onChange={handleCodeChanged}
+          isEmail={isEmail}
           error={error}
         />
         <TlonText.Text
@@ -122,10 +124,12 @@ export const CheckVerifyScreen = ({
 function CodeInput({
   length,
   value,
+  isEmail,
   onChange,
   error,
 }: {
   length: number;
+  isEmail: boolean;
   value: string[];
   onChange?: (value: string[]) => void;
   error?: string;
@@ -169,7 +173,7 @@ function CodeInput({
 
   return (
     <Field
-      label="Check your email for a confirmation code"
+      label={`Check your ${isEmail ? 'email' : 'phone'} for a confirmation code`}
       error={error}
       justifyContent="center"
       alignItems="center"
@@ -188,6 +192,7 @@ function CodeInput({
             paddingHorizontal="$xl"
             paddingVertical="$xl"
             width="$4xl"
+            textContentType={!isEmail ? 'oneTimeCode' : undefined}
           />
         ))}
       </XStack>

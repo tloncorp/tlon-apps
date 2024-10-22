@@ -5,7 +5,6 @@ import * as store from '@tloncorp/shared/dist/store';
 import {
   AppSetting,
   Button,
-  ListItem,
   ScreenHeader,
   SizableText,
   Stack,
@@ -66,10 +65,6 @@ export function AppInfoScreen(props: Props) {
 
     checkClients();
   }, []);
-
-  const onPressPreviewFeatures = useCallback(() => {
-    props.navigation.navigate('FeatureFlags');
-  }, [props.navigation]);
 
   const toggleDebugFlag = useCallback((enabled: boolean) => {
     setDebug(enabled);
@@ -174,21 +169,6 @@ export function AppInfoScreen(props: Props) {
               <Text>{logId}</Text>
             </YStack>
           )}
-
-          <Stack marginTop="$xl">
-            <ListItem onPress={onPressPreviewFeatures}>
-              <ListItem.SystemIcon icon="Bang" rounded />
-              <ListItem.MainContent>
-                <ListItem.Title>Feature previews</ListItem.Title>
-              </ListItem.MainContent>
-              <ListItem.SystemIcon
-                icon="ChevronRight"
-                backgroundColor={'transparent'}
-                position="relative"
-                left="$m"
-              />
-            </ListItem>
-          </Stack>
         </YStack>
       </ScrollView>
     </View>

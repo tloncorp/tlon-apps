@@ -12,13 +12,14 @@ import { TlonLogo } from './TlonLogo';
 interface Props {
   currentUserId: string;
   hasHostedAuth: boolean;
-  onEditProfilePressed?: () => void;
+  onProfilePressed?: () => void;
   onAppInfoPressed?: () => void;
   onNotificationSettingsPressed: () => void;
   onBlockedUsersPressed: () => void;
   onManageAccountPressed: () => void;
   onLogoutPressed?: () => void;
   onSendBugReportPressed?: () => void;
+  onExperimentalFeaturesPressed?: () => void;
   dmLink?: string;
 }
 
@@ -34,6 +35,7 @@ export function ProfileScreenView(props: Props) {
       },
       {
         text: 'Log out',
+        style: 'destructive',
         onPress: props.onLogoutPressed,
       },
     ]);
@@ -64,9 +66,9 @@ export function ProfileScreenView(props: Props) {
         <YStack flex={1} padding="$l" gap="$s">
           <ProfileAction
             leftIcon={<ContactAvatar contactId={props.currentUserId} />}
-            title="Edit profile"
+            title="Profile"
             subtitle={props.currentUserId}
-            onPress={props.onEditProfilePressed}
+            onPress={props.onProfilePressed}
             rightIcon={'ChevronRight'}
           />
           {showDmLure && props.dmLink !== '' && (
@@ -120,6 +122,12 @@ export function ProfileScreenView(props: Props) {
             leftIcon="Send"
             rightIcon={'ChevronRight'}
             onPress={props.onSendBugReportPressed}
+          />
+          <ProfileAction
+            title="Experimental features"
+            leftIcon="Bang"
+            rightIcon={'ChevronRight'}
+            onPress={props.onExperimentalFeaturesPressed}
           />
           <ProfileAction
             title="Log out"

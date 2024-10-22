@@ -1,3 +1,4 @@
+import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { setDidShowBenefitsSheet } from '@tloncorp/shared/dist/db';

@@ -32,10 +32,11 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
   );
 
   useEffect(() => {
-    if (!signupContext.didCompleteSignup) {
-      signupContext.setDidCompleteSignup(true);
+    if (!signupContext.didCompleteOnboarding) {
+      signupContext.setOnboardingValues({ didCompleteOnboarding: true });
     }
-  }, [signupContext]);
+    signupContext.kickOffBootSequence();
+  }, []);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">

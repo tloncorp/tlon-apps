@@ -107,7 +107,9 @@ export function PostScreenView({
 
   const headerTitle = isChatChannel
     ? `Thread: ${channel?.title ?? null}`
-    : parentPost?.title ?? 'Post';
+    : parentPost?.title && parentPost.title !== ''
+      ? parentPost.title
+      : 'Post';
 
   const hasLoaded = !!(posts && channel && parentPost);
   useEffect(() => {
@@ -221,11 +223,10 @@ export function PostScreenView({
                   editPost={editPost}
                   channelType="chat"
                   getDraft={getDraft}
-                  // TODO: figure out why autofocus breaks backspace
-                  // shouldAutoFocus={
-                  // (channel.type === 'chat' && parentPost?.replyCount === 0) ||
-                  // !!editingPost
-                  // }
+                  shouldAutoFocus={
+                    (channel.type === 'chat' && parentPost?.replyCount === 0) ||
+                    !!editingPost
+                  }
                   ref={editorRef}
                 />
               )}

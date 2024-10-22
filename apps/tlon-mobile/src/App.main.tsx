@@ -44,7 +44,6 @@ import AuthenticatedApp from './components/AuthenticatedApp';
 // Android notification tap handler passes initial params here
 const App = () => {
   const isDarkMode = useIsDarkMode();
-
   const { isLoading, isAuthenticated } = useShip();
   const [connected, setConnected] = useState(true);
   const signupContext = useSignupContext();
@@ -70,7 +69,7 @@ const App = () => {
           <View flex={1} alignItems="center" justifyContent="center">
             <LoadingSpinner />
           </View>
-        ) : isAuthenticated && !signupContext.didBeginSignup ? (
+        ) : isAuthenticated && !signupContext.email ? (
           <AuthenticatedApp />
         ) : (
           <OnboardingStack />
@@ -127,11 +126,11 @@ export default function ConnectedApp() {
                     enable: process.env.NODE_ENV !== 'test',
                   }}
                 >
-                  <SignupProvider>
-                    <GestureHandlerRootView style={{ flex: 1 }}>
-                      <SafeAreaProvider>
-                        <MigrationCheck>
-                          <QueryClientProvider client={queryClient}>
+                  <GestureHandlerRootView style={{ flex: 1 }}>
+                    <SafeAreaProvider>
+                      <MigrationCheck>
+                        <QueryClientProvider client={queryClient}>
+                          <SignupProvider>
                             <PortalProvider>
                               <App />
                             </PortalProvider>
@@ -141,11 +140,11 @@ export default function ConnectedApp() {
                                 navigationContainerRef={navigationContainerRef}
                               />
                             )}
-                          </QueryClientProvider>
-                        </MigrationCheck>
-                      </SafeAreaProvider>
-                    </GestureHandlerRootView>
-                  </SignupProvider>
+                          </SignupProvider>
+                        </QueryClientProvider>
+                      </MigrationCheck>
+                    </SafeAreaProvider>
+                  </GestureHandlerRootView>
                 </PostHogProvider>
               </BranchProvider>
             </NavigationContainer>

@@ -2,13 +2,7 @@ import * as logic from '@tloncorp/shared/dist/logic';
 import { Buffer } from 'buffer';
 import { Platform } from 'react-native';
 
-import {
-  API_AUTH_PASSWORD,
-  API_AUTH_USERNAME,
-  API_URL,
-  DEFAULT_LURE,
-  DEFAULT_PRIORITY_TOKEN,
-} from '../constants';
+import { API_AUTH_PASSWORD, API_AUTH_USERNAME, API_URL } from '../constants';
 import type {
   BootPhase,
   HostedShipStatus,

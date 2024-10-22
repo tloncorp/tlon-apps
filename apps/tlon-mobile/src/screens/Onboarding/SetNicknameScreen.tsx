@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { DEFAULT_ONBOARDING_NICKNAME } from '@tloncorp/app/constants';
 import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import { requestNotificationToken } from '@tloncorp/app/lib/notifications';
 import { trackError } from '@tloncorp/app/utils/posthog';
@@ -44,7 +45,7 @@ export const SetNicknameScreen = ({
     setValue,
   } = useForm<FormData>({
     defaultValues: {
-      nickname: '',
+      nickname: DEFAULT_ONBOARDING_NICKNAME ?? '',
       notificationToken: undefined,
     },
   });
@@ -52,13 +53,10 @@ export const SetNicknameScreen = ({
   const signupContext = useSignupContext();
 
   const onSubmit = handleSubmit(({ nickname, notificationToken }) => {
-    if (nickname) {
-      signupContext.setNickname(nickname);
-    }
-
-    if (notificationToken) {
-      signupContext.setNotificationToken(notificationToken);
-    }
+    signupContext.setOnboardingValues({
+      nickname,
+      notificationToken,
+    });
 
     navigation.navigate('SetTelemetry', {
       user,
