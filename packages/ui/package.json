@@ -52,7 +52,7 @@
     "urbit-ob": "^5.0.1"
   },
   "peerDependencies": {
-    "@10play/tentap-editor": "~0.5.11",
+    "@10play/tentap-editor": "~0.5.21",
     "@urbit/sigil-js": "^2.2.0",
     "expo-image": "*",
     "react": "*",

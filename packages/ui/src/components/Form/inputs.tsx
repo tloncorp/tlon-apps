@@ -1,9 +1,22 @@
-import React, { ComponentProps, ReactElement } from 'react';
-import { TextInput as RNTextInput } from 'react-native';
-import { ScrollView, View, XStack, YStack, styled } from 'tamagui';
+import { ImagePickerAsset } from 'expo-image-picker';
+import React, {
+  ComponentProps,
+  ReactElement,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
+import { Alert, TextInput as RNTextInput } from 'react-native';
+import { ScrollView, Spinner, View, XStack, YStack, styled } from 'tamagui';
 
+import {
+  useAttachmentContext,
+  useMappedImageAttachments,
+} from '../../contexts';
+import AttachmentSheet from '../AttachmentSheet';
 import { Button } from '../Button';
 import { Icon, IconType } from '../Icon';
+import { Image } from '../Image';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { Text } from '../TextV2';
@@ -134,6 +147,143 @@ export const TextInputWithButton: React.FC<TextInputWithButtonProps> =
       </TextInputWithButtonFrame>
     );
   });
+
+export const ImageInput = XStack.styleable<{
+  buttonLabel?: string;
+  value?: string;
+  onChange?: (value?: string) => void;
+}>(function ImageInput({ buttonLabel, value, onChange }, ref) {
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [assetUri, setAssetUri] = useState<string | undefined>(
+    value ?? undefined
+  );
+  const { attachAssets, canUpload } = useAttachmentContext();
+
+  useEffect(() => {
+    if (assetUri !== value) {
+      onChange?.(assetUri);
+    }
+    // only want this to fire when the value changes, not the handler
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assetUri]);
+
+  const handleImageSelected = useCallback(
+    (assets: ImagePickerAsset[]) => {
+      attachAssets([assets[0]]);
+      setAssetUri(assets[0].uri);
+    },
+    [attachAssets]
+  );
+
+  const handleSheetToggled = useCallback(() => {
+    if (!canUpload) {
+      Alert.alert('Configure storage to upload images');
+    }
+    setSheetOpen((open) => !open);
+  }, [canUpload]);
+
+  const { attachment } = useMappedImageAttachments(
+    assetUri ? { attachment: assetUri } : {}
+  );
+
+  useEffect(() => {
+    if (attachment && attachment.uploadState?.status === 'success') {
+      setAssetUri?.(attachment.uploadState.remoteUri);
+    }
+  }, [attachment]);
+
+  const handleImageRemoved = useCallback(() => {
+    setAssetUri(undefined);
+  }, []);
+
+  return (
+    <>
+      <XStack gap="$m" ref={ref}>
+        <ImageInputButtonFrame group onPress={handleSheetToggled}>
+          <ImageInputButtonText>{buttonLabel}</ImageInputButtonText>
+        </ImageInputButtonFrame>
+        <ImageInputPreviewFrame onPress={handleSheetToggled}>
+          <Icon type="Camera" color="$tertiaryText" />
+          {assetUri ? (
+            <ImageInputPreviewImage source={{ uri: assetUri }} />
+          ) : null}
+          {attachment?.uploadState?.status === 'uploading' ? (
+            <ImageInputPreviewLoadingFrame>
+              <Spinner size="small" />
+            </ImageInputPreviewLoadingFrame>
+          ) : null}
+        </ImageInputPreviewFrame>
+      </XStack>
+      <AttachmentSheet
+        isOpen={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onAttachmentsSet={handleImageSelected}
+        showClearOption={!!value}
+        onClearAttachments={handleImageRemoved}
+      />
+    </>
+  );
+});
+
+const ImageInputButtonFrame = styled(XStack, {
+  context: FieldContext,
+  borderRadius: '$l',
+  overflow: 'hidden',
+  justifyContent: 'center',
+  borderWidth: 1,
+  borderColor: '$border',
+  backgroundColor: '$background',
+  padding: '$xl',
+  flex: 1,
+  pressStyle: { backgroundColor: '$border' },
+  variants: {
+    empty: {},
+    accent: {
+      negative: {
+        backgroundColor: '$negativeBackground',
+        color: '$negativeActionText',
+        borderColor: '$negativeBorder',
+      },
+    },
+  },
+});
+
+const ImageInputButtonText = styled(Text, {
+  size: '$label/xl',
+  trimmed: false,
+  color: '$secondaryText',
+  lineHeight: '$s',
+  '$group-press': { color: '$tertiaryText' },
+});
+
+const ImageInputPreviewFrame = styled(View, {
+  borderRadius: '$m',
+  aspectRatio: 1,
+  overflow: 'hidden',
+  backgroundColor: '$border',
+  alignItems: 'center',
+  justifyContent: 'center',
+  pressStyle: { opacity: 0.5 },
+});
+
+const ImageInputPreviewImage = styled(Image, {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
+});
+
+const ImageInputPreviewLoadingFrame = styled(View, {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
+  backgroundColor: 'rgba(0,0,0,.25)',
+  alignItems: 'center',
+  justifyContent: 'center',
+});
 
 interface TextInputWithIconAndButtonProps
   extends ComponentProps<typeof TextInput> {
