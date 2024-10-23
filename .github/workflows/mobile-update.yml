@@ -7,7 +7,7 @@ on:
         description: Select profile
         options:
           - preview
-          - placeholder
+          - production
       platform:
         type: choice
         description: Select platform
