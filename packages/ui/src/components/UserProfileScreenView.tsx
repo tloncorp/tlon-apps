@@ -245,7 +245,7 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
       onPress={handleCopy}
       padding="$l"
       gap="$xl"
-      flex={1}
+      width={'100%'}
     >
       <ContactAvatar contactId={props.userId} size="$5xl" />
       <YStack flex={1} justifyContent="center">
