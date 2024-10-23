@@ -50,6 +50,7 @@ jobs:
           inputs.platform || 'all' }} --message '${{ inputs.message }}'
           --non-interactive
         env:
+          APP_VARIANT: ${{ inputs.profile }}
           BRANCH_DOMAIN_PROD: ${{ secrets.BRANCH_DOMAIN_PROD }}
           BRANCH_DOMAIN_TEST: ${{ secrets.BRANCH_DOMAIN_TEST }}
           BRANCH_KEY_PROD: ${{ secrets.BRANCH_KEY_PROD }}
