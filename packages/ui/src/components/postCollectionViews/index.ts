@@ -1,0 +1,1 @@
+export { PostCollectionView } from './PostCollectionView';

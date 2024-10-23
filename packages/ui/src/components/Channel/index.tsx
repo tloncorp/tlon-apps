@@ -13,8 +13,14 @@ import {
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList } from 'react-native';
+import {
+  ElementRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AnimatePresence, SizableText, View, YStack } from 'tamagui';
 
@@ -26,19 +32,18 @@ import {
 } from '../../contexts';
 import { Attachment, AttachmentProvider } from '../../contexts/attachment';
 import { ComponentsKitContextProvider } from '../../contexts/componentsKits';
+import { PostCollectionContext } from '../../contexts/postCollection';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
 import * as utils from '../../utils';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { DraftInputContext } from '../draftInputs';
 import { DraftInputHandle, GalleryDraftType } from '../draftInputs/shared';
+import { PostCollectionView } from '../postCollectionViews';
 import { ChannelFooter } from './ChannelFooter';
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
-import { EmptyChannelNotice } from './EmptyChannelNotice';
-import { PostView } from './PostView';
-import Scroller, { ScrollAnchor } from './Scroller';
 
 export { INITIAL_POSTS_PER_PAGE } from './Scroller';
 
@@ -124,13 +129,13 @@ export function Channel({
   hasOlderPosts?: boolean;
   canUpload: boolean;
 }) {
-  const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
   const title = utils.useChannelTitle(channel);
   const groups = useMemo(() => (group ? [group] : null), [group]);
   const currentUserId = useCurrentUserId();
   const canWrite = utils.useCanWrite(channel, currentUserId);
+  const collectionRef = useRef<ElementRef<typeof PostCollectionView>>(null);
 
   const collectionLayout = useMemo(
     () => layoutForType(layoutTypeFromChannel(channel)),
@@ -138,10 +143,6 @@ export function Channel({
   );
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
-
-  const renderEmptyComponent = useCallback(() => {
-    return <EmptyChannelNotice channel={channel} userId={currentUserId} />;
-  }, [currentUserId, channel]);
 
   const onPressGroupRef = useCallback((group: db.Group) => {
     setGroupPreview(group);
@@ -162,35 +163,6 @@ export function Channel({
     }
   }, [hasLoaded, markRead]);
 
-  const scrollerAnchor: ScrollAnchor | null = useMemo(() => {
-    // NB: technical behavior change: previously, we would avoid scroll-to-selected on notebooks.
-    // afaict, there's no way to select a post in a notebook, so the UX should be the same.
-    // (also, I personally think it's confusing to user to block scroll-to on selection for notebooks)
-    if (selectedPostId) {
-      return { type: 'selected', postId: selectedPostId };
-    }
-
-    if (collectionLayout.enableUnreadAnchor) {
-      if (
-        initialChannelUnread?.countWithoutThreads &&
-        initialChannelUnread.firstUnreadPostId
-      ) {
-        return {
-          type: 'unread',
-          postId: initialChannelUnread.firstUnreadPostId,
-        };
-      }
-    }
-
-    return null;
-  }, [
-    collectionLayout.enableUnreadAnchor,
-    selectedPostId,
-    initialChannelUnread,
-  ]);
-
-  const flatListRef = useRef<FlatList<db.Post>>(null);
-
   const handleRefPress = useCallback(
     (refChannel: db.Channel, post: db.Post) => {
       const anchorIndex = posts?.findIndex((p) => p.id === post.id) ?? -1;
@@ -198,14 +170,10 @@ export function Channel({
       if (
         refChannel.id === channel.id &&
         anchorIndex !== -1 &&
-        flatListRef.current
+        collectionRef.current
       ) {
         // If the post is already loaded, scroll to it
-        flatListRef.current?.scrollToIndex({
-          index: anchorIndex,
-          animated: false,
-          viewPosition: 0.5,
-        });
+        collectionRef.current?.scrollToPostAtIndex(anchorIndex);
         return;
       }
 
@@ -265,11 +233,6 @@ export function Channel({
     }
   }, [goBack, draftInputPresentationMode, draftInputRef, setEditingPost]);
 
-  const collectionLayoutType = useMemo(
-    () => layoutTypeFromChannel(channel),
-    [channel]
-  );
-
   return (
     <ScrollContextProvider>
       <GroupsProvider groups={groups}>
@@ -317,52 +280,29 @@ export function Channel({
                             <AnimatePresence>
                               {draftInputPresentationMode !== 'fullscreen' && (
                                 <View flex={1}>
-                                  {channel && posts && (
-                                    <Scroller
-                                      key={scrollerAnchor?.postId}
-                                      inverted={
-                                        collectionLayout.scrollDirection ===
-                                        'bottom-to-top'
-                                      }
-                                      renderItem={PostView}
-                                      renderEmptyComponent={
-                                        renderEmptyComponent
-                                      }
-                                      anchor={scrollerAnchor}
-                                      posts={posts}
-                                      collectionLayoutType={
-                                        collectionLayoutType
-                                      }
-                                      hasNewerPosts={hasNewerPosts}
-                                      hasOlderPosts={hasOlderPosts}
-                                      editingPost={editingPost}
-                                      setEditingPost={setEditingPost}
+                                  <PostCollectionContext.Provider
+                                    value={{
+                                      editingPost,
+                                      goToImageViewer,
+                                      goToPost,
+                                      hasNewerPosts,
+                                      hasOlderPosts,
+                                      headerMode,
+                                      initialChannelUnread,
+                                      onPressDelete,
+                                      onPressRetry,
+                                      onScrollEndReached,
+                                      onScrollStartReached,
+                                      posts: posts ?? undefined,
+                                      selectedPostId,
+                                      setEditingPost,
+                                    }}
+                                  >
+                                    <PostCollectionView
                                       channel={channel}
-                                      firstUnreadId={
-                                        initialChannelUnread?.countWithoutThreads ??
-                                        0 > 0
-                                          ? initialChannelUnread?.firstUnreadPostId
-                                          : null
-                                      }
-                                      unreadCount={
-                                        initialChannelUnread?.countWithoutThreads ??
-                                        0
-                                      }
-                                      onPressPost={
-                                        isChatChannel ? undefined : goToPost
-                                      }
-                                      onPressReplies={goToPost}
-                                      onPressImage={goToImageViewer}
-                                      onEndReached={onScrollEndReached}
-                                      onStartReached={onScrollStartReached}
-                                      onPressRetry={onPressRetry}
-                                      onPressDelete={onPressDelete}
-                                      activeMessage={activeMessage}
-                                      setActiveMessage={setActiveMessage}
-                                      ref={flatListRef}
-                                      headerMode={headerMode}
+                                      collectionLayout={collectionLayout}
                                     />
-                                  )}
+                                  </PostCollectionContext.Provider>
                                 </View>
                               )}
                             </AnimatePresence>
