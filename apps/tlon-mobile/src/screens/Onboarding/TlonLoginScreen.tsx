@@ -5,7 +5,6 @@ import {
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import {
   getShipAccessCode,
   getShipsWithStatus,
@@ -14,7 +13,9 @@ import {
 } from '@tloncorp/app/lib/hostingApi';
 import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared/dist';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
+import { didSignUp } from '@tloncorp/shared/dist/db';
 import {
   Field,
   KeyboardAvoidingView,
@@ -29,6 +30,7 @@ import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import type { OnboardingStackParamList } from '../../types';
+import { useSignupContext } from '.././../lib/signupContext';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'TlonLogin'>;
 
@@ -37,6 +39,8 @@ type FormData = {
   password: string;
   eulaAgreed: boolean;
 };
+
+const logger = createDevLogger('TlonLoginScreen', true);
 
 export const TlonLoginScreen = ({ navigation }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -95,6 +99,11 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
                     authCookie,
                     authType: 'hosted',
                   });
+
+                  const hasSignedUp = await didSignUp.getValue();
+                  if (!hasSignedUp) {
+                    logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
+                  }
                 } else {
                   setRemoteError(
                     'Please agree to the End User License Agreement to continue.'

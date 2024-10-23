@@ -16,7 +16,7 @@ import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
 import {
   SignupProvider,
   useSignupContext,
-} from '@tloncorp/app/contexts/signup';
+} from './lib/signupContext';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { PlatformState } from '@tloncorp/app/lib/platformHelpers';

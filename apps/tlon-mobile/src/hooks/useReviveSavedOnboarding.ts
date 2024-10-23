@@ -1,7 +1,7 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { useSignupContext } from '@tloncorp/app/contexts/signup';
+import { useSignupContext } from '../lib/signupContext';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared/dist';
 import { SignupParams, signupData } from '@tloncorp/shared/dist/db';
 import { useCallback, useEffect } from 'react';

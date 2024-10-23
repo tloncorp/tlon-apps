@@ -268,3 +268,13 @@ export const signupData = createStorageItem<SignupParams>({
     bootPhase: NodeBootPhase.IDLE,
   },
 });
+
+export const lastAppVersion = createStorageItem<string | null>({
+  key: 'lastAppVersion',
+  defaultValue: null,
+});
+
+export const didSignUp = createStorageItem<boolean>({
+  key: 'didSignUp',
+  defaultValue: false,
+});
