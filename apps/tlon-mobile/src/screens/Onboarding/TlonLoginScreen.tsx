@@ -13,7 +13,9 @@ import {
 } from '@tloncorp/app/lib/hostingApi';
 import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared/dist';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
+import { didSignUp } from '@tloncorp/shared/dist/db';
 import {
   Field,
   KeyboardAvoidingView,
@@ -28,6 +30,7 @@ import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import type { OnboardingStackParamList } from '../../types';
+import { useSignupContext } from '.././../lib/signupContext';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'TlonLogin'>;
 
@@ -37,9 +40,12 @@ type FormData = {
   eulaAgreed: boolean;
 };
 
+const logger = createDevLogger('TlonLoginScreen', true);
+
 export const TlonLoginScreen = ({ navigation }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
+  const signupContext = useSignupContext();
   const {
     control,
     setFocus,
@@ -47,7 +53,6 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
     formState: { errors, isValid },
     getValues,
     trigger,
-    watch,
   } = useForm<FormData>({
     defaultValues: {
       email: DEFAULT_TLON_LOGIN_EMAIL,
@@ -94,6 +99,11 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
                     authCookie,
                     authType: 'hosted',
                   });
+
+                  const hasSignedUp = await didSignUp.getValue();
+                  if (!hasSignedUp) {
+                    logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
+                  }
                 } else {
                   setRemoteError(
                     'Please agree to the End User License Agreement to continue.'
@@ -113,15 +123,27 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
             );
           }
         } else {
+          signupContext.setOnboardingValues({
+            email: params.email,
+            password: params.password,
+          });
           navigation.navigate('ReserveShip', { user });
         }
       } else if (user.requirePhoneNumberVerification && !user.phoneNumber) {
+        signupContext.setOnboardingValues({
+          email: params.email,
+          password: params.password,
+        });
         navigation.navigate('RequestPhoneVerify', { user });
       } else {
         if (user.requirePhoneNumberVerification) {
           await requestPhoneVerify(user.id, user.phoneNumber ?? '');
         }
 
+        signupContext.setOnboardingValues({
+          email: params.email,
+          password: params.password,
+        });
         navigation.navigate('CheckVerify', {
           user,
         });

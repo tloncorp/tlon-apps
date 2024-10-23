@@ -6,7 +6,10 @@ import { useCallback } from 'react';
 import { ENABLED_LOGGERS } from '../constants';
 import { useShip } from '../contexts/ship';
 import { getShipAccessCode } from '../lib/hostingApi';
-import { resetDb } from '../lib/nativeDb';
+// We need to import resetDb this way because we have both a resetDb.ts and a
+// resetDb.native.ts file. We need to import the right one based on the
+// platform.
+import { resetDb } from '../lib/resetDb';
 import { initializePolyfills, platformFetch } from '../platform/polyfills';
 import { useHandleLogout } from './useHandleLogout';
 
