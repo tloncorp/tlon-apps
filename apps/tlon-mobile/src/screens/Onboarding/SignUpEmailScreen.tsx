@@ -7,7 +7,7 @@ import {
   useLureMetadata,
   useSignupParams,
 } from '@tloncorp/app/contexts/branch';
-import { useSignupContext } from '@tloncorp/app/contexts/signup';
+import { useSignupContext } from '.././../lib/signupContext';
 import {
   identifyTlonEmployee,
   trackError,

@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
-import { useSignupContext } from '@tloncorp/app/contexts/signup';
+import { useSignupContext } from '.././../lib/signupContext';
 import { NodeBootPhase } from '@tloncorp/app/lib/bootHelpers';
 import {
   ArvosDiscussing,

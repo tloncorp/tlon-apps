@@ -5,7 +5,7 @@ import {
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { useSignupContext } from '@tloncorp/app/contexts/signup';
+import { useSignupContext } from '.././../lib/signupContext';
 import {
   getShipAccessCode,
   getShipsWithStatus,
