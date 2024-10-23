@@ -1,17 +1,15 @@
-import { PostCollectionLayout } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { ComponentPropsWithoutRef, useMemo } from 'react';
 
 import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
 import { PostView } from '../Channel/PostView';
 
+export interface PostCollectionHandle {
+  scrollToPostAtIndex?: (index: number) => void;
+}
+
 export type IPostCollectionView = React.ForwardRefExoticComponent<
-  {
-    channel: db.Channel;
-    collectionLayout: PostCollectionLayout;
-  } & React.RefAttributes<{
-    scrollToPostAtIndex: (index: number) => void;
-  }>
+  React.RefAttributes<PostCollectionHandle>
 >;
 
 export function ConnectedPostView({

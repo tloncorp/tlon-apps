@@ -13,14 +13,7 @@ import {
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
-import {
-  ElementRef,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AnimatePresence, SizableText, View, YStack } from 'tamagui';
 
@@ -37,13 +30,18 @@ import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
 import * as utils from '../../utils';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
+import { PostCollectionView } from '../PostCollectionView';
 import { DraftInputContext } from '../draftInputs';
 import { DraftInputHandle, GalleryDraftType } from '../draftInputs/shared';
-import { PostCollectionView } from '../postCollectionViews';
+import {
+  ConnectedPostView,
+  PostCollectionHandle,
+} from '../postCollectionViews/shared';
 import { ChannelFooter } from './ChannelFooter';
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
+import { PostView } from './PostView';
 
 export { INITIAL_POSTS_PER_PAGE } from './Scroller';
 
@@ -135,12 +133,7 @@ export function Channel({
   const groups = useMemo(() => (group ? [group] : null), [group]);
   const currentUserId = useCurrentUserId();
   const canWrite = utils.useCanWrite(channel, currentUserId);
-  const collectionRef = useRef<ElementRef<typeof PostCollectionView>>(null);
-
-  const collectionLayout = useMemo(
-    () => layoutForType(layoutTypeFromChannel(channel)),
-    [channel]
-  );
+  const collectionRef = useRef<PostCollectionHandle>(null);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
 
@@ -173,7 +166,7 @@ export function Channel({
         collectionRef.current
       ) {
         // If the post is already loaded, scroll to it
-        collectionRef.current?.scrollToPostAtIndex(anchorIndex);
+        collectionRef.current?.scrollToPostAtIndex?.(anchorIndex);
         return;
       }
 
@@ -282,6 +275,7 @@ export function Channel({
                                 <View flex={1}>
                                   <PostCollectionContext.Provider
                                     value={{
+                                      channel,
                                       editingPost,
                                       goToImageViewer,
                                       goToPost,
@@ -296,11 +290,13 @@ export function Channel({
                                       posts: posts ?? undefined,
                                       selectedPostId,
                                       setEditingPost,
+                                      LegacyPostView: PostView,
+                                      PostView: ConnectedPostView,
                                     }}
                                   >
                                     <PostCollectionView
+                                      collectionRef={collectionRef}
                                       channel={channel}
-                                      collectionLayout={collectionLayout}
                                     />
                                   </PostCollectionContext.Provider>
                                 </View>

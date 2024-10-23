@@ -1,4 +1,8 @@
-import { isChatChannel as getIsChatChannel } from '@tloncorp/shared/dist';
+import {
+  isChatChannel as getIsChatChannel,
+  layoutForType,
+  layoutTypeFromChannel,
+} from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import {
   forwardRef,
@@ -13,26 +17,33 @@ import { FlatList } from 'react-native';
 import { useCurrentUserId } from '../../contexts';
 import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
 import { EmptyChannelNotice } from '../Channel/EmptyChannelNotice';
-import { PostView } from '../Channel/PostView';
 import Scroller, { ScrollAnchor } from '../Channel/Scroller';
 import { IPostCollectionView } from './shared';
 
 export const ListPostCollection: IPostCollectionView = forwardRef(
-  function ListPostCollection(props, forwardedRef) {
+  function ListPostCollection(_props, forwardedRef) {
     const ctx = usePostCollectionContextUnsafelyUnwrapped();
     const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
     const currentUserId = useCurrentUserId();
     const flatListRef = useRef<FlatList>(null);
+    const collectionLayoutType = useMemo(
+      () => layoutTypeFromChannel(ctx.channel),
+      [ctx.channel]
+    );
+    const collectionLayout = useMemo(
+      () => layoutForType(collectionLayoutType),
+      [collectionLayoutType]
+    );
 
     const renderEmptyComponent = useCallback(() => {
       return (
-        <EmptyChannelNotice channel={props.channel} userId={currentUserId} />
+        <EmptyChannelNotice channel={ctx.channel} userId={currentUserId} />
       );
-    }, [currentUserId, props.channel]);
+    }, [currentUserId, ctx.channel]);
 
     const canDrillIntoPost = useMemo(
-      () => !getIsChatChannel(props.channel),
-      [props.channel]
+      () => !getIsChatChannel(ctx.channel),
+      [ctx.channel]
     );
 
     useImperativeHandle(forwardedRef, () => ({
@@ -52,7 +63,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         return { type: 'selected', postId: ctx.selectedPostId };
       }
 
-      if (props.collectionLayout.enableUnreadAnchor) {
+      if (collectionLayout.enableUnreadAnchor) {
         if (
           ctx.initialChannelUnread?.countWithoutThreads &&
           ctx.initialChannelUnread.firstUnreadPostId
@@ -66,7 +77,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
 
       return null;
     }, [
-      props.collectionLayout.enableUnreadAnchor,
+      collectionLayout.enableUnreadAnchor,
       ctx.selectedPostId,
       ctx.initialChannelUnread,
     ]);
@@ -74,8 +85,8 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     return (
       <Scroller
         key={scrollerAnchor?.postId}
-        inverted={props.collectionLayout.scrollDirection === 'bottom-to-top'}
-        renderItem={PostView}
+        inverted={collectionLayout.scrollDirection === 'bottom-to-top'}
+        renderItem={ctx.LegacyPostView}
         renderEmptyComponent={renderEmptyComponent}
         anchor={scrollerAnchor}
         posts={ctx.posts ?? null}
@@ -83,7 +94,8 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         hasOlderPosts={ctx.hasOlderPosts}
         editingPost={ctx.editingPost}
         setEditingPost={ctx.setEditingPost}
-        channel={props.channel}
+        channel={ctx.channel}
+        collectionLayoutType={collectionLayoutType}
         firstUnreadId={
           ctx.initialChannelUnread?.countWithoutThreads ?? 0 > 0
             ? ctx.initialChannelUnread?.firstUnreadPostId

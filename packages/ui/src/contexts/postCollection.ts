@@ -1,7 +1,10 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { createContext, useContext } from 'react';
 
+import { MinimalRenderItemType, RenderItemType } from './componentsKits';
+
 export interface PostCollectionContextValue {
+  channel: db.Channel;
   editingPost?: db.Post;
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToPost: (post: db.Post) => void;
@@ -16,6 +19,13 @@ export interface PostCollectionContextValue {
   posts?: db.Post[];
   selectedPostId?: string | null;
   setEditingPost?: (post: db.Post | undefined) => void;
+
+  /**
+   * perfectly fine to use - just has more props than it needs
+   */
+  LegacyPostView: RenderItemType;
+
+  PostView: MinimalRenderItemType;
 }
 
 export const PostCollectionContext =
