@@ -11,6 +11,7 @@ import { ZStack } from '@tloncorp/ui';
 import { useCallback, useEffect } from 'react';
 import { AppStateStatus } from 'react-native';
 
+import { useCheckAppUpdated } from '../hooks/analytics';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 
@@ -23,6 +24,7 @@ function AuthenticatedApp() {
   useDeepLinkListener();
   useNavigationLogging();
   useNetworkLogger();
+  useCheckAppUpdated();
 
   useEffect(() => {
     configureClient();
