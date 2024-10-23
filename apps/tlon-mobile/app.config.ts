@@ -19,7 +19,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     eas: {
       projectId,
     },
-    postHogApiKey: process.env.POST_HOG_API_KEY,
+    postHogApiKey: isPreview
+      ? process.env.POST_HOG_API_KEY_TEST
+      : process.env.POST_HOG_API_KEY_PROD,
     postHogInDev: process.env.POST_HOG_IN_DEV,
     notifyProvider: process.env.NOTIFY_PROVIDER,
     notifyService: process.env.NOTIFY_SERVICE,
