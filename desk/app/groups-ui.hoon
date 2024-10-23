@@ -123,7 +123,7 @@
     ``ui-init+!>(`init-0:u`init)
       [%x %v1 %init ~]
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
-    =+  .^([=unreads:d =channels:d] (scry %gx %channels /v2/init/noun))
+    =+  .^([=unreads:d =channels:v7:old:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
     =/  init=init-1:u
@@ -138,13 +138,13 @@
     ``ui-init-1+!>(`init-1:u`init)
   ::
       [%x %v1 %heads since=?(~ [u=@ ~])]
-    =+  .^(chan=channel-heads:d (scry %gx %channels %v2 %heads (snoc since.pole %channel-heads)))
+    =+  .^(chan=channel-heads:v7:old:d (scry %gx %channels %v2 %heads (snoc since.pole %channel-heads)))
     =+  .^(chat=chat-heads:c (scry %gx %chat %heads (snoc since.pole %chat-heads)))
     ``ui-heads+!>(`mixed-heads:u`[chan chat])
   ::
       [%x %v2 %init ~]
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
-    =+  .^([* =channels:d] (scry %gx %channels /v2/init/noun))
+    =+  .^([* =channels:v7:old:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(=activity:v2:old:a (scry %gx %activity /activity/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
@@ -161,7 +161,7 @@
   ::
       [%x %v3 %init ~]
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
-    =+  .^([* =channels:d] (scry %gx %channels /v2/init/noun))
+    =+  .^([* =channels:v7:old:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(=activity:v3:old:a (scry %gx %activity /v1/activity/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
