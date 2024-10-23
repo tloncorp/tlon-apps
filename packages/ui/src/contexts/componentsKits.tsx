@@ -16,6 +16,7 @@ import {
   GalleryInput,
   NotebookInput,
 } from '../components/draftInputs';
+import { CardsPostCollection } from '../components/postCollectionViews/CardsPostCollectionView';
 import { ListPostCollection } from '../components/postCollectionViews/ListPostCollectionView';
 import { IPostCollectionView } from '../components/postCollectionViews/shared';
 
@@ -105,6 +106,7 @@ const BUILTIN_COLLECTION_RENDERERS: {
   [CollectionRendererId.chat]: ListPostCollection,
   [CollectionRendererId.gallery]: ListPostCollection,
   [CollectionRendererId.notebook]: ListPostCollection,
+  [CollectionRendererId.cards]: CardsPostCollection,
 };
 
 export function ComponentsKitContextProvider({
