@@ -271,6 +271,11 @@ export function Channel({
     }
   }, [goBack, draftInputPresentationMode, draftInputRef, setEditingPost]);
 
+  const collectionLayoutType = useMemo(
+    () => layoutTypeFromChannel(channel),
+    [channel]
+  );
+
   return (
     <ScrollContextProvider>
       <GroupsProvider groups={groups}>
@@ -328,6 +333,7 @@ export function Channel({
                                     renderEmptyComponent={renderEmptyComponent}
                                     anchor={scrollerAnchor}
                                     posts={posts}
+                                    collectionLayoutType={collectionLayoutType}
                                     hasNewerPosts={hasNewerPosts}
                                     hasOlderPosts={hasOlderPosts}
                                     editingPost={editingPost}
