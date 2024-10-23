@@ -8,7 +8,9 @@ import { useShip } from '@tloncorp/app/contexts/ship';
 import { setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { transformShipURL } from '@tloncorp/app/utils/string';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared/dist';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
+import { didSignUp } from '@tloncorp/shared/dist/db';
 import {
   Field,
   KeyboardAvoidingView,
@@ -23,6 +25,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import type { OnboardingStackParamList } from '../../types';
+
+const logger = createDevLogger('ShipLoginScreen', true);
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ShipLogin'>;
 
@@ -92,6 +96,11 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
           authCookie,
           authType: 'self',
         });
+
+        const hasSignedUp = await didSignUp.getValue();
+        if (!hasSignedUp) {
+          logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
+        }
       } else {
         setRemoteError(
           "Sorry, we couldn't log in to your ship. It may be busy or offline."
