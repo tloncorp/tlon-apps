@@ -35,15 +35,19 @@ jobs:
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
-      - name: Install dependencies
-        run: pnpm install
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
       - name: Build packages
         run: pnpm build:all
       - name: Push update for selected platforms
         working-directory: ./apps/tlon-mobile
         run:
           eas update --channel ${{ inputs.profile }} --platform ${{
-          inputs.platform || 'all' }} --message '${{inputs.message}}'
+          inputs.platform || 'all' }} --message '${{ inputs.message }}'
           --non-interactive
         env:
           BRANCH_DOMAIN_PROD: ${{ secrets.BRANCH_DOMAIN_PROD }}
