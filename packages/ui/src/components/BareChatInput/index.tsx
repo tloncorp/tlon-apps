@@ -17,20 +17,14 @@ import {
   Attachment,
   UploadedImageAttachment,
   useAttachmentContext,
-} from '../contexts';
-import { DEFAULT_MESSAGE_INPUT_HEIGHT } from './MessageInput';
-import { AttachmentPreviewList } from './MessageInput/AttachmentPreviewList';
+} from '../../contexts';
+import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
+import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
 import {
   MessageInputContainer,
   MessageInputProps,
-} from './MessageInput/MessageInputBase';
-
-interface Mention {
-  id: string;
-  display: string;
-  start: number;
-  end: number;
-}
+} from '../MessageInput/MessageInputBase';
+import { useMentions } from './useMentions';
 
 export default function BareChatInput({
   shouldBlur,
@@ -71,17 +65,19 @@ export default function BareChatInput({
     waitForAttachmentUploads,
   } = useAttachmentContext();
   const [text, setText] = useState('');
-  const [mentions, setMentions] = useState<Mention[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState(false);
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [editorIsEmpty, setEditorIsEmpty] = useState(attachments.length === 0);
-  const [showMentionPopup, setShowMentionPopup] = useState(false);
   const [hasAutoFocused, setHasAutoFocused] = useState(false);
-  const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(
-    null
-  );
-  const [mentionSearchText, setMentionSearchText] = useState<string>('');
+  const {
+    handleMention,
+    handleSelectMention,
+    mentionSearchText,
+    mentions,
+    setMentions,
+    showMentionPopup,
+  } = useMentions();
   const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
@@ -89,94 +85,23 @@ export default function BareChatInput({
     const oldText = text;
     setText(newText);
 
-    // Check if we're deleting a trigger symbol
-    if (newText.length < oldText.length && showMentionPopup) {
-      const deletedChar = oldText[newText.length];
-      if (deletedChar === '@' || deletedChar === '~') {
-        setShowMentionPopup(false);
-        setMentionStartIndex(null);
-        setMentionSearchText('');
-        return;
-      }
-    }
-
-    // Check for @ symbol
-    const lastAtSymbol = newText.lastIndexOf('@');
-    if (lastAtSymbol >= 0 && lastAtSymbol === newText.length - 1) {
-      setShowMentionPopup(true);
-      setMentionStartIndex(lastAtSymbol);
-      setMentionSearchText('');
-    } else if (showMentionPopup && mentionStartIndex !== null) {
-      // Update mention search text
-      const searchText = newText.slice(mentionStartIndex + 1);
-      if (!searchText.includes(' ')) {
-        setMentionSearchText(searchText);
-      } else {
-        setShowMentionPopup(false);
-        setMentionStartIndex(null);
-        setMentionSearchText('');
-      }
-    }
-
-    // Check for ~ symbol
-    const lastSig = newText.lastIndexOf('~');
-    if (lastSig >= 0 && lastSig === newText.length - 1) {
-      setShowMentionPopup(true);
-      setMentionStartIndex(lastSig);
-      setMentionSearchText('');
-    } else if (showMentionPopup && mentionStartIndex !== null) {
-      // Update mention search text
-      const searchText = newText.slice(mentionStartIndex + 1);
-      if (!searchText.includes(' ')) {
-        setMentionSearchText(searchText);
-      } else {
-        setShowMentionPopup(false);
-        setMentionStartIndex(null);
-        setMentionSearchText('');
-      }
-    }
-
-    // Update mention positions when text changes
-    if (mentions.length > 0) {
-      const updatedMentions = mentions.filter(
-        (mention) =>
-          mention.start <= newText.length &&
-          newText.slice(mention.start, mention.end) === mention.display
-      );
-      if (updatedMentions.length !== mentions.length) {
-        setMentions(updatedMentions);
-      }
-    }
+    handleMention(oldText, newText);
   };
 
-  const handleSelectMention = useCallback(
+  const onMentionSelect = useCallback(
     (contact: db.Contact) => {
-      if (mentionStartIndex === null) return;
+      const newText = handleSelectMention(contact, text);
 
-      const mentionDisplay = `${contact.id}`;
-      const beforeMention = text.slice(0, mentionStartIndex);
-      const afterMention = text.slice(
-        mentionStartIndex + (mentionSearchText?.length || 0) + 1
-      );
-
-      const newText = beforeMention + mentionDisplay + ' ' + afterMention;
-      const newMention: Mention = {
-        id: contact.id,
-        display: mentionDisplay,
-        start: mentionStartIndex,
-        end: mentionStartIndex + mentionDisplay.length,
-      };
+      if (!newText) {
+        return;
+      }
 
       setText(newText);
-      setMentions((prev) => [...prev, newMention]);
-      setShowMentionPopup(false);
-      setMentionStartIndex(null);
-      setMentionSearchText('');
 
       // Force focus back to input after mention selection
       inputRef.current?.focus();
     },
-    [mentionStartIndex, text, mentionSearchText]
+    [handleSelectMention, text]
   );
 
   const renderTextWithMentions = useMemo(() => {
@@ -339,6 +264,7 @@ export default function BareChatInput({
       channelType,
       send,
       channelId,
+      setMentions,
     ]
   );
 
@@ -499,7 +425,7 @@ export default function BareChatInput({
       mentionText={mentionSearchText}
       showAttachmentButton={showAttachmentButton}
       groupMembers={groupMembers}
-      onSelectMention={handleSelectMention}
+      onSelectMention={onMentionSelect}
       isSending={isSending}
       isEditing={!!editingPost}
       cancelEditing={() => setEditingPost?.(undefined)}
