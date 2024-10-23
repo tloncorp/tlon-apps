@@ -1545,6 +1545,9 @@ importers:
       react-native-device-info:
         specifier: ^10.8.0
         version: 10.12.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))
+      react-native-email-link:
+        specifier: ^1.16.1
+        version: 1.16.1(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       react-native-fetch-api:
         specifier: ^3.0.0
         version: 3.0.0
@@ -1658,6 +1661,9 @@ importers:
       sorted-btree:
         specifier: ^1.8.1
         version: 1.8.1
+      uuid:
+        specifier: ^9.0.0
+        version: 9.0.0
       zustand:
         specifier: ^3.7.2
         version: 3.7.2(react@18.2.0)
@@ -11407,6 +11413,12 @@ packages:
     resolution: {integrity: sha512-gnBkjyZNEqRd+5BNrdzuvmlraHTCH/to2x0Gp9rtDt0O9xWWW1MTYohUVWX9A0Ad2HVYcGanDCIvjWp4ngMZFg==}
     peerDependencies:
       react-native: '*'
+
+  react-native-email-link@1.16.1:
+    resolution: {integrity: sha512-uTolJXOa6HKPEiRAQuLKN/OhVwUA4xS++yPV6YiCtRBWxl2q3FUlrJt1G6plfMAEU4qNhmwZnH3tCJ9WNYIDhg==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-native: '>=0.40.0'
 
   react-native-fetch-api@3.0.0:
     resolution: {integrity: sha512-g2rtqPjdroaboDKTsJCTlcmtw54E25OjyaunUP0anOZn4Fuo2IKs8BVfe02zVggA/UysbmfSnRJIqtNkAgggNA==}
@@ -21439,7 +21451,7 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.25.6
       cosmiconfig: 7.1.0
-      resolve: 1.22.4
+      resolve: 1.22.8
 
   babel-plugin-polyfill-corejs2@0.4.8(@babel/core@7.23.7):
     dependencies:
@@ -26913,6 +26925,11 @@ snapshots:
 
   react-native-device-info@10.12.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0)):
     dependencies:
+      react-native: 0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0)
+
+  react-native-email-link@1.16.1(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0):
+    dependencies:
+      react: 18.2.0
       react-native: 0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0)
 
   react-native-fetch-api@3.0.0:

@@ -28,7 +28,7 @@ export const SetTelemetryScreen = ({
   const signupContext = useSignupContext();
 
   const handleNext = useCallback(() => {
-    signupContext.setTelemetry(isEnabled);
+    signupContext.setOnboardingValues({ telemetry: isEnabled });
 
     if (!isEnabled) {
       postHog?.optOut();

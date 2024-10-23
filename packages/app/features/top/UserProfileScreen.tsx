@@ -49,6 +49,10 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
     [selectedGroup]
   );
 
+  const handlePressEdit = useCallback(() => {
+    navigation.push('EditProfile');
+  }, [navigation]);
+
   return (
     <AppDataContextProvider
       currentUserId={currentUserId}
@@ -60,6 +64,7 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
           onBack={() => navigation.goBack()}
           connectionStatus={connectionStatus}
           onPressGroup={setSelectedGroup}
+          onPressEdit={handlePressEdit}
         />
         <GroupPreviewSheet
           open={selectedGroup !== null}

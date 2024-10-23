@@ -5,6 +5,7 @@ import {
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
+import { useSignupContext } from '@tloncorp/app/contexts/signup';
 import {
   getShipAccessCode,
   getShipsWithStatus,
@@ -40,6 +41,7 @@ type FormData = {
 export const TlonLoginScreen = ({ navigation }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
+  const signupContext = useSignupContext();
   const {
     control,
     setFocus,
@@ -47,7 +49,6 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
     formState: { errors, isValid },
     getValues,
     trigger,
-    watch,
   } = useForm<FormData>({
     defaultValues: {
       email: DEFAULT_TLON_LOGIN_EMAIL,
@@ -113,15 +114,27 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
             );
           }
         } else {
+          signupContext.setOnboardingValues({
+            email: params.email,
+            password: params.password,
+          });
           navigation.navigate('ReserveShip', { user });
         }
       } else if (user.requirePhoneNumberVerification && !user.phoneNumber) {
+        signupContext.setOnboardingValues({
+          email: params.email,
+          password: params.password,
+        });
         navigation.navigate('RequestPhoneVerify', { user });
       } else {
         if (user.requirePhoneNumberVerification) {
           await requestPhoneVerify(user.id, user.phoneNumber ?? '');
         }
 
+        signupContext.setOnboardingValues({
+          email: params.email,
+          password: params.password,
+        });
         navigation.navigate('CheckVerify', {
           user,
         });

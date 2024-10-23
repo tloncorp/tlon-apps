@@ -8,6 +8,9 @@ import * as store from '@tloncorp/shared/dist/store';
 import { useCallback } from 'react';
 
 import { clearShipInfo, useShip } from '../contexts/ship';
+// Can't signup via the webapp, so this is commented out.
+// We might allow this in a desktop app in the future.
+// import { useSignupContext } from '../contexts/signup';
 import {
   removeHostingAuthTracking,
   removeHostingToken,
@@ -19,6 +22,7 @@ const logger = createDevLogger('logout', true);
 
 export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
   const { clearShip } = useShip();
+  // const signupContext = useSignupContext();
 
   const handleLogout = useCallback(async () => {
     api.queryClient.clear();
@@ -29,6 +33,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
     removeHostingUserId();
     removeHostingAuthTracking();
     clearSplashDismissed();
+    // signupContext.clear();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');
       return;
