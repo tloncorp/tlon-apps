@@ -44,6 +44,7 @@
         view=(rev =view)
         sort=(rev =sort)
         perm=(rev =perm)
+        meta=(rev meta=(unit @t))
     ==
   ::  $window: sparse set of time ranges
   ::
@@ -64,8 +65,22 @@
         =future
         pending=pending-messages
         =last-updated
+        =hooks
     ==
   --
++$  hooks
+  $:  allowed=(list (hook $-(post ?)))
+      transform=(list (hook $-(post post)))
+      sort=(list (hook $-([post post] ?)))
+      effect=(list (hook $-(post (list card))))
+  ==
++$  hook
+  $|  gate
+  $:  %0
+      name=@t
+      src=@t
+      compiled=(unit gate)
+  ==
 +$  last-updated  ((mop time id-post) lte)
 ++  updated-on   ((on time id-post) lte)
 ::  $v-post: a channel post
@@ -99,7 +114,7 @@
   ==
 ::  $essay: top-level post, with metadata
 ::
-+$  essay  [memo =kind-data]
++$  essay  [memo =kind-data blob=(unit @t)]
 ::  $reply-meta: metadata for all replies
 +$  reply-meta
   $:  reply-count=@ud
@@ -112,6 +127,7 @@
   $%  [%diary title=@t image=@t]
       [%heap title=(unit @t)]
       [%chat kind=$@(~ [%notice ~])]
+      [%custom tag=@t]
   ==
 ::  $memo: post data proper
 ::
