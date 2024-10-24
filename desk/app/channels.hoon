@@ -747,7 +747,7 @@
       [?(%v0 %v1) ~]                        ?>(from-self cor)
       [?(%v0 %v1) %unreads ~]               ?>(from-self cor)
       [?(%v0 %v1) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
-      [?(%v0 %v1) %said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
+      [?(%v0 %v1 %v2) %said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
@@ -782,11 +782,19 @@
       %kick
     ?:  (~(has by voc) nest plan)
       cor  :: subscription ended politely
-    (give %kick ~[path v0+path v1+path] ~)
+    (give %kick ~[path v0+path v1+path v2+path] ~)
   ::
       %fact
-    =.  cor  (give %fact ~[path v0+path v1+path] cage.sign)
-    =.  cor  (give %kick ~[path v0+path v1+path] ~)
+    =.  cor  (give %fact ~[v2+path] cage.sign)
+    ::  send legacy said:v7 response
+    ::
+    =.  cor  %^  give  %fact
+        ~[path v0+path v1+path]
+      ?.  ?=(%channel-said-2 p.cage.sign)
+        cage.sign
+      =+  !<(=said:c q.cage.sign)
+      channel-said+!>((to-said-1:utils said))
+    =.  cor  (give %kick ~[path v0+path v1+path v2+path] ~)
     ?+    p.cage.sign  ~|(funny-mark+p.cage.sign !!)
         %channel-denied  cor(voc (~(put by voc) [nest plan] ~))
         %channel-said-2
