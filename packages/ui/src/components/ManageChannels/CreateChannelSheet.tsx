@@ -180,6 +180,8 @@ function labelForCollectionLayout(l: CollectionRendererId): string {
       return 'Gallery';
     case CollectionRendererId.notebook:
       return 'Notebook';
+    case CollectionRendererId.cards:
+      return 'Cards';
   }
 }
 
@@ -216,6 +218,7 @@ const CustomChannelConfigurationForm = forwardRef<{
         CollectionRendererId.chat,
         CollectionRendererId.gallery,
         CollectionRendererId.notebook,
+        CollectionRendererId.cards,
       ].map((id) => ({
         title: labelForCollectionLayout(id),
         value: id,
