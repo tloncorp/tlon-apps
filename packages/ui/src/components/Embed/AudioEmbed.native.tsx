@@ -22,6 +22,8 @@ import { LoadingSpinner } from '../LoadingSpinner';
 import * as shared from './AudioEmbedShared';
 import { Embed } from './Embed';
 
+export type { AudioPlayerHandle } from './AudioEmbedShared';
+
 const AudioEmbed: shared.AudioEmbed = ({ url }: { url: string }) => {
   const [showModal, setShowModal] = useState(false);
   const playerRef = useRef<ElementRef<typeof AudioPlayer>>(null);

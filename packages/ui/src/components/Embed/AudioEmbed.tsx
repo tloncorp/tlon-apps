@@ -2,6 +2,8 @@ import { forwardRef } from 'react';
 
 import * as shared from './AudioEmbedShared';
 
+export type { AudioPlayerHandle } from './AudioEmbedShared';
+
 const AudioEmbed: shared.AudioEmbed = ({ url }: { url: string }) => {
   // TODO: This is a placeholder for web. Implement a better audio player.
 

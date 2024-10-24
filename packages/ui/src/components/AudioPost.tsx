@@ -1,9 +1,9 @@
-import { ElementRef, useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { View } from 'tamagui';
 
 import { RenderItemType } from '../contexts/componentsKits';
 import { ChatAuthorRow } from './AuthorRow';
-import { AudioPlayer } from './Embed/AudioEmbed';
+import { AudioPlayer, AudioPlayerHandle } from './Embed/AudioEmbed';
 import { convertContent } from './PostContent/contentUtils';
 
 export const AudioPost: RenderItemType = (props) => {
@@ -15,7 +15,7 @@ export const AudioPost: RenderItemType = (props) => {
     return null;
   }, [props.post.content]);
 
-  const playerRef = useRef<ElementRef<typeof AudioPlayer>>(null);
+  const playerRef = useRef<AudioPlayerHandle>(null);
 
   const togglePlayback = useCallback(async () => {
     const player = playerRef.current;
