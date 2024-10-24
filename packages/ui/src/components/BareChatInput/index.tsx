@@ -513,7 +513,6 @@ export default function BareChatInput({
             backgroundColor="transparent"
             position="absolute"
             pointerEvents="none"
-            justifyContent="center"
           >
             {renderTextWithMentions}
           </View>

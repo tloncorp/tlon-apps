@@ -17,9 +17,20 @@ export const useMentions = () => {
   const [mentions, setMentions] = useState<Mention[]>([]);
 
   const handleMention = (oldText: string, newText: string) => {
+    // Find cursor position by comparing old and new text
+    let cursorPosition = newText.length;
+    if (oldText.length !== newText.length) {
+      for (let i = 0; i < Math.min(oldText.length, newText.length); i++) {
+        if (oldText[i] !== newText[i]) {
+          cursorPosition = i + (newText.length > oldText.length ? 1 : 0);
+          break;
+        }
+      }
+    }
+
     // Check if we're deleting a trigger symbol
     if (newText.length < oldText.length && showMentionPopup) {
-      const deletedChar = oldText[newText.length];
+      const deletedChar = oldText[cursorPosition];
       if (deletedChar === '@' || deletedChar === '~') {
         setShowMentionPopup(false);
         setMentionStartIndex(null);
@@ -28,40 +39,40 @@ export const useMentions = () => {
       }
     }
 
-    // Check for @ symbol
-    const lastAtSymbol = newText.lastIndexOf('@');
-    if (lastAtSymbol >= 0 && lastAtSymbol === newText.length - 1) {
-      setShowMentionPopup(true);
-      setMentionStartIndex(lastAtSymbol);
-      setMentionSearchText('');
-    } else if (showMentionPopup && mentionStartIndex !== null) {
-      // Update mention search text
-      const searchText = newText.slice(mentionStartIndex + 1);
-      if (!searchText.includes(' ')) {
-        setMentionSearchText(searchText);
-      } else {
-        setShowMentionPopup(false);
-        setMentionStartIndex(null);
-        setMentionSearchText('');
-      }
-    }
+    // Get the text before and after cursor
+    const beforeCursor = newText.slice(0, cursorPosition);
+    const afterCursor = newText.slice(cursorPosition);
 
-    // Check for ~ symbol
-    const lastSig = newText.lastIndexOf('~');
-    if (lastSig >= 0 && lastSig === newText.length - 1) {
-      setShowMentionPopup(true);
-      setMentionStartIndex(lastSig);
-      setMentionSearchText('');
-    } else if (showMentionPopup && mentionStartIndex !== null) {
-      // Update mention search text
-      const searchText = newText.slice(mentionStartIndex + 1);
-      if (!searchText.includes(' ')) {
-        setMentionSearchText(searchText);
+    // Find the last trigger symbol before cursor
+    const lastAtSymbol = beforeCursor.lastIndexOf('@');
+    const lastSig = beforeCursor.lastIndexOf('~');
+    const lastTriggerIndex = Math.max(lastAtSymbol, lastSig);
+
+    if (lastTriggerIndex >= 0) {
+      // Check if there's a space between the trigger and cursor
+      const textBetweenTriggerAndCursor = beforeCursor.slice(
+        lastTriggerIndex + 1
+      );
+      const hasSpace = textBetweenTriggerAndCursor.includes(' ');
+
+      // Only show popup if we're right after the trigger or actively searching
+      if (
+        !hasSpace &&
+        (cursorPosition === lastTriggerIndex + 1 ||
+          (cursorPosition > lastTriggerIndex && !afterCursor.includes(' ')))
+      ) {
+        setShowMentionPopup(true);
+        setMentionStartIndex(lastTriggerIndex);
+        setMentionSearchText(textBetweenTriggerAndCursor);
       } else {
         setShowMentionPopup(false);
         setMentionStartIndex(null);
         setMentionSearchText('');
       }
+    } else {
+      setShowMentionPopup(false);
+      setMentionStartIndex(null);
+      setMentionSearchText('');
     }
 
     // Update mention positions when text changes
