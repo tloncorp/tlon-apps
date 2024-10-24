@@ -55,7 +55,7 @@ export default {
     </FixtureWrapper>
   ),
   dark: (
-    <FixtureWrapper fillHeight fillWidth theme="dark">
+    <FixtureWrapper fillHeight fillWidth>
       <ZStack flex={1}>
         <ChannelFixture theme="dark" />
         <MessageActions />
