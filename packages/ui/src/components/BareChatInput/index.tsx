@@ -3,7 +3,6 @@ import { contentReferenceToCite } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import {
   Block,
-  Story,
   citeToPath,
   constructStory,
   pathToCite,
@@ -170,6 +169,8 @@ export default function BareChatInput({
       const jsonContent = textAndMentionsToContent(text, mentions);
       const inlines = JSONToInlines(jsonContent);
       const story = constructStory(inlines);
+      console.log('jsonContent', jsonContent);
+      console.log('inlines', inlines);
 
       const finalAttachments = await waitForAttachmentUploads();
 

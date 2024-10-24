@@ -34,6 +34,45 @@ const isUrl = (text: string): boolean => {
   return urlRegex.test(text);
 };
 
+function areMarksEqual(marks1: any[] = [], marks2: any[] = []): boolean {
+  if (marks1.length !== marks2.length) return false;
+  return marks1.every((mark1, i) => {
+    const mark2 = marks2[i];
+    return mark1.type === mark2.type &&
+           JSON.stringify(mark1.attrs || {}) === JSON.stringify(mark2.attrs || {});
+  });
+}
+
+// Merge adjacent text nodes with the same marks
+function mergeTextNodes(nodes: JSONContent[]): JSONContent[] {
+  const merged: JSONContent[] = [];
+  let currentNode: JSONContent | null = null;
+
+  nodes.forEach((node) => {
+    if (!currentNode) {
+      currentNode = { ...node };
+      return;
+    }
+
+    if (
+      currentNode.type === 'text' &&
+      node.type === 'text' &&
+      areMarksEqual(currentNode.marks, node.marks)
+    ) {
+      currentNode.text! += node.text;
+    } else {
+      merged.push(currentNode);
+      currentNode = { ...node };
+    }
+  });
+
+  if (currentNode) {
+    merged.push(currentNode);
+  }
+
+  return merged;
+}
+
 const processLine = (line: string, mentions: Mention[]): JSONContent => {
   const parsedContent: JSONContent[] = [];
   let isBolding = false;
@@ -100,6 +139,7 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
       return;
     }
 
+    // A word can be both bold and italicized
     if (isBoldStart(word)) {
       isBolding = true;
       word = word.slice(2);
@@ -138,7 +178,7 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
     parsedContent.push(makeText(' '));
   });
 
-  return makeParagraph(parsedContent);
+  return makeParagraph(mergeTextNodes(parsedContent));
 };
 
 function processTextLines(lines: string[], mentions: Mention[]): JSONContent[] {
