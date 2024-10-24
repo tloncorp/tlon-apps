@@ -896,7 +896,7 @@
     |%
     ::
     ++  channels
-      |=  channels=channels-0:c
+      |=  channels=channels:v0:old:c
       %-  pairs
       %+  turn  ~(tap by channels)
       |=  [n=nest:c ca=channel-0:c]

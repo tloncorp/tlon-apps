@@ -14,15 +14,16 @@
 ::
 ::  +arm convert to v1:old:c type
 ::  +arm-1 convert to v7:old:c type
-::  +arm-2 convert to v8 (current) type
-:: 
+::  +arm-2 convert to v8:old:c type
+::  +arm-3 convert to v9 (current) type
+::
 ++  uv-channels-1
   |=  =v-channels:c
-  ^-  channels-0:c
+  ^-  channels:v0:old:c
   %-  ~(run by v-channels)
   |=  channel=v-channel:c
-  ^-  channel-0:c
-  %*  .  *channel-0:c
+  ^-  channel:v0:old:c
+  %*  .  *channel:v0:old:c
     posts  *posts:v7:old:c
     perm   +.perm.channel
     view   +.view.channel
@@ -92,12 +93,21 @@
 ::
 ++  uv-posts-2
   |=  =v-posts:c
+  ^-  posts:v8:old:c
+  %+  gas:on-posts:c  posts:v8:old:c
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(unit v-post:c)]
+  ^-  [id-post:c (unit post:v8:old:c)]
+  [id-post ?~(v-post ~ `(uv-post-2 u.v-post))]
+::
+++  uv-posts-3
+  |=  =v-posts:c
   ^-  posts:c
   %+  gas:on-posts:c  *posts:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(unit v-post:c)]
   ^-  [id-post:c (unit post:c)]
-  [id-post ?~(v-post ~ `(uv-post-2 u.v-post))]
+  [id-post ?~(v-post ~ `(uv-post-3 u.v-post))]
 ::
 ++  s-posts-1
   |=  =posts:c
@@ -149,6 +159,18 @@
 ::
 ++  uv-post-2
   |=  =v-post:c
+  ^-  post:v8:old:c
+  :_  [- kind-data]:+.v-post
+  :*  id.v-post
+      seq.v-post
+      mod-at.v-post
+      (uv-reacts-1 reacts.v-post)
+      (uv-replies-2 id.v-post replies.v-post)
+      (get-reply-meta v-post)
+  ==
+::
+++  uv-post-3
+  |=  =v-post:c
   ^-  post:c
   :_  +.v-post
   :*  id.v-post
@@ -162,7 +184,7 @@
 ++  s-post-1
   |=  =post:c
   ^-  simple-post:v7:old:c
-  :_  +>.post
+  :_  [- kind-data]:+>.post
   ::XX a nicer way to write this?
   =/  seal
     %=  -.post
@@ -173,6 +195,20 @@
   [- |3]:seal
 ::
 ++  s-post-2
+  |=  =post:c
+  ^-  simple-post:v8:old:c
+  :_  [- kind-data]:+>.post
+  ::XX a nicer way to write this?
+  =/  seal
+    =<  -  :: seal
+    %=  post
+      reacts   (reacts-1 reacts.post)
+      replies  (s-replies-1 replies.post)
+    ==
+  ::  remove .seq and .mod-at
+  [- |3]:seal
+::
+++  s-post-3
   |=  =post:c
   ^-  simple-post:c
   :_  +>.post
@@ -189,13 +225,13 @@
 ++  suv-post
   |=  =v-post:c
   ^-  simple-post:v1:old:c
-  (s-post-1 (uv-post-2 v-post))
+  (s-post-1 (uv-post-3 v-post))
 ::
 ::
 ++  suv-post-1
   |=  =v-post:c
   ^-  simple-post:v7:old:c
-  (s-post-1 (uv-post-2 v-post))
+  (s-post-1 (uv-post-3 v-post))
 ::
 ++  uv-posts-without-replies
   |=  =v-posts:c
@@ -217,12 +253,21 @@
 ::
 ++  uv-posts-without-replies-2
   |=  =v-posts:c
+  ^-  posts:v8:old:c
+  %+  gas:on-posts:c  *posts:v8:old:c
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(unit v-post:c)]
+  ^-  [id-post:c (unit post:v8:old:c)]
+  [id-post ?~(v-post ~ `(uv-post-without-replies-2 u.v-post))]
+::
+++  uv-posts-without-replies-3
+  |=  =v-posts:c
   ^-  posts:c
   %+  gas:on-posts:c  *posts:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(unit v-post:c)]
   ^-  [id-post:c (unit post:c)]
-  [id-post ?~(v-post ~ `(uv-post-without-replies-2 u.v-post))]
+  [id-post ?~(v-post ~ `(uv-post-without-replies-3 u.v-post))]
 ::
 ++  suv-posts-without-replies
   |=  =v-posts:c
@@ -245,7 +290,7 @@
 ++  uv-post-without-replies
   |=  post=v-post:c
   ^-  post:v1:old:c
-  :_  +.post
+  :_  [- kind-data]:+.post
   :*  id.post
       (uv-reacts-1 reacts.post)
       *replies:v1:old:c
@@ -255,7 +300,7 @@
 ++  uv-post-without-replies-1
   |=  post=v-post:c
   ^-  post:v7:old:c
-  :_  +.post
+  :_  [- kind-data]:+.post
   :*  id.post
       (uv-reacts-1 reacts.post)
       *replies:v7:old:c
@@ -263,6 +308,18 @@
   ==
 ::
 ++  uv-post-without-replies-2
+  |=  post=v-post:c
+  ^-  post:c
+  :_  [- kind-data]:+.post
+  :*  id.post
+      seq.post
+      mod-at.post
+      (uv-reacts-1 reacts.post)
+      *replies:c
+      (get-reply-meta post)
+  ==
+::
+++  uv-post-without-replies-3
   |=  post=v-post:c
   ^-  post:c
   :_  +.post
@@ -286,8 +343,13 @@
 ::
 ++  suv-post-without-replies-2
   |=  post=v-post:c
-  ^-  simple-post:c
+  ^-  simple-post:v8:old:c
   (s-post-2 (uv-post-without-replies-2 post))
+::
+++  suv-post-without-replies-3
+  |=  post=v-post:c
+  ^-  simple-post:c
+  (s-post-3 (uv-post-without-replies-3 post))
 ::
 ++  uv-replies
   |=  [parent-id=id-post:c =v-replies:c]
@@ -440,7 +502,7 @@
   ^-  post:v7:old:c
   %*  .  *post:v7:old:c
     -  (seal-1 -.post)
-    +  +.post
+    +  [- kind-data]:+.post
   ==
 ::
 ++  posts-1
@@ -459,6 +521,8 @@
   |=  =r-channels:c
   ^-  r-channels:v7:old:c
   =+  r-channel=r-channel.r-channels
+  ?<  ?=(%meta -.r-channel)
+  ?<  ?=(%hook -.r-channel)
   :-  nest.r-channels
   ^-  r-channel:v7:old:c
   ?+  r-channel  r-channel
@@ -563,7 +627,7 @@
   ^-  cage
   =/  post=(unit (unit v-post:c))  (get:on-v-posts:c posts p.plan)
   ?~  q.plan
-    =/  post=simple-post:c
+    =/  post=simple-post:v8:old:c
       ?~  post
         ::TODO  give "outline" that formally declares deletion
         :-  *simple-seal:c
@@ -577,11 +641,55 @@
         ?-  kind.nest
             %diary  [*memo:c %diary 'This post was deleted' '']
             %heap   [*memo:c %heap ~ 'This link was deleted']
+        ::
             %chat
           [[[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
         ==
       (suv-post-without-replies-2 u.u.post)
     [%channel-said-2 !>(`said:c`[nest %post post])]
+  ::
+  =/  reply=[reply-seal:c memo:c]
+    ?~  post
+      [*reply-seal:c ~[%inline 'Comment on unknown post']~ ~nul *@da]
+    ?~  u.post
+      [*reply-seal:c ~[%inline 'Comment on deleted post']~ ~nul *@da]
+    =/  reply=(unit (unit v-reply:c))  (get:on-v-replies:c replies.u.u.post u.q.plan)
+    ?~  reply
+      [*reply-seal:c ~[%inline 'Unknown comment']~ ~nul *@da]
+    ?~  u.reply
+      [*reply-seal:c ~[%inline 'This comment was deleted']~ ~nul *@da]
+    (suv-reply-2 p.plan u.u.reply)
+  [%channel-said-2 !>(`said:c`[nest %reply p.plan reply])]
+::
+++  said-3
+  |=  [=nest:c =plan:c posts=v-posts:c]
+  ^-  cage
+  =/  post=(unit (unit v-post:c))  (get:on-v-posts:c posts p.plan)
+  ?~  q.plan
+    =/  post=simple-post:c
+      ?~  post
+        ::TODO  give "outline" that formally declares deletion
+        :-  *simple-seal:c
+        ?-  kind.nest
+          %diary  [*memo:c %diary 'Unknown post' '']
+          %heap   [*memo:c %heap ~ 'Unknown link']
+          %chat   [[[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
+          %custom  [[[%inline 'Unknown custom post' ~]~ ~nul *@da] %custom 'unknown']
+        ==
+      ?~  u.post
+        :-  *simple-seal:c
+        ?-  kind.nest
+            %diary  [*memo:c %diary 'This post was deleted' '']
+            %heap   [*memo:c %heap ~ 'This link was deleted']
+        ::
+            %chat
+          [[[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
+        ::
+            %custom
+          [[[%inline 'This custom post was deleted' ~]~ ~nul *@da] %custom 'deleted']
+        ==
+      (suv-post-without-replies-3 u.u.post)
+    [%channel-said-3 !>(`said:c`[nest %post post])]
   ::
   =/  reply=[reply-seal:c memo:c]
     ?~  post
@@ -689,6 +797,12 @@
   $(entries +.entries)
 ::
 ++  channel-head-1
+  |=  [since=(unit id-post:c) =nest:c =v-channel:c]
+  ^-  (unit [_nest time (unit post:v7:old:c)])
+  =/  head=(unit [_nest time post=(unit post:c)])
+    (channel-head since nest v-channel)
+
+++  channel-head
   =|  slip=_|
   |=  [since=(unit id-post:c) =nest:c v-channel:c]
   ^-  (unit [_nest time (unit post:v7:old:c)])
@@ -728,7 +842,7 @@
 ++  channel-head-2
   =|  slip=_|
   |=  [since=(unit id-post:c) =nest:c v-channel:c]
-  ^-  (unit [_nest time (unit post:c)])
+  ^-  (unit [_nest time (unit post:v8:old:c)])
   ::  if there is no latest post, give nothing
   ::
   ?~  vp=(ram:on-v-posts:c posts)  ~
@@ -738,6 +852,43 @@
     $(slip &, posts +:(pop:on-v-posts:c posts))
   =*  result
     `[nest recency.remark `(uv-post-without-replies-2 u.val.u.vp)]
+  ::  if the request is bounded, check that latest message is "in bounds"
+  ::  (and not presumably already known by the requester)
+  ::
+  ?:  ?|  ?=(~ since)
+          |((gth key.u.vp u.since) (gth recency.remark u.since))
+      ==
+    ::  latest is in range (or recency was changed), give it directly
+    ::
+    result
+  ::  "out of bounds", ...but! latest may have changed itself, or only
+  ::  be latest because something else was deleted. the latter case we
+  ::  already detected, and so easily branch on here:
+  ::
+  ?:  slip  result
+  ::  edits are detected through changelogs. look at the relevant log range,
+  ::  and see if any update affects the latest post.
+  ::NOTE  if our mops were the other way around, we could +dip:on instead
+  ::
+  =;  changed=?
+    ?.(changed ~ result)
+  %+  lien  (bap:log-on:c (lot:log-on:c log since ~))
+  |=  [key=time val=u-channel:c]
+  &(?=([%post * %set *] val) =(id.val key.u.vp))
+::
+++  channel-head-3
+  =|  slip=_|
+  |=  [since=(unit id-post:c) =nest:c v-channel:c]
+  ^-  (unit [_nest time (unit post:c)])
+  ::  if there is no latest post, give nothing
+  ::
+  ?~  vp=(ram:on-v-posts:c posts)  ~
+  ::  if latest was deleted, try the next-latest message instead
+  ::
+  ?~  val.u.vp
+    $(slip &, posts +:(pop:on-v-posts:c posts))
+  =*  result
+    `[nest recency.remark `(uv-post-without-replies-3 u.val.u.vp)]
   ::  if the request is bounded, check that latest message is "in bounds"
   ::  (and not presumably already known by the requester)
   ::
@@ -835,6 +986,7 @@
         %chat   %msg
         %diary  %note
         %heap   %curio
+        %custom  %custom
       ==
     [%chan nest /[kind]/(crip (a-co:co id-post))]
   --

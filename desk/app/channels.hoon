@@ -902,7 +902,7 @@
     ::    /x/v/channels: get unversioned channels
     ::
       [%x ?(%v0 %v1) %channels ~]
-    ``channels+!>(`channels-0:c`(uv-channels-1:utils v-channels))
+    ``channels+!>(`channels:v0:old:c`(uv-channels-1:utils v-channels))
     ::
       [%x %v2 %channels full=?(~ [%full ~])]
     ``channels-2+!>(`channels:v1:old:c`(uv-channels:utils v-channels ?=(^ full.pole)))

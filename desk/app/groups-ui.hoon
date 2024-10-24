@@ -108,7 +108,7 @@
   ::
       [%x %init ~]
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
-    =+  .^([=unreads:d channels=channels-0:d] (scry %gx %channels /v1/init/noun))
+    =+  .^([=unreads:d channels=channels:v0:old:d] (scry %gx %channels /v1/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
     =/  init=init-0:u

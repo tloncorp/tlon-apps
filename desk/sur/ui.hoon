@@ -41,7 +41,7 @@
   $:  groups=groups-ui:g
       =gangs:g
       =channels:v7:old:d
-      =unreads:d
+      =unreads:v8:old:d
       pins=(list whom)
       chat=chat-0
       profile=?
@@ -50,8 +50,8 @@
 +$  init-0
   $:  groups=groups-ui:g
       =gangs:g
-      channels=channels-0:d
-      =unreads:d
+      channels=channels:v0:old:d
+      =unreads:v8:old:d
       pins=(list whom)
       chat=chat-0
       profile=?
