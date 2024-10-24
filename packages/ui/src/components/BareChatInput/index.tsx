@@ -1,6 +1,7 @@
 import {
   JSONToInlines,
   REF_REGEX,
+  createDevLogger,
   diaryMixedToJSON,
   extractContentTypesFromPost,
 } from '@tloncorp/shared';
@@ -35,6 +36,8 @@ import {
 } from '../MessageInput/MessageInputBase';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import { useMentions } from './useMentions';
+
+const bareChatInputLogger = createDevLogger('bareChatInput', false);
 
 export default function BareChatInput({
   shouldBlur,
@@ -133,6 +136,7 @@ export default function BareChatInput({
     handleMention(oldText, textWithoutRefs);
 
     const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
+    bareChatInputLogger.log('setting draft', jsonContent);
     storeDraft(jsonContent);
   };
 
@@ -309,7 +313,7 @@ export default function BareChatInput({
       try {
         await sendMessage(isEdit);
       } catch (e) {
-        console.error('failed to send', e);
+        bareChatInputLogger.trackError('failed to send', e);
         setSendError(true);
       }
       setIsSending(false);
@@ -367,14 +371,25 @@ export default function BareChatInput({
   // Set initial content from draft or post that is being edited
   useEffect(() => {
     if (!hasSetInitialContent) {
+      bareChatInputLogger.log('setting initial content');
       try {
         getDraft().then((draft) => {
-          if (!editingPost && draft && draft.length > 0) {
-            // We'll need to parse the draft content here
-            // NOTE: drafts are currently stored as tiptap JSONContent
+          bareChatInputLogger.log('got draft', draft);
+          if (
+            !editingPost &&
+            draft &&
+            draft.content &&
+            draft.content.length > 0
+          ) {
             setEditorIsEmpty(false);
             setHasSetInitialContent(true);
+            bareChatInputLogger.log('setting initial content', draft);
             const { text, mentions } = contentToTextAndMentions(draft);
+            bareChatInputLogger.log(
+              'setting initial content text and mentions',
+              text,
+              mentions
+            );
             setText(text);
             setMentions(mentions);
           }
@@ -422,7 +437,9 @@ export default function BareChatInput({
               ) as Story
             );
 
+            bareChatInputLogger.log('jsonContent', jsonContent);
             const { text, mentions } = contentToTextAndMentions(jsonContent);
+            bareChatInputLogger.log('setting initial content', text, mentions);
             setText(text);
             setMentions(mentions);
             setEditorIsEmpty(false);
@@ -441,7 +458,7 @@ export default function BareChatInput({
           }
         });
       } catch (e) {
-        console.error('Error setting initial content', e);
+        bareChatInputLogger.error('Error setting initial content', e);
       }
     }
   }, [

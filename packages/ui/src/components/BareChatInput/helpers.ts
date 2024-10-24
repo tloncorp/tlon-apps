@@ -80,6 +80,7 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
   let isBolding = false;
   let isItalicizing = false;
   let isCoding = false;
+  let isEndOfFormatting = false;
   line.split(' ').forEach((word) => {
     const marks = [];
     const mention = mentions.find((mention) => mention.display === word);
@@ -128,6 +129,7 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
     if (isCoding) {
       marks.push({ type: 'code' });
       if (isCodeEnd(word)) {
+        isEndOfFormatting = true;
         isCoding = false;
         word = word.slice(0, -1);
       }
@@ -137,7 +139,12 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
         marks,
       });
 
-      parsedContent.push(makeText(' '));
+      if (isEndOfFormatting) {
+        parsedContent.push(makeText(' '));
+        isEndOfFormatting = false;
+        return;
+      }
+      parsedContent.push({ ...makeText(' '), marks });
       return;
     }
 
@@ -156,6 +163,7 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
       marks.push({ type: 'bold' });
       if (isBoldEnd(word)) {
         isBolding = false;
+        isEndOfFormatting = true;
         word = word.slice(0, -2);
       }
     }
@@ -164,6 +172,7 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
       marks.push({ type: 'italics' });
       if (isItalicEnd(word)) {
         isItalicizing = false;
+        isEndOfFormatting = true;
         word = word.slice(0, -1);
       }
     }
@@ -173,11 +182,22 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
         ...makeText(word),
         marks,
       });
+
+      if (isEndOfFormatting) {
+        parsedContent.push(makeText(' '));
+        isEndOfFormatting = false;
+        return;
+      }
+
+      parsedContent.push({
+        ...makeText(' '),
+        marks,
+      });
+      return;
     } else {
       parsedContent.push(makeText(word));
+      parsedContent.push(makeText(' '));
     }
-
-    parsedContent.push(makeText(' '));
   });
 
   return makeParagraph(mergeTextNodes(parsedContent));
@@ -274,17 +294,67 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
     };
   }
 
+  let paragrahCount = 0;
   content.forEach((node) => {
     if (node.type === 'paragraph') {
+      if (paragrahCount > 0) {
+        text.push('\n');
+      }
+      paragrahCount++;
       if (!node.content) {
         return;
       }
+
+      let isBolding = false;
+      let isItalicizing = false;
+      let isCoding = false;
+      let lastMarks: string[] = [];
       node.content.forEach((child) => {
         if (child.type === 'text') {
           if (!child.text) {
             return;
           }
-          text.push(child.text);
+          if (child.marks) {
+            child.marks.forEach((mark) => {
+              if (mark.type === 'bold') {
+                isBolding = true;
+              } else if (mark.type === 'italics') {
+                isItalicizing = true;
+              } else if (mark.type === 'code') {
+                isCoding = true;
+              }
+            });
+
+            if (isBolding && !lastMarks.includes('bold')) {
+              text.push('**');
+            }
+
+            if (isItalicizing && !lastMarks.includes('italics')) {
+              text.push('*');
+            }
+
+            if (isCoding && !lastMarks.includes('code')) {
+              text.push('`');
+            }
+
+            text.push(child.text);
+
+            if (isBolding && !lastMarks.includes('bold')) {
+              text.push('**');
+            }
+
+            if (isItalicizing && !lastMarks.includes('italics')) {
+              text.push('*');
+            }
+
+            if (isCoding && !lastMarks.includes('code')) {
+              text.push('`');
+            }
+
+            lastMarks = child.marks.map((mark) => mark.type);
+          } else {
+            text.push(child.text);
+          }
         } else if (child.type === 'mention') {
           if (!child.attrs || !child.attrs.id) {
             return;
@@ -303,7 +373,6 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
           });
         }
       });
-      text.push('\n');
     } else if (node.type === 'codeBlock') {
       if (!node.content || !node.content[0].text) {
         return;
