@@ -4,6 +4,8 @@ import {
   DraftInputId,
   PostContentRendererId,
   useCreateChannel,
+  useGroup,
+  useUpdateChannel,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import {
@@ -15,8 +17,10 @@ import {
   useRef,
 } from 'react';
 import { useForm } from 'react-hook-form';
+import { SizableText } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts';
+import { useIsAdmin } from '../../utils';
 import { ActionSheet } from '../ActionSheet';
 import { Button } from '../Button';
 import * as Form from '../Form';
@@ -201,11 +205,16 @@ function labelForCollectionLayout(l: CollectionRendererId): string {
   }
 }
 
-const CustomChannelConfigurationForm = forwardRef<{
-  getFormValue: () => ChannelContentConfiguration;
-}>(function CustomChannelConfigurationForm(_props, ref) {
+const CustomChannelConfigurationForm = forwardRef<
+  {
+    getFormValue: () => ChannelContentConfiguration;
+  },
+  {
+    initialValue?: ChannelContentConfiguration;
+  }
+>(function CustomChannelConfigurationForm({ initialValue }, ref) {
   const { control, getValues } = useForm<ChannelContentConfiguration>({
-    defaultValues: {
+    defaultValues: initialValue ?? {
       draftInput: DraftInputId.chat,
       defaultPostContentRenderer: PostContentRendererId.chat,
       defaultPostCollectionRenderer: CollectionRendererId.chat,
@@ -284,3 +293,56 @@ const CustomChannelConfigurationForm = forwardRef<{
     </>
   );
 });
+
+export function EditChannelConfigurationSheetContent({
+  channel,
+}: {
+  channel: db.Channel;
+}) {
+  const formRef =
+    useRef<ElementRef<typeof CustomChannelConfigurationForm>>(null);
+
+  const updateChannel = useUpdateChannel();
+  const group = useGroup({ id: channel.group?.id }).data;
+
+  const submit = useCallback(async () => {
+    const formValue = formRef.current?.getFormValue();
+    if (formValue == null) {
+      throw new Error("Couldn't get form value");
+    }
+    if (group == null) {
+      throw new Error("Couldn't get containing group");
+    }
+    await updateChannel({
+      group,
+      channel: {
+        ...channel,
+        contentConfiguration: formValue,
+      },
+    });
+  }, [channel, group, updateChannel]);
+
+  const currentUser = useCurrentUserId();
+  const currentUserIsAdmin = useIsAdmin(channel.groupId ?? '', currentUser);
+
+  if (!currentUserIsAdmin) {
+    return null;
+  }
+
+  return (
+    <>
+      <SizableText margin="$xl" color="$color.gray500">
+        Make sure to save your changes at the bottom.
+      </SizableText>
+      <CustomChannelConfigurationForm
+        ref={formRef}
+        initialValue={channel.contentConfiguration ?? undefined}
+      />
+      <ActionSheet.FormBlock>
+        <Button onPress={submit} hero>
+          <Button.Text>Save</Button.Text>
+        </Button>
+      </ActionSheet.FormBlock>
+    </>
+  );
+}
