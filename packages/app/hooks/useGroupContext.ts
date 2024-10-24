@@ -1,6 +1,5 @@
-import { sync } from '@tloncorp/shared';
+import { sync, useCreateChannel } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
-import { assembleNewChannelIdAndName } from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo } from 'react';
 
@@ -99,41 +98,6 @@ export const useGroupContext = ({
       await store.deleteGroup(group);
     }
   }, [group]);
-
-  const { data: existingChannels } = store.useAllChannels({
-    enabled: isFocused,
-  });
-
-  const createChannel = useCallback(
-    async ({
-      title,
-      description,
-      channelType,
-    }: {
-      title: string;
-      description?: string;
-      channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
-    }) => {
-      const { name, id } = assembleNewChannelIdAndName({
-        title,
-        channelType,
-        existingChannels: existingChannels ?? [],
-        currentUserId,
-      });
-
-      if (group) {
-        await store.createChannel({
-          groupId: group.id,
-          name,
-          channelId: id,
-          title,
-          description,
-          channelType,
-        });
-      }
-    },
-    [group, currentUserId, existingChannels]
-  );
 
   const deleteChannel = useCallback(
     async (channelId: string) => {
@@ -369,7 +333,6 @@ export const useGroupContext = ({
     setGroupMetadata,
     setGroupPrivacy,
     deleteGroup,
-    createChannel,
     deleteChannel,
     updateChannel,
     createNavSection,

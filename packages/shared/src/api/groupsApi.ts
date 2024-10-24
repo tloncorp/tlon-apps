@@ -13,6 +13,7 @@ import {
   getJoinStatusFromGang,
 } from '../urbit';
 import { parseGroupId, toClientMeta } from './apiUtils';
+import { StructuredChannelDescriptionPayload } from './channelContentConfig';
 import {
   getCurrentUserId,
   poke,
@@ -1455,6 +1456,8 @@ function toClientChannel({
   channel: ub.GroupChannel;
   groupId: string;
 }): db.Channel {
+  const { description, channelContentConfiguration } =
+    StructuredChannelDescriptionPayload.decode(channel.meta.description);
   return {
     id,
     groupId,
@@ -1462,7 +1465,8 @@ function toClientChannel({
     iconImage: omitEmpty(channel.meta.image),
     title: omitEmpty(channel.meta.title),
     coverImage: omitEmpty(channel.meta.cover),
-    description: omitEmpty(channel.meta.description),
+    description,
+    contentConfiguration: channelContentConfiguration,
   };
 }
 

@@ -1,3 +1,4 @@
+import { CollectionRendererId } from '../api';
 import * as db from '../db';
 import * as ChannelAction from './ChannelActions';
 
@@ -21,6 +22,25 @@ export function layoutTypeFromChannel(
 export function layoutTypeFromChannel(
   channel: db.Channel | null
 ): PostCollectionLayoutType | null {
+  const configCollectionRendererId =
+    channel?.contentConfiguration?.defaultPostCollectionRenderer;
+  if (configCollectionRendererId != null) {
+    switch (configCollectionRendererId) {
+      case CollectionRendererId.notebook:
+        return 'comfy-list-top-to-bottom';
+
+      case CollectionRendererId.chat:
+        return 'compact-list-bottom-to-top';
+
+      case CollectionRendererId.gallery:
+        return 'grid';
+
+      default:
+        // fallthrough to legacy logic
+        break;
+    }
+  }
+
   switch (channel?.type) {
     case null:
     // fallthrough

@@ -6,11 +6,7 @@ import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import { Posts } from '../urbit';
 import { stringToTa } from '../urbit/utils';
-import {
-  getCanonicalPostId,
-  isDmChannelId,
-  isGroupChannelId,
-} from './apiUtils';
+import { getCanonicalPostId, isGroupChannelId } from './apiUtils';
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
 import { scry, subscribe, trackedPoke } from './urbit';
 
