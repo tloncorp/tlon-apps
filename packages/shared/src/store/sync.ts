@@ -13,7 +13,7 @@ import {
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
 import { useLureState } from './lure';
-import { updateIsSyncing, updateSession } from './session';
+import { getSyncing, updateIsSyncing, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
@@ -1026,6 +1026,10 @@ export const clearSyncQueue = () => {
   concerns and punts on full correctness.
 */
 export const handleDiscontinuity = async () => {
+  if (getSyncing()) {
+    // we probably don't want to do this while we're already syncing
+    return;
+  }
   updateSession(null);
 
   // drop potentially outdated newest post markers
@@ -1043,6 +1047,11 @@ export const handleChannelStatusChange = async (status: ChannelStatus) => {
 };
 
 export const syncStart = async (alreadySubscribed?: boolean) => {
+  if (getSyncing()) {
+    // we probably don't want multiple sync starts
+    return;
+  }
+
   updateIsSyncing(true);
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
