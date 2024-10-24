@@ -510,7 +510,6 @@
       =replies
       =reply-meta
   ==
-::XX  does $simple-seal need .seq or .mod-at?
 +$  simple-seal
   $:  id=id-post
       =reacts

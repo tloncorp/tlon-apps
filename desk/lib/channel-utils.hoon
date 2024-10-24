@@ -489,6 +489,37 @@
   ==
   ==
 ::
+++  simple-post-1
+  |=  post=simple-post:c
+  ^-  simple-post:v7:old:c
+  %=  post
+    reacts  (reacts-1 reacts.post)
+    replies  (simple-replies-1 replies.post)
+  ==
+::
+++  simple-reply-1
+  |=  =simple-reply:c
+  ^-  simple-reply:v7:old:c
+  simple-reply(reacts (reacts-1 reacts.simple-reply))
+::
+++  simple-replies-1
+  |=  replies=simple-replies:c
+  ^-  simple-replies:v7:old:c
+  %+  run:on-simple-replies:c  replies
+  simple-reply-1
+::
+++  to-said-1
+  |=  =said:c
+  ^-  said:v7:old:c
+  %=  said
+    q  ?-  -.q.said
+         %post
+       q.said(post (simple-post-1 post.q.said))
+          %reply
+       q.said(reply (simple-reply-1 reply.q.said))
+       ==
+  ==
+::
 ++  said-1
   |=  [=nest:c =plan:c posts=v-posts:c]
   ^-  cage
@@ -565,15 +596,6 @@
     (suv-reply-2 p.plan u.u.reply)
   [%channel-said-2 !>(`said:c`[nest %reply p.plan reply])]
 ::
-++  simple-replies-1
-  |=  =simple-replies:c
-  ^-  simple-replies:v7:old:c
-  %+  run:on-simple-replies:c  simple-replies
-  |=  =simple-reply:c
-  ^-  simple-reply:v7:old:c
-  %=  simple-reply
-    reacts  (reacts-1 reacts.simple-reply)
-  ==
 ++  scan-1
   |=  =scan:c
   ^-  scan:v7:old:c
