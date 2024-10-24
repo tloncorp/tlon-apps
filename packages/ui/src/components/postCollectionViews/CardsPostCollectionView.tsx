@@ -38,7 +38,7 @@ export const CardsPostCollection: IPostCollectionView = forwardRef(
         onPress={(event) => {
           if (displayedIndex != null && ctx.posts != null) {
             const delta =
-              event.nativeEvent.locationY < windowDimensions.width * 0.5
+              event.nativeEvent.locationX < windowDimensions.width * 0.5
                 ? -1
                 : 1;
             setDisplayedIndex((displayedIndex + delta) % ctx.posts.length);
