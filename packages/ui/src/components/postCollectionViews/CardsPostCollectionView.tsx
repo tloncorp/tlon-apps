@@ -64,11 +64,7 @@ function BaseCardsPostCollection({
           if (prev == null) {
             return 0;
           }
-          let next = (prev + delta) % postsCount;
-          while (next < 0) {
-            next += postsCount;
-          }
-          return next;
+          return Math.max(0, Math.min(postsCount, prev + delta));
         });
       } else {
         setDisplayedIndex(null);
@@ -109,14 +105,14 @@ function BaseCardsPostCollection({
           alignItems="center"
           gap="$l"
         >
-          <Button onPress={() => jog(-1)}>
-            <Text>Previous</Text>
+          <Button onPress={() => jog(1)}>
+            <Button.Text>Older</Button.Text>
           </Button>
           <Text>
             {(displayedIndex ?? 0) + 1} / {posts.length}
           </Text>
-          <Button onPress={() => jog(1)}>
-            <Button.Text>Next</Button.Text>
+          <Button onPress={() => jog(-1)}>
+            <Text>Newer</Text>
           </Button>
         </View>
       )}
