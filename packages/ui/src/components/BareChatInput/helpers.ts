@@ -38,8 +38,10 @@ function areMarksEqual(marks1: any[] = [], marks2: any[] = []): boolean {
   if (marks1.length !== marks2.length) return false;
   return marks1.every((mark1, i) => {
     const mark2 = marks2[i];
-    return mark1.type === mark2.type &&
-           JSON.stringify(mark1.attrs || {}) === JSON.stringify(mark2.attrs || {});
+    return (
+      mark1.type === mark2.type &&
+      JSON.stringify(mark1.attrs || {}) === JSON.stringify(mark2.attrs || {})
+    );
   });
 }
 
@@ -254,5 +256,66 @@ export function textAndMentionsToContent(
   return {
     type: 'doc',
     content,
+  };
+}
+
+export function contentToTextAndMentions(jsonContent: JSONContent): {
+  text: string;
+  mentions: Mention[];
+} {
+  const text: string[] = [];
+  const mentions: Mention[] = [];
+  const content = jsonContent.content;
+
+  if (!content) {
+    return {
+      text: '',
+      mentions: [],
+    };
+  }
+
+  content.forEach((node) => {
+    if (node.type === 'paragraph') {
+      if (!node.content) {
+        return;
+      }
+      node.content.forEach((child) => {
+        if (child.type === 'text') {
+          if (!child.text) {
+            return;
+          }
+          text.push(child.text);
+        } else if (child.type === 'mention') {
+          if (!child.attrs || !child.attrs.id) {
+            return;
+          }
+
+          text.push(`~${child.attrs.id}`);
+
+          const mentionStartIndex = text.join('').lastIndexOf('~');
+          const mentionEndIndex = mentionStartIndex + child.attrs.id.length + 1;
+
+          mentions.push({
+            id: child.attrs!.id,
+            display: `~${child.attrs!.id}`,
+            start: mentionStartIndex,
+            end: mentionEndIndex,
+          });
+        }
+      });
+      text.push('\n');
+    } else if (node.type === 'codeBlock') {
+      if (!node.content || !node.content[0].text) {
+        return;
+      }
+      text.push('```\n');
+      text.push(node.content[0].text);
+      text.push('\n```\n');
+    }
+  });
+
+  return {
+    text: text.join(''),
+    mentions,
   };
 }

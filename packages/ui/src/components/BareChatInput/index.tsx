@@ -1,6 +1,7 @@
 import {
   JSONToInlines,
   REF_REGEX,
+  diaryMixedToJSON,
   extractContentTypesFromPost,
 } from '@tloncorp/shared';
 import {
@@ -10,6 +11,7 @@ import {
 import * as db from '@tloncorp/shared/dist/db';
 import {
   Block,
+  Story,
   citeToPath,
   constructStory,
   pathToCite,
@@ -31,7 +33,7 @@ import {
   MessageInputContainer,
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
-import { textAndMentionsToContent } from './helpers';
+import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import { useMentions } from './useMentions';
 
 export default function BareChatInput({
@@ -129,6 +131,9 @@ export default function BareChatInput({
     setText(textWithoutRefs);
 
     handleMention(oldText, textWithoutRefs);
+
+    const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
+    storeDraft(jsonContent);
   };
 
   const onMentionSelect = useCallback(
@@ -148,71 +153,53 @@ export default function BareChatInput({
   );
 
   const renderTextWithMentions = useMemo(() => {
-    if (!text) {
+    if (!text || mentions.length === 0) {
       return null;
     }
 
-    if (mentions.length === 0) {
-      return null;
-    }
-
+    const sortedMentions = [...mentions].sort((a, b) => a.start - b.start);
     const textParts: JSX.Element[] = [];
-    let lastIndex = 0;
 
-    mentions
-      .sort((a, b) => a.start - b.start)
-      .forEach((mention, index) => {
-        if (mention.start > lastIndex) {
-          textParts.push(
-            <Text key={`text-${index}`} color="transparent">
-              {text.slice(lastIndex, mention.start)}
-            </Text>
-          );
-        }
-
-        textParts.push(
-          <Text
-            key={`mention-${mention.id}`}
-            color="$positiveActionText"
-            backgroundColor="$positiveBackground"
-          >
-            {mention.display}
-          </Text>
-        );
-
-        lastIndex = mention.end;
-      });
-
-    if (lastIndex < text.length) {
+    // Handle text before first mention
+    if (sortedMentions[0].start > 0) {
       textParts.push(
-        <Text key="text-end" color="transparent">
-          {text.slice(lastIndex)}
+        <Text key="text-start" color="transparent">
+          {text.slice(0, sortedMentions[0].start)}
         </Text>
       );
     }
 
-    return (
-      <Text
-        minHeight={initialHeight}
-        maxHeight={maxInputHeight}
-        width="100%"
-        paddingHorizontal="$l"
-        paddingVertical="$s"
-        fontSize="$m"
-        lineHeight="$m"
-      >
-        {textParts}
-      </Text>
-    );
-  }, [mentions, text, initialHeight, maxInputHeight]);
+    // Handle mentions and text between them
+    sortedMentions.forEach((mention, index) => {
+      textParts.push(
+        <Text
+          key={`mention-${mention.id}-${index}`}
+          color="$positiveActionText"
+          backgroundColor="$positiveBackground"
+        >
+          {mention.display}
+        </Text>
+      );
+
+      // Add text between this mention and the next one (or end of text)
+      const nextStart = sortedMentions[index + 1]?.start ?? text.length;
+      if (mention.end < nextStart) {
+        textParts.push(
+          <Text key={`text-${index}`} color="transparent">
+            {text.slice(mention.end, nextStart)}
+          </Text>
+        );
+      }
+    });
+
+    return textParts;
+  }, [mentions, text]);
 
   const sendMessage = useCallback(
     async (isEdit?: boolean) => {
       const jsonContent = textAndMentionsToContent(text, mentions);
       const inlines = JSONToInlines(jsonContent);
       const story = constructStory(inlines);
-      console.log('jsonContent', jsonContent);
-      console.log('inlines', inlines);
 
       const finalAttachments = await waitForAttachmentUploads();
 
@@ -380,14 +367,16 @@ export default function BareChatInput({
   // Set initial content from draft or post that is being edited
   useEffect(() => {
     if (!hasSetInitialContent) {
-      // messageInputLogger.log('Setting initial content');
       try {
         getDraft().then((draft) => {
-          if (!editingPost && draft) {
+          if (!editingPost && draft && draft.length > 0) {
             // We'll need to parse the draft content here
             // NOTE: drafts are currently stored as tiptap JSONContent
             setEditorIsEmpty(false);
             setHasSetInitialContent(true);
+            const { text, mentions } = contentToTextAndMentions(draft);
+            setText(text);
+            setMentions(mentions);
           }
 
           if (editingPost && editingPost.content) {
@@ -427,8 +416,15 @@ export default function BareChatInput({
             });
 
             resetAttachments(attachments);
+            const jsonContent = diaryMixedToJSON(
+              story?.filter(
+                (c) => !('type' in c) && !('block' in c && 'image' in c.block)
+              ) as Story
+            );
 
-            // We'll need to parse the post content here
+            const { text, mentions } = contentToTextAndMentions(jsonContent);
+            setText(text);
+            setMentions(mentions);
             setEditorIsEmpty(false);
             setHasSetInitialContent(true);
           }
@@ -454,13 +450,16 @@ export default function BareChatInput({
     editingPost,
     resetAttachments,
     addAttachment,
+    setMentions,
   ]);
 
-  // Store draft when text changes
-  useEffect(() => {
-    const jsonContent = textAndMentionsToContent(text, mentions);
-    storeDraft(jsonContent);
-  }, [text, mentions, storeDraft]);
+  const handleCancelEditing = useCallback(() => {
+    setEditingPost?.(undefined);
+    setHasSetInitialContent(false);
+    setText('');
+    clearDraft();
+    clearAttachments();
+  }, [setEditingPost, clearDraft, clearAttachments]);
 
   return (
     <MessageInputContainer
@@ -476,7 +475,7 @@ export default function BareChatInput({
       onSelectMention={onMentionSelect}
       isSending={isSending}
       isEditing={!!editingPost}
-      cancelEditing={() => setEditingPost?.(undefined)}
+      cancelEditing={handleCancelEditing}
       onPressEdit={handleEdit}
       goBack={goBack}
     >
@@ -509,12 +508,15 @@ export default function BareChatInput({
           placeholder={placeholder}
         />
         {mentions.length > 0 && (
-          <View
-            backgroundColor="transparent"
-            position="absolute"
-            pointerEvents="none"
-          >
-            {renderTextWithMentions}
+          <View position="absolute" pointerEvents="none">
+            <Text
+              paddingHorizontal="$l"
+              paddingBottom="$s"
+              fontSize="$m"
+              lineHeight={getFontSize('$m') * 1.3}
+            >
+              {renderTextWithMentions}
+            </Text>
           </View>
         )}
       </YStack>
