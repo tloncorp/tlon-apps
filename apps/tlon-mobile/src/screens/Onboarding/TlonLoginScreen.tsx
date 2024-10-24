@@ -22,6 +22,7 @@ import {
   OnboardingTextBlock,
   ScreenHeader,
   TextInput,
+  TextInputWithButton,
   TlonText,
   View,
   YStack,
@@ -62,6 +63,8 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
     mode: 'onChange',
   });
   const { setShip } = useShip();
+
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   const handleForgotPassword = () => {
     const { email } = getValues();
@@ -227,7 +230,7 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
               }}
               render={({ field: { onChange, onBlur, value } }) => (
                 <Field label="Password" error={errors.password?.message}>
-                  <TextInput
+                  <TextInputWithButton
                     placeholder="Password"
                     onBlur={() => {
                       onBlur();
@@ -236,11 +239,13 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
                     onChangeText={onChange}
                     onSubmitEditing={onSubmit}
                     value={value}
-                    secureTextEntry
+                    secureTextEntry={!passwordVisible}
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType="send"
                     enablesReturnKeyAutomatically
+                    buttonText={passwordVisible ? 'Hide' : 'Show'}
+                    onButtonPress={() => setPasswordVisible(!passwordVisible)}
                   />
                 </Field>
               )}
