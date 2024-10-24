@@ -5,7 +5,6 @@ import { Story } from '@tloncorp/shared/dist/urbit';
 import { useMemo } from 'react';
 import { Image, View, XStack } from 'tamagui';
 
-import { useContact } from '../../contexts';
 import { ContactAvatar } from '../Avatar';
 import ContactName from '../ContactName';
 
@@ -29,17 +28,11 @@ export function PictoMessage({
     const content = extractContentTypesFromPost(post);
     return content.blocks.find((b): b is ub.Image => 'image' in b);
   }, [post]);
-  const postContact = useContact(post.authorId);
 
   if (!image) return null;
   return (
     <View padding="$s" paddingVertical="$xs">
-      <View
-        borderColor="$border"
-        borderWidth={1}
-        borderRadius={'$m'}
-        overflow="hidden"
-      >
+      <View borderColor="$border" borderWidth={1} borderRadius={'$m'}>
         <Image
           width={'100%'}
           aspectRatio={image.image.width / image.image.height}
@@ -47,8 +40,7 @@ export function PictoMessage({
         />
         <XStack
           position="absolute"
-          backgroundColor={postContact?.color || 'black'}
-          top={0}
+          top={'100%'}
           left={0}
           padding="$s"
           paddingRight="$m"
