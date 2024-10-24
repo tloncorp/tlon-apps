@@ -4,7 +4,6 @@ import {
   RECAPTCHA_SITE_KEY,
 } from '@tloncorp/app/constants';
 import { useSignupParams } from '@tloncorp/app/contexts/branch';
-import { useSignupContext } from '.././../lib/signupContext';
 import { setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
@@ -15,7 +14,7 @@ import {
   ListItem,
   Modal,
   ScreenHeader,
-  TextInput,
+  TextInputWithButton,
   TlonText,
   View,
   YStack,
@@ -27,6 +26,7 @@ import { getTokenValue } from 'tamagui';
 
 import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
+import { useSignupContext } from '.././../lib/signupContext';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignUpPassword'>;
 
@@ -67,6 +67,9 @@ export const SignUpPasswordScreen = ({
     mode: 'onBlur',
   });
   const { height } = useWindowDimensions();
+
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
 
   const handlePressEula = useCallback(() => {
     navigation.navigate('EULA');
@@ -235,17 +238,19 @@ export const SignUpPasswordScreen = ({
                   error={errors.password?.message}
                   paddingTop="$m"
                 >
-                  <TextInput
+                  <TextInputWithButton
                     placeholder="Choose a password"
                     onBlur={onBlur}
                     onChangeText={onChange}
                     onSubmitEditing={() => setFocus('confirmPassword')}
                     value={value}
-                    secureTextEntry
+                    secureTextEntry={!passwordVisible}
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType="next"
                     enablesReturnKeyAutomatically
+                    buttonText={passwordVisible ? 'Hide' : 'Show'}
+                    onButtonPress={() => setPasswordVisible(!passwordVisible)}
                   />
                 </Field>
               )}
@@ -264,18 +269,22 @@ export const SignUpPasswordScreen = ({
                   label="Confirm Password"
                   error={errors.confirmPassword?.message}
                 >
-                  <TextInput
+                  <TextInputWithButton
                     placeholder="Confirm password"
                     onBlur={onBlur}
                     onChangeText={onChange}
                     onSubmitEditing={onSubmit}
                     value={value}
-                    secureTextEntry
+                    secureTextEntry={!confirmPasswordVisible}
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType="send"
                     ref={ref}
                     enablesReturnKeyAutomatically
+                    buttonText={confirmPasswordVisible ? 'Hide' : 'Show'}
+                    onButtonPress={() =>
+                      setConfirmPasswordVisible(!confirmPasswordVisible)
+                    }
                   />
                 </Field>
               )}
