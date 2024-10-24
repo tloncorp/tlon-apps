@@ -75,22 +75,7 @@ function BaseCardsPostCollection({
   );
 
   return (
-    <View
-      onPress={
-        disableNavigation
-          ? undefined
-          : (event) => {
-              jog(
-                event.nativeEvent.locationX < windowDimensions.width * 0.5
-                  ? -1
-                  : 1
-              );
-            }
-      }
-      alignItems="stretch"
-      justifyContent="center"
-      flex={1}
-    >
+    <View alignItems="stretch" justifyContent="center" flex={1}>
       <View flex={1} alignItems="stretch" justifyContent="center">
         {displayedPost == null ? (
           <Text>Loading...</Text>
