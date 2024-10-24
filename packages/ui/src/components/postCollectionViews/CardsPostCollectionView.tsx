@@ -5,6 +5,7 @@ import {
   useImperativeHandle,
   useState,
 } from 'react';
+import { Alert } from 'react-native';
 import { Text, View, useWindowDimensions } from 'tamagui';
 
 import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
@@ -108,9 +109,28 @@ function BaseCardsPostCollection({
           <Button onPress={() => jog(1)}>
             <Button.Text>Older</Button.Text>
           </Button>
-          <Text>
-            {(displayedIndex ?? 0) + 1} / {posts.length}
-          </Text>
+          <Button
+            onPress={() => {
+              Alert.prompt(
+                'Go to post',
+                'Lower is newer, starting at 1',
+                (value) => {
+                  try {
+                    const index = parseInt(value, 10);
+                    if (index >= 1 && index <= posts.length) {
+                      setDisplayedIndex(index - 1);
+                    }
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }
+              );
+            }}
+          >
+            <Button.Text>
+              {(displayedIndex ?? 0) + 1} / {posts.length}
+            </Button.Text>
+          </Button>
           <Button onPress={() => jog(-1)}>
             <Text>Newer</Text>
           </Button>
