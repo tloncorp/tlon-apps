@@ -192,6 +192,8 @@ function labelForCollectionLayout(l: CollectionRendererId): string {
       return 'Notebook';
     case CollectionRendererId.cards:
       return 'Cards';
+    case CollectionRendererId.sign:
+      return 'Sign';
   }
 }
 
@@ -234,6 +236,7 @@ const CustomChannelConfigurationForm = forwardRef<{
         CollectionRendererId.gallery,
         CollectionRendererId.notebook,
         CollectionRendererId.cards,
+        CollectionRendererId.sign,
       ].map((id) => ({
         title: labelForCollectionLayout(id),
         value: id,

@@ -3,6 +3,7 @@ export enum CollectionRendererId {
   chat = 'tlon.r0.collection.chat',
   gallery = 'tlon.r0.collection.gallery',
   cards = 'tlon.r0.collection.cards',
+  sign = 'tlon.r0.collection.sign',
 }
 
 export enum DraftInputId {

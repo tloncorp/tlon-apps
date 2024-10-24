@@ -21,7 +21,10 @@ import {
   NotebookInput,
 } from '../components/draftInputs';
 import { ButtonInput } from '../components/draftInputs/ButtonInput';
-import { CardsPostCollection } from '../components/postCollectionViews/CardsPostCollectionView';
+import {
+  CardsPostCollection,
+  SingleCardPostCollection,
+} from '../components/postCollectionViews/CardsPostCollectionView';
 import { ListPostCollection } from '../components/postCollectionViews/ListPostCollectionView';
 import { IPostCollectionView } from '../components/postCollectionViews/shared';
 
@@ -123,6 +126,7 @@ const BUILTIN_COLLECTION_RENDERERS: {
   [CollectionRendererId.gallery]: ListPostCollection,
   [CollectionRendererId.notebook]: ListPostCollection,
   [CollectionRendererId.cards]: CardsPostCollection,
+  [CollectionRendererId.sign]: SingleCardPostCollection,
 };
 
 export function ComponentsKitContextProvider({
