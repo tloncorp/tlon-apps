@@ -13,6 +13,7 @@ export enum DraftInputId {
   yo = 'tlon.r0.input.yo',
   mic = 'tlon.r0.input.mic',
   picto = 'tlon.r0.input.picto',
+  color = 'tlon.r0.input.color',
 }
 
 export enum PostContentRendererId {
@@ -21,6 +22,7 @@ export enum PostContentRendererId {
   gallery = 'tlon.r0.content.gallery',
   picto = 'tlon.r0.content.picto',
   audio = 'tlon.r0.content.audio',
+  color = 'tlon.r0.content.color',
 }
 
 /**

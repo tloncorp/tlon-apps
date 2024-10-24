@@ -10,11 +10,13 @@ import { ReactElement, createContext, useContext, useMemo } from 'react';
 import { AudioPost } from '../components/AudioPost';
 import { PictoMessage } from '../components/Channel/PictoMessage';
 import { ChatMessage } from '../components/ChatMessage';
+import { ColorPost } from '../components/ColorPost';
 import { StandaloneDrawingInput } from '../components/DrawingInput';
 import { GalleryPost } from '../components/GalleryPost';
 import { NotebookPost } from '../components/NotebookPost';
 import {
   ChatInput,
+  ColorInput,
   DraftInputContext,
   GalleryInput,
   MicInput,
@@ -104,6 +106,7 @@ const BUILTIN_CONTENT_RENDERERS: { [id: string]: RenderItemType } = {
   [PostContentRendererId.notebook]: NotebookPost,
   [PostContentRendererId.picto]: PictoMessage,
   [PostContentRendererId.audio]: AudioPost,
+  [PostContentRendererId.color]: ColorPost,
 };
 const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   [DraftInputId.chat]: ChatInput,
@@ -118,6 +121,7 @@ const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   ),
   [DraftInputId.picto]: StandaloneDrawingInput,
   [DraftInputId.mic]: MicInput,
+  [DraftInputId.color]: ColorInput,
 };
 const BUILTIN_COLLECTION_RENDERERS: {
   [id in CollectionRendererId]: IPostCollectionView;
