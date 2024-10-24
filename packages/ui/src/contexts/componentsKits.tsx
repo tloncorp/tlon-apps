@@ -16,6 +16,7 @@ import {
   GalleryInput,
   NotebookInput,
 } from '../components/draftInputs';
+import { ButtonInput } from '../components/draftInputs/ButtonInput';
 import { CardsPostCollection } from '../components/postCollectionViews/CardsPostCollectionView';
 import { ListPostCollection } from '../components/postCollectionViews/ListPostCollectionView';
 import { IPostCollectionView } from '../components/postCollectionViews/shared';
@@ -99,6 +100,13 @@ const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   [DraftInputId.chat]: ChatInput,
   [DraftInputId.gallery]: GalleryInput,
   [DraftInputId.notebook]: NotebookInput,
+  [DraftInputId.yo]: ({ draftInputContext }) => (
+    <ButtonInput
+      draftInputContext={draftInputContext}
+      messageText="Yo"
+      labelText="Yo"
+    />
+  ),
 };
 const BUILTIN_COLLECTION_RENDERERS: {
   [id in CollectionRendererId]: IPostCollectionView;
