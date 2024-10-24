@@ -11,13 +11,13 @@ import { Text, View, YStack } from 'tamagui';
 import { NavigationProvider, useCurrentUserId } from '../contexts';
 import { AttachmentProvider } from '../contexts/attachment';
 import * as utils from '../utils';
+import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
 import { ChannelFooter } from './Channel/ChannelFooter';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import { DetailView } from './DetailView';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
-import { MessageInput } from './MessageInput';
 import { TlonEditorBridge } from './MessageInput/toolbarActions.native';
 
 export function PostScreenView({
@@ -209,7 +209,7 @@ export function PostScreenView({
               ) : null}
 
               {negotiationMatch && channel && canWrite && (
-                <MessageInput
+                <BareChatInput
                   placeholder="Reply"
                   shouldBlur={inputShouldBlur}
                   setShouldBlur={setInputShouldBlur}
@@ -227,7 +227,6 @@ export function PostScreenView({
                     (channel.type === 'chat' && parentPost?.replyCount === 0) ||
                     !!editingPost
                   }
-                  ref={editorRef}
                 />
               )}
               {!negotiationMatch && channel && canWrite && (
