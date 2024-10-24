@@ -160,6 +160,8 @@ function labelForDraftInput(draftInputId: DraftInputId): string {
       return 'Gallery';
     case DraftInputId.notebook:
       return 'Notebook';
+    case DraftInputId.picto:
+      return 'Drawing';
     case DraftInputId.yo:
       return 'Yo';
   }
@@ -172,6 +174,8 @@ function labelForContentRenderer(r: PostContentRendererId): string {
       return 'Gallery';
     case PostContentRendererId.notebook:
       return 'Notebook';
+    case PostContentRendererId.picto:
+      return 'Drawing';
   }
 }
 function labelForCollectionLayout(l: CollectionRendererId): string {
@@ -204,6 +208,7 @@ const CustomChannelConfigurationForm = forwardRef<{
         DraftInputId.chat,
         DraftInputId.gallery,
         DraftInputId.notebook,
+        DraftInputId.picto,
         DraftInputId.yo,
       ].map((id) => ({
         title: labelForDraftInput(id),
@@ -213,6 +218,7 @@ const CustomChannelConfigurationForm = forwardRef<{
         PostContentRendererId.chat,
         PostContentRendererId.gallery,
         PostContentRendererId.notebook,
+        PostContentRendererId.picto,
       ].map((id) => ({
         title: labelForContentRenderer(id),
         value: id,

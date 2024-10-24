@@ -7,7 +7,9 @@ import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { ReactElement, createContext, useContext, useMemo } from 'react';
 
+import { PictoMessage } from '../components/Channel/PictoMessage';
 import { ChatMessage } from '../components/ChatMessage';
+import { StandaloneDrawingInput } from '../components/DrawingInput';
 import { GalleryPost } from '../components/GalleryPost';
 import { NotebookPost } from '../components/NotebookPost';
 import {
@@ -95,6 +97,7 @@ const BUILTIN_CONTENT_RENDERERS: { [id: string]: RenderItemType } = {
   [PostContentRendererId.chat]: ChatMessage,
   [PostContentRendererId.gallery]: GalleryPost,
   [PostContentRendererId.notebook]: NotebookPost,
+  [PostContentRendererId.picto]: PictoMessage,
 };
 const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   [DraftInputId.chat]: ChatInput,
@@ -107,6 +110,7 @@ const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
       labelText="Yo"
     />
   ),
+  [DraftInputId.picto]: StandaloneDrawingInput,
 };
 const BUILTIN_COLLECTION_RENDERERS: {
   [id in CollectionRendererId]: IPostCollectionView;
