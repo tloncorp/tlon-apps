@@ -17,6 +17,7 @@ import {
   OnboardingTextBlock,
   ScreenHeader,
   TextInput,
+  TextInputWithButton,
   TlonText,
   View,
   YStack,
@@ -57,6 +58,8 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     },
   });
   const { setShip } = useShip();
+
+  const [codevisible, setCodeVisible] = useState(false);
 
   const isValidUrl = useCallback((url: string) => {
     const urlPattern =
@@ -199,7 +202,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
               }}
               render={({ field: { onChange, onBlur, value } }) => (
                 <Field label="Access Code" error={errors.accessCode?.message}>
-                  <TextInput
+                  <TextInputWithButton
                     testID="textInput accessCode"
                     placeholder="xxxxxx-xxxxxx-xxxxxx-xxxxxx"
                     onBlur={() => {
@@ -209,11 +212,13 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
                     onChangeText={onChange}
                     onSubmitEditing={onSubmit}
                     value={value}
-                    secureTextEntry
+                    secureTextEntry={!codevisible}
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType="send"
                     enablesReturnKeyAutomatically
+                    buttonText={codevisible ? 'Hide' : 'Show'}
+                    onButtonPress={() => setCodeVisible(!codevisible)}
                   />
                 </Field>
               )}
