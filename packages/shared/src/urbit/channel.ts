@@ -172,14 +172,23 @@ export type KindDataChat = {
   chat: null | { notice: null };
 };
 
-export type KindData = KindDataDiary | KindDataChat | KindDataHeap;
-export type Kind = 'heap' | 'diary' | 'chat';
+export type KindDataCustom = {
+  custom: string;
+};
+
+export type KindData =
+  | KindDataDiary
+  | KindDataChat
+  | KindDataHeap
+  | KindDataCustom;
+export type Kind = 'heap' | 'diary' | 'chat' | 'custom';
 
 export interface PostEssay {
   content: Story;
   author: Ship;
   sent: number;
   'kind-data': KindData;
+  blob: PostMetadataSchemaV1 | null;
 }
 
 export type Post = {
@@ -336,6 +345,11 @@ export interface Channel {
   order: string[];
   sort: SortMode;
   pending: PendingMessages;
+  hooks: Hooks;
+  metadata: {
+    data: ChannelMetadataSchema | null;
+    revision: number;
+  };
 }
 
 export interface Channels {
@@ -355,6 +369,53 @@ export interface Create {
 export interface Perm {
   writers: string[];
   group: Flag;
+}
+
+interface Bot {
+  nickname?: string;
+  avatar?: string;
+  origin?: string;
+  agent: string;
+}
+
+interface PostMetadataSchemaV1 {
+  type: string;
+  bot?: Bot;
+  rendererOverride?: string;
+}
+
+interface MessageInput {
+  type: string;
+  postType: string;
+  configuration: Record<string, string>;
+}
+
+interface ContentRenderer {
+  render: string;
+  using: string;
+}
+
+interface ChannelMetadataSchemaV1 {
+  version: 1;
+  messageInputs: MessageInput[];
+  defaultContentRenderers?: ContentRenderer[];
+  defaultPostCollectionRenderer?: string;
+}
+
+type ChannelMetadataSchema = ChannelMetadataSchemaV1;
+
+interface Hook {
+  version: number;
+  name: string;
+  src: string;
+  compiled: boolean;
+}
+
+interface Hooks {
+  allowed: Hook[];
+  transform: Hook[];
+  sort: Hook[];
+  effect: Hook[];
 }
 
 export interface ReplyReferenceResponse {
