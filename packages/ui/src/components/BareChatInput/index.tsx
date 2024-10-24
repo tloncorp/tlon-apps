@@ -1,5 +1,12 @@
-import { JSONToInlines, extractContentTypesFromPost } from '@tloncorp/shared';
-import { contentReferenceToCite } from '@tloncorp/shared/dist/api';
+import {
+  JSONToInlines,
+  REF_REGEX,
+  extractContentTypesFromPost,
+} from '@tloncorp/shared';
+import {
+  contentReferenceToCite,
+  toContentReference,
+} from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import {
   Block,
@@ -82,11 +89,46 @@ export default function BareChatInput({
   const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
+  const processReferences = useCallback(
+    (text: string): string => {
+      const references = text.match(REF_REGEX);
+      if (!references) {
+        return text;
+      }
+
+      let newText = text;
+      references.forEach((ref) => {
+        const cite = pathToCite(ref);
+        if (!cite) {
+          return;
+        }
+        const reference = toContentReference(cite);
+        if (!reference) {
+          return;
+        }
+
+        addAttachment({
+          type: 'reference',
+          reference,
+          path: ref,
+        });
+
+        newText = newText.replace(ref, '');
+      });
+
+      return newText;
+    },
+    [addAttachment]
+  );
+
   const handleTextChange = (newText: string) => {
     const oldText = text;
-    setText(newText);
 
-    handleMention(oldText, newText);
+    const textWithoutRefs = processReferences(newText);
+
+    setText(textWithoutRefs);
+
+    handleMention(oldText, textWithoutRefs);
   };
 
   const onMentionSelect = useCallback(
