@@ -1,5 +1,14 @@
 /-  g=groups, d=channels, c=chat, a=activity
 |%
++$  init-5
+  $:  groups=groups-ui:g
+      =gangs:g
+      channel=channel-8
+      =activity:a
+      pins=(list whom)
+      chat=chat-2
+      profile=?
+  ==
 +$  init-4
   $:  groups=groups-ui:g
       =gangs:g
@@ -50,6 +59,10 @@
 ::
 +$  mixed-heads  [chan=channel-heads:v7:old:d chat=chat-heads:c]
 ::
++$  channel-8
+  $:  =channels:d
+      hidden-posts=(set id-post:d)
+  ==
 +$  channel-0
   $:  =channels:v1:old:d
       hidden-posts=(set id-post:d)
