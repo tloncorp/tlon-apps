@@ -2,7 +2,7 @@
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
-/+  volume, cutils=channel-utils
+/+  volume, cutils=channel-utils, em=emojimart
 /+  epos-lib=saga
 ::  performance, keep warm
 /+  heap-json
@@ -589,6 +589,7 @@
     :-  [%heap flag]
     =/  posts=v-posts:c  (convert-posts curios.heap)
     %*    .  *v-channel:c
+        count   (wyt:on-v-posts:c posts)
         posts   posts
         log     ?.(log ~ (convert-log curios.heap posts perm.heap log.heap))
         view    [1 view.heap]
@@ -614,24 +615,36 @@
       %+  ~(put by index)  u.replying.curio
       (put:on-v-replies:c old-replies time `(convert-reply time curio))
     %+  gas:on-v-posts:c  *v-posts:c
-    %+  murn  curios
-    |=  [=time =curio:h]
-    ^-  (unit [id-post:c (unit v-post:c)])
-    ?^  replying.curio  ~
+    =|  posts=(list [id-post:c (unit v-post:c)])
+    =<  +
+    %+  roll  curios
+    |=  [[=time =curio:h] count=@ud =_posts]
+    ^+  [count posts]
+    ?^  replying.curio
+      [count posts]
     =/  replies=v-replies:c  (~(gut by index) time *v-replies:c)
-    (some time `(convert-post time curio replies))
+    =.  count  +(count)
+    :-  count
+    :_  posts
+    [time `(convert-post time count curio replies)]
   ::
   ++  convert-post
-    |=  [id=@da old=curio:h replies=v-replies:c]
+    |=  [id=@da seq=@ud old=curio:h replies=v-replies:c]
     ^-  v-post:c
-    [[id replies (convert-feels feels.old)] %0 (convert-essay +.old)]
+    =/  modified-at=@da
+      %-  ~(rep in replied.old)
+      |=  [=time mod=_id]
+      ?:((gth time mod) time mod)
+    [[id seq modified-at replies (convert-feels feels.old)] %0 (convert-essay +.old)]
   ::
   ++  convert-feels
     |=  old=(map ship feel:h)
     ^-  v-reacts:c
     %-  ~(run by old)
     |=  =feel:h
-    [%0 `feel]
+    ?~  react=(kill:em feel)
+      [%0 `[%any feel]]
+    [%0 `u.react]
   ::
   ++  convert-reply
     |=  [id=@da old=curio:h]

@@ -1,14 +1,14 @@
 /-  c=channels
 /+  j=channel-json
-|_  =paged-posts:c
+|_  =paged-posts:v7:old:c
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  paged-posts
-  ++  json  (paged-posts:enjs:j paged-posts)
+  ++  json  (paged-posts:v7:enjs:j paged-posts)
   --
 ++  grab
   |%
-  ++  noun  paged-posts:c
+  ++  noun  paged-posts:v7:old:c
   --
 --
