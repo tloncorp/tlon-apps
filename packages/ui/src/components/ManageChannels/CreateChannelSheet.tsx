@@ -164,6 +164,8 @@ function labelForDraftInput(draftInputId: DraftInputId): string {
       return 'Drawing';
     case DraftInputId.yo:
       return 'Yo';
+    case DraftInputId.mic:
+      return 'Mic';
   }
 }
 function labelForContentRenderer(r: PostContentRendererId): string {
@@ -176,6 +178,8 @@ function labelForContentRenderer(r: PostContentRendererId): string {
       return 'Notebook';
     case PostContentRendererId.picto:
       return 'Drawing';
+    case PostContentRendererId.audio:
+      return 'Audio';
   }
 }
 function labelForCollectionLayout(l: CollectionRendererId): string {
@@ -210,6 +214,7 @@ const CustomChannelConfigurationForm = forwardRef<{
         DraftInputId.notebook,
         DraftInputId.picto,
         DraftInputId.yo,
+        DraftInputId.mic,
       ].map((id) => ({
         title: labelForDraftInput(id),
         value: id,
@@ -219,6 +224,7 @@ const CustomChannelConfigurationForm = forwardRef<{
         PostContentRendererId.gallery,
         PostContentRendererId.notebook,
         PostContentRendererId.picto,
+        PostContentRendererId.audio,
       ].map((id) => ({
         title: labelForContentRenderer(id),
         value: id,

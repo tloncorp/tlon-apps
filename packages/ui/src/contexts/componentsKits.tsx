@@ -7,6 +7,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { ReactElement, createContext, useContext, useMemo } from 'react';
 
+import { AudioPost } from '../components/AudioPost';
 import { PictoMessage } from '../components/Channel/PictoMessage';
 import { ChatMessage } from '../components/ChatMessage';
 import { StandaloneDrawingInput } from '../components/DrawingInput';
@@ -16,6 +17,7 @@ import {
   ChatInput,
   DraftInputContext,
   GalleryInput,
+  MicInput,
   NotebookInput,
 } from '../components/draftInputs';
 import { ButtonInput } from '../components/draftInputs/ButtonInput';
@@ -98,6 +100,7 @@ const BUILTIN_CONTENT_RENDERERS: { [id: string]: RenderItemType } = {
   [PostContentRendererId.gallery]: GalleryPost,
   [PostContentRendererId.notebook]: NotebookPost,
   [PostContentRendererId.picto]: PictoMessage,
+  [PostContentRendererId.audio]: AudioPost,
 };
 const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   [DraftInputId.chat]: ChatInput,
@@ -111,6 +114,7 @@ const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
     />
   ),
   [DraftInputId.picto]: StandaloneDrawingInput,
+  [DraftInputId.mic]: MicInput,
 };
 const BUILTIN_COLLECTION_RENDERERS: {
   [id in CollectionRendererId]: IPostCollectionView;

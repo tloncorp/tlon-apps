@@ -10,6 +10,7 @@ export enum DraftInputId {
   chat = 'tlon.r0.input.chat',
   gallery = 'tlon.r0.input.gallery',
   yo = 'tlon.r0.input.yo',
+  mic = 'tlon.r0.input.mic',
   picto = 'tlon.r0.input.picto',
 }
 
@@ -18,6 +19,7 @@ export enum PostContentRendererId {
   chat = 'tlon.r0.content.chat',
   gallery = 'tlon.r0.content.gallery',
   picto = 'tlon.r0.content.picto',
+  audio = 'tlon.r0.content.audio',
 }
 
 /**

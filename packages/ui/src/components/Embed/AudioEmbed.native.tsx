@@ -6,18 +6,61 @@ import {
   InterruptionModeIOS,
 } from 'expo-av';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useState } from 'react';
+import {
+  ElementRef,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import { Text, View } from 'tamagui';
 
 import { Icon } from '../Icon';
 import { LoadingSpinner } from '../LoadingSpinner';
+import * as shared from './AudioEmbedShared';
 import { Embed } from './Embed';
 
-export default function AudioEmbed({ url }: { url: string }) {
+const AudioEmbed: shared.AudioEmbed = ({ url }: { url: string }) => {
+  const [showModal, setShowModal] = useState(false);
+  const playerRef = useRef<ElementRef<typeof AudioPlayer>>(null);
+
+  useEffect(() => {
+    if (showModal) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  }, [showModal]);
+
+  return (
+    <Embed height={100}>
+      <Embed.Header onPress={() => ({})}>
+        <Embed.Title>Audio</Embed.Title>
+        <Embed.PopOutIcon />
+      </Embed.Header>
+      <Embed.Preview onPress={() => setShowModal(true)}>
+        <Icon type="Play" />
+        <Text>Listen</Text>
+      </Embed.Preview>
+      <Embed.Modal
+        onPress={useCallback(() => playerRef.current?.togglePlayPause(), [])}
+        visible={showModal}
+        onDismiss={() => setShowModal(false)}
+      >
+        <AudioPlayer ref={playerRef} url={url} canUnload={!showModal} />
+      </Embed.Modal>
+    </Embed>
+  );
+};
+export default AudioEmbed;
+
+export const AudioPlayer = forwardRef<
+  { togglePlayPause: () => void },
+  { url: string; canUnload?: boolean }
+>(function AudioPlayer({ url, canUnload }, forwardedRef) {
   const [playbackStatus, setPlaybackStatus] = useState<AVPlaybackStatus>();
   const [playbackError, setPlaybackError] = useState<string>();
   const [sound, setSound] = useState<ExpoAudio.Sound>();
-  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     ExpoAudio.setAudioModeAsync({
@@ -39,7 +82,7 @@ export default function AudioEmbed({ url }: { url: string }) {
       setSound(expoAudioSound);
     };
 
-    if (!showModal) {
+    if (canUnload) {
       return () => {
         if (sound) {
           sound.unloadAsync();
@@ -60,17 +103,11 @@ export default function AudioEmbed({ url }: { url: string }) {
     return () => {
       sound.unloadAsync();
     };
-  }, [sound, url, showModal]);
-
-  useEffect(() => {
-    if (showModal) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-  }, [showModal]);
+  }, [sound, url, canUnload]);
 
   const handlePlayPause = useCallback(async () => {
     if (!sound) {
-      return;
+      return { isPlaying: false };
     }
 
     if (playbackStatus?.isLoaded) {
@@ -79,43 +116,29 @@ export default function AudioEmbed({ url }: { url: string }) {
       } else {
         await sound.playAsync();
       }
+      return { isPlaying: !playbackStatus.isPlaying };
     } else if (playbackStatus?.error) {
       console.error(playbackStatus.error);
       setPlaybackError(playbackStatus.error);
+      return { isPlaying: false };
     }
   }, [playbackStatus, sound]);
 
+  const stop = useCallback(async () => {
+    await sound?.stopAsync();
+  }, [sound]);
+
+  useImperativeHandle(forwardedRef, () => ({
+    togglePlayPause: handlePlayPause,
+    stop,
+  }));
+
   return (
-    <Embed height={100}>
-      <Embed.Header onPress={() => ({})}>
-        <Embed.Title>Audio</Embed.Title>
-        <Embed.PopOutIcon />
-      </Embed.Header>
-      <Embed.Preview onPress={() => setShowModal(true)}>
-        <Icon type="Play" />
-        <Text>Listen</Text>
-      </Embed.Preview>
-      <Embed.Modal
-        onPress={handlePlayPause}
-        visible={showModal}
-        onDismiss={() => setShowModal(false)}
-      >
-        {playbackStatus?.isLoaded ? (
-          playbackStatus?.isPlaying ? (
-            <Icon type="Stop" />
-          ) : playbackStatus.isBuffering ? (
-            <View
-              width="$3xl"
-              height="$3xl"
-              paddingVertical="$s"
-              paddingHorizontal="$l"
-            >
-              <LoadingSpinner />
-            </View>
-          ) : (
-            <Icon type="Play" />
-          )
-        ) : (
+    <View>
+      {playbackStatus?.isLoaded ? (
+        playbackStatus?.isPlaying ? (
+          <Icon type="Stop" />
+        ) : playbackStatus.isBuffering ? (
           <View
             width="$3xl"
             height="$3xl"
@@ -124,24 +147,35 @@ export default function AudioEmbed({ url }: { url: string }) {
           >
             <LoadingSpinner />
           </View>
-        )}
+        ) : (
+          <Icon type="Play" />
+        )
+      ) : (
+        <View
+          width="$3xl"
+          height="$3xl"
+          paddingVertical="$s"
+          paddingHorizontal="$l"
+        >
+          <LoadingSpinner />
+        </View>
+      )}
+      <Text>
+        {playbackStatus?.isLoaded
+          ? playbackStatus.isPlaying
+            ? 'Playing'
+            : 'Listen'
+          : 'Loading'}
+      </Text>
+      {playbackStatus?.isLoaded && (
         <Text>
-          {playbackStatus?.isLoaded
-            ? playbackStatus.isPlaying
-              ? 'Playing'
-              : 'Listen'
-            : 'Loading'}
+          {makePrettyTimeFromMs(playbackStatus.positionMillis)}
+          {playbackStatus.durationMillis
+            ? ` / ${makePrettyTimeFromMs(playbackStatus.durationMillis)}`
+            : null}
         </Text>
-        {playbackStatus?.isLoaded && (
-          <Text>
-            {makePrettyTimeFromMs(playbackStatus.positionMillis)}
-            {playbackStatus.durationMillis
-              ? ` / ${makePrettyTimeFromMs(playbackStatus.durationMillis)}`
-              : null}
-          </Text>
-        )}
-        {playbackError ? <Text>{playbackError}</Text> : null}
-      </Embed.Modal>
-    </Embed>
+      )}
+      {playbackError ? <Text>{playbackError}</Text> : null}
+    </View>
   );
-}
+});
