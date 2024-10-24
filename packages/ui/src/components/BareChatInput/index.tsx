@@ -1,10 +1,11 @@
-import { extractContentTypesFromPost } from '@tloncorp/shared';
+import { JSONToInlines, extractContentTypesFromPost } from '@tloncorp/shared';
 import { contentReferenceToCite } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import {
   Block,
   Story,
   citeToPath,
+  constructStory,
   pathToCite,
 } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -24,6 +25,7 @@ import {
   MessageInputContainer,
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
+import { textAndMentionsToContent } from './helpers';
 import { useMentions } from './useMentions';
 
 export default function BareChatInput({
@@ -165,8 +167,9 @@ export default function BareChatInput({
 
   const sendMessage = useCallback(
     async (isEdit?: boolean) => {
-      const story: Story = [];
-      // This is where we'll need to parse the text into inlines
+      const jsonContent = textAndMentionsToContent(text, mentions);
+      const inlines = JSONToInlines(jsonContent);
+      const story = constructStory(inlines);
 
       const finalAttachments = await waitForAttachmentUploads();
 
@@ -254,6 +257,8 @@ export default function BareChatInput({
     },
     [
       onSend,
+      mentions,
+      text,
       waitForAttachmentUploads,
       editingPost,
       clearAttachments,
@@ -410,9 +415,9 @@ export default function BareChatInput({
 
   // Store draft when text changes
   useEffect(() => {
-    // NOTE: drafts are currently stored as tiptap JSONContent
-    // storeDraft(text);
-  }, [text, storeDraft]);
+    const jsonContent = textAndMentionsToContent(text, mentions);
+    storeDraft(jsonContent);
+  }, [text, mentions, storeDraft]);
 
   return (
     <MessageInputContainer

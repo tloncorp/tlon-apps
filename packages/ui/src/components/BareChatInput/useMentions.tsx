@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useState } from 'react';
 
-interface Mention {
+export interface Mention {
   id: string;
   display: string;
   start: number;
