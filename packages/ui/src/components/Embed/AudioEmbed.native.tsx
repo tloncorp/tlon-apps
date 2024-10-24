@@ -104,6 +104,7 @@ export const AudioPlayer = forwardRef<
 
     return () => {
       sound.unloadAsync();
+      setSound(undefined);
     };
   }, [sound, url, canUnload]);
 
