@@ -71,11 +71,10 @@ const fakeLoadingMostRecentFile: Upload = {
 
 const ChannelFixtureWrapper = ({
   children,
-  theme,
 }: PropsWithChildren<{ theme?: 'light' | 'dark' }>) => {
   return (
     <AppDataContextProvider contacts={initialContacts}>
-      <FixtureWrapper fillWidth fillHeight theme={theme}>
+      <FixtureWrapper fillWidth fillHeight>
         {children}
       </FixtureWrapper>
     </AppDataContextProvider>
