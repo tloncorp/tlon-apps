@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
+import { shuffle } from 'lodash';
 import {
   forwardRef,
   useCallback,
@@ -28,6 +29,7 @@ function _BoardroomPostCollectionView({
   isPostInsideWindow: (post: db.Post) => boolean;
 }) {
   const { posts, PostView } = usePostCollectionContextUnsafelyUnwrapped();
+  const comparator = useMemo(() => randomStableLexiSort(), []);
 
   const [authorToMostRecentPost, setAuthorToMostRecentPost] = useState<
     Record<string, db.Post>
@@ -61,9 +63,9 @@ function _BoardroomPostCollectionView({
   const items = useMemo(
     () =>
       Object.entries(authorToMostRecentPost).sort(([userA], [userB]) =>
-        userA.localeCompare(userB)
+        comparator(userA, userB)
       ),
-    [authorToMostRecentPost]
+    [authorToMostRecentPost, comparator]
   );
 
   useLoadPostsInWindow(isPostInsideWindow);
@@ -93,3 +95,24 @@ export const BoardroomPostCollectionView: IPostCollectionView = forwardRef(
     );
   }
 );
+
+// it'd stink to show up below the bottom of the screen in every chat because
+// your name is at the end of the alphabet
+// here's a random but stable sort
+// there's probably a better way to do this
+function randomStableLexiSort(): (a: string, b: string) => number {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+  const cipher = shuffle(alphabet).reduce(
+    (acc, letter, i) => {
+      acc[letter] = alphabet[i];
+      return acc;
+    },
+    {} as Record<string, string>
+  );
+  const ciphered = (str: string) =>
+    str
+      .split('')
+      .map((c) => cipher[c] ?? ' ')
+      .join('');
+  return (a, b) => ciphered(a).localeCompare(ciphered(b));
+}
