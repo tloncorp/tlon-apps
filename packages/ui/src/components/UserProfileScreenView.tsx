@@ -297,6 +297,14 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
     }
   }, [props]);
 
+  const handleToggleContact = useCallback(() => {
+    if (props.contact && props.contact.isContact) {
+      store.removeContact(props.userId);
+    } else {
+      store.addContact(props.userId);
+    }
+  }, [props]);
+
   const isBlocked = useMemo(() => {
     return props.contact?.isBlocked ?? false;
   }, [props.contact]);
@@ -304,6 +312,10 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   return (
     <XStack gap="$m" width={'100%'}>
       <ProfileButton title="Message" onPress={handleMessageUser} hero />
+      <ProfileButton
+        title={props.contact?.isContact ? 'Remove Contact' : 'Add Contact'}
+        onPress={handleToggleContact}
+      />
       <ProfileButton
         title={isBlocked ? 'Unblock' : 'Block'}
         onPress={handleBlock}

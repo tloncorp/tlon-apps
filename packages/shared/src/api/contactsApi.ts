@@ -1,14 +1,27 @@
 import * as db from '../db';
+import { createDevLogger } from '../debug';
 import { normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
 import { poke, scry, subscribe } from './urbit';
+
+const logger = createDevLogger('contactsApi', true);
 
 export const getContacts = async () => {
   const results = await scry<ub.ContactRolodex>({
     app: 'contacts',
     path: '/all',
   });
-  return toClientContacts(results);
+
+  // new book
+  // - are they a contact
+  // - if yes, do they have nickname override
+  const contactBook = await scry<Record<string, any>>({
+    app: 'contacts',
+    path: '/v1/book',
+  });
+  logger.log('contactBook', contactBook);
+
+  return toClientContacts(results, contactBook);
 };
 
 export const addContacts = async (contactIds: string[]) => {
@@ -16,6 +29,24 @@ export const addContacts = async (contactIds: string[]) => {
     app: 'contacts',
     mark: 'contact-action',
     json: { heed: contactIds },
+  });
+};
+
+export const addContact = async (contactId: string) => {
+  return poke({
+    app: 'contacts',
+    mark: 'contact-action-1',
+    json: {
+      page: { kip: contactId },
+    },
+  });
+};
+
+export const removeContact = async (contactId: string) => {
+  return poke({
+    app: 'contacts',
+    mark: 'contact-action-1',
+    json: { wipe: [contactId] },
   });
 };
 
@@ -97,15 +128,21 @@ export const subscribeToContactUpdates = (
   );
 };
 
-export const toClientContacts = (contacts: ub.ContactRolodex): db.Contact[] => {
+export const toClientContacts = (
+  contacts: ub.ContactRolodex,
+  contactBook: Record<string, any>
+): db.Contact[] => {
   return Object.entries(contacts).flatMap(([ship, contact]) =>
-    contact === null ? [] : [toClientContact(ship, contact)]
+    contact === null
+      ? []
+      : [toClientContact(ship, contact, ship in contactBook)]
   );
 };
 
 export const toClientContact = (
   id: string,
-  contact: ub.Contact | null
+  contact: ub.Contact | null,
+  isContact?: boolean
 ): db.Contact => {
   return {
     id,
@@ -120,5 +157,6 @@ export const toClientContact = (
         groupId,
         contactId: id,
       })) ?? [],
+    isContact,
   };
 };

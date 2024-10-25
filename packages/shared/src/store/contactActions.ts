@@ -4,6 +4,33 @@ import { createDevLogger } from '../debug';
 
 const logger = createDevLogger('ContactActions', false);
 
+export async function addContact(contactId: string) {
+  // Optimistic update
+  // await db.addContact({ id: contactId });
+  await db.updateContact({ id: contactId, isContact: true });
+
+  try {
+    await api.addContact(contactId);
+  } catch (e) {
+    console.error('Error adding contact', e);
+    // Rollback the update
+    await db.updateContact({ id: contactId, isContact: false });
+  }
+}
+
+export async function removeContact(contactId: string) {
+  // Optimistic update
+  await db.updateContact({ id: contactId, isContact: false });
+
+  try {
+    await api.removeContact(contactId);
+  } catch (e) {
+    console.error('Error removing contact', e);
+    // Rollback the update
+    await db.updateContact({ id: contactId, isContact: true });
+  }
+}
+
 export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
   const currentUserId = api.getCurrentUserId();
   const currentUserContact = await db.getContact({ id: currentUserId });

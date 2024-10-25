@@ -20,6 +20,8 @@ const inputContact: [string, any] = [
   },
 ];
 
+const inputContactBook = {};
+
 const outputContact = {
   id: 'test',
   avatarImage: null,
@@ -42,6 +44,6 @@ test('converts a contact from server to client format', () => {
 
 test('converts an array of contacts from server to client format', () => {
   expect(
-    toClientContacts({ [inputContact[0]]: inputContact[1] })
+    toClientContacts({ [inputContact[0]]: inputContact[1] }, inputContactBook)
   ).toStrictEqual([outputContact]);
 });

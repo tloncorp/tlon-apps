@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "839147fe-9b23-480c-ac07-bcdee93e4828",
+  "id": "4a17aac9-4286-40c3-8716-1f1f9bc09604",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -677,6 +677,13 @@
         },
         "blocked": {
           "name": "blocked",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "isContact": {
+          "name": "isContact",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
