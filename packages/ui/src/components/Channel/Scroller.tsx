@@ -2,7 +2,6 @@ import {
   PostCollectionLayoutType,
   configurationFromChannel,
   layoutForType,
-  layoutTypeFromChannel,
   useMutableCallback,
 } from '@tloncorp/shared';
 import { createDevLogger } from '@tloncorp/shared/dist';
@@ -394,7 +393,7 @@ const Scroller = forwardRef(
             ref={flatListRef as React.RefObject<Animated.FlatList<db.Post>>}
             // This is needed so that we can force a refresh of the list when
             // we need to switch from 1 to 2 columns or vice versa.
-            key={channel.type}
+            key={channel.type + '-' + collectionLayout.columnCount}
             data={postsWithNeighbors}
             // Disabled to prevent the user from accidentally blurring the edit
             // input while they're typing.

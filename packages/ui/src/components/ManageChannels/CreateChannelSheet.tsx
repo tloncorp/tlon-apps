@@ -9,21 +9,25 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import {
+  ComponentProps,
   ElementRef,
   forwardRef,
   useCallback,
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import { useForm } from 'react-hook-form';
-import { SizableText } from 'tamagui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SizableText, View, XStack, YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts';
 import { useIsAdmin } from '../../utils';
-import { ActionSheet } from '../ActionSheet';
+import { Action, ActionSheet, SimpleActionSheet } from '../ActionSheet';
 import { Button } from '../Button';
 import * as Form from '../Form';
+import { Text } from '../TextV2';
 
 export type ChannelTypeName = 'chat' | 'notebook' | 'gallery' | 'custom';
 
@@ -209,6 +213,44 @@ function labelForCollectionLayout(l: CollectionRendererId): string {
   }
 }
 
+const options = {
+  inputs: [
+    DraftInputId.chat,
+    DraftInputId.gallery,
+    DraftInputId.notebook,
+    DraftInputId.picto,
+    DraftInputId.yo,
+    DraftInputId.mic,
+    DraftInputId.color,
+  ].map((id) => ({
+    title: labelForDraftInput(id),
+    value: id,
+  })),
+  content: [
+    PostContentRendererId.chat,
+    PostContentRendererId.gallery,
+    PostContentRendererId.notebook,
+    PostContentRendererId.picto,
+    PostContentRendererId.audio,
+    PostContentRendererId.color,
+  ].map((id) => ({
+    title: labelForContentRenderer(id),
+    value: id,
+  })),
+  collection: [
+    CollectionRendererId.chat,
+    CollectionRendererId.gallery,
+    CollectionRendererId.notebook,
+    CollectionRendererId.cards,
+    CollectionRendererId.sign,
+    CollectionRendererId.boardroom,
+    CollectionRendererId.strobe,
+  ].map((id) => ({
+    title: labelForCollectionLayout(id),
+    value: id,
+  })),
+};
+
 const CustomChannelConfigurationForm = forwardRef<
   {
     getFormValue: () => ChannelContentConfiguration;
@@ -224,48 +266,6 @@ const CustomChannelConfigurationForm = forwardRef<
       defaultPostCollectionRenderer: CollectionRendererId.chat,
     },
   });
-
-  const options = useMemo(
-    () => ({
-      inputs: [
-        DraftInputId.chat,
-        DraftInputId.gallery,
-        DraftInputId.notebook,
-        DraftInputId.picto,
-        DraftInputId.yo,
-        DraftInputId.mic,
-        DraftInputId.color,
-      ].map((id) => ({
-        title: labelForDraftInput(id),
-        value: id,
-      })),
-      content: [
-        PostContentRendererId.chat,
-        PostContentRendererId.gallery,
-        PostContentRendererId.notebook,
-        PostContentRendererId.picto,
-        PostContentRendererId.audio,
-        PostContentRendererId.color,
-      ].map((id) => ({
-        title: labelForContentRenderer(id),
-        value: id,
-      })),
-      collection: [
-        CollectionRendererId.chat,
-        CollectionRendererId.gallery,
-        CollectionRendererId.notebook,
-        CollectionRendererId.cards,
-        CollectionRendererId.sign,
-        CollectionRendererId.boardroom,
-        CollectionRendererId.strobe,
-      ].map((id) => ({
-        title: labelForCollectionLayout(id),
-        value: id,
-      })),
-    }),
-    []
-  );
-
   useImperativeHandle(ref, () => ({
     getFormValue: () => getValues(),
   }));
@@ -299,6 +299,157 @@ const CustomChannelConfigurationForm = forwardRef<
     </>
   );
 });
+
+export function ChannelConfigurationBar({
+  channel,
+  onPressDone,
+}: {
+  channel: db.Channel;
+  onPressDone: () => void;
+}) {
+  const updateChannel = useUpdateChannel();
+  const group = useGroup({ id: channel.group?.id }).data;
+
+  const saveConfiguration = useCallback(
+    async (configuration: ChannelContentConfiguration) => {
+      if (group == null) {
+        throw new Error("Couldn't get containing group");
+      }
+      await updateChannel({
+        group,
+        channel: {
+          ...channel,
+          contentConfiguration: configuration,
+        },
+      });
+    },
+    [channel, group, updateChannel]
+  );
+
+  const insets = useSafeAreaInsets();
+
+  return (
+    <YStack
+      padding="$xl"
+      gap="$2xl"
+      borderTopWidth={1}
+      borderTopColor="$border"
+      paddingBottom={insets.bottom + 20}
+      backgroundColor="$secondaryBackground"
+    >
+      <XStack gap="$m">
+        <ConfigInput
+          label={'Collection'}
+          value={
+            channel.contentConfiguration?.defaultPostCollectionRenderer ??
+            'not set'
+          }
+          onChange={(newCollectionType: string) =>
+            saveConfiguration({
+              ...channel.contentConfiguration!,
+              defaultPostCollectionRenderer:
+                newCollectionType as CollectionRendererId,
+            })
+          }
+          options={options.collection}
+        />
+        <ConfigInput
+          label={'Content renderer'}
+          value={
+            channel.contentConfiguration?.defaultPostContentRenderer ??
+            'not set'
+          }
+          onChange={(newContentType: string) => {
+            saveConfiguration({
+              ...channel.contentConfiguration!,
+              defaultPostContentRenderer:
+                newContentType as PostContentRendererId,
+            });
+          }}
+          options={options.content}
+        />
+        <ConfigInput
+          label={'Input'}
+          value={channel.contentConfiguration?.draftInput ?? 'not set'}
+          onChange={(newInputType: string) => {
+            saveConfiguration({
+              ...channel.contentConfiguration!,
+              draftInput: newInputType as DraftInputId,
+            });
+          }}
+          options={options.inputs}
+        />
+      </XStack>
+      <Button hero onPress={onPressDone}>
+        <Button.Text>Done</Button.Text>
+      </Button>
+    </YStack>
+  );
+}
+
+function ConfigInput({
+  label,
+  value,
+  options,
+  onChange,
+  ...props
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { title: string; value: string }[];
+} & ComponentProps<typeof View>) {
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const sheetActions: Action[] = useMemo(() => {
+    return options.map(
+      (option): Action => ({
+        title: option.title,
+        action: () => {
+          setSheetOpen(false);
+          onChange(option.value);
+        },
+        endIcon: option.value === value ? 'Checkmark' : undefined,
+      })
+    );
+  }, [options, value, onChange]);
+
+  const selectedOptionTitle = options.find((o) => o.value === value)?.title;
+
+  return (
+    <>
+      <YStack flex={1} gap="$m">
+        <View
+          padding="$xl"
+          borderWidth={1}
+          borderRadius={'$s'}
+          borderColor="$border"
+          backgroundColor={'$background'}
+          onPress={() => setSheetOpen(true)}
+          {...props}
+        >
+          <Text size="$label/xl" textAlign="center" numberOfLines={1}>
+            {selectedOptionTitle ?? 'default'}
+          </Text>
+        </View>
+        <Text
+          size="$label/s"
+          color="$tertiaryText"
+          textAlign="center"
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+      </YStack>
+      <SimpleActionSheet
+        title={label}
+        actions={sheetActions}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+      />
+    </>
+  );
+}
 
 export function EditChannelConfigurationSheetContent({
   channel,

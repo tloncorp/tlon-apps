@@ -1,8 +1,4 @@
-import {
-  DraftInputId,
-  layoutForType,
-  layoutTypeFromChannel,
-} from '@tloncorp/shared';
+import { DraftInputId } from '@tloncorp/shared';
 import {
   isChatChannel as getIsChatChannel,
   useChannel as useChannelFromStore,
@@ -29,7 +25,9 @@ import { PostCollectionContext } from '../../contexts/postCollection';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
 import * as utils from '../../utils';
+import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
+import { ChannelConfigurationBar } from '../ManageChannels/CreateChannelSheet';
 import { PostCollectionView } from '../PostCollectionView';
 import { DraftInputContext } from '../draftInputs';
 import { DraftInputHandle, GalleryDraftType } from '../draftInputs/shared';
@@ -127,6 +125,9 @@ export function Channel({
   hasOlderPosts?: boolean;
   canUpload: boolean;
 }) {
+  const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
+
+  const [editingConfiguration, setEditingConfiguration] = useState(false);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
   const title = utils.useChannelTitle(channel);
@@ -226,6 +227,15 @@ export function Channel({
     }
   }, [goBack, draftInputPresentationMode, draftInputRef, setEditingPost]);
 
+  const handleOptionsSheetToggled = useCallback(() => {
+    chatOptionsSheetRef.current?.open(channel.id, channel.type);
+  }, [channel.id, channel.type]);
+
+  const handlePressConfigureChannel = useCallback(() => {
+    setEditingConfiguration(true);
+    chatOptionsSheetRef.current?.close();
+  }, []);
+
   return (
     <ScrollContextProvider>
       <GroupsProvider groups={groups}>
@@ -268,6 +278,7 @@ export function Channel({
                             goToSearch={goToSearch}
                             showSpinner={isLoadingPosts}
                             showMenuButton={true}
+                            onPressOverflowMenu={handleOptionsSheetToggled}
                           />
                           <YStack alignItems="stretch" flex={1}>
                             <AnimatePresence>
@@ -348,6 +359,14 @@ export function Channel({
                                 goBack={goBack}
                               />
                             )}
+                            {editingConfiguration && (
+                              <ChannelConfigurationBar
+                                channel={channel}
+                                onPressDone={() =>
+                                  setEditingConfiguration(false)
+                                }
+                              />
+                            )}
                           </YStack>
                           {headerMode === 'next' ? (
                             <ChannelFooter
@@ -363,6 +382,12 @@ export function Channel({
                             open={!!groupPreview}
                             onOpenChange={() => setGroupPreview(null)}
                             onActionComplete={handleGroupAction}
+                          />
+                          <ChatOptionsSheet
+                            ref={chatOptionsSheetRef}
+                            onPressConfigureChannel={
+                              handlePressConfigureChannel
+                            }
                           />
                         </>
                       </ChannelHeaderItemsProvider>

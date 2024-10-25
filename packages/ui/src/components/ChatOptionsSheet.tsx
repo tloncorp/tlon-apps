@@ -23,12 +23,12 @@ import { useIsAdmin } from '../utils';
 import { Action, ActionGroup, ActionSheet } from './ActionSheet';
 import { IconButton } from './IconButton';
 import { ListItem } from './ListItem';
-import { EditChannelConfigurationSheetContent } from './ManageChannels/CreateChannelSheet';
 
 export type ChatType = 'group' | db.ChannelType;
 
 export type ChatOptionsSheetMethods = {
   open: (chatId: string, chatType: ChatType) => void;
+  close: () => void;
 };
 
 export type ChatOptionsSheetRef = React.Ref<ChatOptionsSheetMethods>;
@@ -37,6 +37,7 @@ type ChatOptionsSheetProps = {
   // We pass in setSortBy from GroupChannelsScreenView to live-update the sort
   // preference in the channel list.
   setSortBy?: (sortBy: db.ChannelSortPreference) => void;
+  onPressConfigureChannel?: () => void;
 };
 
 const ChatOptionsSheetComponent = React.forwardRef<
@@ -53,6 +54,7 @@ const ChatOptionsSheetComponent = React.forwardRef<
         setOpen(true);
         setChat({ id: chatId, type: chatType });
       },
+      close: () => setOpen(false),
     }),
     []
   );
@@ -77,6 +79,7 @@ const ChatOptionsSheetComponent = React.forwardRef<
       channelId={chat.id}
       open={open}
       onOpenChange={setOpen}
+      onPressConfigureChannel={props.onPressConfigureChannel}
     />
   );
 });
@@ -459,10 +462,12 @@ export function ChannelOptionsSheetLoader({
   channelId,
   open,
   onOpenChange,
+  onPressConfigureChannel,
 }: {
   channelId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onPressConfigureChannel?: () => void;
 }) {
   const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
   const channelQuery = store.useChannelWithRelations({
@@ -504,11 +509,8 @@ export function ChannelOptionsSheetLoader({
           channel={channelQuery.data}
           pane={pane}
           setPane={setPane}
+          onPressConfigureChannel={onPressConfigureChannel}
         />
-
-        {enableCustomChannels && (
-          <EditChannelConfigurationSheetContent channel={channelQuery.data} />
-        )}
       </ActionSheet.ScrollableContent>
     </ActionSheet>
   ) : null;
@@ -518,10 +520,12 @@ export function ChannelOptions({
   channel,
   pane,
   setPane,
+  onPressConfigureChannel,
 }: {
   channel: db.Channel;
   pane: 'initial' | 'notifications';
   setPane: (pane: 'initial' | 'notifications') => void;
+  onPressConfigureChannel?: () => void;
 }) {
   const { data: group } = store.useGroup({
     id: channel?.groupId ?? undefined,
@@ -696,6 +700,10 @@ export function ChannelOptions({
               accent: 'neutral',
               actions: [
                 {
+                  title: 'Configure view',
+                  action: onPressConfigureChannel,
+                },
+                {
                   title: 'Manage channels',
                   endIcon: 'ChevronRight',
                   action: () => {
@@ -799,6 +807,7 @@ export function ChannelOptions({
     ];
   }, [
     channel,
+    onPressConfigureChannel,
     currentUserIsAdmin,
     group,
     currentUserIsHost,
@@ -807,8 +816,8 @@ export function ChannelOptions({
     onPressChannelMembers,
     onPressManageChannels,
     onPressInvite,
-    onPressLeave,
     title,
+    onPressLeave,
   ]);
 
   const displayTitle = useMemo((): string => {

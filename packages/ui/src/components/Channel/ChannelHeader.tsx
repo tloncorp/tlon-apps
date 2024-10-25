@@ -81,6 +81,7 @@ export function ChannelHeader({
   showSpinner,
   showSearchButton = true,
   showMenuButton = false,
+  onPressOverflowMenu,
 }: {
   title: string;
   mode?: 'default' | 'next';
@@ -91,14 +92,9 @@ export function ChannelHeader({
   showSpinner?: boolean;
   showSearchButton?: boolean;
   showMenuButton?: boolean;
+  onPressOverflowMenu?: () => void;
   post?: db.Post;
 }) {
-  const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
-
-  const handlePressOverflowMenu = useCallback(() => {
-    chatOptionsSheetRef.current?.open(channel.id, channel.type);
-  }, [channel.id, channel.type]);
-
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
 
   if (mode === 'next') {
@@ -134,13 +130,12 @@ export function ChannelHeader({
             {showMenuButton && (
               <ScreenHeader.IconButton
                 type="Overflow"
-                onPress={handlePressOverflowMenu}
+                onPress={onPressOverflowMenu}
               />
             )}
           </>
         }
       />
-      <ChatOptionsSheet ref={chatOptionsSheetRef} />
     </>
   );
 }
