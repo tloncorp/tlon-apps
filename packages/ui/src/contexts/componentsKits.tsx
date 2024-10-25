@@ -23,6 +23,7 @@ import {
   NotebookInput,
 } from '../components/draftInputs';
 import { ButtonInput } from '../components/draftInputs/ButtonInput';
+import { BoardroomPostCollectionView } from '../components/postCollectionViews/BoardroomPostCollectionView';
 import {
   CardsPostCollection,
   SingleCardPostCollection,
@@ -131,6 +132,7 @@ const BUILTIN_COLLECTION_RENDERERS: {
   [CollectionRendererId.notebook]: ListPostCollection,
   [CollectionRendererId.cards]: CardsPostCollection,
   [CollectionRendererId.sign]: SingleCardPostCollection,
+  [CollectionRendererId.boardroom]: BoardroomPostCollectionView,
 };
 
 export function ComponentsKitContextProvider({

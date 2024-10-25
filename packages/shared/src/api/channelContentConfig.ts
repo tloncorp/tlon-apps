@@ -4,6 +4,7 @@ export enum CollectionRendererId {
   gallery = 'tlon.r0.collection.gallery',
   cards = 'tlon.r0.collection.cards',
   sign = 'tlon.r0.collection.sign',
+  boardroom = 'tlon.r0.collection.boardroom',
 }
 
 export enum DraftInputId {
