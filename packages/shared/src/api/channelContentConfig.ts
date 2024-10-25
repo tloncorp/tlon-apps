@@ -25,6 +25,8 @@ export enum PostContentRendererId {
   picto = 'tlon.r0.content.picto',
   audio = 'tlon.r0.content.audio',
   color = 'tlon.r0.content.color',
+  raw = 'tlon.r0.content.raw',
+  yell = 'tlon.r0.content.yell',
 }
 
 /**

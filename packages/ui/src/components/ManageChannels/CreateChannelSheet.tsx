@@ -192,6 +192,10 @@ function labelForContentRenderer(r: PostContentRendererId): string {
       return 'Audio';
     case PostContentRendererId.color:
       return 'Color';
+    case PostContentRendererId.raw:
+      return 'Raw';
+    case PostContentRendererId.yell:
+      return 'Yell';
   }
 }
 function labelForCollectionLayout(l: CollectionRendererId): string {
@@ -233,6 +237,8 @@ const options = {
     PostContentRendererId.picto,
     PostContentRendererId.audio,
     PostContentRendererId.color,
+    PostContentRendererId.raw,
+    PostContentRendererId.yell,
   ].map((id) => ({
     title: labelForContentRenderer(id),
     value: id,

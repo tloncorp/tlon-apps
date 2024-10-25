@@ -11,9 +11,12 @@ import { AudioPost } from '../components/AudioPost';
 import { PictoMessage } from '../components/Channel/PictoMessage';
 import { ChatMessage } from '../components/ChatMessage';
 import { ColorPost } from '../components/ColorPost';
+import { useContactName } from '../components/ContactNameV2';
 import { StandaloneDrawingInput } from '../components/DrawingInput';
 import { GalleryPost } from '../components/GalleryPost';
 import { NotebookPost } from '../components/NotebookPost';
+import { Text } from '../components/TextV2';
+import { YellPost } from '../components/YellPost';
 import {
   ChatInput,
   ColorInput,
@@ -29,6 +32,7 @@ import {
   SingleCardPostCollection,
 } from '../components/postCollectionViews/CardsPostCollectionView';
 import { ListPostCollection } from '../components/postCollectionViews/ListPostCollectionView';
+import { StrobePostCollectionView } from '../components/postCollectionViews/StrobePostCollectionView';
 import { IPostCollectionView } from '../components/postCollectionViews/shared';
 
 type RenderItemProps = {
@@ -108,6 +112,15 @@ const BUILTIN_CONTENT_RENDERERS: { [id: string]: RenderItemType } = {
   [PostContentRendererId.picto]: PictoMessage,
   [PostContentRendererId.audio]: AudioPost,
   [PostContentRendererId.color]: ColorPost,
+  [PostContentRendererId.raw]: ({ post }) => {
+    const contactName = useContactName(post.author!.id);
+    return (
+      <Text>
+        {contactName}: {JSON.stringify(post.content)}
+      </Text>
+    );
+  },
+  [PostContentRendererId.yell]: YellPost,
 };
 const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   [DraftInputId.chat]: ChatInput,
@@ -133,6 +146,7 @@ const BUILTIN_COLLECTION_RENDERERS: {
   [CollectionRendererId.cards]: CardsPostCollection,
   [CollectionRendererId.sign]: SingleCardPostCollection,
   [CollectionRendererId.boardroom]: BoardroomPostCollectionView,
+  [CollectionRendererId.strobe]: StrobePostCollectionView,
 };
 
 export function ComponentsKitContextProvider({
