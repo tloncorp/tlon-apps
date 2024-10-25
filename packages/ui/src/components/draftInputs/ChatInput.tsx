@@ -1,7 +1,6 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import BareChatInput from '../BareChatInput';
-// import { MessageInput } from '../MessageInput';
 import { ParentAgnosticKeyboardAvoidingView } from '../ParentAgnosticKeyboardAvoidingView';
 import { DraftInputContext } from './shared';
 
