@@ -60,7 +60,8 @@
   ==
 ::
 +$  identifier-update
-  $%  [%status id=identifier status=?(%gone status)]
+  $%  [%full all=(map identifier status)]
+      [%status id=identifier status=?(%gone status)]
   ==
 ::
 +$  user-query

@@ -272,4 +272,8 @@
 ::TODO  test initial /records response
 ::TODO  test revocation command
 ::TODO  test revocation permission
+::
+::TODO  test lanyard:
+::TODO  test resubscribe on poke nack
+::TODO  test %full handling
 --

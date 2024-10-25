@@ -99,7 +99,22 @@
   ?+  wire  !!
       [%verifier ~]
     ?-  -.sign
-      %poke-ack  !!
+        %poke-ack
+      ?~  p.sign
+        ::  the command is being processed, we'll get updates as facts
+        ::  on our subscription
+        ::
+        [~ this]
+      ::  the command failed to process, which is generally unexpected.
+      ::  (we should have checked for sanity based on local state beforehand.)
+      ::  resubscribe to get the full state again.
+      ::TODO  and bubble action failure up to the client
+      ::
+      :_  this
+      =/  =dock  [src.bowl %verifier]
+      :~  [%pass /verifier %agent dock %leave ~]
+          [%pass /verifier %agent dock %watch /records/(scot %p our.bowl)]
+      ==
     ::
         %watch-ack
       ?~  p.sign  [~ this]
@@ -118,6 +133,20 @@
         [~ this]
       =+  !<(upd=identifier-update q.cage.sign)
       ?-  -.upd
+          %full
+        ::  update our state to match what we received,
+        ::  making sure to drop removed entries for this host
+        ::
+        =.  records
+          (my (skip ~(tap by records) |*(* =(+<-< src.bowl))))
+        =/  new=_records
+          %-  malt  ::NOTE  +my doesn't work lol
+          (turn ~(tap by all.upd) |*(* +<(- [src.bowl +<-])))
+        :_  this(records (~(uni by records) new))
+        =/  upd=update:l
+          [%full new]
+        [%give %fact ~[/ /records] %lanyard-update !>(upd)]~
+      ::
           %status
         =*  key  [src.bowl id.upd]
         =.  records

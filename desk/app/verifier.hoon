@@ -175,11 +175,15 @@
 ++  on-watch
   |=  =path
   ^-  (quip card _this)
+  :_  this
   ?>  ?=([%records @ ~] path)
   =+  who=(slav %p i.t.path)
   ?>  =(src.bowl who)
-  ::TODO  give full state
-  [~ this]
+  =+  %-  ~(rep in (~(get ju owners) who))
+      |=  [id=identifier all=(map identifier status)]
+      (~(put by all) id status:(~(got by records) id))
+  =/  upd=identifier-update  [%full all]
+  [%give %fact ~ %verifier-update !>(upd)]~
 ::
 ++  on-peek
   |=  =path
