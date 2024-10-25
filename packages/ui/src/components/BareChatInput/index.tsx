@@ -20,9 +20,17 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getFontSize } from 'tamagui';
-import { Text, View, YStack, getToken, useWindowDimensions } from 'tamagui';
+import {
+  View,
+  YStack,
+  getFontSize,
+  getToken,
+  getVariableValue,
+  useTheme,
+  useWindowDimensions,
+} from 'tamagui';
 
+import { TlonText } from '../..';
 import {
   Attachment,
   UploadedImageAttachment,
@@ -167,31 +175,31 @@ export default function BareChatInput({
     // Handle text before first mention
     if (sortedMentions[0].start > 0) {
       textParts.push(
-        <Text key="text-start" color="transparent">
+        <TlonText.RawText key="text-start" color="transparent">
           {text.slice(0, sortedMentions[0].start)}
-        </Text>
+        </TlonText.RawText>
       );
     }
 
     // Handle mentions and text between them
     sortedMentions.forEach((mention, index) => {
       textParts.push(
-        <Text
+        <TlonText.Text
           key={`mention-${mention.id}-${index}`}
           color="$positiveActionText"
           backgroundColor="$positiveBackground"
         >
           {mention.display}
-        </Text>
+        </TlonText.Text>
       );
 
       // Add text between this mention and the next one (or end of text)
       const nextStart = sortedMentions[index + 1]?.start ?? text.length;
       if (mention.end < nextStart) {
         textParts.push(
-          <Text key={`text-${index}`} color="transparent">
+          <TlonText.RawText key={`text-${index}`} color="transparent">
             {text.slice(mention.end, nextStart)}
-          </Text>
+          </TlonText.RawText>
         );
       }
     });
@@ -517,23 +525,28 @@ export default function BareChatInput({
             minHeight: initialHeight,
             maxHeight: maxInputHeight - getToken('$s', 'size'),
             paddingHorizontal: getToken('$l', 'space'),
-            paddingVertical: getToken('$s', 'space'),
+            paddingTop: getToken('$m', 'space') + 2,
+            paddingBottom: getToken('$s', 'space'),
             fontSize: getFontSize('$m'),
             textAlignVertical: 'center',
             lineHeight: getFontSize('$m') * 1.5,
+            letterSpacing: -0.032,
+            color: getVariableValue(useTheme().primaryText),
           }}
           placeholder={placeholder}
         />
         {mentions.length > 0 && (
           <View position="absolute" pointerEvents="none">
-            <Text
+            <TlonText.RawText
               paddingHorizontal="$l"
-              paddingBottom="$s"
+              paddingBottom="$xs"
               fontSize="$m"
               lineHeight={getFontSize('$m') * 1.3}
+              letterSpacing={-0.032}
+              color="$primaryText"
             >
               {renderTextWithMentions}
-            </Text>
+            </TlonText.RawText>
           </View>
         )}
       </YStack>
