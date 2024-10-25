@@ -30,7 +30,6 @@ import {
   useWindowDimensions,
 } from 'tamagui';
 
-import { TlonText } from '../..';
 import {
   Attachment,
   UploadedImageAttachment,
@@ -42,6 +41,7 @@ import {
   MessageInputContainer,
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
+import { RawText, Text } from '../TextV2/Text';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import { useMentions } from './useMentions';
 
@@ -175,31 +175,31 @@ export default function BareChatInput({
     // Handle text before first mention
     if (sortedMentions[0].start > 0) {
       textParts.push(
-        <TlonText.RawText key="text-start" color="transparent">
+        <RawText key="text-start" color="transparent">
           {text.slice(0, sortedMentions[0].start)}
-        </TlonText.RawText>
+        </RawText>
       );
     }
 
     // Handle mentions and text between them
     sortedMentions.forEach((mention, index) => {
       textParts.push(
-        <TlonText.Text
+        <Text
           key={`mention-${mention.id}-${index}`}
           color="$positiveActionText"
           backgroundColor="$positiveBackground"
         >
           {mention.display}
-        </TlonText.Text>
+        </Text>
       );
 
       // Add text between this mention and the next one (or end of text)
       const nextStart = sortedMentions[index + 1]?.start ?? text.length;
       if (mention.end < nextStart) {
         textParts.push(
-          <TlonText.RawText key={`text-${index}`} color="transparent">
+          <RawText key={`text-${index}`} color="transparent">
             {text.slice(mention.end, nextStart)}
-          </TlonText.RawText>
+          </RawText>
         );
       }
     });
@@ -540,7 +540,7 @@ export default function BareChatInput({
         />
         {mentions.length > 0 && (
           <View position="absolute" pointerEvents="none">
-            <TlonText.RawText
+            <RawText
               paddingHorizontal="$l"
               paddingTop={Platform.OS === 'android' ? '$s' : 0}
               paddingBottom="$xs"
@@ -550,7 +550,7 @@ export default function BareChatInput({
               color="$primaryText"
             >
               {renderTextWithMentions}
-            </TlonText.RawText>
+            </RawText>
           </View>
         )}
       </YStack>
