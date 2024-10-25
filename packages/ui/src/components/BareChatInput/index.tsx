@@ -18,7 +18,7 @@ import {
   pathToCite,
 } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, TextInput } from 'react-native';
+import { Keyboard, Platform, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -486,6 +486,9 @@ export default function BareChatInput({
     clearAttachments();
   }, [setEditingPost, clearDraft, clearAttachments]);
 
+  const paddingTopAdjustment = Platform.OS === 'ios' ? 2 : 4;
+  const mentionLineHeightAdjustment = Platform.OS === 'ios' ? 1.3 : 1.5;
+
   return (
     <MessageInputContainer
       onPressSend={handleSend}
@@ -525,10 +528,10 @@ export default function BareChatInput({
             minHeight: initialHeight,
             maxHeight: maxInputHeight - getToken('$s', 'size'),
             paddingHorizontal: getToken('$l', 'space'),
-            paddingTop: getToken('$m', 'space') + 2,
+            paddingTop: getToken('$s', 'space') + paddingTopAdjustment,
             paddingBottom: getToken('$s', 'space'),
             fontSize: getFontSize('$m'),
-            textAlignVertical: 'center',
+            textAlignVertical: 'top',
             lineHeight: getFontSize('$m') * 1.5,
             letterSpacing: -0.032,
             color: getVariableValue(useTheme().primaryText),
@@ -539,9 +542,10 @@ export default function BareChatInput({
           <View position="absolute" pointerEvents="none">
             <TlonText.RawText
               paddingHorizontal="$l"
+              paddingTop={Platform.OS === 'android' ? '$s' : 0}
               paddingBottom="$xs"
               fontSize="$m"
-              lineHeight={getFontSize('$m') * 1.3}
+              lineHeight={getFontSize('$m') * mentionLineHeightAdjustment}
               letterSpacing={-0.032}
               color="$primaryText"
             >
