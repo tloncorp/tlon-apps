@@ -2,18 +2,28 @@ export enum CollectionRendererId {
   notebook = 'tlon.r0.collection.notebook',
   chat = 'tlon.r0.collection.chat',
   gallery = 'tlon.r0.collection.gallery',
+  cards = 'tlon.r0.collection.cards',
+  sign = 'tlon.r0.collection.sign',
+  boardroom = 'tlon.r0.collection.boardroom',
 }
 
 export enum DraftInputId {
   notebook = 'tlon.r0.input.notebook',
   chat = 'tlon.r0.input.chat',
   gallery = 'tlon.r0.input.gallery',
+  yo = 'tlon.r0.input.yo',
+  mic = 'tlon.r0.input.mic',
+  picto = 'tlon.r0.input.picto',
+  color = 'tlon.r0.input.color',
 }
 
 export enum PostContentRendererId {
   notebook = 'tlon.r0.content.notebook',
   chat = 'tlon.r0.content.chat',
   gallery = 'tlon.r0.content.gallery',
+  picto = 'tlon.r0.content.picto',
+  audio = 'tlon.r0.content.audio',
+  color = 'tlon.r0.content.color',
 }
 
 /**

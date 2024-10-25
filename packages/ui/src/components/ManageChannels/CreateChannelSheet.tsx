@@ -4,6 +4,8 @@ import {
   DraftInputId,
   PostContentRendererId,
   useCreateChannel,
+  useGroup,
+  useUpdateChannel,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import {
@@ -15,8 +17,10 @@ import {
   useRef,
 } from 'react';
 import { useForm } from 'react-hook-form';
+import { SizableText } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts';
+import { useIsAdmin } from '../../utils';
 import { ActionSheet } from '../ActionSheet';
 import { Button } from '../Button';
 import * as Form from '../Form';
@@ -160,6 +164,14 @@ function labelForDraftInput(draftInputId: DraftInputId): string {
       return 'Gallery';
     case DraftInputId.notebook:
       return 'Notebook';
+    case DraftInputId.picto:
+      return 'Drawing';
+    case DraftInputId.yo:
+      return 'Yo';
+    case DraftInputId.mic:
+      return 'Mic';
+    case DraftInputId.color:
+      return 'Color';
   }
 }
 function labelForContentRenderer(r: PostContentRendererId): string {
@@ -170,6 +182,12 @@ function labelForContentRenderer(r: PostContentRendererId): string {
       return 'Gallery';
     case PostContentRendererId.notebook:
       return 'Notebook';
+    case PostContentRendererId.picto:
+      return 'Drawing';
+    case PostContentRendererId.audio:
+      return 'Audio';
+    case PostContentRendererId.color:
+      return 'Color';
   }
 }
 function labelForCollectionLayout(l: CollectionRendererId): string {
@@ -180,14 +198,25 @@ function labelForCollectionLayout(l: CollectionRendererId): string {
       return 'Gallery';
     case CollectionRendererId.notebook:
       return 'Notebook';
+    case CollectionRendererId.cards:
+      return 'Cards';
+    case CollectionRendererId.sign:
+      return 'Sign';
+    case CollectionRendererId.boardroom:
+      return 'Boardroom';
   }
 }
 
-const CustomChannelConfigurationForm = forwardRef<{
-  getFormValue: () => ChannelContentConfiguration;
-}>(function CustomChannelConfigurationForm(_props, ref) {
+const CustomChannelConfigurationForm = forwardRef<
+  {
+    getFormValue: () => ChannelContentConfiguration;
+  },
+  {
+    initialValue?: ChannelContentConfiguration;
+  }
+>(function CustomChannelConfigurationForm({ initialValue }, ref) {
   const { control, getValues } = useForm<ChannelContentConfiguration>({
-    defaultValues: {
+    defaultValues: initialValue ?? {
       draftInput: DraftInputId.chat,
       defaultPostContentRenderer: PostContentRendererId.chat,
       defaultPostCollectionRenderer: CollectionRendererId.chat,
@@ -200,6 +229,10 @@ const CustomChannelConfigurationForm = forwardRef<{
         DraftInputId.chat,
         DraftInputId.gallery,
         DraftInputId.notebook,
+        DraftInputId.picto,
+        DraftInputId.yo,
+        DraftInputId.mic,
+        DraftInputId.color,
       ].map((id) => ({
         title: labelForDraftInput(id),
         value: id,
@@ -208,6 +241,9 @@ const CustomChannelConfigurationForm = forwardRef<{
         PostContentRendererId.chat,
         PostContentRendererId.gallery,
         PostContentRendererId.notebook,
+        PostContentRendererId.picto,
+        PostContentRendererId.audio,
+        PostContentRendererId.color,
       ].map((id) => ({
         title: labelForContentRenderer(id),
         value: id,
@@ -216,6 +252,9 @@ const CustomChannelConfigurationForm = forwardRef<{
         CollectionRendererId.chat,
         CollectionRendererId.gallery,
         CollectionRendererId.notebook,
+        CollectionRendererId.cards,
+        CollectionRendererId.sign,
+        CollectionRendererId.boardroom,
       ].map((id) => ({
         title: labelForCollectionLayout(id),
         value: id,
@@ -257,3 +296,56 @@ const CustomChannelConfigurationForm = forwardRef<{
     </>
   );
 });
+
+export function EditChannelConfigurationSheetContent({
+  channel,
+}: {
+  channel: db.Channel;
+}) {
+  const formRef =
+    useRef<ElementRef<typeof CustomChannelConfigurationForm>>(null);
+
+  const updateChannel = useUpdateChannel();
+  const group = useGroup({ id: channel.group?.id }).data;
+
+  const submit = useCallback(async () => {
+    const formValue = formRef.current?.getFormValue();
+    if (formValue == null) {
+      throw new Error("Couldn't get form value");
+    }
+    if (group == null) {
+      throw new Error("Couldn't get containing group");
+    }
+    await updateChannel({
+      group,
+      channel: {
+        ...channel,
+        contentConfiguration: formValue,
+      },
+    });
+  }, [channel, group, updateChannel]);
+
+  const currentUser = useCurrentUserId();
+  const currentUserIsAdmin = useIsAdmin(channel.groupId ?? '', currentUser);
+
+  if (!currentUserIsAdmin) {
+    return null;
+  }
+
+  return (
+    <>
+      <SizableText margin="$xl" color="$color.gray500">
+        Make sure to save your changes at the bottom.
+      </SizableText>
+      <CustomChannelConfigurationForm
+        ref={formRef}
+        initialValue={channel.contentConfiguration ?? undefined}
+      />
+      <ActionSheet.FormBlock>
+        <Button onPress={submit} hero>
+          <Button.Text>Save</Button.Text>
+        </Button>
+      </ActionSheet.FormBlock>
+    </>
+  );
+}

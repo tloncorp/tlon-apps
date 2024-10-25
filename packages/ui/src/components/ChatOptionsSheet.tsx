@@ -1,4 +1,4 @@
-import { sync } from '@tloncorp/shared';
+import { featureFlags, sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
@@ -8,6 +8,7 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -22,6 +23,7 @@ import { useIsAdmin } from '../utils';
 import { Action, ActionGroup, ActionSheet } from './ActionSheet';
 import { IconButton } from './IconButton';
 import { ListItem } from './ListItem';
+import { EditChannelConfigurationSheetContent } from './ManageChannels/CreateChannelSheet';
 
 export type ChatType = 'group' | db.ChannelType;
 
@@ -466,6 +468,15 @@ export function ChannelOptionsSheetLoader({
   const channelQuery = store.useChannelWithRelations({
     id: channelId,
   });
+  const [enableCustomChannels, setEnableCustomChannels] = useState(false);
+  // why useLayoutEffect?
+  // to try to get the synchronous read to avoid flicker on mount
+  useLayoutEffect(() => {
+    return featureFlags.subscribeToFeatureFlag(
+      'customChannels',
+      setEnableCustomChannels
+    );
+  }, []);
 
   const openChangeHandler = useCallback(
     (open: boolean) => {
@@ -478,12 +489,27 @@ export function ChannelOptionsSheetLoader({
   );
 
   return channelQuery.data ? (
-    <ActionSheet open={open} onOpenChange={openChangeHandler}>
-      <ChannelOptions
-        channel={channelQuery.data}
-        pane={pane}
-        setPane={setPane}
-      />
+    <ActionSheet
+      open={open}
+      onOpenChange={openChangeHandler}
+      {...(enableCustomChannels
+        ? {
+            snapPointsMode: 'percent',
+            snapPoints: [75],
+          }
+        : {})}
+    >
+      <ActionSheet.ScrollableContent>
+        <ChannelOptions
+          channel={channelQuery.data}
+          pane={pane}
+          setPane={setPane}
+        />
+
+        {enableCustomChannels && (
+          <EditChannelConfigurationSheetContent channel={channelQuery.data} />
+        )}
+      </ActionSheet.ScrollableContent>
     </ActionSheet>
   ) : null;
 }
