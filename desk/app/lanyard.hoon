@@ -89,7 +89,7 @@
     ?>  (~(has by queries) nonce.res)
     :_  this(queries (~(del by queries) nonce.res))
     =/  upd=update:l  [%query res]  ::TODO  different?
-    [%give %fact ~[/query /query/(scot %uv nonce.res)] %lanyard-update !>(upd)]~
+    [%give %fact ~[/ /query /query/(scot %uv nonce.res)] %lanyard-update !>(upd)]~
   ==
 ::
 ++  on-agent
@@ -119,13 +119,13 @@
       =+  !<(upd=identifier-update q.cage.sign)
       ?-  -.upd
           %status
+        =*  key  [src.bowl id.upd]
         =.  records
-          =*  key  [src.bowl id.upd]
           ?:  ?=(%gone status.upd)  (~(del by records) key)
           (~(put by records) key status.upd)
         :_  this
-        =/  upd=update:l  upd
-        [%give %fact ~[/] %lanyard-update !>(upd)]~
+        =/  upd=update:l  upd(id key)
+        [%give %fact ~[/ /records] %lanyard-update !>(upd)]~
       ==
     ==
   ::
@@ -146,14 +146,20 @@
 ++  on-watch
   |=  =path
   ^-  (quip card _this)
-  ?.  ?=([%query @ ~] path)  !!
-  ?>  ?=(^ (slaw %uv i.t.path))
-  [~ this]
+  :_  this
+  ?+  path  !!
+    ~             ~  ::TODO  include initial response?
+    [%query ~]    ~
+    [%query @ ~]  =<(~ (slav %uv i.t.path))
+    [%records ~]  [%give %fact ~ %lanyard-update !>(`update:l`[%full records])]~
+  ==
 ::
 ++  on-peek
   |=  =path
   ^-  (unit (unit cage))
-  ~  ::TODO  as-needed
+  ?+  path  [~ ~]
+    [%records ~]  ``noun+!>(records)
+  ==
 ::
 ++  on-leave  |=(* `this)
 ++  on-arvo   |=(* `this)

@@ -86,7 +86,8 @@
   +$  result   $@(%fail _+:*query-result)
   +$  update
     $%  [%query nonce=@ result]  ::TODO  different?
-        [%status id=identifier status=?(%gone status)]
+        [%status [host=@p id=identifier] status=?(%gone status)]
+        [%full all=(map [host=@p id=identifier] status)]
     ==
   --
 --

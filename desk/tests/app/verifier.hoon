@@ -271,4 +271,5 @@
 ::TODO  test watch permissions on /records/~nec
 ::TODO  test initial /records response
 ::TODO  test revocation command
+::TODO  test revocation permission
 --
