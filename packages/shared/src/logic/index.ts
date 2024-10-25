@@ -8,3 +8,4 @@ export * from './branch';
 export * from './deeplinks';
 export * from './analytics';
 export * as featureFlags from './featureFlags';
+export * from './tiptap';

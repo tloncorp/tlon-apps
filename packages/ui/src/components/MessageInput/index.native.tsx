@@ -16,6 +16,7 @@ import {
   ShortcutsBridge,
 } from '@tloncorp/editor/src/bridges';
 import {
+  REF_REGEX,
   createDevLogger,
   extractContentTypesFromPost,
   tiptap,
@@ -238,7 +239,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               const newInlines = inlines
                 .map((inline) => {
                   if (typeof inline === 'string') {
-                    if (inline.match(tiptap.REF_REGEX)) {
+                    if (inline.match(REF_REGEX)) {
                       return null;
                     }
                     return inline;
@@ -461,7 +462,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           editor,
           editorJson,
           pastedText,
-          matchRegex: tiptap.REF_REGEX,
+          matchRegex: REF_REGEX,
           processMatch: async (match) => {
             const cite = pathToCite(match);
             if (cite) {
