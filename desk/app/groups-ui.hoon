@@ -7,7 +7,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %1
+    $:  %2
         pins=(list whom:u)
         first-load=?
     ==
@@ -88,13 +88,23 @@
       =+  !<(old=versioned-state vase)
       =?  old  ?=(~ old)     *current-state
       =?  old  ?=(%0 -.old)  (state-0-to-1 old)
-      ?>  ?=(%1 -.old)
+      =?  cor  ?=(%1 -.old)
+        (emit %pass /preload-contacts %agent [our dap]:bowl %poke noun+!>(%preload-contacts))
+      =?  old  ?=(%1 -.old)  (state-1-to-2 old)
+      ?>  ?=(%2 -.old)
       =.  state  old
       init
   ::
-  +$  versioned-state  $@(~ $%(state-1 state-0))
-  +$  state-1  current-state
+  +$  versioned-state  $@(~ $%(state-2 state-1 state-0))
+  +$  state-2  current-state
+  +$  state-1
+    $:  %1
+        pins=(list whom:u)
+        first-load=?
+    ==
   ::
+  ++  state-1-to-2
+    |=(state-1 [%2 pins first-load])
   +$  state-0  [%0 first-load=?]
   ++  state-0-to-1
     |=(state-0 [%1 ~ first-load])
@@ -200,6 +210,11 @@
   ?+    mark  ~|(bad-mark/mark !!)
     %ui-vita  (emit (active:vita-client bowl))
   ::
+      %noun
+    ?+  q.vase  ~|(bad-poke+mark !!)
+      %preload-contacts  preload-contacts
+    ==
+  ::
       %ui-vita-toggle
     =+  !<(=vita-enabled:u vase)
     (emit %pass /vita-toggle %agent [our.bowl dap.bowl] %poke vita-client+!>([%set-enabled vita-enabled]))
@@ -228,8 +243,9 @@
   ^+  cor
   ?+    pole  ~|(bad-agent-take/pole !!)
     ~  cor
-    [%set-activity ~]  cor
+    [%contact ~]  cor
     [%vita-toggle ~]  cor
+    [%set-activity ~]  cor
   ==
 ::
 ++  arvo
@@ -238,4 +254,28 @@
   ?+  wire  !!
     [%build ~]  cor
   ==
+++  preload-contacts
+  =+  .^(chat-running=? (scry %gu %chat /$))
+  =?  cor  chat-running
+    =+  .^  [dms=(map ship dm:c) *]
+        (scry %gx %chat /full/noun)
+      ==
+    %-  emil
+    %+  murn
+      ~(tap by dms)
+    |=  [=ship =dm:c]
+    ?~  latest=(ram:on:writs:c wit.pact.dm)  ~
+    =/  count  (wyt:on:writs:c wit.pact.dm)
+    =/  cutoff  (sub now.bowl ~d30)
+    ?.  &((gth count 10) (gth -.u.latest cutoff))  ~
+    `[%pass /contact %agent [our.bowl %contacts] %poke contact-action-1+!>([%page ship ~])]
+  =+  .^(pals-running=? (scry %gu %pals /$))
+  =?  cor  pals-running
+    =+  .^(targets=(set ship) (scry %gx %pals /targets/noun))
+    %-  emil
+    %+  turn
+      ~(tap in targets)
+    |=  =ship
+    [%pass /contact %agent [our.bowl %contacts] %poke contact-action-1+!>([%page ship ~])]
+  cor
 --
