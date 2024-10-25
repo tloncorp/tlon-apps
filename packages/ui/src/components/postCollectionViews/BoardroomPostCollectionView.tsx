@@ -11,6 +11,7 @@ import { FlatList } from 'react-native';
 
 import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
 import { IPostCollectionView } from './shared';
+import { useLoadPostsInWindow } from './useLoadPostsInWindow';
 
 function _BoardroomPostCollectionView({
   isPostInsideWindow,
@@ -26,14 +27,7 @@ function _BoardroomPostCollectionView({
    */
   isPostInsideWindow: (post: db.Post) => boolean;
 }) {
-  const {
-    hasNewerPosts,
-    hasOlderPosts,
-    onScrollEndReached,
-    onScrollStartReached,
-    posts,
-    PostView,
-  } = usePostCollectionContextUnsafelyUnwrapped();
+  const { posts, PostView } = usePostCollectionContextUnsafelyUnwrapped();
 
   const [authorToMostRecentPost, setAuthorToMostRecentPost] = useState<
     Record<string, db.Post>
@@ -64,25 +58,6 @@ function _BoardroomPostCollectionView({
     });
   }, [posts]);
 
-  // Load all newer messages
-  useEffect(() => {
-    if (hasNewerPosts && onScrollStartReached) {
-      console.log('Fetching newer...');
-      onScrollStartReached();
-    }
-  }, [hasNewerPosts, onScrollStartReached]);
-
-  useEffect(() => {
-    const needsOlderPostsToFillWindow =
-      posts == null ||
-      posts.length === 0 ||
-      isPostInsideWindow(posts[posts.length - 1]);
-    if (needsOlderPostsToFillWindow && hasOlderPosts && onScrollEndReached) {
-      console.log('Fetching older...');
-      onScrollEndReached();
-    }
-  }, [hasOlderPosts, onScrollEndReached, posts, isPostInsideWindow]);
-
   const items = useMemo(
     () =>
       Object.entries(authorToMostRecentPost).sort(([userA], [userB]) =>
@@ -90,6 +65,8 @@ function _BoardroomPostCollectionView({
       ),
     [authorToMostRecentPost]
   );
+
+  useLoadPostsInWindow(isPostInsideWindow);
 
   return (
     <FlatList
