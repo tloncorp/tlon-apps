@@ -6,7 +6,7 @@ import {
   useState,
 } from 'react';
 import { Alert } from 'react-native';
-import { Text, View, useWindowDimensions } from 'tamagui';
+import { Text, View } from 'tamagui';
 
 import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
 import { Button } from '../Button';
@@ -25,7 +25,6 @@ function BaseCardsPostCollection({
     posts,
     PostView,
   } = usePostCollectionContextUnsafelyUnwrapped();
-  const windowDimensions = useWindowDimensions();
   const [displayedIndex, setDisplayedIndex] = useState<number | null>(null);
 
   useEffect(() => {
