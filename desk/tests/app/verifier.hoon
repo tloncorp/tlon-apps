@@ -137,42 +137,46 @@
   ;<  ~  bind:m  (set-scry-gate faux-scry)
   ;<  *  bind:m  (do-init dap agent)
   ;<  ~  bind:m  (wait ~d1)
+  =/  id  [%urbit ~bud]
+  ::  registration hasn't started yet, so trying to confirm should crash
+  ::
+  ;<  ~  bind:m
+    (ex-fail (user-does ~bud %work id %urbit 620.187))
   ::  user requests an urbit id, is told to confirm from the other urbit
   ::
-  =/  id  [%urbit ~bud]
   ;<  cas=(list card)  bind:m
     (user-does ~nec %start id)
   ;<  ~  bind:m
     (ex-cards cas (ex-verifier-update ~nec %status id %want %urbit 620.187) ~)
   ::
   %-  branch
-  |^  :~  user-confirms
+  |^  :~  confirm-correct
+          confirm-incorrect
+          confirm-unrelated
       ==
-  ::  user confirms by registering the opposite too
+  ::  user confirms by giving the pin from the other ship
   ::
-  ++  user-confirms
+  ++  confirm-correct
+    ;<  cas=(list card)  bind:m
+      (user-does ~bud %work id %urbit 620.187)
+    =/  sig=@ux  (faux-sign ~zod id ~2000.1.2 ~)
+    ;<  ~  bind:m
+      =/  at=attestation:v  [~2000.1.2 ~ [~zod 1 %0 sig]]
+      ::TODO  don't test signature value, test whether it matches pubkey
+      %+  ex-cards  cas
+      :~  (ex-verifier-update ~nec %status id %done at)
+      ==
+    ;<  ~  bind:m  (ex-scry-result /u/attestations/(scot %ux sig) !>(&))
+    ::TODO  other scries?
     (pure:m ~)
-    ::TODO  this was changed, update
-    :: =/  di  [%urbit ~nec]
-    :: =/  sig=@ux  (faux-sign ~zod id ~2000.1.2 ~)
-    :: =/  gis=@ux  (faux-sign ~zod di ~2000.1.2 ~)
-    :: ::  when the other side requests to bind the other direction,
-    :: ::  complete registration for both
-    :: ::
-    :: ;<  cas=(list card)  bind:m
-    ::   (user-does ~bud %start di)
-    :: ;<  ~  bind:m
-    ::   =/  at=attestation:v  [~2000.1.2 ~ [~zod 1 %0 sig]]
-    ::   =/  ta=attestation:v  [~2000.1.2 ~ [~zod 1 %0 gis]]
-    ::   ::TODO  don't test signature value, test whether it matches pubkey
-    ::   %+  ex-cards  cas
-    ::   :~  (ex-verifier-update ~nec %status id %done at)
-    ::       (ex-verifier-update ~bud %status di %done ta)
-    ::   ==
-    :: ;<  ~  bind:m  (ex-scry-result /u/attestations/(scot %ux sig) !>(&))
-    :: ;<  ~  bind:m  (ex-scry-result /u/attestations/(scot %ux gis) !>(&))
-    :: ::TODO  other scries?
-    :: (pure:m ~)
+  ::
+  ++  confirm-incorrect
+    %-  ex-fail  ::TODO  should cancel, or re-set the pin
+    (user-does ~bud %work id %urbit 111.111)
+  ::
+  ++  confirm-unrelated
+    %-  ex-fail
+    (user-does ~fed %work id %urbit 620.187)
   --
 ::
 ++  test-duplicate

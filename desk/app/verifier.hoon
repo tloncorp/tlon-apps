@@ -109,6 +109,38 @@
       ?>  =(src.bowl for:(~(got by records) id.cmd))
       :_  this(records (~(del by records) id.cmd))
       [(give-status src.bowl id.cmd %gone)]~
+    ::
+        %work
+      ?+  -.id.cmd  !!
+          %urbit
+        ?>  ?=(%urbit -.work.cmd)
+        =*  id  id.cmd
+        ::  to complete verification of an urbit,
+        ::  the urbit being verified must submit,
+        ::  for a pending verification,
+        ::  the matching pin.
+        ::
+        ?>  =(src.bowl +.id)
+        =/  rec  (~(got by records) id)
+        ?>  ?=([%want %urbit *] status.rec)
+        ::TODO  mismatching pin should cancel, or change the pin,
+        ::      to prevent brute-forcing
+        ?>  =(pin.work.cmd pin.status.rec)
+        ::
+        ::TODO  copied from %dummy host command, dedupe
+        =/  rec=id-state  rec  ::NOTE  tmi
+        =/  tat=attestation
+          ::TODO  should the urbit provide a proof saying "x controls me"?
+          ::      wouldn't that be better than a pin anyway?
+          (attest our.bowl now.bowl id ~)
+        =.  status.rec  [%done tat]
+        :-  [(give-status for.rec id status.rec)]~
+        %_  this
+          records   (~(put by records) id rec)
+          owners    (~(put ju owners) for.rec id)
+          attested  (~(put by attested) sig.sign.tat id)
+        ==
+      ==
     ==
   ::
       %verifier-host-command

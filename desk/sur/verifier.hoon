@@ -53,6 +53,7 @@
 +$  user-command
   $%  [%start id=identifier]  ::  nonce for subscription updates
       [%revoke id=identifier]
+      [%work id=identifier work=user-work]
   ==
 +$  host-command
   $%  [%revoke id=identifier]
