@@ -19,7 +19,13 @@ export function useLoadPostsInWindow(
     if (hasNewerPosts && onScrollStartReached) {
       onScrollStartReached();
     }
-  }, [hasNewerPosts, onScrollStartReached]);
+  }, [
+    hasNewerPosts,
+    onScrollStartReached,
+    // The other deps don't change when a pagination request completes.
+    // Since we want to fetch all newer events, retrigger when `posts` changes.
+    posts,
+  ]);
 
   useEffect(() => {
     const needsOlderPostsToFillWindow =
