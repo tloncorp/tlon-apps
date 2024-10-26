@@ -69,7 +69,7 @@ function _StrobePostCollectionView({
   }, [pickFrom, posts, reset]);
 
   return (
-    <View flex={1} justifyContent="center" alignItems="flex-start">
+    <View flex={1} justifyContent="center" alignItems="stretch">
       {posts?.map((post, i) => (
         <View
           key={post.id}
