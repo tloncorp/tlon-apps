@@ -3,6 +3,6 @@
   "include": ["./src"],
   "compilerOptions": {
     "composite": true,
-    "moduleResolution": "node"
+    "moduleResolution": "bundler"
   }
 }

@@ -4,6 +4,15 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./api": "./src/api/index.ts",
+    "./client": "./src/client/index.ts",
+    "./db": "./src/db/index.ts",
+    "./logic": "./src/logic/index.ts",
+    "./store": "./src/store/index.ts",
+    "./urbit": "./src/urbit/index.ts"
+  },
   "scripts": {
     "build": "tsup",
     "preinstall": "rm -f ./tsconfig.tsbuildinfo",
