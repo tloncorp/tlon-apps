@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { GroupPrivacy } from '@tloncorp/shared/db/schema';
+import { schema } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
   GroupPrivacySelector,
@@ -11,6 +11,8 @@ import { useCallback } from 'react';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
+
+type GroupPrivacy = schema.GroupPrivacy;
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'Privacy'>;
 

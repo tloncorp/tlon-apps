@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { getTextContent } from '@tloncorp/shared/urbit';
-import type { Story } from '@tloncorp/shared/urbit/channel';
+import type { Story } from '@tloncorp/shared/urbit';
 import { formatUd, unixToDa } from '@urbit/aura';
 import seedrandom from 'seedrandom';
 
