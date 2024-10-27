@@ -9,10 +9,12 @@ export type {
   WebAppAction,
   WebAppCommand,
 } from './types/native';
-export {
+export type {
   PostCollectionConfiguration,
   PostCollectionLayout,
   PostCollectionLayoutType,
+} from './types/PostCollectionConfiguration';
+export {
   configurationFromChannel,
   layoutForType,
   layoutTypeFromChannel,

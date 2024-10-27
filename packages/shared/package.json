@@ -14,7 +14,12 @@
     "./logic": "./src/logic/index.ts",
     "./perf": "./src/perf.ts",
     "./store": "./src/store/index.ts",
-    "./urbit": "./src/urbit/index.ts"
+    "./urbit": "./src/urbit/index.ts",
+    "./urbit/activity": "./src/urbit/activity.ts",
+    "./urbit/channel": "./src/urbit/channel.ts",
+    "./urbit/content": "./src/urbit/content.ts",
+    "./urbit/groups": "./src/urbit/groups.ts",
+    "./urbit/hark": "./src/urbit/hark.ts"
   },
   "scripts": {
     "build": "tsup",
