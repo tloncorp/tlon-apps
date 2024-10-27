@@ -1,36 +1,41 @@
 import { ImageZoom } from '@likashefqet/react-native-image-zoom';
 import * as db from '@tloncorp/shared/dist/db';
-import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { useRef, useState } from 'react';
+import { ElementRef, useRef, useState } from 'react';
 import { Dimensions, TouchableOpacity } from 'react-native';
+import {
+  Directions,
+  Gesture,
+  GestureDetector,
+} from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, View, XStack, YStack, ZStack } from 'tamagui';
 
-import { Close } from '../assets/icons';
-import { Button } from './Button';
 import { Icon } from './Icon';
-import { IconButton } from './IconButton';
-
-interface ImageZoomRef {
-  reset: () => void;
-}
 
 export function ImageViewerScreenView(props: {
   post?: db.Post | null;
   uri?: string;
   goBack: () => void;
 }) {
-  const zoomableRef = useRef<ImageZoomRef>(null);
+  const zoomableRef = useRef<ElementRef<typeof ImageZoom>>(null);
   const [showOverlay, setShowOverlay] = useState(true);
   const [minPanPointers, setMinPanPointers] = useState(2);
   const { top } = useSafeAreaInsets();
+
+  // We can't observe the zoom on `react-native-image-zoom`, so we have to
+  // track it manually.
+  // Call `setIsAtMinZoom` whenever you think user switches between zoomed all
+  // the way out / zoomed in by some amount.
+  const [isAtMinZoom, setIsAtMinZoom] = useState(true);
 
   function onSingleTap() {
     setShowOverlay(!showOverlay);
   }
 
   function handlePinchEnd(event: { scale: number }) {
+    setIsAtMinZoom(event.scale <= 1);
     if (event.scale > 1) {
       setMinPanPointers(1);
     } else {
@@ -45,12 +50,22 @@ export function ImageViewerScreenView(props: {
     } else {
       setMinPanPointers(2);
       zoomableRef.current?.reset();
+      setIsAtMinZoom(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
   }
 
+  const dismissGesture = Gesture.Fling()
+    .enabled(isAtMinZoom)
+    .direction(Directions.DOWN)
+    .onEnd((_event, success) => {
+      if (success) {
+        runOnJS(props.goBack)();
+      }
+    });
+
   return (
-    <>
+    <GestureDetector gesture={dismissGesture}>
       <ZStack flex={1} backgroundColor="$black" paddingTop={top}>
         <View flex={1} justifyContent="center" alignItems="center">
           <ImageZoom
@@ -89,6 +104,6 @@ export function ImageViewerScreenView(props: {
           </YStack>
         ) : null}
       </ZStack>
-    </>
+    </GestureDetector>
   );
 }
