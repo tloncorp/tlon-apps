@@ -7,7 +7,7 @@ import {
   getUnreadsFromVolumeMap,
   getVolumeMap,
   sourceToString,
-} from '@tloncorp/shared/dist/urbit/activity';
+} from '@tloncorp/shared/urbit/activity';
 import React, { useCallback } from 'react';
 
 import { useVolumeAdjustMutation, useVolumeSettings } from '@/state/activity';

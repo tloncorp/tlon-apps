@@ -1,4 +1,4 @@
-import { Clubs, ContactRolodex, Group } from '@tloncorp/shared/dist/urbit';
+import { Clubs, ContactRolodex, Group } from '@tloncorp/shared/urbit';
 
 declare global {
   interface Window {

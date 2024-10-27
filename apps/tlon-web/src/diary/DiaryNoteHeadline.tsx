@@ -1,4 +1,4 @@
-import { PostEssay } from '@tloncorp/shared/dist/urbit/channel';
+import { PostEssay } from '@tloncorp/shared/urbit/channel';
 import cn from 'classnames';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';

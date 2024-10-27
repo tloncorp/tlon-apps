@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/dist/db';
-import { GroupPrivacy } from '@tloncorp/shared/dist/db/schema';
+import * as db from '@tloncorp/shared/db';
+import { GroupPrivacy } from '@tloncorp/shared/db/schema';
 import { useCallback, useMemo, useState } from 'react';
 import { SectionList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

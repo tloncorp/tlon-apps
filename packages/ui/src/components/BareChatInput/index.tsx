@@ -8,15 +8,15 @@ import {
 import {
   contentReferenceToCite,
   toContentReference,
-} from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
+} from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
 import {
   Block,
   Story,
   citeToPath,
   constructStory,
   pathToCite,
-} from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, Platform, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

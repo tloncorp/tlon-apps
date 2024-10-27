@@ -1,4 +1,4 @@
-import { GroupPrivacy } from '@tloncorp/shared/dist/db/schema';
+import { GroupPrivacy } from '@tloncorp/shared/db/schema';
 import React from 'react';
 
 import * as Form from './Form';

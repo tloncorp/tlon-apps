@@ -2,7 +2,7 @@ import {
   GroupFormSchema,
   GroupMeta,
   PrivacyType,
-} from '@tloncorp/shared/dist/urbit/groups';
+} from '@tloncorp/shared/urbit/groups';
 import cn from 'classnames';
 import React, { useCallback } from 'react';
 import { FormProvider, useForm, useFormContext } from 'react-hook-form';

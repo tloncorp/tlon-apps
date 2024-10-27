@@ -1,4 +1,4 @@
-import { GroupChannel } from '@tloncorp/shared/dist/urbit/groups';
+import { GroupChannel } from '@tloncorp/shared/urbit/groups';
 import React from 'react';
 
 import EditChannelForm from '@/channels/EditChannelForm';

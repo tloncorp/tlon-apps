@@ -14,7 +14,7 @@ import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
-import * as store from '@tloncorp/shared/dist/store';
+import * as store from '@tloncorp/shared/store';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { PropsWithChildren, useEffect, useMemo, useState } from 'react';

@@ -1,9 +1,9 @@
-import { ContentReference } from '@tloncorp/shared/dist/api';
+import { ContentReference } from '@tloncorp/shared/api';
 import {
   UploadState,
   useUploadStates,
   waitForUploads,
-} from '@tloncorp/shared/dist/store';
+} from '@tloncorp/shared/store';
 import { ImagePickerAsset } from 'expo-image-picker';
 import {
   PropsWithChildren,

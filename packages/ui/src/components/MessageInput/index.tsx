@@ -18,12 +18,12 @@ import {
   createDevLogger,
   extractContentTypesFromPost,
   tiptap,
-} from '@tloncorp/shared/dist';
+} from '@tloncorp/shared';
 import {
   contentReferenceToCite,
   toContentReference,
-} from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
+} from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
 import {
   Block,
   Image,
@@ -34,7 +34,7 @@ import {
   constructStory,
   isInline,
   pathToCite,
-} from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { View, YStack } from 'tamagui';
@@ -317,8 +317,7 @@ export function MessageInput({
               .map((inline) => {
                 if (typeof inline === 'string') {
                   const inlineLength = inline.length;
-                  const refLength =
-                    inline.match(REF_REGEX)?.[0].length || 0;
+                  const refLength = inline.match(REF_REGEX)?.[0].length || 0;
 
                   if (inlineLength === refLength) {
                     return null;

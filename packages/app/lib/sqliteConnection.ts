@@ -1,5 +1,5 @@
-import { AnySqliteDatabase } from '@tloncorp/shared/dist/db/client';
-import { Schema } from '@tloncorp/shared/dist/db/types';
+import { AnySqliteDatabase } from '@tloncorp/shared/db/client';
+import { Schema } from '@tloncorp/shared/db/types';
 import type { DrizzleConfig } from 'drizzle-orm/utils';
 
 /**

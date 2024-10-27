@@ -1,5 +1,5 @@
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import { DisplayMode } from '@tloncorp/shared/dist/urbit/channel';
+import { DisplayMode } from '@tloncorp/shared/urbit/channel';
 import cn from 'classnames';
 
 import GridIcon from '@/components/icons/GridIcon';

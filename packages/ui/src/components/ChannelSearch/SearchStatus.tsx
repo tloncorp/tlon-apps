@@ -1,4 +1,4 @@
-import { makePrettyShortDate } from '@tloncorp/shared/src/logic/utils';
+import { makePrettyShortDate } from '@tloncorp/shared/logic/utils';
 import { ColorTokens } from 'tamagui';
 import { SizableText, View, XStack, YStack } from 'tamagui';
 

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { GroupMeta } from '@tloncorp/shared/dist/urbit/groups';
+import { GroupMeta } from '@tloncorp/shared/urbit/groups';
 import produce from 'immer';
-import { Contact } from 'packages/shared/dist/urbit';
+import { Contact } from 'packages/shared/urbit';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import create from 'zustand';
 import { persist } from 'zustand/middleware';

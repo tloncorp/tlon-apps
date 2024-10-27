@@ -1,5 +1,5 @@
-import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
+import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
 
 import { LureData } from '../contexts/branch';
 import * as hostingApi from '../lib/hostingApi';

@@ -1,5 +1,5 @@
 import { ImageZoom } from '@likashefqet/react-native-image-zoom';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useRef, useState } from 'react';

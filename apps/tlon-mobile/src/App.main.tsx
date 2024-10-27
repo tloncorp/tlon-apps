@@ -13,17 +13,13 @@ import {
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
-import {
-  SignupProvider,
-  useSignupContext,
-} from './lib/signupContext';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
-import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
+import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
 import {
   LoadingSpinner,
   PortalProvider,
@@ -40,6 +36,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
+import { SignupProvider, useSignupContext } from './lib/signupContext';
 
 // Android notification tap handler passes initial params here
 const App = () => {

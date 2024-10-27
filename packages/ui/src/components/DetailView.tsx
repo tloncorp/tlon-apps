@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as urbit from '@tloncorp/shared/dist/urbit';
+import * as db from '@tloncorp/shared/db';
+import * as urbit from '@tloncorp/shared/urbit';
 import { useEffect, useMemo } from 'react';
 import { FlatList } from 'react-native';
 import { View, YStack } from 'tamagui';

@@ -10,6 +10,7 @@
     "./client": "./src/client/index.ts",
     "./db": "./src/db/index.ts",
     "./logic": "./src/logic/index.ts",
+    "./perf": "./src/perf.ts",
     "./store": "./src/store/index.ts",
     "./urbit": "./src/urbit/index.ts"
   },

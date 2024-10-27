@@ -1,5 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
-import type * as db from '@tloncorp/shared/dist/db';
+import type * as db from '@tloncorp/shared/db';
 
 export type SignUpExtras = {
   nickname?: string;

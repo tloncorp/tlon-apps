@@ -1,6 +1,6 @@
 import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as store from '@tloncorp/shared/dist/store';
+import * as store from '@tloncorp/shared/store';
 import { GroupMembersScreenView } from '@tloncorp/ui';
 import { useCallback } from 'react';
 

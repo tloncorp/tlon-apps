@@ -3,8 +3,8 @@ import { JSONContent } from '@tiptap/core';
 import {
   chatStoryFromStory,
   storyFromChatStory,
-} from '@tloncorp/shared/dist/urbit/channel';
-import { Inline } from '@tloncorp/shared/dist/urbit/content';
+} from '@tloncorp/shared/urbit/channel';
+import { Inline } from '@tloncorp/shared/urbit/content';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';

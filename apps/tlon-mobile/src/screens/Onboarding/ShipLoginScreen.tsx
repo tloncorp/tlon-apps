@@ -8,9 +8,9 @@ import { useShip } from '@tloncorp/app/contexts/ship';
 import { setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { transformShipURL } from '@tloncorp/app/utils/string';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared/dist';
-import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
-import { didSignUp } from '@tloncorp/shared/dist/db';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
+import { didSignUp } from '@tloncorp/shared/db';
 import {
   Field,
   KeyboardAvoidingView,

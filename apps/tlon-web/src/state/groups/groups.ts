@@ -4,7 +4,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query';
-import { BaitCite, Post, Reply } from '@tloncorp/shared/dist/urbit/channel';
+import { BaitCite, Post, Reply } from '@tloncorp/shared/urbit/channel';
 import {
   ChannelPreview,
   Cordon,
@@ -23,8 +23,8 @@ import {
   PrivacyType,
   Vessel,
   isGroup,
-} from '@tloncorp/shared/dist/urbit/groups';
-import { Scope, VolumeValue } from '@tloncorp/shared/dist/urbit/volume';
+} from '@tloncorp/shared/urbit/groups';
+import { Scope, VolumeValue } from '@tloncorp/shared/urbit/volume';
 import { decToUd } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import _ from 'lodash';

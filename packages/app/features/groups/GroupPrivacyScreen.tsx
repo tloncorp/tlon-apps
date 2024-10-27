@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { GroupPrivacy } from '@tloncorp/shared/dist/db/schema';
-import * as store from '@tloncorp/shared/dist/store';
+import { GroupPrivacy } from '@tloncorp/shared/db/schema';
+import * as store from '@tloncorp/shared/store';
 import {
   GroupPrivacySelector,
   ScreenHeader,

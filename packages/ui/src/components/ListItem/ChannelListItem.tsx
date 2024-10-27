@@ -1,5 +1,5 @@
-import type * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
+import type * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import { useMemo } from 'react';
 
 import * as utils from '../../utils';

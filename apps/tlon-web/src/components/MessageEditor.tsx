@@ -15,7 +15,7 @@ import Text from '@tiptap/extension-text';
 import { Slice } from '@tiptap/pm/model';
 import { EditorView } from '@tiptap/pm/view';
 import { Editor, EditorContent, JSONContent, useEditor } from '@tiptap/react';
-import { Cite } from '@tloncorp/shared/dist/urbit/channel';
+import { Cite } from '@tloncorp/shared/urbit/channel';
 import cn from 'classnames';
 import React, { useCallback, useMemo } from 'react';
 

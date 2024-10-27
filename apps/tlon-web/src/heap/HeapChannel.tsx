@@ -1,6 +1,6 @@
 import * as Toast from '@radix-ui/react-toast';
-import { Post, PostTuple } from '@tloncorp/shared/dist/urbit/channel';
-import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
+import { Post, PostTuple } from '@tloncorp/shared/urbit/channel';
+import { ViewProps } from '@tloncorp/shared/urbit/groups';
 import bigInt from 'big-integer';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';

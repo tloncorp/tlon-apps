@@ -1,6 +1,6 @@
-import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
-import { Post, Reply } from '@tloncorp/shared/dist/urbit/channel';
-import { Writ } from '@tloncorp/shared/dist/urbit/dms';
+import { MessageKey } from '@tloncorp/shared/urbit/activity';
+import { Post, Reply } from '@tloncorp/shared/urbit/channel';
+import { Writ } from '@tloncorp/shared/urbit/dms';
 import { daToUnix } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useMemo, useRef } from 'react';

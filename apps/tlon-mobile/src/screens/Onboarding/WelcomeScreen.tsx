@@ -1,8 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { setDidShowBenefitsSheet } from '@tloncorp/shared/dist/db';
-import { useDidShowBenefitsSheet } from '@tloncorp/shared/dist/store';
+import { setDidShowBenefitsSheet } from '@tloncorp/shared/db';
+import { useDidShowBenefitsSheet } from '@tloncorp/shared/store';
 import {
   ActionSheet,
   Button,

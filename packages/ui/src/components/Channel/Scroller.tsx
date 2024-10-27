@@ -5,9 +5,9 @@ import {
   layoutTypeFromChannel,
   useMutableCallback,
 } from '@tloncorp/shared';
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import { isSameDay } from '@tloncorp/shared/dist/logic';
+import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import { isSameDay } from '@tloncorp/shared/logic';
 import { isEqual } from 'lodash';
 import React, {
   PropsWithChildren,

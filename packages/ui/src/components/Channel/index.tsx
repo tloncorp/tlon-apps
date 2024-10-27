@@ -9,9 +9,9 @@ import {
   useGroupPreview,
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
-} from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';

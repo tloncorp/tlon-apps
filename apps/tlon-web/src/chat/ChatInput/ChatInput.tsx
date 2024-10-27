@@ -1,6 +1,6 @@
 import * as Popover from '@radix-ui/react-popover';
 import { Editor } from '@tiptap/react';
-import { getKey, getThreadKey } from '@tloncorp/shared/dist/urbit/activity';
+import { getKey, getThreadKey } from '@tloncorp/shared/urbit/activity';
 import {
   CacheId,
   Cite,
@@ -12,8 +12,8 @@ import {
   Reply,
   ReplyTuple,
   Writ,
-} from '@tloncorp/shared/dist/urbit/channel';
-import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
+} from '@tloncorp/shared/urbit/channel';
+import { WritTuple } from '@tloncorp/shared/urbit/dms';
 import cn from 'classnames';
 import _, { debounce } from 'lodash';
 import React, {

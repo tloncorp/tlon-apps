@@ -1,7 +1,7 @@
 import { open } from '@op-engineering/op-sqlite';
 import { createDevLogger, escapeLog } from '@tloncorp/shared';
-import { handleChange, schema, setClient } from '@tloncorp/shared/dist/db';
-import { AnySqliteDatabase } from '@tloncorp/shared/dist/db/client';
+import { handleChange, schema, setClient } from '@tloncorp/shared/db';
+import { AnySqliteDatabase } from '@tloncorp/shared/db/client';
 import { useEffect, useMemo, useState } from 'react';
 
 import { OPSQLite$SQLiteConnection } from './opsqliteConnection';

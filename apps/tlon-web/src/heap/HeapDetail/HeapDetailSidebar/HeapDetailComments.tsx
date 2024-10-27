@@ -1,5 +1,5 @@
-import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
-import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { MessageKey } from '@tloncorp/shared/urbit/activity';
+import { ReplyTuple } from '@tloncorp/shared/urbit/channel';
 import bigInt from 'big-integer';
 import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';

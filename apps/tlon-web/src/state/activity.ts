@@ -19,7 +19,7 @@ import {
   getThreadKey,
   sourceToString,
   stripSourcePrefix,
-} from '@tloncorp/shared/dist/urbit/activity';
+} from '@tloncorp/shared/urbit/activity';
 import _ from 'lodash';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 

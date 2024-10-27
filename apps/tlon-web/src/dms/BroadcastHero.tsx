@@ -1,4 +1,4 @@
-import { Club } from '@tloncorp/shared/dist/urbit/dms';
+import { Club } from '@tloncorp/shared/urbit/dms';
 import cn from 'classnames';
 import React from 'react';
 
