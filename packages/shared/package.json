@@ -17,9 +17,15 @@
     "./urbit": "./src/urbit/index.ts",
     "./urbit/activity": "./src/urbit/activity.ts",
     "./urbit/channel": "./src/urbit/channel.ts",
+    "./urbit/contact": "./src/urbit/contact.ts",
     "./urbit/content": "./src/urbit/content.ts",
+    "./urbit/dms": "./src/urbit/dms.ts",
     "./urbit/groups": "./src/urbit/groups.ts",
-    "./urbit/hark": "./src/urbit/hark.ts"
+    "./urbit/hark": "./src/urbit/hark.ts",
+    "./urbit/negotiation": "./src/urbit/negotiation.ts",
+    "./urbit/sigil": "./src/urbit/sigil.ts",
+    "./urbit/ui": "./src/urbit/ui.ts",
+    "./urbit/volume": "./src/urbit/volume.ts"
   },
   "scripts": {
     "build": "tsup",
