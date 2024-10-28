@@ -90,6 +90,8 @@
 		63E27E0E2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */; };
 		63E27E132C5AF5B9008ACB45 /* HTTPCookieStorage+forwardChanges.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E122C5AF5B8008ACB45 /* HTTPCookieStorage+forwardChanges.swift */; };
 		63E27E142C5AF5B9008ACB45 /* HTTPCookieStorage+forwardChanges.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E122C5AF5B8008ACB45 /* HTTPCookieStorage+forwardChanges.swift */; };
+		63EC5CC02CD0495B0098C343 /* SQLiteDB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63EC5CBF2CD049540098C343 /* SQLiteDB.swift */; };
+		63EC5CC12CD0495B0098C343 /* SQLiteDB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63EC5CBF2CD049540098C343 /* SQLiteDB.swift */; };
 		700B635B2A71DF860017F40F /* PocketUserAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635A2A71DF860017F40F /* PocketUserAPI.swift */; };
 		700B635D2A71DFE90017F40F /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
 		700B63602A71E0810017F40F /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635F2A71E0810017F40F /* SettingsStore.swift */; };
@@ -251,6 +253,7 @@
 		638753072CC7036C003942F5 /* ShortcutsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsManager.swift; sourceTree = "<group>"; };
 		63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Alamofire+sessionWithSharedCookieStorage.swift"; sourceTree = "<group>"; };
 		63E27E122C5AF5B8008ACB45 /* HTTPCookieStorage+forwardChanges.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = "HTTPCookieStorage+forwardChanges.swift"; path = "Landscape/HTTPCookieStorage+forwardChanges.swift"; sourceTree = "<group>"; };
+		63EC5CBF2CD049540098C343 /* SQLiteDB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteDB.swift; sourceTree = "<group>"; };
 		6C2E3173556A471DD304B334 /* Pods-Landscape.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape.debug.xcconfig"; path = "Target Support Files/Pods-Landscape/Pods-Landscape.debug.xcconfig"; sourceTree = "<group>"; };
 		700B635A2A71DF860017F40F /* PocketUserAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PocketUserAPI.swift; sourceTree = "<group>"; };
 		700B635C2A71DFE90017F40F /* Contact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contact.swift; sourceTree = "<group>"; };
@@ -351,6 +354,7 @@
 		13B07FAE1A68108700A75B9A /* Landscape */ = {
 			isa = PBXGroup;
 			children = (
+				63EC5CBF2CD049540098C343 /* SQLiteDB.swift */,
 				635BCB092CC6F954004D52AA /* Intents */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				008F07F21AC5B25A0029DE68 /* main.jsbundle */,
@@ -1225,6 +1229,7 @@
 				13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */,
 				13B07FC11A68108700A75B9A /* main.m in Sources */,
 				638753082CC7036C003942F5 /* ShortcutsManager.swift in Sources */,
+				63EC5CC02CD0495B0098C343 /* SQLiteDB.swift in Sources */,
 				70EAEAB52A57A99100FE96E4 /* UrbitModule.swift in Sources */,
 				700B63622A71E0D70017F40F /* ContactStore.swift in Sources */,
 				63E27E132C5AF5B9008ACB45 /* HTTPCookieStorage+forwardChanges.swift in Sources */,
@@ -1330,6 +1335,7 @@
 				70DBBFFC2B7C60B50021EA96 /* AppDelegate.mm in Sources */,
 				70DBBFFD2B7C60B50021EA96 /* main.m in Sources */,
 				638753092CC7036C003942F5 /* ShortcutsManager.swift in Sources */,
+				63EC5CC12CD0495B0098C343 /* SQLiteDB.swift in Sources */,
 				70DBBFFF2B7C60B50021EA96 /* UrbitModule.swift in Sources */,
 				70DBC0002B7C60B50021EA96 /* ContactStore.swift in Sources */,
 				63E27E142C5AF5B9008ACB45 /* HTTPCookieStorage+forwardChanges.swift in Sources */,
