@@ -7,23 +7,27 @@ import { poke, scry, subscribe } from './urbit';
 const logger = createDevLogger('contactsApi', true);
 
 export const getContacts = async () => {
-  const results = await scry<ub.ContactRolodex>({
+  // this is all peers we know about, with merged profile data for
+  // contacts
+  const peersResponse = await scry<ub.ContactRolodex>({
     app: 'contacts',
     path: '/all',
   });
 
-  // new book
-  // - are they a contact
-  // - if yes, do they have nickname override
-  const contactBook = await scry<Record<string, any>>({
+  // this is all of your contacts, with unmerged profile data + user overrides
+  const contactsResponse = await scry<ub.ContactBookScryResult1>({
     app: 'contacts',
     path: '/v1/book',
   });
-  logger.log('contactBook', contactBook);
+  const skipContacts = new Set(Object.keys(contactsResponse));
 
-  return toClientContacts(results, contactBook);
+  const peerProfiles = v0PeersToClientProfiles(peersResponse, skipContacts);
+  const contactProfiles = contactsToClientProfiles(contactsResponse);
+
+  return [...peerProfiles, ...contactProfiles];
 };
 
+// TODO: use new method
 export const addContacts = async (contactIds: string[]) => {
   return poke({
     app: 'contacts',
@@ -32,12 +36,36 @@ export const addContacts = async (contactIds: string[]) => {
   });
 };
 
+export const updateContactMetadata = async (
+  contactId: string,
+  metadata: { nickname?: string; avatarImage?: string }
+) => {
+  if (!metadata.nickname && !metadata.avatarImage) {
+    return;
+  }
+
+  const contactUpdate: ub.ContactBookProfile = {};
+  if (metadata.nickname) {
+    contactUpdate.nickname = { type: 'text', value: metadata.nickname };
+  }
+
+  if (metadata.avatarImage) {
+    contactUpdate.avatar = { type: 'look', value: metadata.avatarImage };
+  }
+
+  return poke({
+    app: 'contacts',
+    mark: 'contact-action-1',
+    json: { page: { kip: contactId, contact: contactUpdate } },
+  });
+};
+
 export const addContact = async (contactId: string) => {
   return poke({
     app: 'contacts',
     mark: 'contact-action-1',
     json: {
-      page: { kip: contactId },
+      page: { kip: contactId, contact: {} },
     },
   });
 };
@@ -104,8 +132,8 @@ export const removePinnedGroup = async (groupId: string) => {
 };
 
 export type ContactsUpdate =
-  | { type: 'add'; contact: db.Contact }
-  | { type: 'delete'; contactId: string };
+  | { type: 'upsertContact'; contact: db.Contact }
+  | { type: 'removeContact'; contactId: string };
 
 export const subscribeToContactUpdates = (
   handler: (update: ContactsUpdate) => void
@@ -113,36 +141,49 @@ export const subscribeToContactUpdates = (
   subscribe(
     {
       app: 'contacts',
-      path: '/news',
+      path: '/v1/news',
     },
-    (event: ub.ContactNews) => {
-      if (event.con) {
+    (event: ub.ContactsNewsResponse1) => {
+      console.log(`bl: got v1/news event`, event);
+
+      // received when someone is marked as a contact or when a contact's profile is updated
+      if (ub.isPageResponse(event) && event.kip.startsWith('~')) {
+        const contactBookEntry = [event.con, event.mod] as ub.ContactBookEntry;
         handler({
-          type: 'add',
-          contact: toClientContact(event.who, event.con),
+          type: 'upsertContact',
+          contact: contactToClientProfile(event.kip, contactBookEntry),
         });
-      } else {
-        handler({ type: 'delete', contactId: event.who });
+      }
+
+      if (ub.isWipeResponse(event) && event.kip.startsWith('~')) {
+        handler({ type: 'removeContact', contactId: event.kip });
+      }
+
+      // received when we get initial or updated profile info for a non-contact
+      if (ub.isPeerResponse(event) && event.who.startsWith('~')) {
+        handler({
+          type: 'upsertContact',
+          contact: v1PeerToClientProfile(event.who, event.con),
+        });
       }
     }
   );
 };
 
-export const toClientContacts = (
+export const v0PeersToClientProfiles = (
   contacts: ub.ContactRolodex,
-  contactBook: Record<string, any>
+  userIdsToOmit?: Set<string>
 ): db.Contact[] => {
-  return Object.entries(contacts).flatMap(([ship, contact]) =>
-    contact === null
-      ? []
-      : [toClientContact(ship, contact, ship in contactBook)]
-  );
+  return Object.entries(contacts)
+    .filter(([ship]) => (userIdsToOmit ? !userIdsToOmit.has(ship) : true))
+    .flatMap(([ship, contact]) =>
+      contact === null ? [] : [v0PeerToClientProfile(ship, contact)]
+    );
 };
 
-export const toClientContact = (
+export const v0PeerToClientProfile = (
   id: string,
-  contact: ub.Contact | null,
-  isContact?: boolean
+  contact: ub.Contact | null
 ): db.Contact => {
   return {
     id,
@@ -157,6 +198,72 @@ export const toClientContact = (
         groupId,
         contactId: id,
       })) ?? [],
-    isContact,
+
+    isContact: false,
+    customNickname: null,
+    customAvatarImage: null,
+  };
+};
+
+export const v1PeersToClientProfiles = (peers: ub.ContactsAllScryResult1) => {
+  return Object.entries(peers).map(([ship, contact]) =>
+    v1PeerToClientProfile(ship, contact)
+  );
+};
+
+export const v1PeerToClientProfile = (
+  id: string,
+  contact: ub.ContactBookProfile
+) => {
+  return {
+    id,
+    nickname: contact.nickname?.value ?? null,
+    bio: contact.bio?.value ?? null,
+    status: contact.status?.value ?? null,
+    color: contact.color ? normalizeUrbitColor(contact.color.value) : null,
+    coverImage: contact.cover?.value ?? null,
+    avatarImage: contact.avatar?.value ?? null,
+    pinnedGroups:
+      contact.groups?.value.map((group) => ({
+        groupId: group.value,
+        contactId: id,
+      })) ?? [],
+
+    isContact: false,
+    customNickname: null,
+    customAvatarImage: null,
+  };
+};
+
+export const contactsToClientProfiles = (
+  contacts: ub.ContactBookScryResult1
+): db.Contact[] => {
+  return Object.entries(contacts).flatMap(([userId, contact]) =>
+    contact === null ? [] : [contactToClientProfile(userId, contact)]
+  );
+};
+
+export const contactToClientProfile = (
+  userId: string,
+  contact: ub.ContactBookEntry
+): db.Contact => {
+  const [base, overrides] = contact;
+
+  return {
+    id: userId,
+    nickname: base.nickname?.value ?? null,
+    bio: base.bio?.value ?? null,
+    avatarImage: base.avatar?.value ?? null,
+    coverImage: base.cover?.value ?? null,
+    color: base.color ? normalizeUrbitColor(base.color.value) : null,
+    pinnedGroups:
+      base.groups?.value.map((group) => ({
+        groupId: group.value,
+        contactId: userId,
+      })) ?? [],
+
+    isContact: true,
+    customNickname: overrides.nickname?.value ?? null,
+    customAvatarImage: overrides.avatar?.value ?? null,
   };
 };

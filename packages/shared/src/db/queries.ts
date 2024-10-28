@@ -2704,6 +2704,26 @@ export const updateContact = createWriteQuery(
   ['contacts']
 );
 
+export const upsertContact = createWriteQuery(
+  'upsertContact',
+  async (contact: Contact, ctx: QueryCtx) => {
+    // TODO: is there a better way to do this?
+    const existingContact = await ctx.db.query.contacts.findFirst({
+      where: (contacts, { eq }) => eq(contacts.id, contact.id),
+    });
+
+    if (existingContact) {
+      return ctx.db
+        .update($contacts)
+        .set(contact)
+        .where(eq($contacts.id, contact.id));
+    }
+
+    return ctx.db.insert($contacts).values(contact);
+  },
+  ['contacts']
+);
+
 export const addPinnedGroup = createWriteQuery(
   'addPinnedGroup',
   async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {

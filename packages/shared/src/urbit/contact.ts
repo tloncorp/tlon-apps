@@ -48,3 +48,90 @@ export interface ContactNews {
   who: string;
   con: Contact | null;
 }
+
+export interface ContactFieldText {
+  type: 'text';
+  value: string;
+}
+
+export interface ContactImageField {
+  type: 'look';
+  value: string;
+}
+
+export interface ContactFieldColor {
+  type: 'tint';
+  value: string;
+}
+
+export interface ContactFieldGroups {
+  type: 'set';
+  value: { type: 'flag'; value: string }[];
+}
+
+export interface ContactBookProfile {
+  nickname?: ContactFieldText;
+  bio?: ContactFieldText;
+  avatar?: ContactImageField;
+  cover?: ContactImageField;
+  color?: ContactFieldColor;
+  groups?: ContactFieldGroups;
+  status?: ContactFieldText;
+}
+
+// first element is the contact's profile, second is any user overrides
+export type ContactBookEntry = [ContactBookProfile, ContactBookProfile];
+
+export type ContactsAllScryResult1 = Record<string, ContactBookProfile>;
+export type ContactBookScryResult1 = Record<string, ContactBookEntry>;
+
+export type ContactsSelfResponse1 = {
+  self: ContactBookProfile;
+};
+
+// received when someone is marked as a contact or when a contact's profile is updated
+export type ContactsPageResponse1 = {
+  kip: string;
+  con: ContactBookProfile;
+  mod: ContactBookProfile;
+};
+
+export type ContactsWipeResponse1 = {
+  kip: string;
+};
+
+// received when we get non-contact initial info
+export type ContactsPeerResponse1 = {
+  who: string;
+  con: ContactBookProfile;
+};
+
+export type ContactsNewsResponse1 =
+  | ContactsSelfResponse1
+  | ContactsPageResponse1
+  | ContactsWipeResponse1
+  | ContactsPeerResponse1;
+
+export function isPageResponse(
+  response: ContactsNewsResponse1
+): response is ContactsPageResponse1 {
+  return 'kip' in response && 'con' in response && 'mod' in response;
+}
+
+export function isWipeResponse(
+  response: ContactsNewsResponse1
+): response is ContactsWipeResponse1 {
+  return 'kip' in response && !('con' in response);
+}
+
+export function isPeerResponse(
+  response: ContactsNewsResponse1
+): response is ContactsPeerResponse1 {
+  return 'who' in response && 'con' in response;
+}
+
+export function isSelfResponse(
+  response: ContactsNewsResponse1
+): response is ContactsSelfResponse1 {
+  return 'self' in response;
+}

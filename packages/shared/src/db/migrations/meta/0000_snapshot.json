@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "4a17aac9-4286-40c3-8716-1f1f9bc09604",
+  "id": "728d5219-1faa-47d2-9585-57c101631611",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -685,6 +685,20 @@
         "isContact": {
           "name": "isContact",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "customNickname": {
+          "name": "customNickname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "customAvatarImage": {
+          "name": "customAvatarImage",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
