@@ -9,6 +9,7 @@
     "./api": "./src/api/index.ts",
     "./client": "./src/client/index.ts",
     "./db": "./src/db/index.ts",
+    "./db/client": "./src/db/client.ts",
     "./db/migrations": "./src/db/migrations/index.ts",
     "./db/types": "./src/db/types.ts",
     "./logic": "./src/logic/index.ts",
