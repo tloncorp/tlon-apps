@@ -17,14 +17,14 @@
 /+  channel-json
 ::
 ::  compile all marks
-::XX this is not actually compiling??
+::XX  /~ rune is broken
 :: /~  marks  *  /mar/channel
 ::
 =/  verbose  |
 %-  %-  agent:neg
     :+  notify=&
-      [~.channels^%1 ~ ~]
-    [%channels-server^[~.channels^%1 ~ ~] ~ ~]
+      ~
+    [%channels-server^[~.channels^%2 ~ ~] ~ ~]
 %-  agent:dbug
 %+  verb  |
 ::
@@ -179,118 +179,7 @@
   ++  state-7-to-8
     |=  s=state-7
     ^-  state-8
-    s(- %8, v-channels (v-channels-7-to-8 v-channels.s))
-  ++  v-channels-7-to-8
-    |=  vc=v-channels:v7:old:c
-    ^-  v-channels:c
-    %-  ~(run by vc)
-    |=  v=v-channel:v7:old:c
-    ^-  v-channel:c
-    =/  [log=log:v-channel:c mod=(map id-post:c time)]
-      (log-7-to-8 log.v)
-    =/  [count=@ud =v-posts:c]
-      (v-posts-7-to-8 posts.v mod)
-    =-  -(|1.- [count |1.-.-])
-    %=  v
-      posts    v-posts
-      log      log
-      future   (future-7-to-8 future.v)
-    ==
-  ++  v-posts-7-to-8
-    |=  [vp=v-posts:v7:old:c mod=(map id-post:c time)]
-    ^-  [@ud v-posts:c]
-    =|  posts=v-posts:c
-    %-  (rep:mo-v-posts:v7:old:c vp)
-    |=  [[=id-post:c post=(unit v-post:v7:old:c)] count=@ud =_posts]
-    ^+  [count posts]
-    ::  for each post traversed, even if it was deleted,
-    ::  .count increases to generate correct post sequence
-    ::  number
-    ::
-    =.  count  +(count)
-    :-  count
-    ?~  post  posts
-    ::  insert seq and mod-at into seal
-    ::
-    =/  new-post=v-post:c
-      =/  new-seal=v-seal:c
-        =+  mod-at=(~(got by mod) id-post)
-        =*  seal  -.u.post
-        =+  seal(|1 [+(count) mod-at |1.seal])
-        %=  -
-          replies  (v-replies-7-to-8 replies.seal)
-          reacts   (v-reacts-7-to-8 reacts.seal)
-        ==
-      [new-seal +.u.post]
-    (put:on-v-posts:c posts id-post `new-post)
-  ::
-  ++  v-replies-7-to-8
-    |=  =v-replies:v7:old:c
-    ^-  v-replies:c
-    %+  run:on-v-replies:v7:old:c  v-replies
-    |=  v-reply=(unit v-reply:v7:old:c)
-    ^-  (unit v-reply:c)
-    ?~  v-reply  ~
-    %=  v-reply
-      reacts.u  (v-reacts-7-to-8 reacts.u.v-reply)
-    ==
-  ::
-  ++  v-reacts-7-to-8
-    |=  =v-reacts:v7:old:c
-    ^-  v-reacts:c
-    %-  ~(run by v-reacts)
-    |=  v-react=(rev:c (unit react:v7:old:c))
-    ^-  (rev:c (unit react:c))
-    ?~  +.v-react  [-.v-react ~]
-    =+  rat=(kill:em u.v-react)
-    ?~  rat
-      v-react(u [%any u.v-react])
-    v-react(u u.rat)
-  ::
-  ++  log-7-to-8
-    |=  l=log:v-channel:v7:old:c
-    ^-  [log:v-channel:c (map id-post:c @da)]
-    =|  seq-log=(map id-post:c @ud)
-    =|  =log:c
-    =|  mod=(map id-post:c @da)
-    =<  +
-    %-  (rep:mo-log:v7:old:c l)
-    |=  [[=time =u-channel:v7:old:c] [count=@ud =_seq-log] =_log =_mod]
-    ^+  [[count seq-log] log mod]
-    ?.  ?=(%post -.u-channel)
-      :-  [count seq-log]
-      :_  mod
-      (put:log-on:c log time u-channel)
-    ?.  ?=(%set -.u-post.u-channel)
-      :-  [count seq-log]
-      :_  (~(put by mod) id.u-channel time)
-      (put:log-on:c log time u-channel)
-    ?~  post.u-post.u-channel
-      :-  [count seq-log]
-      :_  (~(put by mod) id.u-channel time)
-      (put:log-on:c log time %post id.u-channel %set ~)
-    ::  increment .seq only for a new post
-    ::
-    =^  seq=@ud  count
-      ?~  seq=(~(get by seq-log) id.u-channel)
-        =.  count  +(count)
-        [count count]
-      [u.seq count]
-    =*  post  u.post.u-post.u-channel
-    =/  =u-post:c
-      :-  %set
-      (some post(|1.- [seq time |1.-.post]))
-    :-  :-  count
-        (~(put by seq-log) id.u-channel count)
-    :_  (~(put by mod) id.u-channel time)
-    (put:log-on:c log time %post id.u-channel u-post)
-  ::
-  ++  future-7-to-8
-    |=  f=future:v-channel:v7:old:c
-    ^-  future:v-channel:c
-    ::  channel future is defunct for now
-    ::
-    *future:v-channel:c
+    s(- %8, v-channels (v-channels-7-to-8:utils v-channels.s))
   ::
   ++  state-6-to-7
     |=  s=state-6
@@ -603,7 +492,7 @@
   ::
     :: TODO: add transfer/import channels
       %channel-action
-    =+  !<(=a-channels:c vase)
+    =+  !<(=a-channels:v7:old:c vase)
     ?:  ?=(%create -.a-channels)
       ca-abet:(ca-create:ca-core create-channel.a-channels)
     ?:  ?=(%pin -.a-channels)
@@ -617,26 +506,31 @@
       ca-abet:(ca-join:ca-core [nest group.a-channel]:a-channels)
     ::  upconvert emoji
     ::
-    =?  a-channel.a-channels  ?=([%post %add-react *] a-channel.a-channels)
-      %_  a-channel.a-channels
-        q.c-post
+    =/  new-a-channels=a-channels:c
+      a-channels
+    ?>  ?=([%channel *] new-a-channels)
+    =?  new-a-channels  ?=([%post %add-react *] a-channel.a-channels)
+      ?>  ?=([%post %add-react *] a-channel.new-a-channels)
+      %_  new-a-channels
+          q.c-post.a-channel
+        ^-  react:c
         =*  react  q.c-post.a-channel.a-channels
-        ?>  ?=(@t react)
         ?~  react=(kill:em react)
           [%any ^react]
         u.react
       ==
-    =?  a-channel.a-channels  ?=([%post %reply @ %add-react *] a-channel.a-channels)
-      %_  a-channel.a-channels
-        q.c-reply.c-post
+    =?  new-a-channels  ?=([%post %reply @ %add-react *] a-channel.a-channels)
+      ?>  ?=([%post %reply @ %add-react *] a-channel.new-a-channels)
+      %_  new-a-channels
+          q.c-reply.c-post.a-channel
+        ^-  react:c
         =*  react  q.c-reply.c-post.a-channel.a-channels
-        ?>  ?=(@t react)
         ?~  react=(kill:em react)
           [%any ^react]
         u.react
       ==
-    ca-abet:(ca-a-channel:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
-    ::
+    ca-abet:(ca-a-channel:(ca-abed:ca-core nest.new-a-channels) a-channel.new-a-channels)
+  ::
       %channel-migration
     ?>  =(our src):bowl
     =+  !<(new-channels=v-channels:c vase)
@@ -751,16 +645,18 @@
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
-    (watch-said nest plan)
+    (watch-said nest plan -.pole)
   ==
 ::
 ++  watch-said
-  |=  [=nest:c =plan:c]
+  |=  [=nest:c =plan:c ver=?(%v0 %v1 %v2)]
   ?.  (~(has by v-channels) nest)
     =/  =path  (said-path nest plan)
     ((safe-watch path [ship.nest server] path) |)
   ::TODO  not guaranteed to resolve, we might have partial backlog
-  ca-abet:(ca-said:(ca-abed:ca-core nest) plan)
+  ?.  ?=(%v2 ver)
+    ca-abet:(ca-said-1:(ca-abed:ca-core nest) plan)
+  ca-abet:(ca-said-2:(ca-abed:ca-core nest) plan)
 ::
 ++  said-path
   |=  [=nest:c =plan:c]
@@ -786,14 +682,16 @@
   ::
       %fact
     =.  cor  (give %fact ~[v2+path] cage.sign)
-    ::  send legacy said:v7 response
-    ::
-    =.  cor  %^  give  %fact
+    =.  cor  
+      %^  give  %fact
         ~[path v0+path v1+path]
-      ?.  ?=(%channel-said-2 p.cage.sign)
-        cage.sign
-      =+  !<(=said:c q.cage.sign)
-      channel-said+!>((to-said-1:utils said))
+      ?+  p.cage.sign  ~|(funny-mark+p.cage.sign !!)
+        %channel-denied  cage.sign
+      ::
+          %channel-said-2
+        =+  !<(=said:c q.cage.sign)
+        channels-said+!>((to-said-1:utils said))
+      ==
     =.  cor  (give %kick ~[path v0+path v1+path v2+path] ~)
     ?+    p.cage.sign  ~|(funny-mark+p.cage.sign !!)
         %channel-denied  cor(voc (~(put by voc) [nest plan] ~))
@@ -1287,7 +1185,7 @@
   ::
   ::  handle a said (previews) request where we have the data to respond
   ::
-  ++  ca-said
+  ++  ca-said-1
     |=  =plan:c
     ^+  ca-core
     =.  ca-core
@@ -1295,6 +1193,16 @@
       ?.  (can-read:ca-perms src.bowl)
         channel-denied+!>(~)
       (said-1:utils nest plan posts.channel)
+    (give %kick ~ ~)
+  ::
+  ++  ca-said-2
+    |=  =plan:c
+    ^+  ca-core
+    =.  ca-core
+      %^  give  %fact  ~
+      ?.  (can-read:ca-perms src.bowl)
+        channel-denied+!>(~)
+      (said-2:utils nest plan posts.channel)
     (give %kick ~ ~)
   ::
   ++  ca-has-sub
@@ -1874,7 +1782,6 @@
   ++  ca-response
     |=  =r-channel:c
     =/  =r-channels:c  [nest r-channel]
-    ~&  ca-response+r-channel
     ::TODO  the mark type changing will give us trouble, right?
     =.  ca-core
       %^  give  %fact
@@ -1953,19 +1860,19 @@
     |=  [=(pole knot) ver=?(%v0 %v1 %v2 %v3)]
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
-      ::
+    ::
         [%posts rest=*]
       ?:  ?=(%v0 ver)  (ca-peek-posts-0 rest.pole)
       (ca-peek-posts rest.pole ver)
-      ::
+    ::
         [%perm ~]        ``channel-perm+!>(perm.perm.channel)
-      ::
+    ::
         [%hark %rope post=@ ~]
       =/  id  (slav %ud post.pole)
       :^  ~  ~  %noun  !>
       ?.  (has:on-v-posts:c posts.channel id)  ~
       `(ca-rope kind.nest id ~)
-      ::
+    ::
         [%hark %rope post=@ reply=@ ~]
       =/  post-id  (slav %ud post.pole)
       =/  reply-id  (slav %ud reply.pole)
@@ -1975,7 +1882,7 @@
       ?~  u.post  ~
       ?.  (has:on-v-replies:c replies.u.u.post reply-id)  ~
       `(ca-rope kind.nest post-id `reply-id)
-      ::
+    ::
         [%search %bounded kind=?(%text %mention) from=@ tries=@ nedl=@ ~]
       :+  ~  ~
       =;  =scam:c
@@ -1993,7 +1900,7 @@
         %text     (fall (slaw %t nedl.pole) nedl.pole)
         %mention  (slav %p nedl.pole)
       ==
-      ::
+    ::
         [%search %text skip=@ count=@ nedl=@ ~]
       :+  ~  ~
       =;  =scan:c
@@ -2004,7 +1911,7 @@
           (slav %ud skip.pole)
         (slav %ud count.pole)
       (fall (slaw %t nedl.pole) nedl.pole)
-      ::
+    ::
         [%search %mention skip=@ count=@ nedl=@ ~]
       :+  ~  ~
       =;  =scan:c
@@ -2227,20 +2134,20 @@
           `key:(head older)
         ?-  version
         ::
-          %v1
-        =/  =paged-posts:v1:old:c
-          [(uv-posts:utils posts) newer older (wyt:on-v-posts:c posts)]
-        ``channel-posts+!>(paged-posts)
+            %v1
+          =/  =paged-posts:v1:old:c
+            [(uv-posts:utils posts) newer older (wyt:on-v-posts:c posts)]
+          ``channel-posts+!>(paged-posts)
         ::
-          %v2
-          =/  =paged-posts:v7:old:c
-            [(uv-posts-1:utils posts) newer older (wyt:on-v-posts:c posts)]
-          ``channel-posts-2+!>(paged-posts)
+            %v2
+            =/  =paged-posts:v7:old:c
+              [(uv-posts-1:utils posts) newer older (wyt:on-v-posts:c posts)]
+            ``channel-posts-2+!>(paged-posts)
         ::
-          %v3
-          =/  =paged-posts:c
-            [(uv-posts-2:utils posts) newer older (wyt:on-v-posts:c posts)]
-          ``channel-posts-3+!>(paged-posts)
+            %v3
+            =/  =paged-posts:c
+              [(uv-posts-2:utils posts) newer older (wyt:on-v-posts:c posts)]
+            ``channel-posts-3+!>(paged-posts)
         ==
       ::  walk both posts and logs, in chronological order, newest-first,
       ::  until we accumulate the desired amount of results

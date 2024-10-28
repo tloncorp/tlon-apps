@@ -387,7 +387,7 @@
     ?@  react
       s+react
     ?-  -.react
-      %any  s+p.react
+      %any  (frond %any s+p.react)
     ==
   ::
   ++  reacts
