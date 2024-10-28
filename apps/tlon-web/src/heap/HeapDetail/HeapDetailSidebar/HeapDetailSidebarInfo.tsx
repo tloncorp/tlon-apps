@@ -1,4 +1,4 @@
-import { PostEssay } from '@tloncorp/shared/dist/urbit/channel';
+import { PostEssay } from '@tloncorp/shared/urbit/channel';
 
 import Author from '@/chat/ChatMessage/Author';
 import getKindDataFromEssay from '@/logic/getKindData';

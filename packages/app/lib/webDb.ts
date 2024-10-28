@@ -1,7 +1,7 @@
 import { createDevLogger } from '@tloncorp/shared';
-import type { Schema } from '@tloncorp/shared/dist/db';
-import { handleChange, schema, setClient } from '@tloncorp/shared/dist/db';
-import { migrations } from '@tloncorp/shared/dist/db/migrations';
+import type { Schema } from '@tloncorp/shared/db';
+import { handleChange, schema, setClient } from '@tloncorp/shared/db';
+import { migrations } from '@tloncorp/shared/db/migrations';
 import { sql } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { drizzle } from 'drizzle-orm/sqlite-proxy';

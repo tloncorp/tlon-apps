@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/dist/db';
-import { desig } from '@tloncorp/shared/dist/urbit';
+import * as db from '@tloncorp/shared/db';
+import { desig } from '@tloncorp/shared/urbit';
 import { useMemo } from 'react';
 import { Dimensions } from 'react-native';
 

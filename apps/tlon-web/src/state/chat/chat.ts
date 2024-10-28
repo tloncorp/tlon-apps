@@ -1,16 +1,12 @@
 import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
-import {
-  MessageKey,
-  Source,
-  getKey,
-} from '@tloncorp/shared/dist/urbit/activity';
+import { MessageKey, Source, getKey } from '@tloncorp/shared/urbit/activity';
 import {
   CacheId,
   ChannelsAction,
   Replies,
   Reply,
   ReplyTuple,
-} from '@tloncorp/shared/dist/urbit/channel';
+} from '@tloncorp/shared/urbit/channel';
 import {
   BlockedByShips,
   BlockedShips,
@@ -36,8 +32,8 @@ import {
   WritSeal,
   Writs,
   newWritTupleArray,
-} from '@tloncorp/shared/dist/urbit/dms';
-import { GroupMeta } from '@tloncorp/shared/dist/urbit/groups';
+} from '@tloncorp/shared/urbit/dms';
+import { GroupMeta } from '@tloncorp/shared/urbit/groups';
 import { decToUd, udToDec } from '@urbit/api';
 import { formatUd, unixToDa } from '@urbit/aura';
 import { Poke } from '@urbit/http-api';

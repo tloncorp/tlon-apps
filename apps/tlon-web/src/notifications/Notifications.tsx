@@ -1,5 +1,5 @@
-import { ActivityBundle, ActivitySummary } from '@tloncorp/shared/dist/urbit';
-import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
+import { ActivityBundle, ActivitySummary } from '@tloncorp/shared/urbit';
+import { ViewProps } from '@tloncorp/shared/urbit/groups';
 import cn from 'classnames';
 import { PropsWithChildren, useCallback, useEffect } from 'react';
 import { Helmet } from 'react-helmet';

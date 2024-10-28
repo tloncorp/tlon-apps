@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { useMemo, useState } from 'react';
 import { SizableText, YStack } from 'tamagui';
 

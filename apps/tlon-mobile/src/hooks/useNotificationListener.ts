@@ -5,11 +5,11 @@ import { useFeatureFlag } from '@tloncorp/app/lib/featureFlags';
 import { connectNotifications } from '@tloncorp/app/lib/notifications';
 import * as posthog from '@tloncorp/app/utils/posthog';
 import { syncDms, syncGroups } from '@tloncorp/shared';
-import { markChatRead } from '@tloncorp/shared/dist/api';
-import * as api from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
-import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/dist/urbit';
+import { markChatRead } from '@tloncorp/shared/api';
+import * as api from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
+import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/urbit';
 import {
   Notification,
   addNotificationResponseReceivedListener,

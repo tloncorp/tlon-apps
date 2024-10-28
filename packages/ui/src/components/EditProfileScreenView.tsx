@@ -1,5 +1,5 @@
-import * as api from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
+import * as api from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
 import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';

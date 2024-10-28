@@ -1,4 +1,4 @@
-import { imageUrlFromContent } from '@tloncorp/shared/dist/urbit/channel';
+import { imageUrlFromContent } from '@tloncorp/shared/urbit/channel';
 import bigInt from 'big-integer';
 import React, { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router';

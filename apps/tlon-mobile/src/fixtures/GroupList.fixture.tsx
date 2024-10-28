@@ -1,4 +1,4 @@
-import type * as db from '@tloncorp/shared/dist/db';
+import type * as db from '@tloncorp/shared/db';
 import { ChatList } from '@tloncorp/ui';
 
 import { FixtureWrapper } from './FixtureWrapper';

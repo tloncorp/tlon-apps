@@ -13,9 +13,9 @@ import {
 } from '@tloncorp/app/lib/hostingApi';
 import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared/dist';
-import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
-import { didSignUp } from '@tloncorp/shared/dist/db';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
+import { didSignUp } from '@tloncorp/shared/db';
 import {
   Field,
   KeyboardAvoidingView,

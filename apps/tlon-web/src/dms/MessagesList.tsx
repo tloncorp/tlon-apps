@@ -1,7 +1,7 @@
 import {
   ActivitySummary,
   stripSourcePrefix,
-} from '@tloncorp/shared/src/urbit/activity';
+} from '@tloncorp/shared/urbit/activity';
 import fuzzy from 'fuzzy';
 import { PropsWithChildren, useEffect, useMemo, useRef } from 'react';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';

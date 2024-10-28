@@ -1,4 +1,4 @@
-import { Gangs, ViewProps } from '@tloncorp/shared/dist/urbit/groups';
+import { Gangs, ViewProps } from '@tloncorp/shared/urbit/groups';
 import cn from 'classnames';
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';

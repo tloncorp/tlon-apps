@@ -1,4 +1,4 @@
-import { Group, Groups } from '@tloncorp/shared/dist/urbit/groups';
+import { Group, Groups } from '@tloncorp/shared/urbit/groups';
 import { get } from 'lodash';
 import { useCallback, useMemo } from 'react';
 

@@ -1,7 +1,7 @@
 import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import type * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import {
   AppDataContextProvider,
   GroupPreviewSheet,

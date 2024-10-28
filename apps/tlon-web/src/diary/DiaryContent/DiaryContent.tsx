@@ -5,7 +5,7 @@ import {
   Story,
   isCite,
   isImage,
-} from '@tloncorp/shared/dist/urbit/channel';
+} from '@tloncorp/shared/urbit/channel';
 import {
   Inline,
   isBlockCode,
@@ -16,7 +16,7 @@ import {
   isItalics,
   isLink,
   isStrikethrough,
-} from '@tloncorp/shared/dist/urbit/content';
+} from '@tloncorp/shared/urbit/content';
 import cn from 'classnames';
 import { toH } from 'hast-to-hyperscript';
 import _ from 'lodash';

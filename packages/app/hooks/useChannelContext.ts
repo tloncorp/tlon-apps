@@ -1,7 +1,7 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
-import * as urbit from '@tloncorp/shared/dist/urbit';
-import { JSONContent } from '@tloncorp/shared/dist/urbit';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
+import * as urbit from '@tloncorp/shared/urbit';
+import { JSONContent } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useFeatureFlag } from '../lib/featureFlags';

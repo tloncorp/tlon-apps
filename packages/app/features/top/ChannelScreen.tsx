@@ -1,17 +1,17 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import {
   useCanUpload,
   useChannel,
   useGroupPreview,
   usePostReference,
   usePostWithRelations,
-} from '@tloncorp/shared/dist/store';
-import { Story } from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared/store';
+import { Story } from '@tloncorp/shared/urbit';
 import {
   Channel,
   ChannelSwitcherSheet,
