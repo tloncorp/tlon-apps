@@ -50,7 +50,6 @@ export class BetterSqlite3$SQLiteConnection implements SQLiteConnection {
     Object.entries(migrations.migrations)
       .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
       .forEach(([_key, migration]) => {
-        // @ts-expect-error - migration is an SQL import
         this.execute(migration);
       });
     return;

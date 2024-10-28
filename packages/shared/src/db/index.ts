@@ -8,4 +8,3 @@ export { setClient } from './client';
 export type { AnySqliteDatabase } from './client';
 export * from './changeListener';
 export * from './domainTypes';
-export { migrations } from './migrations';
