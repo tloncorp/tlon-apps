@@ -503,7 +503,7 @@ export function JSONToInlines(
   }
 }
 
-const makeText = (t: string) => ({ type: 'text', text: t });
+export const makeText = (t: string) => ({ type: 'text', text: t });
 const makeLink = (link: Link['link']) => ({
   type: 'text',
   marks: [{ type: 'link', attrs: { href: link.href } }],
@@ -846,7 +846,7 @@ export function normalizeInline(inline: Inline[]): Inline[] {
   );
 }
 
-export const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
+const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
 
 export function refPasteRule(onReference: (r: Cite) => void) {
   return new PasteRule({

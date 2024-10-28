@@ -14,6 +14,7 @@ import Strike from '@tiptap/extension-strike';
 import Text from '@tiptap/extension-text';
 import { EditorContent, useEditor } from '@tiptap/react';
 import {
+  REF_REGEX,
   createDevLogger,
   extractContentTypesFromPost,
   tiptap,
@@ -283,7 +284,7 @@ export function MessageInput({
         return;
       }
       if (pastedText) {
-        const isRef = pastedText.match(tiptap.REF_REGEX);
+        const isRef = pastedText.match(REF_REGEX);
 
         if (isRef) {
           const cite = pathToCite(isRef[0]);
@@ -317,13 +318,13 @@ export function MessageInput({
                 if (typeof inline === 'string') {
                   const inlineLength = inline.length;
                   const refLength =
-                    inline.match(tiptap.REF_REGEX)?.[0].length || 0;
+                    inline.match(REF_REGEX)?.[0].length || 0;
 
                   if (inlineLength === refLength) {
                     return null;
                   }
 
-                  return inline.replace(tiptap.REF_REGEX, '');
+                  return inline.replace(REF_REGEX, '');
                 }
                 return inline;
               })

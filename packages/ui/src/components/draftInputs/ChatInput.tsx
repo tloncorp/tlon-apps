@@ -1,6 +1,6 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { MessageInput } from '../MessageInput';
+import BareChatInput from '../BareChatInput';
 import { ParentAgnosticKeyboardAvoidingView } from '../ParentAgnosticKeyboardAvoidingView';
 import { DraftInputContext } from './shared';
 
@@ -26,7 +26,7 @@ export function ChatInput({
   return (
     <SafeAreaView edges={['right', 'left', 'bottom']}>
       <ParentAgnosticKeyboardAvoidingView>
-        <MessageInput
+        <BareChatInput
           shouldBlur={shouldBlur}
           setShouldBlur={setShouldBlur}
           send={send}
