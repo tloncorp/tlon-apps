@@ -612,7 +612,7 @@
     ^-  v-posts:d
     %+  gas:on-v-posts:d  *v-posts:d
     =|  posts=(list [id-post:d (unit v-post:d)])
-    =<  +
+    =<  posts
     %+  roll  (tap:on:notes:a old)
     |=  [[=time =note:a] count=@ud =_posts]
     ^+  [count posts]

@@ -616,7 +616,7 @@
       (put:on-v-replies:c old-replies time `(convert-reply time curio))
     %+  gas:on-v-posts:c  *v-posts:c
     =|  posts=(list [id-post:c (unit v-post:c)])
-    =<  +
+    =<  posts
     %+  roll  curios
     |=  [[=time =curio:h] count=@ud =_posts]
     ^+  [count posts]
