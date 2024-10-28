@@ -1,14 +1,62 @@
-import * as db from '../db';
-import { ActivityEvent } from '../db';
-import {
-  ExtendedEventType,
-  NotificationLevel,
-  VolumeSettings,
-  getLevelFromVolumeMap,
-} from '../urbit';
+import _ from 'lodash';
+
+import type * as db from '../db';
+import type * as ub from '../urbit';
+
+export const onEvents: ub.ExtendedEventType[] = [
+  'dm-reply',
+  'post-mention',
+  'reply-mention',
+  'dm-invite',
+  'dm-post',
+  'dm-post-mention',
+  'dm-reply',
+  'dm-reply-mention',
+  'group-ask',
+  'group-invite',
+  'flag-post',
+  'flag-reply',
+];
+
+export const notifyOffEvents: ub.ExtendedEventType[] = [
+  'reply',
+  'group-join',
+  'group-kick',
+  'group-role',
+];
+
+export function getLevelFromVolumeMap(
+  vmap: ub.VolumeMap
+): ub.NotificationLevel {
+  const entries = Object.entries(vmap) as [ub.ExtendedEventType, ub.Volume][];
+  if (_.every(entries, ([, v]) => v.notify)) {
+    return 'loud';
+  }
+
+  if (_.every(entries, ([, v]) => !v.notify)) {
+    return 'hush';
+  }
+
+  let isDefault = true;
+  entries.forEach(([k, v]) => {
+    if (onEvents.concat('post').includes(k) && !v.notify) {
+      isDefault = false;
+    }
+
+    if (notifyOffEvents.includes(k) && v.notify) {
+      isDefault = false;
+    }
+  });
+
+  if (isDefault) {
+    return 'medium';
+  }
+
+  return 'soft';
+}
 
 export function extractClientVolumes(
-  volume: VolumeSettings
+  volume: ub.VolumeSettings
 ): db.VolumeSettings[] {
   const settings: db.VolumeSettings[] = [];
 
@@ -44,7 +92,7 @@ export function extractClientVolumes(
 }
 
 export function isMuted(
-  volume: NotificationLevel | null | undefined,
+  volume: ub.NotificationLevel | null | undefined,
   type: 'group' | 'channel' | 'thread'
 ) {
   if (!volume) return false;
@@ -64,13 +112,13 @@ export function isMuted(
 // to display
 export interface SourceActivityEvents {
   sourceId: string;
-  type: ExtendedEventType;
-  newest: ActivityEvent;
-  all: ActivityEvent[];
+  type: ub.ExtendedEventType;
+  newest: db.ActivityEvent;
+  all: db.ActivityEvent[];
 }
 
 export function toSourceActivityEvents(
-  events: ActivityEvent[]
+  events: db.ActivityEvent[]
 ): SourceActivityEvents[] {
   const eventMap = new Map<string, SourceActivityEvents>();
   const eventsList: SourceActivityEvents[] = [];
@@ -124,10 +172,10 @@ export function toSourceActivityEvents(
 }
 
 export function interleaveActivityEvents(
-  listA: ActivityEvent[],
-  listB: ActivityEvent[]
-): ActivityEvent[] {
-  const results: ActivityEvent[] = [];
+  listA: db.ActivityEvent[],
+  listB: db.ActivityEvent[]
+): db.ActivityEvent[] {
+  const results: db.ActivityEvent[] = [];
 
   let aIndex = 0;
   let bIndex = 0;
@@ -157,7 +205,9 @@ export function interleaveActivityEvents(
   return results;
 }
 
-export function filterDupeEvents(events: ActivityEvent[]): ActivityEvent[] {
+export function filterDupeEvents(
+  events: db.ActivityEvent[]
+): db.ActivityEvent[] {
   const seen = new Set<string>();
   return events.filter((event) => {
     if (seen.has(event.id)) {

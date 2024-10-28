@@ -12,7 +12,6 @@ import {
   useLiveRef,
   useOptimizedQueryResults,
 } from '../logic/utilHooks';
-import { queryClient } from './reactQuery';
 import { useCurrentSession } from './session';
 import * as sync from './sync';
 import { SyncPriority } from './syncQueue';
@@ -30,16 +29,11 @@ type PostQueryPage = {
 };
 type UseChannelPostsPageParams = db.GetChannelPostsOptions;
 type PostQueryData = InfiniteData<PostQueryPage, unknown>;
-type SubscriptionPost = [db.Post, string | undefined];
 
 type UseChanelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
   firstPageCount?: number;
   hasCachedNewest?: boolean;
-};
-
-export const clearChannelPostsQueries = () => {
-  queryClient.invalidateQueries({ queryKey: ['channelPosts'] });
 };
 
 export const useChannelPosts = (options: UseChanelPostsParams) => {
@@ -152,7 +146,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     },
     [options.channelId]
   );
-  useSubscriptionPostListener(handleNewPost);
+  sync.useSubscriptionPostListener(handleNewPost);
 
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
@@ -323,31 +317,3 @@ function useLoadActionsWithPendingHandlers(
 
   return { loadNewer, loadOlder };
 }
-
-// New post listener:
-//
-// Used to proxy events from post subscription to the hook,
-// allowing us to manually add new posts to the query data.
-
-type SubscriptionPostListener = (...args: SubscriptionPost) => void;
-
-const subscriptionPostListeners: SubscriptionPostListener[] = [];
-
-const useSubscriptionPostListener = (listener: SubscriptionPostListener) => {
-  useEffect(() => {
-    subscriptionPostListeners.push(listener);
-    return () => {
-      const index = subscriptionPostListeners.indexOf(listener);
-      if (index !== -1) {
-        subscriptionPostListeners.splice(index, 1);
-      }
-    };
-  }, [listener]);
-};
-
-/**
- * External interface for transmitting new post events to listener
- */
-export const addToChannelPosts = (...args: SubscriptionPost) => {
-  subscriptionPostListeners.forEach((listener) => listener(...args));
-};

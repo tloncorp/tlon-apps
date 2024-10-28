@@ -1,6 +1,7 @@
 import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
+import { useEffect } from 'react';
 
 import * as api from '../api';
 import { GetChangedPostsOptions } from '../api';
@@ -8,14 +9,12 @@ import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger, runIfDev } from '../debug';
 import { extractClientVolumes } from '../logic/activity';
-import {
-  INFINITE_ACTIVITY_QUERY_KEY,
-  resetActivityFetchers,
-} from '../store/useActivityFetchers';
 import { useLureState } from './lure';
+import { queryClient } from './reactQuery';
 import { getSyncing, updateIsSyncing, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
-import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
+
+export const INFINITE_ACTIVITY_QUERY_KEY = 'useInfiniteBucketedActivity';
 
 export { SyncPriority, syncQueue } from './syncQueue';
 
@@ -1154,4 +1153,55 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
       api.subscribeToStorageUpdates(handleStorageUpdate),
     ]);
   });
+};
+
+export function resetActivityFetchers() {
+  logger.log('resetting activity fetchers');
+  const fetchers = ['all', 'mentions', 'replies'];
+  for (const fetcher in fetchers) {
+    api.queryClient.setQueryData([INFINITE_ACTIVITY_QUERY_KEY, fetcher], () => {
+      return {
+        pages: [],
+        pageParams: [],
+      };
+    });
+  }
+  api.queryClient.invalidateQueries({
+    queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
+  });
+}
+
+// New post listener:
+//
+// Used to proxy events from post subscription to the hook,
+// allowing us to manually add new posts to the query data.
+
+type SubscriptionPost = [db.Post, string | undefined];
+export type SubscriptionPostListener = (...args: SubscriptionPost) => void;
+
+const subscriptionPostListeners: SubscriptionPostListener[] = [];
+
+export const useSubscriptionPostListener = (
+  listener: SubscriptionPostListener
+) => {
+  useEffect(() => {
+    subscriptionPostListeners.push(listener);
+    return () => {
+      const index = subscriptionPostListeners.indexOf(listener);
+      if (index !== -1) {
+        subscriptionPostListeners.splice(index, 1);
+      }
+    };
+  }, [listener]);
+};
+
+/**
+ * External interface for transmitting new post events to listener
+ */
+export const addToChannelPosts = (...args: SubscriptionPost) => {
+  subscriptionPostListeners.forEach((listener) => listener(...args));
+};
+
+export const clearChannelPostsQueries = () => {
+  queryClient.invalidateQueries({ queryKey: ['channelPosts'] });
 };

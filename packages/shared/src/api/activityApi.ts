@@ -3,6 +3,7 @@ import { backOff } from 'exponential-backoff';
 
 import * as db from '../db';
 import { createDevLogger, runIfDev } from '../debug';
+import { getLevelFromVolumeMap } from '../logic';
 import * as ub from '../urbit';
 import {
   formatUd,
@@ -366,7 +367,7 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
 
         if (sourceId === 'base') {
           const level: ub.NotificationLevel = volume
-            ? ub.getLevelFromVolumeMap(volume)
+            ? getLevelFromVolumeMap(volume)
             : 'default';
           return handler({
             type: 'updateItemVolume',
@@ -385,7 +386,7 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
               volumeUpdate: {
                 itemId: source.group,
                 itemType: 'group',
-                level: ub.getLevelFromVolumeMap(volume),
+                level: getLevelFromVolumeMap(volume),
               },
             });
           } else {
@@ -410,7 +411,7 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
               volumeUpdate: {
                 itemId: channelId,
                 itemType: 'channel',
-                level: ub.getLevelFromVolumeMap(volume),
+                level: getLevelFromVolumeMap(volume),
               },
             });
           } else {
@@ -430,7 +431,7 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
               volumeUpdate: {
                 itemId: postId,
                 itemType: 'thread',
-                level: ub.getLevelFromVolumeMap(volume),
+                level: getLevelFromVolumeMap(volume),
               },
             });
           } else {

@@ -6,6 +6,10 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';
 import * as sync from './sync';
+import { INFINITE_ACTIVITY_QUERY_KEY } from './sync';
+
+// re-export for backwards compatibility
+export { resetActivityFetchers } from './sync';
 
 const logger = createDevLogger('useInfiniteBucketedActivity', false);
 
@@ -20,24 +24,6 @@ export interface BucketFetchers {
   all: ActivityFetcher;
   mentions: ActivityFetcher;
   replies: ActivityFetcher;
-}
-
-export const INFINITE_ACTIVITY_QUERY_KEY = 'useInfiniteBucketedActivity';
-
-export function resetActivityFetchers() {
-  logger.log('resetting activity fetchers');
-  const fetchers = ['all', 'mentions', 'replies'];
-  for (const fetcher in fetchers) {
-    api.queryClient.setQueryData([INFINITE_ACTIVITY_QUERY_KEY, fetcher], () => {
-      return {
-        pages: [],
-        pageParams: [],
-      };
-    });
-  }
-  api.queryClient.invalidateQueries({
-    queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
-  });
 }
 
 interface PageParam {

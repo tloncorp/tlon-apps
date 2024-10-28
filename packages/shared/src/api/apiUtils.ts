@@ -7,8 +7,20 @@ import {
 import bigInt from 'big-integer';
 
 import * as db from '../db/types';
+import {
+  isDmChannelId,
+  isGroupChannelId,
+  isGroupDmChannelId,
+} from '../logic/utils';
 import type * as ub from '../urbit';
 import { BadResponseError } from './urbit';
+
+// re-exported for backwards compatibility
+export {
+  isDmChannelId,
+  isGroupChannelId,
+  isGroupDmChannelId,
+} from '../logic/utils';
 
 export function formatScryPath(
   ...segments: (string | number | null | undefined)[]
@@ -64,22 +76,6 @@ export function udToDate(da: string) {
 
 export function formatDateParam(date: Date) {
   return baseFormatUd(unixToDa(date!.getTime()));
-}
-
-export function isDmChannelId(channelId: string) {
-  return channelId.startsWith('~');
-}
-
-export function isGroupDmChannelId(channelId: string) {
-  return channelId.startsWith('0v');
-}
-
-export function isGroupChannelId(channelId: string) {
-  return (
-    channelId.startsWith('chat') ||
-    channelId.startsWith('diary') ||
-    channelId.startsWith('heap')
-  );
 }
 
 export function parseGroupChannelId(channelId: string) {

@@ -4,16 +4,9 @@ import emojiRegex from 'emoji-regex';
 import { backOff } from 'exponential-backoff';
 import { useMemo } from 'react';
 
-import * as api from '../api';
-import {
-  isDmChannelId,
-  isGroupChannelId,
-  isGroupDmChannelId,
-} from '../api/apiUtils';
-import * as db from '../db';
-import * as ub from '../urbit';
-
-export { isDmChannelId, isGroupChannelId, isGroupDmChannelId };
+import type * as api from '../api';
+import type * as db from '../db';
+import type * as ub from '../urbit';
 
 export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
@@ -531,3 +524,19 @@ export const withRetry = (fn: () => Promise<any>, config?: RetryConfig) => {
     numOfAttempts: config?.numOfAttempts ?? 4,
   });
 };
+
+export function isDmChannelId(channelId: string) {
+  return channelId.startsWith('~');
+}
+
+export function isGroupDmChannelId(channelId: string) {
+  return channelId.startsWith('0v');
+}
+
+export function isGroupChannelId(channelId: string) {
+  return (
+    channelId.startsWith('chat') ||
+    channelId.startsWith('diary') ||
+    channelId.startsWith('heap')
+  );
+}

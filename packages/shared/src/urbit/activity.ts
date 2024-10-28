@@ -1,8 +1,16 @@
 import { parseUd } from '@urbit/aura';
 import _ from 'lodash';
 
+import {
+  getLevelFromVolumeMap,
+  notifyOffEvents,
+  onEvents,
+} from '../logic/activity';
 import { Kind, Story } from './channel';
 import { nestToFlag, whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
+
+// re-export for backwards compatibility
+export { getLevelFromVolumeMap } from '../logic/activity';
 
 export type Whom = { ship: string } | { club: string };
 
@@ -366,28 +374,6 @@ export function sourceToString(source: Source, stripPrefix = false): string {
   throw new Error('Invalid activity source');
 }
 
-const onEvents: ExtendedEventType[] = [
-  'dm-reply',
-  'post-mention',
-  'reply-mention',
-  'dm-invite',
-  'dm-post',
-  'dm-post-mention',
-  'dm-reply',
-  'dm-reply-mention',
-  'group-ask',
-  'group-invite',
-  'flag-post',
-  'flag-reply',
-];
-
-const notifyOffEvents: ExtendedEventType[] = [
-  'reply',
-  'group-join',
-  'group-kick',
-  'group-role',
-];
-
 const allEvents: ExtendedEventType[] = [
   'post',
   'post-mention',
@@ -409,34 +395,6 @@ const allEvents: ExtendedEventType[] = [
 
 export function getUnreadsFromVolumeMap(vmap: VolumeMap): boolean {
   return _.some(vmap, (v) => !!v?.unreads);
-}
-
-export function getLevelFromVolumeMap(vmap: VolumeMap): NotificationLevel {
-  const entries = Object.entries(vmap) as [ExtendedEventType, Volume][];
-  if (_.every(entries, ([, v]) => v.notify)) {
-    return 'loud';
-  }
-
-  if (_.every(entries, ([, v]) => !v.notify)) {
-    return 'hush';
-  }
-
-  let isDefault = true;
-  entries.forEach(([k, v]) => {
-    if (onEvents.concat('post').includes(k) && !v.notify) {
-      isDefault = false;
-    }
-
-    if (notifyOffEvents.includes(k) && v.notify) {
-      isDefault = false;
-    }
-  });
-
-  if (isDefault) {
-    return 'medium';
-  }
-
-  return 'soft';
 }
 
 export function getVolumeMap(
