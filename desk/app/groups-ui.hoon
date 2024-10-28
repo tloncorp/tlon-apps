@@ -258,8 +258,8 @@
   =+  .^(chat-running=? (scry %gu %chat /$))
   =?  cor  chat-running
     =+  .^  [dms=(map ship dm:c) *]
-        (scry %gx %chat /full/noun)
-      ==
+      (scry %gx %chat /full/noun)
+    ==
     %-  emil
     %+  murn
       ~(tap by dms)
