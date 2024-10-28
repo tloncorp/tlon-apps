@@ -3,6 +3,7 @@ import { tamaguiPlugin } from '@tamagui/vite-plugin';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
+import fs from 'fs';
 import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
@@ -62,6 +63,7 @@ export default ({ mode }: { mode: string }) => {
 
     return [
       process.env.SSL === 'true' ? (basicSsl() as PluginOption) : null,
+      exportingRawText(/\.sql$/),
       urbitPlugin({
         base: mode === 'alpha' ? 'tm-alpha' : 'groups',
         target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
@@ -268,3 +270,17 @@ export default ({ mode }: { mode: string }) => {
     },
   });
 };
+
+/** Transforms matching files into ES modules that export the file's content as a string */
+function exportingRawText(matchId: RegExp): Plugin {
+  return {
+    name: 'inline sql',
+    enforce: 'pre',
+    transform(_code, id) {
+      if (matchId.test(id)) {
+        const sql = fs.readFileSync(id, 'utf-8');
+        return `export default ${JSON.stringify(sql)}`;
+      }
+    },
+  };
+}
