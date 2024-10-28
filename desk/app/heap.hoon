@@ -568,7 +568,7 @@
       `[%reply u.replying.curio %edit time -.u.edit]
     ?~  command  ~
     =/  =cage
-      :-  %channel-action
+      :-  %channel-action-2
       !>(`a-channels:c`[%channel [%heap flag] %post u.command])
     `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::

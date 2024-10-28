@@ -550,7 +550,7 @@
         `[%edit time u.edit]
       ?~  command  ~
       =/  =cage
-        :-  %channel-action
+        :-  %channel-action-2
         !>(`a-channels:d`[%channel [%diary flag] %post u.command])
       [%pass /migrate %agent [our.bowl %channels] %poke cage]~
     ::  then, repeat for the quips on the post
@@ -571,7 +571,7 @@
       `[%reply time %edit rtime u.edit]
     ?~  command  ~
     =/  =cage
-      :-  %channel-action
+      :-  %channel-action-2
       !>(`a-channels:d`[%channel [%diary flag] %post u.command])
     `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::

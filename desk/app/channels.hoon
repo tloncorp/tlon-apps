@@ -491,8 +491,34 @@
     ==
   ::
     :: TODO: add transfer/import channels
-      %channel-action
-    =+  !<(=a-channels:v7:old:c vase)
+      ?(%channel-action %channel-action-2)
+    =/  =a-channels:c
+      ?.  ?=(%channel-action mark)
+        !<(a-channels:c vase)
+      ::  upconvert emoji
+      =+  !<(old-a-channels=a-channels:v7:old:c vase)
+      ?.  ?=([%channel *] old-a-channels)
+        old-a-channels
+      ?+    a-channel.old-a-channels  old-a-channels
+          [%post %add-react *]
+        %=  old-a-channels
+            q.c-post.a-channel
+          ^-  react:c
+          =*  react  q.c-post.a-channel.old-a-channels
+          ?~  react=(kill:em react)
+            [%any ^react]
+          u.react
+        ==
+          [%post %reply @ %add-react *]
+        %=  old-a-channels
+            q.c-reply.c-post.a-channel
+          ^-  react:c
+          =*  react  q.c-reply.c-post.a-channel.old-a-channels
+          ?~  react=(kill:em react)
+            [%any ^react]
+          u.react
+        ==
+      ==
     ?:  ?=(%create -.a-channels)
       ca-abet:(ca-create:ca-core create-channel.a-channels)
     ?:  ?=(%pin -.a-channels)
@@ -504,32 +530,7 @@
       (toggle-post toggle.a-channels)
     ?:  ?=(%join -.a-channel.a-channels)
       ca-abet:(ca-join:ca-core [nest group.a-channel]:a-channels)
-    ::  upconvert emoji
-    ::
-    =/  new-a-channels=a-channels:c
-      a-channels
-    ?>  ?=([%channel *] new-a-channels)
-    =?  new-a-channels  ?=([%post %add-react *] a-channel.a-channels)
-      ?>  ?=([%post %add-react *] a-channel.new-a-channels)
-      %_  new-a-channels
-          q.c-post.a-channel
-        ^-  react:c
-        =*  react  q.c-post.a-channel.a-channels
-        ?~  react=(kill:em react)
-          [%any ^react]
-        u.react
-      ==
-    =?  new-a-channels  ?=([%post %reply @ %add-react *] a-channel.a-channels)
-      ?>  ?=([%post %reply @ %add-react *] a-channel.new-a-channels)
-      %_  new-a-channels
-          q.c-reply.c-post.a-channel
-        ^-  react:c
-        =*  react  q.c-reply.c-post.a-channel.a-channels
-        ?~  react=(kill:em react)
-          [%any ^react]
-        u.react
-      ==
-    ca-abet:(ca-a-channel:(ca-abed:ca-core nest.new-a-channels) a-channel.new-a-channels)
+    ca-abet:(ca-a-channel:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
   ::
       %channel-migration
     ?>  =(our src):bowl
