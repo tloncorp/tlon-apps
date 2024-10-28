@@ -160,6 +160,7 @@ export default ({ mode }: { mode: string }) => {
         : 3000;
 
   return defineConfig({
+    assetsInclude: ['**/*.sql'],
     base: base(mode),
     server: {
       host: 'localhost',
