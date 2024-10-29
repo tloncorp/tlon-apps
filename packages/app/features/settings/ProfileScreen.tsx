@@ -2,6 +2,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMutableRef } from '@tloncorp/shared';
 import { NavBarView, ProfileScreenView, View } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
@@ -99,7 +100,9 @@ function useHasHostedAuth() {
         setHasHostedAuth(true);
       }
     }
-    getHostingInfo();
+    if (Platform.OS !== 'web') {
+      getHostingInfo();
+    }
   }, []);
 
   return hasHostedAuth;

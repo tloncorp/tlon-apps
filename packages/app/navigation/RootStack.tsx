@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useTheme } from '@tloncorp/ui';
+import { useTheme, useIsWindowNarrow } from '@tloncorp/ui';
 import { Platform, StatusBar } from 'react-native';
 
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
@@ -42,15 +42,17 @@ export function RootStack() {
   });
 
   const theme = useTheme();
+  const isWindowNarrow = useIsWindowNarrow();
 
   return (
     <Root.Navigator
-      initialRouteName="ChatList"
+      initialRouteName={isWindowNarrow ? 'ChatList' : 'Empty'}
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: theme.background?.val },
       }}
     >
+      <Root.Screen name="Empty">{() => null}</Root.Screen>
       {/* top level tabs */}
       <Root.Screen
         name="ChatList"

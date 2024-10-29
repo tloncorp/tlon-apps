@@ -1,0 +1,22 @@
+diff --git a/lib/module/views/modern/Drawer.js b/lib/module/views/modern/Drawer.js
+index 3aa1baa2efd65bab22da56416c90e3a294dab266..8737778293408588026d6efab2c9070ed1def4f4 100644
+--- a/lib/module/views/modern/Drawer.js
++++ b/lib/module/views/modern/Drawer.js
+@@ -222,7 +222,7 @@ export default function Drawer(_ref) {
+         (drawerType === 'back' ? 0 : translateX.value) + (drawerPosition === 'left' ? isRTL ? -distanceFromEdge : 0 : isRTL ? 0 : distanceFromEdge)
+       }]
+     };
+-  });
++  }, [dimensions.width, drawerPosition, drawerType, drawerWidth, isRTL, translateX]);
+   const contentAnimatedStyle = useAnimatedStyle(() => {
+     return {
+       transform: drawerType === 'permanent' ?
+@@ -234,7 +234,7 @@ export default function Drawer(_ref) {
+         drawerType === 'front' ? 0 : translateX.value + drawerWidth * (drawerPosition === 'left' ? 1 : -1)
+       }]
+     };
+-  });
++  }, [drawerPosition, drawerType, drawerWidth, translateX]);
+   const progress = useDerivedValue(() => {
+     return drawerType === 'permanent' ? 1 : interpolate(translateX.value, [getDrawerTranslationX(false), getDrawerTranslationX(true)], [0, 1]);
+   });
