@@ -1,4 +1,4 @@
-import { Post } from '@tloncorp/shared/dist/db';
+import { Post } from '@tloncorp/shared/db';
 import { ComponentProps, useMemo } from 'react';
 import React from 'react';
 import { YStack, styled } from 'tamagui';

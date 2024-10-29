@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/dist/db';
-import { Session } from '@tloncorp/shared/dist/store';
+import * as db from '@tloncorp/shared/db';
+import { Session } from '@tloncorp/shared/store';
 import { PropsWithChildren, createContext, useContext, useMemo } from 'react';
 
 export type CalmState = {

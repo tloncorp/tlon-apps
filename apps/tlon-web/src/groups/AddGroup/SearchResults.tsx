@@ -1,4 +1,4 @@
-import { Gang } from '@tloncorp/shared/dist/urbit/groups';
+import { Gang } from '@tloncorp/shared/urbit/groups';
 import cn from 'classnames';
 
 import Avatar from '@/components/Avatar';

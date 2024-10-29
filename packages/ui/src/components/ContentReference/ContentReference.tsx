@@ -1,7 +1,7 @@
 // tamagui-ignore
-import { ContentReference } from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
-import { getChannelType } from '@tloncorp/shared/dist/urbit';
+import { ContentReference } from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
+import { getChannelType } from '@tloncorp/shared/urbit';
 import React from 'react';
 import { ComponentProps, useCallback } from 'react';
 import { View, XStack, styled } from 'tamagui';

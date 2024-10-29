@@ -1,4 +1,4 @@
-import { ChannelPreview } from '@tloncorp/shared/dist/urbit/groups';
+import { ChannelPreview } from '@tloncorp/shared/urbit/groups';
 import bigInt from 'big-integer';
 import React from 'react';
 

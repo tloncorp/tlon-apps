@@ -1,6 +1,6 @@
-import { Contact } from '@tloncorp/shared/dist/urbit/contact';
-import { Club } from '@tloncorp/shared/dist/urbit/dms';
-import { Group, GroupChannel } from '@tloncorp/shared/dist/urbit/groups';
+import { Contact } from '@tloncorp/shared/urbit/contact';
+import { Club } from '@tloncorp/shared/urbit/dms';
+import { Group, GroupChannel } from '@tloncorp/shared/urbit/groups';
 import { cite, deSig, preSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
 import { uniqBy } from 'lodash';

@@ -1,4 +1,4 @@
-import * as logic from '@tloncorp/shared/dist/logic';
+import * as logic from '@tloncorp/shared/logic';
 import { Buffer } from 'buffer';
 import { Platform } from 'react-native';
 

@@ -1,5 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
-import { GroupPrivacy } from '@tloncorp/shared/dist/db/schema';
+import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo, useState } from 'react';
 import { SectionList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +10,8 @@ import { GroupJoinRequestSheet } from './GroupJoinRequestSheet';
 import { ProfileSheet } from './ProfileSheet';
 import { ScreenHeader } from './ScreenHeader';
 import { SectionListHeader } from './SectionList';
+
+type GroupPrivacy = db.schema.GroupPrivacy;
 
 export function GroupMembersScreenView({
   goBack,

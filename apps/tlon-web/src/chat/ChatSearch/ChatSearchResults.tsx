@@ -1,5 +1,5 @@
-import { ChatMap, Post, Reply } from '@tloncorp/shared/dist/urbit/channel';
-import { Writ } from '@tloncorp/shared/dist/urbit/dms';
+import { ChatMap, Post, Reply } from '@tloncorp/shared/urbit/channel';
+import { Writ } from '@tloncorp/shared/urbit/dms';
 import { BigInteger } from 'big-integer';
 import React, { useMemo } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';

@@ -1,4 +1,4 @@
-import { makePrettyTimeFromMs } from '@tloncorp/shared/src/logic';
+import { makePrettyTimeFromMs } from '@tloncorp/shared/logic';
 import {
   AVPlaybackStatus,
   Audio as ExpoAudio,

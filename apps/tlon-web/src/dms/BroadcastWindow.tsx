@@ -1,4 +1,4 @@
-import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
+import { WritTuple } from '@tloncorp/shared/urbit/dms';
 import { ReactElement, useMemo, useRef } from 'react';
 import { VirtuosoHandle } from 'react-virtuoso';
 

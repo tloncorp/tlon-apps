@@ -1,6 +1,6 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import { useDebugStore } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import PostHog from 'posthog-react-native';
 
 import { POST_HOG_API_KEY } from '../constants';

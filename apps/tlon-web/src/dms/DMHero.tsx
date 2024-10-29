@@ -1,4 +1,4 @@
-import { Contact } from '@tloncorp/shared/dist/urbit/contact';
+import { Contact } from '@tloncorp/shared/urbit/contact';
 import { Patp } from '@urbit/api';
 import { useLocation } from 'react-router';
 

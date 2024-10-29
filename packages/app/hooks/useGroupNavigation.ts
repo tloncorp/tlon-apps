@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
 
 import { RootStackParamList } from '../navigation/types';

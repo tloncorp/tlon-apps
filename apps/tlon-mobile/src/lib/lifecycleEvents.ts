@@ -1,5 +1,5 @@
 import { getEasUpdateDisplay } from '@tloncorp/app/lib/platformHelpers';
-import { lastAppVersion } from '@tloncorp/shared/dist/db';
+import { lastAppVersion } from '@tloncorp/shared/db';
 import * as Application from 'expo-application';
 import * as Updates from 'expo-updates';
 

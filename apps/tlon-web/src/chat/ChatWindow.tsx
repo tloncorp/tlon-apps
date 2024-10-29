@@ -1,4 +1,4 @@
-import { sourceToString } from '@tloncorp/shared/dist/urbit/activity';
+import { sourceToString } from '@tloncorp/shared/urbit/activity';
 import bigInt from 'big-integer';
 import React, {
   ReactElement,

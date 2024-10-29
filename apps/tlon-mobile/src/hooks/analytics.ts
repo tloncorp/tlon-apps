@@ -1,5 +1,5 @@
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared/dist';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { useEffect } from 'react';
 
 import { checkLatestVersion } from '../lib/lifecycleEvents';

@@ -1,5 +1,5 @@
 // tamagui-ignore
-import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist';
+import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import type { ColorProp } from '@tloncorp/ui';
 import { Theme, View } from '@tloncorp/ui';
 import type { PropsWithChildren } from 'react';

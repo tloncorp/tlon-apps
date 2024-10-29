@@ -1,5 +1,5 @@
 import { utils } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { ComponentProps, useMemo } from 'react';
 import { ColorTokens, View, XStack } from 'tamagui';
 

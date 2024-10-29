@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/dist/db';
-import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
+import * as db from '@tloncorp/shared/db';
+import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { Dispatch, SetStateAction } from 'react';
 
 export type GalleryDraftType = 'caption' | 'text';

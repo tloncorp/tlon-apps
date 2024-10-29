@@ -3,7 +3,7 @@ import {
   Story,
   VerseBlock,
   imageUrlFromContent,
-} from '@tloncorp/shared/dist/urbit/channel';
+} from '@tloncorp/shared/urbit/channel';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import cn from 'classnames';

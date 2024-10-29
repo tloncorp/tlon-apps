@@ -1,4 +1,4 @@
-import * as store from '@tloncorp/shared/dist/store';
+import * as store from '@tloncorp/shared/store';
 import { AppDataContextProvider } from '@tloncorp/ui';
 import { PropsWithChildren } from 'react';
 

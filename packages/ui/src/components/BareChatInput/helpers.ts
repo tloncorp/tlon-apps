@@ -1,5 +1,5 @@
 import { makeMention, makeParagraph, makeText } from '@tloncorp/shared';
-import { JSONContent } from '@tloncorp/shared/dist/urbit';
+import { JSONContent } from '@tloncorp/shared/urbit';
 
 import { Mention } from './useMentions';
 

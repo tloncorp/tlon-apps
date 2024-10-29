@@ -1,4 +1,4 @@
-import { GroupMeta } from '@tloncorp/shared/dist/urbit/groups';
+import { GroupMeta } from '@tloncorp/shared/urbit/groups';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 
