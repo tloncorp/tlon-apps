@@ -315,7 +315,10 @@ function useFilteredChats({
       };
       const allSection = {
         title: 'All',
-        data: [...pending, ...filterChats(unpinned, activeTab)],
+        data: [
+          ...filterPendingChats(pending, activeTab),
+          ...filterChats(unpinned, activeTab),
+        ],
       };
       return pinnedSection.data.length
         ? [pinnedSection, allSection]
@@ -329,6 +332,14 @@ function useFilteredChats({
       ];
     }
   }, [activeTab, pending, searchQuery, searchResults, unpinned, pinned]);
+}
+
+function filterPendingChats(pending: Chat[], activeTab: TabName) {
+  if (activeTab === 'all') return pending;
+  return pending.filter((chat) => {
+    const isGroupChannel = logic.isGroup(chat);
+    return activeTab === 'groups' ? isGroupChannel : !isGroupChannel;
+  });
 }
 
 function filterChats(chats: Chat[], activeTab: TabName) {
