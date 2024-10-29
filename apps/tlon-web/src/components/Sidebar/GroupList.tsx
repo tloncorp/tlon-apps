@@ -1,4 +1,4 @@
-import { Group } from '@tloncorp/shared/dist/urbit/groups';
+import { Group } from '@tloncorp/shared/urbit/groups';
 import React, { ReactNode, useEffect, useMemo, useRef } from 'react';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 

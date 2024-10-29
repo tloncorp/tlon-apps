@@ -1,6 +1,6 @@
-import * as api from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import * as api from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo, useState } from 'react';
 import { UseFormReturn, useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

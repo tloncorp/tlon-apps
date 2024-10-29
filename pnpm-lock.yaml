@@ -1667,10 +1667,6 @@ importers:
       zustand:
         specifier: ^3.7.2
         version: 3.7.2(react@18.2.0)
-    optionalDependencies:
-      '@rollup/rollup-linux-x64-gnu':
-        specifier: 4.9.5
-        version: 4.9.5
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.9
@@ -1681,9 +1677,6 @@ importers:
       drizzle-kit:
         specifier: 0.20.17
         version: 0.20.17
-      tsup:
-        specifier: ^8.0.1
-        version: 8.0.1(@swc/core@1.7.26(@swc/helpers@0.5.13))(postcss@8.4.35)(typescript@5.4.5)
       typescript:
         specifier: 5.4.5
         version: 5.4.5
@@ -5097,11 +5090,6 @@ packages:
     cpu: [x64]
     os: [linux]
 
-  '@rollup/rollup-linux-x64-gnu@4.9.5':
-    resolution: {integrity: sha512-Dq1bqBdLaZ1Gb/l2e5/+o3B18+8TI9ANlA1SkejZqDgdU/jK/ThYaMPMJpVMMXy2uRHvGKbkz9vheVGdq3cJfA==}
-    cpu: [x64]
-    os: [linux]
-
   '@rollup/rollup-linux-x64-musl@4.13.0':
     resolution: {integrity: sha512-9RyNqoFNdF0vu/qqX63fKotBh43fJQeYC98hCaf89DYQpv+xu0D8QFSOS0biA7cGuqJFOc1bJ+m2rhhsKcw1hw==}
     cpu: [x64]
@@ -6616,6 +6604,7 @@ packages:
   '@xmldom/xmldom@0.7.13':
     resolution: {integrity: sha512-lm2GW5PkosIzccsaZIz7tp8cPADSIlIHWDFTR1N0SzfinhhYgeIQjFMz4rYzanCScr3DqQLeomUDArp6MWKm+g==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version is no longer supported, please update to at least 0.8.*
 
   '@xmldom/xmldom@0.8.10':
     resolution: {integrity: sha512-2WALfTl4xo2SkGCYRt6rDTFfk9R1czmBvUQy12gK2KuRKIpWEhcbbzy8EZXtz/jkRqHX8bFEc6FC1HjX4TUWYw==}
@@ -18850,9 +18839,6 @@ snapshots:
     optional: true
 
   '@rollup/rollup-linux-x64-gnu@4.13.0':
-    optional: true
-
-  '@rollup/rollup-linux-x64-gnu@4.9.5':
     optional: true
 
   '@rollup/rollup-linux-x64-musl@4.13.0':

@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { createDevLogger } from '@tloncorp/shared/dist';
+import { createDevLogger } from '@tloncorp/shared';
 import { useEffect, useRef } from 'react';
 
 const logger = createDevLogger('navigation', false);

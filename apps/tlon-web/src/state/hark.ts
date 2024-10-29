@@ -10,7 +10,7 @@ import {
   Seam,
   Skein,
   Yarn,
-} from '@tloncorp/shared/dist/urbit/hark';
+} from '@tloncorp/shared/urbit/hark';
 import { decToUd } from '@urbit/api';
 
 import api from '@/api';

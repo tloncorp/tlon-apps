@@ -1,7 +1,7 @@
 import {
   ChannelType,
   NewChannelFormSchema,
-} from '@tloncorp/shared/dist/urbit/groups';
+} from '@tloncorp/shared/urbit/groups';
 import cn from 'classnames';
 import React from 'react';
 import { useFormContext } from 'react-hook-form';

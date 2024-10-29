@@ -3,10 +3,10 @@
 import { useBootSequence } from '@tloncorp/app/hooks/useBootSequence';
 import { NodeBootPhase } from '@tloncorp/app/lib/bootHelpers';
 import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as api from '@tloncorp/shared/dist/api';
-import { SignupParams, didSignUp, signupData } from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import { createDevLogger } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
+import { SignupParams, didSignUp, signupData } from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { createContext, useCallback, useContext, useEffect } from 'react';
 
 const logger = createDevLogger('signup', true);

@@ -3,9 +3,9 @@ import {
   useChannel,
   useGroupPreview,
   usePostWithRelations,
-} from '@tloncorp/shared/dist';
-import type { Upload } from '@tloncorp/shared/dist/api';
-import type * as db from '@tloncorp/shared/dist/db';
+} from '@tloncorp/shared';
+import type { Upload } from '@tloncorp/shared/api';
+import type * as db from '@tloncorp/shared/db';
 import {
   AppDataContextProvider,
   Channel,

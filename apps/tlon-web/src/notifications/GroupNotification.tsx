@@ -1,4 +1,4 @@
-import { makePrettyTime } from '@tloncorp/shared/dist';
+import { makePrettyTime } from '@tloncorp/shared';
 import {
   ActivityBundle,
   ActivityEvent,
@@ -11,7 +11,7 @@ import {
   isJoin,
   isLeave,
   isRoleChange,
-} from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared/urbit';
 import React from 'react';
 import { Link } from 'react-router-dom';
 

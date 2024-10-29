@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { PrivacyType } from '@tloncorp/shared/dist/urbit/groups';
+import { PrivacyType } from '@tloncorp/shared/urbit/groups';
 import cn from 'classnames';
 import _ from 'lodash';
 import React, { useCallback, useState } from 'react';

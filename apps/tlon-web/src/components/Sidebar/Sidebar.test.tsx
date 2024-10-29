@@ -1,4 +1,4 @@
-import { Group } from '@tloncorp/shared/dist/urbit/groups';
+import { Group } from '@tloncorp/shared/urbit/groups';
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 

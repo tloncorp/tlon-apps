@@ -1,5 +1,5 @@
-import { DeepLinkMetadata, createDevLogger } from '@tloncorp/shared/dist';
-import { DeepLinkData, extractLureMetadata } from '@tloncorp/shared/src/logic';
+import { DeepLinkMetadata, createDevLogger } from '@tloncorp/shared';
+import { DeepLinkData, extractLureMetadata } from '@tloncorp/shared/logic';
 import {
   type ReactNode,
   createContext,

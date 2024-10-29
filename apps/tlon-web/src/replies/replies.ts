@@ -1,8 +1,5 @@
-import {
-  ActivitySummary,
-  MessageKey,
-} from '@tloncorp/shared/dist/urbit/activity';
-import { Kind, Reply, ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { ActivitySummary, MessageKey } from '@tloncorp/shared/urbit/activity';
+import { Kind, Reply, ReplyTuple } from '@tloncorp/shared/urbit/channel';
 import { daToUnix, parseUd } from '@urbit/aura';
 import bigInt, { BigInteger } from 'big-integer';
 import { isSameDay } from 'date-fns';

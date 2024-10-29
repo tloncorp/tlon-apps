@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 export const useChannelNavigation = ({ channelId }: { channelId: string }) => {

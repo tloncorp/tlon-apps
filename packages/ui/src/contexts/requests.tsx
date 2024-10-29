@@ -3,8 +3,8 @@ import {
   useGroupPreview,
   usePostReference,
   usePostWithRelations,
-} from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
+} from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import { isEqual } from 'lodash';
 import {
   PropsWithChildren,

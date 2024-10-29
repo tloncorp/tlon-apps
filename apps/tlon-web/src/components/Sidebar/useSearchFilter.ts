@@ -1,4 +1,4 @@
-import { Gangs, Groups } from '@tloncorp/shared/dist/urbit/groups';
+import { Gangs, Groups } from '@tloncorp/shared/urbit/groups';
 import { deSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
 import _ from 'lodash';

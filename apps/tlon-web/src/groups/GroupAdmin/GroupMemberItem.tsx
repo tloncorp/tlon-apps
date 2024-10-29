@@ -1,5 +1,5 @@
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import { Vessel } from '@tloncorp/shared/dist/urbit/groups';
+import { Vessel } from '@tloncorp/shared/urbit/groups';
 import cn from 'classnames';
 import _ from 'lodash';
 import React, { useCallback, useRef, useState } from 'react';

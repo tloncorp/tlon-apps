@@ -1,4 +1,4 @@
-import { Verse } from '@tloncorp/shared/dist/urbit/channel';
+import { Verse } from '@tloncorp/shared/urbit/channel';
 
 import { InlineContent } from '@/chat/ChatContent/ChatContent';
 

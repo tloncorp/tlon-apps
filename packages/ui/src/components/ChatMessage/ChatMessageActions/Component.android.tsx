@@ -1,5 +1,5 @@
 import { ChannelAction } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import * as Haptics from 'expo-haptics';
 import { MotiView } from 'moti';
 import { RefObject, useEffect, useState } from 'react';

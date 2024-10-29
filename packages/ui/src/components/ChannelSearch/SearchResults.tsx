@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo } from 'react';
 import React from 'react';
 import { FlatList, Keyboard } from 'react-native';

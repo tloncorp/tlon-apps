@@ -1,17 +1,13 @@
-import {
-  Activity,
-  MessageKey,
-  Source,
-} from '@tloncorp/shared/dist/urbit/activity';
-import { Perm, Story } from '@tloncorp/shared/dist/urbit/channel';
-import { isLink } from '@tloncorp/shared/dist/urbit/content';
+import { Activity, MessageKey, Source } from '@tloncorp/shared/urbit/activity';
+import { Perm, Story } from '@tloncorp/shared/urbit/channel';
+import { isLink } from '@tloncorp/shared/urbit/content';
 import {
   Channels,
   Group,
   GroupChannel,
   Vessel,
   Zone,
-} from '@tloncorp/shared/dist/urbit/groups';
+} from '@tloncorp/shared/urbit/groups';
 import _, { get, groupBy } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
