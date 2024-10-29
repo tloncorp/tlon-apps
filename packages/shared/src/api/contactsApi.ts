@@ -56,7 +56,7 @@ export const updateContactMetadata = async (
   return poke({
     app: 'contacts',
     mark: 'contact-action-1',
-    json: { page: { kip: contactId, contact: contactUpdate } },
+    json: { edit: { kip: contactId, contact: contactUpdate } },
   });
 };
 

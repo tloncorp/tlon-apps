@@ -31,6 +31,39 @@ export async function removeContact(contactId: string) {
   }
 }
 
+export async function updateContactMetadata(
+  contactId: string,
+  metadata: {
+    nickname?: string;
+    avatarImage?: string;
+  }
+) {
+  const { nickname, avatarImage } = metadata;
+  if (!nickname && !avatarImage) {
+    return;
+  }
+
+  const existingContact = await db.getContact({ id: contactId });
+
+  // optimistic update
+  await db.updateContact({
+    id: contactId,
+    customNickname: nickname,
+    customAvatarImage: avatarImage,
+  });
+
+  try {
+    await api.updateContactMetadata(contactId, metadata);
+  } catch (e) {
+    // rollback the update
+    await db.updateContact({
+      id: contactId,
+      customNickname: existingContact?.customNickname,
+      customAvatarImage: existingContact?.customAvatarImage,
+    });
+  }
+}
+
 export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
   const currentUserId = api.getCurrentUserId();
   const currentUserContact = await db.getContact({ id: currentUserId });
