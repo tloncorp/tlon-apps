@@ -17,7 +17,7 @@
 /+  channel-json
 ::
 ::  compile all marks
-::XX  /~ rune is broken
+::XX  /~ rune is broken, see urbit issue #5242
 :: /~  marks  *  /mar/channel
 ::
 =/  verbose  |
@@ -495,10 +495,11 @@
     =/  =a-channels:c
       ?.  ?=(%channel-action mark)
         !<(a-channels:c vase)
-      ::  upconvert emoji
       =+  !<(old-a-channels=a-channels:v7:old:c vase)
       ?.  ?=([%channel *] old-a-channels)
         old-a-channels
+      ::  upconvert emoji
+      ::
       ?+    a-channel.old-a-channels  old-a-channels
           [%post %add-react *]
         %=  old-a-channels
