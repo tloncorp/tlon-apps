@@ -10,6 +10,9 @@ storage
   })
   .then((enabled) => {
     useDebugStore.getState().toggle(enabled);
+  })
+  .catch(() => {
+    useDebugStore.getState().toggle(false);
   });
 
 export const setDebug = async (enabled: boolean) => {
