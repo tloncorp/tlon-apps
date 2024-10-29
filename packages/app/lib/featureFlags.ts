@@ -1,4 +1,4 @@
-import { featureFlags as mirrorFeatureFlags } from '@tloncorp/shared/dist/logic';
+import { featureFlags as mirrorFeatureFlags } from '@tloncorp/shared/logic';
 import { mapValues } from 'lodash';
 import create from 'zustand';
 

@@ -2,8 +2,8 @@ import {
   isChatChannel as getIsChatChannel,
   layoutForType,
   layoutTypeFromChannel,
-} from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
+} from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import {
   forwardRef,
   useCallback,

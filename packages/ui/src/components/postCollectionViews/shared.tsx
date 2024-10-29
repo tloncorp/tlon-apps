@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { ComponentPropsWithoutRef, useMemo } from 'react';
 
 import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';

@@ -1,4 +1,4 @@
-import { Story } from '@tloncorp/shared/dist/urbit';
+import { Story } from '@tloncorp/shared/urbit';
 import { useCallback, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';

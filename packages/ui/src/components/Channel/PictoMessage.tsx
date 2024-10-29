@@ -1,7 +1,7 @@
-import { extractContentTypesFromPost } from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import * as ub from '@tloncorp/shared/dist/urbit';
-import { Story } from '@tloncorp/shared/dist/urbit';
+import { extractContentTypesFromPost } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as ub from '@tloncorp/shared/urbit';
+import { Story } from '@tloncorp/shared/urbit';
 import { useMemo } from 'react';
 import { Image, View, XStack } from 'tamagui';
 

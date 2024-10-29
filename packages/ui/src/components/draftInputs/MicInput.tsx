@@ -1,5 +1,5 @@
 import { performUpload } from '@tloncorp/shared';
-import { Story } from '@tloncorp/shared/dist/urbit';
+import { Story } from '@tloncorp/shared/urbit';
 import { Audio } from 'expo-av';
 import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
