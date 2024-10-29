@@ -307,7 +307,7 @@ function useFilteredChats({
   );
 
   return useMemo(() => {
-    const isSearching = searchQuery.trim() !== '';
+    const isSearching = searchQuery && searchQuery.trim() !== '';
     if (!isSearching) {
       const pinnedSection = {
         title: 'Pinned',
@@ -362,6 +362,9 @@ function useChatSearch({
 
   const performSearch = useCallback(
     (query: string) => {
+      // necessary for web, otherwise fuse.search will throw
+      // an error
+      if (!query) return [];
       return fuse.search(query).map((result) => result.item);
     },
     [fuse]

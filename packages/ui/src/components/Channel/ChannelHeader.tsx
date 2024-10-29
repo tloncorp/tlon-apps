@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react';
 
+import useIsMobile from '../../hooks/useIsMobile';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
 import { ScreenHeader } from '../ScreenHeader';
 import { BaubleHeader } from './BaubleHeader';
@@ -100,6 +101,7 @@ export function ChannelHeader({
   }, [channel.id, channel.type]);
 
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
+  const isMobile = useIsMobile();
 
   if (mode === 'next') {
     return <BaubleHeader channel={channel} group={group} />;
@@ -124,7 +126,9 @@ export function ChannelHeader({
         titleWidth={titleWidth()}
         showSessionStatus
         isLoading={showSpinner}
-        leftControls={<ScreenHeader.BackButton onPress={goBack} />}
+        leftControls={
+          isMobile ? <ScreenHeader.BackButton onPress={goBack} /> : undefined
+        }
         rightControls={
           <>
             {showSearchButton && (

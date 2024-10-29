@@ -115,10 +115,7 @@ export default ({ mode }: { mode: string }) => {
     external:
       mode === 'mock' || mode === 'staging'
         ? ['virtual:pwa-register/react']
-        : [
-            '@urbit/sigil-js/dist/core',
-            'react-native-device-info',
-          ],
+        : ['@urbit/sigil-js/dist/core', 'react-native-device-info'],
     output: {
       hashCharacters: 'base36' as any,
       manualChunks: {

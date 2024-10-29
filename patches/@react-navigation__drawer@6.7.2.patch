@@ -1,0 +1,441 @@
+diff --git a/lib/module/views/modern/Drawer.js b/lib/module/views/modern/Drawer.js
+index 3aa1baa2efd65bab22da56416c90e3a294dab266..08fe2866924f233fa4bd349258a4b35ff51c7fc7 100644
+--- a/lib/module/views/modern/Drawer.js
++++ b/lib/module/views/modern/Drawer.js
+@@ -1,7 +1,38 @@
+-function _extends() { _extends = Object.assign ? Object.assign.bind() : function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; }; return _extends.apply(this, arguments); }
++function _extends() {
++  _extends = Object.assign
++    ? Object.assign.bind()
++    : function (target) {
++        for (var i = 1; i < arguments.length; i++) {
++          var source = arguments[i];
++          for (var key in source) {
++            if (Object.prototype.hasOwnProperty.call(source, key)) {
++              target[key] = source[key];
++            }
++          }
++        }
++        return target;
++      };
++  return _extends.apply(this, arguments);
++}
+ import * as React from 'react';
+-import { I18nManager, InteractionManager, Keyboard, Platform, StatusBar, StyleSheet, View } from 'react-native';
+-import Animated, { interpolate, runOnJS, useAnimatedGestureHandler, useAnimatedStyle, useDerivedValue, useSharedValue, withSpring } from 'react-native-reanimated';
++import {
++  I18nManager,
++  InteractionManager,
++  Keyboard,
++  Platform,
++  StatusBar,
++  StyleSheet,
++  View
++} from 'react-native';
++import Animated, {
++  interpolate,
++  runOnJS,
++  useAnimatedGestureHandler,
++  useAnimatedStyle,
++  useDerivedValue,
++  useSharedValue,
++  withSpring
++} from 'react-native-reanimated';
+ import DrawerProgressContext from '../../utils/DrawerProgressContext';
+ import { GestureState, PanGestureHandler } from '../GestureHandler';
+ import Overlay from './Overlay';
+@@ -35,9 +66,8 @@ export default function Drawer(_ref) {
+     overlayAccessibilityLabel
+   } = _ref;
+   const getDrawerWidth = () => {
+-    const {
+-      width = DEFAULT_DRAWER_WIDTH
+-    } = StyleSheet.flatten(drawerStyle) || {};
++    const { width = DEFAULT_DRAWER_WIDTH } =
++      StyleSheet.flatten(drawerStyle) || {};
+     if (typeof width === 'string' && width.endsWith('%')) {
+       // Try to calculate width if a percentage is given
+       const percentage = Number(width.replace(/%$/, ''));
+@@ -50,19 +80,25 @@ export default function Drawer(_ref) {
+   const drawerWidth = getDrawerWidth();
+   const isOpen = drawerType === 'permanent' ? true : open;
+   const isRight = drawerPosition === 'right';
+-  const getDrawerTranslationX = React.useCallback(open => {
+-    'worklet';
++  const getDrawerTranslationX = React.useCallback(
++    open => {
++      'worklet';
+ 
+-    if (drawerPosition === 'left') {
+-      return open ? 0 : -drawerWidth;
+-    }
+-    return open ? 0 : drawerWidth;
+-  }, [drawerPosition, drawerWidth]);
+-  const hideStatusBar = React.useCallback(hide => {
+-    if (hideStatusBarOnOpen) {
+-      StatusBar.setHidden(hide, statusBarAnimation);
+-    }
+-  }, [hideStatusBarOnOpen, statusBarAnimation]);
++      if (drawerPosition === 'left') {
++        return open ? 0 : -drawerWidth;
++      }
++      return open ? 0 : drawerWidth;
++    },
++    [drawerPosition, drawerWidth]
++  );
++  const hideStatusBar = React.useCallback(
++    hide => {
++      if (hideStatusBarOnOpen) {
++        StatusBar.setHidden(hide, statusBarAnimation);
++      }
++    },
++    [hideStatusBarOnOpen, statusBarAnimation]
++  );
+   React.useEffect(() => {
+     hideStatusBar(isOpen);
+     return () => hideStatusBar(false);
+@@ -93,55 +129,59 @@ export default function Drawer(_ref) {
+ 
+   // FIXME: Currently hitSlop is broken when on Android when drawer is on right
+   // https://github.com/software-mansion/react-native-gesture-handler/issues/569
+-  const hitSlop = isRight ?
+-  // Extend hitSlop to the side of the screen when drawer is closed
+-  // This lets the user drag the drawer from the side of the screen
+-  {
+-    right: 0,
+-    width: isOpen ? undefined : swipeEdgeWidth
+-  } : {
+-    left: 0,
+-    width: isOpen ? undefined : swipeEdgeWidth
+-  };
++  const hitSlop = isRight
++    ? // Extend hitSlop to the side of the screen when drawer is closed
++      // This lets the user drag the drawer from the side of the screen
++      {
++        right: 0,
++        width: isOpen ? undefined : swipeEdgeWidth
++      }
++    : {
++        left: 0,
++        width: isOpen ? undefined : swipeEdgeWidth
++      };
+   const touchStartX = useSharedValue(0);
+   const touchX = useSharedValue(0);
+   const translationX = useSharedValue(getDrawerTranslationX(open));
+   const gestureState = useSharedValue(GestureState.UNDETERMINED);
+-  const toggleDrawer = React.useCallback(_ref2 => {
+-    'worklet';
++  const toggleDrawer = React.useCallback(
++    _ref2 => {
++      'worklet';
+ 
+-    let {
+-      open,
+-      isUserInitiated,
+-      velocity
+-    } = _ref2;
+-    const translateX = getDrawerTranslationX(open);
+-    touchStartX.value = 0;
+-    touchX.value = 0;
+-    translationX.value = withSpring(translateX, {
+-      velocity,
+-      stiffness: 1000,
+-      damping: 500,
+-      mass: 3,
+-      overshootClamping: true,
+-      restDisplacementThreshold: 0.01,
+-      restSpeedThreshold: 0.01,
+-      // @ts-expect-error: This is available in newer reanimated versions
+-      reduceMotion: 'never'
+-    });
+-    if (!isUserInitiated) {
+-      return;
+-    }
+-    if (open) {
+-      runOnJS(onOpen)();
+-    } else {
+-      runOnJS(onClose)();
+-    }
+-  }, [getDrawerTranslationX, onClose, onOpen, touchStartX, touchX, translationX]);
+-  React.useEffect(() => toggleDrawer({
+-    open,
+-    isUserInitiated: false
+-  }), [open, toggleDrawer]);
++      let { open, isUserInitiated, velocity } = _ref2;
++      const translateX = getDrawerTranslationX(open);
++      touchStartX.value = 0;
++      touchX.value = 0;
++      translationX.value = withSpring(translateX, {
++        velocity,
++        stiffness: 1000,
++        damping: 500,
++        mass: 3,
++        overshootClamping: true,
++        restDisplacementThreshold: 0.01,
++        restSpeedThreshold: 0.01,
++        // @ts-expect-error: This is available in newer reanimated versions
++        reduceMotion: 'never'
++      });
++      if (!isUserInitiated) {
++        return;
++      }
++      if (open) {
++        runOnJS(onOpen)();
++      } else {
++        runOnJS(onClose)();
++      }
++    },
++    [getDrawerTranslationX, onClose, onOpen, touchStartX, touchX, translationX]
++  );
++  React.useEffect(
++    () =>
++      toggleDrawer({
++        open,
++        isUserInitiated: false
++      }),
++    [open, toggleDrawer]
++  );
+   const onGestureEvent = useAnimatedGestureHandler({
+     onStart: (event, ctx) => {
+       ctx.hasCalledOnStart = false;
+@@ -164,11 +204,16 @@ export default function Drawer(_ref) {
+     },
+     onEnd: event => {
+       gestureState.value = event.state;
+-      const nextOpen = Math.abs(event.translationX) > SWIPE_DISTANCE_MINIMUM && Math.abs(event.translationX) > swipeVelocityThreshold || Math.abs(event.translationX) > swipeDistanceThreshold ? drawerPosition === 'left' ?
+-      // If swiped to right, open the drawer, otherwise close it
+-      (event.velocityX === 0 ? event.translationX : event.velocityX) > 0 :
+-      // If swiped to left, open the drawer, otherwise close it
+-      (event.velocityX === 0 ? event.translationX : event.velocityX) < 0 : open;
++      const nextOpen =
++        (Math.abs(event.translationX) > SWIPE_DISTANCE_MINIMUM &&
++          Math.abs(event.translationX) > swipeVelocityThreshold) ||
++        Math.abs(event.translationX) > swipeDistanceThreshold
++          ? drawerPosition === 'left'
++            ? // If swiped to right, open the drawer, otherwise close it
++              (event.velocityX === 0 ? event.translationX : event.velocityX) > 0
++            : // If swiped to left, open the drawer, otherwise close it
++              (event.velocityX === 0 ? event.translationX : event.velocityX) < 0
++          : open;
+       toggleDrawer({
+         open: nextOpen,
+         isUserInitiated: true,
+@@ -205,72 +250,159 @@ export default function Drawer(_ref) {
+     // drawer be pulled back as soon as you start the pan.
+     //
+     // This is used only when drawerType is "front"
+-    const touchDistance = drawerType === 'front' && gestureState.value === GestureState.ACTIVE ? minmax(drawerPosition === 'left' ? touchStartX.value - drawerWidth : dimensions.width - drawerWidth - touchStartX.value, 0, dimensions.width) : 0;
+-    const translateX = drawerPosition === 'left' ? minmax(translationX.value + touchDistance, -drawerWidth, 0) : minmax(translationX.value - touchDistance, 0, drawerWidth);
++    const touchDistance =
++      drawerType === 'front' && gestureState.value === GestureState.ACTIVE
++        ? minmax(
++            drawerPosition === 'left'
++              ? touchStartX.value - drawerWidth
++              : dimensions.width - drawerWidth - touchStartX.value,
++            0,
++            dimensions.width
++          )
++        : 0;
++    const translateX =
++      drawerPosition === 'left'
++        ? minmax(translationX.value + touchDistance, -drawerWidth, 0)
++        : minmax(translationX.value - touchDistance, 0, drawerWidth);
+     return translateX;
+   });
+   const isRTL = I18nManager.getConstants().isRTL;
+   const drawerAnimatedStyle = useAnimatedStyle(() => {
+     const distanceFromEdge = dimensions.width - drawerWidth;
+     return {
+-      transform: drawerType === 'permanent' ?
+-      // Reanimated needs the property to be present, but it results in Browser bug
+-      // https://bugs.chromium.org/p/chromium/issues/detail?id=20574
+-      [] : [{
+-        translateX:
+-        // The drawer stays in place when `drawerType` is `back`
+-        (drawerType === 'back' ? 0 : translateX.value) + (drawerPosition === 'left' ? isRTL ? -distanceFromEdge : 0 : isRTL ? 0 : distanceFromEdge)
+-      }]
++      transform:
++        drawerType === 'permanent'
++          ? // Reanimated needs the property to be present, but it results in Browser bug
++            // https://bugs.chromium.org/p/chromium/issues/detail?id=20574
++            []
++          : [
++              {
++                translateX:
++                  // The drawer stays in place when `drawerType` is `back`
++                  (drawerType === 'back' ? 0 : translateX.value) +
++                  (drawerPosition === 'left'
++                    ? isRTL
++                      ? -distanceFromEdge
++                      : 0
++                    : isRTL
++                    ? 0
++                    : distanceFromEdge)
++              }
++            ]
+     };
+-  });
++  }, [
++    dimensions.width,
++    drawerPosition,
++    drawerType,
++    drawerWidth,
++    isRTL,
++    translateX
++  ]);
+   const contentAnimatedStyle = useAnimatedStyle(() => {
+     return {
+-      transform: drawerType === 'permanent' ?
+-      // Reanimated needs the property to be present, but it results in Browser bug
+-      // https://bugs.chromium.org/p/chromium/issues/detail?id=20574
+-      [] : [{
+-        translateX:
+-        // The screen content stays in place when `drawerType` is `front`
+-        drawerType === 'front' ? 0 : translateX.value + drawerWidth * (drawerPosition === 'left' ? 1 : -1)
+-      }]
++      transform:
++        drawerType === 'permanent'
++          ? // Reanimated needs the property to be present, but it results in Browser bug
++            // https://bugs.chromium.org/p/chromium/issues/detail?id=20574
++            []
++          : [
++              {
++                translateX:
++                  // The screen content stays in place when `drawerType` is `front`
++                  drawerType === 'front'
++                    ? 0
++                    : translateX.value +
++                      drawerWidth * (drawerPosition === 'left' ? 1 : -1)
++              }
++            ]
+     };
+-  });
++  }, [drawerPosition, drawerType, drawerWidth, translateX]);
+   const progress = useDerivedValue(() => {
+-    return drawerType === 'permanent' ? 1 : interpolate(translateX.value, [getDrawerTranslationX(false), getDrawerTranslationX(true)], [0, 1]);
++    return drawerType === 'permanent'
++      ? 1
++      : interpolate(
++          translateX.value,
++          [getDrawerTranslationX(false), getDrawerTranslationX(true)],
++          [0, 1]
++        );
+   });
+-  return /*#__PURE__*/React.createElement(DrawerProgressContext.Provider, {
+-    value: progress
+-  }, /*#__PURE__*/React.createElement(PanGestureHandler, _extends({
+-    activeOffsetX: [-SWIPE_DISTANCE_MINIMUM, SWIPE_DISTANCE_MINIMUM],
+-    failOffsetY: [-SWIPE_DISTANCE_MINIMUM, SWIPE_DISTANCE_MINIMUM],
+-    hitSlop: hitSlop,
+-    enabled: drawerType !== 'permanent' && swipeEnabled,
+-    onGestureEvent: onGestureEvent
+-  }, gestureHandlerProps), /*#__PURE__*/React.createElement(Animated.View, {
+-    style: [styles.main, {
+-      flexDirection: drawerType === 'permanent' && !isRight ? 'row-reverse' : 'row'
+-    }]
+-  }, /*#__PURE__*/React.createElement(Animated.View, {
+-    style: [styles.content, contentAnimatedStyle]
+-  }, /*#__PURE__*/React.createElement(View, {
+-    accessibilityElementsHidden: isOpen && drawerType !== 'permanent',
+-    importantForAccessibility: isOpen && drawerType !== 'permanent' ? 'no-hide-descendants' : 'auto',
+-    style: styles.content
+-  }, renderSceneContent()), drawerType !== 'permanent' ? /*#__PURE__*/React.createElement(Overlay, {
+-    progress: progress,
+-    onPress: () => toggleDrawer({
+-      open: false,
+-      isUserInitiated: true
+-    }),
+-    style: overlayStyle,
+-    accessibilityLabel: overlayAccessibilityLabel
+-  }) : null), /*#__PURE__*/React.createElement(Animated.View, {
+-    removeClippedSubviews: Platform.OS !== 'ios',
+-    style: [styles.container, {
+-      position: drawerType === 'permanent' ? 'relative' : 'absolute',
+-      zIndex: drawerType === 'back' ? -1 : 0
+-    }, drawerAnimatedStyle, drawerStyle]
+-  }, renderDrawerContent()))));
++  return /*#__PURE__*/ React.createElement(
++    DrawerProgressContext.Provider,
++    {
++      value: progress
++    },
++    /*#__PURE__*/ React.createElement(
++      PanGestureHandler,
++      _extends(
++        {
++          activeOffsetX: [-SWIPE_DISTANCE_MINIMUM, SWIPE_DISTANCE_MINIMUM],
++          failOffsetY: [-SWIPE_DISTANCE_MINIMUM, SWIPE_DISTANCE_MINIMUM],
++          hitSlop: hitSlop,
++          enabled: drawerType !== 'permanent' && swipeEnabled,
++          onGestureEvent: onGestureEvent
++        },
++        gestureHandlerProps
++      ),
++      /*#__PURE__*/ React.createElement(
++        Animated.View,
++        {
++          style: [
++            styles.main,
++            {
++              flexDirection:
++                drawerType === 'permanent' && !isRight ? 'row-reverse' : 'row'
++            }
++          ]
++        },
++        /*#__PURE__*/ React.createElement(
++          Animated.View,
++          {
++            style: [styles.content, contentAnimatedStyle]
++          },
++          /*#__PURE__*/ React.createElement(
++            View,
++            {
++              accessibilityElementsHidden: isOpen && drawerType !== 'permanent',
++              importantForAccessibility:
++                isOpen && drawerType !== 'permanent'
++                  ? 'no-hide-descendants'
++                  : 'auto',
++              style: styles.content
++            },
++            renderSceneContent()
++          ),
++          drawerType !== 'permanent'
++            ? /*#__PURE__*/ React.createElement(Overlay, {
++                progress: progress,
++                onPress: () =>
++                  toggleDrawer({
++                    open: false,
++                    isUserInitiated: true
++                  }),
++                style: overlayStyle,
++                accessibilityLabel: overlayAccessibilityLabel
++              })
++            : null
++        ),
++        /*#__PURE__*/ React.createElement(
++          Animated.View,
++          {
++            removeClippedSubviews: Platform.OS !== 'ios',
++            style: [
++              styles.container,
++              {
++                position: drawerType === 'permanent' ? 'relative' : 'absolute',
++                zIndex: drawerType === 'back' ? -1 : 0
++              },
++              drawerAnimatedStyle,
++              drawerStyle
++            ]
++          },
++          renderDrawerContent()
++        )
++      )
++    )
++  );
+ }
+ const styles = StyleSheet.create({
+   container: {
+@@ -295,3 +427,4 @@ const styles = StyleSheet.create({
+   }
+ });
+ //# sourceMappingURL=Drawer.js.map
++
