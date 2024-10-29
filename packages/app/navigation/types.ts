@@ -1,23 +1,6 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type * as db from '@tloncorp/shared/db';
 
-export type SignUpExtras = {
-  nickname?: string;
-  notificationToken?: string;
-  telemetry?: boolean;
-};
-
-type ExternalWebViewScreenParams = {
-  uri: string;
-  headers?: Record<string, string | null>;
-  injectedJavaScript?: string;
-};
-
-export type WebViewStackParamList = {
-  Webview: undefined;
-  ExternalWebView: ExternalWebViewScreenParams;
-};
-
 export type DrawerParamList = {
   Home: undefined;
   Activity: undefined;
@@ -98,36 +81,4 @@ export type GroupSettingsStackParamList = {
   GroupRoles: {
     groupId: string;
   };
-};
-
-export type SettingsStackParamList = {
-  Settings: undefined;
-  FeatureFlags: undefined;
-};
-
-export type OnboardingStackParamList = {
-  Welcome: undefined;
-  InventoryCheck: undefined;
-  SignUpEmail: undefined;
-  EULA: undefined;
-  SignUpPassword: { email: string };
-  JoinWaitList: { email?: string };
-  RequestPhoneVerify: { user: User };
-  CheckVerify: { user: User };
-  ReserveShip: { user: User };
-  SetNickname: { user: User };
-  SetTelemetry: { user: User };
-  TlonLogin: undefined;
-  ShipLogin: undefined;
-  ResetPassword: { email?: string };
-};
-
-export type User = {
-  id: string;
-  email: string;
-  phoneNumber?: string;
-  admin: boolean;
-  ships: string[];
-  requirePhoneNumberVerification: boolean;
-  verified: boolean;
 };
