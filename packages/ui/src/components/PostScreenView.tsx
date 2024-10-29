@@ -223,6 +223,8 @@ export function PostScreenView({
                   editPost={editPost}
                   channelType="chat"
                   getDraft={getDraft}
+                  showAttachmentButton={channel.type === 'chat'}
+                  showInlineAttachments={channel.type === 'chat'}
                   shouldAutoFocus={
                     (channel.type === 'chat' && parentPost?.replyCount === 0) ||
                     !!editingPost
