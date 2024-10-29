@@ -66,6 +66,7 @@ export const contacts = sqliteTable('contacts', {
   isContact: boolean('isContact'), // TODO: figure out naming
   customNickname: text('customNickname'),
   customAvatarImage: text('customAvatarImage'),
+  isContactSuggestion: boolean('isContactSuggestion'),
 });
 
 export const contactsRelations = relations(contacts, ({ many }) => ({

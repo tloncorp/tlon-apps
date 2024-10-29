@@ -21,8 +21,17 @@ export const getContacts = async () => {
   });
   const skipContacts = new Set(Object.keys(contactsResponse));
 
-  const peerProfiles = v0PeersToClientProfiles(peersResponse, skipContacts);
-  const contactProfiles = contactsToClientProfiles(contactsResponse);
+  // TODO: actually load suggestions
+  const suggestionsResponse = ['~forfel-norfel'];
+  const contactSuggestions = new Set(suggestionsResponse);
+
+  const peerProfiles = v0PeersToClientProfiles(peersResponse, {
+    userIdsToOmit: skipContacts,
+    contactSuggestions,
+  });
+  const contactProfiles = contactsToClientProfiles(contactsResponse, {
+    contactSuggestions,
+  });
 
   return [...peerProfiles, ...contactProfiles];
 };
@@ -173,18 +182,32 @@ export const subscribeToContactUpdates = (
 
 export const v0PeersToClientProfiles = (
   contacts: ub.ContactRolodex,
-  userIdsToOmit?: Set<string>
+  config?: {
+    userIdsToOmit?: Set<string>;
+    contactSuggestions?: Set<string>;
+  }
 ): db.Contact[] => {
   return Object.entries(contacts)
-    .filter(([ship]) => (userIdsToOmit ? !userIdsToOmit.has(ship) : true))
+    .filter(([ship]) =>
+      config?.userIdsToOmit ? !config.userIdsToOmit.has(ship) : true
+    )
     .flatMap(([ship, contact]) =>
-      contact === null ? [] : [v0PeerToClientProfile(ship, contact)]
+      contact === null
+        ? []
+        : [
+            v0PeerToClientProfile(ship, contact, {
+              isContactSuggestion: config?.contactSuggestions?.has(ship),
+            }),
+          ]
     );
 };
 
 export const v0PeerToClientProfile = (
   id: string,
-  contact: ub.Contact | null
+  contact: ub.Contact | null,
+  config?: {
+    isContactSuggestion?: boolean;
+  }
 ): db.Contact => {
   return {
     id,
@@ -203,19 +226,30 @@ export const v0PeerToClientProfile = (
     isContact: false,
     customNickname: null,
     customAvatarImage: null,
+    isContactSuggestion: config?.isContactSuggestion,
   };
 };
 
-export const v1PeersToClientProfiles = (peers: ub.ContactsAllScryResult1) => {
+export const v1PeersToClientProfiles = (
+  peers: ub.ContactsAllScryResult1,
+  config?: {
+    contactSuggestions?: Set<string>;
+  }
+) => {
   return Object.entries(peers).map(([ship, contact]) =>
-    v1PeerToClientProfile(ship, contact)
+    v1PeerToClientProfile(ship, contact, {
+      isContactSuggestion: config?.contactSuggestions?.has(ship),
+    })
   );
 };
 
 export const v1PeerToClientProfile = (
   id: string,
   contact: ub.ContactBookProfile,
-  isContact?: boolean
+  config?: {
+    isContact?: boolean;
+    isContactSuggestion?: boolean;
+  }
 ) => {
   return {
     id,
@@ -231,23 +265,36 @@ export const v1PeerToClientProfile = (
         contactId: id,
       })) ?? [],
 
-    isContact,
+    isContact: config?.isContact,
     customNickname: null,
     customAvatarImage: null,
+    isContactSuggestion: config?.isContactSuggestion,
   };
 };
 
 export const contactsToClientProfiles = (
-  contacts: ub.ContactBookScryResult1
+  contacts: ub.ContactBookScryResult1,
+  config?: {
+    contactSuggestions?: Set<string>;
+  }
 ): db.Contact[] => {
   return Object.entries(contacts).flatMap(([userId, contact]) =>
-    contact === null ? [] : [contactToClientProfile(userId, contact)]
+    contact === null
+      ? []
+      : [
+          contactToClientProfile(userId, contact, {
+            isContactSuggestion: config?.contactSuggestions?.has(userId),
+          }),
+        ]
   );
 };
 
 export const contactToClientProfile = (
   userId: string,
-  contact: ub.ContactBookEntry
+  contact: ub.ContactBookEntry,
+  config?: {
+    isContactSuggestion?: boolean;
+  }
 ): db.Contact => {
   const [base, overrides] = contact;
 
@@ -267,5 +314,6 @@ export const contactToClientProfile = (
     isContact: true,
     customNickname: overrides.nickname?.value ?? null,
     customAvatarImage: overrides.avatar?.value ?? null,
+    isContactSuggestion: config?.isContactSuggestion,
   };
 };

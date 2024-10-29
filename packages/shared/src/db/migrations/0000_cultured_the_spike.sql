@@ -104,7 +104,8 @@ CREATE TABLE `contacts` (
 	`blocked` integer,
 	`isContact` integer,
 	`customNickname` text,
-	`customAvatarImage` text
+	`customAvatarImage` text,
+	`isContactSuggestion` integer
 );
 --> statement-breakpoint
 CREATE TABLE `group_flagged_posts` (

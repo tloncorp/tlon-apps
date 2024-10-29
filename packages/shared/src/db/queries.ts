@@ -2728,6 +2728,43 @@ export const upsertContact = createWriteQuery(
   ['contacts']
 );
 
+export const getUserContacts = createReadQuery(
+  'getUserContacts',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.contacts.findMany({
+      where: and(eq($contacts.isContact, true)),
+      with: {
+        pinnedGroups: {
+          with: {
+            group: true,
+          },
+        },
+      },
+    });
+  },
+  ['contacts']
+);
+
+export const getSuggestedContacts = createReadQuery(
+  'getSuggestedContacts',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.contacts.findMany({
+      where: and(
+        eq($contacts.isContact, false),
+        eq($contacts.isContactSuggestion, true)
+      ),
+      with: {
+        pinnedGroups: {
+          with: {
+            group: true,
+          },
+        },
+      },
+    });
+  },
+  ['contacts']
+);
+
 export const addPinnedGroup = createWriteQuery(
   'addPinnedGroup',
   async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
