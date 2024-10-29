@@ -1,6 +1,6 @@
 import * as store from '@tloncorp/shared/store';
 
-import useIsMobile from '../hooks/useIsMobile';
+import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
 import { AvatarNavIcon, NavBar, NavIcon } from './NavBar';
 
 export const NavBarView = ({
@@ -20,9 +20,9 @@ export const NavBarView = ({
     return currentRoute === routeName;
   };
   const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
-  const isMobile = useIsMobile();
+  const isWindowNarrow = useIsWindowNarrow();
 
-  if (!isMobile) {
+  if (!isWindowNarrow) {
     return null;
   }
 

@@ -1,6 +1,6 @@
 import { useWindowDimensions } from 'tamagui'
 
-export default function useIsMobile() {
+export default function useIsWindowNarrow() {
   const { width } = useWindowDimensions();
   return width < 768;
 }
