@@ -1,7 +1,7 @@
-import { isChatChannel as getIsChatChannel } from '@tloncorp/shared/dist';
-import type * as db from '@tloncorp/shared/dist/db';
-import * as urbit from '@tloncorp/shared/dist/urbit';
-import { Story } from '@tloncorp/shared/dist/urbit';
+import { isChatChannel as getIsChatChannel } from '@tloncorp/shared';
+import type * as db from '@tloncorp/shared/db';
+import * as urbit from '@tloncorp/shared/urbit';
+import { Story } from '@tloncorp/shared/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
@@ -223,6 +223,8 @@ export function PostScreenView({
                   editPost={editPost}
                   channelType="chat"
                   getDraft={getDraft}
+                  showAttachmentButton={channel.type === 'chat'}
+                  showInlineAttachments={channel.type === 'chat'}
                   shouldAutoFocus={
                     (channel.type === 'chat' && parentPost?.replyCount === 0) ||
                     !!editingPost

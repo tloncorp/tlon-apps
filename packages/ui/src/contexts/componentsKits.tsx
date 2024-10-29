@@ -3,8 +3,8 @@ import {
   DraftInputId,
   PostContentRendererId,
 } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/dist/db';
-import { Story } from '@tloncorp/shared/dist/urbit';
+import * as db from '@tloncorp/shared/db';
+import { Story } from '@tloncorp/shared/urbit';
 import { ReactElement, createContext, useContext, useMemo } from 'react';
 
 import { AudioPost } from '../components/AudioPost';

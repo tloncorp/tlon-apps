@@ -1,6 +1,6 @@
-import { createDevLogger, sync } from '@tloncorp/shared/dist';
-import { ClientParams } from '@tloncorp/shared/dist/api';
-import { configureClient } from '@tloncorp/shared/dist/store';
+import { createDevLogger, sync } from '@tloncorp/shared';
+import { ClientParams } from '@tloncorp/shared/api';
+import { configureClient } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { ENABLED_LOGGERS } from '../constants';

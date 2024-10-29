@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useState } from 'react';
 import { XStack } from 'tamagui';

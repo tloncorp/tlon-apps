@@ -121,7 +121,7 @@ jobs:
         run: |
           git config --global user.name github-actions
           git config --global user.email github-actions@github.com
-          git add desk/desk.docket-0
+          git add tm-alpha-desk/desk.docket-0
           git commit -n -m "update glob: ${{ steps.glob.outputs.hash }} [skip actions]" || echo "No changes to commit"
           INPUT=${{ env.tag }}
           BRANCH=${INPUT:-"staging"}

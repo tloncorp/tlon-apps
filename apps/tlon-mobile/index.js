@@ -6,7 +6,7 @@ import '@tloncorp/app/lib/devMenuItems';
 import { setupDb } from '@tloncorp/app/lib/nativeDb';
 import { addCustomEnabledLoggers } from '@tloncorp/shared';
 import { useDebugStore } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { setStorage } from '@tloncorp/ui';
 import { registerRootComponent } from 'expo';
 import 'expo-dev-client';

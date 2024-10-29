@@ -1,8 +1,4 @@
-import {
-  Story,
-  VerseBlock,
-  VerseInline,
-} from '@tloncorp/shared/dist/urbit/channel';
+import { Story, VerseBlock, VerseInline } from '@tloncorp/shared/urbit/channel';
 import {
   Inline,
   isBlockCode,
@@ -14,7 +10,7 @@ import {
   isLink,
   isShip,
   isStrikethrough,
-} from '@tloncorp/shared/dist/urbit/content';
+} from '@tloncorp/shared/urbit/content';
 
 import { ShipMention } from '@/chat/ChatContent/ChatContent';
 import ContentReference from '@/components/References/ContentReference';

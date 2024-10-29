@@ -1,12 +1,12 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { useSignupContext } from '../lib/signupContext';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared/dist';
-import { SignupParams, signupData } from '@tloncorp/shared/dist/db';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { SignupParams, signupData } from '@tloncorp/shared/db';
 import { useCallback, useEffect } from 'react';
 
 import { useOnboardingContext } from '../lib/OnboardingContext';
+import { useSignupContext } from '../lib/signupContext';
 import { OnboardingStackParamList } from '../types';
 
 const logger = createDevLogger('OnboardingRevive', true);

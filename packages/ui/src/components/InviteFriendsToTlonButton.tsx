@@ -1,6 +1,6 @@
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect } from 'react';
 import { Share } from 'react-native';
 import { Text, View, XStack, isWeb } from 'tamagui';

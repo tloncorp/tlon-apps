@@ -3,8 +3,8 @@ import {
   ContactAddGroup,
   ContactDelGroup,
   ContactEditField,
-} from '@tloncorp/shared/dist/urbit/contact';
-import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
+} from '@tloncorp/shared/urbit/contact';
+import { ViewProps } from '@tloncorp/shared/urbit/groups';
 import cn from 'classnames';
 import _ from 'lodash';
 import React, { useCallback, useEffect, useState } from 'react';

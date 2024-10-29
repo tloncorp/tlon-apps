@@ -1,8 +1,8 @@
 import { featureFlags, sync } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
-import * as store from '@tloncorp/shared/dist/store';
-import * as ub from '@tloncorp/shared/dist/urbit';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
+import * as ub from '@tloncorp/shared/urbit';
 import React, {
   ReactElement,
   useCallback,

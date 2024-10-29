@@ -7,7 +7,7 @@ import {
   DeepLinkData,
   QueryClientProvider,
   queryClient,
-} from '@tloncorp/shared/dist';
+} from '@tloncorp/shared';
 import { Theme } from '@tloncorp/ui';
 import { PropsWithChildren, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';

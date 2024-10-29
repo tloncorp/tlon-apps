@@ -20,12 +20,13 @@ import {
   createDevLogger,
   extractContentTypesFromPost,
   tiptap,
-} from '@tloncorp/shared/dist';
+} from '@tloncorp/shared';
 import {
   contentReferenceToCite,
   toContentReference,
-} from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
+} from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import {
   Block,
   Inline,
@@ -35,8 +36,7 @@ import {
   constructStory,
   isInline,
   pathToCite,
-} from '@tloncorp/shared/dist/urbit';
-import * as logic from '@tloncorp/shared/src/logic';
+} from '@tloncorp/shared/urbit';
 import {
   forwardRef,
   useCallback,

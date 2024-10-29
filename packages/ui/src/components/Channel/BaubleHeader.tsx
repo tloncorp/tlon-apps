@@ -1,5 +1,5 @@
 import { LinearGradient } from '@tamagui/linear-gradient';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { BlurView } from 'expo-blur';
 import { useCallback, useRef } from 'react';
 import { OpaqueColorValue } from 'react-native';

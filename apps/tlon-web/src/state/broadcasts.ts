@@ -4,8 +4,8 @@ import {
   Inline,
   Story,
   WritEssay,
-} from '@tloncorp/shared/dist/urbit';
-import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
+} from '@tloncorp/shared/urbit';
+import { WritTuple } from '@tloncorp/shared/urbit/dms';
 import { daToDate, unixToDa } from '@urbit/api';
 
 import api from '@/api';

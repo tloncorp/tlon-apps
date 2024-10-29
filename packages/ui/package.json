@@ -1,6 +1,7 @@
 {
   "name": "@tloncorp/ui",
   "version": "1.0.0",
+  "type": "module",
   "types": "./src",
   "main": "src/index.tsx",
   "module:jsx": "src",

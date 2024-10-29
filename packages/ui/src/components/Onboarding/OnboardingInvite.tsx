@@ -1,4 +1,4 @@
-import { DeepLinkMetadata } from '@tloncorp/shared/dist';
+import { DeepLinkMetadata } from '@tloncorp/shared';
 import React, { ComponentProps } from 'react';
 
 import { AppDataContextProvider } from '../../contexts';

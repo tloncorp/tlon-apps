@@ -1,4 +1,4 @@
-import { Post, emptyPost } from '@tloncorp/shared/dist/urbit/channel';
+import { Post, emptyPost } from '@tloncorp/shared/urbit/channel';
 import { decToUd } from '@urbit/api';
 import cn from 'classnames';
 import React, {

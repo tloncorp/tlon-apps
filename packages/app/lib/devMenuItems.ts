@@ -1,4 +1,4 @@
-import * as api from '@tloncorp/shared/dist/api';
+import * as api from '@tloncorp/shared/api';
 import { registerDevMenuItems } from 'expo-dev-menu';
 import { Alert, DevSettings, NativeModules } from 'react-native';
 import * as DeviceInfo from 'react-native-device-info';

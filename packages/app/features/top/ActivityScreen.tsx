@@ -1,12 +1,12 @@
+import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { ActivityScreenView, NavBarView, View } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
 // import ErrorBoundary from '../../ErrorBoundary';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useIsFocused } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;

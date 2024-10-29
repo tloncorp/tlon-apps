@@ -7,7 +7,7 @@ import {
   useGroup,
   useUpdateChannel,
 } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import {
   ComponentProps,
   ElementRef,

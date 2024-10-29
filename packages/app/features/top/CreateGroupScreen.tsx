@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type * as db from '@tloncorp/shared/dist/db';
+import type * as db from '@tloncorp/shared/db';
 import { CreateGroupView } from '@tloncorp/ui';
 import { useCallback } from 'react';
 

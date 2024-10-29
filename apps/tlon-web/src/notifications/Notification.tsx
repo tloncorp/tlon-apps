@@ -9,7 +9,7 @@ import {
   getSource,
   getTop,
   nestToFlag,
-} from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared/urbit';
 import { daToUnix, parseUd } from '@urbit/aura';
 import _ from 'lodash';
 import React, { useCallback } from 'react';

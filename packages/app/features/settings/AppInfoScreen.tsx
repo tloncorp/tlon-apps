@@ -1,7 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useDebugStore } from '@tloncorp/shared';
-import { getCurrentUserId } from '@tloncorp/shared/dist/api';
-import * as store from '@tloncorp/shared/dist/store';
+import { getCurrentUserId } from '@tloncorp/shared/api';
+import * as store from '@tloncorp/shared/store';
 import {
   AppSetting,
   Button,

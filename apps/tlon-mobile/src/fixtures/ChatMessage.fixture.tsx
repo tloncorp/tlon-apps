@@ -1,5 +1,5 @@
 // tamagui-ignore
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import {
   AppDataContextProvider,
   ChannelDivider,

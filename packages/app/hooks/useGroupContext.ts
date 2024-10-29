@@ -1,6 +1,6 @@
 import { sync, useUpdateChannel } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { useCurrentUserId } from './useCurrentUser';

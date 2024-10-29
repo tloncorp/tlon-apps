@@ -1,4 +1,4 @@
-import { ChatMap } from '@tloncorp/shared/dist/urbit/channel';
+import { ChatMap } from '@tloncorp/shared/urbit/channel';
 import cn from 'classnames';
 import React, { PropsWithChildren, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router';

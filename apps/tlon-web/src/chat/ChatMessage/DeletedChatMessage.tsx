@@ -1,5 +1,5 @@
 /* eslint-disable react/no-unused-prop-types */
-import { getKey } from '@tloncorp/shared/dist/urbit/activity';
+import { getKey } from '@tloncorp/shared/urbit/activity';
 import { daToUnix } from '@urbit/api';
 import { BigInteger } from 'big-integer';
 import cn from 'classnames';
