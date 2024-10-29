@@ -2707,7 +2707,6 @@ export const updateContact = createWriteQuery(
 export const upsertContact = createWriteQuery(
   'upsertContact',
   async (contact: Contact, ctx: QueryCtx) => {
-    // TODO: is there a better way to do this?
     const existingContact = await ctx.db.query.contacts.findFirst({
       where: (contacts, { eq }) => eq(contacts.id, contact.id),
     });
@@ -2719,7 +2718,12 @@ export const upsertContact = createWriteQuery(
         .where(eq($contacts.id, contact.id));
     }
 
-    return ctx.db.insert($contacts).values(contact);
+    // for new inserts, default to non contact if unspecified
+    const newContact: Contact = {
+      ...contact,
+      isContact: contact.isContact !== undefined ? contact.isContact : false,
+    };
+    return ctx.db.insert($contacts).values(newContact);
   },
   ['contacts']
 );

@@ -159,7 +159,8 @@ export const subscribeToContactUpdates = (
         handler({ type: 'removeContact', contactId: event.kip });
       }
 
-      // received when we get initial or updated profile info for a non-contact
+      // received when we get initial or updated profile info for a non-contact. Note: we also get
+      // a dupe event here if a contact updates their own profile (get a page fact and peer fact)
       if (ub.isPeerResponse(event) && event.who.startsWith('~')) {
         handler({
           type: 'upsertContact',
@@ -213,7 +214,8 @@ export const v1PeersToClientProfiles = (peers: ub.ContactsAllScryResult1) => {
 
 export const v1PeerToClientProfile = (
   id: string,
-  contact: ub.ContactBookProfile
+  contact: ub.ContactBookProfile,
+  isContact?: boolean
 ) => {
   return {
     id,
@@ -229,7 +231,7 @@ export const v1PeerToClientProfile = (
         contactId: id,
       })) ?? [],
 
-    isContact: false,
+    isContact,
     customNickname: null,
     customAvatarImage: null,
   };
