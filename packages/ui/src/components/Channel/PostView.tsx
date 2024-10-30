@@ -21,9 +21,9 @@ export const PostView: RenderItemType = (props) => {
       const contentConfig = channel.contentConfiguration;
       if (
         contentConfig != null &&
-        renderers[contentConfig.defaultPostContentRenderer] != null
+        renderers[contentConfig.defaultPostContentRenderer.id] != null
       ) {
-        return renderers[contentConfig.defaultPostContentRenderer];
+        return renderers[contentConfig.defaultPostContentRenderer.id];
       }
     })();
     if (rendererFromContentConfig != null) {

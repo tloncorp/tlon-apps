@@ -1,38 +1,58 @@
+import type { JSONValue } from '../types/JSONValue';
 import { ValuesOf } from '../utils';
 
-interface ComponentSpec<EnumTag extends string = string> {
+interface ParameterSpec {
+  displayName: string;
+  type: 'boolean' | 'string';
+}
+
+export interface ComponentSpec<
+  EnumTag extends string = string,
+  Parameters extends { [key: string]: ParameterSpec } = Record<
+    string,
+    ParameterSpec
+  >,
+> {
   displayName: string;
   enumTag: EnumTag;
+  parametersSchema: Parameters;
 }
 
 export const allCollectionRenderers = {
   'tlon.r0.collection.chat': {
     displayName: 'Chat',
     enumTag: 'chat',
+    parametersSchema: {},
   },
   'tlon.r0.collection.gallery': {
     displayName: 'Gallery',
     enumTag: 'gallery',
+    parametersSchema: {},
   },
   'tlon.r0.collection.notebook': {
     displayName: 'Notebook',
     enumTag: 'notebook',
+    parametersSchema: {},
   },
   'tlon.r0.collection.cards': {
     displayName: 'Cards',
     enumTag: 'cards',
+    parametersSchema: {},
   },
   'tlon.r0.collection.sign': {
     displayName: 'Sign',
     enumTag: 'sign',
+    parametersSchema: {},
   },
   'tlon.r0.collection.boardroom': {
     displayName: 'Boardroom',
     enumTag: 'boardroom',
+    parametersSchema: {},
   },
   'tlon.r0.collection.strobe': {
     displayName: 'Strobe',
     enumTag: 'strobe',
+    parametersSchema: {},
   },
 } as const satisfies Record<string, ComponentSpec>;
 
@@ -40,65 +60,83 @@ export const allDraftInputs = {
   'tlon.r0.input.chat': {
     displayName: 'Chat',
     enumTag: 'chat',
+    parametersSchema: {},
   },
   'tlon.r0.input.gallery': {
     displayName: 'Gallery',
     enumTag: 'gallery',
+    parametersSchema: {},
   },
   'tlon.r0.input.notebook': {
     displayName: 'Notebook',
     enumTag: 'notebook',
+    parametersSchema: {},
   },
   'tlon.r0.input.yo': {
     displayName: 'Yo',
     enumTag: 'yo',
+    parametersSchema: {},
   },
   'tlon.r0.input.mic': {
     displayName: 'Mic',
     enumTag: 'mic',
+    parametersSchema: {},
   },
   'tlon.r0.input.picto': {
     displayName: 'Picto',
     enumTag: 'picto',
+    parametersSchema: {},
   },
   'tlon.r0.input.color': {
     displayName: 'Color',
     enumTag: 'color',
+    parametersSchema: {},
   },
-} as const satisfies Record<string, ComponentSpec>;
+} as const satisfies Record<
+  string,
+  ComponentSpec<string, Record<string, ParameterSpec>>
+>;
 
 export const allContentRenderers = {
   'tlon.r0.content.chat': {
     displayName: 'Chat',
     enumTag: 'chat',
+    parametersSchema: {},
   },
   'tlon.r0.content.gallery': {
     displayName: 'Gallery',
     enumTag: 'gallery',
+    parametersSchema: {},
   },
   'tlon.r0.content.notebook': {
     displayName: 'Notebook',
     enumTag: 'notebook',
+    parametersSchema: {},
   },
   'tlon.r0.content.picto': {
     displayName: 'Picto',
     enumTag: 'picto',
+    parametersSchema: {},
   },
   'tlon.r0.content.audio': {
     displayName: 'Audio',
     enumTag: 'audio',
+    parametersSchema: {},
   },
   'tlon.r0.content.color': {
     displayName: 'Color',
     enumTag: 'color',
+    parametersSchema: {},
   },
   'tlon.r0.content.raw': {
     displayName: 'Raw',
     enumTag: 'raw',
+    parametersSchema: {},
   },
   'tlon.r0.content.yell': {
     displayName: 'Yell',
     enumTag: 'yell',
+    parametersSchema: {},
   },
 } as const satisfies Record<string, ComponentSpec>;
 
@@ -111,6 +149,11 @@ export type DraftInputId = ValuesOf<typeof DraftInputId>;
 export const PostContentRendererId = makeEnum(allContentRenderers);
 export type PostContentRendererId = ValuesOf<typeof PostContentRendererId>;
 
+interface ParameterizedId<Id extends string> {
+  id: Id;
+  configuration?: Record<string, JSONValue>;
+}
+
 /**
  * Configures the custom components used to create content in a channel.
  */
@@ -118,7 +161,7 @@ export interface ChannelContentConfiguration {
   /**
    * Which controls are available when composing a new post?
    */
-  draftInput: DraftInputId;
+  draftInput: ParameterizedId<DraftInputId>;
 
   /**
    * How should we render a given post content type?
@@ -126,12 +169,12 @@ export interface ChannelContentConfiguration {
    * This spec takes precedence over the client's default renderer mapping, but
    * does not take precedence over any mapping specified in a post's metadata.
    */
-  defaultPostContentRenderer: PostContentRendererId;
+  defaultPostContentRenderer: ParameterizedId<PostContentRendererId>;
 
   /**
    * How should we render the entire collection of posts? (list, grid, etc)
    */
-  defaultPostCollectionRenderer: CollectionRendererId;
+  defaultPostCollectionRenderer: ParameterizedId<CollectionRendererId>;
 }
 
 /**

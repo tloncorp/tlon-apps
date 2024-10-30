@@ -22,10 +22,10 @@ export function layoutTypeFromChannel(
 export function layoutTypeFromChannel(
   channel: db.Channel | null
 ): PostCollectionLayoutType | null {
-  const configCollectionRendererId =
+  const configCollectionRenderer =
     channel?.contentConfiguration?.defaultPostCollectionRenderer;
-  if (configCollectionRendererId != null) {
-    switch (configCollectionRendererId) {
+  if (configCollectionRenderer != null) {
+    switch (configCollectionRenderer.id) {
       case CollectionRendererId.notebook:
         return 'comfy-list-top-to-bottom';
 

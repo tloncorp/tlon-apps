@@ -21,9 +21,12 @@ export function PostCollectionView({
       const contentConfig = channel.contentConfiguration;
       if (
         contentConfig != null &&
-        collectionRenderers[contentConfig.defaultPostCollectionRenderer] != null
+        collectionRenderers[contentConfig.defaultPostCollectionRenderer.id] !=
+          null
       ) {
-        return collectionRenderers[contentConfig.defaultPostCollectionRenderer];
+        return collectionRenderers[
+          contentConfig.defaultPostCollectionRenderer.id
+        ];
       }
     })();
     return rendererFromContentConfig ?? ListPostCollection;

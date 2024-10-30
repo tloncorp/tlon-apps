@@ -1,20 +1,25 @@
 import {
+  JSONValue,
+  useCreateChannel,
+  useGroup,
+  useUpdateChannel,
+} from '@tloncorp/shared';
+import {
   ChannelContentConfiguration,
   CollectionRendererId,
+  ComponentSpec,
   DraftInputId,
   PostContentRendererId,
   allCollectionRenderers,
   allContentRenderers,
   allDraftInputs,
-  useCreateChannel,
-  useGroup,
-  useUpdateChannel,
-} from '@tloncorp/shared';
+} from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { objectEntries } from '@tloncorp/shared/utils';
 import {
   ComponentProps,
   ElementRef,
+  SetStateAction,
   forwardRef,
   useCallback,
   useImperativeHandle,
@@ -23,6 +28,7 @@ import {
   useState,
 } from 'react';
 import { useForm } from 'react-hook-form';
+import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SizableText, View, XStack, YStack } from 'tamagui';
 
@@ -31,7 +37,17 @@ import { useIsAdmin } from '../../utils';
 import { Action, ActionSheet, SimpleActionSheet } from '../ActionSheet';
 import { Button } from '../Button';
 import * as Form from '../Form';
+import { Icon } from '../Icon';
 import { Text } from '../TextV2';
+
+export function applySetStateAction<T>(prev: T, action: SetStateAction<T>): T {
+  if (typeof action === 'function') {
+    // @ts-expect-error - react does this as well
+    return action(prev);
+  } else {
+    return action;
+  }
+}
 
 export type ChannelTypeName = 'chat' | 'notebook' | 'gallery' | 'custom';
 
@@ -191,9 +207,9 @@ const CustomChannelConfigurationForm = forwardRef<
 >(function CustomChannelConfigurationForm({ initialValue }, ref) {
   const { control, getValues } = useForm<ChannelContentConfiguration>({
     defaultValues: initialValue ?? {
-      draftInput: DraftInputId.chat,
-      defaultPostContentRenderer: PostContentRendererId.chat,
-      defaultPostCollectionRenderer: CollectionRendererId.chat,
+      draftInput: { id: DraftInputId.chat },
+      defaultPostContentRenderer: { id: PostContentRendererId.chat },
+      defaultPostCollectionRenderer: { id: CollectionRendererId.chat },
     },
   });
   useImperativeHandle(ref, () => ({
@@ -204,7 +220,7 @@ const CustomChannelConfigurationForm = forwardRef<
     <>
       <ActionSheet.FormBlock>
         <Form.ControlledRadioField
-          name="defaultPostCollectionRenderer"
+          name="defaultPostCollectionRenderer.id"
           label="Collection renderer"
           control={control}
           options={options.collection}
@@ -212,7 +228,7 @@ const CustomChannelConfigurationForm = forwardRef<
       </ActionSheet.FormBlock>
       <ActionSheet.FormBlock>
         <Form.ControlledRadioField
-          name="defaultPostContentRenderer"
+          name="defaultPostContentRenderer.id"
           label="Post renderer"
           control={control}
           options={options.content}
@@ -220,7 +236,7 @@ const CustomChannelConfigurationForm = forwardRef<
       </ActionSheet.FormBlock>
       <ActionSheet.FormBlock>
         <Form.ControlledRadioField
-          name="draftInput"
+          name="draftInput.id"
           label="Draft input"
           control={control}
           options={options.inputs}
@@ -235,13 +251,13 @@ export function ChannelConfigurationBar({
   onPressDone,
 }: {
   channel: db.Channel;
-  onPressDone: () => void;
+  onPressDone?: () => void;
 }) {
   const updateChannel = useUpdateChannel();
   const group = useGroup({ id: channel.group?.id }).data;
 
   const saveConfiguration = useCallback(
-    async (configuration: ChannelContentConfiguration) => {
+    async (update: SetStateAction<ChannelContentConfiguration | undefined>) => {
       if (group == null) {
         throw new Error("Couldn't get containing group");
       }
@@ -249,14 +265,77 @@ export function ChannelConfigurationBar({
         group,
         channel: {
           ...channel,
-          contentConfiguration: configuration,
+          contentConfiguration: applySetStateAction(
+            channel.contentConfiguration,
+            update
+          ),
         },
       });
     },
     [channel, group, updateChannel]
   );
 
+  return (
+    <UnconnectedChannelConfigurationBar
+      channel={channel}
+      onPressDone={onPressDone}
+      updateChannelConfiguration={saveConfiguration}
+    />
+  );
+}
+
+// exported for fixture
+export function UnconnectedChannelConfigurationBar({
+  channel,
+  onPressDone,
+  updateChannelConfiguration,
+}: {
+  channel: db.Channel;
+  onPressDone?: () => void;
+  updateChannelConfiguration?: (
+    update: (
+      prev: ChannelContentConfiguration | undefined
+    ) => ChannelContentConfiguration
+  ) => void;
+}) {
   const insets = useSafeAreaInsets();
+
+  const buildConfigInputProps = useCallback(
+    (
+      field: keyof ChannelContentConfiguration
+    ): Pick<
+      ComponentProps<typeof ConfigInput>,
+      'value' | 'parametersSchema' | 'onChange'
+    > => {
+      const kit = (() => {
+        switch (field) {
+          case 'draftInput':
+            return allDraftInputs;
+          case 'defaultPostContentRenderer':
+            return allContentRenderers;
+          case 'defaultPostCollectionRenderer':
+            return allCollectionRenderers;
+        }
+      })();
+
+      const componentId = channel.contentConfiguration?.[field]?.id;
+
+      return {
+        value: channel.contentConfiguration?.[field],
+        parametersSchema:
+          componentId == null
+            ? undefined
+            : // @ts-expect-error we know that componentId matches kit
+              kit[componentId].parametersSchema,
+        onChange: (update) =>
+          updateChannelConfiguration?.((prev) => ({
+            ...prev!,
+            [field]: applySetStateAction(prev![field], update),
+          })),
+      };
+    },
+    [channel.contentConfiguration, updateChannelConfiguration]
+  );
 
   return (
     <YStack
@@ -267,49 +346,23 @@ export function ChannelConfigurationBar({
       paddingBottom={insets.bottom + 20}
       backgroundColor="$secondaryBackground"
     >
-      <XStack gap="$m">
+      <YStack gap="$m">
         <ConfigInput
           label={'Collection'}
-          value={
-            channel.contentConfiguration?.defaultPostCollectionRenderer ??
-            'not set'
-          }
-          onChange={(newCollectionType: string) =>
-            saveConfiguration({
-              ...channel.contentConfiguration!,
-              defaultPostCollectionRenderer:
-                newCollectionType as CollectionRendererId,
-            })
-          }
           options={options.collection}
+          {...buildConfigInputProps('defaultPostCollectionRenderer')}
         />
         <ConfigInput
           label={'Content renderer'}
-          value={
-            channel.contentConfiguration?.defaultPostContentRenderer ??
-            'not set'
-          }
-          onChange={(newContentType: string) => {
-            saveConfiguration({
-              ...channel.contentConfiguration!,
-              defaultPostContentRenderer:
-                newContentType as PostContentRendererId,
-            });
-          }}
           options={options.content}
+          {...buildConfigInputProps('defaultPostContentRenderer')}
         />
         <ConfigInput
           label={'Input'}
-          value={channel.contentConfiguration?.draftInput ?? 'not set'}
-          onChange={(newInputType: string) => {
-            saveConfiguration({
-              ...channel.contentConfiguration!,
-              draftInput: newInputType as DraftInputId,
-            });
-          }}
           options={options.inputs}
+          {...buildConfigInputProps('draftInput')}
         />
-      </XStack>
+      </YStack>
       <Button hero onPress={onPressDone}>
         <Button.Text>Done</Button.Text>
       </Button>
@@ -317,19 +370,24 @@ export function ChannelConfigurationBar({
   );
 }
 
-function ConfigInput({
+function ConfigInput<
+  Value extends { id: string; configuration?: Record<string, JSONValue> },
+>({
   label,
   value,
   options,
   onChange,
+  parametersSchema,
   ...props
 }: {
   label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: { title: string; value: string }[];
+  value?: Value;
+  parametersSchema?: ComponentSpec['parametersSchema'];
+  onChange: (update: SetStateAction<Value>) => void;
+  options: { title: string; value: Value['id'] }[];
 } & ComponentProps<typeof View>) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [configurationOpen, setConfigurationOpen] = useState(false);
 
   const sheetActions: Action[] = useMemo(() => {
     return options.map(
@@ -337,45 +395,104 @@ function ConfigInput({
         title: option.title,
         action: () => {
           setSheetOpen(false);
-          onChange(option.value);
+          onChange((prev) => ({ ...prev, id: option.value }));
         },
-        endIcon: option.value === value ? 'Checkmark' : undefined,
+        endIcon:
+          value != null && value.id === option.value ? 'Checkmark' : undefined,
       })
     );
   }, [options, value, onChange]);
 
-  const selectedOptionTitle = options.find((o) => o.value === value)?.title;
+  const configurationSheetActions: Action[] = useMemo(() => {
+    if (parametersSchema == null) {
+      return [];
+    }
+    return Object.keys(parametersSchema).map((key) => ({
+      title: parametersSchema[key].displayName,
+      description: (() => {
+        switch (parametersSchema[key].type) {
+          case 'string': {
+            return value?.configuration?.[key] as string | undefined;
+          }
+          case 'boolean': {
+            return value?.configuration?.[key] ? 'Enabled' : 'Disabled';
+          }
+        }
+      })(),
+      action: () => {
+        switch (parametersSchema[key].type) {
+          case 'string': {
+            Alert.prompt(
+              'Enter a value',
+              undefined,
+              (value) => {
+                onChange((prev) => ({
+                  ...prev,
+                  configuration: { ...prev.configuration, [key]: value },
+                }));
+              },
+              undefined,
+              value?.configuration?.[key] as string
+            );
+            break;
+          }
+
+          case 'boolean': {
+            onChange((prev) => ({
+              ...prev,
+              configuration: {
+                ...prev.configuration,
+                [key]: !prev.configuration?.[key],
+              },
+            }));
+          }
+        }
+      },
+    }));
+  }, [parametersSchema, onChange, value?.configuration]);
+
+  const selectedOptionTitle = options.find((o) =>
+    value == null ? false : o.value === value.id
+  )?.title;
 
   return (
     <>
-      <YStack flex={1} gap="$m">
-        <View
-          padding="$xl"
-          borderWidth={1}
-          borderRadius={'$s'}
-          borderColor="$border"
-          backgroundColor={'$background'}
+      <XStack gap="$m" alignItems="center">
+        <Text size="$label/l" color="$tertiaryText" numberOfLines={1} flex={1}>
+          {label}
+        </Text>
+        <Button
+          paddingVertical="$xl"
+          minWidth={140}
           onPress={() => setSheetOpen(true)}
           {...props}
         >
-          <Text size="$label/xl" textAlign="center" numberOfLines={1}>
-            {selectedOptionTitle ?? 'default'}
-          </Text>
-        </View>
-        <Text
-          size="$label/s"
-          color="$tertiaryText"
-          textAlign="center"
-          numberOfLines={1}
+          <Text size="$label/xl">{selectedOptionTitle ?? 'default'}</Text>
+        </Button>
+        <Button
+          onPress={() => setConfigurationOpen(true)}
+          disabled={
+            parametersSchema == null ||
+            Object.keys(parametersSchema).length === 0
+          }
+          disabledStyle={{ opacity: 0.5 }}
         >
-          {label}
-        </Text>
-      </YStack>
+          <Icon type="Settings" />
+        </Button>
+      </XStack>
+
       <SimpleActionSheet
         title={label}
         actions={sheetActions}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
+      />
+
+      <SimpleActionSheet
+        title={[label, 'Tweaks'].join(' • ')}
+        actions={configurationSheetActions}
+        open={configurationOpen}
+        onOpenChange={setConfigurationOpen}
       />
     </>
   );

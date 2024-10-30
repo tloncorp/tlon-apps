@@ -349,7 +349,9 @@ export function Channel({
                               ) : (
                                 <DraftInputView
                                   draftInputContext={draftInputContext}
-                                  type={channel.contentConfiguration.draftInput}
+                                  type={
+                                    channel.contentConfiguration.draftInput.id
+                                  }
                                 />
                               ))}
 
