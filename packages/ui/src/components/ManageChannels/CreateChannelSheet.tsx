@@ -319,14 +319,12 @@ export function UnconnectedChannelConfigurationBar({
       })();
 
       const componentId = channel.contentConfiguration?.[field]?.id;
+      // @ts-expect-error - above code ensures that `componentId` is an index into `kit`
+      const componentSpec = componentId == null ? undefined : kit[componentId];
 
       return {
         value: channel.contentConfiguration?.[field],
-        parametersSchema:
-          componentId == null
-            ? undefined
-            : // @ts-expect-error we know that componentId matches kit
-              kit[componentId].parametersSchema,
+        parametersSchema: componentSpec?.parametersSchema,
         onChange: (update) =>
           updateChannelConfiguration?.((prev) => ({
             ...prev!,
