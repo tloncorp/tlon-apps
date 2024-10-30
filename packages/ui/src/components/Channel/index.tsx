@@ -1,4 +1,3 @@
-import { DraftInputId } from '@tloncorp/shared';
 import {
   isChatChannel as getIsChatChannel,
   useChannel as useChannelFromStore,
@@ -6,6 +5,10 @@ import {
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared';
+import {
+  ChannelContentConfiguration,
+  DraftInputId,
+} from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
@@ -350,7 +353,9 @@ export function Channel({
                                 <DraftInputView
                                   draftInputContext={draftInputContext}
                                   type={
-                                    channel.contentConfiguration.draftInput.id
+                                    ChannelContentConfiguration.draftInput(
+                                      channel.contentConfiguration
+                                    ).id
                                   }
                                 />
                               ))}

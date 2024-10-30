@@ -317,18 +317,31 @@ export function UnconnectedChannelConfigurationBar({
             return allCollectionRenderers;
         }
       })();
+      const config = (() => {
+        if (channel.contentConfiguration == null) {
+          return null;
+        }
+        // use type-coercing getters from ChannelContentConfiguration namespace
+        return ChannelContentConfiguration[field](channel.contentConfiguration);
+      })();
 
-      const componentId = channel.contentConfiguration?.[field]?.id;
-      // @ts-expect-error - above code ensures that `componentId` is an index into `kit`
-      const componentSpec = componentId == null ? undefined : kit[componentId];
+      const componentId = config?.id;
+      const componentSpec: ComponentSpec | undefined =
+        // @ts-expect-error - above code ensures that `componentId` is an index into `kit`
+        componentId == null ? undefined : kit[componentId];
 
       return {
-        value: channel.contentConfiguration?.[field],
+        value: config ?? undefined,
         parametersSchema: componentSpec?.parametersSchema,
         onChange: (update) =>
           updateChannelConfiguration?.((prev) => ({
             ...prev!,
-            [field]: applySetStateAction(prev![field], update),
+            [field]: applySetStateAction(
+              // Use type-coercing getter to upgrade any legacy string values
+              // into the {id, parameters} form.
+              ChannelContentConfiguration[field](prev!),
+              update
+            ),
           })),
       };
     },
