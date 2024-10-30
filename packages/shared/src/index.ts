@@ -1,5 +1,6 @@
 export * as ChannelAction from './types/ChannelActions';
 export type { GroupMeta } from './types/groups';
+export { JSONValue } from './types/JSONValue';
 export type {
   NativeWebViewOptions,
   NativeCommand,
@@ -37,4 +38,3 @@ export * as tiptap from './logic/tiptap';
 export * as utilHooks from './logic/utilHooks';
 export * from './debug';
 export * from './perf';
-export type { JSONValue } from './types/JSONValue';

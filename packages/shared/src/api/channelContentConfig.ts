@@ -40,6 +40,12 @@ export const allCollectionRenderers = {
   'tlon.r0.collection.strobe': {
     displayName: 'Strobe',
     enumTag: 'strobe',
+    parametersSchema: {
+      interval: {
+        displayName: 'Frame rate in milliseconds',
+        type: 'string',
+      },
+    },
   },
 } as const satisfies Record<string, ComponentSpec>;
 
@@ -59,6 +65,12 @@ export const allDraftInputs = {
   'tlon.r0.input.yo': {
     displayName: 'Yo',
     enumTag: 'yo',
+    parametersSchema: {
+      text: {
+        displayName: 'Message text',
+        type: 'string',
+      },
+    },
   },
   'tlon.r0.input.mic': {
     displayName: 'Mic',
@@ -102,6 +114,12 @@ export const allContentRenderers = {
   'tlon.r0.content.raw': {
     displayName: 'Raw',
     enumTag: 'raw',
+    parametersSchema: {
+      fontFamily: {
+        displayName: 'Font family',
+        type: 'string',
+      },
+    },
   },
   'tlon.r0.content.yell': {
     displayName: 'Yell',

@@ -1,10 +1,12 @@
 import * as db from '@tloncorp/shared/db';
 import { shuffle } from 'lodash';
+import { JSONValue } from 'packages/shared/src';
 import {
   forwardRef,
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -90,7 +92,21 @@ export const StrobePostCollectionView: IPostCollectionView = forwardRef(
       },
     }));
 
-    return <_StrobePostCollectionView />;
+    const { collectionConfiguration } =
+      usePostCollectionContextUnsafelyUnwrapped();
+
+    const strobeDurationMs = useMemo(() => {
+      try {
+        return parseFloat(
+          JSONValue.asString(collectionConfiguration?.interval, '80')
+        );
+      } catch (_) {
+        // ignore
+        return 80;
+      }
+    }, [collectionConfiguration]);
+
+    return <_StrobePostCollectionView strobeDurationMs={strobeDurationMs} />;
   }
 );
 
