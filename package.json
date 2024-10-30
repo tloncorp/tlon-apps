@@ -11,6 +11,7 @@
     "build:mobile": "pnpm --filter 'tlon-mobile' build",
     "build:apps": "pnpm run build:mobile && pnpm run build:web && pnpm run build:new-web",
     "build:packages": "pnpm run build:shared && pnpm run build:ui && pnpm run build:editor",
+    "build:mobile-release": "pnpm run build:packages && pnpm run build:mobile",
     "build:all": "pnpm run build:packages && pnpm run build:apps",
     "dev:shared": "pnpm --filter '@tloncorp/shared' dev",
     "dev:android": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' android\"",
