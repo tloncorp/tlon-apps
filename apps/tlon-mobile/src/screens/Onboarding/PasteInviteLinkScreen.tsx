@@ -105,7 +105,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
 
       navigation.reset({
         index: 0,
-        routes: [{ name: 'Welcome' }, { name: 'SignUpEmail' }],
+        routes: [{ name: 'Welcome' }, { name: 'SignupPhoneNumber' }],
       });
     }
   }, [lureMeta, navigation]);

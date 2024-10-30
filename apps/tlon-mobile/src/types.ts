@@ -98,10 +98,11 @@ export type SettingsStackParamList = {
 export type OnboardingStackParamList = {
   Welcome: undefined;
   InventoryCheck: undefined;
+  PasteInviteLink: undefined;
+  SignupPhoneNumber: undefined;
   SignUpEmail: undefined;
   EULA: undefined;
   SignUpPassword: { email: string };
-  PasteInviteLink: undefined;
   JoinWaitList: { email?: string };
   RequestPhoneVerify: { user: User };
   CheckVerify: { user: User };

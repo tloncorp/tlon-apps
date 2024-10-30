@@ -15,6 +15,7 @@ import { SetTelemetryScreen } from './screens/Onboarding/SetTelemetryScreen';
 import { ShipLoginScreen } from './screens/Onboarding/ShipLoginScreen';
 import { SignUpEmailScreen } from './screens/Onboarding/SignUpEmailScreen';
 import { SignUpPasswordScreen } from './screens/Onboarding/SignUpPasswordScreen';
+import { SignUpPhoneNumberScreen } from './screens/Onboarding/SignUpPhoneNumberScreen';
 import { TlonLoginScreen } from './screens/Onboarding/TlonLoginScreen';
 import { WelcomeScreen } from './screens/Onboarding/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
@@ -40,6 +41,10 @@ export function OnboardingStack() {
       <OnboardingStackNavigator.Screen
         name="Welcome"
         component={WelcomeScreen}
+      />
+      <OnboardingStackNavigator.Screen
+        name="SignupPhoneNumber"
+        component={SignUpPhoneNumberScreen}
       />
       <OnboardingStackNavigator.Screen
         name="SignUpEmail"

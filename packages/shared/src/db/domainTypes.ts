@@ -2,6 +2,7 @@
  * Signup
  */
 export interface SignupParams {
+  phoneNumber?: string;
   email?: string;
   password?: string;
   nickname?: string;

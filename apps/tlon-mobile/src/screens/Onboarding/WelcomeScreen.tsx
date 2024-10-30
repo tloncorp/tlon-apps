@@ -45,7 +45,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   }, []);
 
   const handlePressInvite = useCallback(() => {
-    navigation.navigate('SignUpEmail');
+    navigation.navigate('SignupPhoneNumber');
   }, [navigation]);
 
   useEffect(() => {

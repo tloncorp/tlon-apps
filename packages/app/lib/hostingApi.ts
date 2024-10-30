@@ -1,3 +1,4 @@
+import { createDevLogger } from '@tloncorp/shared';
 import * as logic from '@tloncorp/shared/logic';
 import { Buffer } from 'buffer';
 import { Platform } from 'react-native';
@@ -15,6 +16,8 @@ import {
   setHostingToken,
   setHostingUserId,
 } from '../utils/hosting';
+
+const logger = createDevLogger('hostingApi', true);
 
 type HostingError = {
   message: string;
@@ -195,6 +198,50 @@ export const requestPhoneVerify = async (userId: string, phoneNumber: string) =>
       'Content-Type': 'application/json',
     },
   });
+
+export const requestPhoneSignupOtp = async ({
+  phoneNumber,
+  recaptchaToken,
+}: {
+  phoneNumber: string;
+  recaptchaToken?: string;
+}) => {
+  const response = await rawHostingFetch('/v1/request-otp', {
+    method: 'POST',
+    body: JSON.stringify({
+      phoneNumber,
+      otpMode: 'SignupOTP',
+      recaptcha: {
+        recaptchaToken: { token: recaptchaToken || '' },
+        recaptchaPlatform: Platform.OS,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    if (response.status === 409) {
+      throw new Error('Phone number already in use');
+    }
+
+    const badResponseText = await response.text();
+    logger.trackError(logic.AnalyticsEvent.FailedSignupOTP, {
+      status: response.status,
+      responseText: badResponseText,
+    });
+
+    throw new Error('Failed to send signup OTP');
+  }
+};
+
+export const requestPhoneLoginOtp = async (phoneNumber: string) => {
+  hostingFetch<object>('/v1/request-otp', {
+    method: 'POST',
+    body: JSON.stringify({
+      phoneNumber,
+      otpMode: 'LoginOTP',
+    }),
+  });
+};
 
 export const checkPhoneVerify = async (userId: string, code: string) =>
   hostingFetch<object>(`/v1/users/${userId}/check-phone-verify`, {

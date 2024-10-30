@@ -4,4 +4,5 @@ export enum AnalyticsEvent {
   AppInstalled = 'App Installed',
   AppUpdated = 'App Updated',
   LoggedInBeforeSignup = 'Logged In Without Signing Up',
+  FailedSignupOTP = 'Failed to send Signup OTP',
 }
