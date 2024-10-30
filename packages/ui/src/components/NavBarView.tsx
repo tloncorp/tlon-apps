@@ -6,14 +6,18 @@ export const NavBarView = ({
   navigateToHome,
   navigateToNotifications,
   navigateToProfileSettings,
+  navigateToContacts,
   currentRoute,
   currentUserId,
+  showContactsTab,
 }: {
   navigateToHome: () => void;
   navigateToNotifications: () => void;
   navigateToProfileSettings: () => void;
+  navigateToContacts?: () => void;
   currentRoute: string;
   currentUserId: string;
+  showContactsTab?: boolean;
 }) => {
   const isRouteActive = (routeName: string) => {
     return currentRoute === routeName;
@@ -22,6 +26,14 @@ export const NavBarView = ({
 
   return (
     <NavBar>
+      {showContactsTab && (
+        <NavIcon
+          type="Face"
+          activeType="Face"
+          isActive={isRouteActive('Contacts')}
+          onPress={navigateToContacts}
+        />
+      )}
       <NavIcon
         type="Home"
         activeType="HomeFilled"

@@ -51,8 +51,8 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
   );
 
   const handlePressEdit = useCallback(() => {
-    navigation.push('EditProfile');
-  }, [navigation]);
+    navigation.push('EditProfile', { userId });
+  }, [navigation, userId]);
 
   const canUpload = store.useCanUpload();
 

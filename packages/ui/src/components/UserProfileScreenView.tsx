@@ -1,8 +1,8 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useMemo, useState } from 'react';
-import { UseFormReturn, useForm } from 'react-hook-form';
+import { ComponentProps, useCallback, useMemo, useState } from 'react';
+import { LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ScrollView,
@@ -19,7 +19,6 @@ import { triggerHaptic } from '../utils';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { Button } from './Button';
 import { ContactName } from './ContactNameV2';
-import { ControlledImageField, ControlledTextField, FormFrame } from './Form';
 import { Icon } from './Icon';
 import { ScreenHeader } from './ScreenHeader';
 import { Text } from './TextV2';
@@ -34,7 +33,6 @@ interface Props {
 }
 
 export function UserProfileScreenView(props: Props) {
-  const [isEditing, setIsEditing] = useState(false);
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
   const userContact = useContact(props.userId);
@@ -44,8 +42,6 @@ export function UserProfileScreenView(props: Props) {
       []
     );
   }, [userContact?.pinnedGroups]);
-
-  const windowDimensions = useWindowDimensions();
 
   const nodeStatus = !props.connectionStatus?.complete
     ? 'pending'
@@ -70,86 +66,15 @@ export function UserProfileScreenView(props: Props) {
     [props]
   );
 
-  const editForm = useForm({
-    mode: 'onChange',
-    defaultValues: {
-      nickname: userContact?.customNickname ?? userContact?.nickname ?? '',
-      avatarImage: userContact?.avatarImage ?? undefined,
-    },
-  });
-
-  const shouldShowEditButton = useMemo(
-    () => currentUserId === props.userId || userContact?.isContact,
-    [currentUserId, props.userId, userContact]
-  );
-
-  const handleEditPress = useCallback(() => {
-    if (currentUserId === props.userId) {
-      props.onPressEdit();
-    } else {
-      setIsEditing(true);
-    }
-  }, [currentUserId, props]);
-
-  const handleCancelEdit = useCallback(() => {
-    setIsEditing(false);
-  }, []);
-
-  const handleSaveEdit = useCallback(() => {
-    const startNickname = userContact?.customNickname ?? userContact?.nickname;
-    const startAvatar =
-      userContact?.customAvatarImage ?? userContact?.avatarImage;
-
-    const addedNickname = editForm.getValues('nickname');
-    const addedAvatar = editForm.getValues('avatarImage');
-
-    const updatedMetadata = {
-      nickname: addedNickname !== startNickname ? addedNickname : undefined,
-      avatarImage: addedAvatar !== startAvatar ? addedAvatar : undefined,
-    };
-
-    store.updateContactMetadata(props.userId, updatedMetadata);
-
-    setIsEditing(false);
-
-    setTimeout(() => {
-      editForm.reset();
-    }, 100);
-  }, [
-    editForm,
-    props.userId,
-    userContact?.avatarImage,
-    userContact?.customAvatarImage,
-    userContact?.customNickname,
-    userContact?.nickname,
-  ]);
-
   return (
     <View flex={1} backgroundColor={'$secondaryBackground'}>
       <ScreenHeader
         title="Profile"
-        leftControls={
-          isEditing ? (
-            <ScreenHeader.TextButton onPress={handleCancelEdit}>
-              Cancel
-            </ScreenHeader.TextButton>
-          ) : (
-            <ScreenHeader.BackButton onPress={props.onBack} />
-          )
-        }
+        leftControls={<ScreenHeader.BackButton onPress={props.onBack} />}
         rightControls={
-          isEditing ? (
-            <ScreenHeader.TextButton
-              onPress={handleSaveEdit}
-              disabled={!editForm.formState.isDirty}
-            >
-              Save
-            </ScreenHeader.TextButton>
-          ) : shouldShowEditButton ? (
-            <ScreenHeader.TextButton onPress={handleEditPress}>
-              Edit
-            </ScreenHeader.TextButton>
-          ) : null
+          <ScreenHeader.TextButton onPress={() => props.onPressEdit()}>
+            Edit
+          </ScreenHeader.TextButton>
         }
       />
       <ScrollView
@@ -162,65 +87,24 @@ export function UserProfileScreenView(props: Props) {
           flexDirection: 'row',
         }}
       >
-        {isEditing ? (
-          <EditUserInfoRow
-            form={editForm}
-            defaultNickname={userContact?.nickname ?? props.userId}
-          />
-        ) : (
-          <UserInfoRow
-            userId={props.userId}
-            hasNickname={!!userContact?.nickname?.length}
-          />
-        )}
-
+        <UserInfoRow
+          userId={props.userId}
+          hasNickname={!!userContact?.nickname?.length}
+        />
         {userContact?.status && <View width="100%"></View>}
 
-        <View
-          flex={1}
-          gap="$l"
-          flexWrap="wrap"
-          flexDirection="row"
-          // opacity={0.3}
-        >
-          {currentUserId !== props.userId ? (
-            <ProfileButtons userId={props.userId} contact={userContact} />
-          ) : null}
-          <BioDisplay bio={userContact?.bio ?? ''} />
+        {currentUserId !== props.userId ? (
+          <ProfileButtons userId={props.userId} contact={userContact} />
+        ) : null}
+        <BioDisplay bio={userContact?.bio ?? ''} />
 
-          <StatusBlock status={nodeStatus} label="Node" />
-          <StatusBlock status={sponsorStatus} label="Sponsor" />
+        <StatusBlock status={nodeStatus} label="Node" />
+        <StatusBlock status={sponsorStatus} label="Sponsor" />
 
-          {pinnedGroups.map((group, i) => {
-            return (
-              <PaddedBlock
-                alignItems="center"
-                key={group.id}
-                width={i === 0 ? '100%' : (windowDimensions.width - 36) / 2}
-                onPress={() => onPressGroup(group)}
-              >
-                <GroupAvatar model={group} size="$4xl" />
-                <YStack gap="$m" alignItems="center">
-                  <Text size="$label/s" textAlign="center">
-                    {group.title}
-                  </Text>
-
-                  {i === 0 && (
-                    <Text
-                      size="$label/s"
-                      textAlign="center"
-                      color="$tertiaryText"
-                      maxWidth={150}
-                      numberOfLines={3}
-                    >
-                      {group.description}
-                    </Text>
-                  )}
-                </YStack>
-              </PaddedBlock>
-            );
-          })}
-        </View>
+        <PinnedGroupsDisplay
+          groups={pinnedGroups}
+          onPressGroup={onPressGroup}
+        />
       </ScrollView>
     </View>
   );
@@ -307,15 +191,80 @@ const PaddedBlock = styled(YStack, {
   backgroundColor: '$background',
 });
 
-export function BioDisplay({ bio }: { bio: string }) {
+export function BioDisplay({
+  bio,
+  ...rest
+}: { bio: string } & ComponentProps<typeof WidgetPane>) {
   return bio.length ? (
-    <WidgetPane borderRadius={'$2xl'} padding="$2xl" width="100%">
+    <WidgetPane borderRadius={'$2xl'} padding="$2xl" width="100%" {...rest}>
       <WidgetPane.Title>About</WidgetPane.Title>
       <Text size="$body" trimmed={false}>
         {bio}
       </Text>
     </WidgetPane>
   ) : null;
+}
+
+export function PinnedGroupsDisplay(
+  props: {
+    groups: db.Group[];
+    onPressGroup: (group: db.Group) => void;
+  } & ComponentProps<typeof PaddedBlock>
+) {
+  const windowDimensions = useWindowDimensions();
+  const [containerWidth, setContainerWidth] = useState(windowDimensions.width);
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    setContainerWidth(width);
+  };
+
+  const { groups, onPressGroup, ...rest } = props;
+
+  if (!props.groups.length) {
+    return null;
+  }
+
+  return (
+    <View
+      width="100%"
+      flexDirection="row"
+      flexWrap="wrap"
+      gap="$l"
+      onLayout={handleLayout}
+    >
+      {groups.map((group, i) => {
+        return (
+          <PaddedBlock
+            alignItems="center"
+            key={group.id}
+            width={i === 0 ? '100%' : (containerWidth - 16) / 2}
+            onPress={() => onPressGroup(group)}
+            {...rest}
+          >
+            <GroupAvatar model={group} size="$4xl" />
+            <YStack gap="$m" alignItems="center">
+              <Text size="$label/s" textAlign="center">
+                {group.title}
+              </Text>
+
+              {i === 0 && (
+                <Text
+                  size="$label/s"
+                  textAlign="center"
+                  color="$tertiaryText"
+                  maxWidth={150}
+                  numberOfLines={3}
+                >
+                  {group.description}
+                </Text>
+              )}
+            </YStack>
+          </PaddedBlock>
+        );
+      })}
+    </View>
+  );
 }
 
 function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
@@ -370,40 +319,6 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
   );
 }
 
-function EditUserInfoRow(props: {
-  form: UseFormReturn<{ nickname: string; avatarImage: string | undefined }>;
-  defaultNickname: string;
-}) {
-  return (
-    <FormFrame width="100%">
-      <ControlledImageField
-        name="avatarImage"
-        label="Avatar"
-        control={props.form.control}
-        hideError={true}
-        rules={{
-          pattern: {
-            value: /^(?!file).+/,
-            message: 'Image has not finished uploading',
-          },
-        }}
-      />
-      <ControlledTextField
-        name="nickname"
-        label="Nickname"
-        control={props.form.control}
-        inputProps={{ placeholder: props.defaultNickname }}
-        rules={{
-          maxLength: {
-            value: 30,
-            message: 'Your nickname is limited to 30 characters',
-          },
-        }}
-      />
-    </FormFrame>
-  );
-}
-
 function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   const navContext = useNavigation();
   const handleMessageUser = useCallback(() => {
@@ -431,17 +346,19 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   }, [props.contact]);
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <ProfileButton title="Message" onPress={handleMessageUser} hero />
-      <ProfileButton
-        title={props.contact?.isContact ? 'Remove Contact' : 'Add Contact'}
-        onPress={handleToggleContact}
-      />
-      <ProfileButton
-        title={isBlocked ? 'Unblock' : 'Block'}
-        onPress={handleBlock}
-      />
-    </ScrollView>
+    <View width="100%">
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <ProfileButton title="Message" onPress={handleMessageUser} hero />
+        <ProfileButton
+          title={props.contact?.isContact ? 'Remove Contact' : 'Add Contact'}
+          onPress={handleToggleContact}
+        />
+        <ProfileButton
+          title={isBlocked ? 'Unblock' : 'Block'}
+          onPress={handleBlock}
+        />
+      </ScrollView>
+    </View>
   );
 }
 
@@ -460,7 +377,7 @@ function ProfileButton(props: {
       borderRadius="$2xl"
       onPress={props.onPress}
       hero={props.hero}
-      marginHorizontal="$m"
+      marginHorizontal="$xs"
     >
       <Text
         size="$label/xl"

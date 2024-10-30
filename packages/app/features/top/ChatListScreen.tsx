@@ -42,6 +42,7 @@ export default function ChatListScreen(props: Props) {
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
+  const [contactsTabEnabled] = useFeatureFlag('contactsTab');
   const [longPressedChat, setLongPressedChat] = useState<
     db.Channel | db.Group | null
   >(null);
@@ -337,6 +338,9 @@ export default function ChatListScreen(props: Props) {
           />
         </View>
         <NavBarView
+          navigateToContacts={() => {
+            navigate('Contacts');
+          }}
           navigateToHome={() => {
             navigate('ChatList');
           }}
@@ -348,6 +352,7 @@ export default function ChatListScreen(props: Props) {
           }}
           currentRoute="ChatList"
           currentUserId={currentUser}
+          showContactsTab={contactsTabEnabled}
         />
       </ChatOptionsProvider>
 

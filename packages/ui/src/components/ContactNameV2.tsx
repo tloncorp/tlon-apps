@@ -35,7 +35,7 @@ export const useContactNameProps = ({
     return {
       children: [
         showContactId ? idMeta?.display : null,
-        showNickname ? contact?.customNickname ?? contact?.nickname : null,
+        showNickname ? contact?.customNickname || contact?.nickname : null,
       ]
         .filter((i) => !!i)
         .join(' '),

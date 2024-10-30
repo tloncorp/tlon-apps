@@ -59,7 +59,9 @@ export type RootStackParamList = {
   UserProfile: {
     userId: string;
   };
-  EditProfile: undefined;
+  EditProfile: {
+    userId: string;
+  };
   WompWomp: undefined;
   ChannelMembers: {
     channelId: string;

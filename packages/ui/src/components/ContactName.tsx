@@ -77,7 +77,10 @@ export default function ContactName({
   const calm = useCalm();
   const contact = useContact(userId);
   const shouldShowNickname = useMemo(
-    () => contact?.nickname && !calm.disableNicknames && showNickname,
+    () =>
+      (contact?.customNickname || contact?.nickname) &&
+      !calm.disableNicknames &&
+      showNickname,
     [contact, calm.disableNicknames, showNickname]
   );
 
@@ -101,12 +104,13 @@ export default function ContactName({
         ) : (
           formattedId.display
         )}
-        {!calm.disableNicknames && contact?.nickname ? (
+        {!calm.disableNicknames &&
+        (contact?.customNickname || contact?.nickname) ? (
           matchText ? (
             <SizableText color="$secondaryText">
               {' '}
               <NickNameWithMatch
-                nickname={contact.nickname}
+                nickname={(contact?.customNickname || contact?.nickname) ?? ''}
                 matchText={matchText}
                 secondary
               />
@@ -129,7 +133,7 @@ export default function ContactName({
       >
         {shouldShowNickname ? (
           <NickNameWithMatch
-            nickname={contact!.nickname!}
+            nickname={(contact?.customNickname || contact?.nickname) ?? ''}
             matchText={matchText}
           />
         ) : (
@@ -147,7 +151,9 @@ export default function ContactName({
       aria-label={formattedId.ariaLabel}
       {...rest}
     >
-      {shouldShowNickname ? contact!.nickname : formattedId.display}
+      {shouldShowNickname
+        ? contact!.customNickname || contact!.nickname
+        : formattedId.display}
     </SizableText>
   );
 }

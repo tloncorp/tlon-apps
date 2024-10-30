@@ -6,23 +6,32 @@ import {
   EditProfileScreenView,
   GroupsProvider,
 } from '@tloncorp/ui';
+import { useCurrentUserId } from 'packages/app/hooks/useCurrentUser';
 import { useCallback } from 'react';
 
 import { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 
-export function EditProfileScreen({ navigation }: Props) {
+export function EditProfileScreen({ route, navigation }: Props) {
+  const currentUserId = useCurrentUserId();
   const { data: groups } = store.useGroups({ includeUnjoined: true });
 
   const onSaveProfile = useCallback(
     (update: api.ProfileUpdate | null) => {
       if (update) {
-        store.updateCurrentUserProfile(update);
+        if (route.params.userId === currentUserId) {
+          store.updateCurrentUserProfile(update);
+        } else {
+          store.updateContactMetadata(route.params.userId, {
+            nickname: update.nickname,
+            avatarImage: update.avatarImage,
+          });
+        }
       }
       navigation.goBack();
     },
-    [navigation]
+    [currentUserId, navigation, route.params.userId]
   );
 
   const onUpdateCoverImage = useCallback((coverImage: string) => {
@@ -39,6 +48,7 @@ export function EditProfileScreen({ navigation }: Props) {
     <GroupsProvider groups={groups ?? []}>
       <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
         <EditProfileScreenView
+          userId={route.params.userId}
           onGoBack={() => navigation.goBack()}
           onSaveProfile={onSaveProfile}
           onUpdatePinnedGroups={store.updateProfilePinnedGroups}
