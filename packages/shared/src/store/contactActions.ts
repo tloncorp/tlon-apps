@@ -39,9 +39,6 @@ export async function updateContactMetadata(
   }
 ) {
   const { nickname, avatarImage } = metadata;
-  if (!nickname && !avatarImage) {
-    return;
-  }
 
   const existingContact = await db.getContact({ id: contactId });
 

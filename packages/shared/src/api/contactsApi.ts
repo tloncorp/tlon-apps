@@ -57,11 +57,6 @@ export const updateContactMetadata = async (
   contactId: string,
   metadata: { nickname?: string; avatarImage?: string }
 ) => {
-  console.log('bl: updateContactMetadata', metadata);
-  if (!metadata.nickname && !metadata.avatarImage) {
-    return;
-  }
-
   const contactUpdate: ub.ContactBookProfileEdit = {};
   if (metadata.nickname !== undefined) {
     contactUpdate.nickname = metadata.nickname
