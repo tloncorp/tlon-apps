@@ -185,7 +185,6 @@
   |=  =post:c
   ^-  simple-post:v7:old:c
   :_  [- kind-data]:+>.post
-  ::XX a nicer way to write this?
   =/  seal
     %=  -.post
       reacts   (reacts-1 reacts.post)
@@ -212,7 +211,6 @@
   |=  =post:c
   ^-  simple-post:c
   :_  +>.post
-  ::XX a nicer way to write this?
   =/  seal
     =<  -  :: seal
     %=  post
@@ -463,8 +461,7 @@
   |=  =react:c
   ^-  (unit react:v7:old:c)
   ?@  react
-    ?~  short=(rave:em react)  ~
-    (some u.short)
+    (rave:em react)
   ?-  -.react
     %any  (some p.react)
   ==
@@ -500,10 +497,7 @@
 ++  post-1
   |=  =post:c
   ^-  post:v7:old:c
-  %*  .  *post:v7:old:c
-    -  (seal-1 -.post)
-    +  [- kind-data]:+.post
-  ==
+  [(seal-1 -.post) [- kind-data]:+.post]
 ::
 ++  posts-1
   |=  =posts:c
@@ -526,31 +520,31 @@
   :-  nest.r-channels
   ^-  r-channel:v7:old:c
   ?+  r-channel  r-channel
-    [%posts *]
-  :-  %posts
-  (posts-1 posts.r-channel)
+      [%posts *]
+    :-  %posts
+    (posts-1 posts.r-channel)
   ::
-    [%post id=id-post:c %set *]
-  ?~  post.r-post.r-channel
-    r-channel
-  r-channel(post.r-post `(post-1 u.post.r-post.r-channel))
+      [%post id=id-post:c %set *]
+    ?~  post.r-post.r-channel
+      r-channel
+    r-channel(post.r-post `(post-1 u.post.r-post.r-channel))
   ::
-    [%post id=id-post:c %reacts *]
-  r-channel(reacts.r-post (reacts-1 reacts.r-post.r-channel))
+      [%post id=id-post:c %reacts *]
+    r-channel(reacts.r-post (reacts-1 reacts.r-post.r-channel))
 
-    [%post id=id-post:c %reply =id-reply:c ^ %reacts *]
-  %=  r-channel
-    reacts.r-reply.r-post
-  (reacts-1 reacts.r-reply.r-post.r-channel)
-  ==
+      [%post id=id-post:c %reply =id-reply:c ^ %reacts *]
+    %=  r-channel
+      reacts.r-reply.r-post
+    (reacts-1 reacts.r-reply.r-post.r-channel)
+    ==
   ::
-    [%post id=id-post:c %reply =id-reply:c ^ %set *]
-  ?~  reply.r-reply.r-post.r-channel
-    r-channel
-  %=  r-channel
-    reacts.u.reply.r-reply.r-post
-  (reacts-1 reacts.u.reply.r-reply.r-post.r-channel)
-  ==
+      [%post id=id-post:c %reply =id-reply:c ^ %set *]
+    ?~  reply.r-reply.r-post.r-channel
+      r-channel
+    %=  r-channel
+      reacts.u.reply.r-reply.r-post
+    (reacts-1 reacts.u.reply.r-reply.r-post.r-channel)
+    ==
   ==
 ::
 ++  simple-post-1
@@ -575,13 +569,10 @@
 ++  to-said-1
   |=  =said:c
   ^-  said:v7:old:c
-  %=  said
-    q  ?-  -.q.said
-         %post
-       q.said(post (simple-post-1 post.q.said))
-          %reply
-       q.said(reply (simple-reply-1 reply.q.said))
-       ==
+  =-  said(q -)
+  ?-  -.q.said
+     %post  q.said(post (simple-post-1 post.q.said))
+     %reply  q.said(reply (simple-reply-1 reply.q.said))
   ==
 ::
 ++  said-1
@@ -710,13 +701,13 @@
   %+  turn  scan
   |=  ref=reference:c
   ?-  -.ref
-    %post
-  %=  ref
-    reacts.post  (reacts-1 reacts.post.ref)
-    replies.post  (simple-replies-1 replies.post.ref)
-  ==
-    %reply
-  ref(reacts.reply (reacts-1 reacts.reply.ref))
+      %post
+    %=  ref
+      reacts.post  (reacts-1 reacts.post.ref)
+      replies.post  (simple-replies-1 replies.post.ref)
+    ==
+      %reply
+    ref(reacts.reply (reacts-1 reacts.reply.ref))
   ==
 ::
 ++  scam-1
@@ -1216,4 +1207,159 @@
       ;br;
     ==
   --
+::
+++  v-channels-7-to-8
+  |=  vc=v-channels:v7:old:c
+  ^-  v-channels:c
+  %-  ~(run by vc)
+  |=  v=v-channel:v7:old:c
+  ^-  v-channel:c
+  =/  [log=log:v-channel:c mod=(map id-post:c time)]
+    (log-7-to-8 log.v)
+  =/  [count=@ud =v-posts:c]
+    (v-posts-7-to-8 posts.v mod)
+  =-  -(|1.- [count |1.-<])
+  %=  v
+    posts    v-posts
+    log      log
+    future   (future-8 log)
+  ==
+++  v-posts-7-to-8
+  |=  [vp=v-posts:v7:old:c mod=(map id-post:c time)]
+  ^-  [@ud v-posts:c]
+  =|  posts=v-posts:c
+  %+  roll  (tap:on-v-posts:v7:old:c vp)
+  |=  [[=id-post:c post=(unit v-post:v7:old:c)] count=@ud =_posts]
+  ^+  [count posts]
+  ::  for each post traversed, even if it was deleted,
+  ::  .count increases to generate correct post sequence
+  ::  number
+  ::
+  =.  count  +(count)
+  :-  count
+  ?~  post  posts
+  ::  insert seq and mod-at into seal
+  ::
+  =/  new-post=v-post:c
+    =/  new-seal=v-seal:c
+      =+  mod-at=(~(got by mod) id-post)
+      =*  seal  -.u.post
+      =+  seal(|1 [count mod-at |1.seal])
+      %=  -
+        replies  (v-replies-7-to-8 replies.seal)
+        reacts   (v-reacts-7-to-8 reacts.seal)
+      ==
+    [new-seal +.u.post]
+  (put:on-v-posts:c posts id-post `new-post)
+::
+++  v-replies-7-to-8
+  |=  =v-replies:v7:old:c
+  ^-  v-replies:c
+  %+  run:on-v-replies:v7:old:c  v-replies
+  |=  v-reply=(unit v-reply:v7:old:c)
+  ^-  (unit v-reply:c)
+  ?~  v-reply  ~
+  %=  v-reply
+    reacts.u  (v-reacts-7-to-8 reacts.u.v-reply)
+  ==
+::
+++  v-reacts-7-to-8
+  |=  =v-reacts:v7:old:c
+  ^-  v-reacts:c
+  %-  ~(run by v-reacts)
+  |=  v-react=(rev:c (unit react:v7:old:c))
+  ^-  (rev:c (unit react:c))
+  ?~  +.v-react  [-.v-react ~]
+  =+  rat=(kill:em u.v-react)
+  ?~  rat
+    v-react(u [%any u.v-react])
+  v-react(u u.rat)
+::
+::
+++  u-post-set-7-to-8
+  |=  [u=$>(%set u-post:v7:old:c) seq=@ud mod-at=@da]
+  ^-  $>(%set u-post:c)
+  ::  %post %set
+  ::
+  ?~  post.u  u
+  =*  post  u.post.u
+  :-  %set
+  =/  new-seal=v-seal:c
+    :*  id.post
+        seq
+        mod-at
+        (v-replies-7-to-8 replies.post)
+        (v-reacts-7-to-8 reacts.post)
+    ==
+  (some [new-seal +.post])
+::
+++  u-post-not-set-7-to-8
+  |=  u=$<(%set u-post:v7:old:c)
+  ^-  $<(%set u-post:c)
+  ?:  ?=(%essay -.u)  u
+  ::
+  ?:  ?=([%reply =id-reply:c %set *] u)
+    ?~  reply.u-reply.u  u
+    %=    u
+        reacts.u.reply.u-reply
+      %-  v-reacts-7-to-8
+      reacts.u.reply.u-reply.u
+    ==
+  ?:  ?=([%reply =id-reply:c %reacts *] u)
+    %=    u
+        reacts.u-reply
+      %-  v-reacts-7-to-8
+      reacts.u-reply.u
+    ==
+  ::  %reacts
+  ::
+  u(reacts (v-reacts-7-to-8 reacts.u))
+::
+++  log-7-to-8
+  |=  l=log:v-channel:v7:old:c
+  ^-  [log:v-channel:c (map id-post:c @da)]
+  =|  seq-log=(map id-post:c @ud)
+  =|  =log:c
+  =|  mod=(map id-post:c @da)
+  =<  [log mod]
+  %+  roll  (tap:log-on:v7:old:c l)
+  |=  [[=time =u-channel:v7:old:c] [count=@ud =_seq-log] =_log =_mod]
+  ^+  [[count seq-log] log mod]
+  ?.  ?=(%post -.u-channel)
+    :-  [count seq-log]
+    :_  mod
+    (put:log-on:c log time u-channel)
+  ?.  ?=(%set -.u-post.u-channel)
+    :-  [count seq-log]
+    :_  (~(put by mod) id.u-channel time)
+    (put:log-on:c log time %post id.u-channel (u-post-not-set-7-to-8 u-post.u-channel))
+  ::  %set
+  ::
+  ?~  post.u-post.u-channel
+    :-  [count seq-log]
+    :_  (~(put by mod) id.u-channel time)
+    (put:log-on:c log time %post id.u-channel %set ~)
+  ::  %set post: increment .seq only for a new post
+  ::
+  =^  seq=@ud  count
+    ?~  seq=(~(get by seq-log) id.u-channel)
+      [. .]:+(count)
+    [u.seq count]
+  :-  :-  count
+      (~(put by seq-log) id.u-channel count)
+  :_  (~(put by mod) id.u-channel time)
+  %^  put:log-on:c  log  time
+  :+  %post  id.u-channel
+  (u-post-set-7-to-8 u-post.u-channel seq id.u-channel)
+::
+++  future-8
+  |=  log=log:c
+  ^-  future:v-channel:c
+  %*  .  *future:v-channel:c
+      diffs
+    %+  roll  (tap:log-on:c log)
+    |=  [[time u=u-channel:c] diffs=(jug id-post:c u-post:c)]
+    ?.  ?=(%post -.u)  diffs
+    (~(put ju diffs) id.u u-post.u)
+  ==
 --

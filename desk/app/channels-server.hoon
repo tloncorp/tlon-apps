@@ -7,7 +7,7 @@
 /+  default-agent, verb, dbug, neg=negotiate
 ::
 %-  %-  agent:neg
-    [| [~.channels^%1 ~ ~] ~]
+    [| [~.channels^%2 ~ ~] ~]
 %-  agent:dbug
 %+  verb  |
 ::
@@ -112,118 +112,7 @@
   ++  state-6-to-7
     |=  s=state-6
     ^-  state-7
-    s(- %7, v-channels (v-channels-6-to-7 v-channels.s))
-  ++  v-channels-6-to-7
-    |=  vc=v-channels:v7:old:c
-    ^-  v-channels:c
-    %-  ~(run by vc)
-    |=  v=v-channel:v7:old:c
-    ^-  v-channel:c
-    =/  [log=log:v-channel:c mod=(map id-post:c time)]
-      (log-6-to-7 log.v)
-    =/  [count=@ud =v-posts:c]
-      (v-posts-6-to-7 posts.v mod)
-    =-  -(|1.- [count |1.-.-])
-    %=  v
-      posts    v-posts
-      log      log
-      future   (future-6-to-7 future.v)
-    ==
-  ++  v-posts-6-to-7
-    |=  [vp=v-posts:v7:old:c mod=(map id-post:c time)]
-    ^-  [@ud v-posts:c]
-    =|  posts=v-posts:c
-    %-  (rep:mo-v-posts:v7:old:c vp)
-    |=  [[=id-post:c post=(unit v-post:v7:old:c)] count=@ud =_posts]
-    ^+  [count posts]
-    ::  for each post traversed, even if it was deleted,
-    ::  .count increases to generate correct post sequence
-    ::  number
-    ::
-    =.  count  +(count)
-    :-  count
-    ?~  post  posts
-    ::  insert seq and mod-at into seal
-    ::
-    =/  new-post=v-post:c
-      =/  new-seal=v-seal:c
-        =+  mod-at=(~(got by mod) id-post)
-        =*  seal  -.u.post
-        =+  seal(|1 [+(count) mod-at |1.seal])
-        %=  -
-          replies  (v-replies-6-to-7 replies.seal)
-          reacts   (v-reacts-6-to-7 reacts.seal)
-        ==
-      [new-seal +.u.post]
-    (put:on-v-posts:c posts id-post `new-post)
-  ::
-  ++  v-replies-6-to-7
-    |=  =v-replies:v7:old:c
-    ^-  v-replies:c
-    %+  run:on-v-replies:v7:old:c  v-replies
-    |=  v-reply=(unit v-reply:v7:old:c)
-    ^-  (unit v-reply:c)
-    ?~  v-reply  ~
-    %=  v-reply
-      reacts.u  (v-reacts-6-to-7 reacts.u.v-reply)
-    ==
-  ::
-  ++  v-reacts-6-to-7
-    |=  =v-reacts:v7:old:c
-    ^-  v-reacts:c
-    %-  ~(run by v-reacts)
-    |=  v-react=(rev:c (unit react:v7:old:c))
-    ^-  (rev:c (unit react:c))
-    ?~  +.v-react  [-.v-react ~]
-    =+  rat=(kill:em u.v-react)
-    ?~  rat
-      v-react(u [%any u.v-react])
-    v-react(u u.rat)
-  ::
-  ++  log-6-to-7
-    |=  l=log:v-channel:v7:old:c
-    ^-  [log:v-channel:c (map id-post:c @da)]
-    =|  seq-log=(map id-post:c @ud)
-    =|  =log:c
-    =|  mod=(map id-post:c @da)
-    =<  +
-    %-  (rep:mo-log:v7:old:c l)
-    |=  [[=time =u-channel:v7:old:c] [count=@ud =_seq-log] =_log =_mod]
-    ^+  [[count seq-log] log mod]
-    ?.  ?=(%post -.u-channel)
-      :-  [count seq-log]
-      :_  mod
-      (put:log-on:c log time u-channel)
-    ?.  ?=(%set -.u-post.u-channel)
-      :-  [count seq-log]
-      :_  (~(put by mod) id.u-channel time)
-      (put:log-on:c log time u-channel)
-    ?~  post.u-post.u-channel
-      :-  [count seq-log]
-      :_  (~(put by mod) id.u-channel time)
-      (put:log-on:c log time %post id.u-channel %set ~)
-    ::  increment .seq only for a new post
-    ::
-    =^  seq=@ud  count
-      ?~  seq=(~(get by seq-log) id.u-channel)
-        =.  count  +(count)
-        [count count]
-      [u.seq count]
-    =*  post  u.post.u-post.u-channel
-    =/  =u-post:c
-      :-  %set
-      (some post(|1.- [seq time |1.-.post]))
-    :-  :-  count
-        (~(put by seq-log) id.u-channel count)
-    :_  (~(put by mod) id.u-channel time)
-    (put:log-on:c log time %post id.u-channel u-post)
-  ::
-  ++  future-6-to-7
-    |=  f=future:v-channel:v7:old:c
-    ^-  future:v-channel:c
-    ::  channel future is defunct for now
-    ::
-    *future:v-channel:c
+    s(- %7, v-channels (v-channels-7-to-8:utils v-channels.s))
   ::
   ++  state-5-to-6
     |=  state-5
@@ -758,7 +647,7 @@
       (ca-update %perm perm.channel)
     ::
         %post
-      =^  update=(unit u-channel:c)  posts.channel
+      =^  update=(unit u-channel:c)  channel
         (ca-c-post c-post.c-channel)
       ?~  update  ca-core
       (ca-update u.update)
@@ -766,7 +655,7 @@
   ::
   ++  ca-c-post
     |=  =c-post:c
-    ^-  [(unit u-channel:c) _posts.channel]
+    ^-  [(unit u-channel:c) _channel]
     ?>  (can-write:ca-perms src.bowl writers.perm.perm.channel)
     ?-    -.c-post
         %add
@@ -777,51 +666,54 @@
         =/  post  (get:on-v-posts:c posts.channel now.bowl)
         ?~  post  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
-      =/  new=v-post:c  [[id +(count.channel) id ~ ~] 0 essay.c-post]
+      =.  count.channel  +(count.channel)
+      =/  new=v-post:c  [[id count.channel id ~ ~] 0 essay.c-post]
       :-  `[%post id %set ~ new]
-      (put:on-v-posts:c posts.channel id ~ new)
+      channel(posts (put:on-v-posts:c posts.channel id ~ new))
     ::
         %edit
       ?>  |(=(src.bowl author.essay.c-post) (is-admin:ca-perms src.bowl))
       ?>  =(kind.nest -.kind-data.essay.c-post)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
-      ?~  post  `posts.channel
-      ?~  u.post  `posts.channel
+      ?~  post  `channel
+      ?~  u.post  `channel
       ?>  |(=(src.bowl author.u.u.post) (is-admin:ca-perms src.bowl))
       ::TODO  could optimize and no-op if the edit is identical to current
       =/  new=v-post:c
         [-.u.u.post(mod-at now.bowl) +(rev.u.u.post) essay.c-post]
       :-  `[%post id.c-post %set ~ new]
-      (put:on-v-posts:c posts.channel id.c-post ~ new)
+      channel(posts (put:on-v-posts:c posts.channel id.c-post ~ new))
     ::
         %del
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
-      ?~  post  `(put:on-v-posts:c posts.channel id.c-post ~)
-      ?~  u.post  `posts.channel
+      ?~  post  `channel(posts (put:on-v-posts:c posts.channel id.c-post ~))
+      ?~  u.post  `channel
       ?>  |(=(src.bowl author.u.u.post) (is-admin:ca-perms src.bowl))
       :-  `[%post id.c-post %set ~]
-      (put:on-v-posts:c posts.channel id.c-post ~)
+      channel(posts (put:on-v-posts:c posts.channel id.c-post ~))
     ::
         ?(%add-react %del-react)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
-      ?~  post  `posts.channel
-      ?~  u.post  `posts.channel
+      ?~  post  `channel
+      ?~  u.post  `channel
       =/  [update=? reacts=v-reacts:c]  (ca-c-react reacts.u.u.post c-post)
-      ?.  update  `posts.channel
+      ?.  update  `channel
       :-  `[%post id.c-post %reacts reacts]
       =*  new
         u.u.post(reacts reacts, mod-at now.bowl)
-      (put:on-v-posts:c posts.channel id.c-post ~ new)
+      channel(posts (put:on-v-posts:c posts.channel id.c-post ~ new))
     ::
         %reply
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
-      ?~  post  `posts.channel
-      ?~  u.post  `posts.channel
+      ?~  post  `channel
+      ?~  u.post  `channel
       =^  update=(unit u-post:c)  replies.u.u.post
         (ca-c-reply replies.u.u.post c-reply.c-post)
-      ?~  update  `posts.channel
+      ?~  update  `channel
       :-  `[%post id.c-post u.update]
-      (put:on-v-posts:c posts.channel id.c-post ~ u.u.post(mod-at now.bowl))
+      =*  new
+        u.u.post(mod-at now.bowl)
+      channel(posts (put:on-v-posts:c posts.channel id.c-post ~ new))
     ==
   ::
   ++  ca-c-reply
@@ -892,14 +784,6 @@
       ?~  reply  now.bowl
       $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
     =/  =update:c  [time u-channel]
-    ::  increase count for every new post
-    ::
-    =?  count.channel  ?&  ?=(%post -.u-channel)
-                           ?=(%set -.u-post.u-channel)
-                           ?=(^ post.u-post.u-channel)
-                       ==
-      =+  seq.u.post.u-post.u-channel
-      ?>((gth - count.channel) -)
     ::
     =.  log.channel  (put:log-on:c log.channel update)
     (ca-give-update update)

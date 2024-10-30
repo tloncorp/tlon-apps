@@ -38,7 +38,7 @@
   ::
   +$  global
     $:  posts=v-posts
-        ::  .count: number of posts
+        ::  .count: number of posts, for sequence nr generation
         count=@ud
         order=(rev order=arranged-posts)
         view=(rev =view)

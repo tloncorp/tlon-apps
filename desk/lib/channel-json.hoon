@@ -387,7 +387,7 @@
     ?@  react
       s+react
     ?-  -.react
-      %any  s+p.react
+      %any  (frond %any s+p.react)
     ==
   ::
   ++  reacts
@@ -944,52 +944,52 @@
   |%
   +|  %actions
   ::
-  :: ++  a-channels
-  ::   ^-  $-(json a-channels:c)
-  ::   %-  of
-  ::   :~  create+create-channel
-  ::       pin+(ar nest)
-  ::       channel+(ot nest+nest action+a-channel ~)
-  ::       toggle-post+post-toggle
-  ::   ==
-  :: ++  a-channel
-  ::   ^-  $-(json a-channel:c)
-  ::   %-  of
-  ::   :~  join+flag
-  ::       leave+ul
-  ::       read+ul
-  ::       read-at+(se %ud)
-  ::       watch+ul
-  ::       unwatch+ul
-  ::     ::
-  ::       post+a-post
-  ::       view+(su (perk %grid %list ~))
-  ::       sort+(su (perk %time %alpha %arranged ~))
-  ::       order+(mu (ar id))
-  ::       add-writers+add-sects
-  ::       del-writers+del-sects
-  ::   ==
-  :: ::
-  :: ++  a-post
-  ::   ^-  $-(json a-post:c)
-  ::   %-  of
-  ::   :~  add+essay
-  ::       edit+(ot id+id essay+essay ~)
-  ::       del+id
-  ::       reply+(ot id+id action+a-reply ~)
-  ::       add-react+(ot id+id ship+ship react+so ~)
-  ::       del-react+(ot id+id ship+ship ~)
-  ::   ==
+  ++  a-channels
+    ^-  $-(json a-channels:c)
+    %-  of
+    :~  create+create-channel
+        pin+(ar nest)
+        channel+(ot nest+nest action+a-channel ~)
+        toggle-post+post-toggle
+    ==
+  ++  a-channel
+    ^-  $-(json a-channel:c)
+    %-  of
+    :~  join+flag
+        leave+ul
+        read+ul
+        read-at+(se %ud)
+        watch+ul
+        unwatch+ul
+      ::
+        post+a-post
+        view+(su (perk %grid %list ~))
+        sort+(su (perk %time %alpha %arranged ~))
+        order+(mu (ar id))
+        add-writers+add-sects
+        del-writers+del-sects
+    ==
   ::
-  :: ++  a-reply
-  ::   ^-  $-(json a-reply:c)
-  ::   %-  of
-  ::   :~  add+memo
-  ::       del+id
-  ::       edit+(ot id+id memo+memo ~)
-  ::       add-react+(ot id+id ship+ship react+so ~)
-  ::       del-react+(ot id+id ship+ship ~)
-  ::   ==
+  ++  a-post
+    ^-  $-(json a-post:c)
+    %-  of
+    :~  add+essay
+        edit+(ot id+id essay+essay ~)
+        del+id
+        reply+(ot id+id action+a-reply ~)
+        add-react+(ot id+id ship+ship react+so ~)
+        del-react+(ot id+id ship+ship ~)
+    ==
+
+  ++  a-reply
+    ^-  $-(json a-reply:c)
+    %-  of
+    :~  add+memo
+        del+id
+        edit+(ot id+id memo+memo ~)
+        add-react+(ot id+id ship+ship react+so ~)
+        del-react+(ot id+id ship+ship ~)
+    ==
   ::
   :: +|  %old
   ::

@@ -568,7 +568,7 @@
       `[%reply u.replying.curio %edit time -.u.edit]
     ?~  command  ~
     =/  =cage
-      :-  %channel-action
+      :-  %channel-action-2
       !>(`a-channels:c`[%channel [%heap flag] %post u.command])
     `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::
@@ -616,7 +616,7 @@
       (put:on-v-replies:c old-replies time `(convert-reply time curio))
     %+  gas:on-v-posts:c  *v-posts:c
     =|  posts=(list [id-post:c (unit v-post:c)])
-    =<  +
+    =<  posts
     %+  roll  curios
     |=  [[=time =curio:h] count=@ud =_posts]
     ^+  [count posts]

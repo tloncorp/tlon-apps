@@ -981,7 +981,7 @@
       `[%reply u.parent-time %edit time -.u.edit]
     ?~  command  ~
     =/  =cage
-      :-  %channel-action
+      :-  %channel-action-2
       !>(`a-channels:d`[%channel [%chat flag] %post u.command])
     `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::
@@ -1080,7 +1080,7 @@
       (put:on-v-replies:d old-replies time `(convert-quip time writ))
     %+  gas:on-v-posts:d  *v-posts:d
     =|  posts=(list [id-post:d (unit v-post:d)])
-    =<  +
+    =<  posts
     %+  roll  writs
     |=  [[=time =writ:t] count=@ud =_posts]
     ^+  [count posts]

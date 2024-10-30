@@ -56,8 +56,6 @@
 ::
 ++  mode
   ^-  (map @t @t)  ^~
-  ~>  %bout.[0 'making shot map']
-  ~&  %making-shot-map
   %-  ~(gas by *(map @t @t))
   %-  ~(rep by data)
   |=  [[short=@t =mote] shots=(list [@t @t])]
@@ -75,8 +73,6 @@
 ::
 ++  data
   ^-  (map @t mote)  ^~
-  ~>  %bout.[0 'making map']
-  ~&  %making-map
   %-  ~(gas by *(map @t mote))
   :~
     ['100' '💯']
