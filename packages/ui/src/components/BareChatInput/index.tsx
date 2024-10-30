@@ -556,20 +556,19 @@ export default function BareChatInput({
           style={{
             backgroundColor: 'transparent',
             minHeight: initialHeight,
-            height:  isWeb ? inputHeight : undefined,
+            height: isWeb ? inputHeight : undefined,
             maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
             paddingHorizontal: getTokenValue('$l', 'space'),
-            paddingTop: getTokenValue('$s', 'space') + paddingTopAdjustment,
-            paddingBottom: getTokenValue('$s', 'space'),
+            paddingTop: getTokenValue('$l', 'space'),
+            paddingBottom: getTokenValue('$l', 'space'),
             fontSize: getFontSize('$m'),
             textAlignVertical: 'top',
-            lineHeight: getFontSize('$m') * 1.5,
+            // lineHeight: getFontSize('$m') * 1.5,
             letterSpacing: -0.032,
-            // @ts-expect-error this property is not supported on native,
-            // but it is on web. Removes the blue outline on web.
-            outlineStyle: 'none',
+
             color: getVariableValue(useTheme().primaryText),
             ...placeholderTextColor,
+            ...(isWeb ? { outlineStyle: 'none' } : {}),
           }}
           placeholder={placeholder}
         />
@@ -577,10 +576,10 @@ export default function BareChatInput({
           <View position="absolute" pointerEvents="none">
             <RawText
               paddingHorizontal="$l"
-              paddingTop={Platform.OS === 'android' ? '$s' : 0}
-              paddingBottom="$xs"
+              // paddingTop={Platform.OS === 'android' ? '$s' : 0}
+              // paddingBottom="$xs"
               fontSize="$m"
-              lineHeight={getFontSize('$m') * mentionLineHeightAdjustment}
+              // lineHeight={getFontSize('$m') * mentionLineHeightAdjustment}
               letterSpacing={-0.032}
               color="$primaryText"
             >
