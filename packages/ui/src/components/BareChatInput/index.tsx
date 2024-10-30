@@ -103,6 +103,7 @@ export default function BareChatInput({
   } = useMentions();
   const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
+  const [isMultiline, setIsMultiline] = useState(false);
 
   const processReferences = useCallback(
     (text: string): string => {
@@ -504,17 +505,28 @@ export default function BareChatInput({
     if (!isWeb) {
       return;
     }
-    // we need to manipulate the element directly in order to adjust the height
-    // back down as the content shrinks, apparently
-    // https://github.com/necolas/react-native-web/issues/795
-    //
+
     const el = e?.target;
     if (el && 'style' in el && 'height' in el.style) {
-      el.style.height = 0;
-      const newHeight = el.offsetHeight - el.clientHeight + el.scrollHeight;
+      el.style.height = `${initialHeight}px`;
+      const scrollHeight = el.scrollHeight;
+      const newHeight = Math.max(initialHeight, scrollHeight);
       el.style.height = `${newHeight}px`;
       setInputHeight(newHeight);
+      setIsMultiline(scrollHeight > initialHeight);
     }
+  };
+
+  const handleContentSizeChange = (event: any) => {
+    if (isWeb) {
+      return;
+    }
+    const { height } = event.nativeEvent.contentSize;
+    const topPadding = getTokenValue('$l', 'space');
+    const bottomPadding = getTokenValue('$s', 'space');
+
+    const fullHeight = height + topPadding + bottomPadding;
+    setIsMultiline(fullHeight > initialHeight);
   };
 
   return (
@@ -552,6 +564,7 @@ export default function BareChatInput({
           onChangeText={handleTextChange}
           onChange={isWeb ? adjustTextInputSize : undefined}
           onLayout={isWeb ? adjustTextInputSize : undefined}
+          onContentSizeChange={!isWeb ? handleContentSizeChange : undefined}
           multiline
           style={{
             backgroundColor: 'transparent',
@@ -560,12 +573,13 @@ export default function BareChatInput({
             maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
             paddingHorizontal: getTokenValue('$l', 'space'),
             paddingTop: getTokenValue('$l', 'space'),
-            paddingBottom: getTokenValue('$l', 'space'),
+            paddingBottom: isMultiline
+              ? getTokenValue('$l', 'space')
+              : getTokenValue('$s', 'space'),
             fontSize: getFontSize('$m'),
             textAlignVertical: 'top',
-            // lineHeight: getFontSize('$m') * 1.5,
+            lineHeight: isMultiline ? 24 : undefined,
             letterSpacing: -0.032,
-
             color: getVariableValue(useTheme().primaryText),
             ...placeholderTextColor,
             ...(isWeb ? { outlineStyle: 'none' } : {}),
@@ -577,9 +591,9 @@ export default function BareChatInput({
             <RawText
               paddingHorizontal="$l"
               // paddingTop={Platform.OS === 'android' ? '$s' : 0}
-              // paddingBottom="$xs"
+              paddingBottom={isMultiline ? '$xs' : undefined}
               fontSize="$m"
-              // lineHeight={getFontSize('$m') * mentionLineHeightAdjustment}
+              lineHeight={isMultiline ? 22 : undefined}
               letterSpacing={-0.032}
               color="$primaryText"
             >
