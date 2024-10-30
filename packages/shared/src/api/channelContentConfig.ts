@@ -1,33 +1,115 @@
-export enum CollectionRendererId {
-  notebook = 'tlon.r0.collection.notebook',
-  chat = 'tlon.r0.collection.chat',
-  gallery = 'tlon.r0.collection.gallery',
-  cards = 'tlon.r0.collection.cards',
-  sign = 'tlon.r0.collection.sign',
-  boardroom = 'tlon.r0.collection.boardroom',
-  strobe = 'tlon.r0.collection.strobe',
+import { ValuesOf } from '../utils';
+
+interface ComponentSpec<EnumTag extends string = string> {
+  displayName: string;
+  enumTag: EnumTag;
 }
 
-export enum DraftInputId {
-  notebook = 'tlon.r0.input.notebook',
-  chat = 'tlon.r0.input.chat',
-  gallery = 'tlon.r0.input.gallery',
-  yo = 'tlon.r0.input.yo',
-  mic = 'tlon.r0.input.mic',
-  picto = 'tlon.r0.input.picto',
-  color = 'tlon.r0.input.color',
-}
+export const allCollectionRenderers = {
+  'tlon.r0.collection.chat': {
+    displayName: 'Chat',
+    enumTag: 'chat',
+  },
+  'tlon.r0.collection.gallery': {
+    displayName: 'Gallery',
+    enumTag: 'gallery',
+  },
+  'tlon.r0.collection.notebook': {
+    displayName: 'Notebook',
+    enumTag: 'notebook',
+  },
+  'tlon.r0.collection.cards': {
+    displayName: 'Cards',
+    enumTag: 'cards',
+  },
+  'tlon.r0.collection.sign': {
+    displayName: 'Sign',
+    enumTag: 'sign',
+  },
+  'tlon.r0.collection.boardroom': {
+    displayName: 'Boardroom',
+    enumTag: 'boardroom',
+  },
+  'tlon.r0.collection.strobe': {
+    displayName: 'Strobe',
+    enumTag: 'strobe',
+  },
+} as const satisfies Record<string, ComponentSpec>;
 
-export enum PostContentRendererId {
-  notebook = 'tlon.r0.content.notebook',
-  chat = 'tlon.r0.content.chat',
-  gallery = 'tlon.r0.content.gallery',
-  picto = 'tlon.r0.content.picto',
-  audio = 'tlon.r0.content.audio',
-  color = 'tlon.r0.content.color',
-  raw = 'tlon.r0.content.raw',
-  yell = 'tlon.r0.content.yell',
-}
+export const allDraftInputs = {
+  'tlon.r0.input.chat': {
+    displayName: 'Chat',
+    enumTag: 'chat',
+  },
+  'tlon.r0.input.gallery': {
+    displayName: 'Gallery',
+    enumTag: 'gallery',
+  },
+  'tlon.r0.input.notebook': {
+    displayName: 'Notebook',
+    enumTag: 'notebook',
+  },
+  'tlon.r0.input.yo': {
+    displayName: 'Yo',
+    enumTag: 'yo',
+  },
+  'tlon.r0.input.mic': {
+    displayName: 'Mic',
+    enumTag: 'mic',
+  },
+  'tlon.r0.input.picto': {
+    displayName: 'Picto',
+    enumTag: 'picto',
+  },
+  'tlon.r0.input.color': {
+    displayName: 'Color',
+    enumTag: 'color',
+  },
+} as const satisfies Record<string, ComponentSpec>;
+
+export const allContentRenderers = {
+  'tlon.r0.content.chat': {
+    displayName: 'Chat',
+    enumTag: 'chat',
+  },
+  'tlon.r0.content.gallery': {
+    displayName: 'Gallery',
+    enumTag: 'gallery',
+  },
+  'tlon.r0.content.notebook': {
+    displayName: 'Notebook',
+    enumTag: 'notebook',
+  },
+  'tlon.r0.content.picto': {
+    displayName: 'Picto',
+    enumTag: 'picto',
+  },
+  'tlon.r0.content.audio': {
+    displayName: 'Audio',
+    enumTag: 'audio',
+  },
+  'tlon.r0.content.color': {
+    displayName: 'Color',
+    enumTag: 'color',
+  },
+  'tlon.r0.content.raw': {
+    displayName: 'Raw',
+    enumTag: 'raw',
+  },
+  'tlon.r0.content.yell': {
+    displayName: 'Yell',
+    enumTag: 'yell',
+  },
+} as const satisfies Record<string, ComponentSpec>;
+
+export const CollectionRendererId = makeEnum(allCollectionRenderers);
+export type CollectionRendererId = ValuesOf<typeof CollectionRendererId>;
+
+export const DraftInputId = makeEnum(allDraftInputs);
+export type DraftInputId = ValuesOf<typeof DraftInputId>;
+
+export const PostContentRendererId = makeEnum(allContentRenderers);
+export type PostContentRendererId = ValuesOf<typeof PostContentRendererId>;
 
 /**
  * Configures the custom components used to create content in a channel.
@@ -89,4 +171,30 @@ export namespace StructuredChannelDescriptionPayload {
       return { description: encoded.length === 0 ? undefined : encoded };
     }
   }
+}
+
+/**
+ * Makes an enum-like value from a set of component specs.
+ *
+ * ```ts
+ * const enumlike = makeEnum({
+ *   foo: { enumTag: 'myFoo' },
+ *   bar: { enumTag: 'myBar' },
+ * });
+ * enumlike.myFoo; // 'foo'
+ * ```
+ */
+function makeEnum<SpecSet extends Record<string, ComponentSpec>>(
+  specSet: SpecSet
+) {
+  return Object.entries(specSet).reduce(
+    (acc, [id, { enumTag }]) => {
+      // @ts-expect-error trust me bro
+      acc[enumTag] = id;
+      return acc;
+    },
+    {} as {
+      [K in keyof typeof specSet as (typeof specSet)[K]['enumTag']]: K;
+    }
+  );
 }

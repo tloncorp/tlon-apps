@@ -24,6 +24,9 @@ export {
   CollectionRendererId,
   DraftInputId,
   PostContentRendererId,
+  allCollectionRenderers,
+  allDraftInputs,
+  allContentRenderers,
 } from './api/channelContentConfig';
 export { parseActiveTab, trimFullPath } from './logic/navigation';
 export * from './logic';

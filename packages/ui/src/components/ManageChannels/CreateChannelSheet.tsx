@@ -3,11 +3,15 @@ import {
   CollectionRendererId,
   DraftInputId,
   PostContentRendererId,
+  allCollectionRenderers,
+  allContentRenderers,
+  allDraftInputs,
   useCreateChannel,
   useGroup,
   useUpdateChannel,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { objectEntries } from '@tloncorp/shared/utils';
 import {
   ComponentProps,
   ElementRef,
@@ -160,101 +164,21 @@ export function CreateChannelSheet({
   );
 }
 
-function labelForDraftInput(draftInputId: DraftInputId): string {
-  switch (draftInputId) {
-    case DraftInputId.chat:
-      return 'Chat';
-    case DraftInputId.gallery:
-      return 'Gallery';
-    case DraftInputId.notebook:
-      return 'Notebook';
-    case DraftInputId.picto:
-      return 'Drawing';
-    case DraftInputId.yo:
-      return 'Yo';
-    case DraftInputId.mic:
-      return 'Mic';
-    case DraftInputId.color:
-      return 'Color';
-  }
-}
-function labelForContentRenderer(r: PostContentRendererId): string {
-  switch (r) {
-    case PostContentRendererId.chat:
-      return 'Chat';
-    case PostContentRendererId.gallery:
-      return 'Gallery';
-    case PostContentRendererId.notebook:
-      return 'Notebook';
-    case PostContentRendererId.picto:
-      return 'Drawing';
-    case PostContentRendererId.audio:
-      return 'Audio';
-    case PostContentRendererId.color:
-      return 'Color';
-    case PostContentRendererId.raw:
-      return 'Raw';
-    case PostContentRendererId.yell:
-      return 'Yell';
-  }
-}
-function labelForCollectionLayout(l: CollectionRendererId): string {
-  switch (l) {
-    case CollectionRendererId.chat:
-      return 'Chat';
-    case CollectionRendererId.gallery:
-      return 'Gallery';
-    case CollectionRendererId.notebook:
-      return 'Notebook';
-    case CollectionRendererId.cards:
-      return 'Cards';
-    case CollectionRendererId.sign:
-      return 'Sign';
-    case CollectionRendererId.boardroom:
-      return 'Boardroom';
-    case CollectionRendererId.strobe:
-      return 'Strobe';
-  }
-}
-
 const options = {
-  inputs: [
-    DraftInputId.chat,
-    DraftInputId.gallery,
-    DraftInputId.notebook,
-    DraftInputId.picto,
-    DraftInputId.yo,
-    DraftInputId.mic,
-    DraftInputId.color,
-  ].map((id) => ({
-    title: labelForDraftInput(id),
+  inputs: objectEntries(allDraftInputs).map(([id, { displayName }]) => ({
+    title: displayName,
     value: id,
   })),
-  content: [
-    PostContentRendererId.chat,
-    PostContentRendererId.gallery,
-    PostContentRendererId.notebook,
-    PostContentRendererId.picto,
-    PostContentRendererId.audio,
-    PostContentRendererId.color,
-    PostContentRendererId.raw,
-    PostContentRendererId.yell,
-  ].map((id) => ({
-    title: labelForContentRenderer(id),
+  content: objectEntries(allContentRenderers).map(([id, { displayName }]) => ({
+    title: displayName,
     value: id,
   })),
-  collection: [
-    CollectionRendererId.chat,
-    CollectionRendererId.gallery,
-    CollectionRendererId.notebook,
-    CollectionRendererId.cards,
-    CollectionRendererId.sign,
-    CollectionRendererId.boardroom,
-    CollectionRendererId.strobe,
-  ].map((id) => ({
-    title: labelForCollectionLayout(id),
-    value: id,
-  })),
+  collection: objectEntries(allCollectionRenderers).map(
+    ([id, { displayName }]) => ({
+      title: displayName,
+      value: id,
+    })
+  ),
 };
 
 const CustomChannelConfigurationForm = forwardRef<
