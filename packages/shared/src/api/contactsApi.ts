@@ -39,8 +39,8 @@ export const getContacts = async () => {
 export const removeContactSuggestion = async (contactId: string) => {
   return poke({
     app: 'groups-ui',
-    mark: 'tbd',
-    json: {},
+    mark: 'hide-contact',
+    json: '~latter-bolden',
   });
 };
 
