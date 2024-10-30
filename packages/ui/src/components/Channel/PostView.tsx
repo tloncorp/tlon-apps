@@ -50,5 +50,19 @@ export const PostView: RenderItemType = (props) => {
     }
   }, [channel.type, channel.contentConfiguration, renderers]);
 
-  return <SpecificPostComponent {...props} />;
+  const contentRendererConfiguration = useMemo(() => {
+    if (channel.contentConfiguration == null) {
+      return undefined;
+    }
+    return ChannelContentConfiguration.defaultPostContentRenderer(
+      channel.contentConfiguration
+    ).configuration;
+  }, [channel.contentConfiguration]);
+
+  return (
+    <SpecificPostComponent
+      contentRendererConfiguration={contentRendererConfiguration}
+      {...props}
+    />
+  );
 };

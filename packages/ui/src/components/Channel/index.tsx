@@ -190,6 +190,11 @@ export function Channel({
     (): DraftInputContext => ({
       channel,
       clearDraft,
+      configuration:
+        channel.contentConfiguration == null
+          ? undefined
+          : ChannelContentConfiguration.draftInput(channel.contentConfiguration)
+              .configuration,
       draftInputRef,
       editPost,
       editingPost,
@@ -290,6 +295,12 @@ export function Channel({
                                   <PostCollectionContext.Provider
                                     value={{
                                       channel,
+                                      collectionConfiguration:
+                                        channel.contentConfiguration == null
+                                          ? undefined
+                                          : ChannelContentConfiguration.defaultPostCollectionRenderer(
+                                              channel.contentConfiguration
+                                            ).configuration,
                                       editingPost,
                                       goToImageViewer,
                                       goToPost,

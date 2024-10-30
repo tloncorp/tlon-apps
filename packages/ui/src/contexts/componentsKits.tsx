@@ -50,6 +50,7 @@ type RenderItemProps = {
   onPressRetry: (post: db.Post) => void;
   onPressDelete: (post: db.Post) => void;
   isHighlighted?: boolean;
+  contentRendererConfiguration?: Record<string, unknown>;
 };
 
 type RenderItemFunction = (props: RenderItemProps) => ReactElement | null;
@@ -73,6 +74,7 @@ export type MinimalRenderItemProps = {
   onPressRetry?: (post: db.Post) => void;
   onPressDelete?: (post: db.Post) => void;
   isHighlighted?: boolean;
+  contentRendererConfiguration?: Record<string, unknown>;
 };
 export type MinimalRenderItemType = React.ComponentType<MinimalRenderItemProps>;
 

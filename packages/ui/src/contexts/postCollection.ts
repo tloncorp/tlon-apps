@@ -1,3 +1,4 @@
+import { JSONValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { createContext, useContext } from 'react';
 
@@ -5,6 +6,7 @@ import { MinimalRenderItemType, RenderItemType } from './componentsKits';
 
 export interface PostCollectionContextValue {
   channel: db.Channel;
+  collectionConfiguration?: Record<string, JSONValue>;
   editingPost?: db.Post;
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToPost: (post: db.Post) => void;
