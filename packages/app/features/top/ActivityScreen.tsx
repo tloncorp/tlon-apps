@@ -7,6 +7,7 @@ import { useCallback, useMemo } from 'react';
 
 // import ErrorBoundary from '../../ErrorBoundary';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
@@ -14,6 +15,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
 export function ActivityScreen(props: Props) {
   const isFocused = useIsFocused();
   const currentUserId = useCurrentUserId();
+  const [contactsTabEnabled] = useFeatureFlag('contactsTab');
 
   const allFetcher = store.useInfiniteBucketedActivity('all');
   const mentionsFetcher = store.useInfiniteBucketedActivity('mentions');
@@ -69,11 +71,13 @@ export function ActivityScreen(props: Props) {
         refresh={handleRefreshActivity}
       />
       <NavBarView
+        navigateToContacts={() => props.navigation.navigate('Contacts')}
         navigateToHome={() => props.navigation.navigate('ChatList')}
         navigateToNotifications={() => props.navigation.navigate('Activity')}
         navigateToProfileSettings={() => props.navigation.navigate('Profile')}
         currentRoute="Activity"
         currentUserId={currentUserId}
+        showContactsTab={contactsTabEnabled}
       />
     </View>
   );

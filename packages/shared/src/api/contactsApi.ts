@@ -36,6 +36,14 @@ export const getContacts = async () => {
   return [...peerProfiles, ...contactProfiles];
 };
 
+export const removeContactSuggestion = async (contactId: string) => {
+  return poke({
+    app: 'groups-ui',
+    mark: 'tbd',
+    json: {},
+  });
+};
+
 // TODO: use new method
 export const addContacts = async (contactIds: string[]) => {
   return poke({
@@ -49,17 +57,22 @@ export const updateContactMetadata = async (
   contactId: string,
   metadata: { nickname?: string; avatarImage?: string }
 ) => {
+  console.log('bl: updateContactMetadata', metadata);
   if (!metadata.nickname && !metadata.avatarImage) {
     return;
   }
 
-  const contactUpdate: ub.ContactBookProfile = {};
-  if (metadata.nickname) {
-    contactUpdate.nickname = { type: 'text', value: metadata.nickname };
+  const contactUpdate: ub.ContactBookProfileEdit = {};
+  if (metadata.nickname !== undefined) {
+    contactUpdate.nickname = metadata.nickname
+      ? { type: 'text', value: metadata.nickname }
+      : null;
   }
 
-  if (metadata.avatarImage) {
-    contactUpdate.avatar = { type: 'look', value: metadata.avatarImage };
+  if (metadata.avatarImage !== undefined) {
+    contactUpdate.avatar = metadata.avatarImage
+      ? { type: 'look', value: metadata.avatarImage }
+      : null;
   }
 
   return poke({

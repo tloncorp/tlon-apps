@@ -53,7 +53,18 @@ export async function updateContactMetadata(
   });
 
   try {
-    await api.updateContactMetadata(contactId, metadata);
+    await api.updateContactMetadata(contactId, {
+      nickname: nickname
+        ? nickname
+        : existingContact?.customNickname
+          ? ''
+          : undefined,
+      avatarImage: avatarImage
+        ? avatarImage
+        : existingContact?.customAvatarImage
+          ? ''
+          : undefined,
+    });
   } catch (e) {
     // rollback the update
     await db.updateContact({

@@ -79,6 +79,16 @@ export interface ContactBookProfile {
   status?: ContactFieldText;
 }
 
+export interface ContactBookProfileEdit {
+  nickname?: ContactFieldText | null;
+  bio?: ContactFieldText | null;
+  avatar?: ContactImageField | null;
+  cover?: ContactImageField | null;
+  color?: ContactFieldColor | null;
+  groups?: ContactFieldGroups | null;
+  status?: ContactFieldText | null;
+}
+
 // first element is the contact's profile, second is any user overrides
 export type ContactBookEntry = [ContactBookProfile, ContactBookProfile];
 
