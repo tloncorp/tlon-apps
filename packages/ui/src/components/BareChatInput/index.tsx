@@ -18,7 +18,7 @@ import {
   pathToCite,
 } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, Platform, TextInput } from 'react-native';
+import { Keyboard, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -103,7 +103,6 @@ export default function BareChatInput({
   } = useMentions();
   const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
-  const [isMultiline, setIsMultiline] = useState(false);
 
   const processReferences = useCallback(
     (text: string): string => {
@@ -489,9 +488,6 @@ export default function BareChatInput({
     clearAttachments();
   }, [setEditingPost, clearDraft, clearAttachments]);
 
-  const paddingTopAdjustment = Platform.OS === 'ios' ? 2 : 4;
-  const mentionLineHeightAdjustment = Platform.OS === 'ios' ? 1.3 : 1.5;
-
   const theme = useTheme();
   // placeholderTextColor is not supported on native, just web
   // https://necolas.github.io/react-native-web/docs/text-input/
@@ -513,20 +509,7 @@ export default function BareChatInput({
       const newHeight = Math.max(initialHeight, scrollHeight);
       el.style.height = `${newHeight}px`;
       setInputHeight(newHeight);
-      setIsMultiline(scrollHeight > initialHeight);
     }
-  };
-
-  const handleContentSizeChange = (event: any) => {
-    if (isWeb) {
-      return;
-    }
-    const { height } = event.nativeEvent.contentSize;
-    const topPadding = getTokenValue('$l', 'space');
-    const bottomPadding = getTokenValue('$s', 'space');
-
-    const fullHeight = height + topPadding + bottomPadding;
-    setIsMultiline(fullHeight > initialHeight);
   };
 
   return (
@@ -564,7 +547,6 @@ export default function BareChatInput({
           onChangeText={handleTextChange}
           onChange={isWeb ? adjustTextInputSize : undefined}
           onLayout={isWeb ? adjustTextInputSize : undefined}
-          onContentSizeChange={!isWeb ? handleContentSizeChange : undefined}
           multiline
           style={{
             backgroundColor: 'transparent',
@@ -573,12 +555,9 @@ export default function BareChatInput({
             maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
             paddingHorizontal: getTokenValue('$l', 'space'),
             paddingTop: getTokenValue('$l', 'space'),
-            paddingBottom: isMultiline
-              ? getTokenValue('$l', 'space')
-              : getTokenValue('$s', 'space'),
+            paddingBottom: getTokenValue('$l', 'space'),
             fontSize: getFontSize('$m'),
-            textAlignVertical: 'top',
-            lineHeight: isMultiline ? 24 : undefined,
+            textAlignVertical: 'center',
             letterSpacing: -0.032,
             color: getVariableValue(useTheme().primaryText),
             ...placeholderTextColor,
@@ -590,10 +569,7 @@ export default function BareChatInput({
           <View position="absolute" pointerEvents="none">
             <RawText
               paddingHorizontal="$l"
-              // paddingTop={Platform.OS === 'android' ? '$s' : 0}
-              paddingBottom={isMultiline ? '$xs' : undefined}
               fontSize="$m"
-              lineHeight={isMultiline ? 22 : undefined}
               letterSpacing={-0.032}
               color="$primaryText"
             >
