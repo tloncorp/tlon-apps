@@ -39,6 +39,8 @@ import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
+import { FloatingActionButton } from '../FloatingActionButton';
+import { Icon } from '../Icon';
 import { Modal } from '../Modal';
 import { ChannelDivider } from './ChannelDivider';
 
@@ -386,9 +388,17 @@ const Scroller = forwardRef(
 
     return (
       <View flex={1}>
-        {/* {unreadCount && !hasPressedGoToBottom ? (
-        <UnreadsButton onPress={pressedGoToBottom} />
-      ) : null} */}
+        {(collectionLayoutType === 'compact-list-bottom-to-top' &&
+          unreadCount) ||
+        (collectionLayoutType === 'compact-list-bottom-to-top' &&
+          !isAtBottom) ? (
+          <View position="absolute" bottom={'$m'} right={'$l'} zIndex={1000}>
+            <FloatingActionButton
+              icon={<Icon type="ChevronDown" size={'$m'} />}
+              onPress={pressedGoToBottom}
+            />
+          </View>
+        ) : null}
         {postsWithNeighbors && (
           <Animated.FlatList<PostWithNeighbors>
             ref={flatListRef as React.RefObject<Animated.FlatList<db.Post>>}
