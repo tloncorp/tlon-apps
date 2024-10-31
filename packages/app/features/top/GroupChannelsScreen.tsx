@@ -1,4 +1,8 @@
-import { useIsFocused } from '@react-navigation/native';
+import {
+  NavigationProp,
+  useIsFocused,
+  useNavigation,
+} from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -16,9 +20,16 @@ import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GroupChannels'>;
 
-export function GroupChannelsScreen({ navigation, route }: Props) {
-  const groupParam = route.params.group;
-  const { id } = route.params.group;
+export function GroupChannelsScreen({ route }: Props) {
+  return <GroupChannelsScreenContent groupId={route.params.groupId} />;
+}
+
+export function GroupChannelsScreenContent({
+  groupId: id,
+}: {
+  groupId: string;
+}) {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
 
   const isFocused = useIsFocused();
   const { data: pins } = store.usePins({
@@ -36,7 +47,8 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
       navigation.navigate('Channel', {
-        channel: channel,
+        channelId: channel.id,
+        groupId: channel.groupId ?? undefined,
       });
     },
     [navigation]
@@ -50,7 +62,7 @@ export function GroupChannelsScreen({ navigation, route }: Props) {
 
   return (
     <ChatOptionsProvider
-      groupId={groupParam.id}
+      groupId={id}
       pinned={pinnedItems}
       useGroup={store.useGroup}
       onPressInvite={(group) => {

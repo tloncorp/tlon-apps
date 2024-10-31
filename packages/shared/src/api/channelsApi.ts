@@ -6,7 +6,11 @@ import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import { Posts } from '../urbit';
 import { stringToTa } from '../urbit/utils';
-import { getCanonicalPostId, isGroupChannelId } from './apiUtils';
+import {
+  getCanonicalPostId,
+  getChannelIdType,
+  isGroupChannelId,
+} from './apiUtils';
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
 import { scry, subscribe, trackedPoke } from './urbit';
 
@@ -315,12 +319,12 @@ export const createNewGroupDefaultChannel = async ({
 };
 
 export const searchChannel = async (params: {
-  channel: db.Channel;
+  channelId: string;
   query: string;
   cursor?: string;
 }) => {
   const SINGLE_PAGE_SEARCH_DEPTH = 500;
-  const isGroupChannel = isGroupChannelId(params.channel.id);
+  const isGroupChannel = isGroupChannelId(params.channelId);
   const encodedQuery = stringToTa(params.query);
 
   let response;
@@ -328,16 +332,16 @@ export const searchChannel = async (params: {
     // channels agent
     response = await scry<ub.ChannelScam>({
       app: 'channels',
-      path: `/${params.channel.id}/search/bounded/text/${
+      path: `/${params.channelId}/search/bounded/text/${
         params.cursor ? formatUd(bigInt(params.cursor ?? 0)) : ''
       }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
     });
   } else {
     // chat agent
-    const type = params.channel.type === 'dm' ? 'dm' : 'club';
+    const type = getChannelIdType(params.channelId) === 'dm' ? 'dm' : 'club';
     response = await scry<ub.ChatScam>({
       app: 'chat',
-      path: `/${type}/${params.channel.id}/search/bounded/text/${
+      path: `/${type}/${params.channelId}/search/bounded/text/${
         params.cursor ? formatUd(bigInt(params.cursor ?? 0)) : ''
       }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
     });
@@ -348,17 +352,17 @@ export const searchChannel = async (params: {
   const posts: db.Post[] = response.scan
     .map((scanItem) => {
       if ('post' in scanItem) {
-        return toPostData(params.channel.id, scanItem.post);
+        return toPostData(params.channelId, scanItem.post);
       }
       if ('writ' in scanItem) {
-        return toPostData(params.channel.id, scanItem.writ);
+        return toPostData(params.channelId, scanItem.writ);
       }
       if ('reply' in scanItem) {
         const parentId = isGroupChannel
           ? getCanonicalPostId(scanItem.reply['id-post'])
           : getCanonicalPostId(scanItem.reply.reply.seal['parent-id']);
         return toPostReplyData(
-          params.channel.id,
+          params.channelId,
           parentId,
           scanItem.reply.reply
         );

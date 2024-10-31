@@ -150,13 +150,16 @@ export default function useNotificationListener() {
         }
 
         const routeStack: RouteStack = [{ name: 'ChatList' }];
-        if (channel.group && !channelSwitcherEnabled) {
+        if (channel.groupId && !channelSwitcherEnabled) {
           routeStack.push({
             name: 'GroupChannels',
-            params: { group: channel.group },
+            params: { groupId: channel.groupId },
           });
         }
-        routeStack.push({ name: 'Channel', params: { channel } });
+        routeStack.push({
+          name: 'Channel',
+          params: { channelId: channel.id },
+        });
 
         // if we have a post id, try to navigate to the thread
         if (postInfo) {

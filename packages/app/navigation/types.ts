@@ -1,22 +1,12 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
-import type * as db from '@tloncorp/shared/db';
-
-export type DrawerParamList = {
-  Home: undefined;
-  Activity: undefined;
-  Profile: undefined;
-  Channel: {
-    channel: db.Channel;
-  };
-};
 
 export type RootStackParamList = {
-  Empty: undefined;
-  ChatList: { previewGroup: db.Group } | undefined;
+  ChatList: { previewGroupId: string } | undefined;
   Activity: undefined;
   Profile: undefined;
   Channel: {
-    channel: db.Channel;
+    channelId: string;
+    groupId?: string;
     selectedPostId?: string | null;
   };
   FindGroups: undefined;
@@ -25,10 +15,10 @@ export type RootStackParamList = {
   };
   CreateGroup: undefined;
   GroupChannels: {
-    group: db.Group;
+    groupId: string;
   };
   ChannelSearch: {
-    channel: db.Channel;
+    channelId: string;
   };
   Post: {
     post: {
@@ -38,7 +28,6 @@ export type RootStackParamList = {
     };
   };
   ImageViewer: {
-    post: db.Post;
     uri?: string;
   };
   GroupSettings: NavigatorScreenParams<GroupSettingsStackParamList>;
@@ -60,6 +49,27 @@ export type RootStackParamList = {
     channelId: string;
   };
 };
+
+export type RootDrawerParamList = {
+  Home: NavigatorScreenParams<HomeDrawerParamList>;
+} & Pick<RootStackParamList, 'Activity' | 'Profile'>;
+
+export type HomeDrawerParamList = Pick<
+  RootStackParamList,
+  'ChatList' | 'GroupChannels' | 'Channel'
+>;
+
+export type DesktopChannelStackParamList = Pick<
+  RootStackParamList,
+  | 'GroupSettings'
+  | 'ChannelSearch'
+  | 'Post'
+  | 'ImageViewer'
+  | 'UserProfile'
+  | 'EditProfile'
+  | 'ChannelMembers'
+  | 'ChannelMeta'
+> & { ChannelRoot: RootStackParamList['Channel'] };
 
 export type GroupSettingsStackParamList = {
   EditChannel: {

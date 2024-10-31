@@ -32,7 +32,10 @@ export function ActivityScreen(props: Props) {
 
   const handleGoToChannel = useCallback(
     (channel: db.Channel, selectedPostId?: string) => {
-      props.navigation.navigate('Channel', { channel, selectedPostId });
+      props.navigation.navigate('Channel', {
+        channelId: channel.id,
+        selectedPostId,
+      });
     },
     [props.navigation]
   );

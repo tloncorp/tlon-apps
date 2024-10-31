@@ -8,10 +8,10 @@ import { AvatarNavIcon, NavIcon, YStack, useWebAppUpdate } from '@tloncorp/ui';
 import ProfileScreen from '../../features/settings/ProfileScreen';
 import { ActivityScreen } from '../../features/top/ActivityScreen';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { DrawerParamList } from '../types';
+import { RootDrawerParamList } from '../types';
 import { HomeNavigator } from './HomeNavigator';
 
-const Drawer = createDrawerNavigator<DrawerParamList>();
+const Drawer = createDrawerNavigator<RootDrawerParamList>();
 
 const DrawerContent = (props: DrawerContentComponentProps) => {
   const userId = useCurrentUserId();

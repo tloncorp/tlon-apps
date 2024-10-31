@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useChannelSearch } from '@tloncorp/shared';
+import { useChannelSearch, useChannelWithRelations } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import { Button, SearchBar, SearchResults, XStack, YStack } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
@@ -10,11 +10,14 @@ import type { RootStackParamList } from '../../navigation/types';
 type Props = NativeStackScreenProps<RootStackParamList, 'ChannelSearch'>;
 
 export default function ChannelSearchScreen(props: Props) {
-  const channel = props.route.params.channel;
+  const channelId = props.route.params.channelId;
+  const channelQuery = useChannelWithRelations({
+    id: channelId,
+  });
 
   const [query, setQuery] = useState('');
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
-    useChannelSearch(channel, query);
+    useChannelSearch(channelId, query);
 
   const navigateToPost = useCallback(
     (post: db.Post) => {
@@ -28,12 +31,12 @@ export default function ChannelSearchScreen(props: Props) {
         });
       } else {
         props.navigation.navigate('Channel', {
-          channel,
+          channelId: post.channelId,
           selectedPostId: post.id,
         });
       }
     },
-    [channel, props.navigation]
+    [props.navigation]
   );
 
   return (
@@ -42,7 +45,7 @@ export default function ChannelSearchScreen(props: Props) {
         <XStack gap="$l">
           <SearchBar
             onChangeQuery={setQuery}
-            placeholder={`Search ${channel.title}`}
+            placeholder={`Search ${channelQuery?.data?.title ?? ''}`}
             inputProps={{ autoFocus: true }}
           />
           <Button minimal onPress={() => props.navigation.pop()}>
