@@ -11,6 +11,7 @@ import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { checkDb, useMigrations } from '@tloncorp/app/lib/webDb';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
+import { TopLevelDrawer } from '@tloncorp/app/navigation/desktop/TopLevelDrawer';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
@@ -26,7 +27,7 @@ import { ANALYTICS_DEFAULT_PROPERTIES } from '@/logic/analytics';
 import useAppUpdates, { AppUpdateContext } from '@/logic/useAppUpdates';
 import useErrorHandler from '@/logic/useErrorHandler';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
-import { useIsDark } from '@/logic/useMedia';
+import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
 import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
@@ -85,6 +86,7 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
   }, [calmSettingsQuery, isLoaded]);
 
   const isDarkMode = useIsDarkMode();
+  const isMobile = useIsMobile();
 
   const navigationContainerRef = useNavigationContainerRef();
 
@@ -98,7 +100,7 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
         theme={isDarkMode ? DarkTheme : DefaultTheme}
         ref={navigationContainerRef}
       >
-        <RootStack />
+        {isMobile ? <RootStack /> : <TopLevelDrawer />}
       </NavigationContainer>
     </AppDataProvider>
   );

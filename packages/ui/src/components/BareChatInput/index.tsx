@@ -24,11 +24,12 @@ import {
   View,
   YStack,
   getFontSize,
-  getToken,
   getVariableValue,
   useTheme,
   useWindowDimensions,
 } from 'tamagui';
+import { getTokenValue } from 'tamagui';
+import { isWeb } from 'tamagui';
 
 import {
   Attachment,
@@ -86,6 +87,7 @@ export default function BareChatInput({
     waitForAttachmentUploads,
   } = useAttachmentContext();
   const [text, setText] = useState('');
+  const [inputHeight, setInputHeight] = useState(initialHeight);
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState(false);
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
@@ -489,6 +491,32 @@ export default function BareChatInput({
   const paddingTopAdjustment = Platform.OS === 'ios' ? 2 : 4;
   const mentionLineHeightAdjustment = Platform.OS === 'ios' ? 1.3 : 1.5;
 
+  const theme = useTheme();
+  // placeholderTextColor is not supported on native, just web
+  // https://necolas.github.io/react-native-web/docs/text-input/
+  const placeholderTextColor = isWeb
+    ? {
+        placeholderTextColor: getVariableValue(theme.secondaryText),
+      }
+    : {};
+
+  const adjustTextInputSize = (e: any) => {
+    if (!isWeb) {
+      return;
+    }
+    // we need to manipulate the element directly in order to adjust the height
+    // back down as the content shrinks, apparently
+    // https://github.com/necolas/react-native-web/issues/795
+    //
+    const el = e?.target;
+    if (el && 'style' in el && 'height' in el.style) {
+      el.style.height = 0;
+      const newHeight = el.offsetHeight - el.clientHeight + el.scrollHeight;
+      el.style.height = `${newHeight}px`;
+      setInputHeight(newHeight);
+    }
+  };
+
   return (
     <MessageInputContainer
       onPressSend={handleSend}
@@ -522,19 +550,26 @@ export default function BareChatInput({
           ref={inputRef}
           value={text}
           onChangeText={handleTextChange}
+          onChange={isWeb ? adjustTextInputSize : undefined}
+          onLayout={isWeb ? adjustTextInputSize : undefined}
           multiline
           style={{
             backgroundColor: 'transparent',
             minHeight: initialHeight,
-            maxHeight: maxInputHeight - getToken('$s', 'size'),
-            paddingHorizontal: getToken('$l', 'space'),
-            paddingTop: getToken('$s', 'space') + paddingTopAdjustment,
-            paddingBottom: getToken('$s', 'space'),
+            height:  isWeb ? inputHeight : undefined,
+            maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
+            paddingHorizontal: getTokenValue('$l', 'space'),
+            paddingTop: getTokenValue('$s', 'space') + paddingTopAdjustment,
+            paddingBottom: getTokenValue('$s', 'space'),
             fontSize: getFontSize('$m'),
             textAlignVertical: 'top',
             lineHeight: getFontSize('$m') * 1.5,
             letterSpacing: -0.032,
+            // @ts-expect-error this property is not supported on native,
+            // but it is on web. Removes the blue outline on web.
+            outlineStyle: 'none',
             color: getVariableValue(useTheme().primaryText),
+            ...placeholderTextColor,
           }}
           placeholder={placeholder}
         />

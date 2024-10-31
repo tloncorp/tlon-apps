@@ -82,6 +82,7 @@ export * from './tamagui.config';
 export * from './types';
 export * from './utils';
 export * as TlonText from './components/TextV2';
+export { default as useIsWindowNarrow } from './hooks/useIsWindowNarrow';
 
 export {
   Circle,

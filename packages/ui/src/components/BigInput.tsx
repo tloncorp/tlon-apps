@@ -5,7 +5,7 @@ import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // TODO: replace input with our own input component
-import { Input, ScrollView, View, YStack, getToken } from 'tamagui';
+import { Input, ScrollView, View, YStack, getTokenValue } from 'tamagui';
 
 import { ImageAttachment, useAttachmentContext } from '../contexts/attachment';
 import AttachmentSheet from './AttachmentSheet';
@@ -43,8 +43,8 @@ export function BigInput({
   // }>(null);
   const { top } = useSafeAreaInsets();
   const { width } = Dimensions.get('screen');
-  const titleInputHeight = getToken('$4xl', 'size');
-  const imageButtonHeight = getToken('$4xl', 'size');
+  const titleInputHeight = getTokenValue('$4xl', 'size');
+  const imageButtonHeight = getTokenValue('$4xl', 'size');
   const keyboardVerticalOffset =
     Platform.OS === 'ios' ? top + titleInputHeight : top;
 

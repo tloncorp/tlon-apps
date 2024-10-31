@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts';
+import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
 import { useIsAdmin } from '../utils/channelUtils';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
@@ -65,6 +66,8 @@ export function GroupChannelsScreenView({
     }
   }, [isGroupAdmin]);
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View flex={1}>
       <ScreenHeader
@@ -106,7 +109,7 @@ export function GroupChannelsScreenView({
             channels={group.channels}
             onSelect={onChannelPressed}
             sortBy={sortBy || 'recency'}
-            onLongPress={handleOpenChannelOptions}
+            onLongPress={isWindowNarrow ? handleOpenChannelOptions : undefined}
           />
         </ScrollView>
       ) : (

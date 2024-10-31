@@ -18,8 +18,18 @@ export type WebViewStackParamList = {
   ExternalWebView: ExternalWebViewScreenParams;
 };
 
+export type DrawerParamList = {
+  Home: undefined;
+  Activity: undefined;
+  Profile: undefined;
+  Channel: {
+    channel: db.Channel;
+  };
+};
+
 export type RootStackParamList = {
   Contacts: undefined;
+  Empty: undefined;
   ChatList: { previewGroup: db.Group } | undefined;
   Activity: undefined;
   Profile: undefined;
