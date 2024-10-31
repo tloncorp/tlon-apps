@@ -146,7 +146,6 @@ export default ({ mode }: { mode: string }) => {
         'radix-ui/react-popover': ['@radix-ui/react-popover'],
         'radix-ui/react-toast': ['@radix-ui/react-toast'],
         'radix-ui/react-tooltip': ['@radix-ui/react-tooltip'],
-        'react-native-reanimated': ['react-native-reanimated'],
       },
     },
   };
@@ -211,42 +210,6 @@ export default ({ mode }: { mode: string }) => {
         {
           find: '@',
           replacement: fileURLToPath(new URL('./src', import.meta.url)),
-        },
-        {
-          find: '@react-native-firebase/crashlytics',
-          replacement: fileURLToPath(
-            new URL(
-              './src/mocks/react-native-firebase-crashlytics.js',
-              import.meta.url
-            )
-          ),
-        },
-        {
-          find: '@tloncorp/editor/dist/editorHtml',
-          replacement: fileURLToPath(
-            new URL('./src/mocks/tloncorp-editor-html.js', import.meta.url)
-          ),
-        },
-        {
-          find: '@tloncorp/editor/src/bridges',
-          replacement: fileURLToPath(
-            new URL('./src/mocks/tloncorp-editor-bridges.js', import.meta.url)
-          ),
-        },
-        {
-          find: '@10play/tentap-editor',
-          replacement: fileURLToPath(
-            new URL('./src/mocks/tentap-editor.js', import.meta.url)
-          ),
-        },
-        {
-          find: 'react-native-gesture-handler/ReanimatedSwipeable',
-          replacement: fileURLToPath(
-            new URL(
-              './src/mocks/react-native-gesture-handler.js',
-              import.meta.url
-            )
-          ),
         },
       ],
     },
