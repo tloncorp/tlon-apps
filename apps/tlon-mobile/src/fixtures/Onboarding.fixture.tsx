@@ -28,7 +28,8 @@ import { ShipLoginScreen } from '../screens/Onboarding/ShipLoginScreen';
 import { SignUpEmailScreen } from '../screens/Onboarding/SignUpEmailScreen';
 import { SignUpPasswordScreen } from '../screens/Onboarding/SignUpPasswordScreen';
 import { SignUpPhoneNumberScreen } from '../screens/Onboarding/SignUpPhoneNumberScreen';
-import { TlonLoginScreen } from '../screens/Onboarding/TlonLoginScreen';
+import { TlonLoginScreen } from '../screens/Onboarding/TlonLoginPhoneNumberScreen';
+import { TlonLoginLegacy } from '../screens/Onboarding/TlonLoginScreen';
 import { WelcomeScreen } from '../screens/Onboarding/WelcomeScreen';
 import { OnboardingStackParamList, User } from '../types';
 import { exampleContacts } from './contentHelpers';
@@ -252,8 +253,14 @@ export default {
       Component={PasteInviteLinkScreen}
     />
   ),
-  TlonLogin: (
+  TlonLoginScreen: (
     <SingleScreenFixture routeName={'TlonLogin'} Component={TlonLoginScreen} />
+  ),
+  TlonLogin: (
+    <SingleScreenFixture
+      routeName={'TlonLoginLegacy'}
+      Component={TlonLoginLegacy}
+    />
   ),
   ShipLogin: (
     <SingleScreenFixture routeName={'ShipLogin'} Component={ShipLoginScreen} />
