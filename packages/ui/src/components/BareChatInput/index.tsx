@@ -333,7 +333,6 @@ export default function BareChatInput({
   );
 
   const handleSend = useCallback(async () => {
-    Keyboard.dismiss();
     runSendMessage(false);
   }, [runSendMessage]);
 
@@ -512,6 +511,10 @@ export default function BareChatInput({
     }
   };
 
+  const handleBlur = useCallback(() => {
+    setShouldBlur(true);
+  }, [setShouldBlur]);
+
   return (
     <MessageInputContainer
       onPressSend={handleSend}
@@ -547,6 +550,7 @@ export default function BareChatInput({
           onChangeText={handleTextChange}
           onChange={isWeb ? adjustTextInputSize : undefined}
           onLayout={isWeb ? adjustTextInputSize : undefined}
+          onBlur={handleBlur}
           multiline
           style={{
             backgroundColor: 'transparent',
