@@ -101,6 +101,7 @@ export default function BareChatInput({
     showMentionPopup,
   } = useMentions();
   const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
+  const [isMultiline, setIsMultiline] = useState(false);
   const inputContainerRef = useRef<View>(null);
   const inputRef = useRef<TextInput>(null);
 
@@ -503,9 +504,8 @@ export default function BareChatInput({
 
     const el = e?.target;
     if (el && 'style' in el && 'height' in el.style) {
-      el.style.height = `${initialHeight}px`;
-      const scrollHeight = el.scrollHeight;
-      const newHeight = Math.max(initialHeight, scrollHeight);
+      el.style.height = 0;
+      const newHeight = el.offsetHeight - el.clientHeight + el.scrollHeight;
       el.style.height = `${newHeight}px`;
       setInputHeight(newHeight);
     }
@@ -514,8 +514,6 @@ export default function BareChatInput({
   const handleBlur = useCallback(() => {
     setShouldBlur(true);
   }, [setShouldBlur]);
-
-  const [isMultiline, setIsMultiline] = useState(false);
 
   const handleContentSizeChange = useCallback(() => {
     if (inputContainerRef.current?.measure) {
