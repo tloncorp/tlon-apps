@@ -7,7 +7,6 @@ import {
   useLureMetadata,
   useSignupParams,
 } from '@tloncorp/app/contexts/branch';
-import { useSignupContext } from '.././../lib/signupContext';
 import {
   identifyTlonEmployee,
   trackError,
@@ -27,6 +26,7 @@ import { Controller, useForm } from 'react-hook-form';
 
 import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
+import { useSignupContext } from '.././../lib/signupContext';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignUpEmail'>;
 
@@ -91,9 +91,7 @@ export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
         signupContext.setOnboardingValues({
           email,
         });
-        navigation.navigate('SignUpPassword', {
-          email,
-        });
+        navigation.navigate('CheckOTP', { mode: 'signup', otpMethod: 'email' });
       }
     } catch (err) {
       console.error('Error getting hosting availability:', err);

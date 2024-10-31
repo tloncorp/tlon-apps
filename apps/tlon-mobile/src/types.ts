@@ -101,6 +101,7 @@ export type OnboardingStackParamList = {
   PasteInviteLink: undefined;
   SignupPhoneNumber: undefined;
   SignUpEmail: undefined;
+  CheckOTP: { otpMethod: 'email' | 'phone'; mode: 'signup' | 'login' };
   EULA: undefined;
   SignUpPassword: { email: string };
   JoinWaitList: { email?: string };

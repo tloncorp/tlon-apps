@@ -128,15 +128,19 @@ export const addUserToWaitlist = async ({
   );
 
 export const signUpHostingUser = async (params: {
-  email: string;
-  password: string;
+  phoneNumber?: string;
+  otp?: string;
+  email?: string;
+  password?: string;
   lure?: string;
   priorityToken?: string;
   recaptchaToken?: string;
-}) =>
-  hostingFetch<object>('/v1/sign-up', {
+}) => {
+  return hostingFetch<User>('/v1/sign-up', {
     method: 'POST',
     body: JSON.stringify({
+      phoneNumber: params.phoneNumber,
+      otp: params.otp,
       email: params.email,
       password: params.password,
       lure: params.lure,
@@ -150,6 +154,7 @@ export const signUpHostingUser = async (params: {
       'Content-Type': 'application/json',
     },
   });
+};
 
 export const logInHostingUser = async (params: {
   email: string;

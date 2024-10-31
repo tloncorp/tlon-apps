@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { DEFAULT_ONBOARDING_TLON_EMAIL } from '@tloncorp/app/constants';
+import { DEFAULT_ONBOARDING_PHONE_NUMBER } from '@tloncorp/app/constants';
 import {
   useLureMetadata,
   useSignupParams,
@@ -32,15 +32,7 @@ type FormData = {
   phoneNumber: string;
 };
 
-function genDefaultEmail() {
-  const entropy = String(Math.random()).slice(2, 12);
-  return `${DEFAULT_ONBOARDING_TLON_EMAIL}+test${entropy}@tlon.io`;
-}
-
-export const SignUpPhoneNumberScreen = ({
-  navigation,
-  route: { params },
-}: Props) => {
+export const SignUpPhoneNumberScreen = ({ navigation }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
   const [showCountryPicker, setShowCountryPicker] = useState(false);
@@ -69,7 +61,11 @@ export const SignUpPhoneNumberScreen = ({
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<FormData>();
+  } = useForm<FormData>({
+    defaultValues: {
+      phoneNumber: DEFAULT_ONBOARDING_PHONE_NUMBER ?? '',
+    },
+  });
 
   const onSubmit = handleSubmit(async ({ phoneNumber }) => {
     setIsSubmitting(true);
@@ -81,18 +77,13 @@ export const SignUpPhoneNumberScreen = ({
         );
         return;
       }
-
       await hostingApi.requestPhoneSignupOtp({ phoneNumber, recaptchaToken });
       trackOnboardingAction({
         actionName: 'Phone Number Submitted',
+        phoneNumber,
+        lure: signupParams.lureId,
       });
-
-      // navigation.navigate('CheckVerify', {
-      //   user: {
-      //     ...user,
-      //     phoneNumber,
-      //   },
-      // });
+      navigation.navigate('CheckOTP', { mode: 'signup', otpMethod: 'phone' });
     } catch (err) {
       console.error('Error verifiying phone number:', err);
       if (err instanceof SyntaxError) {
@@ -119,6 +110,11 @@ export const SignUpPhoneNumberScreen = ({
         showSessionStatus={false}
         backAction={goBack}
         isLoading={isSubmitting}
+        rightControls={
+          <ScreenHeader.TextButton onPress={onSubmit} disabled={isSubmitting}>
+            Next
+          </ScreenHeader.TextButton>
+        }
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
         <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">

@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useScreenOptions } from '@tloncorp/app/hooks/useScreenOptions';
 
 import { useReviveSavedOnboarding } from './hooks/useReviveSavedOnboarding';
+import { CheckOTPScreen } from './screens/Onboarding/CheckOTPScreen';
 import { CheckVerifyScreen } from './screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from './screens/Onboarding/EULAScreen';
 import { InventoryCheckScreen } from './screens/Onboarding/InventoryCheckScreen';
@@ -49,6 +50,10 @@ export function OnboardingStack() {
       <OnboardingStackNavigator.Screen
         name="SignUpEmail"
         component={SignUpEmailScreen}
+      />
+      <OnboardingStackNavigator.Screen
+        name="CheckOTP"
+        component={CheckOTPScreen}
       />
       <OnboardingStackNavigator.Screen name="EULA" component={EULAScreen} />
       <OnboardingStackNavigator.Screen

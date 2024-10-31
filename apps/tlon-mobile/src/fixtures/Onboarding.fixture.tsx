@@ -14,6 +14,7 @@ import { useFixtureSelect } from 'react-cosmos/client';
 
 import { OnboardingStack, OnboardingStackNavigator } from '../OnboardingStack';
 import { OnboardingProvider } from '../lib/OnboardingContext';
+import { CheckOTPScreen } from '../screens/Onboarding/CheckOTPScreen';
 import { CheckVerifyScreen } from '../screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from '../screens/Onboarding/EULAScreen';
 import { InventoryCheckScreen } from '../screens/Onboarding/InventoryCheckScreen';
@@ -26,6 +27,7 @@ import { SetTelemetryScreen } from '../screens/Onboarding/SetTelemetryScreen';
 import { ShipLoginScreen } from '../screens/Onboarding/ShipLoginScreen';
 import { SignUpEmailScreen } from '../screens/Onboarding/SignUpEmailScreen';
 import { SignUpPasswordScreen } from '../screens/Onboarding/SignUpPasswordScreen';
+import { SignUpPhoneNumberScreen } from '../screens/Onboarding/SignUpPhoneNumberScreen';
 import { TlonLoginScreen } from '../screens/Onboarding/TlonLoginScreen';
 import { WelcomeScreen } from '../screens/Onboarding/WelcomeScreen';
 import { OnboardingStackParamList, User } from '../types';
@@ -76,7 +78,7 @@ function OnboardingFixture({
             getLandscapeAuthCookie: () => Promise.resolve('abc'),
             //@ts-expect-error partial implementation
             hostingApi: {
-              signUpHostingUser: async () => Promise.resolve({}),
+              signUpHostingUser: async () => Promise.resolve(sampleUser),
               logInHostingUser: () => Promise.resolve(sampleUser),
               getHostingAvailability: async () =>
                 Promise.resolve({ enabled: true, validEmail: true }),
@@ -228,6 +230,19 @@ export default {
     <SingleScreenFixture
       routeName={'SignUpEmail'}
       Component={SignUpEmailScreen}
+    />
+  ),
+  SignUpPhoneNumber: (
+    <SingleScreenFixture
+      routeName="SignupPhoneNumber"
+      Component={SignUpPhoneNumberScreen}
+    />
+  ),
+  CheckOtpPhoneSignup: (
+    <SingleScreenFixture
+      routeName={'CheckOTP'}
+      Component={CheckOTPScreen}
+      params={{ otpMethod: 'phone', mode: 'signup' }}
     />
   ),
   EULA: <SingleScreenFixture routeName={'EULA'} Component={EULAScreen} />,
