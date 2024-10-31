@@ -42,17 +42,15 @@ export function RootStack() {
   });
 
   const theme = useTheme();
-  const isWindowNarrow = useIsWindowNarrow();
 
   return (
     <Root.Navigator
-      initialRouteName={isWindowNarrow ? 'ChatList' : 'Empty'}
+      initialRouteName={'ChatList'}
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: theme.background?.val },
       }}
     >
-      <Root.Screen name="Empty">{() => null}</Root.Screen>
       {/* top level tabs */}
       <Root.Screen
         name="ChatList"
