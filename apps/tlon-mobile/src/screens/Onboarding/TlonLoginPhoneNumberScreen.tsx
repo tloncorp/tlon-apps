@@ -4,17 +4,11 @@ import {
   DEFAULT_TLON_LOGIN_EMAIL,
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
-import {
-  useLureMetadata,
-  useSignupParams,
-} from '@tloncorp/app/contexts/branch';
-import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { trackError } from '@tloncorp/app/utils/posthog';
 import {
   Button,
   Field,
   KeyboardAvoidingView,
-  OnboardingButton,
-  OnboardingInviteBlock,
   OnboardingTextBlock,
   ScreenHeader,
   TextInput,
@@ -31,7 +25,7 @@ import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
 import { useSignupContext } from '.././../lib/signupContext';
 
-type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignUpEmail'>;
+type Props = NativeStackScreenProps<OnboardingStackParamList, 'TlonLogin'>;
 
 type PhoneFormData = {
   phoneNumber: string;
@@ -41,8 +35,10 @@ type EmailFormData = {
   email: string;
 };
 
-export const TlonLoginPhoneNumberScreen = ({ navigation }: Props) => {
-  const [otpMethod, setOtpMethod] = useState<'phone' | 'email'>('phone');
+export const TlonLoginScreen = ({ navigation, route }: Props) => {
+  const [otpMethod, setOtpMethod] = useState<'phone' | 'email'>(
+    route.params?.initialLoginMethod ?? 'phone'
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
   const { hostingApi } = useOnboardingContext();
@@ -66,54 +62,6 @@ export const TlonLoginPhoneNumberScreen = ({ navigation }: Props) => {
       email: DEFAULT_TLON_LOGIN_EMAIL ?? '',
     },
   });
-
-  // const onSubmitEmail = emailForm.handleSubmit(async ({ email }) => {
-  //   setIsSubmitting(true);
-  //   try {
-  //     const recaptchaToken = await recaptcha.getToken();
-  //     if (!recaptchaToken) {
-  //       setRemoteError(
-  //         `We're having trouble confirming you're human. (reCAPTCHA)`
-  //       );
-  //       return;
-  //     }
-
-  //     await hostingApi.requestLoginOtp({ email, recaptchaToken });
-
-  // const onSubmitPhone = phoneForm.handleSubmit(async ({ phoneNumber }) => {
-  //   setIsSubmitting(true);
-  //   try {
-  //     const recaptchaToken = await recaptcha.getToken();
-  //     if (!recaptchaToken) {
-  //       setRemoteError(
-  //         `We're having trouble confirming you're human. (reCAPTCHA)`
-  //       );
-  //       return;
-  //     }
-
-  //     await hostingApi.requestLoginOtp({ phoneNumber, recaptchaToken });
-  //     // navigation.navigate('CheckOTP', { mode: 'login', otpMethod: 'phone' });
-
-  //     // await hostingApi.requestPhoneSignupOtp({ phoneNumber, recaptchaToken });
-  //     // trackOnboardingAction({
-  //     //   actionName: 'Phone Number Submitted',
-  //     //   phoneNumber,
-  //     //   lure: signupParams.lureId,
-  //     // });
-  //     // navigation.navigate('CheckOTP', { mode: 'signup', otpMethod: 'phone' });
-  //   } catch (err) {
-  //     console.error('Error verifiying phone number:', err);
-  //     if (err instanceof SyntaxError) {
-  //       setRemoteError('Invalid phone number, please contact support@tlon.io');
-  //       trackError({ message: 'Invalid phone number' });
-  //     } else if (err instanceof Error) {
-  //       setRemoteError(err.message);
-  //       trackError(err);
-  //     }
-  //   }
-
-  //   setIsSubmitting(false);
-  // });
 
   const onSubmit = useCallback(async () => {
     setIsSubmitting(true);
@@ -181,7 +129,8 @@ export const TlonLoginPhoneNumberScreen = ({ navigation }: Props) => {
         <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">
           <OnboardingTextBlock>
             <TlonText.Text size="$body" color="$primaryText">
-              Enter the phone number associated with your Tlon account.
+              Enter the {otpMethod === 'phone' ? 'phone number' : 'email'}{' '}
+              associated with your Tlon account.
             </TlonText.Text>
             <TlonText.Text size="$body" color="$negativeActionText">
               {remoteError}
@@ -212,7 +161,6 @@ export const TlonLoginPhoneNumberScreen = ({ navigation }: Props) => {
                         emailForm.trigger('email');
                       }}
                       onChangeText={onChange}
-                      // onSubmitEditing={() => setFocus('password')}
                       value={value}
                       keyboardType="email-address"
                       autoCapitalize="none"
@@ -227,24 +175,52 @@ export const TlonLoginPhoneNumberScreen = ({ navigation }: Props) => {
             )}
           </YStack>
           <View marginLeft="$l">
-            <TlonText.Text
-              color="$tertiaryText"
-              onPress={handlePressEmailSignup}
-            >
-              {otpMethod === 'phone'
-                ? 'Normally log in with email?'
-                : 'Use phone number instead'}
-            </TlonText.Text>
+            {otpMethod === 'email' ? (
+              <>
+                <TlonText.Text color="$tertiaryText" marginTop="$xl">
+                  We&apos;ll email you a code to log in. Or you can{' '}
+                  <TlonText.RawText
+                    pressStyle={{
+                      opacity: 0.5,
+                    }}
+                    textDecorationLine="underline"
+                    textDecorationDistance={10}
+                    onPress={() => navigation.navigate('TlonLoginLegacy')}
+                  >
+                    log in with a password.
+                  </TlonText.RawText>
+                </TlonText.Text>
+                <TlonText.Text
+                  color="$tertiaryText"
+                  onPress={handlePressEmailSignup}
+                  marginTop="$xl"
+                  textDecorationLine="underline"
+                  textDecorationDistance={10}
+                >
+                  Login with phone number instead
+                </TlonText.Text>
+              </>
+            ) : (
+              <TlonText.Text
+                color="$tertiaryText"
+                onPress={handlePressEmailSignup}
+                marginTop="$xl"
+                textDecorationLine="underline"
+                textDecorationDistance={10}
+              >
+                Normally log in with email?
+              </TlonText.Text>
+            )}
           </View>
 
-          <OnboardingButton
+          {/* <OnboardingButton
             secondary
             onPress={() => {
               navigation.navigate('TlonLogin');
             }}
           >
             <Button.Text>Login with email/password</Button.Text>
-          </OnboardingButton>
+          </OnboardingButton> */}
         </YStack>
       </KeyboardAvoidingView>
     </View>

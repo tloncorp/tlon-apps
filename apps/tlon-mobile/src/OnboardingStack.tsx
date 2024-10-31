@@ -17,8 +17,8 @@ import { ShipLoginScreen } from './screens/Onboarding/ShipLoginScreen';
 import { SignUpEmailScreen } from './screens/Onboarding/SignUpEmailScreen';
 import { SignUpPasswordScreen } from './screens/Onboarding/SignUpPasswordScreen';
 import { SignUpPhoneNumberScreen } from './screens/Onboarding/SignUpPhoneNumberScreen';
-import { TlonLoginPhoneNumberScreen } from './screens/Onboarding/TlonLoginPhoneNumberScreen';
-import { TlonLoginScreen } from './screens/Onboarding/TlonLoginScreen';
+import { TlonLoginScreen } from './screens/Onboarding/TlonLoginPhoneNumberScreen';
+import { TlonLoginLegacy } from './screens/Onboarding/TlonLoginScreen';
 import { WelcomeScreen } from './screens/Onboarding/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
 
@@ -95,12 +95,12 @@ export function OnboardingStack() {
         component={SetTelemetryScreen}
       />
       <OnboardingStackNavigator.Screen
-        name="TlonLoginPhoneNumber"
-        component={TlonLoginPhoneNumberScreen}
-      />
-      <OnboardingStackNavigator.Screen
         name="TlonLogin"
         component={TlonLoginScreen}
+      />
+      <OnboardingStackNavigator.Screen
+        name="TlonLoginLegacy"
+        component={TlonLoginLegacy}
       />
       <OnboardingStackNavigator.Screen
         name="ShipLogin"

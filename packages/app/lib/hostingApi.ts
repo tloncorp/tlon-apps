@@ -136,6 +136,8 @@ export const signUpHostingUser = async (params: {
   priorityToken?: string;
   recaptchaToken?: string;
 }) => {
+  // TODO: we should eventually catch 409 here which in this context
+  // indicates no available inventory
   return hostingFetch<User>('/v1/sign-up', {
     method: 'POST',
     body: JSON.stringify({
@@ -206,16 +208,19 @@ export const requestPhoneVerify = async (userId: string, phoneNumber: string) =>
     },
   });
 
-export const requestPhoneSignupOtp = async ({
+export const requestSignupOtp = async ({
+  email,
   phoneNumber,
   recaptchaToken,
 }: {
-  phoneNumber: string;
+  email?: string;
+  phoneNumber?: string;
   recaptchaToken?: string;
 }) => {
   const response = await rawHostingFetch('/v1/request-otp', {
     method: 'POST',
     body: JSON.stringify({
+      email,
       phoneNumber,
       otpMode: 'SignupOTP',
       recaptcha: {

@@ -115,8 +115,8 @@ export type OnboardingStackParamList = {
   ReserveShip: { user: User };
   SetNickname: { user: User };
   SetTelemetry: { user: User };
-  TlonLoginPhoneNumber: undefined;
-  TlonLogin: undefined;
+  TlonLogin: { initialLoginMethod?: 'email' | 'phone' } | undefined;
+  TlonLoginLegacy: undefined;
   ShipLogin: undefined;
   ResetPassword: { email?: string };
 };

@@ -127,23 +127,36 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           <ActionSheet.ActionGroup accent="neutral">
             <ActionSheet.Action
               action={{
-                title: 'Log in with Tlon',
+                title: 'Log in with phone number',
                 action: () => {
                   setOpen(false);
-                  navigation.navigate('TlonLoginPhoneNumber');
+                  navigation.navigate('TlonLogin', {
+                    initialLoginMethod: 'phone',
+                  });
                 },
               }}
             />
             <ActionSheet.Action
               action={{
-                title: 'Configure self-hosted',
+                title: 'Log in with email',
                 action: () => {
                   setOpen(false);
-                  navigation.navigate('ShipLogin');
+                  navigation.navigate('TlonLogin', {
+                    initialLoginMethod: 'email',
+                  });
                 },
               }}
             />
           </ActionSheet.ActionGroup>
+          <ActionSheet.ContentBlock alignItems="center">
+            <TlonText.Text
+              color="$secondaryText"
+              textDecorationLine="underline"
+              textDecorationDistance={10}
+            >
+              Or configure self hosted
+            </TlonText.Text>
+          </ActionSheet.ContentBlock>
         </ActionSheet.Content>
       </ActionSheet>
       <OnboardingBenefitsSheet

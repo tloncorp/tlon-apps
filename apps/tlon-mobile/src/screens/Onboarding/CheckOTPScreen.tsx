@@ -18,7 +18,7 @@ import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'CheckOTP'>;
 
-const EMAIL_CODE_LENGTH = 4;
+const EMAIL_CODE_LENGTH = 6;
 const PHONE_CODE_LENGTH = 6;
 
 const logger = createDevLogger('CheckOTP', true);
