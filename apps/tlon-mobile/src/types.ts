@@ -101,7 +101,12 @@ export type OnboardingStackParamList = {
   PasteInviteLink: undefined;
   SignupPhoneNumber: undefined;
   SignUpEmail: undefined;
-  CheckOTP: { otpMethod: 'email' | 'phone'; mode: 'signup' | 'login' };
+  CheckOTP: {
+    otpMethod: 'email' | 'phone';
+    mode: 'signup' | 'login';
+    email?: string;
+    phoneNumber?: string;
+  };
   EULA: undefined;
   SignUpPassword: { email: string };
   JoinWaitList: { email?: string };
@@ -110,6 +115,7 @@ export type OnboardingStackParamList = {
   ReserveShip: { user: User };
   SetNickname: { user: User };
   SetTelemetry: { user: User };
+  TlonLoginPhoneNumber: undefined;
   TlonLogin: undefined;
   ShipLogin: undefined;
   ResetPassword: { email?: string };

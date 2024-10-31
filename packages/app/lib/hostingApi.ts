@@ -157,8 +157,10 @@ export const signUpHostingUser = async (params: {
 };
 
 export const logInHostingUser = async (params: {
-  email: string;
-  password: string;
+  email?: string;
+  phoneNumber?: string;
+  otp?: string;
+  password?: string;
 }) => {
   const response = await hostingFetchResponse('/v1/login', {
     method: 'POST',
@@ -221,6 +223,9 @@ export const requestPhoneSignupOtp = async ({
         recaptchaPlatform: Platform.OS,
       },
     }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
 
   if (!response.ok) {
@@ -238,13 +243,33 @@ export const requestPhoneSignupOtp = async ({
   }
 };
 
-export const requestPhoneLoginOtp = async (phoneNumber: string) => {
-  hostingFetch<object>('/v1/request-otp', {
+export const requestLoginOtp = async ({
+  phoneNumber,
+  email,
+  recaptchaToken,
+}: {
+  phoneNumber?: string;
+  email?: string;
+  recaptchaToken: string;
+}) => {
+  if (!phoneNumber && !email) {
+    throw new Error('Either phone number or email must be provided');
+  }
+
+  return hostingFetch<object>('/v1/request-otp', {
     method: 'POST',
     body: JSON.stringify({
       phoneNumber,
+      email,
       otpMode: 'LoginOTP',
+      recaptcha: {
+        recaptchaToken: { token: recaptchaToken || '' },
+        recaptchaPlatform: Platform.OS,
+      },
     }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
 };
 

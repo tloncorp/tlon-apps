@@ -127,10 +127,10 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           <ActionSheet.ActionGroup accent="neutral">
             <ActionSheet.Action
               action={{
-                title: 'Log in with Email',
+                title: 'Log in with Tlon',
                 action: () => {
                   setOpen(false);
-                  navigation.navigate('TlonLogin');
+                  navigation.navigate('TlonLoginPhoneNumber');
                 },
               }}
             />

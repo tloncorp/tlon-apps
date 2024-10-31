@@ -63,6 +63,7 @@ export const SignUpEmailScreen = ({ navigation, route: { params } }: Props) => {
     setIsSubmitting(true);
 
     try {
+      // TODO: need to handle 409 for already in use instead of checking validEmail
       const { enabled, validEmail } = await hostingApi.getHostingAvailability({
         email,
         lure: signupParams.lureId,

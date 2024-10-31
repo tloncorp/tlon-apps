@@ -1,11 +1,17 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSignupParams } from '@tloncorp/app/contexts/branch';
+import { useShip } from '@tloncorp/app/contexts/ship';
+import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { getShipUrl } from '@tloncorp/app/utils/ship';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
+import { didSignUp } from '@tloncorp/shared/db';
 import { ScreenHeader, TlonText, View, YStack } from '@tloncorp/ui';
-import { createDevLogger } from 'packages/shared/src';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { OTPInput } from '../../components/OnboardingInputs';
+import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { useOnboardingContext } from '../../lib/OnboardingContext';
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
@@ -24,26 +30,45 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
   const { hostingApi } = useOnboardingContext();
   const signupContext = useSignupContext();
   const signupParams = useSignupParams();
+  const { setShip } = useShip();
   const { otpMethod, mode } = params;
+  const recaptcha = useRecaptcha();
   const codeLength =
     otpMethod === 'email' ? EMAIL_CODE_LENGTH : PHONE_CODE_LENGTH;
 
   const handleSignup = useCallback(
     async (otpCode: string) => {
       try {
+        const recaptchaToken = await recaptcha.getToken();
+        if (!recaptchaToken) {
+          setError(`We're having trouble confirming you're human. (reCAPTCHA)`);
+          throw new Error('reCAPTCHA token not available');
+        }
+
         const user = await hostingApi.signUpHostingUser({
           otp: otpCode,
           phoneNumber:
-            otpMethod === 'phone' ? signupContext.phoneNumber! : undefined,
-          email: otpMethod === 'email' ? signupContext.email! : undefined,
+            otpMethod === 'phone'
+              ? params.phoneNumber ?? signupContext.phoneNumber!
+              : undefined,
+          email:
+            otpMethod === 'email'
+              ? params.email ?? signupContext.email!
+              : undefined,
           lure: signupParams.lureId,
           priorityToken: signupParams.priorityToken,
+          recaptchaToken,
         });
         trackOnboardingAction({
           actionName: 'Account Created',
           phoneNumber:
-            otpMethod === 'phone' ? signupContext.phoneNumber! : undefined,
-          email: otpMethod === 'email' ? signupContext.email! : undefined,
+            otpMethod === 'phone'
+              ? params.phoneNumber ?? signupContext.phoneNumber!
+              : undefined,
+          email:
+            otpMethod === 'email'
+              ? params.email ?? signupContext.email!
+              : undefined,
           lure: signupParams.lureId,
         });
         return user;
@@ -57,6 +82,9 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
     [
       hostingApi,
       otpMethod,
+      params.email,
+      params.phoneNumber,
+      recaptcha,
       signupContext.email,
       signupContext.phoneNumber,
       signupParams.lureId,
@@ -64,13 +92,79 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
     ]
   );
 
-  const handleLogin = useCallback(async (otpCode: string) => {
-    // TODO
-  }, []);
+  const handleLogin = useCallback(
+    async (otpCode: string) => {
+      const user = await hostingApi.logInHostingUser({
+        otp: otpCode,
+        phoneNumber:
+          otpMethod === 'phone'
+            ? params.phoneNumber ?? signupContext.phoneNumber!
+            : undefined,
+        email:
+          otpMethod === 'email'
+            ? params.email ?? signupContext.email!
+            : undefined,
+      });
+
+      if (user.ships.length > 0) {
+        const shipsWithStatus = await hostingApi.getShipsWithStatus(user.ships);
+        if (shipsWithStatus) {
+          const { status, shipId } = shipsWithStatus;
+          if (status === 'Ready') {
+            const { code: accessCode } =
+              await hostingApi.getShipAccessCode(shipId);
+            const shipUrl = getShipUrl(shipId);
+            const authCookie = await getLandscapeAuthCookie(
+              shipUrl,
+              accessCode
+            );
+            if (authCookie) {
+              if (await isEulaAgreed()) {
+                setShip({
+                  ship: shipId,
+                  shipUrl,
+                  authCookie,
+                  authType: 'hosted',
+                });
+
+                const hasSignedUp = await didSignUp.getValue();
+                if (!hasSignedUp) {
+                  logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
+                }
+              } else {
+                throw new Error(
+                  'Please agree to the End User License Agreement to continue.'
+                );
+              }
+            } else {
+              throw new Error(
+                `Sorry, we couldn't log you into your Tlon account.`
+              );
+            }
+          } else {
+            navigation.navigate('ReserveShip', { user });
+          }
+        } else {
+          throw new Error(
+            "Sorry, we couldn't find an active Tlon ship for your account."
+          );
+        }
+      } else {
+        signupContext.setOnboardingValues({
+          phoneNumber:
+            otpMethod === 'phone' ? signupContext.phoneNumber! : undefined,
+          email: otpMethod === 'email' ? signupContext.email! : undefined,
+        });
+        navigation.navigate('ReserveShip', { user });
+      }
+    },
+    [hostingApi, navigation, otpMethod, setShip, signupContext]
+  );
 
   const handleSubmit = useCallback(
     async (code: string) => {
       setIsSubmitting(true);
+      await setEulaAgreed();
       try {
         if (mode === 'signup') {
           const user = await handleSignup(code);
@@ -81,7 +175,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
           await handleLogin(code);
         }
       } catch (e) {
-        //
+        setError(e.message);
       } finally {
         setIsSubmitting(false);
       }
