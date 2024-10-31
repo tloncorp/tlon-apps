@@ -18,6 +18,10 @@ const MobileBasePathStackNavigator =
 const DesktopBasePathStackNavigator =
   createNativeStackNavigator<DesktopBasePathStackParamList>();
 
+/**
+ * On web, this is necessary for navigation to work properly when the base URL
+ * is something other than `/`, eg `/apps/groups/`
+ */
 export function BasePathNavigator({ isMobile }: { isMobile: boolean }) {
   const Navigator = isMobile
     ? MobileBasePathStackNavigator

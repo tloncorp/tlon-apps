@@ -10,8 +10,8 @@ import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { checkDb, useMigrations } from '@tloncorp/app/lib/webDb';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
 import {
-  desktopLinkingConfig,
-  mobileLinkingConfig,
+  getDesktopLinkingConfig,
+  getMobileLinkingConfig,
 } from '@tloncorp/app/navigation/linking';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
@@ -101,14 +101,14 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
     >
       {isMobile ? (
         <NavigationContainer
-          linking={mobileLinkingConfig}
+          linking={getMobileLinkingConfig(import.meta.env.MODE)}
           theme={isDarkMode ? DarkTheme : DefaultTheme}
         >
           <BasePathNavigator isMobile={isMobile} />
         </NavigationContainer>
       ) : (
         <NavigationContainer
-          linking={desktopLinkingConfig}
+          linking={getDesktopLinkingConfig(import.meta.env.MODE)}
           theme={isDarkMode ? DarkTheme : DefaultTheme}
         >
           <BasePathNavigator isMobile={isMobile} />
