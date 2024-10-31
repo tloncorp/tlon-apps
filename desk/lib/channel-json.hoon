@@ -329,7 +329,7 @@
   ::
   ++  seq
     |=  =@ud
-    s+`@t`(rsh 4 (scot %ud ud))
+    s+`@t`(rsh 4 (scot %ui ud))
   ::
   ++  mod-at
     |=  =@da

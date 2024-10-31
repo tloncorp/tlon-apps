@@ -15,7 +15,7 @@
 ::  +arm convert to v1:old:c type
 ::  +arm-1 convert to v7:old:c type
 ::  +arm-2 convert to v8 (current) type
-:: 
+::
 ++  uv-channels-1
   |=  =v-channels:c
   ^-  channels-0:c
@@ -1090,7 +1090,10 @@
   ::
   =/  new-post=v-post:c
     =/  new-seal=v-seal:c
-      =+  mod-at=(~(got by mod) id-post)
+      =/  mod-at=@da
+        %+  fall
+          (~(get by mod) id-post)
+        id.u.post
       =*  seal  -.u.post
       =+  seal(|1 [count mod-at |1.seal])
       %=  -
@@ -1125,8 +1128,9 @@
 ::
 ::
 ++  u-post-set-7-to-8
-  |=  [u=$>(%set u-post:v7:old:c) seq=@ud mod-at=@da]
+  |=  [u=u-post:v7:old:c seq=@ud mod-at=@da]
   ^-  $>(%set u-post:c)
+  ?>  ?=(%set -.u)
   ::  %post %set
   ::
   ?~  post.u  u
@@ -1204,7 +1208,7 @@
   |=  log=log:c
   ^-  future:v-channel:c
   %*  .  *future:v-channel:c
-      diffs  
+      diffs
     %+  roll  (tap:log-on:c log)
     |=  [[time u=u-channel:c] diffs=(jug id-post:c u-post:c)]
     ?.  ?=(%post -.u)  diffs
