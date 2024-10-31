@@ -8,4 +8,11 @@ export namespace JSONValue {
   ): string | DefaultValue {
     return typeof value === 'string' ? value : defaultValue;
   }
+
+  export function asBoolean<DefaultValue>(
+    value: unknown,
+    defaultValue: DefaultValue
+  ): boolean | DefaultValue {
+    return typeof value === 'boolean' ? value : defaultValue;
+  }
 }

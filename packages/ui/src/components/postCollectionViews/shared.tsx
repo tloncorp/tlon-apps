@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { JSONValue } from 'packages/shared/src';
 import { ComponentPropsWithoutRef, useMemo } from 'react';
 
 import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
@@ -17,6 +18,18 @@ export function ConnectedPostView({
   ...overrides
 }: { post: db.Post } & Partial<ComponentPropsWithoutRef<typeof PostView>>) {
   const ctx = usePostCollectionContextUnsafelyUnwrapped();
+
+  const standardConfig = useMemo(() => {
+    const cfg = ctx.collectionConfiguration;
+    if (cfg == null) {
+      return null;
+    }
+    return {
+      showAuthor: JSONValue.asBoolean(cfg.showAuthors, false),
+      showReplies: JSONValue.asBoolean(cfg.showReplies, false),
+    };
+  }, [ctx.collectionConfiguration]);
+
   const postProps = useMemo(
     () => ({
       // TODO: useLivePost?
@@ -29,8 +42,11 @@ export function ConnectedPostView({
       // TODO: more props to get parity with BaseScrollerItem
 
       ...overrides,
+
+      showAuthor: standardConfig?.showAuthor,
+      showReplies: standardConfig?.showReplies,
     }),
-    [ctx, post, overrides]
+    [ctx, post, overrides, standardConfig]
   );
 
   return <PostView {...postProps} />;

@@ -12,35 +12,55 @@ export interface ComponentSpec<EnumTag extends string = string> {
   parametersSchema?: Record<string, ParameterSpec>;
 }
 
+function standardCollectionParameters(): Record<string, ParameterSpec> {
+  return {
+    showAuthor: {
+      displayName: 'Show author',
+      type: 'boolean',
+    },
+    showReplies: {
+      displayName: 'Show replies',
+      type: 'boolean',
+    },
+  };
+}
+
 export const allCollectionRenderers = {
   'tlon.r0.collection.chat': {
     displayName: 'Chat',
     enumTag: 'chat',
+    parametersSchema: standardCollectionParameters(),
   },
   'tlon.r0.collection.gallery': {
     displayName: 'Gallery',
     enumTag: 'gallery',
+    parametersSchema: standardCollectionParameters(),
   },
   'tlon.r0.collection.notebook': {
     displayName: 'Notebook',
     enumTag: 'notebook',
+    parametersSchema: standardCollectionParameters(),
   },
   'tlon.r0.collection.cards': {
     displayName: 'Cards',
     enumTag: 'cards',
+    parametersSchema: standardCollectionParameters(),
   },
   'tlon.r0.collection.sign': {
     displayName: 'Sign',
     enumTag: 'sign',
+    parametersSchema: standardCollectionParameters(),
   },
   'tlon.r0.collection.boardroom': {
     displayName: 'Boardroom',
     enumTag: 'boardroom',
+    parametersSchema: standardCollectionParameters(),
   },
   'tlon.r0.collection.strobe': {
     displayName: 'Strobe',
     enumTag: 'strobe',
     parametersSchema: {
+      ...standardCollectionParameters(),
       interval: {
         displayName: 'Frame rate in milliseconds',
         type: 'string',
