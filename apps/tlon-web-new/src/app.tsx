@@ -1,5 +1,4 @@
 // Copyright 2024, Tlon Corporation
-import { TooltipProvider } from '@radix-ui/react-tooltip';
 import {
   DarkTheme,
   DefaultTheme,
@@ -263,9 +262,7 @@ function RoutedApp() {
         <title>Tlon</title>
         <meta name="theme-color" content={userThemeColor} />
       </Helmet>
-      <TooltipProvider delayDuration={0} skipDelayDuration={400}>
-        <App />
-      </TooltipProvider>
+      <App />
       {showDevTools && (
         <>
           <React.Suspense fallback={null}>

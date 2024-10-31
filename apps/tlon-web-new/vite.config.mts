@@ -141,11 +141,6 @@ export default ({ mode }: { mode: string }) => {
         refractor: ['refractor'],
         'urbit-ob': ['urbit-ob'],
         'hast-to-hyperscript': ['hast-to-hyperscript'],
-        'radix-ui/react-dialog': ['@radix-ui/react-dialog'],
-        'radix-ui/react-dropdown-menu': ['@radix-ui/react-dropdown-menu'],
-        'radix-ui/react-popover': ['@radix-ui/react-popover'],
-        'radix-ui/react-toast': ['@radix-ui/react-toast'],
-        'radix-ui/react-tooltip': ['@radix-ui/react-tooltip'],
       },
     },
   };
