@@ -18,10 +18,9 @@ import {
   pathToCite,
 } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, TextInput } from 'react-native';
+import { Keyboard, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  View,
   YStack,
   getFontSize,
   getVariableValue,
@@ -102,6 +101,7 @@ export default function BareChatInput({
     showMentionPopup,
   } = useMentions();
   const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
+  const inputContainerRef = useRef<View>(null);
   const inputRef = useRef<TextInput>(null);
 
   const processReferences = useCallback(
@@ -168,7 +168,7 @@ export default function BareChatInput({
 
   const renderTextWithMentions = useMemo(() => {
     if (!text || mentions.length === 0) {
-      return null;
+      return <RawText color="$primaryText">{text}</RawText>;
     }
 
     const sortedMentions = [...mentions].sort((a, b) => a.start - b.start);
@@ -177,7 +177,7 @@ export default function BareChatInput({
     // Handle text before first mention
     if (sortedMentions[0].start > 0) {
       textParts.push(
-        <RawText key="text-start" color="transparent">
+        <RawText key="text-start" color="$primaryText">
           {text.slice(0, sortedMentions[0].start)}
         </RawText>
       );
@@ -199,7 +199,7 @@ export default function BareChatInput({
       const nextStart = sortedMentions[index + 1]?.start ?? text.length;
       if (mention.end < nextStart) {
         textParts.push(
-          <RawText key={`text-${index}`} color="transparent">
+          <RawText key={`text-${index}`} color="$primaryText">
             {text.slice(mention.end, nextStart)}
           </RawText>
         );
@@ -515,6 +515,17 @@ export default function BareChatInput({
     setShouldBlur(true);
   }, [setShouldBlur]);
 
+  const [isMultiline, setIsMultiline] = useState(false);
+
+  const handleContentSizeChange = useCallback(() => {
+    if (inputContainerRef.current?.measure) {
+      inputContainerRef.current.measure((x, y, width, height) => {
+        // Tell the component the user has entered enough text to exceed the initial height of the input
+        setIsMultiline(height > initialHeight);
+      });
+    }
+  }, [initialHeight]);
+
   return (
     <MessageInputContainer
       onPressSend={handleSend}
@@ -544,43 +555,39 @@ export default function BareChatInput({
         justifyContent="center"
       >
         {showInlineAttachments && <AttachmentPreviewList />}
-        <TextInput
-          ref={inputRef}
-          value={text}
-          onChangeText={handleTextChange}
-          onChange={isWeb ? adjustTextInputSize : undefined}
-          onLayout={isWeb ? adjustTextInputSize : undefined}
-          onBlur={handleBlur}
-          multiline
-          style={{
-            backgroundColor: 'transparent',
-            minHeight: initialHeight,
-            height: isWeb ? inputHeight : undefined,
-            maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
-            paddingHorizontal: getTokenValue('$l', 'space'),
-            paddingTop: getTokenValue('$l', 'space'),
-            paddingBottom: getTokenValue('$l', 'space'),
-            fontSize: getFontSize('$m'),
-            textAlignVertical: 'center',
-            letterSpacing: -0.032,
-            color: getVariableValue(useTheme().primaryText),
-            ...placeholderTextColor,
-            ...(isWeb ? { outlineStyle: 'none' } : {}),
-          }}
-          placeholder={placeholder}
-        />
-        {mentions.length > 0 && (
-          <View position="absolute" pointerEvents="none">
-            <RawText
-              paddingHorizontal="$l"
-              fontSize="$m"
-              letterSpacing={-0.032}
-              color="$primaryText"
-            >
-              {renderTextWithMentions}
-            </RawText>
-          </View>
-        )}
+        <View ref={inputContainerRef} onLayout={handleContentSizeChange}>
+          <TextInput
+            ref={inputRef}
+            onChangeText={handleTextChange}
+            onChange={isWeb ? adjustTextInputSize : undefined}
+            onLayout={isWeb ? adjustTextInputSize : undefined}
+            onBlur={handleBlur}
+            multiline
+            style={{
+              backgroundColor: 'transparent',
+              minHeight: initialHeight,
+              height: isWeb ? inputHeight : undefined,
+              maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
+              paddingHorizontal: getTokenValue('$l', 'space'),
+              paddingTop: getTokenValue('$l', 'space'),
+              fontSize: getFontSize('$m'),
+              textAlignVertical: 'center',
+              letterSpacing: -0.032,
+              color: getVariableValue(useTheme().primaryText),
+              ...(isMultiline
+                ? {
+                    lineHeight: 26,
+                    paddingBottom: getTokenValue('$xs', 'space'),
+                  }
+                : { paddingBottom: getTokenValue('$l', 'space') }),
+              ...placeholderTextColor,
+              ...(isWeb ? { outlineStyle: 'none' } : {}),
+            }}
+            placeholder={placeholder}
+          >
+            {renderTextWithMentions}
+          </TextInput>
+        </View>
       </YStack>
     </MessageInputContainer>
   );
