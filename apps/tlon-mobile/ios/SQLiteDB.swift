@@ -2,7 +2,7 @@ import sqlite3
 
 let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
-struct SQLiteDB: ~Copyable {
+struct SQLiteDB {
   let db: OpaquePointer
   
   init?(dbUrl: URL) {
@@ -14,7 +14,7 @@ struct SQLiteDB: ~Copyable {
     }
   }
   
-  deinit {
+  func close() {
     sqlite3_close(db)
   }
   
