@@ -6,12 +6,6 @@ export type GalleryDraftType = 'caption' | 'text';
 
 export interface DraftInputHandle {
   /**
-   * Perform anything necessary to put the user in a drafting state for this
-   * input - open a model editor, focus text box, open image picker, etc.
-   */
-  startDraft?: () => void;
-
-  /**
    * @deprecated
    * We are using this to implement a weird navigation pattern where we present
    * draft input in a modal-like presentation, and reuse the container screen's
