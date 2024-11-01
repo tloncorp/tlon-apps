@@ -359,6 +359,7 @@
       (ca-create:ca-core nest create-channel.c-channels)
     ::
         %channel
+      ~&  "receiving command: {<c-channels>}"
       =/  channel-core  (ca-abed:ca-core nest.c-channels)
       ca-abet:(ca-c-channel:channel-core c-channel.c-channels)
     ==
@@ -850,19 +851,22 @@
           ((ca-c-hook-inner ,[post:c post:c] ?) sort.hooks.channel hook-type global c-hook)
         hooks.channel(sort new-hook-set)
       ==
+    ~&  "new hooks: {<hooks.channel>}"
     ca-core
   ++  ca-c-hook-inner
     |*  [args=mold return=mold]
-    =*  gate  $-(args return)
-    |=  [(hook-set:c gate) =hook-type:c global=? =c-hook:c]
-    ^-  [(hook-set:c gate) _ca-core]
+    |=  [hook-set:c =hook-type:c global=? =c-hook:c]
+    ^-  [hook-set:c _ca-core]
     =*  no-op  [[hooks order] ca-core]
     ?-  -.c-hook
         %add
+      ~&  "adding hook {<hook-type>} {<c-hook>}"
       =/  id  (scot %uv eny.bowl)
       =/  src=(rev:c (unit @t))  [0 `src.c-hook]
-      =/  result=(each gate tang)
+      =/  result=(each nock tang)
+        ~&  "compiling hook"
         ((compile:utils args return) `src.c-hook)
+      ~&  "compilation result: {<result>}"
       =/  compiled
         ?:  ?=(%| -.result)  ~
         `p.result
@@ -879,7 +883,7 @@
       ?.  changed  no-op
       =.  compiled.hook
         ?~  +.src.hook  ~
-        =/  result=(each gate tang)
+        =/  result=(each nock tang)
           ((compile:utils args return) +.src.hook)
         ?:  ?=(%| -.result)  ~
         `p.result

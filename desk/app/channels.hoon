@@ -1170,6 +1170,7 @@
     ::  anything in particular on a mismatched version, we can call
     ::  +can-poke:neg.
     ::
+    ~&  "sending command: {<command>}"
     (emit %pass ca-area %agent [ship.nest.command server] %poke cage)
   ::
   ::  handle a said (previews) request where we have the data to respond
@@ -1453,40 +1454,39 @@
     =.  hooks.channel
       ?-  hook-type
           %validate
-        =^  new-hook-set=(hook-set:c $-(post:c ?))  ca-core
+        =^  =hook-set:c  ca-core
           %-  (ca-u-hook-inner post:c ?)
           [validate.hooks.channel hook-type u-hook]
-        hooks.channel(validate new-hook-set)
+        hooks.channel(validate hook-set)
           %transform
-        =^  new-hook-set=(hook-set:c $-(post:c post:c))  ca-core
+        =^  =hook-set:c  ca-core
           %-  (ca-u-hook-inner post:c post:c)
           [transform.hooks.channel hook-type u-hook]
-        hooks.channel(transform new-hook-set)
+        hooks.channel(transform hook-set)
           %sort
-        =^  new-hook-set=(hook-set:c $-([post:c post:c] ?))  ca-core
+        =^  =hook-set:c  ca-core
           %-  (ca-u-hook-inner ,[post:c post:c] ?)
           [sort.hooks.channel hook-type u-hook]
-        hooks.channel(sort new-hook-set)
+        hooks.channel(sort hook-set)
       ==
     ca-core
   ++  ca-u-hook-inner
     |*  [args=mold return=mold]
-    =*  gate  $-(args return)
-    |=  [(hook-set:c gate) =hook-type:c =u-hook:c]
-    ^-  [(hook-set:c gate) _ca-core]
+    |=  [hook-set:c =hook-type:c =u-hook:c]
+    ^-  [hook-set:c _ca-core]
     =*  no-op  [[hooks order] ca-core]
     ?-  -.u-hook
         %set
-      =/  result=(each gate tang)
+      =/  result=(each nock tang)
         ((compile:utils args return) src.src.u-hook)
-      =/  compiled=(unit gate)
+      =/  compiled=(unit nock)
         ?:  ?=(%| -.result)  ~
         `p.result
       =/  response=r-channel:c
         [%hook hook-type %set id.u-hook name.u-hook src.src.u-hook ~]
       ?~  hook=(~(get by hooks) id.u-hook)
         :_  (ca-response response)
-        ^-  (hook-set:c gate)
+        ^-  hook-set:c
         :_  +:(next-rev:c order (snoc +.order id.u-hook))
         %+  ~(put by hooks)  id.u-hook
         [id.u-hook name.u-hook src.u-hook compiled]

@@ -1220,28 +1220,42 @@
 ++  compile
   |*  [args=mold return=mold]
   |=  src=(unit @t)
-  ^-  (each $-(args return) tang)
+  ^-  (each nock tang)
   ?~  src  |+~['no src']
   =/  tonk=(each (pair type nock) hair)
     =/  vex=(like hoon)  ((full vest) [0 0] (trip u.src))
     ?~  q.vex  |+p.vex
     &+(~(mint ut -:subject) %noun p.u.q.vex)
+  ~&  "parsed hoon: {<-.tonk>}"
   ?:  ?=(%| -.tonk)
+    ~&  "returning error"
     |+~[leaf+"\{{<p.p.tonk>} {<q.p.tonk>}}" 'syntax error']
-  ::  type-check the result
-  :: =/  tout=type  (slit p.p.tonk -:!>((need ((soft args) *args))))
-  :: ?:  (~(nest ut -:!>(($-(args return)))) | tout)
-  =/  gate  ((soft $-(args return)) q.p.tonk)
-  ?~  gate
-    |+~['nest-fail, expected $-(args return)']
-  ~&  u.gate
-  &+u.gate
+  &+q.p.tonk
+  :: ::  type-check the result
+  :: =/  tout=type
+  ::   ~&  "generating gate type"
+  ::   ~|  "gate type generation failed"
+  ::   (slit p.p.tonk arg-type)
+  :: ~&  "generated gate type"
+  :: ~|  "gate type check failed"
+  :: =/  check  (~(nest ut -:!>(($-(args return)))) | tout)
+  :: ~&  "gate type check: {<check>}"
+  :: ?:  check
+  ::   &+q.p.tonk
   :: |+~['nest-fail']
+  :: =/  gate  ((soft $-(args return)) q.p.tonk)
+  :: ?~  gate
+  ::   |+~['nest-fail, expected $-(args return)']
+  :: ~&  u.gate
+  :: &+u.gate
 ++  execute
-  |*  [gate=$-(* *) args=*]
-  (mule |.((gate args)))
+  |*  prod=mold
+  |=  [=nock simp=*]
+  ^-  (unit prod)
+  %-  (soft prod)
+  (slum .*(+:subject nock) simp)
 ++  check-validate-hooks
-  |=  [=post:c (hook-set:c $-(post:c ?))]
+  |=  [=post:c hook-set:c]
   ~&  post
   =*  order  +.^order
   |-
@@ -1249,10 +1263,8 @@
   =*  next  $(order t.order)
   =/  hook  (~(got by hooks) i.order)
   ?~  compiled.hook  next
-  =/  result  (execute u.compiled.hook post)
+  =/  result  ((execute ?) u.compiled.hook post)
   ~&  check-validate-hooks+[result src.hook]
-  ?-  -.result
-    %&  ?:(p.result next |)
-    %|  next
-  ==
+  ?~  result  next
+  ?:(u.result next |)
 --

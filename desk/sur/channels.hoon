@@ -90,22 +90,20 @@
   --
 +$  hook-type  ?(%validate %transform %sort)
 +$  hooks
-  $:  validate=(hook-set $-(post ?))
-      transform=(hook-set $-(post post))
-      sort=(hook-set $-([post post] ?))
+  $:  validate=hook-set
+      transform=hook-set
+      sort=hook-set
   ==
 ++  hook-set
-  |$  [gate]
-  $:  hooks=(map id-hook (hook gate))
+  $:  hooks=(map id-hook hook)
       order=(rev (list id-hook))
   ==
 +$  id-hook  @t
 ++  hook
-  |$  [gate]
   $:  id=id-hook
       name=@t
       src=(rev src=(unit @t))
-      compiled=(unit gate)
+      compiled=(unit nock)
   ==
 +$  last-updated  ((mop time id-post) lte)
 ++  updated-on   ((on time id-post) lte)
