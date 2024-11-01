@@ -1,7 +1,7 @@
 import { utils } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/dist/api';
-import { Post } from '@tloncorp/shared/dist/db';
-import * as ub from '@tloncorp/shared/dist/urbit';
+import * as api from '@tloncorp/shared/api';
+import { Post } from '@tloncorp/shared/db';
+import * as ub from '@tloncorp/shared/urbit';
 import { useContext, useMemo } from 'react';
 import { createStyledContext } from 'tamagui';
 
@@ -198,6 +198,17 @@ export function usePostContent(post: Post): BlockData[] {
   return useMemo(() => {
     try {
       return convertContent(post.content);
+    } catch (e) {
+      console.error('Failed to convert post content:', e);
+      return [];
+    }
+  }, [post]);
+}
+
+export function usePostLastEditContent(post: Post): BlockData[] {
+  return useMemo(() => {
+    try {
+      return convertContent(post.lastEditContent);
     } catch (e) {
       console.error('Failed to convert post content:', e);
       return [];

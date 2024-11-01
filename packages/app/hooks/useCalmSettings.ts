@@ -1,4 +1,4 @@
-import * as store from '@tloncorp/shared/dist/store';
+import * as store from '@tloncorp/shared/store';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 

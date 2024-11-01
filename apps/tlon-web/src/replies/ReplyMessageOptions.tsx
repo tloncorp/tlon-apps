@@ -1,4 +1,4 @@
-import { Reply, emptyReply } from '@tloncorp/shared/dist/urbit/channel';
+import { Reply, emptyReply } from '@tloncorp/shared/urbit/channel';
 import { decToUd } from '@urbit/api';
 import cn from 'classnames';
 import { useCallback, useEffect, useMemo } from 'react';

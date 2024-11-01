@@ -134,9 +134,14 @@ export async function editPost({
   logger.log('editPost', { post, content, parentId, metadata });
   // optimistic update
   const [contentForDb, flags] = toPostContent(content);
+  logger.log('editPost optimistic update', { contentForDb, flags });
   await db.updatePost({
     id: post.id,
     content: JSON.stringify(contentForDb),
+    editStatus: 'pending',
+    lastEditContent: JSON.stringify(contentForDb),
+    lastEditTitle: metadata?.title,
+    lastEditImage: metadata?.image,
     ...flags,
   });
   logger.log('editPost optimistic update done');
@@ -152,14 +157,24 @@ export async function editPost({
       parentId,
     });
     logger.log('editPost api call done');
-    sync.syncChannelMessageDelivery({ channelId: post.channelId });
-    logger.log('editPost sync done');
+    await db.updatePost({
+      id: post.id,
+      editStatus: 'sent',
+      lastEditContent: null,
+      lastEditTitle: null,
+      lastEditImage: null,
+    });
+    logger.log('editPost update done');
   } catch (e) {
     console.error('Failed to edit post', e);
     logger.log('editPost failed', e);
 
     // rollback optimistic update
-    await db.updatePost({ id: post.id, content: post.content });
+    await db.updatePost({
+      id: post.id,
+      content: post.content,
+      editStatus: 'failed',
+    });
     logger.log('editPost rollback done');
   }
 }
@@ -247,10 +262,12 @@ export async function deletePost({ post }: { post: db.Post }) {
 
   // optimistic update
   await db.markPostAsDeleted(post.id);
+  await db.updatePost({ id: post.id, deleteStatus: 'pending' });
   await db.updateChannel({ id: post.channelId, lastPostId: null });
 
   try {
     await api.deletePost(post.channelId, post.id);
+    await db.updatePost({ id: post.id, deleteStatus: 'sent' });
   } catch (e) {
     console.error('Failed to delete post', e);
 
@@ -258,6 +275,7 @@ export async function deletePost({ post }: { post: db.Post }) {
     await db.updatePost({
       id: post.id,
       ...existingPost,
+      deleteStatus: 'failed',
     });
     await db.updateChannel({ id: post.channelId, lastPostId: post.id });
   }

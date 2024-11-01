@@ -1,14 +1,8 @@
-import * as logic from '@tloncorp/shared/dist/logic';
+import * as logic from '@tloncorp/shared/logic';
 import { Buffer } from 'buffer';
 import { Platform } from 'react-native';
 
-import {
-  API_AUTH_PASSWORD,
-  API_AUTH_USERNAME,
-  API_URL,
-  DEFAULT_LURE,
-  DEFAULT_PRIORITY_TOKEN,
-} from '../constants';
+import { API_AUTH_PASSWORD, API_AUTH_USERNAME, API_URL } from '../constants';
 import type {
   BootPhase,
   HostedShipStatus,
@@ -64,10 +58,12 @@ const hostingFetch = async <T extends object>(
   const responseText = await response.text();
 
   if (__DEV__) {
-    console.debug('Response:', responseText);
+    console.debug('Response:', response.status, responseText);
   }
 
-  const result = JSON.parse(responseText) as HostingError | T;
+  const result = !responseText
+    ? { message: 'Empty response' }
+    : (JSON.parse(responseText) as HostingError | T);
   if (!response.ok) {
     throw new Error(
       'message' in result ? result.message : 'An unknown error has occurred.'

@@ -1,11 +1,10 @@
-import { EditorBridge } from '@10play/tentap-editor';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { useMemo, useRef, useState } from 'react';
 import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // TODO: replace input with our own input component
-import { Input, View, YStack, getToken } from 'tamagui';
+import { Input, View, YStack, getTokenValue } from 'tamagui';
 
 import { ImageAttachment, useAttachmentContext } from '../contexts/attachment';
 import AttachmentSheet from './AttachmentSheet';
@@ -38,12 +37,11 @@ export function BigInput({
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const editorRef = useRef<{
     editor: TlonEditorBridge | null;
-    setEditor: (editor: EditorBridge) => void;
   }>(null);
   const { top } = useSafeAreaInsets();
   const { width } = Dimensions.get('screen');
-  const titleInputHeight = getToken('$4xl', 'size');
-  const imageButtonHeight = getToken('$4xl', 'size');
+  const titleInputHeight = getTokenValue('$4xl', 'size');
+  const imageButtonHeight = getTokenValue('$4xl', 'size');
   const keyboardVerticalOffset =
     Platform.OS === 'ios' ? top + titleInputHeight : top;
 

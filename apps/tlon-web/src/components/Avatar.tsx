@@ -1,4 +1,4 @@
-import { SigilProps } from '@tloncorp/shared/dist/urbit/sigil';
+import { SigilProps } from '@tloncorp/shared/urbit/sigil';
 import { Contact, cite } from '@urbit/api';
 import '@urbit/sigil-js';
 import classNames from 'classnames';

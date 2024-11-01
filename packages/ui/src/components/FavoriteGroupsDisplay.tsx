@@ -1,46 +1,28 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { TouchableOpacity } from 'react-native';
+import * as db from '@tloncorp/shared/db';
+import { useCallback, useMemo, useState } from 'react';
 import { SizableText, XStack } from 'tamagui';
 
 import { useGroups } from '../contexts';
 import { useAlphabeticallySegmentedGroups } from '../hooks/groupsSorters';
-import { GroupPreviewSheet } from './GroupPreviewSheet';
 import { GroupSelectorSheet } from './GroupSelectorSheet';
 import { GroupListItem, ListItem } from './ListItem';
 import { WidgetPane } from './WidgetPane';
 
 export function FavoriteGroupsDisplay(props: {
   groups: db.Group[];
-  editable?: boolean;
-  secondaryColors?: boolean;
   onUpdate?: (groups: db.Group[]) => void;
 }) {
   const [selectorOpen, setSelectorOpen] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
 
   // if editable, get sorted groups to pass to the selector
   const allGroups = useGroups();
   const titledGroups = useMemo(() => {
-    if (!props.editable) return [];
     return allGroups?.filter((g) => !!g.title) ?? [];
-  }, [allGroups, props.editable]);
+  }, [allGroups]);
   const alphaSegmentedGroups = useAlphabeticallySegmentedGroups({
     groups: titledGroups,
-    enabled: props.editable,
+    enabled: true,
   });
-
-  // first, make sure we grab group previews. We have no guarantee that our
-  // Urbit has ever heard about these
-  useEffect(() => {
-    if (props.groups.length && !props.editable) {
-      const groupIds = props.groups
-        .map((g) => g && g.id)
-        .filter(Boolean) as string[];
-      store.syncGroupPreviews(groupIds);
-    }
-  }, [props.editable, props.groups]);
 
   // finally, make sure what we display is the up to date values, falling back
   // to what was passed in
@@ -82,97 +64,50 @@ export function FavoriteGroupsDisplay(props: {
   );
 
   return (
-    <WidgetPane
-      padding="$xl"
-      borderWidth={1}
-      borderColor="$border"
-      backgroundColor={
-        props.secondaryColors ? '$secondaryBackground' : '$background'
-      }
-    >
-      {compositeGroups.length === 0 ? (
-        <></>
-      ) : (
-        compositeGroups.map((group) => {
-          return (
-            <GroupListItem
-              model={group}
-              padding="$m"
-              key={group.id}
-              backgroundColor="unset"
-              onPress={() => setSelectedGroup(group)}
-              pressStyle={{
-                backgroundColor: props.secondaryColors
-                  ? '$border'
-                  : '$secondaryBackground',
-              }}
-              EndContent={
-                props.editable ? (
-                  <TouchableOpacity
-                    onPress={() => handleFavoriteGroupsChange(group)}
-                  >
-                    <ListItem.EndContent>
-                      <ListItem.SystemIcon
-                        icon="Close"
-                        backgroundColor="unset"
-                        color={
-                          props.secondaryColors
-                            ? '$secondaryText'
-                            : '$tertiaryText'
-                        }
-                      />
-                    </ListItem.EndContent>
-                  </TouchableOpacity>
-                ) : (
-                  <></>
-                )
-              }
-            />
-          );
-        })
-      )}
-      {props.editable && (
-        <>
-          <ListItem
-            padding="$m"
-            onPress={() => setSelectorOpen(true)}
+    <WidgetPane padding={'$m'} borderWidth={1} borderColor="$border">
+      {compositeGroups.map((group) => {
+        return (
+          <GroupListItem
+            model={group}
+            key={group.id}
             backgroundColor="unset"
-            pressStyle={{
-              backgroundColor: props.secondaryColors
-                ? '$border'
-                : '$secondaryBackground',
-            }}
-          >
-            <ListItem.MainContent>
-              <ListItem.Title>Add a group</ListItem.Title>
-            </ListItem.MainContent>
-            <ListItem.EndContent backgroundColor="unset">
+            pressable={false}
+            EndContent={
               <ListItem.SystemIcon
-                icon="ChevronRight"
-                backgroundColor="unset"
-                color={
-                  props.secondaryColors ? '$secondaryText' : '$tertiaryText'
-                }
+                icon="Close"
+                onPress={() => handleFavoriteGroupsChange(group)}
+                backgroundColor={'transparent'}
+                color={'$tertiaryText'}
               />
-            </ListItem.EndContent>
-          </ListItem>
-          <GroupSelectorSheet
-            open={selectorOpen}
-            onOpenChange={setSelectorOpen}
-            alphaSegmentedGroups={alphaSegmentedGroups}
-            selected={props.groups.map((g) => g.id)}
-            onSelect={handleFavoriteGroupsChange}
-            TopContent={SheetTopContent}
+            }
           />
-        </>
-      )}
-      {selectedGroup && (
-        <GroupPreviewSheet
-          open={!!selectedGroup}
-          onOpenChange={() => setSelectedGroup(null)}
-          group={selectedGroup}
-        />
-      )}
+        );
+      })}
+      <ListItem
+        padding="$m"
+        onPress={() => setSelectorOpen(true)}
+        backgroundColor="unset"
+        pressable
+      >
+        <ListItem.MainContent>
+          <ListItem.Title>Add a group</ListItem.Title>
+        </ListItem.MainContent>
+        <ListItem.EndContent backgroundColor="unset">
+          <ListItem.SystemIcon
+            icon="ChevronRight"
+            backgroundColor="unset"
+            color={'$tertiaryText'}
+          />
+        </ListItem.EndContent>
+      </ListItem>
+      <GroupSelectorSheet
+        open={selectorOpen}
+        onOpenChange={setSelectorOpen}
+        alphaSegmentedGroups={alphaSegmentedGroups}
+        selected={props.groups.map((g) => g.id)}
+        onSelect={handleFavoriteGroupsChange}
+        TopContent={SheetTopContent}
+      />
     </WidgetPane>
   );
 }

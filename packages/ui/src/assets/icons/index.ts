@@ -66,6 +66,7 @@ export { default as Play } from './Play.svg';
 export { default as Profile } from './Profile.svg';
 export { default as Record } from './Record.svg';
 export { default as Redo } from './Redo.svg';
+export { default as Refresh } from './Refresh.svg';
 export { default as RightSidebar } from './RightSidebar.svg';
 export { default as Search } from './Search.svg';
 export { default as Send } from './Send.svg';

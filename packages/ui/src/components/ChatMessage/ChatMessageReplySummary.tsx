@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import { formatDistanceToNow } from 'date-fns';
 import React, { useMemo } from 'react';
 import { ColorTokens, View, XStack, styled } from 'tamagui';

@@ -39,5 +39,13 @@ module.exports = {
         additionalHooks: '(useAnimatedStyle|useDerivedValue|useAnimatedProps)',
       },
     ],
+    'no-restricted-syntax': [
+      'error',
+      {
+        selector: 'CallExpression[callee.name="getToken"]',
+        message:
+          'Please use getTokenValue() instead of getToken() to ensure web compatibility. See: https://tamagui.dev/docs/core/exports#gettokenvalue',
+      },
+    ],
   },
 };

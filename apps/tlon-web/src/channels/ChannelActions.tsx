@@ -1,5 +1,5 @@
-import { GroupChannel } from '@tloncorp/shared/dist/urbit/groups';
-import { getPrettyAppName } from '@tloncorp/shared/src/logic/utils';
+import { getPrettyAppName } from '@tloncorp/shared/logic';
+import { GroupChannel } from '@tloncorp/shared/urbit/groups';
 import cn from 'classnames';
 import React, { PropsWithChildren, useCallback, useState } from 'react';
 

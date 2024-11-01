@@ -1,4 +1,4 @@
-import { Cordon, GroupFormSchema } from '@tloncorp/shared/dist/urbit/groups';
+import { Cordon, GroupFormSchema } from '@tloncorp/shared/urbit/groups';
 import { ReactElement, useCallback, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';

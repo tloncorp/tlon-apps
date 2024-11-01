@@ -1,4 +1,4 @@
-import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
+import { ViewProps } from '@tloncorp/shared/urbit/groups';
 import React from 'react';
 import { Helmet } from 'react-helmet';
 

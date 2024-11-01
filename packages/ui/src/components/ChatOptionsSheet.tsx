@@ -1,23 +1,22 @@
 import { sync } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
-import * as store from '@tloncorp/shared/dist/store';
-import * as ub from '@tloncorp/shared/dist/urbit';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
+import * as ub from '@tloncorp/shared/urbit';
 import React, {
   ReactElement,
   useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import { Alert } from 'react-native';
-import { useSheet } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
-import { useCalm, useChatOptions, useCurrentUserId } from '../contexts';
+import { useChatOptions, useCurrentUserId } from '../contexts';
 import * as utils from '../utils';
+import { useIsAdmin } from '../utils';
 import { Action, ActionGroup, ActionSheet } from './ActionSheet';
 import { IconButton } from './IconButton';
 import { ListItem } from './ListItem';
@@ -112,6 +111,7 @@ export function GroupOptionsSheetLoader({
         pane={pane}
         setPane={setPane}
         setSortBy={setSortBy}
+        onOpenChange={onOpenChange}
       />
     </ActionSheet>
   ) : null;
@@ -122,17 +122,16 @@ export function GroupOptions({
   pane,
   setPane,
   setSortBy,
+  onOpenChange,
 }: {
   group: db.Group;
   pane: 'initial' | 'edit' | 'notifications' | 'sort';
   setPane: (pane: 'initial' | 'edit' | 'notifications' | 'sort') => void;
   setSortBy?: (sortBy: db.ChannelSortPreference) => void;
+  onOpenChange: (open: boolean) => void;
 }) {
   const currentUser = useCurrentUserId();
   const { data: currentVolumeLevel } = store.useGroupVolumeLevel(group.id);
-  const sheet = useSheet();
-  const sheetRef = useRef(sheet);
-  sheetRef.current = sheet;
 
   const {
     onPressGroupMembers,
@@ -151,15 +150,7 @@ export function GroupOptions({
 
   const isPinned = group?.pin;
 
-  const currentUserIsAdmin = useMemo(
-    () =>
-      group?.members?.some(
-        (m) =>
-          m.contactId === currentUser &&
-          m.roles?.some((r) => r.roleId === 'admin')
-      ) ?? false,
-    [currentUser, group?.members]
-  );
+  const currentUserIsAdmin = useIsAdmin(group.id, currentUser);
 
   const handleVolumeUpdate = useCallback(
     (newLevel: string) => {
@@ -221,7 +212,7 @@ export function GroupOptions({
       title: 'Edit group info',
       description: 'Change name, description, and image',
       action: () => {
-        sheetRef.current.setOpen(false);
+        onOpenChange(false);
         onPressGroupMeta?.(group.id);
       },
       endIcon: 'ChevronRight',
@@ -231,7 +222,7 @@ export function GroupOptions({
       title: 'Manage channels',
       description: 'Add or remove channels in this group',
       action: () => {
-        sheetRef.current.setOpen(false);
+        onOpenChange(false);
         onPressManageChannels?.(group.id);
       },
       endIcon: 'ChevronRight',
@@ -241,7 +232,7 @@ export function GroupOptions({
       title: 'Privacy',
       description: 'Change who can find or join this group',
       action: () => {
-        sheetRef.current.setOpen(false);
+        onOpenChange(false);
         onPressGroupPrivacy?.(group.id);
       },
       endIcon: 'ChevronRight',
@@ -253,7 +244,13 @@ export function GroupOptions({
       },
     ];
     return actionEdit;
-  }, [group.id, onPressGroupMeta, onPressGroupPrivacy, onPressManageChannels]);
+  }, [
+    group.id,
+    onPressGroupMeta,
+    onPressGroupPrivacy,
+    onPressManageChannels,
+    onOpenChange,
+  ]);
 
   const actionGroups = useMemo(() => {
     const groupRef = logic.getGroupReferencePath(group.id);
@@ -308,14 +305,14 @@ export function GroupOptions({
       endIcon: 'ChevronRight',
       action: () => {
         onPressGroupMembers?.(group.id);
-        sheetRef.current.setOpen(false);
+        onOpenChange(false);
       },
     };
 
     const inviteAction: Action = {
       title: 'Invite people',
       action: () => {
-        sheetRef.current.setOpen(false);
+        onOpenChange(false);
         onPressInvite?.(group);
       },
       endIcon: 'ChevronRight',
@@ -357,7 +354,7 @@ export function GroupOptions({
             title: 'Leave group',
             endIcon: 'LogOut',
             action: () => {
-              sheetRef.current.setOpen(false);
+              onOpenChange(false);
               onPressLeave?.();
             },
           },
@@ -374,6 +371,7 @@ export function GroupOptions({
     onPressGroupMembers,
     onPressInvite,
     onPressLeave,
+    onOpenChange,
   ]);
 
   const actionSort: ActionGroup[] = useMemo(() => {
@@ -386,7 +384,7 @@ export function GroupOptions({
             action: () => {
               onSelectSort?.('recency');
               setSortBy?.('recency');
-              sheetRef.current.setOpen(false);
+              onOpenChange(false);
             },
           },
           {
@@ -394,13 +392,13 @@ export function GroupOptions({
             action: () => {
               onSelectSort?.('arranged');
               setSortBy?.('arranged');
-              sheetRef.current.setOpen(false);
+              onOpenChange(false);
             },
           },
         ],
       },
     ];
-  }, [onSelectSort, setSortBy]);
+  }, [onSelectSort, setSortBy, onOpenChange]);
 
   const memberCount = group?.members?.length
     ? group.members.length.toLocaleString()
@@ -490,6 +488,7 @@ export function ChannelOptionsSheetLoader({
         channel={channelQuery.data}
         pane={pane}
         setPane={setPane}
+        onOpenChange={onOpenChange}
       />
     </ActionSheet>
   ) : null;
@@ -499,25 +498,24 @@ export function ChannelOptions({
   channel,
   pane,
   setPane,
+  onOpenChange,
 }: {
   channel: db.Channel;
   pane: 'initial' | 'notifications';
   setPane: (pane: 'initial' | 'notifications') => void;
+  onOpenChange: (open: boolean) => void;
 }) {
   const { data: group } = store.useGroup({
     id: channel?.groupId ?? undefined,
   });
   const { data: currentVolumeLevel } = store.useChannelVolumeLevel(channel.id);
   const currentUser = useCurrentUserId();
-  const sheet = useSheet();
-  const sheetRef = useRef(sheet);
-  sheetRef.current = sheet;
-
   const {
     onPressChannelMembers,
     onPressChannelMeta,
     onPressManageChannels,
     onPressInvite,
+    onPressLeave,
   } = useChatOptions() ?? {};
 
   const currentUserIsHost = useMemo(
@@ -525,22 +523,9 @@ export function ChannelOptions({
     [group?.currentUserIsHost]
   );
 
-  const currentUserIsAdmin = useMemo(
-    () =>
-      group?.members?.some(
-        (m) =>
-          m.contactId === currentUser &&
-          m.roles?.some((r) => r.roleId === 'admin')
-      ) ?? false,
-    [currentUser, group?.members]
-  );
+  const currentUserIsAdmin = useIsAdmin(channel.groupId ?? '', currentUser);
 
-  const { disableNicknames } = useCalm();
-  const title = useMemo(() => {
-    return channel
-      ? utils.getChannelTitle(channel, disableNicknames)
-      : 'Loading...';
-  }, [channel, disableNicknames]);
+  const title = utils.useChannelTitle(channel);
 
   const subtitle = useMemo(() => {
     if (!channel) {
@@ -656,7 +641,7 @@ export function ChannelOptions({
                       return;
                     }
                     onPressChannelMeta?.(channel.id);
-                    sheetRef.current.setOpen(false);
+                    onOpenChange(false);
                   },
                 },
               ],
@@ -676,7 +661,7 @@ export function ChannelOptions({
                       return;
                     }
                     onPressChannelMembers?.(channel.id);
-                    sheetRef.current.setOpen(false);
+                    onOpenChange(false);
                   },
                 },
               ],
@@ -696,14 +681,14 @@ export function ChannelOptions({
                       return;
                     }
                     onPressManageChannels?.(group.id);
-                    sheetRef.current.setOpen(false);
+                    onOpenChange(false);
                   },
                 },
               ],
             } as ActionGroup,
           ]
         : []),
-     // TODO: redefine in a more readable way.
+      // TODO: redefine in a more readable way.
       ...(group &&
       !['groupDm', 'dm'].includes(channel.type) &&
       (group.privacy === 'public' ||
@@ -716,7 +701,7 @@ export function ChannelOptions({
                 {
                   title: 'Invite people',
                   action: () => {
-                    sheetRef.current.setOpen(false);
+                    onOpenChange(false);
                     onPressInvite?.(group);
                   },
                   endIcon: 'ChevronRight',
@@ -766,8 +751,19 @@ export function ChannelOptions({
                           text: 'Leave',
                           style: 'destructive',
                           onPress: () => {
-                            sheetRef.current.setOpen(false);
-                            store.respondToDMInvite({ channel, accept: false });
+                            onOpenChange(false);
+                            onPressLeave?.();
+                            if (
+                              channel.type === 'dm' ||
+                              channel.type === 'groupDm'
+                            ) {
+                              store.respondToDMInvite({
+                                channel,
+                                accept: false,
+                              });
+                            } else {
+                              store.leaveGroupChannel(channel.id);
+                            }
                           },
                         },
                       ]
@@ -789,12 +785,26 @@ export function ChannelOptions({
     onPressChannelMembers,
     onPressManageChannels,
     onPressInvite,
+    onPressLeave,
     title,
+    onOpenChange,
   ]);
+
+  const displayTitle = useMemo((): string => {
+    if (pane === 'initial') {
+      return title ?? '';
+    }
+    if (title == null) {
+      return 'Notifications';
+    } else {
+      return 'Notifications for ' + title;
+    }
+  }, [title, pane]);
+
   return (
     <ChatOptionsSheetContent
       actionGroups={pane === 'initial' ? actionGroups : actionNotifications}
-      title={pane === 'initial' ? title : 'Notifications for ' + title}
+      title={displayTitle}
       subtitle={
         pane === 'initial' ? subtitle : 'Set what you want to be notified about'
       }
@@ -826,10 +836,12 @@ function ChatOptionsSheetContent({
     <>
       <ActionSheet.Header>
         {icon}
-        <ListItem.MainContent>
+        <ActionSheet.MainContent>
           <ListItem.Title>{title}</ListItem.Title>
-          <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
-        </ListItem.MainContent>
+          <ListItem.Subtitle $gtSm={{ maxWidth: 100 }}>
+            {subtitle}
+          </ListItem.Subtitle>
+        </ActionSheet.MainContent>
       </ActionSheet.Header>
       <ActionSheet.ScrollableContent>
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />

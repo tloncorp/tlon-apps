@@ -1,5 +1,5 @@
 import { utils } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { ComponentProps, ReactElement, useMemo } from 'react';
 import { isWeb, styled, withStaticProperties } from 'tamagui';
 import { SizableText, Stack, View, XStack, YStack } from 'tamagui';
@@ -226,7 +226,7 @@ export const ListItemPostPreview = ({
           {': '}
         </>
       ) : null}
-      {post.textContent ?? ''}
+      {post.hidden ? '(This post has been hidden)' : post.textContent ?? ''}
     </ListItemSubtitle>
   );
 };

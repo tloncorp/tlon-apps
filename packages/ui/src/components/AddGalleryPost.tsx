@@ -21,14 +21,14 @@ export default function AddGalleryPost({
 
   const actions = [
     {
-      title: 'Photo or Video',
+      title: 'Image',
       action: () => {
         setShowAddGalleryPost(false);
         setShowAttachmentSheet(true);
       },
     },
     {
-      title: 'Rich Text',
+      title: 'Text',
       action: () => {
         setShowAddGalleryPost(false);
         setShowGalleryInput(true);

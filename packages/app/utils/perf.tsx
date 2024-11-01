@@ -1,6 +1,6 @@
 import { firebase } from '@react-native-firebase/perf';
-import { InstrumentationProvider } from '@tloncorp/shared/dist';
-import { PerformanceMonitoringEndpoint } from '@tloncorp/shared/dist/perf';
+import { InstrumentationProvider } from '@tloncorp/shared';
+import { PerformanceMonitoringEndpoint } from '@tloncorp/shared/perf';
 import { useMemo } from 'react';
 
 import { useFeatureFlag } from '../lib/featureFlags';

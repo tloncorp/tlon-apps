@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { AppDataContextProvider, RequestsProvider } from '@tloncorp/ui';
 import { PostScreenView } from '@tloncorp/ui/src';
 
@@ -56,6 +56,9 @@ export const DetailViewFixture = ({
             canUpload={true}
             handleGoToUserProfile={() => {}}
             headerMode="default"
+            onPressRef={() => {}}
+            onGroupAction={() => {}}
+            goToDm={() => {}}
           />
         </RequestsProvider>
       </AppDataContextProvider>

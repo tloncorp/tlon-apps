@@ -2,10 +2,12 @@ import { Button, ScrollView } from '@tloncorp/ui';
 import * as Form from '@tloncorp/ui/src/components/Form';
 import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FixtureWrapper } from './FixtureWrapper';
 
 const FormFixture = () => {
+  const insets = useSafeAreaInsets();
   const { control, reset } = useForm({
     mode: 'onChange',
     defaultValues: {
@@ -13,6 +15,7 @@ const FormFixture = () => {
       description: '',
       number: 'one',
       listItem: 'chat',
+      image: undefined,
     },
   });
 
@@ -50,8 +53,14 @@ const FormFixture = () => {
   ];
 
   return (
-    <ScrollView flex={1}>
+    <ScrollView flex={1} contentContainerStyle={{ paddingTop: insets.top }}>
       <Form.FormFrame>
+        <Form.ControlledImageField
+          name={'image'}
+          label="Image"
+          control={control}
+          inputProps={{ buttonLabel: 'Upload bttton' }}
+        />
         <Form.ControlledTextField
           name={'title'}
           label="Title"

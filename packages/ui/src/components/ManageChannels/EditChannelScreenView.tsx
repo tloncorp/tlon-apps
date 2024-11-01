@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { View, YStack } from 'tamagui';

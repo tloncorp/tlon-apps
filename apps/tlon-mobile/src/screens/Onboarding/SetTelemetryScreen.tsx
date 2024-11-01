@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useSignupContext } from '@tloncorp/app/contexts/signup';
+import { useSignupContext } from '.././../lib/signupContext';
 import {
   ScreenHeader,
   SizableText,
@@ -28,7 +28,7 @@ export const SetTelemetryScreen = ({
   const signupContext = useSignupContext();
 
   const handleNext = useCallback(() => {
-    signupContext.setTelemetry(isEnabled);
+    signupContext.setOnboardingValues({ telemetry: isEnabled });
 
     if (!isEnabled) {
       postHog?.optOut();

@@ -1,8 +1,5 @@
-import {
-  PostEssay,
-  chatStoryFromStory,
-} from '@tloncorp/shared/dist/urbit/channel';
-import { isLink } from '@tloncorp/shared/dist/urbit/content';
+import { PostEssay, chatStoryFromStory } from '@tloncorp/shared/urbit/channel';
+import { isLink } from '@tloncorp/shared/urbit/content';
 import cn from 'classnames';
 import { Link } from 'react-router-dom';
 

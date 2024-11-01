@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/dist/db';
-import { Session } from '@tloncorp/shared/dist/store';
+import * as db from '@tloncorp/shared/db';
+import { Session } from '@tloncorp/shared/store';
 import { PropsWithChildren, createContext, useContext, useMemo } from 'react';
 
 export type CalmState = {
@@ -16,6 +16,8 @@ export type CurrentAppDataState = {
   branchKey: string;
   session: Session | null;
   calmSettings: CalmState;
+  webAppNeedsUpdate?: boolean;
+  triggerWebAppUpdate?: (returnToRoot?: boolean) => Promise<void>;
 };
 
 type ContextValue = CurrentAppDataState;
@@ -30,6 +32,8 @@ export const AppDataContextProvider = ({
   branchKey,
   calmSettings,
   session,
+  webAppNeedsUpdate,
+  triggerWebAppUpdate,
 }: PropsWithChildren<Partial<CurrentAppDataState>>) => {
   const value = useMemo(
     () => ({
@@ -44,8 +48,19 @@ export const AppDataContextProvider = ({
         disableNicknames: false,
       },
       session: session ?? null,
+      webAppNeedsUpdate,
+      triggerWebAppUpdate,
     }),
-    [currentUserId, contacts, branchDomain, branchKey, session, calmSettings]
+    [
+      currentUserId,
+      contacts,
+      branchDomain,
+      branchKey,
+      session,
+      calmSettings,
+      webAppNeedsUpdate,
+      triggerWebAppUpdate,
+    ]
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 };
@@ -83,6 +98,15 @@ export const useBranchKey = () => {
 export const useCalm = () => {
   const context = useAppDataContext();
   return context.calmSettings;
+};
+
+export const useWebAppUpdate = () => {
+  const context = useAppDataContext();
+
+  return {
+    webAppNeedsUpdate: context.webAppNeedsUpdate,
+    triggerWebAppUpdate: context.triggerWebAppUpdate,
+  };
 };
 
 const useAppDataContext = (): CurrentAppDataState => {

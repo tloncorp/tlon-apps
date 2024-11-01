@@ -1,17 +1,16 @@
-import { useFocusEffect } from '@react-navigation/native';
-import { useIsFocused } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import {
   useCanUpload,
   useChannel,
   useGroupPreview,
   usePostReference,
   usePostWithRelations,
-} from '@tloncorp/shared/dist/store';
-import { Story } from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared/store';
+import { Story } from '@tloncorp/shared/urbit';
 import {
   Channel,
   ChannelSwitcherSheet,
@@ -33,11 +32,12 @@ const logger = createDevLogger('ChannelScreen', false);
 type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: Props) {
-  const channelFromParams = props.route.params.channel;
-  const selectedPostId = props.route.params.selectedPostId;
-  const [currentChannelId, setCurrentChannelId] = React.useState(
-    channelFromParams.id
-  );
+  const { channelId, selectedPostId } = props.route.params;
+  const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
+
+  useEffect(() => {
+    setCurrentChannelId(channelId);
+  }, [channelId]);
 
   const {
     negotiationStatus,
@@ -62,23 +62,22 @@ export default function ChannelScreen(props: Props) {
       if (group?.isNew) {
         store.markGroupVisited(group);
       }
-
-      if (!channelFromParams.isPendingChannel) {
-        store.syncChannelThreadUnreads(channelFromParams.id, {
+    }, [group])
+  );
+  useFocusEffect(
+    useCallback(() => {
+      if (channel && !channel.isPendingChannel) {
+        store.syncChannelThreadUnreads(channel.id, {
           priority: store.SyncPriority.High,
         });
       }
-    }, [channelFromParams, group])
-  );
-  useFocusEffect(
-    useCallback(
-      () =>
-        // Mark the channel as visited when we unfocus/leave this screen
-        () => {
-          store.markChannelVisited(channelFromParams);
-        },
-      [channelFromParams]
-    )
+      // Mark the channel as visited when we unfocus/leave this screen
+      () => {
+        if (channel) {
+          store.markChannelVisited(channel);
+        }
+      };
+    }, [channel])
   );
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
@@ -198,6 +197,12 @@ export default function ChannelScreen(props: Props) {
         }),
   });
 
+  const filteredPosts = useMemo(
+    () =>
+      channel?.type !== 'chat' ? posts?.filter((p) => !p.isDeleted) : posts,
+    [posts, channel]
+  );
+
   const sendPost = useCallback(
     async (content: Story, _channelId: string, metadata?: db.PostMetadata) => {
       if (!channel) {
@@ -231,10 +236,43 @@ export default function ChannelScreen(props: Props) {
       if (!channel) {
         throw new Error('Tried to retry send before channel loaded');
       }
-      await store.retrySendPost({
-        channel,
-        post,
-      });
+
+      if (post.deliveryStatus === 'failed') {
+        await store.retrySendPost({
+          channel,
+          post,
+        });
+      }
+
+      if (post.editStatus === 'failed' && post.lastEditContent) {
+        const postFromDb = await db.getPost({ postId: post.id });
+        let metadata: db.PostMetadata | undefined;
+        if (post.lastEditTitle) {
+          metadata = {
+            title: post.lastEditTitle ?? undefined,
+          };
+        }
+
+        if (post.lastEditImage) {
+          metadata = {
+            ...metadata,
+            image: post.lastEditImage ?? undefined,
+          };
+        }
+
+        await store.editPost({
+          post,
+          content: JSON.parse(postFromDb?.lastEditContent as string) as Story,
+          parentId: post.parentId ?? undefined,
+          metadata,
+        });
+      }
+
+      if (post.deleteStatus === 'failed') {
+        await store.deletePost({
+          post,
+        });
+      }
     },
     [channel]
   );
@@ -253,7 +291,7 @@ export default function ChannelScreen(props: Props) {
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
-      props.navigation.push('Channel', { channel: dmChannel });
+      props.navigation.push('Channel', { channelId: dmChannel.id });
     },
     [props.navigation]
   );
@@ -280,7 +318,7 @@ export default function ChannelScreen(props: Props) {
 
   const handleGoToUserProfile = useCallback(
     (userId: string) => {
-      props.navigation.push('UserProfile', { userId });
+      props.navigation.navigate('UserProfile', { userId });
     },
     [props.navigation]
   );
@@ -297,7 +335,7 @@ export default function ChannelScreen(props: Props) {
 
   return (
     <ChatOptionsProvider
-      groupId={channelFromParams?.id}
+      groupId={group?.id}
       pinned={pinnedItems}
       useGroup={store.useGroup}
       onPressInvite={(group) => {
@@ -306,6 +344,7 @@ export default function ChannelScreen(props: Props) {
       {...chatOptionsNavProps}
     >
       <Channel
+        key={currentChannelId}
         headerMode={headerMode}
         channel={channel}
         initialChannelUnread={initialChannelUnread}
@@ -313,7 +352,7 @@ export default function ChannelScreen(props: Props) {
         hasNewerPosts={postsQuery.hasPreviousPage}
         hasOlderPosts={postsQuery.hasNextPage}
         group={group}
-        posts={posts}
+        posts={filteredPosts ?? null}
         selectedPostId={selectedPostId}
         goBack={props.navigation.goBack}
         messageSender={sendPost}

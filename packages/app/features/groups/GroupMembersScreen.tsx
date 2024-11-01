@@ -1,6 +1,6 @@
 import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as store from '@tloncorp/shared/dist/store';
+import * as store from '@tloncorp/shared/store';
 import { GroupMembersScreenView } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
@@ -56,6 +56,7 @@ export function GroupMembersScreen({ route, navigation }: Props) {
       onPressGoToDm={(contactId: string) => handleGoToDm([contactId])}
       members={groupMembers}
       roles={groupRoles}
+      groupId={groupId}
       currentUserId={currentUserId}
       onPressBan={banUser}
       onPressUnban={unbanUser}

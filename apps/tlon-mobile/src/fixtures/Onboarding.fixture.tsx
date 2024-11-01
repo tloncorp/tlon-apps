@@ -7,8 +7,10 @@ import {
   DeepLinkData,
   QueryClientProvider,
   queryClient,
-} from '@tloncorp/shared/dist';
+} from '@tloncorp/shared';
+import { Theme } from '@tloncorp/ui';
 import { PropsWithChildren, useState } from 'react';
+import { useFixtureSelect } from 'react-cosmos/client';
 
 import { OnboardingStack, OnboardingStackNavigator } from '../OnboardingStack';
 import { OnboardingProvider } from '../lib/OnboardingContext';
@@ -59,57 +61,65 @@ function OnboardingFixture({
         }
       : undefined
   );
+
+  const [theme] = useFixtureSelect('themeName', {
+    options: ['light', 'dark'],
+  });
+
   return (
     <QueryClientProvider client={queryClient}>
-      <OnboardingProvider
-        value={{
-          initRecaptcha: () => Promise.resolve('abc'),
-          execRecaptchaLogin: () => Promise.resolve('abc'),
-          getLandscapeAuthCookie: () => Promise.resolve('abc'),
-          //@ts-expect-error partial implementation
-          hostingApi: {
-            signUpHostingUser: async () => Promise.resolve({}),
-            logInHostingUser: () => Promise.resolve(sampleUser),
-            getHostingAvailability: async () =>
-              Promise.resolve({ enabled: true, validEmail: true }),
-            getHostingUser: async () => Promise.resolve(sampleUser as User),
-            getReservableShips: async () =>
-              Promise.resolve([
-                { id: '~solfer-magfed', readyForDistribution: true },
-              ]),
-            getShipAccessCode: async () => Promise.resolve({ code: 'xyz' }),
-            allocateReservedShip: async () => Promise.resolve({}),
-            getShipsWithStatus: async () =>
-              Promise.resolve({
-                shipId: '~solfer-magfed',
-                status: 'Ready',
-              }),
-            reserveShip: async () =>
-              Promise.resolve({
-                id: '~solfer-magfed',
-                reservedBy: '1',
-              }),
-            checkPhoneVerify: async () => Promise.resolve({ verified: true }),
-            verifyEmailDigits: async () => Promise.resolve({ verified: true }),
-            requestPhoneVerify: async () => Promise.resolve({}),
-          },
-        }}
-      >
-        <BranchContext.Provider
+      <Theme name={theme ? theme : 'light'}>
+        <OnboardingProvider
           value={{
-            lure,
-            setLure: setLure as unknown as (data: DeepLinkData) => void,
-            clearLure: () => setLure(undefined),
-            clearDeepLink: () => {},
-            deepLinkPath: undefined,
-            priorityToken: undefined,
+            initRecaptcha: () => Promise.resolve('abc'),
+            execRecaptchaLogin: () => Promise.resolve('abc'),
+            getLandscapeAuthCookie: () => Promise.resolve('abc'),
+            //@ts-expect-error partial implementation
+            hostingApi: {
+              signUpHostingUser: async () => Promise.resolve({}),
+              logInHostingUser: () => Promise.resolve(sampleUser),
+              getHostingAvailability: async () =>
+                Promise.resolve({ enabled: true, validEmail: true }),
+              getHostingUser: async () => Promise.resolve(sampleUser as User),
+              getReservableShips: async () =>
+                Promise.resolve([
+                  { id: '~solfer-magfed', readyForDistribution: true },
+                ]),
+              getShipAccessCode: async () => Promise.resolve({ code: 'xyz' }),
+              allocateReservedShip: async () => Promise.resolve({}),
+              getShipsWithStatus: async () =>
+                Promise.resolve({
+                  shipId: '~solfer-magfed',
+                  status: 'Ready',
+                }),
+              reserveShip: async () =>
+                Promise.resolve({
+                  id: '~solfer-magfed',
+                  reservedBy: '1',
+                }),
+              checkPhoneVerify: async () => Promise.resolve({ verified: true }),
+              verifyEmailDigits: async () =>
+                Promise.resolve({ verified: true }),
+              requestPhoneVerify: async () => Promise.resolve({}),
+            },
           }}
         >
-          <NavigationContainer>
-            {children ?? <OnboardingStack />}
-          </NavigationContainer>
-        </BranchContext.Provider>
-      </OnboardingProvider>
+          <BranchContext.Provider
+            value={{
+              lure,
+              setLure: setLure as unknown as (data: DeepLinkData) => void,
+              clearLure: () => setLure(undefined),
+              clearDeepLink: () => {},
+              deepLinkPath: undefined,
+              priorityToken: undefined,
+            }}
+          >
+            <NavigationContainer>
+              {children ?? <OnboardingStack />}
+            </NavigationContainer>
+          </BranchContext.Provider>
+        </OnboardingProvider>
+      </Theme>
     </QueryClientProvider>
   );
 }

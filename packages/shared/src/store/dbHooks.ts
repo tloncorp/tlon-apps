@@ -27,6 +27,15 @@ export type CustomQueryConfig<T> = Pick<
   'enabled'
 >;
 
+export const useAllChannels = ({ enabled }: { enabled?: boolean }) => {
+  const querykey = useKeyFromQueryDeps(db.getAllChannels);
+  return useQuery({
+    queryKey: ['allChannels', querykey],
+    queryFn: () => db.getAllChannels(),
+    enabled,
+  });
+};
+
 export const useCurrentChats = (
   queryConfig?: CustomQueryConfig<CurrentChats>
 ): UseQueryResult<CurrentChats | null> => {

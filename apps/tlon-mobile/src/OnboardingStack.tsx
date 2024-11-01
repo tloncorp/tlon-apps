@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useScreenOptions } from '@tloncorp/app/hooks/useScreenOptions';
 
+import { useReviveSavedOnboarding } from './hooks/useReviveSavedOnboarding';
 import { CheckVerifyScreen } from './screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from './screens/Onboarding/EULAScreen';
 import { InventoryCheckScreen } from './screens/Onboarding/InventoryCheckScreen';
@@ -28,6 +29,8 @@ export function OnboardingStack() {
     ...screenOptions,
     headerShown: false,
   };
+
+  useReviveSavedOnboarding();
 
   return (
     <OnboardingStackNavigator.Navigator
