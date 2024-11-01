@@ -14,12 +14,12 @@ export interface ComponentSpec<EnumTag extends string = string> {
 
 function standardCollectionParameters(): Record<string, ParameterSpec> {
   return {
-    showAuthor: {
-      displayName: 'Show author',
+    hideAuthors: {
+      displayName: 'Hide authors',
       type: 'boolean',
     },
-    showReplies: {
-      displayName: 'Show replies',
+    hideReplies: {
+      displayName: 'Hide replies',
       type: 'boolean',
     },
   };
