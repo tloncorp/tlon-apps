@@ -4,6 +4,90 @@ import { createDevLogger } from '../debug';
 
 const logger = createDevLogger('ContactActions', false);
 
+export async function addContact(contactId: string) {
+  // Optimistic update
+  await db.updateContact({
+    id: contactId,
+    isContact: true,
+    isContactSuggestion: false,
+  });
+
+  try {
+    await api.addContact(contactId);
+  } catch (e) {
+    console.error('Error adding contact', e);
+    // Rollback the update
+    await db.updateContact({ id: contactId, isContact: false });
+  }
+}
+
+export async function removeContact(contactId: string) {
+  // Optimistic update
+  await db.updateContact({ id: contactId, isContact: false });
+
+  try {
+    await api.removeContact(contactId);
+  } catch (e) {
+    console.error('Error removing contact', e);
+    // Rollback the update
+    await db.updateContact({ id: contactId, isContact: true });
+  }
+}
+
+export async function removeContactSuggestion(contactId: string) {
+  // Optimistic update
+  await db.updateContact({ id: contactId, isContactSuggestion: false });
+
+  try {
+    await api.removeContactSuggestion(contactId);
+  } catch (e) {
+    // Rollback the update
+    console.error('Error removing contact suggestion', e);
+    await db.updateContact({ id: contactId, isContactSuggestion: true });
+  }
+}
+
+export async function updateContactMetadata(
+  contactId: string,
+  metadata: {
+    nickname?: string;
+    avatarImage?: string;
+  }
+) {
+  const { nickname, avatarImage } = metadata;
+
+  const existingContact = await db.getContact({ id: contactId });
+
+  // optimistic update
+  await db.updateContact({
+    id: contactId,
+    customNickname: nickname ?? null,
+    customAvatarImage: avatarImage ?? null,
+  });
+
+  try {
+    await api.updateContactMetadata(contactId, {
+      nickname: nickname
+        ? nickname
+        : existingContact?.customNickname
+          ? ''
+          : undefined,
+      avatarImage: avatarImage
+        ? avatarImage
+        : existingContact?.customAvatarImage
+          ? ''
+          : undefined,
+    });
+  } catch (e) {
+    // rollback the update
+    await db.updateContact({
+      id: contactId,
+      customNickname: existingContact?.customNickname,
+      customAvatarImage: existingContact?.customAvatarImage,
+    });
+  }
+}
+
 export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
   const currentUserId = api.getCurrentUserId();
   const currentUserContact = await db.getContact({ id: currentUserId });

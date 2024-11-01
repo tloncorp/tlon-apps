@@ -52,6 +52,7 @@ export function ChatListScreenView({
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
+  const [contactsTabEnabled] = useFeatureFlag('contactsTab');
   const [longPressedChat, setLongPressedChat] = useState<
     db.Channel | db.Group | null
   >(null);
@@ -349,6 +350,9 @@ export function ChatListScreenView({
           />
         </View>
         <NavBarView
+          navigateToContacts={() => {
+            navigation.navigate('Contacts');
+          }}
           navigateToHome={() => {
             navigation.navigate('ChatList');
           }}
@@ -360,6 +364,7 @@ export function ChatListScreenView({
           }}
           currentRoute="ChatList"
           currentUserId={currentUser}
+          showContactsTab={contactsTabEnabled}
         />
       </ChatOptionsProvider>
 

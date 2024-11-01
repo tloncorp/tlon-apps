@@ -18,6 +18,7 @@ import ChannelScreen from '../features/top/ChannelScreen';
 import ChannelSearchScreen from '../features/top/ChannelSearchScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
 import { ContactHostedGroupsScreen } from '../features/top/ContactHostedGroupsScreen';
+import ContactsScreen from '../features/top/ContactsScreen';
 import { CreateGroupScreen } from '../features/top/CreateGroupScreen';
 import { FindGroupsScreen } from '../features/top/FindGroupsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
@@ -52,6 +53,11 @@ export function RootStack() {
       }}
     >
       {/* top level tabs */}
+      <Root.Screen
+        name="Contacts"
+        component={ContactsScreen}
+        options={{ animation: 'none', gestureEnabled: false }}
+      />
       <Root.Screen
         name="ChatList"
         component={ChatListScreen}

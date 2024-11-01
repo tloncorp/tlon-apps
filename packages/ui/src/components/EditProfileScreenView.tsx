@@ -1,6 +1,6 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,8 +18,10 @@ import {
 } from './Form';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { ScreenHeader } from './ScreenHeader';
+import { BioDisplay, PinnedGroupsDisplay } from './UserProfileScreenView';
 
 interface Props {
+  userId: string;
   onGoBack: () => void;
   onSaveProfile: (update: api.ProfileUpdate | null) => void;
   onUpdatePinnedGroups: (groups: db.Group[]) => void;
@@ -30,12 +32,36 @@ interface Props {
 export function EditProfileScreenView(props: Props) {
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
-  const userContact = useContact(currentUserId);
+  const userContact = useContact(props.userId);
   const [pinnedGroups, setPinnedGroups] = useState<db.Group[]>(
     (userContact?.pinnedGroups
       ?.map((pin) => pin.group)
       .filter(Boolean) as db.Group[]) ?? []
   );
+
+  const currentNickname = useMemo(() => {
+    return props.userId === currentUserId
+      ? userContact?.nickname
+      : userContact?.customNickname ?? '';
+  }, [props.userId, currentUserId, userContact]);
+
+  const nicknamePlaceholder = useMemo(() => {
+    return props.userId === currentUserId
+      ? userContact?.id
+      : userContact?.nickname ?? userContact?.id;
+  }, [props.userId, currentUserId, userContact]);
+
+  const currentAvatarImage = useMemo(() => {
+    return props.userId === currentUserId
+      ? userContact?.avatarImage
+      : userContact?.customAvatarImage ?? '';
+  }, [props.userId, currentUserId, userContact]);
+
+  const avatarPlaceholder = useMemo(() => {
+    return props.userId === currentUserId
+      ? undefined
+      : userContact?.avatarImage ?? undefined;
+  }, [props.userId, currentUserId, userContact]);
 
   const {
     control,
@@ -44,9 +70,9 @@ export function EditProfileScreenView(props: Props) {
   } = useForm({
     mode: 'onChange',
     defaultValues: {
-      nickname: userContact?.nickname ?? '',
+      nickname: currentNickname ?? '',
       bio: userContact?.bio ?? '',
-      avatarImage: userContact?.avatarImage ?? undefined,
+      avatarImage: currentAvatarImage ?? undefined,
     },
   });
 
@@ -54,7 +80,6 @@ export function EditProfileScreenView(props: Props) {
     if (isDirty) {
       handleSubmit((formData) => {
         props.onSaveProfile(formData);
-        props.onGoBack();
       })();
     } else {
       props.onGoBack();
@@ -118,21 +143,25 @@ export function EditProfileScreenView(props: Props) {
                   name="nickname"
                   label="Nickname"
                   control={control}
-                  renderInputContainer={({ children }) => {
-                    return (
-                      <XStack gap="$m">
-                        <View flex={1}>{children}</View>
-                        <SigilAvatar
-                          contactId={currentUserId}
-                          width={56}
-                          height={56}
-                          borderRadius="$l"
-                          size="custom"
-                        />
-                      </XStack>
-                    );
-                  }}
-                  inputProps={{ placeholder: userContact?.id }}
+                  renderInputContainer={
+                    props.userId === currentUserId
+                      ? ({ children }) => {
+                          return (
+                            <XStack gap="$m">
+                              <View flex={1}>{children}</View>
+                              <SigilAvatar
+                                contactId={currentUserId}
+                                width={56}
+                                height={56}
+                                borderRadius="$l"
+                                size="custom"
+                              />
+                            </XStack>
+                          );
+                        }
+                      : undefined
+                  }
+                  inputProps={{ placeholder: nicknamePlaceholder }}
                   rules={{
                     maxLength: {
                       value: 30,
@@ -150,6 +179,7 @@ export function EditProfileScreenView(props: Props) {
               control={control}
               inputProps={{
                 buttonLabel: 'Change avatar image',
+                placeholderUri: avatarPlaceholder,
               }}
               rules={{
                 pattern: {
@@ -159,29 +189,44 @@ export function EditProfileScreenView(props: Props) {
               }}
             />
 
-            <ControlledTextareaField
-              name="bio"
-              label="Bio"
-              control={control}
-              inputProps={{
-                placeholder: 'About yourself',
-                numberOfLines: 5,
-                multiline: true,
-              }}
-              rules={{
-                maxLength: {
-                  value: 300,
-                  message: 'Your bio is limited to 300 characters',
-                },
-              }}
-            />
-
-            <Field label="Pinned groups">
-              <FavoriteGroupsDisplay
-                groups={pinnedGroups}
-                onUpdate={handleUpdatePinnedGroups}
-              />
-            </Field>
+            {props.userId === currentUserId ? (
+              <>
+                <ControlledTextareaField
+                  name="bio"
+                  label="Bio"
+                  control={control}
+                  inputProps={{
+                    placeholder: 'About yourself',
+                    numberOfLines: 5,
+                    multiline: true,
+                  }}
+                  rules={{
+                    maxLength: {
+                      value: 300,
+                      message: 'Your bio is limited to 300 characters',
+                    },
+                  }}
+                />
+                <Field label="Pinned groups">
+                  <FavoriteGroupsDisplay
+                    groups={pinnedGroups}
+                    onUpdate={handleUpdatePinnedGroups}
+                  />
+                </Field>
+              </>
+            ) : (
+              <>
+                <BioDisplay
+                  bio={userContact?.bio ?? ''}
+                  backgroundColor="$secondaryBackground"
+                />
+                <PinnedGroupsDisplay
+                  groups={pinnedGroups ?? []}
+                  onPressGroup={() => {}}
+                  backgroundColor="$secondaryBackground"
+                />
+              </>
+            )}
           </FormFrame>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -2704,6 +2704,67 @@ export const updateContact = createWriteQuery(
   ['contacts']
 );
 
+export const upsertContact = createWriteQuery(
+  'upsertContact',
+  async (contact: Contact, ctx: QueryCtx) => {
+    const existingContact = await ctx.db.query.contacts.findFirst({
+      where: (contacts, { eq }) => eq(contacts.id, contact.id),
+    });
+
+    if (existingContact) {
+      return ctx.db
+        .update($contacts)
+        .set(contact)
+        .where(eq($contacts.id, contact.id));
+    }
+
+    // for new inserts, default to non contact if unspecified
+    const newContact: Contact = {
+      ...contact,
+      isContact: contact.isContact !== undefined ? contact.isContact : false,
+    };
+    return ctx.db.insert($contacts).values(newContact);
+  },
+  ['contacts']
+);
+
+export const getUserContacts = createReadQuery(
+  'getUserContacts',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.contacts.findMany({
+      where: and(eq($contacts.isContact, true)),
+      with: {
+        pinnedGroups: {
+          with: {
+            group: true,
+          },
+        },
+      },
+    });
+  },
+  ['contacts']
+);
+
+export const getSuggestedContacts = createReadQuery(
+  'getSuggestedContacts',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.contacts.findMany({
+      where: and(
+        eq($contacts.isContact, false),
+        eq($contacts.isContactSuggestion, true)
+      ),
+      with: {
+        pinnedGroups: {
+          with: {
+            group: true,
+          },
+        },
+      },
+    });
+  },
+  ['contacts']
+);
+
 export const addPinnedGroup = createWriteQuery(
   'addPinnedGroup',
   async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {

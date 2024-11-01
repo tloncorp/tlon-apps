@@ -211,6 +211,8 @@ export const syncContacts = async (ctx?: SyncCtx) => {
   } catch (e) {
     logger.error('error getting contacts from db', e);
   }
+
+  // get book
 };
 
 export const syncPinnedItems = async (ctx?: SyncCtx) => {
@@ -680,11 +682,17 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
 
 export const handleContactUpdate = async (update: api.ContactsUpdate) => {
   switch (update.type) {
-    case 'add':
-      await db.insertContacts([update.contact]);
+    case 'upsertContact':
+      await db.upsertContact(update.contact);
       break;
-    case 'delete':
-      await db.deleteContact(update.contactId);
+
+    case 'removeContact':
+      await db.updateContact({
+        id: update.contactId,
+        isContact: false,
+        customNickname: null,
+        customAvatarImage: null,
+      });
       break;
   }
 };

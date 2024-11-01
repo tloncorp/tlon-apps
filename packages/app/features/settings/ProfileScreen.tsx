@@ -8,6 +8,7 @@ import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
 import { getHostingToken, getHostingUserId } from '../../utils/hosting';
 
@@ -17,6 +18,7 @@ export default function ProfileScreen(props: Props) {
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const currentUserId = useCurrentUserId();
+  const [contactsTabEnabled] = useFeatureFlag('contactsTab');
   const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
   const navigationRef = useMutableRef(props.navigation);
@@ -61,6 +63,10 @@ export default function ProfileScreen(props: Props) {
     navigationRef.current.navigate('Profile');
   }, [navigationRef]);
 
+  const onNavigateToContacts = useCallback(() => {
+    navigationRef.current.navigate('Contacts');
+  }, [navigationRef]);
+
   return (
     <View backgroundColor="$background" flex={1}>
       <ProfileScreenView
@@ -77,11 +83,13 @@ export default function ProfileScreen(props: Props) {
         dmLink={dmLink}
       />
       <NavBarView
+        navigateToContacts={onNavigateToContacts}
         navigateToHome={onNavigateToHome}
         navigateToNotifications={onNavigateToNotifications}
         navigateToProfileSettings={onNavigateToProfileSettings}
         currentRoute="Profile"
         currentUserId={currentUserId}
+        showContactsTab={contactsTabEnabled}
       />
     </View>
   );

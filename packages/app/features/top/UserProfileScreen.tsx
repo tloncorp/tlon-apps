@@ -4,6 +4,7 @@ import type * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
   AppDataContextProvider,
+  AttachmentProvider,
   GroupPreviewSheet,
   NavigationProvider,
   UserProfileScreenView,
@@ -50,8 +51,10 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
   );
 
   const handlePressEdit = useCallback(() => {
-    navigation.push('EditProfile');
-  }, [navigation]);
+    navigation.push('EditProfile', { userId });
+  }, [navigation, userId]);
+
+  const canUpload = store.useCanUpload();
 
   return (
     <AppDataContextProvider
@@ -59,18 +62,23 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
       contacts={contacts ?? []}
     >
       <NavigationProvider onPressGoToDm={handleGoToDm}>
-        <UserProfileScreenView
-          userId={userId}
-          onBack={() => navigation.goBack()}
-          connectionStatus={connectionStatus}
-          onPressGroup={setSelectedGroup}
-          onPressEdit={handlePressEdit}
-        />
-        <GroupPreviewSheet
-          open={selectedGroup !== null}
-          onOpenChange={handleGroupPreviewSheetOpenChange}
-          group={selectedGroup ?? undefined}
-        />
+        <AttachmentProvider
+          canUpload={canUpload}
+          uploadAsset={store.uploadAsset}
+        >
+          <UserProfileScreenView
+            userId={userId}
+            onBack={() => navigation.goBack()}
+            connectionStatus={connectionStatus}
+            onPressGroup={setSelectedGroup}
+            onPressEdit={handlePressEdit}
+          />
+          <GroupPreviewSheet
+            open={selectedGroup !== null}
+            onOpenChange={handleGroupPreviewSheetOpenChange}
+            group={selectedGroup ?? undefined}
+          />
+        </AttachmentProvider>
       </NavigationProvider>
     </AppDataContextProvider>
   );

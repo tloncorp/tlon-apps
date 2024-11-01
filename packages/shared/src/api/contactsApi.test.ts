@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { toClientContact, toClientContacts } from './contactsApi';
+import { v0PeerToClientProfile, v0PeersToClientProfiles } from './contactsApi';
 
 const inputContact: [string, any] = [
   'test',
@@ -34,14 +34,16 @@ const outputContact = {
     { groupId: '~nibset-napwyn/tlon', contactId: 'test' },
     { groupId: '~ravmel-ropdyl/crate', contactId: 'test' },
   ],
+  isContact: false,
+  isContactSuggestion: undefined,
 };
 
 test('converts a contact from server to client format', () => {
-  expect(toClientContact(...inputContact)).toStrictEqual(outputContact);
+  expect(v0PeerToClientProfile(...inputContact)).toStrictEqual(outputContact);
 });
 
 test('converts an array of contacts from server to client format', () => {
   expect(
-    toClientContacts({ [inputContact[0]]: inputContact[1] })
+    v0PeersToClientProfiles({ [inputContact[0]]: inputContact[1] })
   ).toStrictEqual([outputContact]);
 });
