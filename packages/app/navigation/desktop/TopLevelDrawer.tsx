@@ -3,7 +3,7 @@ import {
   createDrawerNavigator,
 } from '@react-navigation/drawer';
 import * as store from '@tloncorp/shared/store';
-import { AvatarNavIcon, NavIcon, YStack } from '@tloncorp/ui';
+import { AvatarNavIcon, NavIcon, YStack, useWebAppUpdate } from '@tloncorp/ui';
 
 import ProfileScreen from '../../features/settings/ProfileScreen';
 import { ActivityScreen } from '../../features/top/ActivityScreen';
@@ -16,6 +16,7 @@ const Drawer = createDrawerNavigator<DrawerParamList>();
 const DrawerContent = (props: DrawerContentComponentProps) => {
   const userId = useCurrentUserId();
   const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
+  const { webAppNeedsUpdate, triggerWebAppUpdate } = useWebAppUpdate();
   const isRouteActive = (routeName: string) => {
     return (
       props.state.index ===
@@ -46,6 +47,15 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
         focused={isRouteActive('Profile')}
         onPress={() => props.navigation.navigate('Profile')}
       />
+      {webAppNeedsUpdate && (
+        <NavIcon
+          backgroundColor="$yellow"
+          type="Bang"
+          isActive={true}
+          onPress={triggerWebAppUpdate}
+          shouldShowUnreads={false}
+        />
+      )}
     </YStack>
   );
 };
