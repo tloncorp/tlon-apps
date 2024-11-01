@@ -25,8 +25,8 @@ export function ConnectedPostView({
       return null;
     }
     return {
-      hideAuthors: JSONValue.asBoolean(cfg.hideAuthors, false),
-      hideReplies: JSONValue.asBoolean(cfg.hideReplies, false),
+      showAuthor: JSONValue.asBoolean(cfg.showAuthors, false),
+      showReplies: JSONValue.asBoolean(cfg.showReplies, false),
     };
   }, [ctx.collectionConfiguration]);
 
@@ -43,8 +43,8 @@ export function ConnectedPostView({
 
       ...overrides,
 
-      showAuthor: !standardConfig?.hideAuthors,
-      showReplies: !standardConfig?.hideReplies,
+      showAuthor: standardConfig?.showAuthor,
+      showReplies: standardConfig?.showReplies,
     }),
     [ctx, post, overrides, standardConfig]
   );

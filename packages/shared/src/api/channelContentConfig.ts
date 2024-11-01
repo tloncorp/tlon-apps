@@ -14,12 +14,12 @@ export interface ComponentSpec<EnumTag extends string = string> {
 
 function standardCollectionParameters(): Record<string, ParameterSpec> {
   return {
-    hideAuthors: {
-      displayName: 'Hide authors',
+    showAuthors: {
+      displayName: 'Show authors',
       type: 'boolean',
     },
-    hideReplies: {
-      displayName: 'Hide replies',
+    showReplies: {
+      displayName: 'Show replies',
       type: 'boolean',
     },
   };
@@ -258,12 +258,26 @@ export namespace StructuredChannelDescriptionPayload {
         }
         // add a little robustness - if the configuration is missing a field,
         // just add a default in to avoid crashing
-        out.channelContentConfiguration = {
-          draftInput: DraftInputId.chat,
-          defaultPostContentRenderer: PostContentRendererId.chat,
-          defaultPostCollectionRenderer: CollectionRendererId.chat,
-          ...out.channelContentConfiguration,
-        };
+        out.channelContentConfiguration = ((raw) => {
+          const cfg = {
+            draftInput: DraftInputId.chat,
+            defaultPostContentRenderer: PostContentRendererId.chat,
+            defaultPostCollectionRenderer: CollectionRendererId.chat,
+            ...raw,
+          } as ChannelContentConfiguration;
+
+          // add defaults to some standard params
+          const collCfgWithDefaults = ParameterizedId.coerce(
+            cfg.defaultPostCollectionRenderer
+          );
+          collCfgWithDefaults.configuration = {
+            showAuthors: true,
+            showReplies: true,
+            ...collCfgWithDefaults.configuration,
+          };
+
+          return cfg;
+        })(out.channelContentConfiguration);
       }
       return out;
     } catch (_err) {
