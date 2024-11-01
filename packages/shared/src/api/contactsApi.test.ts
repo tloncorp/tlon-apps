@@ -35,8 +35,7 @@ const outputContact = {
     { groupId: '~ravmel-ropdyl/crate', contactId: 'test' },
   ],
   isContact: false,
-  customNickname: null,
-  customAvatarImage: null,
+  isContactSuggestion: undefined,
 };
 
 test('converts a contact from server to client format', () => {
