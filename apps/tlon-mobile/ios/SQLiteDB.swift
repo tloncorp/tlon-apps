@@ -5,15 +5,19 @@ let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 struct SQLiteDB: ~Copyable {
   let db: OpaquePointer
   
-  init?(dbUrl: URL) {
+  static func open(at dbUrl: URL) -> SQLiteDB? {
     var db: OpaquePointer?
     if sqlite3_open(dbUrl.path, &db) == SQLITE_OK {
-      self.db = db!
+      return SQLiteDB(db: db!)
     } else {
       return nil
     }
   }
   
+  init(db: OpaquePointer) {
+    self.db = db
+  }
+
   deinit {
     sqlite3_close(db)
   }
@@ -65,6 +69,6 @@ extension SQLiteDB {
     else {
       return nil
     }
-    return SQLiteDB(dbUrl: dbUrl)
+    return SQLiteDB.open(at: dbUrl)
   }
 }
