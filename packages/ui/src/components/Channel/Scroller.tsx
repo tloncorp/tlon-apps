@@ -386,19 +386,33 @@ const Scroller = forwardRef(
       };
     }, [insets.bottom]);
 
+    const shouldShowScrollButton = useCallback(() => {
+      if (!isAtBottom && hasPressedGoToBottom) {
+        setHasPressedGoToBottom(false);
+      }
+
+      const shouldShowForUnreads =
+        collectionLayoutType === 'compact-list-bottom-to-top' &&
+        unreadCount &&
+        !isAtBottom;
+      const shouldShowForScroll =
+        collectionLayoutType === 'compact-list-bottom-to-top' &&
+        !isAtBottom &&
+        !hasPressedGoToBottom;
+
+      return shouldShowForUnreads || shouldShowForScroll;
+    }, [isAtBottom, hasPressedGoToBottom, collectionLayoutType, unreadCount]);
+
     return (
       <View flex={1}>
-        {(collectionLayoutType === 'compact-list-bottom-to-top' &&
-          unreadCount) ||
-        (collectionLayoutType === 'compact-list-bottom-to-top' &&
-          !isAtBottom) ? (
+        {shouldShowScrollButton() && (
           <View position="absolute" bottom={'$m'} right={'$l'} zIndex={1000}>
             <FloatingActionButton
               icon={<Icon type="ChevronDown" size={'$m'} />}
               onPress={pressedGoToBottom}
             />
           </View>
-        ) : null}
+        )}
         {postsWithNeighbors && (
           <Animated.FlatList<PostWithNeighbors>
             ref={flatListRef as React.RefObject<Animated.FlatList<db.Post>>}
