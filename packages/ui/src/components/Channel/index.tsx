@@ -28,6 +28,7 @@ import { Attachment, AttachmentProvider } from '../../contexts/attachment';
 import { ComponentsKitContextProvider } from '../../contexts/componentsKits';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 import * as utils from '../../utils';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { DraftInputContext } from '../draftInputs';
@@ -270,6 +271,8 @@ export function Channel({
     [channel]
   );
 
+  const isNarrow = useIsWindowNarrow();
+
   return (
     <ScrollContextProvider>
       <GroupsProvider groups={groups}>
@@ -307,7 +310,7 @@ export function Channel({
                             group={group}
                             mode={headerMode}
                             title={title ?? ''}
-                            goBack={handleGoBack}
+                            goBack={isNarrow ? handleGoBack : undefined}
                             showSearchButton={isChatChannel}
                             goToSearch={goToSearch}
                             showSpinner={isLoadingPosts}

@@ -1,30 +1,31 @@
 // Copyright 2024, Tlon Corporation
-import { TooltipProvider } from '@radix-ui/react-tooltip';
 import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
-  useNavigationContainerRef,
 } from '@react-navigation/native';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { checkDb, useMigrations } from '@tloncorp/app/lib/webDb';
-import { RootStack } from '@tloncorp/app/navigation/RootStack';
-import { TopLevelDrawer } from '@tloncorp/app/navigation/desktop/TopLevelDrawer';
+import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
+import {
+  getDesktopLinkingConfig,
+  getMobileLinkingConfig,
+} from '@tloncorp/app/navigation/linking';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
-import React, { PropsWithChildren, useEffect, useMemo, useState } from 'react';
+import React, { PropsWithChildren, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import EyrieMenu from '@/eyrie/EyrieMenu';
 import { ANALYTICS_DEFAULT_PROPERTIES } from '@/logic/analytics';
-import useAppUpdates, { AppUpdateContext } from '@/logic/useAppUpdates';
+import useAppUpdates from '@/logic/useAppUpdates';
 import useErrorHandler from '@/logic/useErrorHandler';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
 import { useIsDark, useIsMobile } from '@/logic/useMedia';
@@ -68,6 +69,7 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
   const contactsQuery = store.useContacts();
   const currentUserId = useCurrentUserId();
   const calmSettingsQuery = store.useCalmSettings({ userId: currentUserId });
+  const { needsUpdate, triggerUpdate } = useAppUpdates();
 
   useEffect(() => {
     const { data, refetch, isRefetching, isFetching } = contactsQuery;
@@ -85,23 +87,33 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
     }
   }, [calmSettingsQuery, isLoaded]);
 
-  const isDarkMode = useIsDarkMode();
   const isMobile = useIsMobile();
-
-  const navigationContainerRef = useNavigationContainerRef();
+  const isDarkMode = useIsDarkMode();
 
   if (!isLoaded) {
     return null;
   }
 
   return (
-    <AppDataProvider>
-      <NavigationContainer
-        theme={isDarkMode ? DarkTheme : DefaultTheme}
-        ref={navigationContainerRef}
-      >
-        {isMobile ? <RootStack /> : <TopLevelDrawer />}
-      </NavigationContainer>
+    <AppDataProvider
+      webAppNeedsUpdate={needsUpdate}
+      triggerWebAppUpdate={triggerUpdate}
+    >
+      {isMobile ? (
+        <NavigationContainer
+          linking={getMobileLinkingConfig(import.meta.env.MODE)}
+          theme={isDarkMode ? DarkTheme : DefaultTheme}
+        >
+          <BasePathNavigator isMobile={isMobile} />
+        </NavigationContainer>
+      ) : (
+        <NavigationContainer
+          linking={getDesktopLinkingConfig(import.meta.env.MODE)}
+          theme={isDarkMode ? DarkTheme : DefaultTheme}
+        >
+          <BasePathNavigator isMobile={isMobile} />
+        </NavigationContainer>
+      )}
     </AppDataProvider>
   );
 }
@@ -171,7 +183,7 @@ const App = React.memo(function AppComponent() {
       <MigrationCheck>
         <SafeAreaProvider>
           <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-            <AppRoutes isLoaded={dbIsLoaded} />
+            {dbIsLoaded && <AppRoutes isLoaded={dbIsLoaded} />}
           </TamaguiProvider>
         </SafeAreaProvider>
       </MigrationCheck>
@@ -186,15 +198,9 @@ function RoutedApp() {
   const logActivity = useLogActivity();
   const posthog = usePostHog();
   const analyticsId = useAnalyticsId();
-  const { needsUpdate, triggerUpdate } = useAppUpdates();
   const body = document.querySelector('body');
   const colorSchemeFromNative =
     window.nativeOptions?.colorScheme ?? window.colorscheme;
-
-  const appUpdateContextValue = useMemo(
-    () => ({ needsUpdate, triggerUpdate }),
-    [needsUpdate, triggerUpdate]
-  );
 
   const theme = useTheme();
   const isDarkMode = useIsDark();
@@ -265,11 +271,7 @@ function RoutedApp() {
         <title>Tlon</title>
         <meta name="theme-color" content={userThemeColor} />
       </Helmet>
-      <AppUpdateContext.Provider value={appUpdateContextValue}>
-        <TooltipProvider delayDuration={0} skipDelayDuration={400}>
-          <App />
-        </TooltipProvider>
-      </AppUpdateContext.Provider>
+      <App />
       {showDevTools && (
         <>
           <React.Suspense fallback={null}>
