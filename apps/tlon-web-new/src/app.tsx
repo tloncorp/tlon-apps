@@ -3,14 +3,16 @@ import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
-  useNavigationContainerRef,
 } from '@react-navigation/native';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { checkDb, useMigrations } from '@tloncorp/app/lib/webDb';
-import { RootStack } from '@tloncorp/app/navigation/RootStack';
-import { TopLevelDrawer } from '@tloncorp/app/navigation/desktop/TopLevelDrawer';
+import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
+import {
+  getDesktopLinkingConfig,
+  getMobileLinkingConfig,
+} from '@tloncorp/app/navigation/linking';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
@@ -85,10 +87,8 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
     }
   }, [calmSettingsQuery, isLoaded]);
 
-  const isDarkMode = useIsDarkMode();
   const isMobile = useIsMobile();
-
-  const navigationContainerRef = useNavigationContainerRef();
+  const isDarkMode = useIsDarkMode();
 
   if (!isLoaded) {
     return null;
@@ -99,12 +99,21 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
       webAppNeedsUpdate={needsUpdate}
       triggerWebAppUpdate={triggerUpdate}
     >
-      <NavigationContainer
-        theme={isDarkMode ? DarkTheme : DefaultTheme}
-        ref={navigationContainerRef}
-      >
-        {isMobile ? <RootStack /> : <TopLevelDrawer />}
-      </NavigationContainer>
+      {isMobile ? (
+        <NavigationContainer
+          linking={getMobileLinkingConfig(import.meta.env.MODE)}
+          theme={isDarkMode ? DarkTheme : DefaultTheme}
+        >
+          <BasePathNavigator isMobile={isMobile} />
+        </NavigationContainer>
+      ) : (
+        <NavigationContainer
+          linking={getDesktopLinkingConfig(import.meta.env.MODE)}
+          theme={isDarkMode ? DarkTheme : DefaultTheme}
+        >
+          <BasePathNavigator isMobile={isMobile} />
+        </NavigationContainer>
+      )}
     </AppDataProvider>
   );
 }
@@ -174,7 +183,7 @@ const App = React.memo(function AppComponent() {
       <MigrationCheck>
         <SafeAreaProvider>
           <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-            <AppRoutes isLoaded={dbIsLoaded} />
+            {dbIsLoaded && <AppRoutes isLoaded={dbIsLoaded} />}
           </TamaguiProvider>
         </SafeAreaProvider>
       </MigrationCheck>

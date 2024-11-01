@@ -13,7 +13,7 @@ import type { RootStackParamList } from '../../navigation/types';
 type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
 
 export default function PostScreen(props: Props) {
-  const postParam = props.route.params.post;
+  const { postId, channelId, authorId } = props.route.params;
   const {
     group,
     channel,
@@ -26,13 +26,13 @@ export default function PostScreen(props: Props) {
     editPost,
     headerMode,
   } = useChannelContext({
-    channelId: postParam.channelId,
-    draftKey: postParam.id,
-    uploaderKey: `${postParam.channelId}/${postParam.id}`,
+    channelId: channelId,
+    draftKey: postId,
+    uploaderKey: `${channelId}/${postId}`,
   });
 
   const { navigateToImage, navigateToRef } = useChannelNavigation({
-    channelId: postParam.channelId,
+    channelId: channelId,
   });
 
   const currentUserId = useCurrentUserId();
@@ -43,20 +43,20 @@ export default function PostScreen(props: Props) {
     useState<db.ThreadUnreadState | null>(null);
   useEffect(() => {
     async function initializeChannelUnread() {
-      const unread = await db.getThreadUnreadState({ parentId: postParam.id });
+      const unread = await db.getThreadUnreadState({ parentId: postId });
       setInitialThreadUnread(unread ?? null);
     }
     initializeChannelUnread();
-  }, [postParam.id]);
+  }, [postId]);
 
   const { data: post } = store.usePostWithThreadUnreads({
-    id: postParam.id,
+    id: postId,
   });
   const { data: threadPosts, isLoading: isLoadingPosts } = store.useThreadPosts(
     {
-      postId: postParam.id,
-      authorId: postParam.authorId,
-      channelId: postParam.channelId,
+      postId: postId,
+      authorId,
+      channelId: channelId,
     }
   );
 
@@ -127,7 +127,7 @@ export default function PostScreen(props: Props) {
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
-      props.navigation.push('Channel', { channel: dmChannel });
+      props.navigation.push('Channel', { channelId: dmChannel.id });
     },
     [props.navigation]
   );
