@@ -46,6 +46,8 @@ struct ChannelQuery: EntityStringQuery {
       where c.title like ?
     """, parameters: ["%\(string)%"])
     
+    database.close()
+    
     return results.map { result in
       ChannelEntity(
         id: result["id"]!!,
@@ -70,6 +72,7 @@ struct ChannelQuery: EntityStringQuery {
       join channels c on query.id = c.id
       join groups g on c.group_id = g.id
     """, parameters: identifiers)
+    database.close()
 
     return results.map { result in
       ChannelEntity(
@@ -93,7 +96,8 @@ struct ChannelQuery: EntityStringQuery {
       order by max(c.last_viewed_at, c.last_post_at) desc
       limit 10
     """)
-    
+    database.close()
+
     return results.map { result in
       ChannelEntity(
         id: result["id"]!!,
