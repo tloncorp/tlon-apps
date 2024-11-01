@@ -351,7 +351,7 @@ export function ChatListScreenView({
         </View>
         <NavBarView
           navigateToContacts={() => {
-            navigate('Contacts');
+            navigation.navigate('Contacts');
           }}
           navigateToHome={() => {
             navigation.navigate('ChatList');
