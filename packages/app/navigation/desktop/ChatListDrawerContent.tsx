@@ -46,9 +46,9 @@ export const ChatListDrawerContent = (props: DrawerContentProps) => {
     'all'
   );
   const [showSearchInput, setShowSearchInput] = useState(false);
-  const [longPressedChat, setLongPressedChat] = useState<
-    db.Channel | db.Group | null
-  >(null);
+  const [pressedChat, setPressedChat] = useState<db.Channel | db.Group | null>(
+    null
+  );
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
   const [screenTitle, setScreenTitle] = useState('Home');
   const [addGroupOpen, setAddGroupOpen] = useState(false);
@@ -56,24 +56,22 @@ export const ChatListDrawerContent = (props: DrawerContentProps) => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const chatOptionsGroupId = useMemo(() => {
-    if (!longPressedChat) {
+    if (!pressedChat) {
       return;
     }
-    return logic.isGroup(longPressedChat)
-      ? longPressedChat.id
-      : longPressedChat.group?.id;
-  }, [longPressedChat]);
+    return logic.isGroup(pressedChat) ? pressedChat.id : pressedChat.group?.id;
+  }, [pressedChat]);
 
   const chatOptionsChannelId = useMemo(() => {
-    if (!longPressedChat || logic.isGroup(longPressedChat)) {
+    if (!pressedChat || logic.isGroup(pressedChat)) {
       return;
     }
-    return longPressedChat.id;
-  }, [longPressedChat]);
+    return pressedChat.id;
+  }, [pressedChat]);
 
-  const onLongPressChat = useCallback((item: db.Channel | db.Group) => {
+  const onPressMenuButton = useCallback((item: db.Channel | db.Group) => {
     if (logic.isChannel(item) && !item.isDmInvite) {
-      setLongPressedChat(item);
+      setPressedChat(item);
       if (item.pin?.type === 'channel' || !item.group) {
         chatOptionsSheetRef.current?.open(item.id, item.type);
       } else {
@@ -204,7 +202,7 @@ export const ChatListDrawerContent = (props: DrawerContentProps) => {
               showSearchInput={showSearchInput}
               onSearchToggle={handleSearchInputToggled}
               onSectionChange={handleSectionChange}
-              onPressMenuButton={onLongPressChat}
+              onPressMenuButton={onPressMenuButton}
               searchQuery={searchQuery}
               onSearchQueryChange={setSearchQuery}
             />
