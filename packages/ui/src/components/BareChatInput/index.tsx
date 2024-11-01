@@ -593,6 +593,15 @@ export default function BareChatInput({
           onChange={isWeb ? adjustTextInputSize : undefined}
           onLayout={isWeb ? adjustTextInputSize : undefined}
           onBlur={handleBlur}
+          onKeyPress={(e) => {
+            if (isWeb && e.nativeEvent.key === 'Enter') {
+              const keyEvent = e.nativeEvent as unknown as KeyboardEvent;
+              if (!keyEvent.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }
+          }}
           multiline
           placeholder={placeholder}
           style={{
