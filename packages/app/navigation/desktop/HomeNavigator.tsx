@@ -63,41 +63,44 @@ function ChannelStack(
         headerShown: false,
       }}
     >
-      <ChannelStackNavigator.Screen
-        name="ChannelRoot"
-        component={ChannelScreen}
-        initialParams={props.route.params}
-        navigationKey={props.route.params.channelId}
-      />
-      <ChannelStackNavigator.Screen
-        name="GroupSettings"
-        component={GroupSettingsStack}
-      />
-      <ChannelStackNavigator.Screen
-        name="ChannelSearch"
-        component={ChannelSearchScreen}
-      />
-      <ChannelStackNavigator.Screen name="Post" component={PostScreen} />
-      <ChannelStackNavigator.Screen
-        name="ImageViewer"
-        component={ImageViewerScreen}
-      />
-      <ChannelStackNavigator.Screen
-        name="UserProfile"
-        component={UserProfileScreen}
-      />
-      <ChannelStackNavigator.Screen
-        name="EditProfile"
-        component={EditProfileScreen}
-      />
-      <ChannelStackNavigator.Screen
-        name="ChannelMembers"
-        component={ChannelMembersScreen}
-      />
-      <ChannelStackNavigator.Screen
-        name="ChannelMeta"
-        component={ChannelMetaScreen}
-      />
+      <ChannelStackNavigator.Group
+        navigationKey={props.route.params.channelId ?? 'none'}
+      >
+        <ChannelStackNavigator.Screen
+          name="ChannelRoot"
+          component={ChannelScreen}
+          initialParams={props.route.params}
+        />
+        <ChannelStackNavigator.Screen
+          name="GroupSettings"
+          component={GroupSettingsStack}
+        />
+        <ChannelStackNavigator.Screen
+          name="ChannelSearch"
+          component={ChannelSearchScreen}
+        />
+        <ChannelStackNavigator.Screen name="Post" component={PostScreen} />
+        <ChannelStackNavigator.Screen
+          name="ImageViewer"
+          component={ImageViewerScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="UserProfile"
+          component={UserProfileScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="EditProfile"
+          component={EditProfileScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="ChannelMembers"
+          component={ChannelMembersScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="ChannelMeta"
+          component={ChannelMetaScreen}
+        />
+      </ChannelStackNavigator.Group>
     </ChannelStackNavigator.Navigator>
   );
 }
