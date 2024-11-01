@@ -1239,7 +1239,7 @@
   :: |+~['nest-fail']
 ++  execute
   |*  [gate=$-(* *) args=*]
-  (gate args)
+  (mule |.((gate args)))
 ++  check-validate-hooks
   |=  [=post:c (hook-set:c $-(post:c ?))]
   ~&  post
@@ -1251,11 +1251,8 @@
   ?~  compiled.hook  next
   =/  result  (execute u.compiled.hook post)
   ~&  check-validate-hooks+[result src.hook]
-  ?.  result  |
-  next
-  :: =/  result  (execute u.compiled.hook post)
-  :: ?-  -.result
-  ::   %&  ?:(p.result next |)
-  ::   %|  next
-  :: ==
+  ?-  -.result
+    %&  ?:(p.result next |)
+    %|  next
+  ==
 --
