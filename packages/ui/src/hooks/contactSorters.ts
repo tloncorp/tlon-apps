@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { isValidPatp } from 'urbit-ob';
 
 import * as utils from '../utils';
+import { resolveNickname } from '../utils';
 
 type UrbitSort = 'pals' | 'nickname' | 'alphabetical';
 const DEFAULT_SORT_ORDER: UrbitSort[] = ['nickname', 'alphabetical'];
@@ -32,8 +33,8 @@ export function useAlphabeticallySegmentedContacts(
 
       // convert contact to alphabetical representation and bucket by first letter
       for (const contact of contacts) {
-        const sortableName = contact.nickname
-          ? anyAscii(contact.nickname.replace(/[~-]/g, ''))
+        const sortableName = resolveNickname(contact)
+          ? anyAscii(resolveNickname(contact)!.replace(/[~-]/g, ''))
           : contact.id.replace(/[~-]/g, '');
         const firstAlpha = utils.getFirstAlphabeticalChar(sortableName);
         if (!segmented[firstAlpha]) {
@@ -157,18 +158,18 @@ function palsSorter(
 }
 
 function nicknameSorter(a: db.Contact, b: db.Contact): number {
-  if (a.nickname && !b.nickname) {
+  if (resolveNickname(a) && !resolveNickname(b)) {
     return -1;
   }
 
-  if (b.nickname && !a.nickname) {
+  if (resolveNickname(b) && !resolveNickname(a)) {
     return 1;
   }
 
   // prioritize nicknames that aren't just @p's
-  if (b.nickname && a.nickname) {
-    const aIsPatp = isValidPatp(anyAscii(a.nickname.trim()));
-    const bIsPatp = isValidPatp(anyAscii(b.nickname.trim()));
+  if (resolveNickname(b) && resolveNickname(a)) {
+    const aIsPatp = isValidPatp(anyAscii(resolveNickname(a)!.trim()));
+    const bIsPatp = isValidPatp(anyAscii(resolveNickname(b)!.trim()));
     if (aIsPatp && !bIsPatp) {
       return 1;
     }
@@ -181,8 +182,10 @@ function nicknameSorter(a: db.Contact, b: db.Contact): number {
 }
 
 function alphabeticalSorter(a: db.Contact, b: db.Contact): number {
-  const aName = a.nickname?.replace(/[~-]/g, '') ?? a.id.replace(/[~-]/g, '');
-  const bName = b.nickname?.replace(/[~-]/g, '') ?? b.id.replace(/[~-]/g, '');
+  const aName =
+    resolveNickname(a)?.replace(/[~-]/g, '') ?? a.id.replace(/[~-]/g, '');
+  const bName =
+    resolveNickname(b)?.replace(/[~-]/g, '') ?? b.id.replace(/[~-]/g, '');
   return aName.localeCompare(bName);
 }
 
@@ -191,7 +194,7 @@ function filterContactsOnQuery(contacts: db.Contact[], query: string) {
   const processedQuery = query.trim().toLowerCase().replace(/[~-]/g, '');
   return logSyncDuration('filterContactsOnQuery', logger, () => {
     return contacts.filter((contact) => {
-      const nickname = contact.nickname?.toLowerCase() ?? '';
+      const nickname = resolveNickname(contact)?.toLowerCase() ?? '';
       const id = contact.id.replace(/[~-]/g, '');
       return (
         nickname.startsWith(processedQuery) || id.startsWith(processedQuery)

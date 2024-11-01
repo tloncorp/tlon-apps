@@ -6,9 +6,9 @@ import {
   EditProfileScreenView,
   GroupsProvider,
 } from '@tloncorp/ui';
-import { useCurrentUserId } from 'packages/app/hooks/useCurrentUser';
 import { useCallback } from 'react';
 
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;

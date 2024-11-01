@@ -57,6 +57,12 @@ export function EditProfileScreenView(props: Props) {
       : userContact?.customAvatarImage ?? '';
   }, [props.userId, currentUserId, userContact]);
 
+  const avatarPlaceholder = useMemo(() => {
+    return props.userId === currentUserId
+      ? undefined
+      : userContact?.avatarImage ?? undefined;
+  }, [props.userId, currentUserId, userContact]);
+
   const {
     control,
     handleSubmit,
@@ -137,20 +143,24 @@ export function EditProfileScreenView(props: Props) {
                   name="nickname"
                   label="Nickname"
                   control={control}
-                  renderInputContainer={({ children }) => {
-                    return (
-                      <XStack gap="$m">
-                        <View flex={1}>{children}</View>
-                        <SigilAvatar
-                          contactId={currentUserId}
-                          width={56}
-                          height={56}
-                          borderRadius="$l"
-                          size="custom"
-                        />
-                      </XStack>
-                    );
-                  }}
+                  renderInputContainer={
+                    props.userId === currentUserId
+                      ? ({ children }) => {
+                          return (
+                            <XStack gap="$m">
+                              <View flex={1}>{children}</View>
+                              <SigilAvatar
+                                contactId={currentUserId}
+                                width={56}
+                                height={56}
+                                borderRadius="$l"
+                                size="custom"
+                              />
+                            </XStack>
+                          );
+                        }
+                      : undefined
+                  }
                   inputProps={{ placeholder: nicknamePlaceholder }}
                   rules={{
                     maxLength: {
@@ -169,6 +179,7 @@ export function EditProfileScreenView(props: Props) {
               control={control}
               inputProps={{
                 buttonLabel: 'Change avatar image',
+                placeholderUri: avatarPlaceholder,
               }}
               rules={{
                 pattern: {

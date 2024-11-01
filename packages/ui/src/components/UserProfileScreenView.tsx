@@ -66,15 +66,21 @@ export function UserProfileScreenView(props: Props) {
     [props]
   );
 
+  const canEdit = useMemo(() => {
+    return currentUserId === props.userId || userContact?.isContact;
+  }, [currentUserId, props.userId, userContact]);
+
   return (
     <View flex={1} backgroundColor={'$secondaryBackground'}>
       <ScreenHeader
         title="Profile"
         leftControls={<ScreenHeader.BackButton onPress={props.onBack} />}
         rightControls={
-          <ScreenHeader.TextButton onPress={() => props.onPressEdit()}>
-            Edit
-          </ScreenHeader.TextButton>
+          canEdit ? (
+            <ScreenHeader.TextButton onPress={() => props.onPressEdit()}>
+              Edit
+            </ScreenHeader.TextButton>
+          ) : null
         }
       />
       <ScrollView
@@ -341,6 +347,10 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
     }
   }, [props]);
 
+  const handleRemoveContactSuggestion = useCallback(() => {
+    store.removeContactSuggestion(props.userId);
+  }, [props]);
+
   const isBlocked = useMemo(() => {
     return props.contact?.isBlocked ?? false;
   }, [props.contact]);
@@ -353,6 +363,12 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
           title={props.contact?.isContact ? 'Remove Contact' : 'Add Contact'}
           onPress={handleToggleContact}
         />
+        {props.contact?.isContactSuggestion ? (
+          <ProfileButton
+            title="Clear Suggestion"
+            onPress={handleRemoveContactSuggestion}
+          />
+        ) : null}
         <ProfileButton
           title={isBlocked ? 'Unblock' : 'Block'}
           onPress={handleBlock}

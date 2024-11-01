@@ -6,8 +6,11 @@ const logger = createDevLogger('ContactActions', false);
 
 export async function addContact(contactId: string) {
   // Optimistic update
-  // await db.addContact({ id: contactId });
-  await db.updateContact({ id: contactId, isContact: true });
+  await db.updateContact({
+    id: contactId,
+    isContact: true,
+    isContactSuggestion: false,
+  });
 
   try {
     await api.addContact(contactId);
@@ -28,6 +31,19 @@ export async function removeContact(contactId: string) {
     console.error('Error removing contact', e);
     // Rollback the update
     await db.updateContact({ id: contactId, isContact: true });
+  }
+}
+
+export async function removeContactSuggestion(contactId: string) {
+  // Optimistic update
+  await db.updateContact({ id: contactId, isContactSuggestion: false });
+
+  try {
+    await api.removeContactSuggestion(contactId);
+  } catch (e) {
+    // Rollback the update
+    console.error('Error removing contact suggestion', e);
+    await db.updateContact({ id: contactId, isContactSuggestion: true });
   }
 }
 

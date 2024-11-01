@@ -21,8 +21,11 @@ export const getContacts = async () => {
   });
   const skipContacts = new Set(Object.keys(contactsResponse));
 
-  // TODO: actually load suggestions
-  const suggestionsResponse = ['~forfel-norfel'];
+  const suggestionsResponse = await scry<string[]>({
+    app: 'groups-ui',
+    path: '/suggested-contacts',
+  });
+
   const contactSuggestions = new Set(suggestionsResponse);
 
   const peerProfiles = v0PeersToClientProfiles(peersResponse, {
@@ -39,8 +42,8 @@ export const getContacts = async () => {
 export const removeContactSuggestion = async (contactId: string) => {
   return poke({
     app: 'groups-ui',
-    mark: 'hide-contact',
-    json: '~latter-bolden',
+    mark: 'ui-hide-contact',
+    json: contactId,
   });
 };
 
@@ -78,6 +81,7 @@ export const updateContactMetadata = async (
 };
 
 export const addContact = async (contactId: string) => {
+  removeContactSuggestion(contactId);
   return poke({
     app: 'contacts',
     mark: 'contact-action-1',
@@ -161,27 +165,27 @@ export const subscribeToContactUpdates = (
       path: '/v1/news',
     },
     (event: ub.ContactsNewsResponse1) => {
-      console.log(`bl: got v1/news event`, event);
-
       // received when someone is marked as a contact or when a contact's profile is updated
-      if (ub.isPageResponse(event) && event.kip.startsWith('~')) {
-        const contactBookEntry = [event.con, event.mod] as ub.ContactBookEntry;
-        handler({
+      if (ub.isPageResponse(event) && event.page.kip.startsWith('~')) {
+        const { kip, contact, mod } = event.page;
+        const contactBookEntry = [contact, mod] as ub.ContactBookEntry;
+        return handler({
           type: 'upsertContact',
-          contact: contactToClientProfile(event.kip, contactBookEntry),
+          contact: contactToClientProfile(kip, contactBookEntry),
         });
       }
 
-      if (ub.isWipeResponse(event) && event.kip.startsWith('~')) {
-        handler({ type: 'removeContact', contactId: event.kip });
+      if (ub.isWipeResponse(event) && event.wipe.kip.startsWith('~')) {
+        return handler({ type: 'removeContact', contactId: event.wipe.kip });
       }
 
       // received when we get initial or updated profile info for a non-contact. Note: we also get
       // a dupe event here if a contact updates their own profile (get a page fact and peer fact)
-      if (ub.isPeerResponse(event) && event.who.startsWith('~')) {
-        handler({
+      if (ub.isPeerResponse(event) && event.peer.who.startsWith('~')) {
+        const { who, contact } = event.peer;
+        return handler({
           type: 'upsertContact',
-          contact: v1PeerToClientProfile(event.who, event.con),
+          contact: v1PeerToClientProfile(who, contact),
         });
       }
     }
@@ -232,8 +236,6 @@ export const v0PeerToClientProfile = (
       })) ?? [],
 
     isContact: false,
-    customNickname: null,
-    customAvatarImage: null,
     isContactSuggestion: config?.isContactSuggestion,
   };
 };
@@ -274,9 +276,7 @@ export const v1PeerToClientProfile = (
       })) ?? [],
 
     isContact: config?.isContact,
-    customNickname: null,
-    customAvatarImage: null,
-    isContactSuggestion: config?.isContactSuggestion,
+    isContactSuggestion: config?.isContactSuggestion && !config?.isContact,
   };
 };
 
@@ -320,8 +320,8 @@ export const contactToClientProfile = (
       })) ?? [],
 
     isContact: true,
-    customNickname: overrides.nickname?.value ?? null,
-    customAvatarImage: overrides.avatar?.value ?? null,
-    isContactSuggestion: config?.isContactSuggestion,
+    customNickname: overrides.nickname?.value,
+    customAvatarImage: overrides.avatar?.value,
+    isContactSuggestion: false,
   };
 };

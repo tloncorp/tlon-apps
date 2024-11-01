@@ -101,19 +101,25 @@ export type ContactsSelfResponse1 = {
 
 // received when someone is marked as a contact or when a contact's profile is updated
 export type ContactsPageResponse1 = {
-  kip: string;
-  con: ContactBookProfile;
-  mod: ContactBookProfile;
+  page: {
+    kip: string;
+    contact: ContactBookProfile;
+    mod: ContactBookProfile;
+  };
 };
 
 export type ContactsWipeResponse1 = {
-  kip: string;
+  wipe: {
+    kip: string;
+  };
 };
 
 // received when we get non-contact initial info
 export type ContactsPeerResponse1 = {
-  who: string;
-  con: ContactBookProfile;
+  peer: {
+    who: string;
+    contact: ContactBookProfile;
+  };
 };
 
 export type ContactsNewsResponse1 =
@@ -125,19 +131,19 @@ export type ContactsNewsResponse1 =
 export function isPageResponse(
   response: ContactsNewsResponse1
 ): response is ContactsPageResponse1 {
-  return 'kip' in response && 'con' in response && 'mod' in response;
+  return 'page' in response;
 }
 
 export function isWipeResponse(
   response: ContactsNewsResponse1
 ): response is ContactsWipeResponse1 {
-  return 'kip' in response && !('con' in response);
+  return 'wipe' in response;
 }
 
 export function isPeerResponse(
   response: ContactsNewsResponse1
 ): response is ContactsPeerResponse1 {
-  return 'who' in response && 'con' in response;
+  return 'peer' in response;
 }
 
 export function isSelfResponse(

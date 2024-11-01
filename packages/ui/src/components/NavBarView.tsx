@@ -34,8 +34,8 @@ export const NavBarView = ({
     <NavBar>
       {showContactsTab && (
         <NavIcon
-          type="Face"
-          activeType="Face"
+          type="ChannelNotebooks"
+          activeType="ChannelNotebooks"
           isActive={isRouteActive('Contacts')}
           onPress={navigateToContacts}
         />
