@@ -19,8 +19,6 @@ export function setupDb() {
     return;
   }
   connection = new OPSQLite$SQLiteConnection(
-    // NB: the iOS code in SQLiteDB.swift relies on this path - if you change
-    // this, you should change that too.
     open({ location: 'default', name: 'tlon.sqlite' })
   );
   // Experimental SQLite settings. May cause crashes. More here:
