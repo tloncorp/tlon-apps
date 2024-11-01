@@ -699,10 +699,14 @@ export function ChannelOptions({
             {
               accent: 'neutral',
               actions: [
-                {
-                  title: 'Configure view',
-                  action: onPressConfigureChannel,
-                },
+                ...(channel.contentConfiguration == null
+                  ? []
+                  : [
+                      {
+                        title: 'Configure view',
+                        action: onPressConfigureChannel,
+                      },
+                    ]),
                 {
                   title: 'Manage channels',
                   endIcon: 'ChevronRight',
