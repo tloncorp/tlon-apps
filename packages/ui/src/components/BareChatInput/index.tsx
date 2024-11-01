@@ -29,6 +29,7 @@ import {
 } from 'tamagui';
 import { getTokenValue } from 'tamagui';
 import { isWeb } from 'tamagui';
+import { View } from 'tamagui';
 
 import {
   Attachment,
@@ -164,6 +165,49 @@ export default function BareChatInput({
     },
     [handleSelectMention, text]
   );
+
+  const renderTextWithMentionsWeb = useMemo(() => {
+    if (!text || mentions.length === 0) {
+      return null;
+    }
+
+    const sortedMentions = [...mentions].sort((a, b) => a.start - b.start);
+    const textParts: JSX.Element[] = [];
+
+    // Handle text before first mention
+    if (sortedMentions[0].start > 0) {
+      textParts.push(
+        <RawText key="text-start" color="transparent">
+          {text.slice(0, sortedMentions[0].start)}
+        </RawText>
+      );
+    }
+
+    // Handle mentions and text between them
+    sortedMentions.forEach((mention, index) => {
+      textParts.push(
+        <Text
+          key={`mention-${mention.id}-${index}`}
+          color="$positiveActionText"
+          backgroundColor="$positiveBackground"
+        >
+          {mention.display}
+        </Text>
+      );
+
+      // Add text between this mention and the next one (or end of text)
+      const nextStart = sortedMentions[index + 1]?.start ?? text.length;
+      if (mention.end < nextStart) {
+        textParts.push(
+          <RawText key={`text-${index}`} color="transparent">
+            {text.slice(mention.end, nextStart)}
+          </RawText>
+        );
+      }
+    });
+
+    return textParts;
+  }, [mentions, text]);
 
   const renderTextWithMentions = useMemo(() => {
     if (!text || mentions.length === 0) {
@@ -544,10 +588,20 @@ export default function BareChatInput({
         {showInlineAttachments && <AttachmentPreviewList />}
         <TextInput
           ref={inputRef}
+          value={isWeb ? text : undefined}
           onChangeText={handleTextChange}
           onChange={isWeb ? adjustTextInputSize : undefined}
           onLayout={isWeb ? adjustTextInputSize : undefined}
           onBlur={handleBlur}
+          onKeyPress={(e) => {
+            if (isWeb && e.nativeEvent.key === 'Enter') {
+              const keyEvent = e.nativeEvent as unknown as KeyboardEvent;
+              if (!keyEvent.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }
+          }}
           multiline
           placeholder={placeholder}
           style={{
@@ -566,8 +620,22 @@ export default function BareChatInput({
             ...(isWeb ? { outlineStyle: 'none' } : {}),
           }}
         >
-          {renderTextWithMentions}
+          {isWeb ? undefined : renderTextWithMentions}
         </TextInput>
+        {isWeb && mentions.length > 0 && (
+          <View height={inputHeight} position="absolute" pointerEvents="none">
+            <RawText
+              paddingHorizontal="$l"
+              paddingTop={getTokenValue('$m', 'space') + 3}
+              fontSize="$m"
+              lineHeight={getFontSize('$m') * 1.2}
+              letterSpacing={-0.032}
+              color="$primaryText"
+            >
+              {renderTextWithMentionsWeb}
+            </RawText>
+          </View>
+        )}
       </YStack>
     </MessageInputContainer>
   );
