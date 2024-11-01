@@ -10,6 +10,7 @@ export type RootStackParamList = {
     channelId: string;
     groupId?: string;
     selectedPostId?: string | null;
+    startDraft?: boolean;
   };
   FindGroups: undefined;
   ContactHostedGroups: {
