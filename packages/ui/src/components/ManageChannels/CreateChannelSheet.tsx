@@ -6,10 +6,7 @@ import {
 } from '@tloncorp/shared';
 import {
   ChannelContentConfiguration,
-  CollectionRendererId,
   ComponentSpec,
-  DraftInputId,
-  PostContentRendererId,
   allCollectionRenderers,
   allContentRenderers,
   allDraftInputs,
@@ -18,29 +15,24 @@ import * as db from '@tloncorp/shared/db';
 import { objectEntries } from '@tloncorp/shared/utils';
 import {
   ComponentProps,
-  ElementRef,
   SetStateAction,
-  forwardRef,
   useCallback,
-  useImperativeHandle,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SizableText, View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts';
-import { useIsAdmin } from '../../utils';
 import { Action, ActionSheet, SimpleActionSheet } from '../ActionSheet';
 import { Button } from '../Button';
 import * as Form from '../Form';
 import { Icon } from '../Icon';
 import { Text } from '../TextV2';
 
-export function applySetStateAction<T>(prev: T, action: SetStateAction<T>): T {
+function applySetStateAction<T>(prev: T, action: SetStateAction<T>): T {
   if (typeof action === 'function') {
     // @ts-expect-error - react does this as well
     return action(prev);
@@ -87,9 +79,7 @@ export function CreateChannelSheet({
   group: db.Group;
   enableCustomChannels?: boolean;
 }) {
-  const customChannelConfigRef =
-    useRef<ElementRef<typeof CustomChannelConfigurationForm>>(null);
-  const { control, handleSubmit, watch } = useForm<{
+  const { control, handleSubmit } = useForm<{
     title: string;
     channelType: ChannelTypeName;
   }>({
@@ -106,16 +96,13 @@ export function CreateChannelSheet({
   });
   const handlePressSave = useCallback(
     async (data: { title: string; channelType: ChannelTypeName }) => {
-      let contentConfiguration: ChannelContentConfiguration | undefined;
       if (data.channelType === 'custom') {
-        contentConfiguration = customChannelConfigRef.current?.getFormValue();
         // HACK: We don't have a custom channel type yet, so call it a chat
         data.channelType = 'chat';
       }
       createChannel({
         title: data.title,
         channelType: data.channelType,
-        contentConfiguration,
       });
       onOpenChange(false);
     },
@@ -167,9 +154,6 @@ export function CreateChannelSheet({
             name={'channelType'}
           />
         </ActionSheet.FormBlock>
-        {watch('channelType') === 'custom' && (
-          <CustomChannelConfigurationForm ref={customChannelConfigRef} />
-        )}
         <ActionSheet.FormBlock>
           <Button onPress={handleSubmit(handlePressSave)} hero>
             <Button.Text>Create channel</Button.Text>
@@ -196,55 +180,6 @@ const options = {
     })
   ),
 };
-
-const CustomChannelConfigurationForm = forwardRef<
-  {
-    getFormValue: () => ChannelContentConfiguration;
-  },
-  {
-    initialValue?: ChannelContentConfiguration;
-  }
->(function CustomChannelConfigurationForm({ initialValue }, ref) {
-  const { control, getValues } = useForm<ChannelContentConfiguration>({
-    defaultValues: initialValue ?? {
-      draftInput: { id: DraftInputId.chat },
-      defaultPostContentRenderer: { id: PostContentRendererId.chat },
-      defaultPostCollectionRenderer: { id: CollectionRendererId.chat },
-    },
-  });
-  useImperativeHandle(ref, () => ({
-    getFormValue: () => getValues(),
-  }));
-
-  return (
-    <>
-      <ActionSheet.FormBlock>
-        <Form.ControlledRadioField
-          name="defaultPostCollectionRenderer.id"
-          label="Collection renderer"
-          control={control}
-          options={options.collection}
-        />
-      </ActionSheet.FormBlock>
-      <ActionSheet.FormBlock>
-        <Form.ControlledRadioField
-          name="defaultPostContentRenderer.id"
-          label="Post renderer"
-          control={control}
-          options={options.content}
-        />
-      </ActionSheet.FormBlock>
-      <ActionSheet.FormBlock>
-        <Form.ControlledRadioField
-          name="draftInput.id"
-          label="Draft input"
-          control={control}
-          options={options.inputs}
-        />
-      </ActionSheet.FormBlock>
-    </>
-  );
-});
 
 export function ChannelConfigurationBar({
   channel,
@@ -505,59 +440,6 @@ function ConfigInput<
         open={configurationOpen}
         onOpenChange={setConfigurationOpen}
       />
-    </>
-  );
-}
-
-export function EditChannelConfigurationSheetContent({
-  channel,
-}: {
-  channel: db.Channel;
-}) {
-  const formRef =
-    useRef<ElementRef<typeof CustomChannelConfigurationForm>>(null);
-
-  const updateChannel = useUpdateChannel();
-  const group = useGroup({ id: channel.group?.id }).data;
-
-  const submit = useCallback(async () => {
-    const formValue = formRef.current?.getFormValue();
-    if (formValue == null) {
-      throw new Error("Couldn't get form value");
-    }
-    if (group == null) {
-      throw new Error("Couldn't get containing group");
-    }
-    await updateChannel({
-      group,
-      channel: {
-        ...channel,
-        contentConfiguration: formValue,
-      },
-    });
-  }, [channel, group, updateChannel]);
-
-  const currentUser = useCurrentUserId();
-  const currentUserIsAdmin = useIsAdmin(channel.groupId ?? '', currentUser);
-
-  if (!currentUserIsAdmin) {
-    return null;
-  }
-
-  return (
-    <>
-      <SizableText margin="$xl" color="$color.gray500">
-        Make sure to save your changes at the bottom.
-      </SizableText>
-      <CustomChannelConfigurationForm
-        ref={formRef}
-        initialValue={channel.contentConfiguration ?? undefined}
-      />
-      <ActionSheet.FormBlock>
-        <Button onPress={submit} hero>
-          <Button.Text>Save</Button.Text>
-        </Button>
-      </ActionSheet.FormBlock>
     </>
   );
 }
