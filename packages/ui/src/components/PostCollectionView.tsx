@@ -1,3 +1,4 @@
+import { ChannelContentConfiguration } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { Ref, useMemo } from 'react';
 
@@ -19,11 +20,18 @@ export function PostCollectionView({
   const SpecificComponent: IPostCollectionView = useMemo(() => {
     const rendererFromContentConfig = (() => {
       const contentConfig = channel.contentConfiguration;
+      if (contentConfig == null) {
+        return null;
+      }
+      const collectionConfig =
+        ChannelContentConfiguration.defaultPostCollectionRenderer(
+          contentConfig
+        );
       if (
         contentConfig != null &&
-        collectionRenderers[contentConfig.defaultPostCollectionRenderer] != null
+        collectionRenderers[collectionConfig.id] != null
       ) {
-        return collectionRenderers[contentConfig.defaultPostCollectionRenderer];
+        return collectionRenderers[collectionConfig.id];
       }
     })();
     return rendererFromContentConfig ?? ListPostCollection;

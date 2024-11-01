@@ -1,38 +1,71 @@
+import type { JSONValue } from '../types/JSONValue';
 import { ValuesOf } from '../utils';
 
-interface ComponentSpec<EnumTag extends string = string> {
+interface ParameterSpec {
+  displayName: string;
+  type: 'boolean' | 'string';
+}
+
+export interface ComponentSpec<EnumTag extends string = string> {
   displayName: string;
   enumTag: EnumTag;
+  parametersSchema?: Record<string, ParameterSpec>;
+}
+
+function standardCollectionParameters(): Record<string, ParameterSpec> {
+  return {
+    showAuthor: {
+      displayName: 'Show author',
+      type: 'boolean',
+    },
+    showReplies: {
+      displayName: 'Show replies',
+      type: 'boolean',
+    },
+  };
 }
 
 export const allCollectionRenderers = {
   'tlon.r0.collection.chat': {
     displayName: 'Chat',
     enumTag: 'chat',
+    parametersSchema: standardCollectionParameters(),
   },
   'tlon.r0.collection.gallery': {
     displayName: 'Gallery',
     enumTag: 'gallery',
+    parametersSchema: standardCollectionParameters(),
   },
   'tlon.r0.collection.notebook': {
     displayName: 'Notebook',
     enumTag: 'notebook',
+    parametersSchema: standardCollectionParameters(),
   },
   'tlon.r0.collection.cards': {
     displayName: 'Cards',
     enumTag: 'cards',
+    parametersSchema: standardCollectionParameters(),
   },
   'tlon.r0.collection.sign': {
     displayName: 'Sign',
     enumTag: 'sign',
+    parametersSchema: standardCollectionParameters(),
   },
   'tlon.r0.collection.boardroom': {
     displayName: 'Boardroom',
     enumTag: 'boardroom',
+    parametersSchema: standardCollectionParameters(),
   },
   'tlon.r0.collection.strobe': {
     displayName: 'Strobe',
     enumTag: 'strobe',
+    parametersSchema: {
+      ...standardCollectionParameters(),
+      interval: {
+        displayName: 'Frame rate in milliseconds',
+        type: 'string',
+      },
+    },
   },
 } as const satisfies Record<string, ComponentSpec>;
 
@@ -52,6 +85,12 @@ export const allDraftInputs = {
   'tlon.r0.input.yo': {
     displayName: 'Yo',
     enumTag: 'yo',
+    parametersSchema: {
+      text: {
+        displayName: 'Message text',
+        type: 'string',
+      },
+    },
   },
   'tlon.r0.input.mic': {
     displayName: 'Mic',
@@ -95,6 +134,12 @@ export const allContentRenderers = {
   'tlon.r0.content.raw': {
     displayName: 'Raw',
     enumTag: 'raw',
+    parametersSchema: {
+      fontFamily: {
+        displayName: 'Font family',
+        type: 'string',
+      },
+    },
   },
   'tlon.r0.content.yell': {
     displayName: 'Yell',
@@ -111,6 +156,23 @@ export type DraftInputId = ValuesOf<typeof DraftInputId>;
 export const PostContentRendererId = makeEnum(allContentRenderers);
 export type PostContentRendererId = ValuesOf<typeof PostContentRendererId>;
 
+type ParameterizedId<Id extends string> = {
+  id: Id;
+  configuration?: Record<string, JSONValue>;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+namespace ParameterizedId {
+  export function id<Id extends string>(id: ParameterizedId<Id>): Id {
+    return typeof id === 'string' ? id : id.id;
+  }
+  export function coerce<Id extends string>(
+    id: Id | ParameterizedId<Id>
+  ): ParameterizedId<Id> {
+    return typeof id === 'string' ? { id } : id;
+  }
+}
+
 /**
  * Configures the custom components used to create content in a channel.
  */
@@ -118,7 +180,7 @@ export interface ChannelContentConfiguration {
   /**
    * Which controls are available when composing a new post?
    */
-  draftInput: DraftInputId;
+  draftInput: DraftInputId | ParameterizedId<DraftInputId>;
 
   /**
    * How should we render a given post content type?
@@ -126,12 +188,35 @@ export interface ChannelContentConfiguration {
    * This spec takes precedence over the client's default renderer mapping, but
    * does not take precedence over any mapping specified in a post's metadata.
    */
-  defaultPostContentRenderer: PostContentRendererId;
+  defaultPostContentRenderer:
+    | PostContentRendererId
+    | ParameterizedId<PostContentRendererId>;
 
   /**
    * How should we render the entire collection of posts? (list, grid, etc)
    */
-  defaultPostCollectionRenderer: CollectionRendererId;
+  defaultPostCollectionRenderer:
+    | CollectionRendererId
+    | ParameterizedId<CollectionRendererId>;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace ChannelContentConfiguration {
+  export function draftInput(
+    configuration: ChannelContentConfiguration
+  ): ParameterizedId<DraftInputId> {
+    return ParameterizedId.coerce(configuration.draftInput);
+  }
+  export function defaultPostContentRenderer(
+    configuration: ChannelContentConfiguration
+  ): ParameterizedId<PostContentRendererId> {
+    return ParameterizedId.coerce(configuration.defaultPostContentRenderer);
+  }
+  export function defaultPostCollectionRenderer(
+    configuration: ChannelContentConfiguration
+  ): ParameterizedId<CollectionRendererId> {
+    return ParameterizedId.coerce(configuration.defaultPostCollectionRenderer);
+  }
 }
 
 /**

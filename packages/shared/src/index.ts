@@ -1,5 +1,6 @@
 export * as ChannelAction from './types/ChannelActions';
 export type { GroupMeta } from './types/groups';
+export { JSONValue } from './types/JSONValue';
 export type {
   NativeWebViewOptions,
   NativeCommand,

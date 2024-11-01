@@ -314,9 +314,9 @@ test('syncs groups, decoding structured description payloads', async () => {
   const channel = groupWithScdp['~fabled-faster/new-york'].channels[channelId];
   const descriptionText = 'cheers';
   const channelContentConfiguration = {
-    draftInput: DraftInputId.chat,
-    defaultPostContentRenderer: PostContentRendererId.notebook,
-    defaultPostCollectionRenderer: CollectionRendererId.gallery,
+    draftInput: { id: DraftInputId.chat },
+    defaultPostContentRenderer: { id: PostContentRendererId.notebook },
+    defaultPostCollectionRenderer: { id: CollectionRendererId.gallery },
   };
   channel.meta.description = StructuredChannelDescriptionPayload.encode({
     description: descriptionText,

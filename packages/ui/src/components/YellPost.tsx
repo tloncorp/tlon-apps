@@ -4,7 +4,7 @@ import { RenderItemType } from '../contexts/componentsKits';
 import { ChatAuthorRow } from './AuthorRow';
 import { createContentRenderer } from './PostContent';
 import { usePostContent } from './PostContent/contentUtils';
-import { RawText, Text } from './TextV2';
+import { RawText } from './TextV2';
 
 export const YellPost: RenderItemType = (props) => {
   const content = usePostContent(props.post);

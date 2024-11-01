@@ -1,11 +1,13 @@
 import {
   CollectionRendererId,
   DraftInputId,
+  JSONValue,
   PostContentRendererId,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Story } from '@tloncorp/shared/urbit';
 import { ReactElement, createContext, useContext, useMemo } from 'react';
+import { Text } from 'react-native';
 
 import { AudioPost } from '../components/AudioPost';
 import { PictoMessage } from '../components/Channel/PictoMessage';
@@ -15,7 +17,6 @@ import { useContactName } from '../components/ContactNameV2';
 import { StandaloneDrawingInput } from '../components/DrawingInput';
 import { GalleryPost } from '../components/GalleryPost';
 import { NotebookPost } from '../components/NotebookPost';
-import { Text } from '../components/TextV2';
 import { YellPost } from '../components/YellPost';
 import {
   ChatInput,
@@ -50,6 +51,7 @@ type RenderItemProps = {
   onPressRetry: (post: db.Post) => void;
   onPressDelete: (post: db.Post) => void;
   isHighlighted?: boolean;
+  contentRendererConfiguration?: Record<string, unknown>;
 };
 
 type RenderItemFunction = (props: RenderItemProps) => ReactElement | null;
@@ -73,6 +75,7 @@ export type MinimalRenderItemProps = {
   onPressRetry?: (post: db.Post) => void;
   onPressDelete?: (post: db.Post) => void;
   isHighlighted?: boolean;
+  contentRendererConfiguration?: Record<string, unknown>;
 };
 export type MinimalRenderItemType = React.ComponentType<MinimalRenderItemProps>;
 
@@ -112,10 +115,17 @@ const BUILTIN_CONTENT_RENDERERS: { [id: string]: RenderItemType } = {
   [PostContentRendererId.picto]: PictoMessage,
   [PostContentRendererId.audio]: AudioPost,
   [PostContentRendererId.color]: ColorPost,
-  [PostContentRendererId.raw]: ({ post }) => {
+  [PostContentRendererId.raw]: ({ post, contentRendererConfiguration }) => {
     const contactName = useContactName(post.author!.id);
     return (
-      <Text>
+      <Text
+        style={{
+          fontFamily: JSONValue.asString(
+            contentRendererConfiguration?.fontFamily,
+            undefined
+          ),
+        }}
+      >
         {contactName}: {JSON.stringify(post.content)}
       </Text>
     );
@@ -129,8 +139,14 @@ const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   [DraftInputId.yo]: ({ draftInputContext }) => (
     <ButtonInput
       draftInputContext={draftInputContext}
-      messageText="Yo"
-      labelText="Yo"
+      messageText={JSONValue.asString(
+        draftInputContext.configuration?.text,
+        'Yo'
+      )}
+      labelText={JSONValue.asString(
+        draftInputContext.configuration?.text,
+        'Yo'
+      )}
     />
   ),
   [DraftInputId.picto]: StandaloneDrawingInput,

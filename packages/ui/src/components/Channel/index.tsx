@@ -1,4 +1,3 @@
-import { DraftInputId } from '@tloncorp/shared';
 import {
   isChatChannel as getIsChatChannel,
   useChannel as useChannelFromStore,
@@ -6,6 +5,10 @@ import {
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared';
+import {
+  ChannelContentConfiguration,
+  DraftInputId,
+} from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
@@ -187,6 +190,11 @@ export function Channel({
     (): DraftInputContext => ({
       channel,
       clearDraft,
+      configuration:
+        channel.contentConfiguration == null
+          ? undefined
+          : ChannelContentConfiguration.draftInput(channel.contentConfiguration)
+              .configuration,
       draftInputRef,
       editPost,
       editingPost,
@@ -287,6 +295,12 @@ export function Channel({
                                   <PostCollectionContext.Provider
                                     value={{
                                       channel,
+                                      collectionConfiguration:
+                                        channel.contentConfiguration == null
+                                          ? undefined
+                                          : ChannelContentConfiguration.defaultPostCollectionRenderer(
+                                              channel.contentConfiguration
+                                            ).configuration,
                                       editingPost,
                                       goToImageViewer,
                                       goToPost,
@@ -349,7 +363,11 @@ export function Channel({
                               ) : (
                                 <DraftInputView
                                   draftInputContext={draftInputContext}
-                                  type={channel.contentConfiguration.draftInput}
+                                  type={
+                                    ChannelContentConfiguration.draftInput(
+                                      channel.contentConfiguration
+                                    ).id
+                                  }
                                 />
                               ))}
 
