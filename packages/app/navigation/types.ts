@@ -21,11 +21,9 @@ export type RootStackParamList = {
     channelId: string;
   };
   Post: {
-    post: {
-      id: string;
-      channelId: string;
-      authorId: string;
-    };
+    postId: string;
+    channelId: string;
+    authorId: string;
   };
   ImageViewer: {
     uri?: string;

@@ -23,11 +23,9 @@ export default function ChannelSearchScreen(props: Props) {
     (post: db.Post) => {
       if (post.parentId) {
         props.navigation.replace('Post', {
-          post: {
-            id: post.parentId,
-            channelId: post.channelId,
-            authorId: post.authorId,
-          },
+          postId: post.parentId,
+          channelId: post.channelId,
+          authorId: post.authorId,
         });
       } else {
         props.navigation.navigate('Channel', {

@@ -45,7 +45,11 @@ export function ActivityScreen(props: Props) {
   const handleGoToThread = useCallback(
     (post: db.Post) => {
       // TODO: we have no way to route to specific thread message rn
-      props.navigation.navigate('Post', { post });
+      props.navigation.navigate('Post', {
+        postId: post.id,
+        authorId: post.authorId,
+        channelId: post.channelId,
+      });
     },
     [props.navigation]
   );

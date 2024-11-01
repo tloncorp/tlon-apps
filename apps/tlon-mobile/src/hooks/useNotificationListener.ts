@@ -177,7 +177,14 @@ export default function useNotificationListener() {
             postToNavigateTo = { ...postInfo, channelId };
           }
 
-          routeStack.push({ name: 'Post', params: { post: postToNavigateTo } });
+          routeStack.push({
+            name: 'Post',
+            params: {
+              postId: postToNavigateTo.id,
+              authorId: postToNavigateTo.authorId,
+              channelId: postToNavigateTo.channelId,
+            },
+          });
         }
 
         navigation.dispatch(

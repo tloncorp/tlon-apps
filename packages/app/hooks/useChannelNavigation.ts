@@ -19,9 +19,13 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
 
   const navigateToPost = useCallback(
     (post: db.Post) => {
-      navigation.push('Post', { post });
+      navigation.push('Post', {
+        postId: post.id,
+        channelId,
+        authorId: post.authorId,
+      });
     },
-    [navigation]
+    [channelId, navigation]
   );
 
   const navigateToRef = useCallback(

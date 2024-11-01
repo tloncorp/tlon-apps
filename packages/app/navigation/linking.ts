@@ -25,7 +25,7 @@ export const getMobileLinkingConfig = (
           },
           CreateGroup: 'create-group',
           ChannelSearch: { path: 'channel/:channelId/search' },
-          Post: { path: 'post/:postId' },
+          Post: postScreenConfig(mode),
           ImageViewer: 'image-viewer/:postId',
           GroupSettings: {
             screens: {
@@ -114,9 +114,7 @@ export const getDesktopLinkingConfig = (
                   },
                   GroupSettings: {},
                   ChannelSearch: {},
-                  Post: {
-                    path: 'post/:postId',
-                  },
+                  Post: postScreenConfig(mode),
                   ImageViewer: {},
                 },
               },
@@ -126,6 +124,12 @@ export const getDesktopLinkingConfig = (
       },
     },
   },
+});
+
+const postScreenConfig = (mode: string) => ({
+  path: basePathForMode(mode) + '/channel/:channelId/post/:authorId/:postId',
+  parse: parsePathParams('channelId', 'authorId', 'postId'),
+  exact: true,
 });
 
 function parsePathParams(...keys: string[]) {
