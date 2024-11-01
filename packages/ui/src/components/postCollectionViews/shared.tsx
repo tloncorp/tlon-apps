@@ -1,5 +1,5 @@
+import { JSONValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { JSONValue } from 'packages/shared/src';
 import { ComponentPropsWithoutRef, useMemo } from 'react';
 
 import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';

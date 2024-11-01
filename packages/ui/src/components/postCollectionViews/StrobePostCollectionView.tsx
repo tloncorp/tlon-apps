@@ -1,6 +1,6 @@
+import { JSONValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { shuffle } from 'lodash';
-import { JSONValue } from 'packages/shared/src';
 import {
   forwardRef,
   useCallback,
