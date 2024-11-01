@@ -1,13 +1,10 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useBranch, useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { inviteShipWithLure } from '@tloncorp/app/lib/hostingApi';
-import { trackError } from '@tloncorp/app/utils/posthog';
+import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import { createDevLogger } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useEffect, useRef } from 'react';
-
-import { RootStackParamList } from '../types';
 
 const logger = createDevLogger('deeplinkHandler', true);
 

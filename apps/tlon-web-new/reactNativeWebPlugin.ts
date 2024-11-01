@@ -3,6 +3,7 @@ import type { Plugin as ESBuildPlugin } from 'esbuild';
 // @ts-expect-error - flow-remove-types is not typed
 import flowRemoveTypes from 'flow-remove-types';
 import fs from 'fs/promises';
+import { fileURLToPath } from 'url';
 import { transformWithEsbuild } from 'vite';
 import type { Plugin as VitePlugin } from 'vite';
 
@@ -64,12 +65,67 @@ const reactNativeWeb =
       },
       resolve: {
         extensions,
-        alias: [{ find: 'react-native', replacement: 'react-native-web' }],
+        alias: [
+          { find: 'react-native', replacement: 'react-native-web' },
+          {
+            find: '@react-native-firebase/crashlytics',
+            replacement: fileURLToPath(
+              new URL(
+                './src/mocks/react-native-firebase-crashlytics.js',
+                import.meta.url
+              )
+            ),
+          },
+          {
+            find: '@tloncorp/editor/dist/editorHtml',
+            replacement: fileURLToPath(
+              new URL('./src/mocks/tloncorp-editor-html.js', import.meta.url)
+            ),
+          },
+          {
+            find: '@tloncorp/editor/src/bridges',
+            replacement: fileURLToPath(
+              new URL('./src/mocks/tloncorp-editor-bridges.js', import.meta.url)
+            ),
+          },
+          {
+            find: '@10play/tentap-editor',
+            replacement: fileURLToPath(
+              new URL('./src/mocks/tentap-editor.js', import.meta.url)
+            ),
+          },
+          {
+            find: 'react-native-gesture-handler/ReanimatedSwipeable',
+            replacement: fileURLToPath(
+              new URL(
+                './src/mocks/react-native-gesture-handler.js',
+                import.meta.url
+              )
+            ),
+          },
+        ],
       },
       optimizeDeps: {
         esbuildOptions: {
           plugins: [esbuildPlugin()],
           resolveExtensions: extensions,
+        },
+      },
+      build: {
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              'react-native-web': ['react-native-web'],
+              'react-native-reanimated': ['react-native-reanimated'],
+              'react-native-gesture-handler': ['react-native-gesture-handler'],
+              'react-native-screens': ['react-native-screens'],
+              'react-native-safe-area-context': [
+                'react-native-safe-area-context',
+              ],
+              '@react-navigation/native': ['@react-navigation/native'],
+              '@react-navigation/drawer': ['@react-navigation/drawer'],
+            },
+          },
         },
       },
     }),

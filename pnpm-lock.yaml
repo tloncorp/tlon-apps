@@ -25,7 +25,7 @@ patchedDependencies:
     hash: zkdmh374s554i7qlaqtqn2nhfm
     path: patches/@likashefqet__react-native-image-zoom@3.0.0.patch
   '@react-navigation/drawer@6.7.2':
-    hash: uvadz7wecy3yfbv66nyfswys5y
+    hash: rib4hjvzksqzwv3bbw4vfi5a5i
     path: patches/@react-navigation__drawer@6.7.2.patch
   '@tiptap/react@2.0.3':
     hash: tt2duu22fpwhmhaws3iaoig4mu
@@ -149,7 +149,7 @@ importers:
         version: 6.5.12(@react-navigation/native@6.1.10(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-safe-area-context@4.9.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-screens@3.29.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@react-navigation/drawer':
         specifier: ^6.7.2
-        version: 6.7.2(patch_hash=uvadz7wecy3yfbv66nyfswys5y)(@react-navigation/native@6.1.10(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-gesture-handler@2.20.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.25.2)(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-safe-area-context@4.9.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-screens@3.29.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+        version: 6.7.2(patch_hash=rib4hjvzksqzwv3bbw4vfi5a5i)(@react-navigation/native@6.1.10(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-gesture-handler@2.20.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.25.2)(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-safe-area-context@4.9.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-screens@3.29.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@react-navigation/native':
         specifier: ^6.1.7
         version: 6.1.10(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
@@ -986,48 +986,9 @@ importers:
       '@babel/runtime':
         specifier: ^7.25.9
         version: 7.25.9
-      '@emoji-mart/data':
-        specifier: ^1.0.6
-        version: 1.1.2
-      '@emoji-mart/react':
-        specifier: ^1.0.1
-        version: 1.0.1(emoji-mart@5.2.2)(react@18.2.0)
-      '@radix-ui/react-accordion':
-        specifier: ^1.1.2
-        version: 1.1.2(@types/react-dom@18.2.18)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      '@radix-ui/react-collapsible':
-        specifier: ^1.0.3
-        version: 1.0.3(@types/react-dom@18.2.18)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      '@radix-ui/react-dialog':
-        specifier: ^1.0.4
-        version: 1.0.4(@types/react-dom@18.2.18)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      '@radix-ui/react-dropdown-menu':
-        specifier: ^2.0.5
-        version: 2.0.5(@types/react-dom@18.2.18)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      '@radix-ui/react-popover':
-        specifier: ^1.0.2
-        version: 1.0.6(@types/react-dom@18.2.18)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      '@radix-ui/react-radio-group':
-        specifier: ^1.1.3
-        version: 1.1.3(@types/react-dom@18.2.18)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      '@radix-ui/react-tabs':
-        specifier: ^1.0.4
-        version: 1.0.4(@types/react-dom@18.2.18)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      '@radix-ui/react-toast':
-        specifier: ^1.0.0
-        version: 1.0.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      '@radix-ui/react-toggle':
-        specifier: ^1.0.2
-        version: 1.0.3(@types/react-dom@18.2.18)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      '@radix-ui/react-toggle-group':
-        specifier: ^1.0.4
-        version: 1.0.4(@types/react-dom@18.2.18)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      '@radix-ui/react-tooltip':
-        specifier: ^1.0.0
-        version: 1.0.0(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@react-navigation/drawer':
         specifier: ^6.7.2
-        version: 6.7.2(patch_hash=uvadz7wecy3yfbv66nyfswys5y)(@react-navigation/native@6.1.10(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-gesture-handler@2.20.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.25.2)(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-safe-area-context@4.9.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-screens@3.29.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+        version: 6.7.2(patch_hash=rib4hjvzksqzwv3bbw4vfi5a5i)(@react-navigation/native@6.1.10(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-gesture-handler@2.20.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.25.2)(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-safe-area-context@4.9.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-screens@3.29.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@react-navigation/native':
         specifier: ^6.1.7
         version: 6.1.10(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
@@ -1043,9 +1004,6 @@ importers:
       '@tanstack/react-query-persist-client':
         specifier: ^4.28.0
         version: 4.28.0(@tanstack/react-query@4.36.1(react-dom@18.2.0(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))
-      '@tanstack/react-virtual':
-        specifier: ^3.0.0-beta.60
-        version: 3.0.0-beta.65(react@18.2.0)
       '@tiptap/core':
         specifier: ^2.6.6
         version: 2.6.6(@tiptap/pm@2.6.6)
@@ -1136,9 +1094,6 @@ importers:
       '@tloncorp/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@types/marked':
-        specifier: ^4.3.0
-        version: 4.3.2
       '@urbit/api':
         specifier: 2.2.0
         version: 2.2.0
@@ -1157,54 +1112,12 @@ importers:
       big-integer:
         specifier: ^1.6.51
         version: 1.6.52
-      browser-cookies:
-        specifier: ^1.2.0
-        version: 1.2.0
-      browser-image-compression:
-        specifier: ^2.0.2
-        version: 2.0.2
       classnames:
         specifier: ^2.3.1
         version: 2.5.1
-      clipboard-copy:
-        specifier: ^4.0.1
-        version: 4.0.1
-      color2k:
-        specifier: ^2.0.0
-        version: 2.0.3
       cross-fetch:
         specifier: ^3.1.5
         version: 3.1.5(encoding@0.1.13)
-      date-fns:
-        specifier: ^2.28.0
-        version: 2.30.0
-      dompurify:
-        specifier: ^3.0.6
-        version: 3.0.6
-      emoji-mart:
-        specifier: ^5.2.2
-        version: 5.2.2
-      emoji-regex:
-        specifier: ^10.2.1
-        version: 10.3.0
-      fast-average-color:
-        specifier: ^9.1.1
-        version: 9.1.1
-      framer-motion:
-        specifier: ^6.5.1
-        version: 6.5.1(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      fuzzy:
-        specifier: ^0.1.3
-        version: 0.1.3
-      get-youtube-id:
-        specifier: ^1.0.1
-        version: 1.0.1
-      hast-to-hyperscript:
-        specifier: ^10.0.1
-        version: 10.0.1
-      history:
-        specifier: ^5.3.0
-        version: 5.3.0
       idb-keyval:
         specifier: ^6.2.0
         version: 6.2.0
@@ -1214,21 +1127,9 @@ importers:
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
-      marked:
-        specifier: ^4.3.0
-        version: 4.3.0
-      masonic:
-        specifier: ^3.6.5
-        version: 3.6.5(react@18.2.0)
-      moment:
-        specifier: ^2.29.4
-        version: 2.29.4
       posthog-js:
         specifier: ^1.68.2
         version: 1.68.2
-      prismjs:
-        specifier: ^1.29.0
-        version: 1.29.0
       prosemirror-commands:
         specifier: ~1.2.2
         version: 1.2.2
@@ -1259,21 +1160,6 @@ importers:
       react:
         specifier: ^18.2.0
         version: 18.2.0
-      react-beautiful-dnd:
-        specifier: ^13.1.1
-        version: 13.1.1(react-dom@18.2.0(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
-      react-colorful:
-        specifier: ^5.5.1
-        version: 5.6.1(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      react-dnd:
-        specifier: ^15.1.1
-        version: 15.1.2(@types/hoist-non-react-statics@3.3.1)(@types/node@20.14.10)(@types/react@18.2.55)(react@18.2.0)
-      react-dnd-html5-backend:
-        specifier: ^15.1.2
-        version: 15.1.3
-      react-dnd-touch-backend:
-        specifier: ^15.1.1
-        version: 15.1.2
       react-dom:
         specifier: ^18.2.0
         version: 18.2.0(react@18.2.0)
@@ -1283,12 +1169,6 @@ importers:
       react-helmet:
         specifier: ^6.1.0
         version: 6.1.0(react@18.2.0)
-      react-hook-form:
-        specifier: ^7.30.0
-        version: 7.52.0(react@18.2.0)
-      react-image-size:
-        specifier: ^2.0.0
-        version: 2.0.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       react-intersection-observer:
         specifier: ^9.4.0
         version: 9.4.0(react@18.2.0)
@@ -1301,30 +1181,6 @@ importers:
       react-native-web:
         specifier: 0.19.12
         version: 0.19.12(encoding@0.1.13)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      react-oembed-container:
-        specifier: github:stefkampen/react-oembed-container
-        version: https://codeload.github.com/stefkampen/react-oembed-container/tar.gz/802eee0dba7986faa9c931b1c016acba5369d5f9(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      react-qr-code:
-        specifier: ^2.0.12
-        version: 2.0.12(react-native-svg@15.0.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react@18.2.0)
-      react-select:
-        specifier: ^5.3.2
-        version: 5.4.0(@babel/core@7.25.2)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      react-tweet:
-        specifier: ^3.0.4
-        version: 3.1.1(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      react-virtuoso:
-        specifier: ^4.5.1
-        version: 4.6.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      refractor:
-        specifier: ^4.8.0
-        version: 4.8.0
-      slugify:
-        specifier: ^1.6.6
-        version: 1.6.6
-      sorted-btree:
-        specifier: ^1.8.1
-        version: 1.8.1
       sqlocal:
         specifier: ^0.11.1
         version: 0.11.1(drizzle-orm@0.30.9(patch_hash=cegrec33e6f7d6ltk7vff5r7w4)(@op-engineering/op-sqlite@5.0.5(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(@opentelemetry/api@1.8.0)(@types/better-sqlite3@7.6.9)(@types/react@18.2.55)(better-sqlite3@9.4.5)(react@18.2.0))
@@ -1334,30 +1190,15 @@ importers:
       tailwindcss-scoped-groups:
         specifier: ^2.0.0
         version: 2.0.0(tailwindcss@3.4.1)
-      tippy.js:
-        specifier: ^6.3.7
-        version: 6.3.7
       urbit-ob:
         specifier: ^5.0.1
         version: 5.0.1
       use-pwa-install:
         specifier: ^1.0.1
         version: 1.0.1(react@18.2.0)
-      usehooks-ts:
-        specifier: ^2.6.0
-        version: 2.6.0(patch_hash=zfxlgoj5v64fvvaz7tv5fo5k2e)(react@18.2.0)
-      uuid:
-        specifier: ^9.0.0
-        version: 9.0.0
       validator:
         specifier: ^13.7.0
         version: 13.7.0
-      vaul:
-        specifier: github:latter-bolden/vaul
-        version: https://codeload.github.com/latter-bolden/vaul/tar.gz/9b06080c3f70c9ac6cf55d4d3306dc0baecc3213(@types/react-dom@18.2.18)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      video-react:
-        specifier: ^0.16.0
-        version: 0.16.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       vite-plugin-svgr:
         specifier: ^4.2.0
         version: 4.2.0(rollup@4.13.0)(typescript@5.4.5)(vite@5.1.6(@types/node@20.14.10)(lightningcss@1.19.0)(terser@5.19.1))
@@ -18766,7 +18607,7 @@ snapshots:
       react: 18.2.0
       stacktrace-parser: 0.1.10
 
-  ? '@react-navigation/drawer@6.7.2(patch_hash=uvadz7wecy3yfbv66nyfswys5y)(@react-navigation/native@6.1.10(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-gesture-handler@2.20.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.25.2)(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-safe-area-context@4.9.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-screens@3.29.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)'
+  ? '@react-navigation/drawer@6.7.2(patch_hash=rib4hjvzksqzwv3bbw4vfi5a5i)(@react-navigation/native@6.1.10(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-gesture-handler@2.20.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.25.2)(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-safe-area-context@4.9.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-screens@3.29.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)'
   : dependencies:
       '@react-navigation/elements': 1.3.31(@react-navigation/native@6.1.10(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-safe-area-context@4.9.0(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@react-navigation/native': 6.1.10(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
@@ -26880,19 +26721,6 @@ snapshots:
     optionalDependencies:
       '@types/hoist-non-react-statics': 3.3.1
       '@types/node': 20.10.8
-      '@types/react': 18.2.55
-
-  react-dnd@15.1.2(@types/hoist-non-react-statics@3.3.1)(@types/node@20.14.10)(@types/react@18.2.55)(react@18.2.0):
-    dependencies:
-      '@react-dnd/invariant': 3.0.1
-      '@react-dnd/shallowequal': 3.0.1
-      dnd-core: 15.1.2
-      fast-deep-equal: 3.1.3
-      hoist-non-react-statics: 3.3.2
-      react: 18.2.0
-    optionalDependencies:
-      '@types/hoist-non-react-statics': 3.3.1
-      '@types/node': 20.14.10
       '@types/react': 18.2.55
 
   react-dom@18.2.0(react@18.2.0):

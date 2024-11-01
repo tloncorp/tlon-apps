@@ -329,10 +329,16 @@ export const fonts = {
   // ===
 };
 
+export const media = {
+  sm: { maxWidth: 768 },
+  gtSm: { minWidth: 768 + 1 },
+};
+
 export const config = createTamagui({
   tokens,
   fonts,
   themes,
+  media,
   settings: {
     allowedStyleValues: {
       space: 'somewhat-strict',
