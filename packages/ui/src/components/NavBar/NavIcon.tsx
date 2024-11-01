@@ -1,4 +1,4 @@
-import { Circle } from 'tamagui';
+import { Circle, ColorTokens } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
 import { Icon, IconType } from '../Icon';
@@ -33,26 +33,37 @@ export default function NavIcon({
   isActive,
   hasUnreads = false,
   onPress,
+  backgroundColor,
+  shouldShowUnreads = true,
 }: {
   type: IconType;
   activeType?: IconType;
   isActive: boolean;
   hasUnreads?: boolean;
   onPress?: () => void;
+  backgroundColor?: ColorTokens;
+  shouldShowUnreads?: boolean;
 }) {
   const resolvedType = isActive && activeType ? activeType : type;
   return (
-    <View alignItems="center" flex={1} onPress={onPress}>
+    <View
+      backgroundColor={backgroundColor}
+      alignItems="center"
+      flex={1}
+      onPress={onPress}
+    >
       <Icon
         type={resolvedType}
         color={isActive ? '$primaryText' : '$activeBorder'}
       />
-      <View justifyContent="center" alignItems="center">
-        <Circle
-          size="$s"
-          backgroundColor={hasUnreads ? '$blue' : 'transparent'}
-        />
-      </View>
+      {shouldShowUnreads ? (
+        <View justifyContent="center" alignItems="center">
+          <Circle
+            size="$s"
+            backgroundColor={hasUnreads ? '$blue' : 'transparent'}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }

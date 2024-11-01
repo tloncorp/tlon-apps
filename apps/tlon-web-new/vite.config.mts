@@ -115,10 +115,7 @@ export default ({ mode }: { mode: string }) => {
     external:
       mode === 'mock' || mode === 'staging'
         ? ['virtual:pwa-register/react']
-        : [
-            '@urbit/sigil-js/dist/core',
-            'react-native-device-info',
-          ],
+        : ['@urbit/sigil-js/dist/core', 'react-native-device-info'],
     output: {
       hashCharacters: 'base36' as any,
       manualChunks: {
@@ -128,28 +125,12 @@ export default ({ mode }: { mode: string }) => {
         'urbit/http-api': ['@urbit/http-api'],
         'urbit/sigil-js': ['@urbit/sigil-js'],
         'any-ascii': ['any-ascii'],
-        'react-beautiful-dnd': ['react-beautiful-dnd'],
-        'emoji-mart': ['emoji-mart'],
         'tiptap/core': ['@tiptap/core'],
         'tiptap/extension-placeholder': ['@tiptap/extension-placeholder'],
         'tiptap/extension-link': ['@tiptap/extension-link'],
-        'react-virtuoso': ['react-virtuoso'],
-        'react-select': ['react-select'],
-        'react-hook-form': ['react-hook-form'],
-        'framer-motion': ['framer-motion'],
-        'date-fns': ['date-fns'],
-        'tippy.js': ['tippy.js'],
         'aws-sdk/client-s3': ['@aws-sdk/client-s3'],
         'aws-sdk/s3-request-presigner': ['@aws-sdk/s3-request-presigner'],
-        refractor: ['refractor'],
         'urbit-ob': ['urbit-ob'],
-        'hast-to-hyperscript': ['hast-to-hyperscript'],
-        'radix-ui/react-dialog': ['@radix-ui/react-dialog'],
-        'radix-ui/react-dropdown-menu': ['@radix-ui/react-dropdown-menu'],
-        'radix-ui/react-popover': ['@radix-ui/react-popover'],
-        'radix-ui/react-toast': ['@radix-ui/react-toast'],
-        'radix-ui/react-tooltip': ['@radix-ui/react-tooltip'],
-        'react-native-reanimated': ['react-native-reanimated'],
       },
     },
   };
@@ -214,42 +195,6 @@ export default ({ mode }: { mode: string }) => {
         {
           find: '@',
           replacement: fileURLToPath(new URL('./src', import.meta.url)),
-        },
-        {
-          find: '@react-native-firebase/crashlytics',
-          replacement: fileURLToPath(
-            new URL(
-              './src/mocks/react-native-firebase-crashlytics.js',
-              import.meta.url
-            )
-          ),
-        },
-        {
-          find: '@tloncorp/editor/dist/editorHtml',
-          replacement: fileURLToPath(
-            new URL('./src/mocks/tloncorp-editor-html.js', import.meta.url)
-          ),
-        },
-        {
-          find: '@tloncorp/editor/src/bridges',
-          replacement: fileURLToPath(
-            new URL('./src/mocks/tloncorp-editor-bridges.js', import.meta.url)
-          ),
-        },
-        {
-          find: '@10play/tentap-editor',
-          replacement: fileURLToPath(
-            new URL('./src/mocks/tentap-editor.js', import.meta.url)
-          ),
-        },
-        {
-          find: 'react-native-gesture-handler/ReanimatedSwipeable',
-          replacement: fileURLToPath(
-            new URL(
-              './src/mocks/react-native-gesture-handler.js',
-              import.meta.url
-            )
-          ),
         },
       ],
     },

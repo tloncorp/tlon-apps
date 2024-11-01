@@ -3,6 +3,7 @@ import type { NavigationProp } from '@react-navigation/native';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import { useFeatureFlag } from '@tloncorp/app/lib/featureFlags';
 import { connectNotifications } from '@tloncorp/app/lib/notifications';
+import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import * as posthog from '@tloncorp/app/utils/posthog';
 import { syncDms, syncGroups } from '@tloncorp/shared';
 import { markChatRead } from '@tloncorp/shared/api';
@@ -15,8 +16,6 @@ import {
   addNotificationResponseReceivedListener,
 } from 'expo-notifications';
 import { useEffect, useState } from 'react';
-
-import { RootStackParamList } from '../types';
 
 type RouteStack = {
   name: keyof RootStackParamList;
@@ -151,13 +150,16 @@ export default function useNotificationListener() {
         }
 
         const routeStack: RouteStack = [{ name: 'ChatList' }];
-        if (channel.group && !channelSwitcherEnabled) {
+        if (channel.groupId && !channelSwitcherEnabled) {
           routeStack.push({
             name: 'GroupChannels',
-            params: { group: channel.group },
+            params: { groupId: channel.groupId },
           });
         }
-        routeStack.push({ name: 'Channel', params: { channel } });
+        routeStack.push({
+          name: 'Channel',
+          params: { channelId: channel.id },
+        });
 
         // if we have a post id, try to navigate to the thread
         if (postInfo) {
@@ -175,7 +177,14 @@ export default function useNotificationListener() {
             postToNavigateTo = { ...postInfo, channelId };
           }
 
-          routeStack.push({ name: 'Post', params: { post: postToNavigateTo } });
+          routeStack.push({
+            name: 'Post',
+            params: {
+              postId: postToNavigateTo.id,
+              authorId: postToNavigateTo.authorId,
+              channelId: postToNavigateTo.channelId,
+            },
+          });
         }
 
         navigation.dispatch(

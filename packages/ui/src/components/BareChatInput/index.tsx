@@ -18,17 +18,17 @@ import {
   pathToCite,
 } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, Platform, TextInput } from 'react-native';
+import { Keyboard, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  View,
   YStack,
   getFontSize,
-  getToken,
   getVariableValue,
   useTheme,
   useWindowDimensions,
 } from 'tamagui';
+import { getTokenValue } from 'tamagui';
+import { isWeb } from 'tamagui';
 
 import {
   Attachment,
@@ -86,6 +86,7 @@ export default function BareChatInput({
     waitForAttachmentUploads,
   } = useAttachmentContext();
   const [text, setText] = useState('');
+  const [inputHeight, setInputHeight] = useState(initialHeight);
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState(false);
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
@@ -100,6 +101,8 @@ export default function BareChatInput({
     showMentionPopup,
   } = useMentions();
   const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
+  const [isMultiline, setIsMultiline] = useState(false);
+  const inputContainerRef = useRef<View>(null);
   const inputRef = useRef<TextInput>(null);
 
   const processReferences = useCallback(
@@ -166,7 +169,7 @@ export default function BareChatInput({
 
   const renderTextWithMentions = useMemo(() => {
     if (!text || mentions.length === 0) {
-      return null;
+      return <RawText color="$primaryText">{text}</RawText>;
     }
 
     const sortedMentions = [...mentions].sort((a, b) => a.start - b.start);
@@ -175,7 +178,7 @@ export default function BareChatInput({
     // Handle text before first mention
     if (sortedMentions[0].start > 0) {
       textParts.push(
-        <RawText key="text-start" color="transparent">
+        <RawText key="text-start" color="$primaryText">
           {text.slice(0, sortedMentions[0].start)}
         </RawText>
       );
@@ -197,7 +200,7 @@ export default function BareChatInput({
       const nextStart = sortedMentions[index + 1]?.start ?? text.length;
       if (mention.end < nextStart) {
         textParts.push(
-          <RawText key={`text-${index}`} color="transparent">
+          <RawText key={`text-${index}`} color="$primaryText">
             {text.slice(mention.end, nextStart)}
           </RawText>
         );
@@ -331,7 +334,6 @@ export default function BareChatInput({
   );
 
   const handleSend = useCallback(async () => {
-    Keyboard.dismiss();
     runSendMessage(false);
   }, [runSendMessage]);
 
@@ -486,8 +488,41 @@ export default function BareChatInput({
     clearAttachments();
   }, [setEditingPost, clearDraft, clearAttachments]);
 
-  const paddingTopAdjustment = Platform.OS === 'ios' ? 2 : 4;
-  const mentionLineHeightAdjustment = Platform.OS === 'ios' ? 1.3 : 1.5;
+  const theme = useTheme();
+  // placeholderTextColor is not supported on native, just web
+  // https://necolas.github.io/react-native-web/docs/text-input/
+  const placeholderTextColor = isWeb
+    ? {
+        placeholderTextColor: getVariableValue(theme.secondaryText),
+      }
+    : {};
+
+  const adjustTextInputSize = (e: any) => {
+    if (!isWeb) {
+      return;
+    }
+
+    const el = e?.target;
+    if (el && 'style' in el && 'height' in el.style) {
+      el.style.height = 0;
+      const newHeight = el.offsetHeight - el.clientHeight + el.scrollHeight;
+      el.style.height = `${newHeight}px`;
+      setInputHeight(newHeight);
+    }
+  };
+
+  const handleBlur = useCallback(() => {
+    setShouldBlur(true);
+  }, [setShouldBlur]);
+
+  const handleContentSizeChange = useCallback(() => {
+    if (inputContainerRef.current?.measure) {
+      inputContainerRef.current.measure((x, y, width, height) => {
+        // Tell the component the user has entered enough text to exceed the initial height of the input
+        setIsMultiline(height > initialHeight);
+      });
+    }
+  }, [initialHeight]);
 
   return (
     <MessageInputContainer
@@ -518,41 +553,39 @@ export default function BareChatInput({
         justifyContent="center"
       >
         {showInlineAttachments && <AttachmentPreviewList />}
-        <TextInput
-          ref={inputRef}
-          value={text}
-          onChangeText={handleTextChange}
-          multiline
-          style={{
-            backgroundColor: 'transparent',
-            minHeight: initialHeight,
-            maxHeight: maxInputHeight - getToken('$s', 'size'),
-            paddingHorizontal: getToken('$l', 'space'),
-            paddingTop: getToken('$s', 'space') + paddingTopAdjustment,
-            paddingBottom: getToken('$s', 'space'),
-            fontSize: getFontSize('$m'),
-            textAlignVertical: 'top',
-            lineHeight: getFontSize('$m') * 1.5,
-            letterSpacing: -0.032,
-            color: getVariableValue(useTheme().primaryText),
-          }}
-          placeholder={placeholder}
-        />
-        {mentions.length > 0 && (
-          <View position="absolute" pointerEvents="none">
-            <RawText
-              paddingHorizontal="$l"
-              paddingTop={Platform.OS === 'android' ? '$s' : 0}
-              paddingBottom="$xs"
-              fontSize="$m"
-              lineHeight={getFontSize('$m') * mentionLineHeightAdjustment}
-              letterSpacing={-0.032}
-              color="$primaryText"
-            >
-              {renderTextWithMentions}
-            </RawText>
-          </View>
-        )}
+        <View ref={inputContainerRef} onLayout={handleContentSizeChange}>
+          <TextInput
+            ref={inputRef}
+            onChangeText={handleTextChange}
+            onChange={isWeb ? adjustTextInputSize : undefined}
+            onLayout={isWeb ? adjustTextInputSize : undefined}
+            onBlur={handleBlur}
+            multiline
+            style={{
+              backgroundColor: 'transparent',
+              minHeight: initialHeight,
+              height: isWeb ? inputHeight : undefined,
+              maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
+              paddingHorizontal: getTokenValue('$l', 'space'),
+              paddingTop: getTokenValue('$l', 'space'),
+              fontSize: getFontSize('$m'),
+              textAlignVertical: 'center',
+              letterSpacing: -0.032,
+              color: getVariableValue(useTheme().primaryText),
+              ...(isMultiline
+                ? {
+                    lineHeight: 26,
+                    paddingBottom: getTokenValue('$xs', 'space'),
+                  }
+                : { paddingBottom: getTokenValue('$l', 'space') }),
+              ...placeholderTextColor,
+              ...(isWeb ? { outlineStyle: 'none' } : {}),
+            }}
+            placeholder={placeholder}
+          >
+            {renderTextWithMentions}
+          </TextInput>
+        </View>
       </YStack>
     </MessageInputContainer>
   );
