@@ -251,7 +251,21 @@ export namespace StructuredChannelDescriptionPayload {
       return {};
     }
     try {
-      return JSON.parse(encoded);
+      const out = JSON.parse(encoded);
+      if ('channelContentConfiguration' in out) {
+        if (typeof out.channelContentConfiguration !== 'object') {
+          throw new Error('Invalid configuration');
+        }
+        // add a little robustness - if the configuration is missing a field,
+        // just add a default in to avoid crashing
+        out.channelContentConfiguration = {
+          draftInput: DraftInputId.chat,
+          defaultPostContentRenderer: PostContentRendererId.chat,
+          defaultPostCollectionRenderer: CollectionRendererId.chat,
+          ...out.channelContentConfiguration,
+        };
+      }
+      return out;
     } catch (_err) {
       return { description: encoded.length === 0 ? undefined : encoded };
     }
