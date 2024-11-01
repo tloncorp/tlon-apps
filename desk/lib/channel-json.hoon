@@ -30,10 +30,8 @@
       %create   (perm perm.r-channel)
       %join     (flag group.r-channel)
       %leave    ~
-      %read     ~
-      %read-at  s+(scot %ud time.r-channel)
-      %watch    ~
-      %unwatch  ~
+      %hook     (hook +.r-channel)
+      %meta     ?~(meta.r-channel ~ s+u.meta.r-channel)
     ==
   ::
   ++  r-channels-simple-post
@@ -58,10 +56,8 @@
       %create   (perm perm.r-channel)
       %join     (flag group.r-channel)
       %leave    ~
-      %read     ~
-      %read-at  s+(scot %ud time.r-channel)
-      %watch    ~
-      %unwatch  ~
+      %hook     (hook +.r-channel)
+      %meta     ?~(meta.r-channel ~ s+u.meta.r-channel)
     ==
   ::
   ++  pending
@@ -134,6 +130,31 @@
       %reacts  (reacts reacts.r-reply)
     ==
   ::
+  ++  hook
+    |=  [=hook-type:c rh=r-hook:c]
+    %-  pairs
+    :~  type+s+hook-type
+        r-hook+(r-hook rh)
+    ==
+  ::
+  ++  r-hook
+    |=  rh=r-hook:c
+    %+  frond  -.rh
+    ?-  -.rh
+      %order  a+(turn seq.rh (lead %s))
+    ::
+        %set
+      %-  pairs
+      :~  id+s+id.rh
+          name+s+name.rh
+          src+?~(src.rh ~ s+u.src.rh)
+          :: :-  %error
+          :: ?~  error.rh  ~
+          :: :-  %s
+          :: %+  rep  3
+          :: (turn (wash [0 80] u.error.rh) crip)
+      ==
+    ==
   ++  channel-heads
     |=  heads=channel-heads:c
     :-  %a
@@ -899,11 +920,11 @@
       |=  channels=channels:v0:old:c
       %-  pairs
       %+  turn  ~(tap by channels)
-      |=  [n=nest:c ca=channel-0:c]
+      |=  [n=nest:c ca=channel:v0:old:c]
       [(nest-cord n) (channel ca)]
     ::
     ++  channel
-      |=  channel=channel-0:c
+      |=  channel=channel:v0:old:c
       %-  pairs
       :~  posts+(posts posts.channel)
           order+(order order.channel)
@@ -948,7 +969,6 @@
     ^-  $-(json a-channels:c)
     %-  of
     :~  create+create-channel
-        pin+(ar nest)
         channel+(ot nest+nest action+a-channel ~)
         toggle-post+post-toggle
     ==
@@ -957,10 +977,6 @@
     %-  of
     :~  join+flag
         leave+ul
-        read+ul
-        read-at+(se %ud)
-        watch+ul
-        unwatch+ul
       ::
         post+a-post
         view+(su (perk %grid %list ~))

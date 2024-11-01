@@ -33,7 +33,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %8
+    $:  %9
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         hidden-posts=(set id-post:c)
@@ -134,12 +134,14 @@
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
-  ?>  ?=(%8 -.old)
+  =?  old  ?=(%8 -.old)  (state-8-to-9 old)
+  ?>  ?=(%9 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-8
+    $%  state-9
+        state-8
         state-7
         state-6
         state-5
@@ -149,7 +151,34 @@
         state-1
         state-0
     ==
-  +$  state-8  current-state
+  +$  state-9  current-state
+  +$  state-8
+    $:  %8
+        =v-channels:v8:old:c
+        voc=(map [nest:c plan:c] (unit said:v8:old:c))
+        hidden-posts=(set id-post:c)
+      ::
+        ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
+        ::
+        pending-ref-edits=(jug ship [=kind:c name=term])
+        :: delayed resubscribes
+        =^subs:s
+        =pimp:imp
+    ==
+  ++  state-8-to-9
+    |=  s=state-8
+    ^-  state-9
+    s(- %9, v-channels (v-channels-8-to-9 v-channels.s))
+  ++  v-channels-8-to-9
+    |=  vc=v-channels:v8:old:c
+    ^-  v-channels:c
+    %-  ~(run by vc)
+    |=  v=v-channel:v8:old:c
+    ^-  v-channel:c
+    %=  v
+      perm    [perm.v [0 ~]]
+      last-updated  [last-updated.v *hooks:c]
+    ==
   +$  state-7
     $:  %7
         =v-channels:v7:old:c
@@ -492,16 +521,20 @@
   ::
     :: TODO: add transfer/import channels
       ?(%channel-action %channel-action-2)
-    =/  =a-channels:c
+    =/  a-channels=(unit a-channels:c)
       ?.  ?=(%channel-action mark)
-        !<(a-channels:c vase)
+        `!<(a-channels:c vase)
       =+  !<(old-a-channels=a-channels:v7:old:c vase)
+      ?:  ?=([%pin *] old-a-channels)  ~
       ?.  ?=([%channel *] old-a-channels)
-        old-a-channels
+        `old-a-channels
       ::  upconvert emoji
       ::
-      ?+    a-channel.old-a-channels  old-a-channels
+      ?+    a-channel.old-a-channels  `old-a-channels
+          [?(%read %watch %read-at %unwatch) *]  ~
+      ::
           [%post %add-react *]
+        :-  ~
         %=  old-a-channels
             q.c-post.a-channel
           ^-  react:c
@@ -510,7 +543,9 @@
             [%any ^react]
           u.react
         ==
+      ::
           [%post %reply @ %add-react *]
+        :-  ~
         %=  old-a-channels
             q.c-reply.c-post.a-channel
           ^-  react:c
@@ -520,18 +555,16 @@
           u.react
         ==
       ==
-    ?:  ?=(%create -.a-channels)
-      ca-abet:(ca-create:ca-core create-channel.a-channels)
-    ?:  ?=(%pin -.a-channels)
-      ~&  %channels-vestigial-pin-action
+    ?~  a-channels  cor
+    =*  action  u.a-channels
+    ?:  ?=(%create -.action)
+      ca-abet:(ca-create:ca-core create-channel.action)
+    ?:  ?=(%toggle-post -.action)
       ?>  from-self
-      cor
-    ?:  ?=(%toggle-post -.a-channels)
-      ?>  from-self
-      (toggle-post toggle.a-channels)
-    ?:  ?=(%join -.a-channel.a-channels)
-      ca-abet:(ca-join:ca-core [nest group.a-channel]:a-channels)
-    ca-abet:(ca-a-channel:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
+      (toggle-post toggle.action)
+    ?:  ?=(%join -.a-channel.action)
+      ca-abet:(ca-join:ca-core [nest group.a-channel]:action)
+    ca-abet:(ca-a-channel:(ca-abed:ca-core nest.action) a-channel.action)
   ::
       %channel-migration
     ?>  =(our src):bowl
@@ -684,7 +717,7 @@
   ::
       %fact
     =.  cor  (give %fact ~[v2+path] cage.sign)
-    =.  cor  
+    =.  cor
       %^  give  %fact
         ~[path v0+path v1+path]
       ?+  p.cage.sign  ~|(funny-mark+p.cage.sign !!)
@@ -1059,7 +1092,6 @@
     ?+  -.a-channel  (ca-send-command [%channel nest a-channel])
       %join       !!  ::  handled elsewhere
       %leave      ca-leave
-      ?(%read %read-at %watch %unwatch)  (ca-a-remark a-channel)
     ::
         %post
       =/  source=(unit source:activity)
@@ -1072,51 +1104,6 @@
       =?  ca-core  ?=(^ source)  (send:ca-activity [%bump u.source] ~)
       (ca-send-command [%channel nest a-channel])
     ==
-  ::
-  ++  ca-a-remark
-    |=  =a-remark:c
-    ^+  ca-core
-    =?  ca-core  =(%read -.a-remark)
-      %-  emil
-      =/  last-read  last-read.remark.channel
-      =+  .^(=carpet:ha %gx (scry-path %hark /desk/groups/latest/noun))
-      %+  murn
-        ~(tap by cable.carpet)
-      |=  [=rope:ha =thread:ha]
-      ^-  (unit card)
-      ?~  can.rope  ~
-      ?.  =(nest u.can.rope)  ~
-      =/  thread=(pole knot)  ted.rope
-      =/  top-id=(unit id-post:c)
-        ?+  thread  ~
-          [* * * * id=@ rest=*]  (slaw %ui (cat 3 '0i' id.thread))
-        ==
-      ::  look at what post id the notification is coming from, and
-      ::  if it's newer than the last read, mark the notification
-      ::  read as well
-      ?~  top-id  ~
-      ?:  (lth u.top-id last-read.remark.channel)  ~
-      =/  =cage  hark-action-1+!>([%saw-rope rope])
-      `(pass-hark cage)
-    =.  remark.channel
-      ?-    -.a-remark
-          %watch    remark.channel(watching &)
-          %unwatch  remark.channel(watching |)
-          %read-at  !!  ::TODO
-          %read
-        ::  set read marker at time of latest content. conveniently, we can use
-        ::  the always-up-to-date recency for that.
-        ::  we don't use now.bowl, because we may still receive content
-        ::  with ids before now.bowl
-        ::
-        %_  remark.channel
-          last-read       (add recency.remark.channel (div ~s1 100))
-          unread-threads  ~
-        ==
-      ==
-    =.  ca-core  ca-give-unread
-    ::TODO  %read activity-action?
-    (ca-response a-remark)
   ::
   ::  proxy command to host
   ::
@@ -1420,6 +1407,8 @@
       ?:  =(id id-post)  ~
       `[time id-post]
     ?-    -.u-channel
+      %hook  (ca-u-hook +.u-channel)
+    ::
         %create
       ?.  =(0 rev.perm.channel)  ca-core
       =.  perm.perm.channel  perm.u-channel
@@ -1445,6 +1434,12 @@
       ?.  changed  ca-core
       (ca-response %perm perm.perm.channel)
     ::
+        %meta
+      =^  changed  meta.channel  (apply-rev:c meta.channel +.u-channel)
+      ?.  changed  ca-core
+      (ca-response %meta meta.meta.channel)
+    ::
+    ::
         %post
       =/  old  posts.channel
       =.  ca-core  (ca-u-post id.u-channel u-post.u-channel)
@@ -1452,6 +1447,64 @@
       ca-core
     ==
   ::
+  ++  ca-u-hook
+    |=  [=hook-type:c =u-hook:c]
+    ^+  ca-core
+    =.  hooks.channel
+      ?-  hook-type
+          %validate
+        =^  new-hook-set=(hook-set:c $-(post:c ?))  ca-core
+          %-  (ca-u-hook-inner post:c ?)
+          [validate.hooks.channel hook-type u-hook]
+        hooks.channel(validate new-hook-set)
+          %transform
+        =^  new-hook-set=(hook-set:c $-(post:c post:c))  ca-core
+          %-  (ca-u-hook-inner post:c post:c)
+          [transform.hooks.channel hook-type u-hook]
+        hooks.channel(transform new-hook-set)
+          %sort
+        =^  new-hook-set=(hook-set:c $-([post:c post:c] ?))  ca-core
+          %-  (ca-u-hook-inner ,[post:c post:c] ?)
+          [sort.hooks.channel hook-type u-hook]
+        hooks.channel(sort new-hook-set)
+      ==
+    ca-core
+  ++  ca-u-hook-inner
+    |*  [args=mold return=mold]
+    =*  gate  $-(args return)
+    |=  [(hook-set:c gate) =hook-type:c =u-hook:c]
+    ^-  [(hook-set:c gate) _ca-core]
+    =*  no-op  [[hooks order] ca-core]
+    ?-  -.u-hook
+        %set
+      =/  result=(each gate tang)
+        ((compile:utils args return) src.src.u-hook)
+      =/  compiled=(unit gate)
+        ?:  ?=(%| -.result)  ~
+        `p.result
+      =/  response=r-channel:c
+        [%hook hook-type %set id.u-hook name.u-hook src.src.u-hook ~]
+      ?~  hook=(~(get by hooks) id.u-hook)
+        :_  (ca-response response)
+        ^-  (hook-set:c gate)
+        :_  +:(next-rev:c order (snoc +.order id.u-hook))
+        %+  ~(put by hooks)  id.u-hook
+        [id.u-hook name.u-hook src.u-hook compiled]
+      =^  changed  src.u.hook
+        (apply-rev:c src.u.hook src.u-hook)
+      ?.  changed  no-op
+      =.  compiled.u.hook  compiled
+      :-  :_  order
+          (~(put by hooks) id.u-hook u.hook)
+      (ca-response response)
+    ::
+        %order
+      =^  changed  order
+        (apply-rev:c order seq.u-hook)
+      ?.  changed  no-op
+      :-  [hooks order]
+      (ca-response %hook hook-type %order +.order)
+    ==
   ++  ca-u-post
     |=  [=id-post:c =u-post:c]
     ^+  ca-core
@@ -1783,8 +1836,14 @@
   ::
   ++  ca-response
     |=  =r-channel:c
+    ^+  ca-core
     =/  =r-channels:c  [nest r-channel]
     ::TODO  the mark type changing will give us trouble, right?
+    =.  ca-core
+      %^  give  %fact
+        ~[/v3 v3+ca-area]
+      channel-response-4+!>(r-channels)
+    ?:  ?=(?(%meta %hook) -.r-channel)  ca-core
     =.  ca-core
       %^  give  %fact
         ~[/v2 v2+ca-area]

@@ -381,25 +381,24 @@ interface Bot {
 interface PostMetadataSchemaV1 {
   type: string;
   bot?: Bot;
-  rendererOverride?: string;
 }
 
-interface MessageInput {
+interface PostInput {
   type: string;
   postType: string;
-  configuration: Record<string, string>;
 }
 
 interface ContentRenderer {
-  render: string;
-  using: string;
+  rendererId: string;
 }
 
 interface ChannelMetadataSchemaV1 {
   version: 1;
-  messageInputs: MessageInput[];
-  defaultContentRenderers?: ContentRenderer[];
-  defaultPostCollectionRenderer?: string;
+  postInputs: PostInput[];
+  postCollectionRenderer?: string;
+  defaultContentRenderers?: {
+    [match: string]: ContentRenderer;
+  };
 }
 
 type ChannelMetadataSchema = ChannelMetadataSchemaV1;

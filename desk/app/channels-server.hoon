@@ -16,7 +16,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %7
+    $:  %8
         =v-channels:c
         =pimp:imp
     ==
@@ -93,12 +93,59 @@
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
-  ?>  ?=(%7 -.old)
+  =?  old  ?=(%7 -.old)  (state-7-to-8 old)
+  ?>  ?=(%8 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-7 state-6 state-5 state-4 state-3 state-2 state-1 state-0)
-  +$  state-7  current-state
+  +$  versioned-state
+    $%  state-8
+        state-7
+        state-6
+        state-5
+        state-4
+        state-3
+        state-2
+        state-1
+        state-0
+    ==
+  +$  state-8  current-state
+  +$  state-7
+    $:  %7
+        =v-channels:v8:old:c
+        =pimp:imp
+    ==
+  ++  state-7-to-8
+    |=  s=state-7
+    ^-  state-8
+    :*  %8
+        (v-channels-7-to-8 v-channels.s)
+        pimp.s
+    ==
+  ++  v-channels-7-to-8
+    |=  v=v-channels:v8:old:c
+    ^-  v-channels:c
+    %-  ~(run by v)
+    |=  v=v-channel:v8:old:c
+    ^-  v-channel:c
+    :*  :*  posts.v
+            count.v
+            order.v
+            view.v
+            sort.v
+            perm.v
+            [0 ~]
+        ==
+        :*  net.v
+            log.v
+            remark.v
+            window.v
+            future.v
+            pending.v
+            last-updated.v
+            *hooks:c
+        ==
+    ==
   +$  state-6
     $:  %6
       =v-channels:v7:old:c
@@ -612,6 +659,14 @@
     ^+  ca-core
     ?>  am-host:ca-perms
     ?-    -.c-channel
+      %hook  (ca-c-hook +.c-channel)
+    ::
+        %meta
+      ?>  (is-admin:ca-perms src.bowl)
+      =^  changed  meta.channel  (next-rev:c meta.channel meta.c-channel)
+      ?.  changed  ca-core
+      (ca-update %meta meta.channel)
+    ::
         %view
       ?>  (is-admin:ca-perms src.bowl)
       =^  changed  view.channel  (next-rev:c view.channel view.c-channel)
@@ -668,6 +723,7 @@
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
       =.  count.channel  +(count.channel)
       =/  new=v-post:c  [[id count.channel id ~ ~] 0 essay.c-post]
+      ?>  (check-validate-hooks:utils (uv-post-2:utils new) validate.hooks.channel)
       :-  `[%post id %set ~ new]
       channel(posts (put:on-v-posts:c posts.channel id ~ new))
     ::
@@ -775,6 +831,81 @@
     ?.  changed  [| reacts]
     &+(~(put by reacts) ship new-rev new-react)
   ::
+  ++  ca-c-hook
+    |=  [=hook-type:c global=? =c-hook:c]
+    ^+  ca-core
+    ?>  (is-admin:ca-perms src.bowl)
+    =.  hooks.channel
+      ?-  hook-type
+          %validate
+        =^  new-hook-set  ca-core
+          ((ca-c-hook-inner post:c ?) validate.hooks.channel hook-type global c-hook)
+        hooks.channel(validate new-hook-set)
+          %transform
+        =^  new-hook-set  ca-core
+          ((ca-c-hook-inner post:c post:c) transform.hooks.channel hook-type global c-hook)
+        hooks.channel(transform new-hook-set)
+          %sort
+        =^  new-hook-set  ca-core
+          ((ca-c-hook-inner ,[post:c post:c] ?) sort.hooks.channel hook-type global c-hook)
+        hooks.channel(sort new-hook-set)
+      ==
+    ca-core
+  ++  ca-c-hook-inner
+    |*  [args=mold return=mold]
+    =*  gate  $-(args return)
+    |=  [(hook-set:c gate) =hook-type:c global=? =c-hook:c]
+    ^-  [(hook-set:c gate) _ca-core]
+    =*  no-op  [[hooks order] ca-core]
+    ?-  -.c-hook
+        %add
+      =/  id  (scot %uv eny.bowl)
+      =/  src=(rev:c (unit @t))  [0 `src.c-hook]
+      =/  result=(each gate tang)
+        ((compile:utils args return) `src.c-hook)
+      =/  compiled
+        ?:  ?=(%| -.result)  ~
+        `p.result
+      :-  :_  +:(next-rev:c order (snoc +.order id))
+        (~(put by hooks) id [id name.c-hook src compiled])
+      ?.  global  ca-core
+      (ca-update %hook hook-type %set id name.c-hook src ~)
+    ::
+        %edit
+      ?~  old-hook=(~(get by hooks) id.c-hook)  no-op
+      =/  hook  u.old-hook
+      =^  changed  src.hook
+        (next-rev:c src.hook src.c-hook)
+      ?.  changed  no-op
+      =.  compiled.hook
+        ?~  +.src.hook  ~
+        =/  result=(each gate tang)
+          ((compile:utils args return) +.src.hook)
+        ?:  ?=(%| -.result)  ~
+        `p.result
+      :-  :_  order
+          (~(put by hooks) id.c-hook hook)
+      ?.  global  ca-core
+      (ca-update %hook hook-type %set id.c-hook name.hook src.hook ~)
+    ::
+        %del
+      ::  TODO: make more CRDT
+      :_  ca-core
+      :-  (~(del by hooks) id.c-hook)
+      =;  [* new-order=_order]
+        new-order
+      %+  next-rev:c  order
+      %+  skim  +.order
+      |=  id=@t
+      !=(id id.c-hook)
+    ::
+        %order
+      =^  changed  order
+        (next-rev:c order seq.c-hook)
+      ?.  changed  no-op
+      :-  [hooks order]
+      ?.(global ca-core (ca-update %hook hook-type %order order))
+    ==
   ++  ca-update
     |=  =u-channel:c
     ^+  ca-core
@@ -854,4 +985,26 @@
       (said-2:utils nest plan posts.channel)
     (give %kick ~ ~)
   --
+::
+:: ++  build  ::  and validate
+::   |=  =make
+::   ^-  (each nock tang)
+::   ::  parse & mint the hoon
+::   ::
+::   =/  tonk=(each (pair type nock) hair)
+::     =/  vex=(like hoon)
+::       ?^  code.make  [*hair `[code.make *nail]]
+::       ((full vest) [0 0] (trip code.make))
+::     ?~  q.vex  |+p.vex
+::     &+(~(mint ut -:(context make *self)) %noun p.u.q.vex)
+::   ?:  ?=(%| -.tonk)
+::     |+~[leaf+"\{{<p.p.tonk>} {<q.p.tonk>}}" 'syntax error']
+::   ::  type-check the result
+::   ::TODO  can we type-check to make sure it accepts a fact?
+::   ::
+::   =/  tout=type  (slit p.p.tonk -:!>(*fact))
+::   ?:  (~(nest ut -:!>(*then)) | tout)
+::     &+q.p.tonk
+::   |+~['nest-fail']  ::TODO  we can't get the need & have out, can we?
+:: ::
 --
