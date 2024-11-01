@@ -13,13 +13,12 @@ export const useGroupNavigation = () => {
   const goToChannel = useCallback(
     async (
       channel: db.Channel | string,
-      params?: Omit<RootStackParamList['Channel'], 'channel'>
+      params?: Omit<RootStackParamList['Channel'], 'channelId'>
     ) => {
       if (typeof channel === 'string') {
-        const channelObj = await db.getChannel({ id: channel });
-        navigation.navigate('Channel', { channel: channelObj, ...params });
+        navigation.navigate('Channel', { channelId: channel, ...params });
       } else {
-        navigation.navigate('Channel', { channel, ...params });
+        navigation.navigate('Channel', { channelId: channel.id, ...params });
       }
     },
     [navigation]
