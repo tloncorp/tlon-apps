@@ -1,9 +1,12 @@
 import { useEffect, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import create from 'zustand';
 
 import { useLiveRef } from './logic/utilHooks';
 import { useCurrentSession } from './store/session';
 
-const customLoggers = new Set<string>();
+const MAX_POSTHOG_EVENT_SIZE = 1_000_000;
+const BREADCRUMB_LIMIT = 100;
 
 interface Breadcrumb {
   tag: string;
@@ -11,42 +14,167 @@ interface Breadcrumb {
   sensitive?: string | null;
 }
 
+interface DebugPlatformState {
+  network: string;
+  battery: string;
+  easUpdate: string;
+}
+
+interface AppInfo {
+  groupsVersion: string;
+  groupsHash: string;
+  groupsSyncNode: string;
+}
+
+type PlatformState = {
+  getDebugInfo: () => Promise<DebugPlatformState | null>;
+};
+
+interface Log {
+  timestamp: number;
+  message: string;
+}
+
 export type Logger = Console & {
   crumb: (...args: unknown[]) => void;
   sensitiveCrumb: (...args: unknown[]) => void;
   trackError: (message: string, data?: Record<string, any>) => void;
+  trackEvent: (eventId: string, data?: Record<string, any>) => void;
 };
-
-const debugBreadcrumbs: Breadcrumb[] = [];
-const BREADCRUMB_LIMIT = 100;
-
-function addBreadcrumb(crumb: Breadcrumb) {
-  debugBreadcrumbs.push(crumb);
-  if (debugBreadcrumbs.length >= BREADCRUMB_LIMIT) {
-    debugBreadcrumbs.shift();
-  }
-}
-
-export function getCurrentBreadcrumbs() {
-  const includeSensitiveContext = true; // TODO: handle accordingly
-  return debugBreadcrumbs.map((crumb) => {
-    return `[${crumb.tag}] ${crumb.message ?? ''}${includeSensitiveContext && crumb.sensitive ? crumb.sensitive : ''}`;
-  });
-}
-
-export function addCustomEnabledLoggers(loggers: string[]) {
-  loggers.forEach((logger) => customLoggers.add(logger));
-}
 
 interface ErrorLoggerStub {
   capture: (event: string, data: Record<string, unknown>) => void;
 }
 
-let errorLoggerInstance: ErrorLoggerStub | null = null;
-export function initializeErrorLogger(errorLoggerInput: ErrorLoggerStub) {
-  if (errorLoggerInput) {
-    errorLoggerInstance = errorLoggerInput;
+interface DebugStore {
+  enabled: boolean;
+  debugBreadcrumbs: Breadcrumb[];
+  customLoggers: Set<string>;
+  errorLogger: ErrorLoggerStub | null;
+  logs: Log[];
+  logId: string | null;
+  appInfo: AppInfo | null;
+  platform: PlatformState | null;
+  toggle: (enabled: boolean) => void;
+  appendLog: (log: Log) => void;
+  uploadLogs: () => Promise<string>;
+  addBreadcrumb: (crumb: Breadcrumb) => void;
+  getBreadcrumbs: () => string[];
+  addCustomEnabledLoggers: (loggers: string[]) => void;
+  initializeDebugInfo: (
+    platform: PlatformState,
+    appInfo: AppInfo | null
+  ) => void;
+  initializeErrorLogger: (errorLoggerInput: ErrorLoggerStub) => void;
+}
+
+export const useDebugStore = create<DebugStore>((set, get) => ({
+  enabled: false,
+  customLoggers: new Set<string>(),
+  errorLogger: null,
+  debugBreadcrumbs: [],
+  logs: [],
+  logId: null,
+  platform: null,
+  appInfo: null,
+  toggle: (enabled) => {
+    set(() => ({
+      enabled,
+    }));
+  },
+  appendLog: (log: Log) => {
+    set((state) => ({
+      logs: [...state.logs, log],
+    }));
+  },
+  uploadLogs: async () => {
+    const { logs, errorLogger, platform, appInfo, debugBreadcrumbs } = get();
+    const platformInfo = await platform?.getDebugInfo();
+    const debugInfo = {
+      ...appInfo,
+      ...platformInfo,
+    };
+    const infoSize = roughMeasure(debugInfo);
+    const crumbSize = roughMeasure(debugBreadcrumbs);
+    const mappedLogs = logs.map((log) => log.message);
+    const runSize = MAX_POSTHOG_EVENT_SIZE - crumbSize - infoSize;
+    const runs = splitLogs(mappedLogs, runSize);
+    const logId = uuidv4();
+
+    for (let i = 0; i < runs.length; i++) {
+      errorLogger?.capture('debug_logs', {
+        logId,
+        page: `Page ${i + 1} of ${runs.length}`,
+        logs: runs[i],
+        breadcrumbs: debugBreadcrumbs,
+        debugInfo,
+      });
+    }
+
+    set(() => ({
+      logs: [],
+      logId,
+    }));
+
+    return logId;
+  },
+  addBreadcrumb: (crumb: Breadcrumb) => {
+    set((state) => {
+      const debugBreadcrumbs = state.debugBreadcrumbs.slice();
+      debugBreadcrumbs.push(crumb);
+
+      if (debugBreadcrumbs.length >= BREADCRUMB_LIMIT) {
+        debugBreadcrumbs.shift();
+      }
+
+      return state;
+    });
+  },
+  getBreadcrumbs: () => {
+    const { debugBreadcrumbs } = get();
+    const includeSensitiveContext = true; // TODO: handle accordingly
+    return debugBreadcrumbs.map((crumb) => {
+      return `[${crumb.tag}] ${crumb.message ?? ''}${includeSensitiveContext && crumb.sensitive ? crumb.sensitive : ''}`;
+    });
+  },
+  addCustomEnabledLoggers: (loggers) => {
+    set((state) => {
+      loggers.forEach((logger) => state.customLoggers.add(logger));
+      return state;
+    });
+  },
+  initializeDebugInfo: (platform, appInfo) => {
+    set(() => ({
+      platform,
+    }));
+  },
+  initializeErrorLogger: (errorLoggerInput) => {
+    set(() => ({
+      errorLogger: errorLoggerInput,
+    }));
+  },
+}));
+
+export function addCustomEnabledLoggers(loggers: string[]) {
+  return useDebugStore.getState().addCustomEnabledLoggers(loggers);
+}
+
+async function getDebugInfo() {
+  let platformState = null;
+  const { platform, appInfo } = useDebugStore.getState();
+  try {
+    platformState = await platform?.getDebugInfo();
+  } catch (e) {
+    console.error('Failed to get app info or platform state', e);
   }
+
+  return {
+    groupsSource: appInfo?.groupsSyncNode,
+    groupsHash: appInfo?.groupsHash,
+    network: platformState?.network,
+    battery: platformState?.battery,
+    easUpdate: platformState?.easUpdate,
+  };
 }
 
 export function createDevLogger(tag: string, enabled: boolean) {
@@ -54,6 +182,12 @@ export function createDevLogger(tag: string, enabled: boolean) {
     get(target: Console, prop: string | symbol, receiver) {
       return (...args: unknown[]) => {
         let resolvedProp = prop;
+        const {
+          enabled: debugEnabled,
+          errorLogger,
+          customLoggers,
+          addBreadcrumb,
+        } = useDebugStore.getState();
 
         if (prop === 'crumb') {
           addBreadcrumb({
@@ -82,23 +216,48 @@ export function createDevLogger(tag: string, enabled: boolean) {
         if (prop === 'trackError') {
           const customProps =
             args[1] && typeof args[1] === 'object' ? args[1] : {};
-          errorLoggerInstance?.capture('app_error', {
-            ...customProps,
-            message:
-              typeof args[0] === 'string'
-                ? `[${tag}] ${args[0]}`
-                : 'no message',
-            breadcrumbs: getCurrentBreadcrumbs(),
-          });
+          const report = (debugInfo: any = undefined) =>
+            errorLogger?.capture('app_error', {
+              ...customProps,
+              debugInfo,
+              message:
+                typeof args[0] === 'string'
+                  ? `[${tag}] ${args[0]}`
+                  : 'no message',
+              breadcrumbs: useDebugStore.getState().getBreadcrumbs(),
+            });
+          getDebugInfo()
+            .then(report)
+            .catch(() => report());
           resolvedProp = 'error';
         }
 
-        if (
-          (enabled || customLoggers.has(tag)) &&
-          process.env.NODE_ENV !== 'production'
-        ) {
+        if (prop == 'trackEvent') {
+          if (args[0] && typeof args[0] === 'string') {
+            const customProps =
+              args[1] && typeof args[1] === 'object' ? args[1] : {};
+            errorLogger?.capture(args[0], {
+              ...customProps,
+              message: `[${tag}] ${args[0]}`,
+            });
+          }
+          resolvedProp = 'log';
+        }
+
+        if (!(debugEnabled || enabled || customLoggers.has(tag))) {
+          return;
+        }
+
+        const prefix = `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`;
+        if (debugEnabled) {
+          useDebugStore.getState().appendLog({
+            timestamp: Date.now(),
+            message: `${prefix} ${stringifyArgs(...args)}`,
+          });
+        }
+
+        if (__DEV__) {
           const val = Reflect.get(target, resolvedProp, receiver);
-          const prefix = `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`;
           val(prefix, ...args);
         }
       };
@@ -258,4 +417,47 @@ export function useObjectChangeLogging(
       lastValues.current[k] = v;
     }
   });
+}
+
+function stringifyArgs(...args: unknown[]): string {
+  return args
+    .map((arg) => {
+      if (!arg) {
+        return JSON.stringify(arg);
+      }
+      if (typeof arg === 'string') {
+        return arg;
+      }
+
+      if (typeof arg === 'object' && 'toString' in arg) {
+        return arg.toString();
+      }
+
+      return JSON.stringify(arg);
+    })
+    .join(' ');
+}
+
+function roughMeasure(obj: any): number {
+  return JSON.stringify(obj).length;
+}
+
+function splitLogs(logs: string[], maxSize: number): string[][] {
+  const splits = [];
+  let currentSize = 0;
+  let currentSplit: string[] = [];
+
+  for (const log of logs) {
+    const logSize = log.length;
+    if (currentSize + logSize > maxSize) {
+      splits.push(currentSplit);
+      currentSplit = [log];
+      currentSize = logSize;
+    }
+
+    currentSplit.push(log);
+    currentSize += logSize;
+  }
+
+  return splits;
 }

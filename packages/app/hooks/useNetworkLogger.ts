@@ -1,5 +1,5 @@
 import NetInfo from '@react-native-community/netinfo';
-import { createDevLogger } from '@tloncorp/shared/dist';
+import { createDevLogger } from '@tloncorp/shared';
 import { useEffect, useState } from 'react';
 
 import { toNetworkTypeDisplay } from '../lib/platformHelpers';

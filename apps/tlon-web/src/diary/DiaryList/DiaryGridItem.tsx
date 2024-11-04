@@ -1,4 +1,4 @@
-import { Post } from '@tloncorp/shared/dist/urbit/channel';
+import { Post } from '@tloncorp/shared/urbit/channel';
 import cn from 'classnames';
 import { useNavigate } from 'react-router';
 

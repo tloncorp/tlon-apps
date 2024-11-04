@@ -5,7 +5,7 @@ import {
   Group,
   GroupDiff,
   GroupUpdate,
-} from '@tloncorp/shared/dist/urbit/groups';
+} from '@tloncorp/shared/urbit/groups';
 
 import { GroupState } from './type';
 

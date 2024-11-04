@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as urbit from '@tloncorp/shared/dist/urbit';
+import * as db from '@tloncorp/shared/db';
+import * as urbit from '@tloncorp/shared/urbit';
 import { useEffect, useMemo } from 'react';
 import { FlatList } from 'react-native';
 import { View, YStack } from 'tamagui';
@@ -12,6 +12,7 @@ import { Text } from './TextV2';
 
 export interface DetailViewProps {
   post: db.Post;
+  channel: db.Channel;
   initialPostUnread?: db.ThreadUnreadState | null;
   children?: JSX.Element;
   editingPost?: db.Post;
@@ -30,6 +31,7 @@ export interface DetailViewProps {
 
 export const DetailView = ({
   post,
+  channel,
   initialPostUnread,
   editingPost,
   setEditingPost,
@@ -43,10 +45,7 @@ export const DetailView = ({
   editorIsFocused,
   flatListRef,
 }: DetailViewProps) => {
-  const channelType = useMemo(
-    () => urbit.getChannelType(post.channelId),
-    [post.channelId]
-  );
+  const channelType = channel.type;
   const isChat = channelType !== 'notebook' && channelType !== 'gallery';
   const resolvedPosts = useMemo(() => {
     return isChat && posts ? [...posts, post] : posts;
@@ -64,8 +63,8 @@ export const DetailView = ({
         <Scroller
           inverted
           renderItem={ChatMessage}
-          channelType="chat"
-          channelId={post.channelId}
+          channel={channel}
+          collectionLayoutType="compact-list-bottom-to-top"
           editingPost={editingPost}
           setEditingPost={setEditingPost}
           posts={resolvedPosts ?? null}
@@ -95,11 +94,11 @@ export const DetailView = ({
     onPressDelete,
     onPressImage,
     onPressRetry,
-    post.channelId,
     resolvedPosts,
     setActiveMessage,
     setEditingPost,
     headerMode,
+    channel,
   ]);
 
   return isChat ? (

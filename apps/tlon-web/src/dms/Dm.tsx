@@ -1,4 +1,4 @@
-import { Contact } from '@tloncorp/shared/dist/urbit/contact';
+import { Contact } from '@tloncorp/shared/urbit/contact';
 import cn from 'classnames';
 import { useCallback, useMemo, useRef } from 'react';
 import {

@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSignupContext } from '.././../lib/signupContext';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Field,
@@ -33,6 +34,7 @@ export const CheckVerifyScreen = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const { hostingApi } = useOnboardingContext();
+  const signupContext = useSignupContext();
 
   const handleSubmit = useCallback(
     async (code: string) => {
@@ -49,7 +51,9 @@ export const CheckVerifyScreen = ({
           actionName: 'Verification Submitted',
         });
 
-        navigation.navigate('ReserveShip', { user });
+        signupContext.setOnboardingValues({ hostingUser: user });
+        signupContext.kickOffBootSequence();
+        navigation.navigate('SetNickname', { user });
       } catch (err) {
         console.error('Error submitting verification:', err);
         if (err instanceof Error) {
@@ -60,7 +64,7 @@ export const CheckVerifyScreen = ({
 
       setIsSubmitting(false);
     },
-    [hostingApi, isEmail, navigation, user]
+    [hostingApi, isEmail, navigation, signupContext, user]
   );
 
   const handleCodeChanged = useCallback(
@@ -101,6 +105,7 @@ export const CheckVerifyScreen = ({
           value={code}
           length={codeLength}
           onChange={handleCodeChanged}
+          isEmail={isEmail}
           error={error}
         />
         <TlonText.Text
@@ -119,10 +124,12 @@ export const CheckVerifyScreen = ({
 function CodeInput({
   length,
   value,
+  isEmail,
   onChange,
   error,
 }: {
   length: number;
+  isEmail: boolean;
   value: string[];
   onChange?: (value: string[]) => void;
   error?: string;
@@ -166,7 +173,7 @@ function CodeInput({
 
   return (
     <Field
-      label="Check your email for a confirmation code"
+      label={`Check your ${isEmail ? 'email' : 'phone'} for a confirmation code`}
       error={error}
       justifyContent="center"
       alignItems="center"
@@ -185,6 +192,7 @@ function CodeInput({
             paddingHorizontal="$xl"
             paddingVertical="$xl"
             width="$4xl"
+            textContentType={!isEmail ? 'oneTimeCode' : undefined}
           />
         ))}
       </XStack>

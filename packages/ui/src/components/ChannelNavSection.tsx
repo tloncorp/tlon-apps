@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo } from 'react';
 import { SizableText, YStack } from 'tamagui';
 
@@ -8,10 +8,12 @@ export default function ChannelNavSection({
   section,
   channels,
   onSelect,
+  onLongPress,
 }: {
   section: db.GroupNavSection;
   channels: db.Channel[];
   onSelect: (channel: any) => void;
+  onLongPress?: (channel: any) => void;
 }) {
   const sectionChannels = useMemo(
     () =>
@@ -46,6 +48,7 @@ export default function ChannelNavSection({
           model={getChannel(item.channelId)!}
           useTypeIcon={true}
           onPress={onSelect}
+          onLongPress={onLongPress}
         />
       ))}
     </YStack>

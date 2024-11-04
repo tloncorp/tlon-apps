@@ -1,12 +1,12 @@
+import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { ActivityScreenView, NavBarView, View } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
 // import ErrorBoundary from '../../ErrorBoundary';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useIsFocused } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
@@ -32,7 +32,10 @@ export function ActivityScreen(props: Props) {
 
   const handleGoToChannel = useCallback(
     (channel: db.Channel, selectedPostId?: string) => {
-      props.navigation.navigate('Channel', { channel, selectedPostId });
+      props.navigation.navigate('Channel', {
+        channelId: channel.id,
+        selectedPostId,
+      });
     },
     [props.navigation]
   );
@@ -42,7 +45,11 @@ export function ActivityScreen(props: Props) {
   const handleGoToThread = useCallback(
     (post: db.Post) => {
       // TODO: we have no way to route to specific thread message rn
-      props.navigation.navigate('Post', { post });
+      props.navigation.navigate('Post', {
+        postId: post.id,
+        authorId: post.authorId,
+        channelId: post.channelId,
+      });
     },
     [props.navigation]
   );

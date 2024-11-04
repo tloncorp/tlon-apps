@@ -1,7 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
-import { setDidShowBenefitsSheet } from '@tloncorp/shared/dist/db';
-import { useDidShowBenefitsSheet } from '@tloncorp/shared/dist/store';
+import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { setDidShowBenefitsSheet } from '@tloncorp/shared/db';
+import { useDidShowBenefitsSheet } from '@tloncorp/shared/store';
 import {
   ActionSheet,
   Button,
@@ -15,10 +16,11 @@ import {
   YStack,
 } from '@tloncorp/ui';
 import { OnboardingBenefitsSheet } from '@tloncorp/ui/src/components/Onboarding/OnboardingBenefitsSheet';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useCheckAppInstalled } from '../../hooks/analytics';
 import type { OnboardingStackParamList } from '../../types';
 
 export const Text = TlonText.Text;
@@ -30,6 +32,8 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   const { bottom, top } = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const { data: didShowBenefitsSheet } = useDidShowBenefitsSheet();
+
+  useCheckAppInstalled();
 
   const handleBenefitsSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -43,6 +47,15 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   const handlePressInvite = useCallback(() => {
     navigation.navigate('SignUpEmail');
   }, [navigation]);
+
+  useEffect(() => {
+    if (lureMeta) {
+      trackOnboardingAction({
+        actionName: 'Invite Link Added',
+        lure: lureMeta.id,
+      });
+    }
+  }, [lureMeta]);
 
   return (
     <View flex={1} backgroundColor={'$secondaryBackground'} paddingTop={top}>

@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { omit } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LayoutRectangle } from 'react-native';
@@ -11,7 +11,7 @@ import { DraggableItem } from '../DraggableItem';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
 import { ScreenHeader } from '../ScreenHeader';
-import { ChannelTypeName, CreateChannelSheet } from './CreateChannelSheet';
+import { CreateChannelSheet } from './CreateChannelSheet';
 import { EditSectionNameSheet } from './EditSectionNameSheet';
 
 export type Section = {
@@ -178,6 +178,8 @@ interface ManageChannelsScreenViewProps {
   goBack: () => void;
   goToEditChannel: (channelId: string) => void;
   groupNavSectionsWithChannels: GroupNavSectionWithChannels[];
+  group: db.Group | null;
+  enableCustomChannels?: boolean;
   moveNavSection: (navSectionId: string, newIndex: number) => Promise<void>;
   moveChannelWithinNavSection: (
     channelId: string,
@@ -188,31 +190,23 @@ interface ManageChannelsScreenViewProps {
     channelId: string,
     navSectionId: string
   ) => Promise<void>;
-  createChannel: ({
-    title,
-    description,
-    channelType,
-  }: {
-    title: string;
-    description?: string;
-    channelType: ChannelTypeName;
-  }) => Promise<void>;
   createNavSection: ({ title }: { title: string }) => Promise<void>;
   deleteNavSection: (navSectionId: string) => Promise<void>;
   updateNavSection: (navSection: db.GroupNavSection) => Promise<void>;
 }
 
 export function ManageChannelsScreenView({
+  group,
   groupNavSectionsWithChannels,
   goBack,
   goToEditChannel,
   moveNavSection,
   moveChannelWithinNavSection,
   moveChannelToNavSection,
-  createChannel,
   createNavSection,
   deleteNavSection,
   updateNavSection,
+  enableCustomChannels = false,
 }: ManageChannelsScreenViewProps) {
   const [sections, setSections] = useState<Section[]>(() => {
     console.log('componentDidMount', groupNavSectionsWithChannels);
@@ -562,16 +556,11 @@ export function ManageChannelsScreenView({
           </YStack>
         </YStack>
       </YStack>
-      {showCreateChannel && (
+      {showCreateChannel && group && (
         <CreateChannelSheet
+          group={group}
           onOpenChange={(open) => setShowCreateChannel(open)}
-          createChannel={async ({ title, description, channelType }) =>
-            createChannel({
-              title,
-              description,
-              channelType,
-            })
-          }
+          enableCustomChannels={enableCustomChannels}
         />
       )}
       <EditSectionNameSheet

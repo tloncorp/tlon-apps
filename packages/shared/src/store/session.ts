@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react';
 
-export type Session = { startTime?: number; isReconnecting?: boolean };
+import { ChannelStatus } from '../http-api';
+
+export type Session = { startTime?: number; channelStatus?: ChannelStatus };
 
 // Session — time when subscriptions were first initialized after which we can assume
 // all new events will be heard
@@ -62,15 +64,51 @@ export function useSyncing() {
   return useSyncExternalStore(subscribeToIsSyncing, getSyncing);
 }
 
+// Initialized Client — whether the client has been initialized
+let initializedClient: boolean = false;
+type InitializedClientListener = (initialized: boolean) => void;
+const initializedClientListeners: InitializedClientListener[] = [];
+
+export function getInitializedClient() {
+  return initializedClient;
+}
+
+export function updateInitializedClient(newValue: boolean) {
+  initializedClient = newValue;
+  initializedClientListeners.forEach((listener) => listener(newValue));
+}
+
+function subscribeToInitializedClient(listener: InitializedClientListener) {
+  initializedClientListeners.push(listener);
+  return () => {
+    initializedClientListeners.splice(
+      initializedClientListeners.indexOf(listener),
+      1
+    );
+  };
+}
+
+export function useInitializedClient() {
+  return useSyncExternalStore(
+    subscribeToInitializedClient,
+    getInitializedClient
+  );
+}
+
 export function useConnectionStatus() {
   const currentSession = useCurrentSession();
   const syncing = useSyncing();
+  const initializedClient = useInitializedClient();
+
+  if (!initializedClient) {
+    return 'Idle';
+  }
 
   if (!currentSession) {
     return 'Connecting';
   }
 
-  if (currentSession.isReconnecting) {
+  if (currentSession.channelStatus === 'reconnecting') {
     return 'Reconnecting';
   }
 
@@ -78,5 +116,9 @@ export function useConnectionStatus() {
     return 'Syncing';
   }
 
-  return 'Connected';
+  if (['active', 'reconnected'].includes(currentSession.channelStatus ?? '')) {
+    return 'Connected';
+  }
+
+  return 'Connecting';
 }

@@ -74,12 +74,14 @@ export * from './components/UserProfileScreenView';
 export * from './components/View';
 export * from './components/WelcomeSheet';
 export * from './components/Image';
+export * from './components/ArvosDiscussing';
 export * as Form from './components/Form';
 export * from './contexts';
 export * from './tamagui.config';
 export * from './types';
 export * from './utils';
 export * as TlonText from './components/TextV2';
+export { default as useIsWindowNarrow } from './hooks/useIsWindowNarrow';
 
 export {
   Circle,

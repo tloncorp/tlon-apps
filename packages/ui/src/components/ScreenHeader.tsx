@@ -1,4 +1,4 @@
-import { useCurrentSession } from '@tloncorp/shared';
+import { useConnectionStatus } from '@tloncorp/shared';
 import {
   ComponentProps,
   PropsWithChildren,
@@ -33,11 +33,11 @@ export const ScreenHeaderComponent = ({
 }>) => {
   const { top } = useSafeAreaInsets();
   const resolvedTitle = isLoading ? 'Loading…' : title;
-  const currentSession = useCurrentSession();
+  const connectionStatus = useConnectionStatus();
   const textColor =
     showSessionStatus === false
       ? '$primaryText'
-      : currentSession?.isReconnecting || !currentSession
+      : connectionStatus !== 'Connected'
         ? '$tertiaryText'
         : '$primaryText';
 

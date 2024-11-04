@@ -1,4 +1,4 @@
-import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
+import { ViewProps } from '@tloncorp/shared/urbit/groups';
 import { Helmet } from 'react-helmet';
 
 import MobileHeader from '@/components/MobileHeader';

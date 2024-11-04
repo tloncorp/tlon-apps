@@ -1,9 +1,9 @@
-import { createDevLogger } from '@tloncorp/shared/dist';
-import { MessageAttachments } from '@tloncorp/shared/dist/api';
+import { createDevLogger } from '@tloncorp/shared';
+import { MessageAttachments } from '@tloncorp/shared/api';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo } from 'react';
 
-import { ActionGroup, ActionSheet, createActionGroup } from './ActionSheet';
+import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ListItem } from './ListItem';
 
 const logger = createDevLogger('AttachmentSheet', true);
@@ -86,26 +86,30 @@ export default function AttachmentSheet({
   ]);
 
   const actionGroups: ActionGroup[] = useMemo(
-    () => [
-      createActionGroup(
-        'neutral',
-        {
-          title: 'Photo Library',
-          description: 'Choose a photo from your library',
-          action: pickImage,
-        },
-        {
-          title: 'Take a Photo',
-          description: 'Use your camera to take a photo',
-          action: takePicture,
-        },
-        showClearOption && {
-          title: 'Clear',
-          description: 'Remove attached media',
-          action: onClearAttachments,
-        }
+    () =>
+      createActionGroups(
+        [
+          'neutral',
+          {
+            title: 'Photo Library',
+            description: 'Choose a photo from your library',
+            action: pickImage,
+          },
+          {
+            title: 'Take a Photo',
+            description: 'Use your camera to take a photo',
+            action: takePicture,
+          },
+        ],
+        showClearOption && [
+          'negative',
+          {
+            title: 'Clear',
+            description: 'Remove attached media',
+            action: onClearAttachments,
+          },
+        ]
       ),
-    ],
     [onClearAttachments, pickImage, showClearOption, takePicture]
   );
 

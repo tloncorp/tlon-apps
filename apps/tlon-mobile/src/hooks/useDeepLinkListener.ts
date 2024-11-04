@@ -1,13 +1,10 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useBranch, useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { inviteShipWithLure } from '@tloncorp/app/lib/hostingApi';
-import { trackError } from '@tloncorp/app/utils/posthog';
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as store from '@tloncorp/shared/dist/store';
+import { RootStackParamList } from '@tloncorp/app/navigation/types';
+import { createDevLogger } from '@tloncorp/shared';
+import * as store from '@tloncorp/shared/store';
 import { useEffect, useRef } from 'react';
-
-import { RootStackParamList } from '../types';
 
 const logger = createDevLogger('deeplinkHandler', true);
 
@@ -26,15 +23,7 @@ export const useDeepLinkListener = () => {
         try {
           // if the lure was clicked prior to authenticating, trigger the automatic join & DM
           if (lure.shouldAutoJoin) {
-            try {
-              logger.log(`inviting ship with lure`, ship, signupParams.lureId);
-              await inviteShipWithLure({ ship, lure: signupParams.lureId });
-            } catch (err) {
-              logger.error('Error inviting ship with lure:', err);
-              if (err instanceof Error) {
-                trackError(err);
-              }
-            }
+            // no-op for now, hosting will handle
           } else {
             // otherwise, treat it as a deeplink and navigate to the group
             if (lure.invitedGroupId) {

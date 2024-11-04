@@ -3,6 +3,11 @@
 // }
 
 /* eslint-disable */
+// At some point recently, we started getting a "regeneratorRuntime is not defined" error
+// when running the app in development mode. This is a workaround for that issue.
+// This is a temporary fix until we can figure out why this is happening.
+// This was most likely caused by a recent dependency change.
+import regeneratorRuntime from '@babel/runtime/regenerator';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { EditorView } from '@tiptap/pm/view';
 import { setupDb } from '@tloncorp/app/lib/webDb';
@@ -16,6 +21,8 @@ import indexedDBPersistor from './indexedDBPersistor';
 import { analyticsClient, captureError } from './logic/analytics';
 import queryClient from './queryClient';
 import './styles/index.css';
+
+window.regeneratorRuntime = regeneratorRuntime;
 
 setupDb().then(() => {
   const oldUpdateState = EditorView.prototype.updateState;
@@ -45,18 +52,19 @@ setupDb().then(() => {
   const container = document.getElementById('app') as HTMLElement;
   const root = createRoot(container);
   root.render(
-    <React.StrictMode>
-      <PersistQueryClientProvider
-        client={queryClient}
-        persistOptions={{
-          persister: indexedDBPersistor(`${window.our}-landscape`),
-          buster: `${window.our}-landscape-4.0.1`,
-        }}
-      >
-        <PostHogProvider client={analyticsClient}>
-          <App />
-        </PostHogProvider>
-      </PersistQueryClientProvider>
-    </React.StrictMode>
+    // Strict mode disabled as it breaks react-navigation on web
+    // <React.StrictMode>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: indexedDBPersistor(`${window.our}-landscape`),
+        buster: `${window.our}-landscape-4.0.1`,
+      }}
+    >
+      <PostHogProvider client={analyticsClient}>
+        <App />
+      </PostHogProvider>
+    </PersistQueryClientProvider>
+    // </React.StrictMode>
   );
 });

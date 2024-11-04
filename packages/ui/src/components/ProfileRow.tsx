@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { XStack, YStack } from 'tamagui';
 
 import { ContactAvatar } from './Avatar';

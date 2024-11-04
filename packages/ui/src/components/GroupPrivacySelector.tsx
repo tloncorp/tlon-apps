@@ -1,7 +1,9 @@
-import { GroupPrivacy } from '@tloncorp/shared/dist/db/schema';
+import { schema } from '@tloncorp/shared/db';
 import React from 'react';
 
 import * as Form from './Form';
+
+type GroupPrivacy = schema.GroupPrivacy;
 
 function GroupPrivacySelectorRaw(props: {
   currentValue: GroupPrivacy;

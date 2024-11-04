@@ -1,30 +1,14 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
-import type * as db from '@tloncorp/shared/dist/db';
-
-export type SignUpExtras = {
-  nickname?: string;
-  notificationToken?: string;
-  telemetry?: boolean;
-};
-
-type ExternalWebViewScreenParams = {
-  uri: string;
-  headers?: Record<string, string | null>;
-  injectedJavaScript?: string;
-};
-
-export type WebViewStackParamList = {
-  Webview: undefined;
-  ExternalWebView: ExternalWebViewScreenParams;
-};
 
 export type RootStackParamList = {
-  ChatList: { previewGroup: db.Group } | undefined;
+  ChatList: { previewGroupId: string } | undefined;
   Activity: undefined;
   Profile: undefined;
   Channel: {
-    channel: db.Channel;
+    channelId: string;
+    groupId?: string;
     selectedPostId?: string | null;
+    startDraft?: boolean;
   };
   FindGroups: undefined;
   ContactHostedGroups: {
@@ -32,20 +16,17 @@ export type RootStackParamList = {
   };
   CreateGroup: undefined;
   GroupChannels: {
-    group: db.Group;
+    groupId: string;
   };
   ChannelSearch: {
-    channel: db.Channel;
+    channelId: string;
   };
   Post: {
-    post: {
-      id: string;
-      channelId: string;
-      authorId: string;
-    };
+    postId: string;
+    channelId: string;
+    authorId: string;
   };
   ImageViewer: {
-    post: db.Post;
     uri?: string;
   };
   GroupSettings: NavigatorScreenParams<GroupSettingsStackParamList>;
@@ -68,6 +49,27 @@ export type RootStackParamList = {
   };
 };
 
+export type RootDrawerParamList = {
+  Home: NavigatorScreenParams<HomeDrawerParamList>;
+} & Pick<RootStackParamList, 'Activity' | 'Profile'>;
+
+export type HomeDrawerParamList = Pick<
+  RootStackParamList,
+  'ChatList' | 'GroupChannels' | 'Channel'
+>;
+
+export type DesktopChannelStackParamList = Pick<
+  RootStackParamList,
+  | 'GroupSettings'
+  | 'ChannelSearch'
+  | 'Post'
+  | 'ImageViewer'
+  | 'UserProfile'
+  | 'EditProfile'
+  | 'ChannelMembers'
+  | 'ChannelMeta'
+> & { ChannelRoot: RootStackParamList['Channel'] };
+
 export type GroupSettingsStackParamList = {
   EditChannel: {
     channelId: string;
@@ -88,36 +90,4 @@ export type GroupSettingsStackParamList = {
   GroupRoles: {
     groupId: string;
   };
-};
-
-export type SettingsStackParamList = {
-  Settings: undefined;
-  FeatureFlags: undefined;
-};
-
-export type OnboardingStackParamList = {
-  Welcome: undefined;
-  InventoryCheck: undefined;
-  SignUpEmail: undefined;
-  EULA: undefined;
-  SignUpPassword: { email: string };
-  JoinWaitList: { email?: string };
-  RequestPhoneVerify: { user: User };
-  CheckVerify: { user: User };
-  ReserveShip: { user: User };
-  SetNickname: { user: User };
-  SetTelemetry: { user: User };
-  TlonLogin: undefined;
-  ShipLogin: undefined;
-  ResetPassword: { email?: string };
-};
-
-export type User = {
-  id: string;
-  email: string;
-  phoneNumber?: string;
-  admin: boolean;
-  ships: string[];
-  requirePhoneNumberVerification: boolean;
-  verified: boolean;
 };

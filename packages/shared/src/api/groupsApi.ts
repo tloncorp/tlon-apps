@@ -13,6 +13,7 @@ import {
   getJoinStatusFromGang,
 } from '../urbit';
 import { parseGroupId, toClientMeta } from './apiUtils';
+import { StructuredChannelDescriptionPayload } from './channelContentConfig';
 import {
   getCurrentUserId,
   poke,
@@ -307,6 +308,25 @@ export const pinItem = async (itemId: string) => {
         add: itemId,
       },
     },
+  });
+};
+
+export const getChannelPreview = async (
+  channelId: string
+): Promise<db.Channel | null> => {
+  const channelPreview = await subscribeOnce<ub.ChannelPreview>({
+    app: 'groups',
+    path: `/chan/${channelId}`,
+  });
+
+  if (!channelPreview) {
+    return null;
+  }
+
+  return toClientChannelFromPreview({
+    id: channelId,
+    channel: channelPreview,
+    groupId: channelPreview.group.flag,
   });
 };
 
@@ -1455,6 +1475,8 @@ function toClientChannel({
   channel: ub.GroupChannel;
   groupId: string;
 }): db.Channel {
+  const { description, channelContentConfiguration } =
+    StructuredChannelDescriptionPayload.decode(channel.meta.description);
   return {
     id,
     groupId,
@@ -1462,7 +1484,32 @@ function toClientChannel({
     iconImage: omitEmpty(channel.meta.image),
     title: omitEmpty(channel.meta.title),
     coverImage: omitEmpty(channel.meta.cover),
-    description: omitEmpty(channel.meta.description),
+    description,
+    contentConfiguration: channelContentConfiguration,
+  };
+}
+
+function toClientChannelFromPreview({
+  id,
+  channel,
+  groupId,
+}: {
+  id: string;
+  channel: ub.ChannelPreview;
+  groupId: string;
+}): db.Channel {
+  const { description, channelContentConfiguration } =
+    StructuredChannelDescriptionPayload.decode(channel.meta.description);
+
+  return {
+    id,
+    groupId,
+    type: getChannelType(id),
+    iconImage: omitEmpty(channel.meta.image),
+    title: omitEmpty(channel.meta.title),
+    coverImage: omitEmpty(channel.meta.cover),
+    description,
+    contentConfiguration: channelContentConfiguration,
   };
 }
 

@@ -1,7 +1,7 @@
 import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import type * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import {
   AppDataContextProvider,
   GroupPreviewSheet,
@@ -49,6 +49,10 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
     [selectedGroup]
   );
 
+  const handlePressEdit = useCallback(() => {
+    navigation.push('EditProfile');
+  }, [navigation]);
+
   return (
     <AppDataContextProvider
       currentUserId={currentUserId}
@@ -60,6 +64,7 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
           onBack={() => navigation.goBack()}
           connectionStatus={connectionStatus}
           onPressGroup={setSelectedGroup}
+          onPressEdit={handlePressEdit}
         />
         <GroupPreviewSheet
           open={selectedGroup !== null}

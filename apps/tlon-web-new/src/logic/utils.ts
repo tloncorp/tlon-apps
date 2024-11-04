@@ -1,4 +1,4 @@
-import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
+import { MessageKey } from '@tloncorp/shared/urbit/activity';
 import {
   CacheId,
   ChatStory,
@@ -9,13 +9,13 @@ import {
   Verse,
   VerseBlock,
   VerseInline,
-} from '@tloncorp/shared/dist/urbit/channel';
+} from '@tloncorp/shared/urbit/channel';
 import {
   Bold,
   Inline,
   Italics,
   Strikethrough,
-} from '@tloncorp/shared/dist/urbit/content';
+} from '@tloncorp/shared/urbit/content';
 import {
   Cabals,
   ChannelPrivacyType,
@@ -27,7 +27,7 @@ import {
   PrivacyType,
   Rank,
   Saga,
-} from '@tloncorp/shared/dist/urbit/groups';
+} from '@tloncorp/shared/urbit/groups';
 import {
   BigIntOrderedMap,
   Docket,

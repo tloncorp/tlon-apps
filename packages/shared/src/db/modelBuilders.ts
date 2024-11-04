@@ -240,3 +240,120 @@ export function buildPendingSingleDmChannel(
     members: [partnerMember],
   };
 }
+
+type Optional<Base, OptionalProperties extends keyof Base> = Omit<
+  Base,
+  OptionalProperties
+> &
+  Partial<Pick<Base, OptionalProperties>>;
+
+export function buildChannel(
+  overrides: Optional<
+    db.Channel,
+    | 'addedToGroupAt'
+    | 'contactId'
+    | 'contentConfiguration'
+    | 'coverImage'
+    | 'coverImageColor'
+    | 'currentUserIsMember'
+    | 'description'
+    | 'firstUnreadPostId'
+    | 'groupId'
+    | 'iconImage'
+    | 'iconImageColor'
+    | 'isDefaultWelcomeChannel'
+    | 'isDmInvite'
+    | 'isPendingChannel'
+    | 'lastPostAt'
+    | 'lastPostId'
+    | 'lastViewedAt'
+    | 'members'
+    | 'postCount'
+    | 'remoteUpdatedAt'
+    | 'syncedAt'
+    | 'title'
+    | 'unreadCount'
+  >
+): db.Channel {
+  return {
+    addedToGroupAt: null,
+    contactId: null,
+    contentConfiguration: null,
+    coverImage: null,
+    coverImageColor: null,
+    currentUserIsMember: null,
+    description: null,
+    firstUnreadPostId: null,
+    groupId: null,
+    iconImage: null,
+    iconImageColor: null,
+    isDefaultWelcomeChannel: null,
+    isDmInvite: false,
+    isPendingChannel: null,
+    lastPostAt: null,
+    lastPostId: null,
+    lastViewedAt: null,
+    members: [],
+    postCount: null,
+    remoteUpdatedAt: null,
+    syncedAt: null,
+    title: '',
+    unreadCount: null,
+    ...overrides,
+  };
+}
+
+export function buildChatMember(
+  overrides: Optional<
+    db.ChatMember,
+    'chatId' | 'contact' | 'joinedAt' | 'status'
+  >
+): db.ChatMember {
+  return {
+    chatId: null,
+    contact: null,
+    joinedAt: null,
+    status: null,
+    ...overrides,
+  };
+}
+
+interface ChatMembersBuilder {
+  add(
+    ...overrides: Array<
+      Optional<Omit<db.ChatMember, 'chatId' | 'membershipType'>, 'contact'>
+    >
+  ): ChatMembersBuilder;
+  build(): db.ChatMember[];
+}
+
+/**
+ * Build a list of chat members, specifying common fields in one place.
+ *
+ * ```ts
+ * const channel = {
+ *   members: buildChatMembers({ chatId: '1', membershipType: 'channel' })
+ *     .add({ contactId: '2', status: 'joined' })
+ *     .add({ contactId: '3', status: 'invited' })
+ *     .build()
+ * };
+ * ```
+ */
+export function buildChatMembers(
+  commonFields: Pick<db.ChatMember, 'chatId' | 'membershipType'>
+): ChatMembersBuilder {
+  const members: db.ChatMember[] = [];
+
+  return {
+    add(...overridesList) {
+      for (const overrides of overridesList) {
+        const member = buildChatMember({ ...commonFields, ...overrides });
+        members.push(member);
+      }
+      return this;
+    },
+    build() {
+      return members;
+    },
+  };
+}

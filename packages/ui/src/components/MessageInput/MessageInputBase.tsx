@@ -1,6 +1,6 @@
 import type { EditorBridge } from '@10play/tentap-editor';
-import * as db from '@tloncorp/shared/dist/db';
-import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
+import * as db from '@tloncorp/shared/db';
+import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { memo } from 'react';
 import { PropsWithChildren } from 'react';
@@ -67,6 +67,7 @@ export const MessageInputContainer = memo(
     onPressSend,
     setShouldBlur,
     containerHeight,
+    sendError,
     showMentionPopup = false,
     showAttachmentButton = true,
     floatingActionButton = false,
@@ -83,6 +84,7 @@ export const MessageInputContainer = memo(
     setShouldBlur: (shouldBlur: boolean) => void;
     onPressSend: () => void;
     containerHeight: number;
+    sendError: boolean;
     showMentionPopup?: boolean;
     showAttachmentButton?: boolean;
     floatingActionButton?: boolean;
@@ -153,7 +155,12 @@ export const MessageInputContainer = memo(
               {disableSend ? null : (
                 <FloatingActionButton
                   onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
-                  icon={<Icon type="ArrowUp" />}
+                  icon={
+                    <Icon
+                      color={sendError ? 'red' : undefined}
+                      type={sendError ? 'Refresh' : 'ArrowUp'}
+                    />
+                  }
                 />
               )}
             </View>

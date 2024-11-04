@@ -12,7 +12,7 @@ import {
   createInviteLinkRegex,
   extractNormalizedInviteLink,
   getMetadaFromInviteLink,
-} from '@tloncorp/shared/dist';
+} from '@tloncorp/shared';
 import {
   Field,
   ScreenHeader,

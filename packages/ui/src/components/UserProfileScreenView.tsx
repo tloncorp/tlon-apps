@@ -1,6 +1,6 @@
-import * as api from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import * as api from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -28,6 +28,7 @@ interface Props {
   onBack: () => void;
   connectionStatus: api.ConnectionStatus | null;
   onPressGroup: (group: db.Group) => void;
+  onPressEdit: () => void;
 }
 
 export function UserProfileScreenView(props: Props) {
@@ -71,6 +72,13 @@ export function UserProfileScreenView(props: Props) {
       <ScreenHeader
         title="Profile"
         leftControls={<ScreenHeader.BackButton onPress={props.onBack} />}
+        rightControls={
+          props.userId === currentUserId ? (
+            <ScreenHeader.TextButton onPress={props.onPressEdit}>
+              Edit
+            </ScreenHeader.TextButton>
+          ) : null
+        }
       />
       <ScrollView
         flex={1}
@@ -237,7 +245,7 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
       onPress={handleCopy}
       padding="$l"
       gap="$xl"
-      flex={1}
+      width={'100%'}
     >
       <ContactAvatar contactId={props.userId} size="$5xl" />
       <YStack flex={1} justifyContent="center">

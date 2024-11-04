@@ -6,7 +6,7 @@ import {
   Reply,
   ReplyMeta,
   ReplyTuple,
-} from '@tloncorp/shared/dist/urbit/channel';
+} from '@tloncorp/shared/urbit/channel';
 import {
   Club,
   DMUnreads,
@@ -17,7 +17,7 @@ import {
   WritInCache,
   WritMemo,
   WritSeal,
-} from '@tloncorp/shared/dist/urbit/dms';
+} from '@tloncorp/shared/urbit/dms';
 import { udToDec } from '@urbit/api';
 import { formatUd, unixToDa } from '@urbit/aura';
 import bigInt from 'big-integer';

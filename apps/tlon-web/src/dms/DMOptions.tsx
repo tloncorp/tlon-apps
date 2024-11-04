@@ -1,4 +1,4 @@
-import { getKey } from '@tloncorp/shared/dist/urbit/activity';
+import { getKey } from '@tloncorp/shared/urbit/activity';
 import cn from 'classnames';
 import React, {
   PropsWithChildren,

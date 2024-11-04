@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useTheme } from '@tloncorp/ui';
+import { useIsWindowNarrow, useTheme } from '@tloncorp/ui';
 import { Platform, StatusBar } from 'react-native';
 
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
@@ -10,6 +10,7 @@ import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
 import { FeatureFlagScreen } from '../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../features/settings/ManageAccountScreen';
+import ProfileScreen from '../features/settings/ProfileScreen';
 import { PushNotificationSettingsScreen } from '../features/settings/PushNotificationSettingsScreen';
 import { UserBugReportScreen } from '../features/settings/UserBugReportScreen';
 import { ActivityScreen } from '../features/top/ActivityScreen';
@@ -25,7 +26,6 @@ import PostScreen from '../features/top/PostScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { GroupSettingsStack } from './GroupSettingsStack';
-import { SettingsStack } from './SettingsStack';
 import type { RootStackParamList } from './types';
 
 const Root = createNativeStackNavigator<RootStackParamList>();
@@ -45,7 +45,7 @@ export function RootStack() {
 
   return (
     <Root.Navigator
-      initialRouteName="ChatList"
+      initialRouteName={'ChatList'}
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: theme.background?.val },
@@ -64,7 +64,7 @@ export function RootStack() {
       />
       <Root.Screen
         name="Profile"
-        component={SettingsStack}
+        component={ProfileScreen}
         options={{ animation: 'none', gestureEnabled: false }}
       />
 

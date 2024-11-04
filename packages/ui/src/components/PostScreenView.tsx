@@ -1,7 +1,7 @@
-import { isChatChannel as getIsChatChannel } from '@tloncorp/shared/dist';
-import type * as db from '@tloncorp/shared/dist/db';
-import * as urbit from '@tloncorp/shared/dist/urbit';
-import { Story } from '@tloncorp/shared/dist/urbit';
+import { isChatChannel as getIsChatChannel } from '@tloncorp/shared';
+import type * as db from '@tloncorp/shared/db';
+import * as urbit from '@tloncorp/shared/urbit';
+import { Story } from '@tloncorp/shared/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
@@ -11,13 +11,13 @@ import { Text, View, YStack } from 'tamagui';
 import { NavigationProvider, useCurrentUserId } from '../contexts';
 import { AttachmentProvider } from '../contexts/attachment';
 import * as utils from '../utils';
+import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
 import { ChannelFooter } from './Channel/ChannelFooter';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import { DetailView } from './DetailView';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
-import { MessageInput } from './MessageInput';
 import { TlonEditorBridge } from './MessageInput/toolbarActions.native';
 
 export function PostScreenView({
@@ -107,7 +107,9 @@ export function PostScreenView({
 
   const headerTitle = isChatChannel
     ? `Thread: ${channel?.title ?? null}`
-    : parentPost?.title ?? 'Post';
+    : parentPost?.title && parentPost.title !== ''
+      ? parentPost.title
+      : 'Post';
 
   const hasLoaded = !!(posts && channel && parentPost);
   useEffect(() => {
@@ -157,6 +159,14 @@ export function PostScreenView({
     [onPressRef, posts, channel]
   );
 
+  const handleGoBack = useCallback(() => {
+    if (isEditingParent) {
+      console.log('setEditingPost', undefined);
+      setEditingPost?.(undefined);
+    }
+    goBack?.();
+  }, [goBack, isEditingParent, setEditingPost]);
+
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
       <NavigationProvider
@@ -171,7 +181,7 @@ export function PostScreenView({
               channel={channel}
               group={channel.group}
               title={headerTitle}
-              goBack={goBack}
+              goBack={handleGoBack}
               showSearchButton={false}
               showSpinner={isLoadingPosts}
               post={parentPost ?? undefined}
@@ -181,6 +191,7 @@ export function PostScreenView({
               {parentPost ? (
                 <DetailView
                   post={parentPost}
+                  channel={channel}
                   initialPostUnread={initialThreadUnread}
                   onPressImage={handleGoToImage}
                   editingPost={editingPost}
@@ -198,7 +209,7 @@ export function PostScreenView({
               ) : null}
 
               {negotiationMatch && channel && canWrite && (
-                <MessageInput
+                <BareChatInput
                   placeholder="Reply"
                   shouldBlur={inputShouldBlur}
                   setShouldBlur={setInputShouldBlur}
@@ -212,11 +223,12 @@ export function PostScreenView({
                   editPost={editPost}
                   channelType="chat"
                   getDraft={getDraft}
+                  showAttachmentButton={channel.type === 'chat'}
+                  showInlineAttachments={channel.type === 'chat'}
                   shouldAutoFocus={
                     (channel.type === 'chat' && parentPost?.replyCount === 0) ||
                     !!editingPost
                   }
-                  ref={editorRef}
                 />
               )}
               {!negotiationMatch && channel && canWrite && (

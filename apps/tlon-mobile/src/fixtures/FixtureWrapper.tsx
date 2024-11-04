@@ -1,8 +1,9 @@
 // tamagui-ignore
-import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist';
+import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import type { ColorProp } from '@tloncorp/ui';
 import { Theme, View } from '@tloncorp/ui';
 import type { PropsWithChildren } from 'react';
+import { useFixtureSelect } from 'react-cosmos/client';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,7 +15,6 @@ export const FixtureWrapper = ({
   children,
   backgroundColor,
   innerBackgroundColor,
-  theme = 'light',
   safeArea,
 }: PropsWithChildren<{
   fillWidth?: boolean;
@@ -23,10 +23,14 @@ export const FixtureWrapper = ({
   horizontalAlign?: 'left' | 'center' | 'right';
   backgroundColor?: ColorProp;
   innerBackgroundColor?: ColorProp;
-  theme?: 'light' | 'dark';
   safeArea?: boolean;
 }>) => {
   const insets = useSafeAreaInsets();
+
+  const [theme] = useFixtureSelect('themeName', {
+    options: ['light', 'dark'],
+  });
+
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>

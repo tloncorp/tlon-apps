@@ -1,10 +1,14 @@
-import { useMutableCallback } from '@tloncorp/shared';
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import { isSameDay } from '@tloncorp/shared/dist/logic';
-import { Story } from '@tloncorp/shared/dist/urbit';
+import {
+  PostCollectionLayoutType,
+  configurationFromChannel,
+  layoutForType,
+  layoutTypeFromChannel,
+  useMutableCallback,
+} from '@tloncorp/shared';
+import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import { isSameDay } from '@tloncorp/shared/logic';
 import { isEqual } from 'lodash';
-import { MotiView } from 'moti';
 import React, {
   PropsWithChildren,
   ReactElement,
@@ -30,6 +34,7 @@ import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, styled, useStyle, useTheme } from 'tamagui';
 
+import { RenderItemType } from '../../contexts/componentsKits';
 import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
@@ -42,27 +47,6 @@ interface PostWithNeighbors {
   newer: db.Post | null;
   older: db.Post | null;
 }
-
-type RenderItemFunction = (props: {
-  post: db.Post;
-  showAuthor?: boolean;
-  showReplies?: boolean;
-  onPress?: (post: db.Post) => void;
-  onPressReplies?: (post: db.Post) => void;
-  onPressImage?: (post: db.Post, imageUri?: string) => void;
-  onLongPress?: (post: db.Post) => void;
-  editing?: boolean;
-  setEditingPost?: (post: db.Post | undefined) => void;
-  setViewReactionsPost?: (post: db.Post) => void;
-  editPost?: (post: db.Post, content: Story) => Promise<void>;
-  onPressRetry: (post: db.Post) => void;
-  onPressDelete: (post: db.Post) => void;
-  isHighlighted?: boolean;
-}) => ReactElement | null;
-
-type RenderItemType =
-  | RenderItemFunction
-  | React.MemoExoticComponent<RenderItemFunction>;
 
 const logger = createDevLogger('scroller', false);
 
@@ -89,8 +73,8 @@ const Scroller = forwardRef(
       renderItem,
       renderEmptyComponent: renderEmptyComponentFn,
       posts,
-      channelType,
-      channelId,
+      channel,
+      collectionLayoutType,
       firstUnreadId,
       unreadCount,
       onStartReached,
@@ -114,8 +98,8 @@ const Scroller = forwardRef(
       renderItem: RenderItemType;
       renderEmptyComponent?: () => ReactElement;
       posts: db.Post[] | null;
-      channelType: db.ChannelType;
-      channelId: string;
+      channel: db.Channel;
+      collectionLayoutType: PostCollectionLayoutType;
       firstUnreadId?: string | null;
       unreadCount?: number | null;
       onStartReached?: () => void;
@@ -138,6 +122,15 @@ const Scroller = forwardRef(
     },
     ref
   ) => {
+    const collectionLayout = useMemo(
+      () => layoutForType(collectionLayoutType),
+      [collectionLayoutType]
+    );
+    const collectionConfig = useMemo(
+      () => configurationFromChannel(channel),
+      [channel]
+    );
+
     const [isAtBottom, setIsAtBottom] = useState(true);
 
     const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
@@ -183,7 +176,8 @@ const Scroller = forwardRef(
       anchor,
       flatListRef,
       hasNewerPosts,
-      channelType,
+      shouldMaintainVisibleContentPosition:
+        collectionLayout.shouldMaintainVisibleContentPosition,
     });
 
     const theme = useTheme();
@@ -243,8 +237,6 @@ const Scroller = forwardRef(
             isLastPostOfBlock={isLastPostOfBlock}
             Component={renderItem}
             unreadCount={unreadCount}
-            channelId={channelId}
-            channelType={channelType}
             setViewReactionsPost={setViewReactionsPost}
             onPressRetry={onPressRetry}
             onPressDelete={onPressDelete}
@@ -255,6 +247,8 @@ const Scroller = forwardRef(
             onLongPressPost={handlePostLongPressed}
             activeMessage={activeMessage}
             messageRef={activeMessageRefs.current[post.id]}
+            dividersEnabled={collectionLayout.dividersEnabled}
+            itemAspectRatio={collectionLayout.itemAspectRatio ?? undefined}
             {...anchorScrollLockScrollerItemProps}
           />
         );
@@ -266,8 +260,6 @@ const Scroller = forwardRef(
         renderItem,
         unreadCount,
         anchorScrollLockScrollerItemProps,
-        channelId,
-        channelType,
         showReplies,
         onPressImage,
         onPressReplies,
@@ -277,40 +269,54 @@ const Scroller = forwardRef(
         handlePostLongPressed,
         activeMessage,
         showDividers,
+        collectionLayout.dividersEnabled,
+        collectionLayout.itemAspectRatio,
       ]
     );
 
     const insets = useSafeAreaInsets();
 
     const contentContainerStyle = useStyle(
-      !posts?.length
-        ? { flex: 1 }
-        : channelType === 'gallery'
-          ? {
-              paddingHorizontal: '$l',
-              paddingTop: headerMode === 'next' ? insets.top + 54 : 0,
-              paddingBottom: insets.bottom,
+      useMemo(() => {
+        if (!posts?.length) {
+          return { flex: 1 };
+        }
+
+        switch (collectionLayoutType) {
+          case 'compact-list-bottom-to-top': {
+            return {
+              paddingHorizontal: '$m',
+            };
+          }
+
+          case 'comfy-list-top-to-bottom': {
+            return {
+              paddingHorizontal: '$m',
               gap: '$l',
-            }
-          : channelType === 'notebook'
-            ? {
-                paddingHorizontal: '$m',
-                paddingTop: headerMode === 'next' ? insets.top + 54 : 0,
-                paddingBottom: insets.bottom,
-                gap: '$l',
-              }
-            : {
-                paddingHorizontal: '$m',
-              }
+              paddingBottom: insets.bottom,
+              paddingTop: headerMode === 'next' ? insets.top + 54 : 0,
+            };
+          }
+
+          case 'grid': {
+            return {
+              paddingHorizontal: '$m',
+              gap: '$l',
+              paddingBottom: insets.bottom,
+              paddingTop: headerMode === 'next' ? insets.top + 54 : 0,
+            };
+          }
+        }
+      }, [insets, posts?.length, headerMode, collectionLayoutType])
     ) as StyleProp<ViewStyle>;
 
     const columnWrapperStyle = useStyle(
-      channelType === 'gallery'
-        ? {
+      collectionLayout.columnCount === 1
+        ? {}
+        : {
             gap: '$l',
             width: '100%',
           }
-        : {}
     ) as StyleProp<ViewStyle>;
 
     const pendingEvents = useRef({
@@ -388,7 +394,7 @@ const Scroller = forwardRef(
             ref={flatListRef as React.RefObject<Animated.FlatList<db.Post>>}
             // This is needed so that we can force a refresh of the list when
             // we need to switch from 1 to 2 columns or vice versa.
-            key={channelType}
+            key={channel.type}
             data={postsWithNeighbors}
             // Disabled to prevent the user from accidentally blurring the edit
             // input while they're typing.
@@ -398,7 +404,13 @@ const Scroller = forwardRef(
             keyExtractor={getPostId}
             keyboardDismissMode="on-drag"
             contentContainerStyle={contentContainerStyle}
-            columnWrapperStyle={channelType === 'gallery' && columnWrapperStyle}
+            columnWrapperStyle={
+              // FlatList raises an error if `columnWrapperStyle` is provided
+              // with numColumns=1, even if the style is empty
+              collectionLayout.columnCount === 1
+                ? undefined
+                : columnWrapperStyle
+            }
             inverted={
               // https://github.com/facebook/react-native/issues/21196
               // It looks like this bug has regressed a few times - to avoid
@@ -409,7 +421,7 @@ const Scroller = forwardRef(
             initialNumToRender={INITIAL_POSTS_PER_PAGE}
             maxToRenderPerBatch={8}
             windowSize={8}
-            numColumns={channelType === 'gallery' ? 2 : 1}
+            numColumns={collectionLayout.columnCount}
             style={style}
             onEndReached={handleEndReached}
             onEndReachedThreshold={1}
@@ -428,9 +440,9 @@ const Scroller = forwardRef(
           {activeMessage !== null && (
             <ChatMessageActions
               post={activeMessage}
+              postActionIds={collectionConfig.postActionIds}
               postRef={activeMessageRefs.current[activeMessage!.id]}
               onDismiss={() => setActiveMessage(null)}
-              channelType={channelType}
               onReply={onPressReplies}
               onEdit={() => {
                 setEditingPost?.(activeMessage);
@@ -472,8 +484,6 @@ const BaseScrollerItem = ({
   Component,
   unreadCount,
   onLayout,
-  channelId,
-  channelType,
   setViewReactionsPost,
   showReplies,
   onPressImage,
@@ -486,6 +496,8 @@ const BaseScrollerItem = ({
   messageRef,
   isSelected,
   isLastPostOfBlock,
+  dividersEnabled,
+  itemAspectRatio,
 }: {
   showUnreadDivider: boolean;
   showAuthor: boolean;
@@ -495,8 +507,6 @@ const BaseScrollerItem = ({
   Component: RenderItemType;
   unreadCount?: number | null;
   onLayout: (post: db.Post, index: number, e: LayoutChangeEvent) => void;
-  channelId: string;
-  channelType: db.ChannelType;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onPressReplies?: (post: db.Post) => void;
   showReplies?: boolean;
@@ -509,6 +519,8 @@ const BaseScrollerItem = ({
   messageRef: RefObject<RNView>;
   isSelected: boolean;
   isLastPostOfBlock: boolean;
+  dividersEnabled: boolean;
+  itemAspectRatio?: number;
 }) => {
   const post = useLivePost(item);
 
@@ -520,26 +532,17 @@ const BaseScrollerItem = ({
   );
 
   const dividerType = useMemo(() => {
-    switch (channelType) {
-      case 'chat':
-      // fallthrough
-      case 'dm':
-      // fallthrough
-      case 'groupDm':
-        if (showUnreadDivider) {
-          return 'unread';
-        }
-        if (showDayDivider) {
-          return 'day';
-        }
-        return null;
-
-      case 'gallery':
-      // fallthrough
-      case 'notebook':
-        return null;
+    if (!dividersEnabled) {
+      return null;
     }
-  }, [channelType, showUnreadDivider, showDayDivider]);
+    if (showUnreadDivider) {
+      return 'unread';
+    }
+    if (showDayDivider) {
+      return 'day';
+    }
+    return null;
+  }, [dividersEnabled, showUnreadDivider, showDayDivider]);
 
   const divider = useMemo(() => {
     switch (dividerType) {
@@ -567,13 +570,7 @@ const BaseScrollerItem = ({
   }, [dividerType, post, unreadCount, showDayDivider]);
 
   return (
-    <View
-      onLayout={handleLayout}
-      {...useMemo(
-        () => (channelType === 'gallery' ? { aspectRatio: 1, flex: 0.5 } : {}),
-        [channelType]
-      )}
-    >
+    <View onLayout={handleLayout} flex={1} aspectRatio={itemAspectRatio}>
       {divider}
       <PressableMessage
         ref={messageRef}
@@ -643,7 +640,7 @@ function useAnchorScrollLock({
   posts,
   anchor,
   hasNewerPosts,
-  channelType,
+  shouldMaintainVisibleContentPosition,
 }: {
   flatListRef: RefObject<FlatList<db.Post>>;
 
@@ -651,7 +648,7 @@ function useAnchorScrollLock({
   posts: db.Post[] | null;
   anchor: ScrollAnchor | null | undefined;
   hasNewerPosts?: boolean;
-  channelType: db.ChannelType;
+  shouldMaintainVisibleContentPosition: boolean;
 }) {
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const [needsScrollToAnchor, setNeedsScrollToAnchor] = useState(
@@ -758,7 +755,7 @@ function useAnchorScrollLock({
     }
   );
   const maintainVisibleContentPositionConfig = useMemo(() => {
-    if (!['chat', 'dm', 'groupDm'].includes(channelType)) {
+    if (!shouldMaintainVisibleContentPosition) {
       return undefined;
     }
 
@@ -771,7 +768,7 @@ function useAnchorScrollLock({
       // only enable it when there's nothing newer left to load (so, for new incoming messages only).
       autoscrollToTopThreshold: hasNewerPosts ? undefined : 0,
     };
-  }, [hasNewerPosts, channelType]);
+  }, [hasNewerPosts, shouldMaintainVisibleContentPosition]);
 
   const handleScrollToIndexFailed = useMutableCallback(
     (info: {

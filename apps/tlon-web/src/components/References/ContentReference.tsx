@@ -1,4 +1,4 @@
-import { Cite } from '@tloncorp/shared/dist/urbit/channel';
+import { Cite } from '@tloncorp/shared/urbit/channel';
 import { udToDec } from '@urbit/api';
 import React from 'react';
 

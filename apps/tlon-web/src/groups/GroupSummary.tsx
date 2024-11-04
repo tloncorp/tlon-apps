@@ -1,4 +1,4 @@
-import { GroupPreview } from '@tloncorp/shared/dist/urbit/groups';
+import { GroupPreview } from '@tloncorp/shared/urbit/groups';
 
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ShipConnection from '@/components/ShipConnection';
