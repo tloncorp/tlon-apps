@@ -19,9 +19,17 @@ import {
 
 const logger = createDevLogger('hostingApi', true);
 
-type HostingError = {
-  message: string;
-};
+export class HostingError extends Error {
+  code: number;
+  shouldTrack: boolean;
+
+  constructor(message: string, code: number, shouldTrack: boolean = true) {
+    super(message);
+    this.name = 'HostingError';
+    this.code = code;
+    this.shouldTrack = shouldTrack;
+  }
+}
 
 const hostingFetchResponse = async (
   path: string,
@@ -66,7 +74,7 @@ const hostingFetch = async <T extends object>(
 
   const result = !responseText
     ? { message: 'Empty response' }
-    : (JSON.parse(responseText) as HostingError | T);
+    : (JSON.parse(responseText) as { message: string } | T);
   if (!response.ok) {
     throw new Error(
       'message' in result ? result.message : 'An unknown error has occurred.'
@@ -234,17 +242,21 @@ export const requestSignupOtp = async ({
   });
 
   if (!response.ok) {
-    if (response.status === 409) {
-      throw new Error('Phone number already in use');
+    const ALREADY_IN_USE = 409;
+    const WAIT_TO_RESEND = 429;
+    const hostingError = new HostingError(
+      'Failed to send signup OTP',
+      response.status,
+      [ALREADY_IN_USE, WAIT_TO_RESEND].includes(response.status)
+    );
+
+    if (hostingError.shouldTrack) {
+      logger.trackError(logic.AnalyticsEvent.FailedSignupOTP, {
+        status: response.status,
+      });
     }
 
-    const badResponseText = await response.text();
-    logger.trackError(logic.AnalyticsEvent.FailedSignupOTP, {
-      status: response.status,
-      responseText: badResponseText,
-    });
-
-    throw new Error('Failed to send signup OTP');
+    throw hostingError;
   }
 };
 
@@ -261,7 +273,7 @@ export const requestLoginOtp = async ({
     throw new Error('Either phone number or email must be provided');
   }
 
-  return hostingFetch<object>('/v1/request-otp', {
+  const response = await rawHostingFetch('/v1/request-otp', {
     method: 'POST',
     body: JSON.stringify({
       phoneNumber,
@@ -276,6 +288,23 @@ export const requestLoginOtp = async ({
       'Content-Type': 'application/json',
     },
   });
+
+  if (!response.ok) {
+    const WAIT_TO_RESEND = 429;
+    const hostingError = new HostingError(
+      'Failed to send login OTP',
+      response.status,
+      [WAIT_TO_RESEND].includes(response.status)
+    );
+
+    if (hostingError.shouldTrack) {
+      logger.trackError(logic.AnalyticsEvent.FailedLoginOTP, {
+        status: response.status,
+      });
+    }
+
+    throw hostingError;
+  }
 };
 
 export const checkPhoneVerify = async (userId: string, code: string) =>

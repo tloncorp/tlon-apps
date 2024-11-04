@@ -8,17 +8,20 @@ import {
   useLureMetadata,
   useSignupParams,
 } from '@tloncorp/app/contexts/branch';
-import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Field,
   KeyboardAvoidingView,
   OnboardingInviteBlock,
+  OnboardingTextBlock,
   ScreenHeader,
   TextInput,
   TlonText,
   View,
   YStack,
 } from '@tloncorp/ui';
+import { HostingError } from 'packages/app/lib/hostingApi';
+import { createDevLogger } from 'packages/shared/src';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -28,7 +31,10 @@ import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
 import { useSignupContext } from '.././../lib/signupContext';
 
-type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignUpEmail'>;
+type Props = NativeStackScreenProps<
+  OnboardingStackParamList,
+  'SignupPhoneNumber'
+>;
 
 type PhoneFormData = {
   phoneNumber: string;
@@ -37,6 +43,8 @@ type PhoneFormData = {
 type EmailFormData = {
   email: string;
 };
+
+const logger = createDevLogger('Signup', true);
 
 function genDefaultEmail() {
   const entropy = String(Math.random()).slice(2, 12);
@@ -54,10 +62,6 @@ export const SignUpPhoneNumberScreen = ({ navigation }: Props) => {
   const lureMeta = useLureMetadata();
   const recaptcha = useRecaptcha();
 
-  const toggleSignupMode = useCallback(() => {
-    setOtpMethod((curr) => (curr === 'phone' ? 'email' : 'phone'));
-  }, []);
-
   const phoneForm = useForm<PhoneFormData>({
     defaultValues: {
       phoneNumber: DEFAULT_ONBOARDING_PHONE_NUMBER ?? '',
@@ -69,6 +73,39 @@ export const SignUpPhoneNumberScreen = ({ navigation }: Props) => {
       email: DEFAULT_ONBOARDING_TLON_EMAIL ? genDefaultEmail() : '',
     },
   });
+
+  const handleSuccess = useCallback(() => {
+    trackOnboardingAction({
+      actionName: 'Phone or Email Submitted',
+      phoneNumber: phoneForm.getValues().phoneNumber,
+      email: emailForm.getValues().email,
+      lure: signupParams.lureId,
+    });
+
+    signupContext.setOnboardingValues({
+      phoneNumber: phoneForm.getValues().phoneNumber,
+      email: emailForm.getValues().email,
+    });
+
+    navigation.navigate('CheckOTP', {
+      mode: 'signup',
+      otpMethod,
+    });
+  }, [
+    phoneForm,
+    emailForm,
+    signupParams.lureId,
+    signupContext,
+    navigation,
+    otpMethod,
+  ]);
+
+  const toggleSignupMode = useCallback(() => {
+    setRemoteError(undefined);
+    phoneForm.reset();
+    emailForm.reset();
+    setOtpMethod((curr) => (curr === 'phone' ? 'email' : 'phone'));
+  }, [emailForm, phoneForm]);
 
   const onSubmit = useCallback(async () => {
     setIsSubmitting(true);
@@ -100,43 +137,37 @@ export const SignUpPhoneNumberScreen = ({ navigation }: Props) => {
         })();
       }
 
-      trackOnboardingAction({
-        actionName: 'Phone Number Submitted',
-        phoneNumber: phoneForm.getValues().phoneNumber,
-        email: emailForm.getValues().email,
-        lure: signupParams.lureId,
-      });
-
-      signupContext.setOnboardingValues({
-        phoneNumber: phoneForm.getValues().phoneNumber,
-        email: emailForm.getValues().email,
-      });
-
-      navigation.navigate('CheckOTP', {
-        mode: 'signup',
-        otpMethod,
-      });
+      handleSuccess();
     } catch (err) {
-      console.error('Error verifiying phone number:', err);
-      if (err instanceof SyntaxError) {
-        setRemoteError('Invalid phone number, please contact support@tlon.io');
-        trackError({ message: 'Invalid phone number' });
-      } else if (err instanceof Error) {
-        setRemoteError(err.message);
-        trackError(err);
+      if (err instanceof HostingError) {
+        if (err.code === 409) {
+          setRemoteError(
+            `This ${otpMethod === 'email' ? 'email' : 'phone number'} is ineligible for signup.`
+          );
+        }
+
+        if (err.code === 429) {
+          // hosting timed out on sending OTP's. This means they already received one, so
+          // we should just move them along to the next screen
+          handleSuccess();
+        }
+      } else {
+        logger.trackError(err);
+        setRemoteError('Something went wrong. Please try again later.');
       }
     }
 
     setIsSubmitting(false);
   }, [
-    recaptcha,
     hostingApi,
+    signupParams.lureId,
+    signupParams.priorityToken,
+    recaptcha,
+    otpMethod,
+    handleSuccess,
+    navigation,
     phoneForm,
     emailForm,
-    otpMethod,
-    signupParams,
-    signupContext,
-    navigation,
   ]);
 
   const goBack = useCallback(() => {
@@ -160,6 +191,13 @@ export const SignUpPhoneNumberScreen = ({ navigation }: Props) => {
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
         <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">
           {lureMeta ? <OnboardingInviteBlock metadata={lureMeta} /> : null}
+          {remoteError ? (
+            <OnboardingTextBlock>
+              <TlonText.Text color="$negativeActionText" fontSize="$s">
+                {remoteError}
+              </TlonText.Text>
+            </OnboardingTextBlock>
+          ) : null}
           <YStack gap="$m" paddingTop="$m">
             {otpMethod === 'phone' ? (
               <PhoneNumberInput form={phoneForm} />

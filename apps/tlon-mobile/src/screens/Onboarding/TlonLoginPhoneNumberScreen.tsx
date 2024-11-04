@@ -4,9 +4,8 @@ import {
   DEFAULT_TLON_LOGIN_EMAIL,
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
-import { trackError } from '@tloncorp/app/utils/posthog';
+import { createDevLogger } from '@tloncorp/shared';
 import {
-  Button,
   Field,
   KeyboardAvoidingView,
   OnboardingTextBlock,
@@ -16,6 +15,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
+import { HostingError } from 'packages/app/lib/hostingApi';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -24,6 +24,8 @@ import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
 import { useSignupContext } from '.././../lib/signupContext';
+
+const logger = createDevLogger('TlonLoginScreen', true);
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'TlonLogin'>;
 
@@ -94,14 +96,17 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
         })();
       }
     } catch (err) {
-      console.error('Error verifiying phone number:', err);
-      if (err instanceof SyntaxError) {
-        setRemoteError('Invalid phone number, please contact support@tlon.io');
-        trackError({ message: 'Invalid phone number' });
-      } else if (err instanceof Error) {
-        setRemoteError(err.message);
-        trackError(err);
+      if (err instanceof HostingError) {
+        if (err.code === 404) {
+          setRemoteError(
+            `Cannot log in. Are you sure you signed up with this ${otpMethod === 'phone' ? 'phone number' : 'email'}?`
+          );
+          return;
+        }
+      } else {
+        logger.trackError('Error initializing Tlon login', err);
       }
+      setRemoteError('Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

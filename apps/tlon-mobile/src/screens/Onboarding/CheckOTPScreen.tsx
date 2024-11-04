@@ -2,12 +2,13 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
-import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import { didSignUp } from '@tloncorp/shared/db';
 import { ScreenHeader, TlonText, View, YStack } from '@tloncorp/ui';
+import { HostingError } from 'packages/app/lib/hostingApi';
 import { useCallback, useState } from 'react';
 
 import { OTPInput } from '../../components/OnboardingInputs';
@@ -58,6 +59,17 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
           lure: signupParams.lureId,
           priorityToken: signupParams.priorityToken,
           recaptchaToken,
+        });
+        trackOnboardingAction({
+          actionName: 'Verification Submitted',
+          phoneNumber:
+            otpMethod === 'phone'
+              ? params.phoneNumber ?? signupContext.phoneNumber!
+              : undefined,
+          email:
+            otpMethod === 'email'
+              ? params.email ?? signupContext.email!
+              : undefined,
         });
         trackOnboardingAction({
           actionName: 'Account Created',
@@ -158,7 +170,15 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         navigation.navigate('ReserveShip', { user });
       }
     },
-    [hostingApi, navigation, otpMethod, setShip, signupContext]
+    [
+      hostingApi,
+      navigation,
+      otpMethod,
+      params.email,
+      params.phoneNumber,
+      setShip,
+      signupContext,
+    ]
   );
 
   const handleSubmit = useCallback(
@@ -179,32 +199,8 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
       } finally {
         setIsSubmitting(false);
       }
-
-      try {
-        if (otpMethod === 'email') {
-          // await hostingApi.verifyEmailDigits(user.email, code);
-        } else {
-          // await hostingApi.checkPhoneVerify(user.id, code);
-        }
-
-        trackOnboardingAction({
-          actionName: 'Verification Submitted',
-        });
-
-        // signupContext.setOnboardingValues({ hostingUser: user });
-        // signupContext.kickOffBootSequence();
-        // navigation.navigate('SetNickname', { user });
-      } catch (err) {
-        console.error('Error submitting verification:', err);
-        if (err instanceof Error) {
-          setError(err.message);
-          trackError(err);
-        }
-      }
-
-      setIsSubmitting(false);
     },
-    [handleLogin, handleSignup, mode, navigation, otpMethod, signupContext]
+    [handleLogin, handleSignup, mode, navigation, signupContext]
   );
 
   const handleCodeChanged = useCallback(
@@ -219,16 +215,36 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
 
   const handleResend = async () => {
     try {
+      setError(undefined);
+      setOtp([]);
+      const recaptchaToken = await recaptcha.getToken();
+      if (!recaptchaToken) {
+        setError(`We're having trouble confirming you're human. (reCAPTCHA)`);
+        return;
+      }
+      const apiCall =
+        mode === 'signup'
+          ? hostingApi.requestSignupOtp
+          : hostingApi.requestLoginOtp;
       if (otpMethod === 'email') {
-        // await hostingApi.resendEmailVerification(user.id);
+        await apiCall({
+          email: params.email ?? signupContext.email!,
+          recaptchaToken,
+        });
       } else {
-        // await hostingApi.requestPhoneVerify(user.id, user.phoneNumber ?? '');
+        await apiCall({
+          phoneNumber: params.phoneNumber ?? signupContext.phoneNumber!,
+          recaptchaToken,
+        });
       }
     } catch (err) {
-      console.error('Error resending verification code:', err);
-      if (err instanceof Error) {
-        setError(err.message);
-        trackError(err);
+      if (err instanceof HostingError) {
+        if (err.code === 429) {
+          setError('Must wait before requesting another code.');
+        }
+      } else {
+        setError('An error occurred. Please try again.');
+        logger.trackError('Error requesting OTP resend', err);
       }
     }
   };
