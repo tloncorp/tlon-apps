@@ -61,8 +61,16 @@ export async function updateContactMetadata(
   // optimistic update
   await db.updateContact({
     id: contactId,
-    customNickname: nickname ?? null,
-    customAvatarImage: avatarImage ?? null,
+    customNickname: nickname
+      ? nickname
+      : existingContact?.customNickname
+        ? ''
+        : undefined,
+    customAvatarImage: avatarImage
+      ? avatarImage
+      : existingContact?.customAvatarImage
+        ? ''
+        : undefined,
   });
 
   try {
