@@ -101,7 +101,6 @@ export function ChannelHeader({
   }, [channel.id, channel.type]);
 
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
-  const isWindowNarrow = useIsWindowNarrow();
 
   if (mode === 'next') {
     return <BaubleHeader channel={channel} group={group} />;
@@ -126,9 +125,7 @@ export function ChannelHeader({
         titleWidth={titleWidth()}
         showSessionStatus
         isLoading={showSpinner}
-        leftControls={
-          isWindowNarrow ? <ScreenHeader.BackButton onPress={goBack} /> : undefined
-        }
+        leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
         rightControls={
           <>
             {showSearchButton && (

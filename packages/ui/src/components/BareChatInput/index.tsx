@@ -18,10 +18,9 @@ import {
   pathToCite,
 } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, Platform, TextInput } from 'react-native';
+import { Keyboard, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  View,
   YStack,
   getFontSize,
   getVariableValue,
@@ -30,6 +29,7 @@ import {
 } from 'tamagui';
 import { getTokenValue } from 'tamagui';
 import { isWeb } from 'tamagui';
+import { View } from 'tamagui';
 
 import {
   Attachment,
@@ -166,7 +166,7 @@ export default function BareChatInput({
     [handleSelectMention, text]
   );
 
-  const renderTextWithMentions = useMemo(() => {
+  const renderTextWithMentionsWeb = useMemo(() => {
     if (!text || mentions.length === 0) {
       return null;
     }
@@ -200,6 +200,49 @@ export default function BareChatInput({
       if (mention.end < nextStart) {
         textParts.push(
           <RawText key={`text-${index}`} color="transparent">
+            {text.slice(mention.end, nextStart)}
+          </RawText>
+        );
+      }
+    });
+
+    return textParts;
+  }, [mentions, text]);
+
+  const renderTextWithMentions = useMemo(() => {
+    if (!text || mentions.length === 0) {
+      return <RawText color="$primaryText">{text}</RawText>;
+    }
+
+    const sortedMentions = [...mentions].sort((a, b) => a.start - b.start);
+    const textParts: JSX.Element[] = [];
+
+    // Handle text before first mention
+    if (sortedMentions[0].start > 0) {
+      textParts.push(
+        <RawText key="text-start" color="$primaryText">
+          {text.slice(0, sortedMentions[0].start)}
+        </RawText>
+      );
+    }
+
+    // Handle mentions and text between them
+    sortedMentions.forEach((mention, index) => {
+      textParts.push(
+        <Text
+          key={`mention-${mention.id}-${index}`}
+          color="$positiveActionText"
+          backgroundColor="$positiveBackground"
+        >
+          {mention.display}
+        </Text>
+      );
+
+      // Add text between this mention and the next one (or end of text)
+      const nextStart = sortedMentions[index + 1]?.start ?? text.length;
+      if (mention.end < nextStart) {
+        textParts.push(
+          <RawText key={`text-${index}`} color="$primaryText">
             {text.slice(mention.end, nextStart)}
           </RawText>
         );
@@ -333,7 +376,6 @@ export default function BareChatInput({
   );
 
   const handleSend = useCallback(async () => {
-    Keyboard.dismiss();
     runSendMessage(false);
   }, [runSendMessage]);
 
@@ -488,9 +530,6 @@ export default function BareChatInput({
     clearAttachments();
   }, [setEditingPost, clearDraft, clearAttachments]);
 
-  const paddingTopAdjustment = Platform.OS === 'ios' ? 2 : 4;
-  const mentionLineHeightAdjustment = Platform.OS === 'ios' ? 1.3 : 1.5;
-
   const theme = useTheme();
   // placeholderTextColor is not supported on native, just web
   // https://necolas.github.io/react-native-web/docs/text-input/
@@ -504,10 +543,7 @@ export default function BareChatInput({
     if (!isWeb) {
       return;
     }
-    // we need to manipulate the element directly in order to adjust the height
-    // back down as the content shrinks, apparently
-    // https://github.com/necolas/react-native-web/issues/795
-    //
+
     const el = e?.target;
     if (el && 'style' in el && 'height' in el.style) {
       el.style.height = 0;
@@ -516,6 +552,10 @@ export default function BareChatInput({
       setInputHeight(newHeight);
     }
   };
+
+  const handleBlur = useCallback(() => {
+    setShouldBlur(true);
+  }, [setShouldBlur]);
 
   return (
     <MessageInputContainer
@@ -548,43 +588,51 @@ export default function BareChatInput({
         {showInlineAttachments && <AttachmentPreviewList />}
         <TextInput
           ref={inputRef}
-          value={text}
+          value={isWeb ? text : undefined}
           onChangeText={handleTextChange}
           onChange={isWeb ? adjustTextInputSize : undefined}
           onLayout={isWeb ? adjustTextInputSize : undefined}
+          onBlur={handleBlur}
+          onKeyPress={(e) => {
+            if (isWeb && e.nativeEvent.key === 'Enter') {
+              const keyEvent = e.nativeEvent as unknown as KeyboardEvent;
+              if (!keyEvent.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }
+          }}
           multiline
+          placeholder={placeholder}
           style={{
             backgroundColor: 'transparent',
             minHeight: initialHeight,
-            height:  isWeb ? inputHeight : undefined,
+            height: isWeb ? inputHeight : undefined,
             maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
             paddingHorizontal: getTokenValue('$l', 'space'),
-            paddingTop: getTokenValue('$s', 'space') + paddingTopAdjustment,
-            paddingBottom: getTokenValue('$s', 'space'),
+            paddingTop: getTokenValue('$l', 'space'),
+            paddingBottom: getTokenValue('$l', 'space'),
             fontSize: getFontSize('$m'),
-            textAlignVertical: 'top',
-            lineHeight: getFontSize('$m') * 1.5,
+            textAlignVertical: 'center',
             letterSpacing: -0.032,
-            // @ts-expect-error this property is not supported on native,
-            // but it is on web. Removes the blue outline on web.
-            outlineStyle: 'none',
             color: getVariableValue(useTheme().primaryText),
             ...placeholderTextColor,
+            ...(isWeb ? { outlineStyle: 'none' } : {}),
           }}
-          placeholder={placeholder}
-        />
-        {mentions.length > 0 && (
-          <View position="absolute" pointerEvents="none">
+        >
+          {isWeb ? undefined : renderTextWithMentions}
+        </TextInput>
+        {isWeb && mentions.length > 0 && (
+          <View height={inputHeight} position="absolute" pointerEvents="none">
             <RawText
               paddingHorizontal="$l"
-              paddingTop={Platform.OS === 'android' ? '$s' : 0}
-              paddingBottom="$xs"
+              paddingTop={getTokenValue('$m', 'space') + 3}
               fontSize="$m"
-              lineHeight={getFontSize('$m') * mentionLineHeightAdjustment}
+              lineHeight={getFontSize('$m') * 1.2}
               letterSpacing={-0.032}
               color="$primaryText"
             >
-              {renderTextWithMentions}
+              {renderTextWithMentionsWeb}
             </RawText>
           </View>
         )}

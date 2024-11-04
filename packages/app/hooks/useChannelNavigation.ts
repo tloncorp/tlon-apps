@@ -1,7 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
+
+import { RootStackParamList } from '../navigation/types';
 
 export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
   // Model context
@@ -9,24 +12,34 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
     id: channelId,
   });
 
-  const navigation = useNavigation<
-    // @ts-expect-error - TODO: pass navigation handlers into context
-    NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
-  >();
+  const navigation =
+    useNavigation<
+      NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
+    >();
 
   const navigateToPost = useCallback(
     (post: db.Post) => {
-      navigation.push('Post', { post });
+      navigation.push('Post', {
+        postId: post.id,
+        channelId,
+        authorId: post.authorId,
+      });
     },
-    [navigation]
+    [channelId, navigation]
   );
 
   const navigateToRef = useCallback(
     (channel: db.Channel, post: db.Post) => {
       if (channel.id === channelId) {
-        navigation.navigate('Channel', { channel, selectedPostId: post.id });
+        navigation.navigate('Channel', {
+          channelId: channel.id,
+          selectedPostId: post.id,
+        });
       } else {
-        navigation.replace('Channel', { channel, selectedPostId: post.id });
+        navigation.replace('Channel', {
+          channelId: channel.id,
+          selectedPostId: post.id,
+        });
       }
     },
     [navigation, channelId]
@@ -34,7 +47,7 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
 
   const navigateToImage = useCallback(
     (post: db.Post, uri?: string) => {
-      navigation.navigate('ImageViewer', { post, uri });
+      navigation.navigate('ImageViewer', { uri });
     },
     [navigation]
   );
@@ -44,7 +57,7 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
       return;
     }
     navigation.push('ChannelSearch', {
-      channel: channelQuery.data ?? null,
+      channelId: channelQuery.data.id ?? null,
     });
   }, [navigation, channelQuery.data]);
 

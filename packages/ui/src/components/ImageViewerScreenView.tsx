@@ -1,5 +1,4 @@
 import { ImageZoom } from '@likashefqet/react-native-image-zoom';
-import * as db from '@tloncorp/shared/db';
 import * as Haptics from 'expo-haptics';
 import { ElementRef, useRef, useState } from 'react';
 import { Dimensions, TouchableOpacity } from 'react-native';
@@ -15,7 +14,6 @@ import { Stack, View, XStack, YStack, ZStack } from 'tamagui';
 import { Icon } from './Icon';
 
 export function ImageViewerScreenView(props: {
-  post?: db.Post | null;
   uri?: string;
   goBack: () => void;
 }) {
