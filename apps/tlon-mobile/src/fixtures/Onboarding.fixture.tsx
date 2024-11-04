@@ -25,9 +25,7 @@ import { ReserveShipScreen } from '../screens/Onboarding/ReserveShipScreen';
 import { SetNicknameScreen } from '../screens/Onboarding/SetNicknameScreen';
 import { SetTelemetryScreen } from '../screens/Onboarding/SetTelemetryScreen';
 import { ShipLoginScreen } from '../screens/Onboarding/ShipLoginScreen';
-import { SignUpEmailScreen } from '../screens/Onboarding/SignUpEmailScreen';
-import { SignUpPasswordScreen } from '../screens/Onboarding/SignUpPasswordScreen';
-import { SignUpPhoneNumberScreen } from '../screens/Onboarding/SignUpPhoneNumberScreen';
+import { SignupScreen } from '../screens/Onboarding/SignupScreen';
 import { TlonLoginScreen } from '../screens/Onboarding/TlonLoginPhoneNumberScreen';
 import { TlonLoginLegacy } from '../screens/Onboarding/TlonLoginScreen';
 import { WelcomeScreen } from '../screens/Onboarding/WelcomeScreen';
@@ -169,16 +167,9 @@ export default {
       Component={SetNicknameScreen}
     />
   ),
-  Password: (
-    <SingleScreenFixture
-      routeName="SignUpPassword"
-      params={{ email: '' }}
-      Component={SignUpPasswordScreen}
-    />
-  ),
   JoinWaitlist: (
     <SingleScreenFixture
-      routeName="SignUpPassword"
+      routeName="JoinWaitList"
       params={{ email: '' }}
       Component={JoinWaitListScreen}
     />
@@ -227,17 +218,8 @@ export default {
       Component={InventoryCheckScreen}
     />
   ),
-  SignUpEmail: (
-    <SingleScreenFixture
-      routeName={'SignUpEmail'}
-      Component={SignUpEmailScreen}
-    />
-  ),
   SignUpPhoneNumber: (
-    <SingleScreenFixture
-      routeName="SignupPhoneNumber"
-      Component={SignUpPhoneNumberScreen}
-    />
+    <SingleScreenFixture routeName="Signup" Component={SignupScreen} />
   ),
   CheckOtpPhoneSignup: (
     <SingleScreenFixture

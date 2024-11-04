@@ -2,8 +2,7 @@ export type OnboardingStackParamList = {
   Welcome: undefined;
   InventoryCheck: undefined;
   PasteInviteLink: undefined;
-  SignupPhoneNumber: undefined;
-  SignUpEmail: undefined;
+  Signup: undefined;
   CheckOTP: {
     otpMethod: 'email' | 'phone';
     mode: 'signup' | 'login';
@@ -11,7 +10,6 @@ export type OnboardingStackParamList = {
     phoneNumber?: string;
   };
   EULA: undefined;
-  SignUpPassword: { email: string };
   JoinWaitList: { email?: string };
   RequestPhoneVerify: { user: User };
   CheckVerify: { user: User };

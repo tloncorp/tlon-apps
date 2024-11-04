@@ -28,13 +28,10 @@ import { Controller, useForm } from 'react-hook-form';
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { useOnboardingContext } from '../../lib/OnboardingContext';
+import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
-import { useSignupContext } from '.././../lib/signupContext';
 
-type Props = NativeStackScreenProps<
-  OnboardingStackParamList,
-  'SignupPhoneNumber'
->;
+type Props = NativeStackScreenProps<OnboardingStackParamList, 'Signup'>;
 
 type PhoneFormData = {
   phoneNumber: string;
@@ -51,7 +48,7 @@ function genDefaultEmail() {
   return `${DEFAULT_ONBOARDING_TLON_EMAIL}+test.${entropy.slice(0, 4)}.${entropy.slice(4, 8)}@tlon.io`;
 }
 
-export const SignUpPhoneNumberScreen = ({ navigation }: Props) => {
+export const SignupScreen = ({ navigation }: Props) => {
   const [otpMethod, setOtpMethod] = useState<'phone' | 'email'>('phone');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();

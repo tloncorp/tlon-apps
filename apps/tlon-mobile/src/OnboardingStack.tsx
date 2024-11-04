@@ -14,9 +14,7 @@ import { ResetPasswordScreen } from './screens/Onboarding/ResetPasswordScreen';
 import { SetNicknameScreen } from './screens/Onboarding/SetNicknameScreen';
 import { SetTelemetryScreen } from './screens/Onboarding/SetTelemetryScreen';
 import { ShipLoginScreen } from './screens/Onboarding/ShipLoginScreen';
-import { SignUpEmailScreen } from './screens/Onboarding/SignUpEmailScreen';
-import { SignUpPasswordScreen } from './screens/Onboarding/SignUpPasswordScreen';
-import { SignUpPhoneNumberScreen } from './screens/Onboarding/SignUpPhoneNumberScreen';
+import { SignupScreen } from './screens/Onboarding/SignupScreen';
 import { TlonLoginScreen } from './screens/Onboarding/TlonLoginPhoneNumberScreen';
 import { TlonLoginLegacy } from './screens/Onboarding/TlonLoginScreen';
 import { WelcomeScreen } from './screens/Onboarding/WelcomeScreen';
@@ -44,14 +42,7 @@ export function OnboardingStack() {
         name="Welcome"
         component={WelcomeScreen}
       />
-      <OnboardingStackNavigator.Screen
-        name="SignupPhoneNumber"
-        component={SignUpPhoneNumberScreen}
-      />
-      <OnboardingStackNavigator.Screen
-        name="SignUpEmail"
-        component={SignUpEmailScreen}
-      />
+      <OnboardingStackNavigator.Screen name="Signup" component={SignupScreen} />
       <OnboardingStackNavigator.Screen
         name="CheckOTP"
         component={CheckOTPScreen}
@@ -64,10 +55,6 @@ export function OnboardingStack() {
       <OnboardingStackNavigator.Screen
         name="InventoryCheck"
         component={InventoryCheckScreen}
-      />
-      <OnboardingStackNavigator.Screen
-        name="SignUpPassword"
-        component={SignUpPasswordScreen}
       />
       <OnboardingStackNavigator.Screen
         name="JoinWaitList"
