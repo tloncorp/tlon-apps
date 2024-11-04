@@ -2,7 +2,7 @@
 import { ContentReference } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { getChannelType } from '@tloncorp/shared/urbit';
-import React from 'react';
+import React, { useState } from 'react';
 import { ComponentProps, useCallback } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
@@ -11,6 +11,7 @@ import { useRequests } from '../../contexts/requests';
 import { ContactAvatar, GroupAvatar } from '../Avatar';
 import { useContactName } from '../ContactNameV2';
 import { GalleryContentRenderer } from '../GalleryPost';
+import { GroupPreviewSheet } from '../GroupPreviewSheet';
 import { IconType } from '../Icon';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
@@ -75,30 +76,48 @@ export function PostReferenceLoader({
   postId: string;
   replyId?: string;
 }) {
-  const { usePostReference, useChannel } = useRequests();
+  const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
+  const { usePostReference, useChannel, useGroup } = useRequests();
   const postQuery = usePostReference({
     postId: replyId ? replyId : postId,
     channelId: channelId,
   });
   const { data: channel } = useChannel({ id: channelId });
+  const { data: group } = useGroup(channel?.groupId ?? '');
   const { onPressRef } = useNavigation();
-  const handlePress = useCallback(() => {
-    if (channel && postQuery.data) {
+  const handlePress = useCallback(async () => {
+    if (channel && postQuery.data && group && group.currentUserIsMember) {
       onPressRef?.(channel, postQuery.data);
+    } else if (group) {
+      setSelectedGroup(group ?? null);
     }
-  }, [channel, onPressRef, postQuery.data]);
+  }, [channel, onPressRef, postQuery.data, group]);
+
+  const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setSelectedGroup(null);
+    }
+  }, []);
 
   return (
-    <PostReference
-      channelId={channelId}
-      post={postQuery.data}
-      isLoading={postQuery.isLoading}
-      isError={postQuery.isError}
-      errorMessage={postQuery.error?.message}
-      hasData={!!postQuery.data}
-      onPress={openOnPress ? handlePress : undefined}
-      {...props}
-    />
+    <>
+      <PostReference
+        channelId={channelId}
+        post={postQuery.data}
+        isLoading={postQuery.isLoading}
+        isError={postQuery.isError}
+        errorMessage={postQuery.error?.message}
+        hasData={!!postQuery.data}
+        onPress={openOnPress ? handlePress : undefined}
+        {...props}
+      />
+
+      <GroupPreviewSheet
+        open={selectedGroup !== null}
+        onOpenChange={handleGroupPreviewSheetOpenChange}
+        group={selectedGroup ?? undefined}
+      />
+    </>
   );
 }
 

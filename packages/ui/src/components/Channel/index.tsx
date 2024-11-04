@@ -5,7 +5,7 @@ import {
 } from '@tloncorp/shared';
 import {
   isChatChannel as getIsChatChannel,
-  useChannel as useChannelFromStore,
+  useChannelPreview,
   useGroupPreview,
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
@@ -111,7 +111,7 @@ export function Channel({
   useGroup: typeof useGroupPreview;
   usePostReference: typeof usePostReferenceHook;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
-  useChannel: typeof useChannelFromStore;
+  useChannel: typeof useChannelPreview;
   storeDraft: (draft: JSONContent, draftType?: GalleryDraftType) => void;
   clearDraft: (draftType?: GalleryDraftType) => void;
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent>;
