@@ -8,7 +8,9 @@ import {
   useLureMetadata,
   useSignupParams,
 } from '@tloncorp/app/contexts/branch';
+import { HostingError } from '@tloncorp/app/lib/hostingApi';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { createDevLogger } from '@tloncorp/shared';
 import {
   Field,
   KeyboardAvoidingView,
@@ -20,8 +22,6 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { HostingError } from 'packages/app/lib/hostingApi';
-import { createDevLogger } from 'packages/shared/src';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 

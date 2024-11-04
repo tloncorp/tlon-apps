@@ -4,6 +4,7 @@ import {
   DEFAULT_TLON_LOGIN_EMAIL,
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
+import { HostingError } from '@tloncorp/app/lib/hostingApi';
 import { createDevLogger } from '@tloncorp/shared';
 import {
   Field,
@@ -15,7 +16,6 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { HostingError } from 'packages/app/lib/hostingApi';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 

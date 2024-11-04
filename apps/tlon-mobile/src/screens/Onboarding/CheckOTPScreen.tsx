@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
+import { HostingError } from '@tloncorp/app/lib/hostingApi';
 import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
@@ -8,7 +9,6 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import { didSignUp } from '@tloncorp/shared/db';
 import { ScreenHeader, TlonText, View, YStack } from '@tloncorp/ui';
-import { HostingError } from 'packages/app/lib/hostingApi';
 import { useCallback, useState } from 'react';
 
 import { OTPInput } from '../../components/OnboardingInputs';
