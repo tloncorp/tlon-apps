@@ -153,6 +153,10 @@ export const WelcomeScreen = ({ navigation }: Props) => {
               color="$secondaryText"
               textDecorationLine="underline"
               textDecorationDistance={10}
+              onPress={() => {
+                setOpen(false);
+                navigation.navigate('ShipLogin');
+              }}
             >
               Or configure self hosted
             </TlonText.Text>
