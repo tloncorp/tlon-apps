@@ -24,7 +24,7 @@
 %-  %-  agent:neg
     :+  notify=&
       ~
-    [%channels-server^[~.channels^%2 ~ ~] ~ ~]
+    [%channels-server^[~.channels^%3 ~ ~] ~ ~]
 %-  agent:dbug
 %+  verb  |
 ::

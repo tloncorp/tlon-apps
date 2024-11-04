@@ -7,7 +7,7 @@
 /+  default-agent, verb, dbug, neg=negotiate
 ::
 %-  %-  agent:neg
-    [| [~.channels^%2 ~ ~] ~]
+    [| [~.channels^%3 ~ ~] ~]
 %-  agent:dbug
 %+  verb  |
 ::
