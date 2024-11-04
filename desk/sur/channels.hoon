@@ -98,7 +98,7 @@
   $:  hooks=(map id-hook hook)
       order=(rev (list id-hook))
   ==
-+$  id-hook  @t
++$  id-hook  @uv
 ++  hook
   $:  id=id-hook
       name=@t
@@ -412,9 +412,9 @@
 ::
 +$  c-hook
   $%  [%add name=@t src=@t]
-      [%edit id=@t src=(unit @t)]
-      [%del id=@t]
-      [%order seq=(list @t)]
+      [%edit id=id-hook src=(unit @t)]
+      [%del id=id-hook]
+      [%order seq=(list id-hook)]
   ==
 +|  %updates
 ::
@@ -444,8 +444,8 @@
   ==
 ::
 +$  u-hook
-  $%  [%set id=@t name=@t src=(rev src=(unit @t)) error=(unit tang)]
-      [%order seq=(rev seq=(list @t))]
+  $%  [%set id=id-hook name=@t src=(rev src=(unit @t)) error=(unit tang)]
+      [%order seq=(rev seq=(list id-hook))]
   ==
 ::
 +$  u-checkpoint  global:v-channel
@@ -504,8 +504,8 @@
   ==
 ::
 +$  r-hook
-  $%  [%set id=@t name=@t src=(unit @t) error=(unit tang)]
-      [%order seq=(list @t)]
+  $%  [%set id=id-hook name=@t src=(unit @t) error=(unit tang)]
+      [%order seq=(list id-hook)]
   ==
 ::
 +$  channel-heads  (list [=nest recency=time latest=(unit post)])

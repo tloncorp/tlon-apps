@@ -1255,16 +1255,33 @@
   %-  (soft prod)
   (slum .*(+:subject nock) simp)
 ++  check-validate-hooks
-  |=  [=post:c hook-set:c]
-  ~&  post
+  |=  [=v-post:c hook-set:c]
+  ~&  v-post
   =*  order  +.^order
   |-
   ?~  order  &
   =*  next  $(order t.order)
   =/  hook  (~(got by hooks) i.order)
   ?~  compiled.hook  next
-  =/  result  ((execute ?) u.compiled.hook post)
+  =/  result  ((execute ?) u.compiled.hook v-post)
   ~&  check-validate-hooks+[result src.hook]
   ?~  result  next
   ?:(u.result next |)
+++  run-transform-hooks
+  |=  [=v-post:c hook-set:c]
+  ^-  v-post:c
+  ~&  v-post
+  =/  current-post  v-post
+  =*  order  +.^order
+  |-
+  ?~  order  current-post
+  =*  next  $(order t.order)
+  =/  hook  (~(got by hooks) i.order)
+  ?~  compiled.hook  next
+  =/  result
+    ((execute v-post:c) u.compiled.hook current-post)
+  ~&  run-transform-hooks+[result src.hook]
+  ?~  result  next
+  =.  current-post  u.result
+  next
 --

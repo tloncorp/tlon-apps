@@ -724,9 +724,11 @@
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
       =.  count.channel  +(count.channel)
       =/  new=v-post:c  [[id count.channel id ~ ~] 0 essay.c-post]
-      ?>  (check-validate-hooks:utils (uv-post-2:utils new) validate.hooks.channel)
-      :-  `[%post id %set ~ new]
-      channel(posts (put:on-v-posts:c posts.channel id ~ new))
+      ?>  (check-validate-hooks:utils new validate.hooks.channel)
+      =/  transformed
+        (run-transform-hooks:utils new transform.hooks.channel)
+      :-  `[%post id %set ~ transformed]
+      channel(posts (put:on-v-posts:c posts.channel id ~ transformed))
     ::
         %edit
       ?>  |(=(src.bowl author.essay.c-post) (is-admin:ca-perms src.bowl))
@@ -861,7 +863,7 @@
     ?-  -.c-hook
         %add
       ~&  "adding hook {<hook-type>} {<c-hook>}"
-      =/  id  (scot %uv eny.bowl)
+      =/  id=id-hook:c  (rsh [3 48] eny.bowl)
       =/  src=(rev:c (unit @t))  [0 `src.c-hook]
       =/  result=(each nock tang)
         ~&  "compiling hook"
@@ -900,7 +902,7 @@
         new-order
       %+  next-rev:c  order
       %+  skim  +.order
-      |=  id=@t
+      |=  id=id-hook:c
       !=(id id.c-hook)
     ::
         %order

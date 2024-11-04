@@ -141,11 +141,16 @@
     |=  rh=r-hook:c
     %+  frond  -.rh
     ?-  -.rh
-      %order  a+(turn seq.rh (lead %s))
+        %order
+      :-  %a
+      %+  turn
+        seq.rh
+      |=  =id-hook:c
+      s+(scot %uv id-hook)
     ::
         %set
       %-  pairs
-      :~  id+s+id.rh
+      :~  id+s+(scot %uv id.rh)
           name+s+name.rh
           src+?~(src.rh ~ s+u.src.rh)
           :: :-  %error
