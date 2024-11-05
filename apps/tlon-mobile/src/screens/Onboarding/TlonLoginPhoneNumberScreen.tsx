@@ -79,19 +79,19 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
       if (otpMethod === 'phone') {
         await phoneForm.handleSubmit(async ({ phoneNumber }) => {
           await hostingApi.requestLoginOtp({ phoneNumber, recaptchaToken });
+          navigation.navigate('CheckOTP', {
+            mode: 'login',
+            otpMethod: 'phone',
+            phoneNumber,
+          });
         })();
-        navigation.navigate('CheckOTP', {
-          mode: 'login',
-          otpMethod: 'phone',
-          phoneNumber: phoneForm.getValues().phoneNumber,
-        });
       } else {
         await emailForm.handleSubmit(async ({ email }) => {
           await hostingApi.requestLoginOtp({ email, recaptchaToken });
           navigation.navigate('CheckOTP', {
             mode: 'login',
             otpMethod: 'email',
-            phoneNumber: emailForm.getValues().email,
+            email,
           });
         })();
       }
