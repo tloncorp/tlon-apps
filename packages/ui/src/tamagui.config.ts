@@ -1,4 +1,5 @@
 import { createAnimations } from '@tamagui/animations-moti';
+import { createMedia } from '@tamagui/react-native-media-driver';
 import { Platform } from 'react-native';
 import { createFont, createTamagui, createTokens } from 'tamagui';
 
@@ -329,10 +330,10 @@ export const fonts = {
   // ===
 };
 
-export const media = {
+export const media = createMedia({
   sm: { maxWidth: 768 },
   gtSm: { minWidth: 768 + 1 },
-};
+});
 
 export const config = createTamagui({
   tokens,
