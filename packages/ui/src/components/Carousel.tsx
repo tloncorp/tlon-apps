@@ -1,0 +1,237 @@
+import { ImageZoom } from '@likashefqet/react-native-image-zoom';
+import * as React from 'react';
+import {
+  LayoutChangeEvent,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  StyleSheet,
+} from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
+import { Edges, SafeAreaView } from 'react-native-safe-area-context';
+import {
+  AnimatePresence,
+  ScrollView,
+  View,
+  withStaticProperties,
+} from 'tamagui';
+
+const CarouselContext = React.createContext<{
+  direction: 'horizontal' | 'vertical';
+  rect: { width: number; height: number } | null;
+  setOverlay: (overlay: JSX.Element) => () => void;
+  visibleIndex: number;
+} | null>(null);
+
+const CarouselItemContext = React.createContext<{
+  index: number;
+} | null>(null);
+
+// Carousel must set its own width: it does not have to be fixed, but it should
+// not rely on the inline dimension of its children. If a width is not
+// provided, the Carousel will be rendered with a width of 0.
+const _Carousel = View.styleable<{
+  onVisibleIndexChange?: (index: number) => void;
+  scrollDirection?: 'horizontal' | 'vertical';
+}>(
+  (
+    {
+      children,
+      onVisibleIndexChange,
+      scrollDirection = 'horizontal',
+      ...passedProps
+    },
+    ref
+  ) => {
+    const [visibleIndex, setVisibleIndex] = React.useState(0);
+    const [isOverlayShown, setIsOverlayShown] = React.useState(false);
+    const [overlay, setOverlay] = React.useState<JSX.Element | null>(null);
+    const tap = Gesture.Tap().onEnd((_event, success) => {
+      success && runOnJS(setIsOverlayShown)(!isOverlayShown);
+    });
+    const [rect, setRect] = React.useState<{
+      width: number;
+      height: number;
+    } | null>(null);
+
+    const ctxValue = React.useMemo(
+      () => ({
+        direction: scrollDirection,
+        rect,
+        setOverlay: (overlay: JSX.Element) => {
+          setOverlay(overlay);
+          return () => setOverlay((prev) => (prev === overlay ? null : prev));
+        },
+        visibleIndex,
+      }),
+      [rect, scrollDirection, visibleIndex]
+    );
+
+    const handleLayout = React.useCallback((e: LayoutChangeEvent) => {
+      setRect({
+        width: e.nativeEvent.layout.width,
+        height: e.nativeEvent.layout.height,
+      });
+    }, []);
+
+    const snapToInterval =
+      scrollDirection === 'horizontal' ? rect?.width : rect?.height;
+
+    const handleScroll = React.useCallback(
+      (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+        if (snapToInterval == null) {
+          return;
+        }
+        const index = Math.round(
+          scrollDirection === 'horizontal'
+            ? event.nativeEvent.contentOffset.x / snapToInterval
+            : event.nativeEvent.contentOffset.y / snapToInterval
+        );
+        setVisibleIndex(index);
+      },
+      [scrollDirection, snapToInterval]
+    );
+
+    React.useEffect(() => {
+      onVisibleIndexChange?.(visibleIndex);
+    }, [visibleIndex, onVisibleIndexChange]);
+
+    return (
+      <GestureDetector gesture={tap}>
+        <View ref={ref} {...passedProps}>
+          <ScrollView
+            decelerationRate="fast"
+            disableIntervalMomentum
+            flexDirection={scrollDirection === 'horizontal' ? 'row' : 'column'}
+            horizontal={scrollDirection === 'horizontal'}
+            onLayout={handleLayout}
+            onScroll={handleScroll}
+            scrollEventThrottle={33}
+            showsVerticalScrollIndicator={scrollDirection !== 'vertical'}
+            showsHorizontalScrollIndicator={scrollDirection !== 'horizontal'}
+            snapToInterval={snapToInterval}
+            style={StyleSheet.absoluteFill}
+          >
+            <CarouselContext.Provider value={ctxValue}>
+              {
+                // Map over children to provide index to each item via context.
+                React.Children.map(children, (child, index) => (
+                  <CarouselItemContext.Provider value={{ index }}>
+                    {child}
+                  </CarouselItemContext.Provider>
+                ))
+              }
+            </CarouselContext.Provider>
+          </ScrollView>
+          <AnimatePresence>
+            {isOverlayShown && (
+              <View
+                key="overlay"
+                animation="simple"
+                enterStyle={{ opacity: 0 }}
+                exitStyle={{ opacity: 0 }}
+                flex={1}
+                pointerEvents="box-none"
+              >
+                {overlay}
+              </View>
+            )}
+          </AnimatePresence>
+        </View>
+      </GestureDetector>
+    );
+  }
+);
+
+/**
+ * Provides a viewport-sized container for one panel of a Carousel. Also
+ * provides an easy way to register an item-specific overlay which is presented
+ * outside of and above the scroll content.
+ *
+ * You can use other view types for the children of Carousel, but you need to
+ * make sure their block-axis length matches the length of the Carousel's block
+ * axis (e.g. height for a vertical Carousel).
+ */
+function Item({
+  children,
+  overlay,
+}: {
+  children: JSX.Element;
+
+  /**
+   * If provided, shows the provided element over the scroll viewport when
+   * this item is visible.
+   */
+  overlay?: JSX.Element;
+}) {
+  const ctxValue = React.useContext(CarouselContext);
+
+  // Show `overlay` in Carousel-managed overlay when this item is visible.
+  const index = React.useContext(CarouselItemContext)?.index;
+  const isVisible = ctxValue?.visibleIndex === index;
+  const reg = ctxValue?.setOverlay;
+  React.useEffect(() => {
+    if (overlay && isVisible) {
+      return reg?.(overlay ?? null);
+    }
+  }, [reg, overlay, isVisible]);
+
+  return ctxValue == null ? null : (
+    <View
+      {...(ctxValue?.direction === 'horizontal'
+        ? { width: ctxValue.rect?.width }
+        : { height: ctxValue.rect?.height })}
+    >
+      {children}
+    </View>
+  );
+}
+
+/**
+ * Provides a common layout for a header + footer overlay for a Carousel item.
+ */
+function Overlay({
+  header,
+  footer,
+}: {
+  header?: JSX.Element;
+  footer?: JSX.Element;
+}) {
+  return (
+    <>
+      {header ? (
+        <View position="absolute" top={0} left={0} right={0}>
+          {header}
+        </View>
+      ) : null}
+      {footer ? (
+        <View position="absolute" bottom={0} left={0} right={0}>
+          {footer}
+        </View>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Place this inside a `Carousel.Item` for a full-bleed image with pinch-to-zoom.
+ */
+function ContentImage({
+  uri,
+  safeAreaEdges,
+}: {
+  uri: string;
+  safeAreaEdges?: Edges;
+}) {
+  return (
+    <SafeAreaView style={{ flex: 1 }} edges={safeAreaEdges}>
+      <ImageZoom style={{ flex: 1 }} resizeMode="contain" uri={uri} />
+    </SafeAreaView>
+  );
+}
+
+export const Carousel = withStaticProperties(_Carousel, {
+  Item,
+  ContentImage,
+  Overlay,
+});

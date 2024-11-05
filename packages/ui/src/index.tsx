@@ -10,6 +10,7 @@ export * from './components/InviteUsersWidget';
 export * from './components/InviteUsersSheet';
 export * from './components/Button';
 export * from './components/Buttons';
+export * from './components/Carousel';
 export * from './components/Channel';
 export * from './components/Channel/BaubleHeader';
 export * from './components/Channel/ChannelDivider';
