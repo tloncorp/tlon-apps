@@ -105,7 +105,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
 
       navigation.reset({
         index: 0,
-        routes: [{ name: 'Welcome' }, { name: 'SignupPhoneNumber' }],
+        routes: [{ name: 'Welcome' }, { name: 'Signup' }],
       });
     }
   }, [lureMeta, navigation]);
@@ -125,7 +125,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
         rightControls={
           <ScreenHeader.TextButton
             disabled={!lureMeta}
-            onPress={() => navigation.navigate('SignUpEmail')}
+            onPress={() => navigation.navigate('Signup')}
           >
             Next
           </ScreenHeader.TextButton>
