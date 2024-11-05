@@ -21,7 +21,6 @@ import Animated, {
 import { ColorTokens, Stack, View, getTokenValue, isWeb } from 'tamagui';
 
 import * as utils from '../../utils';
-import { Button } from '../Button';
 import { Chat } from '../ChatList';
 import { Icon, IconType } from '../Icon';
 import { ChatListItem } from './ChatListItem';
@@ -32,7 +31,6 @@ function BaseInteractableChatRow({
   model,
   onPress,
   onLongPress,
-  onPressMenuButton,
 }: ListItemProps<Chat> & { model: db.Channel }) {
   const swipeableRef = useRef<SwipeableMethods>(null);
 
@@ -87,13 +85,6 @@ function BaseInteractableChatRow({
     [handleAction, mutedState]
   );
 
-  const handleMenuPress = useCallback(
-    (chat: Chat) => {
-      onPressMenuButton?.(chat);
-    },
-    [onPressMenuButton]
-  );
-
   if (!isWeb) {
     return (
       <Swipeable
@@ -114,22 +105,7 @@ function BaseInteractableChatRow({
     );
   } else {
     return (
-      <View>
-        <ChatListItem
-          model={model}
-          onPress={onPress}
-          onLongPress={onLongPress}
-        />
-        <View position="absolute" right={-2} top={44} zIndex={1}>
-          <Button
-            onPress={() => handleMenuPress(model)}
-            borderWidth="unset"
-            size="$l"
-          >
-            <Icon type="Overflow" />
-          </Button>
-        </View>
-      </View>
+      <ChatListItem model={model} onPress={onPress} onLongPress={onLongPress} />
     );
   }
 }

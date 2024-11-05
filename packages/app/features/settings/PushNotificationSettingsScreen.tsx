@@ -27,9 +27,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
   const { data: exceptions } = store.useVolumeExceptions();
 
   const numExceptions = useMemo(
-    () =>
-      (exceptions?.channels.length ?? 0) + (exceptions?.groups.length ?? 0) ??
-      0,
+    () => (exceptions?.channels.length ?? 0) + (exceptions?.groups.length ?? 0),
     [exceptions]
   );
 
