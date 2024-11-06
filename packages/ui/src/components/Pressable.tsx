@@ -73,6 +73,7 @@ export default function Pressable({
       <StackComponent
         {...stackProps}
         {...linkProps}
+        group
         onPress={onPressLink ?? onPress}
         onLongPress={longPressHandler}
       >
