@@ -178,15 +178,19 @@ const _Carousel = React.forwardRef<
 function Item({
   children,
   overlay,
-}: {
-  children: JSX.Element;
+  ...forwardedProps
+}: ForwardingProps<
+  React.ComponentPropsWithoutRef<typeof View>,
+  {
+    children?: React.ReactNode;
 
-  /**
-   * If provided, shows the provided element over the scroll viewport when
-   * this item is visible.
-   */
-  overlay?: JSX.Element;
-}) {
+    /**
+     * If provided, shows the provided element over the scroll viewport when
+     * this item is visible.
+     */
+    overlay?: JSX.Element;
+  }
+>) {
   const ctxValue = React.useContext(CarouselContext);
 
   // Show `overlay` in Carousel-managed overlay when this item is visible.
@@ -204,6 +208,7 @@ function Item({
       {...(ctxValue?.direction === 'horizontal'
         ? { width: ctxValue.rect?.width }
         : { height: ctxValue.rect?.height })}
+      {...forwardedProps}
     >
       {children}
     </View>
