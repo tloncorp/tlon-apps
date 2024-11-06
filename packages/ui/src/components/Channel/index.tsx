@@ -372,6 +372,7 @@ export function Channel({
                                       setActiveMessage={setActiveMessage}
                                       ref={flatListRef}
                                       headerMode={headerMode}
+                                      isLoading={isLoadingPosts}
                                     />
                                   )}
                                 </View>

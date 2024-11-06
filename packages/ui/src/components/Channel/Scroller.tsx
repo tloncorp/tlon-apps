@@ -41,6 +41,7 @@ import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component'
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
+import { LoadingSpinner } from '../LoadingSpinner';
 import { Modal } from '../Modal';
 import { ChannelDivider } from './ChannelDivider';
 
@@ -93,6 +94,7 @@ const Scroller = forwardRef(
       activeMessage,
       setActiveMessage,
       headerMode,
+      isLoading,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -119,6 +121,7 @@ const Scroller = forwardRef(
       setActiveMessage: (post: db.Post | null) => void;
       ref?: RefObject<{ scrollToIndex: (params: { index: number }) => void }>;
       headerMode: 'default' | 'next';
+      isLoading?: boolean;
       // Unused
       hasOlderPosts?: boolean;
     },
@@ -150,7 +153,9 @@ const Scroller = forwardRef(
     const pressedGoToBottom = () => {
       setHasPressedGoToBottom(true);
       if (flatListRef.current) {
-        flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+        if (!isLoading) {
+          flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+        }
       }
     };
     const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
@@ -387,7 +392,7 @@ const Scroller = forwardRef(
     }, [insets.bottom]);
 
     const shouldShowScrollButton = useCallback(() => {
-      if (!isAtBottom && hasPressedGoToBottom) {
+      if (!isAtBottom && hasPressedGoToBottom && !isLoading && !hasNewerPosts) {
         setHasPressedGoToBottom(false);
       }
 
@@ -398,17 +403,30 @@ const Scroller = forwardRef(
       const shouldShowForScroll =
         collectionLayoutType === 'compact-list-bottom-to-top' &&
         !isAtBottom &&
-        !hasPressedGoToBottom;
+        (!hasPressedGoToBottom || isLoading || hasNewerPosts);
 
       return shouldShowForUnreads || shouldShowForScroll;
-    }, [isAtBottom, hasPressedGoToBottom, collectionLayoutType, unreadCount]);
+    }, [
+      isAtBottom,
+      hasPressedGoToBottom,
+      collectionLayoutType,
+      unreadCount,
+      isLoading,
+      hasNewerPosts,
+    ]);
 
     return (
       <View flex={1}>
         {shouldShowScrollButton() && (
           <View position="absolute" bottom={'$m'} right={'$l'} zIndex={1000}>
             <FloatingActionButton
-              icon={<Icon type="ChevronDown" size={'$m'} />}
+              icon={
+                isLoading && hasPressedGoToBottom ? (
+                  <LoadingSpinner size="small" />
+                ) : (
+                  <Icon type="ChevronDown" size="$m" />
+                )
+              }
               onPress={pressedGoToBottom}
             />
           </View>
