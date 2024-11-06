@@ -1,4 +1,5 @@
 import { ImageZoom } from '@likashefqet/react-native-image-zoom';
+import { StackStyle } from '@tamagui/web';
 import * as React from 'react';
 import {
   LayoutChangeEvent,
@@ -9,12 +10,19 @@ import {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { Edges, SafeAreaView } from 'react-native-safe-area-context';
+import { ViewStyle } from 'tamagui';
 import {
   AnimatePresence,
   ScrollView,
+  TamaguiElement,
   View,
   withStaticProperties,
 } from 'tamagui';
+
+type ForwardingProps<
+  TamaguiStyleProps extends StackStyle,
+  CustomProps extends Record<string, any>,
+> = CustomProps & Omit<TamaguiStyleProps, keyof CustomProps>;
 
 const CarouselContext = React.createContext<{
   direction: 'horizontal' | 'vertical';
@@ -30,118 +38,139 @@ const CarouselItemContext = React.createContext<{
 // Carousel must set its own width: it does not have to be fixed, but it should
 // not rely on the inline dimension of its children. If a width is not
 // provided, the Carousel will be rendered with a width of 0.
-const _Carousel = View.styleable<{
-  onVisibleIndexChange?: (index: number) => void;
-  scrollDirection?: 'horizontal' | 'vertical';
-}>(
-  (
+const _Carousel = React.forwardRef<
+  {
+    scrollToIndex: (index: number, animated?: boolean) => void;
+  },
+  ForwardingProps<
+    React.ComponentPropsWithoutRef<typeof View>,
     {
-      children,
-      onVisibleIndexChange,
-      scrollDirection = 'horizontal',
-      ...passedProps
-    },
-    ref
-  ) => {
-    const [visibleIndex, setVisibleIndex] = React.useState(0);
-    const [isOverlayShown, setIsOverlayShown] = React.useState(false);
-    const [overlay, setOverlay] = React.useState<JSX.Element | null>(null);
-    const tap = Gesture.Tap().onEnd((_event, success) => {
-      success && runOnJS(setIsOverlayShown)(!isOverlayShown);
-    });
-    const [rect, setRect] = React.useState<{
-      width: number;
-      height: number;
-    } | null>(null);
+      onVisibleIndexChange?: (index: number) => void;
+      scrollDirection?: 'horizontal' | 'vertical';
+    }
+  >
+>(function Carousel(
+  {
+    children,
+    onVisibleIndexChange,
+    scrollDirection = 'horizontal',
+    ...passedProps
+  },
+  forwardedRef
+) {
+  const scrollRef = React.useRef<ScrollView>(null);
+  const [visibleIndex, setVisibleIndex] = React.useState(0);
+  const [isOverlayShown, setIsOverlayShown] = React.useState(false);
+  const [overlay, setOverlay] = React.useState<JSX.Element | null>(null);
+  const tap = Gesture.Tap().onEnd((_event, success) => {
+    success && runOnJS(setIsOverlayShown)(!isOverlayShown);
+  });
+  const [rect, setRect] = React.useState<{
+    width: number;
+    height: number;
+  } | null>(null);
 
-    const ctxValue = React.useMemo(
-      () => ({
-        direction: scrollDirection,
-        rect,
-        setOverlay: (overlay: JSX.Element) => {
-          setOverlay(overlay);
-          return () => setOverlay((prev) => (prev === overlay ? null : prev));
-        },
-        visibleIndex,
-      }),
-      [rect, scrollDirection, visibleIndex]
-    );
-
-    const handleLayout = React.useCallback((e: LayoutChangeEvent) => {
-      setRect({
-        width: e.nativeEvent.layout.width,
-        height: e.nativeEvent.layout.height,
-      });
-    }, []);
-
-    const snapToInterval =
-      scrollDirection === 'horizontal' ? rect?.width : rect?.height;
-
-    const handleScroll = React.useCallback(
-      (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-        if (snapToInterval == null) {
-          return;
-        }
-        const index = Math.round(
-          scrollDirection === 'horizontal'
-            ? event.nativeEvent.contentOffset.x / snapToInterval
-            : event.nativeEvent.contentOffset.y / snapToInterval
-        );
-        setVisibleIndex(index);
+  const ctxValue = React.useMemo(
+    () => ({
+      direction: scrollDirection,
+      rect,
+      setOverlay: (overlay: JSX.Element) => {
+        setOverlay(overlay);
+        return () => setOverlay((prev) => (prev === overlay ? null : prev));
       },
-      [scrollDirection, snapToInterval]
-    );
+      visibleIndex,
+    }),
+    [rect, scrollDirection, visibleIndex]
+  );
 
-    React.useEffect(() => {
-      onVisibleIndexChange?.(visibleIndex);
-    }, [visibleIndex, onVisibleIndexChange]);
+  const handleLayout = React.useCallback((e: LayoutChangeEvent) => {
+    setRect({
+      width: e.nativeEvent.layout.width,
+      height: e.nativeEvent.layout.height,
+    });
+  }, []);
 
-    return (
-      <GestureDetector gesture={tap}>
-        <View ref={ref} {...passedProps}>
-          <ScrollView
-            decelerationRate="fast"
-            disableIntervalMomentum
-            flexDirection={scrollDirection === 'horizontal' ? 'row' : 'column'}
-            horizontal={scrollDirection === 'horizontal'}
-            onLayout={handleLayout}
-            onScroll={handleScroll}
-            scrollEventThrottle={33}
-            showsVerticalScrollIndicator={scrollDirection !== 'vertical'}
-            showsHorizontalScrollIndicator={scrollDirection !== 'horizontal'}
-            snapToInterval={snapToInterval}
-            style={StyleSheet.absoluteFill}
-          >
-            <CarouselContext.Provider value={ctxValue}>
-              {
-                // Map over children to provide index to each item via context.
-                React.Children.map(children, (child, index) => (
-                  <CarouselItemContext.Provider value={{ index }}>
-                    {child}
-                  </CarouselItemContext.Provider>
-                ))
-              }
-            </CarouselContext.Provider>
-          </ScrollView>
-          <AnimatePresence>
-            {isOverlayShown && (
-              <View
-                key="overlay"
-                animation="simple"
-                enterStyle={{ opacity: 0 }}
-                exitStyle={{ opacity: 0 }}
-                flex={1}
-                pointerEvents="box-none"
-              >
-                {overlay}
-              </View>
-            )}
-          </AnimatePresence>
-        </View>
-      </GestureDetector>
-    );
-  }
-);
+  const snapToInterval =
+    scrollDirection === 'horizontal' ? rect?.width : rect?.height;
+
+  const handleScroll = React.useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (snapToInterval == null) {
+        return;
+      }
+      const index = Math.round(
+        scrollDirection === 'horizontal'
+          ? event.nativeEvent.contentOffset.x / snapToInterval
+          : event.nativeEvent.contentOffset.y / snapToInterval
+      );
+      setVisibleIndex(index);
+    },
+    [scrollDirection, snapToInterval]
+  );
+
+  React.useEffect(() => {
+    onVisibleIndexChange?.(visibleIndex);
+  }, [visibleIndex, onVisibleIndexChange]);
+
+  React.useImperativeHandle(forwardedRef, () => ({
+    scrollToIndex(index: number, animated: boolean = true) {
+      if (snapToInterval == null) {
+        return;
+      }
+      scrollRef.current?.scrollTo({
+        x: scrollDirection === 'horizontal' ? index * snapToInterval : 0,
+        y: scrollDirection === 'vertical' ? index * snapToInterval : 0,
+        animated,
+      });
+    },
+  }));
+
+  return (
+    <GestureDetector gesture={tap}>
+      <View backgroundColor="black" {...passedProps}>
+        <ScrollView
+          decelerationRate="fast"
+          disableIntervalMomentum
+          flexDirection={scrollDirection === 'horizontal' ? 'row' : 'column'}
+          horizontal={scrollDirection === 'horizontal'}
+          onLayout={handleLayout}
+          onScroll={handleScroll}
+          ref={scrollRef}
+          scrollEventThrottle={33}
+          showsVerticalScrollIndicator={scrollDirection !== 'vertical'}
+          showsHorizontalScrollIndicator={scrollDirection !== 'horizontal'}
+          snapToInterval={snapToInterval}
+          style={StyleSheet.absoluteFill}
+        >
+          <CarouselContext.Provider value={ctxValue}>
+            {
+              // Map over children to provide index to each item via context.
+              React.Children.map(children, (child, index) => (
+                <CarouselItemContext.Provider value={{ index }}>
+                  {child}
+                </CarouselItemContext.Provider>
+              ))
+            }
+          </CarouselContext.Provider>
+        </ScrollView>
+        <AnimatePresence>
+          {isOverlayShown && (
+            <View
+              key="overlay"
+              animation="simple"
+              enterStyle={{ opacity: 0 }}
+              exitStyle={{ opacity: 0 }}
+              flex={1}
+              pointerEvents="box-none"
+            >
+              {overlay}
+            </View>
+          )}
+        </AnimatePresence>
+      </View>
+    </GestureDetector>
+  );
+});
 
 /**
  * Provides a viewport-sized container for one panel of a Carousel. Also
