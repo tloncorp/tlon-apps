@@ -2,6 +2,7 @@ import { ImageZoom } from '@likashefqet/react-native-image-zoom';
 import { StackStyle } from '@tamagui/web';
 import * as React from 'react';
 import {
+  FlatList,
   LayoutChangeEvent,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -10,18 +11,11 @@ import {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { Edges, SafeAreaView } from 'react-native-safe-area-context';
-import { ViewStyle } from 'tamagui';
-import {
-  AnimatePresence,
-  ScrollView,
-  TamaguiElement,
-  View,
-  withStaticProperties,
-} from 'tamagui';
+import { AnimatePresence, View, withStaticProperties } from 'tamagui';
 
 type ForwardingProps<
   TamaguiStyleProps extends StackStyle,
-  CustomProps extends Record<string, any>,
+  CustomProps extends Record<string, unknown>,
 > = CustomProps & Omit<TamaguiStyleProps, keyof CustomProps>;
 
 const CarouselContext = React.createContext<{
@@ -58,7 +52,7 @@ const _Carousel = React.forwardRef<
   },
   forwardedRef
 ) {
-  const scrollRef = React.useRef<ScrollView>(null);
+  const scrollRef = React.useRef<FlatList>(null);
   const [visibleIndex, setVisibleIndex] = React.useState(0);
   const [isOverlayShown, setIsOverlayShown] = React.useState(false);
   const [overlay, setOverlay] = React.useState<JSX.Element | null>(null);
@@ -114,45 +108,45 @@ const _Carousel = React.forwardRef<
 
   React.useImperativeHandle(forwardedRef, () => ({
     scrollToIndex(index: number, animated: boolean = true) {
-      if (snapToInterval == null) {
-        return;
-      }
-      scrollRef.current?.scrollTo({
-        x: scrollDirection === 'horizontal' ? index * snapToInterval : 0,
-        y: scrollDirection === 'vertical' ? index * snapToInterval : 0,
-        animated,
-      });
+      scrollRef.current?.scrollToIndex({ animated, index });
     },
   }));
+
+  const childrenArray = React.useMemo(
+    () => React.Children.toArray(children),
+    [children]
+  );
 
   return (
     <GestureDetector gesture={tap}>
       <View backgroundColor="black" {...passedProps}>
-        <ScrollView
-          decelerationRate="fast"
-          disableIntervalMomentum
-          flexDirection={scrollDirection === 'horizontal' ? 'row' : 'column'}
-          horizontal={scrollDirection === 'horizontal'}
-          onLayout={handleLayout}
-          onScroll={handleScroll}
-          ref={scrollRef}
-          scrollEventThrottle={33}
-          showsVerticalScrollIndicator={scrollDirection !== 'vertical'}
-          showsHorizontalScrollIndicator={scrollDirection !== 'horizontal'}
-          snapToInterval={snapToInterval}
-          style={StyleSheet.absoluteFill}
-        >
-          <CarouselContext.Provider value={ctxValue}>
-            {
-              // Map over children to provide index to each item via context.
-              React.Children.map(children, (child, index) => (
-                <CarouselItemContext.Provider value={{ index }}>
-                  {child}
-                </CarouselItemContext.Provider>
-              ))
-            }
-          </CarouselContext.Provider>
-        </ScrollView>
+        <CarouselContext.Provider value={ctxValue}>
+          <FlatList
+            data={childrenArray}
+            decelerationRate="fast"
+            disableIntervalMomentum
+            style={[
+              {
+                flexDirection:
+                  scrollDirection === 'horizontal' ? 'row' : 'column',
+              },
+              StyleSheet.absoluteFill,
+            ]}
+            horizontal={scrollDirection === 'horizontal'}
+            onLayout={handleLayout}
+            onScroll={handleScroll}
+            ref={scrollRef}
+            scrollEventThrottle={33}
+            showsVerticalScrollIndicator={scrollDirection !== 'vertical'}
+            showsHorizontalScrollIndicator={scrollDirection !== 'horizontal'}
+            snapToInterval={snapToInterval}
+            renderItem={({ item, index }) => (
+              <CarouselItemContext.Provider value={{ index }}>
+                {item}
+              </CarouselItemContext.Provider>
+            )}
+          />
+        </CarouselContext.Provider>
         <AnimatePresence>
           {isOverlayShown && (
             <View
