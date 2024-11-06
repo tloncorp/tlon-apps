@@ -5,6 +5,7 @@ import { Circle, View, XStack } from 'tamagui';
 import { TextInput, TextInputWithIcon } from './Form';
 import { Icon } from './Icon';
 import { Input } from './Input';
+import Pressable from './Pressable';
 
 export function SearchBar({
   placeholder,
@@ -60,25 +61,26 @@ export function SearchBar({
         placeholder={placeholder}
         {...inputProps}
       />
-      <XStack
-        alignItems="center"
-        position="absolute"
-        right={'$3xl'}
-        top={0}
-        height="100%"
-        onPress={() => onTextChange('')}
-        disabled={value === ''}
-        opacity={value === '' ? 0 : undefined}
-      >
-        <Circle
-          justifyContent="center"
+      <Pressable onPress={() => onTextChange('')}>
+        <XStack
           alignItems="center"
-          size="$xl"
-          backgroundColor="$secondaryText"
+          position="absolute"
+          right={'$3xl'}
+          top={0}
+          height="100%"
+          disabled={value === ''}
+          opacity={value === '' ? 0 : undefined}
         >
-          <Icon size="$s" type="Close" color="$secondaryBackground" />
-        </Circle>
-      </XStack>
+          <Circle
+            justifyContent="center"
+            alignItems="center"
+            size="$xl"
+            backgroundColor="$secondaryText"
+          >
+            <Icon size="$s" type="Close" color="$secondaryBackground" />
+          </Circle>
+        </XStack>
+      </Pressable>
     </View>
   );
 }

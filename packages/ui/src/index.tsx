@@ -62,6 +62,7 @@ export * from './components/NavBar';
 export * from './components/Onboarding';
 export * from './components/ParentAgnosticKeyboardAvoidingView';
 export * from './components/PostScreenView';
+export { default as Pressable } from './components/Pressable';
 export * from './components/ProfileScreenView';
 export * from './components/ProfileSheet';
 export * from './components/ScreenHeader';

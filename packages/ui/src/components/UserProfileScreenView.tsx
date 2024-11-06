@@ -19,6 +19,7 @@ import { ContactAvatar, GroupAvatar } from './Avatar';
 import { Button } from './Button';
 import { ContactName } from './ContactNameV2';
 import { Icon } from './Icon';
+import Pressable from './Pressable';
 import { ScreenHeader } from './ScreenHeader';
 import { Text } from './TextV2';
 import { WidgetPane } from './WidgetPane';
@@ -240,46 +241,46 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
   }, [doCopy]);
 
   return (
-    <XStack
-      alignItems="center"
-      onPress={handleCopy}
-      padding="$l"
-      gap="$xl"
-      width={'100%'}
-    >
-      <ContactAvatar contactId={props.userId} size="$5xl" />
-      <YStack flex={1} justifyContent="center">
-        {props.hasNickname ? (
-          <>
-            <ContactName
-              contactId={props.userId}
-              mode="nickname"
-              fontSize={24}
-              lineHeight={24}
-              maxWidth="100%"
-              numberOfLines={1}
-            />
-            <XStack alignItems="center">
+    <Pressable onPress={handleCopy}>
+      <XStack alignItems="center" padding="$l" gap="$xl" width={'100%'}>
+        <ContactAvatar contactId={props.userId} size="$5xl" />
+        <YStack flex={1} justifyContent="center">
+          {props.hasNickname ? (
+            <>
               <ContactName
                 contactId={props.userId}
-                color="$secondaryText"
-                mode="contactId"
+                mode="nickname"
+                fontSize={24}
+                lineHeight={24}
+                maxWidth="100%"
+                numberOfLines={1}
               />
-              {didCopy ? (
-                <Icon
-                  type="Checkmark"
-                  customSize={[14, 14]}
-                  position="relative"
-                  top={1}
+              <XStack alignItems="center">
+                <ContactName
+                  contactId={props.userId}
+                  color="$secondaryText"
+                  mode="contactId"
                 />
-              ) : null}
-            </XStack>
-          </>
-        ) : (
-          <ContactName fontSize={24} lineHeight={24} contactId={props.userId} />
-        )}
-      </YStack>
-    </XStack>
+                {didCopy ? (
+                  <Icon
+                    type="Checkmark"
+                    customSize={[14, 14]}
+                    position="relative"
+                    top={1}
+                  />
+                ) : null}
+              </XStack>
+            </>
+          ) : (
+            <ContactName
+              fontSize={24}
+              lineHeight={24}
+              contactId={props.userId}
+            />
+          )}
+        </YStack>
+      </XStack>
+    </Pressable>
   );
 }
 

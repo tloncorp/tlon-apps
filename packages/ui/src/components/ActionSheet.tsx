@@ -180,7 +180,7 @@ const ActionSheetHeader = ActionSheetHeaderFrame.styleable(
   ({ children, ...props }, ref) => {
     return (
       <ActionSheetHeaderFrame {...props} ref={ref}>
-        <ListItem pressable={false} paddingHorizontal="$2xl">
+        <ListItem paddingHorizontal="$2xl">
           {children}
         </ListItem>
       </ActionSheetHeaderFrame>
