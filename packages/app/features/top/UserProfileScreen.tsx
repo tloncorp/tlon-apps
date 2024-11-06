@@ -41,7 +41,7 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
             index: 1,
             routes: [
               { name: 'ChatList' },
-              { name: 'Channel', params: { channelId: dmChannel.id } }, // Pass just the ID
+              { name: 'Channel', params: { channelId: dmChannel.id } },
             ],
           })
         );
