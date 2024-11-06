@@ -287,8 +287,21 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
 function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   const navContext = useNavigation();
   const handleMessageUser = useCallback(() => {
-    navContext.onPressGoToDm?.([props.userId]);
-  }, [navContext, props.userId]);
+    if (!navContext.onPressGoToDm) {
+      console.warn('Navigation context missing onPressGoToDm handler');
+      return;
+    }
+
+    if (props.contact?.isBlocked) {
+      return;
+    }
+
+    try {
+      navContext.onPressGoToDm([props.userId]);
+    } catch (error) {
+      console.error('Error navigating to DM:', error);
+    }
+  }, [navContext, props.userId, props.contact?.isBlocked]);
 
   const handleBlock = useCallback(() => {
     if (props.contact && props.contact.isBlocked) {
@@ -304,7 +317,9 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
 
   return (
     <XStack gap="$m" width={'100%'}>
-      <ProfileButton title="Message" onPress={handleMessageUser} hero />
+      {!isBlocked && (
+        <ProfileButton title="Message" onPress={handleMessageUser} hero />
+      )}
       <ProfileButton
         title={isBlocked ? 'Unblock' : 'Block'}
         onPress={handleBlock}
