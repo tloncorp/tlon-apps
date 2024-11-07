@@ -7,7 +7,8 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %1
+    $:  %2
+        hidden-contact-suggestions=(set ship)
         pins=(list whom:u)
         first-load=?
     ==
@@ -88,13 +89,21 @@
       =+  !<(old=versioned-state vase)
       =?  old  ?=(~ old)     *current-state
       =?  old  ?=(%0 -.old)  (state-0-to-1 old)
-      ?>  ?=(%1 -.old)
+      =?  old  ?=(%1 -.old)  (state-1-to-2 old)
+      ?>  ?=(%2 -.old)
       =.  state  old
       init
   ::
-  +$  versioned-state  $@(~ $%(state-1 state-0))
-  +$  state-1  current-state
+  +$  versioned-state  $@(~ $%(state-2 state-1 state-0))
+  +$  state-2  current-state
+  +$  state-1
+    $:  %1
+        pins=(list whom:u)
+        first-load=?
+    ==
   ::
+  ++  state-1-to-2
+    |=(state-1 [%2 ~ pins first-load])
   +$  state-0  [%0 first-load=?]
   ++  state-0-to-1
     |=(state-0 [%1 ~ first-load])
@@ -105,6 +114,12 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%x %pins ~]  ``ui-pins+!>(pins)
+  ::
+      [%x %hidden-contact-suggestions ~]
+    ``ships+!>(hidden-contact-suggestions)
+  ::
+      [%x %suggested-contacts ~]
+    ``ships+!>(get-suggested-contacts)
   ::
       [%x %init ~]
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
@@ -199,6 +214,19 @@
   ^+  cor
   ?+    mark  ~|(bad-mark/mark !!)
     %ui-vita  (emit (active:vita-client bowl))
+    %ui-import-pals  import-pals
+  ::
+      %ui-show-contact
+    =+  !<(=ship vase)
+    =.  hidden-contact-suggestions
+      (~(del in hidden-contact-suggestions) ship)
+    cor
+  ::
+      %ui-hide-contact
+    =+  !<(=ship vase)
+    =.  hidden-contact-suggestions
+      (~(put in hidden-contact-suggestions) ship)
+    cor
   ::
       %ui-vita-toggle
     =+  !<(=vita-enabled:u vase)
@@ -228,8 +256,9 @@
   ^+  cor
   ?+    pole  ~|(bad-agent-take/pole !!)
     ~  cor
-    [%set-activity ~]  cor
+    [%contact ~]  cor
     [%vita-toggle ~]  cor
+    [%set-activity ~]  cor
   ==
 ::
 ++  arvo
@@ -238,4 +267,35 @@
   ?+  wire  !!
     [%build ~]  cor
   ==
+++  get-suggested-contacts
+  =+  .^(chat-running=? (scry %gu %chat /$))
+  =|  suggestions=(set ship)
+  =?  suggestions  chat-running
+    =+  .^  [dms=(map ship dm:c) *]
+      (scry %gx %chat /full/noun)
+    ==
+    %-  ~(uni in suggestions)
+    %-  sy
+    %+  murn
+      ~(tap by dms)
+    |=  [=ship =dm:c]
+    ?~  latest=(ram:on:writs:c wit.pact.dm)  ~
+    =/  count  (wyt:on:writs:c wit.pact.dm)
+    =/  cutoff  (sub now.bowl ~d30)
+    ?.  &((gth count 10) (gth -.u.latest cutoff))  ~
+    `ship
+  =+  .^(pals-running=? (scry %gu %pals /$))
+  =?  suggestions  pals-running
+    =+  .^(targets=(set ship) (scry %gx %pals /targets/noun))
+    (~(uni in suggestions) targets)
+  (~(dif in suggestions) hidden-contact-suggestions)
+++  import-pals
+  =+  .^(pals-running=? (scry %gu %pals /$))
+  ?.  pals-running  cor
+  =+  .^(targets=(set ship) (scry %gx %pals /targets/noun))
+  %-  emil
+  %+  turn
+    ~(tap in targets)
+  |=  =ship
+  [%pass /contact %agent [our.bowl %contacts] %poke contact-action-1+!>([%page ship ~])]
 --

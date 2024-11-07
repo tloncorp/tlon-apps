@@ -19,6 +19,7 @@ import { Icon, IconType } from '../Icon';
 import { Image } from '../Image';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
+import Pressable from '../Pressable';
 import { Text } from '../TextV2';
 import { FieldContext } from './Form';
 
@@ -571,24 +572,26 @@ function ListItemInputRow<T>({
 }) {
   const handlePress = useBoundHandler(option.value, onPress);
   return (
-    <ListItem onPress={handlePress}>
-      {option.icon ? (
-        typeof option.icon === 'string' ? (
-          <ListItem.SystemIcon icon={option.icon} />
-        ) : (
-          option.icon
-        )
-      ) : null}
-      <ListItem.MainContent>
-        <ListItem.Title>{option.title}</ListItem.Title>
-        {option.subtitle ? (
-          <ListItem.Subtitle>{option.subtitle}</ListItem.Subtitle>
+    <Pressable borderRadius="$xl" onPress={handlePress}>
+      <ListItem>
+        {option.icon ? (
+          typeof option.icon === 'string' ? (
+            <ListItem.SystemIcon icon={option.icon} />
+          ) : (
+            option.icon
+          )
         ) : null}
-      </ListItem.MainContent>
-      <ListItem.EndContent padding={0}>
-        {checked ? <RadioControl checked /> : null}
-      </ListItem.EndContent>
-    </ListItem>
+        <ListItem.MainContent>
+          <ListItem.Title>{option.title}</ListItem.Title>
+          {option.subtitle ? (
+            <ListItem.Subtitle>{option.subtitle}</ListItem.Subtitle>
+          ) : null}
+        </ListItem.MainContent>
+        <ListItem.EndContent padding={0}>
+          {checked ? <RadioControl checked /> : null}
+        </ListItem.EndContent>
+      </ListItem>
+    </Pressable>
   );
 }
 

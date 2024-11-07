@@ -953,6 +953,24 @@ export async function syncGroupPreviews(groupIds: string[]) {
   return Promise.all(promises);
 }
 
+export async function syncChannelPreivews(channelIds: string[]) {
+  const promises = channelIds.map(async (channelId) => {
+    const channel = await db.getChannelWithRelations({ id: channelId });
+    if (channel) {
+      return channel;
+    }
+
+    const channelPreview = await api.getChannelPreview(channelId);
+    if (!channelPreview) {
+      return;
+    }
+    await db.insertChannels([channelPreview]);
+    return channelPreview;
+  });
+
+  return Promise.all(promises);
+}
+
 const currentPendingMessageSyncs = new Map<string, Promise<boolean>>();
 export async function syncChannelMessageDelivery({
   channelId,

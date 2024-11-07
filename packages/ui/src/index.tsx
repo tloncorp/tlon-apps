@@ -62,6 +62,7 @@ export * from './components/NavBar';
 export * from './components/Onboarding';
 export * from './components/ParentAgnosticKeyboardAvoidingView';
 export * from './components/PostScreenView';
+export { default as Pressable } from './components/Pressable';
 export * from './components/ProfileScreenView';
 export * from './components/ProfileSheet';
 export * from './components/ScreenHeader';
@@ -81,6 +82,7 @@ export * from './tamagui.config';
 export * from './types';
 export * from './utils';
 export * as TlonText from './components/TextV2';
+export { default as useIsWindowNarrow } from './hooks/useIsWindowNarrow';
 
 export {
   Circle,

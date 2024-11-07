@@ -49,7 +49,7 @@ import {
 import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebViewMessageEvent } from 'react-native-webview';
-import { YStack, getToken, useWindowDimensions } from 'tamagui';
+import { YStack, getTokenValue, useWindowDimensions } from 'tamagui';
 import { XStack } from 'tamagui';
 
 import { useBranchDomain, useBranchKey } from '../../contexts';
@@ -156,7 +156,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const { height } = useWindowDimensions();
     const headerHeight = 48;
     const titleInputHeight = 48;
-    const inputBasePadding = getToken('$s', 'space');
+    const inputBasePadding = getTokenValue('$s', 'space');
     const imageInputButtonHeight = 50;
     const maxInputHeightBasic = useMemo(
       () => height - headerHeight - bottom - top,
@@ -961,7 +961,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             <RichText
               style={{
                 backgroundColor: 'transparent',
-                maxHeight: maxInputHeight - getToken('$s', 'space'),
+                maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
               }}
               editor={editor}
               onMessage={handleMessage}

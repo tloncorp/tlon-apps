@@ -1,6 +1,6 @@
 import {
   isChatChannel as getIsChatChannel,
-  useChannel as useChannelFromStore,
+  useChannelPreview,
   useGroupPreview,
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
@@ -27,6 +27,7 @@ import { ComponentsKitContextProvider } from '../../contexts/componentsKits';
 import { PostCollectionContext } from '../../contexts/postCollection';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 import * as utils from '../../utils';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
@@ -88,6 +89,7 @@ export function Channel({
   hasNewerPosts,
   hasOlderPosts,
   initialAttachments,
+  startDraft,
 }: {
   channel: db.Channel;
   initialChannelUnread?: db.ChannelUnread | null;
@@ -113,7 +115,7 @@ export function Channel({
   useGroup: typeof useGroupPreview;
   usePostReference: typeof usePostReferenceHook;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
-  useChannel: typeof useChannelFromStore;
+  useChannel: typeof useChannelPreview;
   storeDraft: (draft: JSONContent, draftType?: GalleryDraftType) => void;
   clearDraft: (draftType?: GalleryDraftType) => void;
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent>;
@@ -127,6 +129,7 @@ export function Channel({
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
   canUpload: boolean;
+  startDraft?: boolean;
 }) {
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
 
@@ -244,6 +247,14 @@ export function Channel({
     chatOptionsSheetRef.current?.close();
   }, []);
 
+  useEffect(() => {
+    if (startDraft) {
+      draftInputRef.current?.startDraft?.();
+    }
+  }, [startDraft]);
+
+  const isNarrow = useIsWindowNarrow();
+
   return (
     <ScrollContextProvider>
       <GroupsProvider groups={groups}>
@@ -281,7 +292,7 @@ export function Channel({
                             group={group}
                             mode={headerMode}
                             title={title ?? ''}
-                            goBack={handleGoBack}
+                            goBack={isNarrow ? handleGoBack : undefined}
                             showSearchButton={isChatChannel}
                             goToSearch={goToSearch}
                             showSpinner={isLoadingPosts}

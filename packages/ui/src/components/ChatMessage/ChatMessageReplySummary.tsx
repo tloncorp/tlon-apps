@@ -5,6 +5,7 @@ import React, { useMemo } from 'react';
 import { ColorTokens, View, XStack, styled } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
+import Pressable from '../Pressable';
 import { Text } from '../TextV2';
 import { UnreadDot } from '../UnreadDot';
 
@@ -30,28 +31,30 @@ export const ChatMessageReplySummary = React.memo(
     }, [replyTime]);
 
     return replyCount && replyContactIds && replyTime ? (
-      <XStack gap="$m" alignItems="center" onPress={onPress}>
-        <AvatarPreviewStack contactIds={replyContactIds} />
-        <Text
-          size="$label/m"
-          color={
-            textColor ??
-            (hasUnreads
-              ? isMuted
-                ? '$tertiaryText'
-                : '$positiveActionText'
-              : '$primaryText')
-          }
-        >
-          {replyCount} {replyCount > 1 ? 'replies' : 'reply'}
-        </Text>
-        <ThreadUnreadDot
-          unreadCount={threadUnread?.count ?? 0}
-          isMuted={logic.isMuted(post.volumeSettings?.level, 'thread')}
-          isNotify={post.threadUnread?.notify ?? false}
-        />
-        {showTime && <ReplyTimeText>{time} ago</ReplyTimeText>}
-      </XStack>
+      <Pressable onPress={onPress}>
+        <XStack gap="$m" alignItems="center">
+          <AvatarPreviewStack contactIds={replyContactIds} />
+          <Text
+            size="$label/m"
+            color={
+              textColor ??
+              (hasUnreads
+                ? isMuted
+                  ? '$tertiaryText'
+                  : '$positiveActionText'
+                : '$primaryText')
+            }
+          >
+            {replyCount} {replyCount > 1 ? 'replies' : 'reply'}
+          </Text>
+          <ThreadUnreadDot
+            unreadCount={threadUnread?.count ?? 0}
+            isMuted={logic.isMuted(post.volumeSettings?.level, 'thread')}
+            isNotify={post.threadUnread?.notify ?? false}
+          />
+          {showTime && <ReplyTimeText>{time} ago</ReplyTimeText>}
+        </XStack>
+      </Pressable>
     ) : null;
   }
 );

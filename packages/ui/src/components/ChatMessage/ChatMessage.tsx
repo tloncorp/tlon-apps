@@ -10,6 +10,7 @@ import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
+import Pressable from '../Pressable';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { Text } from '../TextV2';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -122,61 +123,62 @@ const ChatMessage = ({
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
 
   return (
-    <YStack
-      onLongPress={handleLongPress}
-      backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
-      key={post.id}
+    <Pressable
       // avoid setting the top level press handler at all unless we need to
       onPress={shouldHandlePress ? handlePress : undefined}
+      onLongPress={handleLongPress}
     >
-      {showAuthor ? (
-        <AuthorRow
-          padding="$l"
-          paddingBottom="$2xs"
-          author={post.author}
-          authorId={post.authorId}
-          sent={post.sentAt ?? 0}
-          type={post.type}
-          disabled={hideProfilePreview}
-          deliveryStatus={post.deliveryStatus}
-          editStatus={post.editStatus}
-          deleteStatus={post.deleteStatus}
-          showEditedIndicator={!!post.isEdited}
-        />
-      ) : null}
-      <View paddingLeft={!isNotice && '$4xl'}>
-        <ChatContentRenderer
-          content={post.editStatus === 'failed' ? lastEditContent : content}
-          isNotice={post.type === 'notice'}
-          onPressImage={handleImagePressed}
-          onLongPress={handleLongPress}
-          onPress={shouldHandlePress ? handlePress : undefined}
-        />
-      </View>
+      <YStack
+        backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
+        key={post.id}
+      >
+        {showAuthor ? (
+          <AuthorRow
+            padding="$l"
+            paddingBottom="$2xs"
+            author={post.author}
+            authorId={post.authorId}
+            sent={post.sentAt ?? 0}
+            type={post.type}
+            disabled={hideProfilePreview}
+            deliveryStatus={post.deliveryStatus}
+            editStatus={post.editStatus}
+            deleteStatus={post.deleteStatus}
+            showEditedIndicator={!!post.isEdited}
+          />
+        ) : null}
+        <View paddingLeft={!isNotice && '$4xl'}>
+          <ChatContentRenderer
+            content={post.editStatus === 'failed' ? lastEditContent : content}
+            isNotice={post.type === 'notice'}
+            onPressImage={handleImagePressed}
+          />
+        </View>
 
-      <ReactionsDisplay
-        post={post}
-        onViewPostReactions={setViewReactionsPost}
-      />
+        <ReactionsDisplay
+          post={post}
+          onViewPostReactions={setViewReactionsPost}
+        />
 
-      {shouldRenderReplies ? (
-        <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
-          {shouldRenderReplies ? (
-            <ChatMessageReplySummary
-              post={post}
-              onPress={handleRepliesPressed}
-            />
-          ) : null}
-        </XStack>
-      ) : null}
-      <SendPostRetrySheet
-        open={showRetrySheet}
-        post={post}
-        onOpenChange={setShowRetrySheet}
-        onPressRetry={handleRetryPressed}
-        onPressDelete={handleDeletePressed}
-      />
-    </YStack>
+        {shouldRenderReplies ? (
+          <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
+            {shouldRenderReplies ? (
+              <ChatMessageReplySummary
+                post={post}
+                onPress={handleRepliesPressed}
+              />
+            ) : null}
+          </XStack>
+        ) : null}
+        <SendPostRetrySheet
+          open={showRetrySheet}
+          post={post}
+          onOpenChange={setShowRetrySheet}
+          onPressRetry={handleRetryPressed}
+          onPressDelete={handleDeletePressed}
+        />
+      </YStack>
+    </Pressable>
   );
 };
 

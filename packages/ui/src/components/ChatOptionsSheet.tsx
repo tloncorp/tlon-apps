@@ -10,11 +10,9 @@ import React, {
   useImperativeHandle,
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import { Alert } from 'react-native';
-import { useSheet } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
 import { useChatOptions, useCurrentUserId } from '../contexts';
@@ -118,6 +116,7 @@ export function GroupOptionsSheetLoader({
         pane={pane}
         setPane={setPane}
         setSortBy={setSortBy}
+        onOpenChange={onOpenChange}
       />
     </ActionSheet>
   ) : null;
@@ -128,17 +127,16 @@ export function GroupOptions({
   pane,
   setPane,
   setSortBy,
+  onOpenChange,
 }: {
   group: db.Group;
   pane: 'initial' | 'edit' | 'notifications' | 'sort';
   setPane: (pane: 'initial' | 'edit' | 'notifications' | 'sort') => void;
   setSortBy?: (sortBy: db.ChannelSortPreference) => void;
+  onOpenChange: (open: boolean) => void;
 }) {
   const currentUser = useCurrentUserId();
   const { data: currentVolumeLevel } = store.useGroupVolumeLevel(group.id);
-  const sheet = useSheet();
-  const sheetRef = useRef(sheet);
-  sheetRef.current = sheet;
 
   const {
     onPressGroupMembers,
@@ -219,7 +217,7 @@ export function GroupOptions({
       title: 'Edit group info',
       description: 'Change name, description, and image',
       action: () => {
-        sheetRef.current.setOpen(false);
+        onOpenChange(false);
         onPressGroupMeta?.(group.id);
       },
       endIcon: 'ChevronRight',
@@ -229,7 +227,7 @@ export function GroupOptions({
       title: 'Manage channels',
       description: 'Add or remove channels in this group',
       action: () => {
-        sheetRef.current.setOpen(false);
+        onOpenChange(false);
         onPressManageChannels?.(group.id);
       },
       endIcon: 'ChevronRight',
@@ -239,7 +237,7 @@ export function GroupOptions({
       title: 'Privacy',
       description: 'Change who can find or join this group',
       action: () => {
-        sheetRef.current.setOpen(false);
+        onOpenChange(false);
         onPressGroupPrivacy?.(group.id);
       },
       endIcon: 'ChevronRight',
@@ -251,7 +249,13 @@ export function GroupOptions({
       },
     ];
     return actionEdit;
-  }, [group.id, onPressGroupMeta, onPressGroupPrivacy, onPressManageChannels]);
+  }, [
+    group.id,
+    onPressGroupMeta,
+    onPressGroupPrivacy,
+    onPressManageChannels,
+    onOpenChange,
+  ]);
 
   const actionGroups = useMemo(() => {
     const groupRef = logic.getGroupReferencePath(group.id);
@@ -306,14 +310,14 @@ export function GroupOptions({
       endIcon: 'ChevronRight',
       action: () => {
         onPressGroupMembers?.(group.id);
-        sheetRef.current.setOpen(false);
+        onOpenChange(false);
       },
     };
 
     const inviteAction: Action = {
       title: 'Invite people',
       action: () => {
-        sheetRef.current.setOpen(false);
+        onOpenChange(false);
         onPressInvite?.(group);
       },
       endIcon: 'ChevronRight',
@@ -355,7 +359,7 @@ export function GroupOptions({
             title: 'Leave group',
             endIcon: 'LogOut',
             action: () => {
-              sheetRef.current.setOpen(false);
+              onOpenChange(false);
               onPressLeave?.();
             },
           },
@@ -372,6 +376,7 @@ export function GroupOptions({
     onPressGroupMembers,
     onPressInvite,
     onPressLeave,
+    onOpenChange,
   ]);
 
   const actionSort: ActionGroup[] = useMemo(() => {
@@ -384,7 +389,7 @@ export function GroupOptions({
             action: () => {
               onSelectSort?.('recency');
               setSortBy?.('recency');
-              sheetRef.current.setOpen(false);
+              onOpenChange(false);
             },
           },
           {
@@ -392,13 +397,13 @@ export function GroupOptions({
             action: () => {
               onSelectSort?.('arranged');
               setSortBy?.('arranged');
-              sheetRef.current.setOpen(false);
+              onOpenChange(false);
             },
           },
         ],
       },
     ];
-  }, [onSelectSort, setSortBy]);
+  }, [onSelectSort, setSortBy, onOpenChange]);
 
   const memberCount = group?.members?.length
     ? group.members.length.toLocaleString()
@@ -510,6 +515,7 @@ export function ChannelOptionsSheetLoader({
           pane={pane}
           setPane={setPane}
           onPressConfigureChannel={onPressConfigureChannel}
+          onOpenChange={onOpenChange}
         />
       </ActionSheet.ScrollableContent>
     </ActionSheet>
@@ -520,11 +526,13 @@ export function ChannelOptions({
   channel,
   pane,
   setPane,
+  onOpenChange,
   onPressConfigureChannel,
 }: {
   channel: db.Channel;
   pane: 'initial' | 'notifications';
   setPane: (pane: 'initial' | 'notifications') => void;
+  onOpenChange: (open: boolean) => void;
   onPressConfigureChannel?: () => void;
 }) {
   const { data: group } = store.useGroup({
@@ -532,10 +540,6 @@ export function ChannelOptions({
   });
   const { data: currentVolumeLevel } = store.useChannelVolumeLevel(channel.id);
   const currentUser = useCurrentUserId();
-  const sheet = useSheet();
-  const sheetRef = useRef(sheet);
-  sheetRef.current = sheet;
-
   const {
     onPressChannelMembers,
     onPressChannelMeta,
@@ -667,7 +671,7 @@ export function ChannelOptions({
                       return;
                     }
                     onPressChannelMeta?.(channel.id);
-                    sheetRef.current.setOpen(false);
+                    onOpenChange(false);
                   },
                 },
               ],
@@ -687,7 +691,7 @@ export function ChannelOptions({
                       return;
                     }
                     onPressChannelMembers?.(channel.id);
-                    sheetRef.current.setOpen(false);
+                    onOpenChange(false);
                   },
                 },
               ],
@@ -711,7 +715,7 @@ export function ChannelOptions({
                       return;
                     }
                     onPressManageChannels?.(group.id);
-                    sheetRef.current.setOpen(false);
+                    onOpenChange(false);
                   },
                 },
               ],
@@ -731,7 +735,7 @@ export function ChannelOptions({
                 {
                   title: 'Invite people',
                   action: () => {
-                    sheetRef.current.setOpen(false);
+                    onOpenChange(false);
                     onPressInvite?.(group);
                   },
                   endIcon: 'ChevronRight',
@@ -781,7 +785,7 @@ export function ChannelOptions({
                           text: 'Leave',
                           style: 'destructive',
                           onPress: () => {
-                            sheetRef.current.setOpen(false);
+                            onOpenChange(false);
                             onPressLeave?.();
                             if (
                               channel.type === 'dm' ||
@@ -817,6 +821,7 @@ export function ChannelOptions({
     onPressManageChannels,
     onPressInvite,
     title,
+    onOpenChange,
     onPressLeave,
   ]);
 
@@ -866,10 +871,12 @@ function ChatOptionsSheetContent({
     <>
       <ActionSheet.Header>
         {icon}
-        <ListItem.MainContent>
+        <ActionSheet.MainContent>
           <ListItem.Title>{title}</ListItem.Title>
-          <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
-        </ListItem.MainContent>
+          <ListItem.Subtitle $gtSm={{ maxWidth: 100 }}>
+            {subtitle}
+          </ListItem.Subtitle>
+        </ActionSheet.MainContent>
       </ActionSheet.Header>
       <ActionSheet.ScrollableContent>
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
