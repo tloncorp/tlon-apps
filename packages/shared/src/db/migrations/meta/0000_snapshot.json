@@ -1,7 +1,7 @@
 {
-  "version": "5",
+  "version": "6",
   "dialect": "sqlite",
-  "id": "72933ec8-6937-490e-96c6-1e832affef8d",
+  "id": "be4198b7-1f8f-4b63-a6ae-06e24f222dc3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -118,13 +118,14 @@
       "compositePrimaryKeys": {
         "activity_events_id_bucket_id_pk": {
           "columns": [
-            "bucket_id",
-            "id"
+            "id",
+            "bucket_id"
           ],
           "name": "activity_events_id_bucket_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "channel_readers": {
       "name": "channel_readers",
@@ -155,7 +156,8 @@
           "name": "channel_readers_channel_id_role_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "channel_unreads": {
       "name": "channel_unreads",
@@ -220,7 +222,8 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "channel_writers": {
       "name": "channel_writers",
@@ -251,7 +254,8 @@
           "name": "channel_writers_channel_id_role_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "channels": {
       "name": "channels",
@@ -458,7 +462,8 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "chat_member_roles": {
       "name": "chat_member_roles",
@@ -504,14 +509,15 @@
       "compositePrimaryKeys": {
         "chat_member_roles_group_id_contact_id_role_id_pk": {
           "columns": [
-            "contact_id",
             "group_id",
+            "contact_id",
             "role_id"
           ],
           "name": "chat_member_roles_group_id_contact_id_role_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "group_members": {
       "name": "group_members",
@@ -563,7 +569,8 @@
           "name": "group_members_chat_id_contact_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "contact_group_pins": {
       "name": "contact_group_pins",
@@ -621,7 +628,8 @@
           "name": "contact_group_pins_contact_id_group_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "contacts": {
       "name": "contacts",
@@ -633,12 +641,55 @@
           "notNull": true,
           "autoincrement": false
         },
+        "peerNickname": {
+          "name": "peerNickname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "customNickname": {
+          "name": "customNickname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "nickname": {
           "name": "nickname",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
+          "autoincrement": false,
+          "generated": {
+            "as": "(COALESCE(\"customNickname\", \"peerNickname\"))",
+            "type": "stored"
+          }
+        },
+        "peerAvatarImage": {
+          "name": "peerAvatarImage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
+        },
+        "customAvatarImage": {
+          "name": "customAvatarImage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "avatarImage": {
+          "name": "avatarImage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "generated": {
+            "as": "(COALESCE(\"customAvatarImage\", \"peerAvatarImage\"))",
+            "type": "stored"
+          }
         },
         "bio": {
           "name": "bio",
@@ -656,13 +707,6 @@
         },
         "color": {
           "name": "color",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "avatarImage": {
-          "name": "avatarImage",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -689,20 +733,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "customNickname": {
-          "name": "customNickname",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "customAvatarImage": {
-          "name": "customAvatarImage",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "isContactSuggestion": {
           "name": "isContactSuggestion",
           "type": "integer",
@@ -714,7 +744,8 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "group_flagged_posts": {
       "name": "group_flagged_posts",
@@ -780,7 +811,8 @@
           "name": "group_flagged_posts_group_id_post_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "group_join_requests": {
       "name": "group_join_requests",
@@ -826,13 +858,14 @@
       "compositePrimaryKeys": {
         "group_join_requests_group_id_contact_id_pk": {
           "columns": [
-            "contact_id",
-            "group_id"
+            "group_id",
+            "contact_id"
           ],
           "name": "group_join_requests_group_id_contact_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "group_member_bans": {
       "name": "group_member_bans",
@@ -878,13 +911,14 @@
       "compositePrimaryKeys": {
         "group_member_bans_group_id_contact_id_pk": {
           "columns": [
-            "contact_id",
-            "group_id"
+            "group_id",
+            "contact_id"
           ],
           "name": "group_member_bans_group_id_contact_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "group_member_invites": {
       "name": "group_member_invites",
@@ -930,13 +964,14 @@
       "compositePrimaryKeys": {
         "group_member_invites_group_id_contact_id_pk": {
           "columns": [
-            "contact_id",
-            "group_id"
+            "group_id",
+            "contact_id"
           ],
           "name": "group_member_invites_group_id_contact_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "group_nav_section_channels": {
       "name": "group_nav_section_channels",
@@ -995,13 +1030,14 @@
       "compositePrimaryKeys": {
         "group_nav_section_channels_group_nav_section_id_channel_id_pk": {
           "columns": [
-            "channel_id",
-            "group_nav_section_id"
+            "group_nav_section_id",
+            "channel_id"
           ],
           "name": "group_nav_section_channels_group_nav_section_id_channel_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "group_nav_sections": {
       "name": "group_nav_sections",
@@ -1094,7 +1130,8 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "group_rank_bans": {
       "name": "group_rank_bans",
@@ -1146,7 +1183,8 @@
           "name": "group_rank_bans_group_id_rank_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "group_roles": {
       "name": "group_roles",
@@ -1233,7 +1271,8 @@
           "name": "group_roles_group_id_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "group_unreads": {
       "name": "group_unreads",
@@ -1277,7 +1316,8 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "groups": {
       "name": "groups",
@@ -1405,7 +1445,8 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "pins": {
       "name": "pins",
@@ -1435,7 +1476,8 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "post_images": {
       "name": "post_images",
@@ -1501,7 +1543,8 @@
           "name": "post_images_post_id_src_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "post_reactions": {
       "name": "post_reactions",
@@ -1553,7 +1596,8 @@
           "name": "post_reactions_contact_id_post_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "post_windows": {
       "name": "post_windows",
@@ -1610,13 +1654,14 @@
         "post_windows_channel_id_oldest_post_id_newest_post_id_pk": {
           "columns": [
             "channel_id",
-            "newest_post_id",
-            "oldest_post_id"
+            "oldest_post_id",
+            "newest_post_id"
           ],
           "name": "post_windows_channel_id_oldest_post_id_newest_post_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "posts": {
       "name": "posts",
@@ -1875,7 +1920,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "settings": {
       "name": "settings",
@@ -2024,7 +2070,8 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "thread_unreads": {
       "name": "thread_unreads",
@@ -2090,7 +2137,8 @@
           "name": "thread_unreads_channel_id_thread_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "volume_settings": {
       "name": "volume_settings",
@@ -2120,13 +2168,18 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     }
   },
+  "views": {},
   "enums": {},
   "_meta": {
     "schemas": {},
     "tables": {},
     "columns": {}
+  },
+  "internal": {
+    "indexes": {}
   }
 }

@@ -59,7 +59,7 @@ function reset() {
   spawnSync('pnpm', [
     'exec',
     'drizzle-kit',
-    'generate:sqlite',
+    'generate',
     '--config',
     './drizzle.config.ts',
   ]);

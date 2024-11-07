@@ -1,4 +1,4 @@
-import { relations } from 'drizzle-orm';
+import { SQL, relations, sql } from 'drizzle-orm';
 import {
   index,
   integer,
@@ -55,17 +55,29 @@ export const settings = sqliteTable('settings', {
 
 export const contacts = sqliteTable('contacts', {
   id: text('id').primaryKey(),
-  nickname: text('nickname'),
+
+  peerNickname: text('peerNickname'),
+  customNickname: text('customNickname'),
+  nickname: text('nickname').generatedAlwaysAs(
+    (): SQL =>
+      sql`COALESCE(${contacts.customNickname}, ${contacts.peerNickname})`,
+    { mode: 'stored' }
+  ),
+
+  peerAvatarImage: text('peerAvatarImage'),
+  customAvatarImage: text('customAvatarImage'),
+  avatarImage: text('avatarImage').generatedAlwaysAs(
+    (): SQL =>
+      sql`COALESCE(${contacts.customAvatarImage}, ${contacts.peerAvatarImage})`,
+    { mode: 'stored' }
+  ),
+
   bio: text('bio'),
   status: text('status'),
   color: text('color'),
-  avatarImage: text('avatarImage'),
   coverImage: text('coverImage'),
   isBlocked: boolean('blocked'),
-
-  isContact: boolean('isContact'), // TODO: figure out naming
-  customNickname: text('customNickname'),
-  customAvatarImage: text('customAvatarImage'),
+  isContact: boolean('isContact'),
   isContactSuggestion: boolean('isContactSuggestion'),
 });
 

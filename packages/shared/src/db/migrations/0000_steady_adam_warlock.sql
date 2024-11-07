@@ -14,7 +14,7 @@ CREATE TABLE `activity_events` (
 	`should_notify` integer,
 	`content` text,
 	`group_event_user_id` text,
-	PRIMARY KEY(`bucket_id`, `id`)
+	PRIMARY KEY(`id`, `bucket_id`)
 );
 --> statement-breakpoint
 CREATE TABLE `channel_readers` (
@@ -68,11 +68,13 @@ CREATE TABLE `channels` (
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE INDEX `last_post_id` ON `channels` (`last_post_id`);--> statement-breakpoint
+CREATE INDEX `last_post_at` ON `channels` (`last_post_at`);--> statement-breakpoint
 CREATE TABLE `chat_member_roles` (
 	`group_id` text NOT NULL,
 	`contact_id` text NOT NULL,
 	`role_id` text NOT NULL,
-	PRIMARY KEY(`contact_id`, `group_id`, `role_id`),
+	PRIMARY KEY(`group_id`, `contact_id`, `role_id`),
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
@@ -95,16 +97,18 @@ CREATE TABLE `contact_group_pins` (
 --> statement-breakpoint
 CREATE TABLE `contacts` (
 	`id` text PRIMARY KEY NOT NULL,
-	`nickname` text,
+	`peerNickname` text,
+	`customNickname` text,
+	`nickname` text GENERATED ALWAYS AS (COALESCE("customNickname", "peerNickname")) STORED,
+	`peerAvatarImage` text,
+	`customAvatarImage` text,
+	`avatarImage` text GENERATED ALWAYS AS (COALESCE("customAvatarImage", "peerAvatarImage")) STORED,
 	`bio` text,
 	`status` text,
 	`color` text,
-	`avatarImage` text,
 	`coverImage` text,
 	`blocked` integer,
 	`isContact` integer,
-	`customNickname` text,
-	`customAvatarImage` text,
 	`isContactSuggestion` integer
 );
 --> statement-breakpoint
@@ -122,7 +126,7 @@ CREATE TABLE `group_join_requests` (
 	`group_id` text NOT NULL,
 	`contact_id` text NOT NULL,
 	`requested_at` integer,
-	PRIMARY KEY(`contact_id`, `group_id`),
+	PRIMARY KEY(`group_id`, `contact_id`),
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
@@ -130,7 +134,7 @@ CREATE TABLE `group_member_bans` (
 	`group_id` text NOT NULL,
 	`contact_id` text NOT NULL,
 	`banned_at` integer,
-	PRIMARY KEY(`contact_id`, `group_id`),
+	PRIMARY KEY(`group_id`, `contact_id`),
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
@@ -138,7 +142,7 @@ CREATE TABLE `group_member_invites` (
 	`group_id` text NOT NULL,
 	`contact_id` text NOT NULL,
 	`invited_at` integer,
-	PRIMARY KEY(`contact_id`, `group_id`),
+	PRIMARY KEY(`group_id`, `contact_id`),
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
@@ -146,7 +150,7 @@ CREATE TABLE `group_nav_section_channels` (
 	`group_nav_section_id` text,
 	`channel_id` text,
 	`channel_index` integer,
-	PRIMARY KEY(`channel_id`, `group_nav_section_id`),
+	PRIMARY KEY(`group_nav_section_id`, `channel_id`),
 	FOREIGN KEY (`group_nav_section_id`) REFERENCES `group_nav_sections`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE no action
 );
@@ -242,9 +246,12 @@ CREATE TABLE `post_windows` (
 	`channel_id` text NOT NULL,
 	`oldest_post_id` text NOT NULL,
 	`newest_post_id` text NOT NULL,
-	PRIMARY KEY(`channel_id`, `newest_post_id`, `oldest_post_id`)
+	PRIMARY KEY(`channel_id`, `oldest_post_id`, `newest_post_id`)
 );
 --> statement-breakpoint
+CREATE INDEX `channel_id` ON `post_windows` (`channel_id`);--> statement-breakpoint
+CREATE INDEX `channel_oldest_post` ON `post_windows` (`channel_id`,`oldest_post_id`);--> statement-breakpoint
+CREATE INDEX `channel_newest_post` ON `post_windows` (`channel_id`,`newest_post_id`);--> statement-breakpoint
 CREATE TABLE `posts` (
 	`id` text PRIMARY KEY NOT NULL,
 	`author_id` text NOT NULL,
@@ -279,6 +286,10 @@ CREATE TABLE `posts` (
 	`backend_time` text
 );
 --> statement-breakpoint
+CREATE UNIQUE INDEX `posts_sent_at_unique` ON `posts` (`sent_at`);--> statement-breakpoint
+CREATE UNIQUE INDEX `cache_id` ON `posts` (`author_id`,`sent_at`);--> statement-breakpoint
+CREATE INDEX `posts_channel_id` ON `posts` (`channel_id`,`id`);--> statement-breakpoint
+CREATE INDEX `posts_group_id` ON `posts` (`group_id`,`id`);--> statement-breakpoint
 CREATE TABLE `settings` (
 	`user_id` text PRIMARY KEY NOT NULL,
 	`theme` text,
@@ -318,13 +329,3 @@ CREATE TABLE `volume_settings` (
 	`item_type` text NOT NULL,
 	`level` text NOT NULL
 );
---> statement-breakpoint
-CREATE INDEX `last_post_id` ON `channels` (`last_post_id`);--> statement-breakpoint
-CREATE INDEX `last_post_at` ON `channels` (`last_post_at`);--> statement-breakpoint
-CREATE INDEX `channel_id` ON `post_windows` (`channel_id`);--> statement-breakpoint
-CREATE INDEX `channel_oldest_post` ON `post_windows` (`channel_id`,`oldest_post_id`);--> statement-breakpoint
-CREATE INDEX `channel_newest_post` ON `post_windows` (`channel_id`,`newest_post_id`);--> statement-breakpoint
-CREATE UNIQUE INDEX `posts_sent_at_unique` ON `posts` (`sent_at`);--> statement-breakpoint
-CREATE UNIQUE INDEX `cache_id` ON `posts` (`author_id`,`sent_at`);--> statement-breakpoint
-CREATE INDEX `posts_channel_id` ON `posts` (`channel_id`,`id`);--> statement-breakpoint
-CREATE INDEX `posts_group_id` ON `posts` (`group_id`,`id`);
