@@ -1,7 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import * as Haptics from 'expo-haptics';
 import React, {
   ComponentProps,
   useCallback,
@@ -55,7 +54,6 @@ function BaseInteractableChatRow({
 
   const handleAction = logic.useMutableCallback(
     async (actionId: 'pin' | 'mute') => {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       utils.triggerHaptic('swipeAction');
       switch (actionId) {
         case 'pin':

@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { Alert, TextInput as RNTextInput } from 'react-native';
 import { ScrollView, Spinner, View, XStack, YStack, styled } from 'tamagui';
+import { isWeb } from 'tamagui';
 
 import {
   useAttachmentContext,
@@ -58,6 +59,7 @@ export const BaseTextInput = styled(StyledTextInput, {
       },
     },
   },
+  ...(isWeb ? { outlineStyle: 'none' } : {}),
 });
 
 export const TextInput = React.memo(BaseTextInput);

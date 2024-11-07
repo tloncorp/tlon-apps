@@ -61,25 +61,25 @@ export function SearchBar({
         placeholder={placeholder}
         {...inputProps}
       />
-      <Pressable onPress={() => onTextChange('')}>
-        <XStack
+      <Pressable
+        onPress={() => onTextChange('')}
+        alignItems="center"
+        position="absolute"
+        right={'$3xl'}
+        top={18}
+        pressStyle={{ backgroundColor: 'unset' }}
+        height="100%"
+        disabled={value === ''}
+        opacity={value === '' ? 0 : undefined}
+      >
+        <Circle
+          justifyContent="center"
           alignItems="center"
-          position="absolute"
-          right={'$3xl'}
-          top={0}
-          height="100%"
-          disabled={value === ''}
-          opacity={value === '' ? 0 : undefined}
+          size="$xl"
+          backgroundColor="$secondaryText"
         >
-          <Circle
-            justifyContent="center"
-            alignItems="center"
-            size="$xl"
-            backgroundColor="$secondaryText"
-          >
-            <Icon size="$s" type="Close" color="$secondaryBackground" />
-          </Circle>
-        </XStack>
+          <Icon size="$s" type="Close" color="$secondaryBackground" />
+        </Circle>
       </Pressable>
     </View>
   );

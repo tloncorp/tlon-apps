@@ -37,8 +37,11 @@ import { View, styled, useStyle, useTheme } from 'tamagui';
 import { RenderItemType } from '../../contexts/componentsKits';
 import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
+import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
+import { EmojiPickerSheet } from '../Emoji';
 import { Modal } from '../Modal';
 import { ChannelDivider } from './ChannelDivider';
 
@@ -137,6 +140,7 @@ const Scroller = forwardRef(
     const [viewReactionsPost, setViewReactionsPost] = useState<null | db.Post>(
       null
     );
+    const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
     const flatListRef = useRef<FlatList<db.Post>>(null);
 
@@ -384,6 +388,12 @@ const Scroller = forwardRef(
       };
     }, [insets.bottom]);
 
+    const onEmojiSelect = useOnEmojiSelect(activeMessage, () =>
+      setEmojiPickerOpen(false)
+    );
+
+    const isWindowNarrow = useIsWindowNarrow();
+
     return (
       <View flex={1}>
         {/* {unreadCount && !hasPressedGoToBottom ? (
@@ -433,11 +443,19 @@ const Scroller = forwardRef(
             {...anchorScrollLockFlatlistProps}
           />
         )}
-        <Modal
-          visible={activeMessage !== null}
-          onDismiss={() => setActiveMessage(null)}
-        >
-          {activeMessage !== null && (
+        {activeMessage !== null && !emojiPickerOpen && (
+          <Modal
+            visible={activeMessage !== null && !emojiPickerOpen}
+            onDismiss={
+              isWindowNarrow ? () => setActiveMessage(null) : undefined
+            }
+            // We don't pass an onDismiss function on desktop because
+            // a) the modal is dismissed by the actions in the
+            // ChatMessageActions component.
+            // b) Including it here will cause the modal to close before the
+            // EmojiPickerSheet can open when the user clicks the caretdown in
+            // the EmojiToolbar.
+          >
             <ChatMessageActions
               post={activeMessage}
               postActionIds={collectionConfig.postActionIds}
@@ -448,13 +466,26 @@ const Scroller = forwardRef(
                 setEditingPost?.(activeMessage);
                 setActiveMessage(null);
               }}
+              onShowEmojiPicker={() => {
+                setEmojiPickerOpen(true);
+              }}
               onViewReactions={(post) => {
                 setViewReactionsPost(post);
                 setActiveMessage(null);
               }}
             />
-          )}
-        </Modal>
+          </Modal>
+        )}
+        {emojiPickerOpen && activeMessage ? (
+          <EmojiPickerSheet
+            open
+            onOpenChange={() => {
+              setActiveMessage(null);
+              setEmojiPickerOpen(false);
+            }}
+            onEmojiSelect={onEmojiSelect}
+          />
+        ) : null}
         {viewReactionsPost ? (
           <ViewReactionsSheet
             post={viewReactionsPost}
