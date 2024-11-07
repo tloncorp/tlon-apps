@@ -26,6 +26,8 @@ export function ChatMessageActions({
   onReply?: (post: db.Post) => void;
   onViewReactions?: (post: db.Post) => void;
   onEdit?: () => void;
+  // this prop is here just so we match the Component.tsx prop
+  onShowEmojiPicker?: () => void;
 }) {
   const [topOffset, setTopOffset] = useState(0);
   const insets = useSafeAreaInsets();
