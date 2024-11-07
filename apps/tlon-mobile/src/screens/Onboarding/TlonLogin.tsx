@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   DEFAULT_ONBOARDING_PHONE_NUMBER,
   DEFAULT_TLON_LOGIN_EMAIL,
+  DEFAULT_TLON_LOGIN_PASSWORD,
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
 import { HostingError } from '@tloncorp/app/lib/hostingApi';
@@ -16,14 +17,14 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { useOnboardingContext } from '../../lib/OnboardingContext';
+import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
-import { useSignupContext } from '.././../lib/signupContext';
 
 const logger = createDevLogger('TlonLoginScreen', true);
 
@@ -51,6 +52,13 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
   const handlePressEmailSignup = useCallback(() => {
     setOtpMethod((curr) => (curr === 'phone' ? 'email' : 'phone'));
   }, []);
+
+  // dev helper: if password prefill set, skip this screen
+  useEffect(() => {
+    if (DEFAULT_TLON_LOGIN_PASSWORD) {
+      navigation.navigate('TlonLoginLegacy');
+    }
+  }, [navigation]);
 
   const phoneForm = useForm<PhoneFormData>({
     defaultValues: {

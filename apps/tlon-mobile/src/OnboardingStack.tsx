@@ -15,8 +15,8 @@ import { SetNicknameScreen } from './screens/Onboarding/SetNicknameScreen';
 import { SetTelemetryScreen } from './screens/Onboarding/SetTelemetryScreen';
 import { ShipLoginScreen } from './screens/Onboarding/ShipLoginScreen';
 import { SignupScreen } from './screens/Onboarding/SignupScreen';
-import { TlonLoginScreen } from './screens/Onboarding/TlonLoginPhoneNumberScreen';
-import { TlonLoginLegacy } from './screens/Onboarding/TlonLoginScreen';
+import { TlonLoginScreen } from './screens/Onboarding/TlonLogin';
+import { TlonLoginLegacy } from './screens/Onboarding/TlonLoginLegacy';
 import { WelcomeScreen } from './screens/Onboarding/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
 

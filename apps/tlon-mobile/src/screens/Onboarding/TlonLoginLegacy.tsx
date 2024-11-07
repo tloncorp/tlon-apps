@@ -30,8 +30,8 @@ import {
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
+import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
-import { useSignupContext } from '.././../lib/signupContext';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'TlonLogin'>;
 
