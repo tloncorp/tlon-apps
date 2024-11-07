@@ -62,7 +62,7 @@ import * as fixture54 from './src/fixtures/ActionSheet/AddGalleryPostSheet.fixtu
 import * as decorator0 from './src/fixtures/cosmos.decorator';
 
 export const rendererConfig: RendererConfig = {
-  "playgroundUrl": "http://localhost:5001",
+  "playgroundUrl": "http://localhost:5000",
   "rendererUrl": null
 };
 

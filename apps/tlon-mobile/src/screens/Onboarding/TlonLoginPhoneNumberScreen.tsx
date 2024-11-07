@@ -216,15 +216,6 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
               </TlonText.Text>
             )}
           </View>
-
-          {/* <OnboardingButton
-            secondary
-            onPress={() => {
-              navigation.navigate('TlonLogin');
-            }}
-          >
-            <Button.Text>Login with email/password</Button.Text>
-          </OnboardingButton> */}
         </YStack>
       </KeyboardAvoidingView>
     </View>
