@@ -6,6 +6,7 @@ import * as store from '@tloncorp/shared/store';
 import * as Haptics from 'expo-haptics';
 import { useMemo } from 'react';
 import { Alert } from 'react-native';
+import { isWeb } from 'tamagui';
 
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
@@ -30,9 +31,10 @@ export default function MessageActions({
   post: db.Post;
   postActionIds: ChannelAction.Id[];
 }) {
+  // arbitrary width that looks reasonable given labels
+  const width = isWeb ? 'auto' : 220;
   return (
-    // arbitrary width that looks reasonable given labels
-    <ActionList width={220}>
+    <ActionList width={width}>
       {postActionIds.map((actionId, index, list) => (
         <ConnectedAction
           key={actionId}
@@ -216,7 +218,9 @@ export async function handleAction({
       break;
   }
 
-  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  if (!isWeb) {
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
   dismiss();
 }
 
