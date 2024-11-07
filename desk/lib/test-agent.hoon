@@ -68,8 +68,23 @@
   =/  m  (mare ,~)
   |=  f=form:m
   ^-  tang
-  =/  res  (f *state)
+  =/  res  (f %*(. *state agent skeleton))
   ?-(-.res %& ~, %| p.res)
+::
+++  skeleton
+  ^-  agent  !:
+  |_  bowl:gall
+  ++  on-init        ~&(>>> %test-agent-not-initialized !!)
+  ++  on-save        ~&(>>> %test-agent-not-initialized !!)
+  ++  on-load   |=(* ~&(>>> %test-agent-not-initialized !!))
+  ++  on-poke   |=(* ~&(>>> %test-agent-not-initialized !!))
+  ++  on-watch  |=(* ~&(>>> %test-agent-not-initialized !!))
+  ++  on-leave  |=(* ~&(>>> %test-agent-not-initialized !!))
+  ++  on-agent  |=(* ~&(>>> %test-agent-not-initialized !!))
+  ++  on-arvo   |=(* ~&(>>> %test-agent-not-initialized !!))
+  ++  on-peek   |=(* ~&(>>> %test-agent-not-initialized !!))
+  ++  on-fail   |=(* ~&(>>> %test-agent-not-initialized !!))
+  --
 ::
 ::  internal transformations (you shouldn't be calling these directly)
 ::
