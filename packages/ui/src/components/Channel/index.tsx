@@ -86,6 +86,7 @@ export function Channel({
   hasOlderPosts,
   initialAttachments,
   startDraft,
+  onPressScrollToBottom,
 }: {
   channel: db.Channel;
   initialChannelUnread?: db.ChannelUnread | null;
@@ -126,6 +127,7 @@ export function Channel({
   hasOlderPosts?: boolean;
   canUpload: boolean;
   startDraft?: boolean;
+  onPressScrollToBottom?: () => void;
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
@@ -373,6 +375,9 @@ export function Channel({
                                       ref={flatListRef}
                                       headerMode={headerMode}
                                       isLoading={isLoadingPosts}
+                                      onPressScrollToBottom={
+                                        onPressScrollToBottom
+                                      }
                                     />
                                   )}
                                 </View>

@@ -174,6 +174,12 @@ export default function ChannelScreen(props: Props) {
     }
   }, [channel?.id, cursor]);
 
+  const [clearedCursor, setClearedCursor] = React.useState(false);
+
+  const handleScrollToBottom = useCallback(() => {
+    setClearedCursor(true);
+  }, []);
+
   const {
     posts,
     query: postsQuery,
@@ -185,7 +191,7 @@ export default function ChannelScreen(props: Props) {
     channelId: currentChannelId,
     count: 15,
     hasCachedNewest,
-    ...(cursor
+    ...(cursor && !clearedCursor
       ? {
           mode: 'around',
           cursor,
@@ -383,6 +389,7 @@ export default function ChannelScreen(props: Props) {
         negotiationMatch={negotiationStatus.matchedOrPending}
         canUpload={canUpload}
         startDraft={startDraft}
+        onPressScrollToBottom={handleScrollToBottom}
       />
       {group && (
         <>

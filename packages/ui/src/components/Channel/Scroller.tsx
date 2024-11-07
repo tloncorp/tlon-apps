@@ -95,6 +95,7 @@ const Scroller = forwardRef(
       setActiveMessage,
       headerMode,
       isLoading,
+      onPressScrollToBottom,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -124,6 +125,7 @@ const Scroller = forwardRef(
       isLoading?: boolean;
       // Unused
       hasOlderPosts?: boolean;
+      onPressScrollToBottom?: () => void;
     },
     ref
   ) => {
@@ -152,6 +154,7 @@ const Scroller = forwardRef(
 
     const pressedGoToBottom = () => {
       setHasPressedGoToBottom(true);
+      onPressScrollToBottom?.();
       if (flatListRef.current) {
         if (!isLoading) {
           flatListRef.current.scrollToOffset({ offset: 0, animated: true });
@@ -192,7 +195,10 @@ const Scroller = forwardRef(
     // Used to hide the scroller until we've found the anchor post.
     const style = useMemo(() => {
       return {
-        opacity: readyToDisplayPosts ? 1 : 0,
+        // TODO: we'd need to figure out why readyToDisplayPosts isn't getting
+        // correctly set after handling onPressScrollToBottom cursor clear. Rn just ignoring
+        // and always showing the contents of the scroller
+        // opacity: readyToDisplayPosts ? 1 : 0,
         backgroundColor: theme.background.val,
       };
     }, [readyToDisplayPosts, theme.background.val]);
