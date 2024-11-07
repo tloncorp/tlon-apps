@@ -49,7 +49,6 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
   const recaptcha = useRecaptcha();
 
   const handlePressEmailSignup = useCallback(() => {
-    // navigation.navigate('SignUpEmail');
     setOtpMethod((curr) => (curr === 'phone' ? 'email' : 'phone'));
   }, []);
 
