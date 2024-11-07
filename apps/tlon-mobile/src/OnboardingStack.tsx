@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useScreenOptions } from '@tloncorp/app/hooks/useScreenOptions';
 
 import { useReviveSavedOnboarding } from './hooks/useReviveSavedOnboarding';
+import { CheckOTPScreen } from './screens/Onboarding/CheckOTPScreen';
 import { CheckVerifyScreen } from './screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from './screens/Onboarding/EULAScreen';
 import { InventoryCheckScreen } from './screens/Onboarding/InventoryCheckScreen';
@@ -13,9 +14,9 @@ import { ResetPasswordScreen } from './screens/Onboarding/ResetPasswordScreen';
 import { SetNicknameScreen } from './screens/Onboarding/SetNicknameScreen';
 import { SetTelemetryScreen } from './screens/Onboarding/SetTelemetryScreen';
 import { ShipLoginScreen } from './screens/Onboarding/ShipLoginScreen';
-import { SignUpEmailScreen } from './screens/Onboarding/SignUpEmailScreen';
-import { SignUpPasswordScreen } from './screens/Onboarding/SignUpPasswordScreen';
-import { TlonLoginScreen } from './screens/Onboarding/TlonLoginScreen';
+import { SignupScreen } from './screens/Onboarding/SignupScreen';
+import { TlonLoginScreen } from './screens/Onboarding/TlonLogin';
+import { TlonLoginLegacy } from './screens/Onboarding/TlonLoginLegacy';
 import { WelcomeScreen } from './screens/Onboarding/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
 
@@ -41,9 +42,10 @@ export function OnboardingStack() {
         name="Welcome"
         component={WelcomeScreen}
       />
+      <OnboardingStackNavigator.Screen name="Signup" component={SignupScreen} />
       <OnboardingStackNavigator.Screen
-        name="SignUpEmail"
-        component={SignUpEmailScreen}
+        name="CheckOTP"
+        component={CheckOTPScreen}
       />
       <OnboardingStackNavigator.Screen name="EULA" component={EULAScreen} />
       <OnboardingStackNavigator.Screen
@@ -53,10 +55,6 @@ export function OnboardingStack() {
       <OnboardingStackNavigator.Screen
         name="InventoryCheck"
         component={InventoryCheckScreen}
-      />
-      <OnboardingStackNavigator.Screen
-        name="SignUpPassword"
-        component={SignUpPasswordScreen}
       />
       <OnboardingStackNavigator.Screen
         name="JoinWaitList"
@@ -86,6 +84,10 @@ export function OnboardingStack() {
       <OnboardingStackNavigator.Screen
         name="TlonLogin"
         component={TlonLoginScreen}
+      />
+      <OnboardingStackNavigator.Screen
+        name="TlonLoginLegacy"
+        component={TlonLoginLegacy}
       />
       <OnboardingStackNavigator.Screen
         name="ShipLogin"

@@ -9,6 +9,7 @@ export type OnboardingProperties = {
   actionName: string;
   lure?: string;
   email?: string;
+  phoneNumber?: string;
   ship?: string;
 };
 

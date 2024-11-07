@@ -39,6 +39,8 @@ export const DEFAULT_ONBOARDING_TLON_EMAIL =
   extra.defaultOnboardingTlonEmail ?? '';
 export const DEFAULT_ONBOARDING_NICKNAME =
   extra.defaultOnboardingNickname ?? '';
+export const DEFAULT_ONBOARDING_PHONE_NUMBER =
+  extra.defaultOnboardingPhoneNumber;
 
 export const ENABLED_LOGGERS = extra.enabledLoggers?.split(',') ?? [];
 export const IGNORE_COSMOS = extra.ignoreCosmos === 'true';
