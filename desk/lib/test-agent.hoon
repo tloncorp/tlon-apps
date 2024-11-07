@@ -347,6 +347,17 @@
   |=  s=state
   &+[~ s(scry f)]
 ::
+++  do-as  ::  temporary src.bowl
+  |=  who=ship
+  =/  m  (mare ,(list card))
+  |=  do=form:m
+  ^-  form:m
+  ;<  pre=bowl:gall    bind:m  get-bowl
+  ;<  ~                bind:m  (set-bowl pre(src who))
+  ;<  cas=(list card)  bind:m  do
+  ;<  ~                bind:m  (jab-bowl |=(b=bowl:gall b(src src.pre)))
+  (pure:m cas)
+::
 ::  testing utilities
 ::
 ++  ex-equal
