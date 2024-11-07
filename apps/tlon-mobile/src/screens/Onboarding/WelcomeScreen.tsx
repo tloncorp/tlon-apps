@@ -21,6 +21,7 @@ import { Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCheckAppInstalled } from '../../hooks/analytics';
+import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
 
 export const Text = TlonText.Text;
@@ -32,6 +33,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   const { bottom, top } = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const { data: didShowBenefitsSheet } = useDidShowBenefitsSheet();
+  const signupContext = useSignupContext();
 
   useCheckAppInstalled();
 
@@ -122,7 +124,10 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           </XStack>
         </YStack>
       </View>
-      <ActionSheet open={open} onOpenChange={setOpen}>
+      <ActionSheet
+        open={signupContext.reviveCheckComplete && open}
+        onOpenChange={setOpen}
+      >
         <ActionSheet.Content>
           <ActionSheet.ActionGroup accent="neutral">
             <ActionSheet.Action
@@ -163,8 +168,12 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           </ActionSheet.ContentBlock>
         </ActionSheet.Content>
       </ActionSheet>
+      {/* 
+        Open modals during navigation will cause a crash so we need to be careful not to pop this
+        until after checking for onboarding revive (which may auto navigate) 
+      */}
       <OnboardingBenefitsSheet
-        open={!didShowBenefitsSheet}
+        open={signupContext.reviveCheckComplete && !didShowBenefitsSheet}
         onOpenChange={handleBenefitsSheetOpenChange}
       />
     </View>

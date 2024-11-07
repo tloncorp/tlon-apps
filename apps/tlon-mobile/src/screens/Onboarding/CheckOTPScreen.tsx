@@ -86,7 +86,16 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         return user;
       } catch (err) {
         logger.trackError('Error signing up user', {
-          thrownErrorMessage: err.message,
+          errorMessage: err.message,
+          errorStack: err.stack,
+          phoneNumber:
+            otpMethod === 'phone'
+              ? params.phoneNumber ?? signupContext.phoneNumber!
+              : undefined,
+          email:
+            otpMethod === 'email'
+              ? params.email ?? signupContext.email!
+              : undefined,
         });
         throw err;
       }
@@ -196,6 +205,10 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         }
       } catch (e) {
         setError(e.message);
+        logger.trackError(`Error submitting OTP during ${mode}`, {
+          errorMessage: e.message,
+          errorStack: e.stack,
+        });
       } finally {
         setIsSubmitting(false);
       }
@@ -244,7 +257,10 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         }
       } else {
         setError('An error occurred. Please try again.');
-        logger.trackError('Error requesting OTP resend', err);
+        logger.trackError('Error requesting OTP resend', {
+          errorMessage: err.message,
+          errorStack: err.stack,
+        });
       }
     }
   };

@@ -3,7 +3,7 @@ import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { SignupParams, signupData } from '@tloncorp/shared/db';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useSignupContext } from '../lib/signupContext';
 import { OnboardingStackParamList } from '../types';
@@ -11,6 +11,7 @@ import { OnboardingStackParamList } from '../types';
 const logger = createDevLogger('OnboardingRevive', true);
 
 export function useReviveSavedOnboarding() {
+  const [reviveAttemptComplete, setReviveAttemptComplete] = useState(false);
   const inviteMeta = useLureMetadata();
   const navigation = useNavigation<NavigationProp<OnboardingStackParamList>>();
   const { isAuthenticated } = useShip();
@@ -18,8 +19,8 @@ export function useReviveSavedOnboarding() {
 
   const getOnboardingRouteStack = useCallback(
     async (savedSignup: SignupParams) => {
-      if (!savedSignup.email || !savedSignup.phoneNumber) {
-        logger.log('no stored email or password');
+      if (!savedSignup.email && !savedSignup.phoneNumber) {
+        logger.log('no stored signup method');
         return null;
       }
 
@@ -63,7 +64,7 @@ export function useReviveSavedOnboarding() {
 
   const execute = useCallback(async () => {
     const savedSignup = await signupData.getValue();
-    if (!savedSignup.email || !savedSignup.phoneNumber) {
+    if (!savedSignup.email && !savedSignup.phoneNumber) {
       logger.log('no saved onboarding session found');
       return;
     }
@@ -110,6 +111,10 @@ export function useReviveSavedOnboarding() {
         errorMessage: e.message,
         errorStack: e.stack,
       });
+    } finally {
+      setTimeout(() => signupContext.markReviveCheckComplete(), 100);
     }
   }, []);
+
+  return reviveAttemptComplete;
 }
