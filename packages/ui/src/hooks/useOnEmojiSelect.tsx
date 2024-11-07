@@ -1,10 +1,9 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import * as Haptics from 'expo-haptics';
 import { useCallback } from 'react';
-import { isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts';
+import { triggerHaptic } from '../utils';
 import { useReactionDetails } from '../utils/postUtils';
 
 export default function useOnEmojiSelect(
@@ -22,11 +21,9 @@ export default function useOnEmojiSelect(
       details.self.didReact && details.self.value.includes(shortCode)
         ? store.removePostReaction(post, currentUserId)
         : store.addPostReaction(post, shortCode, currentUserId);
-      if (!isWeb) {
-        await Haptics.notificationAsync(
-          Haptics.NotificationFeedbackType.Success
-        );
-      }
+
+      triggerHaptic('success');
+
       setTimeout(() => onDismiss(), 50);
     },
     [onDismiss, post, details.self.didReact, details.self.value, currentUserId]

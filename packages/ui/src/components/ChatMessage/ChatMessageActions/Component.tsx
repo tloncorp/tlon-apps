@@ -1,6 +1,5 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as Haptics from 'expo-haptics';
 import { RefObject, useEffect, useState } from 'react';
 import {
   DimensionValue,
@@ -15,9 +14,10 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, XStack, YStack, isWeb } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
 import useIsWindowNarrow from '../../../hooks/useIsWindowNarrow';
+import { triggerHaptic } from '../../../utils';
 import { ActionSheet } from '../../ActionSheet';
 import { EmojiToolbar } from './EmojiToolbar';
 import MessageActions from './MessageActions';
@@ -98,12 +98,7 @@ export function ChatMessageActions({
   }
 
   useEffect(() => {
-    if (isWeb) {
-      // On web we don't have haptics
-      return;
-    }
-    // on mount, give initial haptic feeedback
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    triggerHaptic('sheetOpen');
   }, []);
 
   useEffect(() => {

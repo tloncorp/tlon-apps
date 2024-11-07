@@ -1,12 +1,12 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as Haptics from 'expo-haptics';
 import { MotiView } from 'moti';
 import { RefObject, useEffect, useState } from 'react';
 import { Dimensions, LayoutChangeEvent, View as RNView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
+import { triggerHaptic } from '../../../utils';
 import { EmojiToolbar } from './EmojiToolbar';
 import MessageActions from './MessageActions';
 import { MessageContainer } from './MessageContainer';
@@ -52,7 +52,7 @@ export function ChatMessageActions({
 
   useEffect(() => {
     // on mount, give initial haptic feeedback
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    triggerHaptic('sheetOpen');
   }, []);
 
   return (

@@ -3,7 +3,6 @@ import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import * as Haptics from 'expo-haptics';
 import { useMemo } from 'react';
 import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
@@ -11,7 +10,7 @@ import { isWeb } from 'tamagui';
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
 import { useCopy } from '../../../hooks/useCopy';
-import { useIsAdmin } from '../../../utils';
+import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
 
 const ENABLE_COPY_JSON = __DEV__;
@@ -218,9 +217,7 @@ export async function handleAction({
       break;
   }
 
-  if (!isWeb) {
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }
+  triggerHaptic('success');
   dismiss();
 }
 
