@@ -26,18 +26,28 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
-      const dmChannel = await store.upsertDmChannel({
-        participants,
-      });
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 1,
-          routes: [
-            { name: 'ChatList' },
-            { name: 'Channel', params: { channel: dmChannel } },
-          ],
-        })
-      );
+      try {
+        const dmChannel = await store.upsertDmChannel({
+          participants,
+        });
+
+        if (!dmChannel?.id) {
+          console.error('Failed to create DM channel: no channel ID');
+          return;
+        }
+
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 1,
+            routes: [
+              { name: 'ChatList' },
+              { name: 'Channel', params: { channelId: dmChannel.id } },
+            ],
+          })
+        );
+      } catch (error) {
+        console.error('Error creating DM channel:', error);
+      }
     },
     [navigation]
   );

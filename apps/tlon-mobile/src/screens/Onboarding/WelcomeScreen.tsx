@@ -9,6 +9,7 @@ import {
   Image,
   OnboardingButton,
   OnboardingInviteBlock,
+  Pressable,
   SizableText,
   TlonText,
   View,
@@ -17,7 +18,6 @@ import {
 } from '@tloncorp/ui';
 import { OnboardingBenefitsSheet } from '@tloncorp/ui/src/components/Onboarding/OnboardingBenefitsSheet';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCheckAppInstalled } from '../../hooks/analytics';
@@ -77,24 +77,28 @@ export const WelcomeScreen = ({ navigation }: Props) => {
         <YStack gap="$4xl" paddingHorizontal="$2xl" width={'100%'}>
           <YStack gap="$2xl">
             {lureMeta ? (
-              <YStack
-                alignItems="stretch"
-                gap="$2xl"
-                padding="$3xl"
+              <Pressable
                 borderRadius="$2xl"
-                backgroundColor="$shadow"
-                borderColor="$shadow"
-                borderWidth={1}
                 pressStyle={{
                   opacity: 0.5,
                 }}
                 onPress={handlePressInvite}
               >
-                <OnboardingInviteBlock metadata={lureMeta} />
-                <OnboardingButton onPress={handlePressInvite}>
-                  <Button.Text>Join with new account</Button.Text>
-                </OnboardingButton>
-              </YStack>
+                <YStack
+                  alignItems="stretch"
+                  gap="$2xl"
+                  padding="$3xl"
+                  borderRadius="$2xl"
+                  backgroundColor="$shadow"
+                  borderColor="$shadow"
+                  borderWidth={1}
+                >
+                  <OnboardingInviteBlock metadata={lureMeta} />
+                  <OnboardingButton onPress={handlePressInvite}>
+                    <Button.Text>Join with new account</Button.Text>
+                  </OnboardingButton>
+                </YStack>
+              </Pressable>
             ) : (
               <>
                 <OnboardingButton
@@ -116,7 +120,12 @@ export const WelcomeScreen = ({ navigation }: Props) => {
             )}
           </YStack>
           <XStack justifyContent="center">
-            <Pressable onPress={() => setOpen(true)}>
+            <Pressable
+              pressStyle={{
+                backgroundColor: '$transparent',
+              }}
+              onPress={() => setOpen(true)}
+            >
               <SizableText color="$primaryText">
                 Have an account? Log in
               </SizableText>

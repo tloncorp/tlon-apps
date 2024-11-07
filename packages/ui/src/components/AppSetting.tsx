@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 
 import { Icon } from './Icon';
 import { ListItem } from './ListItem';
+import Pressable from './Pressable';
 
 interface Props {
   title: string;
@@ -23,16 +24,18 @@ export function AppSetting({ title, value, copyable = true }: Props) {
   }, [didCopy, value]);
 
   return (
-    <ListItem onPress={copy} disabled={!copyable}>
-      <ListItem.MainContent>
-        <ListItem.Title>{title}</ListItem.Title>
-        <ListItem.Subtitle>{value}</ListItem.Subtitle>
-      </ListItem.MainContent>
-      {copyable && (
-        <ListItem.EndContent>
-          <Icon color="$tertiaryText" type={didCopy ? 'Checkmark' : 'Copy'} />
-        </ListItem.EndContent>
-      )}
-    </ListItem>
+    <Pressable borderRadius="$xl" onPress={copy}>
+      <ListItem disabled={!copyable}>
+        <ListItem.MainContent>
+          <ListItem.Title>{title}</ListItem.Title>
+          <ListItem.Subtitle>{value}</ListItem.Subtitle>
+        </ListItem.MainContent>
+        {copyable && (
+          <ListItem.EndContent>
+            <Icon color="$tertiaryText" type={didCopy ? 'Checkmark' : 'Copy'} />
+          </ListItem.EndContent>
+        )}
+      </ListItem>
+    </Pressable>
   );
 }

@@ -15,6 +15,7 @@ import {
 } from '@tloncorp/shared';
 import {
   Field,
+  Pressable,
   ScreenHeader,
   TextInputWithButton,
   TlonText,
@@ -131,50 +132,47 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
           </ScreenHeader.TextButton>
         }
       />
-      <YStack
-        paddingHorizontal="$2xl"
-        gap="$m"
-        onPress={() => Keyboard.dismiss()}
-        flex={1}
-      >
-        <View padding="$xl" gap="$xl">
-          <TlonText.Text size="$body" color="$primaryText">
-            We&apos;re growing slowly. {'\n\n'}Invites let you skip the waitlist
-            because we know someone wants to talk to you here.
-            {'\n\n'}
-            Click your invite link now or paste it below.
-          </TlonText.Text>
-        </View>
-        <Controller
-          control={control}
-          name="inviteLink"
-          rules={{
-            pattern: {
-              value: INVITE_LINK_REGEX,
-              message: 'Invite link not recognized.',
-            },
-          }}
-          render={({ field: { onChange, onBlur, value } }) => (
-            <Field
-              label="Invite Link"
-              error={metadataError ?? errors.inviteLink?.message}
-              paddingTop="$l"
-            >
-              <TextInputWithButton
-                placeholder="join.tlon.io/0v4.pca0n.evapv..."
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                buttonText="Paste"
-                onButtonPress={onHandlePasteClick}
-              />
-            </Field>
-          )}
-        />
-      </YStack>
+      <Pressable onPress={() => Keyboard.dismiss()}>
+        <YStack paddingHorizontal="$2xl" gap="$m" flex={1}>
+          <View padding="$xl" gap="$xl">
+            <TlonText.Text size="$body" color="$primaryText">
+              We&apos;re growing slowly. {'\n\n'}Invites let you skip the
+              waitlist because we know someone wants to talk to you here.
+              {'\n\n'}
+              Click your invite link now or paste it below.
+            </TlonText.Text>
+          </View>
+          <Controller
+            control={control}
+            name="inviteLink"
+            rules={{
+              pattern: {
+                value: INVITE_LINK_REGEX,
+                message: 'Invite link not recognized.',
+              },
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Field
+                label="Invite Link"
+                error={metadataError ?? errors.inviteLink?.message}
+                paddingTop="$l"
+              >
+                <TextInputWithButton
+                  placeholder="join.tlon.io/0v4.pca0n.evapv..."
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  buttonText="Paste"
+                  onButtonPress={onHandlePasteClick}
+                />
+              </Field>
+            )}
+          />
+        </YStack>
+      </Pressable>
     </View>
   );
 };

@@ -329,11 +329,7 @@ export function GroupReference({
               </View>
             )
           ) : (
-            <ListItem
-              pressable={false}
-              backgroundColor={'transparent'}
-              gap="$m"
-            >
+            <ListItem backgroundColor={'transparent'} gap="$m">
               <ListItem.GroupIcon model={data} />
               <ListItem.MainContent>
                 <ListItem.Title>{data.title ?? data.id}</ListItem.Title>
