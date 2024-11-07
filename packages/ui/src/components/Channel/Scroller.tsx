@@ -155,12 +155,18 @@ const Scroller = forwardRef(
     const pressedGoToBottom = () => {
       setHasPressedGoToBottom(true);
       onPressScrollToBottom?.();
-      if (flatListRef.current) {
-        if (!isLoading) {
-          flatListRef.current.scrollToOffset({ offset: 0, animated: true });
-        }
+      setNeedsScrollToAnchor(false);
+      setDidAnchorSearchTimeout(false);
+
+      // Only scroll if we're not loading and have a valid ref
+      if (flatListRef.current && !isLoading) {
+        // Use a small timeout to ensure state updates have processed
+        requestAnimationFrame(() => {
+          flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+        });
       }
     };
+
     const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
 
     const handleSetActive = useCallback((active: db.Post) => {
@@ -179,6 +185,8 @@ const Scroller = forwardRef(
 
     const {
       readyToDisplayPosts,
+      setNeedsScrollToAnchor,
+      setDidAnchorSearchTimeout,
       scrollerItemProps: anchorScrollLockScrollerItemProps,
       flatlistProps: anchorScrollLockFlatlistProps,
     } = useAnchorScrollLock({
@@ -188,6 +196,7 @@ const Scroller = forwardRef(
       hasNewerPosts,
       shouldMaintainVisibleContentPosition:
         collectionLayout.shouldMaintainVisibleContentPosition,
+      isScrollingToBottom: hasPressedGoToBottom,
     });
 
     const theme = useTheme();
@@ -195,13 +204,9 @@ const Scroller = forwardRef(
     // Used to hide the scroller until we've found the anchor post.
     const style = useMemo(() => {
       return {
-        // TODO: we'd need to figure out why readyToDisplayPosts isn't getting
-        // correctly set after handling onPressScrollToBottom cursor clear. Rn just ignoring
-        // and always showing the contents of the scroller
-        // opacity: readyToDisplayPosts ? 1 : 0,
         backgroundColor: theme.background.val,
       };
-    }, [readyToDisplayPosts, theme.background.val]);
+    }, [theme.background.val]);
 
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
       () =>
@@ -689,6 +694,7 @@ function useAnchorScrollLock({
   anchor,
   hasNewerPosts,
   shouldMaintainVisibleContentPosition,
+  isScrollingToBottom,
 }: {
   flatListRef: RefObject<FlatList<db.Post>>;
 
@@ -697,6 +703,7 @@ function useAnchorScrollLock({
   anchor: ScrollAnchor | null | undefined;
   hasNewerPosts?: boolean;
   shouldMaintainVisibleContentPosition: boolean;
+  isScrollingToBottom: boolean;
 }) {
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const [needsScrollToAnchor, setNeedsScrollToAnchor] = useState(
@@ -857,9 +864,17 @@ function useAnchorScrollLock({
     scrollToAnchorIfNeeded();
   }, [scrollToAnchorIfNeeded]);
 
+  useEffect(() => {
+    if (isScrollingToBottom) {
+      setNeedsScrollToAnchor(false);
+      setDidAnchorSearchTimeout(false);
+    }
+  }, [isScrollingToBottom]);
+
   return {
     readyToDisplayPosts,
-
+    setNeedsScrollToAnchor,
+    setDidAnchorSearchTimeout,
     scrollerItemProps: useMemo(
       () =>
         ({
