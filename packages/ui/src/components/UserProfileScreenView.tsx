@@ -19,6 +19,7 @@ import { ContactAvatar, GroupAvatar } from './Avatar';
 import { Button } from './Button';
 import { ContactName } from './ContactNameV2';
 import { Icon } from './Icon';
+import Pressable from './Pressable';
 import { ScreenHeader } from './ScreenHeader';
 import { Text } from './TextV2';
 import { WidgetPane } from './WidgetPane';
@@ -240,54 +241,67 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
   }, [doCopy]);
 
   return (
-    <XStack
-      alignItems="center"
-      onPress={handleCopy}
-      padding="$l"
-      gap="$xl"
-      width={'100%'}
-    >
-      <ContactAvatar contactId={props.userId} size="$5xl" />
-      <YStack flex={1} justifyContent="center">
-        {props.hasNickname ? (
-          <>
-            <ContactName
-              contactId={props.userId}
-              mode="nickname"
-              fontSize={24}
-              lineHeight={24}
-              maxWidth="100%"
-              numberOfLines={1}
-            />
-            <XStack alignItems="center">
+    <Pressable onPress={handleCopy}>
+      <XStack alignItems="center" padding="$l" gap="$xl" width={'100%'}>
+        <ContactAvatar contactId={props.userId} size="$5xl" />
+        <YStack flex={1} justifyContent="center">
+          {props.hasNickname ? (
+            <>
               <ContactName
                 contactId={props.userId}
-                color="$secondaryText"
-                mode="contactId"
+                mode="nickname"
+                fontSize={24}
+                lineHeight={24}
+                maxWidth="100%"
+                numberOfLines={1}
               />
-              {didCopy ? (
-                <Icon
-                  type="Checkmark"
-                  customSize={[14, 14]}
-                  position="relative"
-                  top={1}
+              <XStack alignItems="center">
+                <ContactName
+                  contactId={props.userId}
+                  color="$secondaryText"
+                  mode="contactId"
                 />
-              ) : null}
-            </XStack>
-          </>
-        ) : (
-          <ContactName fontSize={24} lineHeight={24} contactId={props.userId} />
-        )}
-      </YStack>
-    </XStack>
+                {didCopy ? (
+                  <Icon
+                    type="Checkmark"
+                    customSize={[14, 14]}
+                    position="relative"
+                    top={1}
+                  />
+                ) : null}
+              </XStack>
+            </>
+          ) : (
+            <ContactName
+              fontSize={24}
+              lineHeight={24}
+              contactId={props.userId}
+            />
+          )}
+        </YStack>
+      </XStack>
+    </Pressable>
   );
 }
 
 function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   const navContext = useNavigation();
   const handleMessageUser = useCallback(() => {
-    navContext.onPressGoToDm?.([props.userId]);
-  }, [navContext, props.userId]);
+    if (!navContext.onPressGoToDm) {
+      console.warn('Navigation context missing onPressGoToDm handler');
+      return;
+    }
+
+    if (props.contact?.isBlocked) {
+      return;
+    }
+
+    try {
+      navContext.onPressGoToDm([props.userId]);
+    } catch (error) {
+      console.error('Error navigating to DM:', error);
+    }
+  }, [navContext, props.userId, props.contact?.isBlocked]);
 
   const handleBlock = useCallback(() => {
     if (props.contact && props.contact.isBlocked) {
@@ -303,7 +317,9 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
 
   return (
     <XStack gap="$m" width={'100%'}>
-      <ProfileButton title="Message" onPress={handleMessageUser} hero />
+      {!isBlocked && (
+        <ProfileButton title="Message" onPress={handleMessageUser} hero />
+      )}
       <ProfileButton
         title={isBlocked ? 'Unblock' : 'Block'}
         onPress={handleBlock}

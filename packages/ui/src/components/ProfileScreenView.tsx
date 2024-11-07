@@ -6,6 +6,7 @@ import { ScrollView, View, YStack } from 'tamagui';
 import { ContactAvatar } from './Avatar';
 import { IconType } from './Icon';
 import { ListItem } from './ListItem';
+import Pressable from './Pressable';
 import { ScreenHeader } from './ScreenHeader';
 import { TlonLogo } from './TlonLogo';
 
@@ -154,26 +155,28 @@ function ProfileAction({
   subtitle?: string;
 }) {
   return (
-    <ListItem onPress={onPress}>
-      {typeof leftIcon === 'string' ? (
-        <ListItem.SystemIcon icon={leftIcon} rounded />
-      ) : (
-        leftIcon
-      )}
-      <ListItem.MainContent>
-        <ListItem.Title>{title}</ListItem.Title>
-        {subtitle && <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>}
-      </ListItem.MainContent>
-      {rightIcon ? (
-        typeof rightIcon === 'string' ? (
-          <ListItem.SystemIcon
-            icon={rightIcon}
-            backgroundColor={'transparent'}
-          />
+    <Pressable borderRadius="$xl" onPress={onPress}>
+      <ListItem>
+        {typeof leftIcon === 'string' ? (
+          <ListItem.SystemIcon icon={leftIcon} rounded />
         ) : (
-          rightIcon
-        )
-      ) : null}
-    </ListItem>
+          leftIcon
+        )}
+        <ListItem.MainContent>
+          <ListItem.Title>{title}</ListItem.Title>
+          {subtitle && <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>}
+        </ListItem.MainContent>
+        {rightIcon ? (
+          typeof rightIcon === 'string' ? (
+            <ListItem.SystemIcon
+              icon={rightIcon}
+              backgroundColor={'transparent'}
+            />
+          ) : (
+            rightIcon
+          )
+        ) : null}
+      </ListItem>
+    </Pressable>
   );
 }

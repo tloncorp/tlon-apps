@@ -1,5 +1,4 @@
 import { ImageZoom } from '@likashefqet/react-native-image-zoom';
-import * as Haptics from 'expo-haptics';
 import { ElementRef, useRef, useState } from 'react';
 import { Dimensions, TouchableOpacity } from 'react-native';
 import {
@@ -12,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, View, XStack, YStack, ZStack } from 'tamagui';
 
 import { Icon } from './Icon';
+import {triggerHaptic} from '../utils';
 
 export function ImageViewerScreenView(props: {
   uri?: string;
@@ -38,7 +38,7 @@ export function ImageViewerScreenView(props: {
       setMinPanPointers(1);
     } else {
       setMinPanPointers(2);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      triggerHaptic('zoomable');
     }
   }
 
@@ -49,7 +49,7 @@ export function ImageViewerScreenView(props: {
       setMinPanPointers(2);
       zoomableRef.current?.reset();
       setIsAtMinZoom(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      triggerHaptic('zoomable');
     }
   }
 

@@ -5,7 +5,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
   useCanUpload,
-  useChannel,
+  useChannelPreview,
   useGroupPreview,
   usePostReference,
   usePostWithRelations,
@@ -377,7 +377,7 @@ export default function ChannelScreen(props: Props) {
         usePostReference={usePostReference}
         useGroup={useGroupPreview}
         onGroupAction={performGroupAction}
-        useChannel={useChannel}
+        useChannel={useChannelPreview}
         storeDraft={storeDraft}
         clearDraft={clearDraft}
         getDraft={getDraft}

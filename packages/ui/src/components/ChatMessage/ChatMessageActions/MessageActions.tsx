@@ -3,14 +3,14 @@ import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import * as Haptics from 'expo-haptics';
 import { useMemo } from 'react';
 import { Alert } from 'react-native';
+import { isWeb } from 'tamagui';
 
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
 import { useCopy } from '../../../hooks/useCopy';
-import { useIsAdmin } from '../../../utils';
+import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
 
 const ENABLE_COPY_JSON = __DEV__;
@@ -30,9 +30,10 @@ export default function MessageActions({
   post: db.Post;
   postActionIds: ChannelAction.Id[];
 }) {
+  // arbitrary width that looks reasonable given labels
+  const width = isWeb ? 'auto' : 220;
   return (
-    // arbitrary width that looks reasonable given labels
-    <ActionList width={220}>
+    <ActionList width={width}>
       {postActionIds.map((actionId, index, list) => (
         <ConnectedAction
           key={actionId}
@@ -216,7 +217,7 @@ export async function handleAction({
       break;
   }
 
-  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  triggerHaptic('success');
   dismiss();
 }
 
