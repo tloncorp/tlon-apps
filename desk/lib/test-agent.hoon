@@ -69,7 +69,12 @@
   |=  f=form:m
   ^-  tang
   =/  res  (f %*(. *state agent skeleton))
-  ?-(-.res %& ~, %| p.res)
+  ?:  ?=(%& -.res)  ~
+  ::NOTE  in rare cases, execution may crash in such a way that the resulting
+  ::      trace is empty. make sure we catch that here so the /ted/test will
+  ::      consider it failed.
+  ?^  p.res  p.res
+  ~['+eval-mare:test-agent didn\'t finish cleanly']
 ::
 ++  skeleton
   ^-  agent  !:
