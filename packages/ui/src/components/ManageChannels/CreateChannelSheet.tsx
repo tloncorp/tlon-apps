@@ -30,10 +30,9 @@ import {
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SizableText, View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts';
-import { useIsAdmin } from '../../utils';
 import { Action, ActionSheet, SimpleActionSheet } from '../ActionSheet';
 import { Button } from '../Button';
 import * as Form from '../Form';
@@ -505,59 +504,6 @@ function ConfigInput<
         open={configurationOpen}
         onOpenChange={setConfigurationOpen}
       />
-    </>
-  );
-}
-
-export function EditChannelConfigurationSheetContent({
-  channel,
-}: {
-  channel: db.Channel;
-}) {
-  const formRef =
-    useRef<ElementRef<typeof CustomChannelConfigurationForm>>(null);
-
-  const updateChannel = useUpdateChannel();
-  const group = useGroup({ id: channel.group?.id }).data;
-
-  const submit = useCallback(async () => {
-    const formValue = formRef.current?.getFormValue();
-    if (formValue == null) {
-      throw new Error("Couldn't get form value");
-    }
-    if (group == null) {
-      throw new Error("Couldn't get containing group");
-    }
-    await updateChannel({
-      group,
-      channel: {
-        ...channel,
-        contentConfiguration: formValue,
-      },
-    });
-  }, [channel, group, updateChannel]);
-
-  const currentUser = useCurrentUserId();
-  const currentUserIsAdmin = useIsAdmin(channel.groupId ?? '', currentUser);
-
-  if (!currentUserIsAdmin) {
-    return null;
-  }
-
-  return (
-    <>
-      <SizableText margin="$xl" color="$color.gray500">
-        Make sure to save your changes at the bottom.
-      </SizableText>
-      <CustomChannelConfigurationForm
-        ref={formRef}
-        initialValue={channel.contentConfiguration ?? undefined}
-      />
-      <ActionSheet.FormBlock>
-        <Button onPress={submit} hero>
-          <Button.Text>Save</Button.Text>
-        </Button>
-      </ActionSheet.FormBlock>
     </>
   );
 }
