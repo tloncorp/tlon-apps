@@ -93,7 +93,8 @@ export function OTPInput({
             paddingHorizontal="$xl"
             paddingVertical="$xl"
             width="$4xl"
-            textContentType={mode === 'phone' ? 'oneTimeCode' : undefined}
+            textContentType="oneTimeCode"
+            autoComplete="one-time-code"
           />
         ))}
       </XStack>
