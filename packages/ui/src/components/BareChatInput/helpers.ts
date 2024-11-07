@@ -1,5 +1,6 @@
 import { makeMention, makeParagraph, makeText } from '@tloncorp/shared';
 import { JSONContent } from '@tloncorp/shared/urbit';
+import isURL from 'validator/lib/isURL';
 
 import { Mention } from './useMentions';
 
@@ -27,11 +28,8 @@ const isCodeEnd = (text: string): boolean => {
   return text.endsWith('`');
 };
 
-const urlRegex =
-  /(^|[^\w\s])((https?:\/\/|www\.)[^\s,?!.]+(?:[.][^\s,?!.]+)*(?:[^\s,?!.])*)([,?!.])?/;
-
 const isUrl = (text: string): boolean => {
-  return urlRegex.test(text);
+  return isURL(text);
 };
 
 function areMarksEqual(marks1: any[] = [], marks2: any[] = []): boolean {
@@ -91,34 +89,38 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
     }
 
     if (isUrl(word)) {
-      const match = urlRegex.exec(word);
-      if (match) {
-        const [_, precedingChar, url, , followingChar] = match;
+      const leadingPunct = word.match(/^[^\w\s]/)?.[0] || '';
+      const trailingPunct = word.match(/[,?!.]$/)?.[0] || '';
+      const cleanUrl = word.slice(
+        leadingPunct.length,
+        trailingPunct ? -1 : undefined
+      );
 
-        if (precedingChar && precedingChar !== '') {
-          parsedContent.push(makeText(precedingChar));
-        }
-
-        parsedContent.push({
-          type: 'text',
-          text: url,
-          marks: [
-            {
-              type: 'link',
-              attrs: {
-                href: url,
-              },
-            },
-          ],
-        });
-
-        if (followingChar) {
-          parsedContent.push(makeText(followingChar));
-        }
-
-        parsedContent.push(makeText(' '));
-        return;
+      if (leadingPunct) {
+        parsedContent.push(makeText(leadingPunct));
       }
+
+      parsedContent.push({
+        type: 'text',
+        text: cleanUrl.startsWith('http') ? cleanUrl : `https://${cleanUrl}`,
+        marks: [
+          {
+            type: 'link',
+            attrs: {
+              href: cleanUrl.startsWith('http')
+                ? cleanUrl
+                : `https://${cleanUrl}`,
+            },
+          },
+        ],
+      });
+
+      if (trailingPunct) {
+        parsedContent.push(makeText(trailingPunct));
+      }
+
+      parsedContent.push(makeText(' '));
+      return;
     }
 
     if (isCodeStart(word)) {

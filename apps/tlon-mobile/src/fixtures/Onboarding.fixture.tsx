@@ -14,6 +14,7 @@ import { useFixtureSelect } from 'react-cosmos/client';
 
 import { OnboardingStack, OnboardingStackNavigator } from '../OnboardingStack';
 import { OnboardingProvider } from '../lib/OnboardingContext';
+import { CheckOTPScreen } from '../screens/Onboarding/CheckOTPScreen';
 import { CheckVerifyScreen } from '../screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from '../screens/Onboarding/EULAScreen';
 import { InventoryCheckScreen } from '../screens/Onboarding/InventoryCheckScreen';
@@ -24,9 +25,9 @@ import { ReserveShipScreen } from '../screens/Onboarding/ReserveShipScreen';
 import { SetNicknameScreen } from '../screens/Onboarding/SetNicknameScreen';
 import { SetTelemetryScreen } from '../screens/Onboarding/SetTelemetryScreen';
 import { ShipLoginScreen } from '../screens/Onboarding/ShipLoginScreen';
-import { SignUpEmailScreen } from '../screens/Onboarding/SignUpEmailScreen';
-import { SignUpPasswordScreen } from '../screens/Onboarding/SignUpPasswordScreen';
-import { TlonLoginScreen } from '../screens/Onboarding/TlonLoginScreen';
+import { SignupScreen } from '../screens/Onboarding/SignupScreen';
+import { TlonLoginScreen } from '../screens/Onboarding/TlonLogin';
+import { TlonLoginLegacy } from '../screens/Onboarding/TlonLoginLegacy';
 import { WelcomeScreen } from '../screens/Onboarding/WelcomeScreen';
 import { OnboardingStackParamList, User } from '../types';
 import { exampleContacts } from './contentHelpers';
@@ -76,7 +77,7 @@ function OnboardingFixture({
             getLandscapeAuthCookie: () => Promise.resolve('abc'),
             //@ts-expect-error partial implementation
             hostingApi: {
-              signUpHostingUser: async () => Promise.resolve({}),
+              signUpHostingUser: async () => Promise.resolve(sampleUser),
               logInHostingUser: () => Promise.resolve(sampleUser),
               getHostingAvailability: async () =>
                 Promise.resolve({ enabled: true, validEmail: true }),
@@ -166,16 +167,9 @@ export default {
       Component={SetNicknameScreen}
     />
   ),
-  Password: (
-    <SingleScreenFixture
-      routeName="SignUpPassword"
-      params={{ email: '' }}
-      Component={SignUpPasswordScreen}
-    />
-  ),
   JoinWaitlist: (
     <SingleScreenFixture
-      routeName="SignUpPassword"
+      routeName="JoinWaitList"
       params={{ email: '' }}
       Component={JoinWaitListScreen}
     />
@@ -224,10 +218,14 @@ export default {
       Component={InventoryCheckScreen}
     />
   ),
-  SignUpEmail: (
+  SignUpPhoneNumber: (
+    <SingleScreenFixture routeName="Signup" Component={SignupScreen} />
+  ),
+  CheckOtpPhoneSignup: (
     <SingleScreenFixture
-      routeName={'SignUpEmail'}
-      Component={SignUpEmailScreen}
+      routeName={'CheckOTP'}
+      Component={CheckOTPScreen}
+      params={{ otpMethod: 'phone', mode: 'signup' }}
     />
   ),
   EULA: <SingleScreenFixture routeName={'EULA'} Component={EULAScreen} />,
@@ -237,8 +235,14 @@ export default {
       Component={PasteInviteLinkScreen}
     />
   ),
-  TlonLogin: (
+  TlonLoginScreen: (
     <SingleScreenFixture routeName={'TlonLogin'} Component={TlonLoginScreen} />
+  ),
+  TlonLogin: (
+    <SingleScreenFixture
+      routeName={'TlonLoginLegacy'}
+      Component={TlonLoginLegacy}
+    />
   ),
   ShipLogin: (
     <SingleScreenFixture routeName={'ShipLogin'} Component={ShipLoginScreen} />

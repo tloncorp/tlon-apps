@@ -39,7 +39,6 @@ export const ChatList = React.memo(function ChatListComponent({
   pendingChats,
   onLongPressItem,
   onPressItem,
-  onPressMenuButton,
   activeTab,
   setActiveTab,
   showSearchInput,
@@ -50,7 +49,6 @@ export const ChatList = React.memo(function ChatListComponent({
   pendingChats: store.PendingChats;
   onPressItem?: (chat: Chat) => void;
   onLongPressItem?: (chat: Chat) => void;
-  onPressMenuButton?: (chat: Chat) => void;
   onSectionChange?: (title: string) => void;
   activeTab: TabName;
   setActiveTab: (tab: TabName) => void;
@@ -100,7 +98,6 @@ export const ChatList = React.memo(function ChatListComponent({
             model={item}
             onPress={onPressItem}
             onLongPress={onLongPressItem}
-            onPressMenuButton={onPressMenuButton}
           />
         );
       } else {
@@ -113,7 +110,7 @@ export const ChatList = React.memo(function ChatListComponent({
         );
       }
     },
-    [onPressItem, onLongPressItem, onPressMenuButton]
+    [onPressItem, onLongPressItem]
   );
 
   const handlePressTryAll = useCallback(() => {

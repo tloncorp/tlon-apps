@@ -32,7 +32,9 @@ export default function useReactQueryScry<T>({
     [app, path, priority]
   );
 
-  return useQuery<T>(queryKey, fetchData, {
+  return useQuery<T>({
+    queryKey,
+    queryFn: fetchData,
     retryOnMount: false,
     refetchOnMount: false,
     ...options,

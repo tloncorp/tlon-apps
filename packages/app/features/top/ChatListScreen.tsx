@@ -21,7 +21,6 @@ import {
   ScreenHeader,
   View,
   WelcomeSheet,
-  useGroup,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -78,7 +77,7 @@ export function ChatListScreenView({
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
     previewGroupId ?? null
   );
-  const selectedGroup = useGroup(selectedGroupId ?? '');
+  const { data: selectedGroup } = store.useGroup({ id: selectedGroupId ?? '' });
 
   const [showSearchInput, setShowSearchInput] = useState(false);
   const isFocused = useIsFocused();
@@ -284,7 +283,7 @@ export function ChatListScreenView({
   return (
     <RequestsProvider
       usePostReference={store.usePostReference}
-      useChannel={store.useChannelWithRelations}
+      useChannel={store.useChannelPreview}
       usePost={store.usePostWithRelations}
       useApp={store.useAppInfo}
       useGroup={store.useGroupPreview}
@@ -323,7 +322,6 @@ export function ChatListScreenView({
               pendingChats={resolvedChats.pendingChats}
               onLongPressItem={onLongPressChat}
               onPressItem={onPressChat}
-              onPressMenuButton={onLongPressChat}
               onSectionChange={handleSectionChange}
               showSearchInput={showSearchInput}
               onSearchToggle={handleSearchInputToggled}

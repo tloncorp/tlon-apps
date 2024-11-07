@@ -66,7 +66,8 @@ const App = () => {
           <View flex={1} alignItems="center" justifyContent="center">
             <LoadingSpinner />
           </View>
-        ) : isAuthenticated && !signupContext.email ? (
+        ) : isAuthenticated &&
+          !(signupContext.email || signupContext.phoneNumber) ? (
           <AuthenticatedApp />
         ) : (
           <OnboardingStack />

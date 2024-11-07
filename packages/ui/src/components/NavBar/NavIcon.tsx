@@ -2,6 +2,7 @@ import { Circle, ColorTokens } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
 import { Icon, IconType } from '../Icon';
+import Pressable from '../Pressable';
 import { View } from '../View';
 
 export function AvatarNavIcon({
@@ -14,7 +15,7 @@ export function AvatarNavIcon({
   onPress?: () => void;
 }) {
   return (
-    <View flex={1} onPress={onPress} alignItems="center" paddingTop={'$s'}>
+    <Pressable flex={1} onPress={onPress} alignItems="center" paddingTop={'$s'}>
       <ContactAvatar
         size={'custom'}
         width={20}
@@ -23,7 +24,7 @@ export function AvatarNavIcon({
         contactId={id}
         opacity={focused ? 1 : 0.6}
       />
-    </View>
+    </Pressable>
   );
 }
 
@@ -46,7 +47,7 @@ export default function NavIcon({
 }) {
   const resolvedType = isActive && activeType ? activeType : type;
   return (
-    <View
+    <Pressable
       backgroundColor={backgroundColor}
       alignItems="center"
       flex={1}
@@ -64,6 +65,6 @@ export default function NavIcon({
           />
         </View>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
