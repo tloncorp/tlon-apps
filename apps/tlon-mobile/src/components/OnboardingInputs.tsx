@@ -66,6 +66,12 @@ export function OTPInput({
     }
   };
 
+  useEffect(() => {
+    setTimeout(() => {
+      inputRefs[0].current?.focus();
+    });
+  }, []);
+
   return (
     <Field
       label={`Check your ${mode} for a confirmation code`}
@@ -111,9 +117,7 @@ export function PhoneNumberInput({
   useEffect(() => {
     // wait for transition to complete, then focus
     if (shouldFocus) {
-      setTimeout(() => {
-        phoneInputRef.current?.focus();
-      }, 500);
+      phoneInputRef.current?.focus();
     }
   }, []);
 

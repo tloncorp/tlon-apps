@@ -132,7 +132,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
           </ScreenHeader.TextButton>
         }
       />
-      <Pressable onPress={() => Keyboard.dismiss()}>
+      <Pressable flex={1} onPress={() => Keyboard.dismiss()}>
         <YStack paddingHorizontal="$2xl" gap="$m" flex={1}>
           <View padding="$xl" gap="$xl">
             <TlonText.Text size="$body" color="$primaryText">
