@@ -56,7 +56,9 @@ export type RootDrawerParamList = {
 export type HomeDrawerParamList = Pick<
   RootStackParamList,
   'ChatList' | 'GroupChannels' | 'Channel'
->;
+> & {
+  MainContent: undefined;
+};
 
 export type DesktopChannelStackParamList = Pick<
   RootStackParamList,
