@@ -65,7 +65,6 @@
         =future
         pending=pending-messages
         =last-updated
-        =hooks
     ==
   --
 +$  channels  (map nest channel)
@@ -85,26 +84,8 @@
         =remark
         pending=pending-messages
         =last-updated
-        =hooks
     ==
   --
-+$  hook-type  ?(%validate %transform %sort)
-+$  hooks
-  $:  validate=hook-set
-      transform=hook-set
-      sort=hook-set
-  ==
-++  hook-set
-  $:  hooks=(map id-hook hook)
-      order=(rev (list id-hook))
-  ==
-+$  id-hook  @uv
-++  hook
-  $:  id=id-hook
-      name=@t
-      src=(rev src=(unit @t))
-      compiled=(unit nock)
-  ==
 +$  last-updated  ((mop time id-post) lte)
 ++  updated-on   ((on time id-post) lte)
 ::  $v-post: a channel post
@@ -384,7 +365,6 @@
       [%view =view]
       [%sort =sort]
       [%meta meta=(unit @t)]
-      [%hook =hook-type global=? =c-hook]
       [%order order=arranged-posts]
       [%add-writers sects=(set sect:g)]
       [%del-writers sects=(set sect:g)]
@@ -410,12 +390,6 @@
       [%del-react id=@da p=ship]
   ==
 ::
-+$  c-hook
-  $%  [%add name=@t src=@t]
-      [%edit id=id-hook src=(unit @t)]
-      [%del id=id-hook]
-      [%order seq=(list id-hook)]
-  ==
 +|  %updates
 ::
 +$  update   [=time =u-channel]
@@ -428,7 +402,6 @@
       [%perm (rev =perm)]
       [%post id=id-post =u-post]
       [%meta (rev meta=(unit @t))]
-      [%hook =hook-type =u-hook]
   ==
 ::
 +$  u-post
@@ -441,11 +414,6 @@
 +$  u-reply
   $%  [%set reply=(unit v-reply)]
       [%reacts reacts=v-reacts]
-  ==
-::
-+$  u-hook
-  $%  [%set id=id-hook name=@t src=(rev src=(unit @t)) error=(unit tang)]
-      [%order seq=(rev seq=(list id-hook))]
   ==
 ::
 +$  u-checkpoint  global:v-channel
@@ -462,7 +430,6 @@
       [%sort =sort]
       [%perm =perm]
       [%meta meta=(unit @t)]
-      [%hook =hook-type =r-hook]
     ::
       [%create =perm]
       [%join group=flag:g]
@@ -501,11 +468,6 @@
 +$  r-simple-reply
   $%  $<(%set r-reply)
       [%set reply=(unit simple-reply)]
-  ==
-::
-+$  r-hook
-  $%  [%set id=id-hook name=@t src=(unit @t) error=(unit tang)]
-      [%order seq=(list id-hook)]
   ==
 ::
 +$  channel-heads  (list [=nest recency=time latest=(unit post)])

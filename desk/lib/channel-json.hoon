@@ -30,7 +30,6 @@
       %create   (perm perm.r-channel)
       %join     (flag group.r-channel)
       %leave    ~
-      %hook     (hook +.r-channel)
       %meta     ?~(meta.r-channel ~ s+u.meta.r-channel)
     ==
   ::
@@ -56,7 +55,6 @@
       %create   (perm perm.r-channel)
       %join     (flag group.r-channel)
       %leave    ~
-      %hook     (hook +.r-channel)
       %meta     ?~(meta.r-channel ~ s+u.meta.r-channel)
     ==
   ::
@@ -130,36 +128,6 @@
       %reacts  (reacts reacts.r-reply)
     ==
   ::
-  ++  hook
-    |=  [=hook-type:c rh=r-hook:c]
-    %-  pairs
-    :~  type+s+hook-type
-        r-hook+(r-hook rh)
-    ==
-  ::
-  ++  r-hook
-    |=  rh=r-hook:c
-    %+  frond  -.rh
-    ?-  -.rh
-        %order
-      :-  %a
-      %+  turn
-        seq.rh
-      |=  =id-hook:c
-      s+(scot %uv id-hook)
-    ::
-        %set
-      %-  pairs
-      :~  id+s+(scot %uv id.rh)
-          name+s+name.rh
-          src+?~(src.rh ~ s+u.src.rh)
-          :: :-  %error
-          :: ?~  error.rh  ~
-          :: :-  %s
-          :: %+  rep  3
-          :: (turn (wash [0 80] u.error.rh) crip)
-      ==
-    ==
   ++  channel-heads
     |=  heads=channel-heads:c
     :-  %a

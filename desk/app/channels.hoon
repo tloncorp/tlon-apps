@@ -8,7 +8,7 @@
 ::    note: all subscriptions are handled by the subscriber library so
 ::    we can have resubscribe loop protection.
 ::
-/-  c=channels, g=groups, ha=hark, activity
+/-  c=channels, g=groups, ha=hark, activity, h=hooks
 /-  meta
 /+  default-agent, verb, dbug, sparse, neg=negotiate, imp=import-aid
 /+  utils=channel-utils, volume, s=subscriber, em=emojimart
@@ -35,6 +35,7 @@
   +$  current-state
     $:  %9
         =v-channels:c
+        hooks=(map nest:c hooks:h)
         voc=(map [nest:c plan:c] (unit said:c))
         hidden-posts=(set id-post:c)
       ::
@@ -168,7 +169,15 @@
   ++  state-8-to-9
     |=  s=state-8
     ^-  state-9
-    s(- %9, v-channels (v-channels-8-to-9 v-channels.s))
+    :*  %9
+        (v-channels-8-to-9 v-channels.s)
+        ~
+        voc.s
+        hidden-posts.s
+        pending-ref-edits.s
+        subs.s
+        pimp.s
+    ==
   ++  v-channels-8-to-9
     |=  vc=v-channels:v8:old:c
     ^-  v-channels:c
@@ -177,7 +186,6 @@
     ^-  v-channel:c
     %=  v
       perm    [perm.v [0 ~]]
-      last-updated  [last-updated.v *hooks:c]
     ==
   +$  state-7
     $:  %7
@@ -636,6 +644,10 @@
       [~ %| *]  ~&  [dap.bowl %overwriting-pending-import]
                 cor(pimp `|+egg-any)
     ==
+  ::
+      %hook-action-0
+    =+  !<([=nest:c =action:h] vase)
+    ho-abet:(ho-action:(ho-abed:ho-core nest) action)
   ==
   ++  toggle-post
     |=  toggle=post-toggle:c
@@ -1408,8 +1420,6 @@
       ?:  =(id id-post)  ~
       `[time id-post]
     ?-    -.u-channel
-      %hook  (ca-u-hook +.u-channel)
-    ::
         %create
       ?.  =(0 rev.perm.channel)  ca-core
       =.  perm.perm.channel  perm.u-channel
@@ -1448,63 +1458,6 @@
       ca-core
     ==
   ::
-  ++  ca-u-hook
-    |=  [=hook-type:c =u-hook:c]
-    ^+  ca-core
-    =.  hooks.channel
-      ?-  hook-type
-          %validate
-        =^  =hook-set:c  ca-core
-          %-  (ca-u-hook-inner post:c ?)
-          [validate.hooks.channel hook-type u-hook]
-        hooks.channel(validate hook-set)
-          %transform
-        =^  =hook-set:c  ca-core
-          %-  (ca-u-hook-inner post:c post:c)
-          [transform.hooks.channel hook-type u-hook]
-        hooks.channel(transform hook-set)
-          %sort
-        =^  =hook-set:c  ca-core
-          %-  (ca-u-hook-inner ,[post:c post:c] ?)
-          [sort.hooks.channel hook-type u-hook]
-        hooks.channel(sort hook-set)
-      ==
-    ca-core
-  ++  ca-u-hook-inner
-    |*  [args=mold return=mold]
-    |=  [hook-set:c =hook-type:c =u-hook:c]
-    ^-  [hook-set:c _ca-core]
-    =*  no-op  [[hooks order] ca-core]
-    ?-  -.u-hook
-        %set
-      =/  result=(each nock tang)
-        ((compile:utils args return) src.src.u-hook)
-      =/  compiled=(unit nock)
-        ?:  ?=(%| -.result)  ~
-        `p.result
-      =/  response=r-channel:c
-        [%hook hook-type %set id.u-hook name.u-hook src.src.u-hook ~]
-      ?~  hook=(~(get by hooks) id.u-hook)
-        :_  (ca-response response)
-        ^-  hook-set:c
-        :_  +:(next-rev:c order (snoc +.order id.u-hook))
-        %+  ~(put by hooks)  id.u-hook
-        [id.u-hook name.u-hook src.u-hook compiled]
-      =^  changed  src.u.hook
-        (apply-rev:c src.u.hook src.u-hook)
-      ?.  changed  no-op
-      =.  compiled.u.hook  compiled
-      :-  :_  order
-          (~(put by hooks) id.u-hook u.hook)
-      (ca-response response)
-    ::
-        %order
-      =^  changed  order
-        (apply-rev:c order seq.u-hook)
-      ?.  changed  no-op
-      :-  [hooks order]
-      (ca-response %hook hook-type %order +.order)
-    ==
   ++  ca-u-post
     |=  [=id-post:c =u-post:c]
     ^+  ca-core
@@ -1843,7 +1796,7 @@
       %^  give  %fact
         ~[/v3 v3+ca-area]
       channel-response-4+!>(r-channels)
-    ?:  ?=(?(%meta %hook) -.r-channel)  ca-core
+    ?:  ?=(%meta -.r-channel)  ca-core
     =.  ca-core
       %^  give  %fact
         ~[/v2 v2+ca-area]
@@ -2614,5 +2567,91 @@
     =.  ca-core  (send:ca-activity [%del %channel nest group.perm.perm.channel] ~)
     =.  gone  &
     ca-core
+  --
+++  ho-core
+  |_  [=nest:c hks=hooks:h gone=_|]
+  ++  ho-core  .
+  ++  emit  |=(=card ho-core(cor (^emit card)))
+  ++  emil  |=(caz=(list card) ho-core(cor (^emil caz)))
+  ++  give  |=(=gift:agent:gall ho-core(cor (^give gift)))
+  ++  ho-abet
+    %_  cor
+        hooks
+      ?:(gone (~(del by hooks) nest) (~(put by hooks) nest hks))
+    ==
+  ::
+  ++  ho-abed
+    |=  n=nest:c
+    ~|  nest=n
+    ho-core(nest n, hks (~(got by hooks) n))
+  ::
+  ++  ho-action
+    |=  =action:h
+    ^+  ho-core
+    ?>  (is-admin:ca-perms:(ca-abed:ca-core nest) src.bowl)
+    ?-  -.action
+        %add
+      ~&  "adding hook {<action>}"
+      =/  =id:h  (rsh [3 48] eny.bowl)
+      =/  src=(rev:c (unit @t))  [0 `src.action]
+      =/  result=(each nock tang)
+        ~&  "compiling hook"
+        ((compile:utils args:h (return:h *)) `src.action)
+      ~&  "compilation result: {<result>}"
+      =/  compiled
+        ?:  ?=(%| -.result)  ~
+        `p.result
+      =.  order.hks
+        +:(next-rev:c order.hks (snoc +.order.hks id))
+      =.  hooks.hks
+        %+  ~(put by hooks.hks)  id
+        [id name.action & src compiled cron.action !>(~)]
+      ho-core
+    ::
+        %edit
+      ?~  old-hook=(~(get by hooks.hks) id.action)  ho-core
+      =/  hook  u.old-hook
+      =^  src-changed  src.hook
+        (next-rev:c src.hook `src.action)
+      =/  name-changed  !=(name.action name.hook)
+      =/  cron-changed  !=(cron.action cron.hook)
+      ?.  |(src-changed name-changed cron-changed)  ho-core
+      =.  name.hook  name.action
+      =.  cron.hook  cron.action
+      =.  compiled.hook
+        ?~  +.src.hook  ~
+        =/  result=(each nock tang)
+          ((compile:utils args:h (return:h *)) +.src.hook)
+        ?:  ?=(%| -.result)  ~
+        `p.result
+      =.  hooks.hks  (~(put by hooks.hks) id.action hook)
+      ho-core
+    ::
+        %del
+      ::  TODO: make more CRDT
+      =.  hooks.hks  (~(del by hooks.hks) id.action)
+      =/  [* new-order=_order.hks]
+        %+  next-rev:c  order.hks
+        %+  skim  +.order.hks
+        |=  =id:h
+        !=(id id.action)
+      =.  order.hks  new-order
+      ho-core
+    ::
+        %enable
+      =/  hook  (~(got by hooks.hks) id.action)
+      =.  hooks.hks  (~(put by hooks.hks) id.action hook(enabled &))
+      ho-core
+    ::
+        %disable
+      =/  hook  (~(got by hooks.hks) id.action)
+      =.  hooks.hks  (~(put by hooks.hks) id.action hook(enabled |))
+      ho-core
+    ::
+        %order
+      =^  changed  order.hks
+        (next-rev:c order.hks seq.action)
+      ho-core
+    ==
   --
 --

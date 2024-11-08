@@ -1,4 +1,4 @@
-/-  c=channels, g=groups, ci=cite
+/-  c=channels, g=groups, ci=cite, h=hooks
 /+  em=emojimart
 ::  convert a post to a preview for a "said" response
 ::
@@ -454,7 +454,6 @@
   ^-  r-channels:v7:old:c
   =+  r-channel=r-channel.r-channels
   ?<  ?=(%meta -.r-channel)
-  ?<  ?=(%hook -.r-channel)
   :-  nest.r-channels
   ^-  r-channel:v7:old:c
   ?+  r-channel  r-channel
@@ -1216,20 +1215,27 @@
     ?.  ?=(%post -.u)  diffs
     (~(put ju diffs) id.u u-post.u)
   ==
-++  subject  ^~(!>([c=c g=g ..zuse]))
+++  subject  ^~(!>([..subject ..zuse]))
 ++  compile
   |*  [args=mold return=mold]
   |=  src=(unit @t)
   ^-  (each nock tang)
   ?~  src  |+~['no src']
-  =/  tonk=(each (pair type nock) hair)
+  ~&  %a
+  =/  tonk=(each (pair type nock) tang)
+    ~&  %b
     =/  vex=(like hoon)  ((full vest) [0 0] (trip u.src))
-    ?~  q.vex  |+p.vex
-    &+(~(mint ut -:subject) %noun p.u.q.vex)
+    ~&  %c
+    ?~  q.vex  |+~[leaf+"\{{<p.p.vex>} {<q.p.vex>}}" 'syntax error']
+    ~&  %d
+    %-  mule
+    |.((~(mint ut -:subject) %noun p.u.q.vex))
+  ~&  %e
   ~&  "parsed hoon: {<-.tonk>}"
+  ~&  %f
   ?:  ?=(%| -.tonk)
     ~&  "returning error"
-    |+~[leaf+"\{{<p.p.tonk>} {<q.p.tonk>}}" 'syntax error']
+    tonk
   &+q.p.tonk
   :: ::  type-check the result
   :: =/  tout=type
@@ -1254,34 +1260,63 @@
   ^-  (unit prod)
   %-  (soft prod)
   (slum .*(+:subject nock) simp)
-++  check-validate-hooks
-  |=  [=v-post:c hook-set:c]
-  ~&  v-post
+::
+++  run-hooks
+  |*  prod=mold
+  |=  [=event:h =context:h pass=$-((prod) event:h) default=cord hooks:h]
+  ^-  (each prod tang)
+  =|  last-return=prod
+  =/  current-event  event
   =*  order  +.^order
   |-
-  ?~  order  &
+  ?~  order  &+last-return
   =*  next  $(order t.order)
   =/  hook  (~(got by hooks) i.order)
   ?~  compiled.hook  next
-  =/  result  ((execute ?) u.compiled.hook v-post)
-  ~&  check-validate-hooks+[result src.hook]
-  ?~  result  next
-  ?:(u.result next |)
-++  run-transform-hooks
-  |=  [=v-post:c hook-set:c]
-  ^-  v-post:c
-  ~&  v-post
-  =/  current-post  v-post
-  =*  order  +.^order
-  |-
-  ?~  order  current-post
-  =*  next  $(order t.order)
-  =/  hook  (~(got by hooks) i.order)
-  ?~  compiled.hook  next
-  =/  result
-    ((execute v-post:c) u.compiled.hook current-post)
-  ~&  run-transform-hooks+[result src.hook]
-  ?~  result  next
-  =.  current-post  u.result
+  =/  =args:h  [current-event context(state state.hook)]
+  =/  return=(unit (return:h prod))
+    ((execute (return:h prod)) u.compiled.hook args)
+  ~&  "{(trip name.hook)} hook run: {<return>}"
+  ?~  return  next
+  =*  result  result.u.return
+  ?:  ?=(%error -.result)
+    ~&  "hook failed:"
+    %-  (slog msg.result)
+    next
+  ?:  ?=(%denied -.result)
+    |+~[(fall msg.result default)]
+  =.  current-event  (pass new.result)
+  =.  last-return  new.result
+    :: ?:  ?=(?(%cron %delay) -.current-event)  current-event
+    :: ?-  -.current-event
+    ::     %on-post
+    ::   ?-  -.on-post.current-event
+    ::     %del  current-event
+    ::   ::
+    ::     %add  current-event(essay.on-post new.result)
+    ::     %edit  current-event(essay.on-post new.result)
+    ::   ::
+    ::       %react
+    ::     ~!  new.result
+    ::     ?>  ?=([=ship react=(unit react:c)] new.result)
+    ::     ~!  new.result
+    ::     =/  new  on-post.current-event(ship ship.new.result, react react.new.result)
+    ::     current-event(on-post new)
+    ::   ==
+    :: ::
+    ::     %on-reply
+    ::   ?-  -.on-reply.current-event
+    ::     %del  current-event
+    ::   ::
+    ::     %add  current-event(memo.on-reply new.result)
+    ::     %edit  current-event(memo.on-reply new.result)
+    ::   ::
+    ::       %react
+    ::     ?>  ?=([=ship react=(unit react:c)] new.result)
+    ::     =/  new
+    ::       on-reply.current-event(ship ship.new.result, react react.new.result)
+    ::     current-event(on-reply new)
+    ::   ==
+    :: ==
   next
 --
