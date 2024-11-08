@@ -241,7 +241,7 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
   }, [doCopy]);
 
   return (
-    <Pressable onPress={handleCopy}>
+    <Pressable width="100%" onPress={handleCopy}>
       <XStack alignItems="center" padding="$l" gap="$xl" width={'100%'}>
         <ContactAvatar contactId={props.userId} size="$5xl" />
         <YStack flex={1} justifyContent="center">
