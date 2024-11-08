@@ -41,10 +41,10 @@ import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
+import { EmojiPickerSheet } from '../Emoji';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
 import { LoadingSpinner } from '../LoadingSpinner';
-import { EmojiPickerSheet } from '../Emoji';
 import { Modal } from '../Modal';
 import { ChannelDivider } from './ChannelDivider';
 
@@ -159,8 +159,6 @@ const Scroller = forwardRef(
     const pressedGoToBottom = () => {
       setHasPressedGoToBottom(true);
       onPressScrollToBottom?.();
-      setNeedsScrollToAnchor(false);
-      setDidAnchorSearchTimeout(false);
 
       // Only scroll if we're not loading and have a valid ref
       if (flatListRef.current && !isLoading) {
@@ -189,8 +187,8 @@ const Scroller = forwardRef(
 
     const {
       readyToDisplayPosts,
-      setNeedsScrollToAnchor,
-      setDidAnchorSearchTimeout,
+      // setNeedsScrollToAnchor,
+      // setDidAnchorSearchTimeout,
       scrollerItemProps: anchorScrollLockScrollerItemProps,
       flatlistProps: anchorScrollLockFlatlistProps,
     } = useAnchorScrollLock({
@@ -209,8 +207,9 @@ const Scroller = forwardRef(
     const style = useMemo(() => {
       return {
         backgroundColor: theme.background.val,
+        opacity: readyToDisplayPosts ? 1 : 0,
       };
-    }, [theme.background.val]);
+    }, [readyToDisplayPosts, theme.background.val]);
 
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
       () =>
@@ -904,8 +903,6 @@ function useAnchorScrollLock({
 
   return {
     readyToDisplayPosts,
-    setNeedsScrollToAnchor,
-    setDidAnchorSearchTimeout,
     scrollerItemProps: useMemo(
       () =>
         ({
