@@ -1,14 +1,14 @@
 /-  c=channels
 /+  j=channel-json
-|_  =channel-heads:v7:old:c
+|_  =channel-heads:c
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  channel-heads
-  ++  json  (channel-heads:v7:enjs:j channel-heads)
+  ++  json  (channel-heads:enjs:j channel-heads)
   --
 ++  grab
   |%
-  ++  noun  channel-heads:v7:old:c
+  ++  noun  channel-heads:c
   --
 --

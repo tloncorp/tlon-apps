@@ -38,6 +38,8 @@
   ::
   +$  global
     $:  posts=v-posts
+        ::  .count: number of posts, for sequence nr generation
+        count=@ud
         order=(rev order=arranged-posts)
         view=(rev =view)
         sort=(rev =sort)
@@ -79,11 +81,13 @@
 +$  id-reply      time
 +$  v-replies     ((mop id-reply (unit v-reply)) lte)
 ++  on-v-replies  ((on id-reply (unit v-reply)) lte)
-++  mo-v-replies  ((mp time (unit v-reply)) lte)
+++  mo-v-replies  ((mp id-reply (unit v-reply)) lte)
 ::  $v-seal: host-side data for a post
 ::
 +$  v-seal  $+  channel-seal
   $:  id=id-post
+      seq=@ud
+      mod-at=@da
       replies=v-replies
       reacts=v-reacts
   ==
@@ -199,8 +203,11 @@
   $%  [%hide =id-post]
       [%show =id-post]
   ==
-::  $react: either an emoji identifier like :diff or a URL for custom
-+$  react     @ta
+::  $react: emoji encoding
++$  react
+  $@  @t           ::  direct unicode character representation
+  $%  [%any p=@t]  ::  any string representation (for backcompat)
+  ==
 +$  v-reacts  (map ship (rev (unit react)))
 +$  client-id  [author=ship sent=time]
 +$  pending-posts  (map client-id essay)
@@ -266,7 +273,9 @@
 ::  $log: a time ordered history of modifications to a channel
 ::
 +$  log     ((mop time u-channel) lte)
+::  XX unify mop convention: on-log, on-posts
 ++  log-on  ((on time u-channel) lte)
+++  mo-log  ((mp time u-channel) lte)
 ::
 ::  $create-channel: represents a request to create a channel
 ::
@@ -285,18 +294,6 @@
       readers=(set sect:g)
       writers=(set sect:g)
   ==
-::  $outline: abridged $post
-::    .replies: number of comments
-::
-+$  outline
-  [replies=@ud replyers=(set ship) essay]
-::
-++  outlines
-  =<  outlines
-  |%
-  +$  outlines  ((mop time outline) lte)
-  ++  on        ((^on time outline) lte)
-  --
 ++  rev
   |$  [data]
   [rev=@ud data]
@@ -482,7 +479,7 @@
   --
 +$  channels-0  (map nest channel-0)
 ++  channel-0
-  |^  ,[global:channel local]
+  |^  ,[global:channel:v7:old local]
   +$  local
     $:  =net
         =remark
@@ -507,6 +504,8 @@
 +$  simple-post  [simple-seal essay]
 +$  seal
   $:  id=id-post
+      seq=@ud
+      mod-at=@da
       =reacts
       =replies
       =reply-meta
@@ -529,17 +528,252 @@
 ++  on-simple-replies  ((on id-reply simple-reply) lte)
 ++  old
   |%
+  ++  v7
+    |%
+    +$  v-channels  (map nest v-channel)
+    ++  v-channel
+      |^  ,[global local]
+      +$  global
+        $:  posts=v-posts
+            order=(rev order=arranged-posts)
+            view=(rev =view)
+            sort=(rev =sort)
+            perm=(rev =perm)
+        ==
+      +$  local
+        $:  =net:^v-channel
+            =log
+            =remark:^v-channel
+            =window:^v-channel
+            =future
+            pending=pending-messages:^v-channel
+            =last-updated:^v-channel
+        ==
+      +$  future
+        [=window:^v-channel diffs=(jug id-post u-post)]
+      --
+    +$  a-channels
+      $%  [%create =create-channel]
+          [%pin pins=(list nest)]
+          [%channel =nest =a-channel]
+          [%toggle-post toggle=post-toggle]
+      ==
+    +$  a-channel
+      $%  [%join group=flag:g]
+          [%leave ~]
+          a-remark
+          c-channel
+      ==
+    ::
+    +$  a-remark
+      $~  [%read ~]
+      $%  [%read ~]
+          [%read-at =time]
+          [%watch ~]
+          [%unwatch ~]
+      ==
+    +$  v-post      [v-seal (rev essay)]
+    +$  v-posts     ((mop id-post (unit v-post)) lte)
+    ++  on-v-posts  ((on id-post (unit v-post)) lte)
+    ++  mo-v-posts  ((mp id-post (unit v-post)) lte)
+    +$  v-seal
+      $+  v-seal-v7
+      $:  id=id-post
+          replies=v-replies
+          reacts=v-reacts
+      ==
+    +$  v-replies     ((mop id-reply (unit v-reply)) lte)
+    +$  channels  (map nest channel)
+    ++  channel
+      |^  ,[global local]
+      +$  global
+        $:  =posts
+            order=arranged-posts
+            =view
+            =sort
+            =perm
+        ==
+      ::
+      +$  local
+        $:  =net
+            =remark
+            pending=pending-messages
+        ==
+      --
+    +$  post   [seal [rev=@ud essay]]
+    +$  seal
+      $:  id=id-post
+          =reacts
+          =replies
+          =reply-meta
+      ==
+    +$  posts   ((mop id-post (unit post)) lte)
+    ++  on-posts    ((on id-post (unit post)) lte)
+    +$  log     ((mop time u-channel) lte)
+    ++  log-on  ((on time u-channel) lte)
+    ++  mo-log  ((mp time u-channel) lte)
+    +$  paged-posts
+      $:  =posts
+          newer=(unit time)
+          older=(unit time)
+          total=@ud
+      ==
+    +$  channel-heads  (list [=nest recency=time latest=(unit post)])
+    +$  u-channel
+      $%  [%create =perm]
+          [%order (rev order=arranged-posts)]
+          [%view (rev =view)]
+          [%sort (rev =sort)]
+          [%perm (rev =perm)]
+          [%post id=id-post =u-post]
+      ==
+    +$  u-post
+      $%  [%set post=(unit v-post)]
+          [%reacts reacts=v-reacts]
+          [%essay (rev =essay)]
+          [%reply id=id-reply =u-reply]
+      ==
+    +$  r-channels  [=nest =r-channel]
+    +$  r-channel
+      $%  [%posts =posts]
+          [%post id=id-post =r-post]
+          [%pending id=client-id =r-pending]
+          [%order order=arranged-posts]
+          [%view =view]
+          [%sort =sort]
+          [%perm =perm]
+        ::
+          [%create =perm]
+          [%join group=flag:g]
+          [%leave ~]
+          a-remark
+      ==
+    ::
+    +$  r-post
+      $%  [%set post=(unit post)]
+          [%reply id=id-reply =reply-meta =r-reply]
+          [%reacts =reacts]
+          [%essay =essay]
+      ==
+    +$  r-reply
+      $%  [%set reply=(unit reply)]
+          [%reacts =reacts]
+      ==
+    ::
+    +$  r-channels-simple-post  [=nest =r-channel-simple-post]
+    +$  r-channel-simple-post
+      $%  $<(?(%posts %post) r-channel)
+          [%posts posts=simple-posts]
+          [%post id=id-post r-post=r-simple-post]
+      ==
+    ::
+    +$  r-simple-post
+      $%  $<(?(%set %reply) r-post)
+          [%set post=(unit simple-post)]
+          [%reply id=id-reply =reply-meta r-reply=r-simple-reply]
+      ==
+    ::
+    +$  r-simple-reply
+      $%  $<(%set r-reply)
+          [%set reply=(unit simple-reply)]
+      ==
+    ::
+    +$  v-reply       [v-reply-seal (rev memo)]
+    ::
+    +$  v-reply-seal
+      $:  id=id-reply
+          reacts=v-reacts
+      ==
+    +$  c-channels
+      $%  [%create =create-channel]
+          [%channel =nest =c-channel]
+      ==
+    +$  c-channel
+      $%  [%post =c-post]
+          [%view =view]
+          [%sort =sort]
+          [%order order=arranged-posts]
+          [%add-writers sects=(set sect:g)]
+          [%del-writers sects=(set sect:g)]
+      ==
+    +$  c-post
+      $%  [%add =essay]
+          [%edit id=id-post =essay]
+          [%del id=id-post]
+          [%reply id=id-post =c-reply]
+          c-react
+      ==
+    ::
+    +$  c-reply
+      $%  [%add =memo]
+          [%edit id=id-reply =memo]
+          [%del id=id-reply]
+          c-react
+      ==
+    ::
+    +$  a-post  c-post
+    +$  a-reply  c-reply
+    ::
+    +$  c-react
+      $%  [%add-react id=@da p=ship q=react]
+          [%del-react id=@da p=ship]
+      ==
+    ::
+    +$  react  @ta
+    +$  v-reacts  (map ship (rev (unit react)))
+    +$  reacts  (map ship react)
+    ::  $scam: bounded search results
+    +$  scam
+      $:  last=(unit id-post)  ::  last (top-level) message that was searched
+          =scan                ::  search results
+      ==
+    ::  $scan: search results
+    +$  scan  (list reference)
+    +$  reference
+      $%  [%post post=simple-post]
+          [%reply =id-post reply=simple-reply]
+      ==
+    ::  $said: used for references
+    +$  said  (pair nest reference)
+    +$  reply       [reply-seal [rev=@ud memo]]
+    +$  simple-reply  [reply-seal memo]
+    +$  replies     ((mop id-reply (unit reply)) lte)
+    +$  simple-replies     ((mop id-reply simple-reply) lte)
+    +$  reply-seal  [id=id-reply parent-id=id-post =reacts]
+    ++  on-simple-posts    ((on id-post (unit simple-post)) lte)
+    ++  on-replies  ((on id-reply (unit reply)) lte)
+    ++  on-v-replies  ((on id-reply (unit v-reply)) lte)
+    ++  on-simple-replies  ((on id-reply simple-reply) lte)
+    +$  simple-post  [simple-seal essay]
+    +$  simple-seal
+      $:  id=id-post
+          =reacts
+          replies=simple-replies
+          =reply-meta
+      ==
+    +$  paged-simple-posts
+      $:  posts=simple-posts
+          newer=(unit time)
+          older=(unit time)
+          total=@ud
+      ==
+    +$  u-reply
+      $%  [%set reply=(unit v-reply)]
+          [%reacts reacts=v-reacts]
+      ==
+    +$  simple-posts  ((mop id-post (unit simple-post)) lte)
+    --
   ++  v6
     |%
     ++  v-channels  (map nest v-channel)
     ++  v-channel
-      |^  ,[global:^v-channel local]
+      |^  ,[global:v-channel:v7 local]
       +$  local
         $:  =net
-            =log
+            =log:v-channel:v7
             =remark
             =window:^v-channel
-            =future:^v-channel
+            =future:v-channel:v7
             pending=pending-messages
         ==
       --
@@ -547,16 +781,20 @@
   ++  v1
     |%
     +$  post  [seal [rev=@ud essay]]
+    +$  essay  essay:v7
     +$  posts  ((mop id-post (unit post)) lte)
     ++  on-posts    ((on id-post (unit post)) lte)
     +$  seal
       $:  id=id-post
-          =reacts
+          =reacts:v7
           =replies
           =reply-meta
       ==
     +$  replies  ((mop id-reply reply) lte)
     ++  on-replies  ((on id-reply reply) lte)
+    +$  reply  reply:v7
+    +$  simple-seal  simple-seal:v7
+    +$  simple-post  [simple-seal essay]
     +$  paged-posts
       $:  =posts
           newer=(unit time)

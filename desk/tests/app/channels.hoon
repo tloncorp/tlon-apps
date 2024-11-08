@@ -12,15 +12,22 @@
 ++  the-dock  [~zod server-dap]
 ++  the-nest  [%chat ~zod %test]
 ++  the-group  [~zod %test]
+++  scry
+  |=  =(pole knot)
+  ?+  pole  !!
+    [%gu ship=@t %activity @ ~ ~]  `!>(|)
+  ==
 ++  test-checkpoint-sub
   %-  eval-mare
   =/  m  (mare ,~)
+  ;<  ~  bind:m  (set-scry-gate scry)
   ;<  *  bind:m  channel-join
   =/  retry  (weld /~/retry (weld sub-wire /checkpoint))
   (check-subscription-loop chk-wire chk-wire the-dock chk-path retry)
 ++  test-updates-sub
   %-  eval-mare
   =/  m  (mare ,~)
+  ;<  ~  bind:m  (set-scry-gate scry)
   ;<  *  bind:m  channel-join
   ::  get checkpoint and start updates
   =/  =cage  [%channel-checkpoint !>(*u-checkpoint:c)]
@@ -33,12 +40,13 @@
 ++  test-backlog-sub
   %-  eval-mare
   =/  m  (mare ,~)
+  ;<  ~  bind:m  (set-scry-gate scry)
   ;<  *  bind:m  channel-join
   ;<  bw=bowl  bind:m  get-bowl
   ::  get checkpoint and start updates
   =/  last-post-time  (add now.bw 1)
   =/  last-post=v-post:c
-    :-  [last-post-time ~ ~]
+    :-  [last-post-time 1 last-post-time ~ ~]
     [0 [[~ ~dev last-post-time] %chat ~]]
   =/  posts=v-posts:c
     (gas:on-v-posts:c *v-posts:c ~[[last-post-time `last-post]])
@@ -56,6 +64,7 @@
   |=  [sub=wire resub=wire =dock =path retry-wire=wire]
   =/  m  (mare ,~)
   ^-  form:m
+  ;<  ~  bind:m  (set-scry-gate scry)
   ;<  bw=bowl  bind:m  get-bowl
   =/  now=time  now.bw
   ::  kick & resubscribe with delay
@@ -73,6 +82,6 @@
   ::  join channel
   ;<  *  bind:m  (do-init dap channels-agent)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
-  ;<  *  bind:m  (do-poke %channel-action !>([%channel the-nest %join the-group]))
+  ;<  *  bind:m  (do-poke %channel-action-2 !>([%channel the-nest %join the-group]))
   (do-agent chk-wire the-dock %watch-ack ~)
 --
