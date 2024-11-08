@@ -300,6 +300,12 @@ export function ChatListScreenView({
         <View flex={1}>
           <ScreenHeader
             title={notReadyMessage ?? screenTitle}
+            leftControls={
+              <ScreenHeader.IconButton
+                type="Face"
+                onPress={() => navigation.navigate('Contacts')}
+              />
+            }
             rightControls={
               <>
                 <ScreenHeader.IconButton

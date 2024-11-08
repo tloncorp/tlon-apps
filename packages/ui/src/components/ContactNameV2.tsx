@@ -21,7 +21,7 @@ export const useContactNameProps = ({
   const calm = useCalm();
   const contact = useContact(contactId);
   const showNickname =
-    (contact?.customNickname || contact?.nickname) &&
+    contact?.nickname &&
     (calm.disableNicknames ? mode === 'nickname' : mode !== 'contactId');
   const showContactId =
     (mode === 'auto' && !showNickname) ||
@@ -35,14 +35,13 @@ export const useContactNameProps = ({
     return {
       children: [
         showContactId ? idMeta?.display : null,
-        showNickname ? contact?.customNickname || contact?.nickname : null,
+        showNickname ? contact?.nickname : null,
       ]
         .filter((i) => !!i)
         .join(' '),
       ['aria-label']: idMeta?.ariaLabel,
     };
   }, [
-    contact?.customNickname,
     contact?.nickname,
     contactId,
     expandLongIds,
@@ -67,7 +66,7 @@ const BaseContactName = Text.styleable<{
     const calm = useCalm();
     const contact = useContact(contactId);
     const showNickname =
-      (contact?.customNickname || contact?.nickname) &&
+      contact?.nickname &&
       (calm.disableNicknames ? mode === 'nickname' : mode !== 'contactId');
     const showContactId =
       (mode === 'auto' && !showNickname) ||

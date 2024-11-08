@@ -223,12 +223,12 @@ export const v0PeerToClientProfile = (
 ): db.Contact => {
   return {
     id,
-    nickname: contact?.nickname ?? null,
+    peerNickname: contact?.nickname ?? null,
+    peerAvatarImage: contact?.avatar ?? null,
     bio: contact?.bio ?? null,
     status: contact?.status ?? null,
     color: contact?.color ? normalizeUrbitColor(contact.color) : null,
     coverImage: contact?.cover ?? null,
-    avatarImage: contact?.avatar ?? null,
     pinnedGroups:
       contact?.groups?.map((groupId) => ({
         groupId,
@@ -260,21 +260,20 @@ export const v1PeerToClientProfile = (
     isContact?: boolean;
     isContactSuggestion?: boolean;
   }
-) => {
+): db.Contact => {
   return {
     id,
-    nickname: contact.nickname?.value ?? null,
+    peerNickname: contact.nickname?.value ?? null,
+    peerAvatarImage: contact.avatar?.value ?? null,
     bio: contact.bio?.value ?? null,
     status: contact.status?.value ?? null,
     color: contact.color ? normalizeUrbitColor(contact.color.value) : null,
     coverImage: contact.cover?.value ?? null,
-    avatarImage: contact.avatar?.value ?? null,
     pinnedGroups:
       contact.groups?.value.map((group) => ({
         groupId: group.value,
         contactId: id,
       })) ?? [],
-
     isContact: config?.isContact,
     isContactSuggestion: config?.isContactSuggestion && !config?.isContact,
   };
@@ -308,9 +307,11 @@ export const contactToClientProfile = (
 
   return {
     id: userId,
-    nickname: base.nickname?.value ?? null,
+    peerNickname: base.nickname?.value ?? null,
+    customNickname: overrides.nickname?.value,
+    peerAvatarImage: base.avatar?.value ?? null,
+    customAvatarImage: overrides.avatar?.value,
     bio: base.bio?.value ?? null,
-    avatarImage: base.avatar?.value ?? null,
     coverImage: base.cover?.value ?? null,
     color: base.color ? normalizeUrbitColor(base.color.value) : null,
     pinnedGroups:
@@ -318,10 +319,7 @@ export const contactToClientProfile = (
         groupId: group.value,
         contactId: userId,
       })) ?? [],
-
     isContact: true,
-    customNickname: overrides.nickname?.value,
-    customAvatarImage: overrides.avatar?.value,
     isContactSuggestion: false,
   };
 };

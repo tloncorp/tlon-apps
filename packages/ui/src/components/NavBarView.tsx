@@ -20,7 +20,10 @@ export const NavBarView = ({
   currentUserId: string;
   showContactsTab?: boolean;
 }) => {
-  const isRouteActive = (routeName: string) => {
+  const isRouteActive = (routeName: string | string[]) => {
+    if (Array.isArray(routeName)) {
+      return routeName.includes(currentRoute);
+    }
     return currentRoute === routeName;
   };
   const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
@@ -43,7 +46,7 @@ export const NavBarView = ({
       <NavIcon
         type="Home"
         activeType="HomeFilled"
-        isActive={isRouteActive('ChatList')}
+        isActive={isRouteActive(['ChatList', 'Contacts'])}
         // hasUnreads={(unreadCount?.channels ?? 0) > 0}
         // intentionally leave undotted for now
         hasUnreads={false}

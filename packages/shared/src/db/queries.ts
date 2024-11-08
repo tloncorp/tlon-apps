@@ -3430,6 +3430,7 @@ function conflictUpdateSetAll(table: Table, exclude?: string[]) {
   return conflictUpdateSet(
     ...Object.entries(columns)
       .filter(([k]) => !exclude?.includes(k))
+      .filter(([_, c]) => c.generated === undefined)
       .map(([_, v]) => v)
   );
 }
