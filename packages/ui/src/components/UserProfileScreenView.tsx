@@ -103,6 +103,8 @@ export function UserProfileScreenView(props: Props) {
         {currentUserId !== props.userId ? (
           <ProfileButtons userId={props.userId} contact={userContact} />
         ) : null}
+
+        <StatusDisplay status={'Chillin'} />
         <BioDisplay bio={userContact?.bio ?? ''} />
 
         <StatusBlock status={nodeStatus} label="Node" />
@@ -212,6 +214,18 @@ export function BioDisplay({
   ) : null;
 }
 
+export function StatusDisplay({
+  status,
+  ...rest
+}: { status: string } & ComponentProps<typeof WidgetPane>) {
+  return (
+    <WidgetPane borderRadius={'$2xl'} padding="$2xl" width="100%" {...rest}>
+      <WidgetPane.Title>Status</WidgetPane.Title>
+      <Text size="$body">{status}</Text>
+    </WidgetPane>
+  );
+}
+
 export function PinnedGroupsDisplay(
   props: {
     groups: db.Group[];
@@ -283,7 +297,7 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
   }, [doCopy]);
 
   return (
-    <Pressable onPress={handleCopy}>
+    <Pressable width="100%" onPress={handleCopy}>
       <XStack alignItems="center" padding="$l" gap="$xl" width={'100%'}>
         <ContactAvatar contactId={props.userId} size="$5xl" />
         <YStack flex={1} justifyContent="center">

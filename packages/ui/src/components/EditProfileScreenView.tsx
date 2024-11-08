@@ -71,6 +71,7 @@ export function EditProfileScreenView(props: Props) {
     mode: 'onChange',
     defaultValues: {
       nickname: currentNickname ?? '',
+      status: userContact?.status ?? '',
       bio: userContact?.bio ?? '',
       avatarImage: currentAvatarImage ?? undefined,
     },
@@ -191,6 +192,20 @@ export function EditProfileScreenView(props: Props) {
 
             {props.userId === currentUserId ? (
               <>
+                <ControlledTextField
+                  name="status"
+                  label="Status"
+                  control={control}
+                  inputProps={{
+                    placeholder: 'Hanging out...',
+                  }}
+                  rules={{
+                    maxLength: {
+                      value: 30,
+                      message: 'Your status is limited to 30 characters',
+                    },
+                  }}
+                />
                 <ControlledTextareaField
                   name="bio"
                   label="Bio"

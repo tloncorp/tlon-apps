@@ -28,6 +28,7 @@ export default function ContactsScreen(props: Props) {
 
   const { data: contacts } = store.useUserContacts();
   const { data: suggestions } = store.useSuggestedContacts();
+  const { data: userContact } = store.useContact({ id: currentUser });
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {
@@ -63,10 +64,14 @@ export default function ContactsScreen(props: Props) {
 
   return (
     <View flex={1}>
-      <ScreenHeader title="Contacts" />
+      <ScreenHeader
+        title="Contacts"
+        backAction={() => props.navigation.goBack()}
+      />
       <ContactsScreenView
         contacts={contacts ?? []}
         suggestions={suggestions ?? []}
+        userContact={userContact}
         onContactPress={onContactPress}
         onContactLongPress={onContactLongPress}
       />

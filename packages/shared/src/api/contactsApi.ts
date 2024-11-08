@@ -101,6 +101,7 @@ export const removeContact = async (contactId: string) => {
 
 export interface ProfileUpdate {
   nickname?: string;
+  status?: string;
   bio?: string;
   avatarImage?: string;
   coverImage?: string;
@@ -109,6 +110,10 @@ export const updateCurrentUserProfile = async (update: ProfileUpdate) => {
   const editedFields: ub.ContactEditField[] = [];
   if (update.nickname !== undefined) {
     editedFields.push({ nickname: update.nickname });
+  }
+
+  if (update.status !== undefined) {
+    editedFields.push({ status: update.status });
   }
 
   if (update.bio !== undefined) {
@@ -311,6 +316,7 @@ export const contactToClientProfile = (
     customNickname: overrides.nickname?.value,
     peerAvatarImage: base.avatar?.value ?? null,
     customAvatarImage: overrides.avatar?.value,
+    status: base.status?.value ?? null,
     bio: base.bio?.value ?? null,
     coverImage: base.cover?.value ?? null,
     color: base.color ? normalizeUrbitColor(base.color.value) : null,

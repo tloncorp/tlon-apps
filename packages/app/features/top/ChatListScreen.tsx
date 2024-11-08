@@ -302,7 +302,7 @@ export function ChatListScreenView({
             title={notReadyMessage ?? screenTitle}
             leftControls={
               <ScreenHeader.IconButton
-                type="Face"
+                type="ChannelMultiDM"
                 onPress={() => navigation.navigate('Contacts')}
               />
             }

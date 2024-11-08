@@ -99,25 +99,30 @@ export async function updateContactMetadata(
 export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
   const currentUserId = api.getCurrentUserId();
   const currentUserContact = await db.getContact({ id: currentUserId });
-  const startingValues: Partial<db.Contact> = {};
-  if (currentUserContact) {
-    for (const key in update) {
-      if (key in currentUserContact) {
-        startingValues[key as keyof api.ProfileUpdate] =
-          currentUserContact[key as keyof api.ProfileUpdate];
-      }
-    }
-  }
+
+  const startFields: Partial<db.Contact> = {
+    peerNickname: currentUserContact?.peerNickname,
+    status: currentUserContact?.status,
+    bio: currentUserContact?.bio,
+    peerAvatarImage: currentUserContact?.peerAvatarImage,
+  };
+
+  const editedFields: Partial<db.Contact> = {
+    peerNickname: update.nickname,
+    status: update.status,
+    bio: update.bio,
+    peerAvatarImage: update.avatarImage,
+  };
 
   // Optimistic update
-  await db.updateContact({ id: currentUserId, ...update });
+  await db.updateContact({ id: currentUserId, ...editedFields });
 
   try {
     await api.updateCurrentUserProfile(update);
   } catch (e) {
     console.error('Error updating profile', e);
     // Rollback the update
-    await db.updateContact({ id: currentUserId, ...startingValues });
+    await db.updateContact({ id: currentUserId, ...startFields });
   }
 }
 
