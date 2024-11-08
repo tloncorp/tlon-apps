@@ -138,6 +138,11 @@ export function useBootSequence({
     // CHECKING_FOR_INVITE [optional]: if we used an invite code to signup, see if we got the invites
     //
     if (bootPhase === NodeBootPhase.CHECKING_FOR_INVITE) {
+      // always add the inviter as a contact first
+      if (lureMeta?.inviterUserId) {
+        store.addContact(lureMeta?.inviterUserId);
+      }
+
       const { invitedDm, invitedGroup } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
 
