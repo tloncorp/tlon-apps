@@ -13,18 +13,8 @@
 ++  dap  %verifier
 +$  card  card:agent:gall
 ::
-++  do-as  ::  temporary src.bowl
-  |=  who=ship
-  =/  m  (mare ,(list card))
-  |=  do=form:m
-  ^-  form:m
-  ;<  pre=bowl:gall    bind:m  get-bowl
-  ;<  ~                bind:m  (set-bowl pre(src who))
-  ;<  cas=(list card)  bind:m  do
-  ;<  ~                bind:m  (jab-bowl |=(b=bowl:gall b(src src.pre)))
-  (pure:m cas)
-::
 ++  ex-verifier-update
+  =/  initial=?  |
   |=  [for=@p upd=identifier-update:v]
   ::TODO  this is a bit weird, maybe.
   ::      want to test received sign against faux pubkey instead
@@ -33,19 +23,26 @@
   ::   :: ~!  upd
   ::   =-  upd(sig.sign.status -)
   ::   (faux-sign [~zod id [when proof]:status]:upd)
-  (ex-fact ~[/records/(scot %p for)] %verifier-update !>(upd))
+  =/  paths=(list path)
+    ?:(initial ~ ~[/records/(scot %p for)])
+  (ex-fact paths %verifier-update !>(upd))
 ::
 ++  branch
   =/  m  (mare ,~)
   |=  l=(list form:m)
   ^-  form:m
-  =/  n=@ud  0
+  =/  n=@ud   0
+  =/  e=tang  ~
   |=  s=state
   |-  ^-  output:m
-  ?~  l  [%& ~ s]
+  ?~  l
+    ?.  =(~ e)  [%| e]
+    [%& ~ s]
   =/  o  (i.l s)
-  ?:  ?=(%& -.o)  $(l t.l, n +(n))
-  [%| (cat 3 'failed in branch ' (scot %ud n)) p.o]
+  =?  e  ?=(%| -.o)
+    =-  (weld e `tang`-)
+    [(rap 3 'failed in branch ' (scot %ud n) ':' ~) p.o]
+  $(l t.l, n +(n))
 ::
 ++  faux-life  1
 ++  faux-seed
@@ -67,6 +64,13 @@
     [%j @ %vile @ ~]  `!>((jam (faux-seed (slav %p i.t.path))))
   ==
 ::
+++  get-state
+  =/  m  (mare state:v)
+  ;<  =vase  bind:m  get-save
+  =+  !<([[%negotiate *] =^vase] vase)
+  =+  !<([%0 =state:v] vase)
+  (pure:m state)
+::
 ++  user-does
   |=  [who=@p cmd=user-command:v]
   %-  (do-as who)
@@ -83,11 +87,18 @@
 --
 ::
 |%
-++  test-dummy-request
-  %-  eval-mare
+++  do-setup
   =/  m  (mare ,~)
   ;<  ~  bind:m  (set-scry-gate faux-scry)
   ;<  *  bind:m  (do-init dap agent)
+  (pure:m ~)
+::
+::  action tests
+::
+++  test-dummy-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  do-setup
   ;<  ~  bind:m  (wait ~d1)
   ::  user requests a dummy id, is told to wait for approval
   ::
@@ -134,8 +145,7 @@
 ++  test-urbit-request
   %-  eval-mare
   =/  m  (mare ,~)
-  ;<  ~  bind:m  (set-scry-gate faux-scry)
-  ;<  *  bind:m  (do-init dap agent)
+  ;<  ~  bind:m  do-setup
   ;<  ~  bind:m  (wait ~d1)
   =/  id  [%urbit ~bud]
   ::  registration hasn't started yet, so trying to confirm should crash
@@ -160,14 +170,21 @@
     ;<  cas=(list card)  bind:m
       (user-does ~bud %work id %urbit 620.187)
     =/  sig=@ux  (faux-sign ~zod id ~2000.1.2 ~)
+    =/  at=attestation:v  [~2000.1.2 ~ [~zod 1 %0 sig]]
     ;<  ~  bind:m
-      =/  at=attestation:v  [~2000.1.2 ~ [~zod 1 %0 sig]]
       ::TODO  don't test signature value, test whether it matches pubkey
       %+  ex-cards  cas
       :~  (ex-verifier-update ~nec %status id %done at)
       ==
     ;<  ~  bind:m  (ex-scry-result /u/attestations/(scot %ux sig) !>(&))
-    ::TODO  other scries?
+    ;<  ~  bind:m
+      ::TODO  test via scries instead?
+      ;<  =state:v  bind:m  get-state
+      %-  branch
+      :~  (ex-equal !>((~(get by records.state) id)) !>(`[~nec %done at]))
+          (ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
+          (ex-equal !>((~(get by attested.state) sig)) !>(`id))
+      ==
     (pure:m ~)
   ::
   ++  confirm-incorrect
@@ -179,22 +196,79 @@
     (user-does ~fed %work id %urbit 620.187)
   --
 ::
+++  do-setup-with-id
+  |=  id=identifier:v
+  =/  m  (mare ,~)
+  ;<  *  bind:m  do-setup
+  =/  =state:v
+    [(my [id ~nec %done *attestation:v] ~) (my [~nec (sy id ~)] ~) ~]
+  ;<  *  bind:m  (do-load agent `!>([%0 state]))
+  (pure:m ~)
+::
 ++  test-duplicate
   %-  eval-mare
   =/  m  (mare ,~)
-  ::
   =/  id=identifier:v  [%dummy 'test']
-  ::
-  ;<  *  bind:m  (do-init dap agent)
-  =/  =state:v
-    [(my [id *id-state:v] ~) (my [*@p (sy id ~)] ~) ~]
-  ;<  *  bind:m  (do-load agent `!>([%0 state]))
+  ;<  *  bind:m  (do-setup-with-id id)
   ::  attempting to register an already-registered id should nack
   ::
   ;<  ~  bind:m
     %-  ex-fail
-    (user-does ~nec %start id)
+    (user-does ~fed %start id)
   (pure:m ~)
+::
+++  test-revoke
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  id=identifier:v  [%dummy 'test']
+  ;<  *  bind:m  (do-setup-with-id id)
+  ::  can't revoke if it's not yours
+  ::
+  ;<  ~  bind:m  (ex-fail (user-does ~fed %revoke id))
+  ::  revoking removes it from state, sends an update
+  ::
+  ;<  cas=(list card)  bind:m  (user-does ~nec %revoke id)
+  ;<  ~  bind:m
+    %+  ex-cards  cas
+    [(ex-verifier-update ~nec %status id %gone)]~
+  ;<  ~  bind:m
+    ::TODO  test via scries instead?
+    ;<  =state:v  bind:m  get-state
+    %-  branch
+    :~  (ex-equal !>((~(get by records.state) id)) !>(~))
+        (ex-equal !>((~(get ju owners.state) ~nec)) !>(~))
+    ==
+  (pure:m ~)
+::
+++  test-revoke-perms
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  id=identifier:v  [%dummy 'test']
+  ;<  *  bind:m  (do-setup-with-id id)
+  ::  can't revoke if it's not yours
+  ::
+  (ex-fail (user-does ~fed %revoke id))
+::
+::  subscription tests
+::
+++  test-watch-records
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  id=identifier:v  [%dummy 'test']
+  ;<  ~  bind:m  (do-setup-with-id id)
+  ;<  cas=(list card)  bind:m
+    ((do-as ~nec) (do-watch /records/~nec))
+  %+  ex-cards  cas
+  :~  (%*(. ex-verifier-update initial &) ~nec %full [[id %done *attestation:v] ~ ~])
+  ==
+::
+++  test-watch-records-perms
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  do-setup
+  (ex-fail (do-watch /records/~nec))
+::
+::  query tests
 ::
 ++  state-from-records
   |=  records=(map identifier:v id-state:v)
@@ -208,9 +282,9 @@
   :-  (~(put ju owners) for id)
   (~(put by attested) sig.sign.status id)
 ::
-++  query-setup
+++  do-query-setup
   =/  m  (mare ,~)
-  ;<  *  bind:m  (do-init dap agent)
+  ;<  ~  bind:m  do-setup
   =/  =state:v
     %-  state-from-records
     %-  ~(gas by *(map identifier:v id-state:v))
@@ -232,7 +306,7 @@
 ++  test-query-has-any
   %-  eval-mare
   =/  m  (mare ,~)
-  ;<  ~  bind:m  query-setup
+  ;<  ~  bind:m  do-query-setup
   ;<  ~  bind:m
     %^  expect-query-response  ~fed
       [[%some-dude %my-nonce] %has-any ~nec %dummy]
@@ -246,7 +320,7 @@
 ++  test-query-valid
   %-  eval-mare
   =/  m  (mare ,~)
-  ;<  ~  bind:m  query-setup
+  ;<  ~  bind:m  do-query-setup
   ;<  ~  bind:m
     %^  expect-query-response  ~fed
       [[%some-dude %my-nonce] %valid (faux-sign ~zod [%dummy 'test-id'] ~2222.2.2 ~)]
@@ -260,7 +334,7 @@
 ++  test-query-whose
   %-  eval-mare
   =/  m  (mare ,~)
-  ;<  ~  bind:m  query-setup
+  ;<  ~  bind:m  do-query-setup
   ;<  ~  bind:m
     %^  expect-query-response  ~fed
       [[%some-dude %my-nonce] %whose %dummy 'test-id']
@@ -272,10 +346,6 @@
   (pure:m ~)
 ::
 ::TODO  test that timeout timers get set & fire when waiting on user action
-::TODO  test watch permissions on /records/~nec
-::TODO  test initial /records response
-::TODO  test revocation command
-::TODO  test revocation permission
 ::
 ::TODO  test lanyard:
 ::TODO  test resubscribe on poke nack
