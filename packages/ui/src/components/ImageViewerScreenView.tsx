@@ -1,4 +1,4 @@
-import { ImageZoom } from '@likashefqet/react-native-image-zoom';
+import { ImageZoom, Zoomable } from '@likashefqet/react-native-image-zoom';
 import * as Haptics from 'expo-haptics';
 import { ElementRef, useRef, useState } from 'react';
 import { Dimensions, TouchableOpacity } from 'react-native';
@@ -9,17 +9,18 @@ import {
 } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, View, XStack, YStack, ZStack } from 'tamagui';
+import { Stack, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
 
 import { Icon } from './Icon';
+import { Image } from './Image';
 
 export function ImageViewerScreenView(props: {
   uri?: string;
   goBack: () => void;
 }) {
-  const zoomableRef = useRef<ElementRef<typeof ImageZoom>>(null);
+  const zoomableRef = useRef<ElementRef<typeof Zoomable>>(null);
   const [showOverlay, setShowOverlay] = useState(true);
-  const [minPanPointers, setMinPanPointers] = useState(2);
+  const [maxPanPointers, setMaxPanPointers] = useState(2);
   const { top } = useSafeAreaInsets();
 
   // We can't observe the zoom on `react-native-image-zoom`, so we have to
@@ -35,18 +36,18 @@ export function ImageViewerScreenView(props: {
   function handlePinchEnd(event: { scale: number }) {
     setIsAtMinZoom(event.scale <= 1);
     if (event.scale > 1) {
-      setMinPanPointers(1);
+      setMaxPanPointers(1);
     } else {
-      setMinPanPointers(2);
+      setMaxPanPointers(2);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
   }
 
   function onDoubleTap(doubleTapType: string) {
     if (doubleTapType === 'ZOOM_IN') {
-      setMinPanPointers(1);
+      setMaxPanPointers(1);
     } else {
-      setMinPanPointers(2);
+      setMaxPanPointers(2);
       zoomableRef.current?.reset();
       setIsAtMinZoom(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -66,20 +67,45 @@ export function ImageViewerScreenView(props: {
     <GestureDetector gesture={dismissGesture}>
       <ZStack flex={1} backgroundColor="$black" paddingTop={top}>
         <View flex={1} justifyContent="center" alignItems="center">
-          <ImageZoom
-            ref={zoomableRef}
-            style={{ flex: 1 }}
-            width={Dimensions.get('window').width - 20}
-            uri={props.uri}
-            isDoubleTapEnabled
-            isSingleTapEnabled
-            isPanEnabled
-            minScale={0.5}
-            onPinchEnd={handlePinchEnd}
-            onDoubleTap={onDoubleTap}
-            onSingleTap={onSingleTap}
-            minPanPointers={minPanPointers}
-          />
+          {isWeb ? (
+            <Zoomable
+              ref={zoomableRef}
+              style={{
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              isDoubleTapEnabled
+              isSingleTapEnabled
+              isPanEnabled
+              minScale={0.1}
+              onPinchEnd={handlePinchEnd}
+              onDoubleTap={onDoubleTap}
+              onSingleTap={onSingleTap}
+              maxPanPointers={maxPanPointers}
+            >
+              <Image
+                source={{ uri: props.uri }}
+                height={Dimensions.get('window').height}
+                width={Dimensions.get('window').width - 20}
+              />
+            </Zoomable>
+          ) : (
+            <ImageZoom
+              ref={zoomableRef}
+              uri={props.uri}
+              style={{ flex: 1 }}
+              isDoubleTapEnabled
+              isSingleTapEnabled
+              isPanEnabled
+              width={Dimensions.get('window').width - 20}
+              maxPanPointers={maxPanPointers}
+              minScale={0.1}
+              onPinchEnd={handlePinchEnd}
+              onDoubleTap={onDoubleTap}
+              onSingleTap={onSingleTap}
+            />
+          )}
         </View>
 
         {/* overlay */}
