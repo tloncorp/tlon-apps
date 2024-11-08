@@ -104,7 +104,7 @@ export function UserProfileScreenView(props: Props) {
           <ProfileButtons userId={props.userId} contact={userContact} />
         ) : null}
 
-        <StatusDisplay status={'Chillin'} />
+        <StatusDisplay status={userContact?.status ?? ''} />
         <BioDisplay bio={userContact?.bio ?? ''} />
 
         <StatusBlock status={nodeStatus} label="Node" />
