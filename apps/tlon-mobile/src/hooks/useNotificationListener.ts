@@ -76,7 +76,7 @@ function payloadFromNotification(
 
 export default function useNotificationListener() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const { data: isTlonEmployee } = store.useIsTlonEmployee();
+  const isTlonEmployee = store.useIsTlonEmployee();
   const [channelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   const [notifToProcess, setNotifToProcess] =
