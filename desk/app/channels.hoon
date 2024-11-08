@@ -684,7 +684,7 @@
   ::
       %fact
     =.  cor  (give %fact ~[v2+path] cage.sign)
-    =.  cor  
+    =.  cor
       %^  give  %fact
         ~[path v0+path v1+path]
       ?+  p.cage.sign  ~|(funny-mark+p.cage.sign !!)
@@ -1445,6 +1445,11 @@
       ?.  changed  ca-core
       (ca-response %perm perm.perm.channel)
     ::
+        %meta
+      =^  changed  meta.channel  (apply-rev:c meta.channel +.u-channel)
+      ?.  changed  ca-core
+      (ca-response %meta meta.meta.channel)
+    ::
         %post
       =/  old  posts.channel
       =.  ca-core  (ca-u-post id.u-channel u-post.u-channel)
@@ -1789,6 +1794,7 @@
       %^  give  %fact
         ~[/v2 v2+ca-area]
       channel-response-3+!>(r-channels)
+    ?:  ?=(%meta -.r-channel)  ca-core
     =.  ca-core
       %^  give  %fact
         ~[/v1 v1+ca-area]

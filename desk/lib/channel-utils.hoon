@@ -453,6 +453,7 @@
   |=  =r-channels:c
   ^-  r-channels:v7:old:c
   =+  r-channel=r-channel.r-channels
+  ?<  ?=(%meta -.r-channel)
   :-  nest.r-channels
   ^-  r-channel:v7:old:c
   ?+  r-channel  r-channel
@@ -1071,6 +1072,7 @@
     posts    v-posts
     log      log
     future   (future-8 log)
+    perm     [perm.v [0 ~]]
   ==
 ++  v-posts-7-to-8
   |=  [vp=v-posts:v7:old:c mod=(map id-post:c time)]
