@@ -106,9 +106,15 @@
         %revoke
       ::TODO  if the crash here is unexpected to the client, it should
       ::      either forget everything & resub, or forget just this id?
-      ?>  =(src.bowl for:(~(got by records) id.cmd))
-      :_  this(records (~(del by records) id.cmd))
-      [(give-status src.bowl id.cmd %gone)]~
+      =/  rec  (~(got by records) id.cmd)
+      ?>  =(src.bowl for.rec)
+      ::TODO  de-dupe with the host command?
+      :-  [(give-status src.bowl id.cmd %gone)]~
+      =?  owners    ?=(%done -.status.rec)
+        (~(del ju owners) for.rec id.cmd)
+      =?  attested  ?=(%done -.status.rec)
+        (~(del by attested) sig.sign.status.rec)
+      this(records (~(del by records) id.cmd))
     ::
         %work
       ?+  -.id.cmd  !!
