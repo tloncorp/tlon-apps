@@ -1,4 +1,4 @@
-/-  c=channels, ch=chat, g=groups
+/-  c=channels, t=contacts, ch=chat, g=groups
 /+  mp=mop-extensions
 |%
 +|  %collections
@@ -34,12 +34,12 @@
 ::
 ::    actions are only ever performed for and by our selves
 ::
-::    $add: add an event to the stream
-::    $bump: mark a source as having new activity from myself
-::    $del: remove a source and all its activity
-::    $read: mark an event as read
-::    $adjust: adjust the volume of an source
-::    $allow-notifications: change which notifications are allowed
+::    %add: add an event to the stream
+::    %bump: mark a source as having new activity from myself
+::    %del: remove a source and all its activity
+::    %read: mark an event as read
+::    %adjust: adjust the volume of an source
+::    %allow-notifications: change which notifications are allowed
 ::
 +$  action
   $%  [%add =incoming-event]
@@ -53,9 +53,9 @@
 ::
 ::  $read-action: mark activity read
 ::
-::    $item: (DEPRECATED) mark an individual activity as read, indexed by id
-::    $event: (DEPRECATED) mark an individual activity as read, indexed by the event itself
-::    $all: mark _everything_ as read for this source, and possibly children
+::    %item: (DEPRECATED) mark an individual activity as read, indexed by id
+::    %event: (DEPRECATED) mark an individual activity as read, indexed by the event itself
+::    %all: mark _everything_ as read for this source, and possibly children
 ::
 +$  read-action
   $%  [%item id=time-id]
@@ -67,12 +67,12 @@
 ::
 ::  $update: what we hear after an action
 ::
-::    $add: an event was added to the stream
-::    $del: a source and its activity were removed
-::    $read: a source's activity state was updated
-::    $activity: the activity state was updated
-::    $adjust: the volume of a source was adjusted
-::    $allow-notifications: the allowed notifications were changed
+::    %add: an event was added to the stream
+::    %del: a source and its activity were removed
+::    %read: a source's activity state was updated
+::    %activity: the activity state was updated
+::    %adjust: the volume of a source was adjusted
+::    %allow-notifications: the allowed notifications were changed
 ::
 +$  update
   $%  [%add =source time-event]
@@ -87,8 +87,8 @@
 ::  $event: a single point of activity, from one of our sources
 ::
 ::    $incoming-event: the event that was sent to us
-::    $notified: if this event has been notified
-::    $child: if this event is from a child source
+::    .notified: if this event has been notified
+::    .child: if this event is from a child source
 ::
 +$  event
   $:  incoming-event
@@ -109,6 +109,7 @@
       [%group-role group=flag:g =ship roles=(set sect:g)]
       [%flag-post key=message-key channel=nest:c group=flag:g]
       [%flag-reply key=message-key parent=message-key channel=nest:c group=flag:g]
+      [%contact contact-event]
   ==
 ::
 +$  post-event
@@ -143,6 +144,11 @@
       mention=?
   ==
 ::
++$  contact-event
+  $:  who=ship
+      update=(pair @tas value:t)
+  ==
+::
 ::  $source: where the activity is happening
 +$  source
   $%  [%base ~]
@@ -151,6 +157,7 @@
       [%thread key=message-key channel=nest:c group=flag:g]
       [%dm =whom]
       [%dm-thread key=message-key =whom]
+      [%contact who=ship]
   ==
 ::
 ::  $index: the stream of activity and read state for a source
@@ -223,6 +230,7 @@
       %group-role
       %flag-post
       %flag-reply
+      %contact
   ==
 +|  %helpers
 +$  time-event  [=time =event]
@@ -310,6 +318,8 @@
       [%group-kick & |]
       [%group-join & |]
       [%group-role & |]
+      ::XX remove notify?
+      [%contact & &]
   ==
 ++  old-volumes
   ^~

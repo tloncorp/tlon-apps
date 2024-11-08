@@ -24,6 +24,7 @@
 ::            - thread
 ::        - dm
 ::          - dm-thread
+::        - contact
 ::
 ::    with this structure that means that data flows upwards from the
 ::    leaves to the root, and that we can easily keep the read state
@@ -771,6 +772,7 @@
   =.  volume-settings  (~(del by volume-settings) source)
   ::  TODO: send notification removals?
   (give-update [%del source] [%hose ~])
+::
 ++  del-event
   |=  [=source:a event=incoming-event:a]
   ^+  cor
@@ -793,6 +795,7 @@
     (~(put by out) source (~(got by activity) source))
   %-  (log |.("sending activity: {<new-activity>}"))
   (give-update [%activity new-activity] [%hose ~])
+::
 ++  add-to-index
   |=  [=source:a =time-id:a =event:a]
   ^+  cor
@@ -800,6 +803,7 @@
   =/  new=_stream.index
     (put:on-event:a stream.index time-id event)
   (refresh-index source index(stream new))
+::
 ++  refresh-index
   |=  [=source:a new=index:a]
   %-  (log |.("refeshing index: {<source>}"))
