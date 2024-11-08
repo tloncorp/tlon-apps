@@ -1,9 +1,10 @@
 import * as db from '@tloncorp/shared/db';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
-import { View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import AuthorRow from '../AuthorRow';
+import { Button } from '../Button';
 import { Icon } from '../Icon';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
@@ -29,6 +30,7 @@ const ChatMessage = ({
   showReplies,
   setViewReactionsPost,
   isHighlighted,
+  hideOverflowMenu,
 }: {
   post: db.Post;
   showAuthor?: boolean;
@@ -43,8 +45,10 @@ const ChatMessage = ({
   onPressDelete?: (post: db.Post) => void;
   setViewReactionsPost?: (post: db.Post) => void;
   isHighlighted?: boolean;
+  hideOverflowMenu?: boolean;
 }) => {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
+  const [showOverflowOnHover, setShowOverflowOnHover] = useState(false);
   const isNotice = post.type === 'notice';
 
   if (isNotice) {
@@ -93,6 +97,18 @@ const ChatMessage = ({
     setShowRetrySheet(false);
   }, [onPressDelete, post]);
 
+  const handleHoverIn = useCallback(() => {
+    if (isWeb) {
+      setShowOverflowOnHover(true);
+    }
+  }, []);
+
+  const handleHoverOut = useCallback(() => {
+    if (isWeb) {
+      setShowOverflowOnHover(false);
+    }
+  }, []);
+
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
 
@@ -127,6 +143,8 @@ const ChatMessage = ({
       // avoid setting the top level press handler at all unless we need to
       onPress={shouldHandlePress ? handlePress : undefined}
       onLongPress={handleLongPress}
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
     >
       <YStack
         backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
@@ -178,6 +196,13 @@ const ChatMessage = ({
           onPressDelete={handleDeletePressed}
         />
       </YStack>
+      {isWeb && !hideOverflowMenu && showOverflowOnHover && (
+        <View position="absolute" top={0} right={12} width={0} height={0}>
+          <Button onPress={handleLongPress} borderWidth="unset" size="$l">
+            <Icon type="Overflow" />
+          </Button>
+        </View>
+      )}
     </Pressable>
   );
 };
