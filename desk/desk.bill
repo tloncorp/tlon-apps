@@ -1,4 +1,5 @@
-:~  %groups
+:~  %contacts
+    %groups
     %chat
     %heap
     %diary
@@ -7,6 +8,7 @@
     %groups-ui
     %channels
     %channels-server
+    %settings
     %profile
     %activity
 ==

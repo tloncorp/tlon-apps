@@ -1,5 +1,5 @@
 /-  a=activity, g=groups, c=chat
-/+  gj=groups-json, cj=channel-json
+/+  gj=groups-json, cj=channel-json, dj=contacts-json-1
 =*  z  ..zuse
 |%
 ++  enjs
@@ -70,6 +70,9 @@
           '/'
           (msg-id id.key.s)
       ==
+    ::
+        %contact
+      (cat 3 'contact/' (scot %p who.s))
     ==
   ::
   ++  source
@@ -79,6 +82,7 @@
       %base  ~[base/~]
       %group  ~[group/s/(flag:enjs:gj flag.s)]
       %dm  ~[dm+(whom whom.s)]
+      %contact  ~[contact+(ship who.s)]
     ::
         %channel
       :~  :-  %channel
@@ -241,6 +245,12 @@
       :~  group/s+(flag:enjs:gj group.e)
           ship+(ship ship.e)
           roles+a+(turn ~(tap in roles.e) |=(role=sect:g s+role))
+      ==
+    ::
+        %contact
+      %-  pairs
+      :~  who+(ship who.e)
+          update+(contact:enjs:dj [update.e ~ ~])
       ==
     ==
   ::

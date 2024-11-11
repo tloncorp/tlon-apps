@@ -24,6 +24,7 @@
 ::            - thread
 ::        - dm
 ::          - dm-thread
+::        - contact
 ::
 ::    with this structure that means that data flows upwards from the
 ::    leaves to the root, and that we can easily keep the read state
@@ -49,7 +50,7 @@
   +$  card  card:agent:gall
   ::
   +$  current-state
-    $:  %7
+    $:  %8
         allowed=notifications-allowed:a
         =indices:a
         =activity:a
@@ -76,6 +77,7 @@
       cor   ~(. +> [bowl ~])
   ::
   ++  on-init
+    ~&  %activity-on-init
     =^  cards  state
       abet:init:cor
     [cards this]
@@ -140,12 +142,14 @@
   =?  cor  ?=(%6 -.old)
     (emit %pass /adjust-old-default %agent [our.bowl dap.bowl] %poke noun+!>(%adjust-old-default))
   =?  old  ?=(%6 -.old)  [%7 +.old]
-  ?>  ?=(%7 -.old)
+  =?  old  ?=(%7 -.old)  [%8 +.old]
+  ?>  ?=(%8 -.old)
   =.  state  old
   =.  allowed  %all
   (emit %pass /fix-init-unreads %agent [our.bowl dap.bowl] %poke noun+!>(%fix-init-unreads))
   +$  versioned-state
-    $%  state-7
+    $%  state-8
+        state-7
         state-6
         state-5
         state-4
@@ -153,7 +157,14 @@
         state-2
         state-1
     ==
-  +$  state-7  current-state
+  +$  state-8  current-state
+  +$  state-7
+    $:  %7
+        allowed=notifications-allowed:v7:old:a
+        =indices:v7:old:a
+        =activity:v7:old:a
+        =volume-settings:v7:old:a
+    ==
   +$  state-6  _%*(. *state-7 - %6)
   +$  state-5  _%*(. *state-7 - %5)
   ++  state-5-to-6
@@ -500,6 +511,7 @@
         ?~  club  ~|("bad dm thread source: {<pole>}" !!)
         club/u.club
       ship/u.ship
+    ~&  source
     =/  sum  (~(got by activity) source)
     =/  threads=activity:a
       %+  roll
@@ -707,6 +719,7 @@
 ++  add-event
   =/  start-time=time  now.bowl
   |=  inc=incoming-event:a
+  ~&  add-event+inc
   ^+  cor
   =/  =time-id:a
     =/  t  start-time
@@ -714,6 +727,8 @@
     ?.  (has:on-event:a stream:base t)  t
     $(t (add t ~s0..0001))
   =/  notify  notify:(get-volume:evt volume-settings inc)
+  ~&  volume-settings
+  ~&  add-event+[inc notify]
   =/  =event:a  [inc notify |]
   =/  =source:a  (source:evt inc)
   =/  =update:a  [%add source time-id event]
@@ -771,6 +786,7 @@
   =.  volume-settings  (~(del by volume-settings) source)
   ::  TODO: send notification removals?
   (give-update [%del source] [%hose ~])
+::
 ++  del-event
   |=  [=source:a event=incoming-event:a]
   ^+  cor
@@ -793,6 +809,7 @@
     (~(put by out) source (~(got by activity) source))
   %-  (log |.("sending activity: {<new-activity>}"))
   (give-update [%activity new-activity] [%hose ~])
+::
 ++  add-to-index
   |=  [=source:a =time-id:a =event:a]
   ^+  cor
@@ -800,6 +817,7 @@
   =/  new=_stream.index
     (put:on-event:a stream.index time-id event)
   (refresh-index source index(stream new))
+::
 ++  refresh-index
   |=  [=source:a new=index:a]
   %-  (log |.("refeshing index: {<source>}"))
@@ -1181,7 +1199,7 @@
   =.  indices   (~(put by indices) [%base ~] *index:a)
   =.  cor  set-chat-reads
   ::REVIEW  maybe need a scry api version bump here?
-  =+  .^(=channels:c %gx (scry-path %channels /v2/channels/full/noun))
+  =+  .^(=channels:c %gx (scry-path %channels /v3/channels/full/noun))
   =.  cor  (set-volumes channels)
   =.  cor  (set-channel-reads channels)
   =.  cor  refresh-all-summaries
