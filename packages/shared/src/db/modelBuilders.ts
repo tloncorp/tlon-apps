@@ -43,8 +43,7 @@ export function assembleNewChannelIdAndName({
     ? `${tempChannelName}-${randomSmallNumber}`
     : tempChannelName;
   const newChannelFlag = `${currentUserId}/${channelName}`;
-  const newChannelNest = `${channelType}/${newChannelFlag}`;
-
+  const newChannelNest = `${channelKind}/${newChannelFlag}`;
   return {
     name: channelName,
     id: newChannelNest,
