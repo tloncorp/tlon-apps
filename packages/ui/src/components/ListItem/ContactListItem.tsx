@@ -1,9 +1,8 @@
-import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps } from 'react';
-import { SizableText } from 'tamagui';
 
 import { AvatarProps } from '../Avatar';
 import ContactName from '../ContactName';
+import Pressable from '../Pressable';
 import { ListItem } from './ListItem';
 import { useBoundHandler } from './listItemUtils';
 
@@ -37,33 +36,33 @@ export const ContactListItem = ({
   const handleLongPress = useBoundHandler(contactId, onLongPress);
 
   return (
-    <ListItem
+    <Pressable
+      borderRadius="$xl"
       onPress={handlePress}
       onLongPress={handleLongPress}
-      alignItems="center"
-      justifyContent="flex-start"
-      {...props}
     >
-      {showIcon && <ListItem.ContactIcon size={size} contactId={contactId} />}
-      <ListItem.MainContent>
-        <ListItem.Title>
-          <ContactName
-            matchText={matchText}
-            showNickname={showNickname}
-            showUserId={!showNickname && showUserId}
-            full={full}
-            userId={contactId}
-          />
-        </ListItem.Title>
-        {showUserId && showNickname ? (
-          <ListItem.Subtitle>{contactId}</ListItem.Subtitle>
-        ) : null}
-      </ListItem.MainContent>
-      {showEndContent && (
-        <ListItem.EndContent flexGrow={1} justifyContent="flex-end">
-          {endContent}
-        </ListItem.EndContent>
-      )}
-    </ListItem>
+      <ListItem alignItems="center" justifyContent="flex-start" {...props}>
+        {showIcon && <ListItem.ContactIcon size={size} contactId={contactId} />}
+        <ListItem.MainContent>
+          <ListItem.Title>
+            <ContactName
+              matchText={matchText}
+              showNickname={showNickname}
+              showUserId={!showNickname && showUserId}
+              full={full}
+              userId={contactId}
+            />
+          </ListItem.Title>
+          {showUserId && showNickname ? (
+            <ListItem.Subtitle>{contactId}</ListItem.Subtitle>
+          ) : null}
+        </ListItem.MainContent>
+        {showEndContent && (
+          <ListItem.EndContent flexGrow={1} justifyContent="flex-end">
+            {endContent}
+          </ListItem.EndContent>
+        )}
+      </ListItem>
+    </Pressable>
   );
 };

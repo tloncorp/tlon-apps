@@ -1,4 +1,4 @@
-import { ChatMap } from '@tloncorp/shared/dist/urbit/channel';
+import { ChatMap } from '@tloncorp/shared/urbit/channel';
 import bigInt from 'big-integer';
 import { ChangeEvent, KeyboardEvent, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';

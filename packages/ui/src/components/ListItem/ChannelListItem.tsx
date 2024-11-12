@@ -1,10 +1,16 @@
-import type * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
+import type * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import { useMemo } from 'react';
+import { View } from 'tamagui';
+import { isWeb } from 'tamagui';
 
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
+import { Button } from '../Button';
+import { Chat } from '../ChatList';
+import { Icon } from '../Icon';
+import Pressable from '../Pressable';
 import { ListItem, type ListItemProps } from './ListItem';
 
 export function ChannelListItem({
@@ -18,7 +24,7 @@ export function ChannelListItem({
 }: {
   useTypeIcon?: boolean;
   customSubtitle?: string;
-} & ListItemProps<db.Channel>) {
+} & ListItemProps<Chat> & { model: db.Channel }) {
   const unreadCount = model.unread?.count ?? 0;
   const title = utils.useChannelTitle(model);
   const firstMemberId = model.members?.[0]?.contactId ?? '';
@@ -52,41 +58,56 @@ export function ChannelListItem({
   }, [model, firstMemberId, memberCount]);
 
   return (
-    <ListItem {...props} onPress={handlePress} onLongPress={handleLongPress}>
-      <ListItem.ChannelIcon model={model} useTypeIcon={useTypeIcon} />
-      <ListItem.MainContent>
-        <ListItem.Title>{title}</ListItem.Title>
-        {customSubtitle ? (
-          <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
-        ) : (
-          <ListItem.SubtitleWithIcon icon={subtitleIcon}>
-            {subtitle}
-          </ListItem.SubtitleWithIcon>
-        )}
-        {model.lastPost && (
-          <ListItem.PostPreview
-            post={model.lastPost}
-            showAuthor={model.type !== 'dm'}
-          />
-        )}
-      </ListItem.MainContent>
+    <View>
+      <Pressable
+        borderRadius="$xl"
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+      >
+        <ListItem {...props}>
+          <ListItem.ChannelIcon model={model} useTypeIcon={useTypeIcon} />
+          <ListItem.MainContent>
+            <ListItem.Title>{title}</ListItem.Title>
+            {customSubtitle ? (
+              <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
+            ) : (
+              <ListItem.SubtitleWithIcon icon={subtitleIcon}>
+                {subtitle}
+              </ListItem.SubtitleWithIcon>
+            )}
+            {model.lastPost && (
+              <ListItem.PostPreview
+                post={model.lastPost}
+                showAuthor={model.type !== 'dm'}
+              />
+            )}
+          </ListItem.MainContent>
 
-      {EndContent ?? (
-        <ListItem.EndContent>
-          {model.lastPost?.receivedAt ? (
-            <ListItem.Time time={model.lastPost.receivedAt} />
-          ) : null}
+          {EndContent ?? (
+            <ListItem.EndContent>
+              {model.lastPost?.receivedAt ? (
+                <ListItem.Time time={model.lastPost.receivedAt} />
+              ) : null}
 
-          {model.isDmInvite ? (
-            <Badge text="Invite" />
-          ) : (
-            <ListItem.Count
-              count={unreadCount}
-              muted={logic.isMuted(model.volumeSettings?.level, 'channel')}
-            />
+              {model.isDmInvite ? (
+                <Badge text="Invite" />
+              ) : (
+                <ListItem.Count
+                  count={unreadCount}
+                  muted={logic.isMuted(model.volumeSettings?.level, 'channel')}
+                />
+              )}
+            </ListItem.EndContent>
           )}
-        </ListItem.EndContent>
+        </ListItem>
+      </Pressable>
+      {isWeb && (
+        <View position="absolute" right={-2} top={44} zIndex={1}>
+          <Button onPress={handleLongPress} borderWidth="unset" size="$l">
+            <Icon type="Overflow" />
+          </Button>
+        </View>
       )}
-    </ListItem>
+    </View>
   );
 }

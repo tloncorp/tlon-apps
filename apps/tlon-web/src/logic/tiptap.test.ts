@@ -1,6 +1,6 @@
 import { JSONContent } from '@tiptap/react';
-import { Block } from '@tloncorp/shared/dist/urbit/channel';
-import { Inline } from '@tloncorp/shared/dist/urbit/content';
+import { Block } from '@tloncorp/shared/urbit/channel';
+import { Inline } from '@tloncorp/shared/urbit/content';
 import { describe, expect, it } from 'vitest';
 
 import {

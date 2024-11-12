@@ -7,7 +7,7 @@ import {
   Nest,
   PostEssay,
   constructStory,
-} from '@tloncorp/shared/dist/urbit/channel';
+} from '@tloncorp/shared/urbit/channel';
 
 import { SendMessageVariables, SendReplyVariables } from '@/state/chat';
 import { buildAddDelta, createMessage } from '@/state/chat/utils';

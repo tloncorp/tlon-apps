@@ -1,7 +1,7 @@
 import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import type * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import {
   AppDataContextProvider,
   GroupPreviewSheet,
@@ -26,18 +26,28 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
-      const dmChannel = await store.upsertDmChannel({
-        participants,
-      });
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 1,
-          routes: [
-            { name: 'ChatList' },
-            { name: 'Channel', params: { channel: dmChannel } },
-          ],
-        })
-      );
+      try {
+        const dmChannel = await store.upsertDmChannel({
+          participants,
+        });
+
+        if (!dmChannel?.id) {
+          console.error('Failed to create DM channel: no channel ID');
+          return;
+        }
+
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 1,
+            routes: [
+              { name: 'ChatList' },
+              { name: 'Channel', params: { channelId: dmChannel.id } },
+            ],
+          })
+        );
+      } catch (error) {
+        console.error('Error creating DM channel:', error);
+      }
     },
     [navigation]
   );
@@ -48,6 +58,10 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
     },
     [selectedGroup]
   );
+
+  const handlePressEdit = useCallback(() => {
+    navigation.push('EditProfile');
+  }, [navigation]);
 
   return (
     <AppDataContextProvider
@@ -60,6 +74,7 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
           onBack={() => navigation.goBack()}
           connectionStatus={connectionStatus}
           onPressGroup={setSelectedGroup}
+          onPressEdit={handlePressEdit}
         />
         <GroupPreviewSheet
           open={selectedGroup !== null}

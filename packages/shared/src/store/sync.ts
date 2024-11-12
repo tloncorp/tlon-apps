@@ -12,9 +12,8 @@ import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
-import { ErrorReporter } from './errorReporting';
 import { useLureState } from './lure';
-import { updateIsSyncing, updateSession } from './session';
+import { getSyncing, updateIsSyncing, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
@@ -43,7 +42,6 @@ export function updateChannelCursor(channelId: string, cursor: string) {
 const joinedGroupsAndChannels = new Set<string>();
 
 export const syncInitData = async (
-  reporter?: ErrorReporter,
   syncCtx?: SyncCtx,
   queryCtx?: QueryCtx,
   yieldWriter?: boolean
@@ -51,50 +49,50 @@ export const syncInitData = async (
   const initData = await syncQueue.add('init', syncCtx, () =>
     api.getInitData()
   );
-  reporter?.log('got init data from api');
+  logger.crumb('got init data from api');
   initializeJoinedSet(initData.unreads);
   useLureState.getState().start();
 
   const writer = async () => {
     await db
       .insertGroups({ groups: initData.groups }, queryCtx)
-      .then(() => reporter?.log('inserted groups'));
+      .then(() => logger.crumb('inserted groups'));
     await db
       .insertUnjoinedGroups(initData.unjoinedGroups, queryCtx)
-      .then(() => reporter?.log('inserted unjoined groups'));
+      .then(() => logger.crumb('inserted unjoined groups'));
 
     await db
       .insertChannels(initData.channels, queryCtx)
-      .then(() => reporter?.log('inserted channels'));
+      .then(() => logger.crumb('inserted channels'));
     await persistUnreads({
       unreads: initData.unreads,
       ctx: queryCtx,
       includesAllUnreads: true,
-    }).then(() => reporter?.log('persisted unreads'));
+    }).then(() => logger.crumb('persisted unreads'));
 
     await db
       .insertPinnedItems(initData.pins, queryCtx)
-      .then(() => reporter?.log('inserted pinned items'));
+      .then(() => logger.crumb('inserted pinned items'));
 
     await db
       .resetHiddenPosts(initData.hiddenPostIds, queryCtx)
-      .then(() => reporter?.log('handled hidden posts'));
+      .then(() => logger.crumb('handled hidden posts'));
     await db
       .insertBlockedContacts({ blockedIds: initData.blockedUsers }, queryCtx)
-      .then(() => reporter?.log('inserted blocked users'));
+      .then(() => logger.crumb('inserted blocked users'));
 
     await db
       .insertChannelPerms(initData.channelPerms, queryCtx)
-      .then(() => reporter?.log('inserted channel perms'));
+      .then(() => logger.crumb('inserted channel perms'));
     await db
       .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, queryCtx)
-      .then(() => reporter?.log('set left groups'));
+      .then(() => logger.crumb('set left groups'));
     await db
       .setLeftGroupChannels(
         { joinedChannelIds: initData.joinedChannels },
         queryCtx
       )
-      .then(() => reporter?.log('set left channels'));
+      .then(() => logger.crumb('set left channels'));
   };
 
   if (yieldWriter) {
@@ -154,7 +152,6 @@ export const syncBlockedUsers = async (ctx?: SyncCtx) => {
 };
 
 export const syncLatestPosts = async (
-  reporter?: ErrorReporter,
   ctx?: SyncCtx,
   queryCtx?: QueryCtx,
   yieldWriter?: boolean
@@ -162,7 +159,7 @@ export const syncLatestPosts = async (
   const result = await syncQueue.add('latestPosts', ctx, () =>
     api.getLatestPosts({})
   );
-  reporter?.log('got latest posts from api');
+  logger.crumb('got latest posts from api');
   const allPosts = result.map((p) => p.latestPost);
   const writer = async (): Promise<void> => {
     allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
@@ -956,6 +953,24 @@ export async function syncGroupPreviews(groupIds: string[]) {
   return Promise.all(promises);
 }
 
+export async function syncChannelPreivews(channelIds: string[]) {
+  const promises = channelIds.map(async (channelId) => {
+    const channel = await db.getChannelWithRelations({ id: channelId });
+    if (channel) {
+      return channel;
+    }
+
+    const channelPreview = await api.getChannelPreview(channelId);
+    if (!channelPreview) {
+      return;
+    }
+    await db.insertChannels([channelPreview]);
+    return channelPreview;
+  });
+
+  return Promise.all(promises);
+}
+
 const currentPendingMessageSyncs = new Map<string, Promise<boolean>>();
 export async function syncChannelMessageDelivery({
   channelId,
@@ -1029,6 +1044,10 @@ export const clearSyncQueue = () => {
   concerns and punts on full correctness.
 */
 export const handleDiscontinuity = async () => {
+  if (getSyncing()) {
+    // we probably don't want to do this while we're already syncing
+    return;
+  }
   updateSession(null);
 
   // drop potentially outdated newest post markers
@@ -1046,9 +1065,13 @@ export const handleChannelStatusChange = async (status: ChannelStatus) => {
 };
 
 export const syncStart = async (alreadySubscribed?: boolean) => {
+  if (getSyncing()) {
+    // we probably don't want multiple sync starts
+    return;
+  }
+
   updateIsSyncing(true);
-  const reporter = new ErrorReporter('sync start', logger);
-  reporter.log(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
+  logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
   batchEffects('sync start (high)', async (ctx) => {
     // this allows us to run the api calls first in parallel but handle
@@ -1057,13 +1080,11 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
 
     // first kickoff the fetching
     const syncInitPromise = syncInitData(
-      reporter,
       { priority: SyncPriority.High, retry: true },
       ctx,
       yieldWriter
     );
     const syncLatestPostsPromise = syncLatestPosts(
-      reporter,
       {
         priority: SyncPriority.High,
         retry: true,
@@ -1075,21 +1096,21 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       ? Promise.resolve()
       : setupHighPrioritySubscriptions({
           priority: SyncPriority.High - 1,
-        }).then(() => reporter.log('subscribed high priority'));
+        }).then(() => logger.crumb('subscribed high priority'));
 
     // then enforce the ordering of writes to avoid race conditions
     const initWriter = await syncInitPromise;
     await initWriter();
-    reporter.log('finished writing init data');
+    logger.crumb('finished writing init data');
 
     const latestPostsWriter = await syncLatestPostsPromise;
     await latestPostsWriter();
-    reporter.log('finished writing latest posts');
+    logger.crumb('finished writing latest posts');
 
     await subsPromise;
-    reporter.log('finished initializing high priority subs');
+    logger.crumb('finished initializing high priority subs');
 
-    reporter.log(`finished high priority init sync`);
+    logger.crumb(`finished high priority init sync`);
     updateSession({ startTime: Date.now() });
   });
 
@@ -1098,36 +1119,36 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       ? Promise.resolve()
       : setupLowPrioritySubscriptions({
           priority: SyncPriority.Medium,
-        }).then(() => reporter.log('subscribed low priority')),
+        }).then(() => logger.crumb('subscribed low priority')),
     resetActivity({ priority: SyncPriority.Medium + 1, retry: true }).then(() =>
-      reporter.log(`finished resetting activity`)
+      logger.crumb(`finished resetting activity`)
     ),
     syncContacts({ priority: SyncPriority.Medium + 1, retry: true }).then(() =>
-      reporter.log(`finished syncing contacts`)
+      logger.crumb(`finished syncing contacts`)
     ),
     syncSettings({ priority: SyncPriority.Medium }).then(() =>
-      reporter.log(`finished syncing settings`)
+      logger.crumb(`finished syncing settings`)
     ),
     syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>
-      reporter.log(`finished syncing volume settings`)
+      logger.crumb(`finished syncing volume settings`)
     ),
     syncStorageSettings({ priority: SyncPriority.Low }).then(() =>
-      reporter.log(`finished initializing storage`)
+      logger.crumb(`finished initializing storage`)
     ),
     syncPushNotificationsSetting({ priority: SyncPriority.Low }).then(() =>
-      reporter.log(`finished syncing push notifications setting`)
+      logger.crumb(`finished syncing push notifications setting`)
     ),
     syncAppInfo({ priority: SyncPriority.Low }).then(() => {
-      reporter.log(`finished syncing app info`);
+      logger.crumb(`finished syncing app info`);
     }),
   ];
 
   await Promise.all(lowPriorityPromises)
     .then(() => {
-      reporter.log(`finished low priority sync`);
+      logger.crumb(`finished low priority sync`);
     })
     .catch((e) => {
-      reporter.report(e);
+      logger.trackError(e);
     });
 
   updateIsSyncing(false);

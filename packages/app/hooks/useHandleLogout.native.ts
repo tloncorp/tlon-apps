@@ -1,6 +1,6 @@
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as api from '@tloncorp/shared/dist/api';
-import * as store from '@tloncorp/shared/dist/store';
+import { createDevLogger } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
+import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { useBranch } from '../contexts/branch';

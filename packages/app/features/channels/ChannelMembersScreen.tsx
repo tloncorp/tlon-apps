@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as store from '@tloncorp/shared/dist/store';
+import * as store from '@tloncorp/shared/store';
 import { ChannelMembersScreenView } from '@tloncorp/ui';
 
 import { RootStackParamList } from '../../navigation/types';

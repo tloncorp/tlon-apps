@@ -1,10 +1,16 @@
-import * as db from '@tloncorp/shared/dist/db';
-import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
+import * as db from '@tloncorp/shared/db';
+import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { Dispatch, SetStateAction } from 'react';
 
 export type GalleryDraftType = 'caption' | 'text';
 
 export interface DraftInputHandle {
+  /**
+   * Perform anything necessary to put the user in a drafting state for this
+   * input - open a model editor, focus text box, open image picker, etc.
+   */
+  startDraft?: () => void;
+
   /**
    * @deprecated
    * We are using this to implement a weird navigation pattern where we present

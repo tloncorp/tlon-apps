@@ -1,4 +1,4 @@
-import * as urbit from '@tloncorp/shared/dist/urbit';
+import * as urbit from '@tloncorp/shared/urbit';
 
 import { useShip } from '../contexts/ship';
 

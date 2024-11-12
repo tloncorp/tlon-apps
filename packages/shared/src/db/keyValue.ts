@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useQuery } from '@tanstack/react-query';
 
 import {
   StorageConfiguration,
@@ -8,6 +9,7 @@ import {
 } from '../api';
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
+import { NodeBootPhase, SignupParams } from './domainTypes';
 
 const logger = createDevLogger('keyValueStore', false);
 
@@ -197,3 +199,82 @@ export async function getDidShowBenefitsSheet() {
   const didShow = await AsyncStorage.getItem('didShowBenefitsSheet');
   return didShow === 'true' ? true : false;
 }
+
+// new pattern
+type StorageItem<T> = {
+  key: string;
+  defaultValue: T;
+  isSecure?: boolean;
+  serialize?: (value: T) => string;
+  deserialize?: (value: string) => T;
+};
+
+const createStorageItem = <T>(config: StorageItem<T>) => {
+  const {
+    key,
+    defaultValue,
+    serialize = JSON.stringify,
+    deserialize = JSON.parse,
+  } = config;
+
+  const getValue = async (): Promise<T> => {
+    const value = await AsyncStorage.getItem(key);
+    return value ? deserialize(value) : defaultValue;
+  };
+
+  const resetValue = async (): Promise<T> => {
+    await AsyncStorage.setItem(key, serialize(defaultValue));
+    queryClient.invalidateQueries({ queryKey: [key] });
+    logger.log(`reset value ${key}`);
+    return defaultValue;
+  };
+
+  const setValue = async (valueInput: T | ((curr: T) => T)): Promise<void> => {
+    let newValue: T;
+    if (valueInput instanceof Function) {
+      const currValue = await getValue();
+      newValue = valueInput(currValue);
+    } else {
+      newValue = valueInput;
+    }
+
+    await AsyncStorage.setItem(key, serialize(newValue));
+    queryClient.invalidateQueries({ queryKey: [key] });
+    logger.log(`set value ${key}`, newValue);
+  };
+
+  function useValue() {
+    const { data: value } = useQuery({ queryKey: [key], queryFn: getValue });
+    return value === undefined ? defaultValue : value;
+  }
+
+  function useStorageItem() {
+    const { data: value } = useQuery({ queryKey: [key], queryFn: getValue });
+    return {
+      value: value === undefined ? defaultValue : value,
+      setValue,
+      resetValue,
+    };
+  }
+
+  return { getValue, setValue, resetValue, useValue, useStorageItem };
+};
+
+export const signupData = createStorageItem<SignupParams>({
+  key: 'signupData',
+  defaultValue: {
+    hostingUser: null,
+    reservedNodeId: null,
+    bootPhase: NodeBootPhase.IDLE,
+  },
+});
+
+export const lastAppVersion = createStorageItem<string | null>({
+  key: 'lastAppVersion',
+  defaultValue: null,
+});
+
+export const didSignUp = createStorageItem<boolean>({
+  key: 'didSignUp',
+  defaultValue: false,
+});

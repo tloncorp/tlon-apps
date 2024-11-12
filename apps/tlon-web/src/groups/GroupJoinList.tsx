@@ -1,4 +1,4 @@
-import { Gang, Gangs } from '@tloncorp/shared/dist/urbit/groups';
+import { Gang, Gangs } from '@tloncorp/shared/urbit/groups';
 import cn from 'classnames';
 
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';

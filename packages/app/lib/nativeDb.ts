@@ -1,7 +1,7 @@
 import { open } from '@op-engineering/op-sqlite';
 import { createDevLogger, escapeLog } from '@tloncorp/shared';
-import { handleChange, schema, setClient } from '@tloncorp/shared/dist/db';
-import { AnySqliteDatabase } from '@tloncorp/shared/dist/db/client';
+import { handleChange, schema, setClient } from '@tloncorp/shared/db';
+import { AnySqliteDatabase } from '@tloncorp/shared/db';
 import { useEffect, useMemo, useState } from 'react';
 
 import { OPSQLite$SQLiteConnection } from './opsqliteConnection';
@@ -19,6 +19,8 @@ export function setupDb() {
     return;
   }
   connection = new OPSQLite$SQLiteConnection(
+    // NB: the iOS code in SQLiteDB.swift relies on this path - if you change
+    // this, you should change that too.
     open({ location: 'default', name: 'tlon.sqlite' })
   );
   // Experimental SQLite settings. May cause crashes. More here:

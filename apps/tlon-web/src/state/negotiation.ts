@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   MatchingEvent,
   MatchingResponse,
-} from '@tloncorp/shared/dist/urbit/negotiation';
+} from '@tloncorp/shared/urbit/negotiation';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 

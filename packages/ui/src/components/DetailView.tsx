@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as urbit from '@tloncorp/shared/dist/urbit';
+import * as db from '@tloncorp/shared/db';
+import * as urbit from '@tloncorp/shared/urbit';
 import { useEffect, useMemo } from 'react';
 import { FlatList } from 'react-native';
 import { View, YStack } from 'tamagui';
@@ -64,7 +64,7 @@ export const DetailView = ({
           inverted
           renderItem={ChatMessage}
           channel={channel}
-          detailView
+          collectionLayoutType="compact-list-bottom-to-top"
           editingPost={editingPost}
           setEditingPost={setEditingPost}
           posts={resolvedPosts ?? null}
@@ -98,7 +98,7 @@ export const DetailView = ({
     setActiveMessage,
     setEditingPost,
     headerMode,
-    channel
+    channel,
   ]);
 
   return isChat ? (

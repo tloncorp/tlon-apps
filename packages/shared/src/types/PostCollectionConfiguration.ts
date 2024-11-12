@@ -1,3 +1,4 @@
+import { CollectionRendererId } from '../api';
 import * as db from '../db';
 import * as ChannelAction from './ChannelActions';
 
@@ -13,17 +14,33 @@ export type PostCollectionLayoutType =
 // If the caller has a non-nullable `channel`, they can then get a
 // non-nullable return value - nice, right?
 export function layoutTypeFromChannel(
-  channel: db.Channel,
-  detailView?: boolean
+  channel: db.Channel
 ): PostCollectionLayoutType;
 export function layoutTypeFromChannel(
-  channel: db.Channel | null,
-  detailView?: boolean
+  channel: db.Channel | null
 ): PostCollectionLayoutType | null;
 export function layoutTypeFromChannel(
-  channel: db.Channel | null,
-  detailView?: boolean
+  channel: db.Channel | null
 ): PostCollectionLayoutType | null {
+  const configCollectionRendererId =
+    channel?.contentConfiguration?.defaultPostCollectionRenderer;
+  if (configCollectionRendererId != null) {
+    switch (configCollectionRendererId) {
+      case CollectionRendererId.notebook:
+        return 'comfy-list-top-to-bottom';
+
+      case CollectionRendererId.chat:
+        return 'compact-list-bottom-to-top';
+
+      case CollectionRendererId.gallery:
+        return 'grid';
+
+      default:
+        // fallthrough to legacy logic
+        break;
+    }
+  }
+
   switch (channel?.type) {
     case null:
     // fallthrough
@@ -38,15 +55,9 @@ export function layoutTypeFromChannel(
       return 'compact-list-bottom-to-top';
 
     case 'notebook':
-      if (detailView) {
-        return 'compact-list-bottom-to-top';
-      }
       return 'comfy-list-top-to-bottom';
 
     case 'gallery':
-      if (detailView) {
-        return 'compact-list-bottom-to-top';
-      }
       return 'grid';
   }
 }

@@ -39,5 +39,25 @@ module.exports = {
         additionalHooks: '(useAnimatedStyle|useDerivedValue|useAnimatedProps)',
       },
     ],
+    'no-restricted-syntax': [
+      'error',
+      {
+        selector: 'CallExpression[callee.name="getToken"]',
+        message:
+          'Please use getTokenValue() instead of getToken() to ensure web compatibility. See: https://tamagui.dev/docs/core/exports#gettokenvalue',
+      },
+      {
+        selector:
+          'JSXOpeningElement[name.name=/^(Stack|XStack|YStack|View|ListItem)$/] > JSXAttribute[name.name="onPress"]',
+        message:
+          'Do not use onPress on Stack, View or ListItem components. Use Pressable instead.',
+      },
+      {
+        selector:
+          'JSXOpeningElement[name.name=/^(Stack|XStack|YStack|View|ListItem)$/] > JSXAttribute[name.name="onLongPress"]',
+        message:
+          'Do not use onLongPress on Stack, View or ListItem components. Use Pressable instead.',
+      },
+    ],
   },
 };

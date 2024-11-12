@@ -1,4 +1,4 @@
-import { DisplayMode } from '@tloncorp/shared/dist/urbit/channel';
+import { DisplayMode } from '@tloncorp/shared/urbit/channel';
 import cn from 'classnames';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';

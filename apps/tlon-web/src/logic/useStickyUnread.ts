@@ -1,4 +1,4 @@
-import { ActivitySummary } from '@tloncorp/shared/dist/urbit';
+import { ActivitySummary } from '@tloncorp/shared/urbit';
 import { useEffect, useRef, useState } from 'react';
 
 const READ_DELAY = 15_000; // 15 seconds

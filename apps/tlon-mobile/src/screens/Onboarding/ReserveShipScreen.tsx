@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
-import { useSignupContext } from '@tloncorp/app/contexts/signup';
+import { useSignupContext } from '.././../lib/signupContext';
 import { NodeBootPhase } from '@tloncorp/app/lib/bootHelpers';
 import {
   ArvosDiscussing,
@@ -32,10 +32,11 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
   );
 
   useEffect(() => {
-    if (!signupContext.didCompleteSignup) {
-      signupContext.setDidCompleteSignup(true);
+    if (!signupContext.didCompleteOnboarding) {
+      signupContext.setOnboardingValues({ didCompleteOnboarding: true });
     }
-  }, [signupContext]);
+    signupContext.kickOffBootSequence();
+  }, []);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">

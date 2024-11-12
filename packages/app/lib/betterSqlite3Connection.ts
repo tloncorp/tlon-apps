@@ -1,6 +1,6 @@
-import type { Schema } from '@tloncorp/shared/dist/db';
-import type { AnySqliteDatabase } from '@tloncorp/shared/dist/db/client';
-import { migrations } from '@tloncorp/shared/dist/db/migrations';
+import type { Schema } from '@tloncorp/shared/db';
+import type { AnySqliteDatabase } from '@tloncorp/shared/db/client';
+import { migrations } from '@tloncorp/shared/db/migrations';
 import type { Database } from 'better-sqlite3';
 import type { DrizzleConfig } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
@@ -50,7 +50,6 @@ export class BetterSqlite3$SQLiteConnection implements SQLiteConnection {
     Object.entries(migrations.migrations)
       .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
       .forEach(([_key, migration]) => {
-        // @ts-expect-error - migration is an SQL import
         this.execute(migration);
       });
     return;

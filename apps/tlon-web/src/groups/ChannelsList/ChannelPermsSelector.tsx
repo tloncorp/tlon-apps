@@ -2,7 +2,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
   ChannelFormSchema,
   ChannelPrivacyType,
-} from '@tloncorp/shared/dist/urbit/groups';
+} from '@tloncorp/shared/urbit/groups';
 import cn from 'classnames';
 import { AnimatePresence, motion } from 'framer-motion';
 import _ from 'lodash';

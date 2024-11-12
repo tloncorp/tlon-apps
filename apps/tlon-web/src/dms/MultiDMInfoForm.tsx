@@ -1,5 +1,5 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { GroupMeta } from '@tloncorp/shared/dist/urbit/groups';
+import { GroupMeta } from '@tloncorp/shared/urbit/groups';
 import React, { useCallback, useEffect, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';

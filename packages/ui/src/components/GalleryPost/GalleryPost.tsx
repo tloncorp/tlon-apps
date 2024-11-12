@@ -1,5 +1,5 @@
 import { makePrettyShortDate } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { truncate } from 'lodash';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { PropsWithChildren } from 'react';

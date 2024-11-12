@@ -1,7 +1,7 @@
-import { PostContent } from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
-import { ExtendedEventType } from '@tloncorp/shared/dist/urbit';
+import { PostContent } from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
+import { ExtendedEventType } from '@tloncorp/shared/urbit';
 
 import { exampleContacts, postsByType } from './contentHelpers';
 import { group as fakeGroup, tlonLocalIntros } from './fakeData';

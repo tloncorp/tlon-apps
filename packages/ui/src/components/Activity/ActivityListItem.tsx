@@ -1,13 +1,14 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
-import * as store from '@tloncorp/shared/dist/store';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import React, { PropsWithChildren, useCallback, useMemo } from 'react';
-import { View, XStack, YStack, styled } from 'tamagui';
+import { XStack, YStack, styled } from 'tamagui';
 
 import { useCalm } from '../../contexts';
 import { useChannelTitle } from '../../utils';
 import { ChannelAvatar, ContactAvatar, GroupAvatar } from '../Avatar';
 import { Icon } from '../Icon';
+import Pressable from '../Pressable';
 import { Text } from '../TextV2';
 import { UnreadDot } from '../UnreadDot';
 import { ActivitySourceContent } from './ActivitySourceContent';
@@ -33,13 +34,13 @@ export const ActivityListItem = React.memo(function ActivityListItem({
     event.type === 'group-ask'
   ) {
     return (
-      <View onPress={handlePress}>
+      <Pressable onPress={handlePress}>
         <ActivityListItemContent
           summary={sourceActivity}
           pressHandler={handlePress}
           seenMarker={seenMarker}
         />
-      </View>
+      </Pressable>
     );
   }
 
@@ -61,10 +62,10 @@ export function ActivityListItemContent({
   const channel: db.Channel | undefined = newestPost.channel ?? undefined;
   const modelUnread =
     summary.type === 'post'
-      ? (newestPost.channel?.unread ?? null)
+      ? newestPost.channel?.unread ?? null
       : summary.type === 'group-ask'
-        ? (newestPost.group?.unread ?? null)
-        : (newestPost.parent?.threadUnread ?? null);
+        ? newestPost.group?.unread ?? null
+        : newestPost.parent?.threadUnread ?? null;
   const { data: unread } = store.useLiveUnread(modelUnread);
   const unreadCount = useMemo(() => {
     return (isGroupUnread(unread) ? unread.notifyCount : unread?.count) ?? 0;

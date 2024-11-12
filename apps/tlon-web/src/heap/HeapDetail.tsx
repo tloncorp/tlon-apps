@@ -1,5 +1,5 @@
-import { Post } from '@tloncorp/shared/dist/urbit/channel';
-import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
+import { Post } from '@tloncorp/shared/urbit/channel';
+import { ViewProps } from '@tloncorp/shared/urbit/groups';
 import bigInt from 'big-integer';
 import cn from 'classnames';
 import { Helmet } from 'react-helmet';

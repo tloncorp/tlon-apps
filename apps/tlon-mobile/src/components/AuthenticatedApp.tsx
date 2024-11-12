@@ -7,11 +7,11 @@ import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
-import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
 import { useCallback, useEffect } from 'react';
 import { AppStateStatus } from 'react-native';
 
+import { useCheckAppUpdated } from '../hooks/analytics';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 
@@ -24,15 +24,10 @@ function AuthenticatedApp() {
   useDeepLinkListener();
   useNavigationLogging();
   useNetworkLogger();
+  useCheckAppUpdated();
 
   useEffect(() => {
     configureClient();
-
-    // TODO: remove, for use in Beta testing only
-    if (currentUserId) {
-      store.setErrorTrackingUserId(currentUserId);
-    }
-
     sync.syncStart();
   }, [currentUserId, ship, shipUrl]);
 

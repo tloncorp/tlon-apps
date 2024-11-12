@@ -1,4 +1,4 @@
-import { getKey } from '@tloncorp/shared/dist/urbit/activity';
+import { getKey } from '@tloncorp/shared/urbit/activity';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { format, isToday } from 'date-fns';

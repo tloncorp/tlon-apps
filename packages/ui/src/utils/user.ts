@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as urbit from '@tloncorp/shared/dist/urbit';
+import * as db from '@tloncorp/shared/db';
+import * as urbit from '@tloncorp/shared/urbit';
 import { cite as shorten } from '@urbit/aura';
 
 const USER_ID_SEPARATORS = /([_^-])/;

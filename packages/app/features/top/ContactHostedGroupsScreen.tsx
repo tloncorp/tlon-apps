@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import {
   GroupPreviewAction,
   GroupPreviewSheet,
@@ -38,7 +38,7 @@ export function ContactHostedGroupsScreen({ route, navigation }: Props) {
   );
 
   return (
-    <View flex={1}>
+    <View backgroundColor="$background" flex={1}>
       <ScreenHeader
         title={`Groups hosted by ${contactName}`}
         backAction={goBack}

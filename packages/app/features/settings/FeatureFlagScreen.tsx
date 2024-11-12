@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useIsTlonEmployee } from '@tloncorp/shared';
 import { FeatureFlagScreenView } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
@@ -22,14 +23,22 @@ export function FeatureFlagScreen({ navigation }: Props) {
     [setEnabled]
   );
 
+  const isTlonEmployee = useIsTlonEmployee();
   const features = useMemo(
     () =>
-      Object.entries(featureFlags.featureMeta).map(([name, meta]) => ({
-        name,
-        label: meta.label,
-        enabled: flags[name as featureFlags.FeatureName],
-      })),
-    [flags]
+      Object.entries(featureFlags.featureMeta)
+        .filter(([name]) => {
+          if (name === 'customChannelCreation') {
+            return isTlonEmployee;
+          }
+          return true;
+        })
+        .map(([name, meta]) => ({
+          name,
+          label: meta.label,
+          enabled: flags[name as featureFlags.FeatureName],
+        })),
+    [flags, isTlonEmployee]
   );
 
   return (

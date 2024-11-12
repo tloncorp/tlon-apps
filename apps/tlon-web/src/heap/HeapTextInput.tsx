@@ -1,6 +1,6 @@
 import { Editor, JSONContent } from '@tiptap/react';
-import { PostEssay, constructStory } from '@tloncorp/shared/dist/urbit/channel';
-import { Inline, InlineKey } from '@tloncorp/shared/dist/urbit/content';
+import { PostEssay, constructStory } from '@tloncorp/shared/urbit/channel';
+import { Inline, InlineKey } from '@tloncorp/shared/urbit/content';
 import cn from 'classnames';
 import { reduce } from 'lodash';
 import React, { useCallback, useEffect } from 'react';

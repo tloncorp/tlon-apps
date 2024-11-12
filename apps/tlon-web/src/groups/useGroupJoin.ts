@@ -1,4 +1,4 @@
-import { Gang, Group, PrivacyType } from '@tloncorp/shared/dist/urbit/groups';
+import { Gang, Group, PrivacyType } from '@tloncorp/shared/urbit/groups';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 

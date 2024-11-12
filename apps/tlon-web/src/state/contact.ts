@@ -6,7 +6,7 @@ import {
   ContactHeed,
   ContactNews,
   ContactRolodex,
-} from '@tloncorp/shared/dist/urbit/contact';
+} from '@tloncorp/shared/urbit/contact';
 import { Patp, preSig } from '@urbit/api';
 import produce from 'immer';
 import _ from 'lodash';

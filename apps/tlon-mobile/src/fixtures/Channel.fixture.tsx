@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import {
-  useChannel,
+  useChannelPreview,
   useGroupPreview,
   usePostWithRelations,
-} from '@tloncorp/shared/dist';
-import type { Upload } from '@tloncorp/shared/dist/api';
-import type * as db from '@tloncorp/shared/dist/db';
+} from '@tloncorp/shared';
+import type { Upload } from '@tloncorp/shared/api';
+import type * as db from '@tloncorp/shared/db';
 import {
   AppDataContextProvider,
   Channel,
@@ -71,11 +71,10 @@ const fakeLoadingMostRecentFile: Upload = {
 
 const ChannelFixtureWrapper = ({
   children,
-  theme,
 }: PropsWithChildren<{ theme?: 'light' | 'dark' }>) => {
   return (
     <AppDataContextProvider contacts={initialContacts}>
-      <FixtureWrapper fillWidth fillHeight theme={theme}>
+      <FixtureWrapper fillWidth fillHeight>
         {children}
       </FixtureWrapper>
     </AppDataContextProvider>
@@ -103,7 +102,7 @@ const baseProps: ComponentProps<typeof Channel> = {
   onPressRef: () => {},
   usePost: usePostWithRelations,
   usePostReference: usePostReference,
-  useChannel: useChannel,
+  useChannel: useChannelPreview,
   useGroup: useGroupPreview,
   onGroupAction: () => {},
   getDraft: async () => ({}),

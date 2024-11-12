@@ -19,7 +19,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     eas: {
       projectId,
     },
-    postHogApiKey: process.env.POST_HOG_API_KEY,
+    postHogApiKey: isPreview
+      ? process.env.POST_HOG_API_KEY_TEST
+      : process.env.POST_HOG_API_KEY_PROD,
     postHogInDev: process.env.POST_HOG_IN_DEV,
     notifyProvider: process.env.NOTIFY_PROVIDER,
     notifyService: process.env.NOTIFY_SERVICE,
@@ -34,6 +36,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     defaultInviteLinkUrl: process.env.DEFAULT_INVITE_LINK_URL,
     defaultShipLoginUrl: process.env.DEFAULT_SHIP_LOGIN_URL,
     defaultShipLoginAccessCode: process.env.DEFAULT_SHIP_LOGIN_ACCESS_CODE,
+    defaultOnboardingPassword: process.env.ONBOARDING_DEFAULT_PASSWORD,
+    defaultOnboardingTlonEmail: process.env.ONBOARDING_DEFAULT_TLON_EMAIL,
+    defaultOnboardingNickname: process.env.ONBOARDING_DEFAULT_NICKNAME,
+    defaultOnboardingPhoneNumber: process.env.ONBOARDING_DEFAULT_PHONE_NUMBER,
     recaptchaSiteKeyAndroid: process.env.RECAPTCHA_SITE_KEY_ANDROID,
     recaptchaSiteKeyIOS: process.env.RECAPTCHA_SITE_KEY_IOS,
     enabledLoggers: process.env.ENABLED_LOGGERS,

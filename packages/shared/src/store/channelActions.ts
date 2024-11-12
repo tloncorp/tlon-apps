@@ -1,4 +1,8 @@
 import * as api from '../api';
+import {
+  ChannelContentConfiguration,
+  StructuredChannelDescriptionPayload,
+} from '../api/channelContentConfig';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';
@@ -11,8 +15,11 @@ export async function createChannel({
   channelId,
   name,
   title,
-  description,
+  // Alias to `rawDescription`, since we might need to synthesize a new
+  // `description` API value by merging with `contentConfiguration` below.
+  description: rawDescription,
   channelType,
+  contentConfiguration,
 }: {
   groupId: string;
   channelId: string;
@@ -20,18 +27,31 @@ export async function createChannel({
   title: string;
   description?: string;
   channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
+  contentConfiguration?: ChannelContentConfiguration;
 }) {
   // optimistic update
   const newChannel: db.Channel = {
     id: channelId,
     title,
-    description: description ?? '',
+    description: rawDescription,
+    contentConfiguration,
     type: channelType as db.ChannelType,
     groupId,
     addedToGroupAt: Date.now(),
     currentUserIsMember: true,
   };
   await db.insertChannels([newChannel]);
+
+  // If we have a `contentConfiguration`, we need to merge these fields to make
+  // a `StructuredChannelDescriptionPayload`, and use that as the `description`
+  // on the API.
+  const encodedDescription =
+    contentConfiguration == null
+      ? rawDescription
+      : StructuredChannelDescriptionPayload.encode({
+          description: rawDescription,
+          channelContentConfiguration: contentConfiguration,
+        });
 
   try {
     await api.addChannelToGroup({ groupId, channelId, sectionId: 'default' });
@@ -41,7 +61,7 @@ export async function createChannel({
       group: groupId,
       name,
       title,
-      description: description ?? '',
+      description: encodedDescription ?? '',
       readers: [],
       writers: [],
     });

@@ -33,7 +33,7 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
         priorityToken: signupParams.priorityToken,
       });
       if (enabled) {
-        navigation.navigate('SignUpEmail');
+        navigation.navigate('Signup');
       } else {
         navigation.navigate('PasteInviteLink');
       }

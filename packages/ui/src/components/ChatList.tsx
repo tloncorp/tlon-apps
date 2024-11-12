@@ -1,7 +1,7 @@
-import { ContentStyle, FlashList, ListRenderItem } from '@shopify/flash-list';
-import * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
-import * as store from '@tloncorp/shared/dist/store';
+import { FlashList, ListRenderItem } from '@shopify/flash-list';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
 import React, {
@@ -17,7 +17,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import { Text, View, YStack, getTokenValue, useStyle } from 'tamagui';
+import { Text, View, YStack, getTokenValue } from 'tamagui';
 
 import { interactionWithTiming } from '../utils/animation';
 import { TextInputWithIconAndButton } from './Form';
@@ -39,7 +39,6 @@ export const ChatList = React.memo(function ChatListComponent({
   pendingChats,
   onLongPressItem,
   onPressItem,
-  onPressMenuButton,
   activeTab,
   setActiveTab,
   showSearchInput,
@@ -50,7 +49,6 @@ export const ChatList = React.memo(function ChatListComponent({
   pendingChats: store.PendingChats;
   onPressItem?: (chat: Chat) => void;
   onLongPressItem?: (chat: Chat) => void;
-  onPressMenuButton?: (chat: Chat) => void;
   onSectionChange?: (title: string) => void;
   activeTab: TabName;
   setActiveTab: (tab: TabName) => void;
@@ -78,13 +76,13 @@ export const ChatList = React.memo(function ChatListComponent({
     [displayData]
   );
 
-  const contentContainerStyle = useStyle(
-    {
-      padding: '$l',
-      paddingBottom: 100, // bottom nav height + some cushion
-    },
-    { resolveValues: 'value' }
-  ) as ContentStyle;
+  // removed the use of useStyle here because it was causing FlashList to
+  // peg the CPU and freeze the app on web
+  // see: https://github.com/Shopify/flash-list/pull/852
+  const contentContainerStyle = {
+    padding: getTokenValue('$l', 'size'),
+    paddingBottom: 100, // bottom nav height + some cushion
+  };
 
   const renderItem: ListRenderItem<ChatListItemData> = useCallback(
     ({ item }) => {
@@ -100,7 +98,6 @@ export const ChatList = React.memo(function ChatListComponent({
             model={item}
             onPress={onPressItem}
             onLongPress={onLongPressItem}
-            onPressMenuButton={onPressMenuButton}
           />
         );
       } else {
@@ -113,7 +110,7 @@ export const ChatList = React.memo(function ChatListComponent({
         );
       }
     },
-    [onPressItem, onLongPressItem, onPressMenuButton]
+    [onPressItem, onLongPressItem]
   );
 
   const handlePressTryAll = useCallback(() => {
@@ -307,7 +304,7 @@ function useFilteredChats({
   );
 
   return useMemo(() => {
-    const isSearching = searchQuery.trim() !== '';
+    const isSearching = searchQuery && searchQuery.trim() !== '';
     if (!isSearching) {
       const pinnedSection = {
         title: 'Pinned',
@@ -315,7 +312,10 @@ function useFilteredChats({
       };
       const allSection = {
         title: 'All',
-        data: [...pending, ...filterChats(unpinned, activeTab)],
+        data: [
+          ...filterPendingChats(pending, activeTab),
+          ...filterChats(unpinned, activeTab),
+        ],
       };
       return pinnedSection.data.length
         ? [pinnedSection, allSection]
@@ -329,6 +329,14 @@ function useFilteredChats({
       ];
     }
   }, [activeTab, pending, searchQuery, searchResults, unpinned, pinned]);
+}
+
+function filterPendingChats(pending: Chat[], activeTab: TabName) {
+  if (activeTab === 'all') return pending;
+  return pending.filter((chat) => {
+    const isGroupChannel = logic.isGroup(chat);
+    return activeTab === 'groups' ? isGroupChannel : !isGroupChannel;
+  });
 }
 
 function filterChats(chats: Chat[], activeTab: TabName) {
@@ -362,6 +370,9 @@ function useChatSearch({
 
   const performSearch = useCallback(
     (query: string) => {
+      // necessary for web, otherwise fuse.search will throw
+      // an error
+      if (!query) return [];
       return fuse.search(query).map((result) => result.item);
     },
     [fuse]

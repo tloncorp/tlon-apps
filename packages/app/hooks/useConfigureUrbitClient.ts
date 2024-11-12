@@ -1,22 +1,19 @@
-import { createDevLogger, sync } from '@tloncorp/shared/dist';
-import { ClientParams } from '@tloncorp/shared/dist/api';
-import { configureClient } from '@tloncorp/shared/dist/store';
+import { createDevLogger, sync } from '@tloncorp/shared';
+import { ClientParams } from '@tloncorp/shared/api';
+import { configureClient } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
-//@ts-expect-error no typedefs
-import { fetch as streamingFetch } from 'react-native-fetch-api';
-//@ts-expect-error no typedefs
-import { polyfill as polyfillEncoding } from 'react-native-polyfill-globals/src/encoding';
-//@ts-expect-error no typedefs
-import { polyfill as polyfillReadableStream } from 'react-native-polyfill-globals/src/readable-stream';
 
 import { ENABLED_LOGGERS } from '../constants';
 import { useShip } from '../contexts/ship';
 import { getShipAccessCode } from '../lib/hostingApi';
-import { resetDb } from '../lib/nativeDb';
+// We need to import resetDb this way because we have both a resetDb.ts and a
+// resetDb.native.ts file. We need to import the right one based on the
+// platform.
+import { resetDb } from '../lib/resetDb';
+import { initializePolyfills, platformFetch } from '../platform/polyfills';
 import { useHandleLogout } from './useHandleLogout';
 
-polyfillReadableStream();
-polyfillEncoding();
+initializePolyfills();
 
 let abortController = new AbortController();
 
@@ -52,7 +49,7 @@ const apiFetch: typeof fetch = (input, init: RequestInit = {}) => {
     // to stream the request.
     reactNative: { textStreaming: true },
   };
-  return streamingFetch(input, newInit);
+  return platformFetch(input, newInit);
 };
 
 export function useConfigureUrbitClient() {

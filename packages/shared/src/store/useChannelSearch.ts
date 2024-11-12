@@ -12,7 +12,7 @@ const MIN_RESULT_LOAD_THRESHOLD = 20;
 
 const logger = createDevLogger('channel search', true);
 
-export function useChannelSearch(channel: db.Channel, query: string) {
+export function useChannelSearch(channelId: string, query: string) {
   const {
     results,
     searchedThroughDate,
@@ -20,7 +20,7 @@ export function useChannelSearch(channel: db.Channel, query: string) {
     isError: apiError,
     hasNextPage,
     fetchNextPage,
-  } = useInfiniteChannelSearch(channel, query);
+  } = useInfiniteChannelSearch(channelId, query);
 
   const posts = useAttachAuthorToPosts(results);
 
@@ -45,14 +45,14 @@ export function useChannelSearch(channel: db.Channel, query: string) {
   };
 }
 
-export function useInfiniteChannelSearch(channel: db.Channel, query: string) {
+export function useInfiniteChannelSearch(channelId: string, query: string) {
   const { data, ...rest } = useInfiniteQuery({
-    queryKey: ['channel', channel.id, 'search', query],
+    queryKey: ['channel', channelId, 'search', query],
     enabled: query !== '',
     queryFn: async ({ pageParam }) => {
       logger.log(`searching`, query, pageParam);
       const response = await searchChannel({
-        channel,
+        channelId,
         query,
         cursor: pageParam,
       });

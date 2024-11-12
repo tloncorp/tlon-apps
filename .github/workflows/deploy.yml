@@ -73,6 +73,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           ref: ${{ env.tag }}
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
       - uses: actions/download-artifact@v3
         with:
           name: "ui-dist"
@@ -106,10 +107,11 @@ jobs:
       - uses: actions/checkout@v3
         with:
           ref: ${{ env.tag }}
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
       - uses: actions/download-artifact@v3
         with:
           name: "ui-dist-new"
-          path: apps/tlon-web/dist
+          path: apps/tlon-web-new/dist
       - id: "auth"
         uses: "google-github-actions/auth@v1"
         with:
@@ -125,7 +127,7 @@ jobs:
         run: |
           git config --global user.name github-actions
           git config --global user.email github-actions@github.com
-          git add desk/desk.docket-0
+          git add tm-alpha-desk/desk.docket-0
           git commit -n -m "update new frontend glob: ${{ steps.glob.outputs.hash }} [skip actions]" || echo "No changes to commit"
           INPUT=${{ env.tag }}
           BRANCH=${INPUT:-"develop"}

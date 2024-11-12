@@ -1,5 +1,5 @@
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as store from '@tloncorp/shared/dist/store';
+import { createDevLogger } from '@tloncorp/shared';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useLureMetadata } from '../contexts/branch';
@@ -28,9 +28,9 @@ interface BootSequenceReport {
     runBootPhase — executes a single boot step, returns the next step in the sequence
     runBootSequence — repeatedly executes runBootPhase until the sequence is complete
 
-  The hook remains idle until passed a hosted user. Gives up after HANDLE_INVITES_TIMEOUT seconds if
-  we're stuck processing invites, but the node is otherwise ready. Exposes the current boot phase to
-  the caller.
+  The hook remains idle until explicitly kicked off by the caller. Gives up after HANDLE_INVITES_TIMEOUT 
+  seconds if we're stuck processing invites, but the node is otherwise ready. Exposes the current boot 
+  phase to the caller.
 */
 export function useBootSequence({
   hostingUser,
@@ -51,13 +51,11 @@ export function useBootSequence({
   const lastRunErrored = useRef(false);
   const sequenceStartTimeRef = useRef<number>(0);
 
-  // detect when we're ready to start the sequence, kick things off
-  // by advancing past IDLE
-  useEffect(() => {
-    if (bootPhase === NodeBootPhase.IDLE && hostingUser?.id) {
+  const kickOffBootSequence = useCallback(() => {
+    if (bootPhase === NodeBootPhase.IDLE) {
       setBootPhase(NodeBootPhase.RESERVING);
     }
-  }, [bootPhase, hostingUser]);
+  }, [bootPhase]);
 
   const runBootPhase = useCallback(async (): Promise<NodeBootPhase> => {
     if (!hostingUser) {
@@ -290,7 +288,7 @@ export function useBootSequence({
       NodeBootPhase.CHECKING_FOR_INVITE,
     ].includes(bootPhase);
     if (isInOptionalPhase && beenRunningTooLong) {
-      logger.trackError('accept invites abort');
+      logger.trackError('accept invites abort', { inviteId: lureMeta?.id });
       setBootPhase(NodeBootPhase.READY);
       return;
     }
@@ -298,7 +296,7 @@ export function useBootSequence({
     if (![NodeBootPhase.IDLE, NodeBootPhase.READY].includes(bootPhase)) {
       runBootSequence();
     }
-  }, [runBootPhase, setBootPhase, bootPhase, bootStepCounter]);
+  }, [runBootPhase, setBootPhase, bootPhase, bootStepCounter, lureMeta?.id]);
 
   // once finished, set the report
   useEffect(() => {
@@ -312,6 +310,7 @@ export function useBootSequence({
 
   return {
     bootPhase,
+    kickOffBootSequence,
     bootReport: report,
   };
 }

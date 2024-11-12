@@ -1,7 +1,8 @@
-import { Circle } from 'tamagui';
+import { Circle, ColorTokens } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
 import { Icon, IconType } from '../Icon';
+import Pressable from '../Pressable';
 import { View } from '../View';
 
 export function AvatarNavIcon({
@@ -14,7 +15,7 @@ export function AvatarNavIcon({
   onPress?: () => void;
 }) {
   return (
-    <View flex={1} onPress={onPress} alignItems="center" paddingTop={'$s'}>
+    <Pressable flex={1} onPress={onPress} alignItems="center" paddingTop={'$s'}>
       <ContactAvatar
         size={'custom'}
         width={20}
@@ -23,7 +24,7 @@ export function AvatarNavIcon({
         contactId={id}
         opacity={focused ? 1 : 0.6}
       />
-    </View>
+    </Pressable>
   );
 }
 
@@ -33,26 +34,37 @@ export default function NavIcon({
   isActive,
   hasUnreads = false,
   onPress,
+  backgroundColor,
+  shouldShowUnreads = true,
 }: {
   type: IconType;
   activeType?: IconType;
   isActive: boolean;
   hasUnreads?: boolean;
   onPress?: () => void;
+  backgroundColor?: ColorTokens;
+  shouldShowUnreads?: boolean;
 }) {
   const resolvedType = isActive && activeType ? activeType : type;
   return (
-    <View alignItems="center" flex={1} onPress={onPress}>
+    <Pressable
+      backgroundColor={backgroundColor}
+      alignItems="center"
+      flex={1}
+      onPress={onPress}
+    >
       <Icon
         type={resolvedType}
         color={isActive ? '$primaryText' : '$activeBorder'}
       />
-      <View justifyContent="center" alignItems="center">
-        <Circle
-          size="$s"
-          backgroundColor={hasUnreads ? '$blue' : 'transparent'}
-        />
-      </View>
-    </View>
+      {shouldShowUnreads ? (
+        <View justifyContent="center" alignItems="center">
+          <Circle
+            size="$s"
+            backgroundColor={hasUnreads ? '$blue' : 'transparent'}
+          />
+        </View>
+      ) : null}
+    </Pressable>
   );
 }

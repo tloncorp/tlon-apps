@@ -3,7 +3,7 @@ import {
   VerseBlock,
   imageUrlFromContent,
   isCite,
-} from '@tloncorp/shared/dist/urbit/channel';
+} from '@tloncorp/shared/urbit/channel';
 import { useEffect } from 'react';
 
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';

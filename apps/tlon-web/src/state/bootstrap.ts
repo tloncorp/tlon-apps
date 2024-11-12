@@ -1,4 +1,4 @@
-import { GroupsInit4 } from '@tloncorp/shared/dist/urbit/ui';
+import { GroupsInit4 } from '@tloncorp/shared/urbit/ui';
 import Urbit from '@urbit/http-api';
 import _ from 'lodash';
 

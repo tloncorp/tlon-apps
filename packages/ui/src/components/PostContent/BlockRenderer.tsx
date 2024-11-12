@@ -24,6 +24,7 @@ import { ContentReferenceLoader, Reference } from '../ContentReference';
 import { VideoEmbed } from '../Embed';
 import { HighlightedCode } from '../HighlightedCode';
 import { Image } from '../Image';
+import Pressable from '../Pressable';
 import { Text } from '../TextV2';
 import { InlineRenderer } from './InlineRenderer';
 import * as cn from './contentUtils';
@@ -237,7 +238,7 @@ export function ImageBlock({
   }, []);
 
   return (
-    <View
+    <Pressable
       borderRadius="$s"
       overflow="hidden"
       onPress={handlePress}
@@ -255,7 +256,7 @@ export function ImageBlock({
         aspectRatio={aspect ?? 1}
         {...imageProps}
       />
-    </View>
+    </Pressable>
   );
 }
 

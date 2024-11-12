@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import React from 'react';
 import {

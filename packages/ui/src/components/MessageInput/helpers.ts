@@ -1,13 +1,13 @@
 import { EditorBridge } from '@10play/tentap-editor';
 import { Editor } from '@tiptap/react';
-import { createDevLogger, tiptap } from '@tloncorp/shared/dist';
+import { createDevLogger, tiptap } from '@tloncorp/shared';
 import {
   Block,
   Inline,
   JSONContent,
   constructStory,
   isInline,
-} from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared/urbit';
 
 import { Attachment } from '../../contexts';
 
