@@ -55,6 +55,10 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
     setOtpMethod((curr) => (curr === 'phone' ? 'email' : 'phone'));
   }, []);
 
+  const handlePressEula = useCallback(() => {
+    navigation.navigate('EULA');
+  }, [navigation]);
+
   // dev helper: if password prefill set, skip this screen
   useEffect(() => {
     if (DEFAULT_TLON_LOGIN_PASSWORD) {
@@ -183,6 +187,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                 name="email"
               />
             )}
+
             <Button
               onPress={onSubmit}
               hero
@@ -205,6 +210,25 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                 </TlonText.Text>
               )}
             </Button>
+
+            <TlonText.Text
+              textAlign="center"
+              size="$label/s"
+              color="$tertiaryText"
+              marginTop="$m"
+            >
+              By logging in you agree to Tlon&rsquo;s{' '}
+              <TlonText.RawText
+                pressStyle={{
+                  opacity: 0.5,
+                }}
+                textDecorationLine="underline"
+                textDecorationDistance={10}
+                onPress={handlePressEula}
+              >
+                Terms of Service
+              </TlonText.RawText>
+            </TlonText.Text>
           </YStack>
           <View>
             {otpMethod === 'email' ? (
@@ -224,7 +248,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                     textDecorationDistance={10}
                     onPress={() => navigation.navigate('TlonLoginLegacy')}
                   >
-                    log in with a password.
+                    log in with a password
                   </TlonText.RawText>
                 </TlonText.Text>
                 <TlonText.Text
@@ -235,7 +259,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                   textDecorationDistance={10}
                   textAlign="center"
                 >
-                  Login with phone number instead
+                  Log in with phone number instead
                 </TlonText.Text>
               </>
             ) : (

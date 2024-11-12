@@ -73,6 +73,10 @@ export const SignupScreen = ({ navigation }: Props) => {
     },
   });
 
+  const handlePressEula = useCallback(() => {
+    navigation.navigate('EULA');
+  }, [navigation]);
+
   const handleSuccess = useCallback(() => {
     trackOnboardingAction({
       actionName: 'Phone or Email Submitted',
@@ -229,12 +233,14 @@ export const SignupScreen = ({ navigation }: Props) => {
                       returnKeyType="next"
                       enablesReturnKeyAutomatically
                       onSubmitEditing={onSubmit}
+                      autoFocus
                     />
                   </Field>
                 )}
                 name="email"
               />
             )}
+
             <Button
               onPress={onSubmit}
               hero
@@ -258,8 +264,26 @@ export const SignupScreen = ({ navigation }: Props) => {
                 </TlonText.Text>
               )}
             </Button>
+            <TlonText.Text
+              marginTop="$m"
+              textAlign="center"
+              size="$label/s"
+              color="$tertiaryText"
+            >
+              By signing up you agree to Tlon&rsquo;s{' '}
+              <TlonText.RawText
+                pressStyle={{
+                  opacity: 0.5,
+                }}
+                textDecorationLine="underline"
+                textDecorationDistance={10}
+                onPress={handlePressEula}
+              >
+                Terms of Service
+              </TlonText.RawText>
+            </TlonText.Text>
           </YStack>
-          <View>
+          <View marginLeft="$l" marginTop="$m">
             <TlonText.Text
               size="$label/m"
               color="$secondaryText"
