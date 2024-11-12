@@ -53,6 +53,8 @@ export function EditProfileScreenView(props: Props) {
   const handlePressDone = useCallback(() => {
     if (isDirty) {
       handleSubmit((formData) => {
+        // ensure we explicitly clear out fields in response to falsy
+        // form data if they're set on the existing profile
         const resolvedValues = {
           nickname: formData.nickname
             ? formData.nickname
