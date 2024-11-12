@@ -53,6 +53,10 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
     setOtpMethod((curr) => (curr === 'phone' ? 'email' : 'phone'));
   }, []);
 
+  const handlePressEula = useCallback(() => {
+    navigation.navigate('EULA');
+  }, [navigation]);
+
   // dev helper: if password prefill set, skip this screen
   useEffect(() => {
     if (DEFAULT_TLON_LOGIN_PASSWORD) {
@@ -185,11 +189,30 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                 name="email"
               />
             )}
+            <View marginLeft="$s">
+              <TlonText.Text size="$label/s" color="$tertiaryText">
+                By logging in you agree to Tlon&rsquo;s{' '}
+                <TlonText.RawText
+                  pressStyle={{
+                    opacity: 0.5,
+                  }}
+                  textDecorationLine="underline"
+                  textDecorationDistance={10}
+                  onPress={handlePressEula}
+                >
+                  Terms of Service
+                </TlonText.RawText>
+              </TlonText.Text>
+            </View>
           </YStack>
           <View marginLeft="$l">
             {otpMethod === 'email' ? (
               <>
-                <TlonText.Text color="$tertiaryText" marginTop="$xl">
+                <TlonText.Text
+                  size="$label/s"
+                  color="$tertiaryText"
+                  marginTop="$xl"
+                >
                   We&apos;ll email you a code to log in. Or you can{' '}
                   <TlonText.RawText
                     pressStyle={{
@@ -199,21 +222,23 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                     textDecorationDistance={10}
                     onPress={() => navigation.navigate('TlonLoginLegacy')}
                   >
-                    log in with a password.
+                    log in with a password
                   </TlonText.RawText>
                 </TlonText.Text>
                 <TlonText.Text
+                  size="$label/s"
                   color="$tertiaryText"
                   onPress={handlePressEmailSignup}
                   marginTop="$xl"
                   textDecorationLine="underline"
                   textDecorationDistance={10}
                 >
-                  Login with phone number instead
+                  Log in with phone number instead
                 </TlonText.Text>
               </>
             ) : (
               <TlonText.Text
+                size="$label/s"
                 color="$tertiaryText"
                 onPress={handlePressEmailSignup}
                 marginTop="$xl"
