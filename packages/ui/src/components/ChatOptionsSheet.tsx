@@ -752,7 +752,6 @@ export function ChannelOptions({
                           style: 'destructive',
                           onPress: () => {
                             onOpenChange(false);
-                            onPressLeave?.();
                             if (
                               channel.type === 'dm' ||
                               channel.type === 'groupDm'
@@ -785,7 +784,6 @@ export function ChannelOptions({
     onPressChannelMembers,
     onPressManageChannels,
     onPressInvite,
-    onPressLeave,
     title,
     onOpenChange,
   ]);
