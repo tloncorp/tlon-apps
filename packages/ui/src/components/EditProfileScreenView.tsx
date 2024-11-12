@@ -46,14 +46,27 @@ export function EditProfileScreenView(props: Props) {
     defaultValues: {
       nickname: userContact?.nickname ?? '',
       bio: userContact?.bio ?? '',
-      avatarImage: userContact?.avatarImage ?? undefined,
+      avatarImage: userContact?.avatarImage ?? '',
     },
   });
 
   const handlePressDone = useCallback(() => {
     if (isDirty) {
       handleSubmit((formData) => {
-        props.onSaveProfile(formData);
+        const resolvedValues = {
+          nickname: formData.nickname
+            ? formData.nickname
+            : userContact?.nickname
+              ? ''
+              : undefined,
+          bio: formData.bio ? formData.bio : userContact?.bio ? '' : undefined,
+          avatarImage: formData.avatarImage
+            ? formData.avatarImage
+            : userContact?.avatarImage
+              ? ''
+              : undefined,
+        };
+        props.onSaveProfile(resolvedValues);
         props.onGoBack();
       })();
     } else {
