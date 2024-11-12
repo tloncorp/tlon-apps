@@ -33,6 +33,7 @@ import {
   CardsPostCollection,
   SingleCardPostCollection,
 } from '../components/postCollectionViews/CardsPostCollectionView';
+import { CarouselPostCollection } from '../components/postCollectionViews/CarouselPostCollectionView';
 import { ListPostCollection } from '../components/postCollectionViews/ListPostCollectionView';
 import { StrobePostCollectionView } from '../components/postCollectionViews/StrobePostCollectionView';
 import { PostSummaryCollectionView } from '../components/postCollectionViews/SummaryCollectionView';
@@ -162,6 +163,7 @@ const BUILTIN_COLLECTION_RENDERERS: {
   [CollectionRendererId.chat]: ListPostCollection,
   [CollectionRendererId.gallery]: ListPostCollection,
   [CollectionRendererId.notebook]: ListPostCollection,
+  [CollectionRendererId.carousel]: CarouselPostCollection,
   [CollectionRendererId.cards]: CardsPostCollection,
   [CollectionRendererId.sign]: SingleCardPostCollection,
   [CollectionRendererId.boardroom]: BoardroomPostCollectionView,

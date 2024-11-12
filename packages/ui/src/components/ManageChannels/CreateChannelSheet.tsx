@@ -429,10 +429,14 @@ function ConfigInput<
           case 'boolean': {
             return value?.configuration?.[key] ? 'Enabled' : 'Disabled';
           }
+          case 'radio': {
+            return value?.configuration?.[key] as string | undefined;
+          }
         }
       })(),
       action: () => {
-        switch (parametersSchema[key].type) {
+        const param = parametersSchema[key];
+        switch (param.type) {
           case 'string': {
             Alert.prompt(
               'Enter a value',
@@ -457,6 +461,24 @@ function ConfigInput<
                 [key]: !prev.configuration?.[key],
               },
             }));
+            break;
+          }
+
+          case 'radio': {
+            onChange((prev) => {
+              const index = param.options.findIndex(
+                (option: { value: string }) =>
+                  prev.configuration?.[key] === option.value
+              );
+              const nextIndex = (index + 1) % param.options.length;
+              return {
+                ...prev,
+                configuration: {
+                  ...prev.configuration,
+                  [key]: param.options[nextIndex].value,
+                },
+              };
+            });
           }
         }
       },
