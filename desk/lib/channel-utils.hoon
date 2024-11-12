@@ -1,4 +1,4 @@
-/-  c=channels, g=groups, ci=cite
+/-  c=channels, g=groups, ci=cite, h=hooks
 ::  convert a post to a preview for a "said" response
 ::
 |%
@@ -676,4 +676,61 @@
       ;br;
     ==
   --
+++  subject  ^~(!>([..subject ..zuse]))
+++  compile
+  |*  [args=mold return=mold]
+  |=  src=(unit @t)
+  ^-  (each nock tang)
+  ?~  src  |+~['no src']
+  ~&  %a
+  =/  tonk=(each (pair type nock) tang)
+    ~&  %b
+    =/  vex=(like hoon)  ((full vest) [0 0] (trip u.src))
+    ~&  %c
+    ?~  q.vex  |+~[leaf+"\{{<p.p.vex>} {<q.p.vex>}}" 'syntax error']
+    ~&  %d
+    %-  mule
+    |.((~(mint ut -:subject) %noun p.u.q.vex))
+  ~&  %e
+  ~&  "parsed hoon: {<-.tonk>}"
+  ~&  %f
+  ?:  ?=(%| -.tonk)
+    ~&  "returning error"
+    tonk
+  &+q.p.tonk
+++  execute
+  |*  prod=mold
+  |=  [=nock simp=*]
+  ^-  (unit prod)
+  %-  (soft prod)
+  (slum .*(+:subject nock) simp)
+::
+++  run-hooks
+  |=  [=event:h =context:h default=cord hks=hooks:h]
+  ^-  [[(each event:h tang) (list effect:h)] hooks:h]
+  =/  current-event  event
+  =|  effects=(list effect:h)
+  =*  order  +.order.hks
+  |-
+  ?~  order
+    [[&+current-event effects] hks]
+  =*  next  $(order t.order)
+  =/  hook  (~(got by hooks.hks) i.order)
+  ?~  compiled.hook  next
+  =/  =args:h  [current-event context(state state.hook)]
+  =/  outcome=(unit outcome:h)
+    ((execute outcome:h) u.compiled.hook args)
+  ~&  "{(trip name.hook)} hook run: {<outcome>}"
+  ?~  outcome  next
+  ?:  ?=(%.n -.u.outcome)
+    ~&  "hook failed:"
+    %-  (slog p.u.outcome)
+    next
+  =*  result  result.p.u.outcome
+  =.  effects  (weld effects effects.p.u.outcome)
+  =.  hooks.hks  (~(put by hooks.hks) i.order hook(state new-state.p.u.outcome))
+  ?:  ?=(%denied -.result)
+    [[|+~[(fall msg.result default)] effects] hks]
+  =.  current-event  new.result
+  next
 --
