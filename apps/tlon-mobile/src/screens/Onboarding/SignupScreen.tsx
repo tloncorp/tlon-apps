@@ -12,11 +12,13 @@ import { HostingError } from '@tloncorp/app/lib/hostingApi';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
 import {
+  Button,
   Field,
   KeyboardAvoidingView,
   OnboardingInviteBlock,
   OnboardingTextBlock,
   ScreenHeader,
+  Spinner,
   TextInput,
   TlonText,
   View,
@@ -184,11 +186,6 @@ export const SignupScreen = ({ navigation }: Props) => {
         showSessionStatus={false}
         backAction={goBack}
         isLoading={isSubmitting}
-        rightControls={
-          <ScreenHeader.TextButton onPress={onSubmit} disabled={isSubmitting}>
-            Next
-          </ScreenHeader.TextButton>
-        }
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
         <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">
@@ -231,18 +228,43 @@ export const SignupScreen = ({ navigation }: Props) => {
                       autoCorrect={false}
                       returnKeyType="next"
                       enablesReturnKeyAutomatically
+                      onSubmitEditing={onSubmit}
                     />
                   </Field>
                 )}
                 name="email"
               />
             )}
+            <Button
+              onPress={onSubmit}
+              hero
+              disabled={
+                isSubmitting ||
+                remoteError !== undefined ||
+                (otpMethod === 'phone'
+                  ? !phoneForm.formState.isValid
+                  : !emailForm.formState.isValid)
+              }
+            >
+              {isSubmitting ? (
+                <>
+                  <Spinner />
+                  <TlonText.Text>Please wait&hellip;</TlonText.Text>
+                </>
+              ) : (
+                <TlonText.Text color="$background" size="$label/l">
+                  Sign up with{' '}
+                  {otpMethod === 'phone' ? 'phone number' : 'email'}
+                </TlonText.Text>
+              )}
+            </Button>
           </YStack>
-          <View marginLeft="$l">
+          <View>
             <TlonText.Text
-              size="$label/s"
-              color="$tertiaryText"
+              size="$label/m"
+              color="$secondaryText"
               onPress={toggleSignupMode}
+              textAlign="center"
             >
               Or if you&apos;d prefer,{' '}
               <TlonText.RawText
@@ -253,7 +275,8 @@ export const SignupScreen = ({ navigation }: Props) => {
                 textDecorationDistance={10}
                 onPress={toggleSignupMode}
               >
-                sign up with {otpMethod === 'phone' ? 'email' : 'phone number'}
+                sign up with{' '}
+                {otpMethod === 'phone' ? 'an email address' : 'a phone number'}
               </TlonText.RawText>
             </TlonText.Text>
           </View>

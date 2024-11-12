@@ -8,10 +8,12 @@ import {
 import { HostingError } from '@tloncorp/app/lib/hostingApi';
 import { createDevLogger } from '@tloncorp/shared';
 import {
+  Button,
   Field,
   KeyboardAvoidingView,
   OnboardingTextBlock,
   ScreenHeader,
+  Spinner,
   TextInput,
   TlonText,
   View,
@@ -131,11 +133,6 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
         showSessionStatus={false}
         backAction={goBack}
         isLoading={isSubmitting}
-        rightControls={
-          <ScreenHeader.TextButton onPress={onSubmit} disabled={isSubmitting}>
-            Next
-          </ScreenHeader.TextButton>
-        }
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
         <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">
@@ -179,18 +176,46 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                       autoCorrect={false}
                       returnKeyType="next"
                       enablesReturnKeyAutomatically
+                      onSubmitEditing={onSubmit}
                     />
                   </Field>
                 )}
                 name="email"
               />
             )}
+            <Button
+              onPress={onSubmit}
+              hero
+              disabled={
+                isSubmitting ||
+                remoteError !== undefined ||
+                (otpMethod === 'phone'
+                  ? !phoneForm.formState.isValid
+                  : !emailForm.formState.isValid)
+              }
+            >
+              {isSubmitting ? (
+                <>
+                  <Spinner />
+                  <TlonText.Text>Please wait&hellip;</TlonText.Text>
+                </>
+              ) : (
+                <TlonText.Text color="$background" size="$label/l">
+                  Send code to log in
+                </TlonText.Text>
+              )}
+            </Button>
           </YStack>
-          <View marginLeft="$l">
+          <View>
             {otpMethod === 'email' ? (
               <>
-                <TlonText.Text color="$tertiaryText" marginTop="$xl">
-                  We&apos;ll email you a code to log in. Or you can{' '}
+                <TlonText.Text
+                  color="$secondaryText"
+                  marginTop="$xl"
+                  textAlign="center"
+                >
+                  We&apos;ll email you a 6-digit code to log in. Otherwise, you
+                  can{' '}
                   <TlonText.RawText
                     pressStyle={{
                       opacity: 0.5,
@@ -203,18 +228,20 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                   </TlonText.RawText>
                 </TlonText.Text>
                 <TlonText.Text
-                  color="$tertiaryText"
+                  color="$secondaryText"
                   onPress={handlePressEmailSignup}
                   marginTop="$xl"
                   textDecorationLine="underline"
                   textDecorationDistance={10}
+                  textAlign="center"
                 >
                   Login with phone number instead
                 </TlonText.Text>
               </>
             ) : (
               <TlonText.Text
-                color="$tertiaryText"
+                color="$secondaryText"
+                textAlign="center"
                 onPress={handlePressEmailSignup}
                 marginTop="$xl"
                 textDecorationLine="underline"
