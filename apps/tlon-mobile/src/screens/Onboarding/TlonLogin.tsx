@@ -11,6 +11,7 @@ import {
   Field,
   KeyboardAvoidingView,
   OnboardingTextBlock,
+  PrimaryButton,
   ScreenHeader,
   TextInput,
   TlonText,
@@ -135,11 +136,6 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
         showSessionStatus={false}
         backAction={goBack}
         isLoading={isSubmitting}
-        rightControls={
-          <ScreenHeader.TextButton onPress={onSubmit} disabled={isSubmitting}>
-            Next
-          </ScreenHeader.TextButton>
-        }
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
         <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">
@@ -183,37 +179,59 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                       autoCorrect={false}
                       returnKeyType="next"
                       enablesReturnKeyAutomatically
+                      onSubmitEditing={onSubmit}
                     />
                   </Field>
                 )}
                 name="email"
               />
             )}
-            <View marginLeft="$s">
-              <TlonText.Text size="$label/s" color="$tertiaryText">
-                By logging in you agree to Tlon&rsquo;s{' '}
-                <TlonText.RawText
-                  pressStyle={{
-                    opacity: 0.5,
-                  }}
-                  textDecorationLine="underline"
-                  textDecorationDistance={10}
-                  onPress={handlePressEula}
-                >
-                  Terms of Service
-                </TlonText.RawText>
+
+            <PrimaryButton
+              onPress={onSubmit}
+              loading={isSubmitting}
+              disabled={
+                isSubmitting ||
+                remoteError !== undefined ||
+                (otpMethod === 'phone'
+                  ? !phoneForm.formState.isValid
+                  : !emailForm.formState.isValid)
+              }
+            >
+              <TlonText.Text color="$background" size="$label/l">
+                Send code to log in
               </TlonText.Text>
-            </View>
+            </PrimaryButton>
+
+            <TlonText.Text
+              textAlign="center"
+              size="$label/s"
+              color="$tertiaryText"
+              marginTop="$m"
+            >
+              By logging in you agree to Tlon&rsquo;s{' '}
+              <TlonText.RawText
+                pressStyle={{
+                  opacity: 0.5,
+                }}
+                textDecorationLine="underline"
+                textDecorationDistance={10}
+                onPress={handlePressEula}
+              >
+                Terms of Service
+              </TlonText.RawText>
+            </TlonText.Text>
           </YStack>
-          <View marginLeft="$l">
+          <View>
             {otpMethod === 'email' ? (
               <>
                 <TlonText.Text
-                  size="$label/s"
-                  color="$tertiaryText"
+                  color="$secondaryText"
                   marginTop="$xl"
+                  textAlign="center"
                 >
-                  We&apos;ll email you a code to log in. Or you can{' '}
+                  We&apos;ll email you a 6-digit code to log in. Otherwise, you
+                  can{' '}
                   <TlonText.RawText
                     pressStyle={{
                       opacity: 0.5,
@@ -226,20 +244,20 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                   </TlonText.RawText>
                 </TlonText.Text>
                 <TlonText.Text
-                  size="$label/s"
-                  color="$tertiaryText"
+                  color="$secondaryText"
                   onPress={handlePressEmailSignup}
                   marginTop="$xl"
                   textDecorationLine="underline"
                   textDecorationDistance={10}
+                  textAlign="center"
                 >
                   Log in with phone number instead
                 </TlonText.Text>
               </>
             ) : (
               <TlonText.Text
-                size="$label/s"
-                color="$tertiaryText"
+                color="$secondaryText"
+                textAlign="center"
                 onPress={handlePressEmailSignup}
                 marginTop="$xl"
                 textDecorationLine="underline"

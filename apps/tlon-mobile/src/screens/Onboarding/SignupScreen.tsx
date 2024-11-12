@@ -16,6 +16,7 @@ import {
   KeyboardAvoidingView,
   OnboardingInviteBlock,
   OnboardingTextBlock,
+  PrimaryButton,
   ScreenHeader,
   TextInput,
   TlonText,
@@ -188,11 +189,6 @@ export const SignupScreen = ({ navigation }: Props) => {
         showSessionStatus={false}
         backAction={goBack}
         isLoading={isSubmitting}
-        rightControls={
-          <ScreenHeader.TextButton onPress={onSubmit} disabled={isSubmitting}>
-            Next
-          </ScreenHeader.TextButton>
-        }
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
         <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">
@@ -235,6 +231,7 @@ export const SignupScreen = ({ navigation }: Props) => {
                       autoCorrect={false}
                       returnKeyType="next"
                       enablesReturnKeyAutomatically
+                      onSubmitEditing={onSubmit}
                       autoFocus
                     />
                   </Field>
@@ -242,27 +239,47 @@ export const SignupScreen = ({ navigation }: Props) => {
                 name="email"
               />
             )}
-            <View marginLeft="$s">
-              <TlonText.Text size="$label/s" color="$tertiaryText">
-                By signing up you agree to Tlon&rsquo;s{' '}
-                <TlonText.RawText
-                  pressStyle={{
-                    opacity: 0.5,
-                  }}
-                  textDecorationLine="underline"
-                  textDecorationDistance={10}
-                  onPress={handlePressEula}
-                >
-                  Terms of Service
-                </TlonText.RawText>
+
+            <PrimaryButton
+              onPress={onSubmit}
+              loading={isSubmitting}
+              disabled={
+                isSubmitting ||
+                remoteError !== undefined ||
+                (otpMethod === 'phone'
+                  ? !phoneForm.formState.isValid
+                  : !emailForm.formState.isValid)
+              }
+            >
+              <TlonText.Text color="$background" size="$label/l">
+                Sign up
               </TlonText.Text>
-            </View>
+            </PrimaryButton>
+            <TlonText.Text
+              marginTop="$m"
+              textAlign="center"
+              size="$label/s"
+              color="$tertiaryText"
+            >
+              By signing up you agree to Tlon&rsquo;s{' '}
+              <TlonText.RawText
+                pressStyle={{
+                  opacity: 0.5,
+                }}
+                textDecorationLine="underline"
+                textDecorationDistance={10}
+                onPress={handlePressEula}
+              >
+                Terms of Service
+              </TlonText.RawText>
+            </TlonText.Text>
           </YStack>
           <View marginLeft="$l" marginTop="$m">
             <TlonText.Text
-              size="$label/s"
-              color="$tertiaryText"
+              size="$label/m"
+              color="$secondaryText"
               onPress={toggleSignupMode}
+              textAlign="center"
             >
               Or if you&apos;d prefer,{' '}
               <TlonText.RawText
@@ -273,7 +290,8 @@ export const SignupScreen = ({ navigation }: Props) => {
                 textDecorationDistance={10}
                 onPress={toggleSignupMode}
               >
-                sign up with {otpMethod === 'phone' ? 'email' : 'phone number'}
+                sign up with{' '}
+                {otpMethod === 'phone' ? 'an email address' : 'a phone number'}
               </TlonText.RawText>
             </TlonText.Text>
           </View>
