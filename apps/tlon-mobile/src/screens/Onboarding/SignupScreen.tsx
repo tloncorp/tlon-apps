@@ -12,13 +12,12 @@ import { HostingError } from '@tloncorp/app/lib/hostingApi';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
 import {
-  Button,
   Field,
   KeyboardAvoidingView,
   OnboardingInviteBlock,
   OnboardingTextBlock,
+  PrimaryButton,
   ScreenHeader,
-  Spinner,
   TextInput,
   TlonText,
   View,
@@ -241,9 +240,9 @@ export const SignupScreen = ({ navigation }: Props) => {
               />
             )}
 
-            <Button
+            <PrimaryButton
               onPress={onSubmit}
-              hero
+              loading={isSubmitting}
               disabled={
                 isSubmitting ||
                 remoteError !== undefined ||
@@ -252,18 +251,10 @@ export const SignupScreen = ({ navigation }: Props) => {
                   : !emailForm.formState.isValid)
               }
             >
-              {isSubmitting ? (
-                <>
-                  <Spinner />
-                  <TlonText.Text>Please wait&hellip;</TlonText.Text>
-                </>
-              ) : (
-                <TlonText.Text color="$background" size="$label/l">
-                  Sign up with{' '}
-                  {otpMethod === 'phone' ? 'phone number' : 'email'}
-                </TlonText.Text>
-              )}
-            </Button>
+              <TlonText.Text color="$background" size="$label/l">
+                Sign up
+              </TlonText.Text>
+            </PrimaryButton>
             <TlonText.Text
               marginTop="$m"
               textAlign="center"

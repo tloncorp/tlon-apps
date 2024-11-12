@@ -8,12 +8,11 @@ import {
 import { HostingError } from '@tloncorp/app/lib/hostingApi';
 import { createDevLogger } from '@tloncorp/shared';
 import {
-  Button,
   Field,
   KeyboardAvoidingView,
   OnboardingTextBlock,
+  PrimaryButton,
   ScreenHeader,
-  Spinner,
   TextInput,
   TlonText,
   View,
@@ -188,9 +187,9 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
               />
             )}
 
-            <Button
+            <PrimaryButton
               onPress={onSubmit}
-              hero
+              loading={isSubmitting}
               disabled={
                 isSubmitting ||
                 remoteError !== undefined ||
@@ -199,17 +198,10 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                   : !emailForm.formState.isValid)
               }
             >
-              {isSubmitting ? (
-                <>
-                  <Spinner />
-                  <TlonText.Text>Please wait&hellip;</TlonText.Text>
-                </>
-              ) : (
-                <TlonText.Text color="$background" size="$label/l">
-                  Send code to log in
-                </TlonText.Text>
-              )}
-            </Button>
+              <TlonText.Text color="$background" size="$label/l">
+                Send code to log in
+              </TlonText.Text>
+            </PrimaryButton>
 
             <TlonText.Text
               textAlign="center"
