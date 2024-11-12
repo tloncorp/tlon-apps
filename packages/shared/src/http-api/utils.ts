@@ -1,3 +1,5 @@
+import { Atom, Noun, cue, jam } from '@urbit/nockjs';
+
 export function camelize(str: string) {
   return str
     .replace(/\s(.)/g, function ($1: string) {
@@ -11,10 +13,22 @@ export function camelize(str: string) {
 
 export function uncamelize(str: string, separator = '-') {
   // Replace all capital letters by separator followed by lowercase one
-  str = str.replace(/[A-Z]/g, function (letter: string) {
+  const string = str.replace(/[A-Z]/g, function (letter: string) {
     return separator + letter.toLowerCase();
   });
-  return str.replace(new RegExp('^' + separator), '');
+  return string.replace(new RegExp('^' + separator), '');
+}
+
+export async function unpackJamBytes(buf: ArrayBufferLike): Promise<Noun> {
+  const hex = [...new Uint8Array(buf)]
+    .reverse() //  endianness shenanigans
+    .map((x) => x.toString(16).padStart(2, '0'))
+    .join('');
+  return cue(Atom.fromString(hex, 16));
+}
+
+export function packJamBytes(non: Noun): BodyInit {
+  return new Uint8Array(jam(non).bytes());
 }
 
 /**
@@ -53,9 +67,9 @@ export function uid(): string {
 }
 
 export default class EventEmitter {
-  private listeners: Record<string, ((...data: any[]) => void)[]> = {};
+  private listeners: Record<string, ((...args: any[]) => void)[]> = {};
 
-  on(event: string, callback: (...data: any[]) => void) {
+  on(event: string, callback: (...args: any[]) => void) {
     if (!(event in this.listeners)) {
       this.listeners[event] = [];
     }

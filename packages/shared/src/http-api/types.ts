@@ -1,9 +1,58 @@
+import { Noun } from '@urbit/nockjs';
+
 /**
- * An urbit style path, rendered as a Javascript string
- * @example
- * `"/updates"`
+ * The configuration for connecting to an Urbit ship.
  */
-export type Path = string;
+export interface UrbitParams {
+  /** The URL (with protocol and port) of the ship to be accessed. If
+   * the airlock is running in a webpage served by the ship, this should just
+   * be the empty string.
+   */
+  url: string;
+  /**
+   * The "mode" to operate the channel in, determining whether to receive
+   * javascript objects or proper Nouns in responses from the channel.
+   * Defaults to 'noun'.
+   */
+  mode?: 'noun' | 'json';
+  /**
+   * The access code for the ship at that address
+   */
+  code?: string;
+  /**
+   * Enables verbose logging
+   */
+  verbose?: boolean;
+  /**
+   * The fetch function to use. Defaults to window.fetch. Typically used
+   * to pass in locally supported fetch implementation.
+   */
+  fetch?: typeof fetch;
+  /**
+   * Called when the connection is established. Probably don't use this
+   * as a trigger for refetching data.
+   *
+   * @param reconnect - true if this is a reconnection
+   */
+  onOpen?: (reconnect?: boolean) => void;
+  /**
+   * Called on every attempt to reconnect to the ship. Followed by onOpen
+   * or onError depending on whether the connection succeeds.
+   */
+  onRetry?: () => void;
+  /**
+   * Called when the connection fails irrecoverably
+   */
+  onError?: (error: any) => void;
+}
+
+/**
+ * A path in either string, string-array (with trailing nil), or Noun format
+ * @example
+ * `'/updates'`
+ * `['updates', 0]`
+ */
+export type Path = string | string[] | Noun;
 
 /**
  * @p including leading sig, rendered as a string
@@ -12,20 +61,8 @@ export type Path = string;
  * ```typescript
  * "~sampel-palnet"
  * ```
- *
  */
 export type Patp = string;
-
-/**
- * @p not including leading sig, rendered as a string
- *
- * @example
- * ```typescript
- * "sampel-palnet"
- * ```
- *
- */
-export type PatpNoSig = string;
 
 /**
  * The name of a clay mark, as a string
@@ -50,32 +87,39 @@ export type GallAgent = string;
 
 /**
  * Description of an outgoing poke
- *
- * @typeParam Action - Typescript type of the data being poked
  */
-export interface Poke<Action> {
+interface PokeBase {
   /**
-   * Ship to poke. If left empty, the api lib will populate it with the ship that it is connected to.
-   *
-   * @remarks
-   *
-   * This should always be the ship that you are connected to
-   *
+   * Ship to poke (defaults to the host ship)
    */
-  ship?: PatpNoSig;
+  ship?: Patp;
   /**
    */
   app: GallAgent;
   /**
-   * Mark of the cage to be poked
-   *
+   * Mark of the noun to poke with
    */
   mark: Mark;
   /**
-   * Vase of the cage of to be poked, as JSON
+   * result handlers
    */
-  json: Action;
+  onSuccess?: () => void;
 }
+interface PokeNoun extends PokeBase {
+  /**
+   * Data to poke with: noun sent as-is or value sent as json
+   */
+  data: Noun;
+  onError?: (e: Noun) => void; //  given a $tang
+}
+interface PokeJson extends PokeBase {
+  /**
+   * Data to poke with: noun sent as-is or value sent as json
+   */
+  data: any;
+  onError?: (e: string) => void;
+}
+export type Poke = PokeNoun | PokeJson;
 
 /**
  * Description of a scry request
@@ -85,6 +129,7 @@ export interface Scry {
   app: GallAgent;
   /** {@inheritDoc Path} */
   path: Path;
+  mark?: Mark;
 }
 
 /**
@@ -92,7 +137,7 @@ export interface Scry {
  *
  * @typeParam Action - Typescript type of the data being poked
  */
-export interface Thread<Action> {
+export interface Thread {
   /**
    * The mark of the input vase
    */
@@ -113,99 +158,104 @@ export interface Thread<Action> {
   /**
    * Desk of thread
    */
-  desk?: string;
+  desk: string;
+}
+export interface NounThread extends Thread {
   /**
    * Data of the input vase
    */
-  body: Action;
+  body: Noun;
 }
-
-export type Action = 'poke' | 'subscribe' | 'ack' | 'unsubscribe' | 'delete';
-
-export interface PokeHandlers {
-  onSuccess?: () => void;
-  onError?: (e: any) => void;
-}
-
-export type PokeInterface<T> = PokeHandlers & Poke<T>;
-
-export interface AuthenticationInterface {
-  ship: string;
-  url: string;
-  code: string;
-  verbose?: boolean;
+export interface JsonThread extends Thread {
+  /**
+   * Data of the input vase
+   */
+  body: any;
 }
 
 /**
  * Subscription event handlers
  *
  */
-export interface SubscriptionInterface {
+interface SubscriptionBase {
   /**
-   * Handle negative %watch-ack
+   * The ship to subscribe to (defaults to the host ship)
    */
-  err?(error: any, id: string): void;
+  ship?: Patp;
   /**
-   * Handle %fact
-   */
-  event?(data: any, mark: string, id: number): void;
-  /**
-   * Handle %kick
-   */
-  quit?(data: any): void;
-}
-
-export type OnceSubscriptionErr = 'quit' | 'nack' | 'timeout';
-
-export interface SubscriptionRequestInterface extends SubscriptionInterface {
-  /**
-   * The app to subscribe to
+   * The agent to subscribe to
    * @example
    * `"graph-store"`
    */
   app: GallAgent;
   /**
    * The path to which to subscribe
-   * @example
-   * `"/keys"`
    */
   path: Path;
   /**
-   * Whether to resubscribe this exact subscription on quit
+   * Handle %kick
    */
-  resubOnQuit?: boolean;
+  onKick?(): void;
 }
+export interface SubscriptionNoun extends SubscriptionBase {
+  /**
+   * Handle negative %watch-ack
+   */
+  //NOTE  error is a $tang
+  onNack?(error: Noun): void;
+  /**
+   * Handle %fact
+   */
+  onFact?: (mark: Mark, data: Noun) => void;
+}
+export interface SubscriptionJson extends SubscriptionBase {
+  /**
+   * Handle negative %watch-ack
+   */
+  onNack?(error: string): void;
+  /**
+   * Handle %fact
+   */
+  onFact?: (mark: Mark, data: any) => void;
+}
+export type Subscription = SubscriptionJson | SubscriptionNoun;
+
+export type OnceSubscriptionErr = 'onKick' | 'onNack' | 'timeout';
 
 export interface headers {
-  'Content-Type': string;
   Cookie?: string;
+  [headerName: string]: string | undefined;
 }
-
-export interface CustomEventHandler {
-  (data: any, response: string): void;
-}
-
-export interface SSEOptions {
-  headers: {
-    Cookie?: string;
-  };
-  withCredentials?: boolean;
-}
-
-export interface Ack extends Record<string, any> {
-  action: Action;
-  'event-id': number;
-}
-
-export interface Message extends Record<string, any> {
-  action: Action;
-  id: number;
-}
-
-export class ResumableError extends Error {}
 
 export class FatalError extends Error {}
 
 export class ReapError extends Error {}
 
 export class AuthError extends Error {}
+
+export type EyreEvent =
+  | EyreEventPokeAck
+  | EyreEventWatchAck
+  | EyreEventKick
+  | EyreEventFact;
+
+type EyreEventPokeAck = {
+  tag: 'poke-ack';
+  id: number;
+  err?: Noun | string;
+};
+type EyreEventWatchAck = {
+  tag: 'watch-ack';
+  id: number;
+  err?: Noun | string;
+};
+type EyreEventKick = {
+  tag: 'kick';
+  id: number;
+};
+type EyreEventFact = {
+  tag: 'fact';
+  id: number;
+  mark: Mark;
+  data: Noun | any;
+};

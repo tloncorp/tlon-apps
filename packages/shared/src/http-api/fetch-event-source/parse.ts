@@ -75,6 +75,7 @@ export function getLines(
   let position: number; // current read position
   let fieldLength: number; // length of the `field` portion of the line
   let discardTrailingNewline = false;
+  let lineStart = 0; // index where the current line starts
 
   // return a function that can process each incoming byte chunk:
   return function onChunk(arr: Uint8Array) {
@@ -88,7 +89,6 @@ export function getLines(
     }
 
     const bufLength = buffer.length;
-    let lineStart = 0; // index where the current line starts
     while (position < bufLength) {
       if (discardTrailingNewline) {
         if (buffer[position] === ControlChars.NewLine) {
@@ -131,11 +131,13 @@ export function getLines(
 
     if (lineStart === bufLength) {
       buffer = undefined; // we've finished reading it
+      lineStart = 0;
     } else if (lineStart !== 0) {
       // Create a new view into buffer beginning at lineStart so we don't
       // need to copy over the previous lines when we get the new arr:
       buffer = buffer.subarray(lineStart);
       position -= lineStart;
+      lineStart = 0;
     }
   };
 }
@@ -165,7 +167,7 @@ export function getMessages(
       // exclude comments and lines with no values
       // line is of format "<field>:<value>" or "<field>: <value>"
       // https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
-      const field = decoder.decode(line.subarray(0, fieldLength));
+      const field = decoder.decode(line.subarray(0, fieldLength)).trim();
       const valueOffset =
         fieldLength + (line[fieldLength + 1] === ControlChars.Space ? 2 : 1);
       const value = decoder.decode(line.subarray(valueOffset));

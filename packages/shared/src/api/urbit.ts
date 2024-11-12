@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '../debug';
-import { AuthError, ChannelStatus, Poke, Urbit } from '../new-http-api';
+import { AuthError, ChannelStatus, Poke, Urbit } from '../http-api';
 import { desig, preSig } from '../urbit';
 import { getLandscapeAuthCookie } from './landscapeApi';
 
