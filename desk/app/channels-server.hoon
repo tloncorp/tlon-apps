@@ -1048,8 +1048,8 @@
     |-
     ?~  effects  cor
     =/  =effect:h  i.effects
-    =;  new-cor
-      =.  cor  new-cor
+    =;  new-cor=_ho-core
+      =.  ho-core  new-cor
       $(effects t.effects)
     ?-  -.effect
         %channels
