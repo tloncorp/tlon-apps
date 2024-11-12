@@ -630,6 +630,12 @@
       ?.  changed  ca-core
       (ca-update %order order.channel)
     ::
+        %meta
+      ?>  (is-admin:ca-perms src.bowl)
+      =^  changed  meta.channel  (next-rev:c meta.channel meta.c-channel)
+      ?.  changed  ca-core
+      (ca-update %meta meta.channel)
+    ::
         %add-writers
       ?>  (is-admin:ca-perms src.bowl)
       =/  new-writers  (~(uni in writers.perm.perm.channel) sects.c-channel)

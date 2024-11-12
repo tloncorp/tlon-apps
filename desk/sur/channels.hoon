@@ -44,6 +44,7 @@
         view=(rev =view)
         sort=(rev =sort)
         perm=(rev =perm)
+        meta=(rev meta=(unit @t))
     ==
   ::  $window: sparse set of time ranges
   ::
@@ -354,6 +355,7 @@
   $%  [%post =c-post]
       [%view =view]
       [%sort =sort]
+      [%meta meta=(unit @t)]
       [%order order=arranged-posts]
       [%add-writers sects=(set sect:g)]
       [%del-writers sects=(set sect:g)]
@@ -389,6 +391,7 @@
       [%view (rev =view)]
       [%sort (rev =sort)]
       [%perm (rev =perm)]
+      [%meta (rev meta=(unit @t))]
       [%post id=id-post =u-post]
   ==
 ::
@@ -417,6 +420,7 @@
       [%view =view]
       [%sort =sort]
       [%perm =perm]
+      [%meta meta=(unit @t)]
     ::
       [%create =perm]
       [%join group=flag:g]

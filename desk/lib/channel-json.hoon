@@ -26,6 +26,7 @@
       %view     s+view.r-channel
       %sort     s+sort.r-channel
       %perm     (perm perm.r-channel)
+      %meta     ?~(meta.r-channel ~ s+u.meta.r-channel)
     ::
       %create   (perm perm.r-channel)
       %join     (flag group.r-channel)
@@ -54,6 +55,7 @@
       %view     s+view.r-channel
       %sort     s+sort.r-channel
       %perm     (perm perm.r-channel)
+      %meta     ?~(meta.r-channel ~ s+u.meta.r-channel)
     ::
       %create   (perm perm.r-channel)
       %join     (flag group.r-channel)
