@@ -263,3 +263,5 @@ export const Carousel = withStaticProperties(_Carousel, {
   ContentImage,
   Overlay,
 });
+
+export type CarouselRef = React.ElementRef<typeof Carousel>;
