@@ -58,6 +58,19 @@ module.exports = {
         message:
           'Do not use onLongPress on Stack, View or ListItem components. Use Pressable instead.',
       },
+      {
+        selector:
+          'MemberExpression[object.name="CommonActions"][property.name="reset"]',
+        message:
+          'Please use the useTypedReset() hook instead of CommonActions.reset() for type safety.',
+      },
+      {
+        // Also catch it when imported as a different name
+        selector:
+          'ImportSpecifier[imported.name="reset"][parent.parent.source.value="@react-navigation/native"]',
+        message:
+          'Please use the useTypedReset() hook instead of importing reset from @react-navigation/native for type safety.',
+      },
     ],
   },
 };

@@ -20,6 +20,7 @@ export type RootStackParamList = {
   };
   ChannelSearch: {
     channelId: string;
+    groupId: string;
   };
   Post: {
     postId: string;
