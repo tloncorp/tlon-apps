@@ -141,8 +141,6 @@ const Scroller = forwardRef(
       [channel]
     );
 
-    const [isAtBottom, setIsAtBottom] = useState(true);
-
     const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
     const [viewReactionsPost, setViewReactionsPost] = useState<null | db.Post>(
       null
@@ -396,7 +394,8 @@ const Scroller = forwardRef(
       );
     }, [renderEmptyComponentFn]);
 
-    const handleScroll = useScrollDirectionTracker(setIsAtBottom);
+    const [isAtBottom, setIsAtBottom] = useState(true);
+    const handleScroll = useScrollDirectionTracker({ setIsAtBottom });
 
     const scrollIndicatorInsets = useMemo(() => {
       return {
