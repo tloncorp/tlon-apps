@@ -41,24 +41,14 @@ interface LureState {
     inviteServiceEndpoint: string,
     inviteServiceIsDev: boolean
   ) => Promise<void>;
-  describe: (
-    flag: string,
-    metadata: LureMetadata,
-    inviteServiceEndpoint: string,
-    inviteServiceIsDev: boolean
-  ) => Promise<void>;
-  toggle: (
-    flag: string,
-    metadata: GroupMeta,
-    inviteServiceEndpoint: string,
-    inviteServiceIsDev: boolean
-  ) => Promise<void>;
+  describe: (flag: string) => Promise<void>;
+  toggle: (flag: string) => Promise<void>;
   start: () => Promise<void>;
 }
 
 const lureLogger = createDevLogger('lure', false);
 
-function groupsDescribe(meta: GroupMeta) {
+function groupsDescribe(meta: GroupMeta & DeepLinkMetadata) {
   return {
     tag: 'groups-0',
     fields: { ...meta }, // makes typescript happy
@@ -68,17 +58,44 @@ function groupsDescribe(meta: GroupMeta) {
 export const useLureState = create<LureState>((set, get) => ({
   bait: null,
   lures: {},
-  describe: async (flag, metadata, branchDomain, branchKey) => {
+  describe: async (flag) => {
+    const currentUserId = getCurrentUserId();
+    const group = await db.getGroup({ id: flag });
+    const user = await db.getContact({ id: currentUserId });
+
+    if (!group || !user) {
+      lureLogger.trackError('[describe] Error looking up group or user', {
+        groupId: flag,
+        group,
+        user,
+      });
+    }
+
     await poke({
       app: 'reel',
       mark: 'reel-describe',
       json: {
         token: flag,
-        metadata,
+        metadata: groupsDescribe({
+          // legacy keys
+          title: group?.title ?? '',
+          description: group?.description ?? '',
+          cover: group?.coverImage ?? '',
+          image: group?.iconImage ?? '',
+
+          // new-style metadata keys
+          inviterUserId: currentUserId,
+          inviterNickname: user?.nickname ?? '',
+          inviterAvatarImage: user?.avatarImage ?? '',
+          invitedGroupId: flag,
+          invitedGroupTitle: group?.title ?? '',
+          invitedGroupDescription: group?.description ?? '',
+          invitedGroupIconImageUrl: group?.iconImage ?? '',
+        }),
       },
     });
   },
-  toggle: async (flag, meta, branchDomain, branchKey) => {
+  toggle: async (flag) => {
     const { name } = getFlagParts(flag);
     const lure = get().lures[flag];
     const enabled = !lure?.enabled;
@@ -92,7 +109,7 @@ export const useLureState = create<LureState>((set, get) => ({
         },
       });
     } else {
-      get().describe(flag, groupsDescribe(meta), branchDomain, branchKey);
+      get().describe(flag);
     }
 
     set(
@@ -273,32 +290,14 @@ export function useLure({
     refetchInterval: 5000,
   });
 
-  const toggle = async (meta: GroupMeta) => {
-    lureLogger.crumb(
-      'toggling',
-      flag,
-      meta,
-      inviteServiceEndpoint,
-      inviteServiceIsDev
-    );
-    return useLureState
-      .getState()
-      .toggle(flag, meta, inviteServiceEndpoint, inviteServiceIsDev);
+  const toggle = async () => {
+    lureLogger.crumb('toggling', flag);
+    return useLureState.getState().toggle(flag);
   };
 
-  const describe = useCallback(
-    (meta: GroupMeta) => {
-      return useLureState
-        .getState()
-        .describe(
-          flag,
-          groupsDescribe(meta),
-          inviteServiceEndpoint,
-          inviteServiceIsDev
-        );
-    },
-    [flag, inviteServiceEndpoint, inviteServiceIsDev]
-  );
+  const describe = useCallback(() => {
+    return useLureState.getState().describe(flag);
+  }, [flag]);
 
   lureLogger.crumb('useLure', flag, bait, lure, describe);
 

@@ -42,12 +42,7 @@ export function GroupMetaScreen(props: Props) {
       setGroupMetadata(data);
       props.navigation.goBack();
       if (enabled) {
-        describe({
-          title: data.title ?? '',
-          description: data.description ?? '',
-          image: data.iconImage ?? '',
-          cover: data.coverImage ?? '',
-        });
+        describe();
       }
     },
     [setGroupMetadata, props.navigation, enabled, describe]

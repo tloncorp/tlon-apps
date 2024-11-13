@@ -59,22 +59,15 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
   }, [shareUrl, status, group, doCopy]);
 
   useEffect(() => {
-    const meta = {
-      title: group?.title ?? '',
-      description: group?.description ?? '',
-      cover: group?.coverImage ?? '',
-      image: group?.iconImage ?? '',
-    };
-
     const toggleLink = async () => {
       if (!group) return;
-      await toggle(meta);
+      await toggle();
     };
     if (status === 'disabled' && isGroupAdmin) {
       toggleLink();
     }
     if (status === 'stale') {
-      describe(meta);
+      describe();
     }
   }, [group, toggle, status, isGroupAdmin, describe]);
 
