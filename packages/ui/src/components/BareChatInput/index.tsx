@@ -341,6 +341,7 @@ export default function BareChatInput({
       setMentions([]);
       clearAttachments();
       clearDraft();
+      setHasSetInitialContent(false);
     },
     [
       onSend,
