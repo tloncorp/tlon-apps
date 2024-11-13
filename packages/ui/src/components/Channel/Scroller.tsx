@@ -98,6 +98,7 @@ const Scroller = forwardRef(
       setActiveMessage,
       headerMode,
       isLoading,
+      isSending,
       onPressScrollToBottom,
     }: {
       anchor?: ScrollAnchor | null;
@@ -126,6 +127,7 @@ const Scroller = forwardRef(
       ref?: RefObject<{ scrollToIndex: (params: { index: number }) => void }>;
       headerMode: 'default' | 'next';
       isLoading?: boolean;
+      isSending?: boolean;
       // Unused
       hasOlderPosts?: boolean;
       onPressScrollToBottom?: () => void;
@@ -406,6 +408,10 @@ const Scroller = forwardRef(
     }, [insets.bottom]);
 
     const shouldShowScrollButton = useCallback(() => {
+      if (isSending) {
+        return false;
+      }
+
       if (!isAtBottom && hasPressedGoToBottom && !isLoading && !hasNewerPosts) {
         setHasPressedGoToBottom(false);
       }
@@ -427,6 +433,7 @@ const Scroller = forwardRef(
       unreadCount,
       isLoading,
       hasNewerPosts,
+      isSending,
     ]);
 
     const onEmojiSelect = useOnEmojiSelect(activeMessage, () =>

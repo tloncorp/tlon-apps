@@ -225,6 +225,7 @@ export function Channel({
   >(null);
 
   const draftInputRef = useRef<DraftInputHandle>(null);
+  const [isSending, setIsSending] = useState(false);
 
   const draftInputContext = useMemo(
     (): DraftInputContext => ({
@@ -236,7 +237,14 @@ export function Channel({
       getDraft,
       group,
       onPresentationModeChange: setDraftInputPresentationMode,
-      send: messageSender,
+      send: async (...args) => {
+        setIsSending(true);
+        try {
+          await messageSender(args[0], args[1]);
+        } finally {
+          setIsSending(false);
+        }
+      },
       setEditingPost,
       setShouldBlur: setInputShouldBlur,
       shouldBlur: inputShouldBlur,
@@ -375,6 +383,7 @@ export function Channel({
                                       ref={flatListRef}
                                       headerMode={headerMode}
                                       isLoading={isLoadingPosts}
+                                      isSending={isSending}
                                       onPressScrollToBottom={
                                         onPressScrollToBottom
                                       }
