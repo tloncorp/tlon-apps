@@ -408,7 +408,7 @@ const Scroller = forwardRef(
     }, [insets.bottom]);
 
     const shouldShowScrollButton = useCallback(() => {
-      if (isSending) {
+      if (isSending && isAtBottom) {
         return false;
       }
 
