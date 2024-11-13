@@ -9,7 +9,6 @@ import React, {
   useContext,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
 import {
   ColorTokens,
   ScrollView,
@@ -257,16 +256,9 @@ export function ImageBlock({
         source={{
           uri: block.src,
         }}
-        style={Platform.select({
-          web: {
-            display: 'block', // Prevent bottom margin
-            aspectRatio: dimensions.aspect || undefined,
-          },
-          default: {
-            width: '100%',
-            aspectRatio: dimensions.aspect || undefined,
-          },
-        })}
+        style={{
+          aspectRatio: dimensions.aspect || undefined,
+        }}
         alt={block.alt}
         onLoad={handleImageLoaded}
         {...imageProps}
