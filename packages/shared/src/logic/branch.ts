@@ -114,31 +114,23 @@ export async function getDmLink(
   branchDomain: string,
   branchKey: string
 ): Promise<string> {
-  const dmPath = `dm/${ship}`;
-  const fallbackUrl = `https://tlon.network/lure/~loshut-lonreg/tlon`; // for now, send to generic signup page on desktop
-  const link = await createDeepLink({
-    fallbackUrl,
-    type: 'wer',
-    path: dmPath,
-    branchDomain,
-    branchKey,
-  });
-  return link || '';
+  // Not implemented
+  return '';
 }
 
 export const createDeepLink = async ({
   fallbackUrl,
   type,
   path,
-  branchDomain,
-  branchKey,
+  inviteServiceEndpoint,
+  inviteServiceIsDev,
   metadata,
 }: {
   fallbackUrl: string | undefined;
   type: DeepLinkType;
   path: string;
-  branchDomain: string;
-  branchKey: string;
+  inviteServiceEndpoint: string;
+  inviteServiceIsDev: boolean;
   metadata?: DeepLinkMetadata;
 }) => {
   if (!fallbackUrl || !path) {
@@ -170,30 +162,53 @@ export const createDeepLink = async ({
   }
 
   try {
-    let url = await getDeepLink(alias, branchDomain, branchKey).catch(
-      () => null
-    );
-    if (!url) {
-      logger.crumb(`No existing deeplink for ${alias}, creating new one`);
-      const response = await fetchBranchApi('/v1/url', {
-        method: 'POST',
-        body: JSON.stringify({
-          branch_key: branchKey,
-          alias,
-          data,
-        }),
-      });
-      if (!response.ok) {
-        return fallbackUrl;
-      }
-      ({ url } = (await response.json()) as { url: string });
-    }
-    logger.crumb(`Created new deeplink: ${url}`);
-    return url;
+    const inviteLink = await getLinkFromInviteService({
+      alias,
+      data,
+      inviteServiceEndpoint,
+      inviteServiceIsDev,
+    });
+    return inviteLink;
   } catch (e) {
-    logger.trackError('Failed to get or create deeplink', {
+    logger.trackError('Failed to get or create invite link', {
       errorMessage: e?.message,
     });
     return '';
   }
 };
+
+async function getLinkFromInviteService({
+  alias,
+  data,
+  inviteServiceEndpoint,
+  inviteServiceIsDev,
+}: {
+  alias: string;
+  data: DeepLinkData;
+  inviteServiceEndpoint: string;
+  inviteServiceIsDev: boolean;
+}): Promise<string> {
+  const response = await fetch(inviteServiceEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      inviteId: alias,
+      data: data,
+      testEnv: inviteServiceIsDev,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Failed to get invite link from service [${response.status}]: ${alias}`
+    );
+  }
+
+  const { inviteLink }: { inviteLink: string } = await response.json();
+  if (!inviteLink) {
+    throw new Error('Inalid invite service response');
+  }
+
+  return inviteLink;
+}

@@ -38,25 +38,25 @@ interface LureState {
   lures: Lures;
   fetchLure: (
     flag: string,
-    branchDomain: string,
-    branchKey: string
+    inviteServiceEndpoint: string,
+    inviteServiceIsDev: boolean
   ) => Promise<void>;
   describe: (
     flag: string,
     metadata: LureMetadata,
-    branchDomain: string,
-    branchKey: string
+    inviteServiceEndpoint: string,
+    inviteServiceIsDev: boolean
   ) => Promise<void>;
   toggle: (
     flag: string,
     metadata: GroupMeta,
-    branchDomain: string,
-    branchKey: string
+    inviteServiceEndpoint: string,
+    inviteServiceIsDev: boolean
   ) => Promise<void>;
   start: () => Promise<void>;
 }
 
-const lureLogger = createDevLogger('lure', true);
+const lureLogger = createDevLogger('lure', false);
 
 function groupsDescribe(meta: GroupMeta) {
   return {
@@ -122,7 +122,7 @@ export const useLureState = create<LureState>((set, get) => ({
       })
     );
   },
-  fetchLure: async (flag, branchDomain, branchKey) => {
+  fetchLure: async (flag, inviteServiceEndpoint, inviteServiceIsDev) => {
     const { name } = getFlagParts(flag);
     const prevLure = get().lures[flag];
     lureLogger.crumb('fetching', flag, 'prevLure', prevLure);
@@ -203,8 +203,8 @@ export const useLureState = create<LureState>((set, get) => ({
         fallbackUrl: url,
         type: 'lure',
         path: flag,
-        branchDomain,
-        branchKey,
+        inviteServiceEndpoint,
+        inviteServiceIsDev,
         metadata,
       });
       lureLogger.crumb('deepLinkUrl created', deepLinkUrl);
@@ -230,13 +230,13 @@ const selLure = (flag: string) => (s: LureState) => ({
 
 export function useLure({
   flag,
-  branchDomain,
-  branchKey,
+  inviteServiceEndpoint,
+  inviteServiceIsDev,
   disableLoading = false,
 }: {
   flag: string;
-  branchDomain: string;
-  branchKey: string;
+  inviteServiceEndpoint: string;
+  inviteServiceIsDev: boolean;
   disableLoading?: boolean;
 }) {
   const fetchLure = useLureState((state) => state.fetchLure);
@@ -260,8 +260,13 @@ export function useLure({
   useQuery({
     queryKey: ['lureFetcher', flag],
     queryFn: async () => {
-      lureLogger.crumb('fetching', flag, branchDomain, branchKey);
-      await fetchLure(flag, branchDomain, branchKey);
+      lureLogger.crumb(
+        'fetching',
+        flag,
+        inviteServiceEndpoint,
+        inviteServiceIsDev
+      );
+      await fetchLure(flag, inviteServiceEndpoint, inviteServiceIsDev);
       return true;
     },
     enabled: canCheckForUpdate && uninitialized,
@@ -269,17 +274,30 @@ export function useLure({
   });
 
   const toggle = async (meta: GroupMeta) => {
-    lureLogger.crumb('toggling', flag, meta, branchDomain, branchKey);
-    return useLureState.getState().toggle(flag, meta, branchDomain, branchKey);
+    lureLogger.crumb(
+      'toggling',
+      flag,
+      meta,
+      inviteServiceEndpoint,
+      inviteServiceIsDev
+    );
+    return useLureState
+      .getState()
+      .toggle(flag, meta, inviteServiceEndpoint, inviteServiceIsDev);
   };
 
   const describe = useCallback(
     (meta: GroupMeta) => {
       return useLureState
         .getState()
-        .describe(flag, groupsDescribe(meta), branchDomain, branchKey);
+        .describe(
+          flag,
+          groupsDescribe(meta),
+          inviteServiceEndpoint,
+          inviteServiceIsDev
+        );
     },
-    [flag, branchDomain, branchKey]
+    [flag, inviteServiceEndpoint, inviteServiceIsDev]
   );
 
   lureLogger.crumb('useLure', flag, bait, lure, describe);
@@ -319,18 +337,18 @@ export function useLureLinkChecked(url: string | undefined, enabled: boolean) {
 
 export function useLureLinkStatus({
   flag,
-  branchDomain,
-  branchKey,
+  inviteServiceEndpoint,
+  inviteServiceIsDev,
 }: {
   flag: string;
-  branchDomain: string;
-  branchKey: string;
+  inviteServiceEndpoint: string;
+  inviteServiceIsDev: boolean;
 }) {
   const { supported, fetched, enabled, url, deepLinkUrl, toggle, describe } =
     useLure({
       flag,
-      branchDomain,
-      branchKey,
+      inviteServiceEndpoint,
+      inviteServiceIsDev,
     });
   const { good, checked } = useLureLinkChecked(url, !!enabled);
 

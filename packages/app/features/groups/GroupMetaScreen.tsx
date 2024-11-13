@@ -10,7 +10,10 @@ import {
 } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
-import { BRANCH_DOMAIN, BRANCH_KEY } from '../../constants';
+import {
+  INVITE_SERVICE_ENDPOINT,
+  INVITE_SERVICE_IS_DEV,
+} from '../../constants';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 
@@ -30,8 +33,8 @@ export function GroupMetaScreen(props: Props) {
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
   const { enabled, describe } = store.useLure({
     flag: groupId,
-    branchDomain: BRANCH_DOMAIN,
-    branchKey: BRANCH_KEY,
+    inviteServiceEndpoint: INVITE_SERVICE_ENDPOINT,
+    inviteServiceIsDev: INVITE_SERVICE_IS_DEV,
   });
 
   const handleSubmit = useCallback(
