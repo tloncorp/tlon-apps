@@ -15,7 +15,13 @@ export function AvatarNavIcon({
   onPress?: () => void;
 }) {
   return (
-    <Pressable flex={1} onPress={onPress} alignItems="center" paddingTop={'$s'}>
+    <Pressable
+      flex={1}
+      onPress={onPress}
+      alignItems="center"
+      paddingTop={'$s'}
+      pressStyle={{ backgroundColor: 'unset' }}
+    >
       <ContactAvatar
         size={'custom'}
         width={20}
@@ -51,6 +57,7 @@ export default function NavIcon({
       backgroundColor={backgroundColor}
       alignItems="center"
       flex={1}
+      pressStyle={{ backgroundColor: 'unset' }}
       onPress={onPress}
     >
       <Icon
