@@ -20,9 +20,9 @@
 ++  default  ~zod  ::TODO
 +$  state-0
   $:  %0
-      records=(map [h=@p id=identifier] status)  ::  ours
-      provers=(jug identifier @p)                ::  from
-      queries=(map @ _+:*user-query)             ::  asked
+      records=(map [h=@p id=identifier] id-state)  ::  ours
+      provers=(jug identifier @p)                  ::  from
+      queries=(map @ _+:*user-query)               ::  asked
   ==
 +$  card     card:agent:gall
 --
@@ -58,7 +58,9 @@
     =+  !<(cmd=command:l vase)
     =/  host=@p
       ?~(-.cmd default host.u.cmd)
-    =*  key  [host +>.cmd]
+    =/  key
+      :-  host
+      ?-(+<.cmd ?(%start %revoke) id.cmd, ?(%config %work) id.cmd)
     ::  can only %start ids we haven't already worked with,
     ::  cannot do anything but %start ids we've never worked with.
     ::
@@ -67,7 +69,7 @@
           [%verifier-command !>(`user-command`+.cmd)]
         [%pass /verifier %agent [host %verifier] %poke cage]~
     =?  records  ?=(%start +<.cmd)
-      (~(put by records) key %wait ~)
+      (~(put by records) key *config %wait ~)
     ::NOTE  we don't apply revocation eagerly, we can't re-start the identifier
     ::      until the host has acknowledged the revocation anyway
     this
@@ -125,6 +127,10 @@
     ::
         %kick
       :_  this
+      ::NOTE  this will give us a fresh %full %verifier-update, which will
+      ::      guarantee we regain consistency with the host. handling of other
+      ::      facts below therefore isn't afraid to crash in unexpected
+      ::      scenarios.
       [%pass /verifier %agent [default %verifier] %watch /records/(scot %p our.bowl)]~
     ::
         %fact
@@ -147,11 +153,21 @@
           [%full new]
         [%give %fact ~[/ /records] %lanyard-update !>(upd)]~
       ::
+          %config
+        =*  key  [src.bowl id.upd]
+        =.  records
+          =+  rec=(~(got by records) key)
+          (~(put by records) key rec(config config.upd))
+        :_  this
+        =/  upd=update:l  upd(id key)
+        [%give %fact ~[/ /records] %lanyard-update !>(upd)]~
+      ::
           %status
         =*  key  [src.bowl id.upd]
         =.  records
+          =+  rec=(~(gut by records) key *id-state)
           ?:  ?=(%gone status.upd)  (~(del by records) key)
-          (~(put by records) key status.upd)
+          (~(put by records) key rec(status status.upd))
         :_  this
         =/  upd=update:l  upd(id key)
         [%give %fact ~[/ /records] %lanyard-update !>(upd)]~

@@ -181,7 +181,7 @@
       ::TODO  test via scries instead?
       ;<  =state:v  bind:m  get-state
       %-  branch
-      :~  (ex-equal !>((~(get by records.state) id)) !>(`[~nec %done at]))
+      :~  (ex-equal !>((~(get by records.state) id)) !>(`[~nec *config:v %done at]))
           (ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
           (ex-equal !>((~(get by attested.state) sig)) !>(`id))
       ==
@@ -201,7 +201,10 @@
   =/  m  (mare ,~)
   ;<  *  bind:m  do-setup
   =/  =state:v
-    [(my [id ~nec %done *attestation:v] ~) (my [~nec (sy id ~)] ~) ~]
+    :*  records=(my [id ~nec *config:v %done *attestation:v] ~)
+        owners=(my [~nec (sy id ~)] ~)
+        attested=(my [*@ux id] ~)
+    ==
   ;<  *  bind:m  (do-load agent `!>([%0 state]))
   (pure:m ~)
 ::
@@ -215,6 +218,23 @@
   ;<  ~  bind:m
     %-  ex-fail
     (user-does ~fed %start id)
+  (pure:m ~)
+::
+++  test-config
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  id=identifier:v  [%dummy 'test']
+  ;<  *  bind:m  (do-setup-with-id id)
+  ::  can't config if it's not yours
+  ::
+  ;<  ~  bind:m  (ex-fail (user-does ~fed %config id %public))
+  ::  setting config should emit a fact
+  ::
+  ;<  cas=(list card)  bind:m
+    (user-does ~nec %config id %public)
+  ;<  ~  bind:m
+    %+  ex-cards  cas
+    [(ex-verifier-update ~nec %config id %public)]~
   (pure:m ~)
 ::
 ++  test-revoke
@@ -259,7 +279,7 @@
   ;<  cas=(list card)  bind:m
     ((do-as ~nec) (do-watch /records/~nec))
   %+  ex-cards  cas
-  :~  (%*(. ex-verifier-update initial &) ~nec %full [[id %done *attestation:v] ~ ~])
+  :~  (%*(. ex-verifier-update initial &) ~nec %full [[id *config:v %done *attestation:v] ~ ~])
   ==
 ::
 ++  test-watch-records-perms
@@ -271,11 +291,11 @@
 ::  query tests
 ::
 ++  state-from-records
-  |=  records=(map identifier:v id-state:v)
+  |=  records=(map identifier:v record:v)
   ^-  state:v
   :-  records
   %+  roll  ~(tap by records)
-  |=  $:  [id=identifier:v id-state:v]
+  |=  $:  [id=identifier:v record:v]
           [owners=(jug ship identifier:v) attested=(map @ux identifier:v)]
       ==
   ?.  ?=(%done -.status)  [owners attested]
@@ -287,10 +307,10 @@
   ;<  ~  bind:m  do-setup
   =/  =state:v
     %-  state-from-records
-    %-  ~(gas by *(map identifier:v id-state:v))
+    %-  ~(gas by *(map identifier:v record:v))
     :~  =/  id=identifier:v  [%dummy 'test-id']
         =/  wen=@da  ~2222.2.2
-        [id ~nec %done wen ~ ~zod faux-life %0 (faux-sign ~zod id wen ~)]
+        [id ~nec %hidden %done wen ~ ~zod faux-life %0 (faux-sign ~zod id wen ~)]
     ==
   ;<  *  bind:m  (do-load agent `!>([%0 state]))
   (pure:m ~)
@@ -331,14 +351,43 @@
     [%valid |]
   (pure:m ~)
 ::
-++  test-query-whose
+++  test-query-whose  ::  with respect for different configs
   %-  eval-mare
   =/  m  (mare ,~)
   ;<  ~  bind:m  do-query-setup
+  =/  id=identifier:v  [%dummy 'test-id']
+  ::  discoverability config %hidden
+  ::
   ;<  ~  bind:m
     %^  expect-query-response  ~fed
-      [[%some-dude %my-nonce] %whose %dummy 'test-id']
+      [[%some-dude %my-nonce] %whose id]
+    [%whose ~]
+  ::  discoverability config %public
+  ::
+  ;<  *  bind:m
+    (user-does ~nec %config id %public)
+  ;<  ~  bind:m
+    %^  expect-query-response  ~fed
+      [[%some-dude %my-nonce] %whose id]
     [%whose `~nec]
+  ::  discoverability config %verified
+  ::
+  ;<  *  bind:m
+    (user-does ~nec %config id %verified)
+  ;<  ~  bind:m
+    %^  expect-query-response  ~fed
+      [[%some-dude %my-nonce] %whose id]
+    [%whose ~]
+  ;<  *  bind:m  ::  ~fed registers a %dummy id of its own
+    ;<  *  bind:m  (user-does ~fed %start %dummy 'FED')
+    ;<  *  bind:m  (host-does %dummy 'FED' %grant)
+    (pure:m ~)
+  ;<  ~  bind:m
+    %^  expect-query-response  ~fed
+      [[%some-dude %my-nonce] %whose id]
+    [%whose `~nec]
+  ::  discoverability of non-existing
+  ::
   ;<  ~  bind:m
     %^  expect-query-response  ~fed
       [[%my-dude %some-nonce] %whose %dummy 'not-in-use']

@@ -2,9 +2,10 @@
 ::
 |%
 +$  state
-  $:  records=(map identifier id-state)
+  $:  records=(map identifier record)
       owners=(jug ship identifier)
       attested=(map @ux identifier)
+      ::TODO  need attestation for [@p id-kind], for profile exposing
       ::TODO  (map identifier host-work) ? or would that be only for %dummy?
   ==
 ::
@@ -14,9 +15,17 @@
   ==
 +$  id-kind  ?(%dummy %urbit)
 ::
++$  record  [for=@p id-state]  ::TODO  or tmp id
 +$  id-state
-  $:  for=@p  ::TODO  or tmp id
+  $:  =config
       =status
+  ==
+::
++$  config       ::  owner discoverable through this id?
+  $~  %hidden    ::  default
+  $?  %public    ::  yes
+      %hidden    ::  no
+      %verified  ::  only by other same-kind verified owners
   ==
 ::
 +$  status
@@ -52,6 +61,7 @@
 ::
 +$  user-command
   $%  [%start id=identifier]  ::  nonce for subscription updates
+      [%config id=identifier =config]
       [%revoke id=identifier]
       [%work id=identifier work=user-work]
   ==
@@ -60,9 +70,10 @@
       [%dummy id=@t do=?(%grant %reject)]
   ==
 ::
-+$  identifier-update
-  $%  [%full all=(map identifier status)]
++$  identifier-update  ::TODO  $verifier-update
+  $%  [%full all=(map identifier id-state)]
       [%status id=identifier status=?(%gone status)]
+      [%config id=identifier =config]
   ==
 ::
 +$  user-query
@@ -70,6 +81,7 @@
   $%  [%has-any who=@p kind=id-kind]
       [%valid sig=@ux]
       [%whose id=identifier]
+      ::TODO  %whose-many
   ==  ==
 +$  query-result
   $:  nonce=@
@@ -89,7 +101,8 @@
   +$  update
     $%  [%query nonce=@ result]  ::TODO  different?
         [%status [host=@p id=identifier] status=?(%gone status)]
-        [%full all=(map [host=@p id=identifier] status)]
+        [%config [host=@p id=identifier] =config]
+        [%full all=(map [host=@p id=identifier] id-state)]
     ==
   --
 --

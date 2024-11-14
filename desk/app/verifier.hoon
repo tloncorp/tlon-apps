@@ -41,12 +41,20 @@
 +$  state-0  [%0 state]
 +$  card     card:agent:gall
 ::
+++  give-update
+  |=  [for=@p upd=identifier-update]
+  ^-  card
+  [%give %fact ~[/records/(scot %p for)] %verifier-update !>(upd)]
+::
 ++  give-status
   |=  [for=@p id=identifier status=?(%gone status)]
   ^-  card
-  =/  upd=identifier-update
-    [%status id status]
-  [%give %fact ~[/records/(scot %p for)] %verifier-update !>(upd)]
+  (give-update for %status id status)
+::
+++  give-config
+  |=  [for=@p id=identifier =config]
+  ^-  card
+  (give-update for %config id config)
 ::
 ++  attest
   |=  [our=@p now=@da id=identifier proof=(unit proof)]
@@ -71,6 +79,7 @@
 ++  on-init
   ^-  (quip card _this)
   :_  this
+  ::TODO  handle http requests for proofs, attestations..?
   [%pass /eyre %arvo %e %connect [~ /verifier] dap.bowl]~
 ::
 ++  on-load
@@ -99,13 +108,17 @@
         ==
       =.  records
         %+  ~(put by records)  id.cmd
-        [src.bowl status]
+        [src.bowl *config status]
       :_  this
       [(give-status src.bowl id.cmd status)]~
     ::
+        %config
+      =/  rec  (~(got by records) id.cmd)
+      ?>  =(src.bowl for.rec)
+      :-  [(give-config src.bowl id.cmd config.cmd)]~
+      this(records (~(put by records) id.cmd rec(config config.cmd)))
+    ::
         %revoke
-      ::TODO  if the crash here is unexpected to the client, it should
-      ::      either forget everything & resub, or forget just this id?
       =/  rec  (~(got by records) id.cmd)
       ?>  =(src.bowl for.rec)
       ::TODO  de-dupe with the host command?
@@ -134,7 +147,7 @@
         ?>  =(pin.work.cmd pin.status.rec)
         ::
         ::TODO  copied from %dummy host command, dedupe
-        =/  rec=id-state  rec  ::NOTE  tmi
+        =/  rec=record  rec  ::NOTE  tmi
         =/  tat=attestation
           ::TODO  should the urbit provide a proof saying "x controls me"?
           ::      wouldn't that be better than a pin anyway?
@@ -201,7 +214,16 @@
       :+  ~  %whose
       ?~  sat=(~(get by records) id.qer)  ~
       ?.  ?=(%done -.status.u.sat)  ~
-      `for.u.sat
+      =;  vis=?
+        ?:(vis `for.u.sat ~)
+      ?-  config.u.sat
+        %public  &
+        %hidden  |
+      ::
+          %verified
+        %+  lien  ~(tap in (~(get ju owners) src.bowl))
+        |=(id=identifier =(-.id -.id.qer))
+      ==
     ==
   ==
 ::
@@ -218,8 +240,8 @@
   =+  who=(slav %p i.t.path)
   ?>  =(src.bowl who)
   =+  %-  ~(rep in (~(get ju owners) who))
-      |=  [id=identifier all=(map identifier status)]
-      (~(put by all) id status:(~(got by records) id))
+      |=  [id=identifier all=(map identifier id-state)]
+      (~(put by all) id +:(~(got by records) id))
   =/  upd=identifier-update  [%full all]
   [%give %fact ~ %verifier-update !>(upd)]~
 ::
