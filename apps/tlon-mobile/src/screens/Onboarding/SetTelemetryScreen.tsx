@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   ScreenHeader,
   SizableText,
@@ -7,7 +8,6 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/ui';
-import { trackOnboardingAction } from 'packages/app/utils/posthog';
 import { useCallback, useState } from 'react';
 import { Switch } from 'react-native';
 
