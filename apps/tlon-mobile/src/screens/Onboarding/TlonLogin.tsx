@@ -192,7 +192,6 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
               loading={isSubmitting}
               disabled={
                 isSubmitting ||
-                remoteError !== undefined ||
                 (otpMethod === 'phone'
                   ? !phoneForm.formState.isValid
                   : !emailForm.formState.isValid)
