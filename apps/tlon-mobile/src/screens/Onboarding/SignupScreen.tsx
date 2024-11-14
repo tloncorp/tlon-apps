@@ -276,8 +276,8 @@ export const SignupScreen = ({ navigation }: Props) => {
           </YStack>
           <View marginLeft="$l" marginTop="$m">
             <TlonText.Text
-              size="$label/m"
-              color="$secondaryText"
+              size="$label/s"
+              color="$tertiaryText"
               onPress={toggleSignupMode}
               textAlign="center"
             >

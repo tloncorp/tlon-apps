@@ -255,6 +255,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
               </>
             ) : (
               <TlonText.Text
+                size="$label/s"
                 color="$secondaryText"
                 textAlign="center"
                 onPress={handlePressEmailSignup}

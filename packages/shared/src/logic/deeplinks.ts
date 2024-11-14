@@ -2,11 +2,20 @@ import { ContentReference } from '../api';
 import { citeToPath } from '../urbit';
 import { DeepLinkMetadata, getBranchLinkMeta, isLureMeta } from './branch';
 
-export async function getReferenceFromDeeplink(
-  url: string,
-  branchKey: string
-): Promise<{ reference: ContentReference; path: string } | null> {
-  const linkMeta = await getInviteLinkMeta(url, branchKey);
+export async function getReferenceFromDeeplink({
+  deepLink,
+  branchKey,
+  branchDomain,
+}: {
+  deepLink: string;
+  branchKey: string;
+  branchDomain: string;
+}): Promise<{ reference: ContentReference; path: string } | null> {
+  const linkMeta = await getInviteLinkMeta({
+    inviteLink: deepLink,
+    branchKey,
+    branchDomain,
+  });
 
   if (linkMeta && typeof linkMeta === 'object') {
     if (isLureMeta(linkMeta) && linkMeta.invitedGroupId) {
@@ -24,19 +33,6 @@ export async function getReferenceFromDeeplink(
   return null;
 }
 
-export async function getMetadaFromInviteLink(
-  url: string,
-  branchKey: string
-): Promise<DeepLinkMetadata | null> {
-  const linkMeta = await getInviteLinkMeta(url, branchKey);
-  if (linkMeta && typeof linkMeta === 'object') {
-    if (isLureMeta(linkMeta)) {
-      return linkMeta;
-    }
-  }
-  return null;
-}
-
 interface ProviderMetadataResponse {
   fields: {
     image?: string;
@@ -50,10 +46,15 @@ interface ProviderMetadataResponse {
   };
 }
 
-async function getInviteLinkMeta(
-  inviteLink: string,
-  branchDomain: string
-): Promise<DeepLinkMetadata | null> {
+export async function getInviteLinkMeta({
+  inviteLink,
+  branchDomain,
+  branchKey,
+}: {
+  inviteLink: string;
+  branchDomain: string;
+  branchKey: string;
+}): Promise<DeepLinkMetadata | null> {
   const token = extractTokenFromInviteLink(inviteLink, branchDomain);
   if (!token) {
     return null;
@@ -89,7 +90,7 @@ async function getInviteLinkMeta(
   // some links might not have everything, try to extend with branch (fine if fails)
   if (!metadata.inviterNickname) {
     try {
-      const branchMeta = await getBranchLinkMeta(inviteLink, branchDomain);
+      const branchMeta = await getBranchLinkMeta(inviteLink, branchKey);
       if (branchMeta) {
         if (branchMeta.inviterNickname && !metadata.inviterNickname) {
           metadata.inviterNickname = branchMeta.inviterNickname;
