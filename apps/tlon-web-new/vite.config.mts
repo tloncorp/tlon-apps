@@ -41,6 +41,8 @@ export default ({ mode }: { mode: string }) => {
 
   // eslint-disable-next-line
   const base = (mode: string) => {
+    console.log('mode', mode);
+
     if (mode === 'mock' || mode === 'staging') {
       return '';
     }
@@ -48,6 +50,8 @@ export default ({ mode }: { mode: string }) => {
     if (mode === 'alpha') {
       return '/apps/tm-alpha/';
     }
+
+    return '/apps/groups/';
   };
 
   // eslint-disable-next-line

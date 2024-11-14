@@ -3,6 +3,8 @@ import {
   Context as BranchContext,
   LureData,
 } from '@tloncorp/app/contexts/branch';
+import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
+import { group } from '@tloncorp/app/fixtures/fakeData';
 import {
   DeepLinkData,
   QueryClientProvider,
@@ -30,8 +32,6 @@ import { TlonLoginScreen } from '../screens/Onboarding/TlonLogin';
 import { TlonLoginLegacy } from '../screens/Onboarding/TlonLoginLegacy';
 import { WelcomeScreen } from '../screens/Onboarding/WelcomeScreen';
 import { OnboardingStackParamList, User } from '../types';
-import { exampleContacts } from './contentHelpers';
-import { group } from './fakeData';
 
 const sampleUser = {
   id: '1',

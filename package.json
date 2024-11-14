@@ -13,6 +13,8 @@
     "build:packages": "pnpm run build:shared && pnpm run build:ui && pnpm run build:editor",
     "build:mobile-release": "pnpm run build:packages && pnpm run build:mobile",
     "build:all": "pnpm run build:packages && pnpm run build:apps",
+    "cosmos:native": "cosmos-native",
+    "cosmos:web": "cosmos --config cosmos.config.web.json",
     "dev:shared": "pnpm --filter '@tloncorp/shared' dev",
     "dev:android": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' android\"",
     "dev:ios": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios\" \"pnpm --filter '@tloncorp/ui' watch\"",
