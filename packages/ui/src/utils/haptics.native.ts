@@ -12,6 +12,12 @@ export function triggerHaptic(action: HapticAction) {
         10
       );
       break;
+    case 'zoomable':
+      setTimeout(
+        () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
+        10
+      );
+      break;
     case 'success':
       setTimeout(
         () =>

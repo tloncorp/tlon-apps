@@ -1,4 +1,11 @@
-import React, { createContext, useContext } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { Dimensions, Platform } from 'react-native';
 import {
   Easing,
   type SharedValue,
@@ -18,12 +25,22 @@ export const ScrollContext = createContext<ScrollContextTuple>(INITIAL_VALUE);
 
 export const useScrollContext = () => useContext(ScrollContext);
 
-export const useScrollDirectionTracker = (
-  setIsAtBottom: (isAtBottom: boolean) => void
-) => {
+export const useScrollDirectionTracker = ({
+  setIsAtBottom,
+  atBottomThreshold = 1, // multiple of screen/viewport height
+}: {
+  setIsAtBottom: (isAtBottom: boolean) => void;
+  atBottomThreshold?: number;
+}) => {
   const [scrollValue] = useScrollContext();
   const previousScrollValue = useSharedValue(0);
   const isAtBottom = useSharedValue(true);
+  const viewportHeight = useViewportHeight();
+
+  const AT_BOTTOM_THRESHOLD = useMemo(
+    () => viewportHeight * atBottomThreshold,
+    [viewportHeight, atBottomThreshold]
+  );
 
   return useAnimatedScrollHandler((event) => {
     const { y } = event.contentOffset;
@@ -40,13 +57,29 @@ export const useScrollDirectionTracker = (
 
     previousScrollValue.value = y;
 
-    const atBottom = y <= 0;
+    const atBottom = y <= AT_BOTTOM_THRESHOLD;
     if (isAtBottom.value !== atBottom) {
       isAtBottom.value = atBottom;
       runOnJS(setIsAtBottom)(atBottom);
     }
   });
 };
+
+function useViewportHeight() {
+  const [height, setHeight] = useState(
+    Platform.OS === 'web' ? window.innerHeight : Dimensions.get('window').height
+  );
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleResize = () => setHeight(window.innerHeight);
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, []);
+
+  return height;
+}
 
 export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
   children,

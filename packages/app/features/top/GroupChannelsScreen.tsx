@@ -58,7 +58,7 @@ export function GroupChannelsScreenContent({
     navigation.goBack();
   }, [navigation]);
 
-  const [enableCustomChannels] = useFeatureFlag('customChannels');
+  const [enableCustomChannels] = useFeatureFlag('customChannelCreation');
 
   return (
     <ChatOptionsProvider

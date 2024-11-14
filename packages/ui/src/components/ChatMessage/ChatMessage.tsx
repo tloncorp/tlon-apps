@@ -1,15 +1,17 @@
 import * as db from '@tloncorp/shared/db';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
-import { View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import AuthorRow from '../AuthorRow';
+import { Button } from '../Button';
 import { Icon } from '../Icon';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
+import Pressable from '../Pressable';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { Text } from '../TextV2';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -28,6 +30,7 @@ const ChatMessage = ({
   showReplies,
   setViewReactionsPost,
   isHighlighted,
+  hideOverflowMenu,
 }: {
   post: db.Post;
   showAuthor?: boolean;
@@ -42,8 +45,10 @@ const ChatMessage = ({
   onPressDelete?: (post: db.Post) => void;
   setViewReactionsPost?: (post: db.Post) => void;
   isHighlighted?: boolean;
+  hideOverflowMenu?: boolean;
 }) => {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
+  const [showOverflowOnHover, setShowOverflowOnHover] = useState(false);
   const isNotice = post.type === 'notice';
 
   if (isNotice) {
@@ -92,6 +97,18 @@ const ChatMessage = ({
     setShowRetrySheet(false);
   }, [onPressDelete, post]);
 
+  const handleHoverIn = useCallback(() => {
+    if (isWeb) {
+      setShowOverflowOnHover(true);
+    }
+  }, []);
+
+  const handleHoverOut = useCallback(() => {
+    if (isWeb) {
+      setShowOverflowOnHover(false);
+    }
+  }, []);
+
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
 
@@ -122,61 +139,71 @@ const ChatMessage = ({
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
 
   return (
-    <YStack
-      onLongPress={handleLongPress}
-      backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
-      key={post.id}
+    <Pressable
       // avoid setting the top level press handler at all unless we need to
       onPress={shouldHandlePress ? handlePress : undefined}
+      onLongPress={handleLongPress}
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
     >
-      {showAuthor ? (
-        <AuthorRow
-          padding="$l"
-          paddingBottom="$2xs"
-          author={post.author}
-          authorId={post.authorId}
-          sent={post.sentAt ?? 0}
-          type={post.type}
-          disabled={hideProfilePreview}
-          deliveryStatus={post.deliveryStatus}
-          editStatus={post.editStatus}
-          deleteStatus={post.deleteStatus}
-          showEditedIndicator={!!post.isEdited}
-        />
-      ) : null}
-      <View paddingLeft={!isNotice && '$4xl'}>
-        <ChatContentRenderer
-          content={post.editStatus === 'failed' ? lastEditContent : content}
-          isNotice={post.type === 'notice'}
-          onPressImage={handleImagePressed}
-          onLongPress={handleLongPress}
-          onPress={shouldHandlePress ? handlePress : undefined}
-        />
-      </View>
+      <YStack
+        backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
+        key={post.id}
+      >
+        {showAuthor ? (
+          <AuthorRow
+            padding="$l"
+            paddingBottom="$2xs"
+            author={post.author}
+            authorId={post.authorId}
+            sent={post.sentAt ?? 0}
+            type={post.type}
+            disabled={hideProfilePreview}
+            deliveryStatus={post.deliveryStatus}
+            editStatus={post.editStatus}
+            deleteStatus={post.deleteStatus}
+            showEditedIndicator={!!post.isEdited}
+          />
+        ) : null}
+        <View paddingLeft={!isNotice && '$4xl'}>
+          <ChatContentRenderer
+            content={post.editStatus === 'failed' ? lastEditContent : content}
+            isNotice={post.type === 'notice'}
+            onPressImage={handleImagePressed}
+          />
+        </View>
 
-      <ReactionsDisplay
-        post={post}
-        onViewPostReactions={setViewReactionsPost}
-      />
+        <ReactionsDisplay
+          post={post}
+          onViewPostReactions={setViewReactionsPost}
+        />
 
-      {shouldRenderReplies ? (
-        <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
-          {shouldRenderReplies ? (
-            <ChatMessageReplySummary
-              post={post}
-              onPress={handleRepliesPressed}
-            />
-          ) : null}
-        </XStack>
-      ) : null}
-      <SendPostRetrySheet
-        open={showRetrySheet}
-        post={post}
-        onOpenChange={setShowRetrySheet}
-        onPressRetry={handleRetryPressed}
-        onPressDelete={handleDeletePressed}
-      />
-    </YStack>
+        {shouldRenderReplies ? (
+          <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
+            {shouldRenderReplies ? (
+              <ChatMessageReplySummary
+                post={post}
+                onPress={handleRepliesPressed}
+              />
+            ) : null}
+          </XStack>
+        ) : null}
+        <SendPostRetrySheet
+          open={showRetrySheet}
+          post={post}
+          onOpenChange={setShowRetrySheet}
+          onPressRetry={handleRetryPressed}
+          onPressDelete={handleDeletePressed}
+        />
+      </YStack>
+      {isWeb && !hideOverflowMenu && showOverflowOnHover && (
+        <View position="absolute" top={0} right={12} width={0} height={0}>
+          <Button onPress={handleLongPress} borderWidth="unset" size="$l">
+            <Icon type="Overflow" />
+          </Button>
+        </View>
+      )}
+    </Pressable>
   );
 };
 

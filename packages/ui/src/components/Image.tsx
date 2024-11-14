@@ -1,10 +1,41 @@
 import { Image as BaseImage, ImageErrorEventData } from 'expo-image';
 import { ReactElement, useCallback, useState } from 'react';
+import { Platform, StyleSheet } from 'react-native';
 import { styled } from 'tamagui';
 
-export const Image = styled(BaseImage, { name: 'StyledExpoImage' });
+const WebImage = ({ source, style, alt, onLoad, ...props }: any) => {
+  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    if (onLoad) {
+      // Mimic expo-image's onLoad event structure
+      onLoad({
+        source: {
+          width: e.currentTarget.naturalWidth,
+          height: e.currentTarget.naturalHeight,
+        },
+      });
+    }
+  };
 
-export const ImageWithFallback = Image.styleable<{
+  return (
+    <img
+      src={source.uri}
+      alt={alt}
+      style={{
+        ...StyleSheet.flatten(style),
+        maxWidth: '100%',
+        height: 'auto',
+      }}
+      onLoad={handleLoad}
+      {...props}
+    />
+  );
+};
+
+const StyledBaseImage = styled(BaseImage, { name: 'StyledExpoImage' });
+
+export const Image = Platform.OS === 'web' ? WebImage : StyledBaseImage;
+
+export const ImageWithFallback = StyledBaseImage.styleable<{
   fallback: ReactElement;
 }>(
   ({ fallback, onError, ...props }, ref) => {
@@ -20,7 +51,7 @@ export const ImageWithFallback = Image.styleable<{
     return hasErrored ? (
       fallback
     ) : (
-      <Image ref={ref} {...props} onError={handleError} />
+      <StyledBaseImage ref={ref} {...props} onError={handleError} />
     );
   },
   {

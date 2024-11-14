@@ -18,7 +18,7 @@ import {
   pathToCite,
 } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, TextInput, View } from 'react-native';
+import { Keyboard, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   YStack,
@@ -29,6 +29,7 @@ import {
 } from 'tamagui';
 import { getTokenValue } from 'tamagui';
 import { isWeb } from 'tamagui';
+import { View } from 'tamagui';
 
 import {
   Attachment,
@@ -101,8 +102,6 @@ export default function BareChatInput({
     showMentionPopup,
   } = useMentions();
   const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
-  const [isMultiline, setIsMultiline] = useState(false);
-  const inputContainerRef = useRef<View>(null);
   const inputRef = useRef<TextInput>(null);
 
   const processReferences = useCallback(
@@ -137,18 +136,39 @@ export default function BareChatInput({
     [addAttachment]
   );
 
+  const lastProcessedRef = useRef('');
+
   const handleTextChange = (newText: string) => {
     const oldText = text;
 
-    const textWithoutRefs = processReferences(newText);
+    // Only process references if the text contains a reference and hasn't been processed before.
+    // This check prevents infinite loops on native platforms where we manually update
+    // the input's text value using setNativeProps after processing references.
+    // Without this guard, each manual text update would trigger another onChangeText,
+    // creating an endless cycle.
+    if (REF_REGEX.test(newText) && lastProcessedRef.current !== newText) {
+      lastProcessedRef.current = newText;
+      const textWithoutRefs = processReferences(newText);
+      setText(textWithoutRefs);
+      handleMention(oldText, textWithoutRefs);
 
-    setText(textWithoutRefs);
+      const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
+      bareChatInputLogger.log('setting draft', jsonContent);
+      storeDraft(jsonContent);
 
-    handleMention(oldText, textWithoutRefs);
+      // force update the native input's text
+      if (!isWeb) {
+        inputRef.current?.setNativeProps({ text: textWithoutRefs });
+      }
+    } else if (!REF_REGEX.test(newText)) {
+      // if there's no reference to process, just update normally
+      setText(newText);
+      handleMention(oldText, newText);
 
-    const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
-    bareChatInputLogger.log('setting draft', jsonContent);
-    storeDraft(jsonContent);
+      const jsonContent = textAndMentionsToContent(newText, mentions);
+      bareChatInputLogger.log('setting draft', jsonContent);
+      storeDraft(jsonContent);
+    }
   };
 
   const onMentionSelect = useCallback(
@@ -166,6 +186,49 @@ export default function BareChatInput({
     },
     [handleSelectMention, text]
   );
+
+  const renderTextWithMentionsWeb = useMemo(() => {
+    if (!text || mentions.length === 0) {
+      return null;
+    }
+
+    const sortedMentions = [...mentions].sort((a, b) => a.start - b.start);
+    const textParts: JSX.Element[] = [];
+
+    // Handle text before first mention
+    if (sortedMentions[0].start > 0) {
+      textParts.push(
+        <RawText key="text-start" color="transparent">
+          {text.slice(0, sortedMentions[0].start)}
+        </RawText>
+      );
+    }
+
+    // Handle mentions and text between them
+    sortedMentions.forEach((mention, index) => {
+      textParts.push(
+        <Text
+          key={`mention-${mention.id}-${index}`}
+          color="$positiveActionText"
+          backgroundColor="$positiveBackground"
+        >
+          {mention.display}
+        </Text>
+      );
+
+      // Add text between this mention and the next one (or end of text)
+      const nextStart = sortedMentions[index + 1]?.start ?? text.length;
+      if (mention.end < nextStart) {
+        textParts.push(
+          <RawText key={`text-${index}`} color="transparent">
+            {text.slice(mention.end, nextStart)}
+          </RawText>
+        );
+      }
+    });
+
+    return textParts;
+  }, [mentions, text]);
 
   const renderTextWithMentions = useMemo(() => {
     if (!text || mentions.length === 0) {
@@ -299,6 +362,7 @@ export default function BareChatInput({
       setMentions([]);
       clearAttachments();
       clearDraft();
+      setHasSetInitialContent(false);
     },
     [
       onSend,
@@ -515,15 +579,6 @@ export default function BareChatInput({
     setShouldBlur(true);
   }, [setShouldBlur]);
 
-  const handleContentSizeChange = useCallback(() => {
-    if (inputContainerRef.current?.measure) {
-      inputContainerRef.current.measure((x, y, width, height) => {
-        // Tell the component the user has entered enough text to exceed the initial height of the input
-        setIsMultiline(height > initialHeight);
-      });
-    }
-  }, [initialHeight]);
-
   return (
     <MessageInputContainer
       onPressSend={handleSend}
@@ -553,39 +608,56 @@ export default function BareChatInput({
         justifyContent="center"
       >
         {showInlineAttachments && <AttachmentPreviewList />}
-        <View ref={inputContainerRef} onLayout={handleContentSizeChange}>
-          <TextInput
-            ref={inputRef}
-            onChangeText={handleTextChange}
-            onChange={isWeb ? adjustTextInputSize : undefined}
-            onLayout={isWeb ? adjustTextInputSize : undefined}
-            onBlur={handleBlur}
-            multiline
-            style={{
-              backgroundColor: 'transparent',
-              minHeight: initialHeight,
-              height: isWeb ? inputHeight : undefined,
-              maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
-              paddingHorizontal: getTokenValue('$l', 'space'),
-              paddingTop: getTokenValue('$l', 'space'),
-              fontSize: getFontSize('$m'),
-              textAlignVertical: 'center',
-              letterSpacing: -0.032,
-              color: getVariableValue(useTheme().primaryText),
-              ...(isMultiline
-                ? {
-                    lineHeight: 26,
-                    paddingBottom: getTokenValue('$xs', 'space'),
-                  }
-                : { paddingBottom: getTokenValue('$l', 'space') }),
-              ...placeholderTextColor,
-              ...(isWeb ? { outlineStyle: 'none' } : {}),
-            }}
-            placeholder={placeholder}
-          >
-            {renderTextWithMentions}
-          </TextInput>
-        </View>
+        <TextInput
+          ref={inputRef}
+          value={isWeb ? text : undefined}
+          onChangeText={handleTextChange}
+          onChange={isWeb ? adjustTextInputSize : undefined}
+          onLayout={isWeb ? adjustTextInputSize : undefined}
+          onBlur={handleBlur}
+          onKeyPress={(e) => {
+            if (isWeb && e.nativeEvent.key === 'Enter') {
+              const keyEvent = e.nativeEvent as unknown as KeyboardEvent;
+              if (!keyEvent.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }
+          }}
+          multiline
+          placeholder={placeholder}
+          style={{
+            backgroundColor: 'transparent',
+            minHeight: initialHeight,
+            height: isWeb ? inputHeight : undefined,
+            maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
+            paddingHorizontal: getTokenValue('$l', 'space'),
+            paddingTop: getTokenValue('$l', 'space'),
+            paddingBottom: getTokenValue('$l', 'space'),
+            fontSize: getFontSize('$m'),
+            textAlignVertical: 'center',
+            letterSpacing: -0.032,
+            color: getVariableValue(useTheme().primaryText),
+            ...placeholderTextColor,
+            ...(isWeb ? { outlineStyle: 'none' } : {}),
+          }}
+        >
+          {isWeb ? undefined : renderTextWithMentions}
+        </TextInput>
+        {isWeb && mentions.length > 0 && (
+          <View height={inputHeight} position="absolute" pointerEvents="none">
+            <RawText
+              paddingHorizontal="$l"
+              paddingTop={getTokenValue('$m', 'space') + 3}
+              fontSize="$m"
+              lineHeight={getFontSize('$m') * 1.2}
+              letterSpacing={-0.032}
+              color="$primaryText"
+            >
+              {renderTextWithMentionsWeb}
+            </RawText>
+          </View>
+        )}
       </YStack>
     </MessageInputContainer>
   );

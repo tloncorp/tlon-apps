@@ -46,6 +46,31 @@ module.exports = {
         message:
           'Please use getTokenValue() instead of getToken() to ensure web compatibility. See: https://tamagui.dev/docs/core/exports#gettokenvalue',
       },
+      {
+        selector:
+          'JSXOpeningElement[name.name=/^(Stack|XStack|YStack|View|ListItem)$/] > JSXAttribute[name.name="onPress"]',
+        message:
+          'Do not use onPress on Stack, View or ListItem components. Use Pressable instead.',
+      },
+      {
+        selector:
+          'JSXOpeningElement[name.name=/^(Stack|XStack|YStack|View|ListItem)$/] > JSXAttribute[name.name="onLongPress"]',
+        message:
+          'Do not use onLongPress on Stack, View or ListItem components. Use Pressable instead.',
+      },
+      {
+        selector:
+          'MemberExpression[object.name="CommonActions"][property.name="reset"]',
+        message:
+          'Please use the useTypedReset() hook instead of CommonActions.reset() for type safety.',
+      },
+      {
+        // Also catch it when imported as a different name
+        selector:
+          'ImportSpecifier[imported.name="reset"][parent.parent.source.value="@react-navigation/native"]',
+        message:
+          'Please use the useTypedReset() hook instead of importing reset from @react-navigation/native for type safety.',
+      },
     ],
   },
 };

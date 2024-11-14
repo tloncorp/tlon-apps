@@ -6,6 +6,7 @@ import { useGroups } from '../contexts';
 import { useAlphabeticallySegmentedGroups } from '../hooks/groupsSorters';
 import { GroupSelectorSheet } from './GroupSelectorSheet';
 import { GroupListItem, ListItem } from './ListItem';
+import Pressable from './Pressable';
 import { WidgetPane } from './WidgetPane';
 
 export function FavoriteGroupsDisplay(props: {
@@ -71,35 +72,33 @@ export function FavoriteGroupsDisplay(props: {
             model={group}
             key={group.id}
             backgroundColor="unset"
-            pressable={false}
             EndContent={
-              <ListItem.SystemIcon
-                icon="Close"
-                onPress={() => handleFavoriteGroupsChange(group)}
-                backgroundColor={'transparent'}
-                color={'$tertiaryText'}
-              />
+              <Pressable onPress={() => handleFavoriteGroupsChange(group)}>
+                <ListItem.SystemIcon
+                  icon="Close"
+                  onPress={() => handleFavoriteGroupsChange(group)}
+                  backgroundColor={'transparent'}
+                  color={'$tertiaryText'}
+                />
+              </Pressable>
             }
           />
         );
       })}
-      <ListItem
-        padding="$m"
-        onPress={() => setSelectorOpen(true)}
-        backgroundColor="unset"
-        pressable
-      >
-        <ListItem.MainContent>
-          <ListItem.Title>Add a group</ListItem.Title>
-        </ListItem.MainContent>
-        <ListItem.EndContent backgroundColor="unset">
-          <ListItem.SystemIcon
-            icon="ChevronRight"
-            backgroundColor="unset"
-            color={'$tertiaryText'}
-          />
-        </ListItem.EndContent>
-      </ListItem>
+      <Pressable borderRadius="$xl" onPress={() => setSelectorOpen(true)}>
+        <ListItem padding="$m" backgroundColor="unset">
+          <ListItem.MainContent>
+            <ListItem.Title>Add a group</ListItem.Title>
+          </ListItem.MainContent>
+          <ListItem.EndContent backgroundColor="unset">
+            <ListItem.SystemIcon
+              icon="ChevronRight"
+              backgroundColor="unset"
+              color={'$tertiaryText'}
+            />
+          </ListItem.EndContent>
+        </ListItem>
+      </Pressable>
       <GroupSelectorSheet
         open={selectorOpen}
         onOpenChange={setSelectorOpen}

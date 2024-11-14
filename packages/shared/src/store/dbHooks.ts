@@ -9,7 +9,11 @@ import * as api from '../api';
 import * as db from '../db';
 import * as ub from '../urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
-import { syncGroupPreviews, syncPostReference } from './sync';
+import {
+  syncChannelPreivews,
+  syncGroupPreviews,
+  syncPostReference,
+} from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
@@ -134,7 +138,7 @@ export const useIsTlonEmployee = () => {
   return useQuery({
     queryKey: db.IS_TLON_EMPLOYEE_QUERY_KEY,
     queryFn: db.getIsTlonEmployee,
-  });
+  }).data;
 };
 
 export const useCanUpload = () => {
@@ -373,6 +377,18 @@ export const useGroupPreview = (groupId: string) => {
     queryFn: async () => {
       const [preview] = await syncGroupPreviews([groupId]);
       return preview;
+    },
+  });
+};
+
+export const useChannelPreview = ({ id }: { id: string }) => {
+  return useQuery({
+    queryKey: ['channelPreview', id],
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    queryFn: async () => {
+      const [channel] = await syncChannelPreivews([id]);
+      return channel;
     },
   });
 };

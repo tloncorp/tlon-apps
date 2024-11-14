@@ -32,7 +32,6 @@ export const OnboardingInviteBlock = React.memo(function OnboardingInviteBlock({
     // provider needed to support calm settings usage down the tree
     <AppDataContextProvider>
       <ListItem
-        pressable={false}
         backgroundColor="$background"
         borderColor="$border"
         borderWidth={1}

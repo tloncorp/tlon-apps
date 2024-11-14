@@ -14,7 +14,7 @@ export function CreateGroupScreen(props: Props) {
         index: 1,
         routes: [
           { name: 'ChatList' },
-          { name: 'Channel', params: { channel } },
+          { name: 'Channel', params: { channelId: channel.id } },
         ],
       });
     },

@@ -58,6 +58,7 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
     }
     navigation.push('ChannelSearch', {
       channelId: channelQuery.data.id ?? null,
+      groupId: channelQuery.data.groupId ?? '',
     });
   }, [navigation, channelQuery.data]);
 
