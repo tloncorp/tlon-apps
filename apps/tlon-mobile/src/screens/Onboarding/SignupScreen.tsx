@@ -81,7 +81,7 @@ export const SignupScreen = ({ navigation }: Props) => {
       actionName: 'Phone or Email Submitted',
       phoneNumber: phoneForm.getValues().phoneNumber,
       email: emailForm.getValues().email,
-      lure: signupParams.lureId,
+      lure: lureMeta?.id,
     });
 
     signupContext.setOnboardingValues({
@@ -93,14 +93,7 @@ export const SignupScreen = ({ navigation }: Props) => {
       mode: 'signup',
       otpMethod,
     });
-  }, [
-    phoneForm,
-    emailForm,
-    signupParams.lureId,
-    signupContext,
-    navigation,
-    otpMethod,
-  ]);
+  }, [phoneForm, emailForm, lureMeta, signupContext, navigation, otpMethod]);
 
   const toggleSignupMode = useCallback(() => {
     setRemoteError(undefined);
@@ -113,7 +106,6 @@ export const SignupScreen = ({ navigation }: Props) => {
     setIsSubmitting(true);
     try {
       const { enabled } = await hostingApi.getHostingAvailability({
-        lure: signupParams.lureId,
         priorityToken: signupParams.priorityToken,
       });
       if (!enabled) {
@@ -167,7 +159,6 @@ export const SignupScreen = ({ navigation }: Props) => {
     setIsSubmitting(false);
   }, [
     hostingApi,
-    signupParams.lureId,
     signupParams.priorityToken,
     recaptcha,
     otpMethod,
