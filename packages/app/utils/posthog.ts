@@ -11,6 +11,7 @@ export type OnboardingProperties = {
   email?: string;
   phoneNumber?: string;
   ship?: string;
+  telemetryEnabled?: boolean;
 };
 
 export let posthog: PostHog | undefined;

@@ -1,5 +1,4 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useSignupContext } from '.././../lib/signupContext';
 import {
   ScreenHeader,
   SizableText,
@@ -8,12 +7,12 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/ui';
-import { usePostHog } from 'posthog-react-native';
+import { trackOnboardingAction } from 'packages/app/utils/posthog';
 import { useCallback, useState } from 'react';
 import { Switch } from 'react-native';
-import branch from 'react-native-branch';
 
 import type { OnboardingStackParamList } from '../../types';
+import { useSignupContext } from '.././../lib/signupContext';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetTelemetry'>;
 
@@ -24,21 +23,19 @@ export const SetTelemetryScreen = ({
   },
 }: Props) => {
   const [isEnabled, setIsEnabled] = useState(true);
-  const postHog = usePostHog();
   const signupContext = useSignupContext();
 
   const handleNext = useCallback(() => {
     signupContext.setOnboardingValues({ telemetry: isEnabled });
-
-    if (!isEnabled) {
-      postHog?.optOut();
-      branch.disableTracking(true);
-    }
+    trackOnboardingAction({
+      actionName: 'SetTelemetry',
+      telemetryEnabled: isEnabled,
+    });
 
     navigation.push('ReserveShip', {
       user,
     });
-  }, [isEnabled, user, postHog, navigation, signupContext]);
+  }, [isEnabled, user, navigation, signupContext]);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
