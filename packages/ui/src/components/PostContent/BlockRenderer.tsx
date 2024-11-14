@@ -244,6 +244,8 @@ export function ImageBlock({
     });
   }, []);
 
+  const shouldUseAspectRatio = imageProps?.aspectRatio !== 'unset';
+
   return (
     <Pressable
       borderRadius="$s"
@@ -257,7 +259,9 @@ export function ImageBlock({
           uri: block.src,
         }}
         style={{
-          aspectRatio: dimensions.aspect || undefined,
+          ...(shouldUseAspectRatio
+            ? { aspectRatio: dimensions.aspect || undefined }
+            : {}),
         }}
         alt={block.alt}
         onLoad={handleImageLoaded}
