@@ -225,16 +225,23 @@ export function ImageBlock({
   imageProps?: ComponentProps<typeof ContentImage>;
 } & ComponentProps<typeof View>) {
   const { onPressImage, onLongPress } = cn.useContentContext();
-  const [aspect, setAspect] = useState<number | null>(
-    block.width && block.height ? block.width / block.height : 1
-  );
+  const [dimensions, setDimensions] = useState({
+    width: block.width || null,
+    height: block.height || null,
+    aspect: block.width && block.height ? block.width / block.height : null,
+  });
 
   const handlePress = useCallback(() => {
     onPressImage?.(block.src);
   }, [block.src, onPressImage]);
 
   const handleImageLoaded = useCallback((e: ImageLoadEventData) => {
-    setAspect(e.source.width / e.source.height);
+    const aspect = e.source.width / e.source.height;
+    setDimensions({
+      width: e.source.width,
+      height: e.source.height,
+      aspect,
+    });
   }, []);
 
   return (
@@ -248,12 +255,12 @@ export function ImageBlock({
       <ContentImage
         source={{
           uri: block.src,
-          width: block.height,
-          height: block.width,
+        }}
+        style={{
+          aspectRatio: dimensions.aspect || undefined,
         }}
         alt={block.alt}
         onLoad={handleImageLoaded}
-        aspectRatio={aspect ?? 1}
         {...imageProps}
       />
     </Pressable>

@@ -121,7 +121,6 @@ export class Urbit {
       accept: '*',
       headers,
       signal: this.abort.signal,
-      reactNative: { textStreaming: true },
     };
   }
 
@@ -302,6 +301,7 @@ export class Urbit {
       }
       fetchEventSource(this.channelUrl, {
         ...this.fetchOptions,
+        reactNative: { textStreaming: true },
         openWhenHidden: true,
         responseTimeout: 25000,
         fetch: this.fetchFn,
