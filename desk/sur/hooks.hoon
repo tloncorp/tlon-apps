@@ -65,7 +65,7 @@
 +$  context
   $:  v-channel
       channels=v-channels
-      =group:g
+      =group-ui:g
       state=vase
       now=time
       our=ship

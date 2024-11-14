@@ -695,7 +695,7 @@
   ~&  "parsed hoon: {<-.tonk>}"
   ~&  %f
   ?:  ?=(%| -.tonk)
-    ~&  "returning error"
+    %-  (slog 'returning error' p.tonk)
     tonk
   &+q.p.tonk
 ++  execute
@@ -705,30 +705,36 @@
   %-  (soft prod)
   (slum .*(+:subject nock) simp)
 ::
+++  run-hook
+  |=  [=event:h =context:h =hook:h]
+  ^-  (unit return:h)
+  ?.  enabled.hook  ~
+  ?~  compiled.hook  ~
+  =/  =args:h  [event context(state state.hook)]
+  =/  outcome=(unit outcome:h)
+    ((execute outcome:h) u.compiled.hook args)
+  ~&  "{(trip name.hook)} hook run: {<outcome>}"
+  ?~  outcome  ~
+  ?:  ?=(%.y -.u.outcome)  `p.u.outcome
+  ~&  "hook failed:"
+  ((slog p.u.outcome) ~)
 ++  run-hooks
   |=  [=event:h =context:h default=cord hks=hooks:h]
   ^-  [[(each event:h tang) (list effect:h)] hooks:h]
   =/  current-event  event
   =|  effects=(list effect:h)
-  =*  order  +.order.hks
+  =/  order  +.order.hks
   |-
   ?~  order
     [[&+current-event effects] hks]
   =*  next  $(order t.order)
   =/  hook  (~(got by hooks.hks) i.order)
-  ?~  compiled.hook  next
-  =/  =args:h  [current-event context(state state.hook)]
-  =/  outcome=(unit outcome:h)
-    ((execute outcome:h) u.compiled.hook args)
-  ~&  "{(trip name.hook)} hook run: {<outcome>}"
-  ?~  outcome  next
-  ?:  ?=(%.n -.u.outcome)
-    ~&  "hook failed:"
-    %-  (slog p.u.outcome)
-    next
-  =*  result  result.p.u.outcome
-  =.  effects  (weld effects effects.p.u.outcome)
-  =.  hooks.hks  (~(put by hooks.hks) i.order hook(state new-state.p.u.outcome))
+  =/  return=(unit return:h)
+    (run-hook current-event context hook)
+  ?~  return  next
+  =*  result  result.u.return
+  =.  effects  (weld effects effects.u.return)
+  =.  hooks.hks  (~(put by hooks.hks) i.order hook(state new-state.u.return))
   ?:  ?=(%denied -.result)
     [[|+~[(fall msg.result default)] effects] hks]
   =.  current-event  new.result
