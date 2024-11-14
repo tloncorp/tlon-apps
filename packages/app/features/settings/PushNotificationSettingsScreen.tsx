@@ -8,6 +8,7 @@ import {
   GroupListItem,
   Icon,
   ListItem,
+  Pressable,
   ScreenHeader,
   ScrollView,
   SizableText,
@@ -79,7 +80,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
   );
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title="Push Notifications"
         backAction={() => navigation.goBack()}
@@ -90,30 +91,36 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
         </SizableText>
 
         <YStack marginLeft="$m" marginTop="$3xl">
-          <XStack onPress={() => setLevel('medium')}>
-            <LevelIndicator levels={['loud', 'medium']} />
-            <SizableText marginLeft="$l">All group activity</SizableText>
-          </XStack>
+          <Pressable onPress={() => setLevel('medium')}>
+            <XStack>
+              <LevelIndicator levels={['loud', 'medium']} />
+              <SizableText marginLeft="$l">All group activity</SizableText>
+            </XStack>
+          </Pressable>
 
-          <XStack marginTop="$xl" onPress={() => setLevel('soft')}>
-            <LevelIndicator levels={['soft', 'default']} />
-            <YStack marginLeft="$l">
-              <SizableText>Mentions and replies only</SizableText>
-              <SizableText
-                width="80%"
-                marginTop="$m"
-                size="$s"
-                color="$secondaryText"
-              >
-                Direct messages will still notify unless you mute them.
-              </SizableText>
-            </YStack>
-          </XStack>
+          <Pressable marginTop="$xl" onPress={() => setLevel('soft')}>
+            <XStack>
+              <LevelIndicator levels={['soft', 'default']} />
+              <YStack marginLeft="$l">
+                <SizableText>Mentions and replies only</SizableText>
+                <SizableText
+                  width="80%"
+                  marginTop="$m"
+                  size="$s"
+                  color="$secondaryText"
+                >
+                  Direct messages will still notify unless you mute them.
+                </SizableText>
+              </YStack>
+            </XStack>
+          </Pressable>
 
-          <XStack marginTop="$xl" onPress={() => setLevel('hush')}>
-            <LevelIndicator levels={['hush']} />
-            <SizableText marginLeft="$l">Nothing</SizableText>
-          </XStack>
+          <Pressable marginTop="$xl" onPress={() => setLevel('hush')}>
+            <XStack>
+              <LevelIndicator levels={['hush']} />
+              <SizableText marginLeft="$l">Nothing</SizableText>
+            </XStack>
+          </Pressable>
         </YStack>
 
         {numExceptions > 0 ? (
