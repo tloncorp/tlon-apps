@@ -67,6 +67,11 @@ export const allCollectionRenderers = {
       },
     },
   },
+  'tlon.r0.collection.summaries': {
+    displayName: 'Summaries',
+    enumTag: 'summaries',
+    parametersSchema: standardCollectionParameters(),
+  },
 } as const satisfies Record<string, ComponentSpec>;
 
 export const allDraftInputs = {

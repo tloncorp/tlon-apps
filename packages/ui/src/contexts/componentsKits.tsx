@@ -34,6 +34,7 @@ import {
 } from '../components/postCollectionViews/CardsPostCollectionView';
 import { ListPostCollection } from '../components/postCollectionViews/ListPostCollectionView';
 import { StrobePostCollectionView } from '../components/postCollectionViews/StrobePostCollectionView';
+import { PostSummaryCollectionView } from '../components/postCollectionViews/SummaryCollectionView';
 import { IPostCollectionView } from '../components/postCollectionViews/shared';
 
 type RenderItemProps = {
@@ -163,6 +164,7 @@ const BUILTIN_COLLECTION_RENDERERS: {
   [CollectionRendererId.sign]: SingleCardPostCollection,
   [CollectionRendererId.boardroom]: BoardroomPostCollectionView,
   [CollectionRendererId.strobe]: StrobePostCollectionView,
+  [CollectionRendererId.summaries]: PostSummaryCollectionView,
 };
 
 export function ComponentsKitContextProvider({
