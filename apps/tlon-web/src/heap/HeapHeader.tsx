@@ -1,5 +1,5 @@
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import { DisplayMode, SortMode } from '@tloncorp/shared/dist/urbit/channel';
+import { DisplayMode, SortMode } from '@tloncorp/shared/urbit/channel';
 import cn from 'classnames';
 import React, { useEffect, useState } from 'react';
 

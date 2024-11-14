@@ -6,6 +6,7 @@ import { Attachment, useAttachmentContext } from '../../contexts/attachment';
 import { ContentReferenceLoader } from '../ContentReference';
 import { Icon } from '../Icon';
 import { Image } from '../Image';
+import Pressable from '../Pressable';
 
 export const AttachmentPreviewList = () => {
   const { attachments } = useAttachmentContext();
@@ -99,7 +100,7 @@ const RemoveAttachmentButton = ({ attachment }: { attachment: Attachment }) => {
     removeAttachment(attachment);
   }, [removeAttachment, attachment]);
   return (
-    <View
+    <Pressable
       width="$xl"
       height="$xl"
       borderColor="$border"
@@ -113,6 +114,6 @@ const RemoveAttachmentButton = ({ attachment }: { attachment: Attachment }) => {
       onPress={handlePress}
     >
       <Icon size="$s" type="Close" />
-    </View>
+    </Pressable>
   );
 };

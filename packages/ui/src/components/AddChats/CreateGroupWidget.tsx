@@ -1,6 +1,6 @@
-import { createShortCodeFromTitle } from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import { createShortCodeFromTitle } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
 import { YStack } from 'tamagui';
 

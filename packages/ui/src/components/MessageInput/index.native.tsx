@@ -16,15 +16,17 @@ import {
   ShortcutsBridge,
 } from '@tloncorp/editor/src/bridges';
 import {
+  REF_REGEX,
   createDevLogger,
   extractContentTypesFromPost,
   tiptap,
-} from '@tloncorp/shared/dist';
+} from '@tloncorp/shared';
 import {
   contentReferenceToCite,
   toContentReference,
-} from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
+} from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import {
   Block,
   Inline,
@@ -34,8 +36,7 @@ import {
   constructStory,
   isInline,
   pathToCite,
-} from '@tloncorp/shared/dist/urbit';
-import * as logic from '@tloncorp/shared/src/logic';
+} from '@tloncorp/shared/urbit';
 import {
   forwardRef,
   useCallback,
@@ -48,7 +49,7 @@ import {
 import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebViewMessageEvent } from 'react-native-webview';
-import { YStack, getToken, useWindowDimensions } from 'tamagui';
+import { YStack, getTokenValue, useWindowDimensions } from 'tamagui';
 import { XStack } from 'tamagui';
 
 import { useBranchDomain, useBranchKey } from '../../contexts';
@@ -155,7 +156,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const { height } = useWindowDimensions();
     const headerHeight = 48;
     const titleInputHeight = 48;
-    const inputBasePadding = getToken('$s', 'space');
+    const inputBasePadding = getTokenValue('$s', 'space');
     const imageInputButtonHeight = 50;
     const maxInputHeightBasic = useMemo(
       () => height - headerHeight - bottom - top,
@@ -238,7 +239,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               const newInlines = inlines
                 .map((inline) => {
                   if (typeof inline === 'string') {
-                    if (inline.match(tiptap.REF_REGEX)) {
+                    if (inline.match(REF_REGEX)) {
                       return null;
                     }
                     return inline;
@@ -461,7 +462,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           editor,
           editorJson,
           pastedText,
-          matchRegex: tiptap.REF_REGEX,
+          matchRegex: REF_REGEX,
           processMatch: async (match) => {
             const cite = pathToCite(match);
             if (cite) {
@@ -960,7 +961,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             <RichText
               style={{
                 backgroundColor: 'transparent',
-                maxHeight: maxInputHeight - getToken('$s', 'space'),
+                maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
               }}
               editor={editor}
               onMessage={handleMessage}

@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { omit } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LayoutRectangle } from 'react-native';

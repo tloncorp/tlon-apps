@@ -1,5 +1,5 @@
-import { createDevLogger } from '@tloncorp/shared/dist';
-import { MessageAttachments } from '@tloncorp/shared/dist/api';
+import { createDevLogger } from '@tloncorp/shared';
+import { MessageAttachments } from '@tloncorp/shared/api';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo } from 'react';
 

@@ -1,5 +1,5 @@
-import * as api from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
+import * as api from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
 import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
@@ -46,14 +46,29 @@ export function EditProfileScreenView(props: Props) {
     defaultValues: {
       nickname: userContact?.nickname ?? '',
       bio: userContact?.bio ?? '',
-      avatarImage: userContact?.avatarImage ?? undefined,
+      avatarImage: userContact?.avatarImage ?? '',
     },
   });
 
   const handlePressDone = useCallback(() => {
     if (isDirty) {
       handleSubmit((formData) => {
-        props.onSaveProfile(formData);
+        // ensure we explicitly clear out fields in response to falsy
+        // form data if they're set on the existing profile
+        const resolvedValues = {
+          nickname: formData.nickname
+            ? formData.nickname
+            : userContact?.nickname
+              ? ''
+              : undefined,
+          bio: formData.bio ? formData.bio : userContact?.bio ? '' : undefined,
+          avatarImage: formData.avatarImage
+            ? formData.avatarImage
+            : userContact?.avatarImage
+              ? ''
+              : undefined,
+        };
+        props.onSaveProfile(resolvedValues);
         props.onGoBack();
       })();
     } else {

@@ -1,17 +1,16 @@
-import { useFocusEffect } from '@react-navigation/native';
-import { useIsFocused } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import {
   useCanUpload,
-  useChannel,
+  useChannelPreview,
   useGroupPreview,
   usePostReference,
   usePostWithRelations,
-} from '@tloncorp/shared/dist/store';
-import { Story } from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared/store';
+import { Story } from '@tloncorp/shared/urbit';
 import {
   Channel,
   ChannelSwitcherSheet,
@@ -33,11 +32,12 @@ const logger = createDevLogger('ChannelScreen', false);
 type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: Props) {
-  const channelFromParams = props.route.params.channel;
-  const selectedPostId = props.route.params.selectedPostId;
-  const [currentChannelId, setCurrentChannelId] = React.useState(
-    channelFromParams.id
-  );
+  const { channelId, selectedPostId, startDraft } = props.route.params;
+  const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
+
+  useEffect(() => {
+    setCurrentChannelId(channelId);
+  }, [channelId]);
 
   const {
     negotiationStatus,
@@ -62,23 +62,22 @@ export default function ChannelScreen(props: Props) {
       if (group?.isNew) {
         store.markGroupVisited(group);
       }
-
-      if (!channelFromParams.isPendingChannel) {
-        store.syncChannelThreadUnreads(channelFromParams.id, {
+    }, [group])
+  );
+  useFocusEffect(
+    useCallback(() => {
+      if (channel && !channel.isPendingChannel) {
+        store.syncChannelThreadUnreads(channel.id, {
           priority: store.SyncPriority.High,
         });
       }
-    }, [channelFromParams, group])
-  );
-  useFocusEffect(
-    useCallback(
-      () =>
-        // Mark the channel as visited when we unfocus/leave this screen
-        () => {
-          store.markChannelVisited(channelFromParams);
-        },
-      [channelFromParams]
-    )
+      // Mark the channel as visited when we unfocus/leave this screen
+      () => {
+        if (channel) {
+          store.markChannelVisited(channel);
+        }
+      };
+    }, [channel])
   );
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
@@ -175,6 +174,20 @@ export default function ChannelScreen(props: Props) {
     }
   }, [channel?.id, cursor]);
 
+  // If scroll to bottom is pressed, it's most straighforward to ignore
+  // existing cursor
+  const [clearedCursor, setClearedCursor] = React.useState(false);
+
+  // But if a new post is selected, we should mark the cursor
+  // as uncleared
+  useEffect(() => {
+    setClearedCursor(false);
+  }, [selectedPostId]);
+
+  const handleScrollToBottom = useCallback(() => {
+    setClearedCursor(true);
+  }, []);
+
   const {
     posts,
     query: postsQuery,
@@ -186,7 +199,7 @@ export default function ChannelScreen(props: Props) {
     channelId: currentChannelId,
     count: 15,
     hasCachedNewest,
-    ...(cursor
+    ...(cursor && !clearedCursor
       ? {
           mode: 'around',
           cursor,
@@ -292,7 +305,7 @@ export default function ChannelScreen(props: Props) {
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
-      props.navigation.push('Channel', { channel: dmChannel });
+      props.navigation.push('DM', { channelId: dmChannel.id });
     },
     [props.navigation]
   );
@@ -319,7 +332,7 @@ export default function ChannelScreen(props: Props) {
 
   const handleGoToUserProfile = useCallback(
     (userId: string) => {
-      props.navigation.push('UserProfile', { userId });
+      props.navigation.navigate('UserProfile', { userId });
     },
     [props.navigation]
   );
@@ -336,7 +349,7 @@ export default function ChannelScreen(props: Props) {
 
   return (
     <ChatOptionsProvider
-      groupId={channelFromParams?.id}
+      groupId={group?.id}
       pinned={pinnedItems}
       useGroup={store.useGroup}
       onPressInvite={(group) => {
@@ -345,9 +358,10 @@ export default function ChannelScreen(props: Props) {
       {...chatOptionsNavProps}
     >
       <Channel
+        key={currentChannelId}
         headerMode={headerMode}
         channel={channel}
-        initialChannelUnread={initialChannelUnread}
+        initialChannelUnread={clearedCursor ? undefined : initialChannelUnread}
         isLoadingPosts={isLoadingPosts}
         hasNewerPosts={postsQuery.hasPreviousPage}
         hasOlderPosts={postsQuery.hasNextPage}
@@ -371,7 +385,7 @@ export default function ChannelScreen(props: Props) {
         usePostReference={usePostReference}
         useGroup={useGroupPreview}
         onGroupAction={performGroupAction}
-        useChannel={useChannel}
+        useChannel={useChannelPreview}
         storeDraft={storeDraft}
         clearDraft={clearDraft}
         getDraft={getDraft}
@@ -382,6 +396,8 @@ export default function ChannelScreen(props: Props) {
         editPost={editPost}
         negotiationMatch={negotiationStatus.matchedOrPending}
         canUpload={canUpload}
+        startDraft={startDraft}
+        onPressScrollToBottom={handleScrollToBottom}
       />
       {group && (
         <>

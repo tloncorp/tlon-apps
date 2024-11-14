@@ -5,7 +5,7 @@ import {
   PostContentRendererId,
   useCreateChannel,
 } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import {
   ElementRef,
   forwardRef,

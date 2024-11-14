@@ -1,5 +1,5 @@
 // tamagui-ignore
-import { ScrollView, View, XStack, YStack } from '@tloncorp/ui';
+import { Pressable, ScrollView, View, XStack, YStack } from '@tloncorp/ui';
 import { FontStyle, Text } from '@tloncorp/ui/src/components/TextV2';
 import { useCopy } from '@tloncorp/ui/src/hooks/useCopy';
 import { PropsWithChildren, useCallback, useEffect, useState } from 'react';
@@ -64,11 +64,11 @@ const TrimmedTextFixture = () => {
           paddingHorizontal: 24,
         }}
       >
-        <View onPress={doCopy} padding={10}>
+        <Pressable onPress={doCopy} padding={10}>
           <Text size="$label/s">
             {didCopy ? 'Copied!' : 'Copy margin settings'}
           </Text>
-        </View>
+        </Pressable>
         <YStack gap="$4xl">
           {textStyles.map((size) => {
             return (

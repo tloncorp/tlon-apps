@@ -1,5 +1,5 @@
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as store from '@tloncorp/shared/dist/store';
+import { createDevLogger } from '@tloncorp/shared';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useLureMetadata } from '../contexts/branch';

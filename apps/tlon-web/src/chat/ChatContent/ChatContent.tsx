@@ -4,7 +4,7 @@ import {
   VerseBlock,
   VerseInline,
   isImage,
-} from '@tloncorp/shared/dist/urbit/channel';
+} from '@tloncorp/shared/urbit/channel';
 import {
   Inline,
   isBlockCode,
@@ -16,7 +16,7 @@ import {
   isLink,
   isShip,
   isStrikethrough,
-} from '@tloncorp/shared/dist/urbit/content';
+} from '@tloncorp/shared/urbit/content';
 import cn from 'classnames';
 import { findLastIndex } from 'lodash';
 import React, { useEffect } from 'react';

@@ -33,9 +33,9 @@ import {
   TogglePost,
   newChatMap,
   newPostTupleArray,
-} from '@tloncorp/shared/dist/urbit/channel';
-import { PagedWrits, Writ } from '@tloncorp/shared/dist/urbit/dms';
-import { Flag } from '@tloncorp/shared/dist/urbit/hark';
+} from '@tloncorp/shared/urbit/channel';
+import { PagedWrits, Writ } from '@tloncorp/shared/urbit/dms';
+import { Flag } from '@tloncorp/shared/urbit/hark';
 import { daToUnix, decToUd, udToDec, unixToDa } from '@urbit/api';
 import { formatUd } from '@urbit/aura';
 import { Poke } from '@urbit/http-api';

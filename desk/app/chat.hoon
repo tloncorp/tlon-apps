@@ -445,7 +445,7 @@
       ~|("%dm-action poke failed: only allowed from self" !!)
     ::  don't proxy to self, creates an infinite loop
     ?:  =(p.action our.bowl)
-      ~|("%dm-action poke failed: can't dm self" !!)
+      di-abet:(di-ingest-diff:(di-abed-soft:di-core p.action) q.action)
     di-abet:(di-proxy:(di-abed-soft:di-core p.action) q.action)
   ::
       %chat-dm-diff
@@ -1680,11 +1680,12 @@
     =/  new=dm:c
       :*  *pact:c
           remark(watching &)
+          ?:  =(s our.bowl)  %done
           ?:(=(src our):bowl %inviting %invited)
           |
       ==
     =.  di-core  di-core(ship s, dm new)
-    ?:  =(src our):bowl  di-core
+    ?:  &(!=(s our.bowl) =(src our):bowl)  di-core
     (di-activity [%invite ~] *story:d &)
   ::
   ++  di-area  `path`/dm/(scot %p ship)

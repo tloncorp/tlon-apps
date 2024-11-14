@@ -1,4 +1,4 @@
-import { SizedImage, createDevLogger } from '@tloncorp/shared/dist';
+import { SizedImage, createDevLogger } from '@tloncorp/shared';
 import { manipulateAsync } from 'expo-image-manipulator';
 import { Image } from 'react-native';
 

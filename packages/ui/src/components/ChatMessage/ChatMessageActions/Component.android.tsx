@@ -1,12 +1,12 @@
 import { ChannelAction } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/dist/db';
-import * as Haptics from 'expo-haptics';
+import * as db from '@tloncorp/shared/db';
 import { MotiView } from 'moti';
 import { RefObject, useEffect, useState } from 'react';
 import { Dimensions, LayoutChangeEvent, View as RNView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
+import { triggerHaptic } from '../../../utils';
 import { EmojiToolbar } from './EmojiToolbar';
 import MessageActions from './MessageActions';
 import { MessageContainer } from './MessageContainer';
@@ -26,6 +26,8 @@ export function ChatMessageActions({
   onReply?: (post: db.Post) => void;
   onViewReactions?: (post: db.Post) => void;
   onEdit?: () => void;
+  // this prop is here just so we match the Component.tsx prop
+  onShowEmojiPicker?: () => void;
 }) {
   const [topOffset, setTopOffset] = useState(0);
   const insets = useSafeAreaInsets();
@@ -50,7 +52,7 @@ export function ChatMessageActions({
 
   useEffect(() => {
     // on mount, give initial haptic feeedback
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    triggerHaptic('sheetOpen');
   }, []);
 
   return (

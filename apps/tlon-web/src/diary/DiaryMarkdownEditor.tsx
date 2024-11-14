@@ -1,7 +1,7 @@
 // currently importing from tiptap, but this could be imported directly from
 // prosemirror when/if we ditch tiptap
 import { Node, DOMParser as PMDomParser, Schema } from '@tiptap/pm/model';
-import { JSONContent } from '@tloncorp/shared/dist/urbit/content';
+import { JSONContent } from '@tloncorp/shared/urbit/content';
 import { deSig, preSig } from '@urbit/api';
 import { marked } from 'marked';
 import {

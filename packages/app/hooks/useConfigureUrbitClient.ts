@@ -1,6 +1,6 @@
-import { createDevLogger, sync } from '@tloncorp/shared/dist';
-import { ClientParams } from '@tloncorp/shared/dist/api';
-import { configureClient } from '@tloncorp/shared/dist/store';
+import { createDevLogger, sync } from '@tloncorp/shared';
+import { ClientParams } from '@tloncorp/shared/api';
+import { configureClient } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { ENABLED_LOGGERS } from '../constants';
@@ -42,9 +42,6 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
     // Avoid setting credentials method for same reason as above.
     credentials: undefined,
     signal: abortController.signal,
-    // @ts-expect-error This is used by the SSE polyfill to determine whether
-    // to stream the request.
-    reactNative: { textStreaming: true },
   };
   return platformFetch(input, newInit);
 };

@@ -1,5 +1,5 @@
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { PostSeal, ReplySeal } from '@tloncorp/shared/dist/urbit/channel';
+import { PostSeal, ReplySeal } from '@tloncorp/shared/urbit/channel';
 import cn from 'classnames';
 import React, { useCallback, useEffect } from 'react';
 

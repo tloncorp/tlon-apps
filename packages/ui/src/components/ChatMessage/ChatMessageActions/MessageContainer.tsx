@@ -1,9 +1,10 @@
 import { getSize } from '@tamagui/get-token';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { Dimensions } from 'react-native';
 import { ScrollView, View } from 'tamagui';
 
 import { ChatMessage } from '..';
+import useIsWindowNarrow from '../../../hooks/useIsWindowNarrow';
 import AuthorRow from '../../AuthorRow';
 import { NotebookPost } from '../../NotebookPost';
 
@@ -13,6 +14,8 @@ const MAX_MESSAGE_TO_SCREEN_RATIO_NOTE = 0.5;
 export function MessageContainer({ post }: { post: db.Post }) {
   const screenHeight = Dimensions.get('window').height;
   const screenWidth = Dimensions.get('window').width;
+  const isWindowNarrow = useIsWindowNarrow();
+  const width = isWindowNarrow ? screenWidth - getSize('$xl').val * 2 : 400;
 
   if (post.type === 'note') {
     return (
@@ -31,9 +34,9 @@ export function MessageContainer({ post }: { post: db.Post }) {
   return (
     <View
       maxHeight={screenHeight * MAX_MESSAGE_TO_SCREEN_RATIO}
-      maxWidth={screenWidth - getSize('$xl').val * 2}
+      maxWidth={width}
       overflow="hidden"
-      backgroundColor="$background"
+      backgroundColor={isWindowNarrow ? '$background' : '$secondaryBackground'}
       padding="$l"
       borderRadius="$l"
     >
@@ -44,7 +47,7 @@ export function MessageContainer({ post }: { post: db.Post }) {
         type={post.type}
         // roles={roles}
       />
-      <ChatMessage post={post} />
+      <ChatMessage post={post} hideOverflowMenu />
     </View>
   );
 }

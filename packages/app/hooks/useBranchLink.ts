@@ -1,4 +1,4 @@
-import { getDmLink } from '@tloncorp/shared/dist/logic';
+import { getDmLink } from '@tloncorp/shared/logic';
 import { useEffect, useState } from 'react';
 
 import { BRANCH_DOMAIN, BRANCH_KEY } from '../constants';

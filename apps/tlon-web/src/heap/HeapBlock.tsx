@@ -3,7 +3,7 @@ import {
   Story,
   imageUrlFromContent,
   isCite,
-} from '@tloncorp/shared/dist/urbit/channel';
+} from '@tloncorp/shared/urbit/channel';
 import cn from 'classnames';
 import { formatDistanceToNow } from 'date-fns';
 import React, { useCallback, useEffect, useState } from 'react';

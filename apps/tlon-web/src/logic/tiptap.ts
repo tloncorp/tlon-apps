@@ -11,7 +11,7 @@ import {
   HeaderLevel,
   Listing,
   Story,
-} from '@tloncorp/shared/dist/urbit/channel';
+} from '@tloncorp/shared/urbit/channel';
 import {
   Inline,
   InlineKey,
@@ -24,7 +24,7 @@ import {
   isLink,
   isShip,
   isStrikethrough,
-} from '@tloncorp/shared/dist/urbit/content';
+} from '@tloncorp/shared/urbit/content';
 import { deSig } from '@urbit/api';
 import { isEqual, reduce } from 'lodash';
 

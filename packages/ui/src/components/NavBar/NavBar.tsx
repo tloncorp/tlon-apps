@@ -1,7 +1,7 @@
 import React from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getToken } from 'tamagui';
+import { getTokenValue } from 'tamagui';
 import { XStack } from 'tamagui';
 
 import { View } from '../View';
@@ -11,7 +11,7 @@ const NavBar = React.memo(function NavBar(props: {
 }) {
   const { bottom } = useSafeAreaInsets();
   const isAndroid = Platform.OS === 'android';
-  const largeSize = getToken('$l');
+  const largeSize = getTokenValue('$l');
 
   return (
     <View

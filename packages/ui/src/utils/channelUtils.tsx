@@ -1,6 +1,6 @@
 import { configurationFromChannel } from '@tloncorp/shared';
-import type * as db from '@tloncorp/shared/dist/db';
-import { useMemberRoles } from '@tloncorp/shared/dist/store';
+import type * as db from '@tloncorp/shared/db';
+import { useMemberRoles } from '@tloncorp/shared/store';
 import { useMemo } from 'react';
 
 import type { IconType } from '../components/Icon';

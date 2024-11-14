@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { DisplayMode, SortMode } from '@tloncorp/shared/dist/urbit/channel';
+import { DisplayMode, SortMode } from '@tloncorp/shared/urbit/channel';
 import { DelBucket, DelEntry, PutBucket, Value } from '@urbit/api';
 import cookies from 'browser-cookies';
 import produce from 'immer';

@@ -13,15 +13,16 @@ import {
 } from '@tloncorp/app/lib/hostingApi';
 import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared/dist';
-import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
-import { didSignUp } from '@tloncorp/shared/dist/db';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
+import { didSignUp } from '@tloncorp/shared/db';
 import {
   Field,
   KeyboardAvoidingView,
   OnboardingTextBlock,
   ScreenHeader,
   TextInput,
+  TextInputWithButton,
   TlonText,
   View,
   YStack,
@@ -29,8 +30,8 @@ import {
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
+import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
-import { useSignupContext } from '.././../lib/signupContext';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'TlonLogin'>;
 
@@ -42,7 +43,7 @@ type FormData = {
 
 const logger = createDevLogger('TlonLoginScreen', true);
 
-export const TlonLoginScreen = ({ navigation }: Props) => {
+export const TlonLoginLegacy = ({ navigation }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
   const signupContext = useSignupContext();
@@ -62,6 +63,8 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
     mode: 'onChange',
   });
   const { setShip } = useShip();
+
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   const handleForgotPassword = () => {
     const { email } = getValues();
@@ -227,7 +230,7 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
               }}
               render={({ field: { onChange, onBlur, value } }) => (
                 <Field label="Password" error={errors.password?.message}>
-                  <TextInput
+                  <TextInputWithButton
                     placeholder="Password"
                     onBlur={() => {
                       onBlur();
@@ -236,11 +239,13 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
                     onChangeText={onChange}
                     onSubmitEditing={onSubmit}
                     value={value}
-                    secureTextEntry
+                    secureTextEntry={!passwordVisible}
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType="send"
                     enablesReturnKeyAutomatically
+                    buttonText={passwordVisible ? 'Hide' : 'Show'}
+                    onButtonPress={() => setPasswordVisible(!passwordVisible)}
                   />
                 </Field>
               )}

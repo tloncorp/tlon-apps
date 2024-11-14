@@ -5,9 +5,9 @@ import {
   layoutTypeFromChannel,
   useMutableCallback,
 } from '@tloncorp/shared';
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import { isSameDay } from '@tloncorp/shared/dist/logic';
+import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import { isSameDay } from '@tloncorp/shared/logic';
 import { isEqual } from 'lodash';
 import React, {
   PropsWithChildren,
@@ -37,8 +37,14 @@ import { View, styled, useStyle, useTheme } from 'tamagui';
 import { RenderItemType } from '../../contexts/componentsKits';
 import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
+import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
+import { EmojiPickerSheet } from '../Emoji';
+import { FloatingActionButton } from '../FloatingActionButton';
+import { Icon } from '../Icon';
+import { LoadingSpinner } from '../LoadingSpinner';
 import { Modal } from '../Modal';
 import { ChannelDivider } from './ChannelDivider';
 
@@ -91,6 +97,8 @@ const Scroller = forwardRef(
       activeMessage,
       setActiveMessage,
       headerMode,
+      isLoading,
+      onPressScrollToBottom,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -117,8 +125,10 @@ const Scroller = forwardRef(
       setActiveMessage: (post: db.Post | null) => void;
       ref?: RefObject<{ scrollToIndex: (params: { index: number }) => void }>;
       headerMode: 'default' | 'next';
+      isLoading?: boolean;
       // Unused
       hasOlderPosts?: boolean;
+      onPressScrollToBottom?: () => void;
     },
     ref
   ) => {
@@ -131,12 +141,11 @@ const Scroller = forwardRef(
       [channel]
     );
 
-    const [isAtBottom, setIsAtBottom] = useState(true);
-
     const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
     const [viewReactionsPost, setViewReactionsPost] = useState<null | db.Post>(
       null
     );
+    const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
     const flatListRef = useRef<FlatList<db.Post>>(null);
 
@@ -147,10 +156,17 @@ const Scroller = forwardRef(
 
     const pressedGoToBottom = () => {
       setHasPressedGoToBottom(true);
-      if (flatListRef.current) {
-        flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+      onPressScrollToBottom?.();
+
+      // Only scroll if we're not loading and have a valid ref
+      if (flatListRef.current && !isLoading) {
+        // Use a small timeout to ensure state updates have processed
+        requestAnimationFrame(() => {
+          flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+        });
       }
     };
+
     const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
 
     const handleSetActive = useCallback((active: db.Post) => {
@@ -169,6 +185,8 @@ const Scroller = forwardRef(
 
     const {
       readyToDisplayPosts,
+      // setNeedsScrollToAnchor,
+      // setDidAnchorSearchTimeout,
       scrollerItemProps: anchorScrollLockScrollerItemProps,
       flatlistProps: anchorScrollLockFlatlistProps,
     } = useAnchorScrollLock({
@@ -178,6 +196,7 @@ const Scroller = forwardRef(
       hasNewerPosts,
       shouldMaintainVisibleContentPosition:
         collectionLayout.shouldMaintainVisibleContentPosition,
+      isScrollingToBottom: hasPressedGoToBottom,
     });
 
     const theme = useTheme();
@@ -185,8 +204,8 @@ const Scroller = forwardRef(
     // Used to hide the scroller until we've found the anchor post.
     const style = useMemo(() => {
       return {
-        opacity: readyToDisplayPosts ? 1 : 0,
         backgroundColor: theme.background.val,
+        opacity: readyToDisplayPosts ? 1 : 0,
       };
     }, [readyToDisplayPosts, theme.background.val]);
 
@@ -375,7 +394,8 @@ const Scroller = forwardRef(
       );
     }, [renderEmptyComponentFn]);
 
-    const handleScroll = useScrollDirectionTracker(setIsAtBottom);
+    const [isAtBottom, setIsAtBottom] = useState(true);
+    const handleScroll = useScrollDirectionTracker({ setIsAtBottom });
 
     const scrollIndicatorInsets = useMemo(() => {
       return {
@@ -384,11 +404,52 @@ const Scroller = forwardRef(
       };
     }, [insets.bottom]);
 
+    const shouldShowScrollButton = useCallback(() => {
+      if (!isAtBottom && hasPressedGoToBottom && !isLoading && !hasNewerPosts) {
+        setHasPressedGoToBottom(false);
+      }
+
+      const shouldShowForUnreads =
+        collectionLayoutType === 'compact-list-bottom-to-top' &&
+        unreadCount &&
+        !isAtBottom;
+      const shouldShowForScroll =
+        collectionLayoutType === 'compact-list-bottom-to-top' &&
+        !isAtBottom &&
+        (!hasPressedGoToBottom || isLoading || hasNewerPosts);
+
+      return shouldShowForUnreads || shouldShowForScroll;
+    }, [
+      isAtBottom,
+      hasPressedGoToBottom,
+      collectionLayoutType,
+      unreadCount,
+      isLoading,
+      hasNewerPosts,
+    ]);
+
+    const onEmojiSelect = useOnEmojiSelect(activeMessage, () =>
+      setEmojiPickerOpen(false)
+    );
+
+    const isWindowNarrow = useIsWindowNarrow();
+
     return (
       <View flex={1}>
-        {/* {unreadCount && !hasPressedGoToBottom ? (
-        <UnreadsButton onPress={pressedGoToBottom} />
-      ) : null} */}
+        {shouldShowScrollButton() && (
+          <View position="absolute" bottom={'$m'} right={'$l'} zIndex={1000}>
+            <FloatingActionButton
+              icon={
+                isLoading && hasPressedGoToBottom ? (
+                  <LoadingSpinner size="small" />
+                ) : (
+                  <Icon type="ChevronDown" size="$m" />
+                )
+              }
+              onPress={pressedGoToBottom}
+            />
+          </View>
+        )}
         {postsWithNeighbors && (
           <Animated.FlatList<PostWithNeighbors>
             ref={flatListRef as React.RefObject<Animated.FlatList<db.Post>>}
@@ -433,11 +494,19 @@ const Scroller = forwardRef(
             {...anchorScrollLockFlatlistProps}
           />
         )}
-        <Modal
-          visible={activeMessage !== null}
-          onDismiss={() => setActiveMessage(null)}
-        >
-          {activeMessage !== null && (
+        {activeMessage !== null && !emojiPickerOpen && (
+          <Modal
+            visible={activeMessage !== null && !emojiPickerOpen}
+            onDismiss={
+              isWindowNarrow ? () => setActiveMessage(null) : undefined
+            }
+            // We don't pass an onDismiss function on desktop because
+            // a) the modal is dismissed by the actions in the
+            // ChatMessageActions component.
+            // b) Including it here will cause the modal to close before the
+            // EmojiPickerSheet can open when the user clicks the caretdown in
+            // the EmojiToolbar.
+          >
             <ChatMessageActions
               post={activeMessage}
               postActionIds={collectionConfig.postActionIds}
@@ -448,13 +517,26 @@ const Scroller = forwardRef(
                 setEditingPost?.(activeMessage);
                 setActiveMessage(null);
               }}
+              onShowEmojiPicker={() => {
+                setEmojiPickerOpen(true);
+              }}
               onViewReactions={(post) => {
                 setViewReactionsPost(post);
                 setActiveMessage(null);
               }}
             />
-          )}
-        </Modal>
+          </Modal>
+        )}
+        {emojiPickerOpen && activeMessage ? (
+          <EmojiPickerSheet
+            open
+            onOpenChange={() => {
+              setActiveMessage(null);
+              setEmojiPickerOpen(false);
+            }}
+            onEmojiSelect={onEmojiSelect}
+          />
+        ) : null}
         {viewReactionsPost ? (
           <ViewReactionsSheet
             post={viewReactionsPost}
@@ -641,6 +723,7 @@ function useAnchorScrollLock({
   anchor,
   hasNewerPosts,
   shouldMaintainVisibleContentPosition,
+  isScrollingToBottom,
 }: {
   flatListRef: RefObject<FlatList<db.Post>>;
 
@@ -649,6 +732,7 @@ function useAnchorScrollLock({
   anchor: ScrollAnchor | null | undefined;
   hasNewerPosts?: boolean;
   shouldMaintainVisibleContentPosition: boolean;
+  isScrollingToBottom: boolean;
 }) {
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const [needsScrollToAnchor, setNeedsScrollToAnchor] = useState(
@@ -809,9 +893,15 @@ function useAnchorScrollLock({
     scrollToAnchorIfNeeded();
   }, [scrollToAnchorIfNeeded]);
 
+  useEffect(() => {
+    if (isScrollingToBottom) {
+      setNeedsScrollToAnchor(false);
+      setDidAnchorSearchTimeout(false);
+    }
+  }, [isScrollingToBottom]);
+
   return {
     readyToDisplayPosts,
-
     scrollerItemProps: useMemo(
       () =>
         ({

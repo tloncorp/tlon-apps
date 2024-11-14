@@ -3,11 +3,17 @@
 import { useBootSequence } from '@tloncorp/app/hooks/useBootSequence';
 import { NodeBootPhase } from '@tloncorp/app/lib/bootHelpers';
 import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as api from '@tloncorp/shared/dist/api';
-import { SignupParams, didSignUp, signupData } from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
-import { createContext, useCallback, useContext, useEffect } from 'react';
+import { createDevLogger } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
+import { SignupParams, didSignUp, signupData } from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 
 const logger = createDevLogger('signup', true);
 
@@ -18,7 +24,9 @@ const defaultValues: SignupValues = {
 };
 
 interface SignupContext extends SignupParams {
+  reviveCheckComplete: boolean;
   setOnboardingValues: (newValues: Partial<SignupValues>) => void;
+  markReviveCheckComplete: () => void;
   kickOffBootSequence: () => void;
   handlePostSignup: () => void;
   clear: () => void;
@@ -28,6 +36,7 @@ const defaultMethods = {
   setOnboardingValues: () => {},
   handlePostSignup: () => {},
   kickOffBootSequence: () => {},
+  markReviveCheckComplete: () => {},
   clear: () => {},
 };
 
@@ -35,6 +44,7 @@ const SignupContext = createContext<SignupContext>({
   ...defaultValues,
   ...defaultMethods,
   bootPhase: NodeBootPhase.IDLE,
+  reviveCheckComplete: false,
 });
 
 export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
@@ -43,6 +53,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     setValue: setValues,
     resetValue: resetValues,
   } = signupData.useStorageItem();
+  const [reviveCheckComplete, setReviveCheckComplete] = useState(false);
   const { bootPhase, bootReport, kickOffBootSequence } =
     useBootSequence(values);
 
@@ -101,6 +112,8 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         ...values,
         bootPhase,
+        reviveCheckComplete,
+        markReviveCheckComplete: () => setReviveCheckComplete(true),
         setOnboardingValues,
         handlePostSignup,
         kickOffBootSequence,

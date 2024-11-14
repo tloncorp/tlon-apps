@@ -1,4 +1,4 @@
-import { GroupChannel } from '@tloncorp/shared/dist/urbit/groups';
+import { GroupChannel } from '@tloncorp/shared/urbit/groups';
 import cn from 'classnames';
 import React, { useCallback, useState } from 'react';
 import { DraggableProvided, DraggableStateSnapshot } from 'react-beautiful-dnd';

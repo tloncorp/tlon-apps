@@ -1,5 +1,5 @@
 import { utils } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { ComponentProps, ReactElement, useMemo } from 'react';
 import { isWeb, styled, withStaticProperties } from 'tamagui';
 import { SizableText, Stack, View, XStack, YStack } from 'tamagui';
@@ -22,7 +22,6 @@ export interface BaseListItemProps<T> {
   EndContent?: ReactElement | null;
   onPress?: (model: T) => void;
   onLongPress?: (model: T) => void;
-  onPressMenuButton?: (model: T) => void;
   unreadCount?: number;
 }
 
@@ -38,19 +37,7 @@ export const ListItemFrame = styled(XStack, {
   gap: '$l',
   justifyContent: 'space-between',
   alignItems: 'stretch',
-  backgroundColor: '$background',
-  variants: {
-    pressable: {
-      true: {
-        pressStyle: {
-          backgroundColor: '$secondaryBackground',
-        },
-      },
-    },
-  } as const,
-  defaultVariants: {
-    pressable: true,
-  },
+  backgroundColor: '$transparent',
 });
 
 const ListItemIconContainer = styled(View, {

@@ -1,6 +1,6 @@
 import { OPSQLiteConnection } from '@op-engineering/op-sqlite';
-import { migrations } from '@tloncorp/shared/dist/db/migrations';
-import { Schema } from '@tloncorp/shared/dist/db/types';
+import { migrations } from '@tloncorp/shared/db/migrations';
+import { Schema } from '@tloncorp/shared/db/types';
 import { DrizzleConfig } from 'drizzle-orm';
 import type { OPSQLiteDatabase } from 'drizzle-orm/op-sqlite';
 import { drizzle } from 'drizzle-orm/op-sqlite';

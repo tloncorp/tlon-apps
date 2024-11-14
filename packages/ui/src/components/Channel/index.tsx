@@ -5,13 +5,13 @@ import {
 } from '@tloncorp/shared';
 import {
   isChatChannel as getIsChatChannel,
-  useChannel as useChannelFromStore,
+  useChannelPreview,
   useGroupPreview,
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
-} from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
@@ -28,6 +28,7 @@ import { Attachment, AttachmentProvider } from '../../contexts/attachment';
 import { ComponentsKitContextProvider } from '../../contexts/componentsKits';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 import * as utils from '../../utils';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { DraftInputContext } from '../draftInputs';
@@ -84,6 +85,8 @@ export function Channel({
   hasNewerPosts,
   hasOlderPosts,
   initialAttachments,
+  startDraft,
+  onPressScrollToBottom,
 }: {
   channel: db.Channel;
   initialChannelUnread?: db.ChannelUnread | null;
@@ -109,7 +112,7 @@ export function Channel({
   useGroup: typeof useGroupPreview;
   usePostReference: typeof usePostReferenceHook;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
-  useChannel: typeof useChannelFromStore;
+  useChannel: typeof useChannelPreview;
   storeDraft: (draft: JSONContent, draftType?: GalleryDraftType) => void;
   clearDraft: (draftType?: GalleryDraftType) => void;
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent>;
@@ -123,6 +126,8 @@ export function Channel({
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
   canUpload: boolean;
+  startDraft?: boolean;
+  onPressScrollToBottom?: () => void;
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
@@ -270,6 +275,14 @@ export function Channel({
     [channel]
   );
 
+  useEffect(() => {
+    if (startDraft) {
+      draftInputRef.current?.startDraft?.();
+    }
+  }, [startDraft]);
+
+  const isNarrow = useIsWindowNarrow();
+
   return (
     <ScrollContextProvider>
       <GroupsProvider groups={groups}>
@@ -307,7 +320,7 @@ export function Channel({
                             group={group}
                             mode={headerMode}
                             title={title ?? ''}
-                            goBack={handleGoBack}
+                            goBack={isNarrow ? handleGoBack : undefined}
                             showSearchButton={isChatChannel}
                             goToSearch={goToSearch}
                             showSpinner={isLoadingPosts}
@@ -361,6 +374,10 @@ export function Channel({
                                       setActiveMessage={setActiveMessage}
                                       ref={flatListRef}
                                       headerMode={headerMode}
+                                      isLoading={isLoadingPosts}
+                                      onPressScrollToBottom={
+                                        onPressScrollToBottom
+                                      }
                                     />
                                   )}
                                 </View>

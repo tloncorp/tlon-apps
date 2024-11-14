@@ -9,19 +9,21 @@ export type {
   WebAppAction,
   WebAppCommand,
 } from './types/native';
-export {
+export type {
   PostCollectionConfiguration,
   PostCollectionLayout,
   PostCollectionLayoutType,
+} from './types/PostCollectionConfiguration';
+export {
   configurationFromChannel,
   layoutForType,
   layoutTypeFromChannel,
 } from './types/PostCollectionConfiguration';
+export type { ChannelContentConfiguration } from './api/channelContentConfig';
 export {
   CollectionRendererId,
   DraftInputId,
   PostContentRendererId,
-  ChannelContentConfiguration,
 } from './api/channelContentConfig';
 export { parseActiveTab, trimFullPath } from './logic/navigation';
 export * from './logic';

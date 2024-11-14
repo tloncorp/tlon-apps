@@ -1,4 +1,4 @@
-import { PagedPosts } from '@tloncorp/shared/dist/urbit/channel';
+import { PagedPosts } from '@tloncorp/shared/urbit/channel';
 
 type QueryData = {
   pages: PagedPosts[];
