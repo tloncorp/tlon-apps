@@ -202,6 +202,14 @@ export interface ChannelContentConfiguration {
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace ChannelContentConfiguration {
+  export function defaultConfiguration(): ChannelContentConfiguration {
+    return {
+      draftInput: { id: DraftInputId.chat },
+      defaultPostContentRenderer: { id: PostContentRendererId.chat },
+      defaultPostCollectionRenderer: { id: CollectionRendererId.chat },
+    };
+  }
+
   export function draftInput(
     configuration: ChannelContentConfiguration
   ): ParameterizedId<DraftInputId> {
