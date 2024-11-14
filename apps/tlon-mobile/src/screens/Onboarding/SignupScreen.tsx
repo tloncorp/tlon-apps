@@ -10,7 +10,7 @@ import {
 } from '@tloncorp/app/contexts/branch';
 import { HostingError } from '@tloncorp/app/lib/hostingApi';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import {
   Field,
   KeyboardAvoidingView,
@@ -109,6 +109,7 @@ export const SignupScreen = ({ navigation }: Props) => {
         priorityToken: signupParams.priorityToken,
       });
       if (!enabled) {
+        logger.trackError(AnalyticsEvent.InvitedUserFailedInventoryCheck);
         navigation.navigate('JoinWaitList', {});
         return;
       }
