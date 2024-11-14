@@ -68,13 +68,13 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
       setMetadataError(null);
       if (extractedLink) {
         try {
-          const inviteLinkMeta = await getInviteLinkMeta({
+          const appInvite = await getInviteLinkMeta({
             inviteLink: extractedLink,
             branchDomain: BRANCH_DOMAIN,
             branchKey: BRANCH_KEY,
           });
-          if (inviteLinkMeta) {
-            setLure(inviteLinkMeta as DeepLinkData);
+          if (appInvite) {
+            setLure(appInvite);
             return;
           } else {
             throw new Error('Failed to retrieve invite metadata');

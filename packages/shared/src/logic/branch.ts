@@ -77,6 +77,17 @@ export interface DeepLinkMetadata {
   invitedGroupIconImageUrl?: string;
   invitedGroupiconImageColor?: string;
 }
+
+export interface AppInvite extends DeepLinkMetadata {
+  id: string;
+  shouldAutoJoin: boolean;
+}
+
+export type Lure = {
+  lure: AppInvite | undefined;
+  priorityToken: string | undefined;
+};
+
 export interface DeepLinkData extends DeepLinkMetadata {
   $desktop_url: string;
   $canonical_url: string;

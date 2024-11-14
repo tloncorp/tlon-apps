@@ -1,6 +1,11 @@
 import { ContentReference } from '../api';
 import { citeToPath } from '../urbit';
-import { DeepLinkMetadata, getBranchLinkMeta, isLureMeta } from './branch';
+import {
+  AppInvite,
+  DeepLinkMetadata,
+  getBranchLinkMeta,
+  isLureMeta,
+} from './branch';
 
 export async function getReferenceFromDeeplink({
   deepLink,
@@ -54,7 +59,7 @@ export async function getInviteLinkMeta({
   inviteLink: string;
   branchDomain: string;
   branchKey: string;
-}): Promise<DeepLinkMetadata | null> {
+}): Promise<AppInvite | null> {
   const token = extractTokenFromInviteLink(inviteLink, branchDomain);
   if (!token) {
     return null;
@@ -77,7 +82,9 @@ export async function getInviteLinkMeta({
     return null;
   }
 
-  const metadata: DeepLinkMetadata = {
+  const metadata: AppInvite = {
+    id: token,
+    shouldAutoJoin: true,
     inviterUserId: responseMeta.fields.inviter,
     invitedGroupId: responseMeta.fields.group,
     invitedGroupTitle: responseMeta.fields.title,

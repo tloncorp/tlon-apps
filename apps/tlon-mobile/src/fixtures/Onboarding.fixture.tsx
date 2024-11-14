@@ -1,13 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
-import {
-  Context as BranchContext,
-  LureData,
-} from '@tloncorp/app/contexts/branch';
-import {
-  DeepLinkData,
-  QueryClientProvider,
-  queryClient,
-} from '@tloncorp/shared';
+import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
+import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { Theme } from '@tloncorp/ui';
 import { PropsWithChildren, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
@@ -47,7 +40,7 @@ function OnboardingFixture({
   hasGroupInvite,
   children,
 }: PropsWithChildren<{ hasGroupInvite: boolean }>) {
-  const [lure, setLure] = useState<LureData | undefined>(
+  const [lure, setLure] = useState<AppInvite | undefined>(
     hasGroupInvite
       ? {
           id: group.id,
@@ -108,7 +101,7 @@ function OnboardingFixture({
           <BranchContext.Provider
             value={{
               lure,
-              setLure: setLure as unknown as (data: DeepLinkData) => void,
+              setLure: setLure as unknown as (lure: AppInvite) => void,
               clearLure: () => setLure(undefined),
               clearDeepLink: () => {},
               deepLinkPath: undefined,
