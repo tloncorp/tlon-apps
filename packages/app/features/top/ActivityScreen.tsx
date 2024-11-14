@@ -8,6 +8,7 @@ import { useCallback, useMemo } from 'react';
 // import ErrorBoundary from '../../ErrorBoundary';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootStackParamList } from '../../navigation/types';
+import { screenNameFromChannelId } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
 
@@ -32,7 +33,8 @@ export function ActivityScreen(props: Props) {
 
   const handleGoToChannel = useCallback(
     (channel: db.Channel, selectedPostId?: string) => {
-      props.navigation.navigate('Channel', {
+      const screenName = screenNameFromChannelId(channel.id);
+      props.navigation.navigate(screenName, {
         channelId: channel.id,
         selectedPostId,
       });

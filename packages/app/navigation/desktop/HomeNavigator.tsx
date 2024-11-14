@@ -37,6 +37,8 @@ export const HomeNavigator = () => {
       <HomeDrawer.Screen name="ChatList" component={MainStack} />
       <HomeDrawer.Screen name="GroupChannels" component={Empty} />
       <HomeDrawer.Screen name="Channel" component={ChannelStack} />
+      <HomeDrawer.Screen name="DM" component={ChannelStack} />
+      <HomeDrawer.Screen name="GroupDM" component={ChannelStack} />
     </HomeDrawer.Navigator>
   );
 };

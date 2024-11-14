@@ -3,6 +3,7 @@ import {
   NavigationProp,
   useNavigation,
 } from '@react-navigation/native';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 
 import { RootStackParamList } from './types';
@@ -49,10 +50,12 @@ export function useResetToChannel() {
       startDraft?: boolean;
     }
   ) {
+    const screenName = screenNameFromChannelId(channelId);
+
     reset([
       { name: 'ChatList' },
       {
-        name: 'Channel',
+        name: screenName,
         params: {
           channelId,
           ...options,
@@ -75,4 +78,12 @@ export function useResetToDm() {
       console.error('Error creating DM channel:', error);
     }
   };
+}
+
+export function screenNameFromChannelId(channelId: string) {
+  return logic.isDmChannelId(channelId)
+    ? 'DM'
+    : logic.isGroupChannelId(channelId)
+      ? 'GroupDM'
+      : 'Channel';
 }
