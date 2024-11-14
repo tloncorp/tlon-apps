@@ -1,25 +1,14 @@
+import { useNavigation } from '@react-navigation/native';
 import * as db from '@tloncorp/shared/db';
-import {
-  ComponentPropsWithRef,
-  ElementType,
-  forwardRef,
-  useState,
-} from 'react';
-import { FlatList, Modal } from 'react-native';
+import { forwardRef } from 'react';
+import { FlatList } from 'react-native';
 import { View, getTokenValue } from 'tamagui';
-import { YStack } from 'tamagui';
 
 import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
-import { ChannelHeader } from '../Channel/ChannelHeader';
+import { ForwardingProps } from '../../utils/react';
 import { ListItem } from '../ListItem';
 import Pressable from '../Pressable';
 import { IPostCollectionView } from './shared';
-
-type ForwardingProps<
-  E extends ElementType,
-  CustomProps extends Record<string, unknown>,
-  OmitKeys extends keyof ComponentPropsWithRef<E> = never,
-> = CustomProps & Omit<ComponentPropsWithRef<E>, keyof CustomProps | OmitKeys>;
 
 export interface SummaryCollectionView$Item {
   key: string;
@@ -114,55 +103,28 @@ export function BasePostSummaryCollectionView({
 }: ForwardingProps<
   typeof BaseSummaryCollectionView,
   Record<string, never>,
-  'items' | 'onPressItem'
+  'items'
 >) {
   const { posts } = usePostCollectionContextUnsafelyUnwrapped();
-  const [focusedPost, setFocusedPost] = useState<db.Post | null>(null);
+
+  const navigation = useNavigation();
 
   return (
     <>
       <BaseSummaryCollectionView
         {...forwardedProps}
         items={posts?.map(SummaryCollectionView$Item.fromPost) ?? []}
-        onPressItem={(item) => {
-          setFocusedPost(posts?.find((post) => post.id === item.key) ?? null);
+        onPressItem={(_item, index) => {
+          const post = posts?.[index];
+          if (post) {
+            // @ts-expect-error implicit dependency on RootStackParamList, which is in `app`
+            navigation.navigate('PostUsingContentConfiguration', {
+              postId: post.id,
+              channelId: post.channelId,
+            });
+          }
         }}
       />
-      <Modal visible={focusedPost != null} animationType="slide">
-        <DetailPostView
-          post={focusedPost!}
-          navigateBack={() => setFocusedPost(null)}
-        />
-      </Modal>
     </>
-  );
-}
-
-function DetailPostView({
-  post,
-  navigateBack,
-  ...forwardedProps
-}: ForwardingProps<
-  typeof YStack,
-  { post: db.Post; navigateBack?: () => void },
-  'backgroundColor'
->) {
-  const { PostView, channel } = usePostCollectionContextUnsafelyUnwrapped();
-  // use boolean coercion to also check if post.title is empty string
-  const title = post.title ? post.title : 'Post';
-  return (
-    <YStack backgroundColor={'$background'} {...forwardedProps}>
-      <ChannelHeader
-        channel={channel}
-        group={channel.group}
-        title={title}
-        goBack={navigateBack}
-        showSearchButton={false}
-        // showSpinner={isLoadingPosts}
-        post={post}
-        mode="default"
-      />
-      <PostView post={post} />
-    </YStack>
   );
 }
