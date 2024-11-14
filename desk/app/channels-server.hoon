@@ -703,21 +703,21 @@
         %add
       ?>  =(src.bowl author.essay.c-post)
       ?>  =(kind.nest -.kind-data.essay.c-post)
-      =^  result=(each event:h tang)  cor
-        =/  =event:h  [%on-post %add essay.c-post]
-        %-  ho-run:(ho-abed:ho-core nest)
-        [event context 'post blocked']
-      ?:  ?=(%.n -.result)
-        ((slog p.result) [~ ca-core])
-      =/  =essay:c
-        ?>  ?=([%on-post %add *] p.result)
-        essay.p.result
       =/  id=id-post:c
         |-
         =/  post  (get:on-v-posts:c posts.channel now.bowl)
         ?~  post  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
-      =/  new=v-post:c  [[id ~ ~] 0 essay]
+      =/  new=v-post:c  [[id ~ ~] 0 essay.c-post]
+      =^  result=(each event:h tang)  cor
+        =/  =event:h  [%on-post %add new]
+        %-  ho-run:(ho-abed:ho-core nest)
+        [event context 'post blocked']
+      ?:  ?=(%.n -.result)
+        ((slog p.result) [~ ca-core])
+      =.  new
+        ?>  ?=([%on-post %add *] p.result)
+        post.p.result
       :-  `[%post id %set ~ new]
       ca-core(posts.channel (put:on-v-posts:c posts.channel id ~ new))
     ::
@@ -804,22 +804,22 @@
     ?-    -.c-reply
         %add
       ?>  =(src.bowl author.memo.c-reply)
-      =^  result=(each event:h tang)  cor
-        =/  =event:h  [%on-reply %add parent memo.c-reply]
-        %-  ho-run:(ho-abed:ho-core nest)
-        [event context 'reply blocked']
-      ?:  ?=(%.n -.result)
-        ((slog p.result) [~ replies])
-      =/  =memo:c
-        ?>  ?=([%on-reply %add *] p.result)
-        memo.p.result
       =/  id=id-reply:c
         |-
         =/  reply  (get:on-v-replies:c replies now.bowl)
         ?~  reply  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
       =/  reply-seal=v-reply-seal:c  [id ~]
-      =/  new=v-reply:c  [reply-seal 0 memo]
+      =/  new=v-reply:c  [reply-seal 0 memo.c-reply]
+      =^  result=(each event:h tang)  cor
+        =/  =event:h  [%on-reply %add parent new]
+        %-  ho-run:(ho-abed:ho-core nest)
+        [event context 'reply blocked']
+      ?:  ?=(%.n -.result)
+        ((slog p.result) [~ replies])
+      =.  new
+        ?>  ?=([%on-reply %add *] p.result)
+        reply.p.result
       :-  `[%reply id %set ~ new]
       (put:on-v-replies:c replies id ~ new)
     ::
@@ -1023,10 +1023,10 @@
       =/  result=(each nock tang)
         ~&  "compiling hook"
         ((compile:utils args:h outcome:h) `src.action)
+      ~&  "compilation result: {<-.result>}"
       =/  compiled
         ?:  ?=(%| -.result)
           ((slog 'compilation result:' p.result) ~)
-        ~&  "compilation result: {<result>}"
         `p.result
       =.  ho-core
         ?~  cron.action  ho-core

@@ -66,7 +66,7 @@
   $:  v-channel
       channels=v-channels
       =group-ui:g
-      state=vase
+      =hook
       now=time
       our=ship
       src=ship
@@ -75,7 +75,7 @@
 ::
 ::  $on-post: a hook event that fires when posts are interacted with
 +$  on-post
-  $%  [%add =essay]
+  $%  [%add post=v-post]
       [%edit original=v-post =essay]
       [%del original=v-post]
       [%react post=v-post =ship react=(unit react)]
@@ -83,7 +83,7 @@
 ::
 ::  $on-reply: a hook event that fires when replies are interacted with
 +$  on-reply
-  $%  [%add parent=v-post =memo]
+  $%  [%add parent=v-post reply=v-reply]
       [%edit parent=v-post original=v-reply =memo]
       [%del parent=v-post original=v-reply]
       [%react parent=v-post reply=v-reply =ship react=(unit react)]
@@ -108,8 +108,8 @@
 ::
 ::  $args: the arguments passed to a hook
 +$  args
-  $:  event=event
-      context=context
+  $:  =event
+      =context
   ==
 ::
 ::  $result: the result of a hook running

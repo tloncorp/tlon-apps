@@ -710,7 +710,8 @@
   ^-  (unit return:h)
   ?.  enabled.hook  ~
   ?~  compiled.hook  ~
-  =/  =args:h  [event context(state state.hook)]
+  ~&  "running hook: {<name.hook>} {<id.hook>}"
+  =/  =args:h  [event context(hook hook)]
   =/  outcome=(unit outcome:h)
     ((execute outcome:h) u.compiled.hook args)
   ~&  "{(trip name.hook)} hook run: {<outcome>}"
