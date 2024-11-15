@@ -938,12 +938,6 @@ importers:
       prettier:
         specifier: ^3.1.1
         version: 3.2.5
-      react-cosmos:
-        specifier: 6.1.1
-        version: 6.1.1
-      react-cosmos-plugin-vite:
-        specifier: 6.1.1
-        version: 6.1.1(vite@5.1.6(@types/node@20.10.8)(lightningcss@1.19.0)(terser@5.19.1))
       react-test-renderer:
         specifier: ^18.2.0
         version: 18.2.0(react@18.2.0)
@@ -6969,10 +6963,6 @@ packages:
   bn.js@4.12.0:
     resolution: {integrity: sha512-c98Bf3tPniI+scsdk237ku1Dc3ujXQTSgyiPUDEOe7tRkhrqridvh8klBv0HCEso1OLOYcHuCv/cS6DNxKH+ZA==}
 
-  body-parser@1.20.1:
-    resolution: {integrity: sha512-jWi7abTbYwajOytWCQc37VulmWiRae5RyTpaCyDcS5/lMdtwSz5lOpDE67srw/HYe35f1z3fDQw+3txg7gNtWw==}
-    engines: {node: '>= 0.8', npm: 1.2.8000 || >= 1.4.16}
-
   body-parser@1.20.2:
     resolution: {integrity: sha512-ml9pReCu3M61kGlqoTm2umSXTlRTuGTx0bfYj+uIUKKYycG5NtSbeetV3faSU6R7ajOPw0g/J1PvK4qNy7s5bA==}
     engines: {node: '>= 0.8', npm: 1.2.8000 || >= 1.4.16}
@@ -7427,10 +7417,6 @@ packages:
 
   cookie@0.4.2:
     resolution: {integrity: sha512-aSWTXFzaKWkvHO1Ny/s+ePFpvKsPnjc551iI41v3ny/ow6tBG5Vd+FuqGNhh1LxOmVzOlGUriIlOaokOvhaStA==}
-    engines: {node: '>= 0.6'}
-
-  cookie@0.5.0:
-    resolution: {integrity: sha512-YZ3GUyn/o8gfKJlnlX7g7xq4gyO6OSuhGPKaaGssGB2qgDUS0gPgtTvoyZLTt9Ab6dC4hfc9dV5arkvc/OCmrw==}
     engines: {node: '>= 0.6'}
 
   cookie@0.6.0:
@@ -8457,10 +8443,6 @@ packages:
 
   exponential-backoff@3.1.1:
     resolution: {integrity: sha512-dX7e/LHVJ6W3DE1MHWi9S1EYzDESENfLrYohG2G++ovZrYOkm4Knwa0mc1cn84xJOR4KEU0WSchhLbd0UklbHw==}
-
-  express@4.18.2:
-    resolution: {integrity: sha512-5/PsL6iGPdfQ/lKM1UuielYgv3BUoJfz1aUwU9vHZ+J7gyvwdQXFEBIEIaxeGf0GIcreATNyBExtalisDbuMqQ==}
-    engines: {node: '>= 0.10.0'}
 
   express@4.19.2:
     resolution: {integrity: sha512-5T6nhjsT+EOMzuck8JjBHARTHfMht0POzlA60WV2pMD3gyXw2LZnZ+ueGdNxG+0calOJcWKbpFcuzLZ91YWq9Q==}
@@ -11246,10 +11228,6 @@ packages:
     resolution: {integrity: sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg==}
     engines: {node: '>= 0.6'}
 
-  raw-body@2.5.1:
-    resolution: {integrity: sha512-qqJBtEyVgS0ZmPGdCFPWJ3FreoqvG4MVQln/kCgF7Olq95IbOp0/BWyMwbdtn4VTvkM8Y7khCQ2Xgk/tcrCXig==}
-    engines: {node: '>= 0.8'}
-
   raw-body@2.5.2:
     resolution: {integrity: sha512-8zGqypfENjCIqGhgXToC8aB2r7YrBX+AQAfIPs/Mlk+BtPTztOvTS01NRW/3Eh60J+a48lt8qsCzirQ6loCVfA==}
     engines: {node: '>= 0.8'}
@@ -11277,19 +11255,11 @@ packages:
   react-cosmos-core@6.2.0:
     resolution: {integrity: sha512-BAkTG5cGStSd1K99FjYlVEE07P13UD+4bVFhqf4LGqpYVPiMkem/ICVoZK+EFEnftnk9OLk2PertaEE1fkOFsg==}
 
-  react-cosmos-dom@6.1.1:
-    resolution: {integrity: sha512-x4lb7eJUDreh6x8b4A2nVC8HjSIxlNWHX3Pl4fPwOuu6BnLgtY6Ycqw1TEE2/T1YX9LFsjM38kB2tSjyRxhEwA==}
-
   react-cosmos-dom@6.2.0:
     resolution: {integrity: sha512-la+//KrpDc8fzwP/R8ZA0+XbQhYeXUk0XXPt/30AEdqPMPV85WGkHosP2mX1FQ9DjOc2prttNu75bu7Gi9hklA==}
 
   react-cosmos-native@6.1.1:
     resolution: {integrity: sha512-bOmyGdn6infaIp2nuJTB0pjgkBq2tClgsB3/Is/TM2EPDcU38GtHiOwcZJrB8nkSq72dNE3CK0+nn2SUD1spiA==}
-
-  react-cosmos-plugin-vite@6.1.1:
-    resolution: {integrity: sha512-/aTb/CV8qgyfAW736ROSD9e1GQUhaXXTPyzplWpnPJo3VdP1dloDOfA7gsdCoq9mzM498RpZ2LsJk2v5MT1mfg==}
-    peerDependencies:
-      vite: '*'
 
   react-cosmos-plugin-vite@https://gitpkg.vercel.app/patosullivan/react-cosmos/packages/react-cosmos-plugin-vite?main:
     resolution: {tarball: https://gitpkg.vercel.app/patosullivan/react-cosmos/packages/react-cosmos-plugin-vite?main}
@@ -11303,15 +11273,8 @@ packages:
   react-cosmos-renderer@6.2.0:
     resolution: {integrity: sha512-XWuZcyslVB32QwJ3ODuu/rV14fcbXOoFNhUUos+Ox4PNvZtu43HxfUK62S9OZiwdI++Hx+dxH4akdaDDkZ82AQ==}
 
-  react-cosmos-ui@6.1.1:
-    resolution: {integrity: sha512-G0+Tanx3dHFSoEFRtvf53nUWe+8lv+MA/TLWfiXnK7WeLtmEzZUvBTdtA2hGOu/8IbIgq+toyPAzOXCb/g0pdQ==}
-
   react-cosmos-ui@6.2.0:
     resolution: {integrity: sha512-Vvh85sIr8MDPc9dmrzXp4b/9M9oM8fzCnpapgY7Kf26hepDzwlrVg/GXaTnlyisNnQEtVkNRSxPeE3/NuD+xrg==}
-
-  react-cosmos@6.1.1:
-    resolution: {integrity: sha512-C40I3npZOLMJMOV73BVcp1L9/eG/h1zB4+7ihMQE62img3qFy3CDEwBUwwp/YmIMRF1LXrIvhGU0TA7kig/YSw==}
-    hasBin: true
 
   react-cosmos@https://gitpkg.vercel.app/patosullivan/react-cosmos/packages/react-cosmos?main:
     resolution: {tarball: https://gitpkg.vercel.app/patosullivan/react-cosmos/packages/react-cosmos?main}
@@ -21769,23 +21732,6 @@ snapshots:
 
   bn.js@4.12.0: {}
 
-  body-parser@1.20.1:
-    dependencies:
-      bytes: 3.1.2
-      content-type: 1.0.5
-      debug: 2.6.9
-      depd: 2.0.0
-      destroy: 1.2.0
-      http-errors: 2.0.0
-      iconv-lite: 0.4.24
-      on-finished: 2.4.1
-      qs: 6.11.0
-      raw-body: 2.5.1
-      type-is: 1.6.18
-      unpipe: 1.0.0
-    transitivePeerDependencies:
-      - supports-color
-
   body-parser@1.20.2:
     dependencies:
       bytes: 3.1.2
@@ -22302,8 +22248,6 @@ snapshots:
   cookie-signature@1.0.6: {}
 
   cookie@0.4.2: {}
-
-  cookie@0.5.0: {}
 
   cookie@0.6.0: {}
 
@@ -23665,42 +23609,6 @@ snapshots:
       - utf-8-validate
 
   exponential-backoff@3.1.1: {}
-
-  express@4.18.2:
-    dependencies:
-      accepts: 1.3.8
-      array-flatten: 1.1.1
-      body-parser: 1.20.1
-      content-disposition: 0.5.4
-      content-type: 1.0.5
-      cookie: 0.5.0
-      cookie-signature: 1.0.6
-      debug: 2.6.9
-      depd: 2.0.0
-      encodeurl: 1.0.2
-      escape-html: 1.0.3
-      etag: 1.8.1
-      finalhandler: 1.2.0
-      fresh: 0.5.2
-      http-errors: 2.0.0
-      merge-descriptors: 1.0.1
-      methods: 1.1.2
-      on-finished: 2.4.1
-      parseurl: 1.3.3
-      path-to-regexp: 0.1.7
-      proxy-addr: 2.0.7
-      qs: 6.11.0
-      range-parser: 1.2.1
-      safe-buffer: 5.2.1
-      send: 0.18.0
-      serve-static: 1.15.0
-      setprototypeof: 1.2.0
-      statuses: 2.0.1
-      type-is: 1.6.18
-      utils-merge: 1.0.1
-      vary: 1.1.2
-    transitivePeerDependencies:
-      - supports-color
 
   express@4.19.2:
     dependencies:
@@ -26944,13 +26852,6 @@ snapshots:
 
   range-parser@1.2.1: {}
 
-  raw-body@2.5.1:
-    dependencies:
-      bytes: 3.1.2
-      http-errors: 2.0.0
-      iconv-lite: 0.4.24
-      unpipe: 1.0.0
-
   raw-body@2.5.2:
     dependencies:
       bytes: 3.1.2
@@ -26996,12 +26897,6 @@ snapshots:
       lodash-es: 4.17.21
       react-is: 18.3.1
 
-  react-cosmos-dom@6.1.1:
-    dependencies:
-      lodash-es: 4.17.21
-      react-cosmos-core: 6.2.0
-      react-cosmos-renderer: 6.1.1
-
   react-cosmos-dom@6.2.0:
     dependencies:
       lodash-es: 4.17.21
@@ -27012,12 +26907,6 @@ snapshots:
     dependencies:
       react-cosmos-core: 6.1.1
       react-cosmos-renderer: 6.1.1
-
-  react-cosmos-plugin-vite@6.1.1(vite@5.1.6(@types/node@20.10.8)(lightningcss@1.19.0)(terser@5.19.1)):
-    dependencies:
-      react-cosmos-core: 6.1.1
-      react-cosmos-dom: 6.1.1
-      vite: 5.1.6(@types/node@20.10.8)(lightningcss@1.19.0)(terser@5.19.1)
 
   react-cosmos-plugin-vite@https://gitpkg.vercel.app/patosullivan/react-cosmos/packages/react-cosmos-plugin-vite?main(vite@5.1.6(@types/node@20.14.10)(lightningcss@1.19.0)(terser@5.19.1)):
     dependencies:
@@ -27037,38 +26926,10 @@ snapshots:
       react-cosmos-core: 6.2.0
       react-is: 18.3.1
 
-  react-cosmos-ui@6.1.1:
-    dependencies:
-      lodash-es: 4.17.21
-      react-cosmos-core: 6.2.0
-
   react-cosmos-ui@6.2.0:
     dependencies:
       lodash-es: 4.17.21
       react-cosmos-core: 6.2.0
-
-  react-cosmos@6.1.1:
-    dependencies:
-      '@skidding/launch-editor': 2.2.3
-      chokidar: 3.5.3
-      express: 4.18.2
-      glob: 10.3.10
-      http-proxy-middleware: 2.0.6
-      lodash-es: 4.17.21
-      micromatch: 4.0.5
-      open: 8.4.2
-      pem: 1.14.8
-      react-cosmos-core: 6.1.1
-      react-cosmos-renderer: 6.1.1
-      react-cosmos-ui: 6.1.1
-      ws: 8.16.0
-      yargs: 17.7.2
-    transitivePeerDependencies:
-      - '@types/express'
-      - bufferutil
-      - debug
-      - supports-color
-      - utf-8-validate
 
   react-cosmos@https://gitpkg.vercel.app/patosullivan/react-cosmos/packages/react-cosmos?main:
     dependencies:
