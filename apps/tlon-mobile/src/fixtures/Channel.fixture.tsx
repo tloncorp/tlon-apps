@@ -606,17 +606,4 @@ export default {
       }}
     />
   ),
-  customChannelNotesApp: (
-    <ConfigurableChannelFixture
-      initialContentConfiguration={{
-        ...ChannelContentConfiguration.defaultConfiguration(),
-        defaultPostCollectionRenderer: {
-          id: CollectionRendererId.summaries,
-          configuration: {
-            showAuthors: true,
-          },
-        },
-      }}
-    />
-  ),
 };
