@@ -11,7 +11,7 @@ import {
   DeepLinkData,
   createInviteLinkRegex,
   extractNormalizedInviteLink,
-  getMetadaFromInviteLink,
+  getInviteLinkMeta,
 } from '@tloncorp/shared';
 import {
   Field,
@@ -68,12 +68,13 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
       setMetadataError(null);
       if (extractedLink) {
         try {
-          const inviteLinkMeta = await getMetadaFromInviteLink(
-            extractedLink,
-            BRANCH_KEY
-          );
-          if (inviteLinkMeta) {
-            setLure(inviteLinkMeta as DeepLinkData);
+          const appInvite = await getInviteLinkMeta({
+            inviteLink: extractedLink,
+            branchDomain: BRANCH_DOMAIN,
+            branchKey: BRANCH_KEY,
+          });
+          if (appInvite) {
+            setLure(appInvite);
             return;
           } else {
             throw new Error('Failed to retrieve invite metadata');

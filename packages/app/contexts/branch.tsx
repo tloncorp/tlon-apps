@@ -1,5 +1,10 @@
-import { DeepLinkMetadata, createDevLogger } from '@tloncorp/shared';
-import { DeepLinkData, extractLureMetadata } from '@tloncorp/shared/logic';
+import { createDevLogger } from '@tloncorp/shared';
+import {
+  AppInvite,
+  DeepLinkData,
+  Lure,
+  extractLureMetadata,
+} from '@tloncorp/shared/logic';
 import {
   type ReactNode,
   createContext,
@@ -16,22 +21,12 @@ import storage from '../lib/storage';
 import { getPathFromWer } from '../utils/string';
 import { useShip } from './ship';
 
-export interface LureData extends DeepLinkMetadata {
-  id: string;
-  shouldAutoJoin: boolean;
-}
-
-type Lure = {
-  lure: LureData | undefined;
-  priorityToken: string | undefined;
-};
-
 type State = Lure & {
   deepLinkPath: string | undefined;
 };
 
 type ContextValue = State & {
-  setLure: (metadata: DeepLinkData) => void;
+  setLure: (invite: AppInvite) => void;
   clearLure: () => void;
   clearDeepLink: () => void;
 };
@@ -153,6 +148,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
               },
               priorityToken: params.token as string | undefined,
             };
+            console.log(`setting deeplink lure`, nextLure);
             setState({
               ...nextLure,
               deepLinkPath: undefined,
@@ -191,11 +187,10 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
   }, [isAuthenticated]);
 
   const setLure = useCallback(
-    (metadata: DeepLinkData) => {
+    (invite: AppInvite) => {
       const nextLure: Lure = {
         lure: {
-          ...metadata,
-          id: metadata.lure as string,
+          ...invite,
           // if not already authenticated, we should run Lure's invite auto-join capability after signing in
           shouldAutoJoin: !isAuthenticated,
         },

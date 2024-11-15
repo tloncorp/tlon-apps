@@ -1,7 +1,7 @@
+import { AppInvite } from '@tloncorp/shared';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 
-import { LureData } from '../contexts/branch';
 import * as hostingApi from '../lib/hostingApi';
 import { trackOnboardingAction } from '../utils/posthog';
 import { getShipFromCookie, getShipUrl } from '../utils/ship';
@@ -121,7 +121,7 @@ async function authenticateNode(
   };
 }
 
-async function getInvitedGroupAndDm(lureMeta: LureData | null): Promise<{
+async function getInvitedGroupAndDm(lureMeta: AppInvite | null): Promise<{
   invitedDm: db.Channel | null;
   tlonTeamDM: db.Channel | null;
   invitedGroup: db.Group | null;
