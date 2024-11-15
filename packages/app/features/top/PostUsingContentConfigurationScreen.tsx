@@ -1,5 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useChannelWithRelations, usePostReference } from '@tloncorp/shared';
+import {
+  useChannelWithRelations,
+  usePostWithRelations,
+} from '@tloncorp/shared';
 import { ChannelContentConfiguration } from '@tloncorp/shared';
 import {
   ChannelProvider,
@@ -25,7 +28,7 @@ export function PostUsingContentConfigurationScreen({
   },
   navigation,
 }: Props) {
-  const post = usePostReference({ channelId, postId }).data;
+  const post = usePostWithRelations({ id: postId }).data;
   const channel = useChannelWithRelations({ id: channelId }).data;
 
   if (!post || !channel) {
