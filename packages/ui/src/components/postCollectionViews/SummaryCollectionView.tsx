@@ -11,31 +11,6 @@ import { ListItem } from '../ListItem';
 import Pressable from '../Pressable';
 import { IPostCollectionView } from './shared';
 
-export interface SummaryCollectionView$Item {
-  key: string;
-  title?: string;
-  subtitle?: string;
-  authorId?: string;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace SummaryCollectionView$Item {
-  export function fromPost(post: db.Post): SummaryCollectionView$Item {
-    return {
-      key: post.id,
-      authorId: post.authorId,
-      ...(post.title
-        ? {
-            title: post.title,
-            subtitle: post.textContent ?? undefined,
-          }
-        : {
-            title: post.textContent ?? undefined,
-          }),
-    };
-  }
-}
-
 export function BaseSummaryCollectionView({
   items,
   onPressItem,
@@ -75,11 +50,23 @@ function PostSummary({
   item: db.Post;
   onPress?: () => void;
 }) {
-  const livePost = useLivePost(item);
+  const post = useLivePost(item);
 
   const { title, subtitle, authorId } = useMemo(
-    () => SummaryCollectionView$Item.fromPost(livePost),
-    [livePost]
+    () => ({
+      key: post.id,
+      authorId: post.authorId,
+      ...(post.title
+        ? {
+            title: post.title,
+            subtitle: post.textContent ?? undefined,
+          }
+        : {
+            title: post.textContent ?? undefined,
+            subtitle: undefined,
+          }),
+    }),
+    [post]
   );
   return (
     <Pressable onPress={onPress} borderRadius="$xl">
