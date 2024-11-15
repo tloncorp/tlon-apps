@@ -1,9 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
 import * as db from '@tloncorp/shared/db';
-import { forwardRef } from 'react';
+import { forwardRef, useEffect, useMemo } from 'react';
 import { FlatList } from 'react-native';
 import { View, getTokenValue } from 'tamagui';
 
+import { useLivePost } from '../../contexts';
 import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
 import { ForwardingProps } from '../../utils/react';
 import { ListItem } from '../ListItem';
@@ -42,8 +43,8 @@ export function BaseSummaryCollectionView({
 }: ForwardingProps<
   typeof View,
   {
-    items: SummaryCollectionView$Item[];
-    onPressItem?: (item: SummaryCollectionView$Item, index: number) => void;
+    items: db.Post[];
+    onPressItem?: (post: db.Post, index: number) => void;
   }
 >) {
   return (
@@ -58,7 +59,7 @@ export function BaseSummaryCollectionView({
             }}
           />
         )}
-        keyExtractor={(item) => item.key}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={{
           paddingHorizontal: getTokenValue('$space.xl'),
         }}
@@ -68,12 +69,18 @@ export function BaseSummaryCollectionView({
 }
 
 function PostSummary({
-  item: { title, subtitle, authorId },
+  item,
   onPress,
 }: {
-  item: SummaryCollectionView$Item;
+  item: db.Post;
   onPress?: () => void;
 }) {
+  const livePost = useLivePost(item);
+
+  const { title, subtitle, authorId } = useMemo(
+    () => SummaryCollectionView$Item.fromPost(livePost),
+    [livePost]
+  );
   return (
     <Pressable onPress={onPress} borderRadius="$xl">
       <ListItem>
@@ -105,15 +112,22 @@ export function BasePostSummaryCollectionView({
   Record<string, never>,
   'items'
 >) {
-  const { posts } = usePostCollectionContextUnsafelyUnwrapped();
+  const { posts, hasNewerPosts, onScrollStartReached } =
+    usePostCollectionContextUnsafelyUnwrapped();
 
   const navigation = useNavigation();
+
+  useEffect(() => {
+    if (hasNewerPosts) {
+      onScrollStartReached?.();
+    }
+  }, [hasNewerPosts, onScrollStartReached]);
 
   return (
     <>
       <BaseSummaryCollectionView
         {...forwardedProps}
-        items={posts?.map(SummaryCollectionView$Item.fromPost) ?? []}
+        items={posts ?? []}
         onPressItem={(_item, index) => {
           const post = posts?.[index];
           if (post) {
