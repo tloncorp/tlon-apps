@@ -14,8 +14,8 @@ export interface ComponentSpec<EnumTag extends string = string> {
 
 function standardCollectionParameters(): Record<string, ParameterSpec> {
   return {
-    showAuthor: {
-      displayName: 'Show author',
+    showAuthors: {
+      displayName: 'Show authors',
       type: 'boolean',
     },
     showReplies: {
@@ -251,7 +251,35 @@ export namespace StructuredChannelDescriptionPayload {
       return {};
     }
     try {
-      return JSON.parse(encoded);
+      const out = JSON.parse(encoded);
+      if ('channelContentConfiguration' in out) {
+        if (typeof out.channelContentConfiguration !== 'object') {
+          throw new Error('Invalid configuration');
+        }
+        // add a little robustness - if the configuration is missing a field,
+        // just add a default in to avoid crashing
+        out.channelContentConfiguration = ((raw) => {
+          const cfg = {
+            draftInput: DraftInputId.chat,
+            defaultPostContentRenderer: PostContentRendererId.chat,
+            defaultPostCollectionRenderer: CollectionRendererId.chat,
+            ...raw,
+          } as ChannelContentConfiguration;
+
+          // add defaults to some standard params
+          const collCfgWithDefaults = ParameterizedId.coerce(
+            cfg.defaultPostCollectionRenderer
+          );
+          collCfgWithDefaults.configuration = {
+            showAuthors: true,
+            showReplies: true,
+            ...collCfgWithDefaults.configuration,
+          };
+
+          return cfg;
+        })(out.channelContentConfiguration);
+      }
+      return out;
     } catch (_err) {
       return { description: encoded.length === 0 ? undefined : encoded };
     }
