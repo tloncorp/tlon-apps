@@ -1,16 +1,13 @@
 {
   "$schema": "http://json.schemastore.org/cosmos-config",
   "vite": {
-    "configPath": "./vite.config.mts",
-    "indexPath": "./indedefault x.html"
+    "configPath": "./apps/tlon-web-new/vite.config.mts",
+    "indexPath": "./apps/tlon-web-new/index.html"
   },
   "dom": {
     "containerQuerySelector": "#app"
   },
-  "rendererUrl": "http://localhost:5050/apps/groups/",
+  "rendererUrl": "http://localhost:5050/",
   "plugins": ["react-cosmos-plugin-vite"],
-  "globalImports": ["./apps/tlon-web-new/cosmos/setup.ts"],
-  "staticPath": "./public",
-  "rootDir": "./apps/tlon-web-new",
-  "publicUrl": "/apps/groups/"
+  "globalImports": ["./apps/tlon-web-new/cosmos/setup.ts"]
 }
