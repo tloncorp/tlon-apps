@@ -8,6 +8,7 @@ export default class CosmosApp extends Component {
     return (
       <NativeFixtureLoader
         rendererConfig={rendererConfig}
+        // @ts-expect-error - TODO: fix types
         moduleWrappers={moduleWrappers}
         initialFixtureId={{ path: 'apps/tlon-mobile/src/App.fixture.tsx' }}
       />
