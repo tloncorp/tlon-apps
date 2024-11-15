@@ -94,7 +94,6 @@ export function ContactBook({
           selectable={multiSelect}
           selected={isSelected}
           onPress={handleSelect}
-          pressStyle={{ backgroundColor: '$shadow' }}
         />
       );
     },

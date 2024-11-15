@@ -33,7 +33,10 @@ function ContactRowItemRaw({
   );
 
   return (
-    <Pressable pressStyle={undefined} onPress={handlePress(contact.id)}>
+    <Pressable
+      pressStyle={{ backgroundColor: '$shadow' }}
+      onPress={handlePress(contact.id)}
+    >
       <ListItem {...rest}>
         <ListItem.ContactIcon contactId={contact.id} />
         <ListItem.MainContent>

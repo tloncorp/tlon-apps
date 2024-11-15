@@ -1,8 +1,11 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { View } from 'tamagui';
 import { isWeb } from 'tamagui';
 
+import { useCalm, useGroup } from '../../contexts';
+import { getGroupTitle } from '../../utils';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
 import { Icon } from '../Icon';
@@ -19,7 +22,13 @@ export const GroupListItem = ({
   ...props
 }: { customSubtitle?: string } & ListItemProps<db.Group>) => {
   const unreadCount = model.unread?.count ?? 0;
-  const title = model.title ?? model.id;
+  const { disableNicknames } = useCalm();
+  const { data: fullGroup } = store.useGroup({ id: model.id });
+  const title = getGroupTitle(
+    { ...model, members: fullGroup?.members },
+    disableNicknames
+  );
+
   const { isPending, label: statusLabel, isErrored } = getGroupStatus(model);
 
   const handlePress = logic.useMutableCallback(() => {

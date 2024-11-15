@@ -1358,7 +1358,7 @@ export function toClientGroup(
     currentUserIsMember: isJoined,
     currentUserIsHost: hostUserId === currentUserId,
     // if meta is unset, it's still in the join process
-    joinStatus: !group.meta || group.meta.title === '' ? 'joining' : undefined,
+    joinStatus: !group.meta ? 'joining' : undefined,
     hostUserId,
     flaggedPosts,
     navSections: group['zone-ord']

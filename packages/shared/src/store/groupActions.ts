@@ -1,7 +1,10 @@
+import { v4 as uuidv4 } from 'uuid';
+
 import * as api from '../api';
 import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
+import { createShortCodeFromTitle } from '../logic';
 import { createSectionId } from '../urbit';
 import * as sync from './sync';
 
@@ -12,9 +15,13 @@ export async function createGroup({
   shortCode,
 }: {
   title: string;
-  shortCode: string;
+  shortCode?: string;
 }): Promise<{ group: db.Group; channel: db.Channel }> {
+  if (!shortCode) {
+    shortCode = createShortCodeFromTitle(uuidv4());
+  }
   logger.log(`${shortCode}: creating group`);
+
   const currentUserId = api.getCurrentUserId();
   try {
     await api.createGroup({

@@ -3,7 +3,9 @@ import { useMemo, useState } from 'react';
 import { SizableText, YStack } from 'tamagui';
 
 import { useGroup } from '../../contexts';
+import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
 import { useIsAdmin } from '../../utils';
+import { Button } from '../Button';
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 
 export function EmptyChannelNotice({
@@ -13,13 +15,14 @@ export function EmptyChannelNotice({
   channel: db.Channel;
   userId: string;
 }) {
+  const ctx = usePostCollectionContextUnsafelyUnwrapped();
   const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
   const group = useGroup(channel.groupId ?? '');
   const [isFirstVisit] = useState(() => channel.lastViewedAt == null);
   const isWelcomeChannel = !!channel.isDefaultWelcomeChannel;
   const noticeText = useMemo(() => {
     if (isGroupAdmin && isFirstVisit && isWelcomeChannel) {
-      return 'This is your group’s default welcome channel. Feel free to rename it or create additional channels.';
+      return 'Welcome to your group!';
     }
 
     return 'There are no messages... yet.';
@@ -37,9 +40,16 @@ export function EmptyChannelNotice({
           {noticeText}
         </SizableText>
       </YStack>
-      {isGroupAdmin && isWelcomeChannel && (
-        <InviteFriendsToTlonButton group={group} />
-      )}
+      <YStack gap="$m">
+        {isGroupAdmin && isWelcomeChannel && (
+          <>
+            <Button hero onPress={ctx.onPressConfigureChannel}>
+              <Button.Text>Customize</Button.Text>
+            </Button>
+            <InviteFriendsToTlonButton group={group} />
+          </>
+        )}
+      </YStack>
     </YStack>
   );
 }

@@ -91,7 +91,6 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
       hero
       disabled={status !== 'ready' || typeof shareUrl !== 'string'}
       onPress={handleInviteButtonPress}
-      borderRadius="$xl"
       width="100%"
       justifyContent="space-between"
     >

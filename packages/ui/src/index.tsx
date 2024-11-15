@@ -1,6 +1,7 @@
 export * from './components/AddGroupSheet';
 export * from './components/Activity/ActivityScreenView';
 export { ActionSheet } from './components/ActionSheet';
+export * from './components/AddChatSheet';
 export * from './components/AddChats';
 export * from './components/AppSetting';
 export * from './components/Avatar';

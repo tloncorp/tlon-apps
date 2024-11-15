@@ -136,7 +136,7 @@ export function Channel({
   const [editingConfiguration, setEditingConfiguration] = useState(false);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
-  const title = utils.useChannelTitle(channel);
+  const title = utils.useChannelTitle(channel, group);
   const groups = useMemo(() => (group ? [group] : null), [group]);
   const currentUserId = useCurrentUserId();
   const canWrite = utils.useCanWrite(channel, currentUserId);
@@ -318,6 +318,8 @@ export function Channel({
                                       hasNewerPosts,
                                       hasOlderPosts,
                                       headerMode,
+                                      onPressConfigureChannel:
+                                        handlePressConfigureChannel,
                                       initialChannelUnread,
                                       onPressDelete,
                                       onPressRetry,

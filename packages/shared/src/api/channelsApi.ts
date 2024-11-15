@@ -11,6 +11,7 @@ import {
   getChannelIdType,
   isGroupChannelId,
 } from './apiUtils';
+import { StructuredChannelDescriptionPayload } from './channelContentConfig';
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
 import { scry, subscribe, trackedPoke } from './urbit';
 
@@ -293,7 +294,15 @@ export const createNewGroupDefaultChannel = async ({
     group: groupId,
     name: `welcome-${randomNumber}`,
     title: 'Welcome',
-    description: 'Welcome to your new group!',
+    description:
+      StructuredChannelDescriptionPayload.encode({
+        description: 'Welcome',
+        channelContentConfiguration: {
+          defaultPostCollectionRenderer: 'tlon.r0.collection.chat',
+          defaultPostContentRenderer: 'tlon.r0.content.chat',
+          draftInput: 'tlon.r0.input.chat',
+        },
+      }) ?? 'Welcome',
     readers: [],
     writers: [],
   };

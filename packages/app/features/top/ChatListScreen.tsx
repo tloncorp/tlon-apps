@@ -9,6 +9,7 @@ import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import {
+  AddChatSheet,
   AddGroupSheet,
   ChatList,
   ChatOptionsProvider,
@@ -47,13 +48,16 @@ export function ChatListScreenView({
   previewGroupId?: string;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const [addGroupOpen, setAddGroupOpen] = useState(false);
+  const [addChatOpen, setAddChatOpen] = useState(false);
+  const [newGroupOpen, setNewGroupOpen] = useState(false);
+  const [newDmOpen, setNewDmOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
   const [longPressedChat, setLongPressedChat] = useState<
     db.Channel | db.Group | null
   >(null);
+
   const chatOptionsGroupId = useMemo(() => {
     if (!longPressedChat) {
       return;
@@ -150,29 +154,42 @@ export function ChatListScreenView({
   }, [chats, pendingChats]);
 
   const handleNavigateToFindGroups = useCallback(() => {
-    setAddGroupOpen(false);
+    setAddChatOpen(false);
     navigation.navigate('FindGroups');
   }, [navigation]);
 
   const handleNavigateToCreateGroup = useCallback(() => {
-    setAddGroupOpen(false);
-    navigation.navigate('CreateGroup');
-  }, [navigation]);
+    setAddChatOpen(false);
+    setNewGroupOpen(true);
+  }, []);
+
+  const handleNavigateToCreateDm = useCallback(() => {
+    setAddChatOpen(false);
+    setNewDmOpen(true);
+  }, []);
+
+  const handleConfigureChatOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setNewDmOpen(false);
+      setNewGroupOpen(false);
+    }
+  }, []);
 
   const goToDm = useCallback(
     async (userId: string) => {
       const dmChannel = await store.upsertDmChannel({
         participants: [userId],
       });
-      setAddGroupOpen(false);
+      setAddChatOpen(false);
+      setNewDmOpen(false);
       navigation.navigate('Channel', { channelId: dmChannel.id });
     },
-    [navigation, setAddGroupOpen]
+    [navigation, setAddChatOpen]
   );
 
-  const handleAddGroupOpenChange = useCallback((open: boolean) => {
+  const handleAddChatOpenChange = useCallback((open: boolean) => {
     if (!open) {
-      setAddGroupOpen(false);
+      setAddChatOpen(false);
     }
   }, []);
 
@@ -184,6 +201,7 @@ export function ChatListScreenView({
         setSelectedGroupId(item.id);
       } else if (
         item.group &&
+        (item.group.channels?.length ?? 0) > 1 &&
         !isChannelSwitcherEnabled &&
         // Should navigate to channel if it's pinned as a channel
         (!item.pin || item.pin.type === 'group')
@@ -221,6 +239,16 @@ export function ChatListScreenView({
       setInviteSheetGroup(null);
     }
   }, []);
+
+  const handleNavigateToChannel = useCallback(
+    (channel: db.Channel) => {
+      navigation.navigate('Channel', {
+        channelId: channel.id,
+        groupId: channel.groupId ?? undefined,
+      });
+    },
+    [navigation]
+  );
 
   const isTlonEmployee = useMemo(() => {
     const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
@@ -307,7 +335,7 @@ export function ChatListScreenView({
                 />
                 <ScreenHeader.IconButton
                   type="Add"
-                  onPress={() => setAddGroupOpen(true)}
+                  onPress={() => setAddChatOpen(true)}
                 />
               </>
             }
@@ -362,11 +390,19 @@ export function ChatListScreenView({
       </ChatOptionsProvider>
 
       <AddGroupSheet
-        open={addGroupOpen}
+        open={newGroupOpen || newDmOpen}
+        type={newDmOpen ? 'dm' : 'group'}
         onGoToDm={goToDm}
-        onOpenChange={handleAddGroupOpenChange}
+        onOpenChange={handleConfigureChatOpenChange}
         navigateToFindGroups={handleNavigateToFindGroups}
         navigateToCreateGroup={handleNavigateToCreateGroup}
+        navigateToChannel={handleNavigateToChannel}
+      />
+      <AddChatSheet
+        open={addChatOpen}
+        onOpenChange={handleAddChatOpenChange}
+        onPressNewGroup={handleNavigateToCreateGroup}
+        onPressNewDm={handleNavigateToCreateDm}
       />
     </RequestsProvider>
   );
