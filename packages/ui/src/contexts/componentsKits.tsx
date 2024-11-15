@@ -15,6 +15,7 @@ import { ChatMessage } from '../components/ChatMessage';
 import { ColorPost } from '../components/ColorPost';
 import { useContactName } from '../components/ContactNameV2';
 import { StandaloneDrawingInput } from '../components/DrawingInput';
+import { EditableNotePostContent } from '../components/EditableNotePostContent';
 import { GalleryPost } from '../components/GalleryPost';
 import { NotebookPost } from '../components/NotebookPost';
 import { YellPost } from '../components/YellPost';
@@ -132,6 +133,7 @@ const BUILTIN_CONTENT_RENDERERS: { [id: string]: RenderItemType } = {
     );
   },
   [PostContentRendererId.yell]: YellPost,
+  [PostContentRendererId.scratchpad]: EditableNotePostContent,
 };
 const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   [DraftInputId.chat]: ChatInput,
