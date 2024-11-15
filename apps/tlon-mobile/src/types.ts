@@ -1,17 +1,23 @@
 export type OnboardingStackParamList = {
   Welcome: undefined;
   InventoryCheck: undefined;
-  SignUpEmail: undefined;
-  EULA: undefined;
-  SignUpPassword: { email: string };
   PasteInviteLink: undefined;
+  Signup: undefined;
+  CheckOTP: {
+    otpMethod: 'email' | 'phone';
+    mode: 'signup' | 'login';
+    email?: string;
+    phoneNumber?: string;
+  };
+  EULA: undefined;
   JoinWaitList: { email?: string };
   RequestPhoneVerify: { user: User };
   CheckVerify: { user: User };
   ReserveShip: { user: User };
   SetNickname: { user: User };
   SetTelemetry: { user: User };
-  TlonLogin: undefined;
+  TlonLogin: { initialLoginMethod?: 'email' | 'phone' } | undefined;
+  TlonLoginLegacy: undefined;
   ShipLogin: undefined;
   ResetPassword: { email?: string };
 };

@@ -7,6 +7,7 @@ import { ComponentProps, useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'tamagui';
 
 import { Icon } from '../Icon';
+import Pressable from '../Pressable';
 
 type VideoEmbedProps = ComponentProps<typeof View> & {
   video: { width: number; height: number; src: string; alt?: string };
@@ -30,7 +31,7 @@ export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
   const source = useMemo(() => ({ uri: video.src }), [video.src]);
 
   return (
-    <View
+    <Pressable
       onPress={handlePress}
       group="button"
       borderRadius="$m"
@@ -66,6 +67,6 @@ export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
           $group-button-press={{ opacity: 0.8 }}
         />
       </View>
-    </View>
+    </Pressable>
   );
 }

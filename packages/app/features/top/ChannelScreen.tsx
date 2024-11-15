@@ -5,7 +5,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
   useCanUpload,
-  useChannel,
+  useChannelPreview,
   useGroupPreview,
   usePostReference,
   usePostWithRelations,
@@ -32,7 +32,7 @@ const logger = createDevLogger('ChannelScreen', false);
 type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: Props) {
-  const { channelId, selectedPostId } = props.route.params;
+  const { channelId, selectedPostId, startDraft } = props.route.params;
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {
@@ -174,6 +174,20 @@ export default function ChannelScreen(props: Props) {
     }
   }, [channel?.id, cursor]);
 
+  // If scroll to bottom is pressed, it's most straighforward to ignore
+  // existing cursor
+  const [clearedCursor, setClearedCursor] = React.useState(false);
+
+  // But if a new post is selected, we should mark the cursor
+  // as uncleared
+  useEffect(() => {
+    setClearedCursor(false);
+  }, [selectedPostId]);
+
+  const handleScrollToBottom = useCallback(() => {
+    setClearedCursor(true);
+  }, []);
+
   const {
     posts,
     query: postsQuery,
@@ -185,7 +199,7 @@ export default function ChannelScreen(props: Props) {
     channelId: currentChannelId,
     count: 15,
     hasCachedNewest,
-    ...(cursor
+    ...(cursor && !clearedCursor
       ? {
           mode: 'around',
           cursor,
@@ -291,7 +305,7 @@ export default function ChannelScreen(props: Props) {
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
-      props.navigation.push('Channel', { channelId: dmChannel.id });
+      props.navigation.push('DM', { channelId: dmChannel.id });
     },
     [props.navigation]
   );
@@ -347,7 +361,7 @@ export default function ChannelScreen(props: Props) {
         key={currentChannelId}
         headerMode={headerMode}
         channel={channel}
-        initialChannelUnread={initialChannelUnread}
+        initialChannelUnread={clearedCursor ? undefined : initialChannelUnread}
         isLoadingPosts={isLoadingPosts}
         hasNewerPosts={postsQuery.hasPreviousPage}
         hasOlderPosts={postsQuery.hasNextPage}
@@ -371,7 +385,7 @@ export default function ChannelScreen(props: Props) {
         usePostReference={usePostReference}
         useGroup={useGroupPreview}
         onGroupAction={performGroupAction}
-        useChannel={useChannel}
+        useChannel={useChannelPreview}
         storeDraft={storeDraft}
         clearDraft={clearDraft}
         getDraft={getDraft}
@@ -382,6 +396,8 @@ export default function ChannelScreen(props: Props) {
         editPost={editPost}
         negotiationMatch={negotiationStatus.matchedOrPending}
         canUpload={canUpload}
+        startDraft={startDraft}
+        onPressScrollToBottom={handleScrollToBottom}
       />
       {group && (
         <>

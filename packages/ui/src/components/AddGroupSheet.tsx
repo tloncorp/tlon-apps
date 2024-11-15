@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, YStack, isWeb } from 'tamagui';
+import { View, YStack } from 'tamagui';
 
 import { triggerHaptic } from '../utils';
 import { ActionSheet } from './ActionSheet';
 import { ContactBook } from './ContactBook';
 import { IconType } from './Icon';
 import { ListItem } from './ListItem';
+import Pressable from './Pressable';
 
 export function AddGroupSheet({
   open,
@@ -61,6 +62,7 @@ export function AddGroupSheet({
           searchPlaceholder="Username or ID"
           onSelect={onSelect}
           onScrollChange={setScreenScrolling}
+          height={400}
           key={screenKey}
           quickActions={
             <View paddingBottom="$l">
@@ -96,16 +98,18 @@ function QuickAction({
   subtitle?: string;
 }) {
   return (
-    <ListItem onPress={onPress}>
-      <ListItem.SystemIcon
-        icon={icon}
-        backgroundColor={'$secondaryBackground'}
-        rounded
-      />
-      <ListItem.MainContent>
-        <ListItem.Title>{title}</ListItem.Title>
-        <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
-      </ListItem.MainContent>
-    </ListItem>
+    <Pressable onPress={onPress} borderRadius="$xl">
+      <ListItem>
+        <ListItem.SystemIcon
+          icon={icon}
+          backgroundColor={'$secondaryBackground'}
+          rounded
+        />
+        <ListItem.MainContent>
+          <ListItem.Title>{title}</ListItem.Title>
+          <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
+        </ListItem.MainContent>
+      </ListItem>
+    </Pressable>
   );
 }

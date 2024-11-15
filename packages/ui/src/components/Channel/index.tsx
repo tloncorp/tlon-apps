@@ -5,7 +5,7 @@ import {
 } from '@tloncorp/shared';
 import {
   isChatChannel as getIsChatChannel,
-  useChannel as useChannelFromStore,
+  useChannelPreview,
   useGroupPreview,
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
@@ -85,6 +85,8 @@ export function Channel({
   hasNewerPosts,
   hasOlderPosts,
   initialAttachments,
+  startDraft,
+  onPressScrollToBottom,
 }: {
   channel: db.Channel;
   initialChannelUnread?: db.ChannelUnread | null;
@@ -110,7 +112,7 @@ export function Channel({
   useGroup: typeof useGroupPreview;
   usePostReference: typeof usePostReferenceHook;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
-  useChannel: typeof useChannelFromStore;
+  useChannel: typeof useChannelPreview;
   storeDraft: (draft: JSONContent, draftType?: GalleryDraftType) => void;
   clearDraft: (draftType?: GalleryDraftType) => void;
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent>;
@@ -124,6 +126,8 @@ export function Channel({
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
   canUpload: boolean;
+  startDraft?: boolean;
+  onPressScrollToBottom?: () => void;
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
@@ -271,6 +275,12 @@ export function Channel({
     [channel]
   );
 
+  useEffect(() => {
+    if (startDraft) {
+      draftInputRef.current?.startDraft?.();
+    }
+  }, [startDraft]);
+
   const isNarrow = useIsWindowNarrow();
 
   return (
@@ -364,6 +374,10 @@ export function Channel({
                                       setActiveMessage={setActiveMessage}
                                       ref={flatListRef}
                                       headerMode={headerMode}
+                                      isLoading={isLoadingPosts}
+                                      onPressScrollToBottom={
+                                        onPressScrollToBottom
+                                      }
                                     />
                                   )}
                                 </View>

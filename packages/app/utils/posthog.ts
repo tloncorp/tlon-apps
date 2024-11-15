@@ -9,6 +9,7 @@ export type OnboardingProperties = {
   actionName: string;
   lure?: string;
   email?: string;
+  phoneNumber?: string;
   ship?: string;
 };
 
@@ -60,6 +61,7 @@ export const trackError = (
 ) => capture(event, { message, properties });
 
 export const identifyTlonEmployee = () => {
+  db.setIsTlonEmployee(true);
   if (!posthog) {
     console.debug('Identifying as Tlon employee before PostHog is initialized');
     return;
@@ -67,5 +69,4 @@ export const identifyTlonEmployee = () => {
 
   const UUID = posthog.getDistinctId();
   posthog.identify(UUID, { isTlonEmployee: true });
-  db.setIsTlonEmployee(true);
 };

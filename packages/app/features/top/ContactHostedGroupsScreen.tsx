@@ -38,7 +38,7 @@ export function ContactHostedGroupsScreen({ route, navigation }: Props) {
   );
 
   return (
-    <View flex={1}>
+    <View backgroundColor="$background" flex={1}>
       <ScreenHeader
         title={`Groups hosted by ${contactName}`}
         backAction={goBack}

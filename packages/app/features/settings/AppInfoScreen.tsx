@@ -101,7 +101,7 @@ export function AppInfoScreen(props: Props) {
   }, [hasClients]);
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title="App info"
         backAction={() => props.navigation.goBack()}

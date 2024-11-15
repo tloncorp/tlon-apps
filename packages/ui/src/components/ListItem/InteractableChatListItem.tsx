@@ -1,7 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import * as Haptics from 'expo-haptics';
 import React, {
   ComponentProps,
   useCallback,
@@ -21,7 +20,6 @@ import Animated, {
 import { ColorTokens, Stack, View, getTokenValue, isWeb } from 'tamagui';
 
 import * as utils from '../../utils';
-import { Button } from '../Button';
 import { Chat } from '../ChatList';
 import { Icon, IconType } from '../Icon';
 import { ChatListItem } from './ChatListItem';
@@ -32,7 +30,6 @@ function BaseInteractableChatRow({
   model,
   onPress,
   onLongPress,
-  onPressMenuButton,
 }: ListItemProps<Chat> & { model: db.Channel }) {
   const swipeableRef = useRef<SwipeableMethods>(null);
 
@@ -57,7 +54,6 @@ function BaseInteractableChatRow({
 
   const handleAction = logic.useMutableCallback(
     async (actionId: 'pin' | 'mute') => {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       utils.triggerHaptic('swipeAction');
       switch (actionId) {
         case 'pin':
@@ -87,13 +83,6 @@ function BaseInteractableChatRow({
     [handleAction, mutedState]
   );
 
-  const handleMenuPress = useCallback(
-    (chat: Chat) => {
-      onPressMenuButton?.(chat);
-    },
-    [onPressMenuButton]
-  );
-
   if (!isWeb) {
     return (
       <Swipeable
@@ -114,22 +103,7 @@ function BaseInteractableChatRow({
     );
   } else {
     return (
-      <View>
-        <ChatListItem
-          model={model}
-          onPress={onPress}
-          onLongPress={onLongPress}
-        />
-        <View position="absolute" right={-2} top={44} zIndex={1}>
-          <Button
-            onPress={() => handleMenuPress(model)}
-            borderWidth="unset"
-            size="$l"
-          >
-            <Icon type="Overflow" />
-          </Button>
-        </View>
-      </View>
+      <ChatListItem model={model} onPress={onPress} onLongPress={onLongPress} />
     );
   }
 }

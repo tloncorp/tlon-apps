@@ -30,7 +30,7 @@ export function CreateGroupView({
   );
 
   return (
-    <View flex={1}>
+    <View backgroundColor="$background" flex={1}>
       <ScreenHeader
         title={'Create Group'}
         backAction={() =>

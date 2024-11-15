@@ -30,8 +30,8 @@ import {
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
+import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
-import { useSignupContext } from '.././../lib/signupContext';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'TlonLogin'>;
 
@@ -43,7 +43,7 @@ type FormData = {
 
 const logger = createDevLogger('TlonLoginScreen', true);
 
-export const TlonLoginScreen = ({ navigation }: Props) => {
+export const TlonLoginLegacy = ({ navigation }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
   const signupContext = useSignupContext();
