@@ -7,8 +7,10 @@ import {
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { isSameDay } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { isEqual } from 'lodash';
 import React, {
+  ComponentPropsWithoutRef,
   PropsWithChildren,
   ReactElement,
   RefObject,
@@ -568,6 +570,15 @@ const BaseScrollerItem = ({
     }
   }, [dividerType, post, unreadCount, showDayDivider]);
 
+  const editPost = useCallback<
+    Exclude<ComponentPropsWithoutRef<RenderItemType>['editPost'], undefined>
+  >(async (post, content) => {
+    await store.editPost({
+      post,
+      content,
+    });
+  }, []);
+
   return (
     <View onLayout={handleLayout} flex={1} aspectRatio={itemAspectRatio}>
       {divider}
@@ -576,6 +587,7 @@ const BaseScrollerItem = ({
         isActive={activeMessage?.id === post.id}
       >
         <Component
+          editPost={editPost}
           isHighlighted={isSelected}
           post={post}
           setViewReactionsPost={setViewReactionsPost}

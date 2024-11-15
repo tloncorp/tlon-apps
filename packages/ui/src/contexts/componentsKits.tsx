@@ -15,6 +15,7 @@ import { ChatMessage } from '../components/ChatMessage';
 import { ColorPost } from '../components/ColorPost';
 import { useContactName } from '../components/ContactNameV2';
 import { StandaloneDrawingInput } from '../components/DrawingInput';
+import { EditableNotePostContent } from '../components/EditableNotePostContent';
 import { GalleryPost } from '../components/GalleryPost';
 import { NotebookPost } from '../components/NotebookPost';
 import { YellPost } from '../components/YellPost';
@@ -34,6 +35,7 @@ import {
 } from '../components/postCollectionViews/CardsPostCollectionView';
 import { ListPostCollection } from '../components/postCollectionViews/ListPostCollectionView';
 import { StrobePostCollectionView } from '../components/postCollectionViews/StrobePostCollectionView';
+import { PostSummaryCollectionView } from '../components/postCollectionViews/SummaryCollectionView';
 import { IPostCollectionView } from '../components/postCollectionViews/shared';
 
 type RenderItemProps = {
@@ -131,6 +133,7 @@ const BUILTIN_CONTENT_RENDERERS: { [id: string]: RenderItemType } = {
     );
   },
   [PostContentRendererId.yell]: YellPost,
+  [PostContentRendererId.scratchpad]: EditableNotePostContent,
 };
 const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   [DraftInputId.chat]: ChatInput,
@@ -163,6 +166,7 @@ const BUILTIN_COLLECTION_RENDERERS: {
   [CollectionRendererId.sign]: SingleCardPostCollection,
   [CollectionRendererId.boardroom]: BoardroomPostCollectionView,
   [CollectionRendererId.strobe]: StrobePostCollectionView,
+  [CollectionRendererId.summaries]: PostSummaryCollectionView,
 };
 
 export function ComponentsKitContextProvider({

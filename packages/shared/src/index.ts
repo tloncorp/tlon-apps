@@ -20,9 +20,9 @@ export {
   layoutForType,
   layoutTypeFromChannel,
 } from './types/PostCollectionConfiguration';
-export type { ChannelContentConfiguration } from './api/channelContentConfig';
 export {
   CollectionRendererId,
+  ChannelContentConfiguration,
   DraftInputId,
   PostContentRendererId,
   allCollectionRenderers,
