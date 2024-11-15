@@ -1180,8 +1180,7 @@
   =.  importing  &
   =.  indices   (~(put by indices) [%base ~] *index:a)
   =.  cor  set-chat-reads
-  ::REVIEW  maybe need a scry api version bump here?
-  =+  .^(=channels:c %gx (scry-path %channels /v2/channels/full/noun))
+  =+  .^(=channels:c %gx (scry-path %channels /v3/channels/full/noun))
   =.  cor  (set-volumes channels)
   =.  cor  (set-channel-reads channels)
   =.  cor  refresh-all-summaries
