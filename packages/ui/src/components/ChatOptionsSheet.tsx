@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -133,6 +134,10 @@ export function GroupOptions({
 }) {
   const currentUser = useCurrentUserId();
   const { data: currentVolumeLevel } = store.useGroupVolumeLevel(group.id);
+  const { data: groupUnread } = useQuery({
+    queryKey: ['groupUnread', group.id],
+    queryFn: async () => db.getGroupUnread({ groupId: group.id }),
+  });
 
   const {
     onPressGroupMembers,
@@ -253,6 +258,21 @@ export function GroupOptions({
     onOpenChange,
   ]);
 
+  const handleMarkAllRead = useCallback(async () => {
+    if (!group) return;
+    onOpenChange(false);
+    if (group.channels) {
+      await Promise.all(
+        group.channels.map(async (channel) => {
+          if (!channel.isPendingChannel) {
+            await store.markChannelRead(channel);
+          }
+        })
+      );
+    }
+    await store.markGroupRead(group);
+  }, [group, onOpenChange]);
+
   const actionGroups = useMemo(() => {
     const groupRef = logic.getGroupReferencePath(group.id);
 
@@ -272,6 +292,16 @@ export function GroupOptions({
             endIcon: 'Pin',
             action: onTogglePinned,
           },
+          ...(groupUnread?.count
+            ? [
+                {
+                  title: 'Mark all as read',
+                  action: () => {
+                    handleMarkAllRead();
+                  },
+                },
+              ]
+            : []),
           {
             title: 'Copy group reference',
             description: groupRef,
