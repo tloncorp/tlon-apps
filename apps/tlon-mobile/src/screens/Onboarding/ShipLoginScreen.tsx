@@ -10,7 +10,7 @@ import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { transformShipURL } from '@tloncorp/app/utils/string';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
-import { didSignUp } from '@tloncorp/shared/db';
+import { didSignUp, finishingSelfHostedLogin } from '@tloncorp/shared/db';
 import {
   Field,
   KeyboardAvoidingView,
@@ -58,6 +58,8 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     },
   });
   const { setShip } = useShip();
+  const { setValue: setFinishingSelfHostedLogin } =
+    finishingSelfHostedLogin.useStorageItem();
 
   const [codevisible, setCodeVisible] = useState(false);
 
@@ -92,6 +94,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
         accessCode.trim()
       );
       if (authCookie) {
+        await setFinishingSelfHostedLogin(true);
         const shipId = getShipFromCookie(authCookie);
         setShip({
           ship: shipId,
@@ -104,6 +107,8 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
         if (!hasSignedUp) {
           logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
         }
+
+        navigation.navigate('SetTelemetry');
       } else {
         setRemoteError(
           "Sorry, we couldn't log in to your ship. It may be busy or offline."

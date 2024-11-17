@@ -49,12 +49,6 @@ export function useReviveSavedOnboarding() {
         return stack;
       }
 
-      stack.push({ name: 'SetTelemetry', params: { user } });
-      if (savedSignup.telemetry === undefined) {
-        logger.log('needs telemetry');
-        return stack;
-      }
-
       logger.log('ready to reserve ship');
       stack.push({ name: 'ReserveShip', params: { user } });
       return stack;

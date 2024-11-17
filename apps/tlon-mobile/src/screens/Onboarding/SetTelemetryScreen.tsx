@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { finishingSelfHostedLogin } from '@tloncorp/shared/db';
 import {
   ScreenHeader,
   SizableText,
@@ -8,34 +8,26 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/ui';
+import { usePostHog } from 'posthog-react-native';
 import { useCallback, useState } from 'react';
 import { Switch } from 'react-native';
 
 import type { OnboardingStackParamList } from '../../types';
-import { useSignupContext } from '.././../lib/signupContext';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetTelemetry'>;
 
-export const SetTelemetryScreen = ({
-  navigation,
-  route: {
-    params: { user },
-  },
-}: Props) => {
-  const [isEnabled, setIsEnabled] = useState(true);
-  const signupContext = useSignupContext();
+export const SetTelemetryScreen = () => {
+  const posthog = usePostHog();
+  const [isEnabled, setIsEnabled] = useState(false);
+  const { setValue: setFinishingSelfHostedLogin } =
+    finishingSelfHostedLogin.useStorageItem();
 
   const handleNext = useCallback(() => {
-    signupContext.setOnboardingValues({ telemetry: isEnabled });
-    trackOnboardingAction({
-      actionName: 'SetTelemetry',
-      telemetryEnabled: isEnabled,
-    });
-
-    navigation.push('ReserveShip', {
-      user,
-    });
-  }, [isEnabled, user, navigation, signupContext]);
+    if (!isEnabled) {
+      posthog?.optOut();
+    }
+    setFinishingSelfHostedLogin(false);
+  }, [isEnabled, posthog, setFinishingSelfHostedLogin]);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
@@ -70,9 +62,7 @@ export const SetTelemetryScreen = ({
           alignItems="center"
           justifyContent="space-between"
         >
-          <SizableText color="$primaryText">
-            Enable anonymous usage stats
-          </SizableText>
+          <SizableText color="$primaryText">Enable usage stats</SizableText>
           <Switch value={isEnabled} onValueChange={setIsEnabled} />
         </XStack>
       </YStack>

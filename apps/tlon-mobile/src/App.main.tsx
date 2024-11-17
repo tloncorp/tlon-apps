@@ -27,9 +27,10 @@ import {
   View,
   usePreloadedEmojis,
 } from '@tloncorp/ui';
+import { finishingSelfHostedLogin as selfHostedLoginStatus } from 'packages/shared/src/db';
 import { PostHogProvider } from 'posthog-react-native';
 import type { PropsWithChildren } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -44,6 +45,11 @@ const App = () => {
   const { isLoading, isAuthenticated } = useShip();
   const [connected, setConnected] = useState(true);
   const signupContext = useSignupContext();
+  const finishingSelfHostedLogin = selfHostedLoginStatus.useValue();
+
+  const currentlyOnboarding = useMemo(() => {
+    return signupContext.email || signupContext.phoneNumber;
+  }, [signupContext.email, signupContext.phoneNumber]);
 
   usePreloadedEmojis();
 
@@ -67,7 +73,7 @@ const App = () => {
             <LoadingSpinner />
           </View>
         ) : isAuthenticated &&
-          !(signupContext.email || signupContext.phoneNumber) ? (
+          !(currentlyOnboarding || finishingSelfHostedLogin) ? (
           <AuthenticatedApp />
         ) : (
           <OnboardingStack />
@@ -119,9 +125,13 @@ export default function ConnectedApp() {
               <BranchProvider>
                 <PostHogProvider
                   client={posthogAsync}
-                  autocapture
+                  autocapture={{
+                    captureTouches: false,
+                  }}
                   options={{
-                    enable: process.env.NODE_ENV !== 'test',
+                    enable:
+                      process.env.NODE_ENV === 'test' &&
+                      !process.env.POST_HOG_IN_DEV,
                   }}
                 >
                   <GestureHandlerRootView style={{ flex: 1 }}>

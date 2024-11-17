@@ -1,0 +1,52 @@
+import { usePostHog as useWebPosthog } from 'posthog-js/react';
+import { useCallback, useMemo } from 'react';
+
+import { TelemetryClient } from '../types/telemetry';
+
+export function useTelemetry(): TelemetryClient {
+  const posthog = useWebPosthog();
+
+  const optedOut = useMemo(() => {
+    return posthog?.has_opted_in_capturing() ?? false;
+  }, [posthog]);
+
+  const optIn = useCallback(() => {
+    return posthog?.opt_in_capturing();
+  }, [posthog]);
+
+  const optOut = useCallback(() => {
+    return posthog?.opt_out_capturing();
+  }, [posthog]);
+
+  const identify = useCallback(
+    (userId: string) => {
+      return posthog?.identify(userId);
+    },
+    [posthog]
+  );
+
+  const capture = useCallback(
+    (eventName: string, properties?: Record<string, string>) => {
+      return posthog?.capture(eventName, properties);
+    },
+    [posthog]
+  );
+
+  const flush = useCallback(async () => {
+    // TODO: how to send await all pending events sent?
+  }, []);
+
+  const reset = useCallback(() => {
+    return posthog?.reset();
+  }, [posthog]);
+
+  return {
+    optedOut,
+    optIn,
+    optOut,
+    identify,
+    capture,
+    flush,
+    reset,
+  };
+}

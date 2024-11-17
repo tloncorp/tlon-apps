@@ -103,7 +103,15 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setTimeout(() => clear(), 2000);
     }
-  }, [values, bootReport, clear]);
+  }, [
+    values.nickname,
+    values.telemetry,
+    values.notificationToken,
+    values.userWasReadyAt,
+    postHog,
+    bootReport,
+    clear,
+  ]);
 
   useEffect(() => {
     if (values.didCompleteOnboarding && bootPhase === NodeBootPhase.READY) {

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
+import * as SecureStore from 'expo-secure-store';
 
 import {
   StorageConfiguration,
@@ -216,14 +217,15 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
     serialize = JSON.stringify,
     deserialize = JSON.parse,
   } = config;
+  const storage = getStorageMethods(config.isSecure ?? false);
 
   const getValue = async (): Promise<T> => {
-    const value = await AsyncStorage.getItem(key);
+    const value = await storage.getItem(key);
     return value ? deserialize(value) : defaultValue;
   };
 
   const resetValue = async (): Promise<T> => {
-    await AsyncStorage.setItem(key, serialize(defaultValue));
+    await storage.setItem(key, serialize(defaultValue));
     queryClient.invalidateQueries({ queryKey: [key] });
     logger.log(`reset value ${key}`);
     return defaultValue;
@@ -238,7 +240,7 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
       newValue = valueInput;
     }
 
-    await AsyncStorage.setItem(key, serialize(newValue));
+    await storage.setItem(key, serialize(newValue));
     queryClient.invalidateQueries({ queryKey: [key] });
     logger.log(`set value ${key}`, newValue);
   };
@@ -260,6 +262,20 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
   return { getValue, setValue, resetValue, useValue, useStorageItem };
 };
 
+export function getStorageMethods(isSecure: boolean) {
+  if (isSecure) {
+    return {
+      getItem: SecureStore.getItemAsync,
+      setItem: SecureStore.setItemAsync,
+    };
+  }
+
+  return {
+    getItem: AsyncStorage.getItem,
+    setItem: AsyncStorage.setItem,
+  };
+}
+
 export const signupData = createStorageItem<SignupParams>({
   key: 'signupData',
   defaultValue: {
@@ -276,5 +292,15 @@ export const lastAppVersion = createStorageItem<string | null>({
 
 export const didSignUp = createStorageItem<boolean>({
   key: 'didSignUp',
+  defaultValue: false,
+});
+
+export const didInitializeTelemetry = createStorageItem<boolean>({
+  key: 'confirmedAnalyticsOptOut',
+  defaultValue: false,
+});
+
+export const finishingSelfHostedLogin = createStorageItem<boolean>({
+  key: 'finishingSelfHostedLogin',
   defaultValue: false,
 });
