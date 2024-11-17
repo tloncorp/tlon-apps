@@ -84,6 +84,10 @@ export function PostScreenView({
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const currentUserId = useCurrentUserId();
+  const currentUserIsAdmin = utils.useIsAdmin(
+    channel.groupId ?? '',
+    currentUserId
+  );
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
   const postsWithoutParent = useMemo(
@@ -96,6 +100,24 @@ export function PostScreenView({
   const [editorIsFocused, setEditorIsFocused] = useState(false);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
   const flatListRef = useRef<FlatList>(null);
+
+  const showEdit = useMemo(() => {
+    return (
+      !editingPost &&
+      channel.type === 'notebook' &&
+      (parentPost?.authorId === currentUserId || currentUserIsAdmin)
+    );
+  }, [
+    editingPost,
+    channel.type,
+    parentPost?.authorId,
+    currentUserId,
+    currentUserIsAdmin,
+  ]);
+
+  const handleEditPress = useCallback(() => {
+    setEditingPost?.(parentPost ?? undefined);
+  }, [parentPost, setEditingPost]);
 
   // We track the editor focus state to determine when we need to scroll to the
   // bottom of the screen when the keyboard is opened/editor is focused.
@@ -163,9 +185,13 @@ export function PostScreenView({
     if (isEditingParent) {
       console.log('setEditingPost', undefined);
       setEditingPost?.(undefined);
+      if (channel.type !== 'notebook') {
+        goBack?.();
+      }
+    } else {
+      goBack?.();
     }
-    goBack?.();
-  }, [goBack, isEditingParent, setEditingPost]);
+  }, [channel.type, goBack, isEditingParent, setEditingPost]);
 
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
@@ -186,6 +212,8 @@ export function PostScreenView({
               showSpinner={isLoadingPosts}
               post={parentPost ?? undefined}
               mode={headerMode}
+              showEditButton={showEdit}
+              goToEdit={handleEditPress}
             />
             <KeyboardAvoidingView enabled={!activeMessage}>
               {parentPost ? (
@@ -208,29 +236,33 @@ export function PostScreenView({
                 />
               ) : null}
 
-              {negotiationMatch && channel && canWrite && (
-                <BareChatInput
-                  placeholder="Reply"
-                  shouldBlur={inputShouldBlur}
-                  setShouldBlur={setInputShouldBlur}
-                  send={sendReply}
-                  channelId={channel.id}
-                  groupMembers={groupMembers}
-                  storeDraft={storeDraft}
-                  clearDraft={clearDraft}
-                  editingPost={editingPost}
-                  setEditingPost={setEditingPost}
-                  editPost={editPost}
-                  channelType="chat"
-                  getDraft={getDraft}
-                  showAttachmentButton={channel.type === 'chat'}
-                  showInlineAttachments={channel.type === 'chat'}
-                  shouldAutoFocus={
-                    (channel.type === 'chat' && parentPost?.replyCount === 0) ||
-                    !!editingPost
-                  }
-                />
-              )}
+              {negotiationMatch &&
+                channel &&
+                canWrite &&
+                !(isEditingParent && channel.type === 'notebook') && (
+                  <BareChatInput
+                    placeholder="Reply"
+                    shouldBlur={inputShouldBlur}
+                    setShouldBlur={setInputShouldBlur}
+                    send={sendReply}
+                    channelId={channel.id}
+                    groupMembers={groupMembers}
+                    storeDraft={storeDraft}
+                    clearDraft={clearDraft}
+                    editingPost={editingPost}
+                    setEditingPost={setEditingPost}
+                    editPost={editPost}
+                    channelType="chat"
+                    getDraft={getDraft}
+                    showAttachmentButton={channel.type === 'chat'}
+                    showInlineAttachments={channel.type === 'chat'}
+                    shouldAutoFocus={
+                      (channel.type === 'chat' &&
+                        parentPost?.replyCount === 0) ||
+                      !!editingPost
+                    }
+                  />
+                )}
               {!negotiationMatch && channel && canWrite && (
                 <View
                   position={isChatChannel ? undefined : 'absolute'}
