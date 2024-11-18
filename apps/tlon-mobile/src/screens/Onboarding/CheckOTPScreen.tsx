@@ -175,6 +175,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
           phoneNumber:
             otpMethod === 'phone' ? signupContext.phoneNumber! : undefined,
           email: otpMethod === 'email' ? signupContext.email! : undefined,
+          hostingUser: user,
         });
         navigation.navigate('ReserveShip', { user });
       }

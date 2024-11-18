@@ -12,6 +12,7 @@ import React, {
   useState,
 } from 'react';
 import { Alert } from 'react-native';
+import { isWeb } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
 import { useChatOptions, useCurrentUserId } from '../contexts';
@@ -738,36 +739,47 @@ export function ChannelOptions({
                     if (!channel) {
                       return;
                     }
-                    Alert.alert(
-                      `Leave ${title}?`,
-                      'This will be removed from the list',
-                      [
-                        {
-                          text: 'Cancel',
-                          onPress: () => console.log('Cancel Pressed'),
-                          style: 'cancel',
-                        },
-                        {
-                          text: 'Leave',
-                          style: 'destructive',
-                          onPress: () => {
-                            onOpenChange(false);
-                            onPressLeave?.();
-                            if (
-                              channel.type === 'dm' ||
-                              channel.type === 'groupDm'
-                            ) {
-                              store.respondToDMInvite({
-                                channel,
-                                accept: false,
-                              });
-                            } else {
-                              store.leaveGroupChannel(channel.id);
-                            }
+                    if (!isWeb) {
+                      Alert.alert(
+                        `Leave ${title}?`,
+                        'This will be removed from the list',
+                        [
+                          {
+                            text: 'Cancel',
+                            onPress: () => console.log('Cancel Pressed'),
+                            style: 'cancel',
                           },
-                        },
-                      ]
-                    );
+                          {
+                            text: 'Leave',
+                            style: 'destructive',
+                            onPress: () => {
+                              onOpenChange(false);
+                              if (
+                                channel.type === 'dm' ||
+                                channel.type === 'groupDm'
+                              ) {
+                                store.respondToDMInvite({
+                                  channel,
+                                  accept: false,
+                                });
+                              } else {
+                                store.leaveGroupChannel(channel.id);
+                              }
+                            },
+                          },
+                        ]
+                      );
+                      return;
+                    }
+                    onOpenChange(false);
+                    if (channel.type === 'dm' || channel.type === 'groupDm') {
+                      store.respondToDMInvite({
+                        channel,
+                        accept: false,
+                      });
+                    } else {
+                      store.leaveGroupChannel(channel.id);
+                    }
                   },
                 },
               ],
@@ -785,7 +797,6 @@ export function ChannelOptions({
     onPressChannelMembers,
     onPressManageChannels,
     onPressInvite,
-    onPressLeave,
     title,
     onOpenChange,
   ]);

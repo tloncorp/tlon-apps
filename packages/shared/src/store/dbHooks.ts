@@ -138,7 +138,7 @@ export const useIsTlonEmployee = () => {
   return useQuery({
     queryKey: db.IS_TLON_EMPLOYEE_QUERY_KEY,
     queryFn: db.getIsTlonEmployee,
-  });
+  }).data;
 };
 
 export const useCanUpload = () => {

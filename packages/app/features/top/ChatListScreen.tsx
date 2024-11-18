@@ -29,6 +29,7 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
+import { screenNameFromChannelId } from '../../navigation/utils';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 
@@ -166,7 +167,7 @@ export function ChatListScreenView({
         participants: [userId],
       });
       setAddGroupOpen(false);
-      navigation.navigate('Channel', { channelId: dmChannel.id });
+      navigation.navigate('DM', { channelId: dmChannel.id });
     },
     [navigation, setAddGroupOpen]
   );
@@ -191,7 +192,9 @@ export function ChatListScreenView({
       ) {
         navigation.navigate('GroupChannels', { groupId: item.group.id });
       } else {
-        navigation.navigate('Channel', {
+        const screenName = screenNameFromChannelId(item.id);
+
+        navigation.navigate(screenName, {
           channelId: item.id,
           selectedPostId: item.firstUnreadPostId,
         });

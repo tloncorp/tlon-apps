@@ -73,7 +73,7 @@ export function EditProfileScreenView(props: Props) {
       nickname: currentNickname ?? '',
       status: userContact?.status ?? '',
       bio: userContact?.bio ?? '',
-      avatarImage: currentAvatarImage ?? undefined,
+      avatarImage: currentAvatarImage ?? '',
     },
   });
 

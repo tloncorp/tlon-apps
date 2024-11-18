@@ -42,9 +42,6 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
     // Avoid setting credentials method for same reason as above.
     credentials: undefined,
     signal: abortController.signal,
-    // @ts-expect-error This is used by the SSE polyfill to determine whether
-    // to stream the request.
-    reactNative: { textStreaming: true },
   };
   return platformFetch(input, newInit);
 };

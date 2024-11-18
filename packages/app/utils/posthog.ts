@@ -11,6 +11,7 @@ export type OnboardingProperties = {
   email?: string;
   phoneNumber?: string;
   ship?: string;
+  telemetryEnabled?: boolean;
 };
 
 export let posthog: PostHog | undefined;
@@ -19,7 +20,7 @@ export const posthogAsync =
   process.env.NODE_ENV === 'test' && !process.env.POST_HOG_IN_DEV
     ? undefined
     : PostHog.initAsync(POST_HOG_API_KEY, {
-        host: 'https://eu.posthog.com',
+        host: 'https://data-bridge-v1.vercel.app/ingest',
         enable: true,
       });
 
@@ -61,6 +62,7 @@ export const trackError = (
 ) => capture(event, { message, properties });
 
 export const identifyTlonEmployee = () => {
+  db.setIsTlonEmployee(true);
   if (!posthog) {
     console.debug('Identifying as Tlon employee before PostHog is initialized');
     return;
@@ -68,5 +70,4 @@ export const identifyTlonEmployee = () => {
 
   const UUID = posthog.getDistinctId();
   posthog.identify(UUID, { isTlonEmployee: true });
-  db.setIsTlonEmployee(true);
 };

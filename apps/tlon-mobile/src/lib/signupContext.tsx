@@ -7,6 +7,7 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import { SignupParams, didSignUp, signupData } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import PostHog, { usePostHog } from 'posthog-react-native';
 import {
   createContext,
   useCallback,
@@ -14,6 +15,7 @@ import {
   useEffect,
   useState,
 } from 'react';
+import branch from 'react-native-branch';
 
 const logger = createDevLogger('signup', true);
 
@@ -56,6 +58,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
   const [reviveCheckComplete, setReviveCheckComplete] = useState(false);
   const { bootPhase, bootReport, kickOffBootSequence } =
     useBootSequence(values);
+  const postHog = usePostHog();
 
   const setOnboardingValues = useCallback(
     (newValues: Partial<SignupValues>) => {
@@ -80,6 +83,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         nickname: values.nickname,
         telemetry: values.telemetry,
         notificationToken: values.notificationToken,
+        postHog,
       };
       runPostSignupActions(postSignupParams);
       logger.trackEvent('hosted signup report', {
@@ -139,6 +143,7 @@ async function runPostSignupActions(params: {
   nickname?: string;
   telemetry?: boolean;
   notificationToken?: string;
+  postHog?: PostHog;
 }) {
   if (params.nickname) {
     try {
@@ -156,6 +161,15 @@ async function runPostSignupActions(params: {
   if (typeof params.telemetry !== 'undefined') {
     try {
       await api.updateTelemetrySetting(params.telemetry);
+      if (!params.telemetry) {
+        // we give some wiggle room here before disabling telemetry to allow
+        // the initial signup flow to complete before severing analytics
+        const tenMinutes = 10 * 60 * 1000;
+        setTimeout(() => {
+          params.postHog?.optOut();
+          branch.disableTracking(true);
+        }, tenMinutes);
+      }
     } catch (e) {
       logger.trackError('post signup: failed to set telemetry', {
         errorMessage: e.message,

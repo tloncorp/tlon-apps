@@ -136,18 +136,39 @@ export default function BareChatInput({
     [addAttachment]
   );
 
+  const lastProcessedRef = useRef('');
+
   const handleTextChange = (newText: string) => {
     const oldText = text;
 
-    const textWithoutRefs = processReferences(newText);
+    // Only process references if the text contains a reference and hasn't been processed before.
+    // This check prevents infinite loops on native platforms where we manually update
+    // the input's text value using setNativeProps after processing references.
+    // Without this guard, each manual text update would trigger another onChangeText,
+    // creating an endless cycle.
+    if (REF_REGEX.test(newText) && lastProcessedRef.current !== newText) {
+      lastProcessedRef.current = newText;
+      const textWithoutRefs = processReferences(newText);
+      setText(textWithoutRefs);
+      handleMention(oldText, textWithoutRefs);
 
-    setText(textWithoutRefs);
+      const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
+      bareChatInputLogger.log('setting draft', jsonContent);
+      storeDraft(jsonContent);
 
-    handleMention(oldText, textWithoutRefs);
+      // force update the native input's text
+      if (!isWeb) {
+        inputRef.current?.setNativeProps({ text: textWithoutRefs });
+      }
+    } else if (!REF_REGEX.test(newText)) {
+      // if there's no reference to process, just update normally
+      setText(newText);
+      handleMention(oldText, newText);
 
-    const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
-    bareChatInputLogger.log('setting draft', jsonContent);
-    storeDraft(jsonContent);
+      const jsonContent = textAndMentionsToContent(newText, mentions);
+      bareChatInputLogger.log('setting draft', jsonContent);
+      storeDraft(jsonContent);
+    }
   };
 
   const onMentionSelect = useCallback(
@@ -341,6 +362,7 @@ export default function BareChatInput({
       setMentions([]);
       clearAttachments();
       clearDraft();
+      setHasSetInitialContent(false);
     },
     [
       onSend,

@@ -13,6 +13,8 @@ function ContactRowItemRaw({
   selected = false,
   selectable = false,
   onPress,
+  pressStyle,
+  backgroundColor,
   ...rest
 }: {
   contact: db.Contact;
@@ -33,7 +35,12 @@ function ContactRowItemRaw({
   );
 
   return (
-    <Pressable pressStyle={undefined} onPress={handlePress(contact.id)}>
+    <Pressable
+      backgroundColor={backgroundColor}
+      pressStyle={pressStyle}
+      borderRadius="$xl"
+      onPress={handlePress(contact.id)}
+    >
       <ListItem {...rest}>
         <ListItem.ContactIcon contactId={contact.id} />
         <ListItem.MainContent>

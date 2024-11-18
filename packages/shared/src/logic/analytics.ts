@@ -8,4 +8,5 @@ export enum AnalyticsEvent {
   FailedLoginOTP = 'Failed to send Login OTP',
   ContactAdded = 'Contact Added',
   ContactEdited = 'Contact Edited',
+  InvitedUserFailedInventoryCheck = 'Invited User Failed Inventory Check',
 }
