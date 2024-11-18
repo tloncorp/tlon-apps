@@ -187,11 +187,30 @@ export function PostScreenView({
       setEditingPost?.(undefined);
       if (channel.type !== 'notebook') {
         goBack?.();
+      } else {
+        clearDraft();
       }
     } else {
       goBack?.();
     }
-  }, [channel.type, goBack, isEditingParent, setEditingPost]);
+  }, [channel.type, clearDraft, goBack, isEditingParent, setEditingPost]);
+
+  const bareInputDraftProps = useMemo(() => {
+    // For notebook post, the channel draft corresponds to the note
+    // itself (not the reply input)
+    if (channel.type === 'notebook') {
+      return {
+        getDraft: async () => null,
+        storeDraft: () => {},
+        clearDraft: () => {},
+      };
+    }
+    return {
+      getDraft,
+      storeDraft,
+      clearDraft,
+    };
+  }, [channel.type, getDraft, storeDraft, clearDraft]);
 
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
@@ -247,13 +266,11 @@ export function PostScreenView({
                     send={sendReply}
                     channelId={channel.id}
                     groupMembers={groupMembers}
-                    storeDraft={storeDraft}
-                    clearDraft={clearDraft}
+                    {...bareInputDraftProps}
                     editingPost={editingPost}
                     setEditingPost={setEditingPost}
                     editPost={editPost}
                     channelType="chat"
-                    getDraft={getDraft}
                     showAttachmentButton={channel.type === 'chat'}
                     showInlineAttachments={channel.type === 'chat'}
                     shouldAutoFocus={
