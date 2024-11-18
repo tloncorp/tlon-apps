@@ -67,6 +67,11 @@ export const allCollectionRenderers = {
       },
     },
   },
+  'tlon.r0.collection.summaries': {
+    displayName: 'Summaries',
+    enumTag: 'summaries',
+    parametersSchema: standardCollectionParameters(),
+  },
 } as const satisfies Record<string, ComponentSpec>;
 
 export const allDraftInputs = {
@@ -145,6 +150,10 @@ export const allContentRenderers = {
     displayName: 'Yell',
     enumTag: 'yell',
   },
+  'tlon.r0.content.scratchpad': {
+    displayName: 'Scratchpad',
+    enumTag: 'scratchpad',
+  },
 } as const satisfies Record<string, ComponentSpec>;
 
 export const CollectionRendererId = makeEnum(allCollectionRenderers);
@@ -202,6 +211,14 @@ export interface ChannelContentConfiguration {
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace ChannelContentConfiguration {
+  export function defaultConfiguration(): ChannelContentConfiguration {
+    return {
+      draftInput: { id: DraftInputId.chat },
+      defaultPostContentRenderer: { id: PostContentRendererId.chat },
+      defaultPostCollectionRenderer: { id: CollectionRendererId.chat },
+    };
+  }
+
   export function draftInput(
     configuration: ChannelContentConfiguration
   ): ParameterizedId<DraftInputId> {

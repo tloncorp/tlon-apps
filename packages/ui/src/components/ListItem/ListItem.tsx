@@ -197,7 +197,7 @@ export const ListItemPostPreview = ({
   post,
   showAuthor = true,
 }: {
-  post: db.Post;
+  post: Pick<db.Post, 'authorId' | 'textContent' | 'hidden'>;
   showAuthor?: boolean;
 }) => {
   return (

@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
 import * as db from '../db';
-import * as store from '../store';
+import { updateChannel } from '../store/channelActions';
 
 export function useUpdateChannel() {
   return useCallback(
@@ -15,7 +15,7 @@ export function useUpdateChannel() {
         return;
       }
 
-      await store.updateChannel({
+      await updateChannel({
         groupId: group.id,
         channel,
         sectionId: navSection.sectionId,

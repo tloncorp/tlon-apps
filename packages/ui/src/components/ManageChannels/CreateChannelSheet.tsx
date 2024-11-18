@@ -334,11 +334,13 @@ export function UnconnectedChannelConfigurationBar({
         parametersSchema: componentSpec?.parametersSchema,
         onChange: (update) =>
           updateChannelConfiguration?.((prev) => ({
-            ...prev!,
+            ...(prev ?? ChannelContentConfiguration.defaultConfiguration()),
             [field]: applySetStateAction(
               // Use type-coercing getter to upgrade any legacy string values
               // into the {id, parameters} form.
-              ChannelContentConfiguration[field](prev!),
+              prev == null
+                ? undefined
+                : ChannelContentConfiguration[field](prev),
               update
             ),
           })),
