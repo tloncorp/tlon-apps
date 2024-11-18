@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
-import * as SecureStore from 'expo-secure-store';
 
 import {
   StorageConfiguration,
@@ -264,9 +263,11 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
 
 export function getStorageMethods(isSecure: boolean) {
   if (isSecure) {
+    // TODO: update with SecureStore, pulling it in breaks rollup while
+    // running tests
     return {
-      getItem: SecureStore.getItemAsync,
-      setItem: SecureStore.setItemAsync,
+      getItem: AsyncStorage.getItem,
+      setItem: AsyncStorage.setItem,
     };
   }
 
