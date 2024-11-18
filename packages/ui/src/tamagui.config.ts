@@ -1,7 +1,7 @@
 import { createAnimations } from '@tamagui/animations-moti';
 import { createMedia } from '@tamagui/react-native-media-driver';
 import { Platform } from 'react-native';
-import { createFont, createTamagui, createTokens } from 'tamagui';
+import { createFont, createTamagui, createTokens, isWeb } from 'tamagui';
 
 export const animations = createAnimations({
   simple: {
@@ -232,28 +232,42 @@ export const themes = {
   },
 };
 
+const adjustedFontSize = (size: number) => {
+  if (isWeb) {
+    return size - 2;
+  }
+  return size;
+};
+
+const adjustedLineHeight = (size: number) => {
+  if (isWeb) {
+    return size - 2;
+  }
+  return size;
+};
+
 export const systemFont = createFont({
   family:
     'System, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   size: {
-    xs: 12,
-    s: 14,
-    m: 16,
-    true: 16,
-    l: 17,
-    xl: 24,
+    xs: adjustedFontSize(12),
+    s: adjustedFontSize(14),
+    m: adjustedFontSize(16),
+    true: adjustedFontSize(16),
+    l: adjustedFontSize(17),
+    xl: adjustedFontSize(24),
     // TODO: resolve this with Ochre later, sorry for the inconsistency
-    l2: 32,
+    l2: adjustedFontSize(32),
     // xl is used for emoji-only messages
-    '2xl': 36,
-    '3xl': 44,
+    '2xl': adjustedFontSize(36),
+    '3xl': adjustedFontSize(44),
   },
   lineHeight: {
-    xs: 16,
-    s: 22,
-    m: 24,
-    l: 24,
-    true: 24,
+    xs: adjustedLineHeight(16),
+    s: adjustedLineHeight(22),
+    m: adjustedLineHeight(24),
+    l: adjustedLineHeight(24),
+    true: adjustedLineHeight(24),
   },
   weight: {
     s: '400',
@@ -270,19 +284,19 @@ export const systemFont = createFont({
 export const serifFont = createFont({
   family: 'Georgia',
   size: {
-    xs: 12,
-    s: 14,
-    m: 16,
-    true: 16,
-    l: 17,
-    xl: 32,
-    '2xl': 44,
+    xs: adjustedFontSize(12),
+    s: adjustedFontSize(14),
+    m: adjustedFontSize(16),
+    true: adjustedFontSize(16),
+    l: adjustedFontSize(17),
+    xl: adjustedFontSize(32),
+    '2xl': adjustedFontSize(44),
   },
   lineHeight: {
-    s: 22,
-    m: 24,
-    true: 24,
-    xl: 40,
+    s: adjustedLineHeight(22),
+    m: adjustedLineHeight(24),
+    true: adjustedLineHeight(24),
+    xl: adjustedLineHeight(40),
   },
   weight: {
     s: '400',
@@ -303,15 +317,15 @@ export const monoFont = createFont({
     default: 'monospace',
   }),
   size: {
-    s: 14,
-    m: 14,
-    true: 15,
-    l: 15,
-    xl: 15,
-    '2xl': 15,
+    s: adjustedFontSize(14),
+    m: adjustedFontSize(14),
+    true: adjustedFontSize(15),
+    l: adjustedFontSize(15),
+    xl: adjustedFontSize(15),
+    '2xl': adjustedFontSize(15),
   },
   lineHeight: {
-    l: 19,
+    l: adjustedLineHeight(19),
   },
   weight: {
     l: '200',
