@@ -20,6 +20,7 @@ import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
+import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
 import {
   LoadingSpinner,
   PortalProvider,
@@ -27,7 +28,6 @@ import {
   View,
   usePreloadedEmojis,
 } from '@tloncorp/ui';
-import { finishingSelfHostedLogin as selfHostedLoginStatus } from 'packages/shared/src/db';
 import { PostHogProvider } from 'posthog-react-native';
 import type { PropsWithChildren } from 'react';
 import { useEffect, useMemo, useState } from 'react';
