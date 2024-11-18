@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -253,6 +254,17 @@ export function GroupOptions({
     onOpenChange,
   ]);
 
+  const { data: groupUnread } = useQuery({
+    queryKey: ['groupUnread', group.id],
+
+    queryFn: async () => db.getGroupUnread({ groupId: group.id }),
+  });
+
+  const handleMarkAllRead = useCallback(() => {
+    store.markGroupRead(group, true);
+    onOpenChange(false);
+  }, [group, onOpenChange]);
+
   const actionGroups = useMemo(() => {
     const groupRef = logic.getGroupReferencePath(group.id);
 
@@ -267,6 +279,16 @@ export function GroupOptions({
             },
             endIcon: 'ChevronRight',
           },
+          ...(groupUnread?.count
+            ? [
+                {
+                  title: 'Mark all as read',
+                  action: () => {
+                    handleMarkAllRead();
+                  },
+                },
+              ]
+            : []),
           {
             title: isPinned ? 'Unpin' : 'Pin',
             endIcon: 'Pin',
