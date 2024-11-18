@@ -199,7 +199,6 @@ export default {
     <SingleScreenFixture
       routeName="SetTelemetry"
       Component={SetTelemetryScreen}
-      params={{ user: sampleUser }}
     />
   ),
   Welcome: (
