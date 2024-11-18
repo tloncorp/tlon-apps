@@ -72,6 +72,7 @@ export function NotebookInput({
           draftInputContext={draftInputContext}
           setShowBigInput={setShowBigInput}
           hidden={!showBigInput}
+          overrideChannelType="notebook"
         />
 
         {headerMode === 'next' && !showBigInput && (
