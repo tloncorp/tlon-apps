@@ -208,7 +208,11 @@ export function ChatListScreenView({
       if (item.pin?.type === 'channel' || !item.group) {
         chatOptionsSheetRef.current?.open(item.id, item.type);
       } else {
-        chatOptionsSheetRef.current?.open(item.group.id, 'group');
+        chatOptionsSheetRef.current?.open(
+          item.group.id,
+          'group',
+          item.group.unread?.count ?? undefined
+        );
       }
     }
   }, []);

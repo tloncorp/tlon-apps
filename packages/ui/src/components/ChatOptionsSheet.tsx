@@ -26,7 +26,7 @@ import { ListItem } from './ListItem';
 export type ChatType = 'group' | db.ChannelType;
 
 export type ChatOptionsSheetMethods = {
-  open: (chatId: string, chatType: ChatType) => void;
+  open: (chatId: string, chatType: ChatType, unreadCount?: number) => void;
 };
 
 export type ChatOptionsSheetRef = React.Ref<ChatOptionsSheetMethods>;
@@ -42,14 +42,18 @@ const ChatOptionsSheetComponent = React.forwardRef<
   ChatOptionsSheetProps
 >(function ChatOptionsSheetImpl(props, ref) {
   const [open, setOpen] = useState(false);
-  const [chat, setChat] = useState<{ type: ChatType; id: string } | null>(null);
+  const [chat, setChat] = useState<{
+    type: ChatType;
+    id: string;
+    unreadCount?: number;
+  } | null>(null);
 
   useImperativeHandle(
     ref,
     () => ({
-      open: (chatId, chatType) => {
+      open: (chatId, chatType, unreadCount) => {
         setOpen(true);
-        setChat({ id: chatId, type: chatType });
+        setChat({ id: chatId, type: chatType, unreadCount });
       },
     }),
     []
@@ -66,6 +70,7 @@ const ChatOptionsSheetComponent = React.forwardRef<
         open={open}
         onOpenChange={setOpen}
         setSortBy={props.setSortBy}
+        unreadCount={chat.unreadCount}
       />
     );
   }
@@ -86,11 +91,13 @@ export function GroupOptionsSheetLoader({
   open,
   onOpenChange,
   setSortBy,
+  unreadCount,
 }: {
   groupId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   setSortBy?: (sortBy: db.ChannelSortPreference) => void;
+  unreadCount?: number;
 }) {
   const groupQuery = store.useGroup({ id: groupId });
   const [pane, setPane] = useState<
@@ -114,6 +121,7 @@ export function GroupOptionsSheetLoader({
         setPane={setPane}
         setSortBy={setSortBy}
         onOpenChange={onOpenChange}
+        unreadCount={unreadCount}
       />
     </ActionSheet>
   ) : null;
@@ -125,12 +133,14 @@ export function GroupOptions({
   setPane,
   setSortBy,
   onOpenChange,
+  unreadCount,
 }: {
   group: db.Group;
   pane: 'initial' | 'edit' | 'notifications' | 'sort';
   setPane: (pane: 'initial' | 'edit' | 'notifications' | 'sort') => void;
   setSortBy?: (sortBy: db.ChannelSortPreference) => void;
   onOpenChange: (open: boolean) => void;
+  unreadCount?: number;
 }) {
   const currentUser = useCurrentUserId();
   const { data: currentVolumeLevel } = store.useGroupVolumeLevel(group.id);
@@ -279,16 +289,16 @@ export function GroupOptions({
             },
             endIcon: 'ChevronRight',
           },
-          ...(groupUnread?.count
-            ? [
+          ...(unreadCount === 0 || groupUnread?.count === 0
+            ? []
+            : [
                 {
                   title: 'Mark all as read',
                   action: () => {
                     handleMarkAllRead();
                   },
                 },
-              ]
-            : []),
+              ]),
           {
             title: isPinned ? 'Unpin' : 'Pin',
             endIcon: 'Pin',
@@ -387,14 +397,17 @@ export function GroupOptions({
     return actionGroups;
   }, [
     group,
+    unreadCount,
+    groupUnread?.count,
     isPinned,
+    onTogglePinned,
     currentUserIsAdmin,
     setPane,
-    onTogglePinned,
+    handleMarkAllRead,
     onPressGroupMembers,
+    onOpenChange,
     onPressInvite,
     onPressLeave,
-    onOpenChange,
   ]);
 
   const actionSort: ActionGroup[] = useMemo(() => {
