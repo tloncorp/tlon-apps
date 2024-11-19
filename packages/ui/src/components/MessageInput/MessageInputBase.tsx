@@ -5,7 +5,14 @@ import { ImagePickerAsset } from 'expo-image-picker';
 import { memo } from 'react';
 import { PropsWithChildren } from 'react';
 import { SpaceTokens } from 'tamagui';
-import { ThemeTokens, View, XStack, YStack } from 'tamagui';
+import {
+  ThemeTokens,
+  View,
+  XStack,
+  YStack,
+  getVariableValue,
+  useTheme,
+} from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
 import { Button } from '../Button';
@@ -100,10 +107,17 @@ export const MessageInputContainer = memo(
   }>) => {
     const { canUpload } = useAttachmentContext();
 
+    const defaultBackgroundColor = getVariableValue(useTheme().background);
+    const secondaryBackgroundColor = getVariableValue(
+      useTheme().secondaryBackground
+    );
+
     return (
       <YStack
         width="100%"
-        backgroundColor={isEditing ? '$secondaryBackground' : '$background'}
+        backgroundColor={
+          isEditing ? secondaryBackgroundColor : defaultBackgroundColor
+        }
       >
         <InputMentionPopup
           containerHeight={containerHeight}
