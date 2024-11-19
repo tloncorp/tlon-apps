@@ -19,11 +19,20 @@ function SummaryMessageRaw({
   const plural = summary.all.length > 1;
   const authors = useActivitySummaryAuthors(summary);
 
+  console.log(`summary message debug`, {
+    relevancy,
+    newest,
+    count,
+    plural,
+    authors,
+  });
+
   if (
     authors.length === 1 &&
     relevancy !== 'groupJoinRequest' &&
     relevancy !== 'flaggedPost' &&
-    relevancy !== 'flaggedReply'
+    relevancy !== 'flaggedReply' &&
+    relevancy !== 'contactUpdate'
   ) {
     return null;
   }
@@ -125,6 +134,16 @@ function SummaryMessageRaw({
       </SummaryText>
     );
   }
+
+  if (relevancy === 'contactUpdate') {
+    const message = ` updated their ${contactUpdateNoun(newest)}`;
+    return (
+      <SummaryText>
+        <ActivitySummaryAuthorList contactIds={authors} />
+        {message}
+      </SummaryText>
+    );
+  }
 }
 
 export const SummaryMessage = React.memo(SummaryMessageRaw);
@@ -147,6 +166,21 @@ function postVerb(channelType: string) {
       : 'sent';
 }
 
+function contactUpdateNoun(event: db.ActivityEvent) {
+  if (!event.contactUpdateType) {
+    return '';
+  }
+  if (event.contactUpdateType === 'pinnedGroups') {
+    return 'favorite groups';
+  }
+
+  if (event.contactUpdateType === 'avatarImage') {
+    return 'avatar';
+  }
+
+  return event.contactUpdateType;
+}
+
 type ActivityRelevancy =
   | 'mention'
   | 'involvedThread'
@@ -158,7 +192,8 @@ type ActivityRelevancy =
   | 'postToChannel'
   | 'flaggedPost'
   | 'flaggedReply'
-  | 'groupJoinRequest';
+  | 'groupJoinRequest'
+  | 'contactUpdate';
 
 export function getRelevancy(
   summary: logic.SourceActivityEvents,
@@ -218,6 +253,10 @@ export function getRelevancy(
     return 'groupJoinRequest';
   }
 
+  if (newest.type === 'contact') {
+    return 'contactUpdate';
+  }
+
   console.log(
     'Unknown relevancy type for activity summary. Defaulting to involvedThread.',
     summary
@@ -268,6 +307,9 @@ export function ActivitySummaryAuthorList({
 
 export function useActivitySummaryAuthors(summary: logic.SourceActivityEvents) {
   return useMemo(() => {
+    if (summary.type === 'contact') {
+      return [summary.newest.contactUserId ?? ''];
+    }
     const firstAuthorId = db.isGroupEvent(summary.newest)
       ? summary.newest.groupEventUserId
       : summary.newest.authorId;

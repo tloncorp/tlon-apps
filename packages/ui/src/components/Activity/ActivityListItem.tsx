@@ -31,7 +31,8 @@ export const ActivityListItem = React.memo(function ActivityListItem({
     event.type === 'reply' ||
     event.type === 'flag-post' ||
     event.type === 'flag-reply' ||
-    event.type === 'group-ask'
+    event.type === 'group-ask' ||
+    event.type === 'contact'
   ) {
     return (
       <Pressable onPress={handlePress}>
@@ -99,7 +100,12 @@ export function ActivityListItemContent({
       <ContactAvatar
         size="$3.5xl"
         innerSigilSize={16}
-        contactId={newestPost.authorId ?? newestPost.groupEventUserId ?? ''}
+        contactId={
+          newestPost.authorId ??
+          newestPost.groupEventUserId ??
+          newestPost.contactUserId ??
+          ''
+        }
       />
       <ActivitySummaryContent>
         <ActivitySummaryHeader
@@ -112,7 +118,7 @@ export function ActivityListItemContent({
 
         <YStack>
           <SummaryMessage summary={summary} />
-          {summary.type !== 'group-ask' ? (
+          {!['group-ask'].includes(summary.type) ? (
             <ActivitySourceContent
               summary={summary}
               pressHandler={pressHandler}

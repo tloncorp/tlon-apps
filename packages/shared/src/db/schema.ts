@@ -195,12 +195,46 @@ export const activityEvents = sqliteTable(
     shouldNotify: boolean('should_notify'),
     content: text('content', { mode: 'json' }),
     groupEventUserId: text('group_event_user_id'),
+    contactUserId: text('contact_user_id'),
+    contactUpdateType: text('contact_update_type'),
+    contactUpdateValue: text('contact_update_value'),
   },
   (table) => {
     return {
       pk: primaryKey({ columns: [table.id, table.bucketId] }),
     };
   }
+);
+
+export const activityEventContactGroups = sqliteTable(
+  'activyt_event_contact_group_pins',
+  {
+    activityEventId: text('activity_event_id')
+      .references(() => activityEvents.id, { onDelete: 'cascade' })
+      .notNull(),
+    groupId: text('group_id')
+      .references(() => groups.id)
+      .notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.activityEventId, table.groupId] }),
+    };
+  }
+);
+
+export const activityEventContactGroupRelations = relations(
+  activityEventContactGroups,
+  ({ one }) => ({
+    activityEvent: one(activityEvents, {
+      fields: [activityEventContactGroups.activityEventId],
+      references: [activityEvents.id],
+    }),
+    group: one(groups, {
+      fields: [activityEventContactGroups.groupId],
+      references: [groups.id],
+    }),
+  })
 );
 
 export const activityRelations = relations(activityEvents, ({ one, many }) => ({
@@ -232,6 +266,7 @@ export const activityRelations = relations(activityEvents, ({ one, many }) => ({
     fields: [activityEvents.groupEventUserId],
     references: [contacts.id],
   }),
+  contactUpdateGroups: many(activityEventContactGroups),
 }));
 
 export type PinType = 'group' | 'channel' | 'dm' | 'groupDm';

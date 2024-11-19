@@ -7,6 +7,7 @@ import { useCallback, useMemo } from 'react';
 
 // import ErrorBoundary from '../../ErrorBoundary';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
 import { screenNameFromChannelId } from '../../navigation/utils';
@@ -17,6 +18,7 @@ export function ActivityScreen(props: Props) {
   const isFocused = useIsFocused();
   const currentUserId = useCurrentUserId();
   const [contactsTabEnabled] = useFeatureFlag('contactsTab');
+  const { performGroupAction } = useGroupActions();
 
   const allFetcher = store.useInfiniteBucketedActivity('all');
   const mentionsFetcher = store.useInfiniteBucketedActivity('mentions');
@@ -78,6 +80,7 @@ export function ActivityScreen(props: Props) {
         goToThread={handleGoToThread}
         goToGroup={handleGoToGroup}
         refresh={handleRefreshActivity}
+        onGroupAction={performGroupAction}
       />
       <NavBarView
         navigateToContacts={() => props.navigation.navigate('Contacts')}

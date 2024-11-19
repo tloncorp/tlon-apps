@@ -1,3 +1,11 @@
+CREATE TABLE `activyt_event_contact_group_pins` (
+	`activity_event_id` text NOT NULL,
+	`group_id` text NOT NULL,
+	PRIMARY KEY(`activity_event_id`, `group_id`),
+	FOREIGN KEY (`activity_event_id`) REFERENCES `activity_events`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
 CREATE TABLE `activity_events` (
 	`id` text NOT NULL,
 	`bucket_id` text NOT NULL,
@@ -14,6 +22,9 @@ CREATE TABLE `activity_events` (
 	`should_notify` integer,
 	`content` text,
 	`group_event_user_id` text,
+	`contact_user_id` text,
+	`contact_update_type` text,
+	`contact_update_value` text,
 	PRIMARY KEY(`id`, `bucket_id`)
 );
 --> statement-breakpoint

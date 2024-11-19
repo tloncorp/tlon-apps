@@ -1,9 +1,68 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "0f12a28f-e94f-4b26-88aa-d6990e49e24b",
+  "id": "edfc5907-3919-463f-a0c7-85aae50e6acc",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "activyt_event_contact_group_pins": {
+      "name": "activyt_event_contact_group_pins",
+      "columns": {
+        "activity_event_id": {
+          "name": "activity_event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "activyt_event_contact_group_pins_activity_event_id_activity_events_id_fk": {
+          "name": "activyt_event_contact_group_pins_activity_event_id_activity_events_id_fk",
+          "tableFrom": "activyt_event_contact_group_pins",
+          "tableTo": "activity_events",
+          "columnsFrom": [
+            "activity_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "activyt_event_contact_group_pins_group_id_groups_id_fk": {
+          "name": "activyt_event_contact_group_pins_group_id_groups_id_fk",
+          "tableFrom": "activyt_event_contact_group_pins",
+          "tableTo": "groups",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "activyt_event_contact_group_pins_activity_event_id_group_id_pk": {
+          "columns": [
+            "activity_event_id",
+            "group_id"
+          ],
+          "name": "activyt_event_contact_group_pins_activity_event_id_group_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "activity_events": {
       "name": "activity_events",
       "columns": {
@@ -107,6 +166,27 @@
         },
         "group_event_user_id": {
           "name": "group_event_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contact_user_id": {
+          "name": "contact_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contact_update_type": {
+          "name": "contact_update_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contact_update_value": {
+          "name": "contact_update_value",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

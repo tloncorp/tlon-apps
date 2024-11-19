@@ -1,10 +1,10 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { useMemo } from 'react';
-import { ScrollView, styled } from 'tamagui';
+import { ScrollView, YStack, styled } from 'tamagui';
 
 import { useContactName } from '../ContactNameV2';
-import { PostReference } from '../ContentReference';
+import { ContentReferenceLoader, PostReference } from '../ContentReference';
 import { GalleryPost } from '../GalleryPost';
 import { Icon } from '../Icon';
 import { createContentRenderer } from '../PostContent';
@@ -29,6 +29,16 @@ export function ActivitySourceContent({
   const isChatPost =
     summary.newest.channel?.type !== 'gallery' &&
     summary.newest.channel?.type !== 'notebook';
+
+  if (summary.newest.type === 'contact') {
+    return (
+      <ContactUpdateContentRenderer
+        summary={summary}
+        pressHandler={pressHandler}
+      />
+    );
+  }
+
   return isReply || isChatPost ? (
     <ChatContentRenderer summary={summary} pressHandler={pressHandler} />
   ) : (
@@ -37,6 +47,47 @@ export function ActivitySourceContent({
       pressHandler={pressHandler}
     />
   );
+}
+
+function ContactUpdateContentRenderer({ summary }: ActivitySourceContentProps) {
+  const newest = summary.newest;
+  if (newest.contactUpdateType === 'status') {
+    return (
+      <Text size="$label/m" color="$primaryText" marginVertical="$m">
+        {newest.contactUpdateValue}
+      </Text>
+    );
+  }
+
+  if (newest.contactUpdateType === 'pinnedGroups') {
+    const groups =
+      (newest.contactUpdateGroups
+        ?.map((ug) => ug.group)
+        .filter((g) => g) as db.Group[]) ?? [];
+
+    console.log('con update groups renderer', groups);
+
+    if (!groups.length) {
+      return null;
+    }
+
+    return (
+      <YStack marginVertical="$m" gap="$m">
+        {groups.map((group) => (
+          <ContentReferenceLoader
+            key={group.id}
+            reference={{
+              type: 'reference',
+              referenceType: 'group',
+              groupId: group.id,
+            }}
+          />
+        ))}
+      </YStack>
+    );
+  }
+
+  return null;
 }
 
 function ChatContentRenderer({ summary }: ActivitySourceContentProps) {

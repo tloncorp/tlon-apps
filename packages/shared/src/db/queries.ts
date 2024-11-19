@@ -46,6 +46,7 @@ import {
   withTransactionCtx,
 } from './query';
 import {
+  activityEventContactGroups as $activityEventContactGroups,
   activityEvents as $activityEvents,
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
@@ -3013,14 +3014,55 @@ export const clearThreadUnread = createWriteQuery(
 export const insertActivityEvents = createWriteQuery(
   'insertActivityEvents',
   async (events: ActivityEvent[], ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
     if (events.length === 0) return;
-    return ctx.db
-      .insert($activityEvents)
-      .values(events)
-      .onConflictDoUpdate({
-        target: [$activityEvents.id, $activityEvents.bucketId],
-        set: conflictUpdateSetAll($activityEvents),
-      });
+
+    const activityEventGroups = events.flatMap(
+      (contact) => contact.contactUpdateGroups || []
+    );
+
+    const targetGroups = activityEventGroups.map((g): Group => {
+      const { host: hostUserId } = parseGroupId(g.groupId);
+      return {
+        id: g.groupId,
+        hostUserId,
+        privacy: g.group?.privacy,
+        currentUserIsMember: false,
+        currentUserIsHost: currentUserId === hostUserId,
+      };
+    });
+
+    // return ctx.db
+    //   .insert($activityEvents)
+    //   .values(events)
+    //   .onConflictDoUpdate({
+    //     target: [$activityEvents.id, $activityEvents.bucketId],
+    //     set: conflictUpdateSetAll($activityEvents),
+    //   });
+
+    await withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .insert($activityEvents)
+        .values(events)
+        .onConflictDoUpdate({
+          target: [$activityEvents.id, $activityEvents.bucketId],
+          set: conflictUpdateSetAll($activityEvents),
+        });
+
+      if (targetGroups.length) {
+        await txCtx.db
+          .insert($groups)
+          .values(targetGroups)
+          .onConflictDoNothing();
+      }
+
+      if (activityEventGroups.length) {
+        await txCtx.db
+          .insert($activityEventContactGroups)
+          .values(activityEventGroups)
+          .onConflictDoNothing();
+      }
+    });
   },
   ['activityEvents']
 );
@@ -3264,6 +3306,11 @@ export const getAllOrRepliesPage = createReadQuery(
               },
             },
             groupEventUser: true,
+            contactUpdateGroups: {
+              with: {
+                group: true,
+              },
+            },
           },
         });
       } else {

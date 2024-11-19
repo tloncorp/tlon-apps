@@ -2,6 +2,7 @@ import { parseUd } from '@urbit/aura';
 import _ from 'lodash';
 
 import { Kind, Story } from './channel';
+import { ContactBookProfile } from './contact';
 import { nestToFlag, whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
 
 export type Whom = { ship: string } | { club: string };
@@ -22,7 +23,8 @@ export type ExtendedEventType =
   | 'group-invite'
   | 'group-role'
   | 'flag-post'
-  | 'flag-reply';
+  | 'flag-reply'
+  | 'contact';
 
 export type NotificationLevel = 'hush' | 'soft' | 'default' | 'medium' | 'loud';
 
@@ -154,6 +156,13 @@ export interface ReplyEvent {
   };
 }
 
+export interface ContactEvent {
+  contact: {
+    who: string;
+    update: ContactBookProfile;
+  };
+}
+
 export type ActivityIncomingEvent =
   | GroupKickEvent
   | GroupJoinEvent
@@ -166,7 +175,8 @@ export type ActivityIncomingEvent =
   | DmPostEvent
   | DmReplyEvent
   | PostEvent
-  | ReplyEvent;
+  | ReplyEvent
+  | ContactEvent;
 
 export type ActivityEvent = {
   notified: boolean;

@@ -22,11 +22,11 @@ const inputContact: [string, any] = [
 
 const outputContact = {
   id: 'test',
-  avatarImage: null,
+  peerAvatarImage: null,
+  peerNickname: 'galen',
   coverImage:
     'https://20-urbit.s3.us-west-1.amazonaws.com/ravmel-ropdyl/2021.2.13..00.31.09-Manaslu-crevasses.jpg',
   bio: 'happy to chat, send a dm any time',
-  nickname: 'galen',
   status: 'listening to music',
   color: '#FFFFFF',
   pinnedGroups: [

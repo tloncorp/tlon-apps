@@ -76,7 +76,10 @@ export function toSourceActivityEvents(
   const eventsList: SourceActivityEvents[] = [];
 
   events.forEach((event) => {
-    const key = event.sourceId;
+    const key =
+      event.type === 'contact'
+        ? `/contact/${event.contactUserId}/${event.id}` // contact events should never be rolled up
+        : event.sourceId;
     // If we already have an entry for this channel/thread
     if (eventMap.has(key)) {
       const existing = eventMap.get(key);
