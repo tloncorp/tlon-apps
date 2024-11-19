@@ -86,7 +86,7 @@ export default function BareChatInput({
     resetAttachments,
     waitForAttachmentUploads,
   } = useAttachmentContext();
-  const [text, setText] = useState('');
+  const [controlledText, setControlledText] = useState('');
   const [inputHeight, setInputHeight] = useState(initialHeight);
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState(false);
@@ -136,59 +136,37 @@ export default function BareChatInput({
     [addAttachment]
   );
 
-  const lastProcessedRef = useRef('');
-
   const handleTextChange = (newText: string) => {
-    const oldText = text;
+    const oldText = controlledText;
 
-    // Only process references if the text contains a reference and hasn't been processed before.
-    // This check prevents infinite loops on native platforms where we manually update
-    // the input's text value using setNativeProps after processing references.
-    // Without this guard, each manual text update would trigger another onChangeText,
-    // creating an endless cycle.
-    if (REF_REGEX.test(newText) && lastProcessedRef.current !== newText) {
-      lastProcessedRef.current = newText;
-      const textWithoutRefs = processReferences(newText);
-      setText(textWithoutRefs);
-      handleMention(oldText, textWithoutRefs);
+    const textWithoutRefs = processReferences(newText);
 
-      const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
-      bareChatInputLogger.log('setting draft', jsonContent);
-      storeDraft(jsonContent);
+    setControlledText(textWithoutRefs);
+    handleMention(oldText, newText);
 
-      // force update the native input's text
-      if (!isWeb) {
-        inputRef.current?.setNativeProps({ text: textWithoutRefs });
-      }
-    } else if (!REF_REGEX.test(newText)) {
-      // if there's no reference to process, just update normally
-      setText(newText);
-      handleMention(oldText, newText);
-
-      const jsonContent = textAndMentionsToContent(newText, mentions);
-      bareChatInputLogger.log('setting draft', jsonContent);
-      storeDraft(jsonContent);
-    }
+    const jsonContent = textAndMentionsToContent(newText, mentions);
+    bareChatInputLogger.log('setting draft', jsonContent);
+    storeDraft(jsonContent);
   };
 
   const onMentionSelect = useCallback(
     (contact: db.Contact) => {
-      const newText = handleSelectMention(contact, text);
+      const newText = handleSelectMention(contact, controlledText);
 
       if (!newText) {
         return;
       }
 
-      setText(newText);
+      setControlledText(newText);
 
       // Force focus back to input after mention selection
       inputRef.current?.focus();
     },
-    [handleSelectMention, text]
+    [handleSelectMention, controlledText]
   );
 
-  const renderTextWithMentionsWeb = useMemo(() => {
-    if (!text || mentions.length === 0) {
+  const renderTextWithMentions = useMemo(() => {
+    if (!controlledText || mentions.length === 0) {
       return null;
     }
 
@@ -199,7 +177,7 @@ export default function BareChatInput({
     if (sortedMentions[0].start > 0) {
       textParts.push(
         <RawText key="text-start" color="transparent">
-          {text.slice(0, sortedMentions[0].start)}
+          {controlledText.slice(0, sortedMentions[0].start)}
         </RawText>
       );
     }
@@ -217,65 +195,23 @@ export default function BareChatInput({
       );
 
       // Add text between this mention and the next one (or end of text)
-      const nextStart = sortedMentions[index + 1]?.start ?? text.length;
+      const nextStart =
+        sortedMentions[index + 1]?.start ?? controlledText.length;
       if (mention.end < nextStart) {
         textParts.push(
           <RawText key={`text-${index}`} color="transparent">
-            {text.slice(mention.end, nextStart)}
+            {controlledText.slice(mention.end, nextStart)}
           </RawText>
         );
       }
     });
 
     return textParts;
-  }, [mentions, text]);
-
-  const renderTextWithMentions = useMemo(() => {
-    if (!text || mentions.length === 0) {
-      return <RawText color="$primaryText">{text}</RawText>;
-    }
-
-    const sortedMentions = [...mentions].sort((a, b) => a.start - b.start);
-    const textParts: JSX.Element[] = [];
-
-    // Handle text before first mention
-    if (sortedMentions[0].start > 0) {
-      textParts.push(
-        <RawText key="text-start" color="$primaryText">
-          {text.slice(0, sortedMentions[0].start)}
-        </RawText>
-      );
-    }
-
-    // Handle mentions and text between them
-    sortedMentions.forEach((mention, index) => {
-      textParts.push(
-        <Text
-          key={`mention-${mention.id}-${index}`}
-          color="$positiveActionText"
-          backgroundColor="$positiveBackground"
-        >
-          {mention.display}
-        </Text>
-      );
-
-      // Add text between this mention and the next one (or end of text)
-      const nextStart = sortedMentions[index + 1]?.start ?? text.length;
-      if (mention.end < nextStart) {
-        textParts.push(
-          <RawText key={`text-${index}`} color="$primaryText">
-            {text.slice(mention.end, nextStart)}
-          </RawText>
-        );
-      }
-    });
-
-    return textParts;
-  }, [mentions, text]);
+  }, [mentions, controlledText]);
 
   const sendMessage = useCallback(
     async (isEdit?: boolean) => {
-      const jsonContent = textAndMentionsToContent(text, mentions);
+      const jsonContent = textAndMentionsToContent(controlledText, mentions);
       const inlines = JSONToInlines(jsonContent);
       const story = constructStory(inlines);
 
@@ -358,7 +294,7 @@ export default function BareChatInput({
       }
 
       onSend?.();
-      setText('');
+      setControlledText('');
       setMentions([]);
       clearAttachments();
       clearDraft();
@@ -367,7 +303,7 @@ export default function BareChatInput({
     [
       onSend,
       mentions,
-      text,
+      controlledText,
       waitForAttachmentUploads,
       editingPost,
       clearAttachments,
@@ -439,8 +375,8 @@ export default function BareChatInput({
 
   // Check if editor is empty
   useEffect(() => {
-    setEditorIsEmpty(text === '' && attachments.length === 0);
-  }, [text, attachments]);
+    setEditorIsEmpty(controlledText === '' && attachments.length === 0);
+  }, [controlledText, attachments]);
 
   // Set initial content from draft or post that is being edited
   useEffect(() => {
@@ -464,7 +400,7 @@ export default function BareChatInput({
               text,
               mentions
             );
-            setText(text);
+            setControlledText(text);
             setMentions(mentions);
           }
 
@@ -514,7 +450,7 @@ export default function BareChatInput({
             bareChatInputLogger.log('jsonContent', jsonContent);
             const { text, mentions } = contentToTextAndMentions(jsonContent);
             bareChatInputLogger.log('setting initial content', text, mentions);
-            setText(text);
+            setControlledText(text);
             setMentions(mentions);
             setEditorIsEmpty(false);
             setHasSetInitialContent(true);
@@ -547,7 +483,7 @@ export default function BareChatInput({
   const handleCancelEditing = useCallback(() => {
     setEditingPost?.(undefined);
     setHasSetInitialContent(false);
-    setText('');
+    setControlledText('');
     clearDraft();
     clearAttachments();
   }, [setEditingPost, clearDraft, clearAttachments]);
@@ -610,7 +546,7 @@ export default function BareChatInput({
         {showInlineAttachments && <AttachmentPreviewList />}
         <TextInput
           ref={inputRef}
-          value={isWeb ? text : undefined}
+          value={controlledText}
           onChangeText={handleTextChange}
           onChange={isWeb ? adjustTextInputSize : undefined}
           onLayout={isWeb ? adjustTextInputSize : undefined}
@@ -641,20 +577,22 @@ export default function BareChatInput({
             ...placeholderTextColor,
             ...(isWeb ? { outlineStyle: 'none' } : {}),
           }}
-        >
-          {isWeb ? undefined : renderTextWithMentions}
-        </TextInput>
-        {isWeb && mentions.length > 0 && (
-          <View height={inputHeight} position="absolute" pointerEvents="none">
+        />
+        {mentions.length > 0 && (
+          <View
+            height={isWeb ? inputHeight : undefined}
+            position="absolute"
+            pointerEvents="none"
+          >
             <RawText
               paddingHorizontal="$l"
-              paddingTop={getTokenValue('$m', 'space') + 3}
+              paddingTop={isWeb ? getTokenValue('$l', 'space') : undefined}
               fontSize="$m"
-              lineHeight={getFontSize('$m') * 1.2}
+              lineHeight={isWeb ? getFontSize('$m') * 1.2 : undefined}
               letterSpacing={-0.032}
               color="$primaryText"
             >
-              {renderTextWithMentionsWeb}
+              {renderTextWithMentions}
             </RawText>
           </View>
         )}
