@@ -1,15 +1,14 @@
-import { ChannelAction } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
 import * as Haptics from 'expo-haptics';
 import { MotiView } from 'moti';
-import { RefObject, useEffect, useState } from 'react';
-import { Dimensions, LayoutChangeEvent, View as RNView } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Dimensions, LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
 import { EmojiToolbar } from './EmojiToolbar';
 import MessageActions from './MessageActions';
 import { MessageContainer } from './MessageContainer';
+import { ChatMessageActionsProps } from './types';
 
 export function ChatMessageActions({
   post,
@@ -18,15 +17,7 @@ export function ChatMessageActions({
   onReply,
   onEdit,
   onViewReactions,
-}: {
-  post: db.Post;
-  postActionIds: ChannelAction.Id[];
-  postRef: RefObject<RNView>;
-  onDismiss: () => void;
-  onReply?: (post: db.Post) => void;
-  onViewReactions?: (post: db.Post) => void;
-  onEdit?: () => void;
-}) {
+}: ChatMessageActionsProps) {
   const [topOffset, setTopOffset] = useState(0);
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;

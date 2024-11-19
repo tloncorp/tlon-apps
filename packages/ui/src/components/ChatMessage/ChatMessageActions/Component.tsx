@@ -1,13 +1,6 @@
-import { ChannelAction } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
 import * as Haptics from 'expo-haptics';
-import { RefObject, useEffect, useState } from 'react';
-import {
-  DimensionValue,
-  Dimensions,
-  LayoutChangeEvent,
-  View as RNView,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { Dimensions, LayoutChangeEvent } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -20,6 +13,7 @@ import { View, YStack } from 'tamagui';
 import { EmojiToolbar } from './EmojiToolbar';
 import MessageActions from './MessageActions';
 import { MessageContainer } from './MessageContainer';
+import { ChatMessageActionsProps } from './types';
 
 interface LayoutStruct {
   x: number;
@@ -38,17 +32,7 @@ export function ChatMessageActions({
   onReply,
   onEdit,
   onViewReactions,
-}: {
-  post: db.Post;
-  postActionIds: ChannelAction.Id[];
-  postRef: RefObject<RNView>;
-  onDismiss: () => void;
-  width?: DimensionValue;
-  height?: DimensionValue;
-  onReply?: (post: db.Post) => void;
-  onEdit?: () => void;
-  onViewReactions?: (post: db.Post) => void;
-}) {
+}: ChatMessageActionsProps) {
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
 
@@ -99,7 +83,7 @@ export function ChatMessageActions({
 
   useEffect(() => {
     // measure the original post
-    postRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
+    postRef?.current?.measure((_x, _y, width, height, pageX, pageY) => {
       translateX.value = pageX;
       translateY.value = pageY;
       setOriginalLayout({ x: pageX, y: pageY, width, height });
@@ -135,7 +119,7 @@ export function ChatMessageActions({
       ],
       opacity: opacity.value,
     }),
-    [translateX, translateY, scale]
+    [translateX, translateY, scale, opacity.value]
   );
 
   return (
