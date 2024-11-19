@@ -599,6 +599,12 @@ export function ChannelOptions({
     [currentVolumeLevel, handleVolumeUpdate]
   );
 
+  const handleMarkRead = useCallback(() => {
+    if (channel && !channel.isPendingChannel) {
+      store.markChannelRead(channel);
+    }
+  }, [channel]);
+
   const actionGroups: ActionGroup[] = useMemo(() => {
     return [
       {
@@ -629,6 +635,21 @@ export function ChannelOptions({
           },
         ],
       },
+      ...((channel.unread?.count ?? 0) > 0
+        ? [
+            {
+              accent: 'neutral',
+              actions: [
+                {
+                  title: 'Mark as read',
+                  action: () => {
+                    handleMarkRead(), onOpenChange(false);
+                  },
+                },
+              ],
+            } as ActionGroup,
+          ]
+        : []),
       ...(channel.type === 'groupDm'
         ? [
             {
@@ -793,12 +814,13 @@ export function ChannelOptions({
     group,
     currentUserIsHost,
     setPane,
+    handleMarkRead,
+    onOpenChange,
     onPressChannelMeta,
     onPressChannelMembers,
     onPressManageChannels,
     onPressInvite,
     title,
-    onOpenChange,
   ]);
 
   const displayTitle = useMemo((): string => {
