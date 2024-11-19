@@ -31,20 +31,22 @@ interface HostingSession {
 export function ManageAccountScreen(props: Props) {
   const resetDb = useResetDb();
   const webview = useWebView();
-  const [goingBack, setGoingBack] = useState(false);
   const handleLogout = useHandleLogout({ resetDb });
   const [hostingSession, setHostingSession] = useState<HostingSession | null>(
     null
   );
 
   const handleBack = useCallback(async () => {
-    setGoingBack(true);
-    const wasDeleted = await checkIfAccountDeleted();
-    if (wasDeleted) {
-      handleLogout();
-    } else {
+    try {
+      const wasDeleted = await checkIfAccountDeleted();
+      if (wasDeleted) {
+        handleLogout();
+      } else {
+        props.navigation.goBack();
+      }
+    } catch (error) {
+      console.error('Error checking if account was deleted:', error);
       props.navigation.goBack();
-      setGoingBack(false);
     }
   }, [handleLogout, props.navigation]);
 
@@ -91,13 +93,7 @@ export function ManageAccountScreen(props: Props) {
   return (
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
-        leftControls={
-          goingBack ? (
-            <LoadingSpinner />
-          ) : (
-            <ScreenHeader.BackButton onPress={handleBack} />
-          )
-        }
+        leftControls={<ScreenHeader.BackButton onPress={handleBack} />}
         title="Manage account"
       />
       {isWeb && (
