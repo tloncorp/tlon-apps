@@ -984,7 +984,7 @@ export async function leaveGroup(groupId: string) {
   }
 }
 
-export async function markGroupRead(group: db.Group) {
+export async function markGroupRead(group: db.Group, deep: boolean = false) {
   // optimistic update
   const existingUnread = await db.getGroupUnread({ groupId: group.id });
   if (existingUnread) {
@@ -992,7 +992,7 @@ export async function markGroupRead(group: db.Group) {
   }
 
   try {
-    await api.readGroup(group);
+    await api.readGroup(group, deep);
   } catch (e) {
     console.error('Failed to read group', e);
     // rollback optimistic update
