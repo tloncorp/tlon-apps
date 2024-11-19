@@ -88,8 +88,11 @@ function ConnectedAction({
         // 3. an existing thread for that message doesn't already exist
         return !post.deliveryStatus && !post.parentId && post.replyCount === 0;
       case 'edit':
-        // only show edit for current user's posts
-        return post.authorId === currentUserId;
+        // only show edit for current user's posts OR admins of notebook posts
+        return (
+          post.authorId === currentUserId ||
+          (channel.type === 'notebook' && currentUserIsAdmin)
+        );
       case 'delete':
         // only show delete for current user's posts
         return post.authorId === currentUserId || currentUserIsAdmin;
@@ -98,7 +101,17 @@ function ConnectedAction({
       default:
         return true;
     }
-  }, [post, actionId, currentUserId, currentUserIsAdmin]);
+  }, [
+    actionId,
+    post.deliveryStatus,
+    post.parentId,
+    post.replyCount,
+    post.authorId,
+    post.reactions?.length,
+    currentUserId,
+    channel.type,
+    currentUserIsAdmin,
+  ]);
 
   if (!visible) {
     return null;

@@ -357,7 +357,10 @@ export const useGroupByChannel = (channelId: string) => {
 
 export const useMemberRoles = (chatId: string, userId: string) => {
   const { data: chatMember } = useQuery({
-    queryKey: ['memberRoles', chatId, userId],
+    queryKey: [
+      ['memberRoles', chatId, userId],
+      useKeyFromQueryDeps(db.getChatMember),
+    ],
     queryFn: () => db.getChatMember({ chatId, contactId: userId }),
   });
 

@@ -28,7 +28,7 @@ export interface MessageInputProps {
   groupMembers: db.ChatMember[];
   storeDraft: (draft: JSONContent, draftType?: GalleryDraftType) => void;
   clearDraft: (draftType?: GalleryDraftType) => void;
-  getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent>;
+  getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (
