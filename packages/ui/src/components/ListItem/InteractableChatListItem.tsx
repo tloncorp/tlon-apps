@@ -53,7 +53,7 @@ function BaseInteractableChatRow({
   }, [isMuted, mutedState]);
 
   const handleAction = logic.useMutableCallback(
-    async (actionId: 'pin' | 'mute') => {
+    async (actionId: 'pin' | 'mute' | 'markRead') => {
       utils.triggerHaptic('swipeAction');
       switch (actionId) {
         case 'pin':
@@ -61,6 +61,13 @@ function BaseInteractableChatRow({
           break;
         case 'mute':
           isMuted ? store.unmuteChat(model) : store.muteChat(model);
+          break;
+        case 'markRead':
+          if (model.group) {
+            store.markGroupRead(model.group, true);
+          } else {
+            store.markChannelRead(model);
+          }
           break;
         default:
           break;
@@ -83,11 +90,33 @@ function BaseInteractableChatRow({
     [handleAction, mutedState]
   );
 
+  const renderLeftActions = useCallback(
+    (progress: SharedValue<number>, drag: SharedValue<number>) => {
+      const hasUnread = model.group
+        ? (model.group.unread?.count ?? 0) > 0
+        : (model.unread?.count ?? 0) > 0;
+
+      if (!hasUnread) {
+        return <View />;
+      }
+
+      return (
+        <LeftActions
+          progress={progress}
+          drag={drag}
+          handleAction={handleAction}
+        />
+      );
+    },
+    [handleAction, model.group, model.unread?.count]
+  );
+
   if (!isWeb) {
     return (
       <Swipeable
         ref={swipeableRef}
         renderRightActions={renderRightActions}
+        renderLeftActions={renderLeftActions}
         leftThreshold={1}
         rightThreshold={1}
         friction={1.5}
@@ -109,6 +138,51 @@ function BaseInteractableChatRow({
 }
 
 export const InteractableChatListItem = React.memo(BaseInteractableChatRow);
+
+function BaseLeftActions({
+  drag,
+  handleAction,
+}: {
+  drag: SharedValue<number>;
+  progress: SharedValue<number>;
+  handleAction: (actionId: 'markRead') => void;
+}) {
+  const handleRead = useBoundHandler('markRead', handleAction);
+
+  const containerWidthStyle = useAnimatedStyle(
+    () => ({
+      width: Math.abs(drag.value),
+    }),
+    [drag]
+  );
+
+  const containerStyle: StyleProp<ViewStyle> = useMemo(() => {
+    return [
+      containerWidthStyle,
+      {
+        flexDirection: 'row',
+        overflow: 'hidden',
+        borderBottomLeftRadius: getTokenValue('$m', 'radius'),
+        borderTopLeftRadius: getTokenValue('$m', 'radius'),
+      },
+    ] as const;
+  }, [containerWidthStyle]);
+
+  return (
+    <View width={80} justifyContent="flex-start" flexDirection="row">
+      <Animated.View style={containerStyle}>
+        <Action
+          backgroundColor="$green"
+          color="$darkBackground"
+          iconType="Checkmark"
+          handleAction={handleRead}
+        />
+      </Animated.View>
+    </View>
+  );
+}
+
+export const LeftActions = React.memo(BaseLeftActions);
 
 function BaseRightActions({
   isMuted,
