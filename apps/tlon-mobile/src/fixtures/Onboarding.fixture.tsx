@@ -1,4 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
+import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
+import { group } from '@tloncorp/app/fixtures/fakeData';
 import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
 import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { Theme } from '@tloncorp/ui';
@@ -23,8 +25,6 @@ import { TlonLoginScreen } from '../screens/Onboarding/TlonLogin';
 import { TlonLoginLegacy } from '../screens/Onboarding/TlonLoginLegacy';
 import { WelcomeScreen } from '../screens/Onboarding/WelcomeScreen';
 import { OnboardingStackParamList, User } from '../types';
-import { exampleContacts } from './contentHelpers';
-import { group } from './fakeData';
 
 const sampleUser = {
   id: '1',
