@@ -32,6 +32,9 @@ function BaseInteractableChatRow({
   onLongPress,
 }: ListItemProps<Chat> & { model: db.Channel }) {
   const swipeableRef = useRef<SwipeableMethods>(null);
+  const [currentSwipeDirection, setCurrentSwipeDirection] = useState<
+    'left' | 'right' | null
+  >(null);
 
   const isMuted = useMemo(() => {
     if (model.group) {
@@ -76,19 +79,13 @@ function BaseInteractableChatRow({
     }
   );
 
-  const renderRightActions = useCallback(
-    (progress: SharedValue<number>, drag: SharedValue<number>) => {
-      return (
-        <RightActions
-          progress={progress}
-          drag={drag}
-          isMuted={mutedState}
-          handleAction={handleAction}
-        />
-      );
-    },
-    [handleAction, mutedState]
-  );
+  const onSwipeableWillOpen = useCallback((direction: 'left' | 'right') => {
+    setCurrentSwipeDirection(direction);
+  }, []);
+
+  const onSwipeableClose = useCallback(() => {
+    setCurrentSwipeDirection(null);
+  }, []);
 
   const renderLeftActions = useCallback(
     (progress: SharedValue<number>, drag: SharedValue<number>) => {
@@ -96,7 +93,7 @@ function BaseInteractableChatRow({
         ? (model.group.unread?.count ?? 0) > 0
         : (model.unread?.count ?? 0) > 0;
 
-      if (!hasUnread) {
+      if (currentSwipeDirection === 'right' || !hasUnread) {
         return <View />;
       }
 
@@ -108,15 +105,35 @@ function BaseInteractableChatRow({
         />
       );
     },
-    [handleAction, model.group, model.unread?.count]
+    [handleAction, model.group, model.unread?.count, currentSwipeDirection]
+  );
+
+  const renderRightActions = useCallback(
+    (progress: SharedValue<number>, drag: SharedValue<number>) => {
+      if (currentSwipeDirection === 'left') {
+        return <View />;
+      }
+
+      return (
+        <RightActions
+          progress={progress}
+          drag={drag}
+          isMuted={mutedState}
+          handleAction={handleAction}
+        />
+      );
+    },
+    [handleAction, mutedState, currentSwipeDirection]
   );
 
   if (!isWeb) {
     return (
       <Swipeable
         ref={swipeableRef}
-        renderRightActions={renderRightActions}
         renderLeftActions={renderLeftActions}
+        renderRightActions={renderRightActions}
+        onSwipeableWillOpen={onSwipeableWillOpen}
+        onSwipeableClose={onSwipeableClose}
         leftThreshold={1}
         rightThreshold={1}
         friction={1.5}
