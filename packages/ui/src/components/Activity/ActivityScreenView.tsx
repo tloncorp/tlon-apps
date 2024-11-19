@@ -16,6 +16,7 @@ export function ActivityScreenView({
   goToChannel,
   goToThread,
   goToGroup,
+  goToUserProfile,
   onGroupAction,
   bucketFetchers,
   refresh,
@@ -24,6 +25,7 @@ export function ActivityScreenView({
   goToChannel: (channel: db.Channel, selectedPostId?: string) => void;
   goToThread: (post: db.Post) => void;
   goToGroup: (group: db.Group) => void;
+  goToUserProfile: (userId: string) => void;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   bucketFetchers: store.BucketFetchers;
   refresh: () => Promise<void>;
@@ -91,11 +93,16 @@ export function ActivityScreenView({
             console.warn('No group found for group-ask', event);
           }
           break;
+        case 'contact':
+          if (event.contactUserId) {
+            goToUserProfile(event.contactUserId);
+          }
+          break;
         default:
           break;
       }
     },
-    [goToChannel, goToThread, goToGroup]
+    [goToChannel, goToThread, goToGroup, goToUserProfile]
   );
 
   const events = useMemo(

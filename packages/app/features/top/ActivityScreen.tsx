@@ -71,6 +71,13 @@ export function ActivityScreen(props: Props) {
     [props.navigation]
   );
 
+  const handleGoToUserProfile = useCallback(
+    (userId: string) => {
+      props.navigation.navigate('UserProfile', { userId });
+    },
+    [props.navigation]
+  );
+
   return (
     <View backgroundColor="$background" flex={1}>
       <ActivityScreenView
@@ -79,6 +86,7 @@ export function ActivityScreen(props: Props) {
         goToChannel={handleGoToChannel}
         goToThread={handleGoToThread}
         goToGroup={handleGoToGroup}
+        goToUserProfile={handleGoToUserProfile}
         refresh={handleRefreshActivity}
         onGroupAction={performGroupAction}
       />
