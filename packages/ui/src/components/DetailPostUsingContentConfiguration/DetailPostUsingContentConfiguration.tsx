@@ -1,12 +1,21 @@
-import { useThreadPosts } from '@tloncorp/shared';
+import {
+  ChannelContentConfiguration,
+  DraftInputId,
+  useThreadPosts,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useMemo } from 'react';
+import * as store from '@tloncorp/shared/store';
+import { Story } from '@tloncorp/shared/urbit';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
 import { YStack } from 'tamagui';
 
+import { useCurrentUserId } from '../../contexts';
 import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
 import { ForwardingProps } from '../../utils/react';
 import { ChannelHeader } from '../Channel/ChannelHeader';
+import { DraftInputView } from '../Channel/DraftInputView';
+import { DraftInputContext } from '../draftInputs';
 import { ContextGestureListener, usePostContextMenu } from './contextmenu';
 
 type ListItem =
@@ -23,6 +32,7 @@ export function DetailPostView({
   'backgroundColor'
 >) {
   const { PostView, channel } = usePostCollectionContextUnsafelyUnwrapped();
+  const listRef = useRef<FlatList<ListItem>>(null);
   // use boolean coercion to also check if post.title is empty string
   const title = post.title ? post.title : 'Post';
 
@@ -51,6 +61,40 @@ export function DetailPostView({
     )
   );
 
+  const sendReply = useSendReplyCallback({
+    parent: post,
+    channel,
+  });
+
+  const [inputShouldBlur, setInputShouldBlur] = useState(false);
+  /** when `null`, input is not shown or presentation is unknown */
+  const draftInputContext = useMemo((): DraftInputContext => {
+    const notImplemented = () => {
+      throw new Error('Not implemented');
+    };
+    return {
+      channel,
+      configuration:
+        channel.contentConfiguration == null
+          ? undefined
+          : ChannelContentConfiguration.draftInput(channel.contentConfiguration)
+              .configuration,
+      group: channel.group!,
+      headerMode: 'default',
+      send: async (content) => {
+        await sendReply(content);
+        listRef.current?.scrollToEnd();
+      },
+      setShouldBlur: setInputShouldBlur,
+      shouldBlur: inputShouldBlur,
+
+      clearDraft: notImplemented,
+      editPost: notImplemented,
+      getDraft: notImplemented,
+      storeDraft: notImplemented,
+    };
+  }, [channel, inputShouldBlur, sendReply]);
+
   return (
     <>
       <YStack backgroundColor={'$background'} {...forwardedProps}>
@@ -65,6 +109,7 @@ export function DetailPostView({
           mode="default"
         />
         <FlatList
+          ref={listRef}
           data={listData}
           renderItem={({ item }) => (
             <ContextGestureListener
@@ -84,6 +129,12 @@ export function DetailPostView({
             </ContextGestureListener>
           )}
           contentInsetAdjustmentBehavior="scrollableAxes"
+        />
+
+        {/* Reply view - hardcode to be a chat input */}
+        <DraftInputView
+          draftInputContext={draftInputContext}
+          type={DraftInputId.chat}
         />
       </YStack>
       {postContextMenu.mount()}
@@ -110,4 +161,32 @@ function useListData({ root }: { root: db.Post }) {
     }
     return out;
   }, [root, threadPostsQuery.data]);
+}
+
+function useSendReplyCallback(
+  opts: {
+    parent: db.Post;
+    channel: db.Channel;
+  } | null
+) {
+  const currentUserId = useCurrentUserId();
+  return useCallback(
+    async (content: Story) => {
+      if (opts == null) {
+        throw new Error('Attempted to send reply without parent post');
+      }
+      const { parent, channel } = opts;
+      if (currentUserId == null) {
+        throw new Error('Attempted to send reply without current user id');
+      }
+      await store.sendReply({
+        authorId: currentUserId,
+        content,
+        channel,
+        parentId: parent.id,
+        parentAuthor: parent.authorId,
+      });
+    },
+    [currentUserId, opts]
+  );
 }
