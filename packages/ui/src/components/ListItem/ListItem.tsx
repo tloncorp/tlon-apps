@@ -1,7 +1,13 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { ComponentProps, ReactElement, useMemo } from 'react';
-import { isWeb, styled, withStaticProperties } from 'tamagui';
+import {
+  getVariableValue,
+  isWeb,
+  styled,
+  useTheme,
+  withStaticProperties,
+} from 'tamagui';
 import { SizableText, Stack, View, XStack, YStack } from 'tamagui';
 
 import { numberWithMax } from '../../utils';
@@ -159,18 +165,20 @@ const ListItemCount = ({
   count,
   ...rest
 }: { muted?: boolean; count: number } & ComponentProps<typeof Stack>) => {
+  const foregroundColor = getVariableValue(useTheme().secondaryText);
+  const backgroundColor = getVariableValue(useTheme().secondaryBackground);
   return (
     <Stack
       paddingHorizontal={'$m'}
-      backgroundColor={count < 1 ? undefined : '$secondaryBackground'}
+      backgroundColor={count < 1 ? undefined : backgroundColor}
       borderRadius="$l"
       {...rest}
     >
       <ListItemCountNumber hidden={count < 1}>
         {muted && (
-          <Icon type="Muted" customSize={[12, 12]} color="$secondaryText" />
+          <Icon type="Muted" customSize={[12, 12]} color={foregroundColor} />
         )}
-        <SizableText size="$s" color="$secondaryText">
+        <SizableText size="$s" color={foregroundColor}>
           {numberWithMax(count, 99)}
         </SizableText>
       </ListItemCountNumber>
