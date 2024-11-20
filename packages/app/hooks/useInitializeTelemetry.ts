@@ -124,21 +124,26 @@ export function useMandatoryTelemetry() {
 }
 
 export function useTrackAppActive() {
+  const telemetry = useTelemetry();
   const isHosted = useIsHosted();
   const isHostedUser = useMemo(() => (isHosted ? 'true' : 'false'), [isHosted]);
   const trackMandatoryEvent = useMandatoryTelemetry();
 
   const trackAppOpen = useCallback(async () => {
-    const lastAnonymousOpen = await lastAnonymousAppOpenAt.getValue();
-    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    if (!lastAnonymousOpen || oneDayAgo > lastAnonymousOpen) {
-      lastAnonymousAppOpenAt.setValue(Date.now());
-      trackMandatoryEvent({
-        eventId: AnalyticsEvent.AppActive,
-        properties: { isHostedUser },
-      });
+    if (!telemetry.optedOut) {
+      telemetry.capture(AnalyticsEvent.AppActive, { isHostedUser });
+    } else {
+      const lastAnonymousOpen = await lastAnonymousAppOpenAt.getValue();
+      const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+      if (!lastAnonymousOpen || oneDayAgo > lastAnonymousOpen) {
+        lastAnonymousAppOpenAt.setValue(Date.now());
+        trackMandatoryEvent({
+          eventId: AnalyticsEvent.AppActive,
+          properties: { isHostedUser },
+        });
+      }
     }
-  }, [isHostedUser, trackMandatoryEvent]);
+  }, [isHostedUser, telemetry, trackMandatoryEvent]);
 
   return trackAppOpen;
 }
