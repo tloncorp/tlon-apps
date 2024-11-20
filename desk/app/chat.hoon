@@ -1,7 +1,7 @@
 /-  c=chat, d=channels, g=groups, u=ui, e=epic, old=chat-2, activity
 /-  meta
 /-  ha=hark
-/-  contacts
+/-  contacts-0
 /+  default-agent, verb-lib=verb, dbug, neg=negotiate
 /+  pac=dm
 /+  utils=channel-utils
@@ -1751,7 +1751,7 @@
     |=  =diff:dm:c
     =?  net.dm  &(?=(%inviting net.dm) !from-self)  %done
     =/  =wire  /contacts/(scot %p ship)
-    =/  =cage  [act:mar:contacts !>(`action:contacts`[%heed ~[ship]])]
+    =/  =cage  contact-action+!>(`action-0:contacts-0`[%heed ~[ship]])
     =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke cage)
     =/  old-unread  di-unread
     =/  had=(unit [=time =writ:c])

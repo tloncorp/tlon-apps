@@ -5,7 +5,7 @@
 ::    other apps can poke this agent with widgets of their own, and the user
 ::    can choose which widgets to display on their public page.
 ::
-/-  contacts
+/-  contacts-0
 /+  dbug, verb, sigil, hutils=http-utils
 /=  stock-widgets  /app/profile/widgets
 ::
@@ -175,8 +175,8 @@
 ::
 ++  render-page
   ^-  manx
-  =/  ours=(unit contact:contacts)
-    (get-contact:contacts bowl our.bowl)
+  =/  ours=(unit contact-0:contacts-0)
+    (get-contact:contacts-0 bowl our.bowl)
   |^  ;html
         ;+  head
         ;+  body

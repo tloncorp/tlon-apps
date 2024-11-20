@@ -1,20 +1,20 @@
 ::  profile: construct stock widgets
 ::
-/-  contacts
+/-  contacts-0
 /+  sigil
 ::
 |=  =bowl:gall
-=/  ours=(unit contact:contacts)
-  =,  contacts
+=/  ours=(unit contact-0:contacts-0)
+  =,  contacts-0
   ::NOTE  we scry for the full rolodex, because we are not guaranteed to
   ::      have an entry for ourselves, and contacts doesn't expose a "safe"
   ::      (as in crashless) endpoint for checking
   =+  .^  =rolodex
         /gx/(scot %p our.bowl)/contacts/(scot %da now.bowl)/all/contact-rolodex
       ==
-  =/  =foreign  (~(gut by rolodex) our.bowl *foreign)
-  ?:  ?=([[@ ^] *] foreign)
-    `con.for.foreign
+  =/  =foreign-0  (~(gut by rolodex) our.bowl *foreign-0)
+  ?:  ?=([[@ ^] *] foreign-0)
+    `con.for.foreign-0
   ~
 |^  %-  ~(gas by *(map term [%0 @t %marl marl]))
     :~  [%profile %0 'Profile Header' %marl profile-widget]
