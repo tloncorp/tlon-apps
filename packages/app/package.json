@@ -4,6 +4,9 @@
   "main": "index.ts",
   "private": true,
   "scripts": {
+    "lint": "eslint ./",
+    "lint:fix": "eslint ./ --fix --quiet",
+    "lint:format": "prettier ./ --write",
     "test": "vitest --watch false"
   },
   "dependencies": {

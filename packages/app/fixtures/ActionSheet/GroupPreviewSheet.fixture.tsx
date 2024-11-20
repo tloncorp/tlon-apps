@@ -45,6 +45,7 @@ export default Object.fromEntries(
         open={true}
         onOpenChange={() => {}}
         group={group}
+        onActionComplete={() => {}}
       />,
     ];
   })
