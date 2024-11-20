@@ -359,6 +359,7 @@ export const getChats = createReadQuery(
     'groups',
     'channels',
     'posts',
+    'contacts',
     'channelUnreads',
     'groupUnreads',
     'threadUnreads',
@@ -2787,6 +2788,25 @@ export const removePinnedGroup = createWriteQuery(
       contactId: currentUserId,
       groupId,
     });
+  },
+  ['contactGroups', 'contacts']
+);
+
+export const setPinnedGroups = createWriteQuery(
+  'setPinnedGroups',
+  async ({ groupIds }: { groupIds: string[] }, ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    await ctx.db
+      .delete($contactGroups)
+      .where(eq($contactGroups.contactId, currentUserId));
+
+    if (groupIds.length !== 0) {
+      const newGroups = groupIds.map((groupId) => ({
+        contactId: currentUserId,
+        groupId,
+      }));
+      await ctx.db.insert($contactGroups).values(newGroups);
+    }
   },
   ['contactGroups', 'contacts']
 );

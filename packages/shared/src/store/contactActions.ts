@@ -50,8 +50,8 @@ export async function removeContactSuggestion(contactId: string) {
 export async function updateContactMetadata(
   contactId: string,
   metadata: {
-    nickname?: string;
-    avatarImage?: string;
+    nickname?: string | null;
+    avatarImage?: string | null;
   }
 ) {
   const { nickname, avatarImage } = metadata;
@@ -61,28 +61,16 @@ export async function updateContactMetadata(
   // optimistic update
   await db.updateContact({
     id: contactId,
-    customNickname: nickname
-      ? nickname
-      : existingContact?.customNickname
-        ? ''
-        : undefined,
-    customAvatarImage: avatarImage
-      ? avatarImage
-      : existingContact?.customAvatarImage
-        ? ''
-        : undefined,
+    customNickname: nickname,
+    customAvatarImage: avatarImage,
   });
 
   try {
     await api.updateContactMetadata(contactId, {
-      nickname: nickname
-        ? nickname
-        : existingContact?.customNickname
-          ? ''
-          : undefined,
+      nickname: nickname ? nickname : nickname === null ? '' : undefined,
       avatarImage: avatarImage
         ? avatarImage
-        : existingContact?.customAvatarImage
+        : avatarImage === null
           ? ''
           : undefined,
     });
@@ -154,37 +142,18 @@ export async function removePinnedGroupFromProfile(groupId: string) {
 
 export async function updateProfilePinnedGroups(newPinned: db.Group[]) {
   const currentUserId = api.getCurrentUserId();
-  const currentUserContact = await db.getContact({ id: currentUserId });
-  const startingPinnedIds =
-    currentUserContact?.pinnedGroups.map((pg) => pg.groupId) ?? [];
+  const existingContact = await db.getContact({ id: currentUserId });
+  const existingPinnedIds =
+    existingContact?.pinnedGroups.map((pg) => pg.groupId) ?? [];
+  const newPinnedIds = newPinned.map((g) => g.id);
 
-  const additions = [];
-  const deletions = [];
+  // Optimistic update TODO
+  await db.setPinnedGroups({ groupIds: newPinnedIds });
 
-  for (const group of newPinned) {
-    if (!startingPinnedIds.includes(group.id)) {
-      additions.push(group.id);
-    }
+  try {
+    await api.setPinnedGroups(newPinnedIds);
+  } catch (e) {
+    // Rollback the update
+    await db.setPinnedGroups({ groupIds: existingPinnedIds });
   }
-
-  for (const groupId of startingPinnedIds) {
-    if (!newPinned.find((g) => g.id === groupId)) {
-      deletions.push(groupId);
-    }
-  }
-
-  logger.log(
-    'Updating pinned groups [additions, deletions]',
-    additions,
-    deletions
-  );
-
-  const additionPromises = additions.map((groupId) =>
-    addPinnedGroupToProfile(groupId)
-  );
-  const deletionPromises = deletions.map((groupId) =>
-    removePinnedGroupFromProfile(groupId)
-  );
-
-  return Promise.all([...additionPromises, ...deletionPromises]);
 }

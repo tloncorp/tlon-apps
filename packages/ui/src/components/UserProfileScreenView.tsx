@@ -1,7 +1,13 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { ComponentProps, useCallback, useMemo, useState } from 'react';
+import {
+  ComponentProps,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -104,7 +110,9 @@ export function UserProfileScreenView(props: Props) {
           <ProfileButtons userId={props.userId} contact={userContact} />
         ) : null}
 
-        <StatusDisplay status={userContact?.status ?? ''} />
+        {userContact?.status && (
+          <StatusDisplay status={userContact?.status ?? ''} />
+        )}
         <BioDisplay bio={userContact?.bio ?? ''} />
 
         <StatusBlock status={nodeStatus} label="Node" />
@@ -234,6 +242,15 @@ export function PinnedGroupsDisplay(
 ) {
   const windowDimensions = useWindowDimensions();
   const [containerWidth, setContainerWidth] = useState(windowDimensions.width);
+  const pinnedGroupsKey = useMemo(() => {
+    return props.groups.map((g) => g.id).join(',');
+  }, [props.groups]);
+
+  useEffect(() => {
+    if (pinnedGroupsKey.length) {
+      store.syncGroupPreviews(pinnedGroupsKey.split(','));
+    }
+  }, [pinnedGroupsKey]);
 
   const handleLayout = (event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;
@@ -413,6 +430,11 @@ function ProfileButton(props: {
   onPress: () => void;
   hero?: boolean;
 }) {
+  const handlePress = useCallback(() => {
+    props.onPress();
+    triggerHaptic('baseButtonClick');
+  }, [props]);
+
   return (
     <Button
       flexGrow={1}
@@ -421,7 +443,7 @@ function ProfileButton(props: {
       paddingVertical={'$xl'}
       paddingHorizontal="$2xl"
       borderRadius="$2xl"
-      onPress={props.onPress}
+      onPress={handlePress}
       hero={props.hero}
       marginHorizontal="$xs"
     >

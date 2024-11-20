@@ -954,6 +954,7 @@ export async function syncGroupPreviews(groupIds: string[]) {
     }
 
     const groupPreview = await api.getGroupPreview(groupId);
+    console.log(`got preview for ${groupId}`, groupPreview);
     await db.insertUnjoinedGroups([groupPreview]);
     return groupPreview;
   });

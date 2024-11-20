@@ -1,7 +1,10 @@
 import * as store from '@tloncorp/shared/store';
+import { useCallback, useState } from 'react';
 
 import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
+import { triggerHaptic } from '../utils';
 import { AvatarNavIcon, NavBar, NavIcon } from './NavBar';
+import ProfileStatusSheet from './ProfileStatusSheet';
 
 export const NavBarView = ({
   navigateToHome,
@@ -20,6 +23,7 @@ export const NavBarView = ({
   currentUserId: string;
   showContactsTab?: boolean;
 }) => {
+  const [showStatusSheet, setShowStatusSheet] = useState(false);
   const isRouteActive = (routeName: string | string[]) => {
     if (Array.isArray(routeName)) {
       return routeName.includes(currentRoute);
@@ -28,6 +32,24 @@ export const NavBarView = ({
   };
   const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
   const isWindowNarrow = useIsWindowNarrow();
+
+  const openStatusSheet = useCallback(() => {
+    triggerHaptic('sheetOpen');
+    setShowStatusSheet(true);
+  }, []);
+
+  const closeStatusSheet = useCallback(() => {
+    setShowStatusSheet(false);
+  }, []);
+
+  const handleUpdateStatus = useCallback(
+    (newStatus: string) => {
+      console.log('newStatus', newStatus);
+      store.updateCurrentUserProfile({ status: newStatus });
+      closeStatusSheet();
+    },
+    [closeStatusSheet]
+  );
 
   if (!isWindowNarrow) {
     return null;
@@ -63,7 +85,15 @@ export const NavBarView = ({
         id={currentUserId}
         focused={isRouteActive('Profile')}
         onPress={navigateToProfileSettings}
+        onLongPress={openStatusSheet}
       />
+      {showStatusSheet && (
+        <ProfileStatusSheet
+          open={showStatusSheet}
+          onOpenChange={closeStatusSheet}
+          onUpdateStatus={handleUpdateStatus}
+        />
+      )}
     </NavBar>
   );
 };

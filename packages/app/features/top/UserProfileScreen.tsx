@@ -4,6 +4,7 @@ import * as store from '@tloncorp/shared/store';
 import {
   AppDataContextProvider,
   AttachmentProvider,
+  GroupPreviewAction,
   GroupPreviewSheet,
   NavigationProvider,
   UserProfileScreenView,
@@ -12,6 +13,7 @@ import { useState } from 'react';
 import { useCallback } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useGroupActions } from '../../hooks/useGroupActions';
 import { RootStackParamList } from '../../navigation/types';
 import { useResetToDm } from '../../navigation/utils';
 import { useConnectionStatus } from './useConnectionStatus';
@@ -20,10 +22,21 @@ type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
 export function UserProfileScreen({ route: { params }, navigation }: Props) {
   const userId = params.userId;
+  const { performGroupAction } = useGroupActions();
   const currentUserId = useCurrentUserId();
   const { data: contacts } = store.useContacts();
   const connectionStatus = useConnectionStatus(userId);
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
+
+  const handleGroupAction = useCallback(
+    (action: GroupPreviewAction, group: db.Group) => {
+      setSelectedGroup(null);
+      setTimeout(() => {
+        performGroupAction(action, group);
+      }, 100);
+    },
+    [performGroupAction]
+  );
   const resetToDm = useResetToDm();
 
   const handleGoToDm = useCallback(
@@ -67,6 +80,7 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
             open={selectedGroup !== null}
             onOpenChange={handleGroupPreviewSheetOpenChange}
             group={selectedGroup ?? undefined}
+            onActionComplete={handleGroupAction}
           />
         </AttachmentProvider>
       </NavigationProvider>

@@ -21,6 +21,7 @@ import {
   ScreenHeader,
   View,
   WelcomeSheet,
+  triggerHaptic,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -283,6 +284,11 @@ export function ChatListScreenView({
     setShowSearchInput(!showSearchInput);
   }, [showSearchInput]);
 
+  const goToContacts = useCallback(() => {
+    triggerHaptic('baseButtonClick');
+    navigation.navigate('Contacts');
+  }, [navigation]);
+
   return (
     <RequestsProvider
       usePostReference={store.usePostReference}
@@ -306,7 +312,7 @@ export function ChatListScreenView({
             leftControls={
               <ScreenHeader.IconButton
                 type="ChannelMultiDM"
-                onPress={() => navigation.navigate('Contacts')}
+                onPress={goToContacts}
               />
             }
             rightControls={

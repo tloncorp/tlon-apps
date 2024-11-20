@@ -48,7 +48,7 @@ export function EditProfileScreenView(props: Props) {
   const nicknamePlaceholder = useMemo(() => {
     return props.userId === currentUserId
       ? userContact?.id
-      : userContact?.nickname ?? userContact?.id;
+      : userContact?.peerNickname ?? userContact?.id;
   }, [props.userId, currentUserId, userContact]);
 
   const currentAvatarImage = useMemo(() => {
@@ -60,7 +60,7 @@ export function EditProfileScreenView(props: Props) {
   const avatarPlaceholder = useMemo(() => {
     return props.userId === currentUserId
       ? undefined
-      : userContact?.avatarImage ?? undefined;
+      : userContact?.peerAvatarImage ?? undefined;
   }, [props.userId, currentUserId, userContact]);
 
   const {
@@ -80,12 +80,44 @@ export function EditProfileScreenView(props: Props) {
   const handlePressDone = useCallback(() => {
     if (isDirty) {
       handleSubmit((formData) => {
-        props.onSaveProfile(formData);
+        const nicknameStartVal =
+          props.userId === currentUserId
+            ? userContact?.nickname
+            : userContact?.customNickname;
+        const avatarStartVal =
+          props.userId === currentUserId
+            ? userContact?.avatarImage
+            : userContact?.customAvatarImage;
+
+        const update = {
+          status: formData.status,
+          bio: formData.bio,
+          nickname: formData.nickname
+            ? formData.nickname
+            : nicknameStartVal
+              ? null // clear existing
+              : undefined,
+          avatarImage: formData.avatarImage
+            ? formData.avatarImage
+            : avatarStartVal
+              ? null // clear existing
+              : undefined,
+        };
+        props.onSaveProfile(update);
       })();
     } else {
       props.onGoBack();
     }
-  }, [handleSubmit, isDirty, props]);
+  }, [
+    currentUserId,
+    handleSubmit,
+    isDirty,
+    props,
+    userContact?.avatarImage,
+    userContact?.customAvatarImage,
+    userContact?.customNickname,
+    userContact?.nickname,
+  ]);
 
   const handlePressCancel = () => {
     if (isDirty) {

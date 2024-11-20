@@ -2,7 +2,7 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
-import { poke, scry, subscribe } from './urbit';
+import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('contactsApi', true);
 
@@ -105,16 +105,16 @@ export const removeContact = async (contactId: string) => {
 };
 
 export interface ProfileUpdate {
-  nickname?: string;
+  nickname?: string | null;
   status?: string;
   bio?: string;
-  avatarImage?: string;
+  avatarImage?: string | null;
   coverImage?: string;
 }
 export const updateCurrentUserProfile = async (update: ProfileUpdate) => {
   const editedFields: ub.ContactEditField[] = [];
   if (update.nickname !== undefined) {
-    editedFields.push({ nickname: update.nickname });
+    editedFields.push({ nickname: update.nickname ?? '' });
   }
 
   if (update.status !== undefined) {
@@ -126,7 +126,7 @@ export const updateCurrentUserProfile = async (update: ProfileUpdate) => {
   }
 
   if (update.avatarImage !== undefined) {
-    editedFields.push({ avatar: update.avatarImage });
+    editedFields.push({ avatar: update.avatarImage ?? '' });
   }
 
   if (update.coverImage !== undefined) {
@@ -159,6 +159,23 @@ export const removePinnedGroup = async (groupId: string) => {
     app: 'contacts',
     mark: 'contact-action',
     json: update,
+  });
+};
+
+export const setPinnedGroups = async (groupIds: string[]) => {
+  console.log(`api set pinned`, groupIds);
+  const contactUpdate: ub.ContactBookProfileEdit = {};
+  contactUpdate.groups = {
+    type: 'set',
+    value: groupIds.map((groupId) => ({ type: 'flag', value: groupId })),
+  };
+
+  console.log(`contact-action-1`, { self: { contact: contactUpdate } });
+
+  return poke({
+    app: 'contacts',
+    mark: 'contact-action-1',
+    json: { self: contactUpdate },
   });
 };
 
