@@ -16,7 +16,14 @@ import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AnimatePresence, SizableText, View, YStack } from 'tamagui';
+import {
+  AnimatePresence,
+  SizableText,
+  View,
+  YStack,
+  getVariableValue,
+  useTheme,
+} from 'tamagui';
 
 import {
   ChannelProvider,
@@ -283,6 +290,8 @@ export function Channel({
 
   const isNarrow = useIsWindowNarrow();
 
+  const backgroundColor = getVariableValue(useTheme().background);
+
   return (
     <ScrollContextProvider>
       <GroupsProvider groups={groups}>
@@ -307,7 +316,10 @@ export function Channel({
                   initialAttachments={initialAttachments}
                   uploadAsset={uploadAsset}
                 >
-                  <View backgroundColor="$background" flex={1}>
+                  <View
+                    backgroundColor={backgroundColor}
+                    flex={1}
+                  >
                     <YStack
                       justifyContent="space-between"
                       width="100%"
