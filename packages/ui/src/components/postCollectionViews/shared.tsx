@@ -29,7 +29,7 @@ export function ConnectedPostView({
       return null;
     }
     return {
-      showAuthor: JSONValue.asBoolean(cfg.showAuthors, false),
+      showAuthor: JSONValue.asBoolean(cfg.showAuthor, false),
       showReplies: JSONValue.asBoolean(cfg.showReplies, false),
     };
   }, [ctx.collectionConfiguration]);

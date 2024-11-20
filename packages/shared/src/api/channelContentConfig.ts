@@ -1,10 +1,27 @@
 import type { JSONValue } from '../types/JSONValue';
 import { ValuesOf } from '../utils';
 
-interface ParameterSpec {
+interface BaseParameterSpec {
   displayName: string;
-  type: 'boolean' | 'string';
 }
+
+interface BooleanParameterSpec extends BaseParameterSpec {
+  type: 'boolean';
+}
+
+interface StringParameterSpec extends BaseParameterSpec {
+  type: 'string';
+}
+
+interface RadioParameterSpec extends BaseParameterSpec {
+  type: 'radio';
+  options: { displayName: string; value: string }[];
+}
+
+type ParameterSpec =
+  | BooleanParameterSpec
+  | StringParameterSpec
+  | RadioParameterSpec;
 
 export interface ComponentSpec<EnumTag extends string = string> {
   displayName: string;
@@ -40,6 +57,27 @@ export const allCollectionRenderers = {
     displayName: 'Notebook',
     enumTag: 'notebook',
     parametersSchema: standardCollectionParameters(),
+  },
+  'tlon.r0.collection.carousel': {
+    displayName: 'Carousel',
+    enumTag: 'carousel',
+    parametersSchema: {
+      ...standardCollectionParameters(),
+      scrollDirection: {
+        displayName: 'Scroll direction',
+        type: 'radio',
+        options: [
+          {
+            displayName: 'Horizontal',
+            value: 'horizontal',
+          },
+          {
+            displayName: 'Vertical',
+            value: 'vertical',
+          },
+        ],
+      },
+    },
   },
   'tlon.r0.collection.cards': {
     displayName: 'Cards',
@@ -119,6 +157,26 @@ export const allContentRenderers = {
   'tlon.r0.content.gallery': {
     displayName: 'Gallery',
     enumTag: 'gallery',
+    parametersSchema: {
+      embedded: {
+        displayName: 'Show frame',
+        type: 'boolean',
+      },
+      contentSize: {
+        displayName: 'Content size',
+        type: 'radio',
+        options: [
+          {
+            displayName: 'Large',
+            value: '$l',
+          },
+          {
+            displayName: 'Small',
+            value: '$s',
+          },
+        ],
+      },
+    },
   },
   'tlon.r0.content.notebook': {
     displayName: 'Notebook',
