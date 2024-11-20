@@ -62,7 +62,7 @@ export default function NavIcon({
     >
       <Icon
         type={resolvedType}
-        color={isActive ? '$primaryText' : '$activeBorder'}
+        color={isActive ? '$primaryText' : '$tertiaryText'}
       />
       {shouldShowUnreads ? (
         <View justifyContent="center" alignItems="center">
