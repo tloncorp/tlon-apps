@@ -80,6 +80,7 @@ export function useInitializeUserTelemetry() {
   const isHosted = useIsHosted();
   const currentUserId = useCurrentUserId();
   const telemetry = useTelemetry();
+  const captureMandatory = useMandatoryTelemetry();
   const setTelemetryDisabled = useSetTelemetryDisabled('initialization');
   const telemtryInitialized = didInitializeTelemetry.useStorageItem();
 
@@ -87,6 +88,11 @@ export function useInitializeUserTelemetry() {
     async function initializeTelemetry() {
       if (isHosted) {
         telemetry?.identify(currentUserId, { isHostedUser: true });
+      } else {
+        captureMandatory({
+          eventId: '$set',
+          properties: { $set: { isHostedUser: false } },
+        });
       }
 
       if (telemetry?.optedOut) {
@@ -102,6 +108,7 @@ export function useInitializeUserTelemetry() {
       }
     }
   }, [
+    captureMandatory,
     currentUserId,
     isHosted,
     setTelemetryDisabled,
@@ -120,7 +127,7 @@ export function useMandatoryTelemetry() {
       properties,
     }: {
       eventId: string;
-      properties?: Record<string, string>;
+      properties?: Record<string, any>;
     }) => {
       if (telemetry?.optedOut) {
         telemetry?.optIn();
