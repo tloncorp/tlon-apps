@@ -62,7 +62,9 @@ export const SetTelemetryScreen = () => {
           alignItems="center"
           justifyContent="space-between"
         >
-          <SizableText color="$primaryText">Enable usage stats</SizableText>
+          <SizableText color="$primaryText">
+            Enable anonymous usage stats
+          </SizableText>
           <Switch value={isEnabled} onValueChange={setIsEnabled} />
         </XStack>
       </YStack>
