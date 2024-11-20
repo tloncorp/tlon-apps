@@ -13,6 +13,9 @@
     "build:packages": "pnpm run build:shared && pnpm run build:ui && pnpm run build:editor",
     "build:mobile-release": "pnpm run build:packages && pnpm run build:mobile",
     "build:all": "pnpm run build:packages && pnpm run build:apps",
+    "cosmos:native": "cosmos-native",
+    "cosmos:web": "pnpm --filter 'tlon-web-new' cosmos",
+    "cosmos": "concurrently \"pnpm run cosmos:native\" \"pnpm run cosmos:web\"",
     "dev:shared": "pnpm --filter '@tloncorp/shared' dev",
     "dev:android": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' android\"",
     "dev:ios": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios\" \"pnpm --filter '@tloncorp/ui' watch\"",
@@ -33,6 +36,7 @@
     "eslint-plugin-react": "^7.34.1",
     "eslint-plugin-react-hooks": "^4.6.0",
     "lint-staged": "^15.0.0",
+    "react-cosmos": "6.1.1",
     "tsup": "^8.0.1",
     "vitest": "^1.2.2"
   },
@@ -53,7 +57,8 @@
       "any-ascii@0.3.2": "patches/any-ascii@0.3.2.patch",
       "react-native@0.73.4": "patches/react-native@0.73.4.patch",
       "@react-navigation/drawer@6.7.2": "patches/@react-navigation__drawer@6.7.2.patch",
-      "@likashefqet/react-native-image-zoom@4.2.0": "patches/@likashefqet__react-native-image-zoom@4.2.0.patch"
+      "@likashefqet/react-native-image-zoom@4.2.0": "patches/@likashefqet__react-native-image-zoom@4.2.0.patch",
+      "react-cosmos@6.1.1": "patches/react-cosmos@6.1.1.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {

@@ -1,4 +1,4 @@
-import { Circle, ColorTokens } from 'tamagui';
+import { Circle, ColorTokens, isWeb } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
 import { Icon, IconType } from '../Icon';
@@ -26,7 +26,7 @@ export function AvatarNavIcon({
       pressStyle={{ backgroundColor: 'unset' }}
     >
       <ContactAvatar
-        size={'custom'}
+        size={isWeb ? '$2xl' : 'custom'}
         width={20}
         height={20}
         borderRadius={3}

@@ -27,16 +27,6 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
   const { data: contacts } = store.useContacts();
   const connectionStatus = useConnectionStatus(userId);
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
-
-  const handleGroupAction = useCallback(
-    (action: GroupPreviewAction, group: db.Group) => {
-      setSelectedGroup(null);
-      setTimeout(() => {
-        performGroupAction(action, group);
-      }, 100);
-    },
-    [performGroupAction]
-  );
   const resetToDm = useResetToDm();
 
   const handleGoToDm = useCallback(
@@ -58,6 +48,14 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
   }, [navigation, userId]);
 
   const canUpload = store.useCanUpload();
+
+  const handleGroupAction = useCallback(
+    (action: GroupPreviewAction, group: db.Group) => {
+      setSelectedGroup(null);
+      performGroupAction(action, group);
+    },
+    [performGroupAction]
+  );
 
   return (
     <AppDataContextProvider
