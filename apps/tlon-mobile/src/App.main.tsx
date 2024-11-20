@@ -135,8 +135,8 @@ export default function ConnectedApp() {
                   }}
                   options={{
                     enable:
-                      process.env.NODE_ENV === 'test' &&
-                      !process.env.POST_HOG_IN_DEV,
+                      process.env.NODE_ENV !== 'test' ||
+                      !!process.env.POST_HOG_IN_DEV,
                   }}
                 >
                   <GestureHandlerRootView style={{ flex: 1 }}>
