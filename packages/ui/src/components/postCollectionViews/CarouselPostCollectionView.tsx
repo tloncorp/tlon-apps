@@ -69,7 +69,7 @@ function BaseCarouselPostCollection() {
       >
         {posts?.map((post) => (
           <Carousel.Item justifyContent="center" key={post.id}>
-            <XStack flex={1} backgroundColor="white">
+            <XStack flex={1} backgroundColor="$background">
               <PostView post={post} showAuthor={false} showReplies={false} />
               <View
                 pointerEvents="box-none"
@@ -112,7 +112,7 @@ function BaseCarouselPostCollection() {
                         editStatus={post.editStatus}
                         deleteStatus={post.deleteStatus}
                         showEditedIndicator={!!post.isEdited}
-                        showTime={false}
+                        showSentAt={false}
                       />
                       <YStack gap="$l">
                         <YStack alignItems="center">

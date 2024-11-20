@@ -1,5 +1,4 @@
 import { ImageZoom } from '@likashefqet/react-native-image-zoom';
-import { StackStyle } from '@tamagui/web';
 import * as React from 'react';
 import {
   FlatList,
@@ -13,10 +12,7 @@ import { runOnJS } from 'react-native-reanimated';
 import { Edges, SafeAreaView } from 'react-native-safe-area-context';
 import { AnimatePresence, View, withStaticProperties } from 'tamagui';
 
-type ForwardingProps<
-  TamaguiStyleProps extends StackStyle,
-  CustomProps extends Record<string, unknown>,
-> = CustomProps & Omit<TamaguiStyleProps, keyof CustomProps>;
+import { ForwardingProps } from '../utils/react';
 
 const CarouselContext = React.createContext<{
   direction: 'horizontal' | 'vertical';
@@ -37,7 +33,7 @@ const _Carousel = React.forwardRef<
     scrollToIndex: (index: number, animated?: boolean) => void;
   },
   ForwardingProps<
-    React.ComponentPropsWithoutRef<typeof View>,
+    typeof View,
     {
       onVisibleIndexChange?: (index: number) => void;
       scrollDirection?: 'horizontal' | 'vertical';
@@ -180,7 +176,7 @@ function Item({
   overlay,
   ...forwardedProps
 }: ForwardingProps<
-  React.ComponentPropsWithoutRef<typeof View>,
+  typeof View,
   {
     children?: React.ReactNode;
 

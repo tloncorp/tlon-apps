@@ -44,7 +44,7 @@ type AuthorRowProps = ComponentProps<typeof XStack> & {
   type?: db.PostType;
   detailView?: boolean;
   showEditedIndicator?: boolean;
-  showTime?: boolean;
+  showSentAt?: boolean;
 };
 
 export function useNavigateToProfile(userId: string) {
@@ -112,7 +112,7 @@ export function ChatAuthorRow({
   deliveryStatus,
   editStatus,
   deleteStatus,
-  showTime = true,
+  showSentAt = true,
   ...props
 }: AuthorRowProps) {
   const openProfile = useNavigateToProfile(authorId);
@@ -145,7 +145,7 @@ export function ChatAuthorRow({
             numberOfLines={1}
             maxWidth={shouldTruncate ? '55%' : '100%'}
           />
-          {showTime && timeDisplay && (
+          {showSentAt && timeDisplay && (
             <Text color="$secondaryText" size="$label/m">
               {timeDisplay}
             </Text>
