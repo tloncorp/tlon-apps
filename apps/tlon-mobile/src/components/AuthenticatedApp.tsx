@@ -4,6 +4,7 @@ import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitCl
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
+import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
@@ -20,6 +21,7 @@ function AuthenticatedApp() {
   const { ship, shipUrl } = shipInfo;
   const currentUserId = useCurrentUserId();
   const configureClient = useConfigureUrbitClient();
+  const telemetry = useTelemetry();
   useNotificationListener();
   useDeepLinkListener();
   useNavigationLogging();
@@ -31,12 +33,16 @@ function AuthenticatedApp() {
     sync.syncStart();
   }, [currentUserId, ship, shipUrl]);
 
-  const handleAppStatusChange = useCallback((status: AppStateStatus) => {
-    if (status === 'active') {
-      sync.syncUnreads({ priority: sync.SyncPriority.High });
-      sync.syncPinnedItems({ priority: sync.SyncPriority.High });
-    }
-  }, []);
+  const handleAppStatusChange = useCallback(
+    (status: AppStateStatus) => {
+      if (status === 'active') {
+        sync.syncUnreads({ priority: sync.SyncPriority.High });
+        sync.syncPinnedItems({ priority: sync.SyncPriority.High });
+        telemetry.captureAppActive();
+      }
+    },
+    [telemetry]
+  );
 
   useAppStatusChange(handleAppStatusChange);
 
