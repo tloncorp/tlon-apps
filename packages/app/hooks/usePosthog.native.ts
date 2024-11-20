@@ -1,9 +1,7 @@
 import { usePostHog as useNativePosthog } from 'posthog-react-native';
 import { useCallback, useMemo } from 'react';
 
-import { TelemetryClient } from '../types/telemetry';
-
-export function useTelemetry(): TelemetryClient {
+export function usePosthog() {
   const posthog = useNativePosthog();
 
   const optedOut = useMemo(() => {
@@ -26,7 +24,7 @@ export function useTelemetry(): TelemetryClient {
   );
 
   const capture = useCallback(
-    (eventName: string, properties?: Record<string, string>) => {
+    (eventName: string, properties?: Record<string, any>) => {
       return posthog?.capture(eventName, properties);
     },
     [posthog]

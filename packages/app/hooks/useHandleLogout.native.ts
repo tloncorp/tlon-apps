@@ -8,14 +8,14 @@ import { useBranch } from '../contexts/branch';
 import { clearShipInfo, useShip } from '../contexts/ship';
 import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 import { clearSplashDismissed } from '../utils/splash';
-import { useClearTelemetryConfig } from './useTelemetryHelpers';
+import { useClearTelemetryConfig } from './useTelemetry';
 
 const logger = createDevLogger('logout', true);
 
 export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
   const { clearShip } = useShip();
   const { clearLure, clearDeepLink } = useBranch();
-  const resetTelemetry = useClearTelemetryConfig();
+  const clearTelemetry = useClearTelemetryConfig();
 
   const handleLogout = useCallback(async () => {
     api.queryClient.clear();
@@ -27,7 +27,7 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     clearLure();
     clearDeepLink();
     clearSplashDismissed();
-    resetTelemetry();
+    clearTelemetry();
     finishingSelfHostedLogin.resetValue();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');
@@ -35,7 +35,7 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     }
     // delay DB reset to next tick to avoid race conditions
     setTimeout(() => resetDb());
-  }, [clearDeepLink, clearLure, clearShip, resetDb, resetTelemetry]);
+  }, [clearDeepLink, clearLure, clearShip, resetDb, clearTelemetry]);
 
   return handleLogout;
 }

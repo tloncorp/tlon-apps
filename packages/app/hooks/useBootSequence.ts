@@ -9,7 +9,7 @@ import { BootPhaseNames, NodeBootPhase } from '../lib/bootHelpers';
 import BootHelpers from '../lib/bootHelpers';
 import { getShipFromCookie } from '../utils/ship';
 import { useConfigureUrbitClient } from './useConfigureUrbitClient';
-import { useTelemetry } from './useTelemetry';
+import { usePosthog } from './usePosthog';
 
 const HANDLE_INVITES_TIMEOUT = 1000 * 30;
 
@@ -39,7 +39,7 @@ export function useBootSequence({
 }: {
   hostingUser: { id: string } | null;
 }) {
-  const telemetry = useTelemetry();
+  const telemetry = usePosthog();
   const { setShip } = useShip();
   const connectionStatus = store.useConnectionStatus();
   const lureMeta = useLureMetadata();

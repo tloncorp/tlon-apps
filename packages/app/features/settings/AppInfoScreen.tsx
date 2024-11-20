@@ -23,7 +23,7 @@ import { getEmailClients, openComposer } from 'react-native-email-link';
 import { ScrollView } from 'react-native-gesture-handler';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
-import { useTelemetryDisabler } from '../../hooks/useTelemetryHelpers';
+import { useTelemetry } from '../../hooks/useTelemetry';
 import { setDebug } from '../../lib/debug';
 import { getEasUpdateDisplay } from '../../lib/platformHelpers';
 import { RootStackParamList } from '../../navigation/types';
@@ -53,9 +53,9 @@ export function AppInfoScreen(props: Props) {
   const { enabled, logs, logId, uploadLogs } = useDebugStore();
   const easUpdateDisplay = useMemo(() => getEasUpdateDisplay(Updates), []);
   const [hasClients, setHasClients] = useState(true);
-  const telemetry = useTelemetryDisabler();
+  const telemetry = useTelemetry();
   const [telemetryDisabled, setTelemetryDisabled] = useState(
-    telemetry.startedDisabled
+    telemetry.optedOut
   );
 
   const toggleSetTelemetry = useCallback(() => {

@@ -5,5 +5,11 @@ export interface TelemetryClient {
   identify: (userId: string, properties?: Record<string, any>) => void;
   capture: (eventName: string, properties?: Record<string, any>) => void;
   flush: () => Promise<void>;
-  reset: () => void;
+
+  setDisabled: (disabled: boolean) => void;
+  captureMandatoryEvent: (event: {
+    eventId: string;
+    properties?: Record<string, any>;
+  }) => void;
+  captureAppActive: () => void;
 }
