@@ -51,7 +51,7 @@ export function ContactsScreenView(props: Props) {
 
     if (trimmedSuggested.length > 0) {
       result.push({
-        title: 'Suggestions',
+        title: 'Suggested by Pals and DMs',
         data: trimmedSuggested,
       });
     }
@@ -70,6 +70,8 @@ export function ContactsScreenView(props: Props) {
           endContent={
             item.isContactSuggestion ? (
               <Badge text="Add" type="positive" />
+            ) : item.id === props.userContact?.id ? (
+              <Badge text="You" type="neutral" />
             ) : (
               <SystemIconAvatar icon="ChevronRight" backgroundColor="unset" />
             )
@@ -77,6 +79,10 @@ export function ContactsScreenView(props: Props) {
           subtitle={item.status ? item.status : undefined}
           onPress={() => props.onContactPress(item)}
           onLongPress={() => props.onContactLongPress(item)}
+          borderTopWidth={item.id === props.userContact?.id ? 1 : 0}
+          borderBottomWidth={item.id === props.userContact?.id ? 1 : 0}
+          borderRadius={item.id === props.userContact?.id ? 0 : 'unset'}
+          borderColor="$border"
         />
       );
     },
