@@ -58,7 +58,7 @@ export function useTelemetry(): TelemetryClient {
       } else {
         posthog?.optIn();
         if (isHosted) {
-          posthog?.identify(currentUserId, { ishostedUser: true });
+          posthog?.identify(currentUserId, { isHostedUser: true });
         }
         posthog?.capture('Telemetry enabled', { isHostedUser });
         posthog?.capture('$set', { $set: { telemetryDisabled: false } });
@@ -105,6 +105,11 @@ export function useTelemetry(): TelemetryClient {
 
   useEffect(() => {
     async function initializeTelemetry() {
+      const isInitialized = await didInitializeTelemetry.getValue();
+      if (isInitialized) {
+        return;
+      }
+
       if (isHosted) {
         posthog?.identify(currentUserId, { isHostedUser: true });
       } else {
@@ -118,9 +123,7 @@ export function useTelemetry(): TelemetryClient {
     }
 
     if (posthog) {
-      if (!telemetryInitialized.value) {
-        initializeTelemetry();
-      }
+      initializeTelemetry();
     }
   }, [
     captureMandatoryEvent,
