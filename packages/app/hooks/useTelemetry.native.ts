@@ -7,7 +7,6 @@ export function useTelemetry(): TelemetryClient {
   const posthog = useNativePosthog();
 
   const optedOut = useMemo(() => {
-    console.log(`posthog opted out recalc`, posthog?.optedOut);
     return posthog?.optedOut ?? false;
   }, [posthog]);
 
@@ -20,8 +19,8 @@ export function useTelemetry(): TelemetryClient {
   }, [posthog]);
 
   const identify = useCallback(
-    (userId: string) => {
-      return posthog?.identify(userId);
+    (userId: string, properties: Record<string, any>) => {
+      return posthog?.identify(userId, properties);
     },
     [posthog]
   );

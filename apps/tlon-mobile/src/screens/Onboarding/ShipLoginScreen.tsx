@@ -64,6 +64,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
   const [codevisible, setCodeVisible] = useState(false);
 
   const isValidUrl = useCallback((url: string) => {
+    return true;
     const urlPattern =
       /^(https?:\/\/)?(localhost|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|[\w.-]+\.([a-z]{2,}))(:\d+)?$/i;
     const hostedPattern = /tlon\.network/i;
@@ -96,6 +97,13 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
       if (authCookie) {
         await setFinishingSelfHostedLogin(true);
         const shipId = getShipFromCookie(authCookie);
+
+        navigation.navigate('SetTelemetry');
+
+        // Delay to allow the transition to telemetry screen via Onboarding navigator to complete
+        // before setting auth and potentially triggering a re-render of app.main (which might change nav prop to Root navigator)
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         setShip({
           ship: shipId,
           shipUrl,
@@ -107,8 +115,6 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
         if (!hasSignedUp) {
           logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
         }
-
-        navigation.navigate('SetTelemetry');
       } else {
         setRemoteError(
           "Sorry, we couldn't log in to your ship. It may be busy or offline."

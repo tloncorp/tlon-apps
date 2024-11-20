@@ -23,7 +23,7 @@ import { getEmailClients, openComposer } from 'react-native-email-link';
 import { ScrollView } from 'react-native-gesture-handler';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
-import { useTelemetryDisabler } from '../../hooks/useInitializeTelemetry';
+import { useTelemetryDisabler } from '../../hooks/useTelemetryHelpers';
 import { setDebug } from '../../lib/debug';
 import { getEasUpdateDisplay } from '../../lib/platformHelpers';
 import { RootStackParamList } from '../../navigation/types';
@@ -185,25 +185,23 @@ export function AppInfoScreen(props: Props) {
             </YStack>
           )}
 
-          {telemetry.canDisable && (
-            <YStack>
-              <XStack
-                justifyContent="space-between"
-                alignItems="center"
-                padding="$l"
-              >
-                <SizableText flexShrink={1}>Share Usage Statistics</SizableText>
-                <Switch
-                  style={{ flexShrink: 0 }}
-                  value={!telemetryDisabled}
-                  onValueChange={toggleSetTelemetry}
-                ></Switch>
-              </XStack>
-              <SizableText size="$s" marginLeft="$l">
-                By sharing, you help us improve the app for everyone.
-              </SizableText>
-            </YStack>
-          )}
+          <YStack>
+            <XStack
+              justifyContent="space-between"
+              alignItems="center"
+              padding="$l"
+            >
+              <SizableText flexShrink={1}>Share Usage Statistics</SizableText>
+              <Switch
+                style={{ flexShrink: 0 }}
+                value={!telemetryDisabled}
+                onValueChange={toggleSetTelemetry}
+              ></Switch>
+            </XStack>
+            <SizableText size="$s" marginLeft="$l">
+              By sharing, you help us improve the app for everyone.
+            </SizableText>
+          </YStack>
         </YStack>
       </ScrollView>
     </View>

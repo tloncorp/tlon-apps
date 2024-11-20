@@ -9,6 +9,19 @@ import { useShip } from '../contexts/ship';
 import { useCurrentUserId } from './useCurrentUser.native';
 import { useTelemetry } from './useTelemetry';
 
+export function useClearTelemetryConfig() {
+  const telemetry = useTelemetry();
+
+  const clearTelemetryConfig = useCallback(async () => {
+    await telemetry.flush();
+    telemetry?.reset();
+    didInitializeTelemetry.resetValue();
+    lastAnonymousAppOpenAt.resetValue();
+  }, [telemetry]);
+
+  return clearTelemetryConfig;
+}
+
 export function useIsHosted() {
   const ship = useShip();
   // We use different heuristics for determining whether a user is hosted across the app.
@@ -42,7 +55,7 @@ export function useSetTelemetryDisabled(methodId?: string) {
     async (shouldDisable: boolean) => {
       if (shouldDisable) {
         telemetry?.optIn();
-        telemetry?.capture('Telemetry opt out', {
+        telemetry?.capture('Telemetry disabled', {
           isHostedUser,
           detectionMethod: methodId ?? 'useSetTelemetryDisabled',
         });
@@ -52,8 +65,9 @@ export function useSetTelemetryDisabled(methodId?: string) {
       } else {
         telemetry?.optIn();
         if (isHosted) {
-          telemetry?.identify(currentUserId);
+          telemetry?.identify(currentUserId, { ishostedUser: true });
         }
+        telemetry?.capture('Telemetry enabled', { isHostedUser });
       }
     },
     [currentUserId, isHosted, isHostedUser, methodId, telemetry]
@@ -72,7 +86,7 @@ export function useInitializeUserTelemetry() {
   useEffect(() => {
     async function initializeTelemetry() {
       if (isHosted) {
-        telemetry?.identify(currentUserId);
+        telemetry?.identify(currentUserId, { isHostedUser: true });
       }
 
       if (telemetry?.optedOut) {

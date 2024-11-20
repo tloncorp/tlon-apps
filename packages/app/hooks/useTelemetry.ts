@@ -19,8 +19,8 @@ export function useTelemetry(): TelemetryClient {
   }, [posthog]);
 
   const identify = useCallback(
-    (userId: string) => {
-      return posthog?.identify(userId);
+    (userId: string, properties?: Record<string, any>) => {
+      return posthog?.identify(userId, properties);
     },
     [posthog]
   );

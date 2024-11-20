@@ -301,12 +301,12 @@ export const didInitializeTelemetry = createStorageItem<boolean>({
   defaultValue: false,
 });
 
-export const finishingSelfHostedLogin = createStorageItem<boolean>({
-  key: 'finishingSelfHostedLogin',
-  defaultValue: false,
-});
-
 export const lastAnonymousAppOpenAt = createStorageItem<number | null>({
   key: 'lastAnonymousAppOpenAt',
   defaultValue: null,
+});
+
+export const finishingSelfHostedLogin = createStorageItem<boolean>({
+  key: 'finishingSelfHostedLogin',
+  defaultValue: false,
 });

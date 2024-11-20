@@ -65,6 +65,12 @@ const App = () => {
     };
   }, []);
 
+  const showAuthenticatedApp = useMemo(() => {
+    return (
+      isAuthenticated && !(currentlyOnboarding || finishingSelfHostedLogin)
+    );
+  }, [isAuthenticated, currentlyOnboarding, finishingSelfHostedLogin]);
+
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
       {connected ? (
@@ -72,8 +78,7 @@ const App = () => {
           <View flex={1} alignItems="center" justifyContent="center">
             <LoadingSpinner />
           </View>
-        ) : isAuthenticated &&
-          !(currentlyOnboarding || finishingSelfHostedLogin) ? (
+        ) : showAuthenticatedApp ? (
           <AuthenticatedApp />
         ) : (
           <OnboardingStack />

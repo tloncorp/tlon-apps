@@ -110,7 +110,7 @@ export function useBootSequence({
         authCookie: auth.authCookie,
         authType: 'hosted',
       });
-      telemetry?.identify(preSig(auth.nodeId));
+      telemetry?.identify(preSig(auth.nodeId), { isHostedUser: true });
 
       await wait(2000);
 
