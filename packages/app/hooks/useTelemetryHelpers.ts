@@ -59,6 +59,7 @@ export function useSetTelemetryDisabled(methodId?: string) {
           isHostedUser,
           detectionMethod: methodId ?? 'useSetTelemetryDisabled',
         });
+        telemetry?.capture('$set', { $set: { telemetryDisabled: true } });
         await telemetry.flush();
 
         telemetry?.optOut();
@@ -68,6 +69,7 @@ export function useSetTelemetryDisabled(methodId?: string) {
           telemetry?.identify(currentUserId, { ishostedUser: true });
         }
         telemetry?.capture('Telemetry enabled', { isHostedUser });
+        telemetry?.capture('$set', { $set: { telemetryDisabled: false } });
       }
     },
     [currentUserId, isHosted, isHostedUser, methodId, telemetry]
@@ -94,11 +96,7 @@ export function useInitializeUserTelemetry() {
           properties: { $set: { isHostedUser: false } },
         });
       }
-
-      if (telemetry?.optedOut) {
-        setTelemetryDisabled(true);
-      }
-
+      setTelemetryDisabled(telemetry.optedOut);
       telemtryInitialized.setValue(true);
     }
 
