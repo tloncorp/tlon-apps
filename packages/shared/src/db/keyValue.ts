@@ -10,6 +10,7 @@ import {
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import { NodeBootPhase, SignupParams } from './domainTypes';
+import { getStorageMethods } from './getStorageMethods';
 
 const logger = createDevLogger('keyValueStore', false);
 
@@ -260,22 +261,6 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
 
   return { getValue, setValue, resetValue, useValue, useStorageItem };
 };
-
-export function getStorageMethods(isSecure: boolean) {
-  if (isSecure) {
-    // TODO: update with SecureStore, pulling it in breaks rollup while
-    // running tests
-    return {
-      getItem: AsyncStorage.getItem,
-      setItem: AsyncStorage.setItem,
-    };
-  }
-
-  return {
-    getItem: AsyncStorage.getItem,
-    setItem: AsyncStorage.setItem,
-  };
-}
 
 export const signupData = createStorageItem<SignupParams>({
   key: 'signupData',
