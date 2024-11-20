@@ -11,11 +11,11 @@ import {
 import { FlatList, View as RNView } from 'react-native';
 import { YStack } from 'tamagui';
 
-import { usePostCollectionContextUnsafelyUnwrapped } from '../contexts/postCollection';
-import { ForwardingProps } from '../utils/react';
-import { ChannelHeader } from './Channel/ChannelHeader';
-import { ChatMessageActions } from './ChatMessage/ChatMessageActions/Component';
-import { Modal } from './Modal';
+import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
+import { ForwardingProps } from '../../utils/react';
+import { ChannelHeader } from '../Channel/ChannelHeader';
+import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { Modal } from '../Modal';
 
 type ListItem =
   | { type: 'op'; post: db.Post }
