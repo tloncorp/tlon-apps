@@ -14,6 +14,7 @@ import {
   ChatOptionsProvider,
   ChatOptionsSheet,
   ChatOptionsSheetMethods,
+  GroupPreviewAction,
   GroupPreviewSheet,
   InviteUsersSheet,
   NavBarView,
@@ -27,6 +28,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 import { screenNameFromChannelId } from '../../navigation/utils';
@@ -91,6 +93,7 @@ export function ChatListScreenView({
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
   });
+  const { performGroupAction } = useGroupActions();
 
   const currentUser = useCurrentUserId();
 
@@ -286,6 +289,14 @@ export function ChatListScreenView({
     setShowSearchInput(!showSearchInput);
   }, [showSearchInput]);
 
+  const handleGroupAction = useCallback(
+    (action: GroupPreviewAction, group: db.Group) => {
+      performGroupAction(action, group);
+      setSelectedGroupId(null);
+    },
+    [performGroupAction]
+  );
+
   return (
     <RequestsProvider
       usePostReference={store.usePostReference}
@@ -345,6 +356,7 @@ export function ChatListScreenView({
             open={!!selectedGroup}
             onOpenChange={handleGroupPreviewSheetOpenChange}
             group={selectedGroup ?? undefined}
+            onActionComplete={handleGroupAction}
           />
           <InviteUsersSheet
             open={inviteSheetGroup !== null}

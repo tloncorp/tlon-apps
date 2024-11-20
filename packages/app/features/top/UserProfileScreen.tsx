@@ -3,6 +3,7 @@ import type * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
   AppDataContextProvider,
+  GroupPreviewAction,
   GroupPreviewSheet,
   NavigationProvider,
   UserProfileScreenView,
@@ -11,6 +12,7 @@ import { useState } from 'react';
 import { useCallback } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useGroupActions } from '../../hooks/useGroupActions';
 import { RootStackParamList } from '../../navigation/types';
 import { useResetToDm } from '../../navigation/utils';
 import { useConnectionStatus } from './useConnectionStatus';
@@ -24,6 +26,7 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
   const connectionStatus = useConnectionStatus(userId);
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const resetToDm = useResetToDm();
+  const { performGroupAction } = useGroupActions();
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
@@ -43,6 +46,14 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
     navigation.push('EditProfile');
   }, [navigation]);
 
+  const handleGroupAction = useCallback(
+    (action: GroupPreviewAction, group: db.Group) => {
+      setSelectedGroup(null);
+      performGroupAction(action, group);
+    },
+    [performGroupAction]
+  );
+
   return (
     <AppDataContextProvider
       currentUserId={currentUserId}
@@ -60,6 +71,7 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
           open={selectedGroup !== null}
           onOpenChange={handleGroupPreviewSheetOpenChange}
           group={selectedGroup ?? undefined}
+          onActionComplete={handleGroupAction}
         />
       </NavigationProvider>
     </AppDataContextProvider>

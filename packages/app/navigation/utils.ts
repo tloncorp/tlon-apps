@@ -80,6 +80,17 @@ export function useResetToDm() {
   };
 }
 
+export function useResetToGroup() {
+  const reset = useTypedReset();
+
+  return function resetToGroup(groupId: string) {
+    reset([
+      { name: 'ChatList' },
+      { name: 'GroupChannels', params: { groupId } },
+    ]);
+  };
+}
+
 export function screenNameFromChannelId(channelId: string) {
   return logic.isDmChannelId(channelId)
     ? 'DM'
