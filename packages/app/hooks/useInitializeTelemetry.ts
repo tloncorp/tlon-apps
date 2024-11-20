@@ -1,11 +1,15 @@
-import { didInitializeTelemetry } from '@tloncorp/shared/db';
+import { AnalyticsEvent } from '@tloncorp/shared';
+import {
+  didInitializeTelemetry,
+  lastAnonymousAppOpenAt,
+} from '@tloncorp/shared/db';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { useShip } from '../contexts/ship';
 import { useCurrentUserId } from './useCurrentUser.native';
 import { useTelemetry } from './useTelemetry';
 
-export function useCanDisableTelemetry() {
+export function useIsHosted() {
   const ship = useShip();
   // We use different heuristics for determining whether a user is hosted across the app.
   // Aggregate all methods here to ensure we don't miss something.
@@ -16,66 +20,63 @@ export function useCanDisableTelemetry() {
     return hasHostedAuth || hasHostedShipUrl;
   }, [ship.authType, ship.shipUrl]);
 
-  return !isHostedUser;
+  return isHostedUser;
 }
 
 export function useTelemetryDisabler() {
-  const canDisableTelemetry = useCanDisableTelemetry();
   const telemetry = useTelemetry();
-
-  const handleSetDisabled = useCallback(
-    async (shouldDisable: boolean) => {
-      if (canDisableTelemetry) {
-        if (shouldDisable) {
-          telemetry?.optIn();
-          telemetry?.capture('Telemetry opt out', {
-            selfHosted: true,
-            detectionMethod: 'useTelemetryDisabler',
-          });
-          await telemetry.flush();
-
-          telemetry?.optOut();
-        } else {
-          telemetry?.optIn();
-        }
-      }
-    },
-    [canDisableTelemetry, telemetry]
-  );
+  const handleSetDisabled = useSetTelemetryDisabled('telemetryDisablerHook');
 
   return {
-    canDisable: canDisableTelemetry,
     startedDisabled: telemetry?.optedOut,
     setDisabled: handleSetDisabled,
   };
 }
 
-export function useInitializeUserTelemetry() {
-  const canDisableTelemetry = useCanDisableTelemetry();
+export function useSetTelemetryDisabled(methodId?: string) {
   const currentUserId = useCurrentUserId();
   const telemetry = useTelemetry();
+  const isHosted = useIsHosted();
+  const isHostedUser = useMemo(() => (isHosted ? 'true' : 'false'), [isHosted]);
+  const handleSetDisabled = useCallback(
+    async (shouldDisable: boolean) => {
+      if (shouldDisable) {
+        telemetry?.optIn();
+        telemetry?.capture('Telemetry opt out', {
+          isHostedUser,
+          detectionMethod: methodId ?? 'useSetTelemetryDisabled',
+        });
+        await telemetry.flush();
+
+        telemetry?.optOut();
+      } else {
+        telemetry?.optIn();
+        if (isHosted) {
+          telemetry?.identify(currentUserId);
+        }
+      }
+    },
+    [currentUserId, isHosted, isHostedUser, methodId, telemetry]
+  );
+
+  return handleSetDisabled;
+}
+
+export function useInitializeUserTelemetry() {
+  const isHosted = useIsHosted();
+  const currentUserId = useCurrentUserId();
+  const telemetry = useTelemetry();
+  const setTelemetryDisabled = useSetTelemetryDisabled('initialization');
   const telemtryInitialized = didInitializeTelemetry.useStorageItem();
-  // const telemetryIsDisabled = hasDisabledTelemetry.useStorageItem();
 
   useEffect(() => {
     async function initializeTelemetry() {
-      if (!canDisableTelemetry) {
-        // for hosted users,
-        telemetry?.optIn();
+      if (isHosted) {
         telemetry?.identify(currentUserId);
-      } else {
-        // for self hosted users, if oppted out of analytics we need to signal
-        // that's what they selected before disabling
-        if (telemetry?.optedOut) {
-          telemetry?.optIn();
-          telemetry?.capture('Telemetry opt out', {
-            selfHosted: true,
-            detectionMethod: 'useInitializeAnalytics',
-          });
-          await telemetry.flush();
+      }
 
-          telemetry?.optOut();
-        }
+      if (telemetry?.optedOut) {
+        setTelemetryDisabled(true);
       }
 
       telemtryInitialized.setValue(true);
@@ -86,7 +87,13 @@ export function useInitializeUserTelemetry() {
         initializeTelemetry();
       }
     }
-  }, [currentUserId, canDisableTelemetry, telemetry, telemtryInitialized]);
+  }, [
+    currentUserId,
+    isHosted,
+    setTelemetryDisabled,
+    telemetry,
+    telemtryInitialized,
+  ]);
 }
 
 // Used for bare minimum telemetry events that cannot be opted out of
@@ -114,4 +121,24 @@ export function useMandatoryTelemetry() {
   );
 
   return trackMandatoryEvent;
+}
+
+export function useTrackAppActive() {
+  const isHosted = useIsHosted();
+  const isHostedUser = useMemo(() => (isHosted ? 'true' : 'false'), [isHosted]);
+  const trackMandatoryEvent = useMandatoryTelemetry();
+
+  const trackAppOpen = useCallback(async () => {
+    const lastAnonymousOpen = await lastAnonymousAppOpenAt.getValue();
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    if (!lastAnonymousOpen || oneDayAgo > lastAnonymousOpen) {
+      lastAnonymousAppOpenAt.setValue(Date.now());
+      trackMandatoryEvent({
+        eventId: AnalyticsEvent.AppActive,
+        properties: { isHostedUser },
+      });
+    }
+  }, [isHostedUser, trackMandatoryEvent]);
+
+  return trackAppOpen;
 }
