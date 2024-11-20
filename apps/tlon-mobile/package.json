@@ -24,7 +24,6 @@
     "test-ui": "jest",
     "tsc": "tsc --noEmit",
     "build": "pnpm generate",
-    "cosmos": "cosmos-native",
     "eas-build-post-install": "pnpm -w run build:mobile-release"
   },
   "lint-staged": {
