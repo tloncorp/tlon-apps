@@ -20,12 +20,14 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
 
 const themes: { label: string; value: ThemeName | 'auto' }[] = [
   { label: 'Auto', value: 'auto' },
-  { label: 'Light', value: 'light' },
-  { label: 'Dark', value: 'dark' },
-  { label: 'Ocean', value: 'ocean' },
-  { label: 'Desert', value: 'desert' },
-  { label: 'Forest', value: 'forest' },
-  { label: 'Mountain', value: 'mountain' },
+  { label: 'Tlon Light', value: 'light' },
+  { label: 'Tlon Dark', value: 'dark' },
+  { label: 'Dracula', value: 'dracula' },
+  { label: 'Greenscreen', value: 'greenscreen' },
+  { label: 'Gruvbox', value: 'gruvbox' },
+  { label: 'Monokai', value: 'monokai' },
+  { label: 'Nord', value: 'nord' },
+  { label: 'Solarized', value: 'solarized' },
 ];
 
 export function ThemeScreen(props: Props) {
