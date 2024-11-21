@@ -27,6 +27,7 @@ const themes: { label: string; value: ThemeName | 'auto' }[] = [
   { label: 'Gruvbox', value: 'gruvbox' },
   { label: 'Monokai', value: 'monokai' },
   { label: 'Nord', value: 'nord' },
+  { label: 'Peony', value: 'peony' },
   { label: 'Solarized', value: 'solarized' },
 ];
 
