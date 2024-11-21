@@ -387,7 +387,7 @@ const ControlFrame = styled(View, {
   width: '$3xl',
   height: '$3xl',
   borderWidth: 1,
-  borderColor: '$shadow',
+  borderColor: '$border',
   alignItems: 'center',
   justifyContent: 'center',
   variants: {
