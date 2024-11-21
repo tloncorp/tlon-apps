@@ -1,9 +1,10 @@
-import { useStorageUnsafelyUnwrapped } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
-import * as urbit from '@tloncorp/shared/urbit';
-import { JSONContent } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+
+import * as db from '../db';
+import { useStorageUnsafelyUnwrapped } from '../storage';
+import * as store from '../store';
+import * as urbit from '../urbit';
+import { JSONContent } from '../urbit';
 
 export const useChannelContext = ({
   channelId,
