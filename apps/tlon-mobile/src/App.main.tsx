@@ -17,6 +17,7 @@ import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
+import { StorageProvider } from '@tloncorp/app/provider/StorageProvider';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
@@ -29,7 +30,7 @@ import {
 } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
 import type { PropsWithChildren } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -45,6 +46,10 @@ const App = () => {
   const [connected, setConnected] = useState(true);
   const signupContext = useSignupContext();
 
+  const currentlyOnboarding = useMemo(() => {
+    return signupContext.email || signupContext.phoneNumber;
+  }, [signupContext.email, signupContext.phoneNumber]);
+
   usePreloadedEmojis();
 
   useEffect(() => {
@@ -59,6 +64,10 @@ const App = () => {
     };
   }, []);
 
+  const showAuthenticatedApp = useMemo(() => {
+    return isAuthenticated && !currentlyOnboarding;
+  }, [isAuthenticated, currentlyOnboarding]);
+
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
       {connected ? (
@@ -66,7 +75,7 @@ const App = () => {
           <View flex={1} alignItems="center" justifyContent="center">
             <LoadingSpinner />
           </View>
-        ) : isAuthenticated && !signupContext.email ? (
+        ) : showAuthenticatedApp ? (
           <AuthenticatedApp />
         ) : (
           <OnboardingStack />
@@ -109,44 +118,52 @@ export default function ConnectedApp() {
   return (
     <ErrorBoundary>
       <FeatureFlagConnectedInstrumentationProvider>
-        <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-          <ShipProvider>
-            <NavigationContainer
-              theme={isDarkMode ? DarkTheme : DefaultTheme}
-              ref={navigationContainerRef}
-            >
-              <BranchProvider>
-                <PostHogProvider
-                  client={posthogAsync}
-                  autocapture
-                  options={{
-                    enable: process.env.NODE_ENV !== 'test',
-                  }}
-                >
-                  <GestureHandlerRootView style={{ flex: 1 }}>
-                    <SafeAreaProvider>
-                      <MigrationCheck>
-                        <QueryClientProvider client={queryClient}>
-                          <SignupProvider>
-                            <PortalProvider>
-                              <App />
-                            </PortalProvider>
+        <StorageProvider>
+          <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
+            <ShipProvider>
+              <NavigationContainer
+                theme={isDarkMode ? DarkTheme : DefaultTheme}
+                ref={navigationContainerRef}
+              >
+                <BranchProvider>
+                  <PostHogProvider
+                    client={posthogAsync}
+                    autocapture={{
+                      captureTouches: false,
+                    }}
+                    options={{
+                      enable:
+                        process.env.NODE_ENV !== 'test' ||
+                        !!process.env.POST_HOG_IN_DEV,
+                    }}
+                  >
+                    <GestureHandlerRootView style={{ flex: 1 }}>
+                      <SafeAreaProvider>
+                        <MigrationCheck>
+                          <QueryClientProvider client={queryClient}>
+                            <SignupProvider>
+                              <PortalProvider>
+                                <App />
+                              </PortalProvider>
 
-                            {__DEV__ && (
-                              <DevTools
-                                navigationContainerRef={navigationContainerRef}
-                              />
-                            )}
-                          </SignupProvider>
-                        </QueryClientProvider>
-                      </MigrationCheck>
-                    </SafeAreaProvider>
-                  </GestureHandlerRootView>
-                </PostHogProvider>
-              </BranchProvider>
-            </NavigationContainer>
-          </ShipProvider>
-        </TamaguiProvider>
+                              {__DEV__ && (
+                                <DevTools
+                                  navigationContainerRef={
+                                    navigationContainerRef
+                                  }
+                                />
+                              )}
+                            </SignupProvider>
+                          </QueryClientProvider>
+                        </MigrationCheck>
+                      </SafeAreaProvider>
+                    </GestureHandlerRootView>
+                  </PostHogProvider>
+                </BranchProvider>
+              </NavigationContainer>
+            </ShipProvider>
+          </TamaguiProvider>
+        </StorageProvider>
       </FeatureFlagConnectedInstrumentationProvider>
     </ErrorBoundary>
   );
