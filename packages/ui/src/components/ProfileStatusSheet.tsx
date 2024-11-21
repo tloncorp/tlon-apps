@@ -40,21 +40,24 @@ export default function ProfileStatusSheet({
   );
 
   const handleSave = useCallback(() => {
-    console.log(`hanle save pressed`);
-    handleSubmit((formData) => {
-      onUpdateStatus(formData.status);
-    });
-  }, [handleSubmit, onUpdateStatus]);
+    if (isDirty) {
+      handleSubmit((formData) => {
+        onUpdateStatus(formData.status);
+      })();
+    }
+    handleClose(false);
+  }, [handleClose, handleSubmit, isDirty, onUpdateStatus]);
 
   return (
     <ActionSheet
       open={open}
       onOpenChange={handleClose}
-      moveOnKeyboardChange
-      disableDrag
+      // TODO: manually calculate keyboard + input height?
+      snapPointsMode="percent"
+      snapPoints={[60]}
     >
-      <ActionSheet.Content paddingBottom="$3xl">
-        <YStack flex={1} marginHorizontal="$2xl" gap="$xl">
+      <ActionSheet.Content flex={1} paddingBottom={0}>
+        <YStack flex={1} marginHorizontal="$2xl">
           <ControlledTextField
             name="status"
             label="Update your status"
@@ -64,6 +67,9 @@ export default function ProfileStatusSheet({
               autoFocus: true,
               returnKeyType: isValid ? 'send' : 'done',
               onSubmitEditing: handleSave,
+              blurOnSubmit: true,
+              multiline: true,
+              maxLength: 50,
             }}
             rules={{
               maxLength: {
