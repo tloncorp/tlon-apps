@@ -34,3 +34,4 @@ export * as tiptap from './logic/tiptap';
 export * as utilHooks from './logic/utilHooks';
 export * from './debug';
 export * from './perf';
+export { StorageContext } from './storage';
