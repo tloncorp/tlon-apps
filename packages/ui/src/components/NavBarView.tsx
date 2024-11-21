@@ -31,7 +31,6 @@ export const NavBarView = ({
     return currentRoute === routeName;
   };
   const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
-  console.log('haveUnreadUnseenActivity', haveUnreadUnseenActivity);
   const isWindowNarrow = useIsWindowNarrow();
 
   const openStatusSheet = useCallback(() => {
@@ -58,18 +57,12 @@ export const NavBarView = ({
 
   return (
     <NavBar>
-      {showContactsTab && (
-        <NavIcon
-          type="ChannelNotebooks"
-          activeType="ChannelNotebooks"
-          isActive={isRouteActive('Contacts')}
-          onPress={navigateToContacts}
-        />
-      )}
       <NavIcon
         type="Home"
         activeType="HomeFilled"
-        isActive={isRouteActive(['ChatList', 'Contacts'])}
+        isActive={isRouteActive(
+          showContactsTab ? 'ChatList' : ['ChatList', 'Contacts']
+        )}
         // hasUnreads={(unreadCount?.channels ?? 0) > 0}
         // intentionally leave undotted for now
         hasUnreads={false}
@@ -82,12 +75,21 @@ export const NavBarView = ({
         isActive={isRouteActive('Activity')}
         onPress={navigateToNotifications}
       />
-      <AvatarNavIcon
-        id={currentUserId}
-        focused={isRouteActive('Profile')}
-        onPress={navigateToProfileSettings}
-        onLongPress={openStatusSheet}
-      />
+      {showContactsTab ? (
+        <NavIcon
+          type="ChannelNotebooks"
+          activeType="ChannelNotebooks"
+          isActive={isRouteActive('Contacts')}
+          onPress={navigateToContacts}
+        />
+      ) : (
+        <AvatarNavIcon
+          id={currentUserId}
+          focused={isRouteActive('Profile')}
+          onPress={navigateToProfileSettings}
+          onLongPress={openStatusSheet}
+        />
+      )}
       {showStatusSheet && (
         <ProfileStatusSheet
           open={showStatusSheet}

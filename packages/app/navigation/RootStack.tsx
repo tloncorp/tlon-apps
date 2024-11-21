@@ -26,6 +26,7 @@ import ImageViewerScreen from '../features/top/ImageViewerScreen';
 import PostScreen from '../features/top/PostScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
+import { useFeatureFlag } from '../lib/featureFlags';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import type { RootStackParamList } from './types';
 
@@ -33,6 +34,7 @@ const Root = createNativeStackNavigator<RootStackParamList>();
 
 export function RootStack() {
   const isDarkMode = useIsDarkMode();
+  const [contactsTabEnabled] = useFeatureFlag('contactsTab');
 
   // Android status bar has a solid color by default, so we clear it
   useFocusEffect(() => {
@@ -71,7 +73,10 @@ export function RootStack() {
       <Root.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ animation: 'none', gestureEnabled: false }}
+        options={{
+          animation: contactsTabEnabled ? undefined : 'none',
+          gestureEnabled: false,
+        }}
       />
 
       {/* individual screens */}

@@ -68,7 +68,19 @@ export default function ContactsScreen(props: Props) {
       <View flex={1}>
         <ScreenHeader
           title="Contacts"
-          backAction={() => props.navigation.goBack()}
+          backAction={
+            contactsTabEnabled ? undefined : () => navigate('ChatList')
+          }
+          rightControls={
+            contactsTabEnabled ? (
+              <ScreenHeader.IconButton
+                type="Settings"
+                onPress={() => {
+                  navigate('Profile');
+                }}
+              />
+            ) : undefined
+          }
         />
         <ContactsScreenView
           contacts={userContacts ?? []}

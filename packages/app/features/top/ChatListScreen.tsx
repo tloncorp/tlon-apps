@@ -325,10 +325,12 @@ export function ChatListScreenView({
           <ScreenHeader
             title={notReadyMessage ?? screenTitle}
             leftControls={
-              <ScreenHeader.IconButton
-                type="ChannelMultiDM"
-                onPress={goToContacts}
-              />
+              contactsTabEnabled ? undefined : (
+                <ScreenHeader.IconButton
+                  type="ChannelMultiDM"
+                  onPress={goToContacts}
+                />
+              )
             }
             rightControls={
               <>

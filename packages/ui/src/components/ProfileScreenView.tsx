@@ -22,6 +22,8 @@ interface Props {
   onSendBugReportPressed?: () => void;
   onExperimentalFeaturesPressed?: () => void;
   dmLink?: string;
+  contactsTabEnabled?: boolean;
+  onBackPressed?: () => void;
 }
 
 export function ProfileScreenView(props: Props) {
@@ -62,16 +64,21 @@ export function ProfileScreenView(props: Props) {
 
   return (
     <>
-      <ScreenHeader title="Settings" />
+      <ScreenHeader
+        title="Settings"
+        backAction={props.contactsTabEnabled ? props.onBackPressed : undefined}
+      />
       <ScrollView>
         <YStack flex={1} padding="$l" gap="$s">
-          <ProfileAction
-            leftIcon={<ContactAvatar contactId={props.currentUserId} />}
-            title="Profile"
-            subtitle={props.currentUserId}
-            onPress={props.onProfilePressed}
-            rightIcon={'ChevronRight'}
-          />
+          {props.contactsTabEnabled ? null : (
+            <ProfileAction
+              leftIcon={<ContactAvatar contactId={props.currentUserId} />}
+              title="Profile"
+              subtitle={props.currentUserId}
+              onPress={props.onProfilePressed}
+              rightIcon={'ChevronRight'}
+            />
+          )}
           {showDmLure && props.dmLink !== '' && (
             <ProfileAction
               title="Share app with friends"

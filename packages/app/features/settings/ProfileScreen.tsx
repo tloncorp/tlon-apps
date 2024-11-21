@@ -67,6 +67,10 @@ export default function ProfileScreen(props: Props) {
     navigationRef.current.navigate('Contacts');
   }, [navigationRef]);
 
+  const onBack = useCallback(() => {
+    navigationRef.current.goBack();
+  }, [navigationRef]);
+
   return (
     <View backgroundColor="$background" flex={1}>
       <ProfileScreenView
@@ -81,16 +85,20 @@ export default function ProfileScreen(props: Props) {
         onManageAccountPressed={onManageAccountPressed}
         onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
         dmLink={dmLink}
+        contactsTabEnabled={contactsTabEnabled}
+        onBackPressed={onBack}
       />
-      <NavBarView
-        navigateToContacts={onNavigateToContacts}
-        navigateToHome={onNavigateToHome}
-        navigateToNotifications={onNavigateToNotifications}
-        navigateToProfileSettings={onNavigateToProfileSettings}
-        currentRoute="Profile"
-        currentUserId={currentUserId}
-        showContactsTab={contactsTabEnabled}
-      />
+      {contactsTabEnabled ? null : (
+        <NavBarView
+          navigateToContacts={onNavigateToContacts}
+          navigateToHome={onNavigateToHome}
+          navigateToNotifications={onNavigateToNotifications}
+          navigateToProfileSettings={onNavigateToProfileSettings}
+          currentRoute="Profile"
+          currentUserId={currentUserId}
+          showContactsTab={contactsTabEnabled}
+        />
+      )}
     </View>
   );
 }
