@@ -73,7 +73,8 @@
       "prosemirror-model": "1.19.3",
       "prosemirror-view": "1.33.4",
       "prosemirror-state": "1.4.3",
-      "@tiptap/pm": "2.6.6"
+      "@tiptap/pm": "2.6.6",
+      "react-native-web": "0.18.12"
     }
   }
 }
