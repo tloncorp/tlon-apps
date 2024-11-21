@@ -33,7 +33,7 @@ export interface DraftInputContext {
   draftInputRef?: React.Ref<DraftInputHandle>;
   editPost: (post: db.Post, content: Story) => Promise<void>;
   editingPost?: db.Post;
-  getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent>;
+  getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   group: db.Group | null;
   headerMode: 'default' | 'next';
 
