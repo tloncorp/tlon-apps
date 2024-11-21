@@ -1,8 +1,9 @@
 import * as db from '@tloncorp/shared/db';
-import { ComponentProps, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { SectionList } from 'react-native';
-import { SizableText, View, XStack } from 'tamagui';
+import { SizableText, View } from 'tamagui';
 
+import { useContact, useCurrentUserId } from '../contexts';
 import { useSortedContacts } from '../hooks/contactSorters';
 import { SystemIconAvatar } from './Avatar';
 import { Badge } from './Badge';
@@ -11,7 +12,6 @@ import { ContactListItem } from './ListItem';
 interface Props {
   contacts: db.Contact[];
   suggestions: db.Contact[];
-  userContact?: db.Contact | null;
   onContactPress: (contact: db.Contact) => void;
   onContactLongPress: (contact: db.Contact) => void;
 }
@@ -22,6 +22,8 @@ interface Section {
 }
 
 export function ContactsScreenView(props: Props) {
+  const currentUserId = useCurrentUserId();
+  const userContact = useContact(currentUserId);
   const trimmedSuggested = useMemo(() => {
     if (props.suggestions.length < 4 || props.contacts.length === 0) {
       return props.suggestions;
@@ -37,9 +39,9 @@ export function ContactsScreenView(props: Props) {
   const sections = useMemo(() => {
     const result: Section[] = [];
 
-    if (props.userContact) {
+    if (userContact) {
       result.push({
-        data: [props.userContact],
+        data: [userContact],
       });
     }
 
@@ -57,7 +59,7 @@ export function ContactsScreenView(props: Props) {
     }
 
     return result;
-  }, [props.userContact, sortedContacts, trimmedSuggested]);
+  }, [userContact, sortedContacts, trimmedSuggested]);
 
   const renderItem = useCallback(
     ({ item }: { item: db.Contact }) => {
@@ -70,7 +72,7 @@ export function ContactsScreenView(props: Props) {
           endContent={
             item.isContactSuggestion ? (
               <Badge text="Add" type="positive" />
-            ) : item.id === props.userContact?.id ? (
+            ) : item.id === userContact?.id ? (
               <Badge text="You" type="neutral" />
             ) : (
               <SystemIconAvatar icon="ChevronRight" backgroundColor="unset" />
@@ -79,14 +81,14 @@ export function ContactsScreenView(props: Props) {
           subtitle={item.status ? item.status : undefined}
           onPress={() => props.onContactPress(item)}
           onLongPress={() => props.onContactLongPress(item)}
-          borderTopWidth={item.id === props.userContact?.id ? 1 : 0}
-          borderBottomWidth={item.id === props.userContact?.id ? 1 : 0}
-          borderRadius={item.id === props.userContact?.id ? 0 : 'unset'}
+          borderTopWidth={item.id === userContact?.id ? 1 : 0}
+          borderBottomWidth={item.id === userContact?.id ? 1 : 0}
+          borderRadius={item.id === userContact?.id ? 0 : 'unset'}
           borderColor="$border"
         />
       );
     },
-    [props]
+    [props, userContact?.id]
   );
 
   const renderSectionHeader = useCallback(
@@ -106,38 +108,6 @@ export function ContactsScreenView(props: Props) {
 
   return (
     <View flex={1}>
-      {/* {props.userContact ? (
-        <View
-          width="100%"
-          borderTopWidth={1}
-          borderBottomWidth={1}
-          borderColor="$border"
-          // backgroundColor="$secondaryBackground"
-          // marginHorizontal="$l"
-          // borderRadius="$xl"
-        >
-          <ContactListItem
-            size="$4xl"
-            contactId={props.userContact.id}
-            showNickname
-            showEndContent
-            endContent={
-              <XStack
-                height="$2xl"
-                alignItems="center"
-                // backgroundColor="orange"
-              >
-                <Badge text="You" type="neutral" />
-                <SystemIconAvatar icon="ChevronRight" backgroundColor="unset" />
-              </XStack>
-            }
-            subtitle={
-              props.userContact.status ? props.userContact.status : undefined
-            }
-            onPress={() => props.onContactPress(props.userContact!)}
-          />
-        </View>
-      ) : null} */}
       <SectionList
         sections={sections}
         renderItem={renderItem}

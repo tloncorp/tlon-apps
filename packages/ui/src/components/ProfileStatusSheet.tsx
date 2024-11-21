@@ -67,8 +67,8 @@ export default function ProfileStatusSheet({
             }}
             rules={{
               maxLength: {
-                value: 60,
-                message: 'Your status is limited to 30 characters',
+                value: 50,
+                message: 'Your status is limited to 50 characters',
               },
             }}
           />

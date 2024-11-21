@@ -1,4 +1,5 @@
 import { ComponentProps } from 'react';
+import { isWeb } from 'tamagui';
 
 import { AvatarProps } from '../Avatar';
 import ContactName from '../ContactName';
@@ -61,7 +62,10 @@ export const ContactListItem = ({
           {subtitle && <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>}
         </ListItem.MainContent>
         {showEndContent && (
-          <ListItem.EndContent flexGrow={1} justifyContent="flex-end">
+          <ListItem.EndContent
+            flexGrow={isWeb ? 1 : 'unset'}
+            justifyContent="flex-end"
+          >
             {endContent}
           </ListItem.EndContent>
         )}

@@ -233,8 +233,8 @@ export function EditProfileScreenView(props: Props) {
                   }}
                   rules={{
                     maxLength: {
-                      value: 30,
-                      message: 'Your status is limited to 30 characters',
+                      value: 50,
+                      message: 'Your status is limited to 50 characters',
                     },
                   }}
                 />
