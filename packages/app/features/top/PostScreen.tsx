@@ -8,12 +8,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
 
 export default function PostScreen(props: Props) {
   const { postId, channelId, authorId } = props.route.params;
+  const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
   const {
     group,
     channel,
@@ -28,7 +30,7 @@ export default function PostScreen(props: Props) {
   } = useChannelContext({
     channelId: channelId,
     draftKey: postId,
-    uploaderKey: `${channelId}/${postId}`,
+    isChannelSwitcherEnabled,
   });
 
   const { navigateToImage, navigateToRef } = useChannelNavigation({

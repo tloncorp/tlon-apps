@@ -25,6 +25,7 @@ import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 
 const logger = createDevLogger('ChannelScreen', false);
@@ -39,6 +40,7 @@ export default function ChannelScreen(props: Props) {
     setCurrentChannelId(channelId);
   }, [channelId]);
 
+  const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
   const {
     negotiationStatus,
     getDraft,
@@ -53,7 +55,7 @@ export default function ChannelScreen(props: Props) {
   } = useChannelContext({
     channelId: currentChannelId,
     draftKey: currentChannelId,
-    uploaderKey: `${currentChannelId}`,
+    isChannelSwitcherEnabled,
   });
 
   const currentUserId = useCurrentUserId();
