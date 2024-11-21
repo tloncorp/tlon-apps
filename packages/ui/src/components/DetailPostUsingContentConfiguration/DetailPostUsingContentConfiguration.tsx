@@ -108,7 +108,7 @@ export function DetailPostView({
             <ContextGestureListener
               presentationCandidate={{
                 post: item.post,
-                postActionIds: ['delete', 'edit', 'quote'],
+                postActionIds: ['delete', 'edit'],
               }}
               menuApi={postContextMenu}
             >
