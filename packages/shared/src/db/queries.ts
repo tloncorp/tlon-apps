@@ -3052,14 +3052,6 @@ export const insertActivityEvents = createWriteQuery(
       };
     });
 
-    // return ctx.db
-    //   .insert($activityEvents)
-    //   .values(events)
-    //   .onConflictDoUpdate({
-    //     target: [$activityEvents.id, $activityEvents.bucketId],
-    //     set: conflictUpdateSetAll($activityEvents),
-    //   });
-
     await withTransactionCtx(ctx, async (txCtx) => {
       await txCtx.db
         .insert($activityEvents)

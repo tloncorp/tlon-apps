@@ -47,7 +47,6 @@ export const removeContactSuggestion = async (contactId: string) => {
   });
 };
 
-// TODO: use new method
 export const addContacts = async (contactIds: string[]) => {
   return poke({
     app: 'contacts',

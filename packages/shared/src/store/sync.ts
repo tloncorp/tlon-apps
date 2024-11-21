@@ -211,8 +211,6 @@ export const syncContacts = async (ctx?: SyncCtx) => {
   } catch (e) {
     logger.error('error getting contacts from db', e);
   }
-
-  // get book
 };
 
 export const syncPinnedItems = async (ctx?: SyncCtx) => {

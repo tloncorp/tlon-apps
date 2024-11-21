@@ -312,11 +312,6 @@ function parseContactUpdateEvent(
     return null;
   }
 
-  // return {
-  //   contactUpdateType: 'status',
-  //   contactUpdateValue: 'Dancing amongst the stars',
-  // };
-
   if ('nickname' in update) {
     return {
       contactUpdateType: 'nickname',
