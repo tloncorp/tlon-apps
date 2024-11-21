@@ -49,4 +49,3 @@ export const BRANCH_KEY = extra.branchKey ?? '';
 export const BRANCH_DOMAIN = extra.branchDomain ?? '';
 export const INVITE_SERVICE_ENDPOINT = extra.inviteServiceEndpoint ?? '';
 export const INVITE_SERVICE_IS_DEV = extra.inviteServiceIsDev === 'true';
-export const THEME_STORAGE_KEY = '@user_theme';
