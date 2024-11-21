@@ -1,10 +1,9 @@
+import { useStorageUnsafelyUnwrapped } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
 import { JSONContent } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-
-import storage from '../lib/storage';
 
 export const useChannelContext = ({
   channelId,
@@ -17,6 +16,8 @@ export const useChannelContext = ({
   // need to populate this from feature flags :(
   isChannelSwitcherEnabled: boolean;
 }) => {
+  const storage = useStorageUnsafelyUnwrapped();
+
   // Model context
   const channelQuery = store.useChannelWithRelations({
     id: channelId,
@@ -82,7 +83,7 @@ export const useChannelContext = ({
         return null;
       }
     },
-    [draftKey]
+    [storage, draftKey]
   );
 
   const storeDraft = useCallback(
@@ -96,7 +97,7 @@ export const useChannelContext = ({
         return;
       }
     },
-    [draftKey]
+    [storage, draftKey]
   );
 
   const clearDraft = useCallback(
@@ -109,7 +110,7 @@ export const useChannelContext = ({
         return;
       }
     },
-    [draftKey]
+    [storage, draftKey]
   );
 
   return {
