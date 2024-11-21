@@ -21,3 +21,11 @@ interface Storage {
 }
 
 export const StorageContext = React.createContext<Storage | null>(null);
+
+export function useStorageUnsafelyUnwrapped() {
+  const storage = React.useContext(StorageContext);
+  if (storage == null) {
+    throw new Error('Missing storage context');
+  }
+  return storage;
+}
