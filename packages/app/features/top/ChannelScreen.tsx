@@ -1,6 +1,6 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createDevLogger } from '@tloncorp/shared';
+import { createDevLogger, useChannelContext } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
@@ -21,7 +21,6 @@ import {
 } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 
-import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';

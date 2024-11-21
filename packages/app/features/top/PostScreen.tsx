@@ -1,11 +1,11 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useChannelContext } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
 import { PostScreenView, useCurrentUserId } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
