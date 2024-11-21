@@ -79,9 +79,11 @@ export function ChannelHeader({
   group,
   goBack,
   goToSearch,
+  goToEdit,
   showSpinner,
   showSearchButton = true,
   showMenuButton = false,
+  showEditButton = false,
   onPressOverflowMenu,
 }: {
   title: string;
@@ -90,9 +92,11 @@ export function ChannelHeader({
   group?: db.Group | null;
   goBack?: () => void;
   goToSearch?: () => void;
+  goToEdit?: () => void;
   showSpinner?: boolean;
   showSearchButton?: boolean;
   showMenuButton?: boolean;
+  showEditButton?: boolean;
   onPressOverflowMenu?: () => void;
   post?: db.Post;
 }) {
@@ -133,6 +137,11 @@ export function ChannelHeader({
                 type="Overflow"
                 onPress={onPressOverflowMenu}
               />
+            )}
+            {showEditButton && (
+              <ScreenHeader.TextButton onPress={goToEdit}>
+                Edit
+              </ScreenHeader.TextButton>
             )}
           </>
         }

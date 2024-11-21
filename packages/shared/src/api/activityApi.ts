@@ -499,10 +499,10 @@ export function activityAction(action: ub.ActivityAction) {
   };
 }
 
-export const readGroup = async (group: db.Group) => {
+export const readGroup = async (group: db.Group, deep: boolean = false) => {
   const source: ub.Source = { group: group.id };
   const action = activityAction({
-    read: { source, action: { all: { time: null, deep: false } } },
+    read: { source, action: { all: { time: null, deep } } },
   });
   logger.log(`reading group ${group.id}`, action);
 

@@ -578,7 +578,7 @@
       [now.bowl %default | readers.new]
     =/  =action:g
       [group.new now.bowl %channel nest %add channel]
-    =/  =dock    [our.bowl %groups]
+    =/  =dock    [p.group.new %groups]
     =/  =wire    (snoc ca-area %create)
     (emit %pass wire %agent dock %poke act:mar:g !>(action))
     ::

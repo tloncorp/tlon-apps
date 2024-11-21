@@ -94,7 +94,7 @@ export function ProfileScreenView(props: Props) {
           />
           {props.hasHostedAuth && (
             <ProfileAction
-              title="Tlon Hosting account"
+              title="Manage Tlon account"
               rightIcon={'ChevronRight'}
               leftIcon={
                 <View

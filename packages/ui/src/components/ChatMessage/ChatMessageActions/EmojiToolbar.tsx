@@ -1,10 +1,10 @@
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
-import * as Haptics from 'expo-haptics';
 import { useCallback, useState } from 'react';
 import { XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../contexts';
+import useIsWindowNarrow from '../../../hooks/useIsWindowNarrow';
+import useOnEmojiSelect from '../../../hooks/useOnEmojiSelect';
 import { ReactionDetails, useReactionDetails } from '../../../utils/postUtils';
 import { Button } from '../../Button';
 import { EmojiPickerSheet } from '../../Emoji/EmojiPickerSheet';
@@ -14,25 +14,18 @@ import { Icon } from '../../Icon';
 export function EmojiToolbar({
   post,
   onDismiss,
+  openExternalSheet,
 }: {
   post: db.Post;
   onDismiss: () => void;
+  openExternalSheet?: (open: boolean) => void;
 }) {
   const currentUserId = useCurrentUserId();
   const [sheetOpen, setSheetOpen] = useState(false);
   const details = useReactionDetails(post.reactions ?? [], currentUserId);
+  const isWindowNarrow = useIsWindowNarrow();
 
-  const handlePress = useCallback(
-    async (shortCode: string) => {
-      details.self.didReact && details.self.value.includes(shortCode)
-        ? store.removePostReaction(post, currentUserId)
-        : store.addPostReaction(post, shortCode, currentUserId);
-
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setTimeout(() => onDismiss(), 50);
-    },
-    [currentUserId, details.self.didReact, details.self.value, onDismiss, post]
-  );
+  const handlePress = useOnEmojiSelect(post, onDismiss);
 
   const lastShortCode =
     details.self.didReact &&
@@ -41,6 +34,14 @@ export function EmojiToolbar({
     )
       ? details.self.value
       : 'cyclone';
+
+  const handleSheetOpen = useCallback(() => {
+    if (openExternalSheet && !isWindowNarrow) {
+      openExternalSheet(true);
+      return;
+    }
+    setSheetOpen(true);
+  }, [setSheetOpen, openExternalSheet, isWindowNarrow]);
 
   return (
     <>
@@ -72,11 +73,7 @@ export function EmojiToolbar({
           shortCode={lastShortCode}
           handlePress={handlePress}
         />
-        <Button
-          padding="$xs"
-          borderWidth={0}
-          onPress={() => setSheetOpen(true)}
-        >
+        <Button padding="$xs" borderWidth={0} onPress={handleSheetOpen}>
           <Icon type="ChevronDown" size="$l" />
         </Button>
       </XStack>

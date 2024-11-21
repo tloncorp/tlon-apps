@@ -10,7 +10,7 @@ import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { transformShipURL } from '@tloncorp/app/utils/string';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
-import { didSignUp } from '@tloncorp/shared/db';
+import { didSignUp, finishingSelfHostedLogin } from '@tloncorp/shared/db';
 import {
   Field,
   KeyboardAvoidingView,
@@ -58,6 +58,8 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     },
   });
   const { setShip } = useShip();
+  const { setValue: setFinishingSelfHostedLogin } =
+    finishingSelfHostedLogin.useStorageItem();
 
   const [codevisible, setCodeVisible] = useState(false);
 
@@ -92,7 +94,15 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
         accessCode.trim()
       );
       if (authCookie) {
+        await setFinishingSelfHostedLogin(true);
         const shipId = getShipFromCookie(authCookie);
+
+        navigation.navigate('SetTelemetry');
+
+        // Delay to allow the transition to telemetry screen via Onboarding navigator to complete
+        // before setting auth and potentially triggering a re-render of app.main (which might change nav prop to Root navigator)
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         setShip({
           ship: shipId,
           shipUrl,

@@ -78,6 +78,8 @@ export function RootStack() {
       />
       <Root.Screen name="CreateGroup" component={CreateGroupScreen} />
       <Root.Screen name="Channel" component={ChannelScreen} />
+      <Root.Screen name="DM" component={ChannelScreen} />
+      <Root.Screen name="GroupDM" component={ChannelScreen} />
       <Root.Screen name="ChannelSearch" component={ChannelSearchScreen} />
       <Root.Screen name="Post" component={PostScreen} />
       <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />

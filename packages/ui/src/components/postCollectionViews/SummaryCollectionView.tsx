@@ -118,11 +118,17 @@ export function BasePostSummaryCollectionView({
         onPressItem={(_item, index) => {
           const post = posts?.[index];
           if (post) {
-            // @ts-expect-error implicit dependency on RootStackParamList, which is in `app`
-            navigation.navigate('PostUsingContentConfiguration', {
-              postId: post.id,
-              channelId: post.channelId,
-            });
+            navigation.navigate(
+              // @ts-expect-error implicit dependency on RootStackParamList, which is in `app`
+              // (the weird splat is necessary to avoid a tsc error about unused ts-expect-error)
+              ...[
+                'PostUsingContentConfiguration',
+                {
+                  postId: post.id,
+                  channelId: post.channelId,
+                },
+              ]
+            );
           }
         }}
       />

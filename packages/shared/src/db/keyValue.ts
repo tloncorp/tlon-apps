@@ -10,6 +10,7 @@ import {
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import { NodeBootPhase, SignupParams } from './domainTypes';
+import { getStorageMethods } from './getStorageMethods';
 
 const logger = createDevLogger('keyValueStore', false);
 
@@ -216,14 +217,15 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
     serialize = JSON.stringify,
     deserialize = JSON.parse,
   } = config;
+  const storage = getStorageMethods(config.isSecure ?? false);
 
   const getValue = async (): Promise<T> => {
-    const value = await AsyncStorage.getItem(key);
+    const value = await storage.getItem(key);
     return value ? deserialize(value) : defaultValue;
   };
 
   const resetValue = async (): Promise<T> => {
-    await AsyncStorage.setItem(key, serialize(defaultValue));
+    await storage.setItem(key, serialize(defaultValue));
     queryClient.invalidateQueries({ queryKey: [key] });
     logger.log(`reset value ${key}`);
     return defaultValue;
@@ -238,7 +240,7 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
       newValue = valueInput;
     }
 
-    await AsyncStorage.setItem(key, serialize(newValue));
+    await storage.setItem(key, serialize(newValue));
     queryClient.invalidateQueries({ queryKey: [key] });
     logger.log(`set value ${key}`, newValue);
   };
@@ -276,5 +278,20 @@ export const lastAppVersion = createStorageItem<string | null>({
 
 export const didSignUp = createStorageItem<boolean>({
   key: 'didSignUp',
+  defaultValue: false,
+});
+
+export const didInitializeTelemetry = createStorageItem<boolean>({
+  key: 'confirmedAnalyticsOptOut',
+  defaultValue: false,
+});
+
+export const lastAnonymousAppOpenAt = createStorageItem<number | null>({
+  key: 'lastAnonymousAppOpenAt',
+  defaultValue: null,
+});
+
+export const finishingSelfHostedLogin = createStorageItem<boolean>({
+  key: 'finishingSelfHostedLogin',
   defaultValue: false,
 });

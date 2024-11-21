@@ -5,7 +5,7 @@ import { useCallback, useEffect } from 'react';
 import { Share } from 'react-native';
 import { Text, View, XStack, isWeb } from 'tamagui';
 
-import { useBranchDomain, useBranchKey, useCurrentUserId } from '../contexts';
+import { useCurrentUserId, useInviteService } from '../contexts';
 import { useCopy } from '../hooks/useCopy';
 import { useIsAdmin } from '../utils';
 import { Button } from './Button';
@@ -17,12 +17,11 @@ const logger = createDevLogger('InviteButton', true);
 export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
   const userId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
-  const branchDomain = useBranchDomain();
-  const branchKey = useBranchKey();
+  const inviteService = useInviteService();
   const { status, shareUrl, toggle, describe } = store.useLureLinkStatus({
     flag: group?.id ?? '',
-    branchDomain: branchDomain,
-    branchKey: branchKey,
+    inviteServiceEndpoint: inviteService.endpoint,
+    inviteServiceIsDev: inviteService.isDev,
   });
   const { doCopy } = useCopy(shareUrl || '');
 
@@ -60,24 +59,17 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
   }, [shareUrl, status, group, doCopy]);
 
   useEffect(() => {
-    const meta = {
-      title: group?.title ?? '',
-      description: group?.description ?? '',
-      cover: group?.coverImage ?? '',
-      image: group?.iconImage ?? '',
-    };
-
     const toggleLink = async () => {
       if (!group) return;
-      await toggle(meta);
+      await toggle();
     };
     if (status === 'disabled' && isGroupAdmin) {
       toggleLink();
     }
     if (status === 'stale') {
-      describe(meta);
+      describe();
     }
-  }, [group, branchDomain, branchKey, toggle, status, isGroupAdmin, describe]);
+  }, [group, toggle, status, isGroupAdmin, describe]);
 
   if (
     (group?.privacy === 'private' || group?.privacy === 'secret') &&

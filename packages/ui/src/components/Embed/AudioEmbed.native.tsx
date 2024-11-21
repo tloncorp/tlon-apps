@@ -5,7 +5,6 @@ import {
   InterruptionModeAndroid,
   InterruptionModeIOS,
 } from 'expo-av';
-import * as Haptics from 'expo-haptics';
 import {
   ElementRef,
   forwardRef,
@@ -17,6 +16,7 @@ import {
 } from 'react';
 import { Text, View } from 'tamagui';
 
+import { triggerHaptic } from '../../utils';
 import { Icon } from '../Icon';
 import { LoadingSpinner } from '../LoadingSpinner';
 import * as shared from './AudioEmbedShared';
@@ -30,7 +30,7 @@ const AudioEmbed: shared.AudioEmbed = ({ url }: { url: string }) => {
 
   useEffect(() => {
     if (showModal) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      triggerHaptic('sheetOpen');
     }
   }, [showModal]);
 

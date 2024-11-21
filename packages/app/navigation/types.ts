@@ -4,6 +4,16 @@ export type RootStackParamList = {
   ChatList: { previewGroupId: string } | undefined;
   Activity: undefined;
   Profile: undefined;
+  DM: {
+    channelId: string;
+    selectedPostId?: string | null;
+    startDraft?: boolean;
+  };
+  GroupDM: {
+    channelId: string;
+    selectedPostId?: string | null;
+    startDraft?: boolean;
+  };
   Channel: {
     channelId: string;
     groupId?: string;
@@ -20,6 +30,7 @@ export type RootStackParamList = {
   };
   ChannelSearch: {
     channelId: string;
+    groupId: string;
   };
   Post: {
     postId: string;
@@ -59,8 +70,10 @@ export type RootDrawerParamList = {
 
 export type HomeDrawerParamList = Pick<
   RootStackParamList,
-  'ChatList' | 'GroupChannels' | 'Channel'
->;
+  'ChatList' | 'GroupChannels' | 'Channel' | 'DM' | 'GroupDM'
+> & {
+  MainContent: undefined;
+};
 
 export type DesktopChannelStackParamList = Pick<
   RootStackParamList,

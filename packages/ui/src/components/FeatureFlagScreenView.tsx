@@ -14,10 +14,9 @@ export function FeatureFlagScreenView({
   onFlagToggled: (flagName: string, enabled: boolean) => void;
 }) {
   const insets = useSafeAreaInsets();
-  console.log('render', features);
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader title={'Feature Previews'} backAction={onBackPressed} />
       <ScrollView
         contentContainerStyle={{

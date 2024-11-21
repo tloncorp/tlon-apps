@@ -14,7 +14,14 @@ import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AnimatePresence, SizableText, View, YStack } from 'tamagui';
+import {
+  AnimatePresence,
+  SizableText,
+  View,
+  YStack,
+  getVariableValue,
+  useTheme,
+} from 'tamagui';
 
 import {
   ChannelProvider,
@@ -90,6 +97,7 @@ export function Channel({
   hasOlderPosts,
   initialAttachments,
   startDraft,
+  onPressScrollToBottom,
 }: {
   channel: db.Channel;
   initialChannelUnread?: db.ChannelUnread | null;
@@ -130,6 +138,7 @@ export function Channel({
   hasOlderPosts?: boolean;
   canUpload: boolean;
   startDraft?: boolean;
+  onPressScrollToBottom?: () => void;
 }) {
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
 
@@ -255,6 +264,8 @@ export function Channel({
 
   const isNarrow = useIsWindowNarrow();
 
+  const backgroundColor = getVariableValue(useTheme().background);
+
   return (
     <ScrollContextProvider>
       <GroupsProvider groups={groups}>
@@ -279,7 +290,7 @@ export function Channel({
                   initialAttachments={initialAttachments}
                   uploadAsset={uploadAsset}
                 >
-                  <View backgroundColor="$background" flex={1}>
+                  <View backgroundColor={backgroundColor} flex={1}>
                     <YStack
                       justifyContent="space-between"
                       width="100%"
@@ -319,11 +330,13 @@ export function Channel({
                                       hasOlderPosts,
                                       headerMode,
                                       initialChannelUnread,
+                                      isLoadingPosts: isLoadingPosts ?? false,
                                       onPressDelete,
                                       onPressRetry,
                                       onScrollEndReached,
                                       onScrollStartReached,
                                       posts: posts ?? undefined,
+                                      scrollToBottom: onPressScrollToBottom,
                                       selectedPostId,
                                       setEditingPost,
                                       LegacyPostView: PostView,

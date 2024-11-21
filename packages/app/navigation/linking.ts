@@ -14,6 +14,14 @@ export const getMobileLinkingConfig = (
       Root: {
         path: basePathForMode(mode),
         screens: {
+          DM: {
+            path: 'dm/:channelId/:selectedPostId?',
+            parse: parsePathParams('channelId', 'selectedPostId'),
+          },
+          GroupDM: {
+            path: 'group-dm/:channelId/:selectedPostId?',
+            parse: parsePathParams('contactId', 'selectedPostId'),
+          },
           Channel: {
             path: 'group/:groupId/channel/:channelId/:selectedPostId?',
             parse: parsePathParams('channelId', 'groupId', 'selectedPostId'),
@@ -84,6 +92,14 @@ export const getDesktopLinkingConfig = (
             screens: {
               ChatList: '',
               GroupChannels: 'group/:groupId',
+              DM: {
+                path: 'dm/:channelId/:selectedPostId?',
+                parse: parsePathParams('channelId', 'selectedPostId'),
+              },
+              GroupDM: {
+                path: 'group-dm/:channelId/:selectedPostId?',
+                parse: parsePathParams('channelId', 'selectedPostId'),
+              },
               Channel: {
                 initialRouteName: 'ChannelRoot',
                 path: 'group/:groupId/channel/:channelId',

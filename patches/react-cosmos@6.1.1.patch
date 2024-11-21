@@ -1,0 +1,45 @@
+diff --git a/dist/cosmosConfig/createCosmosConfig.js b/dist/cosmosConfig/createCosmosConfig.js
+index cbe153ce7bed2a65d693e486707d141637b7d0ca..04ef1542325392b724290fabd0a149a09797d3a7 100644
+--- a/dist/cosmosConfig/createCosmosConfig.js
++++ b/dist/cosmosConfig/createCosmosConfig.js
+@@ -10,6 +10,7 @@ export function createCosmosConfig(rootDir, cosmosConfigInput = {}) {
+         exposeImports: getExposeImports(cosmosConfigInput, rootDir),
+         exportPath: getExportPath(cosmosConfigInput, rootDir),
+         fixtureFileSuffix: getFixtureFileSuffix(cosmosConfigInput),
++        fixturesLocation: cosmosConfigInput.fixturesLocation ?? rootDir,
+         fixturesDir: getFixturesDir(cosmosConfigInput),
+         globalImports: getGlobalImports(cosmosConfigInput, rootDir),
+         hostname: getHostname(cosmosConfigInput),
+diff --git a/dist/getFixtures/importUserModules.js b/dist/getFixtures/importUserModules.js
+index 7311e20721f00c37c3f2455b930b2f47d678fd43..406235b6e86ef6858abb61ceaf78ffcc31df8887 100644
+--- a/dist/getFixtures/importUserModules.js
++++ b/dist/getFixtures/importUserModules.js
+@@ -1,10 +1,11 @@
+ import path from 'path';
+ import { findUserModulePaths } from '../userModules/findUserModulePaths.js';
+ import { slash } from '../utils/slash.js';
+-export function importUserModules({ rootDir, fixturesDir, fixtureFileSuffix, ignore, }) {
++export function importUserModules({ rootDir, fixturesDir, fixturesLocation, fixtureFileSuffix, ignore, }) {
+     const { fixturePaths, decoratorPaths } = findUserModulePaths({
+         rootDir,
+         fixturesDir,
++        fixturesLocation,
+         fixtureFileSuffix,
+         ignore,
+     });
+diff --git a/dist/userModules/findUserModulePaths.js b/dist/userModules/findUserModulePaths.js
+index 037181a4560024250caef8154412df996bb8ef89..ceead584cb09e6a272575f9189a58b8a5ce7c435 100644
+--- a/dist/userModules/findUserModulePaths.js
++++ b/dist/userModules/findUserModulePaths.js
+@@ -1,9 +1,9 @@
+ import { globSync } from 'glob';
+ import micromatch from 'micromatch';
+ import { getDecoratorPatterns, getFixturePatterns, } from './shared.js';
+-export function findUserModulePaths({ rootDir, fixturesDir, fixtureFileSuffix, ignore, }) {
++export function findUserModulePaths({ rootDir, fixturesDir, fixturesLocation, fixtureFileSuffix, ignore, }) {
+     const paths = globSync('**/*', {
+-        cwd: rootDir,
++        cwd: fixturesLocation ? fixturesLocation : rootDir,
+         absolute: true,
+         ignore,
+     });

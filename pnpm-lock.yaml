@@ -21,9 +21,9 @@ patchedDependencies:
   '@10play/tentap-editor@0.4.55':
     hash: xjpmkpcw463yvoqvocxrxq7ici
     path: patches/@10play__tentap-editor@0.4.55.patch
-  '@likashefqet/react-native-image-zoom@3.0.0':
-    hash: zkdmh374s554i7qlaqtqn2nhfm
-    path: patches/@likashefqet__react-native-image-zoom@3.0.0.patch
+  '@likashefqet/react-native-image-zoom@4.2.0':
+    hash: roe32gwh34j3bcmaenpx3xgtly
+    path: patches/@likashefqet__react-native-image-zoom@4.2.0.patch
   '@react-navigation/drawer@6.7.2':
     hash: rib4hjvzksqzwv3bbw4vfi5a5i
     path: patches/@react-navigation__drawer@6.7.2.patch
@@ -42,6 +42,9 @@ patchedDependencies:
   drizzle-orm@0.30.9:
     hash: cegrec33e6f7d6ltk7vff5r7w4
     path: patches/drizzle-orm@0.30.9.patch
+  react-cosmos@6.1.1:
+    hash: y5kop5rmmd7jprmzzewk4whiie
+    path: patches/react-cosmos@6.1.1.patch
   react-native-reanimated@3.8.1:
     hash: n2blcrn244i77n7euhqt5mi2km
     path: patches/react-native-reanimated@3.8.1.patch
@@ -90,6 +93,9 @@ importers:
       lint-staged:
         specifier: ^15.0.0
         version: 15.2.0
+      react-cosmos:
+        specifier: 6.1.1
+        version: 6.1.1(patch_hash=y5kop5rmmd7jprmzzewk4whiie)
       tsup:
         specifier: ^8.0.1
         version: 8.0.1(@swc/core@1.7.26(@swc/helpers@0.5.13))(postcss@8.4.35)(typescript@5.4.5)
@@ -421,9 +427,6 @@ importers:
       prettier-plugin-tailwindcss:
         specifier: ^0.5.4
         version: 0.5.11(@trivago/prettier-plugin-sort-imports@4.3.0(prettier@3.2.5))(prettier@3.2.5)
-      react-cosmos:
-        specifier: 6.1.1
-        version: 6.1.1
       react-cosmos-native:
         specifier: 6.1.1
         version: 6.1.1
@@ -941,12 +944,6 @@ importers:
       prettier:
         specifier: ^3.1.1
         version: 3.2.5
-      react-cosmos:
-        specifier: 6.1.1
-        version: 6.1.1
-      react-cosmos-plugin-vite:
-        specifier: 6.1.1
-        version: 6.1.1(vite@5.1.6(@types/node@20.10.8)(lightningcss@1.19.0)(terser@5.19.1))
       react-test-renderer:
         specifier: ^18.2.0
         version: 18.2.0(react@18.2.0)
@@ -1344,9 +1341,6 @@ importers:
       prettier:
         specifier: ^3.1.1
         version: 3.2.5
-      react-cosmos:
-        specifier: 6.1.1
-        version: 6.1.1
       react-cosmos-plugin-vite:
         specifier: 6.1.1
         version: 6.1.1(vite@5.1.6(@types/node@20.14.10)(lightningcss@1.19.0)(terser@5.19.1))
@@ -1549,8 +1543,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.2
       '@likashefqet/react-native-image-zoom':
-        specifier: ^3.0.0
-        version: 3.0.0(patch_hash=zkdmh374s554i7qlaqtqn2nhfm)(react-native-gesture-handler@2.16.2(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.25.2)(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+        specifier: ^4.2.0
+        version: 4.2.0(patch_hash=roe32gwh34j3bcmaenpx3xgtly)(react-native-gesture-handler@2.16.2(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.25.2)(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@react-native-clipboard/clipboard':
         specifier: ^1.14.0
         version: 1.14.0(react-native-macos@0.73.24(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-windows@0.73.11(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
@@ -3931,8 +3925,8 @@ packages:
   '@juggle/resize-observer@3.4.0':
     resolution: {integrity: sha512-dfLbk+PwWvFzSxwk3n5ySL0hfBog779o8h68wK/7/APo/7cgyWp5jcXockbxdk5kFRkbeXWm4Fbi9FrdN381sA==}
 
-  '@likashefqet/react-native-image-zoom@3.0.0':
-    resolution: {integrity: sha512-vDg7j9wIYiMsYM8qymdPIC9+ZHJGZ3FvcN8Ob1zTlNSaEFybH9+7Qw7AbO4MaNEAFqhF7C8j09jw7BPGpXI29w==}
+  '@likashefqet/react-native-image-zoom@4.2.0':
+    resolution: {integrity: sha512-Hpr0m/RYk36sse2kxd+yDS1+HsNavaEudHD2QKtrg/2LNL4L1LpU0auZSqGzXT8BVRykmk6MTW1IcDzY9S7+7w==}
     engines: {node: '>= 16.0.0'}
     peerDependencies:
       react: '>=16.x.x'
@@ -7025,6 +7019,10 @@ packages:
     resolution: {integrity: sha512-b8um+L1RzM3WDSzvhm6gIz1yfTbBt6YTlcEKAvsmqCZZFw46z626lVj9j1yEPW33H5H+lBQpZMP1k8l+78Ha0A==}
     engines: {node: '>=8'}
 
+  braces@3.0.3:
+    resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
+    engines: {node: '>=8'}
+
   browser-cookies@1.2.0:
     resolution: {integrity: sha512-cg2WuoOJo+F+g2XjEaP8nmeRp1vDHjt7sqpKJMsTNXKrpyIBNVslYJeehvs6FEddj8usV2+qyRSBEX244yN5/g==}
 
@@ -7217,6 +7215,10 @@ packages:
 
   chokidar@3.5.3:
     resolution: {integrity: sha512-Dr3sfKRP6oTcjf2JmUmFJfeVMvXBdegxB0iVQ5eb2V10uFJUCAS8OByZdVAyVb8xXNz3GjjTgj9kLWsZTqE6kw==}
+    engines: {node: '>= 8.10.0'}
+
+  chokidar@3.6.0:
+    resolution: {integrity: sha512-7VT13fmjotKpGipCW9JEQAusEPE+Ei8nl6/g4FBAmIm0GOOLMua9NDDo/DWp0ZAxCr3cPq5ZpBqmPAQgDda2Pw==}
     engines: {node: '>= 8.10.0'}
 
   chownr@1.1.4:
@@ -8563,6 +8565,10 @@ packages:
 
   fill-range@7.0.1:
     resolution: {integrity: sha512-qOo9F+dMUmC2Lcb4BbVvnKJxTPjCm+RRpe4gDuGrzkL7mEVl/djYSu2OdQ2Pa302N4oqkSg9ir6jaLWJ2USVpQ==}
+    engines: {node: '>=8'}
+
+  fill-range@7.1.1:
+    resolution: {integrity: sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg==}
     engines: {node: '>=8'}
 
   filter-obj@1.1.0:
@@ -10010,9 +10016,8 @@ packages:
   lower-case@2.0.2:
     resolution: {integrity: sha512-7fm3l3NAF9WfN6W3JOmf5drwpVqX78JtoGJ3A6W0a6ZnldM41w2fV5D490psKFTpMds8TJse/eHLFFsNHHjHgg==}
 
-  lru-cache@10.0.0:
-    resolution: {integrity: sha512-svTf/fzsKHffP42sujkO/Rjs37BCIsQVRCeNYIm9WN8rgT7ffoUnRtZCqU+6BqcSBdv8gwJeTz8knJpgACeQMw==}
-    engines: {node: 14 || >=16.14}
+  lru-cache@10.4.3:
+    resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
 
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
@@ -10220,6 +10225,10 @@ packages:
     resolution: {integrity: sha512-DMy+ERcEW2q8Z2Po+WNXuw3c5YaUSFjAO5GsJqfEl7UjvtIuFKO6ZrKvcItdy98dwFI2N1tg3zNIdKaQT+aNdA==}
     engines: {node: '>=8.6'}
 
+  micromatch@4.0.7:
+    resolution: {integrity: sha512-LPP/3KorzCwBxfeUuZmaR6bG2kdeHSbe0P2tY3FLRU4vYrjYz5hI4QZwV0njUx3jeuKe67YukQ1LSPZBKDqO/Q==}
+    engines: {node: '>=8.6'}
+
   mime-db@1.52.0:
     resolution: {integrity: sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg==}
     engines: {node: '>= 0.6'}
@@ -10306,6 +10315,10 @@ packages:
   minipass@5.0.0:
     resolution: {integrity: sha512-3FnjYuehv9k6ovOEbyOswadCDPX1piCfhV8ncmYtHOjuPwylVWsghTLo7rabjC3Rx5xD4HDx8Wm1xnMF7S5qFQ==}
     engines: {node: '>=8'}
+
+  minipass@7.1.2:
+    resolution: {integrity: sha512-qOOzS1cBTWYF4BH8fVePDBOO9iptMnGUEZwNc/cMWnTV2nVLZ7VoNWEPHkYczZA0pdoA7dl6e7FL659nX9S2aw==}
+    engines: {node: '>=16 || 14 >=14.17'}
 
   minizlib@2.1.2:
     resolution: {integrity: sha512-bAxsR8BVfj60DWXHE3u30oHzfl4G7khkSuPW+qvpd7jFRHm7dLxOjUk1EHACJ/hxLY8phGJ0YhYHZo7jil7Qdg==}
@@ -10760,9 +10773,9 @@ packages:
   path-parse@1.0.7:
     resolution: {integrity: sha512-LDJzPVEEEPR+y48z93A0Ed0yXb8pAByGWo/k5YYdYgpY2/2EsOsksJrq7lOHxryrVOn1ejG6oAp8ahvOIQD8sw==}
 
-  path-scurry@1.10.1:
-    resolution: {integrity: sha512-MkhCqzzBEpPvxxQ71Md0b1Kk51W01lrYvlMzSUaIzNsODdd7mqhiimSZlr+VegAz5Z6Vzt9Xg2ttE//XBhH3EQ==}
-    engines: {node: '>=16 || 14 >=14.17'}
+  path-scurry@1.11.1:
+    resolution: {integrity: sha512-Xa4Nw17FS9ApQFJ9umLiJS4orGjm7ZzwUrwamcGQuHSzDyth9boKDaycYdDcZDuqYATXw4HFXgaqWTctW/v1HA==}
+    engines: {node: '>=16 || 14 >=14.18'}
 
   path-to-regexp@0.1.7:
     resolution: {integrity: sha512-5DFkuoqlv1uYQKxy8omFBeJPQcdoE07Kv2sferDCrAq1ohOU+MSDswDIbnx3YAM60qIOnYa53wBhXW0EbMonrQ==}
@@ -11249,8 +11262,11 @@ packages:
   react-cosmos-core@6.1.1:
     resolution: {integrity: sha512-LdnltfcjBqJamAR1zruW0pIpiTfdbdH12NSi6IkIDbZ51mY6Tqkz3v0uT5cjmUiqVclJ90OV+pYkVlXvBd+wRg==}
 
-  react-cosmos-dom@6.1.1:
-    resolution: {integrity: sha512-x4lb7eJUDreh6x8b4A2nVC8HjSIxlNWHX3Pl4fPwOuu6BnLgtY6Ycqw1TEE2/T1YX9LFsjM38kB2tSjyRxhEwA==}
+  react-cosmos-core@6.2.0:
+    resolution: {integrity: sha512-BAkTG5cGStSd1K99FjYlVEE07P13UD+4bVFhqf4LGqpYVPiMkem/ICVoZK+EFEnftnk9OLk2PertaEE1fkOFsg==}
+
+  react-cosmos-dom@6.2.0:
+    resolution: {integrity: sha512-la+//KrpDc8fzwP/R8ZA0+XbQhYeXUk0XXPt/30AEdqPMPV85WGkHosP2mX1FQ9DjOc2prttNu75bu7Gi9hklA==}
 
   react-cosmos-native@6.1.1:
     resolution: {integrity: sha512-bOmyGdn6infaIp2nuJTB0pjgkBq2tClgsB3/Is/TM2EPDcU38GtHiOwcZJrB8nkSq72dNE3CK0+nn2SUD1spiA==}
@@ -11263,8 +11279,11 @@ packages:
   react-cosmos-renderer@6.1.1:
     resolution: {integrity: sha512-1+DPSxYQrISEkSNDVl3WeLmSHcZfUuAhxEJvBA4HiHvuJEl9W1TsYlbu41YlZ88AX617KYYZ6Swcnq5+EFjEnw==}
 
-  react-cosmos-ui@6.1.1:
-    resolution: {integrity: sha512-G0+Tanx3dHFSoEFRtvf53nUWe+8lv+MA/TLWfiXnK7WeLtmEzZUvBTdtA2hGOu/8IbIgq+toyPAzOXCb/g0pdQ==}
+  react-cosmos-renderer@6.2.0:
+    resolution: {integrity: sha512-XWuZcyslVB32QwJ3ODuu/rV14fcbXOoFNhUUos+Ox4PNvZtu43HxfUK62S9OZiwdI++Hx+dxH4akdaDDkZ82AQ==}
+
+  react-cosmos-ui@6.2.0:
+    resolution: {integrity: sha512-Vvh85sIr8MDPc9dmrzXp4b/9M9oM8fzCnpapgY7Kf26hepDzwlrVg/GXaTnlyisNnQEtVkNRSxPeE3/NuD+xrg==}
 
   react-cosmos@6.1.1:
     resolution: {integrity: sha512-C40I3npZOLMJMOV73BVcp1L9/eG/h1zB4+7ihMQE62img3qFy3CDEwBUwwp/YmIMRF1LXrIvhGU0TA7kig/YSw==}
@@ -11350,6 +11369,9 @@ packages:
 
   react-is@18.2.0:
     resolution: {integrity: sha512-xWGDIW6x921xtzPkhiULtthJHoJvBbF3q26fzloPCK0hsvxtPVelvftw3zjbHWSkR2km9Z+4uxbDDK/6Zw9B8w==}
+
+  react-is@18.3.1:
+    resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
 
   react-native-branch@5.9.2:
     resolution: {integrity: sha512-gOiFtlQNAvnNKBWB0yfZssDSgg6KJ4LyBvTD399+dW4i/iWW6xOiWDwS15huXQ1QLCsjyseiKxy90UBYOKJsPw==}
@@ -13411,6 +13433,18 @@ packages:
 
   ws@8.16.0:
     resolution: {integrity: sha512-HS0c//TP7Ina87TfiPUz1rQzMhHrl/SG2guqRcTOIUYD2q8uhUdNHZYJUaQ8aTGPzCh+c6oawMKW35nFl1dxyQ==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
+  ws@8.18.0:
+    resolution: {integrity: sha512-8VbfWfHLbbwu3+N6OKsOMpBdT4kXPDDB9cJk2bJ6mh9ucxdlnNvH1e+roYkKmN9Nxw2yjz7VzeO9oOz2zJ04Pw==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -16825,7 +16859,7 @@ snapshots:
       find-up: 5.0.0
       find-yarn-workspace-root: 2.0.0
       js-yaml: 3.14.1
-      micromatch: 4.0.5
+      micromatch: 4.0.7
       npm-package-arg: 7.0.0
       ora: 3.4.0
       split: 1.0.1
@@ -17178,7 +17212,7 @@ snapshots:
       jest-haste-map: 29.7.0
       jest-regex-util: 29.6.3
       jest-util: 29.7.0
-      micromatch: 4.0.5
+      micromatch: 4.0.7
       pirates: 4.0.6
       slash: 3.0.0
       write-file-atomic: 4.0.2
@@ -17239,7 +17273,7 @@ snapshots:
 
   '@juggle/resize-observer@3.4.0': {}
 
-  '@likashefqet/react-native-image-zoom@3.0.0(patch_hash=zkdmh374s554i7qlaqtqn2nhfm)(react-native-gesture-handler@2.16.2(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.25.2)(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
+  '@likashefqet/react-native-image-zoom@4.2.0(patch_hash=roe32gwh34j3bcmaenpx3xgtly)(react-native-gesture-handler@2.16.2(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=n2blcrn244i77n7euhqt5mi2km)(@babel/core@7.25.2)(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
     dependencies:
       react: 18.2.0
       react-native: 0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0)
@@ -19198,7 +19232,7 @@ snapshots:
       '@tamagui/babel-plugin-fully-specified': 1.101.3
       '@types/fs-extra': 9.0.13
       babel-plugin-fully-specified: 1.3.0(@babel/core@7.25.2)
-      chokidar: 3.5.3
+      chokidar: 3.6.0
       esbuild: 0.21.5
       esbuild-plugin-es5: 2.1.1(esbuild@0.21.5)
       esbuild-register: 3.6.0(esbuild@0.21.5)
@@ -21772,6 +21806,10 @@ snapshots:
     dependencies:
       fill-range: 7.0.1
 
+  braces@3.0.3:
+    dependencies:
+      fill-range: 7.1.1
+
   browser-cookies@1.2.0: {}
 
   browser-image-compression@2.0.2:
@@ -21993,6 +22031,18 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.3
 
+  chokidar@3.6.0:
+    dependencies:
+      anymatch: 3.1.2
+      braces: 3.0.3
+      glob-parent: 5.1.2
+      is-binary-path: 2.1.0
+      is-glob: 4.0.3
+      normalize-path: 3.0.0
+      readdirp: 3.6.0
+    optionalDependencies:
+      fsevents: 2.3.3
+
   chownr@1.1.4: {}
 
   chownr@2.0.0: {}
@@ -22112,7 +22162,7 @@ snapshots:
       gc-hook: 0.3.1
       proxy-target: 3.0.2
     optionalDependencies:
-      ws: 8.16.0
+      ws: 8.18.0
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -23732,6 +23782,10 @@ snapshots:
     dependencies:
       to-regex-range: 5.0.1
 
+  fill-range@7.1.1:
+    dependencies:
+      to-regex-range: 5.0.1
+
   filter-obj@1.1.0: {}
 
   finalhandler@1.1.2:
@@ -23790,7 +23844,7 @@ snapshots:
 
   find-yarn-workspace-root@2.0.0:
     dependencies:
-      micromatch: 4.0.5
+      micromatch: 4.0.7
 
   flat-cache@3.0.4:
     dependencies:
@@ -24005,9 +24059,9 @@ snapshots:
     dependencies:
       foreground-child: 3.1.1
       jackspeak: 2.3.6
-      minimatch: 9.0.3
-      minipass: 5.0.0
-      path-scurry: 1.10.1
+      minimatch: 9.0.4
+      minipass: 7.1.2
+      path-scurry: 1.11.1
 
   glob@6.0.4:
     dependencies:
@@ -24255,7 +24309,7 @@ snapshots:
       http-proxy: 1.18.1
       is-glob: 4.0.3
       is-plain-obj: 3.0.0
-      micromatch: 4.0.5
+      micromatch: 4.0.7
     transitivePeerDependencies:
       - debug
 
@@ -24791,7 +24845,7 @@ snapshots:
       jest-runner: 29.7.0
       jest-util: 29.7.0
       jest-validate: 29.7.0
-      micromatch: 4.0.5
+      micromatch: 4.0.7
       parse-json: 5.2.0
       pretty-format: 29.7.0
       slash: 3.0.0
@@ -24888,7 +24942,7 @@ snapshots:
       jest-regex-util: 29.6.3
       jest-util: 29.7.0
       jest-worker: 29.7.0
-      micromatch: 4.0.5
+      micromatch: 4.0.7
       walker: 1.0.8
     optionalDependencies:
       fsevents: 2.3.3
@@ -24912,7 +24966,7 @@ snapshots:
       '@types/stack-utils': 2.0.1
       chalk: 4.1.2
       graceful-fs: 4.2.10
-      micromatch: 4.0.5
+      micromatch: 4.0.7
       pretty-format: 29.7.0
       slash: 3.0.0
       stack-utils: 2.0.5
@@ -25150,7 +25204,7 @@ snapshots:
       chalk: 4.1.2
       flow-parser: 0.206.0
       graceful-fs: 4.2.10
-      micromatch: 4.0.5
+      micromatch: 4.0.7
       neo-async: 2.6.2
       node-dir: 0.1.17
       recast: 0.21.5
@@ -25175,7 +25229,7 @@ snapshots:
       chalk: 4.1.2
       flow-parser: 0.206.0
       graceful-fs: 4.2.10
-      micromatch: 4.0.5
+      micromatch: 4.0.7
       neo-async: 2.6.2
       node-dir: 0.1.17
       recast: 0.21.5
@@ -25210,7 +25264,7 @@ snapshots:
       whatwg-encoding: 2.0.0
       whatwg-mimetype: 3.0.0
       whatwg-url: 11.0.0
-      ws: 8.16.0
+      ws: 8.18.0
       xml-name-validator: 4.0.0
     transitivePeerDependencies:
       - bufferutil
@@ -25490,7 +25544,7 @@ snapshots:
     dependencies:
       tslib: 2.6.2
 
-  lru-cache@10.0.0: {}
+  lru-cache@10.4.3: {}
 
   lru-cache@5.1.1:
     dependencies:
@@ -25705,7 +25759,7 @@ snapshots:
       graceful-fs: 4.2.10
       invariant: 2.2.4
       jest-worker: 29.7.0
-      micromatch: 4.0.5
+      micromatch: 4.0.7
       node-abort-controller: 3.1.1
       nullthrows: 1.1.1
       walker: 1.0.8
@@ -25834,6 +25888,11 @@ snapshots:
       braces: 3.0.2
       picomatch: 2.3.1
 
+  micromatch@4.0.7:
+    dependencies:
+      braces: 3.0.3
+      picomatch: 2.3.1
+
   mime-db@1.52.0: {}
 
   mime-types@2.1.35:
@@ -25901,6 +25960,8 @@ snapshots:
       yallist: 4.0.0
 
   minipass@5.0.0: {}
+
+  minipass@7.1.2: {}
 
   minizlib@2.1.2:
     dependencies:
@@ -26365,10 +26426,10 @@ snapshots:
 
   path-parse@1.0.7: {}
 
-  path-scurry@1.10.1:
+  path-scurry@1.11.1:
     dependencies:
-      lru-cache: 10.0.0
-      minipass: 5.0.0
+      lru-cache: 10.4.3
+      minipass: 7.1.2
 
   path-to-regexp@0.1.7: {}
 
@@ -26838,27 +26899,27 @@ snapshots:
       lodash-es: 4.17.21
       react-is: 18.2.0
 
-  react-cosmos-dom@6.1.1:
+  react-cosmos-core@6.2.0:
+    dependencies:
+      js-base64: 3.7.7
+      lodash-es: 4.17.21
+      react-is: 18.3.1
+
+  react-cosmos-dom@6.2.0:
     dependencies:
       lodash-es: 4.17.21
-      react-cosmos-core: 6.1.1
-      react-cosmos-renderer: 6.1.1
+      react-cosmos-core: 6.2.0
+      react-cosmos-renderer: 6.2.0
 
   react-cosmos-native@6.1.1:
     dependencies:
       react-cosmos-core: 6.1.1
       react-cosmos-renderer: 6.1.1
 
-  react-cosmos-plugin-vite@6.1.1(vite@5.1.6(@types/node@20.10.8)(lightningcss@1.19.0)(terser@5.19.1)):
-    dependencies:
-      react-cosmos-core: 6.1.1
-      react-cosmos-dom: 6.1.1
-      vite: 5.1.6(@types/node@20.10.8)(lightningcss@1.19.0)(terser@5.19.1)
-
   react-cosmos-plugin-vite@6.1.1(vite@5.1.6(@types/node@20.14.10)(lightningcss@1.19.0)(terser@5.19.1)):
     dependencies:
-      react-cosmos-core: 6.1.1
-      react-cosmos-dom: 6.1.1
+      react-cosmos-core: 6.2.0
+      react-cosmos-dom: 6.2.0
       vite: 5.1.6(@types/node@20.14.10)(lightningcss@1.19.0)(terser@5.19.1)
 
   react-cosmos-renderer@6.1.1:
@@ -26867,12 +26928,18 @@ snapshots:
       react-cosmos-core: 6.1.1
       react-is: 18.2.0
 
-  react-cosmos-ui@6.1.1:
+  react-cosmos-renderer@6.2.0:
     dependencies:
       lodash-es: 4.17.21
-      react-cosmos-core: 6.1.1
+      react-cosmos-core: 6.2.0
+      react-is: 18.3.1
 
-  react-cosmos@6.1.1:
+  react-cosmos-ui@6.2.0:
+    dependencies:
+      lodash-es: 4.17.21
+      react-cosmos-core: 6.2.0
+
+  react-cosmos@6.1.1(patch_hash=y5kop5rmmd7jprmzzewk4whiie):
     dependencies:
       '@skidding/launch-editor': 2.2.3
       chokidar: 3.5.3
@@ -26883,9 +26950,9 @@ snapshots:
       micromatch: 4.0.5
       open: 8.4.2
       pem: 1.14.8
-      react-cosmos-core: 6.1.1
-      react-cosmos-renderer: 6.1.1
-      react-cosmos-ui: 6.1.1
+      react-cosmos-core: 6.2.0
+      react-cosmos-renderer: 6.2.0
+      react-cosmos-ui: 6.2.0
       ws: 8.16.0
       yargs: 17.7.2
     transitivePeerDependencies:
@@ -26972,6 +27039,8 @@ snapshots:
   react-is@17.0.2: {}
 
   react-is@18.2.0: {}
+
+  react-is@18.3.1: {}
 
   react-native-branch@5.9.2(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0)):
     dependencies:
@@ -29583,6 +29652,8 @@ snapshots:
 
   ws@8.16.0: {}
 
+  ws@8.18.0: {}
+
   x-path@0.0.2:
     dependencies:
       path-extra: 1.0.3
@@ -29675,7 +29746,7 @@ snapshots:
   yargs@17.7.2:
     dependencies:
       cliui: 8.0.1
-      escalade: 3.1.1
+      escalade: 3.1.2
       get-caller-file: 2.0.5
       require-directory: 2.1.1
       string-width: 4.2.3

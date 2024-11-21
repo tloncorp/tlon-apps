@@ -39,6 +39,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     defaultOnboardingPassword: process.env.ONBOARDING_DEFAULT_PASSWORD,
     defaultOnboardingTlonEmail: process.env.ONBOARDING_DEFAULT_TLON_EMAIL,
     defaultOnboardingNickname: process.env.ONBOARDING_DEFAULT_NICKNAME,
+    defaultOnboardingPhoneNumber: process.env.ONBOARDING_DEFAULT_PHONE_NUMBER,
     recaptchaSiteKeyAndroid: process.env.RECAPTCHA_SITE_KEY_ANDROID,
     recaptchaSiteKeyIOS: process.env.RECAPTCHA_SITE_KEY_IOS,
     enabledLoggers: process.env.ENABLED_LOGGERS,
@@ -50,6 +51,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     branchDomain: isPreview
       ? process.env.BRANCH_DOMAIN_TEST
       : process.env.BRANCH_DOMAIN_PROD,
+    inviteServiceEndpoint: process.env.INVITE_SERVICE_ENDPOINT,
+    inviteServiceIsDev: process.env.INVITE_SERVICE_IS_DEV,
   },
   ios: {
     runtimeVersion: '4.0.2',

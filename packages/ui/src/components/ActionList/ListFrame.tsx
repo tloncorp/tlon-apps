@@ -2,6 +2,7 @@ import { BlurView } from 'expo-blur';
 import { ComponentProps, PropsWithChildren } from 'react';
 import { YStack, styled } from 'tamagui';
 
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 import { ListItemFrame } from '../ListItem';
 
 const ListFrame = styled(YStack, {
@@ -15,6 +16,14 @@ const ListFrameComponent = (
   >
 ) => {
   const { children, intensity, tint, ...rest } = props;
+  const isWindowNarrow = useIsWindowNarrow();
+
+  if (!isWindowNarrow) {
+    // Blur view adds a shadow, we don't want that in the modal that's
+    // rendered on desktop
+    return <ListFrame {...rest}>{children}</ListFrame>;
+  }
+
   return (
     <ListFrame {...rest}>
       <BlurView

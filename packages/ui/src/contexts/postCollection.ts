@@ -14,11 +14,13 @@ export interface PostCollectionContextValue {
   hasOlderPosts?: boolean;
   headerMode: 'default' | 'next';
   initialChannelUnread?: db.ChannelUnread | null;
+  isLoadingPosts: boolean;
   onPressDelete: (post: db.Post) => void;
   onPressRetry: (post: db.Post) => void;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   posts?: db.Post[];
+  scrollToBottom?: () => void;
   selectedPostId?: string | null;
   setEditingPost?: (post: db.Post | undefined) => void;
 

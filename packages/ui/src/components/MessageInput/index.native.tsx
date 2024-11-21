@@ -486,10 +486,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           pastedText,
           matchRegex: DEEPLINK_REGEX,
           processMatch: async (deeplink) => {
-            const deeplinkRef = await logic.getReferenceFromDeeplink(
-              deeplink,
-              branchKey
-            );
+            const deeplinkRef = await logic.getReferenceFromDeeplink({
+              deepLink: deeplink,
+              branchKey,
+              branchDomain,
+            });
             return deeplinkRef
               ? {
                   type: 'reference',
@@ -515,10 +516,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             const parts = tlonLure.split('/');
             const token = parts[parts.length - 1];
             if (!token) return null;
-            const deeplinkRef = await logic.getReferenceFromDeeplink(
-              `https://${branchDomain}/${token}`,
-              branchKey
-            );
+            const deeplinkRef = await logic.getReferenceFromDeeplink({
+              deepLink: `https://${branchDomain}/${token}`,
+              branchKey,
+              branchDomain,
+            });
             return deeplinkRef
               ? {
                   type: 'reference',

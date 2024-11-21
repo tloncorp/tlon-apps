@@ -7,7 +7,15 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import { SignupParams, didSignUp, signupData } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { createContext, useCallback, useContext, useEffect } from 'react';
+import PostHog, { usePostHog } from 'posthog-react-native';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
+import branch from 'react-native-branch';
 
 const logger = createDevLogger('signup', true);
 
@@ -18,7 +26,9 @@ const defaultValues: SignupValues = {
 };
 
 interface SignupContext extends SignupParams {
+  reviveCheckComplete: boolean;
   setOnboardingValues: (newValues: Partial<SignupValues>) => void;
+  markReviveCheckComplete: () => void;
   kickOffBootSequence: () => void;
   handlePostSignup: () => void;
   clear: () => void;
@@ -28,6 +38,7 @@ const defaultMethods = {
   setOnboardingValues: () => {},
   handlePostSignup: () => {},
   kickOffBootSequence: () => {},
+  markReviveCheckComplete: () => {},
   clear: () => {},
 };
 
@@ -35,6 +46,7 @@ const SignupContext = createContext<SignupContext>({
   ...defaultValues,
   ...defaultMethods,
   bootPhase: NodeBootPhase.IDLE,
+  reviveCheckComplete: false,
 });
 
 export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
@@ -43,8 +55,10 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     setValue: setValues,
     resetValue: resetValues,
   } = signupData.useStorageItem();
+  const [reviveCheckComplete, setReviveCheckComplete] = useState(false);
   const { bootPhase, bootReport, kickOffBootSequence } =
     useBootSequence(values);
+  const postHog = usePostHog();
 
   const setOnboardingValues = useCallback(
     (newValues: Partial<SignupValues>) => {
@@ -69,6 +83,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         nickname: values.nickname,
         telemetry: values.telemetry,
         notificationToken: values.notificationToken,
+        postHog,
       };
       runPostSignupActions(postSignupParams);
       logger.trackEvent('hosted signup report', {
@@ -88,7 +103,15 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setTimeout(() => clear(), 2000);
     }
-  }, [values, bootReport, clear]);
+  }, [
+    values.nickname,
+    values.telemetry,
+    values.notificationToken,
+    values.userWasReadyAt,
+    postHog,
+    bootReport,
+    clear,
+  ]);
 
   useEffect(() => {
     if (values.didCompleteOnboarding && bootPhase === NodeBootPhase.READY) {
@@ -101,6 +124,8 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         ...values,
         bootPhase,
+        reviveCheckComplete,
+        markReviveCheckComplete: () => setReviveCheckComplete(true),
         setOnboardingValues,
         handlePostSignup,
         kickOffBootSequence,
@@ -126,6 +151,7 @@ async function runPostSignupActions(params: {
   nickname?: string;
   telemetry?: boolean;
   notificationToken?: string;
+  postHog?: PostHog;
 }) {
   if (params.nickname) {
     try {
@@ -143,6 +169,15 @@ async function runPostSignupActions(params: {
   if (typeof params.telemetry !== 'undefined') {
     try {
       await api.updateTelemetrySetting(params.telemetry);
+      if (!params.telemetry) {
+        // we give some wiggle room here before disabling telemetry to allow
+        // the initial signup flow to complete before severing analytics
+        const tenMinutes = 10 * 60 * 1000;
+        setTimeout(() => {
+          params.postHog?.optOut();
+          branch.disableTracking(true);
+        }, tenMinutes);
+      }
     } catch (e) {
       logger.trackError('post signup: failed to set telemetry', {
         errorMessage: e.message,
