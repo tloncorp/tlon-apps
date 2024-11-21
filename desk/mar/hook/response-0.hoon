@@ -1,12 +1,12 @@
 /-  h=hooks, c=channels
-|_  =action:h
+|_  =response:h
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  action
+  ++  noun  response
   --
 ++  grab
   |%
-  ++  noun  action:h
+  ++  noun  response:h
   --
 --

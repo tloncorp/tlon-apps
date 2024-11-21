@@ -14,7 +14,7 @@
 ?.  ?=(?(%add %edit) -.on-post)  no-op
 =/  verses
   ?-  -.on-post
-    %add  content.essay.on-post
+    %add  content.essay.post.on-post
     %edit  content.essay.on-post
   ==
 |^
@@ -22,7 +22,7 @@
 =*  return
   =-  &+[[[%allowed -] ~] !>(~)]
   ?-  event
-    [%on-post %add *]  event(content.essay new-content)
+    [%on-post %add *]  event(content.essay.post new-content)
     [%on-post %edit *]  event(content.essay new-content)
   ==
 ?~  verses  return

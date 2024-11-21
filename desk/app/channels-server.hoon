@@ -18,7 +18,7 @@
   +$  current-state
     $:  %7
         =v-channels:c
-        hooks=(map nest:c hooks:h)
+        =hooks:h
         =pimp:imp
     ==
   --
@@ -113,7 +113,7 @@
   ++  state-6-to-7
     |=  state-6
     ^-  state-7
-    [%7 v-channels ~ pimp]
+    [%7 v-channels *hooks:h pimp]
   +$  state-5
     $:  %5
         =v-channels:v6:old:c
@@ -293,19 +293,17 @@
 ::
 ++  inflate-io
   =.  cor  (safe-watch /groups [our.bowl %groups] /groups)
-  %+  roll  ~(tap by hooks)
-  |=  [[=nest:c hks=hooks:h] cr=_cor]
-  %+  roll  ~(tap by hooks.hks)
-  |=  [[=id:h =hook:h] co=_cr]
-  ?~  cron.hook  co
-  ?~  compiled.hook  co
-  ?.  enabled.hook  co
-  ?^  delay=(~(get by delayed.hks) id)  co
+  %+  roll  ~(tap by crons.hooks)
+  |=  [[=id:h schedules=(map origin:h cron:h)] cr=_cor]
+  %+  roll  ~(tap by schedules)
+  |=  [[=origin:h cron:h] co=_cr]
+  ?~  hook=(~(get by hooks.hooks) id)  co
+  ?~  compiled.u.hook  co
+  ?^  delay=(~(get by delayed.hooks) delay-id)  co
   ::  only start timers for crons that haven't already been started
-  =/  fires-at  (add now.bowl u.cron.hook)
-  =-  ho-abet.-
-  %-  ho-schedule:(ho-abed:ho-core:co nest)
-  [%cron id id u.cron.hook !>(~) fires-at]
+  =/  fires-at  (add now.bowl schedule)
+  =/  =wire  (hook-cron-wire id origin)
+  (schedule-hook wire origin delay-id id !>(~) fires-at)
 ::
 ++  poke
   |=  [=mark =vase]
@@ -352,8 +350,33 @@
     ==
   ::
       %hook-action-0
-    =+  !<([=nest:c =action:h] vase)
-    ho-abet:(ho-action:(ho-abed:ho-core nest) action)
+    =+  !<(=action:h vase)
+    ?-  -.action
+        %add
+      ho-abet:(ho-add:ho-core [name src]:action)
+    ::
+        %edit
+      ho-abet:(ho-edit:(ho-abed:ho-core id.action) [name src]:action)
+    ::
+        %del
+      ho-abet:ho-del:(ho-abed:ho-core id.action)
+    ::
+        %order
+      =/  seq
+        %+  skim
+          seq.action
+        |=  =id:h
+        (~(has by hooks.hooks) id)
+      =.  order.hooks  (~(put by order.hooks) nest.action seq)
+      (give-hook-response %order nest.action seq)
+    ::
+        %wait
+      =/  args  [origin schedule]:action
+      ho-abet:(ho-wait:(ho-abed:ho-core id.action) args)
+    ::
+        %rest
+      ho-abet:(ho-rest:(ho-abed:ho-core id.action) origin.action)
+    ==
   ==
 ::
 ++  run-import
@@ -399,6 +422,8 @@
   ^+  cor
   ~|  watch-path=`path`pole
   ?+    pole  ~|(%bad-watch-path !!)
+      [%hooks %v0 ~]  cor
+  ::
       [=kind:c name=@ %create ~]
     ?>  =(our src):bowl
     =*  nest  [kind.pole our.bowl name.pole]
@@ -504,10 +529,8 @@
   |=  [=(pole knot) sign=sign-arvo]
   ^+  cor
   ?+  pole  ~|(bad-arvo-take/pole !!)
-      [%hooks =kind:c ship=@ name=@ rest=*]
-    =/  ship  (slav %p ship.pole)
-    =/  =nest:c  [kind.pole ship name.pole]
-    ho-abet:(ho-arvo:(ho-abed:ho-core nest) rest.pole)
+      [%hooks rest=*]
+    (wakeup-hook rest.pole)
   ==
 ::
 ++  watch-groups  (safe-watch /groups [our.bowl %groups] /groups)
@@ -651,6 +674,7 @@
     |=  =c-channel:c
     ^+  ca-core
     ?>  am-host:ca-perms
+    ~&  "received command {<c-channel>}"
     ?-    -.c-channel
         %view
       ?>  (is-admin:ca-perms src.bowl)
@@ -689,6 +713,7 @@
         %post
       =^  update=(unit u-channel:c)  ca-core
         (ca-c-post c-post.c-channel)
+      ~&  "received post update {<update>}"
       ?~  update  ca-core
       (ca-update u.update)
     ==
@@ -697,12 +722,13 @@
     |=  =c-post:c
     ^-  [(unit u-channel:c) _ca-core]
     ?>  (can-write:ca-perms src.bowl writers.perm.perm.channel)
-    =/  =context:h  (get-context channel)
+    ~&  "running post command"
+    =/  =context:h  (get-hook-context `[nest channel])
     =*  no-op  `ca-core
     ?-    -.c-post
         %add
-      ?>  =(src.bowl author.essay.c-post)
-      ?>  =(kind.nest -.kind-data.essay.c-post)
+      ~&  "adding post"
+      ?>  |(=(src.bowl our.bowl) =(src.bowl author.essay.c-post))
       =/  id=id-post:c
         |-
         =/  post  (get:on-v-posts:c posts.channel now.bowl)
@@ -711,8 +737,8 @@
       =/  new=v-post:c  [[id ~ ~] 0 essay.c-post]
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %add new]
-        %-  ho-run:(ho-abed:ho-core nest)
-        [event context 'post blocked']
+        ~&  "running post hooks"
+        (run-hooks event context nest 'post blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) [~ ca-core])
       =.  new
@@ -723,15 +749,13 @@
     ::
         %edit
       ?>  |(=(src.bowl author.essay.c-post) (is-admin:ca-perms src.bowl))
-      ?>  =(kind.nest -.kind-data.essay.c-post)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?~  u.post  no-op
       ?>  |(=(src.bowl author.u.u.post) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %edit u.u.post essay.c-post]
-        %-  ho-run:(ho-abed:ho-core nest)
-        [event context 'edit blocked']
+        (run-hooks event context nest 'edit blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) no-op)
       =/  =essay:c
@@ -749,8 +773,7 @@
       ?>  |(=(src.bowl author.u.u.post) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %del u.u.post]
-        %-  ho-run:(ho-abed:ho-core nest)
-        [event context 'delete blocked']
+        (run-hooks event context nest 'delete blocked')
       ?>  =(& -.result)
       :-  `[%post id.c-post %set ~]
       ca-core(posts.channel (put:on-v-posts:c posts.channel id.c-post ~))
@@ -765,8 +788,7 @@
               ?:  ?=(%del-react -.c-post)  [p.c-post ~]
               [p `q]:c-post
           ==
-        %-  ho-run:(ho-abed:ho-core nest)
-        [event context 'react action blocked']
+        (run-hooks event context nest 'react action blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) no-op)
       =/  new=c-post:c
@@ -813,8 +835,7 @@
       =/  new=v-reply:c  [reply-seal 0 memo.c-reply]
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %add parent new]
-        %-  ho-run:(ho-abed:ho-core nest)
-        [event context 'reply blocked']
+        (run-hooks event context nest 'reply blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) [~ replies])
       =.  new
@@ -830,8 +851,7 @@
       ?>  =(src.bowl author.u.u.reply)
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %edit parent u.u.reply memo.c-reply]
-        %-  ho-run:(ho-abed:ho-core nest)
-        [event context 'edit blocked']
+        (run-hooks event context nest 'edit blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) [~ replies])
       =/  =memo:c
@@ -849,8 +869,7 @@
       ?>  |(=(src.bowl author.u.u.reply) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %del parent u.u.reply]
-        %-  ho-run:(ho-abed:ho-core nest)
-        [event context 'delete blocked']
+        (run-hooks event context nest 'delete blocked')
       ?>  =(& -.result)
       :-  `[%reply id.c-reply %set ~]
       (put:on-v-replies:c replies id.c-reply ~)
@@ -865,8 +884,7 @@
               ?:  ?=(%del-react -.c-reply)  [p.c-reply ~]
               [p `q]:c-reply
           ==
-        %-  ho-run:(ho-abed:ho-core nest)
-        [event context 'delete blocked']
+        (run-hooks event context nest 'delete blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) [~ replies])
       =/  new=c-reply:c
@@ -885,7 +903,7 @@
     |=  [reacts=v-reacts:c =c-react:c]
     ^-  [changed=? v-reacts:c]
     =/  =ship     ?:(?=(%add-react -.c-react) p.c-react p.c-react)
-    ?>  =(src.bowl ship)
+    ?>  |(=(src.bowl our.bowl) =(src.bowl ship))
     =/  new-react  ?:(?=(%add-react -.c-react) `q.c-react ~)
     =/  [changed=? new-rev=@ud]
       =/  old-react  (~(get by reacts) ship)
@@ -979,213 +997,251 @@
   %+  welp
   /(scot %p our.bowl)/[dude]/(scot %da now.bowl)
   path
-++  get-context
-  |=  =v-channel:c
+++  get-hook-context
+  |=  channel=(unit [nest:c v-channel:c])
   ^-  context:h
-  =*  flag  group.perm.perm.v-channel
-  =/  =group-ui:g
+  =/  group
+    ?~  channel  ~
+    =*  flag  group.perm.perm.+.u.channel
+    %-  some
     ?.  .^(? %gu (scry-path %groups /$))  *group-ui:g
     ?.  .^(? %gx (scry-path %groups /exists/(scot %p p.flag)/[q.flag]/noun))
       *group-ui:g
     .^(group-ui:g %gx (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/v1/noun))
-  :*  v-channel
+  :*  channel
+      group
       v-channels
-      group-ui
       *hook:h  ::  we default this because each hook will replace with itself
       [now our src eny]:bowl
   ==
 ::
+++  give-hook-response
+  |=  =response:h
+  ^+  cor
+  (give %fact ~[/hooks/v0] hook-response-0+!>(response))
 ++  ho-core
-  |_  [=nest:c hks=hooks:h ctx=context:h gone=_|]
+  |_  [=id:h =hook:h gone=_|]
   ++  ho-core  .
   ++  emit  |=(=card ho-core(cor (^emit card)))
   ++  emil  |=(caz=(list card) ho-core(cor (^emil caz)))
   ++  give  |=(=gift:agent:gall ho-core(cor (^give gift)))
   ++  ho-abet
     %_  cor
-        hooks
-      ?:(gone (~(del by hooks) nest) (~(put by hooks) nest hks))
+        hooks.hooks
+      ?:(gone (~(del by hooks.hooks) id) (~(put by hooks.hooks) id hook))
     ==
   ::
   ++  ho-abed
-    |=  n=nest:c
-    ho-core(nest n, hks (~(gut by hooks) n *hooks:h))
+    |=  i=id:h
+    ho-core(id i, hook (~(got by hooks.hooks) i))
   ::
-  ++  ho-action
-    |=  =action:h
+  ++  ho-add
+    |=  [name=@t src=@t]
     ^+  ho-core
-    ?>  (is-admin:ca-perms:(ca-abed:ca-core nest) src.bowl)
-    ?-  -.action
-        %add
-      ~&  "adding hook {<action>}"
-      =/  =id:h  (rsh [3 48] eny.bowl)
-      =/  src=(rev:c (unit @t))  [0 `src.action]
-      =/  result=(each nock tang)
-        ~&  "compiling hook"
-        ((compile:utils args:h outcome:h) `src.action)
-      ~&  "compilation result: {<-.result>}"
-      =/  compiled
-        ?:  ?=(%| -.result)
-          ((slog 'compilation result:' p.result) ~)
-        `p.result
-      =.  ho-core
-        ?~  cron.action  ho-core
-        =/  fires-at  (add now.bowl u.cron.action)
-        =/  dh  [id id u.cron.action !>(~) fires-at]
-        (ho-schedule %cron dh)
-      =.  order.hks
-        +:(next-rev:c order.hks (snoc +.order.hks id))
-      =.  hooks.hks
-        %+  ~(put by hooks.hks)  id
-        [id name.action & src compiled cron.action !>(~)]
-      ho-core
-    ::
-        %edit
-      ?~  old-hook=(~(get by hooks.hks) id.action)  ho-core
-      =/  hook  u.old-hook
-      =^  src-changed  src.hook
-        (next-rev:c src.hook `src.action)
-      =/  name-changed  !=(name.action name.hook)
-      =/  cron-changed  !=(cron.action cron.hook)
-      ?.  |(src-changed name-changed cron-changed)  ho-core
-      =.  name.hook  name.action
-      =.  cron.hook  cron.action
-      =.  compiled.hook
-        ?~  +.src.hook  ~
-        =/  result=(each nock tang)
-          ((compile:utils args:h return:h) +.src.hook)
-        ?:  ?=(%| -.result)  ~
-        `p.result
-      =.  hooks.hks  (~(put by hooks.hks) id.action hook)
-      ?.  cron-changed  ho-core
-      ?~  cron.action  ho-core
-      =.  ho-core  (ho-unschedule id.action %cron)
-      =/  fires-at  (add now.bowl u.cron.action)
-      =/  dh  [id.action id.action u.cron.action !>(~) fires-at]
-      (ho-schedule %cron dh)
-    ::
-        %del
-      ::  TODO: make more CRDT
-      ?~  hook=(~(get by hooks.hks) id.action)  ho-core
-      =.  ho-core  (ho-unschedule id.action %cron)
-      =.  hooks.hks  (~(del by hooks.hks) id.action)
-      =/  [* new-order=_order.hks]
-        %+  next-rev:c  order.hks
-        %+  skim  +.order.hks
-        |=  =id:h
-        !=(id id.action)
-      =.  order.hks  new-order
-      ho-core
-    ::
-        %enable
-      =/  hook  (~(got by hooks.hks) id.action)
-      =.  hooks.hks  (~(put by hooks.hks) id.action hook(enabled &))
-      ?~  cron.hook  ho-core
-      =/  fires-at  (add now.bowl u.cron.hook)
-      =/  dh  [id.action id.action u.cron.hook !>(~) fires-at]
-      (ho-schedule %cron dh)
-    ::
-        %disable
-      =/  hook  (~(got by hooks.hks) id.action)
-      =.  hooks.hks  (~(put by hooks.hks) id.action hook(enabled |))
-      (ho-unschedule id.action %cron)
-    ::
-        %order
-      =^  changed  order.hks
-        (next-rev:c order.hks seq.action)
-      ho-core
-    ==
-  ++  ho-run
-    |=  [=event:h =context:h default=cord]
-    =^  [result=(each event:h tang) effects=(list effect:h)]  hks
-      (run-hooks:utils event context default hks)
-    [result ho-abet:(ho-run-effects effects)]
+    ~&  "adding hook {<name>}"
+    =.  id  (rsh [3 48] eny.bowl)
+    =/  result=(each vase tang)
+      ~&  "compiling hook"
+      (compile:utils src)
+    ~&  "compilation result: {<-.result>}"
+    =/  compiled
+      ?:  ?=(%| -.result)
+        ((slog 'compilation result:' p.result) ~)
+      `p.result
+    =.  hook  [id name %0 src compiled !>(~)]
+    =.  cor
+      =/  error=(unit tang)
+        ?:(?=(%& -.result) ~ `p.result)
+      (give-hook-response [%set id name src error])
+    ho-core
+  ++  ho-edit
+    |=  [name=@t src=@t]
+    =.  src.hook  src
+    =.  name.hook  name
+    =/  result=(each vase tang)
+      (compile:utils src.hook)
+    =.  compiled.hook
+      ?:  ?=(%| -.result)  ~
+      `p.result
+    =.  cor
+      =/  error=(unit tang)
+        ?:(?=(%& -.result) ~ `p.result)
+      (give-hook-response [%set id name src error])
+    ho-core
+  ::
+  ++  ho-del
+    =.  gone  &
+    =.  cor
+      %+  roll
+        ~(tap by (~(gut by crons.hooks) id *(map origin:h cron:h)))
+      |=  [[=origin:h cron:h] cr=_cor]
+      =/  =wire  (hook-cron-wire id origin)
+      (unschedule-hook:cr delay-id wire)
+    =.  crons.hooks  (~(del by crons.hooks) id)
+    =.  order.hooks
+      %+  roll
+        ~(tap by order.hooks)
+      |=  [[=nest:c ids=(list id:h)] or=(map nest:c (list id:h))]
+      =-  (~(put by or) nest -)
+      (skip ids |=(i=id:h =(id i)))
+    =.  delayed.hooks
+      %+  roll
+        ~(tap by delayed.hooks)
+      |=  [[=delay-id:h d=[* delayed-hook:h]] dh=_delayed.hooks]
+      ?.  =(id hook.d)  dh
+      (~(del by dh) delay-id)
+    =.  cor  (give-hook-response [%gone id])
+    ho-core
+  ++  ho-wait
+    |=  [=origin:h schedule=@dr]
+    ^+  ho-core
+    =/  d-id  (rsh [3 48] eny.bowl)
+    =/  crons  (~(gut by crons.hooks) id *(map origin:h cron:h))
+    =.  crons.hooks
+      =-  (~(put by crons.hooks) id.hook -)
+      (~(put by crons) origin [d-id schedule])
+    =/  fires-at  (add now.bowl schedule)
+    =/  dh  [d-id id !>(~) fires-at]
+    =/  =wire  (hook-cron-wire id origin)
+    =.  cor  (schedule-hook wire origin dh)
+    =.  cor  (give-hook-response [%wait id origin schedule])
+    ho-core
+  ++  ho-rest
+    |=  =origin:h
+    ^+  ho-core
+    =/  crons  (~(got by crons.hooks) id)
+    =/  cron  (~(got by crons) origin)
+    =.  crons.hooks
+      (~(put by crons.hooks) id (~(del by crons) origin))
+    =/  =wire  (hook-cron-wire id origin)
+    =.  cor  (unschedule-hook delay-id.cron wire)
+    =.  cor  (give-hook-response [%rest id origin])
+    ho-core
   ++  ho-run-single
-    |=  [=event:h prefix=tape =hook:h]
-    ?~  channel=(~(get by v-channels) nest)  ho-core
-    =/  =context:h  (get-context u.channel)
+    |=  [=event:h prefix=tape =origin:h]
+    =/  channel
+      ?@  origin  ~
+      ?~  ch=(~(get by v-channels) origin)  ~
+      `[origin u.ch]
+    =/  =context:h  (get-hook-context channel)
     =/  return=(unit return:h)
       (run-hook:utils event context hook)
     ?~  return
-      ~&  "{prefix} {<id.hook>} failed"
+      ~&  "{prefix} {<id>} failed"
       ho-core
-    ~&  "{prefix} {<id.hook>} ran"
-    =.  hooks.hks
-      (~(put by hooks.hks) id.hook hook(state new-state.u.return))
-    (ho-run-effects effects.u.return)
-  ++  ho-run-effects
-    |=  effects=(list effect:h)
-    ^+  ho-core
-    |-
-    ?~  effects
-      ho-core
-    =/  =effect:h  i.effects
-    =;  new-cor=_ho-core
-      =.  ho-core  new-cor
-      $(effects t.effects)
-    ?-  -.effect
-        %channels
-      =/  =cage  channel-action+!>(a-channels.effect)
-      (emit [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
-    ::
-        %groups
-      =/  =cage  group-action-3+!>(action.effect)
-      (emit [%pass /hooks/effect %agent [our.bowl %groups] %poke cage])
-    ::
-        %activity
-      =/  =cage  activity-action+!>(action.effect)
-      (emit [%pass /hooks/effect %agent [our.bowl %activity] %poke cage])
-    ::
-        %dm
-      =/  =cage  chat-dm-action+!>(action.effect)
-      (emit [%pass /hooks/effect %agent [our.bowl %chat] %poke cage])
-    ::
-        %club
-      =/  =cage  chat-club-action+!>(action.effect)
-      (emit [%pass /hooks/effect %agent [our.bowl %chat] %poke cage])
-    ::
-        %contacts
-      =/  =cage  contacts-action-1+!>(action.effect)
-      (emit [%pass /hooks/effect %agent [our.bowl %contacts] %poke cage])
-    ::
-        %delay
-      =/  fires-at  (add now.bowl wait.effect)
-      =/  dh  +:effect(data [data.effect fires-at])
-      =.  ho-core  (ho-unschedule id.effect %delayed)
-      (ho-schedule %delayed dh)
-    ==
-  ++  ho-schedule
-    |=  [type=@tas dh=delayed-hook:h]
-    ^+  ho-core
-    ~&  "scheduling hook"
-    =.  delayed.hks  (~(put by delayed.hks) id.dh dh)
-    =/  =wire  (welp ho-prefix /[type]/(scot %uv id.dh))
-    (emit [%pass wire %arvo %b %wait fires-at.dh])
-  ++  ho-unschedule
-    |=  [=id:h type=@tas]
-    ?~  previous=(~(get by delayed.hks) id)  ho-core
-    =/  =wire  (welp ho-prefix /[type]/(scot %uv id))
-    (emit [%pass wire %arvo %b %rest fires-at.u.previous])
-  ++  ho-arvo
-    |=  =(pole knot)
-    ^+  ho-core
-    ?+  pole  ~|(bad-arvo-take/pole !!)
-        [%delayed id=@ ~]
-      =/  =id:h  (slav %uv id.pole)
-      ?~  delay=(~(get by delayed.hks) id)  ho-core
-      ?~  hook=(~(get by hooks.hks) hook.u.delay)  ho-core
-      (ho-run-single [%delay u.delay] "delayed hook" u.hook)
-    ::
-        [%cron id=@ ~]
-      =/  =id:h  (slav %uv id.pole)
-      ?~  delay=(~(get by delayed.hks) id)  ho-core
-      ?~  hook=(~(get by hooks.hks) id)  ho-core
-      ::  if unscheduled, ignore
-      ?~  cron.u.hook  ho-core
-      =/  next  (add now.bowl u.cron.u.hook)
-      =.  ho-core  (ho-schedule %cron u.delay(fires-at next))
-      (ho-run-single [%cron ~] "cron job" u.hook)
-    ==
-  ++  ho-prefix  /hooks/[kind.nest]/(scot %p ship.nest)/[name.nest]
+    ~&  "{prefix} {<id>} ran"
+    =.  hook  hook(state new-state.u.return)
+    =.  cor  (run-hook-effects effects.u.return origin)
+    ho-core
   --
+++  run-hooks
+  |=  [=event:h =context:h =nest:c default=cord]
+  ^-  [(each event:h tang) _cor]
+  =;  [result=(each event:h tang) effects=(list effect:h)]
+    [result (run-hook-effects effects nest)]
+  =/  current-event  event
+  =|  effects=(list effect:h)
+  =/  order  (~(got by order.hooks) nest)
+  ~&  "got orders {<order>}"
+  |-
+  ?~  order
+    [&+current-event effects]
+  =*  next  $(order t.order)
+  ~&  "getting hook"
+  =/  hook  (~(got by hooks.hooks) i.order)
+  =/  return=(unit return:h)
+    (run-hook:utils current-event context hook)
+  ?~  return  next
+  =*  result  result.u.return
+  =.  effects  (weld effects effects.u.return)
+  =.  hooks.hooks  (~(put by hooks.hooks) i.order hook(state new-state.u.return))
+  ?:  ?=(%denied -.result)
+    [|+~[(fall msg.result default)] effects]
+  =.  current-event  new.result
+  next
+++  wakeup-hook
+  |=  =(pole knot)
+  ^+  cor
+  ?+  pole  ~|(bad-arvo-take/pole !!)
+      [%delayed id=@ ~]
+    =/  =id:h  (slav %uv id.pole)
+    ?~  delay=(~(get by delayed.hooks) id)  cor
+    ::  make sure we clean up
+    =.  delayed.hooks  (~(del by delayed.hooks) id)
+    =/  args  [[%wake +.u.delay] "delayed hook" origin.u.delay]
+    ho-abet:(ho-run-single:(ho-abed:ho-core hook.u.delay) args)
+  ::
+      [%cron id=@ kind=?(%chat %diary %heap) ship=@ name=@ ~]
+    =/  =id:h  (slav %uv id.pole)
+    =/  =origin:h  [kind.pole (slav %p ship.pole) name.pole]
+    ::  if unscheduled, ignore
+    ?~  crons=(~(get by crons.hooks) id)  cor
+    ?~  cron=(~(get by u.crons) origin)  cor
+    ?~  delay=(~(get by delayed.hooks) delay-id.u.cron)  cor
+    =.  delayed.hooks  (~(del by delayed.hooks) delay-id.u.cron)
+    =/  next  (add now.bowl schedule.u.cron)
+    =/  =wire  (hook-cron-wire id origin)
+    =.  cor
+      (schedule-hook wire origin +.u.delay(fires-at next))
+    =/  args  [[%cron ~] "cron job" origin]
+    ho-abet:(ho-run-single:(ho-abed:ho-core hook.u.delay) args)
+  ==
+++  hook-cron-wire
+  |=  [=id:h =origin:h]
+  ^-  wire
+  %+  welp  /hooks/cron/(scot %uv id)
+  ?@  origin  ~
+  /[kind.origin]/(scot %p ship.origin)/[name.origin]
+++  schedule-hook
+  |=  [=wire =origin:h dh=delayed-hook:h]
+  ^+  cor
+  ~&  "scheduling hook"
+  =.  delayed.hooks  (~(put by delayed.hooks) id.dh [origin dh])
+  (emit [%pass wire %arvo %b %wait fires-at.dh])
+++  unschedule-hook
+  |=  [=id:h =wire]
+  ^+  cor
+  ?~  previous=(~(get by delayed.hooks) id)  cor
+  ~&  "unscheduling hook"
+  (emit [%pass wire %arvo %b %rest fires-at.u.previous])
+++  run-hook-effects
+  |=  [effects=(list effect:h) =origin:h]
+  ^+  cor
+  |-
+  ?~  effects
+    cor
+  =/  =effect:h  i.effects
+  =;  new-cor=_cor
+    =.  cor  new-cor
+    $(effects t.effects)
+  ?-  -.effect
+      %channels
+    =/  =cage  channel-action+!>(a-channels.effect)
+    (emit [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
+  ::
+      %groups
+    =/  =cage  group-action-3+!>(action.effect)
+    (emit [%pass /hooks/effect %agent [our.bowl %groups] %poke cage])
+  ::
+      %activity
+    =/  =cage  activity-action+!>(action.effect)
+    (emit [%pass /hooks/effect %agent [our.bowl %activity] %poke cage])
+  ::
+      %dm
+    =/  =cage  chat-dm-action+!>(action.effect)
+    (emit [%pass /hooks/effect %agent [our.bowl %chat] %poke cage])
+  ::
+      %club
+    =/  =cage  chat-club-action+!>(action.effect)
+    (emit [%pass /hooks/effect %agent [our.bowl %chat] %poke cage])
+  ::
+      %contacts
+    =/  =cage  contacts-action-1+!>(action.effect)
+    (emit [%pass /hooks/effect %agent [our.bowl %contacts] %poke cage])
+  ::
+      %wait
+    =/  =wire  /hooks/delayed/(scot %uv id.effect)
+    =.  cor  (unschedule-hook id.effect wire)
+    (schedule-hook wire origin +:effect)
+  ==
 --

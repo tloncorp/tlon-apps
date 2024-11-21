@@ -676,68 +676,38 @@
       ;br;
     ==
   --
-++  subject  ^~(!>([..subject ..zuse]))
+++  subject  ^~(!>(..compile))
 ++  compile
-  |*  [args=mold return=mold]
-  |=  src=(unit @t)
-  ^-  (each nock tang)
-  ?~  src  |+~['no src']
+  |=  src=@t
+  ^-  (each vase tang)
   ~&  %a
-  =/  tonk=(each (pair type nock) tang)
+  =/  tonk=(each vase tang)
     ~&  %b
-    =/  vex=(like hoon)  ((full vest) [0 0] (trip u.src))
+    =/  vex=(like hoon)  ((full vest) [0 0] (trip src))
     ~&  %c
     ?~  q.vex  |+~[leaf+"\{{<p.p.vex>} {<q.p.vex>}}" 'syntax error']
     ~&  %d
     %-  mule
-    |.((~(mint ut -:subject) %noun p.u.q.vex))
+    |.((slap subject p.u.q.vex))
   ~&  %e
   ~&  "parsed hoon: {<-.tonk>}"
   ~&  %f
   ?:  ?=(%| -.tonk)
     %-  (slog 'returning error' p.tonk)
     tonk
-  &+q.p.tonk
-++  execute
-  |*  prod=mold
-  |=  [=nock simp=*]
-  ^-  (unit prod)
-  %-  (soft prod)
-  (slum .*(+:subject nock) simp)
-::
+  &+p.tonk
 ++  run-hook
   |=  [=event:h =context:h =hook:h]
   ^-  (unit return:h)
-  ?.  enabled.hook  ~
-  ?~  compiled.hook  ~
   ~&  "running hook: {<name.hook>} {<id.hook>}"
+  ?~  compiled.hook
+    ~&("hook not compiled" ~)
+  :: ~&  "nock: {<compiled.hook>}"
   =/  =args:h  [event context(hook hook)]
-  =/  outcome=(unit outcome:h)
-    ((execute outcome:h) u.compiled.hook args)
-  ~&  "{(trip name.hook)} hook run: {<outcome>}"
-  ?~  outcome  ~
-  ?:  ?=(%.y -.u.outcome)  `p.u.outcome
+  =+  !<(=outcome:h (slam u.compiled.hook !>(args)))
+  ~&  "{(trip name.hook)} hook run:"
+  ~&  outcome
+  ?:  ?=(%.y -.outcome)  `p.outcome
   ~&  "hook failed:"
-  ((slog p.u.outcome) ~)
-++  run-hooks
-  |=  [=event:h =context:h default=cord hks=hooks:h]
-  ^-  [[(each event:h tang) (list effect:h)] hooks:h]
-  =/  current-event  event
-  =|  effects=(list effect:h)
-  =/  order  +.order.hks
-  |-
-  ?~  order
-    [[&+current-event effects] hks]
-  =*  next  $(order t.order)
-  =/  hook  (~(got by hooks.hks) i.order)
-  =/  return=(unit return:h)
-    (run-hook current-event context hook)
-  ?~  return  next
-  =*  result  result.u.return
-  =.  effects  (weld effects effects.u.return)
-  =.  hooks.hks  (~(put by hooks.hks) i.order hook(state new-state.u.return))
-  ?:  ?=(%denied -.result)
-    [[|+~[(fall msg.result default)] effects] hks]
-  =.  current-event  new.result
-  next
+  ((slog p.outcome) ~)
 --

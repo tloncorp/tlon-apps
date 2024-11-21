@@ -7,48 +7,52 @@
 ::
 ::    $id: a unique identifier for the hook
 ::    $name: a human-readable name for the hook
-::    $origin: whether or not this hook was added by us or came through an update
+::    $version: the version the hook was compiled with
 ::    $src: the source code of the hook
-::    $compiled: the compiled nock of the hook
-::    $cron: the cron schedule for the hook if it has one
+::    $compiled: the compiled version of the hook
 ::    $state: the current state of the hook
 ::
 ++  hook
   $:  =id
       name=@t
-      enabled=?
-      src=(rev src=(unit @t))
-      compiled=(unit nock)
-      cron=(unit @dr)
+      version=%0
+      src=@t
+      compiled=(unit vase)
       state=vase
   ==
 ::  $hooks: collection of hooks, the order they should be run in, and
 ::  any delayed hooks that need to be run
 ++  hooks
   $:  hooks=(map id hook)
-      order=(rev (list id))
-      delayed=(map id delayed-hook)
+      order=(map nest (list id))
+      crons=(map id (map origin cron))
+      delayed=(map delay-id [=origin delayed-hook])
   ==
++$  origin  $@(~ nest)
++$  delay-id  id
++$  cron  [=delay-id schedule=@dr]
 ::  $delayed-hook: metadata for when a delayed hook fires from the timer
 +$  delayed-hook
-  $:  =id
+  $:  id=delay-id
       hook=id
-      wait=@dr
       data=vase
       fires-at=time
   ==
 ::
 +$  action
-  $%  [%add name=@t src=@t cron=(unit @dr)]
-      [%edit =id name=@t src=@t cron=(unit @dr)]
+  $%  [%add name=@t src=@t]
+      [%edit =id name=@t src=@t]
       [%del =id]
-      [%enable =id]
-      [%disable =id]
-      [%order seq=(list id)]
+      [%order =nest seq=(list id)]
+      [%wait =id =origin schedule=@dr]
+      [%rest =id =origin]
   ==
 +$  response
-  $%  [%set =id name=@t src=(unit @t) error=(unit tang)]
-      [%order seq=(list id)]
+  $%  [%set =id name=@t src=@t error=(unit tang)]
+      [%gone =id]
+      [%order =nest seq=(list id)]
+      [%wait =id =origin schedule=@dr]
+      [%rest =id =origin]
   ==
 ::  $context: ambient state that a hook should know about not
 ::  necessarily tied to a specific event
@@ -63,9 +67,9 @@
 ::    $eny: entropy for random number generation or key derivation
 ::
 +$  context
-  $:  v-channel
+  $:  channel=(unit [=nest v-channel])
+      group=(unit group-ui:g)
       channels=v-channels
-      =group-ui:g
       =hook
       now=time
       our=ship
@@ -96,14 +100,14 @@
 ::    $on-post: a post was added, edited, deleted, or reacted to
 ::    $on-reply: a reply was added, edited, deleted, or reacted to
 ::    $cron: a scheduled wake-up
-::    $delay: a delayed invocation of the hook called with metadata about
+::    $wake: a delayed invocation of the hook called with metadata about
 ::    when it fired, its id, and the event it should run with
 ::
 +$  event
   $%  [%on-post on-post]
       [%on-reply on-reply]
       [%cron ~]
-      [%delay delayed-hook]
+      [%wake delayed-hook]
   ==
 ::
 ::  $args: the arguments passed to a hook
@@ -135,7 +139,7 @@
       [%dm =action:dm:ch]
       [%club =action:club:ch]
       [%contacts =action:co]
-      [%delay =id hook=id wait=@dr data=vase]
+      [%wait delayed-hook]
   ==
 ::
 ::  $return: the data returned from a hook
