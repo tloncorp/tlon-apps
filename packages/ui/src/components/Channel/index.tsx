@@ -122,7 +122,7 @@ export function Channel({
   useChannel: typeof useChannelPreview;
   storeDraft: (draft: JSONContent, draftType?: GalleryDraftType) => void;
   clearDraft: (draftType?: GalleryDraftType) => void;
-  getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent>;
+  getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => Promise<void>;

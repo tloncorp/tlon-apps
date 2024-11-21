@@ -76,7 +76,7 @@ export const useChannelContext = ({
   const getDraft = useCallback(
     async (draftType?: GalleryDraftType) => {
       try {
-        const draft = await storage.load({
+        const draft = await storage.load<JSONContent>({
           key: `draft-${draftKey}${draftType ? `-${draftType}` : ''}`,
         });
         return draft;
