@@ -8,7 +8,7 @@
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
-/+  v=volume, s=subscriber, imp=import-aid
+/+  v=volume, s=subscriber, imp=import-aid, logs
 /+  of
 /+  epos-lib=saga
 ::  performance, keep warm
@@ -69,7 +69,11 @@
   ++  on-peek   peek:cor
   ::
   ++  on-leave   on-leave:def
-  ++  on-fail    on-fail:def
+  ++  on-fail
+    |=  [=term =tang]
+    ^-  (quip card _this)
+    :_  this
+    [(log-fail:logs /logs our.bowl (fail-event:logs term tang))]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]

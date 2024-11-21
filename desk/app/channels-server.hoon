@@ -4,7 +4,7 @@
 ::
 /-  c=channels, g=groups
 /+  utils=channel-utils, imp=import-aid
-/+  default-agent, verb, dbug, neg=negotiate
+/+  default-agent, verb, dbug, neg=negotiate, logs
 ::
 %-  %-  agent:neg
     [| [~.channels^%1 ~ ~] ~]
@@ -58,7 +58,12 @@
   ::
   ++  on-peek    on-peek:def
   ++  on-leave   on-leave:def
-  ++  on-fail    on-fail:def
+  ++  on-fail
+    |=  [=term =tang]
+    ^-  (quip card _this)
+    :_  this
+    [(log-fail:logs /logs our.bowl (fail-event:logs term tang))]~
+  ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
     ^-  (quip card _this)
