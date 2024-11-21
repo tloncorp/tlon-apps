@@ -1,6 +1,6 @@
 import {
-  ChannelContentConfiguration,
   DraftInputId,
+  useChannelContext,
   useThreadPosts,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -32,6 +32,11 @@ export function DetailPostView({
   'backgroundColor'
 >) {
   const { PostView, channel } = usePostCollectionContextUnsafelyUnwrapped();
+  const channelCtx = useChannelContext({
+    channelId: channel.id,
+    draftKey: post.id,
+    isChannelSwitcherEnabled: false,
+  });
   const listRef = useRef<FlatList<ListItem>>(null);
   // use boolean coercion to also check if post.title is empty string
   const title = post.title ? post.title : 'Post';
@@ -41,7 +46,7 @@ export function DetailPostView({
   const postContextMenu = usePostContextMenu(
     useMemo(
       () => ({
-        performPostAction: (actionType, _post) => {
+        performPostAction: (actionType, post) => {
           switch (actionType) {
             case 'viewReactions': {
               break;
@@ -52,12 +57,12 @@ export function DetailPostView({
             }
 
             case 'edit': {
-              break;
+              channelCtx.setEditingPost(post);
             }
           }
         },
       }),
-      []
+      [channelCtx]
     )
   );
 
@@ -69,18 +74,8 @@ export function DetailPostView({
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   /** when `null`, input is not shown or presentation is unknown */
   const draftInputContext = useMemo((): DraftInputContext => {
-    const notImplemented = () => {
-      throw new Error('Not implemented');
-    };
     return {
-      channel,
-      configuration:
-        channel.contentConfiguration == null
-          ? undefined
-          : ChannelContentConfiguration.draftInput(channel.contentConfiguration)
-              .configuration,
-      group: channel.group!,
-      headerMode: 'default',
+      // TODO: pass draft configuration values?
       send: async (content) => {
         await sendReply(content);
         listRef.current?.scrollToEnd();
@@ -88,12 +83,10 @@ export function DetailPostView({
       setShouldBlur: setInputShouldBlur,
       shouldBlur: inputShouldBlur,
 
-      clearDraft: notImplemented,
-      editPost: notImplemented,
-      getDraft: notImplemented,
-      storeDraft: notImplemented,
+      ...channelCtx,
+      channel,
     };
-  }, [channel, inputShouldBlur, sendReply]);
+  }, [channel, inputShouldBlur, sendReply, channelCtx]);
 
   return (
     <>
