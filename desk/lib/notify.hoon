@@ -181,7 +181,7 @@
               %contact
             =,  -.event
             :~  ship+who
-                =-  (crip "updated their {(trip -)}")
+                =-  (crip " updated their {(trip -)}")
                 ?+  `@tas`p.update  p.update
                   %avatar  'profile picture'
                   %cover   'cover picture'
