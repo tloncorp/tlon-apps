@@ -1,16 +1,17 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { THEME_STORAGE_KEY } from '@tloncorp/shared/db';
+import { themeSettings } from '@tloncorp/shared/db';
 import {
   ListItem,
+  ListItemInputOption,
   LoadingSpinner,
   Pressable,
+  RadioControl,
   ScreenHeader,
+  View,
 } from '@tloncorp/ui';
 import { useContext, useEffect, useState } from 'react';
 import { ScrollView, YStack } from 'tamagui';
 import type { ThemeName } from 'tamagui';
-import { useThemeName } from 'tamagui';
 
 import { useIsDarkMode } from '../../hooks/useIsDarkMode';
 import { RootStackParamList } from '../../navigation/types';
@@ -18,27 +19,36 @@ import { ThemeContext, clearTheme, setTheme } from '../../provider';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
 
-const themes: { label: string; value: ThemeName | 'auto' }[] = [
-  { label: 'Auto', value: 'auto' },
-  { label: 'Tlon Light', value: 'light' },
-  { label: 'Tlon Dark', value: 'dark' },
-  { label: 'Dracula', value: 'dracula' },
-  { label: 'Greenscreen', value: 'greenscreen' },
-  { label: 'Gruvbox', value: 'gruvbox' },
-  { label: 'Monokai', value: 'monokai' },
-  { label: 'Nord', value: 'nord' },
-  { label: 'Peony', value: 'peony' },
-  { label: 'Solarized', value: 'solarized' },
-];
-
 export function ThemeScreen(props: Props) {
-  const currentTheme = useThemeName();
   const { setActiveTheme } = useContext(ThemeContext);
   const isDarkMode = useIsDarkMode();
-  const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
-  const [loadingTheme, setLoadingTheme] = useState<string | null>(null);
+  const [selectedTheme, setSelectedTheme] = useState<ThemeName | 'auto'>(
+    'auto'
+  );
+  const [loadingTheme, setLoadingTheme] = useState<ThemeName | 'auto' | null>(
+    null
+  );
+
+  const themes: ListItemInputOption<ThemeName | 'auto'>[] = [
+    {
+      title: 'Auto',
+      value: 'auto',
+      subtitle: `Uses system ${isDarkMode ? 'dark' : 'light'} theme`,
+    },
+    { title: 'Tlon Light', value: 'light' },
+    { title: 'Tlon Dark', value: 'dark' },
+    { title: 'Dracula', value: 'dracula' },
+    { title: 'Greenscreen', value: 'greenscreen' },
+    { title: 'Gruvbox', value: 'gruvbox' },
+    { title: 'Monokai', value: 'monokai' },
+    { title: 'Nord', value: 'nord' },
+    { title: 'Peony', value: 'peony' },
+    { title: 'Solarized', value: 'solarized' },
+  ];
 
   const handleThemeChange = async (value: ThemeName | 'auto') => {
+    if (value === selectedTheme || loadingTheme) return;
+
     setLoadingTheme(value);
     try {
       if (value === 'auto') {
@@ -46,27 +56,19 @@ export function ThemeScreen(props: Props) {
       } else {
         await setTheme(value, setActiveTheme);
       }
-      setSelectedTheme(value === 'auto' ? null : value);
+      setSelectedTheme(value);
     } finally {
       setLoadingTheme(null);
     }
   };
 
   useEffect(() => {
-    // Check selected theme on mount
     const checkSelected = async () => {
-      const storedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-      setSelectedTheme(storedTheme);
+      const storedTheme = await themeSettings.getValue();
+      setSelectedTheme(storedTheme ?? 'auto');
     };
     checkSelected();
   }, []);
-
-  const isSelected = (value: ThemeName | 'auto') => {
-    if (value === 'auto') {
-      return !selectedTheme;
-    }
-    return currentTheme === value;
-  };
 
   return (
     <>
@@ -75,34 +77,30 @@ export function ThemeScreen(props: Props) {
         backAction={() => props.navigation.goBack()}
       />
       <ScrollView>
-        <YStack flex={1} padding="$l" gap="$s">
+        <YStack flex={1} padding="$l">
           {themes.map((theme) => (
             <Pressable
               key={theme.value}
-              borderRadius="$xl"
+              disabled={loadingTheme !== null}
               onPress={() => handleThemeChange(theme.value)}
+              borderRadius="$xl"
             >
               <ListItem>
                 <ListItem.MainContent>
-                  <ListItem.Title>{theme.label}</ListItem.Title>
-                  {theme.value === 'auto' && (
-                    <ListItem.Subtitle>
-                      Uses system {isDarkMode ? 'dark' : 'light'} theme
-                    </ListItem.Subtitle>
+                  <ListItem.Title>{theme.title}</ListItem.Title>
+                  {theme.subtitle && (
+                    <ListItem.Subtitle>{theme.subtitle}</ListItem.Subtitle>
                   )}
                 </ListItem.MainContent>
-                {loadingTheme === theme.value ? (
-                  <ListItem.EndContent paddingRight="$l">
-                    <LoadingSpinner color="$primaryText" size="small" />
-                  </ListItem.EndContent>
-                ) : (
-                  isSelected(theme.value) && (
-                    <ListItem.SystemIcon
-                      icon="Checkmark"
-                      color="$primaryText"
-                    />
-                  )
-                )}
+                <ListItem.EndContent>
+                  {loadingTheme === theme.value ? (
+                    <View padding="$m">
+                      <LoadingSpinner color="$primaryText" size="small" />
+                    </View>
+                  ) : (
+                    <RadioControl checked={theme.value === selectedTheme} />
+                  )}
+                </ListItem.EndContent>
               </ListItem>
             </Pressable>
           ))}
