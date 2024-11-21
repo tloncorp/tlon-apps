@@ -4,16 +4,18 @@ import * as urbit from '@tloncorp/shared/urbit';
 import { JSONContent } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useFeatureFlag } from '../lib/featureFlags';
 import storage from '../lib/storage';
 
 export const useChannelContext = ({
   channelId,
   draftKey,
+  isChannelSwitcherEnabled,
 }: {
   channelId: string;
   draftKey: string;
-  uploaderKey: string;
+
+  // need to populate this from feature flags :(
+  isChannelSwitcherEnabled: boolean;
 }) => {
   // Model context
   const channelQuery = store.useChannelWithRelations({
@@ -109,10 +111,6 @@ export const useChannelContext = ({
     },
     [draftKey]
   );
-
-  // Contacts
-
-  const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   return {
     negotiationStatus,
