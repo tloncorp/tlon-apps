@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo } from 'react';
 import { SectionList } from 'react-native';
-import { SizableText, View } from 'tamagui';
+import { SizableText, View, XStack } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts';
 import { useSortedContacts } from '../hooks/contactSorters';
@@ -63,6 +63,7 @@ export function ContactsScreenView(props: Props) {
 
   const renderItem = useCallback(
     ({ item }: { item: db.Contact }) => {
+      const isSelf = item.id === userContact?.id;
       return (
         <ContactListItem
           size="$4xl"
@@ -72,8 +73,15 @@ export function ContactsScreenView(props: Props) {
           endContent={
             item.isContactSuggestion ? (
               <Badge text="Add" type="positive" />
-            ) : item.id === userContact?.id ? (
-              <Badge text="You" type="neutral" />
+            ) : isSelf ? (
+              <XStack gap="$xs" alignItems="center">
+                <Badge
+                  text="You"
+                  type="neutral"
+                  backgroundColor="$background"
+                />
+                <SystemIconAvatar icon="ChevronRight" backgroundColor="unset" />
+              </XStack>
             ) : (
               <SystemIconAvatar icon="ChevronRight" backgroundColor="unset" />
             )
@@ -81,9 +89,7 @@ export function ContactsScreenView(props: Props) {
           subtitle={item.status ? item.status : undefined}
           onPress={() => props.onContactPress(item)}
           onLongPress={() => props.onContactLongPress(item)}
-          borderTopWidth={item.id === userContact?.id ? 1 : 0}
-          borderBottomWidth={item.id === userContact?.id ? 1 : 0}
-          borderRadius={item.id === userContact?.id ? 0 : 'unset'}
+          backgroundColor={isSelf ? '$secondaryBackground' : 'unset'}
           borderColor="$border"
         />
       );
@@ -107,7 +113,7 @@ export function ContactsScreenView(props: Props) {
   );
 
   return (
-    <View flex={1}>
+    <View flex={1} padding="$l">
       <SectionList
         sections={sections}
         renderItem={renderItem}
