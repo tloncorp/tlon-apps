@@ -9,6 +9,7 @@ import {
   View,
   getDisplayName,
   isWeb,
+  triggerHaptic,
 } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
@@ -63,14 +64,17 @@ export default function ContactsScreen(props: Props) {
     }
   }, []);
 
+  const backAction = useCallback(() => {
+    triggerHaptic('baseButtonClick');
+    navigate('ChatList');
+  }, [navigate]);
+
   return (
     <AppDataContextProvider contacts={contacts} currentUserId={currentUser}>
       <View flex={1}>
         <ScreenHeader
           title="Contacts"
-          backAction={
-            contactsTabEnabled ? undefined : () => navigate('ChatList')
-          }
+          backAction={contactsTabEnabled ? undefined : backAction}
           rightControls={
             contactsTabEnabled ? (
               <ScreenHeader.IconButton
