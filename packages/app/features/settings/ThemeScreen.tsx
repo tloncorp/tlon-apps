@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { THEME_STORAGE_KEY } from '@tloncorp/shared/db';
 import {
   ListItem,
   LoadingSpinner,
@@ -11,7 +12,6 @@ import { ScrollView, YStack } from 'tamagui';
 import type { ThemeName } from 'tamagui';
 import { useThemeName } from 'tamagui';
 
-import { THEME_STORAGE_KEY } from '../../constants';
 import { useIsDarkMode } from '../../hooks/useIsDarkMode';
 import { RootStackParamList } from '../../navigation/types';
 import { ThemeContext, clearTheme, setTheme } from '../../provider';
