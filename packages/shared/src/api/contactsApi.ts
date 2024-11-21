@@ -26,9 +26,9 @@ export const getContacts = async () => {
     path: '/suggested-contacts',
   });
 
-  const contactSuggestions = new Set(suggestionsResponse);
-  // const thing = ['~latter-bolden', '~pondus-watbel', '~rilfun-lidlen'];
-  // const contactSuggestions = new Set(thing);
+  // const contactSuggestions = new Set(suggestionsResponse);
+  const thing = ['~latter-bolden', '~pondus-watbel', '~rilfun-lidlen'];
+  const contactSuggestions = new Set(thing);
 
   const peerProfiles = v0PeersToClientProfiles(peersResponse, {
     userIdsToOmit: skipContacts,

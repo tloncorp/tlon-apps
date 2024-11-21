@@ -122,6 +122,7 @@ export function ActivityListItemContent({
             <ActivitySourceContent
               summary={summary}
               pressHandler={pressHandler}
+              unreadCount={unreadCount}
             />
           ) : null}
         </YStack>

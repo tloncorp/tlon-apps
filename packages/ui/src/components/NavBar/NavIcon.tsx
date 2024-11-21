@@ -1,3 +1,4 @@
+// tamagui-ignore
 import { Circle, ColorTokens, isWeb } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';

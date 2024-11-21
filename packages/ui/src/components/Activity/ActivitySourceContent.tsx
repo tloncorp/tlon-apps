@@ -18,11 +18,13 @@ import { Text } from '../TextV2';
 
 type ActivitySourceContentProps = {
   summary: logic.SourceActivityEvents;
+  unreadCount?: number;
   pressHandler?: () => void;
 };
 
 export function ActivitySourceContent({
   summary,
+  unreadCount,
   pressHandler,
 }: ActivitySourceContentProps) {
   const isReply = !!summary.newest.parentId;
@@ -40,7 +42,11 @@ export function ActivitySourceContent({
   }
 
   return isReply || isChatPost ? (
-    <ChatContentRenderer summary={summary} pressHandler={pressHandler} />
+    <ChatContentRenderer
+      summary={summary}
+      pressHandler={pressHandler}
+      unreadCount={unreadCount}
+    />
   ) : (
     <NotebookOrGalleryContentRenderer
       summary={summary}
@@ -90,7 +96,10 @@ function ContactUpdateContentRenderer({ summary }: ActivitySourceContentProps) {
   return null;
 }
 
-function ChatContentRenderer({ summary }: ActivitySourceContentProps) {
+function ChatContentRenderer({
+  summary,
+  unreadCount,
+}: ActivitySourceContentProps) {
   const post = useMemo(() => getPost(summary.newest), [summary.newest]);
   const postAuthorName = useContactName(post.authorId);
   const content = usePostContent(post);
@@ -106,9 +115,9 @@ function ChatContentRenderer({ summary }: ActivitySourceContentProps) {
   return (
     <>
       <ActivityContentRenderer content={enrichedContent} />
-      {summary.all.length > 1 ? (
+      {(unreadCount ?? 0) > 1 ? (
         <Text size="$label/m" color="$tertiaryText" trimmed={false}>
-          +{summary.all.length - 1} more
+          +{(unreadCount ?? 0) - 1} more
         </Text>
       ) : null}
     </>

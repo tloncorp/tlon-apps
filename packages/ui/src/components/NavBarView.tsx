@@ -31,6 +31,7 @@ export const NavBarView = ({
     return currentRoute === routeName;
   };
   const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
+  console.log('haveUnreadUnseenActivity', haveUnreadUnseenActivity);
   const isWindowNarrow = useIsWindowNarrow();
 
   const openStatusSheet = useCallback(() => {
