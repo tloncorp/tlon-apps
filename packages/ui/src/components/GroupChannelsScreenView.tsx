@@ -1,7 +1,14 @@
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, ScrollView, View, YStack } from 'tamagui';
+import {
+  Button,
+  ScrollView,
+  View,
+  YStack,
+  getVariableValue,
+  useTheme,
+} from 'tamagui';
 
 import { useCurrentUserId } from '../contexts';
 import { useIsAdmin } from '../utils/channelUtils';
@@ -72,6 +79,8 @@ export function GroupChannelsScreenView({
     }
   }, [isGroupAdmin]);
 
+  const listSectionTitleColor = getVariableValue(useTheme().secondaryText);
+
   return (
     <View flex={1}>
       <ScreenHeader
@@ -117,12 +126,12 @@ export function GroupChannelsScreenView({
           />
 
           {unjoinedChannels.length > 0 && (
-            <YStack gap="$s">
+            <YStack>
               <Text
                 paddingHorizontal="$l"
                 paddingVertical="$xl"
                 fontSize="$s"
-                color="$secondaryText"
+                color={listSectionTitleColor}
               >
                 Available Channels
               </Text>
@@ -132,8 +141,9 @@ export function GroupChannelsScreenView({
                   model={channel}
                   onPress={() => onJoinChannel(channel)}
                   useTypeIcon={true}
+                  dimmed={true}
                   EndContent={
-                    <View>
+                    <View justifyContent="center">
                       <Badge text="Join" />
                     </View>
                   }

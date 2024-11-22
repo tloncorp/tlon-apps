@@ -129,15 +129,17 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
 export const ChannelAvatar = React.memo(function ChannelAvatarComponent({
   model,
   useTypeIcon,
+  dimmed,
   ...props
 }: {
   model: db.Channel;
   useTypeIcon?: boolean;
+  dimmed?: boolean;
 } & AvatarProps) {
   const channelTitle = utils.useChannelTitle(model);
 
   if (useTypeIcon) {
-    return <ChannelTypeAvatar channel={model} {...props} />;
+    return <ChannelTypeAvatar channel={model} dimmed={dimmed} {...props} />;
   } else if (model.type === 'dm') {
     return (
       <ContactAvatar
@@ -168,13 +170,17 @@ export const ChannelAvatar = React.memo(function ChannelAvatarComponent({
 export const ChannelTypeAvatar = React.memo(
   function ChannelTypeAvatarComponent({
     channel,
+    dimmed,
     ...props
   }: {
     channel: db.Channel;
+    dimmed?: boolean;
   } & ComponentProps<typeof AvatarFrame>) {
     return (
       <SystemIconAvatar
         {...props}
+        color={dimmed ? '$tertiaryText' : undefined}
+        backgroundColor={dimmed ? '$secondaryBackground' : undefined}
         icon={getChannelTypeIcon(channel.type) || 'Channel'}
       />
     );
