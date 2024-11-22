@@ -222,6 +222,19 @@ export const getPendingChats = createReadQuery(
   ['groups', 'channels']
 );
 
+export const getUnjoinedGroupChannels = createReadQuery(
+  'getUnjoinedGroupChannels',
+  async (groupId: string, ctx: QueryCtx) => {
+    return ctx.db.query.channels.findMany({
+      where: and(
+        eq($channels.groupId, groupId),
+        eq($channels.currentUserIsMember, false)
+      ),
+    });
+  },
+  ['channels']
+);
+
 export const getPins = createReadQuery(
   'getPins',
   async (ctx: QueryCtx): Promise<Pin[]> => {

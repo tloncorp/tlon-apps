@@ -1,26 +1,33 @@
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, YStack } from 'tamagui';
+import { Button, ScrollView, View, YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts';
 import { useIsAdmin } from '../utils/channelUtils';
+import { Badge } from './Badge';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
+import { ChannelListItem } from './ListItem/ChannelListItem';
 import { LoadingSpinner } from './LoadingSpinner';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
+import { Text } from './TextV2';
 
 type GroupChannelsScreenViewProps = {
   group: db.Group | null;
+  unjoinedChannels?: db.Channel[];
   onChannelPressed: (channel: db.Channel) => void;
+  onJoinChannel: (channel: db.Channel) => void;
   onBackPressed: () => void;
   enableCustomChannels?: boolean;
 };
 
 export function GroupChannelsScreenView({
   group,
+  unjoinedChannels = [],
   onChannelPressed,
+  onJoinChannel,
   onBackPressed,
   enableCustomChannels = false,
 }: GroupChannelsScreenViewProps) {
@@ -108,6 +115,28 @@ export function GroupChannelsScreenView({
             sortBy={sortBy || 'recency'}
             onLongPress={handleOpenChannelOptions}
           />
+
+          {unjoinedChannels.length > 0 && (
+            <YStack gap="$s">
+              <Text
+                paddingHorizontal="$l"
+                paddingVertical="$xl"
+                fontSize="$s"
+                color="$secondaryText"
+              >
+                Available Channels
+              </Text>
+              {unjoinedChannels.map((channel) => (
+                <ChannelListItem
+                  key={channel.id}
+                  model={channel}
+                  onPress={() => onJoinChannel(channel)}
+                  useTypeIcon={true}
+                  EndContent={<Badge text="Join" />}
+                />
+              ))}
+            </YStack>
+          )}
         </ScrollView>
       ) : (
         <YStack flex={1} justifyContent="center" alignItems="center">

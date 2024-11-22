@@ -4,6 +4,8 @@ import {
   useNavigation,
 } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useQuery } from '@tanstack/react-query';
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
@@ -39,6 +41,10 @@ export function GroupChannelsScreenContent({
     null
   );
   const { group } = useGroupContext({ groupId: id, isFocused });
+  const { data: unjoinedChannels } = useQuery({
+    queryKey: ['unjoinedChannels', id],
+    queryFn: () => db.getUnjoinedGroupChannels(id),
+  });
 
   const pinnedItems = useMemo(() => {
     return pins ?? [];
@@ -60,6 +66,18 @@ export function GroupChannelsScreenContent({
 
   const [enableCustomChannels] = useFeatureFlag('customChannelCreation');
 
+  const handleJoinChannel = useCallback(
+    async (channel: db.Channel) => {
+      await api.addChannelToGroup({
+        channelId: channel.id,
+        groupId: id,
+        sectionId: 'default',
+      });
+      await db.addJoinedGroupChannel({ channelId: channel.id });
+    },
+    [id]
+  );
+
   return (
     <ChatOptionsProvider
       groupId={id}
@@ -73,7 +91,9 @@ export function GroupChannelsScreenContent({
       <GroupChannelsScreenView
         onChannelPressed={handleChannelSelected}
         onBackPressed={handleGoBackPressed}
+        onJoinChannel={handleJoinChannel}
         group={group}
+        unjoinedChannels={unjoinedChannels}
         enableCustomChannels={enableCustomChannels}
       />
       <InviteUsersSheet
