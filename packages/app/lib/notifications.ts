@@ -69,3 +69,41 @@ export const connectNotifications = async () => {
     return false;
   }
 };
+
+/**
+ * Imprecise method to delete all notifications for a channel + update badge count.
+ * We should move to a serverside badge + dismiss notification system, and remove this.
+ */
+export async function deleteSystemNotificationsForChannel(channelId: string) {
+  const getChannelId = (notif: Notifications.Notification) => {
+    if (notif.request.trigger.type !== 'push') {
+      return null;
+    }
+    const out = notif.request.trigger.payload?.channelId;
+    if (typeof out !== 'string') {
+      return null;
+    }
+    return out;
+  };
+
+  const presentedNotifs = await Notifications.getPresentedNotificationsAsync();
+  const notificationsForChannel = presentedNotifs.filter(
+    (notif) => getChannelId(notif) === channelId
+  );
+  // Delete notifications without any channel to avoid stuck notifications
+  const notificationsWithoutChannel = presentedNotifs.filter(
+    (notif) => getChannelId(notif) == null
+  );
+
+  const notificationsToDelete = [
+    ...notificationsForChannel,
+    ...notificationsWithoutChannel,
+  ];
+  await Promise.all(
+    notificationsToDelete.map(async (notif) => {
+      await Notifications.dismissNotificationAsync(notif.request.identifier);
+    })
+  );
+  const newBadgeCount = presentedNotifs.length - notificationsToDelete.length;
+  await Notifications.setBadgeCountAsync(newBadgeCount);
+}
