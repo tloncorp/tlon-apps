@@ -200,7 +200,7 @@ export const useContacts = () => {
 
 export const useUnreadsCount = () => {
   return useQuery({
-    queryKey: ['unreadsCount'],
+    queryKey: ['unreadsCount', useKeyFromQueryDeps(db.getUnreadsCount)],
     queryFn: () => db.getUnreadsCount({}),
   });
 };
