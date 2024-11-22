@@ -50,6 +50,7 @@ export default function AddGalleryPost({
         open={showAddGalleryPost}
         onOpenChange={setShowAddGalleryPost}
         actions={actions}
+        disableScroll
       />
       <AttachmentSheet
         isOpen={showAttachmentSheet}

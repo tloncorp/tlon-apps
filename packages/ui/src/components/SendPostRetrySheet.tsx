@@ -43,6 +43,7 @@ export const SendPostRetrySheet = ({
       open={open}
       onOpenChange={onOpenChange}
       actions={actions}
+      disableScroll
     />
   );
 };

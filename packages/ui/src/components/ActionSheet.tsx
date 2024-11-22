@@ -498,6 +498,7 @@ export const SimpleActionSheet = ({
   icon,
   actions,
   accent,
+  disableScroll,
   ...forwardedProps
 }: ForwardingProps<
   typeof ActionSheetComponent,
@@ -507,9 +508,14 @@ export const SimpleActionSheet = ({
     icon?: ReactElement;
     actions: Action[];
     accent?: Accent;
+    disableScroll?: boolean;
   },
   'children'
 >) => {
+  const Content = disableScroll
+    ? ActionSheet.Content
+    : ActionSheet.ScrollableContent;
+
   return (
     <ActionSheetComponent {...forwardedProps}>
       {title || subtitle ? (
@@ -519,13 +525,13 @@ export const SimpleActionSheet = ({
           icon={icon}
         />
       ) : null}
-      <ActionSheet.Content>
+      <Content>
         <ActionSheet.ActionGroup accent={accent ?? 'neutral'}>
           {actions.map((action, index) => (
             <ActionSheet.Action key={index} action={action} />
           ))}
         </ActionSheet.ActionGroup>
-      </ActionSheet.Content>
+      </Content>
     </ActionSheetComponent>
   );
 };
