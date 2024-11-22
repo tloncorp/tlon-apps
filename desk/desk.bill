@@ -1,4 +1,5 @@
-:~  %groups
+:~  %logs
+    %groups
     %chat
     %heap
     %diary
