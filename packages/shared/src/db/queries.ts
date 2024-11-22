@@ -1773,18 +1773,14 @@ export const addJoinedGroupChannel = createWriteQuery(
       })
       .where(eq($channels.id, channelId));
 
-    // Then try to add to nav section if not already there
-    const existing = await ctx.db
+    // Then check if channel exists in any section
+    const existingInAnySection = await ctx.db
       .select()
       .from($groupNavSectionChannels)
-      .where(
-        and(
-          eq($groupNavSectionChannels.channelId, channelId),
-          eq($groupNavSectionChannels.groupNavSectionId, 'default')
-        )
-      );
+      .where(eq($groupNavSectionChannels.channelId, channelId));
 
-    if (existing.length === 0) {
+    // Only add to default if it's not
+    if (existingInAnySection.length === 0) {
       await ctx.db.insert($groupNavSectionChannels).values({
         channelId,
         groupNavSectionId: 'default',
