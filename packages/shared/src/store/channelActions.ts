@@ -336,15 +336,20 @@ export async function joinGroupChannel({
   channelId: string;
   groupId: string;
 }) {
-  // optimistic update - this already adds to nav section
-  await db.addJoinedGroupChannel({ channelId });
-
   try {
     await api.joinChannel(channelId, groupId);
+    // Update database after successful join
+    await db.updateChannel({
+      id: channelId,
+      currentUserIsMember: true,
+    });
+
+    // Invalidate the specific query for unjoined channels
+    await api.queryClient.invalidateQueries({
+      queryKey: ['unjoinedChannels', groupId],
+    });
   } catch (e) {
     console.error('Failed to join channel', e);
-    // rollback optimistic update
-    await db.removeJoinedGroupChannel({ channelId });
     throw e;
   }
 }
