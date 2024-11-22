@@ -29,20 +29,19 @@
 ::
 ++  branch
   =/  m  (mare ,~)
-  |=  l=(list form:m)
+  |=  l=(list [t=@t f=form:m])  ::NOTE  can't seem to use $^ here
   ^-  form:m
-  =/  n=@ud   0
   =/  e=tang  ~
   |=  s=state
   |-  ^-  output:m
   ?~  l
     ?.  =(~ e)  [%| e]
     [%& ~ s]
-  =/  o  (i.l s)
+  =/  o  (f.i.l s)
   =?  e  ?=(%| -.o)
     =-  (weld e `tang`-)
-    [(rap 3 'failed in branch ' (scot %ud n) ':' ~) p.o]
-  $(l t.l, n +(n))
+    [(rap 3 'failed in branch ' t.i.l ':' ~) p.o]
+  $(l t.l)
 ::
 ++  faux-life  1
 ++  faux-seed
@@ -109,8 +108,8 @@
     (ex-cards cas (ex-verifier-update ~nec %status id %wait ~) ~)
   ::
   %-  branch
-  |^  :~  host-approves
-          host-rejects
+  |^  :~  'host approves'^host-approves
+          'host rejects'^host-rejects
       ==
   ::  host approves the request, id becomes registered
   ::
@@ -160,9 +159,9 @@
     (ex-cards cas (ex-verifier-update ~nec %status id %want %urbit 620.187) ~)
   ::
   %-  branch
-  |^  :~  confirm-correct
-          confirm-incorrect
-          confirm-unrelated
+  |^  :~  'confirm correct'^confirm-correct
+          'confirm incorrect'^confirm-incorrect
+          'confirm unrelated'^confirm-unrelated
       ==
   ::  user confirms by giving the pin from the other ship
   ::
@@ -181,9 +180,9 @@
       ::TODO  test via scries instead?
       ;<  =state:v  bind:m  get-state
       %-  branch
-      :~  (ex-equal !>((~(get by records.state) id)) !>(`[~nec *config:v %done at]))
-          (ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
-          (ex-equal !>((~(get by attested.state) sig)) !>(`id))
+      :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec *config:v %done at]))
+          'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
+          'att'^(ex-equal !>((~(get by attested.state) sig)) !>(`id))
       ==
     (pure:m ~)
   ::
@@ -255,8 +254,8 @@
     ::TODO  test via scries instead?
     ;<  =state:v  bind:m  get-state
     %-  branch
-    :~  (ex-equal !>((~(get by records.state) id)) !>(~))
-        (ex-equal !>((~(get ju owners.state) ~nec)) !>(~))
+    :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(~))
+        'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>(~))
     ==
   (pure:m ~)
 ::
