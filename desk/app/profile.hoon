@@ -5,7 +5,7 @@
 ::    other apps can poke this agent with widgets of their own, and the user
 ::    can choose which widgets to display on their public page.
 ::
-/-  c=contacts-0
+/-  co=contacts-0
 /+  dbug, verb, sigil, hutils=http-utils
 /=  stock-widgets  /app/profile/widgets
 ::
@@ -13,8 +13,8 @@
 /*  style-page    %css  /app/profile/style/page/css
 ::
 |%
-+$  state-0
-  $:  %0
++$  state-1
+  $:  %1
       bound=_|
     ::
       widgets=(map desk (map term widget))
@@ -44,7 +44,7 @@
 +$  card  $+(card card:agent:gall)
 --
 ::
-|_  [=bowl:gall state-0]
+|_  [=bowl:gall state-1]
 +*  this   .
     state  +<+
 ++  bind
@@ -175,8 +175,8 @@
 ::
 ++  render-page
   ^-  manx
-  =/  ours=(unit contact-0:c)
-    (get-contact:c bowl our.bowl)
+  =/  ours=(unit contact-0:co)
+    (get-contact:co bowl our.bowl)
   |^  ;html
         ;+  head
         ;+  body
@@ -255,7 +255,7 @@
 %-  agent:dbug
 %+  verb  |
 ::
-=|  state-0
+=|  state-1
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -274,7 +274,7 @@
   !>(state)
 ::
 ++  on-load
-  |=  ole=vase
+  |^  |=  ole=vase
   ^-  (quip card _this)
   ::  a different %profile agent has been spotted in the wild. it was not
   ::  compatible with the kelvin at which this agent was first released, made
@@ -287,10 +287,35 @@
           ?=(^ ((soft ,[%0 (map path mime) (set @p) (unit @t)]) q.ole))
       ==
     on-init
-  =.  state  !<(state-0 ole)
-  ::  delay, so we don't end up scrying during load
+  =+  !<(old=versioned-state ole)
+  =+  ver=-.old
+  =?  old  ?=(%0 -.old)  old(- %1)
+  ?>  ?=(%1 -.old)
+  =.  state  old
   ::
-  [[%pass /refresh %arvo %b %wait now.bowl]~ this]
+  =/  caz=(list card)
+    ::  delay, so we don't end up scrying during load
+    [%pass /refresh %arvo %b %wait now.bowl]~
+  ::  leave obsolete %contacts endpoint
+  ::
+  =?  caz  ?=(%0 ver)
+    :_  caz
+    [%pass /contacts/ours %agent [our.bowl %contacts] %leave ~]
+  [caz this]
+  ::
+  +$  versioned-state
+    $%  state-1
+        state-0
+    ==
+  +$  state-0
+    $:  %0
+        bound=_|
+      ::
+        widgets=(map desk (map term widget))
+        layout=(list [=desk =term])
+        tlon-cta=?
+    ==
+  --
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -328,7 +353,7 @@
       ?.  ?=(%live +<.egg-any)
         ~&  [dap.bowl %egg-any-not-live]
         [~ this]
-      (on-load -:!>(*state-0) +>.old-state.egg-any)
+      (on-load -:!>(*state-1) +>.old-state.egg-any)
     ==
   ==
 ::
@@ -345,7 +370,7 @@
   ?+  wire  ~|(%strange-wire !!)
       [%contacts %news ~]
     ?.  ?=(%fact -.sign)  `this
-    =+  !<(=news-0:c q.cage.sign)
+    =+  !<(=news-0:co q.cage.sign)
     ?.  =(our.bowl who.news-0)  `this
     =^  caz  state  update-group-widgets:do
     [caz this]
