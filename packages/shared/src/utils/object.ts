@@ -32,3 +32,15 @@ export function objectEntries<T extends Record<any, any>>(
 ): { [K in keyof T]: [K, T[K]] }[keyof T][] {
   return objectKeys(obj).map((key) => [key, obj[key]]);
 }
+
+/**
+ * ```ts
+ * Optional<{ foo: string, bar: number, qux?: boolean }, 'foo'> = {
+ *   foo?: string;
+ *   bar: number;
+ *   qux?: boolean;
+ * }
+ * ```
+ */
+export type Optional<T, OptionalKeys extends keyof T> = Omit<T, OptionalKeys> &
+  Partial<Pick<T, OptionalKeys>>;
