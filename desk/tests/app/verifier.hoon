@@ -50,9 +50,9 @@
   [for faux-life sec:ex:(pit:nu:crub:crypto 8 for) ~]
 ::
 ++  faux-sign
-  |=  [host=@p id=identifier:v when=@da proof=(unit proof:v)]
+  |=  [host=@p for=@p id=identifier:v when=@da proof=(unit proof:v)]
   ^-  @ux
-  =/  msg=@  (jam `signed-data-0:v`[%verified when id proof])
+  =/  msg=@  (jam `signed-data-0:v`[%verified when for id proof])
   (sign:as:(nol:nu:crub:crypto key:(faux-seed host)) msg)
 ::
 ++  faux-scry
@@ -64,11 +64,11 @@
   ==
 ::
 ++  make-attestation
-  |=  [id=identifier:v proof=(unit proof:v)]
+  |=  [for=@p id=identifier:v proof=(unit proof:v)]
   =/  m  (mare ,attestation:v)
   ;<  bowl:gall  bind:m  get-bowl
   =/  sig=@ux
-    (faux-sign our id now proof)
+    (faux-sign our for id now proof)
   (pure:m now ~ [our faux-life %0 sig])
 ::
 ++  get-state
@@ -122,7 +122,7 @@
   ::  host approves the request, id becomes registered
   ::
   ++  host-approves
-    ;<  at=attestation:v  bind:m  (make-attestation id ~)
+    ;<  at=attestation:v  bind:m  (make-attestation ~nec id ~)
     ;<  ~  bind:m
       (ex-scry-result /u/attestations/(scot %ux sig.sign.at) !>(|))
     ;<  cas=(list card)  bind:m
@@ -173,7 +173,7 @@
   ++  confirm-correct
     ;<  cas=(list card)  bind:m
       (user-does ~bud %work id %urbit 620.187)
-    ;<  at=attestation:v  bind:m  (make-attestation id ~)
+    ;<  at=attestation:v  bind:m  (make-attestation ~nec id ~)
     ;<  ~  bind:m
       ::TODO  don't test signature value, test whether it matches pubkey
       %+  ex-cards  cas
@@ -312,7 +312,8 @@
     %-  ~(gas by *(map identifier:v record:v))
     :~  =/  id=identifier:v  [%dummy 'test-id']
         =/  wen=@da  ~2222.2.2
-        [id ~nec %hidden %done wen ~ ~zod faux-life %0 (faux-sign ~zod id wen ~)]
+        ::TODO  mb use +make-attestation instead
+        [id ~nec %hidden %done wen ~ ~zod faux-life %0 (faux-sign ~zod ~nec id wen ~)]
     ==
   ;<  *  bind:m  (do-load agent `!>([%0 state]))
   (pure:m ~)
@@ -345,7 +346,7 @@
   ;<  ~  bind:m  do-query-setup
   ;<  ~  bind:m
     %^  expect-query-response  ~fed
-      [[%some-dude %my-nonce] %valid (faux-sign ~zod [%dummy 'test-id'] ~2222.2.2 ~)]
+      [[%some-dude %my-nonce] %valid (faux-sign ~zod ~nec [%dummy 'test-id'] ~2222.2.2 ~)]
     [%valid &]
   ;<  ~  bind:m
     %^  expect-query-response  ~fed

@@ -64,9 +64,7 @@
   =*  state  +<-<
   ^-  (quip card _state)
   =/  tat=attestation
-    ::TODO  should the urbit provide a proof saying "x controls me"?
-    ::      wouldn't that be better than a pin anyway?
-    (attest our.bowl now.bowl id proof)
+    (attest our.bowl now.bowl for.rec id proof)
   =.  status.rec  [%done tat]
   :-  [(give-status for.rec id status.rec)]~
   %_  state
@@ -76,13 +74,13 @@
   ==
 ::
 ++  attest
-  |=  [our=@p now=@da id=identifier proof=(unit proof)]
+  |=  [our=@p now=@da for=@p id=identifier proof=(unit proof)]
   ^-  attestation
   :+  now  proof
   ^-  urbit-signature
   =+  ;;(=seed:jael (cue .^(@ %j /(scot %p our)/vile/(scot %da now))))
   ?>  =(who.seed our)
-  =/  msg=@    (jam `signed-data-0`[%verified now id proof])
+  =/  msg=@    (jam `signed-data-0`[%verified now for id proof])
   =/  sig=@ux  (sign:as:(nol:nu:crub:crypto key.seed) msg)
   [our lyf.seed %0 sig]
 --

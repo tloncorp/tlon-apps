@@ -51,7 +51,7 @@
       sig=@ux
   ==
 +$  signed-data-0
-  [%verified when=@da id=identifier proof=(unit proof)]
+  [%verified when=@da for=@p id=identifier proof=(unit proof)]
 ::
 +$  user-work
   ::TODO  or more generic %pin ?
