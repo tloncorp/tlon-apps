@@ -5,7 +5,7 @@
 ::    other apps can poke this agent with widgets of their own, and the user
 ::    can choose which widgets to display on their public page.
 ::
-/-  contacts-0
+/-  c=contacts-0
 /+  dbug, verb, sigil, hutils=http-utils
 /=  stock-widgets  /app/profile/widgets
 ::
@@ -175,8 +175,8 @@
 ::
 ++  render-page
   ^-  manx
-  =/  ours=(unit contact-0:contacts-0)
-    (get-contact:contacts-0 bowl our.bowl)
+  =/  ours=(unit contact-0:c)
+    (get-contact:c bowl our.bowl)
   |^  ;html
         ;+  head
         ;+  body
@@ -266,7 +266,7 @@
   ::NOTE  we special-case the "internal" widgets
   =.  layout  [[%groups %profile] [%groups %join-button] [%groups %profile-bio] ~]
   :_  this
-  :~  [%pass /contacts/ours %agent [our.bowl %contacts] %watch /contact]
+  :~  [%pass /contacts/news %agent [our.bowl %contacts] %watch /news]
       [%pass /refresh %arvo %b %wait now.bowl]
   ==
 ::
@@ -343,7 +343,10 @@
   |=  [=wire =sign:agent:gall]
   ~|  wire=wire
   ?+  wire  ~|(%strange-wire !!)
-      [%contacts %ours ~]
+      [%contacts %news ~]
+    ?.  ?=(%fact -.sign)  `this
+    =+  !<(=news-0:c q.cage.sign)
+    ?.  =(our.bowl who.news-0)  `this
     =^  caz  state  update-group-widgets:do
     [caz this]
   ==

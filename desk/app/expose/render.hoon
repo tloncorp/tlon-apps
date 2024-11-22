@@ -1,6 +1,6 @@
 ::  expose render: rendering utilities for pages & the widget
 ::
-/-  co=contacts
+/-  c=contacts-0
 /+  sigil
 ::
 |%
@@ -8,8 +8,8 @@
   =/  link=(unit @t)  ~
   |=  [=bowl:gall author=ship]
   ^-  manx
-  =/  aco=(unit contact:co)
-    (get-contact:co bowl author)
+  =/  aco=(unit contact-0:c)
+    (get-contact:c bowl author)
   |^  ::TODO  we should just have a bunch of manx construction helpers
       ::      for stuff like this
       ?~  link
@@ -28,7 +28,7 @@
       ?:  &(?=(^ aco) ?=(^ avatar.u.aco) !=('' u.avatar.u.aco))
         ;img@"{(trip u.avatar.u.aco)}"(alt "Author's avatar");
       =/  val=@ux   ?~(aco 0x0 color.u.aco)
-      =/  col=tape  ((x-co:^co 6) val)
+      =/  col=tape  ((x-co:co 6) val)
       %.  author
       %_  sigil
         size  25
@@ -52,7 +52,7 @@
   =;  utc=tape
     ::NOTE  timestamp-utc class and ms attr used by +time-script,
     ::      which replaces this rendering with the local time
-    ;time.timestamp-utc(ms (a-co:^co (unm time)))
+    ;time.timestamp-utc(ms (a-co:co (unm time)))
       ; {utc}
     ==
   =/  =date  (yore time)
@@ -60,8 +60,8 @@
       "{(num d.t.date)}{(ith d.t.date)}, ".
       "{(num y.date)}, ".
       "{(dum h.t.date)}:{(dum m.t.date)} (UTC)"
-  ++  num  a-co:^co
-  ++  dum  (d-co:^co 2)
+  ++  num  a-co:co
+  ++  dum  (d-co:co 2)
   ++  ith
     |=  n=@ud
     ?-  n

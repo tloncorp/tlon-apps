@@ -1,6 +1,6 @@
 ::  expose page: rendering for content pages
 ::
-/-  c=cite, d=channels, co=contacts
+/-  c=cite, d=channels, t=contacts-0
 /+  u=channel-utils
 ::
 /=  r  /app/expose/render
@@ -10,8 +10,8 @@
 ++  render
   |=  [=bowl:gall =nest:g:c msg=post:d]
   ^-  (unit manx)
-  =/  aco=(unit contact:co)
-    (get-contact:co bowl author.msg)
+  =/  aco=(unit contact-0:t)
+    (get-contact:t bowl author.msg)
   ::
   ::TODO  if we render replies then we can "unroll" whole chat threads too (:
   |^  ?-  -.kind-data.msg

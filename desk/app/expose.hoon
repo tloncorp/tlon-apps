@@ -5,7 +5,7 @@
 ::    then visit in the browser:
 ::    /expose/that/reference/as/copied/123456789
 ::
-/-  c=cite, d=channels, co=contacts
+/-  c=cite, d=channels, t=contacts-0
 /+  u=channel-utils, hutils=http-utils,
     dbug, verb
 ::
@@ -88,7 +88,7 @@
   :_  this
   :~  [%pass /eyre/connect %arvo %e %connect [~ /expose] dap.bowl]
       [%pass /channels %agent [our.bowl %channels] %watch /v1]
-      [%pass /contacts %agent [our.bowl %contacts] %watch /contact]
+      [%pass /contacts/news %agent [our.bowl %contacts] %watch /news]
   ==
 ::
 ++  on-save  !>(state)
@@ -254,10 +254,10 @@
       ==
     ==
   ::
-      [%contacts ~]
+      [%contacts %news ~]
     ?-  -.sign
       %poke-ack  !!
-      %kick      [[%pass /contacts %agent [our.bowl %conacts] %watch /contact]~ this]
+      %kick      [[%pass /contacts/news %agent [our.bowl %contacts] %watch /news]~ this]
     ::
         %watch-ack
       ?~  p.sign  [~ this]
@@ -274,6 +274,8 @@
       ::  fresh(er), we should just set an hourly timer that re-render the
       ::  entire cache.
       ::
+      =+  !<(=news-0:t q.cage.sign)
+      ?.  =(our.bowl who.news-0)  `this
       :_  this
       %+  weld
         (refresh-widget:e bowl open)
