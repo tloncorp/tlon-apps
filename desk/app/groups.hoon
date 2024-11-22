@@ -640,6 +640,7 @@
   ?+    pole  ~|(bad-agent-take/pole !!)
       ~   cor
       [%epic ~]  (take-epic sign)
+      [%logs ~]  cor
       [%helm *]  cor
       [%activity %submit *]  cor
       [%groups %role ~]  cor

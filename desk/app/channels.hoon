@@ -646,12 +646,7 @@
   ?+    pole  ~|(bad-agent-wire+pole !!)
       ~          cor
       [%pimp ~]  cor
-    ::
-      [%logs ~]
-    ?>  ?=(%poke-ack -.sign)
-    ?~  p.sign  cor
-    %-  (slog leaf+"Failed to log" u.p.sign)
-    cor
+      [%logs ~]  cor
     ::
       [%hark ~]
     ?>  ?=(%poke-ack -.sign)

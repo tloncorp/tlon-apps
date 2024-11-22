@@ -15,10 +15,21 @@
   ;<  caz=(list card)  bind:m
     (do-poke log-action+!>([%log ev-fail]))
   =/  fard=(fyrd:khan cage)
-    [q.byk.bowl %posthog noun+!>(`[%test ^-(log-item:l [now.bowl ev-fail])])]
+    [q.byk.bowl %posthog noun+!>(`[`path`/gall/test [now.bowl ev-fail]])]
   ::  expect log submission -posthog
   ::
-  %+  ex-cards  caz
-  :~  (ex-arvo /posthog/test/(scot %da now.bowl) %k %fard fard)
-  ==
+  ?>  ?=([[%pass *] ~] caz)
+  =/  card=card:agent:gall  i.caz
+  ?>  ?=([%pass [%posthog ~] %arvo %k %fard *] card)
+  ::  compare fard args value
+  ::
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(q.q.args.fard)
+      !>(q.q.args.p.q.card)
+  ::  compare fard type
+  ::
+  %+  ex-equal
+    !>((~(nest ut p.q.args.fard) | p.q.args.p.q.card))
+    !>(&)
 --
