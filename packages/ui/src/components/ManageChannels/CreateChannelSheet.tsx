@@ -520,6 +520,8 @@ function ConfigInput<
         actions={sheetActions}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
+        snapPointsMode="percent"
+        snapPoints={[70]}
       />
 
       <SimpleActionSheet
