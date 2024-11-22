@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import * as db from '../db';
-import { useStorageUnsafelyUnwrapped } from '../storage';
+import * as kv from '../db/keyValue';
 import * as store from '../store';
 import * as urbit from '../urbit';
 import { JSONContent } from '../urbit';
@@ -17,7 +17,7 @@ export const useChannelContext = ({
   // need to populate this from feature flags :(
   isChannelSwitcherEnabled: boolean;
 }) => {
-  const storage = useStorageUnsafelyUnwrapped();
+  // const storage = useStorageUnsafelyUnwrapped();
 
   // Model context
   const channelQuery = store.useChannelWithRelations({
@@ -76,42 +76,36 @@ export const useChannelContext = ({
   const getDraft = useCallback(
     async (draftType?: GalleryDraftType) => {
       try {
-        const draft = await storage.load<JSONContent>({
-          key: `draft-${draftKey}${draftType ? `-${draftType}` : ''}`,
-        });
-        return draft;
+        return await kv
+          .postDraft({ key: draftKey, type: draftType })
+          .getValue();
       } catch (e) {
         return null;
       }
     },
-    [storage, draftKey]
+    [draftKey]
   );
 
   const storeDraft = useCallback(
     async (draft: JSONContent, draftType?: GalleryDraftType) => {
       try {
-        await storage.save({
-          key: `draft-${draftKey}${draftType ? `-${draftType}` : ''}`,
-          data: draft,
-        });
+        await kv.postDraft({ key: draftKey, type: draftType }).setValue(draft);
       } catch (e) {
         return;
       }
     },
-    [storage, draftKey]
+    [draftKey]
   );
 
   const clearDraft = useCallback(
     async (draftType?: GalleryDraftType) => {
       try {
-        await storage.remove({
-          key: `draft-${draftKey}${draftType ? `-${draftType}` : ''}`,
-        });
+        await kv.postDraft({ key: draftKey, type: draftType }).resetValue();
       } catch (e) {
         return;
       }
     },
-    [storage, draftKey]
+    [draftKey]
   );
 
   return {
