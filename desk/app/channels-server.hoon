@@ -370,9 +370,11 @@
       =.  order.hooks  (~(put by order.hooks) nest.action seq)
       (give-hook-response %order nest.action seq)
     ::
+        %configure
+      ho-abet:(ho-configure:(ho-abed:ho-core id.action) +.+.action)
+    ::
         %wait
-      =/  args  [origin schedule]:action
-      ho-abet:(ho-wait:(ho-abed:ho-core id.action) args)
+      ho-abet:(ho-wait:(ho-abed:ho-core id.action) +.+.action)
     ::
         %rest
       ho-abet:(ho-rest:(ho-abed:ho-core id.action) origin.action)
@@ -723,7 +725,6 @@
     ^-  [(unit u-channel:c) _ca-core]
     ?>  (can-write:ca-perms src.bowl writers.perm.perm.channel)
     ~&  "running post command"
-    =/  =context:h  (get-hook-context `[nest channel])
     =*  no-op  `ca-core
     ?-    -.c-post
         %add
@@ -738,7 +739,7 @@
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %add new]
         ~&  "running post hooks"
-        (run-hooks event context nest 'post blocked')
+        (run-hooks event nest 'post blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) [~ ca-core])
       =.  new
@@ -755,7 +756,7 @@
       ?>  |(=(src.bowl author.u.u.post) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %edit u.u.post essay.c-post]
-        (run-hooks event context nest 'edit blocked')
+        (run-hooks event nest 'edit blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) no-op)
       =/  =essay:c
@@ -773,7 +774,7 @@
       ?>  |(=(src.bowl author.u.u.post) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %del u.u.post]
-        (run-hooks event context nest 'delete blocked')
+        (run-hooks event nest 'delete blocked')
       ?>  =(& -.result)
       :-  `[%post id.c-post %set ~]
       ca-core(posts.channel (put:on-v-posts:c posts.channel id.c-post ~))
@@ -788,7 +789,7 @@
               ?:  ?=(%del-react -.c-post)  [p.c-post ~]
               [p `q]:c-post
           ==
-        (run-hooks event context nest 'react action blocked')
+        (run-hooks event nest 'react action blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) no-op)
       =/  new=c-post:c
@@ -810,7 +811,7 @@
       ?~  post  no-op
       ?~  u.post  no-op
       =^  update=(unit u-post:c)  replies.u.u.post
-        (ca-c-reply u.u.post c-reply.c-post context)
+        (ca-c-reply u.u.post c-reply.c-post)
       ?~  update  no-op
       :-  `[%post id.c-post u.update]
       %=  ca-core
@@ -820,7 +821,7 @@
     ==
   ::
   ++  ca-c-reply
-    |=  [parent=v-post:c =c-reply:c =context:h]
+    |=  [parent=v-post:c =c-reply:c]
     ^-  [(unit u-post:c) v-replies:c]
     =*  replies  replies.parent
     ?-    -.c-reply
@@ -835,7 +836,7 @@
       =/  new=v-reply:c  [reply-seal 0 memo.c-reply]
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %add parent new]
-        (run-hooks event context nest 'reply blocked')
+        (run-hooks event nest 'reply blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) [~ replies])
       =.  new
@@ -851,7 +852,7 @@
       ?>  =(src.bowl author.u.u.reply)
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %edit parent u.u.reply memo.c-reply]
-        (run-hooks event context nest 'edit blocked')
+        (run-hooks event nest 'edit blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) [~ replies])
       =/  =memo:c
@@ -869,7 +870,7 @@
       ?>  |(=(src.bowl author.u.u.reply) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %del parent u.u.reply]
-        (run-hooks event context nest 'delete blocked')
+        (run-hooks event nest 'delete blocked')
       ?>  =(& -.result)
       :-  `[%reply id.c-reply %set ~]
       (put:on-v-replies:c replies id.c-reply ~)
@@ -884,7 +885,7 @@
               ?:  ?=(%del-react -.c-reply)  [p.c-reply ~]
               [p `q]:c-reply
           ==
-        (run-hooks event context nest 'delete blocked')
+        (run-hooks event nest 'delete blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) [~ replies])
       =/  new=c-reply:c
@@ -998,7 +999,7 @@
   /(scot %p our.bowl)/[dude]/(scot %da now.bowl)
   path
 ++  get-hook-context
-  |=  channel=(unit [nest:c v-channel:c])
+  |=  [channel=(unit [nest:c v-channel:c]) =config:h]
   ^-  context:h
   =/  group
     ?~  channel  ~
@@ -1012,6 +1013,7 @@
       group
       v-channels
       *hook:h  ::  we default this because each hook will replace with itself
+      config
       [now our src eny]:bowl
   ==
 ::
@@ -1048,7 +1050,7 @@
       ?:  ?=(%| -.result)
         ((slog 'compilation result:' p.result) ~)
       `p.result
-    =.  hook  [id name %0 src compiled !>(~)]
+    =.  hook  [id name %0 src compiled !>(~) ~]
     =.  cor
       =/  error=(unit tang)
         ?:(?=(%& -.result) ~ `p.result)
@@ -1092,19 +1094,25 @@
       (~(del by dh) delay-id)
     =.  cor  (give-hook-response [%gone id])
     ho-core
+  ++  ho-configure
+    |=  [=nest:c =config:h]
+    ^+  ho-core
+    =.  config.hook  (~(put by config.hook) nest config)
+    =.  cor  (give-hook-response [%configure id nest config])
+    ho-core
   ++  ho-wait
-    |=  [=origin:h schedule=@dr]
+    |=  [=origin:h schedule=@dr =config:h]
     ^+  ho-core
     =/  d-id  (rsh [3 48] eny.bowl)
     =/  crons  (~(gut by crons.hooks) id *(map origin:h cron:h))
     =.  crons.hooks
       =-  (~(put by crons.hooks) id.hook -)
-      (~(put by crons) origin [d-id schedule])
+      (~(put by crons) origin [d-id schedule config])
     =/  fires-at  (add now.bowl schedule)
     =/  dh  [d-id id !>(~) fires-at]
     =/  =wire  (hook-cron-wire id origin)
     =.  cor  (schedule-hook wire origin dh)
-    =.  cor  (give-hook-response [%wait id origin schedule])
+    =.  cor  (give-hook-response [%wait id origin schedule config])
     ho-core
   ++  ho-rest
     |=  =origin:h
@@ -1118,14 +1126,14 @@
     =.  cor  (give-hook-response [%rest id origin])
     ho-core
   ++  ho-run-single
-    |=  [=event:h prefix=tape =origin:h]
+    |=  [=event:h prefix=tape =origin:h =config:h]
     =/  channel
       ?@  origin  ~
       ?~  ch=(~(get by v-channels) origin)  ~
       `[origin u.ch]
-    =/  =context:h  (get-hook-context channel)
+    =/  =context:h  (get-hook-context channel config)
     =/  return=(unit return:h)
-      (run-hook:utils event context hook)
+      (run-hook:utils [event context(hook hook)] hook)
     ?~  return
       ~&  "{prefix} {<id>} failed"
       ho-core
@@ -1135,7 +1143,7 @@
     ho-core
   --
 ++  run-hooks
-  |=  [=event:h =context:h =nest:c default=cord]
+  |=  [=event:h =nest:c default=cord]
   ^-  [(each event:h tang) _cor]
   =;  [result=(each event:h tang) effects=(list effect:h)]
     [result (run-hook-effects effects nest)]
@@ -1143,14 +1151,17 @@
   =|  effects=(list effect:h)
   =/  order  (~(got by order.hooks) nest)
   ~&  "got orders {<order>}"
+  =/  channel  `[nest (~(got by v-channels) nest)]
+  =/  =context:h  (get-hook-context channel *config:h)
   |-
   ?~  order
     [&+current-event effects]
   =*  next  $(order t.order)
   ~&  "getting hook"
   =/  hook  (~(got by hooks.hooks) i.order)
+  =/  ctx  context(hook hook, config (~(gut by config.hook) nest ~))
   =/  return=(unit return:h)
-    (run-hook:utils current-event context hook)
+    (run-hook:utils [current-event ctx] hook)
   ?~  return  next
   =*  result  result.u.return
   =.  effects  (weld effects effects.u.return)
@@ -1168,7 +1179,10 @@
     ?~  delay=(~(get by delayed.hooks) id)  cor
     ::  make sure we clean up
     =.  delayed.hooks  (~(del by delayed.hooks) id)
-    =/  args  [[%wake +.u.delay] "delayed hook" origin.u.delay]
+    =*  origin  origin.u.delay
+    =/  hook  (~(got by hooks.hooks) hook.u.delay)
+    =/  config  ?@(origin ~ (~(gut by config.hook) origin ~))
+    =/  args  [[%wake +.u.delay] "delayed hook" origin config]
     ho-abet:(ho-run-single:(ho-abed:ho-core hook.u.delay) args)
   ::
       [%cron id=@ kind=?(%chat %diary %heap) ship=@ name=@ ~]
@@ -1183,7 +1197,7 @@
     =/  =wire  (hook-cron-wire id origin)
     =.  cor
       (schedule-hook wire origin +.u.delay(fires-at next))
-    =/  args  [[%cron ~] "cron job" origin]
+    =/  args  [[%cron ~] "cron job" origin config.u.cron]
     ho-abet:(ho-run-single:(ho-abed:ho-core hook.u.delay) args)
   ==
 ++  hook-cron-wire

@@ -697,13 +697,12 @@
     tonk
   &+p.tonk
 ++  run-hook
-  |=  [=event:h =context:h =hook:h]
+  |=  [=args:h =hook:h]
   ^-  (unit return:h)
   ~&  "running hook: {<name.hook>} {<id.hook>}"
   ?~  compiled.hook
     ~&("hook not compiled" ~)
   :: ~&  "nock: {<compiled.hook>}"
-  =/  =args:h  [event context(hook hook)]
   =+  !<(=outcome:h (slam u.compiled.hook !>(args)))
   ~&  "{(trip name.hook)} hook run:"
   ~&  outcome

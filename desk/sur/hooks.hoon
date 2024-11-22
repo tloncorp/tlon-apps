@@ -11,6 +11,7 @@
 ::    $src: the source code of the hook
 ::    $compiled: the compiled version of the hook
 ::    $state: the current state of the hook
+::    $config: any configuration data for the hook
 ::
 ++  hook
   $:  =id
@@ -19,6 +20,7 @@
       src=@t
       compiled=(unit vase)
       state=vase
+      config=(map nest config)
   ==
 ::  $hooks: collection of hooks, the order they should be run in, and
 ::  any delayed hooks that need to be run
@@ -30,7 +32,11 @@
   ==
 +$  origin  $@(~ nest)
 +$  delay-id  id
-+$  cron  [=delay-id schedule=@dr]
++$  cron
+  $:  =delay-id
+      schedule=@dr
+      =config
+  ==
 ::  $delayed-hook: metadata for when a delayed hook fires from the timer
 +$  delayed-hook
   $:  id=delay-id
@@ -39,19 +45,22 @@
       fires-at=time
   ==
 ::
++$  config  (map @t vase)
 +$  action
   $%  [%add name=@t src=@t]
       [%edit =id name=@t src=@t]
       [%del =id]
       [%order =nest seq=(list id)]
-      [%wait =id =origin schedule=@dr]
+      [%configure =id =nest =config]
+      [%wait =id =origin schedule=@dr =config]
       [%rest =id =origin]
   ==
 +$  response
   $%  [%set =id name=@t src=@t error=(unit tang)]
       [%gone =id]
       [%order =nest seq=(list id)]
-      [%wait =id =origin schedule=@dr]
+      [%configure =id =nest =config]
+      [%wait =id =origin schedule=@dr =config]
       [%rest =id =origin]
   ==
 ::  $context: ambient state that a hook should know about not
@@ -60,7 +69,8 @@
 ::    $channel: the channel that the hook is operating on
 ::    $channels: all the channels in the group
 ::    $group: the group that the channel belongs to
-::    $state: the current state of the hook
+::    $hook: the hook that's running
+::    $config: the configuration data for this instance of the hook
 ::    $now: the current time
 ::    $our: the ship that the hook is running on
 ::    $src: the ship that triggered the hook
@@ -71,6 +81,7 @@
       group=(unit group-ui:g)
       channels=v-channels
       =hook
+      =config
       now=time
       our=ship
       src=ship
