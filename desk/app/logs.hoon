@@ -5,7 +5,7 @@
 =>
   |%
   +$  card  card:agent:gall
-  +$  current-state  [%0 =logs:l]
+  +$  current-state  [%0 ~]
   --
 =|  current-state
 =*  state  -
@@ -44,29 +44,13 @@
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ::
-++  tick  ^~((div ~s1 (bex 16)))
-++  add-log-event
-  |=  [agent=@tas =log-event:l]
-  ^-  [id-event:l _logs]
-  =/  =log:l
-    (fall (~(get by logs) agent) ~)
-  =/  =id-event:l
-    |-
-    ?.  (has:on-log:l log now.bowl)  now.bowl
-    $(now.bowl (add now.bowl tick))
-  :-  id-event
-  %+  ~(put by logs)  agent
-  (put:on-log:l log id-event log-event)
-::
 ++  send-posthog-event
-  |=  [agent=@tas =id-event:l =log-event:l]
+  |=  [origin=path =time =log-event:l]
   ^+  cor
   =/  fard=(fyrd:khan cage)
-    [q.byk.bowl %posthog noun+!>(`[agent ^-(log-item:l [id-event log-event])])]
+    [q.byk.bowl %posthog noun+!>(`[origin time log-event])]
   ::
-  %^  emit  %pass
-    /posthog/[agent]/(scot %da id-event)
-  [%arvo ^-(note-arvo [%k %fard fard])]
+  (emit %pass /posthog [%arvo %k %fard fard])
 ::
 ++  poke
   |=  [=mark =vase]
@@ -77,21 +61,17 @@
     =+  !<(=a-log:l vase)
     ?-    -.a-log
         %log
-      ?>  ?=([@ @ ~] sap.bowl)
-      =+  agent=i.t.sap.bowl
-      =^  id-event  logs  (add-log-event agent +.a-log)
-      (send-posthog-event agent id-event +.a-log)
+      =/  =log-item:l  [now.bowl +.a-log]
+      (send-posthog-event sap.bowl log-item)
     ==
   ==
 ::
 ++  arvo
   |=  [=(pole knot) =sign-arvo]
   ?+    pole  ~|(bad-arvo-wire+pole !!)
-      ::  /posthog/agent/id-event
+      ::  /posthog
       ::
-      [%posthog agent=@tas id-event=@da ~]
-    ?~  id-event=(slaw %da id-event.pole)
-      ~|(evil-arvo-wire+pole !!)
+      [%posthog ~]
     ?>  ?=([%khan %arow *] sign-arvo)
     =/  =(avow:khan cage)  p.sign-arvo
     ?:  ?=(%| -.avow)
@@ -100,14 +80,13 @@
     =/  =cage  p.avow
     =+  !<(response=(unit client-response:iris) q.cage)
     ?~  response
-      ((slog leaf+"failed to submit event {<`@da`u.id-event>}" ~) cor)
+      ((slog leaf+"logs: failed to submit event" ~) cor)
     ?.  ?=(%finished -.u.response)
       ~|(bad-client-response+u.response !!)
     =*  status-code  status-code.response-header.u.response
     ?:  !=(200 status-code)
-      %-  (slog leaf+"failed to submit event {<`@da`u.id-event>} to posthog" ~)
+      %-  (slog leaf+"logs: failed to submit event" ~)
       cor
-    ~&  posthog-log-ok+`@da`u.id-event
     cor
   ==
 --
