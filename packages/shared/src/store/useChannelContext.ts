@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import * as db from '../db';
+import type { Post, PostMetadata } from '../db';
 import * as kv from '../db/keyValue';
-import * as store from '../store';
-import * as urbit from '../urbit';
-import { JSONContent } from '../urbit';
+import type { JSONContent, Story } from '../urbit';
+import * as dbHooks from './dbHooks';
+import * as postActions from './postActions';
+import { SyncPriority, syncGroup } from './sync';
+import { useNegotiate } from './useNegotiation';
 
 export const useChannelContext = ({
   channelId,
@@ -20,36 +22,36 @@ export const useChannelContext = ({
   // const storage = useStorageUnsafelyUnwrapped();
 
   // Model context
-  const channelQuery = store.useChannelWithRelations({
+  const channelQuery = dbHooks.useChannelWithRelations({
     id: channelId,
   });
-  const groupQuery = store.useGroup({
+  const groupQuery = dbHooks.useGroup({
     id: channelQuery.data?.groupId ?? '',
   });
 
   useEffect(() => {
     if (channelQuery.data?.groupId) {
-      store.syncGroup(channelQuery.data?.groupId, {
-        priority: store.SyncPriority.Low,
+      syncGroup(channelQuery.data?.groupId, {
+        priority: SyncPriority.Low,
       });
     }
   }, [channelQuery.data?.groupId]);
 
   // Post editing
-  const [editingPost, setEditingPost] = useState<db.Post>();
+  const [editingPost, setEditingPost] = useState<Post>();
 
   const editPost = useCallback(
     async (
-      post: db.Post,
-      content: urbit.Story,
+      post: Post,
+      content: Story,
       parentId?: string,
-      metadata?: db.PostMetadata
+      metadata?: PostMetadata
     ) => {
       if (!channelQuery.data) {
         return;
       }
 
-      store.editPost({
+      postActions.editPost({
         post,
         content,
         parentId,
@@ -63,7 +65,7 @@ export const useChannelContext = ({
   // Version negotiation
   const channelHost = useMemo(() => channelId.split('/')[1], [channelId]);
 
-  const negotiationStatus = store.useNegotiate(
+  const negotiationStatus = useNegotiate(
     channelHost,
     'channels',
     'channels-server'
