@@ -63,6 +63,14 @@
     [%j @ %vile @ ~]  `!>((jam (faux-seed (slav %p i.t.path))))
   ==
 ::
+++  make-attestation
+  |=  [id=identifier:v proof=(unit proof:v)]
+  =/  m  (mare ,attestation:v)
+  ;<  bowl:gall  bind:m  get-bowl
+  =/  sig=@ux
+    (faux-sign our id now proof)
+  (pure:m now ~ [our faux-life %0 sig])
+::
 ++  get-state
   =/  m  (mare state:v)
   ;<  =vase  bind:m  get-save
@@ -114,21 +122,18 @@
   ::  host approves the request, id becomes registered
   ::
   ++  host-approves
-    =/  sig=@ux
-      (faux-sign ~zod id ~2000.1.2 ~)
+    ;<  at=attestation:v  bind:m  (make-attestation id ~)
     ;<  ~  bind:m
-      (ex-scry-result /u/attestations/(scot %ux sig) !>(|))
+      (ex-scry-result /u/attestations/(scot %ux sig.sign.at) !>(|))
     ;<  cas=(list card)  bind:m
       (host-does %dummy +.id %grant)
     ;<  ~  bind:m
-      =/  =attestation:v
-        [~2000.1.2 ~ [~zod 1 %0 sig]]
       ::TODO  don't test signature value, test whether it matches pubkey
-      (ex-cards cas (ex-verifier-update ~nec %status id %done attestation) ~)
+      (ex-cards cas (ex-verifier-update ~nec %status id %done at) ~)
     ::TODO  check scry (not state, that's too direct for tests. should test api)
     ::      (right??)
     ;<  ~  bind:m
-      (ex-scry-result /u/attestations/(scot %ux sig) !>(&))
+      (ex-scry-result /u/attestations/(scot %ux sig.sign.at) !>(&))
     (pure:m ~)
   ::  host rejects the request, id gets freed up again
   ::
@@ -168,21 +173,19 @@
   ++  confirm-correct
     ;<  cas=(list card)  bind:m
       (user-does ~bud %work id %urbit 620.187)
-    =/  sig=@ux  (faux-sign ~zod id ~2000.1.2 ~)
-    =/  at=attestation:v  [~2000.1.2 ~ [~zod 1 %0 sig]]
+    ;<  at=attestation:v  bind:m  (make-attestation id ~)
     ;<  ~  bind:m
       ::TODO  don't test signature value, test whether it matches pubkey
       %+  ex-cards  cas
-      :~  (ex-verifier-update ~nec %status id %done at)
-      ==
-    ;<  ~  bind:m  (ex-scry-result /u/attestations/(scot %ux sig) !>(&))
+      [(ex-verifier-update ~nec %status id %done at)]~
+    ;<  ~  bind:m  (ex-scry-result /u/attestations/(scot %ux sig.sign.at) !>(&))
     ;<  ~  bind:m
       ::TODO  test via scries instead?
       ;<  =state:v  bind:m  get-state
       %-  branch
       :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec *config:v %done at]))
           'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
-          'att'^(ex-equal !>((~(get by attested.state) sig)) !>(`id))
+          'att'^(ex-equal !>((~(get by attested.state) sig.sign.at)) !>(`id))
       ==
     (pure:m ~)
   ::
