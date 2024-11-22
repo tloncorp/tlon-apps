@@ -25,7 +25,6 @@ import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
-import { deleteSystemNotificationsForChannel } from '../../lib/notifications';
 import type { RootStackParamList } from '../../navigation/types';
 
 const logger = createDevLogger('ChannelScreen', false);
@@ -313,8 +312,7 @@ export default function ChannelScreen(props: Props) {
 
   const handleMarkRead = useCallback(async () => {
     if (channel && !channel.isPendingChannel) {
-      await store.markChannelRead(channel);
-      await deleteSystemNotificationsForChannel(channel.id);
+      store.markChannelRead(channel);
     }
   }, [channel]);
 
