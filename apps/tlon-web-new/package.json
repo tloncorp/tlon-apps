@@ -99,7 +99,7 @@
     "react-intersection-observer": "^9.4.0",
     "react-native-safe-area-context": "^4.9.0",
     "react-native-screens": "~3.29.0",
-    "react-native-web": "0.18.12",
+    "react-native-web": "0.19.12",
     "sqlocal": "^0.11.1",
     "tailwindcss-opentype": "^1.1.0",
     "tailwindcss-scoped-groups": "^2.0.0",
