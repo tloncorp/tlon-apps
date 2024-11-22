@@ -6,7 +6,7 @@
 =+  posthog-key='phc_GyI5iD7kM6RRbb1hIU0fiGmTCh4ha44hthJYJ7a89td'
 =+  posthog-url='https://eu.i.posthog.com/capture/'
 =+  posthog-retry=3
-=+  posthog-retry-delay=~s30
+=+  posthog-retry-delay=~s5
 ::
 =,  strand=strand:spider
 ^-  thread:spider
@@ -43,6 +43,8 @@
       ~['content-type'^'application/json']
       `(as-octs:mimes:html (en:json:html event))
   ==
+::  retry loop
+::
 |-
 ?:  =(0 posthog-retry)
   (pure:m !>(~))
@@ -50,12 +52,10 @@
 ;<  =client-response:iris  bind:m  take-client-response:io
 ::NOTE  this logic must be adjusted when %iris supports
 ::      partial responses
-?.  ?&  ?=(%finished -.client-response)
-        =(200 status-code.response-header.client-response)
-    ==
-  ?>  ?=(%finished -.client-response)
-  =*  status-code  status-code.response-header.client-response
-  %-  (slog leaf+"posthog request failed: status {<status-code>}" ~)
-  ;<  ~  bind:m  (sleep:io posthog-retry-delay)
-  $(posthog-retry (dec posthog-retry))
-(pure:m !>(`client-response))
+?>  ?=(%finished -.client-response)
+?:  =(200 status-code.response-header.client-response)
+  (pure:m !>(`client-response))
+=*  status-code  status-code.response-header.client-response
+%-  (slog leaf+"posthog request failed: status {<status-code>}" ~)
+;<  ~  bind:m  (sleep:io posthog-retry-delay)
+$(posthog-retry (dec posthog-retry))
