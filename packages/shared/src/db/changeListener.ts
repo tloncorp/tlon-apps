@@ -47,12 +47,4 @@ export function handleChange({
       queryKey: ['post', row.thread_id],
     });
   }
-
-  // Handle channel membership changes
-  if (table === 'channels' && row) {
-    // If currentUserIsMember changed, invalidate unjoined channels query
-    queryClient.invalidateQueries({
-      queryKey: ['unjoinedChannels', row.group_id],
-    });
-  }
 }

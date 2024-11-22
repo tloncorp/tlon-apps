@@ -336,20 +336,20 @@ export async function joinGroupChannel({
   channelId: string;
   groupId: string;
 }) {
+  // optimistic update
+  await db.updateChannel({
+    id: channelId,
+    currentUserIsMember: true,
+  });
+
   try {
     await api.joinChannel(channelId, groupId);
-    // Update database after successful join
+  } catch (e) {
+    // rollback on failure
+    logger.error('Failed to join group channel');
     await db.updateChannel({
       id: channelId,
-      currentUserIsMember: true,
+      currentUserIsMember: false,
     });
-
-    // Invalidate the specific query for unjoined channels
-    await api.queryClient.invalidateQueries({
-      queryKey: ['unjoinedChannels', groupId],
-    });
-  } catch (e) {
-    console.error('Failed to join channel', e);
-    throw e;
   }
 }

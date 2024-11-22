@@ -225,12 +225,53 @@ export const getPendingChats = createReadQuery(
 export const getUnjoinedGroupChannels = createReadQuery(
   'getUnjoinedGroupChannels',
   async (groupId: string, ctx: QueryCtx) => {
-    return ctx.db.query.channels.findMany({
+    const currentUserId = getCurrentUserId();
+    const allUnjoined = await ctx.db.query.channels.findMany({
       where: and(
         eq($channels.groupId, groupId),
         eq($channels.currentUserIsMember, false)
       ),
+      with: {
+        readerRoles: true,
+        group: {
+          with: {
+            roles: {
+              with: {
+                members: true,
+              },
+            },
+          },
+        },
+      },
     });
+
+    const unjoinedIds = allUnjoined.map((c) => c.id);
+    const unjoinedIndex = new Map<string, Channel>();
+    for (const channel of allUnjoined) {
+      unjoinedIndex.set(channel.id, channel);
+    }
+
+    const joinableSubset = unjoinedIds.filter((id) => {
+      const channel = unjoinedIndex.get(id);
+      const isOpenChannel = channel?.readerRoles?.length === 0;
+
+      const userRolesForGroup =
+        channel?.group?.roles
+          ?.filter((role) =>
+            role.members?.map((m) => m.contactId).includes(currentUserId)
+          )
+          .map((role) => role.id) ?? [];
+
+      const isClosedButCanRead = channel?.readerRoles
+        ?.map((r) => r.roleId)
+        .some((r) => userRolesForGroup.includes(r));
+
+      return isOpenChannel || isClosedButCanRead;
+    });
+
+    return joinableSubset
+      .map((id) => unjoinedIndex.get(id))
+      .filter((c) => c !== undefined) as Channel[];
   },
   ['channels']
 );

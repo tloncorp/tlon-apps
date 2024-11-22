@@ -82,6 +82,20 @@ export const usePendingChats = (
   });
 };
 
+export const useUnjoinedGroupChannels = (groupId: string) => {
+  const deps = useKeyFromQueryDeps(db.getUnjoinedGroupChannels);
+  return useQuery({
+    queryKey: [['unjoinedChannels', groupId], deps],
+    queryFn: async () => {
+      if (!groupId) {
+        return [];
+      }
+      const unjoined = await db.getUnjoinedGroupChannels(groupId);
+      return unjoined;
+    },
+  });
+};
+
 export const usePins = (
   queryConfig?: CustomQueryConfig<db.Pin[]>
 ): UseQueryResult<db.Pin[] | null> => {

@@ -40,10 +40,9 @@ export function GroupChannelsScreenContent({
     null
   );
   const { group } = useGroupContext({ groupId: id, isFocused });
-  const { data: unjoinedChannels } = useQuery({
-    queryKey: ['unjoinedChannels', id],
-    queryFn: () => db.getUnjoinedGroupChannels(id),
-  });
+  const { data: unjoinedChannels } = store.useUnjoinedGroupChannels(
+    group?.id ?? ''
+  );
 
   const pinnedItems = useMemo(() => {
     return pins ?? [];
