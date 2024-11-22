@@ -10,14 +10,14 @@
 ::
 =,  strand=strand:spider
 ^-  thread:spider
-::  .arg: a pair of origin agent and log item
+::  .arg: a pair of origin and log item
 ::
 |=  arg=vase
 =/  m  (strand ,vase)
 ^-  form:m
-=+  !<(arg=(unit (pair @tas log-item:l)) arg)
+=+  !<(arg=(unit (pair path log-item:l)) arg)
 ?>  ?=(^ arg)
-=*  agent  p.u.arg
+=*  origin  p.u.arg
 =*  log-item  q.u.arg
 ;<  =bowl:strand  bind:m  get-bowl:io
 =/  log-event-json=$>(%o json)  (log-event:enjs:l event.log-item)
@@ -27,12 +27,12 @@
   ^-  (map @t json)
   %-  my
   :~  'distinct_id'^s+(scot %p our.bowl)
-      'agent'^s+agent
+      'origin'^s+(spat origin)
   ==
 =/  event=json
   %-  pairs:enjs:format
   :~  'api_key'^s+posthog-key
-      timestamp/(id-event:enjs:l id.log-item)
+      timestamp/(time:enjs:format time.log-item)
       event/s+'Backend Log'
       properties+props
   ==

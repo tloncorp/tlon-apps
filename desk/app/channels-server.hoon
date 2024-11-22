@@ -417,6 +417,7 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
+    [%logs ~]  cor
     [%pimp ~]  cor
     [%wake ~]  cor
   ::

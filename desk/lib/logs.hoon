@@ -19,26 +19,10 @@
     ^-  $>(%a json)
     ?~  t  a+~
     =/  tame=(list tape)
+      %-  zing
       %+  turn  t
-     (cork (cury wash [0 80]) zing)
-    ::XX posthog does not display newlines properly
-    :: s+(crip (zing `(list tape)`(join "\0a" tame)))
+     (cury wash [0 80])
     a+(turn tame tape:enjs)
-  ::
-  ++  d-co-2  (d-co:co 2)
-  ++  id-event
-    |=  id=^id-event
-    ^-  $>(%s json)
-    =+  date=(yore id)
-    =+  frac=(head f.t.date)
-    ::  convert urbit fractosecs to millisecs
-    ::
-    =+  mili=(div (mul frac 1.000) 65.563)
-    :-  %s
-    %-  crip
-    "{((d-co:co 4) y.date)}-{(d-co-2 m.date)}-{(d-co-2 d.t.date)}".
-    "T{(d-co-2 h.t.date)}:{(d-co-2 m.t.date)}:{(d-co-2 s.t.date)}".
-    ".{((d-co:co 3) mili)}"
   ::
   ++  log-event
     |=  e=^log-event
