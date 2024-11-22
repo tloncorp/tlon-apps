@@ -21,7 +21,7 @@
     =/  tame=(list tape)
       %-  zing
       %+  turn  t
-     (cury wash [0 80])
+      (cury wash [0 80])
     a+(turn tame tape:enjs)
   ::
   ++  log-event
