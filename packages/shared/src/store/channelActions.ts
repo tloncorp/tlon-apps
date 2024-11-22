@@ -328,3 +328,23 @@ export async function leaveGroupChannel(channelId: string) {
     await db.updateChannel({ id: channelId, currentUserIsMember: true });
   }
 }
+
+export async function joinGroupChannel({
+  channelId,
+  groupId,
+}: {
+  channelId: string;
+  groupId: string;
+}) {
+  // optimistic update - this already adds to nav section
+  await db.addJoinedGroupChannel({ channelId });
+
+  try {
+    await api.joinChannel(channelId, groupId);
+  } catch (e) {
+    console.error('Failed to join channel', e);
+    // rollback optimistic update
+    await db.removeJoinedGroupChannel({ channelId });
+    throw e;
+  }
+}

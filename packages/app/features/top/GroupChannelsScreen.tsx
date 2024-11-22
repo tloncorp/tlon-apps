@@ -68,12 +68,14 @@ export function GroupChannelsScreenContent({
 
   const handleJoinChannel = useCallback(
     async (channel: db.Channel) => {
-      await api.addChannelToGroup({
-        channelId: channel.id,
-        groupId: id,
-        sectionId: 'default',
-      });
-      await db.addJoinedGroupChannel({ channelId: channel.id });
+      try {
+        await store.joinGroupChannel({
+          channelId: channel.id,
+          groupId: id,
+        });
+      } catch (error) {
+        console.error('Failed to join channel:', error);
+      }
     },
     [id]
   );

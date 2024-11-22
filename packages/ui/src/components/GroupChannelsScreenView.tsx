@@ -132,7 +132,11 @@ export function GroupChannelsScreenView({
                   model={channel}
                   onPress={() => onJoinChannel(channel)}
                   useTypeIcon={true}
-                  EndContent={<Badge text="Join" />}
+                  EndContent={
+                    <View>
+                      <Badge text="Join" />
+                    </View>
+                  }
                 />
               ))}
             </YStack>

@@ -1724,17 +1724,33 @@ export const addJoinedGroupChannel = createWriteQuery(
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
     logger.log('addJoinedGroupChannel', channelId);
 
-    await ctx.db.insert($groupNavSectionChannels).values({
-      channelId,
-      groupNavSectionId: 'default',
-    });
-
-    return await ctx.db
+    // First update the channel membership
+    await ctx.db
       .update($channels)
       .set({
         currentUserIsMember: true,
       })
       .where(eq($channels.id, channelId));
+
+    // Then try to add to nav section if not already there
+    const existing = await ctx.db
+      .select()
+      .from($groupNavSectionChannels)
+      .where(
+        and(
+          eq($groupNavSectionChannels.channelId, channelId),
+          eq($groupNavSectionChannels.groupNavSectionId, 'default')
+        )
+      );
+
+    if (existing.length === 0) {
+      await ctx.db.insert($groupNavSectionChannels).values({
+        channelId,
+        groupNavSectionId: 'default',
+      });
+    }
+
+    return;
   },
   ['channels']
 );
