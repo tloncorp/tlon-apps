@@ -56,6 +56,25 @@
   ^-  card
   (give-update for %config id config)
 ::
+++  register
+  |=  $:  [[%0 state] =bowl:gall]
+          [id=identifier rec=record]
+          proof=(unit proof)
+      ==
+  =*  state  +<-<
+  ^-  (quip card _state)
+  =/  tat=attestation
+    ::TODO  should the urbit provide a proof saying "x controls me"?
+    ::      wouldn't that be better than a pin anyway?
+    (attest our.bowl now.bowl id proof)
+  =.  status.rec  [%done tat]
+  :-  [(give-status for.rec id status.rec)]~
+  %_  state
+    records   (~(put by records) id rec)
+    owners    (~(put ju owners) for.rec id)
+    attested  (~(put by attested) sig.sign.tat id)
+  ==
+::
 ++  attest
   |=  [our=@p now=@da id=identifier proof=(unit proof)]
   ^-  attestation
@@ -146,19 +165,10 @@
         ::      to prevent brute-forcing
         ?>  =(pin.work.cmd pin.status.rec)
         ::
-        ::TODO  copied from %dummy host command, dedupe
-        =/  rec=record  rec  ::NOTE  tmi
-        =/  tat=attestation
-          ::TODO  should the urbit provide a proof saying "x controls me"?
-          ::      wouldn't that be better than a pin anyway?
-          (attest our.bowl now.bowl id ~)
-        =.  status.rec  [%done tat]
-        :-  [(give-status for.rec id status.rec)]~
-        %_  this
-          records   (~(put by records) id rec)
-          owners    (~(put ju owners) for.rec id)
-          attested  (~(put by attested) sig.sign.tat id)
-        ==
+        ::TODO  should the urbit provide a proof saying "x controls me"?
+        ::      wouldn't that be better than a pin anyway?
+        =^  caz  state  (register [state bowl] [id rec] ~)
+        [caz this]
       ==
     ==
   ::
@@ -182,15 +192,8 @@
       =/  rec  (~(got by records) id)
       ?:  ?=(%reject do.cmd)
         $(cmd [%revoke id])
-      =/  tat=attestation
-        (attest our.bowl now.bowl id ~)
-      =.  status.rec  [%done tat]
-      :-  [(give-status for.rec id status.rec)]~
-      %_  this
-        records   (~(put by records) id rec)
-        owners    (~(put ju owners) for.rec id)
-        attested  (~(put by attested) sig.sign.tat id)
-      ==
+      =^  caz  state  (register [state bowl] [id rec] ~)
+      [caz this]
     ==
   ::
       %verifier-query
