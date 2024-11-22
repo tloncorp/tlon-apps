@@ -212,6 +212,14 @@ export const allContentRenderers = {
     displayName: 'Scratchpad',
     enumTag: 'scratchpad',
   },
+  'tlon.r1.content.notebook': {
+    displayName: 'Notebook detail',
+    enumTag: 'notebookDetail',
+  },
+  'tlon.r1.content.gallery': {
+    displayName: 'Gallery detail',
+    enumTag: 'galleryDetail',
+  },
 } as const satisfies Record<string, ComponentSpec>;
 
 export const CollectionRendererId = makeEnum(allCollectionRenderers);
