@@ -24,6 +24,7 @@ import {
 
 import { useCopy } from '../hooks/useCopy';
 import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
+import { ForwardingProps } from '../utils/react';
 import { Icon, IconType } from './Icon';
 import { ListItem } from './ListItem';
 import { Sheet } from './Sheet';
@@ -180,9 +181,7 @@ const ActionSheetHeader = ActionSheetHeaderFrame.styleable(
   ({ children, ...props }, ref) => {
     return (
       <ActionSheetHeaderFrame {...props} ref={ref}>
-        <ListItem paddingHorizontal="$2xl">
-          {children}
-        </ListItem>
+        <ListItem paddingHorizontal="$2xl">{children}</ListItem>
       </ActionSheetHeaderFrame>
     );
   }
@@ -494,24 +493,25 @@ export const SimpleActionSheetHeader = ({
 };
 
 export const SimpleActionSheet = ({
-  open,
-  onOpenChange,
   title,
   subtitle,
   icon,
   actions,
   accent,
-}: {
-  title?: string;
-  subtitle?: string;
-  icon?: ReactElement;
-  actions: Action[];
-  accent?: Accent;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) => {
+  ...forwardedProps
+}: ForwardingProps<
+  typeof ActionSheetComponent,
+  {
+    title?: string;
+    subtitle?: string;
+    icon?: ReactElement;
+    actions: Action[];
+    accent?: Accent;
+  },
+  'children'
+>) => {
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
+    <ActionSheetComponent {...forwardedProps}>
       {title || subtitle ? (
         <SimpleActionSheetHeader
           title={title}
@@ -526,7 +526,7 @@ export const SimpleActionSheet = ({
           ))}
         </ActionSheet.ActionGroup>
       </ActionSheet.Content>
-    </ActionSheet>
+    </ActionSheetComponent>
   );
 };
 
