@@ -61,8 +61,7 @@
     =+  !<(=a-log:l vase)
     ?-    -.a-log
         %log
-      =/  =log-item:l  [now.bowl +.a-log]
-      (send-posthog-event sap.bowl log-item)
+      (send-posthog-event sap.bowl now.bowl +.a-log)
     ==
   ==
 ::
