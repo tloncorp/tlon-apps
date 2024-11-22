@@ -296,11 +296,14 @@
   =/  caz=(list card)
     ::  delay, so we don't end up scrying during load
     [%pass /refresh %arvo %b %wait now.bowl]~
-  ::  leave obsolete %contacts endpoint
+  ::  leave obsolete %contacts endpoint and connect
   ::
   =?  caz  ?=(%0 ver)
-    :_  caz
-    [%pass /contacts/ours %agent [our.bowl %contacts] %leave ~]
+    %+  weld  caz
+    ^-  (list card)
+    :~  [%pass /contacts/ours %agent [our.bowl %contacts] %leave ~]
+        [%pass /contacts/news %agent [our.bowl %contacts] %watch /news]
+    ==
   [caz this]
   ::
   +$  versioned-state

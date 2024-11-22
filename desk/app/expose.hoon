@@ -104,7 +104,7 @@
     ::  we must defer refreshing the cache because rendering scries
     ::
     [%pass /refresh %arvo %b %wait now.bowl]~
-  ::  leave obsolete %contacts endpoint
+  ::  leave obsolete %contacts endpoint and connect
   ::
   =?  caz  ?=(%0 ver)
     %+  weld  caz
@@ -112,6 +112,7 @@
     :~  [%pass /contacts %agent [our.bowl %contacts] %leave ~]
         :: leave %conacts (sic) agent sub
         [%pass /contacts %agent [our.bowl %conacts] %leave ~]
+        [%pass /contacts/news %agent [our.bowl %contacts] %watch /news]
     ==
   [caz this]
   ::
