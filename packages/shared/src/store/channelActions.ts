@@ -323,8 +323,33 @@ export async function leaveGroupChannel(channelId: string) {
   try {
     await api.leaveChannel(channelId);
   } catch (e) {
-    console.error('Failed to leave chat channel', e);
+    console.error('Failed to leave channel', e);
     // rollback optimistic update
     await db.updateChannel({ id: channelId, currentUserIsMember: true });
+  }
+}
+
+export async function joinGroupChannel({
+  channelId,
+  groupId,
+}: {
+  channelId: string;
+  groupId: string;
+}) {
+  // optimistic update
+  await db.updateChannel({
+    id: channelId,
+    currentUserIsMember: true,
+  });
+
+  try {
+    await api.joinChannel(channelId, groupId);
+  } catch (e) {
+    // rollback on failure
+    logger.error('Failed to join group channel');
+    await db.updateChannel({
+      id: channelId,
+      currentUserIsMember: false,
+    });
   }
 }

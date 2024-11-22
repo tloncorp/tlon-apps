@@ -20,10 +20,12 @@ export function ChannelListItem({
   onPress,
   onLongPress,
   EndContent,
+  dimmed,
   ...props
 }: {
   useTypeIcon?: boolean;
   customSubtitle?: string;
+  dimmed?: boolean;
 } & ListItemProps<Chat> & { model: db.Channel }) {
   const unreadCount = model.unread?.count ?? 0;
   const title = utils.useChannelTitle(model);
@@ -65,9 +67,13 @@ export function ChannelListItem({
         onLongPress={handleLongPress}
       >
         <ListItem {...props}>
-          <ListItem.ChannelIcon model={model} useTypeIcon={useTypeIcon} />
+          <ListItem.ChannelIcon
+            model={model}
+            useTypeIcon={useTypeIcon}
+            dimmed={dimmed}
+          />
           <ListItem.MainContent>
-            <ListItem.Title>{title}</ListItem.Title>
+            <ListItem.Title dimmed={dimmed}>{title}</ListItem.Title>
             {customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
             ) : (
