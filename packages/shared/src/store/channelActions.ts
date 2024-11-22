@@ -323,7 +323,7 @@ export async function leaveGroupChannel(channelId: string) {
   try {
     await api.leaveChannel(channelId);
   } catch (e) {
-    console.error('Failed to leave chat channel', e);
+    console.error('Failed to leave channel', e);
     // rollback optimistic update
     await db.updateChannel({ id: channelId, currentUserIsMember: true });
   }
