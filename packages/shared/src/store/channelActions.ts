@@ -98,12 +98,14 @@ export async function updateChannel({
   groupId,
   sectionId,
   readers,
+  writers,
   join,
   channel,
 }: {
   groupId: string;
   sectionId: string;
   readers: string[];
+  writers: string[];
   join: boolean;
   channel: db.Channel;
 }) {
@@ -113,6 +115,7 @@ export async function updateChannel({
   const groupChannel: GroupChannel = {
     added: channel.addedToGroupAt ?? 0,
     readers,
+    writers,
     zone: sectionId,
     join,
     meta: {
