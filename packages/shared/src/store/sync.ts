@@ -512,20 +512,38 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
     case 'deleteRole':
       await db.deleteRole({ roleId: update.roleId, groupId: update.groupId });
       break;
-    case 'addGroupMembersToRole':
+    case 'addGroupMembersToRole': {
+      const currentUser = api.getCurrentUserId();
       await db.addChatMembersToRoles({
         groupId: update.groupId,
         contactIds: update.ships,
         roleIds: update.roles,
       });
+      // Recalculate channel permissions and invalidate queries to reload lists
+      await db.setJoinedGroupChannels({
+        channelIds: update.ships.includes(currentUser) ? [update.groupId] : [],
+      });
+      api.queryClient.invalidateQueries({ queryKey: ['group'] });
+      api.queryClient.invalidateQueries({ queryKey: ['channels'] });
+      api.queryClient.invalidateQueries({ queryKey: ['unjoinedChannels'] });
       break;
-    case 'removeGroupMembersFromRole':
+    }
+    case 'removeGroupMembersFromRole': {
+      const currentUser = api.getCurrentUserId();
       await db.removeChatMembersFromRoles({
         groupId: update.groupId,
         contactIds: update.ships,
         roleIds: update.roles,
       });
+      // Recalculate channel permissions and invalidate queries to reload lists
+      await db.setJoinedGroupChannels({
+        channelIds: update.ships.includes(currentUser) ? [update.groupId] : [],
+      });
+      api.queryClient.invalidateQueries({ queryKey: ['group'] });
+      api.queryClient.invalidateQueries({ queryKey: ['channels'] });
+      api.queryClient.invalidateQueries({ queryKey: ['unjoinedChannels'] });
       break;
+    }
     case 'addChannel':
       await db.insertChannels([update.channel]);
       break;
