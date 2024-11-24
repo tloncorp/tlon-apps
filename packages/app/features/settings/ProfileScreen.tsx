@@ -3,6 +3,7 @@ import { useMutableRef } from '@tloncorp/shared';
 import { NavBarView, ProfileScreenView, View } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
+import { getVariableValue, useTheme } from 'tamagui';
 
 import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
@@ -61,8 +62,14 @@ export default function ProfileScreen(props: Props) {
     navigationRef.current.navigate('Profile');
   }, [navigationRef]);
 
+  const onThemePressed = useCallback(() => {
+    navigationRef.current.navigate('Theme');
+  }, [navigationRef]);
+
+  const backgroundColor = getVariableValue(useTheme().background);
+
   return (
-    <View backgroundColor="$background" flex={1}>
+    <View backgroundColor={backgroundColor} flex={1}>
       <ProfileScreenView
         hasHostedAuth={hasHostedAuth}
         currentUserId={currentUserId}
@@ -74,6 +81,7 @@ export default function ProfileScreen(props: Props) {
         onBlockedUsersPressed={onBlockedUsersPressed}
         onManageAccountPressed={onManageAccountPressed}
         onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
+        onThemePressed={onThemePressed}
         dmLink={dmLink}
       />
       <NavBarView
