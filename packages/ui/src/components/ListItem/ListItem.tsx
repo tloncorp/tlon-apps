@@ -88,6 +88,13 @@ const ListItemTitle = styled(SizableText, {
   name: 'ListItemTitle',
   color: '$primaryText',
   numberOfLines: 1,
+  variants: {
+    dimmed: {
+      true: {
+        color: '$tertiaryText',
+      },
+    },
+  },
 });
 
 const ListItemSubtitleWithIcon = XStack.styleable<{ icon?: IconType }>(

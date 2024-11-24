@@ -257,7 +257,7 @@
       [%group-kick & |]
       [%group-join & |]
       [%group-role & |]
-      [%contact | &]
+      [%contact | |]
   ==
 ++  old-volumes
   ^~

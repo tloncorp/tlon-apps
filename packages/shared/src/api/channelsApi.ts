@@ -396,3 +396,24 @@ export const leaveChannel = async (channelId: string) => {
     }
   );
 };
+
+export const joinChannel = async (channelId: string, groupId: string) => {
+  return trackedPoke<ub.ChannelsResponse>(
+    {
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        channel: {
+          nest: channelId,
+          action: {
+            join: groupId,
+          },
+        },
+      },
+    },
+    { app: 'channels', path: '/v1' },
+    (event) => {
+      return 'join' in event.response && event.nest === channelId;
+    }
+  );
+};

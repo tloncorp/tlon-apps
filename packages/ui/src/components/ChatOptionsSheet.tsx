@@ -798,7 +798,7 @@ export function ChannelOptions({
                     if (!isWeb) {
                       Alert.alert(
                         `Leave ${title}?`,
-                        'This will be removed from the list',
+                        'You will no longer receive updates from this channel.',
                         [
                           {
                             text: 'Cancel',
