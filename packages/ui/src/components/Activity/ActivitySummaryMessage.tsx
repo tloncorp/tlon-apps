@@ -19,14 +19,6 @@ function SummaryMessageRaw({
   const plural = summary.all.length > 1;
   const authors = useActivitySummaryAuthors(summary);
 
-  console.log(`summary message debug`, {
-    relevancy,
-    newest,
-    count,
-    plural,
-    authors,
-  });
-
   if (
     authors.length === 1 &&
     relevancy !== 'groupJoinRequest' &&

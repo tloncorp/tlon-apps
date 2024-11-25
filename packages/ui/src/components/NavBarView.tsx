@@ -44,7 +44,6 @@ export const NavBarView = ({
 
   const handleUpdateStatus = useCallback(
     (newStatus: string) => {
-      console.log('newStatus', newStatus);
       store.updateCurrentUserProfile({ status: newStatus });
       closeStatusSheet();
     },

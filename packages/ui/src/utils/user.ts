@@ -23,5 +23,5 @@ export function formatUserId(
 }
 
 export function getDisplayName(contact: db.Contact) {
-  return contact?.nickname ?? contact.id;
+  return contact.nickname ?? contact.id;
 }

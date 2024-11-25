@@ -39,29 +39,32 @@ export function EditProfileScreenView(props: Props) {
       .filter(Boolean) as db.Group[]) ?? []
   );
 
+  const isCurrUser = useMemo(
+    () => props.userId === currentUserId,
+    [props.userId, currentUserId]
+  );
+
   const currentNickname = useMemo(() => {
-    return props.userId === currentUserId
+    return isCurrUser
       ? userContact?.nickname
       : userContact?.customNickname ?? '';
-  }, [props.userId, currentUserId, userContact]);
+  }, [isCurrUser, userContact?.nickname, userContact?.customNickname]);
 
   const nicknamePlaceholder = useMemo(() => {
-    return props.userId === currentUserId
+    return isCurrUser
       ? userContact?.id
       : userContact?.peerNickname ?? userContact?.id;
-  }, [props.userId, currentUserId, userContact]);
+  }, [isCurrUser, userContact]);
 
   const currentAvatarImage = useMemo(() => {
-    return props.userId === currentUserId
+    return isCurrUser
       ? userContact?.avatarImage
       : userContact?.customAvatarImage ?? '';
-  }, [props.userId, currentUserId, userContact]);
+  }, [isCurrUser, userContact]);
 
   const avatarPlaceholder = useMemo(() => {
-    return props.userId === currentUserId
-      ? undefined
-      : userContact?.peerAvatarImage ?? undefined;
-  }, [props.userId, currentUserId, userContact]);
+    return isCurrUser ? undefined : userContact?.peerAvatarImage ?? undefined;
+  }, [isCurrUser, userContact]);
 
   const {
     control,
@@ -80,14 +83,12 @@ export function EditProfileScreenView(props: Props) {
   const handlePressDone = useCallback(() => {
     if (isDirty) {
       handleSubmit((formData) => {
-        const nicknameStartVal =
-          props.userId === currentUserId
-            ? userContact?.nickname
-            : userContact?.customNickname;
-        const avatarStartVal =
-          props.userId === currentUserId
-            ? userContact?.avatarImage
-            : userContact?.customAvatarImage;
+        const nicknameStartVal = isCurrUser
+          ? userContact?.nickname
+          : userContact?.customNickname;
+        const avatarStartVal = isCurrUser
+          ? userContact?.avatarImage
+          : userContact?.customAvatarImage;
 
         const update = {
           status: formData.status,
@@ -109,8 +110,8 @@ export function EditProfileScreenView(props: Props) {
       props.onGoBack();
     }
   }, [
-    currentUserId,
     handleSubmit,
+    isCurrUser,
     isDirty,
     props,
     userContact?.avatarImage,
@@ -177,7 +178,7 @@ export function EditProfileScreenView(props: Props) {
                   label="Nickname"
                   control={control}
                   renderInputContainer={
-                    props.userId === currentUserId
+                    isCurrUser
                       ? ({ children }) => {
                           return (
                             <XStack gap="$m">
@@ -222,7 +223,7 @@ export function EditProfileScreenView(props: Props) {
               }}
             />
 
-            {props.userId === currentUserId ? (
+            {isCurrUser ? (
               <>
                 <ControlledTextField
                   name="status"

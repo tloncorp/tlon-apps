@@ -162,7 +162,6 @@ export const removePinnedGroup = async (groupId: string) => {
 };
 
 export const setPinnedGroups = async (groupIds: string[]) => {
-  console.log(`api set pinned`, groupIds);
   const contactUpdate: ub.ContactBookProfileEdit = {};
   contactUpdate.groups = {
     type: 'set',
@@ -218,6 +217,7 @@ export const subscribeToContactUpdates = (
   );
 };
 
+// Used for converting the legacy contacts format to client representation.
 export const v0PeersToClientProfiles = (
   contacts: ub.ContactRolodex,
   config?: {

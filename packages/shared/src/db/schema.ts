@@ -207,7 +207,7 @@ export const activityEvents = sqliteTable(
 );
 
 export const activityEventContactGroups = sqliteTable(
-  'activyt_event_contact_group_pins',
+  'activity_event_contact_group_pins',
   {
     activityEventId: text('activity_event_id')
       .references(() => activityEvents.id, { onDelete: 'cascade' })

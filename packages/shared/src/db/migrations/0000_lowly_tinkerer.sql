@@ -1,4 +1,4 @@
-CREATE TABLE `activyt_event_contact_group_pins` (
+CREATE TABLE `activity_event_contact_group_pins` (
 	`activity_event_id` text NOT NULL,
 	`group_id` text NOT NULL,
 	PRIMARY KEY(`activity_event_id`, `group_id`),

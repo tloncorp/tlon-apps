@@ -156,9 +156,9 @@ export const ImageInput = XStack.styleable<{
   value?: string;
   placeholderUri?: string;
   onChange?: (value?: string) => void;
-  hideClear?: boolean;
+  showClear?: boolean;
 }>(function ImageInput(
-  { buttonLabel, value, hideClear, placeholderUri, onChange },
+  { buttonLabel, value, showClear = true, placeholderUri, onChange },
   ref
 ) {
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -229,7 +229,7 @@ export const ImageInput = XStack.styleable<{
         isOpen={sheetOpen}
         onOpenChange={setSheetOpen}
         onAttachmentsSet={handleImageSelected}
-        showClearOption={!hideClear && !!value}
+        showClearOption={showClear && !!value}
         onClearAttachments={handleImageRemoved}
       />
     </>

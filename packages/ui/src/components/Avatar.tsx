@@ -87,12 +87,7 @@ export const ContactAvatar = React.memo(function ContactAvatComponent({
   const contact = useContact(contactId);
   return (
     <ImageAvatar
-      imageUrl={
-        overrideUrl ??
-        contact?.customAvatarImage ??
-        contact?.avatarImage ??
-        undefined
-      }
+      imageUrl={overrideUrl ?? contact?.avatarImage ?? undefined}
       fallback={
         <SigilAvatar
           contactId={contactId}

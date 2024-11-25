@@ -1,11 +1,11 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "413e305b-c111-41c4-8331-0f48dbcb8dba",
+  "id": "2ec6d840-6e53-4d97-bf4c-b4d00a248728",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "activyt_event_contact_group_pins": {
-      "name": "activyt_event_contact_group_pins",
+    "activity_event_contact_group_pins": {
+      "name": "activity_event_contact_group_pins",
       "columns": {
         "activity_event_id": {
           "name": "activity_event_id",
@@ -24,9 +24,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "activyt_event_contact_group_pins_activity_event_id_activity_events_id_fk": {
-          "name": "activyt_event_contact_group_pins_activity_event_id_activity_events_id_fk",
-          "tableFrom": "activyt_event_contact_group_pins",
+        "activity_event_contact_group_pins_activity_event_id_activity_events_id_fk": {
+          "name": "activity_event_contact_group_pins_activity_event_id_activity_events_id_fk",
+          "tableFrom": "activity_event_contact_group_pins",
           "tableTo": "activity_events",
           "columnsFrom": [
             "activity_event_id"
@@ -37,9 +37,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "activyt_event_contact_group_pins_group_id_groups_id_fk": {
-          "name": "activyt_event_contact_group_pins_group_id_groups_id_fk",
-          "tableFrom": "activyt_event_contact_group_pins",
+        "activity_event_contact_group_pins_group_id_groups_id_fk": {
+          "name": "activity_event_contact_group_pins_group_id_groups_id_fk",
+          "tableFrom": "activity_event_contact_group_pins",
           "tableTo": "groups",
           "columnsFrom": [
             "group_id"
@@ -52,12 +52,12 @@
         }
       },
       "compositePrimaryKeys": {
-        "activyt_event_contact_group_pins_activity_event_id_group_id_pk": {
+        "activity_event_contact_group_pins_activity_event_id_group_id_pk": {
           "columns": [
             "activity_event_id",
             "group_id"
           ],
-          "name": "activyt_event_contact_group_pins_activity_event_id_group_id_pk"
+          "name": "activity_event_contact_group_pins_activity_event_id_group_id_pk"
         }
       },
       "uniqueConstraints": {},
