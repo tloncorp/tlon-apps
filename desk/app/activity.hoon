@@ -42,7 +42,7 @@
 /-  a=activity, c=channels, ch=chat, g=groups
 /+  *activity, ch-utils=channel-utils, v=volume, aj=activity-json,
     imp=import-aid
-/+  default-agent, verb, dbug
+/+  default-agent, verb, dbug, logs
 ::
 =/  verbose  |
 =>
@@ -108,7 +108,11 @@
   ++  on-agent   on-agent:def
   ++  on-peek    peek:cor
   ++  on-leave   on-leave:def
-  ++  on-fail    on-fail:def
+  ++  on-fail
+    |=  [=term =tang]
+    ^-  (quip card _this)
+    :_  this
+    [(log-fail:logs /logs our.bowl (fail-event:logs term tang))]~
   --
 |_  [=bowl:gall cards=(list card)]
 ++  abet  [(flop cards) state]
