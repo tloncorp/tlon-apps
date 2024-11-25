@@ -1548,6 +1548,83 @@ export const getStaleChannels = createReadQuery(
   ['channels']
 );
 
+export const upsertChannel = createWriteQuery(
+  'upsertChannel',
+  async (channel: Channel, ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+
+    if (!channel.groupId) {
+      await ctx.db
+        .insert($channels)
+        .values(channel)
+        .onConflictDoUpdate({
+          target: $channels.id,
+          set: conflictUpdateSetAll($channels),
+        });
+      return true;
+    }
+
+    const group = await ctx.db.query.groups.findFirst({
+      where: eq($groups.id, channel.groupId),
+      with: {
+        roles: {
+          with: {
+            members: true,
+          },
+        },
+      },
+    });
+
+    if (!group) {
+      throw new Error(`Group ${channel.groupId} not found`);
+    }
+
+    const userRolesForGroup =
+      group.roles
+        ?.filter((role) =>
+          role.members?.map((m) => m.contactId).includes(currentUserId)
+        )
+        .map((role) => role.id) ?? [];
+
+    const isOpenChannel = channel.readerRoles?.length === 0;
+    const isClosedButCanRead = channel.readerRoles
+      ?.map((r) => r.roleId)
+      .some((r) => userRolesForGroup.includes(r));
+
+    const canRead = isOpenChannel || isClosedButCanRead;
+
+    if (canRead) {
+      await ctx.db
+        .insert($channels)
+        .values(channel)
+        .onConflictDoUpdate({
+          target: $channels.id,
+          set: conflictUpdateSetAll($channels),
+        });
+      if (channel.readerRoles) {
+        await ctx.db
+          .delete($channelReaders)
+          .where(eq($channelReaders.channelId, channel.id));
+
+        if (channel.readerRoles.length > 0) {
+          await ctx.db.insert($channelReaders).values(channel.readerRoles);
+        }
+      }
+      if (channel.writerRoles) {
+        await ctx.db
+          .delete($channelWriters)
+          .where(eq($channelWriters.channelId, channel.id));
+
+        if (channel.writerRoles.length > 0) {
+          await ctx.db.insert($channelWriters).values(channel.writerRoles);
+        }
+      }
+    }
+    return canRead;
+  },
+  ['channels', 'channelReaders', 'channelWriters', 'groups']
+);
+
 export const insertChannels = createWriteQuery(
   'insertChannels',
   async (channels: Channel[], ctx: QueryCtx) => {

@@ -393,17 +393,6 @@ export const syncPushNotificationsSetting = async (ctx?: SyncCtx) => {
   await db.setPushNotificationsSetting(setting);
 };
 
-async function handleChannelAdd(channel: db.Channel) {
-  await db.setJoinedGroupChannels({
-    channelIds: [channel.id],
-  });
-  const channelInDb = await db.getChannel({ id: channel.id });
-  // Only insert the channel if the user has permission to see it
-  if (channelInDb?.currentUserIsMember) {
-    await db.insertChannels([channel]);
-  }
-}
-
 async function handleGroupUpdate(update: api.GroupUpdate) {
   logger.log('received group update', update.type);
 
@@ -555,12 +544,24 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       api.queryClient.invalidateQueries({ queryKey: ['unjoinedChannels'] });
       break;
     }
-    case 'addChannel':
-      await handleChannelAdd(update.channel);
+    case 'addChannel': {
+      const canRead = await db.upsertChannel(update.channel);
+      if (canRead) {
+        await db.setJoinedGroupChannels({
+          channelIds: [update.channel.id],
+        });
+      }
       break;
-    case 'updateChannel':
-      await handleChannelAdd(update.channel);
+    }
+    case 'updateChannel': {
+      const canRead = await db.upsertChannel(update.channel);
+      if (canRead) {
+        await db.setJoinedGroupChannels({
+          channelIds: [update.channel.id],
+        });
+      }
       break;
+    }
     case 'deleteChannel':
       channelNavSection = await db.getChannelNavSection({
         channelId: update.channelId,

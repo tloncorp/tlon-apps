@@ -109,8 +109,19 @@ export async function updateChannel({
   join: boolean;
   channel: db.Channel;
 }) {
-  // optimistic update
-  await db.updateChannel(channel);
+  const updatedChannel: db.Channel = {
+    ...channel,
+    readerRoles: readers.map((roleId) => ({
+      channelId: channel.id,
+      roleId,
+    })),
+    writerRoles: writers.map((roleId) => ({
+      channelId: channel.id,
+      roleId,
+    })),
+  };
+
+  const canRead = await db.upsertChannel(updatedChannel);
 
   const groupChannel: GroupChannel = {
     added: channel.addedToGroupAt ?? 0,
@@ -134,9 +145,9 @@ export async function updateChannel({
     });
   } catch (e) {
     console.error('Failed to update channel', e);
-    // rollback optimistic update
-    await db.updateChannel(channel);
+    await db.upsertChannel(channel);
   }
+  return canRead;
 }
 
 export async function pinItem(channel: db.Channel) {
