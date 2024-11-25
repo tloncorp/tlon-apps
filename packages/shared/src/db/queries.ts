@@ -226,6 +226,35 @@ export const getUnjoinedGroupChannels = createReadQuery(
   'getUnjoinedGroupChannels',
   async (groupId: string, ctx: QueryCtx) => {
     const currentUserId = getCurrentUserId();
+    logger.log(
+      'getUnjoinedGroupChannels: checking for user',
+      currentUserId,
+      'in group',
+      groupId
+    );
+
+    const group = await ctx.db.query.groups.findFirst({
+      where: eq($groups.id, groupId),
+      with: {
+        roles: {
+          with: {
+            members: true,
+          },
+        },
+      },
+    });
+
+    if (!group) return [];
+
+    const userRolesForGroup =
+      group.roles
+        ?.filter((role) =>
+          role.members?.map((m) => m.contactId).includes(currentUserId)
+        )
+        .map((role) => role.id) ?? [];
+
+    logger.log('getUnjoinedGroupChannels: user roles', userRolesForGroup);
+
     const allUnjoined = await ctx.db.query.channels.findMany({
       where: and(
         eq($channels.groupId, groupId),
@@ -233,47 +262,38 @@ export const getUnjoinedGroupChannels = createReadQuery(
       ),
       with: {
         readerRoles: true,
-        group: {
-          with: {
-            roles: {
-              with: {
-                members: true,
-              },
-            },
-          },
-        },
       },
     });
 
-    const unjoinedIds = allUnjoined.map((c) => c.id);
-    const unjoinedIndex = new Map<string, Channel>();
-    for (const channel of allUnjoined) {
-      unjoinedIndex.set(channel.id, channel);
-    }
+    logger.log(
+      'getUnjoinedGroupChannels: found unjoined channels',
+      allUnjoined.map((c) => ({
+        id: c.id,
+        readerRoles: c.readerRoles,
+      }))
+    );
 
-    const joinableSubset = unjoinedIds.filter((id) => {
-      const channel = unjoinedIndex.get(id);
-      const isOpenChannel = channel?.readerRoles?.length === 0;
-
-      const userRolesForGroup =
-        channel?.group?.roles
-          ?.filter((role) =>
-            role.members?.map((m) => m.contactId).includes(currentUserId)
-          )
-          .map((role) => role.id) ?? [];
-
-      const isClosedButCanRead = channel?.readerRoles
+    return allUnjoined.filter((channel) => {
+      const isOpenChannel = channel.readerRoles?.length === 0;
+      const isClosedButCanRead = channel.readerRoles
         ?.map((r) => r.roleId)
         .some((r) => userRolesForGroup.includes(r));
 
-      return isOpenChannel || isClosedButCanRead;
+      const canRead = isOpenChannel || isClosedButCanRead;
+      logger.log(
+        'getUnjoinedGroupChannels: channel',
+        channel.id,
+        'isOpen:',
+        isOpenChannel,
+        'hasPermission:',
+        isClosedButCanRead,
+        'canRead:',
+        canRead
+      );
+      return canRead;
     });
-
-    return joinableSubset
-      .map((id) => unjoinedIndex.get(id))
-      .filter((c) => c !== undefined) as Channel[];
   },
-  ['channels']
+  ['channels', 'groups']
 );
 
 export const getPins = createReadQuery(
@@ -449,6 +469,16 @@ export const insertGroups = createWriteQuery(
           await txCtx.db.insert($groups).values(group).onConflictDoNothing();
         }
         if (group.channels?.length) {
+          logger.log(
+            'insertGroups: inserting channels for group',
+            group.id,
+            group.channels.map((c) => ({
+              id: c.id,
+              readerRoles: c.readerRoles,
+            }))
+          );
+
+          // First insert/update the channels
           await txCtx.db
             .insert($channels)
             .values(group.channels)
@@ -465,6 +495,25 @@ export const insertGroups = createWriteQuery(
                 $channels.contentConfiguration
               ),
             });
+
+          // Then handle reader roles separately
+          for (const channel of group.channels) {
+            if (channel.readerRoles) {
+              // Clear existing reader roles
+              await txCtx.db
+                .delete($channelReaders)
+                .where(eq($channelReaders.channelId, channel.id));
+
+              if (channel.readerRoles.length > 0) {
+                // Insert new reader roles
+                await txCtx.db
+                  .insert($channelReaders)
+                  .values(channel.readerRoles);
+              }
+            }
+          }
+
+          logger.log('insertGroups: finished inserting channels');
         }
         if (group.flaggedPosts?.length) {
           await txCtx.db

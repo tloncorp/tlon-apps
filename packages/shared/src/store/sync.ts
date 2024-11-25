@@ -512,26 +512,42 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
     case 'deleteRole':
       await db.deleteRole({ roleId: update.roleId, groupId: update.groupId });
       break;
-    case 'addGroupMembersToRole':
+    case 'addGroupMembersToRole': {
       await db.addChatMembersToRoles({
         groupId: update.groupId,
         contactIds: update.ships,
         roleIds: update.roles,
       });
+      await syncGroup(update.groupId);
+      await syncUnreads();
       break;
-    case 'removeGroupMembersFromRole':
+    }
+    case 'removeGroupMembersFromRole': {
       await db.removeChatMembersFromRoles({
         groupId: update.groupId,
         contactIds: update.ships,
         roleIds: update.roles,
       });
+      await syncGroup(update.groupId);
+      await syncUnreads();
       break;
-    case 'addChannel':
+    }
+    case 'addChannel': {
       await db.insertChannels([update.channel]);
+      if (update.channel.groupId) {
+        await syncGroup(update.channel.groupId);
+        await syncUnreads();
+      }
       break;
-    case 'updateChannel':
+    }
+    case 'updateChannel': {
       await db.updateChannel(update.channel);
+      if (update.channel.groupId) {
+        await syncGroup(update.channel.groupId);
+        await syncUnreads();
+      }
       break;
+    }
     case 'deleteChannel':
       channelNavSection = await db.getChannelNavSection({
         channelId: update.channelId,
