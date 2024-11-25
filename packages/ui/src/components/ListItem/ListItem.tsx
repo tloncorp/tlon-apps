@@ -247,7 +247,6 @@ Dragger.displayName = 'Dragger';
 
 const ListItemEndContent = styled(YStack, {
   name: 'ListItemEndContent',
-  flex: 0,
   paddingTop: '$xs',
   gap: '$2xs',
   justifyContent: 'center',

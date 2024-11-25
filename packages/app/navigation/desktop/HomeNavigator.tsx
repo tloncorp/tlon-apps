@@ -32,6 +32,9 @@ export const HomeNavigator = () => {
       screenOptions={{
         drawerType: 'permanent',
         headerShown: false,
+        drawerStyle: {
+          width: 340,
+        },
       }}
     >
       <HomeDrawer.Screen name="ChatList" component={MainStack} />
@@ -65,7 +68,7 @@ function MainStack() {
       screenOptions={{
         headerShown: false,
       }}
-      initialRouteName='ChatList'
+      initialRouteName="ChatList"
     >
       <MainStackNavigator.Screen name="ChatList" component={Empty} />
       <MainStackNavigator.Screen

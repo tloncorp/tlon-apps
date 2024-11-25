@@ -323,7 +323,7 @@ export const TextInputWithIconAndButton = React.memo(
           padding="$l"
           onPress={onButtonPress}
           backgroundColor="$secondaryBackground"
-          marginRight="$-m"
+          marginLeft="$-2xl"
         >
           <Button.Text size="$label/m">{buttonText}</Button.Text>
         </Button>
