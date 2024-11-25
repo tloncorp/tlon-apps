@@ -338,7 +338,7 @@ export function createChannel(title: string) {
     added: 1657774188151,
     join: false,
     readers: [],
-    writers: [], // Add this required field
+    writers: [],
     zone: 'default',
   };
 }
