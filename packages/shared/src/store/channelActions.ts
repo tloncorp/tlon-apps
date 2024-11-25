@@ -121,7 +121,7 @@ export async function updateChannel({
     })),
   };
 
-  const canRead = await db.upsertChannel(updatedChannel);
+  await db.updateChannel(updatedChannel);
 
   const groupChannel: GroupChannel = {
     added: channel.addedToGroupAt ?? 0,
@@ -145,9 +145,8 @@ export async function updateChannel({
     });
   } catch (e) {
     console.error('Failed to update channel', e);
-    await db.upsertChannel(channel);
+    await db.updateChannel(channel);
   }
-  return canRead;
 }
 
 export async function pinItem(channel: db.Channel) {

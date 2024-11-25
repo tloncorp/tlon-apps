@@ -513,52 +513,39 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       await db.deleteRole({ roleId: update.roleId, groupId: update.groupId });
       break;
     case 'addGroupMembersToRole': {
-      const currentUser = api.getCurrentUserId();
       await db.addChatMembersToRoles({
         groupId: update.groupId,
         contactIds: update.ships,
         roleIds: update.roles,
       });
-      // Recalculate channel permissions and invalidate queries to reload lists
-      await db.setJoinedGroupChannels({
-        channelIds: update.ships.includes(currentUser) ? [update.groupId] : [],
-      });
-      api.queryClient.invalidateQueries({ queryKey: ['group'] });
-      api.queryClient.invalidateQueries({ queryKey: ['channels'] });
-      api.queryClient.invalidateQueries({ queryKey: ['unjoinedChannels'] });
+      await syncGroup(update.groupId);
+      await syncUnreads();
       break;
     }
     case 'removeGroupMembersFromRole': {
-      const currentUser = api.getCurrentUserId();
       await db.removeChatMembersFromRoles({
         groupId: update.groupId,
         contactIds: update.ships,
         roleIds: update.roles,
       });
-      // Recalculate channel permissions and invalidate queries to reload lists
-      await db.setJoinedGroupChannels({
-        channelIds: update.ships.includes(currentUser) ? [update.groupId] : [],
-      });
-      api.queryClient.invalidateQueries({ queryKey: ['group'] });
-      api.queryClient.invalidateQueries({ queryKey: ['channels'] });
-      api.queryClient.invalidateQueries({ queryKey: ['unjoinedChannels'] });
+      console.log(`user role removal`, update.groupId);
+      await syncGroup(update.groupId);
+      await syncUnreads();
       break;
     }
     case 'addChannel': {
-      const canRead = await db.upsertChannel(update.channel);
-      if (canRead) {
-        await db.setJoinedGroupChannels({
-          channelIds: [update.channel.id],
-        });
+      await db.insertChannels([update.channel]);
+      if (update.channel.groupId) {
+        await syncGroup(update.channel.groupId);
+        await syncUnreads();
       }
       break;
     }
     case 'updateChannel': {
-      const canRead = await db.upsertChannel(update.channel);
-      if (canRead) {
-        await db.setJoinedGroupChannels({
-          channelIds: [update.channel.id],
-        });
+      await db.updateChannel(update.channel);
+      if (update.channel.groupId) {
+        await syncGroup(update.channel.groupId);
+        await syncUnreads();
       }
       break;
     }
