@@ -1,13 +1,14 @@
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo } from 'react';
 import { SectionList } from 'react-native';
-import { SizableText, View, XStack } from 'tamagui';
+import { View, XStack, getTokenValue } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts';
 import { useSortedContacts } from '../hooks/contactSorters';
 import { SystemIconAvatar } from './Avatar';
 import { Badge } from './Badge';
 import { ContactListItem } from './ListItem';
+import { SectionListHeader } from './SectionList';
 
 interface Props {
   contacts: db.Contact[];
@@ -104,20 +105,28 @@ export function ContactsScreenView(props: Props) {
       }
 
       return (
-        <View paddingLeft="$xl" paddingVertical="$xl">
-          <SizableText color="$secondaryText">{section.title}</SizableText>
-        </View>
+        <SectionListHeader paddingTop="$xl">
+          <SectionListHeader.Text>{section.title}</SectionListHeader.Text>
+        </SectionListHeader>
       );
     },
     []
   );
 
+  const contentContainerStyle = useMemo(() => {
+    return {
+      padding: getTokenValue('$l', 'size'),
+      paddingBottom: 100, // bottom nav height + some cushion
+    };
+  }, []);
+
   return (
-    <View flex={1} padding="$l">
+    <View flex={1}>
       <SectionList
         sections={sections}
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
+        contentContainerStyle={contentContainerStyle}
       />
     </View>
   );
