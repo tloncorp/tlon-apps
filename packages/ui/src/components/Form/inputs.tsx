@@ -309,7 +309,7 @@ export const TextInputWithIconAndButton = React.memo(
         borderRadius="$l"
         paddingHorizontal="$xl"
         alignItems="center"
-        gap={isWeb ? '$s' : '$l'}
+        gap="$l"
       >
         <Icon type={icon} customSize={['$2xl', '$2xl']} />
         <TextInput
@@ -321,10 +321,9 @@ export const TextInputWithIconAndButton = React.memo(
         />
         <Button
           padding="$l"
-          paddingHorizontal={isWeb ? '$2xl' : '$l'}
           onPress={onButtonPress}
           backgroundColor="$secondaryBackground"
-          marginRight="$-m"
+          marginLeft="$-2xl"
         >
           <Button.Text size="$label/m">{buttonText}</Button.Text>
         </Button>
