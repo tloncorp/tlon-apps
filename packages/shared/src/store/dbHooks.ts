@@ -198,10 +198,13 @@ export const useContacts = () => {
   });
 };
 
-export const useUnreadsCount = () => {
+export const useUnreadsCountWithoutMuted = () => {
   return useQuery({
-    queryKey: ['unreadsCount', useKeyFromQueryDeps(db.getUnreadsCount)],
-    queryFn: () => db.getUnreadsCount({}),
+    queryKey: [
+      'unreadsCount',
+      useKeyFromQueryDeps(db.getUnreadsCountWithoutMuted),
+    ],
+    queryFn: () => db.getUnreadsCountWithoutMuted({}),
   });
 };
 

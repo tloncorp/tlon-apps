@@ -121,15 +121,10 @@ async function updatePresentedNotifications() {
 }
 
 export function useUpdatePresentedNotifications() {
-  const query = store.useUnreadsCount();
-
-  // `useUnreadsCount` updates with a lot of false positives - debounce so we
-  // don't run the updater too frequently
-  const debouncedQueryKey = useDebouncedValue(query.dataUpdatedAt, 500);
-
+  const { data: unreadCount } = store.useUnreadsCountWithoutMuted();
   useEffect(() => {
     updatePresentedNotifications().catch((err) => {
       console.error('Failed to update presented notifications:', err);
     });
-  }, [debouncedQueryKey]);
+  }, [unreadCount]);
 }
