@@ -555,6 +555,9 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       api.queryClient.invalidateQueries({ queryKey: ['unjoinedChannels'] });
       break;
     }
+    case 'addChannel':
+      await handleChannelAdd(update.channel);
+      break;
     case 'updateChannel':
       await handleChannelAdd(update.channel);
       break;
