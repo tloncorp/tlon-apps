@@ -62,6 +62,9 @@ export default function Pressable({
     action,
   });
 
+  const hasInteractionHandler =
+    (action == null ? onPress : onPressLink) || onLongPress;
+
   if (action && !to) {
     throw new Error(
       'The `to` prop is required when `action` is specified in `Pressable`'
@@ -76,6 +79,11 @@ export default function Pressable({
         group
         onPress={onPressLink ?? onPress}
         onLongPress={longPressHandler}
+        // Pressable always blocks touches from bubbling to ancestors, even if
+        // no handlers are attached.
+        // To allow bubbling, disable the Pressable (mixin) when no handlers
+        // are attached.
+        disabled={!hasInteractionHandler}
       >
         {children}
       </StackComponent>
@@ -87,6 +95,7 @@ export default function Pressable({
       {...stackProps}
       onPress={onPress}
       onLongPress={longPressHandler}
+      disabled={!hasInteractionHandler}
     >
       {children}
     </StackComponent>
