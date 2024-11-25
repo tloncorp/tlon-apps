@@ -18,6 +18,7 @@ interface Props {
   onNotificationSettingsPressed: () => void;
   onBlockedUsersPressed: () => void;
   onManageAccountPressed: () => void;
+  onThemePressed?: () => void;
   onLogoutPressed?: () => void;
   onSendBugReportPressed?: () => void;
   onExperimentalFeaturesPressed?: () => void;
@@ -112,6 +113,12 @@ export function ProfileScreenView(props: Props) {
               onPress={props.onManageAccountPressed}
             />
           )}
+          <ProfileAction
+            title="Theme"
+            leftIcon="ChannelGalleries"
+            rightIcon={'ChevronRight'}
+            onPress={props.onThemePressed}
+          />
           <ProfileAction
             title="App info"
             leftIcon="Info"

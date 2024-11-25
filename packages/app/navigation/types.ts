@@ -42,6 +42,7 @@ export type RootStackParamList = {
   };
   GroupSettings: NavigatorScreenParams<GroupSettingsStackParamList>;
   AppSettings: undefined;
+  Theme: undefined;
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BlockedUsers: undefined;
