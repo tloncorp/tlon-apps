@@ -528,7 +528,6 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
         contactIds: update.ships,
         roleIds: update.roles,
       });
-      console.log(`user role removal`, update.groupId);
       await syncGroup(update.groupId);
       await syncUnreads();
       break;
