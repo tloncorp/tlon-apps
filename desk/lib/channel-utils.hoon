@@ -680,18 +680,12 @@
 ++  compile
   |=  src=@t
   ^-  (each vase tang)
-  ~&  %a
   =/  tonk=(each vase tang)
-    ~&  %b
     =/  vex=(like hoon)  ((full vest) [0 0] (trip src))
-    ~&  %c
     ?~  q.vex  |+~[leaf+"\{{<p.p.vex>} {<q.p.vex>}}" 'syntax error']
-    ~&  %d
     %-  mule
     |.((slap subject p.u.q.vex))
-  ~&  %e
   ~&  "parsed hoon: {<-.tonk>}"
-  ~&  %f
   ?:  ?=(%| -.tonk)
     %-  (slog 'returning error' p.tonk)
     tonk
@@ -707,6 +701,5 @@
   ~&  "{(trip name.hook)} hook run:"
   ~&  outcome
   ?:  ?=(%.y -.outcome)  `p.outcome
-  ~&  "hook failed:"
-  ((slog p.outcome) ~)
+  ((slog 'hook failed:' p.outcome) ~)
 --
