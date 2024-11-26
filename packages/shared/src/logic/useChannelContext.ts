@@ -1,20 +1,24 @@
-import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
-import * as urbit from '@tloncorp/shared/urbit';
-import { JSONContent } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useFeatureFlag } from '../lib/featureFlags';
-import storage from '../lib/storage';
+import * as db from '../db';
+import { useStorageUnsafelyUnwrapped } from '../storage';
+import * as store from '../store';
+import * as urbit from '../urbit';
+import { JSONContent } from '../urbit';
 
 export const useChannelContext = ({
   channelId,
   draftKey,
+  isChannelSwitcherEnabled,
 }: {
   channelId: string;
   draftKey: string;
-  uploaderKey: string;
+
+  // need to populate this from feature flags :(
+  isChannelSwitcherEnabled: boolean;
 }) => {
+  const storage = useStorageUnsafelyUnwrapped();
+
   // Model context
   const channelQuery = store.useChannelWithRelations({
     id: channelId,
@@ -72,7 +76,7 @@ export const useChannelContext = ({
   const getDraft = useCallback(
     async (draftType?: GalleryDraftType) => {
       try {
-        const draft = await storage.load({
+        const draft = await storage.load<JSONContent>({
           key: `draft-${draftKey}${draftType ? `-${draftType}` : ''}`,
         });
         return draft;
@@ -80,7 +84,7 @@ export const useChannelContext = ({
         return null;
       }
     },
-    [draftKey]
+    [storage, draftKey]
   );
 
   const storeDraft = useCallback(
@@ -94,7 +98,7 @@ export const useChannelContext = ({
         return;
       }
     },
-    [draftKey]
+    [storage, draftKey]
   );
 
   const clearDraft = useCallback(
@@ -107,12 +111,8 @@ export const useChannelContext = ({
         return;
       }
     },
-    [draftKey]
+    [storage, draftKey]
   );
-
-  // Contacts
-
-  const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   return {
     negotiationStatus,
