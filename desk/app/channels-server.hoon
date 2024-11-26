@@ -339,7 +339,7 @@
                 cor(pimp `|+egg-any)
     ==
   ::
-      %hooks-action-0
+      %hook-action-0
     =+  !<(=action:h vase)
     ?-  -.action
         %add
@@ -417,7 +417,7 @@
       [%v0 %hooks ~]  cor
   ::
       [%v0 %hooks %full ~]
-    =.  cor  (give %fact ~ hooks-full+!>(hooks))
+    =.  cor  (give %fact ~ hook-full+!>(hooks))
     (give %kick ~ ~)
   ::
       [=kind:c name=@ %create ~]
@@ -528,7 +528,7 @@
     [%v0 +.pole]
   ?+  pole  [~ ~]
       [%x %v0 %hooks ~]
-    ``hooks-full+!>(hooks)
+    ``hook-full+!>(hooks)
   ==
 ::
 ++  arvo
@@ -1024,7 +1024,7 @@
 ++  give-hook-response
   |=  =response:h
   ^+  cor
-  (give %fact ~[/hooks/v0] hooks-response-0+!>(response))
+  (give %fact ~[/hooks/v0] hook-response-0+!>(response))
 ++  ho-core
   |_  [=id:h =hook:h gone=_|]
   ++  ho-core  .
