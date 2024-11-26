@@ -202,22 +202,12 @@ export function ChatListScreenView({
     if (item.isPending) {
       return;
     }
-
     setLongPressedChat(item);
-
-    if (item.type === 'channel') {
-      chatOptionsSheetRef.current?.open(
-        item.channel.id,
-        item.channel.type,
-        item.channel.unread?.count
-      );
-    } else {
-      chatOptionsSheetRef.current?.open(
-        item.group.id,
-        'group',
-        item.group.unread?.count ?? undefined
-      );
-    }
+    chatOptionsSheetRef.current?.open(
+      item.id,
+      item.type === 'channel' ? item.channel.type : 'group',
+      item.unreadCount
+    );
   }, []);
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {

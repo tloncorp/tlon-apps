@@ -1,7 +1,7 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import Fuse from 'fuse.js';
-import { debounce, get } from 'lodash';
+import { debounce } from 'lodash';
 import React, {
   useCallback,
   useEffect,
