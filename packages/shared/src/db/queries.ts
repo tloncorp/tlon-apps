@@ -3358,7 +3358,10 @@ export const getAllOrRepliesPage = createReadQuery(
         .where(
           and(
             eq($activityEvents.bucketId, bucket),
-            eq($activityEvents.shouldNotify, true),
+            or(
+              eq($activityEvents.shouldNotify, true),
+              eq($activityEvents.type, 'contact')
+            ),
             lt($activityEvents.timestamp, resolvedCursor),
             bucket === 'all'
               ? gt($activityEvents.timestamp, 0) // noop
@@ -3385,7 +3388,10 @@ export const getAllOrRepliesPage = createReadQuery(
         .from($activityEvents)
         .where(
           and(
-            eq($activityEvents.shouldNotify, true),
+            or(
+              eq($activityEvents.shouldNotify, true),
+              eq($activityEvents.type, 'contact')
+            ),
             eq($activityEvents.bucketId, bucket)
           )
         )
