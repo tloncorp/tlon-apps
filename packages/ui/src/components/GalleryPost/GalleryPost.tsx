@@ -17,6 +17,7 @@ import {
   PostContent,
   usePostContent,
 } from '../PostContent/contentUtils';
+import Pressable from '../Pressable';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { Text } from '../TextV2';
 
@@ -76,50 +77,48 @@ export function GalleryPost({
   }
 
   return (
-    <GalleryPostFrame
-      onPress={handlePress}
-      onLongPress={handleLongPress}
-      {...props}
-    >
-      <GalleryContentRenderer post={post} pointerEvents="none" size="$s" />
-      {showAuthor && !post.hidden && !post.isDeleted && (
-        <View
-          position="absolute"
-          bottom={0}
-          left={0}
-          right={0}
-          width="100%"
-          pointerEvents="none"
-        >
-          <XStack alignItems="center" gap="$xl" padding="$m" {...props}>
-            <ContactAvatar size="$2xl" contactId={post.authorId} />
-            {deliveryFailed && (
-              <Text
-                // applying some shadow here because we could be rendering it
-                // on top of an image
-                shadowOffset={{
-                  width: 0,
-                  height: 1,
-                }}
-                shadowOpacity={0.8}
-                shadowColor="$redSoft"
-                color="$negativeActionText"
-                size="$label/s"
-              >
-                Tap to retry
-              </Text>
-            )}
-          </XStack>
-        </View>
-      )}
-      <SendPostRetrySheet
-        open={showRetrySheet}
-        onOpenChange={setShowRetrySheet}
-        post={post}
-        onPressDelete={handleDeletePressed}
-        onPressRetry={handleRetryPressed}
-      />
-    </GalleryPostFrame>
+    <Pressable onPress={handlePress} onLongPress={handleLongPress}>
+      <GalleryPostFrame {...props}>
+        <GalleryContentRenderer post={post} pointerEvents="none" size="$s" />
+        {showAuthor && !post.hidden && !post.isDeleted && (
+          <View
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            width="100%"
+            pointerEvents="none"
+          >
+            <XStack alignItems="center" gap="$xl" padding="$m" {...props}>
+              <ContactAvatar size="$2xl" contactId={post.authorId} />
+              {deliveryFailed && (
+                <Text
+                  // applying some shadow here because we could be rendering it
+                  // on top of an image
+                  shadowOffset={{
+                    width: 0,
+                    height: 1,
+                  }}
+                  shadowOpacity={0.8}
+                  shadowColor="$redSoft"
+                  color="$negativeActionText"
+                  size="$label/s"
+                >
+                  Tap to retry
+                </Text>
+              )}
+            </XStack>
+          </View>
+        )}
+        <SendPostRetrySheet
+          open={showRetrySheet}
+          onOpenChange={setShowRetrySheet}
+          post={post}
+          onPressDelete={handleDeletePressed}
+          onPressRetry={handleRetryPressed}
+        />
+      </GalleryPostFrame>
+    </Pressable>
   );
 }
 
