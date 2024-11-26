@@ -734,6 +734,7 @@
         %add
       ~&  "adding post"
       ?>  |(=(src.bowl our.bowl) =(src.bowl author.essay.c-post))
+      ?>  =(kind.nest -.kind-data.essay.c-post)
       =/  id=id-post:c
         |-
         =/  post  (get:on-v-posts:c posts.channel now.bowl)
