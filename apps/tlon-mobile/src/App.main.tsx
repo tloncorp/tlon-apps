@@ -52,10 +52,6 @@ const App = () => {
     return signupContext.email || signupContext.phoneNumber;
   }, [signupContext.email, signupContext.phoneNumber]);
 
-  const currentlyOnboarding = useMemo(() => {
-    return signupContext.email || signupContext.phoneNumber;
-  }, [signupContext.email, signupContext.phoneNumber]);
-
   usePreloadedEmojis();
 
   useEffect(() => {
