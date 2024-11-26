@@ -1,4 +1,5 @@
 /-  h=hooks, c=channels
+/+  hj=hooks-json
 |_  =action:h
 ++  grad  %noun
 ++  grow
@@ -8,5 +9,6 @@
 ++  grab
   |%
   ++  noun  action:h
+  ++  json  action:dejs:hj
   --
 --

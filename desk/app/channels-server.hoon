@@ -2,9 +2,10 @@
 ::
 ::    this is the server-side from which /app/channels gets its data.
 ::
-/-  c=channels, g=groups, h=hooks
+/-  c=channels, g=groups, h=hooks, m=meta
 /+  utils=channel-utils, imp=import-aid
 /+  default-agent, verb, dbug, neg=negotiate
+/+  hj=hooks-json
 ::
 %-  %-  agent:neg
     [| [~.channels^%1 ~ ~] ~]
@@ -57,7 +58,7 @@
       abet:(watch:cor path)
     [cards this]
   ::
-  ++  on-peek    on-peek:def
+  ++  on-peek    peek:cor
   ++  on-leave   on-leave:def
   ++  on-fail    on-fail:def
   ++  on-agent
@@ -338,14 +339,14 @@
                 cor(pimp `|+egg-any)
     ==
   ::
-      %hook-action-0
+      %hooks-action-0
     =+  !<(=action:h vase)
     ?-  -.action
         %add
       ho-abet:(ho-add:ho-core [name src]:action)
     ::
         %edit
-      ho-abet:(ho-edit:(ho-abed:ho-core id.action) [name src]:action)
+      ho-abet:(ho-edit:(ho-abed:ho-core id.action) +.+.action)
     ::
         %del
       ho-abet:ho-del:(ho-abed:ho-core id.action)
@@ -413,7 +414,11 @@
   ^+  cor
   ~|  watch-path=`path`pole
   ?+    pole  ~|(%bad-watch-path !!)
-      [%hooks %v0 ~]  cor
+      [%v0 %hooks ~]  cor
+  ::
+      [%v0 %hooks %full ~]
+    =.  cor  (give %fact ~ hooks-full+!>(hooks))
+    (give %kick ~ ~)
   ::
       [=kind:c name=@ %create ~]
     ?>  =(our src):bowl
@@ -514,6 +519,16 @@
         %poke-ack
       cor
     ==
+  ==
+::
+++  peek
+  |=  =(pole knot)
+  ^-  (unit (unit cage))
+  =?  +.pole  !?=([%v0 *] +.pole)
+    [%v0 +.pole]
+  ?+  pole  [~ ~]
+      [%x %v0 %hooks ~]
+    ``hooks-full+!>(hooks)
   ==
 ::
 ++  arvo
@@ -1009,7 +1024,7 @@
 ++  give-hook-response
   |=  =response:h
   ^+  cor
-  (give %fact ~[/hooks/v0] hook-response-0+!>(response))
+  (give %fact ~[/hooks/v0] hooks-response-0+!>(response))
 ++  ho-core
   |_  [=id:h =hook:h gone=_|]
   ++  ho-core  .
@@ -1039,16 +1054,17 @@
       ?:  ?=(%| -.result)
         ((slog 'compilation result:' p.result) ~)
       `p.result
-    =.  hook  [id name %0 src compiled !>(~) ~]
+    =.  hook  [id %0 name *data:m src compiled !>(~) ~]
     =.  cor
       =/  error=(unit tang)
         ?:(?=(%& -.result) ~ `p.result)
-      (give-hook-response [%set id name src error])
+      (give-hook-response [%set id name src meta.hook error])
     ho-core
   ++  ho-edit
-    |=  [name=@t src=@t]
-    =.  src.hook  src
-    =.  name.hook  name
+    |=  [name=(unit @t) src=(unit @t) meta=(unit data:m)]
+    =?  src.hook  ?=(^ src)  u.src
+    =?  name.hook  ?=(^ name)  u.name
+    =?  meta.hook  ?=(^ meta)  u.meta
     =/  result=(each vase tang)
       (compile:utils src.hook)
     =.  compiled.hook
@@ -1057,7 +1073,8 @@
     =.  cor
       =/  error=(unit tang)
         ?:(?=(%& -.result) ~ `p.result)
-      (give-hook-response [%set id name src error])
+      %-  give-hook-response
+      [%set id name.hook src.hook meta.hook error]
     ho-core
   ::
   ++  ho-del

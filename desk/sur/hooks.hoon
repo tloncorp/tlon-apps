@@ -1,4 +1,4 @@
-/-  *channels, g=groups, a=activity, ch=chat, co=contacts
+/-  *channels, g=groups, a=activity, ch=chat, co=contacts, m=meta
 |%
 ::  $id: a unique identifier for a hook
 +$  id  @uv
@@ -15,8 +15,9 @@
 ::
 ++  hook
   $:  =id
-      name=@t
       version=%0
+      name=@t
+      meta=data:m
       src=@t
       compiled=(unit vase)
       state=vase
@@ -50,7 +51,7 @@
 +$  config  (map @t *)
 +$  action
   $%  [%add name=@t src=@t]
-      [%edit =id name=@t src=@t]
+      [%edit =id name=(unit @t) src=(unit @t) meta=(unit data:m)]
       [%del =id]
       [%order =nest seq=(list id)]
       [%config =id =nest =config]
@@ -58,7 +59,7 @@
       [%rest =id =origin]
   ==
 +$  response
-  $%  [%set =id name=@t src=@t error=(unit tang)]
+  $%  [%set =id name=@t src=@t meta=data:m error=(unit tang)]
       [%gone =id]
       [%order =nest seq=(list id)]
       [%config =id =nest =config]
@@ -168,4 +169,5 @@
       [%contacts =action:co]
       [%wait delayed-hook]
   ==
+::
 --

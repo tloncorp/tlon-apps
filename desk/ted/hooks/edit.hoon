@@ -1,14 +1,14 @@
-/-  spider, h=hooks
+/-  spider, h=hooks, m=meta
 /+  s=strandio
 =,  strand=strand:spider
 ^-  thread:spider
 |=  arg=vase
 =/  m  (strand ,vase)
 ^-  form:m
-=+  !<([~ =id:h name=@t src=@t] arg)
+=+  !<([~ =id:h name=(unit @t) src=(unit @t) meta=(unit data:m)] arg)
 ;<  our=@p  bind:m  get-our:s
 ;<  ~  bind:m  (watch:s /responses [our %channels-server] /hooks/v0)
-=/  =cage  hook-action-0+!>(`action:h`[%edit id name src])
+=/  =cage  hook-action-0+!>(`action:h`[%edit id name src meta])
 ;<  ~  bind:m  (poke-our:s %channels-server cage)
 ;<  =^cage  bind:m  (take-fact:s /responses)
 ?>  ?=(%hook-response-0 p.cage)
