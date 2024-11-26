@@ -94,7 +94,6 @@ export function ActivityScreen(props: Props) {
         navigateToContacts={() => props.navigation.navigate('Contacts')}
         navigateToHome={() => props.navigation.navigate('ChatList')}
         navigateToNotifications={() => props.navigation.navigate('Activity')}
-        navigateToProfileSettings={() => props.navigation.navigate('Profile')}
         currentRoute="Activity"
         currentUserId={currentUserId}
         showContactsTab={contactsTabEnabled}

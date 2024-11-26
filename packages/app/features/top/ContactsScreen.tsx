@@ -9,13 +9,11 @@ import {
   View,
   getDisplayName,
   isWeb,
-  triggerHaptic,
 } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Contacts'>;
@@ -25,7 +23,6 @@ export default function ContactsScreen(props: Props) {
     navigation: { navigate },
   } = props;
 
-  const [contactsTabEnabled] = useFeatureFlag('contactsTab');
   const currentUser = useCurrentUserId();
 
   const { data: userContacts } = store.useUserContacts();
@@ -64,26 +61,18 @@ export default function ContactsScreen(props: Props) {
     }
   }, []);
 
-  const backAction = useCallback(() => {
-    triggerHaptic('baseButtonClick');
-    navigate('ChatList');
-  }, [navigate]);
-
   return (
     <AppDataContextProvider contacts={contacts} currentUserId={currentUser}>
       <View flex={1}>
         <ScreenHeader
           title="Contacts"
-          backAction={contactsTabEnabled ? undefined : backAction}
           rightControls={
-            contactsTabEnabled ? (
-              <ScreenHeader.IconButton
-                type="Settings"
-                onPress={() => {
-                  navigate('Profile');
-                }}
-              />
-            ) : undefined
+            <ScreenHeader.IconButton
+              type="Settings"
+              onPress={() => {
+                navigate('Profile');
+              }}
+            />
           }
         />
         <ContactsScreenView
@@ -102,12 +91,8 @@ export default function ContactsScreen(props: Props) {
           navigateToNotifications={() => {
             navigate('Activity');
           }}
-          navigateToProfileSettings={() => {
-            navigate('Profile');
-          }}
           currentRoute="Contacts"
           currentUserId={currentUser}
-          showContactsTab={contactsTabEnabled}
         />
       </View>
     </AppDataContextProvider>

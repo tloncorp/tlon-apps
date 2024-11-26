@@ -22,7 +22,6 @@ import {
   ScreenHeader,
   View,
   WelcomeSheet,
-  triggerHaptic,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -55,7 +54,6 @@ export function ChatListScreenView({
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
-  const [contactsTabEnabled] = useFeatureFlag('contactsTab');
   const [longPressedChat, setLongPressedChat] = useState<
     db.Channel | db.Group | null
   >(null);
@@ -291,11 +289,6 @@ export function ChatListScreenView({
     setShowSearchInput(!showSearchInput);
   }, [showSearchInput]);
 
-  const goToContacts = useCallback(() => {
-    triggerHaptic('baseButtonClick');
-    navigation.navigate('Contacts');
-  }, [navigation]);
-
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
       performGroupAction(action, group);
@@ -324,14 +317,6 @@ export function ChatListScreenView({
         <View flex={1}>
           <ScreenHeader
             title={notReadyMessage ?? screenTitle}
-            leftControls={
-              contactsTabEnabled ? undefined : (
-                <ScreenHeader.IconButton
-                  type="ChannelMultiDM"
-                  onPress={goToContacts}
-                />
-              )
-            }
             rightControls={
               <>
                 <ScreenHeader.IconButton
@@ -390,12 +375,8 @@ export function ChatListScreenView({
           navigateToNotifications={() => {
             navigation.navigate('Activity');
           }}
-          navigateToProfileSettings={() => {
-            navigation.navigate('Profile');
-          }}
           currentRoute="ChatList"
           currentUserId={currentUser}
-          showContactsTab={contactsTabEnabled}
         />
       </ChatOptionsProvider>
 

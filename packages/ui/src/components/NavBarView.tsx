@@ -9,15 +9,12 @@ import ProfileStatusSheet from './ProfileStatusSheet';
 export const NavBarView = ({
   navigateToHome,
   navigateToNotifications,
-  navigateToProfileSettings,
   navigateToContacts,
   currentRoute,
   currentUserId,
-  showContactsTab,
 }: {
   navigateToHome: () => void;
   navigateToNotifications: () => void;
-  navigateToProfileSettings: () => void;
   navigateToContacts?: () => void;
   currentRoute: string;
   currentUserId: string;
@@ -59,11 +56,7 @@ export const NavBarView = ({
       <NavIcon
         type="Home"
         activeType="HomeFilled"
-        isActive={isRouteActive(
-          showContactsTab ? 'ChatList' : ['ChatList', 'Contacts']
-        )}
-        // hasUnreads={(unreadCount?.channels ?? 0) > 0}
-        // intentionally leave undotted for now
+        isActive={isRouteActive('ChatList')}
         hasUnreads={false}
         onPress={navigateToHome}
       />
@@ -74,21 +67,12 @@ export const NavBarView = ({
         isActive={isRouteActive('Activity')}
         onPress={navigateToNotifications}
       />
-      {showContactsTab ? (
-        <NavIcon
-          type="ChannelNotebooks"
-          activeType="ChannelNotebooks"
-          isActive={isRouteActive('Contacts')}
-          onPress={navigateToContacts}
-        />
-      ) : (
-        <AvatarNavIcon
-          id={currentUserId}
-          focused={isRouteActive('Profile')}
-          onPress={navigateToProfileSettings}
-          onLongPress={openStatusSheet}
-        />
-      )}
+      <AvatarNavIcon
+        id={currentUserId}
+        focused={isRouteActive('Contacts')}
+        onPress={navigateToContacts}
+        onLongPress={openStatusSheet}
+      />
       {showStatusSheet && (
         <ProfileStatusSheet
           open={showStatusSheet}

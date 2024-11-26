@@ -18,7 +18,6 @@ export default function ProfileScreen(props: Props) {
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const currentUserId = useCurrentUserId();
-  const [contactsTabEnabled] = useFeatureFlag('contactsTab');
   const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
   const navigationRef = useMutableRef(props.navigation);
@@ -51,22 +50,6 @@ export default function ProfileScreen(props: Props) {
     navigationRef.current.navigate('WompWomp');
   }, [navigationRef]);
 
-  const onNavigateToHome = useCallback(() => {
-    navigationRef.current.navigate('ChatList');
-  }, [navigationRef]);
-
-  const onNavigateToNotifications = useCallback(() => {
-    navigationRef.current.navigate('Activity');
-  }, [navigationRef]);
-
-  const onNavigateToProfileSettings = useCallback(() => {
-    navigationRef.current.navigate('Profile');
-  }, [navigationRef]);
-
-  const onNavigateToContacts = useCallback(() => {
-    navigationRef.current.navigate('Contacts');
-  }, [navigationRef]);
-
   const onBack = useCallback(() => {
     navigationRef.current.goBack();
   }, [navigationRef]);
@@ -85,20 +68,8 @@ export default function ProfileScreen(props: Props) {
         onManageAccountPressed={onManageAccountPressed}
         onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
         dmLink={dmLink}
-        contactsTabEnabled={contactsTabEnabled}
         onBackPressed={onBack}
       />
-      {contactsTabEnabled ? null : (
-        <NavBarView
-          navigateToContacts={onNavigateToContacts}
-          navigateToHome={onNavigateToHome}
-          navigateToNotifications={onNavigateToNotifications}
-          navigateToProfileSettings={onNavigateToProfileSettings}
-          currentRoute="Profile"
-          currentUserId={currentUserId}
-          showContactsTab={contactsTabEnabled}
-        />
-      )}
     </View>
   );
 }
