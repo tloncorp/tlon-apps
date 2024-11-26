@@ -700,7 +700,7 @@
   =/  gate  [p.u.compiled.hook .*(q:subject q.u.compiled.hook)]
   =+  !<(=outcome:h (slam gate !>(args)))
   %-  (slog (crip "{(trip name.hook)} {<id.hook>} hook run:") ~)
-  %-  (slog (crip "{<outcome>}") ~)
+  %-  (slog >outcome< ~)
   ?:  ?=(%.y -.outcome)  `p.outcome
   ((slog 'hook failed:' p.outcome) ~)
 --
