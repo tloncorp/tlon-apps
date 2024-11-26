@@ -398,6 +398,22 @@ export const useGroupPreview = (groupId: string) => {
   });
 };
 
+export const useUserContacts = () => {
+  const deps = useKeyFromQueryDeps(db.getUserContacts);
+  return useQuery({
+    queryKey: ['userContacts', deps],
+    queryFn: () => db.getUserContacts(),
+  });
+};
+
+export const useSuggestedContacts = () => {
+  const deps = useKeyFromQueryDeps(db.getSuggestedContacts);
+  return useQuery({
+    queryKey: ['suggestedContacts', deps],
+    queryFn: () => db.getSuggestedContacts(),
+  });
+};
+
 export const useChannelPreview = ({ id }: { id: string }) => {
   return useQuery({
     queryKey: ['channelPreview', id],

@@ -1,3 +1,4 @@
+// tamagui-ignore
 import { Circle, ColorTokens, isWeb } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
@@ -9,15 +10,18 @@ export function AvatarNavIcon({
   id,
   focused,
   onPress,
+  onLongPress,
 }: {
   id: string;
   focused: boolean;
   onPress?: () => void;
+  onLongPress?: () => void;
 }) {
   return (
     <Pressable
       flex={1}
       onPress={onPress}
+      onLongPress={onLongPress}
       alignItems="center"
       paddingTop={'$s'}
       pressStyle={{ backgroundColor: 'unset' }}

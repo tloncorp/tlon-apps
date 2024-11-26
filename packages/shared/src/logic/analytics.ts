@@ -7,5 +7,7 @@ export enum AnalyticsEvent {
   LoggedInBeforeSignup = 'Logged In Without Signing Up',
   FailedSignupOTP = 'Failed to send Signup OTP',
   FailedLoginOTP = 'Failed to send Login OTP',
+  ContactAdded = 'Contact Added',
+  ContactEdited = 'Contact Edited',
   InvitedUserFailedInventoryCheck = 'Invited User Failed Inventory Check',
 }

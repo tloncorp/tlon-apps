@@ -7,6 +7,8 @@ import { useCallback, useMemo } from 'react';
 
 // import ErrorBoundary from '../../ErrorBoundary';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useGroupActions } from '../../hooks/useGroupActions';
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
 import { screenNameFromChannelId } from '../../navigation/utils';
 
@@ -15,6 +17,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
 export function ActivityScreen(props: Props) {
   const isFocused = useIsFocused();
   const currentUserId = useCurrentUserId();
+  const [contactsTabEnabled] = useFeatureFlag('contactsTab');
+  const { performGroupAction } = useGroupActions();
 
   const allFetcher = store.useInfiniteBucketedActivity('all');
   const mentionsFetcher = store.useInfiniteBucketedActivity('mentions');
@@ -67,6 +71,13 @@ export function ActivityScreen(props: Props) {
     [props.navigation]
   );
 
+  const handleGoToUserProfile = useCallback(
+    (userId: string) => {
+      props.navigation.navigate('UserProfile', { userId });
+    },
+    [props.navigation]
+  );
+
   return (
     <View backgroundColor="$background" flex={1}>
       <ActivityScreenView
@@ -75,14 +86,17 @@ export function ActivityScreen(props: Props) {
         goToChannel={handleGoToChannel}
         goToThread={handleGoToThread}
         goToGroup={handleGoToGroup}
+        goToUserProfile={handleGoToUserProfile}
         refresh={handleRefreshActivity}
+        onGroupAction={performGroupAction}
       />
       <NavBarView
+        navigateToContacts={() => props.navigation.navigate('Contacts')}
         navigateToHome={() => props.navigation.navigate('ChatList')}
         navigateToNotifications={() => props.navigation.navigate('Activity')}
-        navigateToProfileSettings={() => props.navigation.navigate('Profile')}
         currentRoute="Activity"
         currentUserId={currentUserId}
+        showContactsTab={contactsTabEnabled}
       />
     </View>
   );

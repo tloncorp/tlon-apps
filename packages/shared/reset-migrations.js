@@ -23,17 +23,19 @@ if (shouldWatch) {
   );
 }
 
-function reset() {
+async function reset() {
   console.log('checking for schema changes');
   // Bail if nothing has changed
   const initialGenerateResult = spawnSync('pnpm', [
     'exec',
     'drizzle-kit',
-    'generate:sqlite',
+    'generate',
     '--config',
     './drizzle.config.ts',
   ]);
-  if (initialGenerateResult.stdout.toString().includes('No schema changes')) {
+
+  const output = initialGenerateResult.stdout.toString();
+  if (output.includes('No schema changes')) {
     console.log('No schema changes detected');
     return;
   }
@@ -59,7 +61,7 @@ function reset() {
   spawnSync('pnpm', [
     'exec',
     'drizzle-kit',
-    'generate:sqlite',
+    'generate',
     '--config',
     './drizzle.config.ts',
   ]);

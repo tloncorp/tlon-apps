@@ -46,6 +46,7 @@ import {
   withTransactionCtx,
 } from './query';
 import {
+  activityEventContactGroups as $activityEventContactGroups,
   activityEvents as $activityEvents,
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
@@ -432,6 +433,7 @@ export const getChats = createReadQuery(
     'groups',
     'channels',
     'posts',
+    'contacts',
     'channelUnreads',
     'groupUnreads',
     'threadUnreads',
@@ -2820,6 +2822,67 @@ export const updateContact = createWriteQuery(
   ['contacts']
 );
 
+export const upsertContact = createWriteQuery(
+  'upsertContact',
+  async (contact: Contact, ctx: QueryCtx) => {
+    const existingContact = await ctx.db.query.contacts.findFirst({
+      where: (contacts, { eq }) => eq(contacts.id, contact.id),
+    });
+
+    if (existingContact) {
+      return ctx.db
+        .update($contacts)
+        .set(contact)
+        .where(eq($contacts.id, contact.id));
+    }
+
+    // for new inserts, default to non contact if unspecified
+    const newContact: Contact = {
+      ...contact,
+      isContact: contact.isContact !== undefined ? contact.isContact : false,
+    };
+    return ctx.db.insert($contacts).values(newContact);
+  },
+  ['contacts']
+);
+
+export const getUserContacts = createReadQuery(
+  'getUserContacts',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.contacts.findMany({
+      where: and(eq($contacts.isContact, true)),
+      with: {
+        pinnedGroups: {
+          with: {
+            group: true,
+          },
+        },
+      },
+    });
+  },
+  ['contacts']
+);
+
+export const getSuggestedContacts = createReadQuery(
+  'getSuggestedContacts',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.contacts.findMany({
+      where: and(
+        eq($contacts.isContact, false),
+        eq($contacts.isContactSuggestion, true)
+      ),
+      with: {
+        pinnedGroups: {
+          with: {
+            group: true,
+          },
+        },
+      },
+    });
+  },
+  ['contacts']
+);
+
 export const addPinnedGroup = createWriteQuery(
   'addPinnedGroup',
   async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
@@ -2840,6 +2903,25 @@ export const removePinnedGroup = createWriteQuery(
       contactId: currentUserId,
       groupId,
     });
+  },
+  ['contactGroups', 'contacts']
+);
+
+export const setPinnedGroups = createWriteQuery(
+  'setPinnedGroups',
+  async ({ groupIds }: { groupIds: string[] }, ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    await ctx.db
+      .delete($contactGroups)
+      .where(eq($contactGroups.contactId, currentUserId));
+
+    if (groupIds.length !== 0) {
+      const newGroups = groupIds.map((groupId) => ({
+        contactId: currentUserId,
+        groupId,
+      }));
+      await ctx.db.insert($contactGroups).values(newGroups);
+    }
   },
   ['contactGroups', 'contacts']
 );
@@ -3067,14 +3149,47 @@ export const clearThreadUnread = createWriteQuery(
 export const insertActivityEvents = createWriteQuery(
   'insertActivityEvents',
   async (events: ActivityEvent[], ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
     if (events.length === 0) return;
-    return ctx.db
-      .insert($activityEvents)
-      .values(events)
-      .onConflictDoUpdate({
-        target: [$activityEvents.id, $activityEvents.bucketId],
-        set: conflictUpdateSetAll($activityEvents),
-      });
+
+    const activityEventGroups = events.flatMap(
+      (contact) => contact.contactUpdateGroups || []
+    );
+
+    const targetGroups = activityEventGroups.map((g): Group => {
+      const { host: hostUserId } = parseGroupId(g.groupId);
+      return {
+        id: g.groupId,
+        hostUserId,
+        privacy: g.group?.privacy,
+        currentUserIsMember: false,
+        currentUserIsHost: currentUserId === hostUserId,
+      };
+    });
+
+    await withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .insert($activityEvents)
+        .values(events)
+        .onConflictDoUpdate({
+          target: [$activityEvents.id, $activityEvents.bucketId],
+          set: conflictUpdateSetAll($activityEvents),
+        });
+
+      if (targetGroups.length) {
+        await txCtx.db
+          .insert($groups)
+          .values(targetGroups)
+          .onConflictDoNothing();
+      }
+
+      if (activityEventGroups.length) {
+        await txCtx.db
+          .insert($activityEventContactGroups)
+          .values(activityEventGroups)
+          .onConflictDoNothing();
+      }
+    });
   },
   ['activityEvents']
 );
@@ -3243,7 +3358,10 @@ export const getAllOrRepliesPage = createReadQuery(
         .where(
           and(
             eq($activityEvents.bucketId, bucket),
-            eq($activityEvents.shouldNotify, true),
+            or(
+              eq($activityEvents.shouldNotify, true),
+              eq($activityEvents.type, 'contact')
+            ),
             lt($activityEvents.timestamp, resolvedCursor),
             bucket === 'all'
               ? gt($activityEvents.timestamp, 0) // noop
@@ -3270,7 +3388,10 @@ export const getAllOrRepliesPage = createReadQuery(
         .from($activityEvents)
         .where(
           and(
-            eq($activityEvents.shouldNotify, true),
+            or(
+              eq($activityEvents.shouldNotify, true),
+              eq($activityEvents.type, 'contact')
+            ),
             eq($activityEvents.bucketId, bucket)
           )
         )
@@ -3318,6 +3439,11 @@ export const getAllOrRepliesPage = createReadQuery(
               },
             },
             groupEventUser: true,
+            contactUpdateGroups: {
+              with: {
+                group: true,
+              },
+            },
           },
         });
       } else {
@@ -3485,6 +3611,7 @@ function conflictUpdateSetAll(table: Table, exclude?: string[]) {
   return conflictUpdateSet(
     ...Object.entries(columns)
       .filter(([k]) => !exclude?.includes(k))
+      .filter(([_, c]) => c.generated === undefined)
       .map(([_, v]) => v)
   );
 }

@@ -7,6 +7,7 @@ import type { Config } from 'drizzle-kit';
 // we need project-specific configs to support other db functionality, we can
 // add those separately.
 export default {
+  dialect: 'sqlite',
   schema: './src/db/schema.ts',
   out: './src/db/migrations',
   driver: 'expo',

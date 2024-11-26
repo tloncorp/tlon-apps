@@ -9,6 +9,7 @@ import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
 import { getHostingToken, getHostingUserId } from '../../utils/hosting';
 
@@ -50,16 +51,8 @@ export default function ProfileScreen(props: Props) {
     navigationRef.current.navigate('WompWomp');
   }, [navigationRef]);
 
-  const onNavigateToHome = useCallback(() => {
-    navigationRef.current.navigate('ChatList');
-  }, [navigationRef]);
-
-  const onNavigateToNotifications = useCallback(() => {
-    navigationRef.current.navigate('Activity');
-  }, [navigationRef]);
-
-  const onNavigateToProfileSettings = useCallback(() => {
-    navigationRef.current.navigate('Profile');
+  const onBack = useCallback(() => {
+    navigationRef.current.goBack();
   }, [navigationRef]);
 
   const onThemePressed = useCallback(() => {
@@ -83,13 +76,7 @@ export default function ProfileScreen(props: Props) {
         onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
         onThemePressed={onThemePressed}
         dmLink={dmLink}
-      />
-      <NavBarView
-        navigateToHome={onNavigateToHome}
-        navigateToNotifications={onNavigateToNotifications}
-        navigateToProfileSettings={onNavigateToProfileSettings}
-        currentRoute="Profile"
-        currentUserId={currentUserId}
+        onBackPressed={onBack}
       />
     </View>
   );

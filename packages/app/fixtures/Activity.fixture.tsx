@@ -47,6 +47,7 @@ const ActivityFixture = ({
         {...baseContentProps}
         events={items}
         seenMarker={Date.now()}
+        onGroupAction={() => {}}
       />
     </ActivityFixtureWrapper>
   );

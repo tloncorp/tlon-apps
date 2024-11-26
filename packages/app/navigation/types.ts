@@ -1,6 +1,8 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
 export type RootStackParamList = {
+  Contacts: undefined;
+  Empty: undefined;
   ChatList: { previewGroupId: string } | undefined;
   Activity: undefined;
   Profile: undefined;
@@ -51,7 +53,9 @@ export type RootStackParamList = {
   UserProfile: {
     userId: string;
   };
-  EditProfile: undefined;
+  EditProfile: {
+    userId: string;
+  };
   WompWomp: undefined;
   ChannelMembers: {
     channelId: string;
