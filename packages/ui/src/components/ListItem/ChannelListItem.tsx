@@ -1,15 +1,12 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { useMemo } from 'react';
-import { View } from 'tamagui';
-import { isWeb } from 'tamagui';
+import { View, isWeb } from 'tamagui';
 
-import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
-import { Chat } from '../ChatList';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
 import { ListItem, type ListItemProps } from './ListItem';
@@ -27,7 +24,7 @@ export function ChannelListItem({
   useTypeIcon?: boolean;
   customSubtitle?: string;
   dimmed?: boolean;
-} & ListItemProps<Chat> & { model: db.Channel }) {
+} & ListItemProps<db.Channel>) {
   const unreadCount = model.unread?.count ?? 0;
   const title = utils.useChannelTitle(model);
   const firstMemberId = model.members?.[0]?.contactId ?? '';
@@ -82,7 +79,7 @@ export function ChannelListItem({
                 {subtitle}
               </ListItem.SubtitleWithIcon>
             )}
-            {model.lastPost && (
+            {model.lastPost && !model.isDmInvite && (
               <ListItem.PostPreview
                 post={model.lastPost}
                 showAuthor={model.type !== 'dm'}

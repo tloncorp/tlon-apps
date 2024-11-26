@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 
 import * as api from '../api';
 import * as db from '../db';
+import { GroupedChats } from '../db/types';
 import * as ub from '../urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import {
@@ -17,14 +18,6 @@ import {
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
-
-// Assorted small hooks for fetching data from the database.
-// Can break em out as they get bigger.
-
-export interface CurrentChats {
-  pinned: db.Channel[];
-  unpinned: db.Channel[];
-}
 
 export type CustomQueryConfig<T> = Pick<
   UseQueryOptions<T, Error, T>,
@@ -41,43 +34,13 @@ export const useAllChannels = ({ enabled }: { enabled?: boolean }) => {
 };
 
 export const useCurrentChats = (
-  queryConfig?: CustomQueryConfig<CurrentChats>
-): UseQueryResult<CurrentChats | null> => {
+  queryConfig?: CustomQueryConfig<GroupedChats>
+): UseQueryResult<GroupedChats | null> => {
   return useQuery({
     queryFn: async () => {
-      const channels = await db.getChats();
-      return { channels };
+      return db.getChats();
     },
     queryKey: ['currentChats', useKeyFromQueryDeps(db.getChats)],
-    select({ channels }) {
-      for (let i = 0; i < channels.length; ++i) {
-        if (!channels[i].pin) {
-          return {
-            pinned: channels.slice(0, i),
-            unpinned: channels.slice(i),
-          };
-        }
-      }
-      return {
-        pinned: channels,
-        unpinned: [],
-      };
-    },
-    ...queryConfig,
-  });
-};
-
-export type PendingChats = (db.Group | db.Channel)[];
-
-export const usePendingChats = (
-  queryConfig?: CustomQueryConfig<PendingChats>
-): UseQueryResult<PendingChats | null> => {
-  return useQuery({
-    queryFn: async () => {
-      const pendingChats = await db.getPendingChats();
-      return pendingChats;
-    },
-    queryKey: ['pendingChats', useKeyFromQueryDeps(db.getPendingChats)],
     ...queryConfig,
   });
 };

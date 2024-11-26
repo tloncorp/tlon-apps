@@ -43,11 +43,11 @@ export const GroupListItem = ({
             {customSubtitle && (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
             )}
-            {model.lastPost && !customSubtitle && (
+            {model.lastPost && model.channels?.length && !customSubtitle && (
               <ListItem.SubtitleWithIcon
                 icon={getPostTypeIcon(model.lastPost.type)}
               >
-                {model.lastChannel}
+                {model.channels[0].title}
               </ListItem.SubtitleWithIcon>
             )}
             {!isPending && model.lastPost ? (

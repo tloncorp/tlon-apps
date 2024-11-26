@@ -74,7 +74,7 @@ export const ChatOptionsProvider = ({
 
   const onTogglePinned = useCallback(() => {
     if (group && group.channels[0]) {
-      group.pin ? store.unpinItem(group.pin) : store.pinItem(group.channels[0]);
+      group.pin ? store.unpinItem(group.pin) : store.pinGroup(group);
     }
   }, [group]);
 

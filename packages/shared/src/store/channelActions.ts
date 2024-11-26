@@ -149,17 +149,32 @@ export async function updateChannel({
   }
 }
 
-export async function pinItem(channel: db.Channel) {
-  // optimistic update
-  const partialPin = logic.getPinPartial(channel);
-  db.insertPinnedItem(partialPin);
+export async function pinChat(chat: db.Chat) {
+  return chat.type === 'group'
+    ? pinGroup(chat.group)
+    : pinChannel(chat.channel);
+}
 
+export async function pinGroup(group: db.Group) {
+  return savePin({ type: 'group', itemId: group.id });
+}
+
+export async function pinChannel(channel: db.Channel) {
+  const type =
+    channel.type === 'dm' || channel.type === 'groupDm'
+      ? channel.type
+      : 'channel';
+  return savePin({ type, itemId: channel.id });
+}
+
+async function savePin(pin: { type: db.PinType; itemId: string }) {
+  db.insertPinnedItem(pin);
   try {
-    await api.pinItem(partialPin.itemId);
+    await api.pinItem(pin.itemId);
   } catch (e) {
     console.error('Failed to pin item', e);
     // rollback optimistic update
-    db.deletePinnedItem(partialPin);
+    db.deletePinnedItem(pin);
   }
 }
 
