@@ -7,15 +7,14 @@
 ^-  form:m
 =+  !<([~ name=@t src=@t] arg)
 ;<  our=@p  bind:m  get-our:s
-;<  ~  bind:m  (watch:s /responses [our %channels-server] /hooks/v0)
+;<  ~  bind:m  (watch:s /responses [our %channels-server] /v0/hooks)
 =/  =cage  hook-action-0+!>(`action:h`[%add name src])
 ;<  ~  bind:m  (poke-our:s %channels-server cage)
 ;<  =^cage  bind:m  (take-fact:s /responses)
 ?>  ?=(%hook-response-0 p.cage)
 =+  !<(=response:h q.cage)
 ?>  ?=(%set -.response)
-~&  "hook {<name.response>} added with id {<id.response>}"
+%-  (slog (crip "hook {<name.response>} added with id {<id.response>}") ~)
 ?~  error.response  (pure:m !>(~))
-~&  "compilation error:"
-%-  (slog u.error.response)
+%-  (slog 'compilation error:' u.error.response)
 (pure:m !>(~))

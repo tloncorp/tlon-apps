@@ -1031,7 +1031,7 @@
 ++  give-hook-response
   |=  =response:h
   ^+  cor
-  (give %fact ~[/hooks/v0] hook-response-0+!>(response))
+  (give %fact ~[/v0/hooks] hook-response-0+!>(response))
 ++  ho-core
   |_  [=id:h =hook:h gone=_|]
   ++  ho-core  .
@@ -1283,6 +1283,8 @@
       %wait
     =/  =wire  /hooks/delayed/(scot %uv id.effect)
     =.  cor  (unschedule-delay id.effect)
-    (schedule-delay +:effect)
+    =.  delayed.hooks
+      (~(put by delayed.hooks) id.effect [origin +.effect])
+    (schedule-delay +.effect)
   ==
 --

@@ -8,7 +8,7 @@
 |^
 =+  !<([~ =id:h =origin:h =action] arg)
 ;<  our=@p  bind:m  get-our:s
-;<  ~  bind:m  (watch:s /responses [our %channels-server] /hooks/v0)
+;<  ~  bind:m  (watch:s /responses [our %channels-server] /v0/hooks)
 =/  =cage
   :-  %hook-action-0
   !>
@@ -21,14 +21,16 @@
 =+  !<(=response:h q.cage)
 ?>  ?=(?(%wait %rest) -.response)
 ?:  ?=(%rest -.response)
-  ~&  "stopped scheduled hook {<id.response>} running on {<origin.response>}"
+  %-  (slog (crip "stopped scheduled hook {<id.response>} running on {<origin.response>}") ~)
   (pure:m !>(~))
 ;<  now=time  bind:m  get-time:s
-=/  fires-at  (add now schedule.response)
-~&  "starting hook {<id.response>}, scheduled to run on {<origin.response>} at {<fires-at>}"
+=/  fires-at
+  ?@  schedule.response  (add now schedule.response)
+  next.schedule.response
+%-  (slog (crip "starting hook {<id.response>}, scheduled to run on {<origin.response>} at {<fires-at>}") ~)
 (pure:m !>(~))
 +$  action
   $%  [%stop ~]
-      [%start schedule=@dr =config:h]
+      [%start schedule=$@(@dr schedule:h) =config:h]
   ==
 --

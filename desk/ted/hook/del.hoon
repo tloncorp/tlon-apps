@@ -7,7 +7,7 @@
 ^-  form:m
 =+  !<([~ =id:h] arg)
 ;<  our=@p  bind:m  get-our:s
-;<  ~  bind:m  (watch:s /responses [our %channels-server] /hooks/v0)
+;<  ~  bind:m  (watch:s /responses [our %channels-server] /v0/hooks)
 =/  =cage  hook-action-0+!>(`action:h`[%del id])
 ;<  ~  bind:m  (poke-our:s %channels-server cage)
 ;<  =^cage  bind:m  (take-fact:s /responses)
@@ -15,5 +15,5 @@
 =+  !<(=response:h q.cage)
 ?>  ?=(%gone -.response)
 ?>  =(id id.response)
-~&  "hook {<id.response>} deleted"
+%-  (slog (crip "hook {<id.response>} deleted") ~)
 (pure:m !>(~))
