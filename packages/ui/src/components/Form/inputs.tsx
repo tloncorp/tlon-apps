@@ -331,7 +331,7 @@ export const TextInputWithIconAndButton = React.memo(
           padding="$l"
           onPress={onButtonPress}
           backgroundColor="$secondaryBackground"
-          marginRight="$-m"
+          marginLeft="$-2xl"
         >
           <Button.Text size="$label/m">{buttonText}</Button.Text>
         </Button>
@@ -395,7 +395,7 @@ const ControlFrame = styled(View, {
   width: '$3xl',
   height: '$3xl',
   borderWidth: 1,
-  borderColor: '$shadow',
+  borderColor: '$border',
   alignItems: 'center',
   justifyContent: 'center',
   variants: {

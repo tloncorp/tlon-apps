@@ -12,6 +12,7 @@ import { FeatureFlagScreen } from '../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../features/settings/ManageAccountScreen';
 import ProfileScreen from '../features/settings/ProfileScreen';
 import { PushNotificationSettingsScreen } from '../features/settings/PushNotificationSettingsScreen';
+import { ThemeScreen } from '../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../features/settings/UserBugReportScreen';
 import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
@@ -105,6 +106,7 @@ export function RootStack() {
         options={{ gestureEnabled: false }}
       />
       <Root.Screen name="BlockedUsers" component={BlockedUsersScreen} />
+      <Root.Screen name="Theme" component={ThemeScreen} />
       <Root.Screen name="AppInfo" component={AppInfoScreen} />
       <Root.Screen name="FeatureFlags" component={FeatureFlagScreen} />
       <Root.Screen

@@ -223,6 +223,80 @@ export const getPendingChats = createReadQuery(
   ['groups', 'channels']
 );
 
+export const getUnjoinedGroupChannels = createReadQuery(
+  'getUnjoinedGroupChannels',
+  async (groupId: string, ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    logger.log(
+      'getUnjoinedGroupChannels: checking for user',
+      currentUserId,
+      'in group',
+      groupId
+    );
+
+    const group = await ctx.db.query.groups.findFirst({
+      where: eq($groups.id, groupId),
+      with: {
+        roles: {
+          with: {
+            members: true,
+          },
+        },
+      },
+    });
+
+    if (!group) return [];
+
+    const userRolesForGroup =
+      group.roles
+        ?.filter((role) =>
+          role.members?.map((m) => m.contactId).includes(currentUserId)
+        )
+        .map((role) => role.id) ?? [];
+
+    logger.log('getUnjoinedGroupChannels: user roles', userRolesForGroup);
+
+    const allUnjoined = await ctx.db.query.channels.findMany({
+      where: and(
+        eq($channels.groupId, groupId),
+        eq($channels.currentUserIsMember, false)
+      ),
+      with: {
+        readerRoles: true,
+      },
+    });
+
+    logger.log(
+      'getUnjoinedGroupChannels: found unjoined channels',
+      allUnjoined.map((c) => ({
+        id: c.id,
+        readerRoles: c.readerRoles,
+      }))
+    );
+
+    return allUnjoined.filter((channel) => {
+      const isOpenChannel = channel.readerRoles?.length === 0;
+      const isClosedButCanRead = channel.readerRoles
+        ?.map((r) => r.roleId)
+        .some((r) => userRolesForGroup.includes(r));
+
+      const canRead = isOpenChannel || isClosedButCanRead;
+      logger.log(
+        'getUnjoinedGroupChannels: channel',
+        channel.id,
+        'isOpen:',
+        isOpenChannel,
+        'hasPermission:',
+        isClosedButCanRead,
+        'canRead:',
+        canRead
+      );
+      return canRead;
+    });
+  },
+  ['channels', 'groups']
+);
+
 export const getPins = createReadQuery(
   'getPins',
   async (ctx: QueryCtx): Promise<Pin[]> => {
@@ -397,6 +471,16 @@ export const insertGroups = createWriteQuery(
           await txCtx.db.insert($groups).values(group).onConflictDoNothing();
         }
         if (group.channels?.length) {
+          logger.log(
+            'insertGroups: inserting channels for group',
+            group.id,
+            group.channels.map((c) => ({
+              id: c.id,
+              readerRoles: c.readerRoles,
+            }))
+          );
+
+          // First insert/update the channels
           await txCtx.db
             .insert($channels)
             .values(group.channels)
@@ -413,6 +497,25 @@ export const insertGroups = createWriteQuery(
                 $channels.contentConfiguration
               ),
             });
+
+          // Then handle reader roles separately
+          for (const channel of group.channels) {
+            if (channel.readerRoles) {
+              // Clear existing reader roles
+              await txCtx.db
+                .delete($channelReaders)
+                .where(eq($channelReaders.channelId, channel.id));
+
+              if (channel.readerRoles.length > 0) {
+                // Insert new reader roles
+                await txCtx.db
+                  .insert($channelReaders)
+                  .values(channel.readerRoles);
+              }
+            }
+          }
+
+          logger.log('insertGroups: finished inserting channels');
         }
         if (group.flaggedPosts?.length) {
           await txCtx.db
@@ -1713,17 +1816,29 @@ export const addJoinedGroupChannel = createWriteQuery(
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
     logger.log('addJoinedGroupChannel', channelId);
 
-    await ctx.db.insert($groupNavSectionChannels).values({
-      channelId,
-      groupNavSectionId: 'default',
-    });
-
-    return await ctx.db
+    // First update the channel membership
+    await ctx.db
       .update($channels)
       .set({
         currentUserIsMember: true,
       })
       .where(eq($channels.id, channelId));
+
+    // Then check if channel exists in any section
+    const existingInAnySection = await ctx.db
+      .select()
+      .from($groupNavSectionChannels)
+      .where(eq($groupNavSectionChannels.channelId, channelId));
+
+    // Only add to default if it's not
+    if (existingInAnySection.length === 0) {
+      await ctx.db.insert($groupNavSectionChannels).values({
+        channelId,
+        groupNavSectionId: 'default',
+      });
+    }
+
+    return;
   },
   ['channels']
 );

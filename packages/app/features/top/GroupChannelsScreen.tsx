@@ -39,6 +39,9 @@ export function GroupChannelsScreenContent({
     null
   );
   const { group } = useGroupContext({ groupId: id, isFocused });
+  const { data: unjoinedChannels } = store.useUnjoinedGroupChannels(
+    group?.id ?? ''
+  );
 
   const pinnedItems = useMemo(() => {
     return pins ?? [];
@@ -60,6 +63,20 @@ export function GroupChannelsScreenContent({
 
   const [enableCustomChannels] = useFeatureFlag('customChannelCreation');
 
+  const handleJoinChannel = useCallback(
+    async (channel: db.Channel) => {
+      try {
+        await store.joinGroupChannel({
+          channelId: channel.id,
+          groupId: id,
+        });
+      } catch (error) {
+        console.error('Failed to join channel:', error);
+      }
+    },
+    [id]
+  );
+
   return (
     <ChatOptionsProvider
       groupId={id}
@@ -73,7 +90,9 @@ export function GroupChannelsScreenContent({
       <GroupChannelsScreenView
         onChannelPressed={handleChannelSelected}
         onBackPressed={handleGoBackPressed}
+        onJoinChannel={handleJoinChannel}
         group={group}
+        unjoinedChannels={unjoinedChannels}
         enableCustomChannels={enableCustomChannels}
       />
       <InviteUsersSheet

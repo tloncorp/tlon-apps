@@ -121,7 +121,7 @@ export default function ConnectedApp() {
   return (
     <ErrorBoundary>
       <FeatureFlagConnectedInstrumentationProvider>
-        <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
+        <TamaguiProvider>
           <ShipProvider>
             <NavigationContainer
               theme={isDarkMode ? DarkTheme : DefaultTheme}

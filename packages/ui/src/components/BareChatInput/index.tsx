@@ -561,13 +561,10 @@ export default function BareChatInput({
   }, [setEditingPost, clearDraft, clearAttachments]);
 
   const theme = useTheme();
-  // placeholderTextColor is not supported on native, just web
-  // https://necolas.github.io/react-native-web/docs/text-input/
-  const placeholderTextColor = isWeb
-    ? {
-        placeholderTextColor: getVariableValue(theme.secondaryText),
-      }
-    : {};
+
+  const placeholderTextColor = {
+    placeholderTextColor: getVariableValue(theme.secondaryText),
+  };
 
   const adjustTextInputSize = (e: any) => {
     if (!isWeb) {
@@ -634,6 +631,7 @@ export default function BareChatInput({
           }}
           multiline
           placeholder={placeholder}
+          {...(!isWeb ? placeholderTextColor : {})}
           style={{
             backgroundColor: 'transparent',
             minHeight: initialHeight,
@@ -646,7 +644,7 @@ export default function BareChatInput({
             textAlignVertical: 'center',
             letterSpacing: -0.032,
             color: getVariableValue(useTheme().primaryText),
-            ...placeholderTextColor,
+            ...(isWeb ? placeholderTextColor : {}),
             ...(isWeb ? { outlineStyle: 'none' } : {}),
           }}
         >
