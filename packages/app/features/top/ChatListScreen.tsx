@@ -366,14 +366,14 @@ export function ChatListScreenView({
           />
         </View>
         <NavBarView
+          navigateToContacts={() => {
+            navigation.navigate('Contacts');
+          }}
           navigateToHome={() => {
             navigation.navigate('ChatList');
           }}
           navigateToNotifications={() => {
             navigation.navigate('Activity');
-          }}
-          navigateToProfileSettings={() => {
-            navigation.navigate('Profile');
           }}
           currentRoute="ChatList"
           currentUserId={currentUser}

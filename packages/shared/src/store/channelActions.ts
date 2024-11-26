@@ -98,21 +98,35 @@ export async function updateChannel({
   groupId,
   sectionId,
   readers,
+  writers,
   join,
   channel,
 }: {
   groupId: string;
   sectionId: string;
   readers: string[];
+  writers: string[];
   join: boolean;
   channel: db.Channel;
 }) {
-  // optimistic update
-  await db.updateChannel(channel);
+  const updatedChannel: db.Channel = {
+    ...channel,
+    readerRoles: readers.map((roleId) => ({
+      channelId: channel.id,
+      roleId,
+    })),
+    writerRoles: writers.map((roleId) => ({
+      channelId: channel.id,
+      roleId,
+    })),
+  };
+
+  await db.updateChannel(updatedChannel);
 
   const groupChannel: GroupChannel = {
     added: channel.addedToGroupAt ?? 0,
     readers,
+    writers,
     zone: sectionId,
     join,
     meta: {
@@ -131,7 +145,6 @@ export async function updateChannel({
     });
   } catch (e) {
     console.error('Failed to update channel', e);
-    // rollback optimistic update
     await db.updateChannel(channel);
   }
 }

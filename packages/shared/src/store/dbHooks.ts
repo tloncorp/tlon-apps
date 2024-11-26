@@ -198,10 +198,13 @@ export const useContacts = () => {
   });
 };
 
-export const useUnreadsCount = () => {
+export const useUnreadsCountWithoutMuted = () => {
   return useQuery({
-    queryKey: ['unreadsCount'],
-    queryFn: () => db.getUnreadsCount({}),
+    queryKey: [
+      'unreadsCount',
+      useKeyFromQueryDeps(db.getUnreadsCountWithoutMuted),
+    ],
+    queryFn: () => db.getUnreadsCountWithoutMuted({}),
   });
 };
 
@@ -395,6 +398,22 @@ export const useGroupPreview = (groupId: string) => {
       const [preview] = await syncGroupPreviews([groupId]);
       return preview;
     },
+  });
+};
+
+export const useUserContacts = () => {
+  const deps = useKeyFromQueryDeps(db.getUserContacts);
+  return useQuery({
+    queryKey: ['userContacts', deps],
+    queryFn: () => db.getUserContacts(),
+  });
+};
+
+export const useSuggestedContacts = () => {
+  const deps = useKeyFromQueryDeps(db.getSuggestedContacts);
+  return useQuery({
+    queryKey: ['suggestedContacts', deps],
+    queryFn: () => db.getSuggestedContacts(),
   });
 };
 

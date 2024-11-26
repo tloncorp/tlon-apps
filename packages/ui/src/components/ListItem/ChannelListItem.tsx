@@ -3,6 +3,7 @@ import * as logic from '@tloncorp/shared/logic';
 import { useMemo } from 'react';
 import { View } from 'tamagui';
 import { isWeb } from 'tamagui';
+import { getVariableValue } from 'tamagui';
 
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
@@ -101,6 +102,9 @@ export function ChannelListItem({
                 <ListItem.Count
                   count={unreadCount}
                   muted={logic.isMuted(model.volumeSettings?.level, 'channel')}
+                  marginRight={
+                    isWeb ? getVariableValue('3xl', 'space') : 'unset'
+                  }
                 />
               )}
             </ListItem.EndContent>
@@ -109,7 +113,13 @@ export function ChannelListItem({
       </Pressable>
       {isWeb && (
         <View position="absolute" right={-2} top={44} zIndex={1}>
-          <Button onPress={handleLongPress} borderWidth="unset" size="$l">
+          <Button
+            onPress={handleLongPress}
+            borderWidth="unset"
+            size="$s"
+            paddingHorizontal={0}
+            marginHorizontal="$-m"
+          >
             <Icon type="Overflow" />
           </Button>
         </View>

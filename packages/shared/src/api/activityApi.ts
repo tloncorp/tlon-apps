@@ -3,6 +3,7 @@ import { backOff } from 'exponential-backoff';
 
 import * as db from '../db';
 import { createDevLogger, runIfDev } from '../debug';
+import { normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
 import {
   formatUd,
@@ -280,6 +281,87 @@ function toActivityEvent({
       type: 'group-ask',
       groupId: event['group-ask'].group,
       groupEventUserId: event['group-ask'].ship,
+    };
+  }
+
+  if ('contact' in event) {
+    const contactEvent = event.contact;
+    const update = parseContactUpdateEvent(baseFields.id, event);
+    if (!update) {
+      return null;
+    }
+
+    return {
+      ...baseFields,
+      type: 'contact',
+      contactUserId: contactEvent.who,
+      ...update,
+    };
+  }
+
+  return null;
+}
+
+function parseContactUpdateEvent(
+  eventId: string,
+  event: ub.ContactEvent
+): Partial<db.ActivityEvent> | null {
+  const update = event.contact.update;
+
+  if (!update) {
+    return null;
+  }
+
+  if ('nickname' in update) {
+    return {
+      contactUpdateType: 'nickname',
+      contactUpdateValue: update.nickname?.value ?? '',
+    };
+  }
+
+  if ('bio' in update) {
+    return {
+      contactUpdateType: 'bio',
+      contactUpdateValue: update.bio?.value ?? '',
+    };
+  }
+
+  if ('status' in update) {
+    return {
+      contactUpdateType: 'status',
+      contactUpdateValue: update.status?.value ?? '',
+    };
+  }
+
+  if ('color' in update) {
+    return {
+      contactUpdateType: 'color',
+      contactUpdateValue: normalizeUrbitColor(update.color?.value ?? ''),
+    };
+  }
+
+  if ('avatar' in update) {
+    return {
+      contactUpdateType: 'avatarImage',
+      contactUpdateValue: update.avatar?.value ?? '',
+    };
+  }
+
+  if ('groups' in update) {
+    const groupIds = update.groups?.value.map((g) => g.value) ?? [];
+    if (groupIds.length === 0) {
+      return null;
+    }
+
+    return {
+      contactUpdateType: 'pinnedGroups',
+      contactUpdateValue:
+        update.groups?.value.map((g) => g.value).join(',') ?? '',
+      contactUpdateGroups:
+        groupIds.map((groupId) => ({
+          groupId,
+          activityEventId: eventId,
+        })) ?? [],
     };
   }
 
@@ -661,11 +743,17 @@ interface ClientUnknownSource {
   type: 'unknown'; // for source types we don't care about
 }
 
+interface ClientContactSource {
+  type: 'contact';
+  contactUserId: string;
+}
+
 export type ClientSource =
   | ClientGroupSource
   | ClientChannelSource
   | ClientThreadSource
-  | ClientUnknownSource;
+  | ClientUnknownSource
+  | ClientContactSource;
 
 export function sourceIdToSource(sourceId: string): ClientSource {
   const parts = sourceId.split('/');
@@ -706,6 +794,14 @@ export function sourceIdToSource(sourceId: string): ClientSource {
     const channelId = parts[1];
     const threadId = getCanonicalPostId(`${parts[2]}/${parts[3]}`);
     return { type: 'thread', channelType: 'dm', channelId, threadId };
+  }
+
+  if (sourceType === 'contact') {
+    const contactUserId = parts[1];
+    return {
+      type: 'contact',
+      contactUserId,
+    };
   }
 
   return { type: 'unknown' };
