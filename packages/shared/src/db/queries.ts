@@ -1182,14 +1182,15 @@ export const removeChatMembers = createWriteQuery(
   ['chatMembers', 'groups']
 );
 
-export const getUnreadsCount = createReadQuery(
-  'getUnreadsCount',
+export const getUnreadsCountWithoutMuted = createReadQuery(
+  'getUnreadsCountWithoutMuted',
   async ({ type }: { type?: ChannelUnread['type'] }, ctx: QueryCtx) => {
     const result = await ctx.db
       .select({ count: count() })
       .from($channelUnreads)
       .where(() =>
         and(
+          $channelUnreads.notify,
           gt($channelUnreads.count, 0),
           type ? eq($channelUnreads.type, type) : undefined
         )
@@ -1219,22 +1220,6 @@ export const getUnreads = createReadQuery(
       orderBy:
         orderBy === 'updatedAt' ? desc($channelUnreads.updatedAt) : undefined,
     });
-  },
-  ['channelUnreads']
-);
-
-export const getAllUnreadsCounts = createReadQuery(
-  'getAllUnreadCounts',
-  async (ctx: QueryCtx) => {
-    const [channelUnreadCount, dmUnreadCount] = await Promise.all([
-      getUnreadsCount({ type: 'channel' }, ctx),
-      getUnreadsCount({ type: 'dm' }, ctx),
-    ]);
-    return {
-      channels: channelUnreadCount ?? 0,
-      dms: dmUnreadCount ?? 0,
-      total: (channelUnreadCount ?? 0) + (dmUnreadCount ?? 0),
-    };
   },
   ['channelUnreads']
 );

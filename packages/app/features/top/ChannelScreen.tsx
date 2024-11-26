@@ -310,7 +310,7 @@ export default function ChannelScreen(props: Props) {
     [props.navigation]
   );
 
-  const handleMarkRead = useCallback(() => {
+  const handleMarkRead = useCallback(async () => {
     if (channel && !channel.isPendingChannel) {
       store.markChannelRead(channel);
     }

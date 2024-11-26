@@ -5,6 +5,7 @@ import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
+import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
@@ -23,6 +24,7 @@ function AuthenticatedApp() {
   const configureClient = useConfigureUrbitClient();
   const telemetry = useTelemetry();
   useNotificationListener();
+  useUpdatePresentedNotifications();
   useDeepLinkListener();
   useNavigationLogging();
   useNetworkLogger();
