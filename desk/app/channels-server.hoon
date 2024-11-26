@@ -1063,18 +1063,19 @@
   ++  ho-edit
     |=  [name=(unit @t) src=(unit @t) meta=(unit data:m)]
     =?  src.hook  ?=(^ src)  u.src
-    =?  name.hook  ?=(^ name)  u.name
-    =?  meta.hook  ?=(^ meta)  u.meta
     =/  result=(each vase tang)
       (compile:utils src.hook)
-    =.  compiled.hook
-      ?:  ?=(%| -.result)  ~
-      `p.result
+    ?:  ?=(%| -.result)
+      =.  cor
+        %-  give-hook-response
+        [%set id name.hook src.hook meta.hook `p.result]
+      ho-core
+    =?  name.hook  ?=(^ name)  u.name
+    =?  meta.hook  ?=(^ meta)  u.meta
+    =.  compiled.hook  `p.result
     =.  cor
-      =/  error=(unit tang)
-        ?:(?=(%& -.result) ~ `p.result)
       %-  give-hook-response
-      [%set id name.hook src.hook meta.hook error]
+      [%set id name.hook src.hook meta.hook ~]
     ho-core
   ::
   ++  ho-del
