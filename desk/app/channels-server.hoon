@@ -1182,6 +1182,8 @@
     ?~  delay=(~(get by delayed.hooks) id)  cor
     ::  make sure we clean up
     =.  delayed.hooks  (~(del by delayed.hooks) id)
+    ::  ignore premature fires
+    ?:  (lth now.bowl fires-at.u.delay)  cor
     =*  origin  origin.u.delay
     =/  hook  (~(got by hooks.hooks) hook.u.delay)
     =/  config  ?@(origin ~ (~(gut by config.hook) origin ~))
@@ -1194,6 +1196,8 @@
     ::  if unscheduled, ignore
     ?~  crons=(~(get by crons.hooks) id)  cor
     ?~  cron=(~(get by u.crons) origin)  cor
+    ::  ignore premature fires
+    ?:  (lth now.bowl next.schedule.u.cron)  cor
     =.  next.schedule.u.cron
       ::  we don't want to run the cron for every iteration it would
       ::  have run 'offline', so we check here to make sure that the
