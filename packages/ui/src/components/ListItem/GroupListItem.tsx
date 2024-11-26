@@ -42,7 +42,7 @@ export const GroupListItem = ({
         <ListItem
           {...props}
           alignItems={isPending ? 'center' : 'stretch'}
-          padding={isWindowNarrow ? '$m' : '$l'}
+          padding={isWindowNarrow ? '$l' : '$m'}
         >
           <ListItem.GroupIcon model={model} />
           <ListItem.MainContent>

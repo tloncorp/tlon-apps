@@ -69,7 +69,7 @@ export function ChannelListItem({
         onPress={handlePress}
         onLongPress={handleLongPress}
       >
-        <ListItem {...props} padding={isWindowNarrow ? '$m' : '$l'}>
+        <ListItem {...props} padding={isWindowNarrow ? '$l' : '$m'}>
           <ListItem.ChannelIcon
             model={model}
             useTypeIcon={useTypeIcon}
