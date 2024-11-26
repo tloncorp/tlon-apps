@@ -13,4 +13,5 @@ export type ChatMessageActionsProps = {
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
+  onShowEmojiPicker?: () => void;
 };

@@ -3,14 +3,14 @@ import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import * as Haptics from 'expo-haptics';
 import { useMemo } from 'react';
 import { Alert } from 'react-native';
+import { isWeb } from 'tamagui';
 
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
 import { useCopy } from '../../../hooks/useCopy';
-import { useIsAdmin } from '../../../utils';
+import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
 
 const ENABLE_COPY_JSON = __DEV__;
@@ -30,9 +30,10 @@ export default function MessageActions({
   post: db.Post;
   postActionIds: ChannelAction.Id[];
 }) {
+  // arbitrary width that looks reasonable given labels
+  const width = isWeb ? 'auto' : 220;
   return (
-    // arbitrary width that looks reasonable given labels
-    <ActionList width={220}>
+    <ActionList width={width}>
       {postActionIds.map((actionId, index, list) => (
         <ConnectedAction
           key={actionId}
@@ -87,8 +88,11 @@ function ConnectedAction({
         // 3. an existing thread for that message doesn't already exist
         return !post.deliveryStatus && !post.parentId && post.replyCount === 0;
       case 'edit':
-        // only show edit for current user's posts
-        return post.authorId === currentUserId;
+        // only show edit for current user's posts OR admins of notebook posts
+        return (
+          post.authorId === currentUserId ||
+          (channel.type === 'notebook' && currentUserIsAdmin)
+        );
       case 'delete':
         // only show delete for current user's posts
         return post.authorId === currentUserId || currentUserIsAdmin;
@@ -97,7 +101,17 @@ function ConnectedAction({
       default:
         return true;
     }
-  }, [post, actionId, currentUserId, currentUserIsAdmin]);
+  }, [
+    actionId,
+    post.deliveryStatus,
+    post.parentId,
+    post.replyCount,
+    post.authorId,
+    post.reactions?.length,
+    currentUserId,
+    channel.type,
+    currentUserIsAdmin,
+  ]);
 
   if (!visible) {
     return null;
@@ -216,7 +230,7 @@ export async function handleAction({
       break;
   }
 
-  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  triggerHaptic('success');
   dismiss();
 }
 

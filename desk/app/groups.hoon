@@ -3,8 +3,8 @@
 ::    note: all subscriptions are handled by the subscriber library so
 ::    we can have resubscribe loop protection.
 ::
-/-  g=groups, zero=groups-0, ha=hark, h=heap, d=channels, c=chat, tac=contacts,
-    activity
+/-  g=groups, zero=groups-0, ha=hark, h=heap, d=channels, c=chat,
+    tac=contacts-0, activity
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
@@ -758,10 +758,10 @@
     cor
   ::
       %fact
-    =+  !<(=update:tac q.cage.sign)
-    ?~  con.update  cor
+    =+  !<(=update-0:tac q.cage.sign)
+    ?~  con.update-0  cor
     %-  emil
-    %+  turn  ~(tap in groups.con.update)
+    %+  turn  ~(tap in groups.con.update-0)
     |=  =flag:g
     [%pass /gangs/(scot %p p.flag)/[q.flag]/preview %agent [p.flag dap.bowl] %watch /groups/(scot %p p.flag)/[q.flag]/preview]
   ==
@@ -1845,7 +1845,6 @@
       =.  zones.group  (go-bump-zone ch channel.diff)
       =.  channels.group  (put:by-ch ch channel.diff)
       ?:  from-self  go-core
-      ?:  =(our.bowl p.flag)  go-core
       =.  cor  (emil (join-channels:go-pass ~[ch]))
       go-core
     ::

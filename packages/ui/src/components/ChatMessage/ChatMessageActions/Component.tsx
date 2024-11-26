@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
 import { Dimensions, LayoutChangeEvent } from 'react-native';
 import Animated, {
@@ -8,8 +7,11 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, YStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
+import useIsWindowNarrow from '../../../hooks/useIsWindowNarrow';
+import { triggerHaptic } from '../../../utils';
+import { ActionSheet } from '../../ActionSheet';
 import { EmojiToolbar } from './EmojiToolbar';
 import MessageActions from './MessageActions';
 import { MessageContainer } from './MessageContainer';
@@ -32,6 +34,7 @@ export function ChatMessageActions({
   onReply,
   onEdit,
   onViewReactions,
+  onShowEmojiPicker,
 }: ChatMessageActionsProps) {
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
@@ -44,6 +47,7 @@ export function ChatMessageActions({
   const translateY = useSharedValue(0);
   const scale = useSharedValue(0.3); // Start with a smaller scale
   const opacity = useSharedValue(0);
+  const isWindowNarrow = useIsWindowNarrow();
 
   function handleLayout(event: LayoutChangeEvent) {
     const { height, width, x, y } = event.nativeEvent.layout;
@@ -77,8 +81,7 @@ export function ChatMessageActions({
   }
 
   useEffect(() => {
-    // on mount, give initial haptic feeedback
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    triggerHaptic('sheetOpen');
   }, []);
 
   useEffect(() => {
@@ -121,6 +124,35 @@ export function ChatMessageActions({
     }),
     [translateX, translateY, scale, opacity.value]
   );
+
+  if (!isWindowNarrow) {
+    return (
+      <ActionSheet
+        // We use an action sheet on web so that it will render within a dialog
+        open
+        onOpenChange={(open: boolean) => (!open ? onDismiss() : undefined)}
+      >
+        <YStack gap="$xs">
+          <XStack justifyContent="center">
+            <EmojiToolbar
+              post={post}
+              onDismiss={onDismiss}
+              openExternalSheet={onShowEmojiPicker}
+            />
+          </XStack>
+          <MessageContainer post={post} />
+          <MessageActions
+            post={post}
+            postActionIds={postActionIds}
+            dismiss={onDismiss}
+            onReply={onReply}
+            onEdit={onEdit}
+            onViewReactions={onViewReactions}
+          />
+        </YStack>
+      </ActionSheet>
+    );
+  }
 
   return (
     <Animated.View style={animatedStyles}>

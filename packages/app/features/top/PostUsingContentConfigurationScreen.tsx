@@ -55,6 +55,7 @@ export function PostUsingContentConfigurationScreen({
             hasOlderPosts: false,
             headerMode: 'default',
             initialChannelUnread: undefined,
+            isLoadingPosts: false,
             onPressDelete: noop,
             onPressRetry: noop,
             onScrollEndReached: noop,

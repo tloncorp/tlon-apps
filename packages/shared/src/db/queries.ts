@@ -2581,6 +2581,7 @@ export const getGroup = createReadQuery(
     'volumeSettings',
     'channels',
     'groupJoinRequests',
+    'groupMemberBans',
   ]
 );
 

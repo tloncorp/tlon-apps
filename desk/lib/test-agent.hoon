@@ -68,8 +68,28 @@
   =/  m  (mare ,~)
   |=  f=form:m
   ^-  tang
-  =/  res  (f *state)
-  ?-(-.res %& ~, %| p.res)
+  =/  res  (f %*(. *state agent skeleton))
+  ?:  ?=(%& -.res)  ~
+  ::NOTE  in rare cases, execution may crash in such a way that the resulting
+  ::      trace is empty. make sure we catch that here so the /ted/test will
+  ::      consider it failed.
+  ?^  p.res  p.res
+  ~['+eval-mare:test-agent didn\'t finish cleanly']
+::
+++  skeleton
+  ^-  agent  !:
+  |_  bowl:gall
+  ++  on-init        ~&(>>> %test-agent-not-initialized !!)
+  ++  on-save        ~&(>>> %test-agent-not-initialized !!)
+  ++  on-load   |=(* ~&(>>> %test-agent-not-initialized !!))
+  ++  on-poke   |=(* ~&(>>> %test-agent-not-initialized !!))
+  ++  on-watch  |=(* ~&(>>> %test-agent-not-initialized !!))
+  ++  on-leave  |=(* ~&(>>> %test-agent-not-initialized !!))
+  ++  on-agent  |=(* ~&(>>> %test-agent-not-initialized !!))
+  ++  on-arvo   |=(* ~&(>>> %test-agent-not-initialized !!))
+  ++  on-peek   |=(* ~&(>>> %test-agent-not-initialized !!))
+  ++  on-fail   |=(* ~&(>>> %test-agent-not-initialized !!))
+  --
 ::
 ::  internal transformations (you shouldn't be calling these directly)
 ::
@@ -326,6 +346,17 @@
   ^-  form:m
   |=  s=state
   &+[~ s(scry f)]
+::
+++  do-as  ::  temporary src.bowl
+  |=  who=ship
+  =/  m  (mare ,(list card))
+  |=  do=form:m
+  ^-  form:m
+  ;<  pre=bowl:gall    bind:m  get-bowl
+  ;<  ~                bind:m  (set-bowl pre(src who))
+  ;<  cas=(list card)  bind:m  do
+  ;<  ~                bind:m  (jab-bowl |=(b=bowl:gall b(src src.pre)))
+  (pure:m cas)
 ::
 ::  testing utilities
 ::

@@ -5,11 +5,11 @@ import {
 import * as store from '@tloncorp/shared/store';
 import { AvatarNavIcon, NavIcon, YStack, useWebAppUpdate } from '@tloncorp/ui';
 
-import ProfileScreen from '../../features/settings/ProfileScreen';
 import { ActivityScreen } from '../../features/top/ActivityScreen';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootDrawerParamList } from '../types';
 import { HomeNavigator } from './HomeNavigator';
+import { ProfileScreenNavigator } from './ProfileScreenNavigator';
 
 const Drawer = createDrawerNavigator<RootDrawerParamList>();
 
@@ -77,7 +77,7 @@ export const TopLevelDrawer = () => {
     >
       <Drawer.Screen name="Home" component={HomeNavigator} />
       <Drawer.Screen name="Activity" component={ActivityScreen} />
-      <Drawer.Screen name="Profile" component={ProfileScreen} />
+      <Drawer.Screen name="Profile" component={ProfileScreenNavigator} />
     </Drawer.Navigator>
   );
 };

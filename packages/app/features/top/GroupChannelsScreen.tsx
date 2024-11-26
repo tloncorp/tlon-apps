@@ -55,10 +55,10 @@ export function GroupChannelsScreenContent({
   );
 
   const handleGoBackPressed = useCallback(() => {
-    navigation.goBack();
+    navigation.navigate('ChatList');
   }, [navigation]);
 
-  const [enableCustomChannels] = useFeatureFlag('customChannels');
+  const [enableCustomChannels] = useFeatureFlag('customChannelCreation');
 
   return (
     <ChatOptionsProvider

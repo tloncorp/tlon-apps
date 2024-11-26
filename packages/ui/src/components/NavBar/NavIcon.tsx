@@ -1,4 +1,4 @@
-import { Circle, ColorTokens } from 'tamagui';
+import { Circle, ColorTokens, isWeb } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
 import { Icon, IconType } from '../Icon';
@@ -15,9 +15,15 @@ export function AvatarNavIcon({
   onPress?: () => void;
 }) {
   return (
-    <Pressable flex={1} onPress={onPress} alignItems="center" paddingTop={'$s'}>
+    <Pressable
+      flex={1}
+      onPress={onPress}
+      alignItems="center"
+      paddingTop={'$s'}
+      pressStyle={{ backgroundColor: 'unset' }}
+    >
       <ContactAvatar
-        size={'custom'}
+        size={isWeb ? '$2xl' : 'custom'}
         width={20}
         height={20}
         borderRadius={3}
@@ -51,6 +57,7 @@ export default function NavIcon({
       backgroundColor={backgroundColor}
       alignItems="center"
       flex={1}
+      pressStyle={{ backgroundColor: 'unset' }}
       onPress={onPress}
     >
       <Icon

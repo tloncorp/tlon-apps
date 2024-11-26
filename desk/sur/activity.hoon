@@ -1,4 +1,4 @@
-/-  c=channels, ch=chat, g=groups
+/-  c=channels, t=contacts, ch=chat, g=groups
 /+  mp=mop-extensions
 |%
 +|  %collections
@@ -34,12 +34,12 @@
 ::
 ::    actions are only ever performed for and by our selves
 ::
-::    $add: add an event to the stream
-::    $bump: mark a source as having new activity from myself
-::    $del: remove a source and all its activity
-::    $read: mark an event as read
-::    $adjust: adjust the volume of an source
-::    $allow-notifications: change which notifications are allowed
+::    %add: add an event to the stream
+::    %bump: mark a source as having new activity from myself
+::    %del: remove a source and all its activity
+::    %read: mark an event as read
+::    %adjust: adjust the volume of an source
+::    %allow-notifications: change which notifications are allowed
 ::
 +$  action
   $%  [%add =incoming-event]
@@ -53,9 +53,9 @@
 ::
 ::  $read-action: mark activity read
 ::
-::    $item: (DEPRECATED) mark an individual activity as read, indexed by id
-::    $event: (DEPRECATED) mark an individual activity as read, indexed by the event itself
-::    $all: mark _everything_ as read for this source, and possibly children
+::    %item: (DEPRECATED) mark an individual activity as read, indexed by id
+::    %event: (DEPRECATED) mark an individual activity as read, indexed by the event itself
+::    %all: mark _everything_ as read for this source, and possibly children
 ::
 +$  read-action
   $%  [%item id=time-id]
@@ -67,12 +67,12 @@
 ::
 ::  $update: what we hear after an action
 ::
-::    $add: an event was added to the stream
-::    $del: a source and its activity were removed
-::    $read: a source's activity state was updated
-::    $activity: the activity state was updated
-::    $adjust: the volume of a source was adjusted
-::    $allow-notifications: the allowed notifications were changed
+::    %add: an event was added to the stream
+::    %del: a source and its activity were removed
+::    %read: a source's activity state was updated
+::    %activity: the activity state was updated
+::    %adjust: the volume of a source was adjusted
+::    %allow-notifications: the allowed notifications were changed
 ::
 +$  update
   $%  [%add =source time-event]
@@ -87,8 +87,8 @@
 ::  $event: a single point of activity, from one of our sources
 ::
 ::    $incoming-event: the event that was sent to us
-::    $notified: if this event has been notified
-::    $child: if this event is from a child source
+::    .notified: if this event has been notified
+::    .child: if this event is from a child source
 ::
 +$  event
   $:  incoming-event
@@ -109,6 +109,7 @@
       [%group-role group=flag:g =ship roles=(set sect:g)]
       [%flag-post key=message-key channel=nest:c group=flag:g]
       [%flag-reply key=message-key parent=message-key channel=nest:c group=flag:g]
+      [%contact contact-event]
   ==
 ::
 +$  post-event
@@ -142,6 +143,10 @@
       content=story:c
       mention=?
   ==
++$  contact-event
+  $:  who=ship
+      update=(pair @tas value:t)
+  ==
 ::
 ::  $source: where the activity is happening
 +$  source
@@ -151,6 +156,7 @@
       [%thread key=message-key channel=nest:c group=flag:g]
       [%dm =whom]
       [%dm-thread key=message-key =whom]
+      [%contact who=ship]
   ==
 ::
 ::  $index: the stream of activity and read state for a source
@@ -223,15 +229,83 @@
       %group-role
       %flag-post
       %flag-reply
+      %contact
   ==
 +|  %helpers
 +$  time-event  [=time =event]
 ++  on-event        ((on time event) lte)
 ++  ex-event        ((mp time event) lte)
 ++  on-read-items   ((on time ,~) lte)
++|  %constants
+++  default-volumes
+  ^~
+  ^-  (map event-type volume)
+  %-  my
+  :~  [%post & &]
+      [%reply & |]
+      [%dm-reply & &]
+      [%post-mention & &]
+      [%reply-mention & &]
+      [%dm-invite & &]
+      [%dm-post & &]
+      [%dm-post-mention & &]
+      [%dm-reply-mention & &]
+      [%group-invite & &]
+      [%group-ask & &]
+      [%flag-post & &]
+      [%flag-reply & &]
+      [%group-kick & |]
+      [%group-join & |]
+      [%group-role & |]
+      [%contact | &]
+  ==
+++  old-volumes
+  ^~
+  %-  my
+  :~  [%soft (~(put by default-volumes) %post [& |])]
+      [%loud (~(run by default-volumes) |=([u=? *] [u &]))]
+      [%hush (~(run by default-volumes) |=([u=? *] [u |]))]
+  ==
+++  mute
+  ^~
+  (~(run by default-volumes) |=(* [| |]))
+::
 +|  %old-types
 ++  old
   |%
+  ++  v7
+    |%
+    +$  stream  ((mop time event) lte)
+    +$  event
+      $:  incoming-event
+          notified=?
+          child=?
+      ==
+    +$  incoming-event
+      $%  [%post post-event]
+          [%reply reply-event]
+          [%dm-invite =whom]
+          [%dm-post dm-post-event]
+          [%dm-reply dm-reply-event]
+          [%group-ask group=flag:g =ship]
+          [%group-kick group=flag:g =ship]
+          [%group-join group=flag:g =ship]
+          [%group-invite group=flag:g =ship]
+          [%chan-init channel=nest:c group=flag:g]
+          [%group-role group=flag:g =ship roles=(set sect:g)]
+          [%flag-post key=message-key channel=nest:c group=flag:g]
+          [%flag-reply key=message-key parent=message-key channel=nest:c group=flag:g]
+      ==
+    +$  source
+      $%  [%base ~]
+          [%group =flag:g]
+          [%channel =nest:c group=flag:g]
+          [%thread key=message-key channel=nest:c group=flag:g]
+          [%dm =whom]
+          [%dm-thread key=message-key =whom]
+      ==
+    +$  index  [=stream =reads bump=time]
+    --
   ++  v4
     |%
     +$  feed  (list activity-bundle)
@@ -289,36 +363,4 @@
       ==
     --
   --
-+|  %constants
-++  default-volumes
-  ^~
-  ^-  (map event-type volume)
-  %-  my
-  :~  [%post & &]
-      [%reply & |]
-      [%dm-reply & &]
-      [%post-mention & &]
-      [%reply-mention & &]
-      [%dm-invite & &]
-      [%dm-post & &]
-      [%dm-post-mention & &]
-      [%dm-reply-mention & &]
-      [%group-invite & &]
-      [%group-ask & &]
-      [%flag-post & &]
-      [%flag-reply & &]
-      [%group-kick & |]
-      [%group-join & |]
-      [%group-role & |]
-  ==
-++  old-volumes
-  ^~
-  %-  my
-  :~  [%soft (~(put by default-volumes) %post [& |])]
-      [%loud (~(run by default-volumes) |=([u=? *] [u &]))]
-      [%hush (~(run by default-volumes) |=([u=? *] [u |]))]
-  ==
-++  mute
-  ^~
-  (~(run by default-volumes) |=(* [| |]))
 --

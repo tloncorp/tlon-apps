@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { featureFlags, sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -13,6 +14,7 @@ import React, {
   useState,
 } from 'react';
 import { Alert } from 'react-native';
+import { isWeb } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
 import { useChatOptions, useCurrentUserId } from '../contexts';
@@ -25,7 +27,7 @@ import { ListItem } from './ListItem';
 export type ChatType = 'group' | db.ChannelType;
 
 export type ChatOptionsSheetMethods = {
-  open: (chatId: string, chatType: ChatType) => void;
+  open: (chatId: string, chatType: ChatType, unreadCount?: number) => void;
   close: () => void;
 };
 
@@ -43,14 +45,18 @@ const ChatOptionsSheetComponent = React.forwardRef<
   ChatOptionsSheetProps
 >(function ChatOptionsSheetImpl(props, ref) {
   const [open, setOpen] = useState(false);
-  const [chat, setChat] = useState<{ type: ChatType; id: string } | null>(null);
+  const [chat, setChat] = useState<{
+    type: ChatType;
+    id: string;
+    unreadCount?: number;
+  } | null>(null);
 
   useImperativeHandle(
     ref,
     () => ({
-      open: (chatId, chatType) => {
+      open: (chatId, chatType, unreadCount) => {
         setOpen(true);
-        setChat({ id: chatId, type: chatType });
+        setChat({ id: chatId, type: chatType, unreadCount });
       },
       close: () => setOpen(false),
     }),
@@ -68,6 +74,7 @@ const ChatOptionsSheetComponent = React.forwardRef<
         open={open}
         onOpenChange={setOpen}
         setSortBy={props.setSortBy}
+        unreadCount={chat.unreadCount}
       />
     );
   }
@@ -89,11 +96,13 @@ export function GroupOptionsSheetLoader({
   open,
   onOpenChange,
   setSortBy,
+  unreadCount,
 }: {
   groupId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   setSortBy?: (sortBy: db.ChannelSortPreference) => void;
+  unreadCount?: number;
 }) {
   const groupQuery = store.useGroup({ id: groupId });
   const [pane, setPane] = useState<
@@ -117,6 +126,7 @@ export function GroupOptionsSheetLoader({
         setPane={setPane}
         setSortBy={setSortBy}
         onOpenChange={onOpenChange}
+        unreadCount={unreadCount}
       />
     </ActionSheet>
   ) : null;
@@ -128,12 +138,14 @@ export function GroupOptions({
   setPane,
   setSortBy,
   onOpenChange,
+  unreadCount,
 }: {
   group: db.Group;
   pane: 'initial' | 'edit' | 'notifications' | 'sort';
   setPane: (pane: 'initial' | 'edit' | 'notifications' | 'sort') => void;
   setSortBy?: (sortBy: db.ChannelSortPreference) => void;
   onOpenChange: (open: boolean) => void;
+  unreadCount?: number;
 }) {
   const currentUser = useCurrentUserId();
   const { data: currentVolumeLevel } = store.useGroupVolumeLevel(group.id);
@@ -257,6 +269,17 @@ export function GroupOptions({
     onOpenChange,
   ]);
 
+  const { data: groupUnread } = useQuery({
+    queryKey: ['groupUnread', group.id],
+
+    queryFn: async () => db.getGroupUnread({ groupId: group.id }),
+  });
+
+  const handleMarkAllRead = useCallback(() => {
+    store.markGroupRead(group, true);
+    onOpenChange(false);
+  }, [group, onOpenChange]);
+
   const actionGroups = useMemo(() => {
     const groupRef = logic.getGroupReferencePath(group.id);
 
@@ -271,6 +294,16 @@ export function GroupOptions({
             },
             endIcon: 'ChevronRight',
           },
+          ...(unreadCount === 0 || groupUnread?.count === 0
+            ? []
+            : [
+                {
+                  title: 'Mark all as read',
+                  action: () => {
+                    handleMarkAllRead();
+                  },
+                },
+              ]),
           {
             title: isPinned ? 'Unpin' : 'Pin',
             endIcon: 'Pin',
@@ -369,14 +402,17 @@ export function GroupOptions({
     return actionGroups;
   }, [
     group,
+    unreadCount,
+    groupUnread?.count,
     isPinned,
+    onTogglePinned,
     currentUserIsAdmin,
     setPane,
-    onTogglePinned,
+    handleMarkAllRead,
     onPressGroupMembers,
+    onOpenChange,
     onPressInvite,
     onPressLeave,
-    onOpenChange,
   ]);
 
   const actionSort: ActionGroup[] = useMemo(() => {
@@ -545,7 +581,6 @@ export function ChannelOptions({
     onPressChannelMeta,
     onPressManageChannels,
     onPressInvite,
-    onPressLeave,
   } = useChatOptions() ?? {};
 
   const currentUserIsHost = useMemo(
@@ -628,6 +663,12 @@ export function ChannelOptions({
     [currentVolumeLevel, handleVolumeUpdate]
   );
 
+  const handleMarkRead = useCallback(() => {
+    if (channel && !channel.isPendingChannel) {
+      store.markChannelRead(channel);
+    }
+  }, [channel]);
+
   const actionGroups: ActionGroup[] = useMemo(() => {
     return [
       {
@@ -658,6 +699,21 @@ export function ChannelOptions({
           },
         ],
       },
+      ...((channel.unread?.count ?? 0) > 0
+        ? [
+            {
+              accent: 'neutral',
+              actions: [
+                {
+                  title: 'Mark as read',
+                  action: () => {
+                    handleMarkRead(), onOpenChange(false);
+                  },
+                },
+              ],
+            } as ActionGroup,
+          ]
+        : []),
       ...(channel.type === 'groupDm'
         ? [
             {
@@ -776,36 +832,47 @@ export function ChannelOptions({
                     if (!channel) {
                       return;
                     }
-                    Alert.alert(
-                      `Leave ${title}?`,
-                      'This will be removed from the list',
-                      [
-                        {
-                          text: 'Cancel',
-                          onPress: () => console.log('Cancel Pressed'),
-                          style: 'cancel',
-                        },
-                        {
-                          text: 'Leave',
-                          style: 'destructive',
-                          onPress: () => {
-                            onOpenChange(false);
-                            onPressLeave?.();
-                            if (
-                              channel.type === 'dm' ||
-                              channel.type === 'groupDm'
-                            ) {
-                              store.respondToDMInvite({
-                                channel,
-                                accept: false,
-                              });
-                            } else {
-                              store.leaveGroupChannel(channel.id);
-                            }
+                    if (!isWeb) {
+                      Alert.alert(
+                        `Leave ${title}?`,
+                        'This will be removed from the list',
+                        [
+                          {
+                            text: 'Cancel',
+                            onPress: () => console.log('Cancel Pressed'),
+                            style: 'cancel',
                           },
-                        },
-                      ]
-                    );
+                          {
+                            text: 'Leave',
+                            style: 'destructive',
+                            onPress: () => {
+                              onOpenChange(false);
+                              if (
+                                channel.type === 'dm' ||
+                                channel.type === 'groupDm'
+                              ) {
+                                store.respondToDMInvite({
+                                  channel,
+                                  accept: false,
+                                });
+                              } else {
+                                store.leaveGroupChannel(channel.id);
+                              }
+                            },
+                          },
+                        ]
+                      );
+                      return;
+                    }
+                    onOpenChange(false);
+                    if (channel.type === 'dm' || channel.type === 'groupDm') {
+                      store.respondToDMInvite({
+                        channel,
+                        accept: false,
+                      });
+                    } else {
+                      store.leaveGroupChannel(channel.id);
+                    }
                   },
                 },
               ],
@@ -820,13 +887,13 @@ export function ChannelOptions({
     group,
     currentUserIsHost,
     setPane,
+    handleMarkRead,
+    onOpenChange,
     onPressChannelMeta,
     onPressChannelMembers,
     onPressManageChannels,
     onPressInvite,
     title,
-    onOpenChange,
-    onPressLeave,
   ]);
 
   const displayTitle = useMemo((): string => {

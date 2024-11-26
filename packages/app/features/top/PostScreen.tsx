@@ -129,7 +129,7 @@ export default function PostScreen(props: Props) {
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
-      props.navigation.push('Channel', { channelId: dmChannel.id });
+      props.navigation.push('DM', { channelId: dmChannel.id });
     },
     [props.navigation]
   );

@@ -21,6 +21,7 @@ import { StorageProvider } from '@tloncorp/app/provider/StorageProvider';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
+import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
 import {
   LoadingSpinner,
   PortalProvider,
@@ -45,6 +46,11 @@ const App = () => {
   const { isLoading, isAuthenticated } = useShip();
   const [connected, setConnected] = useState(true);
   const signupContext = useSignupContext();
+  const finishingSelfHostedLogin = selfHostedLoginStatus.useValue();
+
+  const currentlyOnboarding = useMemo(() => {
+    return signupContext.email || signupContext.phoneNumber;
+  }, [signupContext.email, signupContext.phoneNumber]);
 
   const currentlyOnboarding = useMemo(() => {
     return signupContext.email || signupContext.phoneNumber;
@@ -65,8 +71,10 @@ const App = () => {
   }, []);
 
   const showAuthenticatedApp = useMemo(() => {
-    return isAuthenticated && !currentlyOnboarding;
-  }, [isAuthenticated, currentlyOnboarding]);
+    return (
+      isAuthenticated && !(currentlyOnboarding || finishingSelfHostedLogin)
+    );
+  }, [isAuthenticated, currentlyOnboarding, finishingSelfHostedLogin]);
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">

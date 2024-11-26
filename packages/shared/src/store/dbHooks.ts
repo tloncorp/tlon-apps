@@ -138,7 +138,7 @@ export const useIsTlonEmployee = () => {
   return useQuery({
     queryKey: db.IS_TLON_EMPLOYEE_QUERY_KEY,
     queryFn: db.getIsTlonEmployee,
-  });
+  }).data;
 };
 
 export const useCanUpload = () => {
@@ -357,7 +357,10 @@ export const useGroupByChannel = (channelId: string) => {
 
 export const useMemberRoles = (chatId: string, userId: string) => {
   const { data: chatMember } = useQuery({
-    queryKey: ['memberRoles', chatId, userId],
+    queryKey: [
+      ['memberRoles', chatId, userId],
+      useKeyFromQueryDeps(db.getChatMember),
+    ],
     queryFn: () => db.getChatMember({ chatId, contactId: userId }),
   });
 

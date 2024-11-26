@@ -1,5 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
+import { preSig } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useLureMetadata } from '../contexts/branch';
@@ -8,6 +9,7 @@ import { BootPhaseNames, NodeBootPhase } from '../lib/bootHelpers';
 import BootHelpers from '../lib/bootHelpers';
 import { getShipFromCookie } from '../utils/ship';
 import { useConfigureUrbitClient } from './useConfigureUrbitClient';
+import { usePosthog } from './usePosthog';
 
 const HANDLE_INVITES_TIMEOUT = 1000 * 30;
 
@@ -37,6 +39,7 @@ export function useBootSequence({
 }: {
   hostingUser: { id: string } | null;
 }) {
+  const telemetry = usePosthog();
   const { setShip } = useShip();
   const connectionStatus = store.useConnectionStatus();
   const lureMeta = useLureMetadata();
@@ -107,6 +110,7 @@ export function useBootSequence({
         authCookie: auth.authCookie,
         authType: 'hosted',
       });
+      telemetry?.identify(preSig(auth.nodeId), { isHostedUser: true });
 
       await wait(2000);
 
