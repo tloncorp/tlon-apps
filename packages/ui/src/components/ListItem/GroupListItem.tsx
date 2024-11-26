@@ -1,7 +1,6 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { View } from 'tamagui';
-import { isWeb } from 'tamagui';
+import { View, isWeb } from 'tamagui';
 
 import { Badge } from '../Badge';
 import { Button } from '../Button';
@@ -69,6 +68,7 @@ export const GroupListItem = ({
                   <ListItem.Count
                     count={unreadCount}
                     muted={logic.isMuted(model.volumeSettings?.level, 'group')}
+                    marginRight={isWeb ? '$l' : 'unset'}
                   />
                 </>
               )}
@@ -78,7 +78,13 @@ export const GroupListItem = ({
       </Pressable>
       {isWeb && !isPending && (
         <View position="absolute" right={-2} top={44} zIndex={1}>
-          <Button onPress={handleLongPress} borderWidth="unset" size="$l">
+          <Button
+            onPress={handleLongPress}
+            borderWidth="unset"
+            size="$s"
+            paddingHorizontal={0}
+            marginHorizontal="$-m"
+          >
             <Icon type="Overflow" />
           </Button>
         </View>

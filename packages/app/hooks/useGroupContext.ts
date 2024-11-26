@@ -123,6 +123,7 @@ export const useGroupContext = ({
         channel,
         sectionId: navSection.sectionId,
         readers: channel.readerRoles?.map((r) => r.roleId) ?? [],
+        writers: channel.writerRoles?.map((r) => r.roleId) ?? [],
         join: true,
       });
     },

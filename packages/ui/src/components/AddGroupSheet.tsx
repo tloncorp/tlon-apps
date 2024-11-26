@@ -62,6 +62,7 @@ export function AddGroupSheet({
           searchPlaceholder="Username or ID"
           onSelect={onSelect}
           onScrollChange={setScreenScrolling}
+          height={400}
           key={screenKey}
           quickActions={
             <View paddingBottom="$l">

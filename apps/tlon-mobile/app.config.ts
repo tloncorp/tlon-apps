@@ -51,6 +51,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     branchDomain: isPreview
       ? process.env.BRANCH_DOMAIN_TEST
       : process.env.BRANCH_DOMAIN_PROD,
+    inviteServiceEndpoint: process.env.INVITE_SERVICE_ENDPOINT,
+    inviteServiceIsDev: process.env.INVITE_SERVICE_IS_DEV,
   },
   ios: {
     runtimeVersion: '4.0.2',

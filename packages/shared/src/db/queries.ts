@@ -46,6 +46,7 @@ import {
   withTransactionCtx,
 } from './query';
 import {
+  activityEventContactGroups as $activityEventContactGroups,
   activityEvents as $activityEvents,
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
@@ -222,6 +223,80 @@ export const getPendingChats = createReadQuery(
   ['groups', 'channels']
 );
 
+export const getUnjoinedGroupChannels = createReadQuery(
+  'getUnjoinedGroupChannels',
+  async (groupId: string, ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    logger.log(
+      'getUnjoinedGroupChannels: checking for user',
+      currentUserId,
+      'in group',
+      groupId
+    );
+
+    const group = await ctx.db.query.groups.findFirst({
+      where: eq($groups.id, groupId),
+      with: {
+        roles: {
+          with: {
+            members: true,
+          },
+        },
+      },
+    });
+
+    if (!group) return [];
+
+    const userRolesForGroup =
+      group.roles
+        ?.filter((role) =>
+          role.members?.map((m) => m.contactId).includes(currentUserId)
+        )
+        .map((role) => role.id) ?? [];
+
+    logger.log('getUnjoinedGroupChannels: user roles', userRolesForGroup);
+
+    const allUnjoined = await ctx.db.query.channels.findMany({
+      where: and(
+        eq($channels.groupId, groupId),
+        eq($channels.currentUserIsMember, false)
+      ),
+      with: {
+        readerRoles: true,
+      },
+    });
+
+    logger.log(
+      'getUnjoinedGroupChannels: found unjoined channels',
+      allUnjoined.map((c) => ({
+        id: c.id,
+        readerRoles: c.readerRoles,
+      }))
+    );
+
+    return allUnjoined.filter((channel) => {
+      const isOpenChannel = channel.readerRoles?.length === 0;
+      const isClosedButCanRead = channel.readerRoles
+        ?.map((r) => r.roleId)
+        .some((r) => userRolesForGroup.includes(r));
+
+      const canRead = isOpenChannel || isClosedButCanRead;
+      logger.log(
+        'getUnjoinedGroupChannels: channel',
+        channel.id,
+        'isOpen:',
+        isOpenChannel,
+        'hasPermission:',
+        isClosedButCanRead,
+        'canRead:',
+        canRead
+      );
+      return canRead;
+    });
+  },
+  ['channels', 'groups']
+);
+
 export const getPins = createReadQuery(
   'getPins',
   async (ctx: QueryCtx): Promise<Pin[]> => {
@@ -358,6 +433,7 @@ export const getChats = createReadQuery(
     'groups',
     'channels',
     'posts',
+    'contacts',
     'channelUnreads',
     'groupUnreads',
     'threadUnreads',
@@ -395,6 +471,16 @@ export const insertGroups = createWriteQuery(
           await txCtx.db.insert($groups).values(group).onConflictDoNothing();
         }
         if (group.channels?.length) {
+          logger.log(
+            'insertGroups: inserting channels for group',
+            group.id,
+            group.channels.map((c) => ({
+              id: c.id,
+              readerRoles: c.readerRoles,
+            }))
+          );
+
+          // First insert/update the channels
           await txCtx.db
             .insert($channels)
             .values(group.channels)
@@ -411,6 +497,25 @@ export const insertGroups = createWriteQuery(
                 $channels.contentConfiguration
               ),
             });
+
+          // Then handle reader roles separately
+          for (const channel of group.channels) {
+            if (channel.readerRoles) {
+              // Clear existing reader roles
+              await txCtx.db
+                .delete($channelReaders)
+                .where(eq($channelReaders.channelId, channel.id));
+
+              if (channel.readerRoles.length > 0) {
+                // Insert new reader roles
+                await txCtx.db
+                  .insert($channelReaders)
+                  .values(channel.readerRoles);
+              }
+            }
+          }
+
+          logger.log('insertGroups: finished inserting channels');
         }
         if (group.flaggedPosts?.length) {
           await txCtx.db
@@ -1077,14 +1182,15 @@ export const removeChatMembers = createWriteQuery(
   ['chatMembers', 'groups']
 );
 
-export const getUnreadsCount = createReadQuery(
-  'getUnreadsCount',
+export const getUnreadsCountWithoutMuted = createReadQuery(
+  'getUnreadsCountWithoutMuted',
   async ({ type }: { type?: ChannelUnread['type'] }, ctx: QueryCtx) => {
     const result = await ctx.db
       .select({ count: count() })
       .from($channelUnreads)
       .where(() =>
         and(
+          $channelUnreads.notify,
           gt($channelUnreads.count, 0),
           type ? eq($channelUnreads.type, type) : undefined
         )
@@ -1114,22 +1220,6 @@ export const getUnreads = createReadQuery(
       orderBy:
         orderBy === 'updatedAt' ? desc($channelUnreads.updatedAt) : undefined,
     });
-  },
-  ['channelUnreads']
-);
-
-export const getAllUnreadsCounts = createReadQuery(
-  'getAllUnreadCounts',
-  async (ctx: QueryCtx) => {
-    const [channelUnreadCount, dmUnreadCount] = await Promise.all([
-      getUnreadsCount({ type: 'channel' }, ctx),
-      getUnreadsCount({ type: 'dm' }, ctx),
-    ]);
-    return {
-      channels: channelUnreadCount ?? 0,
-      dms: dmUnreadCount ?? 0,
-      total: (channelUnreadCount ?? 0) + (dmUnreadCount ?? 0),
-    };
   },
   ['channelUnreads']
 );
@@ -1711,17 +1801,29 @@ export const addJoinedGroupChannel = createWriteQuery(
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
     logger.log('addJoinedGroupChannel', channelId);
 
-    await ctx.db.insert($groupNavSectionChannels).values({
-      channelId,
-      groupNavSectionId: 'default',
-    });
-
-    return await ctx.db
+    // First update the channel membership
+    await ctx.db
       .update($channels)
       .set({
         currentUserIsMember: true,
       })
       .where(eq($channels.id, channelId));
+
+    // Then check if channel exists in any section
+    const existingInAnySection = await ctx.db
+      .select()
+      .from($groupNavSectionChannels)
+      .where(eq($groupNavSectionChannels.channelId, channelId));
+
+    // Only add to default if it's not
+    if (existingInAnySection.length === 0) {
+      await ctx.db.insert($groupNavSectionChannels).values({
+        channelId,
+        groupNavSectionId: 'default',
+      });
+    }
+
+    return;
   },
   ['channels']
 );
@@ -2581,6 +2683,7 @@ export const getGroup = createReadQuery(
     'volumeSettings',
     'channels',
     'groupJoinRequests',
+    'groupMemberBans',
   ]
 );
 
@@ -2704,6 +2807,67 @@ export const updateContact = createWriteQuery(
   ['contacts']
 );
 
+export const upsertContact = createWriteQuery(
+  'upsertContact',
+  async (contact: Contact, ctx: QueryCtx) => {
+    const existingContact = await ctx.db.query.contacts.findFirst({
+      where: (contacts, { eq }) => eq(contacts.id, contact.id),
+    });
+
+    if (existingContact) {
+      return ctx.db
+        .update($contacts)
+        .set(contact)
+        .where(eq($contacts.id, contact.id));
+    }
+
+    // for new inserts, default to non contact if unspecified
+    const newContact: Contact = {
+      ...contact,
+      isContact: contact.isContact !== undefined ? contact.isContact : false,
+    };
+    return ctx.db.insert($contacts).values(newContact);
+  },
+  ['contacts']
+);
+
+export const getUserContacts = createReadQuery(
+  'getUserContacts',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.contacts.findMany({
+      where: and(eq($contacts.isContact, true)),
+      with: {
+        pinnedGroups: {
+          with: {
+            group: true,
+          },
+        },
+      },
+    });
+  },
+  ['contacts']
+);
+
+export const getSuggestedContacts = createReadQuery(
+  'getSuggestedContacts',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.contacts.findMany({
+      where: and(
+        eq($contacts.isContact, false),
+        eq($contacts.isContactSuggestion, true)
+      ),
+      with: {
+        pinnedGroups: {
+          with: {
+            group: true,
+          },
+        },
+      },
+    });
+  },
+  ['contacts']
+);
+
 export const addPinnedGroup = createWriteQuery(
   'addPinnedGroup',
   async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
@@ -2724,6 +2888,25 @@ export const removePinnedGroup = createWriteQuery(
       contactId: currentUserId,
       groupId,
     });
+  },
+  ['contactGroups', 'contacts']
+);
+
+export const setPinnedGroups = createWriteQuery(
+  'setPinnedGroups',
+  async ({ groupIds }: { groupIds: string[] }, ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    await ctx.db
+      .delete($contactGroups)
+      .where(eq($contactGroups.contactId, currentUserId));
+
+    if (groupIds.length !== 0) {
+      const newGroups = groupIds.map((groupId) => ({
+        contactId: currentUserId,
+        groupId,
+      }));
+      await ctx.db.insert($contactGroups).values(newGroups);
+    }
   },
   ['contactGroups', 'contacts']
 );
@@ -2951,14 +3134,47 @@ export const clearThreadUnread = createWriteQuery(
 export const insertActivityEvents = createWriteQuery(
   'insertActivityEvents',
   async (events: ActivityEvent[], ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
     if (events.length === 0) return;
-    return ctx.db
-      .insert($activityEvents)
-      .values(events)
-      .onConflictDoUpdate({
-        target: [$activityEvents.id, $activityEvents.bucketId],
-        set: conflictUpdateSetAll($activityEvents),
-      });
+
+    const activityEventGroups = events.flatMap(
+      (contact) => contact.contactUpdateGroups || []
+    );
+
+    const targetGroups = activityEventGroups.map((g): Group => {
+      const { host: hostUserId } = parseGroupId(g.groupId);
+      return {
+        id: g.groupId,
+        hostUserId,
+        privacy: g.group?.privacy,
+        currentUserIsMember: false,
+        currentUserIsHost: currentUserId === hostUserId,
+      };
+    });
+
+    await withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .insert($activityEvents)
+        .values(events)
+        .onConflictDoUpdate({
+          target: [$activityEvents.id, $activityEvents.bucketId],
+          set: conflictUpdateSetAll($activityEvents),
+        });
+
+      if (targetGroups.length) {
+        await txCtx.db
+          .insert($groups)
+          .values(targetGroups)
+          .onConflictDoNothing();
+      }
+
+      if (activityEventGroups.length) {
+        await txCtx.db
+          .insert($activityEventContactGroups)
+          .values(activityEventGroups)
+          .onConflictDoNothing();
+      }
+    });
   },
   ['activityEvents']
 );
@@ -3127,7 +3343,10 @@ export const getAllOrRepliesPage = createReadQuery(
         .where(
           and(
             eq($activityEvents.bucketId, bucket),
-            eq($activityEvents.shouldNotify, true),
+            or(
+              eq($activityEvents.shouldNotify, true),
+              eq($activityEvents.type, 'contact')
+            ),
             lt($activityEvents.timestamp, resolvedCursor),
             bucket === 'all'
               ? gt($activityEvents.timestamp, 0) // noop
@@ -3154,7 +3373,10 @@ export const getAllOrRepliesPage = createReadQuery(
         .from($activityEvents)
         .where(
           and(
-            eq($activityEvents.shouldNotify, true),
+            or(
+              eq($activityEvents.shouldNotify, true),
+              eq($activityEvents.type, 'contact')
+            ),
             eq($activityEvents.bucketId, bucket)
           )
         )
@@ -3202,6 +3424,11 @@ export const getAllOrRepliesPage = createReadQuery(
               },
             },
             groupEventUser: true,
+            contactUpdateGroups: {
+              with: {
+                group: true,
+              },
+            },
           },
         });
       } else {
@@ -3369,6 +3596,7 @@ function conflictUpdateSetAll(table: Table, exclude?: string[]) {
   return conflictUpdateSet(
     ...Object.entries(columns)
       .filter(([k]) => !exclude?.includes(k))
+      .filter(([_, c]) => c.generated === undefined)
       .map(([_, v]) => v)
   );
 }

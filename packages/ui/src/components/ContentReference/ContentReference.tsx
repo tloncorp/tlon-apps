@@ -2,7 +2,7 @@
 import { ContentReference } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { getChannelType } from '@tloncorp/shared/urbit';
-import React, { useState } from 'react';
+import React from 'react';
 import { ComponentProps, useCallback } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
@@ -11,7 +11,6 @@ import { useRequests } from '../../contexts/requests';
 import { ContactAvatar, GroupAvatar } from '../Avatar';
 import { useContactName } from '../ContactNameV2';
 import { GalleryContentRenderer } from '../GalleryPost';
-import { GroupPreviewSheet } from '../GroupPreviewSheet';
 import { IconType } from '../Icon';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
@@ -76,7 +75,6 @@ export function PostReferenceLoader({
   postId: string;
   replyId?: string;
 }) {
-  const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const { usePostReference, useChannel, useGroup } = useRequests();
   const postQuery = usePostReference({
     postId: replyId ? replyId : postId,
@@ -84,20 +82,14 @@ export function PostReferenceLoader({
   });
   const { data: channel } = useChannel({ id: channelId });
   const { data: group } = useGroup(channel?.groupId ?? '');
-  const { onPressRef } = useNavigation();
+  const { onPressRef, onPressGroupRef } = useNavigation();
   const handlePress = useCallback(async () => {
     if (channel && postQuery.data && group && group.currentUserIsMember) {
       onPressRef?.(channel, postQuery.data);
     } else if (group) {
-      setSelectedGroup(group ?? null);
+      onPressGroupRef?.(group);
     }
-  }, [channel, onPressRef, postQuery.data, group]);
-
-  const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setSelectedGroup(null);
-    }
-  }, []);
+  }, [channel, onPressRef, postQuery.data, group, onPressGroupRef]);
 
   return (
     <>
@@ -110,12 +102,6 @@ export function PostReferenceLoader({
         hasData={!!postQuery.data}
         onPress={openOnPress ? handlePress : undefined}
         {...props}
-      />
-
-      <GroupPreviewSheet
-        open={selectedGroup !== null}
-        onOpenChange={handleGroupPreviewSheetOpenChange}
-        group={selectedGroup ?? undefined}
       />
     </>
   );

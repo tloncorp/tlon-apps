@@ -79,9 +79,11 @@ export function ChannelHeader({
   group,
   goBack,
   goToSearch,
+  goToEdit,
   showSpinner,
   showSearchButton = true,
   showMenuButton = false,
+  showEditButton = false,
 }: {
   title: string;
   mode?: 'default' | 'next';
@@ -89,9 +91,11 @@ export function ChannelHeader({
   group?: db.Group | null;
   goBack?: () => void;
   goToSearch?: () => void;
+  goToEdit?: () => void;
   showSpinner?: boolean;
   showSearchButton?: boolean;
   showMenuButton?: boolean;
+  showEditButton?: boolean;
   post?: db.Post;
 }) {
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
@@ -137,6 +141,11 @@ export function ChannelHeader({
                 type="Overflow"
                 onPress={handlePressOverflowMenu}
               />
+            )}
+            {showEditButton && (
+              <ScreenHeader.TextButton onPress={goToEdit}>
+                Edit
+              </ScreenHeader.TextButton>
             )}
           </>
         }

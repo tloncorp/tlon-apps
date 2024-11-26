@@ -58,8 +58,10 @@
   ::
       %grouper-answer-enabled
     =/  [name=cord enabled=?]  !<([cord ?] vase)
-    :_  this
-    ~[[%give %fact ~[[%group-enabled (scot %p src.bowl) name ~]] %json !>(b+enabled)]]
+    :-  ~[[%give %fact ~[[%group-enabled (scot %p src.bowl) name ~]] %json !>(b+enabled)]]
+    ?:  enabled
+      this(enabled-groups (~(put in enabled-groups) name))
+    this(enabled-groups (~(del in enabled-groups) name))
   ::
       %grouper-check-link
     =+  !<(=(pole knot) vase)

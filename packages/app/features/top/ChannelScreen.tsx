@@ -1,6 +1,6 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createDevLogger } from '@tloncorp/shared';
+import { createDevLogger, useChannelContext } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
@@ -21,10 +21,10 @@ import {
 } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 
-import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 
 const logger = createDevLogger('ChannelScreen', false);
@@ -39,6 +39,7 @@ export default function ChannelScreen(props: Props) {
     setCurrentChannelId(channelId);
   }, [channelId]);
 
+  const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
   const {
     negotiationStatus,
     getDraft,
@@ -53,7 +54,7 @@ export default function ChannelScreen(props: Props) {
   } = useChannelContext({
     channelId: currentChannelId,
     draftKey: currentChannelId,
-    uploaderKey: `${currentChannelId}`,
+    isChannelSwitcherEnabled,
   });
 
   const currentUserId = useCurrentUserId();
@@ -174,6 +175,20 @@ export default function ChannelScreen(props: Props) {
     }
   }, [channel?.id, cursor]);
 
+  // If scroll to bottom is pressed, it's most straighforward to ignore
+  // existing cursor
+  const [clearedCursor, setClearedCursor] = React.useState(false);
+
+  // But if a new post is selected, we should mark the cursor
+  // as uncleared
+  useEffect(() => {
+    setClearedCursor(false);
+  }, [selectedPostId]);
+
+  const handleScrollToBottom = useCallback(() => {
+    setClearedCursor(true);
+  }, []);
+
   const {
     posts,
     query: postsQuery,
@@ -185,7 +200,7 @@ export default function ChannelScreen(props: Props) {
     channelId: currentChannelId,
     count: 15,
     hasCachedNewest,
-    ...(cursor
+    ...(cursor && !clearedCursor
       ? {
           mode: 'around',
           cursor,
@@ -291,12 +306,12 @@ export default function ChannelScreen(props: Props) {
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
-      props.navigation.push('Channel', { channelId: dmChannel.id });
+      props.navigation.push('DM', { channelId: dmChannel.id });
     },
     [props.navigation]
   );
 
-  const handleMarkRead = useCallback(() => {
+  const handleMarkRead = useCallback(async () => {
     if (channel && !channel.isPendingChannel) {
       store.markChannelRead(channel);
     }
@@ -347,7 +362,7 @@ export default function ChannelScreen(props: Props) {
         key={currentChannelId}
         headerMode={headerMode}
         channel={channel}
-        initialChannelUnread={initialChannelUnread}
+        initialChannelUnread={clearedCursor ? undefined : initialChannelUnread}
         isLoadingPosts={isLoadingPosts}
         hasNewerPosts={postsQuery.hasPreviousPage}
         hasOlderPosts={postsQuery.hasNextPage}
@@ -383,6 +398,7 @@ export default function ChannelScreen(props: Props) {
         negotiationMatch={negotiationStatus.matchedOrPending}
         canUpload={canUpload}
         startDraft={startDraft}
+        onPressScrollToBottom={handleScrollToBottom}
       />
       {group && (
         <>

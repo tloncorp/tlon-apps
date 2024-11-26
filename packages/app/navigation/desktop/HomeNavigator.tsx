@@ -12,6 +12,9 @@ import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import ChannelScreen from '../../features/top/ChannelScreen';
 import ChannelSearchScreen from '../../features/top/ChannelSearchScreen';
 import { ChatListScreenView } from '../../features/top/ChatListScreen';
+import { ContactHostedGroupsScreen } from '../../features/top/ContactHostedGroupsScreen';
+import { CreateGroupScreen } from '../../features/top/CreateGroupScreen';
+import { FindGroupsScreen } from '../../features/top/FindGroupsScreen';
 import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScreen';
 import ImageViewerScreen from '../../features/top/ImageViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
@@ -25,15 +28,20 @@ export const HomeNavigator = () => {
   return (
     <HomeDrawer.Navigator
       drawerContent={DrawerContent}
-      initialRouteName="MainContent"
+      initialRouteName="ChatList"
       screenOptions={{
         drawerType: 'permanent',
         headerShown: false,
+        drawerStyle: {
+          width: 340,
+        },
       }}
     >
-      <HomeDrawer.Screen name="ChatList" component={Empty} />
+      <HomeDrawer.Screen name="ChatList" component={MainStack} />
       <HomeDrawer.Screen name="GroupChannels" component={Empty} />
       <HomeDrawer.Screen name="Channel" component={ChannelStack} />
+      <HomeDrawer.Screen name="DM" component={ChannelStack} />
+      <HomeDrawer.Screen name="GroupDM" component={ChannelStack} />
     </HomeDrawer.Navigator>
   );
 };
@@ -50,6 +58,33 @@ function DrawerContent(props: DrawerContentComponentProps) {
   } else {
     return <ChatListScreenView />;
   }
+}
+
+const MainStackNavigator = createNativeStackNavigator();
+
+function MainStack() {
+  return (
+    <MainStackNavigator.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+      initialRouteName="ChatList"
+    >
+      <MainStackNavigator.Screen name="ChatList" component={Empty} />
+      <MainStackNavigator.Screen
+        name="CreateGroup"
+        component={CreateGroupScreen}
+      />
+      <MainStackNavigator.Screen
+        name="FindGroups"
+        component={FindGroupsScreen}
+      />
+      <MainStackNavigator.Screen
+        name="ContactHostedGroups"
+        component={ContactHostedGroupsScreen}
+      />
+    </MainStackNavigator.Navigator>
+  );
 }
 
 const ChannelStackNavigator = createNativeStackNavigator();

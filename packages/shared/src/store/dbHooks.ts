@@ -82,6 +82,20 @@ export const usePendingChats = (
   });
 };
 
+export const useUnjoinedGroupChannels = (groupId: string) => {
+  const deps = useKeyFromQueryDeps(db.getUnjoinedGroupChannels);
+  return useQuery({
+    queryKey: [['unjoinedChannels', groupId], deps],
+    queryFn: async () => {
+      if (!groupId) {
+        return [];
+      }
+      const unjoined = await db.getUnjoinedGroupChannels(groupId);
+      return unjoined;
+    },
+  });
+};
+
 export const usePins = (
   queryConfig?: CustomQueryConfig<db.Pin[]>
 ): UseQueryResult<db.Pin[] | null> => {
@@ -184,10 +198,13 @@ export const useContacts = () => {
   });
 };
 
-export const useUnreadsCount = () => {
+export const useUnreadsCountWithoutMuted = () => {
   return useQuery({
-    queryKey: ['unreadsCount'],
-    queryFn: () => db.getUnreadsCount({}),
+    queryKey: [
+      'unreadsCount',
+      useKeyFromQueryDeps(db.getUnreadsCountWithoutMuted),
+    ],
+    queryFn: () => db.getUnreadsCountWithoutMuted({}),
   });
 };
 
@@ -357,7 +374,10 @@ export const useGroupByChannel = (channelId: string) => {
 
 export const useMemberRoles = (chatId: string, userId: string) => {
   const { data: chatMember } = useQuery({
-    queryKey: ['memberRoles', chatId, userId],
+    queryKey: [
+      ['memberRoles', chatId, userId],
+      useKeyFromQueryDeps(db.getChatMember),
+    ],
     queryFn: () => db.getChatMember({ chatId, contactId: userId }),
   });
 
@@ -378,6 +398,22 @@ export const useGroupPreview = (groupId: string) => {
       const [preview] = await syncGroupPreviews([groupId]);
       return preview;
     },
+  });
+};
+
+export const useUserContacts = () => {
+  const deps = useKeyFromQueryDeps(db.getUserContacts);
+  return useQuery({
+    queryKey: ['userContacts', deps],
+    queryFn: () => db.getUserContacts(),
+  });
+};
+
+export const useSuggestedContacts = () => {
+  const deps = useKeyFromQueryDeps(db.getSuggestedContacts);
+  return useQuery({
+    queryKey: ['suggestedContacts', deps],
+    queryFn: () => db.getSuggestedContacts(),
   });
 };
 

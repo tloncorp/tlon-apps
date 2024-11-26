@@ -2,8 +2,8 @@ import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useBranch, useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
+import { useTypedReset } from '@tloncorp/app/navigation/utils';
 import { createDevLogger } from '@tloncorp/shared';
-import * as store from '@tloncorp/shared/store';
 import { useEffect, useRef } from 'react';
 
 const logger = createDevLogger('deeplinkHandler', true);
@@ -14,6 +14,7 @@ export const useDeepLinkListener = () => {
   const { ship } = useShip();
   const signupParams = useSignupParams();
   const { clearLure, lure } = useBranch();
+  const reset = useTypedReset();
 
   useEffect(() => {
     if (ship && lure && !isHandlingLinkRef.current) {
@@ -27,22 +28,16 @@ export const useDeepLinkListener = () => {
           } else {
             // otherwise, treat it as a deeplink and navigate to the group
             if (lure.invitedGroupId) {
-              const [group] = await store.syncGroupPreviews([
-                lure.invitedGroupId,
+              logger.log(
+                `handling deep link to invited group`,
+                lure.invitedGroupId
+              );
+              reset([
+                {
+                  name: 'ChatList',
+                  params: { previewGroupId: lure.invitedGroupId },
+                },
               ]);
-              if (group) {
-                navigation.reset({
-                  index: 1,
-                  routes: [
-                    { name: 'ChatList', params: { previewGroup: group } },
-                  ],
-                });
-              } else {
-                logger.error(
-                  'Failed to navigate to group deeplink',
-                  lure.invitedGroupId
-                );
-              }
             }
           }
         } catch (e) {
@@ -53,5 +48,5 @@ export const useDeepLinkListener = () => {
         }
       })();
     }
-  }, [ship, signupParams, clearLure, lure, navigation]);
+  }, [ship, signupParams, clearLure, lure, navigation, reset]);
 };

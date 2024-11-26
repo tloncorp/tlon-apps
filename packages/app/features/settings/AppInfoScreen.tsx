@@ -23,6 +23,7 @@ import { getEmailClients, openComposer } from 'react-native-email-link';
 import { ScrollView } from 'react-native-gesture-handler';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
+import { useTelemetry } from '../../hooks/useTelemetry';
 import { setDebug } from '../../lib/debug';
 import { getEasUpdateDisplay } from '../../lib/platformHelpers';
 import { RootStackParamList } from '../../navigation/types';
@@ -52,6 +53,15 @@ export function AppInfoScreen(props: Props) {
   const { enabled, logs, logId, uploadLogs } = useDebugStore();
   const easUpdateDisplay = useMemo(() => getEasUpdateDisplay(Updates), []);
   const [hasClients, setHasClients] = useState(true);
+  const telemetry = useTelemetry();
+  const [telemetryDisabled, setTelemetryDisabled] = useState(
+    telemetry.optedOut
+  );
+
+  const toggleSetTelemetry = useCallback(() => {
+    setTelemetryDisabled(!telemetryDisabled);
+    telemetry.setDisabled(!telemetryDisabled);
+  }, [telemetryDisabled, telemetry]);
 
   useEffect(() => {
     async function checkClients() {
@@ -101,13 +111,18 @@ export function AppInfoScreen(props: Props) {
   }, [hasClients]);
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title="App info"
         backAction={() => props.navigation.goBack()}
       />
       <ScrollView>
-        <YStack marginTop="$xl" marginHorizontal="$2xl" gap="$s">
+        <YStack
+          marginTop="$xl"
+          marginHorizontal="$2xl"
+          gap="$s"
+          paddingBottom="$3xl"
+        >
           <AppSetting title="Build version" value={BUILD_VERSION} copyable />
           <AppSetting title="OTA Update" value={easUpdateDisplay} copyable />
           <AppSetting
@@ -169,6 +184,24 @@ export function AppInfoScreen(props: Props) {
               <Text>{logId}</Text>
             </YStack>
           )}
+
+          <YStack>
+            <XStack
+              justifyContent="space-between"
+              alignItems="center"
+              padding="$l"
+            >
+              <SizableText flexShrink={1}>Share Usage Statistics</SizableText>
+              <Switch
+                style={{ flexShrink: 0 }}
+                value={!telemetryDisabled}
+                onValueChange={toggleSetTelemetry}
+              ></Switch>
+            </XStack>
+            <SizableText size="$s" marginLeft="$l">
+              By sharing, you help us improve the app for everyone.
+            </SizableText>
+          </YStack>
         </YStack>
       </ScrollView>
     </View>

@@ -10,12 +10,13 @@ import {
 } from '@tloncorp/app/contexts/branch';
 import { HostingError } from '@tloncorp/app/lib/hostingApi';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import {
   Field,
   KeyboardAvoidingView,
   OnboardingInviteBlock,
   OnboardingTextBlock,
+  PrimaryButton,
   ScreenHeader,
   TextInput,
   TlonText,
@@ -71,12 +72,16 @@ export const SignupScreen = ({ navigation }: Props) => {
     },
   });
 
+  const handlePressEula = useCallback(() => {
+    navigation.navigate('EULA');
+  }, [navigation]);
+
   const handleSuccess = useCallback(() => {
     trackOnboardingAction({
       actionName: 'Phone or Email Submitted',
       phoneNumber: phoneForm.getValues().phoneNumber,
       email: emailForm.getValues().email,
-      lure: signupParams.lureId,
+      lure: lureMeta?.id,
     });
 
     signupContext.setOnboardingValues({
@@ -88,14 +93,7 @@ export const SignupScreen = ({ navigation }: Props) => {
       mode: 'signup',
       otpMethod,
     });
-  }, [
-    phoneForm,
-    emailForm,
-    signupParams.lureId,
-    signupContext,
-    navigation,
-    otpMethod,
-  ]);
+  }, [phoneForm, emailForm, lureMeta, signupContext, navigation, otpMethod]);
 
   const toggleSignupMode = useCallback(() => {
     setRemoteError(undefined);
@@ -108,10 +106,10 @@ export const SignupScreen = ({ navigation }: Props) => {
     setIsSubmitting(true);
     try {
       const { enabled } = await hostingApi.getHostingAvailability({
-        lure: signupParams.lureId,
         priorityToken: signupParams.priorityToken,
       });
       if (!enabled) {
+        logger.trackError(AnalyticsEvent.InvitedUserFailedInventoryCheck);
         navigation.navigate('JoinWaitList', {});
         return;
       }
@@ -162,7 +160,6 @@ export const SignupScreen = ({ navigation }: Props) => {
     setIsSubmitting(false);
   }, [
     hostingApi,
-    signupParams.lureId,
     signupParams.priorityToken,
     recaptcha,
     otpMethod,
@@ -184,11 +181,6 @@ export const SignupScreen = ({ navigation }: Props) => {
         showSessionStatus={false}
         backAction={goBack}
         isLoading={isSubmitting}
-        rightControls={
-          <ScreenHeader.TextButton onPress={onSubmit} disabled={isSubmitting}>
-            Next
-          </ScreenHeader.TextButton>
-        }
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
         <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">
@@ -231,18 +223,55 @@ export const SignupScreen = ({ navigation }: Props) => {
                       autoCorrect={false}
                       returnKeyType="next"
                       enablesReturnKeyAutomatically
+                      onSubmitEditing={onSubmit}
+                      autoFocus
                     />
                   </Field>
                 )}
                 name="email"
               />
             )}
+
+            <PrimaryButton
+              onPress={onSubmit}
+              loading={isSubmitting}
+              disabled={
+                isSubmitting ||
+                remoteError !== undefined ||
+                (otpMethod === 'phone'
+                  ? !phoneForm.formState.isValid
+                  : !emailForm.formState.isValid)
+              }
+            >
+              <TlonText.Text color="$background" size="$label/l">
+                Sign up
+              </TlonText.Text>
+            </PrimaryButton>
+            <TlonText.Text
+              marginTop="$m"
+              textAlign="center"
+              size="$label/s"
+              color="$tertiaryText"
+            >
+              By signing up you agree to Tlon&rsquo;s{' '}
+              <TlonText.RawText
+                pressStyle={{
+                  opacity: 0.5,
+                }}
+                textDecorationLine="underline"
+                textDecorationDistance={10}
+                onPress={handlePressEula}
+              >
+                Terms of Service
+              </TlonText.RawText>
+            </TlonText.Text>
           </YStack>
-          <View marginLeft="$l">
+          <View marginLeft="$l" marginTop="$m">
             <TlonText.Text
               size="$label/s"
               color="$tertiaryText"
               onPress={toggleSignupMode}
+              textAlign="center"
             >
               Or if you&apos;d prefer,{' '}
               <TlonText.RawText
@@ -253,7 +282,8 @@ export const SignupScreen = ({ navigation }: Props) => {
                 textDecorationDistance={10}
                 onPress={toggleSignupMode}
               >
-                sign up with {otpMethod === 'phone' ? 'email' : 'phone number'}
+                sign up with{' '}
+                {otpMethod === 'phone' ? 'an email address' : 'a phone number'}
               </TlonText.RawText>
             </TlonText.Text>
           </View>

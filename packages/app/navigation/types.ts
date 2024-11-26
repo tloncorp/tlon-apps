@@ -1,9 +1,21 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
 export type RootStackParamList = {
+  Contacts: undefined;
+  Empty: undefined;
   ChatList: { previewGroupId: string } | undefined;
   Activity: undefined;
   Profile: undefined;
+  DM: {
+    channelId: string;
+    selectedPostId?: string | null;
+    startDraft?: boolean;
+  };
+  GroupDM: {
+    channelId: string;
+    selectedPostId?: string | null;
+    startDraft?: boolean;
+  };
   Channel: {
     channelId: string;
     groupId?: string;
@@ -20,6 +32,7 @@ export type RootStackParamList = {
   };
   ChannelSearch: {
     channelId: string;
+    groupId: string;
   };
   Post: {
     postId: string;
@@ -31,6 +44,7 @@ export type RootStackParamList = {
   };
   GroupSettings: NavigatorScreenParams<GroupSettingsStackParamList>;
   AppSettings: undefined;
+  Theme: undefined;
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BlockedUsers: undefined;
@@ -39,7 +53,9 @@ export type RootStackParamList = {
   UserProfile: {
     userId: string;
   };
-  EditProfile: undefined;
+  EditProfile: {
+    userId: string;
+  };
   WompWomp: undefined;
   ChannelMembers: {
     channelId: string;
@@ -55,8 +71,10 @@ export type RootDrawerParamList = {
 
 export type HomeDrawerParamList = Pick<
   RootStackParamList,
-  'ChatList' | 'GroupChannels' | 'Channel'
->;
+  'ChatList' | 'GroupChannels' | 'Channel' | 'DM' | 'GroupDM'
+> & {
+  MainContent: undefined;
+};
 
 export type DesktopChannelStackParamList = Pick<
   RootStackParamList,

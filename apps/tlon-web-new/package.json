@@ -154,7 +154,6 @@
     "postcss": "^8.4.12",
     "postcss-import": "^14.1.0",
     "prettier": "^3.1.1",
-    "react-cosmos": "6.1.1",
     "react-cosmos-plugin-vite": "6.1.1",
     "react-test-renderer": "^18.2.0",
     "rollup-plugin-analyzer": "^4.0.0",

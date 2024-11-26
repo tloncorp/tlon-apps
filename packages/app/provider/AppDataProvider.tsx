@@ -2,7 +2,12 @@ import * as store from '@tloncorp/shared/store';
 import { AppDataContextProvider } from '@tloncorp/ui';
 import { PropsWithChildren } from 'react';
 
-import { BRANCH_DOMAIN, BRANCH_KEY } from '../constants';
+import {
+  BRANCH_DOMAIN,
+  BRANCH_KEY,
+  INVITE_SERVICE_ENDPOINT,
+  INVITE_SERVICE_IS_DEV,
+} from '../constants';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 
 export function AppDataProvider({
@@ -23,6 +28,8 @@ export function AppDataProvider({
       contacts={contactsQuery.data}
       branchKey={BRANCH_KEY}
       branchDomain={BRANCH_DOMAIN}
+      inviteServiceEndpoint={INVITE_SERVICE_ENDPOINT}
+      inviteServiceIsDev={INVITE_SERVICE_IS_DEV}
       calmSettings={calmSettingsQuery.data}
       session={session}
       webAppNeedsUpdate={webAppNeedsUpdate}

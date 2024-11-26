@@ -1477,6 +1477,17 @@ function toClientChannel({
 }): db.Channel {
   const { description, channelContentConfiguration } =
     StructuredChannelDescriptionPayload.decode(channel.meta.description);
+
+  const readerRoles = (channel.readers ?? []).map((roleId) => ({
+    channelId: id,
+    roleId,
+  }));
+
+  const writerRoles = (channel.writers ?? []).map((roleId) => ({
+    channelId: id,
+    roleId,
+  }));
+
   return {
     id,
     groupId,
@@ -1486,6 +1497,8 @@ function toClientChannel({
     coverImage: omitEmpty(channel.meta.cover),
     description,
     contentConfiguration: channelContentConfiguration,
+    readerRoles,
+    writerRoles,
   };
 }
 

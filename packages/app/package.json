@@ -4,6 +4,9 @@
   "main": "index.ts",
   "private": true,
   "scripts": {
+    "lint": "eslint ./",
+    "lint:fix": "eslint ./ --fix --quiet",
+    "lint:format": "prettier ./ --write",
     "test": "vitest --watch false"
   },
   "dependencies": {
@@ -20,6 +23,7 @@
   },
   "peerDependencies": {
     "@react-native-firebase/perf": "19.2.2",
+    "expo-notifications": "~0.27.6",
     "lodash": "^4.17.21",
     "react-native-device-info": "^10.8.0",
     "zustand": "^3.7.2"
