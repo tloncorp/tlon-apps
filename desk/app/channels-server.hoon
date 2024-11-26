@@ -1045,12 +1045,11 @@
   ++  ho-add
     |=  [name=@t src=@t]
     ^+  ho-core
-    ~&  "adding hook {<name>}"
-    =.  id  (rsh [3 48] eny.bowl)
+    =.  id
+      =+  i=(end 7 eny.bowl)
+      |-(?:((~(has by hooks.hooks) i) $(i +(i)) i))
     =/  result=(each vase tang)
-      ~&  "compiling hook"
       (compile:utils src)
-    ~&  "compilation result: {<-.result>}"
     =/  compiled
       ?:  ?=(%| -.result)
         ((slog 'compilation result:' p.result) ~)
@@ -1140,9 +1139,9 @@
     =/  return=(unit return:h)
       (run-hook:utils [event context(hook hook)] hook)
     ?~  return
-      ~&  "{prefix} {<id>} failed"
+      %-  (slog (crip "{prefix} {<id>} failed, running on {<origin>}") ~)
       ho-core
-    ~&  "{prefix} {<id>} ran"
+    %-  (slog (crip "{prefix} {<id>} ran on {<origin>}") ~)
     =.  hook  hook(state new-state.u.return)
     =.  cor  (run-hook-effects effects.u.return origin)
     ho-core
@@ -1155,14 +1154,12 @@
   =/  current-event  event
   =|  effects=(list effect:h)
   =/  order  (~(got by order.hooks) nest)
-  ~&  "got orders {<order>}"
   =/  channel  `[nest (~(got by v-channels) nest)]
   =/  =context:h  (get-hook-context channel *config:h)
   |-
   ?~  order
     [&+current-event effects]
   =*  next  $(order t.order)
-  ~&  "getting hook"
   =/  hook  (~(got by hooks.hooks) i.order)
   =/  ctx  context(hook hook, config (~(gut by config.hook) nest ~))
   =/  return=(unit return:h)
@@ -1215,7 +1212,6 @@
 ++  schedule-cron
   |=  [=origin:h =cron:h]
   ^+  cor
-  ~&  "scheduling hook"
   =/  wire
     %+  welp  /hooks/cron/(scot %uv hook.cron)
     ?@  origin  ~
@@ -1223,7 +1219,6 @@
   (emit [%pass wire %arvo %b %wait next.schedule.cron])
 ++  unschedule-cron
   |=  [=origin:h =cron:h]
-  ~&  "unscheduling hook"
   =/  wire
     %+  welp  /hooks/cron/(scot %uv hook.cron)
     ?@  origin  ~
@@ -1237,7 +1232,6 @@
   |=  =id:h
   ^+  cor
   ?~  previous=(~(get by delayed.hooks) id)  cor
-  ~&  "unscheduling hook"
   =/  =wire  /hooks/delayed/(scot %uv id.u.previous)
   (emit [%pass wire %arvo %b %rest fires-at.u.previous])
 ++  run-hook-effects

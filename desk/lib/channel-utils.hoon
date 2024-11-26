@@ -684,8 +684,8 @@
     =/  vex=(like hoon)  ((full vest) [0 0] (trip src))
     ?~  q.vex  |+~[leaf+"\{{<p.p.vex>} {<q.p.vex>}}" 'syntax error']
     %-  mule
-    |.((slap subject p.u.q.vex))
-  ~&  "parsed hoon: {<-.tonk>}"
+    |.((~(mint ut p:subject) %noun p.u.q.vex))
+  %-  (slog (crip "parsed hoon: {<-.tonk>}") ~)
   ?:  ?=(%| -.tonk)
     %-  (slog 'returning error' p.tonk)
     tonk
@@ -693,13 +693,14 @@
 ++  run-hook
   |=  [=args:h =hook:h]
   ^-  (unit return:h)
-  ~&  "running hook: {<name.hook>} {<id.hook>}"
-  ?~  compiled.hook
-    ~&("hook not compiled" ~)
-  :: ~&  "nock: {<compiled.hook>}"
-  =+  !<(=outcome:h (slam u.compiled.hook !>(args)))
-  ~&  "{(trip name.hook)} hook run:"
-  ~&  outcome
+  %-  (slog (crip "running hook: {<name.hook>} {<id.hook>}") ~)
+  %-  ?~  channel.context.args  same
+      (slog (crip "on channel: {<nest.u.channel.context.args>}") ~)
+  ?~  compiled.hook  ~
+  =/  gate  [p.u.compiled.hook .*(q:subject q.u.compiled.hook)]
+  =+  !<(=outcome:h (slam gate !>(args)))
+  %-  (slog (crip "{(trip name.hook)} {<id.hook>} hook run:") ~)
+  %-  (slog (crip "{<outcome>}") ~)
   ?:  ?=(%.y -.outcome)  `p.outcome
   ((slog 'hook failed:' p.outcome) ~)
 --
