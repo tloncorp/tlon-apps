@@ -63,7 +63,7 @@ export function PostScreenView({
   uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
   storeDraft: (draft: urbit.JSONContent) => void;
   clearDraft: () => void;
-  getDraft: () => Promise<urbit.JSONContent>;
+  getDraft: () => Promise<urbit.JSONContent | null>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (

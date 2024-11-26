@@ -1,51 +1,57 @@
-import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
-import * as urbit from '@tloncorp/shared/urbit';
-import { JSONContent } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useFeatureFlag } from '../lib/featureFlags';
-import storage from '../lib/storage';
+import type { Post, PostMetadata } from '../db';
+import * as kv from '../db/keyValue';
+import type { JSONContent, Story } from '../urbit';
+import * as dbHooks from './dbHooks';
+import * as postActions from './postActions';
+import { SyncPriority, syncGroup } from './sync';
+import { useNegotiate } from './useNegotiation';
 
 export const useChannelContext = ({
   channelId,
   draftKey,
+  isChannelSwitcherEnabled,
 }: {
   channelId: string;
   draftKey: string;
-  uploaderKey: string;
+
+  // need to populate this from feature flags :(
+  isChannelSwitcherEnabled: boolean;
 }) => {
+  // const storage = useStorageUnsafelyUnwrapped();
+
   // Model context
-  const channelQuery = store.useChannelWithRelations({
+  const channelQuery = dbHooks.useChannelWithRelations({
     id: channelId,
   });
-  const groupQuery = store.useGroup({
+  const groupQuery = dbHooks.useGroup({
     id: channelQuery.data?.groupId ?? '',
   });
 
   useEffect(() => {
     if (channelQuery.data?.groupId) {
-      store.syncGroup(channelQuery.data?.groupId, {
-        priority: store.SyncPriority.Low,
+      syncGroup(channelQuery.data?.groupId, {
+        priority: SyncPriority.Low,
       });
     }
   }, [channelQuery.data?.groupId]);
 
   // Post editing
-  const [editingPost, setEditingPost] = useState<db.Post>();
+  const [editingPost, setEditingPost] = useState<Post>();
 
   const editPost = useCallback(
     async (
-      post: db.Post,
-      content: urbit.Story,
+      post: Post,
+      content: Story,
       parentId?: string,
-      metadata?: db.PostMetadata
+      metadata?: PostMetadata
     ) => {
       if (!channelQuery.data) {
         return;
       }
 
-      store.editPost({
+      postActions.editPost({
         post,
         content,
         parentId,
@@ -59,7 +65,7 @@ export const useChannelContext = ({
   // Version negotiation
   const channelHost = useMemo(() => channelId.split('/')[1], [channelId]);
 
-  const negotiationStatus = store.useNegotiate(
+  const negotiationStatus = useNegotiate(
     channelHost,
     'channels',
     'channels-server'
@@ -72,10 +78,9 @@ export const useChannelContext = ({
   const getDraft = useCallback(
     async (draftType?: GalleryDraftType) => {
       try {
-        const draft = await storage.load({
-          key: `draft-${draftKey}${draftType ? `-${draftType}` : ''}`,
-        });
-        return draft;
+        return await kv
+          .postDraft({ key: draftKey, type: draftType })
+          .getValue();
       } catch (e) {
         return null;
       }
@@ -86,10 +91,7 @@ export const useChannelContext = ({
   const storeDraft = useCallback(
     async (draft: JSONContent, draftType?: GalleryDraftType) => {
       try {
-        await storage.save({
-          key: `draft-${draftKey}${draftType ? `-${draftType}` : ''}`,
-          data: draft,
-        });
+        await kv.postDraft({ key: draftKey, type: draftType }).setValue(draft);
       } catch (e) {
         return;
       }
@@ -100,19 +102,13 @@ export const useChannelContext = ({
   const clearDraft = useCallback(
     async (draftType?: GalleryDraftType) => {
       try {
-        await storage.remove({
-          key: `draft-${draftKey}${draftType ? `-${draftType}` : ''}`,
-        });
+        await kv.postDraft({ key: draftKey, type: draftType }).resetValue();
       } catch (e) {
         return;
       }
     },
     [draftKey]
   );
-
-  // Contacts
-
-  const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   return {
     negotiationStatus,

@@ -298,6 +298,16 @@ export const finishingSelfHostedLogin = createStorageItem<boolean>({
   defaultValue: false,
 });
 
+export const postDraft = (opts: {
+  key: string;
+  type: 'caption' | 'text' | undefined; // matches GalleryDraftType
+}) => {
+  return createStorageItem<ub.JSONContent | null>({
+    key: `draft-${opts.key}${opts.type ? `-${opts.type}` : ''}`,
+    defaultValue: null,
+  });
+};
+
 export const themeSettings = createStorageItem<ThemeName | null>({
   key: THEME_STORAGE_KEY,
   defaultValue: null,
