@@ -742,6 +742,9 @@
         [%x %v2 %channels full=?(~ [%full ~])]
       ``channels-2+!>((uv-channels-2:utils v-channels ?=(^ full.pole)))
     ::
+        [%x %v3 %v-channels ~]
+      ``noun+!>(v-channels)
+    ::
         [%x %v3 %channels full=?(~ [%full ~])]
       ``channels-3+!>((uv-channels-3:utils v-channels ?=(^ full.pole)))
     ::
