@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { View } from 'tamagui';
 import { isWeb } from 'tamagui';
 
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
@@ -59,6 +60,8 @@ export function ChannelListItem({
     }
   }, [model, firstMemberId, memberCount]);
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View>
       <Pressable
@@ -66,7 +69,7 @@ export function ChannelListItem({
         onPress={handlePress}
         onLongPress={handleLongPress}
       >
-        <ListItem {...props}>
+        <ListItem {...props} padding={isWindowNarrow ? '$m' : '$l'}>
           <ListItem.ChannelIcon
             model={model}
             useTypeIcon={useTypeIcon}
