@@ -10,7 +10,7 @@ import {
 } from '@tloncorp/app/contexts/branch';
 import { HostingError } from '@tloncorp/app/lib/hostingApi';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import {
   Field,
   KeyboardAvoidingView,
@@ -81,7 +81,7 @@ export const SignupScreen = ({ navigation }: Props) => {
       actionName: 'Phone or Email Submitted',
       phoneNumber: phoneForm.getValues().phoneNumber,
       email: emailForm.getValues().email,
-      lure: signupParams.lureId,
+      lure: lureMeta?.id,
     });
 
     signupContext.setOnboardingValues({
@@ -93,14 +93,7 @@ export const SignupScreen = ({ navigation }: Props) => {
       mode: 'signup',
       otpMethod,
     });
-  }, [
-    phoneForm,
-    emailForm,
-    signupParams.lureId,
-    signupContext,
-    navigation,
-    otpMethod,
-  ]);
+  }, [phoneForm, emailForm, lureMeta, signupContext, navigation, otpMethod]);
 
   const toggleSignupMode = useCallback(() => {
     setRemoteError(undefined);
@@ -113,10 +106,10 @@ export const SignupScreen = ({ navigation }: Props) => {
     setIsSubmitting(true);
     try {
       const { enabled } = await hostingApi.getHostingAvailability({
-        lure: signupParams.lureId,
         priorityToken: signupParams.priorityToken,
       });
       if (!enabled) {
+        logger.trackError(AnalyticsEvent.InvitedUserFailedInventoryCheck);
         navigation.navigate('JoinWaitList', {});
         return;
       }
@@ -167,7 +160,6 @@ export const SignupScreen = ({ navigation }: Props) => {
     setIsSubmitting(false);
   }, [
     hostingApi,
-    signupParams.lureId,
     signupParams.priorityToken,
     recaptcha,
     otpMethod,
@@ -276,8 +268,8 @@ export const SignupScreen = ({ navigation }: Props) => {
           </YStack>
           <View marginLeft="$l" marginTop="$m">
             <TlonText.Text
-              size="$label/m"
-              color="$secondaryText"
+              size="$label/s"
+              color="$tertiaryText"
               onPress={toggleSignupMode}
               textAlign="center"
             >

@@ -2,6 +2,7 @@ import { createDevLogger } from '@tloncorp/shared';
 import { MessageAttachments } from '@tloncorp/shared/api';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo } from 'react';
+import { isWeb } from 'tamagui';
 
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ListItem } from './ListItem';
@@ -91,11 +92,13 @@ export default function AttachmentSheet({
         [
           'neutral',
           {
-            title: 'Photo Library',
-            description: 'Choose a photo from your library',
+            title: isWeb ? 'Upload an image' : 'Photo Library',
+            description: isWeb
+              ? 'Upload an image from your computer'
+              : 'Choose a photo from your library',
             action: pickImage,
           },
-          {
+          !isWeb && {
             title: 'Take a Photo',
             description: 'Use your camera to take a photo',
             action: takePicture,

@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useSignupContext } from '.././../lib/signupContext';
+import { finishingSelfHostedLogin } from '@tloncorp/shared/db';
 import {
   ScreenHeader,
   SizableText,
@@ -11,34 +11,23 @@ import {
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useState } from 'react';
 import { Switch } from 'react-native';
-import branch from 'react-native-branch';
 
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetTelemetry'>;
 
-export const SetTelemetryScreen = ({
-  navigation,
-  route: {
-    params: { user },
-  },
-}: Props) => {
-  const [isEnabled, setIsEnabled] = useState(true);
-  const postHog = usePostHog();
-  const signupContext = useSignupContext();
+export const SetTelemetryScreen = () => {
+  const posthog = usePostHog();
+  const [isEnabled, setIsEnabled] = useState(false);
+  const { setValue: setFinishingSelfHostedLogin } =
+    finishingSelfHostedLogin.useStorageItem();
 
   const handleNext = useCallback(() => {
-    signupContext.setOnboardingValues({ telemetry: isEnabled });
-
     if (!isEnabled) {
-      postHog?.optOut();
-      branch.disableTracking(true);
+      posthog?.optOut();
     }
-
-    navigation.push('ReserveShip', {
-      user,
-    });
-  }, [isEnabled, user, postHog, navigation, signupContext]);
+    setFinishingSelfHostedLogin(false);
+  }, [isEnabled, posthog, setFinishingSelfHostedLogin]);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">

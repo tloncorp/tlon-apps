@@ -1,7 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
+import { useShip } from '@tloncorp/app/contexts/ship';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { setDidShowBenefitsSheet } from '@tloncorp/shared/db';
+import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
 import { useDidShowBenefitsSheet } from '@tloncorp/shared/store';
 import {
   ActionSheet,
@@ -34,6 +36,8 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   const [open, setOpen] = useState(false);
   const { data: didShowBenefitsSheet } = useDidShowBenefitsSheet();
   const signupContext = useSignupContext();
+  const { isAuthenticated } = useShip();
+  const finishingSelfHostedLogin = selfHostedLoginStatus.useValue();
 
   useCheckAppInstalled();
 
@@ -58,6 +62,12 @@ export const WelcomeScreen = ({ navigation }: Props) => {
       });
     }
   }, [lureMeta]);
+
+  useEffect(() => {
+    if (isAuthenticated && finishingSelfHostedLogin) {
+      navigation.navigate('SetTelemetry');
+    }
+  });
 
   return (
     <View flex={1} backgroundColor={'$secondaryBackground'} paddingTop={top}>

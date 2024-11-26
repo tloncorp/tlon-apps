@@ -512,26 +512,42 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
     case 'deleteRole':
       await db.deleteRole({ roleId: update.roleId, groupId: update.groupId });
       break;
-    case 'addGroupMembersToRole':
+    case 'addGroupMembersToRole': {
       await db.addChatMembersToRoles({
         groupId: update.groupId,
         contactIds: update.ships,
         roleIds: update.roles,
       });
+      await syncGroup(update.groupId);
+      await syncUnreads();
       break;
-    case 'removeGroupMembersFromRole':
+    }
+    case 'removeGroupMembersFromRole': {
       await db.removeChatMembersFromRoles({
         groupId: update.groupId,
         contactIds: update.ships,
         roleIds: update.roles,
       });
+      await syncGroup(update.groupId);
+      await syncUnreads();
       break;
-    case 'addChannel':
+    }
+    case 'addChannel': {
       await db.insertChannels([update.channel]);
+      if (update.channel.groupId) {
+        await syncGroup(update.channel.groupId);
+        await syncUnreads();
+      }
       break;
-    case 'updateChannel':
+    }
+    case 'updateChannel': {
       await db.updateChannel(update.channel);
+      if (update.channel.groupId) {
+        await syncGroup(update.channel.groupId);
+        await syncUnreads();
+      }
       break;
+    }
     case 'deleteChannel':
       channelNavSection = await db.getChannelNavSection({
         channelId: update.channelId,
@@ -680,11 +696,17 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
 
 export const handleContactUpdate = async (update: api.ContactsUpdate) => {
   switch (update.type) {
-    case 'add':
-      await db.insertContacts([update.contact]);
+    case 'upsertContact':
+      await db.upsertContact(update.contact);
       break;
-    case 'delete':
-      await db.deleteContact(update.contactId);
+
+    case 'removeContact':
+      await db.updateContact({
+        id: update.contactId,
+        isContact: false,
+        customNickname: null,
+        customAvatarImage: null,
+      });
       break;
   }
 };

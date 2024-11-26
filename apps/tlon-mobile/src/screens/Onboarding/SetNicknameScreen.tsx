@@ -56,9 +56,10 @@ export const SetNicknameScreen = ({
     signupContext.setOnboardingValues({
       nickname,
       notificationToken,
+      userWasReadyAt: Date.now(),
     });
 
-    navigation.navigate('SetTelemetry', {
+    navigation.push('ReserveShip', {
       user,
     });
   });

@@ -33,11 +33,16 @@ type BaseModel<T extends TableName> = InferModelFromColumns<
 > &
   BaseModelRelations<SchemaWithRelations[T]>;
 
-export type Contact = BaseModel<'contacts'>;
+export type Contact = BaseModel<'contacts'> & {
+  nickname?: string | null;
+  avatarImage?: string | null;
+};
 export type ContactPinnedGroups = Contact['pinnedGroups'];
 export type ChannelUnread = BaseModel<'channelUnreads'>;
 export type GroupUnread = BaseModel<'groupUnreads'>;
 export type ActivityEvent = BaseModel<'activityEvents'>;
+export type ActivityEventContactUpdateGroups =
+  ActivityEvent['contactUpdateGroups'];
 export type ActivityBucket = schema.ActivityBucket;
 // TODO: We need to include unread count here because it's  returned by the chat
 // list query, but doesn't feel great.
@@ -59,7 +64,10 @@ export type GroupMemberBan = BaseModel<'groupMemberBans'>;
 export type GroupJoinRequest = BaseModel<'groupJoinRequests'>;
 export type GroupRankBan = BaseModel<'groupRankBans'>;
 export type GroupFlaggedPosts = BaseModel<'groupFlaggedPosts'>;
-export type ChatMember = BaseModel<'chatMembers'>;
+type BaseChatMember = BaseModel<'chatMembers'>;
+export interface ChatMember extends BaseChatMember {
+  contact?: Contact | null;
+}
 export type GroupRole = BaseModel<'groupRoles'>;
 export type ChatMemberGroupRole = BaseModel<'chatMemberGroupRoles'>;
 export type GroupNavSection = BaseModel<'groupNavSections'>;

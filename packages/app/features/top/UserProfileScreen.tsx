@@ -3,6 +3,8 @@ import type * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
   AppDataContextProvider,
+  AttachmentProvider,
+  GroupPreviewAction,
   GroupPreviewSheet,
   NavigationProvider,
   UserProfileScreenView,
@@ -11,6 +13,7 @@ import { useState } from 'react';
 import { useCallback } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useGroupActions } from '../../hooks/useGroupActions';
 import { RootStackParamList } from '../../navigation/types';
 import { useResetToDm } from '../../navigation/utils';
 import { useConnectionStatus } from './useConnectionStatus';
@@ -19,6 +22,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
 export function UserProfileScreen({ route: { params }, navigation }: Props) {
   const userId = params.userId;
+  const { performGroupAction } = useGroupActions();
   const currentUserId = useCurrentUserId();
   const { data: contacts } = store.useContacts();
   const connectionStatus = useConnectionStatus(userId);
@@ -40,8 +44,18 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
   );
 
   const handlePressEdit = useCallback(() => {
-    navigation.push('EditProfile');
-  }, [navigation]);
+    navigation.push('EditProfile', { userId });
+  }, [navigation, userId]);
+
+  const canUpload = store.useCanUpload();
+
+  const handleGroupAction = useCallback(
+    (action: GroupPreviewAction, group: db.Group) => {
+      setSelectedGroup(null);
+      performGroupAction(action, group);
+    },
+    [performGroupAction]
+  );
 
   return (
     <AppDataContextProvider
@@ -49,18 +63,24 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
       contacts={contacts ?? []}
     >
       <NavigationProvider onPressGoToDm={handleGoToDm}>
-        <UserProfileScreenView
-          userId={userId}
-          onBack={() => navigation.goBack()}
-          connectionStatus={connectionStatus}
-          onPressGroup={setSelectedGroup}
-          onPressEdit={handlePressEdit}
-        />
-        <GroupPreviewSheet
-          open={selectedGroup !== null}
-          onOpenChange={handleGroupPreviewSheetOpenChange}
-          group={selectedGroup ?? undefined}
-        />
+        <AttachmentProvider
+          canUpload={canUpload}
+          uploadAsset={store.uploadAsset}
+        >
+          <UserProfileScreenView
+            userId={userId}
+            onBack={() => navigation.goBack()}
+            connectionStatus={connectionStatus}
+            onPressGroup={setSelectedGroup}
+            onPressEdit={handlePressEdit}
+          />
+          <GroupPreviewSheet
+            open={selectedGroup !== null}
+            onOpenChange={handleGroupPreviewSheetOpenChange}
+            group={selectedGroup ?? undefined}
+            onActionComplete={handleGroupAction}
+          />
+        </AttachmentProvider>
       </NavigationProvider>
     </AppDataContextProvider>
   );
