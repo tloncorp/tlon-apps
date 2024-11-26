@@ -33,12 +33,11 @@
   ==
 +$  origin  $@(~ nest)
 +$  delay-id  id
-+$  schedule  $@(@dr [start=@da repeat=@dr])
++$  schedule  [next=@da repeat=@dr]
 +$  cron
   $:  hook=id
       =schedule
       =config
-      fires-at=time
   ==
 ::  $delayed-hook: metadata for when a delayed hook fires from the timer
 +$  delayed-hook
@@ -55,7 +54,7 @@
       [%del =id]
       [%order =nest seq=(list id)]
       [%config =id =nest =config]
-      [%wait =id =origin =schedule =config]
+      [%wait =id =origin schedule=$@(@dr schedule) =config]
       [%rest =id =origin]
   ==
 +$  response
@@ -63,7 +62,7 @@
       [%gone =id]
       [%order =nest seq=(list id)]
       [%config =id =nest =config]
-      [%wait =id =origin =schedule =config]
+      [%wait =id =origin schedule=$@(@dr schedule) =config]
       [%rest =id =origin]
   ==
 ::  $context: ambient state that a hook should know about not

@@ -346,7 +346,7 @@
       ho-abet:(ho-add:ho-core [name src]:action)
     ::
         %edit
-      ho-abet:(ho-edit:(ho-abed:ho-core id.action) +.+.action)
+      ho-abet:(ho-edit:(ho-abed:ho-core id.action) +>.action)
     ::
         %del
       ho-abet:ho-del:(ho-abed:ho-core id.action)
@@ -361,10 +361,10 @@
       (give-hook-response %order nest.action seq)
     ::
         %config
-      ho-abet:(ho-configure:(ho-abed:ho-core id.action) +.+.action)
+      ho-abet:(ho-configure:(ho-abed:ho-core id.action) +>.action)
     ::
         %wait
-      ho-abet:(ho-wait:(ho-abed:ho-core id.action) +.+.action)
+      ho-abet:(ho-wait:(ho-abed:ho-core id.action) +>.action)
     ::
         %rest
       ho-abet:(ho-rest:(ho-abed:ho-core id.action) origin.action)
@@ -1106,13 +1106,13 @@
     =.  cor  (give-hook-response [%config id nest config])
     ho-core
   ++  ho-wait
-    |=  [=origin:h =schedule:h =config:h]
+    |=  [=origin:h schedule=$@(@dr schedule:h) =config:h]
     ^+  ho-core
-    =/  fires-at
-      ?@  schedule  (add now.bowl schedule)
-      start.schedule
+    =/  schedule
+      ?:  ?=(@ schedule)  [now.bowl schedule]
+      schedule
     =/  crons  (~(gut by crons.hooks) id *(map origin:h cron:h))
-    =/  =cron:h  [id schedule config fires-at]
+    =/  =cron:h  [id schedule config]
     =.  crons.hooks
       =-  (~(put by crons.hooks) id.hook -)
       (~(put by crons) origin cron)
@@ -1195,16 +1195,19 @@
     ::  if unscheduled, ignore
     ?~  crons=(~(get by crons.hooks) id)  cor
     ?~  cron=(~(get by u.crons) origin)  cor
-    =/  next
-      ?@  schedule.u.cron
-        (add now.bowl schedule.u.cron)
-      (add now.bowl repeat.schedule.u.cron)
-    =/  new-cron  u.cron(fires-at next)
+    =.  next.schedule.u.cron
+      ::  we don't want to run the cron for every iteration it would
+      ::  have run 'offline', so we check here to make sure that the
+      ::  next fire time is in the future
+      =/  next  (add [next repeat]:schedule.u.cron)
+      |-
+      ?:  (gte next now.bowl)  next
+      $(next (add next repeat.schedule.u.cron))
     =.  crons.hooks
       %+  ~(put by crons.hooks)  id
-      (~(put by u.crons) origin new-cron)
+      (~(put by u.crons) origin u.cron)
     =.  cor
-      (schedule-cron origin new-cron)
+      (schedule-cron origin u.cron)
     =/  args  [[%cron ~] "cron job" origin config.u.cron]
     ho-abet:(ho-run-single:(ho-abed:ho-core hook.u.cron) args)
   ==
@@ -1216,7 +1219,7 @@
     %+  welp  /hooks/cron/(scot %uv hook.cron)
     ?@  origin  ~
     /[kind.origin]/(scot %p ship.origin)/[name.origin]
-  (emit [%pass wire %arvo %b %wait fires-at.cron])
+  (emit [%pass wire %arvo %b %wait next.schedule.cron])
 ++  unschedule-cron
   |=  [=origin:h =cron:h]
   ~&  "unscheduling hook"
@@ -1224,7 +1227,7 @@
     %+  welp  /hooks/cron/(scot %uv hook.cron)
     ?@  origin  ~
     /[kind.origin]/(scot %p ship.origin)/[name.origin]
-  (emit [%pass wire %arvo %b %rest fires-at.cron])
+  (emit [%pass wire %arvo %b %rest next.schedule.cron])
 ++  schedule-delay
   |=  dh=delayed-hook:h
   =/  =wire  /hooks/delayed/(scot %uv id.dh)

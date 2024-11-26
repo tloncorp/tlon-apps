@@ -78,13 +78,11 @@
     :~  hook+(id hook.crn)
         schedule+(schedule schedule.crn)
         config+(config config.crn)
-        fires-at+s+(scot %da fires-at.crn)
     ==
   ++  schedule
     |=  sch=schedule:h
-    ?@  sch  s+(scot %dr sch)
     %-  pairs
-    :~  start+s+(scot %da start.sch)
+    :~  next+s+(scot %da next.sch)
         repeat+s+(scot %dr repeat.sch)
     ==
   ++  response
@@ -121,11 +119,11 @@
         config+(config con)
     ==
   ++  wait-rsp
-    |=  [i=id:h or=origin:h sch=schedule:h con=config:h]
+    |=  [i=id:h or=origin:h sch=$@(@dr schedule:h) con=config:h]
     %-  pairs
     :~  id+(id i)
         origin+s+?~(or 'global' (nest-cord:enjs:cj or))
-        schedule+(schedule sch)
+        schedule+?@(sch s+(scot %dr sch) (schedule sch))
         config+(config con)
     ==
   ++  rest-rsp
@@ -208,7 +206,7 @@
         [%o *]
       %.  j
       %-  ot
-      :~  start/(se %da)
+      :~  next/(se %da)
           repeat/(se %dr)
       ==
     ==
