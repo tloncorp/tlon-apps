@@ -27,6 +27,7 @@ export function ContactBook({
   searchPlaceholder = '',
   onSelect,
   multiSelect = false,
+  immutableIds = [],
   onSelectedChange,
   onScrollChange,
   explanationComponent,
@@ -34,6 +35,7 @@ export function ContactBook({
   height,
   width,
 }: {
+  immutableIds?: string[];
   searchPlaceholder?: string;
   searchable?: boolean;
   onSelect?: (contactId: string) => void;
@@ -46,6 +48,7 @@ export function ContactBook({
   width?: number;
 }) {
   const contacts = useContacts();
+  const immutableSet = useMemo(() => new Set(immutableIds), [immutableIds]);
   const contactsIndex = useContactIndex();
   const segmentedContacts = useAlphabeticallySegmentedContacts(
     contacts ?? [],
@@ -71,6 +74,10 @@ export function ContactBook({
   const [selected, setSelected] = useState<string[]>([]);
   const handleSelect = useCallback(
     (contactId: string) => {
+      if (immutableSet.has(contactId)) {
+        return;
+      }
+
       if (multiSelect) {
         if (selected.includes(contactId)) {
           const newSelected = selected.filter((id) => id !== contactId);
@@ -85,7 +92,7 @@ export function ContactBook({
         onSelect?.(contactId);
       }
     },
-    [multiSelect, onSelect, onSelectedChange, selected]
+    [immutableSet, multiSelect, onSelect, onSelectedChange, selected]
   );
 
   const renderItem = useCallback(
@@ -96,6 +103,7 @@ export function ContactBook({
           backgroundColor={'$secondaryBackground'}
           key={item.id}
           contact={item}
+          immutable={immutableSet.has(item.id)}
           selectable={multiSelect}
           selected={isSelected}
           onPress={handleSelect}
@@ -103,7 +111,7 @@ export function ContactBook({
         />
       );
     },
-    [selected, multiSelect, handleSelect]
+    [selected, immutableSet, multiSelect, handleSelect]
   );
 
   const scrollPosition = useRef(0);

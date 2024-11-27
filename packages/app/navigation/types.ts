@@ -50,6 +50,7 @@ export type RootStackParamList = {
   BlockedUsers: undefined;
   AppInfo: undefined;
   PushNotificationSettings: undefined;
+  AddContacts: undefined;
   UserProfile: {
     userId: string;
   };

@@ -5,6 +5,7 @@ import { Platform, StatusBar } from 'react-native';
 
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
+import { AddContactsScreen } from '../features/contacts/AddContactsScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
@@ -81,6 +82,7 @@ export function RootStack() {
       />
 
       {/* individual screens */}
+      <Root.Screen name="AddContacts" component={AddContactsScreen} />
       <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
       <Root.Screen name="FindGroups" component={FindGroupsScreen} />
       <Root.Screen
