@@ -75,7 +75,7 @@
   ++  cron
     |=  crn=cron:h
     %-  pairs
-    :~  hook+(id hook.crn)
+    :~  hook+(id id-hook.crn)
         schedule+(schedule schedule.crn)
         config+(config config.crn)
     ==

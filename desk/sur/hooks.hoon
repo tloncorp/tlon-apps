@@ -35,7 +35,7 @@
   ==
 +$  origin  $@(~ nest)
 +$  cron
-  $:  hook=id-hook
+  $:  =id-hook
       =schedule
       =config
   ==
