@@ -23,7 +23,8 @@
     "serve": "vite preview",
     "serve-sw": "vite preview --mode sw",
     "tsc": "tsc --noEmit",
-    "cosmos": "cosmos"
+    "cosmos": "cosmos",
+    "postinstall": "pnpm exec setup-skia-web public"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
@@ -37,6 +38,7 @@
     "@babel/runtime": "^7.25.9",
     "@react-navigation/drawer": "^6.7.2",
     "@react-navigation/native": "^6.1.7",
+    "@shopify/react-native-skia": "^1.5.3",
     "@tamagui/vite-plugin": "~1.112.12",
     "@tanstack/react-query": "^5.32.1",
     "@tanstack/react-query-devtools": "^5.32.1",

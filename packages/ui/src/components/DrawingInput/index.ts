@@ -1,0 +1,1 @@
+export { StandaloneDrawingInput } from './DrawingInput';
