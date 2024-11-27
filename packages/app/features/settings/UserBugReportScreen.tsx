@@ -43,7 +43,7 @@ export function UserBugReportScreen({ navigation }: Props) {
   );
 
   return (
-    <View backgroundColor="$background">
+    <View backgroundColor="$background" flex={1}>
       <ScreenHeader
         title="Report a bug"
         backAction={() => navigation.goBack()}

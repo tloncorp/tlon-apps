@@ -7,7 +7,9 @@ import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../../features/settings/ManageAccountScreen';
 import ProfileScreen from '../../features/settings/ProfileScreen';
 import { PushNotificationSettingsScreen } from '../../features/settings/PushNotificationSettingsScreen';
+import { ThemeScreen } from '../../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../../features/settings/UserBugReportScreen';
+import ContactsScreen from '../../features/top/ContactsScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 
 const ProfileScreenStack = createNativeStackNavigator();
@@ -15,13 +17,14 @@ const ProfileScreenStack = createNativeStackNavigator();
 export const ProfileScreenNavigator = () => {
   return (
     <ProfileScreenStack.Navigator
-      initialRouteName="ProfileScreen"
+      initialRouteName="Contacts"
       screenOptions={{
         headerShown: false,
       }}
     >
+      <ProfileScreenStack.Screen name="Contacts" component={ContactsScreen} />
       <ProfileScreenStack.Screen
-        name="ProfileScreen"
+        name="Profile"
         component={ProfileScreen}
       />
       <ProfileScreenStack.Screen name="AppInfo" component={AppInfoScreen} />
@@ -53,6 +56,7 @@ export const ProfileScreenNavigator = () => {
         name="EditProfile"
         component={EditProfileScreen}
       />
+      <ProfileScreenStack.Screen name="Theme" component={ThemeScreen} />
     </ProfileScreenStack.Navigator>
   );
 };

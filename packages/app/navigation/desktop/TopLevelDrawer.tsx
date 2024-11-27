@@ -4,6 +4,7 @@ import {
 } from '@react-navigation/drawer';
 import * as store from '@tloncorp/shared/store';
 import { AvatarNavIcon, NavIcon, YStack, useWebAppUpdate } from '@tloncorp/ui';
+import { getVariableValue, useTheme } from 'tamagui';
 
 import { ActivityScreen } from '../../features/top/ActivityScreen';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
@@ -72,6 +73,8 @@ export const TopLevelDrawer = () => {
         headerShown: false,
         drawerStyle: {
           width: 48,
+          backgroundColor: getVariableValue(useTheme().background),
+          borderRightColor: getVariableValue(useTheme().border),
         },
       }}
     >
