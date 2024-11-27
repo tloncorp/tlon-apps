@@ -79,7 +79,7 @@ import {
   ActivityEvent,
   Channel,
   ChannelUnread,
-  ChatMember,
+  Chat,
   ClientMeta,
   Contact,
   Group,
@@ -196,33 +196,6 @@ export const getGroups = createReadQuery(
   ]
 );
 
-export const getPendingChats = createReadQuery(
-  'getPendingChats',
-  async (ctx: QueryCtx) => {
-    const pendingGroups = await ctx.db.query.groups.findMany({
-      where: or(
-        eq($groups.haveInvite, true),
-        isNotNull($groups.joinStatus),
-        eq($groups.haveRequestedInvite, true)
-      ),
-    });
-
-    const pendingChannels = await ctx.db.query.channels.findMany({
-      where: eq($channels.isDmInvite, true),
-      with: {
-        members: {
-          with: {
-            contact: true,
-          },
-        },
-      },
-    });
-
-    return [...pendingChannels, ...pendingGroups];
-  },
-  ['groups', 'channels']
-);
-
 export const getUnjoinedGroupChannels = createReadQuery(
   'getUnjoinedGroupChannels',
   async (groupId: string, ctx: QueryCtx) => {
@@ -315,119 +288,106 @@ export const getAllChannels = createReadQuery(
 
 export const getChats = createReadQuery(
   'getChats',
-  async (ctx: QueryCtx): Promise<Channel[]> => {
-    const partitionedGroupsQuery = ctx.db
-      .select({
-        ...getTableColumns($channels),
-        rowNumber:
-          sql`ROW_NUMBER() OVER(PARTITION BY ${$channels.groupId} ORDER BY COALESCE(${$channels.lastPostAt}, ${$channelUnreads.updatedAt}) DESC)`.as(
-            'row_number'
-          ),
-      })
-      .from($channels)
-      .where(
-        and(isNotNull($channels.groupId), eq($groups.currentUserIsMember, true))
-      )
-      .leftJoin($channelUnreads, eq($channelUnreads.channelId, $channels.id))
-      .leftJoin($groups, eq($groups.id, $channels.groupId))
-      .as('q');
-
-    const groupChannels = ctx.db
-      .select()
-      .from(partitionedGroupsQuery)
-      .where(eq(partitionedGroupsQuery.rowNumber, 1));
-
-    const allChannels = ctx.db
-      .select({
-        ...getTableColumns($channels),
-        rowNumber: sql`0`.as('row_number'),
-      })
-      .from($channels)
-      .where(and(isNull($channels.groupId), eq($channels.isDmInvite, false)))
-      .union(groupChannels)
-      .as('ac');
-
-    const $groupVolumeSettings = ctx.db
-      .select()
-      .from($volumeSettings)
-      .where(eq($volumeSettings.itemType, 'group'))
-      .as('gvs');
-
-    const result = await ctx.db
-      .select({
-        ...allQueryColumns(allChannels),
-        group: getTableColumns($groups),
-        groupUnread: getTableColumns($groupUnreads),
-        groupVolumeSettings: allQueryColumns($groupVolumeSettings),
-        volumeSettings: getTableColumns($volumeSettings),
-        unread: getTableColumns($channelUnreads),
-        pin: getTableColumns($pins),
-        lastPost: getTableColumns($posts),
-        member: {
-          ...getTableColumns($chatMembers),
+  async (
+    ctx: QueryCtx
+  ): Promise<{ pinned: Chat[]; pending: Chat[]; unpinned: Chat[] }> => {
+    const groups = await ctx.db.query.groups.findMany({
+      where: or(
+        eq($groups.currentUserIsMember, true),
+        eq($groups.isNew, true),
+        isNotNull($groups.joinStatus)
+      ),
+      with: {
+        volumeSettings: true,
+        unread: true,
+        channels: {
+          orderBy: [desc($channels.lastPostAt)],
+          with: {
+            lastPost: true,
+          },
         },
-        contact: getTableColumns($contacts),
-      })
-      .from(allChannels)
-      .leftJoin(
-        $groupVolumeSettings,
-        eq($groupVolumeSettings.itemId, allChannels.groupId)
-      )
-      .leftJoin($volumeSettings, eq($volumeSettings.itemId, allChannels.id))
-      .leftJoin($groups, eq($groups.id, allChannels.groupId))
-      .leftJoin($groupUnreads, eq($groupUnreads.groupId, allChannels.groupId))
-      .leftJoin($channelUnreads, eq($channelUnreads.channelId, allChannels.id))
-      .leftJoin(
-        $pins,
-        or(
-          eq(allChannels.groupId, $pins.itemId),
-          eq(allChannels.id, $pins.itemId)
-        )
-      )
-      .leftJoin($posts, eq($posts.id, allChannels.lastPostId))
-      .leftJoin($chatMembers, eq($chatMembers.chatId, allChannels.id))
-      .leftJoin($contacts, eq($contacts.id, $chatMembers.contactId))
-      .orderBy(
-        ascNullsLast($pins.index),
-        sql`(CASE WHEN ${$groups.isNew} = 1 THEN 1 ELSE 0 END) DESC`,
-        sql`COALESCE(${$channelUnreads.updatedAt}, ${allChannels.lastPostAt}) DESC`
-      );
-
-    const [chatMembers, filteredChannels] = result.reduce<
-      [
-        Record<string, (ChatMember & { contact: Contact | null })[]>,
-        typeof result,
-      ]
-    >(
-      ([members, filteredChannels], channel) => {
-        if (!channel.member || !members[channel.id]) {
-          filteredChannels.push(channel);
-        }
-        if (channel.member) {
-          members[channel.id] ||= [];
-          members[channel.id].push({
-            ...channel.member,
-            contact: channel.contact ?? null,
-          });
-        }
-        return [members, filteredChannels];
+        // Just need the first 3 members for possible title generation purposes
+        members: {
+          limit: 3,
+          orderBy: [asc($chatMembers.joinedAt)],
+          with: {
+            contact: true,
+          },
+        },
+        pin: true,
+        lastPost: true,
       },
-      [{}, [] as typeof result]
+    });
+
+    const channels = await ctx.db.query.channels.findMany({
+      where: isNull($channels.groupId),
+      with: {
+        volumeSettings: true,
+        unread: true,
+        members: {
+          with: {
+            contact: true,
+          },
+        },
+        pin: true,
+        lastPost: true,
+      },
+    });
+
+    const groupChats: Chat[] = groups.map((g) => ({
+      id: g.id,
+      type: 'group',
+      pin: g.pin,
+      timestamp: g.unread?.updatedAt ?? g.lastPostAt ?? 0,
+      volumeSettings: g.volumeSettings,
+      unreadCount: g.unread?.count ?? 0,
+      group: g,
+      isPending:
+        g.haveInvite === true ||
+        !!g.joinStatus ||
+        g.haveRequestedInvite ||
+        false,
+    }));
+
+    const channelChats: Chat[] = channels.map((c) => ({
+      id: c.id,
+      type: 'channel',
+      channel: c,
+      pin: c.pin,
+      volumeSettings: c.volumeSettings,
+      unreadCount: c.unread?.count ?? 0,
+      timestamp: c.unread?.updatedAt ?? c.lastPostAt ?? 0,
+      isPending: !!c.isDmInvite,
+    }));
+
+    const { pinnedChats, pendingChats, otherChats } = [
+      ...channelChats,
+      ...groupChats,
+    ].reduce(
+      (acc, chat) => {
+        if (chat.pin) {
+          acc.pinnedChats.push(chat);
+        } else if (chat.isPending) {
+          acc.pendingChats.push(chat);
+        } else {
+          acc.otherChats.push(chat);
+        }
+        return acc;
+      },
+      {
+        pinnedChats: [],
+        pendingChats: [],
+        otherChats: [],
+      } as Record<string, Chat[]>
     );
 
-    return filteredChannels.map((c) => {
-      return {
-        ...c,
-        members: chatMembers[c.id] ?? null,
-        group: !c.group
-          ? null
-          : {
-              ...c.group,
-              unread: c.groupUnread,
-              volumeSettings: c.groupVolumeSettings,
-            },
-      };
-    });
+    return {
+      pinned: pinnedChats.sort(
+        (a, b) => (a.pin?.index ?? 0) - (b.pin?.index ?? 0)
+      ),
+      pending: pendingChats,
+      unpinned: otherChats.sort((a, b) => b.timestamp - a.timestamp),
+    };
   },
   [
     'groups',

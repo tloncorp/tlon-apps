@@ -847,17 +847,19 @@ export function getThreadSource({
   return { source, sourceId };
 }
 
-export function getRootSourceFromChannel(channel: db.Channel): {
+export function getRootSourceFromChat(chat: db.Chat): {
   source: ub.Source;
   sourceId: string;
 } {
   let source: ub.Source;
-  if (channel.type === 'dm') {
-    source = { dm: { ship: channel.id } };
-  } else if (channel.type === 'groupDm') {
-    source = { dm: { club: channel.id } };
+  if (chat.type === 'group') {
+    source = { group: chat.id };
+  } else if (chat.channel.type === 'dm') {
+    source = { dm: { ship: chat.channel.id } };
+  } else if (chat.channel.type === 'groupDm') {
+    source = { dm: { club: chat.channel.id } };
   } else {
-    source = { group: channel.groupId! };
+    throw new Error('Cannot get source for non-dm channel chat');
   }
 
   const sourceId = ub.sourceToString(source);

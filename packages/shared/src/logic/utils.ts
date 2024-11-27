@@ -212,25 +212,6 @@ export function normalizeUrbitColor(color: string): string {
   return `#${lengthAdjustedColor}`;
 }
 
-export function getPinPartial(channel: db.Channel): {
-  type: db.PinType;
-  itemId: string;
-} {
-  if (channel.groupId) {
-    return { type: 'group', itemId: channel.groupId };
-  }
-
-  if (channel.type === 'dm') {
-    return { type: 'dm', itemId: channel.id };
-  }
-
-  if (channel.type === 'groupDm') {
-    return { type: 'groupDm', itemId: channel.id };
-  }
-
-  return { type: 'channel', itemId: channel.id };
-}
-
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const timezoneOffset = new Date().getTimezoneOffset() * 60 * 1000;
 

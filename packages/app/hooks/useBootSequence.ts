@@ -221,7 +221,7 @@ export function useBootSequence({
       if (dmIsGood && groupIsGood) {
         logger.crumb('successfully accepted invites');
         if (updatedTlonTeamDm) {
-          store.pinItem(updatedTlonTeamDm);
+          store.pinChannel(updatedTlonTeamDm);
         }
         return NodeBootPhase.READY;
       }

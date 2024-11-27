@@ -665,7 +665,7 @@ export function ChannelOptions({
               }
               channel.pin
                 ? store.unpinItem(channel.pin)
-                : store.pinItem(channel);
+                : store.pinChannel(channel);
             },
           },
         ],
