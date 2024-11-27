@@ -6,7 +6,7 @@ import { DrawingInputComponent } from './shared';
 export const StandaloneDrawingInput: DrawingInputComponent = (props) => {
   return (
     <WithSkiaWeb
-      getComponent={() => import('./DrawingInput')}
+      getComponent={() => import('./DrawingInputBase')}
       fallback={<Text style={{ textAlign: 'center' }}>Loading...</Text>}
       componentProps={props}
       opts={{
