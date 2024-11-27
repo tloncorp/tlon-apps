@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import {
   interpolate,
@@ -364,7 +365,12 @@ export const StandaloneDrawingInput: DrawingInputComponent = ({
   return (
     <View padding={'$s'} paddingTop={0} paddingBottom={bottom + 24}>
       <DrawingInput
-        filter="pixel"
+        filter={Platform.select({
+          // Web's react-native-skia does not implement runtime shaders, which `filter` depends on
+          // https://github.com/Shopify/react-native-skia/blob/b6a848f55e50470292d16a40cbadf01ca496d37f/packages/skia/src/skia/web/JsiSkia.ts#L50-L52
+          web: undefined,
+          default: 'pixel',
+        })}
         inputAspect={234 / 87}
         finishedAction={'send'}
         onPressAttach={handleDrawingAttached}
