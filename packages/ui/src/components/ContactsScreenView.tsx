@@ -54,7 +54,7 @@ export function ContactsScreenView(props: Props) {
 
     if (trimmedSuggested.length > 0) {
       result.push({
-        title: 'Suggested by Pals and DMs',
+        title: 'Suggested from %pals and DMs',
         data: trimmedSuggested,
       });
     }
@@ -72,7 +72,7 @@ export function ContactsScreenView(props: Props) {
           showNickname
           showEndContent
           endContent={
-            item.isContactSuggestion ? (
+            item.isContactSuggestion && !isSelf ? (
               <Badge text="Add" type="positive" />
             ) : isSelf ? (
               <XStack gap="$xs" alignItems="center">
