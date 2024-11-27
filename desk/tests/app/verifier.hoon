@@ -13,8 +13,9 @@
 ++  dap  %verifier
 +$  card  card:agent:gall
 ::
-++  phone-api-base  'https://phone.api/base'
-++  phone-api-key   'api-key'
+++  phone-api-base   'https://phone.api/base'
+++  phone-api-key    'api-key'
+++  attempt-timeout  ~h1
 ::
 ++  ex-verifier-update
   =/  initial=?  |
@@ -177,7 +178,12 @@
   ;<  cas=(list card)  bind:m
     (user-does ~nec %start id)
   ;<  ~  bind:m
-    (ex-cards cas (ex-verifier-update ~nec %status id %wait ~) ~)
+    %+  ex-cards  cas
+    :~  (ex-verifier-update ~nec %status id %wait ~)
+      ::
+        %+  ex-arvo  /expire/dummy/(scot %t 'test')/(scot %da ~2000.1.2)
+        [%b %wait (add ~2000.1.2 attempt-timeout)]
+    ==
   ::
   %-  branch
   |^  :~  'host approves'^host-approves
@@ -225,7 +231,12 @@
   ;<  cas=(list card)  bind:m
     (user-does ~nec %start id)
   ;<  ~  bind:m
-    (ex-cards cas (ex-verifier-update ~nec %status id %want %urbit 620.187) ~)
+    %+  ex-cards  cas
+    :~  (ex-verifier-update ~nec %status id %want %urbit 620.187)
+      ::
+        %+  ex-arvo  /expire/urbit/(scot %p ~bud)/(scot %da ~2000.1.2)
+        [%b %wait (add ~2000.1.2 attempt-timeout)]
+    ==
   ::
   %-  branch
   |^  :~  'confirm correct'^confirm-correct
@@ -247,7 +258,7 @@
       ::TODO  test via scries instead?
       ;<  =state:v  bind:m  get-state
       %-  branch
-      :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec *config:v %done at]))
+      :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec ~2000.1.2 *config:v %done at]))
           'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
           'att'^(ex-equal !>((~(get by attested.state) sig.sign.at)) !>(`id))
       ==
@@ -287,6 +298,9 @@
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  (ex-verifier-update ~nec %status id %wait ~)
+      ::
+        %+  ex-arvo  /expire/phone/(scot %t nr)/(scot %da ~2000.1.2)
+        [%b %wait (add ~2000.1.2 attempt-timeout)]
       ::
         %+  ex-phone-api-req  (snoc wir %status)
         [%'POST' '/status' `'{"phoneNumber":"+123456789","ship":"~nec"}']
@@ -421,19 +435,20 @@
     ::TODO  test via scries instead?
     ;<  =state:v  bind:m  get-state
     %-  branch
-    :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec *config:v %done at]))
+    :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec ~2000.1.2 *config:v %done at]))
         'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
         'att'^(ex-equal !>((~(get by attested.state) sig.sign.at)) !>(`id))
     ==
   --
 ::
 ++  do-setup-with-id
+  =/  =status:v  [%done *attestation:v]
   |=  id=identifier:v
   =/  m  (mare ,~)
   ;<  *  bind:m  do-setup
   =/  =state:v
-    :*  records=(my [id ~nec *config:v %done *attestation:v] ~)
-        owners=(my [~nec (sy id ~)] ~)
+    :*  records=(my [id ~nec ~2000.1.2 *config:v status] ~)
+        owners=?:(?=(%done -.status) (my [~nec (sy id ~)] ~) ~)
         attested=(my [*@ux id] ~)
         phone-api=['https://phone.api/base' 'api-key' ~]
     ==
@@ -492,6 +507,62 @@
     ==
   (pure:m ~)
 ::
+++  test-expire-unfinished
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  id=identifier:v  [%phone '+123456789']
+  ;<  *  bind:m  (%*(. do-setup-with-id status [%want %phone %otp]) id)
+  ::  should delete state if the registration never finished
+  ::
+  ;<  caz=(list card)  bind:m
+    (do-arvo /expire/[-.id]/(scot %t +.id)/(scot %da ~2000.1.2) %behn %wake ~)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    [(ex-verifier-update ~nec %status id %gone)]~
+  ;<  ~  bind:m
+    ::TODO  test via scries instead?
+    ;<  =state:v  bind:m  get-state
+    %-  branch
+    :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(~))
+        'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>(~))
+    ==
+  (pure:m ~)
+::
+++  test-expire-unfinished-stale
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  id=identifier:v  [%phone '+123456789']
+  ;<  *  bind:m  (%*(. do-setup-with-id status [%want %phone %otp]) id)
+  ::  should delete state if the registration never finished
+  ::
+  ;<  caz=(list card)  bind:m
+    (do-arvo /expire/phone/(scot %t +.id)/(scot %da ~2000.1.1) %behn %wake ~)
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  ~  bind:m
+    ::TODO  test via scries instead?
+    ;<  =state:v  bind:m  get-state
+    (ex-equal !>((~(has by records.state) id)) !>(&))
+  (pure:m ~)
+::
+++  test-expire-done
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  id=identifier:v  [%dummy 'test']
+  ;<  *  bind:m  (do-setup-with-id id)
+  ::  should _not_ delete state if the registration did finish
+  ::
+  ;<  caz=(list card)  bind:m
+    (do-arvo /expire/dummy/(scot %t 'test')/(scot %da ~2000.1.2) %behn %wake ~)
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  ~  bind:m
+    ::TODO  test via scries instead?
+    ;<  =state:v  bind:m  get-state
+    %-  branch
+    :~  'rec'^(ex-equal !>((~(has by records.state) id)) !>(&))
+        'own'^(ex-equal !>((~(has ju owners.state) ~nec id)) !>(&))
+    ==
+  (pure:m ~)
+::
 ++  test-revoke-perms
   %-  eval-mare
   =/  m  (mare ,~)
@@ -544,7 +615,7 @@
     :~  =/  id=identifier:v  [%dummy 'test-id']
         =/  wen=@da  ~2222.2.2
         ::TODO  mb use +make-attestation instead
-        [id ~nec %hidden %done wen ~ ~zod faux-life %0 (faux-sign ~zod ~nec id wen ~)]
+        [id ~nec wen %hidden %done wen ~ ~zod faux-life %0 (faux-sign ~zod ~nec id wen ~)]
     ==
   ;<  *  bind:m  (do-load agent `!>([%0 state]))
   (pure:m ~)

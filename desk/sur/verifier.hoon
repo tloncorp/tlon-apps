@@ -18,7 +18,11 @@
   ==
 +$  id-kind  ?(%dummy %urbit %phone)
 ::
-+$  record  [for=@p id-state]  ::TODO  or tmp id
++$  record
+  $:  for=@p  ::TODO  or tmp id
+      start=@da
+      id-state
+  ==
 +$  id-state
   $:  =config
       =status

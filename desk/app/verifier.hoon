@@ -41,6 +41,27 @@
 +$  state-0  [%0 state]
 +$  card     card:agent:gall
 ::
+++  attempt-timeout  ~h1
+::
+++  id-wire
+  |=  id=identifier
+  ^-  wire
+  ?-  -.id
+    %dummy  /dummy/(scot %t +.id)
+    %urbit  /urbit/(scot %p +.id)
+    %phone  /phone/(scot %t +.id)
+  ==
+::
+++  wire-id
+  |=  =wire
+  ^-  (unit identifier)
+  ?.  ?=([id-kind @ *] wire)  ~
+  ?-  i.wire
+    %dummy  (bind (slaw %t i.t.wire) (lead %dummy))
+    %urbit  (bind (slaw %p i.t.wire) (lead %urbit))
+    %phone  (bind (slaw %t i.t.wire) (lead %phone))
+  ==
+::
 ++  give-update
   |=  [for=@p upd=identifier-update]
   ^-  card
@@ -168,9 +189,11 @@
         ==
       =.  records
         %+  ~(put by records)  id.cmd
-        [src.bowl *config status]
+        [src.bowl now.bowl *config status]
       :_  this
-      :-  (give-status src.bowl id.cmd status)
+      :+  (give-status src.bowl id.cmd status)
+        :+  %pass  [%expire (snoc (id-wire id.cmd) (scot %da now.bowl))]
+        [%arvo %b %wait (add now.bowl attempt-timeout)]
       ?.  ?=(%phone -.id.cmd)  ~
       [(req-phone-api phone-api +.id.cmd %status src.bowl)]~
     ::
@@ -298,6 +321,23 @@
       [%eyre ~]
     [~ this]  ::TODO  print on bind failure
   ::
+      [%expire id-kind @ @ ~]
+    ?>  ?=([%behn %wake *] sign)
+    ?^  error.sign
+      ::TODO  log
+      %.  [~ this]
+      (slog dap.bowl 'wake failed' u.error.sign)
+    =/  id=identifier  (need (wire-id t.wire))
+    =/  start=@da      (slav %da i.t.t.t.wire)
+    ?~  rec=(~(get by records) id)  [~ this]
+    ?.  =(start start.u.rec)        [~ this]
+    ?:  ?=(%done -.status.u.rec)    [~ this]
+    ~?  ?=(%wait -.status.u.rec)  [dap.bowl %dropped-the-ball -.id]
+    ::  registration attempt took too long, abort it
+    ::
+    :-  [(give-status for.u.rec id %gone)]~
+    this(records (~(del by records) id))
+  ::
       [%id %phone @ ?(%status %verify %submit) ~]
     ~|  [- +<]:sign
     ?>  ?=([%iris %http-response *] sign)
@@ -384,7 +424,7 @@
   ?>  =(src.bowl who)
   =+  %-  ~(rep in (~(get ju owners) who))
       |=  [id=identifier all=(map identifier id-state)]
-      (~(put by all) id +:(~(got by records) id))
+      (~(put by all) id +>:(~(got by records) id))
   =/  upd=identifier-update  [%full all]
   [%give %fact ~ %verifier-update !>(upd)]~
 ::
