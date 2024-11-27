@@ -8,19 +8,6 @@ import type { RootStackParamList } from '../../navigation/types';
 type Props = NativeStackScreenProps<RootStackParamList, 'AddContacts'>;
 
 export function AddContactsScreen(props: Props) {
-  // const handleGoToChannel = useCallback(
-  //   (channel: db.Channel) => {
-  //     props.navigation.reset({
-  //       index: 1,
-  //       routes: [
-  //         { name: 'ChatList' },
-  //         { name: 'Channel', params: { channelId: channel.id } },
-  //       ],
-  //     });
-  //   },
-  //   [props.navigation]
-  // );
-
   const handleAddContacts = useCallback((addIds: string[]) => {
     store.addContacts(addIds);
   }, []);
