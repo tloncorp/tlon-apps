@@ -1,12 +1,12 @@
 import { WithSkiaWeb } from '@shopify/react-native-skia/lib/module/web';
 import { Text } from 'tamagui';
 
-import { DrawingInputComponent } from './shared.ts';
+import { DrawingInputComponent } from './shared';
 
 export const StandaloneDrawingInput: DrawingInputComponent = (props) => {
   return (
     <WithSkiaWeb
-      getComponent={() => import('./DrawingInput.tsx')}
+      getComponent={() => import('./DrawingInput')}
       fallback={<Text style={{ textAlign: 'center' }}>Loading...</Text>}
       componentProps={props}
       opts={{
