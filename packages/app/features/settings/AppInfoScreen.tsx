@@ -1,6 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useDebugStore } from '@tloncorp/shared';
-import { getCurrentUserId } from '@tloncorp/shared/api';
 import * as store from '@tloncorp/shared/store';
 import {
   AppSetting,
@@ -23,6 +22,7 @@ import { getEmailClients, openComposer } from 'react-native-email-link';
 import { ScrollView } from 'react-native-gesture-handler';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useTelemetry } from '../../hooks/useTelemetry';
 import { setDebug } from '../../lib/debug';
 import { getEasUpdateDisplay } from '../../lib/platformHelpers';
@@ -32,13 +32,17 @@ const BUILD_VERSION = `${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${Applicatio
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AppInfo'>;
 
-function makeDebugEmail(appInfo: any, platformInfo: any) {
+function makeDebugEmail(
+  appInfo: any,
+  platformInfo: any,
+  currentUserId: string
+) {
   return `
 ----------------------------------------------
 Insert description of problem here.
 ----------------------------------------------
 
-Tlon ID: ${getCurrentUserId()}
+Tlon ID: ${currentUserId}
 
 Platform Information:
 ${JSON.stringify(platformInfo)}
@@ -54,6 +58,7 @@ export function AppInfoScreen(props: Props) {
   const easUpdateDisplay = useMemo(() => getEasUpdateDisplay(Updates), []);
   const [hasClients, setHasClients] = useState(true);
   const telemetry = useTelemetry();
+  const currentUserId = useCurrentUserId();
   const [telemetryDisabled, setTelemetryDisabled] = useState(
     telemetry.optedOut
   );
@@ -105,10 +110,10 @@ export function AppInfoScreen(props: Props) {
 
     openComposer({
       to: 'support@tlon.io',
-      subject: `${getCurrentUserId()} uploaded logs ${id}`,
-      body: makeDebugEmail(appInfo, platformInfo),
+      subject: `${currentUserId} uploaded logs ${id}`,
+      body: makeDebugEmail(appInfo, platformInfo, currentUserId),
     });
-  }, [hasClients]);
+  }, [hasClients, currentUserId]);
 
   return (
     <View flex={1} backgroundColor="$background">

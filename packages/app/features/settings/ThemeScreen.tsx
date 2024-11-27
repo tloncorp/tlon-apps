@@ -71,7 +71,7 @@ export function ThemeScreen(props: Props) {
   }, []);
 
   return (
-    <>
+    <View backgroundColor="$background" flex={1}>
       <ScreenHeader
         title="Theme"
         backAction={() => props.navigation.goBack()}
@@ -106,6 +106,6 @@ export function ThemeScreen(props: Props) {
           ))}
         </YStack>
       </ScrollView>
-    </>
+    </View>
   );
 }

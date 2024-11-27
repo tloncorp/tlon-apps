@@ -5,6 +5,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationState } from '@react-navigation/routers';
+import { View, getVariableValue, useTheme } from 'tamagui';
 
 import { ChannelMembersScreen } from '../../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../../features/channels/ChannelMetaScreen';
@@ -34,6 +35,7 @@ export const HomeNavigator = () => {
         headerShown: false,
         drawerStyle: {
           width: 340,
+          backgroundColor: getVariableValue(useTheme().background),
         },
       }}
     >
@@ -68,9 +70,9 @@ function MainStack() {
       screenOptions={{
         headerShown: false,
       }}
-      initialRouteName="ChatList"
+      initialRouteName="Home"
     >
-      <MainStackNavigator.Screen name="ChatList" component={Empty} />
+      <MainStackNavigator.Screen name="Home" component={Empty} />
       <MainStackNavigator.Screen
         name="CreateGroup"
         component={CreateGroupScreen}
@@ -141,5 +143,5 @@ function ChannelStack(
 }
 
 function Empty() {
-  return null;
+  return <View backgroundColor="$secondaryBackground" flex={1} />;
 }

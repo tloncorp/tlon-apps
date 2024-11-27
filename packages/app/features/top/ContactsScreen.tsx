@@ -63,7 +63,7 @@ export default function ContactsScreen(props: Props) {
 
   return (
     <AppDataContextProvider contacts={contacts} currentUserId={currentUser}>
-      <View flex={1}>
+      <View backgroundColor="$background" flex={1}>
         <ScreenHeader
           title="Contacts"
           rightControls={
