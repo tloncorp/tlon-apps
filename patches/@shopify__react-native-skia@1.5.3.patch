@@ -1,0 +1,60 @@
+diff --git a/android/README.md b/android/README.md
+deleted file mode 100644
+index ac2fbda377ad1213c02f090138f48054e5660547..0000000000000000000000000000000000000000
+diff --git a/cpp/skia/include/private/base/README.md b/cpp/skia/include/private/base/README.md
+deleted file mode 100644
+index 7f4f17b228c2b8e664b462983d66f735c6383fe7..0000000000000000000000000000000000000000
+diff --git a/lib/module/Platform/Platform.web.js b/lib/module/Platform/Platform.web.js
+index 1172f9d9a506fa4843f476b89fbb80a237705234..09311f3e2d15fe028b4ed5f92eb411e680cc63eb 100644
+--- a/lib/module/Platform/Platform.web.js
++++ b/lib/module/Platform/Platform.web.js
+@@ -125,21 +125,24 @@ export const Platform = {
+   PixelRatio: typeof window !== "undefined" ? window.devicePixelRatio : 1,
+   // window is not defined on node
+   resolveAsset: source => {
+-    if (isRNModule(source)) {
+-      if (typeof source === "number" && typeof require === "function") {
+-        const {
+-          getAssetByID
+-        } = require("react-native/Libraries/Image/AssetRegistry");
+-        const {
+-          httpServerLocation,
+-          name,
+-          type
+-        } = getAssetByID(source);
+-        const uri = `${httpServerLocation}/${name}.${type}`;
+-        return uri;
+-      }
+-      throw new Error("Asset source is a number - this is not supported on the web");
+-    }
++    // PATCH: AssetRegistry does not work on web - I think this is the issue:
++    // https://github.com/necolas/react-native-web/issues/2499
++    //
++    // if (isRNModule(source)) {
++    //   if (typeof source === "number" && typeof require === "function") {
++    //     const {
++    //       getAssetByID
++    //     } = require("react-native/Libraries/Image/AssetRegistry");
++    //     const {
++    //       httpServerLocation,
++    //       name,
++    //       type
++    //     } = getAssetByID(source);
++    //     const uri = `${httpServerLocation}/${name}.${type}`;
++    //     return uri;
++    //   }
++    //   throw new Error("Asset source is a number - this is not supported on the web");
++    // }
+     return source.default;
+   },
+   findNodeHandle: () => {
+diff --git a/lib/module/specs/NativeSkiaModule.web.js b/lib/module/specs/NativeSkiaModule.web.js
+index 6ef84897969dfd86d85bdfe527f3e5f6280d32bb..21f31242614638efa11987f0b3d25ef502217c75 100644
+--- a/lib/module/specs/NativeSkiaModule.web.js
++++ b/lib/module/specs/NativeSkiaModule.web.js
+@@ -1,2 +1,4 @@
+-
++// PATCH: Vite fails build when attempting to import from `NativeSkiaModule`:
++// add a noop export to avoid this.
++export default null;
+ //# sourceMappingURL=NativeSkiaModule.web.js.map
