@@ -346,6 +346,7 @@
   ::
       %hook-action-0
     =+  !<(=action:h vase)
+    ?>  =(our src):bowl
     ?-  -.action
         %add
       ho-abet:(ho-add:ho-core [name src]:action)
