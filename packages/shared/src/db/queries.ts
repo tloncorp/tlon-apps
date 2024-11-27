@@ -2811,10 +2811,12 @@ export const getUserContacts = createReadQuery(
 export const getSuggestedContacts = createReadQuery(
   'getSuggestedContacts',
   async (ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
     return ctx.db.query.contacts.findMany({
       where: and(
         eq($contacts.isContact, false),
-        eq($contacts.isContactSuggestion, true)
+        eq($contacts.isContactSuggestion, true),
+        not(eq($contacts.id, currentUserId))
       ),
       with: {
         pinnedGroups: {
