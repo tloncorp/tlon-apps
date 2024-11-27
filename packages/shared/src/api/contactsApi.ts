@@ -247,6 +247,7 @@ export const v0PeerToClientProfile = (
     isContactSuggestion?: boolean;
   }
 ): db.Contact => {
+  const currentUserId = getCurrentUserId();
   return {
     id,
     peerNickname: contact?.nickname ?? null,
@@ -262,7 +263,7 @@ export const v0PeerToClientProfile = (
       })) ?? [],
 
     isContact: false,
-    isContactSuggestion: config?.isContactSuggestion,
+    isContactSuggestion: config?.isContactSuggestion && id !== currentUserId,
   };
 };
 
@@ -287,6 +288,7 @@ export const v1PeerToClientProfile = (
     isContactSuggestion?: boolean;
   }
 ): db.Contact => {
+  const currentUserId = getCurrentUserId();
   return {
     id,
     peerNickname: contact.nickname?.value ?? null,
@@ -301,7 +303,8 @@ export const v1PeerToClientProfile = (
         contactId: id,
       })) ?? [],
     isContact: config?.isContact,
-    isContactSuggestion: config?.isContactSuggestion && !config?.isContact,
+    isContactSuggestion:
+      config?.isContactSuggestion && !config?.isContact && id !== currentUserId,
   };
 };
 
