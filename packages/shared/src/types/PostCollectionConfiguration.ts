@@ -1,6 +1,9 @@
-import { ChannelContentConfiguration, CollectionRendererId } from '../api';
 import * as db from '../db';
 import * as ChannelAction from './ChannelActions';
+import {
+  ChannelContentConfiguration,
+  CollectionRendererId,
+} from './ChannelContentConfiguration';
 
 /**
  * How do we want to lay out a collection of posts, at a high level?

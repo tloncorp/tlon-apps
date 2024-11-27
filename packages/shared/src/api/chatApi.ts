@@ -1,5 +1,9 @@
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import {
+  ChannelContentConfiguration,
+  StructuredChannelDescriptionPayload,
+} from '../types/ChannelContentConfiguration';
 import * as ub from '../urbit';
 import {
   deriveFullWrit,
@@ -8,10 +12,6 @@ import {
   getCanonicalPostId,
   toClientMeta,
 } from './apiUtils';
-import {
-  ChannelContentConfiguration,
-  StructuredChannelDescriptionPayload,
-} from './channelContentConfig';
 import { toPostData, toPostReplyData, toReplyMeta } from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe, trackedPoke } from './urbit';
 

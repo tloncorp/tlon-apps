@@ -1,15 +1,15 @@
 import { useCallback } from 'react';
 
+import { assembleNewChannelIdAndName } from '../db/modelBuilders';
+import * as db from '../db/types';
+import { createChannel } from '../store/channelActions';
+import { useAllChannels } from '../store/dbHooks';
 import {
   ChannelContentConfiguration,
   CollectionRendererId,
   DraftInputId,
   PostContentRendererId,
-} from '../api/channelContentConfig';
-import { assembleNewChannelIdAndName } from '../db/modelBuilders';
-import * as db from '../db/types';
-import { createChannel } from '../store/channelActions';
-import { useAllChannels } from '../store/dbHooks';
+} from '../types/ChannelContentConfiguration';
 
 export function useCreateChannel({
   group,

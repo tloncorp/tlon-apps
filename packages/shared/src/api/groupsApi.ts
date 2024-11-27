@@ -3,6 +3,7 @@ import { Poke } from '@urbit/http-api';
 import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
+import { StructuredChannelDescriptionPayload } from '../types/ChannelContentConfiguration';
 import type * as ub from '../urbit';
 import {
   FlaggedContent,
@@ -13,7 +14,6 @@ import {
   getJoinStatusFromGang,
 } from '../urbit';
 import { parseGroupId, toClientMeta } from './apiUtils';
-import { StructuredChannelDescriptionPayload } from './channelContentConfig';
 import {
   getCurrentUserId,
   poke,

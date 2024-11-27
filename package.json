@@ -59,7 +59,8 @@
       "react-native@0.73.4": "patches/react-native@0.73.4.patch",
       "@react-navigation/drawer@6.7.2": "patches/@react-navigation__drawer@6.7.2.patch",
       "@likashefqet/react-native-image-zoom@4.2.0": "patches/@likashefqet__react-native-image-zoom@4.2.0.patch",
-      "react-cosmos@6.1.1": "patches/react-cosmos@6.1.1.patch"
+      "react-cosmos@6.1.1": "patches/react-cosmos@6.1.1.patch",
+      "@shopify/react-native-skia@1.5.3": "patches/@shopify__react-native-skia@1.5.3.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {
