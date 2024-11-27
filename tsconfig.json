@@ -9,6 +9,7 @@
     "incremental": true,
     "jsx": "react-jsx",
     "forceConsistentCasingInFileNames": true,
+    "module": "preserve",
     "moduleResolution": "bundler",
     "noEmitOnError": false,
     "noImplicitAny": true,
