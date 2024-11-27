@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { AddContactsScreen } from '../../features/contacts/AddContactsScreen';
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
@@ -24,9 +25,10 @@ export const ProfileScreenNavigator = () => {
     >
       <ProfileScreenStack.Screen name="Contacts" component={ContactsScreen} />
       <ProfileScreenStack.Screen
-        name="Profile"
-        component={ProfileScreen}
+        name="AddContacts"
+        component={AddContactsScreen}
       />
+      <ProfileScreenStack.Screen name="Profile" component={ProfileScreen} />
       <ProfileScreenStack.Screen name="AppInfo" component={AppInfoScreen} />
       <ProfileScreenStack.Screen
         name="PushNotificationSettings"
