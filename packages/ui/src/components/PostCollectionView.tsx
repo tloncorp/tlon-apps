@@ -1,4 +1,4 @@
-import { ChannelContentConfiguration } from '@tloncorp/shared/api';
+import { ChannelContentConfiguration } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Ref, useMemo } from 'react';
 

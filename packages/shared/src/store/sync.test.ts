@@ -2,13 +2,7 @@ import * as $ from 'drizzle-orm';
 import { pick } from 'lodash';
 import { expect, test, vi } from 'vitest';
 
-import { StructuredChannelDescriptionPayload, toClientGroup } from '../api';
-import '../api/channelContentConfig';
-import {
-  CollectionRendererId,
-  DraftInputId,
-  PostContentRendererId,
-} from '../api/channelContentConfig';
+import { toClientGroup } from '../api';
 import * as db from '../db';
 import rawNewestPostData from '../test/channelNewestPost.json';
 import rawChannelPostWithRepliesData from '../test/channelPostWithReplies.json';
@@ -25,6 +19,12 @@ import {
   setupDatabaseTestSuite,
 } from '../test/helpers';
 import rawGroupsInit2 from '../test/init.json';
+import {
+  CollectionRendererId,
+  DraftInputId,
+  PostContentRendererId,
+  StructuredChannelDescriptionPayload,
+} from '../types/ChannelContentConfiguration';
 import {
   CombinedHeads,
   GroupsInit,

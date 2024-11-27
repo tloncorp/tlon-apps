@@ -1,19 +1,17 @@
 import {
-  JSONValue,
-  useCreateChannel,
-  useGroup,
-  useUpdateChannel,
-} from '@tloncorp/shared';
-import {
   ChannelContentConfiguration,
   CollectionRendererId,
-  ComponentSpec,
+  CustomComponentSpec,
   DraftInputId,
+  JSONValue,
   PostContentRendererId,
   allCollectionRenderers,
   allContentRenderers,
   allDraftInputs,
-} from '@tloncorp/shared/api';
+  useCreateChannel,
+  useGroup,
+  useUpdateChannel,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { objectEntries } from '@tloncorp/shared/utils';
 import {
@@ -325,7 +323,7 @@ export function UnconnectedChannelConfigurationBar({
       })();
 
       const componentId = config?.id;
-      const componentSpec: ComponentSpec | undefined =
+      const componentSpec: CustomComponentSpec | undefined =
         // @ts-expect-error - above code ensures that `componentId` is an index into `kit`
         componentId == null ? undefined : kit[componentId];
 
@@ -394,7 +392,7 @@ function ConfigInput<
 }: {
   label: string;
   value?: Value;
-  parametersSchema?: ComponentSpec['parametersSchema'];
+  parametersSchema?: CustomComponentSpec['parametersSchema'];
   onChange: (update: SetStateAction<Value>) => void;
   options: { title: string; value: Value['id'] }[];
 } & ComponentProps<typeof View>) {

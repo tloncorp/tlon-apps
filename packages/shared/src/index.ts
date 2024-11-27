@@ -28,7 +28,8 @@ export {
   allCollectionRenderers,
   allDraftInputs,
   allContentRenderers,
-} from './api/channelContentConfig';
+} from './types/ChannelContentConfiguration';
+export type { ComponentSpec as CustomComponentSpec } from './types/ChannelContentConfiguration';
 export { parseActiveTab, trimFullPath } from './logic/navigation';
 export * from './logic';
 export * from './store';

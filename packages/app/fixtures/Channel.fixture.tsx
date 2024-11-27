@@ -1,14 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import {
+  ChannelContentConfiguration,
+  CollectionRendererId,
   useChannelPreview,
   useGroupPreview,
   usePostWithRelations,
 } from '@tloncorp/shared';
-import {
-  ChannelContentConfiguration,
-  CollectionRendererId,
-  Upload,
-} from '@tloncorp/shared/api';
+import { Upload } from '@tloncorp/shared/api';
 import type * as db from '@tloncorp/shared/db';
 import {
   AppDataContextProvider,

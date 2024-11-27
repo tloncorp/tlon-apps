@@ -1,11 +1,11 @@
 import * as api from '../api';
-import {
-  ChannelContentConfiguration,
-  StructuredChannelDescriptionPayload,
-} from '../api/channelContentConfig';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';
+import {
+  ChannelContentConfiguration,
+  StructuredChannelDescriptionPayload,
+} from '../types/ChannelContentConfiguration';
 import { GroupChannel, getChannelKindFromType } from '../urbit';
 
 const logger = createDevLogger('ChannelActions', false);
