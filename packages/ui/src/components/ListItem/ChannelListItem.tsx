@@ -60,8 +60,6 @@ export function ChannelListItem({
     }
   }, [model, firstMemberId, memberCount]);
 
-  const isWindowNarrow = useIsWindowNarrow();
-
   return (
     <View>
       <Pressable
@@ -69,7 +67,7 @@ export function ChannelListItem({
         onPress={handlePress}
         onLongPress={handleLongPress}
       >
-        <ListItem {...props} padding={isWindowNarrow ? '$l' : '$m'}>
+        <ListItem {...props}>
           <ListItem.ChannelIcon
             model={model}
             useTypeIcon={useTypeIcon}

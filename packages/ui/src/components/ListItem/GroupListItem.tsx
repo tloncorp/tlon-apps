@@ -2,7 +2,6 @@ import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { View, isWeb } from 'tamagui';
 
-import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
 import { Icon } from '../Icon';
@@ -30,8 +29,6 @@ export const GroupListItem = ({
     onLongPress?.(model);
   });
 
-  const isWindowNarrow = useIsWindowNarrow();
-
   return (
     <View>
       <Pressable
@@ -39,11 +36,7 @@ export const GroupListItem = ({
         onPress={handlePress}
         onLongPress={handleLongPress}
       >
-        <ListItem
-          {...props}
-          alignItems={isPending ? 'center' : 'stretch'}
-          padding={isWindowNarrow ? '$l' : '$m'}
-        >
+        <ListItem {...props} alignItems={isPending ? 'center' : 'stretch'}>
           <ListItem.GroupIcon model={model} />
           <ListItem.MainContent>
             <ListItem.Title>{title}</ListItem.Title>
