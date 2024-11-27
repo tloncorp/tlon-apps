@@ -2386,7 +2386,7 @@
     |=  sects=(set sect:g)
     =/  =flag:g  group.perm.perm.channel
     =/  exists-path
-      (scry-path %groups /exists/(scot %p p.flag)/[q.flag])
+      (scry-path %groups /exists/(scot %p p.flag)/[q.flag]/noun)
     =+  .^(exists=? %gx exists-path)
     ?.  exists  ca-core
     =/  =path
