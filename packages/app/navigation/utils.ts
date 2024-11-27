@@ -3,6 +3,7 @@ import {
   NavigationProp,
   useNavigation,
 } from '@react-navigation/native';
+import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 
@@ -83,12 +84,25 @@ export function useResetToDm() {
 export function useResetToGroup() {
   const reset = useTypedReset();
 
-  return function resetToGroup(groupId: string) {
+  return async function resetToGroup(groupId: string) {
+    const channelId = await getInitialGroupChannel(groupId);
     reset([
       { name: 'ChatList' },
-      { name: 'GroupChannels', params: { groupId } },
+      { name: 'Channel', params: { channelId, groupId } },
     ]);
   };
+}
+
+async function getInitialGroupChannel(groupId: string) {
+  const group = await db.getGroup({ id: groupId });
+  const channelId =
+    group?.channels?.sort(
+      (a, b) => (a.lastPostAt ?? 0) - (b.lastPostAt ?? 0)
+    )[0]?.id ?? group?.channels?.[0]?.id;
+  if (!channelId) {
+    throw new Error('unable to find default group channel');
+  }
+  return channelId;
 }
 
 export function screenNameFromChannelId(channelId: string) {

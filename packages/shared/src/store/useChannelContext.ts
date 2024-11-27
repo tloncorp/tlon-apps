@@ -19,12 +19,10 @@ export const useChannelContext = ({
   // need to populate this from feature flags :(
   isChannelSwitcherEnabled: boolean;
 }) => {
-  // const storage = useStorageUnsafelyUnwrapped();
-
-  // Model context
-  const channelQuery = dbHooks.useChannelWithRelations({
+  const channelQuery = dbHooks.useChannel({
     id: channelId,
   });
+
   const groupQuery = dbHooks.useGroup({
     id: channelQuery.data?.groupId ?? '',
   });

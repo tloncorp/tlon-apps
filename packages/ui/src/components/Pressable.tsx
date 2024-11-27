@@ -23,7 +23,7 @@ const StackComponent = ({
 
   return (
     <Stack
-      pressStyle={{ backgroundColor: '$secondaryBackground' }}
+      pressStyle={{ opacity: 0.5 }}
       {...stackProps}
       // eslint-disable-next-line no-restricted-syntax
       onPress={onPress}

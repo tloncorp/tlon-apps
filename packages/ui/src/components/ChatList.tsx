@@ -17,7 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Text, View, YStack, getTokenValue } from 'tamagui';
 
-import { useCalm } from '../contexts';
+import { useCalm, useChatOptions } from '../contexts';
 import { interactionWithTiming } from '../utils/animation';
 import { TextInputWithIconAndButton } from './Form';
 import { ChatListItem, InteractableChatListItem } from './ListItem';
@@ -34,7 +34,6 @@ export const ChatList = React.memo(function ChatListComponent({
   pinned,
   unpinned,
   pending,
-  onLongPressItem,
   onPressItem,
   activeTab,
   setActiveTab,
@@ -44,7 +43,6 @@ export const ChatList = React.memo(function ChatListComponent({
   onSearchToggle,
 }: db.GroupedChats & {
   onPressItem?: (chat: db.Chat) => void;
-  onLongPressItem?: (chat: db.Chat) => void;
   onSectionChange?: (title: string) => void;
   activeTab: TabName;
   setActiveTab: (tab: TabName) => void;
@@ -72,6 +70,14 @@ export const ChatList = React.memo(function ChatListComponent({
     [displayData]
   );
 
+  const chatOptions = useChatOptions();
+  const handleLongPress = useCallback(
+    (item: db.Chat) => {
+      chatOptions.open(item.id, item.type);
+    },
+    [chatOptions]
+  );
+
   // removed the use of useStyle here because it was causing FlashList to
   // peg the CPU and freeze the app on web
   // see: https://github.com/Shopify/flash-list/pull/852
@@ -93,7 +99,7 @@ export const ChatList = React.memo(function ChatListComponent({
           <InteractableChatListItem
             model={item}
             onPress={onPressItem}
-            onLongPress={onLongPressItem}
+            onLongPress={handleLongPress}
           />
         );
       } else {
@@ -101,12 +107,12 @@ export const ChatList = React.memo(function ChatListComponent({
           <ChatListItem
             model={item}
             onPress={onPressItem}
-            onLongPress={onLongPressItem}
+            onLongPress={handleLongPress}
           />
         );
       }
     },
-    [onPressItem, onLongPressItem]
+    [onPressItem, handleLongPress]
   );
 
   const handlePressTryAll = useCallback(() => {

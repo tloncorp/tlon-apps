@@ -1429,16 +1429,9 @@ export const getAllSingleDms = createReadQuery(
   []
 );
 
-export interface GetChannelWithRelations {
-  id: string;
-}
-
 export const getChannelWithRelations = createReadQuery(
   'getChannelWithRelations',
-  async (
-    { id }: GetChannelWithRelations,
-    ctx: QueryCtx
-  ): Promise<Channel | null> => {
+  async ({ id }: { id: string }, ctx: QueryCtx): Promise<Channel | null> => {
     const result = await ctx.db.query.channels.findFirst({
       where: eq($channels.id, id),
       with: {
@@ -2609,6 +2602,7 @@ export const getGroup = createReadQuery(
       .findFirst({
         where: (groups, { eq }) => eq(groups.id, id),
         with: {
+          unread: true,
           pin: true,
           channels: {
             where: (channels, { eq }) => eq(channels.currentUserIsMember, true),

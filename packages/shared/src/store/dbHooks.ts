@@ -1,6 +1,7 @@
 import {
   UseQueryOptions,
   UseQueryResult,
+  skipToken,
   useQuery,
 } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -312,19 +313,11 @@ export const useGroups = (options: db.GetGroupsOptions) => {
   });
 };
 
-export const useGroup = (options: { id?: string }) => {
+export const useGroup = ({ id }: { id?: string }) => {
   return useQuery({
-    enabled: !!options.id,
-    queryKey: [['group', options], useKeyFromQueryDeps(db.getGroup, options)],
-    queryFn: () => {
-      if (!options.id) {
-        // This should never actually get thrown as the query is disabled if id
-        // is missing
-        throw new Error('missing id');
-      }
-      const enabledOptions = options as { id: string };
-      return db.getGroup(enabledOptions);
-    },
+    enabled: !!id,
+    queryKey: [['group', { id }], useKeyFromQueryDeps(db.getGroup, { id })],
+    queryFn: id ? () => db.getGroup({ id }) : skipToken,
   });
 };
 
@@ -444,23 +437,16 @@ export const useChannelSearchResults = (
   });
 };
 
-export const useChannelWithRelations = (
-  options: db.GetChannelWithRelations
-) => {
-  const tableDeps = useKeyFromQueryDeps(db.getChannelWithRelations);
+export const useChannel = (options: { id?: string }) => {
+  const { id } = options;
   return useQuery({
-    queryKey: ['channelWithRelations', tableDeps, options],
-    queryFn: async () => {
-      const channel = await db.getChannelWithRelations(options);
-      return channel ?? null;
-    },
-  });
-};
-
-export const useChannel = (options: { id: string }) => {
-  return useQuery({
-    queryKey: [['channel', options]],
-    queryFn: () => db.getChannelWithRelations(options),
+    enabled: !!id,
+    queryKey: [
+      'channelWithRelations',
+      useKeyFromQueryDeps(db.getChannelWithRelations),
+      options,
+    ],
+    queryFn: id ? () => db.getChannelWithRelations({ id }) : skipToken,
   });
 };
 

@@ -154,12 +154,6 @@ export default function useNotificationListener() {
         }
 
         const routeStack: RouteStack = [{ name: 'ChatList' }];
-        if (channel.groupId && !channelSwitcherEnabled) {
-          routeStack.push({
-            name: 'GroupChannels',
-            params: { groupId: channel.groupId },
-          });
-        }
         const screenName = screenNameFromChannelId(channelId);
         routeStack.push({
           name: screenName,

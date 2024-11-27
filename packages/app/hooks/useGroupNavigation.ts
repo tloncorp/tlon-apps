@@ -26,7 +26,7 @@ export const useGroupNavigation = () => {
     [navigation]
   );
 
-  const goToGroupChannels = useCallback(
+  const goToGroup = useCallback(
     async (groupId: string) => {
       resetToGroup(groupId);
     },
@@ -48,6 +48,6 @@ export const useGroupNavigation = () => {
     goToChannel,
     goToHome,
     goToContactHostedGroups,
-    goToGroupChannels,
+    goToGroup,
   };
 };

@@ -6,14 +6,11 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import {
   AddGroupSheet,
   ChatList,
   ChatOptionsProvider,
-  ChatOptionsSheet,
-  ChatOptionsSheetMethods,
   GroupPreviewAction,
   GroupPreviewSheet,
   InviteUsersSheet,
@@ -29,7 +26,6 @@ import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
-import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 import { screenNameFromChannelId } from '../../navigation/utils';
 import { identifyTlonEmployee } from '../../utils/posthog';
@@ -53,19 +49,6 @@ export function ChatListScreenView({
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
-  const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
-  const [longPressedChat, setLongPressedChat] = useState<db.Chat | null>(null);
-  const chatOptionsGroupId = useMemo(() => {
-    return longPressedChat?.type === 'group'
-      ? longPressedChat.group.id
-      : undefined;
-  }, [longPressedChat]);
-
-  const chatOptionsChannelId = useMemo(() => {
-    return longPressedChat?.type === 'channel'
-      ? longPressedChat.channel.id
-      : undefined;
-  }, [longPressedChat]);
 
   const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
     'all'
@@ -77,10 +60,6 @@ export function ChatListScreenView({
 
   const [showSearchInput, setShowSearchInput] = useState(false);
   const isFocused = useIsFocused();
-  const { data: pins } = store.usePins({
-    enabled: isFocused,
-  });
-  const pinned = useMemo(() => pins ?? [], [pins]);
 
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
@@ -172,22 +151,20 @@ export function ChatListScreenView({
     }
   }, []);
 
-  const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
-
   const onPressChat = useCallback(
-    (item: db.Chat) => {
-      if (item.type === 'group' && item.isPending) {
-        setSelectedGroupId(item.id);
-      } else if (item.type === 'group' && !isChannelSwitcherEnabled) {
-        navigation.navigate('GroupChannels', { groupId: item.group.id });
-      } else if (item.type === 'group') {
-        if (!item.group.channels?.length) {
-          throw new Error('cant open group with no channels');
+    async (item: db.Chat) => {
+      if (item.type === 'group') {
+        if (item.isPending) {
+          setSelectedGroupId(item.id);
+        } else {
+          const mostRecentChannel = item.group.channels?.[0];
+          if (!mostRecentChannel) {
+            throw new Error("Can't open group: no channels");
+          }
+          navigation.navigate('Channel', {
+            channelId: mostRecentChannel.id,
+          });
         }
-        navigation.navigate('Channel', {
-          channelId: item.group.channels[0].id,
-          groupId: item.group.id,
-        });
       } else {
         const screenName = screenNameFromChannelId(item.id);
         navigation.navigate(screenName, {
@@ -195,20 +172,8 @@ export function ChatListScreenView({
         });
       }
     },
-    [isChannelSwitcherEnabled, navigation]
+    [navigation]
   );
-
-  const onLongPressChat = useCallback((item: db.Chat) => {
-    if (item.isPending) {
-      return;
-    }
-    setLongPressedChat(item);
-    chatOptionsSheetRef.current?.open(
-      item.id,
-      item.type === 'channel' ? item.channel.type : 'group',
-      item.unreadCount
-    );
-  }, []);
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -298,9 +263,6 @@ export function ChatListScreenView({
       useGroup={store.useGroupPreview}
     >
       <ChatOptionsProvider
-        channelId={chatOptionsChannelId}
-        groupId={chatOptionsGroupId}
-        pinned={pinned}
         {...useChatSettingsNavigation()}
         onPressInvite={(group) => {
           setInviteSheetGroup(group);
@@ -329,7 +291,6 @@ export function ChatListScreenView({
               pinned={resolvedChats.pinned}
               unpinned={resolvedChats.unpinned}
               pending={resolvedChats.pending}
-              onLongPressItem={onLongPressChat}
               onPressItem={onPressChat}
               onSectionChange={handleSectionChange}
               showSearchInput={showSearchInput}
@@ -343,7 +304,6 @@ export function ChatListScreenView({
             open={splashVisible}
             onOpenChange={handleWelcomeOpenChange}
           />
-          <ChatOptionsSheet ref={chatOptionsSheetRef} />
           <GroupPreviewSheet
             open={!!selectedGroup}
             onOpenChange={handleGroupPreviewSheetOpenChange}

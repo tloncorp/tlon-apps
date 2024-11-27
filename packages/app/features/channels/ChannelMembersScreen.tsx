@@ -8,7 +8,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ChannelMembers'>;
 
 export function ChannelMembersScreen(props: Props) {
   const { channelId } = props.route.params;
-  const channelQuery = store.useChannelWithRelations({
+  const channelQuery = store.useChannel({
     id: channelId,
   });
 

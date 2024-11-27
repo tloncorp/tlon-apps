@@ -319,16 +319,6 @@ export default function ChannelScreen(props: Props) {
 
   const canUpload = useCanUpload();
 
-  const isFocused = useIsFocused();
-
-  const { data: pins } = store.usePins({
-    enabled: isFocused,
-  });
-
-  const pinnedItems = useMemo(() => {
-    return pins ?? [];
-  }, [pins]);
-
   const chatOptionsNavProps = useChatSettingsNavigation();
 
   const handleGoToUserProfile = useCallback(
@@ -350,8 +340,6 @@ export default function ChannelScreen(props: Props) {
 
   return (
     <ChatOptionsProvider
-      groupId={group?.id}
-      pinned={pinnedItems}
       useGroup={store.useGroup}
       onPressInvite={(group) => {
         setInviteSheetGroup(group);
