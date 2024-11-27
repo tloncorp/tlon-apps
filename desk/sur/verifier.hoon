@@ -7,13 +7,16 @@
       attested=(map @ux identifier)
       ::TODO  need attestation for [@p id-kind], for profile exposing
       ::TODO  (map identifier host-work) ? or would that be only for %dummy?
+      ::NOTE  basic auth only for staging
+      phone-api=[base=@t key=@t basic=(unit [user=@t pass=@t])]
   ==
 ::
 +$  identifier
   $%  [%dummy @t]
       [%urbit @p]
+      [%phone @t]
   ==
-+$  id-kind  ?(%dummy %urbit)
++$  id-kind  ?(%dummy %urbit %phone)
 ::
 +$  record  [for=@p id-state]  ::TODO  or tmp id
 +$  id-state
@@ -31,7 +34,7 @@
 +$  status
   $%  [%done attestation]  ::  verified
       [%wait ~]            ::  service at work
-      [%want user-work]    ::  waiting on user action
+      [%want user-task]    ::  waiting on user action
   ==
 ::
 +$  attestation
@@ -53,9 +56,13 @@
 +$  signed-data-0
   [%verified when=@da for=@p id=identifier proof=(unit proof)]
 ::
++$  user-task
+  $%  [%urbit pin=@]   ::  awaiting confirmation from other side
+      [%phone %otp]    ::  awaiting otp code from user
+  ==
 +$  user-work
-  ::TODO  or more generic %pin ?
-  $%  [%urbit pin=@]  ::  awaiting confirmation from other side
+  $%  [%urbit pin=@]
+      [%phone otp=@t]
   ==
 ::
 ::

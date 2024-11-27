@@ -13,6 +13,9 @@
 ++  dap  %verifier
 +$  card  card:agent:gall
 ::
+++  phone-api-base  'https://phone.api/base'
+++  phone-api-key   'api-key'
+::
 ++  ex-verifier-update
   =/  initial=?  |
   |=  [for=@p upd=identifier-update:v]
@@ -27,6 +30,31 @@
     ?:(initial ~ ~[/records/(scot %p for)])
   (ex-fact paths %verifier-update !>(upd))
 ::
+++  ex-http-request
+  =/  config=outbound-config:iris
+    %*(. *outbound-config:iris retries 0)
+  |=  [=wire req=request:http]
+  (ex-card %pass wire %arvo %i %request req config)
+::
+++  ex-phone-api-req
+  |=  [=wire =method:http path=@t body=(unit @t)]
+  %+  ex-http-request  wire
+  =/  hes=header-list:http
+    :~  ['content-type' 'application/json']
+        ['x-vnd-apikey' phone-api-key]
+    ==
+  [method (cat 3 phone-api-base path) hes (bind body as-octs:mimes:html)]
+::
+++  do-http-response
+  |=  [=wire hed=response-header:http fil=(unit mime-data:iris)]
+  (do-arvo wire %iris %http-response %finished hed fil)
+::
+++  do-phone-api-res
+  |=  [=wire code=@ud body=(unit @t)]
+  %+  do-http-response  wire
+  :-  [code ~]
+  (bind body (cork as-octs:mimes:html (lead 'application/json')))
+::
 ++  branch
   =/  m  (mare ,~)
   |=  l=(list [t=@t f=form:m])  ::NOTE  can't seem to use $^ here
@@ -40,7 +68,43 @@
   =/  o  (f.i.l s)
   =?  e  ?=(%| -.o)
     =-  (weld e `tang`-)
-    [(rap 3 'failed in branch ' t.i.l ':' ~) p.o]
+    [(rap 3 'failed in branch \'' t.i.l '\':' ~) p.o]
+  $(l t.l)
+::
+++  merge  ::  branch with shared, cached continuation
+  |*  a=mold  ::  arg for constructing continuation, comes out of branches
+  =/  w  (mare a)
+  =/  m  (mare ,~)
+  |=  [l=(list [t=@t f=form:w]) n=$-(a form:m)]
+  ^-  form:m
+  =|  err=tang
+  =|  per=(map tang @t)
+  =|  cac=(map @ output:m)
+  |=  sat=state
+  |-  ^-  output:m
+  ?~  l
+    ?.  =(~ err)  [%| err]
+    [%& ~ sat]
+  =^  res=output:m  cac
+    ::  the below is essentially (((bind:m a) f.i.l n) sat)
+    ::  but with the n invocation cached
+    ::
+    =/  wes=output:w  (f.i.l sat)
+    ?:  ?=(%| -.wes)  [wes cac]
+    ?^  hit=(~(get by cac) (mug p.wes))
+      [u.hit cac]
+    =/  res=output:m  ((n out.p.wes) state.p.wes)
+    [res (~(put by cac) (mug p.wes) res)]
+  ::  when printing fail traces, if a previous branch had an identical failure,
+  ::  just print a reference to that for brevity
+  ::
+  =?  err  ?=(%| -.res)
+    =-  (weld err `tang`-)
+    :-  (rap 3 'failed in merge branch \'' t.i.l '\':' ~)
+    ?~  pev=(~(get by per) p.res)  p.res
+    [(rap 3 '[same as in merge branch \'' u.pev '\']' ~)]~
+  =?  per  &(?=(%| -.res) !(~(has by per) p.res))
+    (~(put by per) p.res t.i.l)
   $(l t.l)
 ::
 ++  faux-life  1
@@ -198,6 +262,171 @@
     (user-does ~fed %work id %urbit 620.187)
   --
 ::
+++  test-phone-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  do-setup
+  ;<  ~  bind:m  (wait ~d1)
+  ::
+  ;<  ~  bind:m
+    %-  ex-fail
+    %-  (do-as ~nec)
+    (do-poke %noun !>([%set-phone-api phone-api-base phone-api-key ~]))
+  ;<  caz=(list card)  bind:m
+    (do-poke %noun !>([%set-phone-api phone-api-base phone-api-key ~]))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ::
+  =/  nr=@t             '+123456789'
+  =/  id=identifier:v   [%phone nr]
+  =/  wir=wire          /id/phone/(scot %t nr)
+  ::  user requests a phone nr, is told to wait for the service,
+  ::  and service does a status request
+  ::
+  ;<  caz=(list card)  bind:m
+    (user-does ~nec %start id)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-verifier-update ~nec %status id %wait ~)
+      ::
+        %+  ex-phone-api-req  (snoc wir %status)
+        [%'POST' '/status' `'{"phoneNumber":"+123456789","ship":"~nec"}']
+    ==
+  ::
+  |^  %-  branch
+      :~  'status bad'^status-bad
+          'status verified'^status-verified
+          'status unverified'^status-unverified
+      ==
+  ++  status-bad
+    %+  (merge (list card))
+      :~  :-  '400 response'
+          %+  do-phone-api-res  (snoc wir %status)
+          [400 `'{"message":"Forbidden"}']
+        ::
+          :-  'bad json'
+          %+  do-phone-api-res  (snoc wir %status)
+          [200 `'"bad json"']
+      ==
+    rejected  ::TODO  and log report sent
+  ::
+  ++  status-verified
+    %+  (merge (list card))
+      :~  :-  'status a'
+          %+  do-phone-api-res  (snoc wir %status)
+          [200 `'{"known":true,"verified":true,"matchingShip":true}']
+        ::
+          :-  'status b'  ::NOTE  shouldn't happen
+          %+  do-phone-api-res  (snoc wir %status)
+          [200 `'{"known":false,"verified":true,"matchingShip":true}']
+      ==
+    registered
+  ::
+  ++  status-unverified
+    %+  (merge (list card))
+      ::  all of the below should be treated as unverified phone nrs
+      ::
+      ::TODO  test without matchingship in the known:false cases
+      :~  :-  'status a'
+          %+  do-phone-api-res  (snoc wir %status)
+          [200 `'{"known":true,"verified":false,"matchingShip":true}']
+        ::
+          :-  'status b'
+          %+  do-phone-api-res  (snoc wir %status)
+          [200 `'{"known":true,"verified":true,"matchingShip":false}']
+        ::
+          :-  'status c'
+          %+  do-phone-api-res  (snoc wir %status)
+          [200 `'{"known":false,"verified":false}']
+        ::
+          :-  'status d'  ::NOTE  shouldn't happen
+          %+  do-phone-api-res  (snoc wir %status)
+          [200 `'{"known":false,"verified":false,"matchingShip":true}']
+        ::
+          :-  'status e'  ::NOTE  shouldn't happen
+          %+  do-phone-api-res  (snoc wir %status)
+          [200 `'{"known":false,"verified":true,"matchingShip":false}']
+        ::
+          :-  'status f'
+          %+  do-phone-api-res  (snoc wir %status)
+          [200 `'{"known":true,"verified":false,"matchingShip":false}']
+      ==
+    |=  caz=(list card)
+    ;<  ~  bind:m
+      %+  ex-cards  caz
+      :_  ~
+      %+  ex-phone-api-req  (snoc wir %verify)
+      [%'POST' '/verify' `'{"phoneNumber":"+123456789"}']
+    ::
+    |^  (branch 'start verify fail'^verify-fail 'start verify ok'^verify-ok ~)
+    ++  verify-fail
+      ;<  caz=(list card)  bind:m
+        %+  do-phone-api-res  (snoc wir %verify)
+        [400 `'{"message":,"Forbidden"}']
+      (rejected caz)
+    ::
+    ++  verify-ok
+      ;<  caz=(list card)  bind:m
+        (do-phone-api-res (snoc wir %verify) [200 ~])
+      ;<  ~  bind:m
+        (ex-cards caz (ex-verifier-update ~nec %status id %want %phone %otp) ~)
+      ::  user submits the otp code they received
+      ::
+      ;<  caz=(list card)  bind:m
+        (user-does ~nec %work id %phone '333777')
+      ;<  ~  bind:m
+        %+  ex-cards  caz
+        :~  (ex-verifier-update ~nec %status id %wait ~)
+          ::
+            %+  ex-phone-api-req  (snoc wir %submit)
+            [%'PATCH' '/verify' `'{"otp":"333777","phoneNumber":"+123456789"}']
+        ==
+      ::
+      |^  (branch 'otp bad'^otp-bad 'otp good'^otp-good ~)
+      ++  otp-bad
+        ::  if the otp code is wrong, should update status to ask for a retry
+        ::
+        ;<  caz=(list card)  bind:m
+          %+  do-phone-api-res  (snoc wir %submit)
+          [400 `'{"message":"Invalid or expired OTP."}']
+        (ex-cards caz (ex-verifier-update ~nec %status id %want %phone %otp) ~)
+        ::TODO  limit failed attempts? time registration attempt out after a while?
+      ::
+      ++  otp-good
+        ::TODO  also test good after initial failed attempt?
+        ;<  caz=(list card)  bind:m
+          (do-phone-api-res (snoc wir %submit) [200 ~])
+        (registered caz)
+      --
+    --
+  ::
+  ++  rejected
+    |=  caz=(list card)
+    ;<  ~  bind:m
+      %+  ex-cards  caz
+      [(ex-verifier-update ~nec %status id %gone)]~
+    ::TODO  test via scries instead?
+    ;<  =state:v  bind:m  get-state
+    %-  branch
+    :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(~))
+        'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>(~))
+    ==
+  ::
+  ++  registered
+    |=  caz=(list card)
+    ;<  at=attestation:v  bind:m  (make-attestation ~nec id ~)
+    ;<  ~  bind:m
+      ::TODO  don't test signature value, test whether it matches pubkey
+      %+  ex-cards  caz
+      [(ex-verifier-update ~nec %status id %done at)]~
+    ::TODO  test via scries instead?
+    ;<  =state:v  bind:m  get-state
+    %-  branch
+    :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec *config:v %done at]))
+        'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
+        'att'^(ex-equal !>((~(get by attested.state) sig.sign.at)) !>(`id))
+    ==
+  --
+::
 ++  do-setup-with-id
   |=  id=identifier:v
   =/  m  (mare ,~)
@@ -206,6 +435,7 @@
     :*  records=(my [id ~nec *config:v %done *attestation:v] ~)
         owners=(my [~nec (sy id ~)] ~)
         attested=(my [*@ux id] ~)
+        phone-api=['https://phone.api/base' 'api-key' ~]
     ==
   ;<  *  bind:m  (do-load agent `!>([%0 state]))
   (pure:m ~)
@@ -296,6 +526,7 @@
   |=  records=(map identifier:v record:v)
   ^-  state:v
   :-  records
+  =<  [owners attested ['' '' ~]]
   %+  roll  ~(tap by records)
   |=  $:  [id=identifier:v record:v]
           [owners=(jug ship identifier:v) attested=(map @ux identifier:v)]

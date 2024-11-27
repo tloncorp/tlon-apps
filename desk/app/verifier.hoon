@@ -56,6 +56,42 @@
   ^-  card
   (give-update for %config id config)
 ::
+++  req-phone-api
+  |=  $:  [base=@t key=@t basic=(unit [user=@t pass=@t])]
+          nr=@t
+          $=  req
+          $%  [%status who=@p]
+              [%verify ~]
+              [%submit otp=@t]
+      ==  ==
+  ^-  card
+  :+  %pass  /id/phone/(scot %t nr)/[-.req]
+  :+  %arvo  %i
+  =;  =request:http
+    [%request request %*(. *outbound-config:iris retries 0)]
+  =/  heads=header-list:http
+    :+  'content-type'^'application/json'
+      'x-vnd-apikey'^key
+    ?~  basic  ~
+    =/  bas
+      =,  mimes:html
+      (en:base64 (as-octs (rap 3 [user ':' pass ~]:u.basic)))
+    ['authorization'^(cat 3 'Basic ' bas)]~
+  =*  make-body  :(cork pairs:enjs:format en:json:html as-octs:mimes:html some)
+  ?-  -.req
+      %status
+    :^  %'POST'  (cat 3 base '/status')  heads
+    (make-body 'phoneNumber'^s+nr 'ship'^s+(scot %p who.req) ~)
+  ::
+      %verify
+    :^  %'POST'  (cat 3 base '/verify')  heads
+    (make-body 'phoneNumber'^s+nr ~)
+  ::
+      %submit
+    :^  %'PATCH'  (cat 3 base '/verify')  heads
+    (make-body 'phoneNumber'^s+nr 'otp'^s+otp.req ~)
+  ==
+::
 ++  register
   |=  $:  [[%0 state] =bowl:gall]
           [id=identifier rec=record]
@@ -110,8 +146,14 @@
   ~|  [%on-poke mark=mark]
   ?+  mark  !!
       %noun
-    ?.  ?=([@ *] q.vase)  !!
-    $(mark -.q.vase, vase (slot 3 vase))
+    ?+  q.vase
+      ?.  ?=([@ *] q.vase)  !!
+      $(mark -.q.vase, vase (slot 3 vase))
+    ::
+        [%set-phone-api *]
+      ?>  =(our src):bowl
+      [~ this(phone-api !<([@t @t (unit [@t @t])] (slot 3 vase)))]
+    ==
   ::
       %verifier-user-command
     =+  !<(cmd=user-command vase)
@@ -122,12 +164,15 @@
         ?-  -.id.cmd
           %dummy  [%wait ~]
           %urbit  [%want %urbit (~(rad og eny.bowl) 1.000.000)]
+          %phone  [%wait ~]
         ==
       =.  records
         %+  ~(put by records)  id.cmd
         [src.bowl *config status]
       :_  this
-      [(give-status src.bowl id.cmd status)]~
+      :-  (give-status src.bowl id.cmd status)
+      ?.  ?=(%phone -.id.cmd)  ~
+      [(req-phone-api phone-api +.id.cmd %status src.bowl)]~
     ::
         %config
       =/  rec  (~(got by records) id.cmd)
@@ -147,10 +192,10 @@
       this(records (~(del by records) id.cmd))
     ::
         %work
-      ?+  -.id.cmd  !!
+      =*  id  id.cmd
+      ?-  -.work.cmd
           %urbit
-        ?>  ?=(%urbit -.work.cmd)
-        =*  id  id.cmd
+        ?>  ?=(%urbit -.id)
         ::  to complete verification of an urbit,
         ::  the urbit being verified must submit,
         ::  for a pending verification,
@@ -167,6 +212,18 @@
         ::      wouldn't that be better than a pin anyway?
         =^  caz  state  (register [state bowl] [id rec] ~)
         [caz this]
+      ::
+          %phone
+        ?>  ?=(%phone -.id)
+        =/  rec  (~(got by records) id)
+        ?>  =(src.bowl for.rec)
+        ?>  =([%want %phone %otp] status.rec)  ::NOTE  tmi
+        ::TODO  rate-limit attempts?
+        =.  status.rec  [%wait ~]
+        :_  this(records (~(put by records) id rec))
+        :~  (give-status src.bowl id status.rec)
+            (req-phone-api phone-api +.id %submit otp.work.cmd)
+        ==
       ==
     ==
   ::
@@ -233,6 +290,91 @@
   ^-  (quip card _this)
   !!
 ::
+++  on-arvo
+  |=  [=wire sign=sign-arvo]
+  ^-  (quip card _this)
+  ~|  wire=wire
+  ?+  wire  ~|(%strange-wire !!)
+      [%eyre ~]
+    [~ this]  ::TODO  print on bind failure
+  ::
+      [%id %phone @ ?(%status %verify %submit) ~]
+    ~|  [- +<]:sign
+    ?>  ?=([%iris %http-response *] sign)
+    =*  res  client-response.sign
+    =/  nr  (slav %t i.t.t.wire)
+    =/  id  [%phone nr]
+    ::  if the id was removed (cancelled or revoked by the user), no-op
+    ::
+    ?~  rec=(~(get by records) id)
+      [~ this]
+    ::  we should've put the id into a waiting state,
+    ::  for which we'll now handle our continuation
+    ::
+    ?>  =(%wait -.status.u.rec)  ::NOTE  avoid tmi
+    =*  abort
+      ::TODO  and log
+      :-  [(give-status for.u.rec id %gone)]~
+      this(records (~(del by records) id))
+    ::TODO  handle %cancel (and %progress?)
+    ::      for cancel, should just retry? or for %submit, set status to %want again?
+    ?>  ?=(%finished -.res)
+    =*  cod  status-code.response-header.res
+    =/  jon=json
+      ?~  full-file.res  ~
+      (fall (de:json:html q.data.u.full-file.res) ~)
+    ?-  i.t.t.t.wire
+        %status
+      ::  for not-ok status codes, abort the registration flow
+      ::
+      ?.  =(200 cod)
+        ~&  [dap.bowl %bad-status cod]
+        abort
+      =/  sat=(unit [known=? verified=? matching=(unit ?)])
+        ?.  ?=([%o *] jon)  ~
+        =*  bo  bo:dejs-soft:format
+        =/  k  (biff (~(get by p.jon) 'known') bo)
+        =/  v  (biff (~(get by p.jon) 'verified') bo)
+        =/  m  (biff (~(get by p.jon) 'matchingShip') bo)
+        ?.  &(?=(^ k) ?=(^ v))  ~
+        `[u.k u.v m]
+      ?~  sat
+        ~&  [dap.bowl %bad-status-json jon]
+        abort
+      =,  u.sat
+      ::  if phone nr has previously been verified by the ship trying to
+      ::  register it, short-circuit to success
+      ::
+      ?:  &(verified (fall matching |))
+        =^  caz  state  (register [state bowl] [id u.rec] ~)
+        [caz this]
+      ::  otherwise, start verification process
+      ::
+      [[(req-phone-api phone-api nr %verify ~)]~ this]
+    ::
+        %verify
+      ?.  =(200 cod)
+        ~&  [dap.bowl %bad-verify cod]
+        abort
+      ::  otp text got sent, ask the user to submit the code
+      ::
+      =.  status.u.rec  [%want %phone %otp]
+      :_  this(records (~(put by records) id u.rec))
+      [(give-status for.u.rec id status.u.rec)]~
+    ::
+        %submit
+      ?:  =(200 cod)
+        =^  caz  state  (register [state bowl] [id u.rec] ~)
+        [caz this]
+      ::  otp code wasn't correct, but user may retry
+      ::TODO  limit attempts?
+      ::
+      =.  status.u.rec  [%want %phone %otp]
+      :_  this(records (~(put by records) id u.rec))
+      [(give-status for.u.rec id status.u.rec)]~
+    ==
+  ==
+::
 ++  on-watch
   |=  =path
   ^-  (quip card _this)
@@ -246,6 +388,8 @@
   =/  upd=identifier-update  [%full all]
   [%give %fact ~ %verifier-update !>(upd)]~
 ::
+++  on-leave  |=(* `this)
+::
 ++  on-peek
   |=  =path
   ^-  (unit (unit cage))
@@ -257,9 +401,6 @@
     =/  sig=@ux  (slav %ux i.t.t.path)
     ``loob+!>((~(has by attested) sig))
   ==
-::
-++  on-leave  |=(* `this)
-++  on-arvo   |=(* `this)
 ::
 ++  on-fail
   |=  [=term =tang]
