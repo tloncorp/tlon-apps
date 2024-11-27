@@ -360,7 +360,7 @@
       =/  seq
         %+  skim
           seq.action
-        |=  =id:h
+        |=  id=id-hook:h
         (~(has by hooks.hooks) id)
       =.  order.hooks  (~(put by order.hooks) nest.action seq)
       (give-hook-response %order nest.action seq)
@@ -368,8 +368,8 @@
         %config
       ho-abet:(ho-configure:(ho-abed:ho-core id.action) +>.action)
     ::
-        %wait
-      ho-abet:(ho-wait:(ho-abed:ho-core id.action) +>.action)
+        %cron
+      ho-abet:(ho-cron:(ho-abed:ho-core id.action) +>.action)
     ::
         %rest
       ho-abet:(ho-rest:(ho-abed:ho-core id.action) origin.action)
@@ -1033,7 +1033,7 @@
   ^+  cor
   (give %fact ~[/v0/hooks] hook-response-0+!>(response))
 ++  ho-core
-  |_  [=id:h =hook:h gone=_|]
+  |_  [id=id-hook:h =hook:h gone=_|]
   ++  ho-core  .
   ++  emit  |=(=card ho-core(cor (^emit card)))
   ++  emil  |=(caz=(list card) ho-core(cor (^emil caz)))
@@ -1045,7 +1045,7 @@
     ==
   ::
   ++  ho-abed
-    |=  i=id:h
+    |=  i=id-hook:h
     ho-core(id i, hook (~(got by hooks.hooks) i))
   ::
   ++  ho-add
@@ -1095,15 +1095,15 @@
     =.  order.hooks
       %+  roll
         ~(tap by order.hooks)
-      |=  [[=nest:c ids=(list id:h)] or=(map nest:c (list id:h))]
+      |=  [[=nest:c ids=(list id-hook:h)] or=(map nest:c (list id-hook:h))]
       =-  (~(put by or) nest -)
-      (skip ids |=(i=id:h =(id i)))
-    =.  delayed.hooks
+      (skip ids |=(i=id-hook:h =(id i)))
+    =.  waiting.hooks
       %+  roll
-        ~(tap by delayed.hooks)
-      |=  [[=delay-id:h d=[* delayed-hook:h]] dh=_delayed.hooks]
-      ?.  =(id hook.d)  dh
-      (~(del by dh) delay-id)
+        ~(tap by waiting.hooks)
+      |=  [[=id-wait:h d=[* waiting-hook:h]] wh=_waiting.hooks]
+      ?.  =(id hook.d)  wh
+      (~(del by wh) id-wait)
     =.  cor  (give-hook-response [%gone id])
     ho-core
   ++  ho-configure
@@ -1112,7 +1112,7 @@
     =.  config.hook  (~(put by config.hook) nest config)
     =.  cor  (give-hook-response [%config id nest config])
     ho-core
-  ++  ho-wait
+  ++  ho-cron
     |=  [=origin:h schedule=$@(@dr schedule:h) =config:h]
     ^+  ho-core
     =/  schedule
@@ -1124,7 +1124,7 @@
       =-  (~(put by crons.hooks) id.hook -)
       (~(put by crons) origin cron)
     =.  cor  (schedule-cron origin cron)
-    =.  cor  (give-hook-response [%wait id origin schedule config])
+    =.  cor  (give-hook-response [%cron id origin schedule config])
     ho-core
   ++  ho-rest
     |=  =origin:h
@@ -1177,27 +1177,27 @@
   =.  hooks.hooks  (~(put by hooks.hooks) i.order hook(state new-state.u.return))
   ?:  ?=(%denied -.result)
     [|+~[(fall msg.result default)] effects]
-  =.  current-event  new.result
+  =.  current-event  event.result
   next
 ++  wakeup-hook
   |=  =(pole knot)
   ^+  cor
   ?+  pole  ~|(bad-arvo-take/pole !!)
-      [%delayed id=@ ~]
-    =/  =id:h  (slav %uv id.pole)
-    ?~  delay=(~(get by delayed.hooks) id)  cor
+      [%waiting id=@ ~]
+    =/  id=id-hook:h  (slav %uv id.pole)
+    ?~  wh=(~(get by waiting.hooks) id)  cor
     ::  make sure we clean up
-    =.  delayed.hooks  (~(del by delayed.hooks) id)
+    =.  waiting.hooks  (~(del by waiting.hooks) id)
     ::  ignore premature fires
-    ?:  (lth now.bowl fires-at.u.delay)  cor
-    =*  origin  origin.u.delay
-    =/  hook  (~(got by hooks.hooks) hook.u.delay)
+    ?:  (lth now.bowl fires-at.u.wh)  cor
+    =*  origin  origin.u.wh
+    =/  hook  (~(got by hooks.hooks) hook.u.wh)
     =/  config  ?@(origin ~ (~(gut by config.hook) origin ~))
-    =/  args  [[%wake +.u.delay] "delayed hook" origin config]
-    ho-abet:(ho-run-single:(ho-abed:ho-core hook.u.delay) args)
+    =/  args  [[%wake +.u.wh] "waiting hook" origin config]
+    ho-abet:(ho-run-single:(ho-abed:ho-core hook.u.wh) args)
   ::
       [%cron id=@ kind=?(%chat %diary %heap) ship=@ name=@ ~]
-    =/  =id:h  (slav %uv id.pole)
+    =/  id=id-hook:h  (slav %uv id.pole)
     =/  =origin:h  [kind.pole (slav %p ship.pole) name.pole]
     ::  if unscheduled, ignore
     ?~  crons=(~(get by crons.hooks) id)  cor
@@ -1235,15 +1235,15 @@
     ?@  origin  ~
     /[kind.origin]/(scot %p ship.origin)/[name.origin]
   (emit [%pass wire %arvo %b %rest next.schedule.cron])
-++  schedule-delay
-  |=  dh=delayed-hook:h
-  =/  =wire  /hooks/delayed/(scot %uv id.dh)
-  (emit [%pass wire %arvo %b %wait fires-at.dh])
-++  unschedule-delay
-  |=  =id:h
+++  schedule-waiting
+  |=  wh=waiting-hook:h
+  =/  =wire  /hooks/waiting/(scot %uv id.wh)
+  (emit [%pass wire %arvo %b %wait fires-at.wh])
+++  unschedule-waiting
+  |=  id=id-hook:h
   ^+  cor
-  ?~  previous=(~(get by delayed.hooks) id)  cor
-  =/  =wire  /hooks/delayed/(scot %uv id.u.previous)
+  ?~  previous=(~(get by waiting.hooks) id)  cor
+  =/  =wire  /hooks/waiting/(scot %uv id.u.previous)
   (emit [%pass wire %arvo %b %rest fires-at.u.previous])
 ++  run-hook-effects
   |=  [effects=(list effect:h) =origin:h]
@@ -1281,10 +1281,10 @@
     (emit [%pass /hooks/effect %agent [our.bowl %contacts] %poke cage])
   ::
       %wait
-    =/  =wire  /hooks/delayed/(scot %uv id.effect)
-    =.  cor  (unschedule-delay id.effect)
-    =.  delayed.hooks
-      (~(put by delayed.hooks) id.effect [origin +.effect])
-    (schedule-delay +.effect)
+    =/  =wire  /hooks/waiting/(scot %uv id.effect)
+    =.  cor  (unschedule-waiting id.effect)
+    =.  waiting.hooks
+      (~(put by waiting.hooks) id.effect [origin +.effect])
+    (schedule-waiting +.effect)
   ==
 --

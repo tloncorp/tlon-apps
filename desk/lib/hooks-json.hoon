@@ -6,7 +6,7 @@
   =,  enjs:format
   |%
   ++  id
-    |=  i=id:h
+    |=  i=id-hook:h
     s+(scot %uv i)
   ++  hooks
     |=  hks=hooks:h
@@ -17,11 +17,11 @@
     ==
   ::
   ++  hook-map
-    |=  hks=(map id:h hook:h)
+    |=  hks=(map id-hook:h hook:h)
     %-  pairs
     %+  turn
       ~(tap by hks)
-    |=  [=id:h hk=hook:h]
+    |=  [id=id-hook:h hk=hook:h]
     [(scot %uv id) (hook hk)]
   ::
   ++  hook
@@ -51,18 +51,18 @@
     |=  [key=@t noun=*]
     [key s+(scot %uw `@uw`(jam noun))]
   ++  order
-    |=  ord=(map nest:c (list id:h))
+    |=  ord=(map nest:c (list id-hook:h))
     %-  pairs
     %+  turn
       ~(tap by ord)
-    |=  [=nest:c seq=(list id:h)]
+    |=  [=nest:c seq=(list id-hook:h)]
     [(nest-cord:enjs:cj nest) a+(turn seq id)]
   ++  crons
-    |=  crs=(map id:h (map origin:h cron:h))
+    |=  crs=(map id-hook:h (map origin:h cron:h))
     %-  pairs
     %+  turn
       ~(tap by crs)
-    |=  [=id:h cr=(map origin:h cron:h)]
+    |=  [id=id-hook:h cr=(map origin:h cron:h)]
     [(scot %uv id) (cron-map cr)]
   ++  cron-map
     |=  cr=(map origin:h cron:h)
@@ -93,11 +93,11 @@
       %gone  (id id.r)
       %order  (order-rsp +.r)
       %config  (config-rsp +.r)
-      %wait  (wait-rsp +.r)
+      %cron  (cron-rsp +.r)
       %rest  (rest-rsp +.r)
     ==
   ++  set-rsp
-    |=  [i=id:h name=@t src=@t meta=data:m error=(unit ^tang)]
+    |=  [i=id-hook:h name=@t src=@t meta=data:m error=(unit ^tang)]
     %-  pairs
     :~  id+(id i)
         name+s+name
@@ -106,20 +106,20 @@
         error+?~(error ~ (tang u.error))
     ==
   ++  order-rsp
-    |=  [=nest:c seq=(list id:h)]
+    |=  [=nest:c seq=(list id-hook:h)]
     %-  pairs
     :~  nest+(nest:enjs:cj nest)
         seq+a+(turn seq id)
     ==
   ++  config-rsp
-    |=  [i=id:h =nest:c con=config:h]
+    |=  [i=id-hook:h =nest:c con=config:h]
     %-  pairs
     :~  id+(id i)
         nest+(nest:enjs:cj nest)
         config+(config con)
     ==
-  ++  wait-rsp
-    |=  [i=id:h or=origin:h sch=$@(@dr schedule:h) con=config:h]
+  ++  cron-rsp
+    |=  [i=id-hook:h or=origin:h sch=$@(@dr schedule:h) con=config:h]
     %-  pairs
     :~  id+(id i)
         origin+s+?~(or 'global' (nest-cord:enjs:cj or))
@@ -127,7 +127,7 @@
         config+(config con)
     ==
   ++  rest-rsp
-    |=  [i=id:h or=origin:h]
+    |=  [i=id-hook:h or=origin:h]
     %-  pairs
     :~  id+(id i)
         origin+s+?~(or 'global' (nest-cord:enjs:cj or))
@@ -154,7 +154,7 @@
         del/id
         order/order
         config/config
-        wait/wait
+        cron/cron
         rest/rest
     ==
   ++  add
@@ -186,7 +186,7 @@
   ++  origin
     |=  j=json
     ?~(j ~ (nest:dejs:cj j))
-  ++  wait
+  ++  cron
     %-  ot
     :~  id/id
         origin/origin
