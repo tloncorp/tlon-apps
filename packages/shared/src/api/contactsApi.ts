@@ -95,6 +95,14 @@ export const addContact = async (contactId: string) => {
   });
 };
 
+// TODO: once we can add in bulk from the backend, do so
+export const addUserContacts = async (contactIds: string[]) => {
+  const promises = contactIds.map((contactId) => {
+    return addContact(contactId);
+  });
+  return Promise.all(promises);
+};
+
 export const removeContact = async (contactId: string) => {
   return poke({
     app: 'contacts',

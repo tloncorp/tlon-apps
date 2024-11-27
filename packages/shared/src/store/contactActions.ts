@@ -21,6 +21,30 @@ export async function addContact(contactId: string) {
   }
 }
 
+export async function addContacts(contacts: string[]) {
+  const optimisticUpdates = contacts.map((contactId) =>
+    db.updateContact({
+      id: contactId,
+      isContact: true,
+      isContactSuggestion: false,
+    })
+  );
+  await Promise.all(optimisticUpdates);
+
+  try {
+    await api.addUserContacts(contacts);
+  } catch (e) {
+    // Rollback the update
+    const rolbacks = contacts.map((contactId) =>
+      db.updateContact({
+        id: contactId,
+        isContact: false,
+      })
+    );
+    await Promise.all(rolbacks);
+  }
+}
+
 export async function removeContact(contactId: string) {
   // Optimistic update
   await db.updateContact({ id: contactId, isContact: false });
