@@ -207,8 +207,9 @@ export function normalizeUrbitColor(color: string): string {
     return color;
   }
 
-  const colorString = color.slice(2).replace('.', '').toUpperCase();
-  const lengthAdjustedColor = colorString.padStart(6, '0');
+  const noDots = color.replace('.', '');
+  const prefixStripped = color.startsWith('0x') ? noDots.slice(2) : noDots;
+  const lengthAdjustedColor = prefixStripped.toUpperCase().padStart(6, '0');
   return `#${lengthAdjustedColor}`;
 }
 
