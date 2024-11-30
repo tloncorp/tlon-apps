@@ -687,7 +687,6 @@
     |=  =c-channel:c
     ^+  ca-core
     ?>  am-host:ca-perms
-    ~&  "received command {<c-channel>}"
     ?-    -.c-channel
         %view
       ?>  (is-admin:ca-perms src.bowl)
@@ -726,7 +725,6 @@
         %post
       =^  update=(unit u-channel:c)  ca-core
         (ca-c-post c-post.c-channel)
-      ~&  "received post update {<update>}"
       ?~  update  ca-core
       (ca-update u.update)
     ==
@@ -735,11 +733,9 @@
     |=  =c-post:c
     ^-  [(unit u-channel:c) _ca-core]
     ?>  (can-write:ca-perms src.bowl writers.perm.perm.channel)
-    ~&  "running post command"
     =*  no-op  `ca-core
     ?-    -.c-post
         %add
-      ~&  "adding post"
       ?>  |(=(src.bowl our.bowl) =(src.bowl author.essay.c-post))
       ?>  =(kind.nest -.kind-data.essay.c-post)
       =/  id=id-post:c
@@ -750,7 +746,6 @@
       =/  new=v-post:c  [[id ~ ~] 0 essay.c-post]
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %add new]
-        ~&  "running post hooks"
         (run-hooks event nest 'post blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) [~ ca-core])
@@ -1161,7 +1156,7 @@
     [result (run-hook-effects effects nest)]
   =/  current-event  event
   =|  effects=(list effect:h)
-  =/  order  (~(got by order.hooks) nest)
+  =/  order  (~(gut by order.hooks) nest ~)
   =/  channel  `[nest (~(got by v-channels) nest)]
   =/  =context:h  (get-hook-context channel *config:h)
   |-
