@@ -1,5 +1,4 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useChatSettingsNavigation } from '@tloncorp/app/hooks/useChatSettingsNavigation';
 import { useChannelContext } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -12,6 +11,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
