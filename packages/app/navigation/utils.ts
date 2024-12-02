@@ -6,8 +6,10 @@ import {
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import { useCallback } from 'react';
 
-import { RootStackParamList } from './types';
+import { useFeatureFlagStore } from '../lib/featureFlags';
+import { RootStackNavigationProp, RootStackParamList } from './types';
 
 type ResetRouteConfig<T extends Record<string, any>> = {
   name: Extract<keyof T, string>;
@@ -85,24 +87,40 @@ export function useResetToGroup() {
   const reset = useTypedReset();
 
   return async function resetToGroup(groupId: string) {
-    const channelId = await getInitialGroupChannel(groupId);
-    reset([
-      { name: 'ChatList' },
-      { name: 'Channel', params: { channelId, groupId } },
-    ]);
+    reset([{ name: 'ChatList' }, await getMainGroupRoute(groupId)]);
   };
 }
 
-async function getInitialGroupChannel(groupId: string) {
+export function useNavigateToGroup() {
+  const navigation = useNavigation<RootStackNavigationProp>();
+  const navigationRef = logic.useMutableRef(navigation);
+  return useCallback(
+    async (groupId: string) => {
+      navigationRef.current.navigate(await getMainGroupRoute(groupId));
+    },
+    [navigationRef]
+  );
+}
+
+export async function getMainGroupRoute(groupId: string) {
   const group = await db.getGroup({ id: groupId });
-  const channelId =
-    group?.channels?.sort(
-      (a, b) => (a.lastPostAt ?? 0) - (b.lastPostAt ?? 0)
-    )[0]?.id ?? group?.channels?.[0]?.id;
-  if (!channelId) {
-    throw new Error('unable to find default group channel');
+  const channelSwitcherEnabled =
+    useFeatureFlagStore.getState().flags.channelSwitcher;
+  if (
+    group &&
+    group.channels &&
+    (group.channels.length === 1 || channelSwitcherEnabled)
+  ) {
+    return {
+      name: 'Channel',
+      params: { channelId: group.channels[0].id, groupId },
+    } as const;
+  } else {
+    return {
+      name: 'GroupChannels',
+      params: { groupId },
+    } as const;
   }
-  return channelId;
 }
 
 export function screenNameFromChannelId(channelId: string) {

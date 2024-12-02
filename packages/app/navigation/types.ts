@@ -1,4 +1,7 @@
-import type { NavigatorScreenParams } from '@react-navigation/native';
+import type {
+  NavigationProp,
+  NavigatorScreenParams,
+} from '@react-navigation/native';
 
 export type RootStackParamList = {
   Contacts: undefined;
@@ -65,6 +68,8 @@ export type RootStackParamList = {
     channelId: string;
   };
 };
+
+export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
 
 export type RootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;

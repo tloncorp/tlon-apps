@@ -27,7 +27,10 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import type { RootStackParamList } from '../../navigation/types';
-import { screenNameFromChannelId } from '../../navigation/utils';
+import {
+  screenNameFromChannelId,
+  useNavigateToGroup,
+} from '../../navigation/utils';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 
@@ -151,19 +154,15 @@ export function ChatListScreenView({
     }
   }, []);
 
+  const navigateToGroup = useNavigateToGroup();
+
   const onPressChat = useCallback(
     async (item: db.Chat) => {
       if (item.type === 'group') {
         if (item.isPending) {
           setSelectedGroupId(item.id);
         } else {
-          const mostRecentChannel = item.group.channels?.[0];
-          if (!mostRecentChannel) {
-            throw new Error("Can't open group: no channels");
-          }
-          navigation.navigate('Channel', {
-            channelId: mostRecentChannel.id,
-          });
+          navigateToGroup(item.group.id);
         }
       } else {
         const screenName = screenNameFromChannelId(item.id);
@@ -172,7 +171,7 @@ export function ChatListScreenView({
         });
       }
     },
-    [navigation]
+    [navigateToGroup, navigation]
   );
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
