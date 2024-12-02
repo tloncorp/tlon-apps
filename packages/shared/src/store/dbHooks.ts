@@ -1,7 +1,6 @@
 import {
   UseQueryOptions,
   UseQueryResult,
-  skipToken,
   useQuery,
 } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -317,7 +316,12 @@ export const useGroup = ({ id }: { id?: string }) => {
   return useQuery({
     enabled: !!id,
     queryKey: [['group', { id }], useKeyFromQueryDeps(db.getGroup, { id })],
-    queryFn: id ? () => db.getGroup({ id }) : skipToken,
+    queryFn: () => {
+      if (!id) {
+        throw new Error('missing group id');
+      }
+      return db.getGroup({ id });
+    },
   });
 };
 
@@ -446,7 +450,12 @@ export const useChannel = (options: { id?: string }) => {
       useKeyFromQueryDeps(db.getChannelWithRelations),
       options,
     ],
-    queryFn: id ? () => db.getChannelWithRelations({ id }) : skipToken,
+    queryFn: () => {
+      if (!id) {
+        throw new Error('missing channel id');
+      }
+      return db.getChannelWithRelations({ id });
+    },
   });
 };
 
