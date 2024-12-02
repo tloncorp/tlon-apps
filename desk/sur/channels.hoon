@@ -292,6 +292,7 @@
       group=flag:g
       title=cord
       description=cord
+      meta=(unit @t)
       readers=(set sect:g)
       writers=(set sect:g)
   ==
@@ -386,7 +387,7 @@
 +$  update   [=time =u-channel]
 +$  u-channels  [=nest =u-channel]
 +$  u-channel
-  $%  [%create =perm]
+  $%  [%create =perm meta=(unit @t)]
       [%order (rev order=arranged-posts)]
       [%view (rev =view)]
       [%sort (rev =sort)]

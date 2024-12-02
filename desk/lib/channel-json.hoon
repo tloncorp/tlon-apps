@@ -1064,6 +1064,7 @@
         group+flag
         title+so
         description+so
+        meta+(mu so)
         readers+(as (se %tas))
         writers+(as (se %tas))
     ==

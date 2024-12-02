@@ -140,13 +140,12 @@
   ++  state-6-to-7
     |=  state-6
     ^-  state-7
-    [%7 v-channels *hooks:h pimp]
+    [%7 (v-channels-7-to-8:utils v-channels) *hooks:h pimp]
   +$  state-5
     $:  %5
         =v-channels:v6:old:c
         =pimp:imp
     ==
-  ::
   ++  state-5-to-6
     |=  state-5
     ^-  state-6
@@ -675,6 +674,7 @@
     ?>  ((sane %tas) name.nest)
     =.  channel
       %*  .  *v-channel:c
+        meta  [0 meta.new]
         perm  [1 writers.new group.new]
       ==
     =.  ca-core
