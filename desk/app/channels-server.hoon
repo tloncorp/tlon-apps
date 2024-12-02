@@ -1098,11 +1098,11 @@
     =?  schedule  ?=(@ schedule)
       [now.bowl schedule]
     ?>  ?=(^ schedule)
-    =/  crons  (~(gut by crons.hooks) id *cron:h)
+    =/  =cron:h  (~(gut by crons.hooks) id *cron:h)
     =/  =job:h  [id schedule config]
     =.  crons.hooks
       =-  (~(put by crons.hooks) id.hook -)
-      (~(put by crons) origin job)
+      (~(put by cron) origin job)
     =.  cor  (schedule-cron origin job)
     (ho-give-response [%cron id origin schedule config])
   ++  ho-rest
