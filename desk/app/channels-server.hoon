@@ -1002,9 +1002,9 @@
   %+  welp
   /(scot %p our.bowl)/[dude]/(scot %da now.bowl)
   path
-++  get-hook-context
+++  get-hook-bowl
   |=  [channel=(unit [nest:c v-channel:c]) =config:h]
-  ^-  context:h
+  ^-  bowl:h
   =/  group
     ?~  channel  ~
     =*  flag  group.perm.perm.+.u.channel
@@ -1071,9 +1071,9 @@
     =.  gone  &
     =.  cor
       %+  roll
-        ~(tap by (~(gut by crons.hooks) id *(map origin:h cron:h)))
-      |=  [[=origin:h =cron:h] cr=_cor]
-      (unschedule-cron:cr origin cron)
+        ~(tap by (~(gut by crons.hooks) id *cron:h))
+      |=  [[=origin:h =job:h] cr=_cor]
+      (unschedule-cron:cr origin job)
     =.  crons.hooks  (~(del by crons.hooks) id)
     =.  order.hooks
       %+  roll
@@ -1099,12 +1099,12 @@
     =?  schedule  ?=(@ schedule)
       [now.bowl schedule]
     ?>  ?=(^ schedule)
-    =/  crons  (~(gut by crons.hooks) id *(map origin:h cron:h))
-    =/  =cron:h  [id schedule config]
+    =/  crons  (~(gut by crons.hooks) id *cron:h)
+    =/  =job:h  [id schedule config]
     =.  crons.hooks
       =-  (~(put by crons.hooks) id.hook -)
-      (~(put by crons) origin cron)
-    =.  cor  (schedule-cron origin cron)
+      (~(put by crons) origin job)
+    =.  cor  (schedule-cron origin job)
     (ho-give-response [%cron id origin schedule config])
   ++  ho-rest
     |=  =origin:h
@@ -1121,9 +1121,9 @@
       ?@  origin  ~
       ?~  ch=(~(get by v-channels) origin)  ~
       `[origin u.ch]
-    =/  =context:h  (get-hook-context channel config)
+    =/  =bowl:h  (get-hook-bowl channel config)
     =/  return=(unit return:h)
-      (run-hook:utils [event context(hook hook)] hook)
+      (run-hook:utils [event bowl(hook hook)] hook)
     ?~  return
       %-  (slog (crip "{prefix} {<id>} failed, running on {<origin>}") ~)
       ho-core
@@ -1143,15 +1143,15 @@
   =|  effects=(list effect:h)
   =/  order  (~(got by order.hooks) nest)
   =/  channel  `[nest (~(got by v-channels) nest)]
-  =/  =context:h  (get-hook-context channel *config:h)
+  =/  =bowl:h  (get-hook-bowl channel *config:h)
   |-
   ?~  order
     [&+event effects]
   =*  next  $(order t.order)
   =/  hook  (~(got by hooks.hooks) i.order)
-  =/  ctx  context(hook hook, config (~(gut by config.hook) nest ~))
+  =.  bowl  bowl(hook hook, config (~(gut by config.hook) nest ~))
   =/  return=(unit return:h)
-    (run-hook:utils [event ctx] hook)
+    (run-hook:utils [event bowl] hook)
   ?~  return  next
   =*  result  result.u.return
   =.  effects  (weld effects effects.u.return)
@@ -1181,42 +1181,42 @@
     =/  id=id-hook:h  (slav %uv id.pole)
     =/  =origin:h  [kind.pole (slav %p ship.pole) name.pole]
     ::  if unscheduled, ignore
-    ?~  crons=(~(get by crons.hooks) id)  cor
-    ?~  cron=(~(get by u.crons) origin)  cor
+    ?~  cron=(~(get by crons.hooks) id)  cor
+    ?~  job=(~(get by u.cron) origin)  cor
     ::  ignore premature fires
-    ?:  (lth now.bowl next.schedule.u.cron)  cor
-    =.  next.schedule.u.cron
+    ?:  (lth now.bowl next.schedule.u.job)  cor
+    =.  next.schedule.u.job
       ::
       ::  we don't want to run the cron for every iteration it would
       ::  have run 'offline', so we check here to make sure that the
       ::  next fire time is in the future
-      =/  next  (add [next repeat]:schedule.u.cron)
+      =/  next  (add [next repeat]:schedule.u.job)
       |-
       ?:  (gte next now.bowl)  next
-      $(next (add next repeat.schedule.u.cron))
+      $(next (add next repeat.schedule.u.job))
     =.  crons.hooks
       %+  ~(put by crons.hooks)  id
-      (~(put by u.crons) origin u.cron)
+      (~(put by u.cron) origin u.job)
     =.  cor
-      (schedule-cron origin u.cron)
-    =/  args  [[%cron ~] "cron job" origin config.u.cron]
-    ho-abet:(ho-run-single:(ho-abed:ho-core id-hook.u.cron) args)
+      (schedule-cron origin u.job)
+    =/  args  [[%cron ~] "cron job" origin config.u.job]
+    ho-abet:(ho-run-single:(ho-abed:ho-core id-hook.u.job) args)
   ==
 ++  schedule-cron
-  |=  [=origin:h =cron:h]
+  |=  [=origin:h =job:h]
   ^+  cor
   =/  wire
-    %+  welp  /hooks/cron/(scot %uv id-hook.cron)
+    %+  welp  /hooks/cron/(scot %uv id-hook.job)
     ?@  origin  ~
     /[kind.origin]/(scot %p ship.origin)/[name.origin]
-  (emit [%pass wire %arvo %b %wait next.schedule.cron])
+  (emit [%pass wire %arvo %b %wait next.schedule.job])
 ++  unschedule-cron
-  |=  [=origin:h =cron:h]
+  |=  [=origin:h =job:h]
   =/  wire
-    %+  welp  /hooks/cron/(scot %uv id-hook.cron)
+    %+  welp  /hooks/cron/(scot %uv id-hook.job)
     ?@  origin  ~
     /[kind.origin]/(scot %p ship.origin)/[name.origin]
-  (emit [%pass wire %arvo %b %rest next.schedule.cron])
+  (emit [%pass wire %arvo %b %rest next.schedule.job])
 ++  schedule-waiting
   |=  wh=waiting-hook:h
   =/  =wire  /hooks/waiting/(scot %uv id.wh)

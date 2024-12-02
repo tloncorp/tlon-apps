@@ -30,11 +30,12 @@
 ++  hooks
   $:  hooks=(map id-hook hook)
       order=(map nest (list id-hook))
-      crons=(map id-hook (map origin cron))
+      crons=(map id-hook cron)
       waiting=(map id-wait [=origin waiting-hook])
   ==
 +$  origin  $@(~ nest)
-+$  cron
++$  cron  (map origin job)
++$  job
   $:  =id-hook
       =schedule
       =config
@@ -71,7 +72,7 @@
       [%cron id=id-hook =origin schedule=$@(@dr schedule) =config]
       [%rest id=id-hook =origin]
   ==
-::  $context: ambient state that a hook should know about not
+::  $bowl: ambient state that a hook should know about not
 ::            necessarily tied to a specific event
 ::
 ::    .channel: the channel that the hook is operating on
@@ -84,7 +85,7 @@
 ::    .src: the ship that triggered the hook
 ::    .eny: entropy for random number generation or key derivation
 ::
-+$  context
++$  bowl
   $:  channel=(unit [=nest v-channel])
       group=(unit group-ui:g)
       channels=v-channels
@@ -130,17 +131,17 @@
 ::  $args: the arguments passed to a hook
 +$  args
   $:  =event
-      =context
+      =bowl
   ==
 ::  $outcome: the result of a hook running
 +$  outcome  (each return tang)
 ::
 ::  $return: the data returned from a hook
 ::
-::    $result: whether the action was allowed or denied and any
+::    .result: whether the action was allowed or denied and any
 ::             transformed values
-::    $effects: any actions that should be taken on other agents or wait
-::    $new-state: the new state of the hook after running
+::    .effects: any actions that should be taken on other agents or wait
+::    .new-state: the new state of the hook after running
 ::
 +$  return
   $:  $:  result=event-result

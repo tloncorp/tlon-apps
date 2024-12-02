@@ -58,26 +58,26 @@
     |=  [=nest:c seq=(list id-hook:h)]
     [(nest-cord:enjs:cj nest) a+(turn seq id)]
   ++  crons
-    |=  crs=(map id-hook:h (map origin:h cron:h))
+    |=  crs=(map id-hook:h cron:h)
     %-  pairs
     %+  turn
       ~(tap by crs)
-    |=  [id=id-hook:h cr=(map origin:h cron:h)]
-    [(scot %uv id) (cron-map cr)]
-  ++  cron-map
-    |=  cr=(map origin:h cron:h)
+    |=  [id=id-hook:h cr=cron:h]
+    [(scot %uv id) (cron cr)]
+  ++  cron
+    |=  cr=cron:h
     %-  pairs
     %+  turn
       ~(tap by cr)
-    |=  [=origin:h crn=cron:h]
-    :_  (cron crn)
+    |=  [=origin:h jb=job:h]
+    :_  (job jb)
     ?@(origin 'global' (nest-cord:enjs:cj origin))
-  ++  cron
-    |=  crn=cron:h
+  ++  job
+    |=  jb=job:h
     %-  pairs
-    :~  hook+(id id-hook.crn)
-        schedule+(schedule schedule.crn)
-        config+(config config.crn)
+    :~  hook+(id id-hook.jb)
+        schedule+(schedule schedule.jb)
+        config+(config config.jb)
     ==
   ++  schedule
     |=  sch=schedule:h
