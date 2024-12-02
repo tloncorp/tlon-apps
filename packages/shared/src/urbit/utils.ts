@@ -317,6 +317,7 @@ export function createMessage(
     content: mem.content,
     author: mem.author,
     sent,
+    blob: null,
   };
 
   let delta: ubd.WritDeltaAdd | ubd.ReplyDelta;

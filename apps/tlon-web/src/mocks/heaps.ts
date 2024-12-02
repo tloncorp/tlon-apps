@@ -3,8 +3,15 @@ import {
   ScryHandler,
   SubscriptionHandler,
 } from '@tloncorp/mock-http-api';
-import { Channels, Perm, Posts } from '@tloncorp/shared/urbit/channel';
+import {
+  Channels,
+  Perm,
+  Posts,
+  makeChannel,
+} from '@tloncorp/shared/urbit/channel';
 import { subMinutes } from 'date-fns';
+
+import { makeEssay } from './chat';
 
 const unixTime = subMinutes(new Date(), 1).getTime();
 
@@ -14,7 +21,7 @@ const mockPerms: Perm = {
 };
 
 const mockStash: Channels = {
-  'heap/~zod/testHeap': {
+  'heap/~zod/testHeap': makeChannel({
     perms: mockPerms,
     view: 'grid',
     order: [],
@@ -23,7 +30,7 @@ const mockStash: Channels = {
       posts: {},
       replies: {},
     },
-  },
+  }),
 };
 
 const mockCurios: Posts = {
@@ -38,7 +45,7 @@ const mockCurios: Posts = {
       },
       reacts: {},
     },
-    essay: {
+    essay: makeEssay({
       'kind-data': {
         heap: 'House rendering',
       },
@@ -51,7 +58,7 @@ const mockCurios: Posts = {
       ],
       author: '~finned-palmer',
       sent: unixTime,
-    },
+    }),
   },
   '170141184505776467152677676749638598657': {
     seal: {
@@ -64,7 +71,7 @@ const mockCurios: Posts = {
       },
       reacts: {},
     },
-    essay: {
+    essay: makeEssay({
       'kind-data': {
         heap: 'Description of a Martini',
       },
@@ -77,7 +84,7 @@ const mockCurios: Posts = {
       ],
       author: '~finned-palmer',
       sent: unixTime,
-    },
+    }),
   },
   '170141184505776467152677676749638598658': {
     seal: {
@@ -90,7 +97,7 @@ const mockCurios: Posts = {
       },
       reacts: {},
     },
-    essay: {
+    essay: makeEssay({
       'kind-data': {
         heap: 'House rendering',
       },
@@ -103,7 +110,7 @@ const mockCurios: Posts = {
       ],
       author: '~finned-palmer',
       sent: unixTime,
-    },
+    }),
   },
   '170141184505776467152677676749638598659': {
     seal: {
@@ -116,7 +123,7 @@ const mockCurios: Posts = {
       },
       reacts: {},
     },
-    essay: {
+    essay: makeEssay({
       'kind-data': {
         heap: '',
       },
@@ -129,7 +136,7 @@ const mockCurios: Posts = {
       ],
       author: '~finned-palmer',
       sent: unixTime,
-    },
+    }),
   },
   '170141184505776467152677676749638598660': {
     seal: {
@@ -142,7 +149,7 @@ const mockCurios: Posts = {
       },
       reacts: {},
     },
-    essay: {
+    essay: makeEssay({
       'kind-data': {
         heap: 'One Thing About Me',
       },
@@ -155,7 +162,7 @@ const mockCurios: Posts = {
       ],
       author: '~finned-palmer',
       sent: unixTime,
-    },
+    }),
   },
 };
 
