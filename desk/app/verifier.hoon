@@ -1,32 +1,19 @@
 ::  verifier: identifier verification service
 ::
-::    xx overview
+::    tracks in-progress and completed identifier registrations. acts as a
+::    central authority for attesting to ownership registrations, but also
+::    distributes signatures on those attestations and optional proofs for
+::    decentralized fact-checking.
 ::
-::    xx intended usage
+::    this agent should generally be talked to through the companion agent
+::    %lanyard, which in turn acts as a client to this server.
 ::
-::    xx namespace
-::    /records
-::            /[user]
-::                   /id/[kind]/[etc]  ->  full record?
-::                   /id/[kind]        ->  have any?
-::                                   /proof  ->  ??
-::    /attestations/[signature]  ->  y/n on whether the relevant record is still valid
-::
-::
-::TODO  per-id-nonce or just @p for subscription updates?
-::
-::TODO
-::  v General verification flow for manually-approved dummy identifiers
-::    Alternatively, for something more immediately real, do verification of "other urbits I control"
-::  Minimal verification metadata & attestations
-::  Binary response for "has ~x verified any y identifiers"
-::  v Binary response for "is this attestation still valid"
-::  Respond to requests containing identifiers with matching ship(s)
-::    No rate-limiting yet
-::
-::TODO  considerations:
-::  - should we re-sign attestations when our networking keys change?
-::    - if we do, should we invalidate the old ones?
+::    clients subscribe on a per-ship subscription path like /records/~nym
+::    to receive updates about their own "records". learning about others'
+::    registrations only happens through sending queries through pokes and
+::    getting poked back with the response. we do this, gall issues aside,
+::    so that we can easily rate-limit queries. if we don't, brute-forcing
+::    discovery of someone's identifiers becomes possible.
 ::
 /-  *verifier
 /+  dbug, verb, negotiate
