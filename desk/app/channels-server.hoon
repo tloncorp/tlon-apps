@@ -119,17 +119,12 @@
   ++  state-6-to-7
     |=  state-6
     ^-  state-7
-    [%7 v-channels *hooks:h pimp]
+    [%7 (v-channels-7-to-8:utils v-channels) *hooks:h pimp]
   +$  state-5
     $:  %5
         =v-channels:v6:old:c
         =pimp:imp
     ==
-  ++  state-6-to-7
-    |=  s=state-6
-    ^-  state-7
-    s(- %7, v-channels (v-channels-7-to-8:utils v-channels.s))
-  ::
   ++  state-5-to-6
     |=  state-5
     ^-  state-6
@@ -658,6 +653,7 @@
     ?>  ((sane %tas) name.nest)
     =.  channel
       %*  .  *v-channel:c
+        meta  [0 meta.new]
         perm  [1 writers.new group.new]
       ==
     =.  ca-core
@@ -821,9 +817,9 @@
       :-  `[%post id.c-post %reacts reacts]
       %=  ca-core
           posts.channel
-        %+  put:on-v-posts:c  
-          posts-channel
-        [id-c-post ~ u.u.post(reacts reacts, mod-at now.bowl)]
+        %+  put:on-v-posts:c
+          posts.channel
+        [id.c-post ~ u.u.post(reacts reacts, mod-at now.bowl)]
       ==
     ::
         %reply
@@ -838,7 +834,7 @@
           posts.channel
         %+  put:on-v-posts:c
           posts.channel
-        [id-c-post ~ u.u.post(mod-at now.bowl)]
+        [id.c-post ~ u.u.post(mod-at now.bowl)]
       ==
     ==
   ::

@@ -1056,7 +1056,6 @@
       ;br;
     ==
   --
-<<<<<<< HEAD
 ::
 ++  v-channels-7-to-8
   |=  vc=v-channels:v7:old:c
@@ -1180,6 +1179,10 @@
   %+  roll  (tap:log-on:v7:old:c l)
   |=  [[=time =u-channel:v7:old:c] [count=@ud =_seq-log] =_log =_mod]
   ^+  [[count seq-log] log mod]
+  ?:  ?=(%create -.u-channel)
+    :-  [count seq-log]
+    :_  mod
+    (put:log-on:c log time %create perm.u-channel ~)
   ?.  ?=(%post -.u-channel)
     :-  [count seq-log]
     :_  mod
@@ -1217,7 +1220,6 @@
     ?.  ?=(%post -.u)  diffs
     (~(put ju diffs) id.u u-post.u)
   ==
-=======
 ++  subject  ^~(!>(..compile))
 ++  compile
   |=  src=@t
@@ -1245,5 +1247,4 @@
   %-  (slog >outcome< ~)
   ?:  ?=(%.y -.outcome)  `p.outcome
   ((slog 'hook failed:' p.outcome) ~)
->>>>>>> develop
 --

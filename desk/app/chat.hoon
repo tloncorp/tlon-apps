@@ -1,7 +1,7 @@
 /-  c=chat, d=channels, g=groups, u=ui, e=epic, old=chat-2, activity
 /-  meta
 /-  ha=hark
-/-  contacts
+/-  contacts, contacts-0
 /+  default-agent, verb-lib=verb, dbug, neg=negotiate, em=emojimart
 /+  pac=dm
 /+  utils=channel-utils
@@ -1179,7 +1179,7 @@
     ?-    -.diff
         ?(%add-sects %del-sects)  [%perm 0 perm]~
         %create
-      :-  [%create p.diff]
+      :-  [%create p.diff ~]
       %+  murn  (tap:on:writs:t wit.q.diff)
       |=  [=^time =writ:t]
       =/  new-post  (get:on-v-posts:d posts time)
