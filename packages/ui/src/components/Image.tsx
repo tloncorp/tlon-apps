@@ -25,8 +25,8 @@ const WebImage = ({ source, style, alt, onLoad, ...props }: any) => {
       style={{
         ...StyleSheet.flatten(style),
         maxWidth: '100%',
-        height: props.height ? props.height : 'auto',
-        objectFit: contentFit ? contentFit : 'contain',
+        height: props.height ? props.height : '100%',
+        objectFit: contentFit ? contentFit : undefined,
       }}
       onLoad={handleLoad}
       {...props}

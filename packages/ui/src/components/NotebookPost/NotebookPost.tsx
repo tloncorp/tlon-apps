@@ -8,8 +8,8 @@ import {
   YStack,
   createStyledContext,
   styled,
+  isWeb,
 } from 'tamagui';
-import { isWeb } from 'tamagui';
 
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { Button } from '../Button';
