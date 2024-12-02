@@ -11,6 +11,7 @@ import * as logic from '../logic';
 import { convertToAscii } from '../logic';
 import * as ub from '../urbit';
 import { getChannelKindFromType } from '../urbit';
+import { Optional } from '../utils';
 import * as types from './types';
 
 export function assembleNewChannelIdAndName({
@@ -239,12 +240,6 @@ export function buildPendingSingleDmChannel(
     members: [partnerMember],
   };
 }
-
-type Optional<Base, OptionalProperties extends keyof Base> = Omit<
-  Base,
-  OptionalProperties
-> &
-  Partial<Pick<Base, OptionalProperties>>;
 
 export function buildChannel(
   overrides: Optional<
