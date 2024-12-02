@@ -4,12 +4,13 @@ import {
 } from '@react-navigation/drawer';
 import * as store from '@tloncorp/shared/store';
 import { AvatarNavIcon, NavIcon, YStack, useWebAppUpdate } from '@tloncorp/ui';
+import { getVariableValue, useTheme } from 'tamagui';
 
-import ProfileScreen from '../../features/settings/ProfileScreen';
 import { ActivityScreen } from '../../features/top/ActivityScreen';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootDrawerParamList } from '../types';
 import { HomeNavigator } from './HomeNavigator';
+import { ProfileScreenNavigator } from './ProfileScreenNavigator';
 
 const Drawer = createDrawerNavigator<RootDrawerParamList>();
 
@@ -72,12 +73,14 @@ export const TopLevelDrawer = () => {
         headerShown: false,
         drawerStyle: {
           width: 48,
+          backgroundColor: getVariableValue(useTheme().background),
+          borderRightColor: getVariableValue(useTheme().border),
         },
       }}
     >
       <Drawer.Screen name="Home" component={HomeNavigator} />
       <Drawer.Screen name="Activity" component={ActivityScreen} />
-      <Drawer.Screen name="Profile" component={ProfileScreen} />
+      <Drawer.Screen name="Profile" component={ProfileScreenNavigator} />
     </Drawer.Navigator>
   );
 };

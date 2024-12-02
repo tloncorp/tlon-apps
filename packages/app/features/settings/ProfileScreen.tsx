@@ -3,11 +3,13 @@ import { useMutableRef } from '@tloncorp/shared';
 import { NavBarView, ProfileScreenView, View } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
+import { getVariableValue, useTheme } from 'tamagui';
 
 import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
 import { getHostingToken, getHostingUserId } from '../../utils/hosting';
 
@@ -49,20 +51,18 @@ export default function ProfileScreen(props: Props) {
     navigationRef.current.navigate('WompWomp');
   }, [navigationRef]);
 
-  const onNavigateToHome = useCallback(() => {
-    navigationRef.current.navigate('ChatList');
+  const onBack = useCallback(() => {
+    navigationRef.current.goBack();
   }, [navigationRef]);
 
-  const onNavigateToNotifications = useCallback(() => {
-    navigationRef.current.navigate('Activity');
+  const onThemePressed = useCallback(() => {
+    navigationRef.current.navigate('Theme');
   }, [navigationRef]);
 
-  const onNavigateToProfileSettings = useCallback(() => {
-    navigationRef.current.navigate('Profile');
-  }, [navigationRef]);
+  const backgroundColor = getVariableValue(useTheme().background);
 
   return (
-    <View backgroundColor="$background" flex={1}>
+    <View backgroundColor={backgroundColor} flex={1}>
       <ProfileScreenView
         hasHostedAuth={hasHostedAuth}
         currentUserId={currentUserId}
@@ -74,14 +74,9 @@ export default function ProfileScreen(props: Props) {
         onBlockedUsersPressed={onBlockedUsersPressed}
         onManageAccountPressed={onManageAccountPressed}
         onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
+        onThemePressed={onThemePressed}
         dmLink={dmLink}
-      />
-      <NavBarView
-        navigateToHome={onNavigateToHome}
-        navigateToNotifications={onNavigateToNotifications}
-        navigateToProfileSettings={onNavigateToProfileSettings}
-        currentRoute="Profile"
-        currentUserId={currentUserId}
+        onBackPressed={onBack}
       />
     </View>
   );

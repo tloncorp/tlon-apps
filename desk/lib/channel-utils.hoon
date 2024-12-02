@@ -1,4 +1,4 @@
-/-  c=channels, g=groups, ci=cite
+/-  c=channels, g=groups, ci=cite, h=hooks
 /+  em=emojimart
 ::  convert a post to a preview for a "said" response
 ::
@@ -1056,6 +1056,7 @@
       ;br;
     ==
   --
+<<<<<<< HEAD
 ::
 ++  v-channels-7-to-8
   |=  vc=v-channels:v7:old:c
@@ -1216,4 +1217,33 @@
     ?.  ?=(%post -.u)  diffs
     (~(put ju diffs) id.u u-post.u)
   ==
+=======
+++  subject  ^~(!>(..compile))
+++  compile
+  |=  src=@t
+  ^-  (each vase tang)
+  =/  tonk=(each vase tang)
+    =/  vex=(like hoon)  ((full vest) [0 0] (trip src))
+    ?~  q.vex  |+~[leaf+"\{{<p.p.vex>} {<q.p.vex>}}" 'syntax error']
+    %-  mule
+    |.((~(mint ut p:subject) %noun p.u.q.vex))
+  %-  (slog (crip "parsed hoon: {<-.tonk>}") ~)
+  ?:  ?=(%| -.tonk)
+    %-  (slog 'returning error' p.tonk)
+    tonk
+  &+p.tonk
+++  run-hook
+  |=  [=args:h =hook:h]
+  ^-  (unit return:h)
+  %-  (slog (crip "running hook: {<name.hook>} {<id.hook>}") ~)
+  %-  ?~  channel.context.args  same
+      (slog (crip "on channel: {<nest.u.channel.context.args>}") ~)
+  ?~  compiled.hook  ~
+  =/  gate  [p.u.compiled.hook .*(q:subject q.u.compiled.hook)]
+  =+  !<(=outcome:h (slam gate !>(args)))
+  %-  (slog (crip "{(trip name.hook)} {<id.hook>} hook run:") ~)
+  %-  (slog >outcome< ~)
+  ?:  ?=(%.y -.outcome)  `p.outcome
+  ((slog 'hook failed:' p.outcome) ~)
+>>>>>>> develop
 --

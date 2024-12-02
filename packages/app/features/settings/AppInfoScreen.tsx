@@ -1,6 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useDebugStore } from '@tloncorp/shared';
-import { getCurrentUserId } from '@tloncorp/shared/api';
 import * as store from '@tloncorp/shared/store';
 import {
   AppSetting,
@@ -23,6 +22,8 @@ import { getEmailClients, openComposer } from 'react-native-email-link';
 import { ScrollView } from 'react-native-gesture-handler';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useTelemetry } from '../../hooks/useTelemetry';
 import { setDebug } from '../../lib/debug';
 import { getEasUpdateDisplay } from '../../lib/platformHelpers';
 import { RootStackParamList } from '../../navigation/types';
@@ -31,13 +32,17 @@ const BUILD_VERSION = `${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${Applicatio
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AppInfo'>;
 
-function makeDebugEmail(appInfo: any, platformInfo: any) {
+function makeDebugEmail(
+  appInfo: any,
+  platformInfo: any,
+  currentUserId: string
+) {
   return `
 ----------------------------------------------
 Insert description of problem here.
 ----------------------------------------------
 
-Tlon ID: ${getCurrentUserId()}
+Tlon ID: ${currentUserId}
 
 Platform Information:
 ${JSON.stringify(platformInfo)}
@@ -52,6 +57,16 @@ export function AppInfoScreen(props: Props) {
   const { enabled, logs, logId, uploadLogs } = useDebugStore();
   const easUpdateDisplay = useMemo(() => getEasUpdateDisplay(Updates), []);
   const [hasClients, setHasClients] = useState(true);
+  const telemetry = useTelemetry();
+  const currentUserId = useCurrentUserId();
+  const [telemetryDisabled, setTelemetryDisabled] = useState(
+    telemetry.optedOut
+  );
+
+  const toggleSetTelemetry = useCallback(() => {
+    setTelemetryDisabled(!telemetryDisabled);
+    telemetry.setDisabled(!telemetryDisabled);
+  }, [telemetryDisabled, telemetry]);
 
   useEffect(() => {
     async function checkClients() {
@@ -95,19 +110,24 @@ export function AppInfoScreen(props: Props) {
 
     openComposer({
       to: 'support@tlon.io',
-      subject: `${getCurrentUserId()} uploaded logs ${id}`,
-      body: makeDebugEmail(appInfo, platformInfo),
+      subject: `${currentUserId} uploaded logs ${id}`,
+      body: makeDebugEmail(appInfo, platformInfo, currentUserId),
     });
-  }, [hasClients]);
+  }, [hasClients, currentUserId]);
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title="App info"
         backAction={() => props.navigation.goBack()}
       />
       <ScrollView>
-        <YStack marginTop="$xl" marginHorizontal="$2xl" gap="$s">
+        <YStack
+          marginTop="$xl"
+          marginHorizontal="$2xl"
+          gap="$s"
+          paddingBottom="$3xl"
+        >
           <AppSetting title="Build version" value={BUILD_VERSION} copyable />
           <AppSetting title="OTA Update" value={easUpdateDisplay} copyable />
           <AppSetting
@@ -169,6 +189,24 @@ export function AppInfoScreen(props: Props) {
               <Text>{logId}</Text>
             </YStack>
           )}
+
+          <YStack>
+            <XStack
+              justifyContent="space-between"
+              alignItems="center"
+              padding="$l"
+            >
+              <SizableText flexShrink={1}>Share Usage Statistics</SizableText>
+              <Switch
+                style={{ flexShrink: 0 }}
+                value={!telemetryDisabled}
+                onValueChange={toggleSetTelemetry}
+              ></Switch>
+            </XStack>
+            <SizableText size="$s" marginLeft="$l">
+              By sharing, you help us improve the app for everyone.
+            </SizableText>
+          </YStack>
         </YStack>
       </ScrollView>
     </View>

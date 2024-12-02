@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 
 import * as api from '../api';
 import * as db from '../db';
+import { GroupedChats } from '../db/types';
 import * as ub from '../urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import {
@@ -17,14 +18,6 @@ import {
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
-
-// Assorted small hooks for fetching data from the database.
-// Can break em out as they get bigger.
-
-export interface CurrentChats {
-  pinned: db.Channel[];
-  unpinned: db.Channel[];
-}
 
 export type CustomQueryConfig<T> = Pick<
   UseQueryOptions<T, Error, T>,
@@ -41,44 +34,28 @@ export const useAllChannels = ({ enabled }: { enabled?: boolean }) => {
 };
 
 export const useCurrentChats = (
-  queryConfig?: CustomQueryConfig<CurrentChats>
-): UseQueryResult<CurrentChats | null> => {
+  queryConfig?: CustomQueryConfig<GroupedChats>
+): UseQueryResult<GroupedChats | null> => {
   return useQuery({
     queryFn: async () => {
-      const channels = await db.getChats();
-      return { channels };
+      return db.getChats();
     },
     queryKey: ['currentChats', useKeyFromQueryDeps(db.getChats)],
-    select({ channels }) {
-      for (let i = 0; i < channels.length; ++i) {
-        if (!channels[i].pin) {
-          return {
-            pinned: channels.slice(0, i),
-            unpinned: channels.slice(i),
-          };
-        }
-      }
-      return {
-        pinned: channels,
-        unpinned: [],
-      };
-    },
     ...queryConfig,
   });
 };
 
-export type PendingChats = (db.Group | db.Channel)[];
-
-export const usePendingChats = (
-  queryConfig?: CustomQueryConfig<PendingChats>
-): UseQueryResult<PendingChats | null> => {
+export const useUnjoinedGroupChannels = (groupId: string) => {
+  const deps = useKeyFromQueryDeps(db.getUnjoinedGroupChannels);
   return useQuery({
+    queryKey: [['unjoinedChannels', groupId], deps],
     queryFn: async () => {
-      const pendingChats = await db.getPendingChats();
-      return pendingChats;
+      if (!groupId) {
+        return [];
+      }
+      const unjoined = await db.getUnjoinedGroupChannels(groupId);
+      return unjoined;
     },
-    queryKey: ['pendingChats', useKeyFromQueryDeps(db.getPendingChats)],
-    ...queryConfig,
   });
 };
 
@@ -184,10 +161,13 @@ export const useContacts = () => {
   });
 };
 
-export const useUnreadsCount = () => {
+export const useUnreadsCountWithoutMuted = () => {
   return useQuery({
-    queryKey: ['unreadsCount'],
-    queryFn: () => db.getUnreadsCount({}),
+    queryKey: [
+      'unreadsCount',
+      useKeyFromQueryDeps(db.getUnreadsCountWithoutMuted),
+    ],
+    queryFn: () => db.getUnreadsCountWithoutMuted({}),
   });
 };
 
@@ -357,7 +337,10 @@ export const useGroupByChannel = (channelId: string) => {
 
 export const useMemberRoles = (chatId: string, userId: string) => {
   const { data: chatMember } = useQuery({
-    queryKey: ['memberRoles', chatId, userId],
+    queryKey: [
+      ['memberRoles', chatId, userId],
+      useKeyFromQueryDeps(db.getChatMember),
+    ],
     queryFn: () => db.getChatMember({ chatId, contactId: userId }),
   });
 
@@ -378,6 +361,22 @@ export const useGroupPreview = (groupId: string) => {
       const [preview] = await syncGroupPreviews([groupId]);
       return preview;
     },
+  });
+};
+
+export const useUserContacts = () => {
+  const deps = useKeyFromQueryDeps(db.getUserContacts);
+  return useQuery({
+    queryKey: ['userContacts', deps],
+    queryFn: () => db.getUserContacts(),
+  });
+};
+
+export const useSuggestedContacts = () => {
+  const deps = useKeyFromQueryDeps(db.getSuggestedContacts);
+  return useQuery({
+    queryKey: ['suggestedContacts', deps],
+    queryFn: () => db.getSuggestedContacts(),
   });
 };
 

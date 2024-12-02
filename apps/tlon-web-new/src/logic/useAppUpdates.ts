@@ -1,3 +1,4 @@
+import { queryClient } from '@tloncorp/shared';
 import { createContext, useCallback, useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
@@ -78,6 +79,7 @@ export default function useAppUpdates() {
         : `${window.location.href}?updatedAt=${Date.now()}`;
 
       if (needRefresh) {
+        queryClient.clear();
         try {
           await updateServiceWorker(false);
         } catch (e) {

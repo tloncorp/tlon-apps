@@ -102,17 +102,17 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
 
       parsedContent.push({
         type: 'text',
-        text: cleanUrl.startsWith('http') ? cleanUrl : `https://${cleanUrl}`,
-        marks: [
-          {
-            type: 'link',
-            attrs: {
-              href: cleanUrl.startsWith('http')
-                ? cleanUrl
-                : `https://${cleanUrl}`,
-            },
-          },
-        ],
+        text: cleanUrl,
+        marks: cleanUrl.startsWith('http')
+          ? [
+              {
+                type: 'link',
+                attrs: {
+                  href: cleanUrl,
+                },
+              },
+            ]
+          : undefined,
       });
 
       if (trailingPunct) {

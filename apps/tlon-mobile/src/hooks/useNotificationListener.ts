@@ -1,9 +1,13 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import type { NavigationProp } from '@react-navigation/native';
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useFeatureFlag } from '@tloncorp/app/lib/featureFlags';
 import { connectNotifications } from '@tloncorp/app/lib/notifications';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
+import {
+  createTypedReset,
+  screenNameFromChannelId,
+} from '@tloncorp/app/navigation/utils';
 import * as posthog from '@tloncorp/app/utils/posthog';
 import { syncDms, syncGroups } from '@tloncorp/shared';
 import { markChatRead } from '@tloncorp/shared/api';
@@ -156,8 +160,9 @@ export default function useNotificationListener() {
             params: { groupId: channel.groupId },
           });
         }
+        const screenName = screenNameFromChannelId(channelId);
         routeStack.push({
-          name: 'Channel',
+          name: screenName,
           params: { channelId: channel.id },
         });
 
@@ -187,12 +192,9 @@ export default function useNotificationListener() {
           });
         }
 
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 1,
-            routes: routeStack,
-          })
-        );
+        const typedReset = createTypedReset(navigation);
+
+        typedReset(routeStack, 1);
         setNotifToProcess(null);
         return true;
       };

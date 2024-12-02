@@ -59,7 +59,7 @@ export const typeStyles = {
     fontSize: 16,
     lineHeight: 24,
     letterSpacing: -0.2,
-    fontWeight: '500',
+    fontWeight: '400',
   },
   '$label/xl': {
     fontSize: 17,

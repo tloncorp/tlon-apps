@@ -1,9 +1,9 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { FixtureWrapper } from '@tloncorp/app/fixtures/FixtureWrapper';
 
 import { SetNicknameScreen } from '../screens/Onboarding/SetNicknameScreen';
 import { OnboardingStackParamList, User } from '../types';
-import { FixtureWrapper } from './FixtureWrapper';
 
 const GroupMetaScreenFixture = () => {
   const mockNavigation = {
@@ -17,7 +17,7 @@ const GroupMetaScreenFixture = () => {
 
   return (
     <NavigationContainer>
-      <FixtureWrapper>
+      <FixtureWrapper safeArea={false}>
         <SetNicknameScreen
           navigation={mockNavigation}
           route={{

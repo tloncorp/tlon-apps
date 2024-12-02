@@ -7,7 +7,7 @@ import {
   FormText,
   ScreenHeader,
   ScrollView,
-  YStack,
+  View,
 } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { useForm } from 'react-hook-form';
@@ -43,7 +43,7 @@ export function UserBugReportScreen({ navigation }: Props) {
   );
 
   return (
-    <>
+    <View backgroundColor="$background" flex={1}>
       <ScreenHeader
         title="Report a bug"
         backAction={() => navigation.goBack()}
@@ -81,6 +81,6 @@ export function UserBugReportScreen({ navigation }: Props) {
           </FormFrame>
         </ScrollView>
       </KeyboardAvoidingView>
-    </>
+    </View>
   );
 }

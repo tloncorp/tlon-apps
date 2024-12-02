@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { Text, View, YStack } from 'tamagui';
 
+import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
 import { ContactBook } from './ContactBook';
 import { ScreenHeader } from './ScreenHeader';
 
@@ -19,8 +20,14 @@ export function FindGroupsView({
     [goToContactHostedGroups]
   );
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
-    <View flex={1}>
+    <View
+      backgroundColor="$background"
+      flex={1}
+      paddingHorizontal={isWindowNarrow ? undefined : '$l'}
+    >
       <ScreenHeader title="Find groups" backAction={goBack} />
       <ContactBook
         searchable

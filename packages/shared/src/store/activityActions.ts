@@ -7,26 +7,26 @@ import { whomIsMultiDm } from '../urbit';
 
 const logger = createDevLogger('activityActions', false);
 
-export async function muteChat(channel: db.Channel) {
-  const initialSettings = await getChatVolumeSettings(channel);
-  const muteLevel = channel.groupId ? 'soft' : 'hush';
+export async function muteChat(chat: db.Chat) {
+  const initialSettings = await getChatVolumeSettings(chat);
+  const muteLevel = chat.type === 'group' ? 'soft' : 'hush';
 
   db.setVolumes({
     volumes: [
       {
-        itemId: channel.groupId ?? channel.id,
-        itemType: channel.groupId ? 'group' : 'channel',
+        itemId: chat.id,
+        itemType: chat.type,
         level: muteLevel,
       },
     ],
   });
 
   try {
-    const { source } = api.getRootSourceFromChannel(channel);
+    const { source } = api.getRootSourceFromChat(chat);
     const volume = ub.getVolumeMap(muteLevel, true);
     await api.adjustVolumeSetting(source, volume);
   } catch (e) {
-    logger.log(`failed to mute group ${channel.id}`, e);
+    logger.log(`failed to mute chat ${chat.id}`, e);
     // revert the optimistic update
     if (initialSettings) {
       await db.setVolumes({ volumes: [initialSettings] });
@@ -34,24 +34,24 @@ export async function muteChat(channel: db.Channel) {
   }
 }
 
-export async function unmuteChat(channel: db.Channel) {
-  const initialSettings = await getChatVolumeSettings(channel);
+export async function unmuteChat(chat: db.Chat) {
+  const initialSettings = await getChatVolumeSettings(chat);
 
   db.setVolumes({
     volumes: [
       {
-        itemId: channel.groupId ?? channel.id,
-        itemType: channel.groupId ? 'group' : 'channel',
+        itemId: chat.id,
+        itemType: chat.type,
         level: 'default',
       },
     ],
   });
 
   try {
-    const { source } = api.getRootSourceFromChannel(channel);
+    const { source } = api.getRootSourceFromChat(chat);
     await api.adjustVolumeSetting(source, null);
   } catch (e) {
-    logger.log(`failed to unmute chat ${channel.id}`, e);
+    logger.log(`failed to unmute chat ${chat.id}`, e);
     // revert the optimistic update
     if (initialSettings) {
       await db.setVolumes({ volumes: [initialSettings] });
@@ -59,14 +59,8 @@ export async function unmuteChat(channel: db.Channel) {
   }
 }
 
-async function getChatVolumeSettings(chat: db.Channel) {
-  if (chat.groupId) {
-    return (
-      chat.group?.volumeSettings ?? (await db.getVolumeSetting(chat.groupId))
-    );
-  } else {
-    return chat.volumeSettings ?? (await db.getVolumeSetting(chat.id));
-  }
+async function getChatVolumeSettings(chat: db.Chat) {
+  return chat.volumeSettings ?? (await db.getVolumeSetting(chat.id));
 }
 
 export async function muteThread({

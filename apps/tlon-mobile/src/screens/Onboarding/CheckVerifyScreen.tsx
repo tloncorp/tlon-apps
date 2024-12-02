@@ -1,5 +1,4 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useSignupContext } from '.././../lib/signupContext';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Field,
@@ -16,6 +15,7 @@ import { TextInput as RNTextInput } from 'react-native';
 
 import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
+import { useSignupContext } from '.././../lib/signupContext';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'CheckVerify'>;
 
