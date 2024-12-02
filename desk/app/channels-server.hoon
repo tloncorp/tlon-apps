@@ -686,7 +686,6 @@
     |=  =c-channel:c
     ^+  ca-core
     ?>  am-host:ca-perms
-    ~&  "received command {<c-channel>}"
     ?-    -.c-channel
         %view
       ?>  (is-admin:ca-perms src.bowl)
