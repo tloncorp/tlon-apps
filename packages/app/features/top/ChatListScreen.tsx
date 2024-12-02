@@ -14,6 +14,7 @@ import {
   ChatOptionsProvider,
   ChatOptionsSheet,
   ChatOptionsSheetMethods,
+  GroupPreviewAction,
   GroupPreviewSheet,
   InviteUsersSheet,
   NavBarView,
@@ -27,8 +28,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
+import { screenNameFromChannelId } from '../../navigation/utils';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 
@@ -51,23 +54,17 @@ export function ChatListScreenView({
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
-  const [longPressedChat, setLongPressedChat] = useState<
-    db.Channel | db.Group | null
-  >(null);
+  const [longPressedChat, setLongPressedChat] = useState<db.Chat | null>(null);
   const chatOptionsGroupId = useMemo(() => {
-    if (!longPressedChat) {
-      return;
-    }
-    return logic.isGroup(longPressedChat)
-      ? longPressedChat.id
-      : longPressedChat.group?.id;
+    return longPressedChat?.type === 'group'
+      ? longPressedChat.group.id
+      : undefined;
   }, [longPressedChat]);
 
   const chatOptionsChannelId = useMemo(() => {
-    if (!longPressedChat || logic.isGroup(longPressedChat)) {
-      return;
-    }
-    return longPressedChat.id;
+    return longPressedChat?.type === 'channel'
+      ? longPressedChat.channel.id
+      : undefined;
   }, [longPressedChat]);
 
   const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
@@ -84,12 +81,11 @@ export function ChatListScreenView({
     enabled: isFocused,
   });
   const pinned = useMemo(() => pins ?? [], [pins]);
-  const { data: pendingChats } = store.usePendingChats({
-    enabled: isFocused,
-  });
+
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
   });
+  const { performGroupAction } = useGroupActions();
 
   const currentUser = useCurrentUserId();
 
@@ -145,9 +141,9 @@ export function ChatListScreenView({
     return {
       pinned: chats?.pinned ?? [],
       unpinned: chats?.unpinned ?? [],
-      pendingChats: pendingChats ?? [],
+      pending: chats?.pending ?? [],
     };
-  }, [chats, pendingChats]);
+  }, [chats]);
 
   const handleNavigateToFindGroups = useCallback(() => {
     setAddGroupOpen(false);
@@ -165,7 +161,7 @@ export function ChatListScreenView({
         participants: [userId],
       });
       setAddGroupOpen(false);
-      navigation.navigate('Channel', { channelId: dmChannel.id });
+      navigation.navigate('DM', { channelId: dmChannel.id });
     },
     [navigation, setAddGroupOpen]
   );
@@ -179,35 +175,39 @@ export function ChatListScreenView({
   const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   const onPressChat = useCallback(
-    (item: db.Channel | db.Group) => {
-      if (logic.isGroup(item)) {
+    (item: db.Chat) => {
+      if (item.type === 'group' && item.isPending) {
         setSelectedGroupId(item.id);
-      } else if (
-        item.group &&
-        !isChannelSwitcherEnabled &&
-        // Should navigate to channel if it's pinned as a channel
-        (!item.pin || item.pin.type === 'group')
-      ) {
+      } else if (item.type === 'group' && !isChannelSwitcherEnabled) {
         navigation.navigate('GroupChannels', { groupId: item.group.id });
-      } else {
+      } else if (item.type === 'group') {
+        if (!item.group.channels?.length) {
+          throw new Error('cant open group with no channels');
+        }
         navigation.navigate('Channel', {
+          channelId: item.group.channels[0].id,
+          groupId: item.group.id,
+        });
+      } else {
+        const screenName = screenNameFromChannelId(item.id);
+        navigation.navigate(screenName, {
           channelId: item.id,
-          selectedPostId: item.firstUnreadPostId,
         });
       }
     },
     [isChannelSwitcherEnabled, navigation]
   );
 
-  const onLongPressChat = useCallback((item: db.Channel | db.Group) => {
-    if (logic.isChannel(item) && !item.isDmInvite) {
-      setLongPressedChat(item);
-      if (item.pin?.type === 'channel' || !item.group) {
-        chatOptionsSheetRef.current?.open(item.id, item.type);
-      } else {
-        chatOptionsSheetRef.current?.open(item.group.id, 'group');
-      }
+  const onLongPressChat = useCallback((item: db.Chat) => {
+    if (item.isPending) {
+      return;
     }
+    setLongPressedChat(item);
+    chatOptionsSheetRef.current?.open(
+      item.id,
+      item.type === 'channel' ? item.channel.type : 'group',
+      item.unreadCount
+    );
   }, []);
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
@@ -224,7 +224,9 @@ export function ChatListScreenView({
 
   const isTlonEmployee = useMemo(() => {
     const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
-    return !!allChats.find((obj) => obj.groupId === TLON_EMPLOYEE_GROUP);
+    return !!allChats.find(
+      (chat) => chat.type === 'group' && chat.group.id === TLON_EMPLOYEE_GROUP
+    );
   }, [resolvedChats]);
 
   useEffect(() => {
@@ -279,6 +281,14 @@ export function ChatListScreenView({
     setShowSearchInput(!showSearchInput);
   }, [showSearchInput]);
 
+  const handleGroupAction = useCallback(
+    (action: GroupPreviewAction, group: db.Group) => {
+      performGroupAction(action, group);
+      setSelectedGroupId(null);
+    },
+    [performGroupAction]
+  );
+
   return (
     <RequestsProvider
       usePostReference={store.usePostReference}
@@ -318,7 +328,7 @@ export function ChatListScreenView({
               setActiveTab={setActiveTab}
               pinned={resolvedChats.pinned}
               unpinned={resolvedChats.unpinned}
-              pendingChats={resolvedChats.pendingChats}
+              pending={resolvedChats.pending}
               onLongPressItem={onLongPressChat}
               onPressItem={onPressChat}
               onSectionChange={handleSectionChange}
@@ -338,6 +348,7 @@ export function ChatListScreenView({
             open={!!selectedGroup}
             onOpenChange={handleGroupPreviewSheetOpenChange}
             group={selectedGroup ?? undefined}
+            onActionComplete={handleGroupAction}
           />
           <InviteUsersSheet
             open={inviteSheetGroup !== null}
@@ -347,14 +358,14 @@ export function ChatListScreenView({
           />
         </View>
         <NavBarView
+          navigateToContacts={() => {
+            navigation.navigate('Contacts');
+          }}
           navigateToHome={() => {
             navigation.navigate('ChatList');
           }}
           navigateToNotifications={() => {
             navigation.navigate('Activity');
-          }}
-          navigateToProfileSettings={() => {
-            navigation.navigate('Profile');
           }}
           currentRoute="ChatList"
           currentUserId={currentUser}

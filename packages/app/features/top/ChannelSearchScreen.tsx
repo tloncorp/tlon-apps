@@ -6,11 +6,13 @@ import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { RootStackParamList } from '../../navigation/types';
+import { useResetToChannel } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChannelSearch'>;
 
 export default function ChannelSearchScreen(props: Props) {
   const channelId = props.route.params.channelId;
+  const groupId = props.route.params.groupId;
   const channelQuery = useChannelWithRelations({
     id: channelId,
   });
@@ -18,6 +20,8 @@ export default function ChannelSearchScreen(props: Props) {
   const [query, setQuery] = useState('');
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
     useChannelSearch(channelId, query);
+
+  const resetToChannel = useResetToChannel();
 
   const navigateToPost = useCallback(
     (post: db.Post) => {
@@ -28,13 +32,13 @@ export default function ChannelSearchScreen(props: Props) {
           authorId: post.authorId,
         });
       } else {
-        props.navigation.navigate('Channel', {
-          channelId: post.channelId,
+        resetToChannel(post.channelId, {
           selectedPostId: post.id,
+          groupId,
         });
       }
     },
-    [props.navigation]
+    [props.navigation, resetToChannel, groupId]
   );
 
   return (

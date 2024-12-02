@@ -1,3 +1,4 @@
+import { ComponentProps } from 'react';
 import { ColorTokens, SizableText, View } from 'tamagui';
 
 type BadgeType = 'positive' | 'warning' | 'neutral';
@@ -20,7 +21,7 @@ export function Badge({
 }: {
   text: string;
   type?: BadgeType;
-}) {
+} & ComponentProps<typeof View>) {
   return (
     <View
       backgroundColor={badgeBackground[type]}

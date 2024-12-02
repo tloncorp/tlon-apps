@@ -165,7 +165,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
   });
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         title="Tlon Login"
         showSessionStatus={false}
@@ -251,30 +251,34 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
               )}
               name="password"
             />
+            <View paddingBottom="$m">
+              <TlonText.Text
+                size="$label/s"
+                color="$tertiaryText"
+                textAlign="center"
+              >
+                By logging in you agree to Tlon&rsquo;s{' '}
+                <TlonText.RawText
+                  pressStyle={{
+                    opacity: 0.5,
+                  }}
+                  textDecorationLine="underline"
+                  textDecorationDistance={10}
+                  onPress={handlePressEula}
+                >
+                  Terms of Service
+                </TlonText.RawText>
+              </TlonText.Text>
+            </View>
             <TlonText.Text
               size="$label/m"
-              color="$primaryText"
+              color="$secondaryText"
               textAlign="center"
               onPress={handleForgotPassword}
             >
               Forgot password?
             </TlonText.Text>
           </YStack>
-          <View padding="$xl">
-            <TlonText.Text size="$label/s" color="$tertiaryText">
-              By logging in you agree to Tlon&rsquo;s{' '}
-              <TlonText.RawText
-                pressStyle={{
-                  opacity: 0.5,
-                }}
-                textDecorationLine="underline"
-                textDecorationDistance={10}
-                onPress={handlePressEula}
-              >
-                Terms of Service
-              </TlonText.RawText>
-            </TlonText.Text>
-          </View>
         </YStack>
       </KeyboardAvoidingView>
     </View>

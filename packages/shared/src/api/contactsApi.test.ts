@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { toClientContact, toClientContacts } from './contactsApi';
+import { v0PeerToClientProfile, v0PeersToClientProfiles } from './contactsApi';
 
 const inputContact: [string, any] = [
   'test',
@@ -22,11 +22,11 @@ const inputContact: [string, any] = [
 
 const outputContact = {
   id: 'test',
-  avatarImage: null,
+  peerAvatarImage: null,
+  peerNickname: 'galen',
   coverImage:
     'https://20-urbit.s3.us-west-1.amazonaws.com/ravmel-ropdyl/2021.2.13..00.31.09-Manaslu-crevasses.jpg',
   bio: 'happy to chat, send a dm any time',
-  nickname: 'galen',
   status: 'listening to music',
   color: '#FFFFFF',
   pinnedGroups: [
@@ -34,14 +34,16 @@ const outputContact = {
     { groupId: '~nibset-napwyn/tlon', contactId: 'test' },
     { groupId: '~ravmel-ropdyl/crate', contactId: 'test' },
   ],
+  isContact: false,
+  isContactSuggestion: undefined,
 };
 
 test('converts a contact from server to client format', () => {
-  expect(toClientContact(...inputContact)).toStrictEqual(outputContact);
+  expect(v0PeerToClientProfile(...inputContact)).toStrictEqual(outputContact);
 });
 
 test('converts an array of contacts from server to client format', () => {
   expect(
-    toClientContacts({ [inputContact[0]]: inputContact[1] })
+    v0PeersToClientProfiles({ [inputContact[0]]: inputContact[1] })
   ).toStrictEqual([outputContact]);
 });

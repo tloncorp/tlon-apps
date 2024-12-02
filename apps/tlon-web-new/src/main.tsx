@@ -57,8 +57,8 @@ setupDb().then(() => {
     <PersistQueryClientProvider
       client={queryClient}
       persistOptions={{
-        persister: indexedDBPersistor(`${window.our}-landscape`),
-        buster: `${window.our}-landscape-4.0.1`,
+        persister: indexedDBPersistor(`${window.our}-tlon`),
+        buster: `${window.our}-tlon-buster-0`,
       }}
     >
       <PostHogProvider client={analyticsClient}>

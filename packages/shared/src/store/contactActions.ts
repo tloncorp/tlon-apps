@@ -4,28 +4,137 @@ import { createDevLogger } from '../debug';
 
 const logger = createDevLogger('ContactActions', false);
 
+export async function addContact(contactId: string) {
+  // Optimistic update
+  await db.updateContact({
+    id: contactId,
+    isContact: true,
+    isContactSuggestion: false,
+  });
+
+  try {
+    await api.addContact(contactId);
+  } catch (e) {
+    console.error('Error adding contact', e);
+    // Rollback the update
+    await db.updateContact({ id: contactId, isContact: false });
+  }
+}
+
+export async function addContacts(contacts: string[]) {
+  const optimisticUpdates = contacts.map((contactId) =>
+    db.updateContact({
+      id: contactId,
+      isContact: true,
+      isContactSuggestion: false,
+    })
+  );
+  await Promise.all(optimisticUpdates);
+
+  try {
+    await api.addUserContacts(contacts);
+  } catch (e) {
+    // Rollback the update
+    const rolbacks = contacts.map((contactId) =>
+      db.updateContact({
+        id: contactId,
+        isContact: false,
+      })
+    );
+    await Promise.all(rolbacks);
+  }
+}
+
+export async function removeContact(contactId: string) {
+  // Optimistic update
+  await db.updateContact({ id: contactId, isContact: false });
+
+  try {
+    await api.removeContact(contactId);
+  } catch (e) {
+    console.error('Error removing contact', e);
+    // Rollback the update
+    await db.updateContact({ id: contactId, isContact: true });
+  }
+}
+
+export async function removeContactSuggestion(contactId: string) {
+  // Optimistic update
+  await db.updateContact({ id: contactId, isContactSuggestion: false });
+
+  try {
+    await api.removeContactSuggestion(contactId);
+  } catch (e) {
+    // Rollback the update
+    console.error('Error removing contact suggestion', e);
+    await db.updateContact({ id: contactId, isContactSuggestion: true });
+  }
+}
+
+export async function updateContactMetadata(
+  contactId: string,
+  metadata: {
+    nickname?: string | null;
+    avatarImage?: string | null;
+  }
+) {
+  const { nickname, avatarImage } = metadata;
+
+  const existingContact = await db.getContact({ id: contactId });
+
+  // optimistic update
+  await db.updateContact({
+    id: contactId,
+    customNickname: nickname,
+    customAvatarImage: avatarImage,
+  });
+
+  try {
+    await api.updateContactMetadata(contactId, {
+      nickname: nickname ? nickname : nickname === null ? '' : undefined,
+      avatarImage: avatarImage
+        ? avatarImage
+        : avatarImage === null
+          ? ''
+          : undefined,
+    });
+  } catch (e) {
+    // rollback the update
+    await db.updateContact({
+      id: contactId,
+      customNickname: existingContact?.customNickname,
+      customAvatarImage: existingContact?.customAvatarImage,
+    });
+  }
+}
+
 export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
   const currentUserId = api.getCurrentUserId();
   const currentUserContact = await db.getContact({ id: currentUserId });
-  const startingValues: Partial<db.Contact> = {};
-  if (currentUserContact) {
-    for (const key in update) {
-      if (key in currentUserContact) {
-        startingValues[key as keyof api.ProfileUpdate] =
-          currentUserContact[key as keyof api.ProfileUpdate];
-      }
-    }
-  }
+
+  const startFields: Partial<db.Contact> = {
+    peerNickname: currentUserContact?.peerNickname,
+    status: currentUserContact?.status,
+    bio: currentUserContact?.bio,
+    peerAvatarImage: currentUserContact?.peerAvatarImage,
+  };
+
+  const editedFields: Partial<db.Contact> = {
+    peerNickname: update.nickname,
+    status: update.status,
+    bio: update.bio,
+    peerAvatarImage: update.avatarImage,
+  };
 
   // Optimistic update
-  await db.updateContact({ id: currentUserId, ...update });
+  await db.updateContact({ id: currentUserId, ...editedFields });
 
   try {
     await api.updateCurrentUserProfile(update);
   } catch (e) {
     console.error('Error updating profile', e);
     // Rollback the update
-    await db.updateContact({ id: currentUserId, ...startingValues });
+    await db.updateContact({ id: currentUserId, ...startFields });
   }
 }
 
@@ -57,37 +166,18 @@ export async function removePinnedGroupFromProfile(groupId: string) {
 
 export async function updateProfilePinnedGroups(newPinned: db.Group[]) {
   const currentUserId = api.getCurrentUserId();
-  const currentUserContact = await db.getContact({ id: currentUserId });
-  const startingPinnedIds =
-    currentUserContact?.pinnedGroups.map((pg) => pg.groupId) ?? [];
+  const existingContact = await db.getContact({ id: currentUserId });
+  const existingPinnedIds =
+    existingContact?.pinnedGroups.map((pg) => pg.groupId) ?? [];
+  const newPinnedIds = newPinned.map((g) => g.id);
 
-  const additions = [];
-  const deletions = [];
+  // Optimistic update TODO
+  await db.setPinnedGroups({ groupIds: newPinnedIds });
 
-  for (const group of newPinned) {
-    if (!startingPinnedIds.includes(group.id)) {
-      additions.push(group.id);
-    }
+  try {
+    await api.setPinnedGroups(newPinnedIds);
+  } catch (e) {
+    // Rollback the update
+    await db.setPinnedGroups({ groupIds: existingPinnedIds });
   }
-
-  for (const groupId of startingPinnedIds) {
-    if (!newPinned.find((g) => g.id === groupId)) {
-      deletions.push(groupId);
-    }
-  }
-
-  logger.log(
-    'Updating pinned groups [additions, deletions]',
-    additions,
-    deletions
-  );
-
-  const additionPromises = additions.map((groupId) =>
-    addPinnedGroupToProfile(groupId)
-  );
-  const deletionPromises = deletions.map((groupId) =>
-    removePinnedGroupFromProfile(groupId)
-  );
-
-  return Promise.all([...additionPromises, ...deletionPromises]);
 }

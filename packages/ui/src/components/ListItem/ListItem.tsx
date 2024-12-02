@@ -1,8 +1,13 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { ComponentProps, ReactElement, useMemo } from 'react';
-import { isWeb, styled, withStaticProperties } from 'tamagui';
-import { SizableText, Stack, View, XStack, YStack } from 'tamagui';
+import {
+  getVariableValue,
+  styled,
+  useTheme,
+  withStaticProperties,
+} from 'tamagui';
+import { Stack, View, XStack, YStack } from 'tamagui';
 
 import { numberWithMax } from '../../utils';
 import {
@@ -14,6 +19,7 @@ import {
 } from '../Avatar';
 import ContactName from '../ContactName';
 import { Icon, IconType } from '../Icon';
+import { Text } from '../TextV2';
 
 export interface BaseListItemProps<T> {
   model: T;
@@ -74,14 +80,23 @@ const ListItemImageIcon = ImageAvatar;
 const ListItemMainContent = styled(YStack, {
   name: 'ListItemMainContent',
   flex: 1,
-  justifyContent: 'space-evenly',
-  height: isWeb ? '$5xl' : '$4xl',
+  justifyContent: 'space-around',
+  height: '$4xl',
 });
 
-const ListItemTitle = styled(SizableText, {
+const ListItemTitle = styled(Text, {
   name: 'ListItemTitle',
   color: '$primaryText',
   numberOfLines: 1,
+  size: '$label/l',
+  paddingBottom: 1,
+  variants: {
+    dimmed: {
+      true: {
+        color: '$tertiaryText',
+      },
+    },
+  },
 });
 
 const ListItemSubtitleWithIcon = XStack.styleable<{ icon?: IconType }>(
@@ -108,19 +123,19 @@ const ListItemSubtitleIcon = styled(Icon, {
   size: '$s',
 });
 
-const ListItemSubtitle = styled(SizableText, {
+const ListItemSubtitle = styled(Text, {
   name: 'ListItemSubtitle',
   numberOfLines: 1,
-  size: '$s',
+  size: '$label/m',
   color: '$tertiaryText',
 });
 
-export const ListItemTimeText = styled(SizableText, {
+export const ListItemTimeText = styled(Text, {
   name: 'ListItemTimeText',
   numberOfLines: 1,
   color: '$tertiaryText',
-  size: '$s',
-  lineHeight: '$xs',
+  size: '$label/m',
+  paddingBottom: '$xs',
 });
 
 const ListItemTime = ListItemTimeText.styleable<{
@@ -159,20 +174,22 @@ const ListItemCount = ({
   count,
   ...rest
 }: { muted?: boolean; count: number } & ComponentProps<typeof Stack>) => {
+  const foregroundColor = getVariableValue(useTheme().secondaryText);
+  const backgroundColor = getVariableValue(useTheme().secondaryBackground);
   return (
     <Stack
       paddingHorizontal={'$m'}
-      backgroundColor={count < 1 ? undefined : '$secondaryBackground'}
+      backgroundColor={count < 1 ? undefined : backgroundColor}
       borderRadius="$l"
       {...rest}
     >
       <ListItemCountNumber hidden={count < 1}>
         {muted && (
-          <Icon type="Muted" customSize={[12, 12]} color="$secondaryText" />
+          <Icon type="Muted" customSize={[12, 12]} color={foregroundColor} />
         )}
-        <SizableText size="$s" color="$secondaryText">
+        <Text size="$label/m" color={foregroundColor}>
           {numberWithMax(count, 99)}
-        </SizableText>
+        </Text>
       </ListItemCountNumber>
     </Stack>
   );
@@ -182,6 +199,7 @@ const ListItemCountNumber = styled(XStack, {
   name: 'ListItemCountNumber',
   gap: '$s',
   alignItems: 'center',
+  paddingVertical: '$s',
   variants: {
     hidden: {
       true: {
@@ -232,7 +250,6 @@ Dragger.displayName = 'Dragger';
 
 const ListItemEndContent = styled(YStack, {
   name: 'ListItemEndContent',
-  flex: 0,
   paddingTop: '$xs',
   gap: '$2xs',
   justifyContent: 'center',

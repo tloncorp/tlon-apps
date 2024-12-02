@@ -23,5 +23,10 @@ export function formatUserId(
 }
 
 export function getDisplayName(contact: db.Contact) {
-  return contact.nickname ? contact.nickname : contact.id;
+  if (contact.nickname && contact.nickname.length) {
+    return contact.nickname;
+  }
+
+  const formatted = formatUserId(contact.id);
+  return formatted?.display ?? contact.id;
 }

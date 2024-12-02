@@ -1,6 +1,6 @@
 ::  expose render: rendering utilities for pages & the widget
 ::
-/-  co=contacts
+/-  co=contacts-0
 /+  sigil
 ::
 |%
@@ -8,7 +8,7 @@
   =/  link=(unit @t)  ~
   |=  [=bowl:gall author=ship]
   ^-  manx
-  =/  aco=(unit contact:co)
+  =/  aco=(unit contact-0:co)
     (get-contact:co bowl author)
   |^  ::TODO  we should just have a bunch of manx construction helpers
       ::      for stuff like this

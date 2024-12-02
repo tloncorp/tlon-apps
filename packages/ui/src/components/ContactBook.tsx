@@ -17,6 +17,7 @@ import {
   useAlphabeticallySegmentedContacts,
   useSortedContacts,
 } from '../hooks/contactSorters';
+import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
 import { ContactRow } from './ContactRow';
 import { SearchBar } from './SearchBar';
 import { BlockSectionList } from './SectionList';
@@ -26,11 +27,15 @@ export function ContactBook({
   searchPlaceholder = '',
   onSelect,
   multiSelect = false,
+  immutableIds = [],
   onSelectedChange,
   onScrollChange,
   explanationComponent,
   quickActions,
+  height,
+  width,
 }: {
+  immutableIds?: string[];
   searchPlaceholder?: string;
   searchable?: boolean;
   onSelect?: (contactId: string) => void;
@@ -39,8 +44,11 @@ export function ContactBook({
   onScrollChange?: (scrolling: boolean) => void;
   explanationComponent?: React.ReactElement;
   quickActions?: React.ReactElement;
+  height?: number;
+  width?: number;
 }) {
   const contacts = useContacts();
+  const immutableSet = useMemo(() => new Set(immutableIds), [immutableIds]);
   const contactsIndex = useContactIndex();
   const segmentedContacts = useAlphabeticallySegmentedContacts(
     contacts ?? [],
@@ -66,6 +74,10 @@ export function ContactBook({
   const [selected, setSelected] = useState<string[]>([]);
   const handleSelect = useCallback(
     (contactId: string) => {
+      if (immutableSet.has(contactId)) {
+        return;
+      }
+
       if (multiSelect) {
         if (selected.includes(contactId)) {
           const newSelected = selected.filter((id) => id !== contactId);
@@ -80,7 +92,7 @@ export function ContactBook({
         onSelect?.(contactId);
       }
     },
-    [multiSelect, onSelect, onSelectedChange, selected]
+    [immutableSet, multiSelect, onSelect, onSelectedChange, selected]
   );
 
   const renderItem = useCallback(
@@ -91,6 +103,7 @@ export function ContactBook({
           backgroundColor={'$secondaryBackground'}
           key={item.id}
           contact={item}
+          immutable={immutableSet.has(item.id)}
           selectable={multiSelect}
           selected={isSelected}
           onPress={handleSelect}
@@ -98,7 +111,7 @@ export function ContactBook({
         />
       );
     },
-    [selected, multiSelect, handleSelect]
+    [selected, immutableSet, multiSelect, handleSelect]
   );
 
   const scrollPosition = useRef(0);
@@ -131,14 +144,33 @@ export function ContactBook({
     top: '$xl',
   }) as Insets;
 
+  const isWindowNarrow = useIsWindowNarrow();
+
+  const listStyle = useMemo(() => {
+    if (!isWindowNarrow) {
+      return {
+        flex: 1,
+        overflow: 'scroll' as const,
+      };
+    }
+    return undefined;
+  }, [isWindowNarrow]);
+
   return (
-    <View flex={1}>
+    <View
+      flex={1}
+      height={isWindowNarrow ? undefined : height || '100%'}
+      width={isWindowNarrow ? undefined : width || '100%'}
+      display={isWindowNarrow ? undefined : 'flex'}
+      flexDirection={isWindowNarrow ? undefined : 'column'}
+    >
       {searchable && (
         <XStack
           alignItems="center"
           justifyContent="space-between"
           gap="$m"
           paddingBottom="$s"
+          width="100%"
         >
           <SearchBar
             height="$4xl"
@@ -163,6 +195,7 @@ export function ContactBook({
             contentContainerStyle={contentContainerStyle}
             automaticallyAdjustsScrollIndicatorInsets={false}
             scrollIndicatorInsets={scrollIndicatorInsets}
+            style={listStyle}
           />
         </View>
       )}
