@@ -132,6 +132,7 @@ export const MessageInputContainer = memo(
           gap="$l"
           alignItems="flex-end"
           justifyContent="space-between"
+          backgroundColor="$background"
         >
           {goBack ? (
             <View paddingBottom="$xs">

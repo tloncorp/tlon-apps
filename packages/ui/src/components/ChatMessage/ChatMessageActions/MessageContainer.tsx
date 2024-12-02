@@ -26,7 +26,7 @@ export function MessageContainer({ post }: { post: db.Post }) {
         padding="$l"
         borderRadius="$l"
       >
-        <NotebookPost showAuthor={false} size="$xs" post={post} />
+        <NotebookPost showAuthor={false} size="$xs" post={post} hideOverflowMenu />
       </ScrollView>
     );
   }

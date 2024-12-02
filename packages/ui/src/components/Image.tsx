@@ -16,6 +16,8 @@ const WebImage = ({ source, style, alt, onLoad, ...props }: any) => {
     }
   };
 
+  const { contentFit  } = props;
+
   return (
     <img
       src={source.uri}
@@ -23,7 +25,8 @@ const WebImage = ({ source, style, alt, onLoad, ...props }: any) => {
       style={{
         ...StyleSheet.flatten(style),
         maxWidth: '100%',
-        height: 'auto',
+        height: props.height ? props.height : 'auto',
+        objectFit: contentFit ? contentFit : 'contain',
       }}
       onLoad={handleLoad}
       {...props}

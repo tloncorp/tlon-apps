@@ -183,7 +183,6 @@ export function PostScreenView({
 
   const handleGoBack = useCallback(() => {
     if (isEditingParent) {
-      console.log('setEditingPost', undefined);
       setEditingPost?.(undefined);
       if (channel.type !== 'notebook') {
         goBack?.();

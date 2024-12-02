@@ -9,15 +9,19 @@ import {
   createStyledContext,
   styled,
 } from 'tamagui';
+import { isWeb } from 'tamagui';
 
 import { DetailViewAuthorRow } from '../AuthorRow';
+import { Button } from '../Button';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
+import { Icon } from '../Icon';
 import { Image } from '../Image';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
+import Pressable from '../Pressable';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { Text } from '../TextV2';
 
@@ -34,6 +38,7 @@ export function NotebookPost({
   showDate = false,
   viewMode,
   size = '$l',
+  hideOverflowMenu,
 }: {
   post: db.Post;
   onPress?: (post: db.Post) => void;
@@ -48,6 +53,7 @@ export function NotebookPost({
   viewMode?: 'activity';
   isHighlighted?: boolean;
   size?: '$l' | '$s' | '$xs';
+  hideOverflowMenu?: boolean;
 }) {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const handleLongPress = useCallback(() => {
@@ -89,69 +95,77 @@ export function NotebookPost({
   const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
   return (
     <>
-      <NotebookPostFrame
-        size={size}
+      <Pressable
         onPress={handlePress}
         onLongPress={handleLongPress}
         pressStyle={{ backgroundColor: '$secondaryBackground' }}
-        disabled={viewMode === 'activity'}
+        borderRadius="$l"
       >
-        {post.hidden ? (
-          <XStack
-            gap="$s"
-            paddingVertical="$xl"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Text color="$tertiaryText" size="$body">
-              You have hidden this post.
-            </Text>
-          </XStack>
-        ) : (
-          <>
-            <NotebookPostHeader
-              post={post}
-              showDate={showDate}
-              showAuthor={showAuthor && viewMode !== 'activity'}
-              size={size}
-            />
-
-            {viewMode !== 'activity' && (
-              <Text
-                size="$body"
-                color="$secondaryText"
-                numberOfLines={3}
-                paddingBottom={showReplies && hasReplies ? 0 : '$m'}
-              >
-                {post.textContent}
+        <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
+          {post.hidden ? (
+            <XStack
+              gap="$s"
+              paddingVertical="$xl"
+              justifyContent="center"
+              alignItems="center"
+            >
+              <Text color="$tertiaryText" size="$body">
+                You have hidden this post.
               </Text>
-            )}
-
-            {showReplies && hasReplies ? (
-              <ChatMessageReplySummary
+            </XStack>
+          ) : (
+            <>
+              <NotebookPostHeader
                 post={post}
-                showTime={false}
-                textColor="$tertiaryText"
+                showDate={showDate}
+                showAuthor={showAuthor && viewMode !== 'activity'}
+                size={size}
               />
-            ) : null}
-          </>
-        )}
 
-        {post.deliveryStatus === 'failed' ? (
-          <XStack alignItems="center" justifyContent="flex-end">
-            <Text color="$negativeActionText" fontSize="$xs">
-              Message failed to send
-            </Text>
-          </XStack>
-        ) : null}
-      </NotebookPostFrame>
-      <SendPostRetrySheet
-        open={showRetrySheet}
-        post={post}
-        onOpenChange={setShowRetrySheet}
-        onPressRetry={handleRetryPressed}
-        onPressDelete={handleDeletePressed}
-      />
+              {viewMode !== 'activity' && (
+                <Text
+                  size="$body"
+                  color="$secondaryText"
+                  numberOfLines={3}
+                  paddingBottom={showReplies && hasReplies ? 0 : '$m'}
+                >
+                  {post.textContent}
+                </Text>
+              )}
+
+              {showReplies && hasReplies ? (
+                <ChatMessageReplySummary
+                  post={post}
+                  showTime={false}
+                  textColor="$tertiaryText"
+                />
+              ) : null}
+            </>
+          )}
+
+          {post.deliveryStatus === 'failed' ? (
+            <XStack alignItems="center" justifyContent="flex-end">
+              <Text color="$negativeActionText" fontSize="$xs">
+                Message failed to send
+              </Text>
+            </XStack>
+          ) : null}
+        </NotebookPostFrame>
+        <SendPostRetrySheet
+          open={showRetrySheet}
+          post={post}
+          onOpenChange={setShowRetrySheet}
+          onPressRetry={handleRetryPressed}
+          onPressDelete={handleDeletePressed}
+        />
+      </Pressable>
+      {isWeb && !hideOverflowMenu && (
+        <View position="absolute" top={8} right={24} width={8} height={0}>
+          <Button onPress={handleLongPress} borderWidth="unset" size="$l">
+            <Icon type="Overflow" />
+          </Button>
+        </View>
+      )}
     </>
   );
 }
@@ -174,7 +188,7 @@ function NotebookPostHeader({
 
   return (
     <NotebookPostHeaderFrame {...props}>
-      {post.image && size !== '$xs' && (
+      {!!post.image && size !== '$xs' && (
         <NotebookPostHeroImage
           source={{
             uri:
