@@ -562,7 +562,7 @@
   ::  we only care about posts/replies events that are notified, and we
   ::  don't want to include events from sources whose latest event is
   ::  after the start so we always get "new" sources when paging
-  ?.  ?&  notified.event
+  ?.  ?&  ?|(notified.event ?=(%contact -<.event))
           (lth latest.src-info start)
           ?=  $?  %post  %reply  %dm-post  %dm-reply
                   %flag-post  %flag-reply  %group-ask
@@ -584,6 +584,14 @@
   ?^  mention
     :-  sources.acc
     [(sub limit.acc 1) (snoc happenings.acc u.mention) collapsed.acc]
+  =/  contact-bundle=(unit activity-bundle:a)
+    ?.  ?=(%all type)  ~
+    =/  is-contact-event  ?=(%contact -<.event)
+    ?.  is-contact-event  ~
+    `[source time ~[[time event]]]
+  ?^  contact-bundle
+    :-  sources.acc
+    [(sub limit.acc 1) (snoc happenings.acc u.contact-bundle) collapsed.acc]
   =/  care
     ?|  ?=(%all type)
         &(?=(%replies type) ?=(?(%reply %dm-reply) -<.event))
