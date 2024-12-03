@@ -86,7 +86,7 @@ export default function ProfileStatusSheet({
               hero
               onPress={handleSave}
               disabled={!isValid}
-              padding={11.5}
+              paddingHorizontal="$l"
             >
               <Icon type="Send" color="$background" />
             </Button>
