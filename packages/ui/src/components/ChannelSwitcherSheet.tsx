@@ -4,8 +4,10 @@ import { TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SizableText, Text, XStack } from 'tamagui';
 
+import { useChatOptions } from '../contexts';
 import ChannelNavSections from './ChannelNavSections';
 import { Icon } from './Icon';
+import Pressable from './Pressable';
 import { Sheet } from './Sheet';
 
 interface Props {
@@ -24,29 +26,23 @@ export function ChannelSwitcherSheet({
   onSelect,
 }: Props) {
   const [hasOpened, setHasOpened] = useState(open);
-  const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
+  const chatOptions = useChatOptions();
+  const sortBy = db.channelSortPreference.useValue();
   const { bottom } = useSafeAreaInsets();
 
   useEffect(() => {
     setHasOpened(open);
   }, [open]);
 
-  useEffect(() => {
-    const getSortByPreference = async () => {
-      const preference = await db.getChannelSortPreference();
-      setSortBy(preference ?? 'recency');
-    };
+  const handleSortByToggled = useCallback(() => {
+    const newSortBy = sortBy === 'recency' ? 'arranged' : 'recency';
+    db.channelSortPreference.setValue(newSortBy);
+  }, [sortBy]);
 
-    getSortByPreference();
-  }, [setSortBy]);
-
-  const handleSortByChanged = useCallback(
-    (newSortBy: 'recency' | 'arranged') => {
-      setSortBy(newSortBy);
-      db.storeChannelSortPreference(newSortBy);
-    },
-    []
-  );
+  const handlePressSettings = useCallback(() => {
+    onOpenChange(false);
+    chatOptions.open(group.id, 'group');
+  }, [chatOptions, group.id, onOpenChange]);
 
   return (
     <Sheet
@@ -71,12 +67,7 @@ export function ChannelSwitcherSheet({
             >
               {group?.title}
             </SizableText>
-            <TouchableOpacity
-              onPress={() => {
-                const newSortBy = sortBy === 'recency' ? 'arranged' : 'recency';
-                handleSortByChanged(newSortBy);
-              }}
-            >
+            <TouchableOpacity onPress={handleSortByToggled}>
               <XStack
                 alignItems="center"
                 justifyContent="flex-end"
@@ -89,6 +80,9 @@ export function ChannelSwitcherSheet({
                 </Text>
               </XStack>
             </TouchableOpacity>
+            <Pressable onPress={handlePressSettings}>
+              <Icon type="Settings" />
+            </Pressable>
           </XStack>
           {hasOpened && (
             <ChannelNavSections

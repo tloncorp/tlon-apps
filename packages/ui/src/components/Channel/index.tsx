@@ -337,6 +337,7 @@ export function Channel({
                             }
                             showSearchButton={isChatChannel}
                             goToSearch={goToSearch}
+                            goToChannels={goToChannels}
                             showSpinner={isLoadingPosts}
                             showMenuButton={true}
                           />

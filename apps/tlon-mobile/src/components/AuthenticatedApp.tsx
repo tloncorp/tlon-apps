@@ -9,7 +9,7 @@ import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
-import { ZStack } from '@tloncorp/ui';
+import { PortalProvider, ZStack } from '@tloncorp/ui';
 import { useCallback, useEffect } from 'react';
 import { AppStateStatus } from 'react-native';
 
@@ -58,7 +58,13 @@ function AuthenticatedApp() {
 export default function ConnectedAuthenticatedApp() {
   return (
     <AppDataProvider>
-      <AuthenticatedApp />
+      {/* 
+        This portal provider overrides the root portal provider 
+        to ensure that sheets have access to `AppDataContext`
+      */}
+      <PortalProvider>
+        <AuthenticatedApp />
+      </PortalProvider>
     </AppDataProvider>
   );
 }

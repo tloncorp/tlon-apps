@@ -30,26 +30,6 @@ export const BASE_VOLUME_SETTING_QUERY_KEY = ['volume', 'base'];
 export const SHOW_BENEFITS_SHEET_QUERY_KEY = ['showBenefitsSheet'];
 export const THEME_STORAGE_KEY = '@user_theme';
 
-export type ChannelSortPreference = 'recency' | 'arranged';
-export async function storeChannelSortPreference(
-  sortPreference: ChannelSortPreference
-) {
-  try {
-    await AsyncStorage.setItem('channelSortPreference', sortPreference);
-  } catch (error) {
-    logger.error('storeChannelSortPreference', error);
-  }
-}
-
-export async function getChannelSortPreference() {
-  try {
-    const value = await AsyncStorage.getItem('channelSortPreference');
-    return (value ?? 'recency') as ChannelSortPreference;
-  } catch (error) {
-    logger.error('getChannelSortPreference', error);
-  }
-}
-
 export async function getActivitySeenMarker() {
   const marker = await AsyncStorage.getItem('activitySeenMarker');
   return Number(marker) ?? 1;
@@ -311,4 +291,11 @@ export const postDraft = (opts: {
 export const themeSettings = createStorageItem<ThemeName | null>({
   key: THEME_STORAGE_KEY,
   defaultValue: null,
+});
+
+export type ChannelSortPreference = 'recency' | 'arranged';
+
+export const channelSortPreference = createStorageItem<ChannelSortPreference>({
+  key: 'channelSortPreference',
+  defaultValue: 'recency',
 });

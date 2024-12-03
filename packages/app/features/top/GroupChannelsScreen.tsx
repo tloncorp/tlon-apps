@@ -11,7 +11,7 @@ import {
   GroupChannelsScreenView,
   InviteUsersSheet,
 } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
@@ -30,11 +30,7 @@ export function GroupChannelsScreenContent({
   groupId: string;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-
   const isFocused = useIsFocused();
-  const { data: pins } = store.usePins({
-    enabled: isFocused,
-  });
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>(
     null
   );
@@ -42,10 +38,6 @@ export function GroupChannelsScreenContent({
   const { data: unjoinedChannels } = store.useUnjoinedGroupChannels(
     group?.id ?? ''
   );
-
-  const pinnedItems = useMemo(() => {
-    return pins ?? [];
-  }, [pins]);
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
@@ -79,9 +71,6 @@ export function GroupChannelsScreenContent({
 
   return (
     <ChatOptionsProvider
-      groupId={id}
-      pinned={pinnedItems}
-      useGroup={store.useGroup}
       onPressInvite={(group) => {
         setInviteSheetGroup(group);
       }}

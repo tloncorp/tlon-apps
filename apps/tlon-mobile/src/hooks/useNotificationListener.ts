@@ -6,6 +6,7 @@ import { connectNotifications } from '@tloncorp/app/lib/notifications';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import {
   createTypedReset,
+  getMainGroupRoute,
   screenNameFromChannelId,
 } from '@tloncorp/app/navigation/utils';
 import * as posthog from '@tloncorp/app/utils/posthog';
@@ -154,17 +155,18 @@ export default function useNotificationListener() {
         }
 
         const routeStack: RouteStack = [{ name: 'ChatList' }];
-        if (channel.groupId && !channelSwitcherEnabled) {
+        if (channel.groupId) {
+          const mainGroupRoute = await getMainGroupRoute(channel.groupId);
+          routeStack.push(mainGroupRoute);
+        }
+        // Only push the channel if it wasn't already handled by the main group stack
+        if (routeStack[routeStack.length - 1].name !== 'Channel') {
+          const screenName = screenNameFromChannelId(channelId);
           routeStack.push({
-            name: 'GroupChannels',
-            params: { groupId: channel.groupId },
+            name: screenName,
+            params: { channelId: channel.id },
           });
         }
-        const screenName = screenNameFromChannelId(channelId);
-        routeStack.push({
-          name: screenName,
-          params: { channelId: channel.id },
-        });
 
         // if we have a post id, try to navigate to the thread
         if (postInfo) {

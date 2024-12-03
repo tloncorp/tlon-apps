@@ -4,7 +4,7 @@ import { useMemberRoles } from '@tloncorp/shared/store';
 import { useMemo } from 'react';
 
 import type { IconType } from '../components/Icon';
-import { useCalm } from '../contexts';
+import { useCalm } from '../contexts/appDataContext';
 
 export function getChannelMemberName(
   member: db.ChatMember,
