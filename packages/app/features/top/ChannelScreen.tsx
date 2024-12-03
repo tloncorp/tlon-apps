@@ -1,87 +1,45 @@
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { createDevLogger, useChannelContext } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import {
   useCanUpload,
-  useChannel,
+  useChannelPreview,
   useGroupPreview,
   usePostReference,
   usePostWithRelations,
-} from '@tloncorp/shared/dist/store';
-import { Story } from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared/store';
+import { Story } from '@tloncorp/shared/urbit';
 import {
   Channel,
   ChannelSwitcherSheet,
   ChatOptionsProvider,
   INITIAL_POSTS_PER_PAGE,
+  InviteUsersSheet,
   useCurrentUserId,
 } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 
-import { useChannelContext } from '../../hooks/useChannelContext';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useFocusEffect } from '../../hooks/useFocusEffect';
-import { useIsFocused } from '../../hooks/useIsFocused';
+import { useGroupActions } from '../../hooks/useGroupActions';
+import { useFeatureFlag } from '../../lib/featureFlags';
+import type { RootStackParamList } from '../../navigation/types';
 
 const logger = createDevLogger('ChannelScreen', false);
 
-export default function ChannelScreen({
-  channelFromParams,
-  navigateToDm,
-  navigateToUserProfile,
-  goBack,
-  selectedPostId,
-}: {
-  channelFromParams: db.Channel;
-  navigateToDm: (channel: db.Channel) => void;
-  goBack: () => void;
-  navigateToUserProfile: (userId: string) => void;
-  groupFromParams?: db.Group | null;
-  selectedPostId?: string | null;
-}) {
-  const currentUserId = useCurrentUserId();
-  useFocusEffect(
-    useCallback(() => {
-      if (channelFromParams.group?.isNew) {
-        store.markGroupVisited(channelFromParams.group);
-      }
+type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
-      if (!channelFromParams.isPendingChannel) {
-        store.syncChannelThreadUnreads(channelFromParams.id, {
-          priority: store.SyncPriority.High,
-        });
-      }
-    }, [channelFromParams])
-  );
-  useFocusEffect(
-    useCallback(
-      () =>
-        // Mark the channel as visited when we unfocus/leave this screen
-        () => {
-          store.markChannelVisited(channelFromParams);
-        },
-      [channelFromParams]
-    )
-  );
+export default function ChannelScreen(props: Props) {
+  const { channelId, selectedPostId, startDraft } = props.route.params;
+  const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
-  const [channelNavOpen, setChannelNavOpen] = React.useState(false);
-  const [currentChannelId, setCurrentChannelId] = React.useState(
-    channelFromParams.id
-  );
-
-  // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
-  // time
-  const [initialChannelUnread, setInitialChannelUnread] =
-    React.useState<db.ChannelUnread | null>(null);
   useEffect(() => {
-    async function initializeChannelUnread() {
-      const unread = await db.getChannelUnread({ channelId: currentChannelId });
-      setInitialChannelUnread(unread ?? null);
-    }
-    initializeChannelUnread();
-  }, [currentChannelId]);
+    setCurrentChannelId(channelId);
+  }, [channelId]);
 
+  const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
   const {
     negotiationStatus,
     getDraft,
@@ -96,16 +54,53 @@ export default function ChannelScreen({
   } = useChannelContext({
     channelId: currentChannelId,
     draftKey: currentChannelId,
-    uploaderKey: `${currentChannelId}`,
+    isChannelSwitcherEnabled,
   });
 
-  const {
-    navigateToImage,
-    navigateToPost,
-    navigateToRef,
-    navigateToSearch,
-    performGroupAction,
-  } = useChannelNavigation({ channelId: currentChannelId });
+  const currentUserId = useCurrentUserId();
+  useFocusEffect(
+    useCallback(() => {
+      if (group?.isNew) {
+        store.markGroupVisited(group);
+      }
+    }, [group])
+  );
+  useFocusEffect(
+    useCallback(() => {
+      if (channel && !channel.isPendingChannel) {
+        store.syncChannelThreadUnreads(channel.id, {
+          priority: store.SyncPriority.High,
+        });
+      }
+      // Mark the channel as visited when we unfocus/leave this screen
+      () => {
+        if (channel) {
+          store.markChannelVisited(channel);
+        }
+      };
+    }, [channel])
+  );
+
+  const [channelNavOpen, setChannelNavOpen] = React.useState(false);
+  const [inviteSheetGroup, setInviteSheetGroup] =
+    React.useState<db.Group | null>();
+
+  // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
+  // time
+  const [initialChannelUnread, setInitialChannelUnread] =
+    React.useState<db.ChannelUnread | null>(null);
+  useEffect(() => {
+    async function initializeChannelUnread() {
+      const unread = await db.getChannelUnread({ channelId: currentChannelId });
+      setInitialChannelUnread(unread ?? null);
+    }
+    initializeChannelUnread();
+  }, [currentChannelId]);
+
+  const { navigateToImage, navigateToPost, navigateToRef, navigateToSearch } =
+    useChannelNavigation({ channelId: currentChannelId });
+
+  const { performGroupAction } = useGroupActions();
 
   const session = store.useCurrentSession();
   const hasCachedNewest = useMemo(() => {
@@ -113,9 +108,48 @@ export default function ChannelScreen({
       return false;
     }
     const { syncedAt, lastPostAt } = channel;
-    if (syncedAt && session.startTime < syncedAt) {
+
+    if (syncedAt == null) {
+      return false;
+    }
+
+    // `syncedAt` is only set when sync endpoint reports that there are no newer posts.
+    // https://github.com/tloncorp/tlon-apps/blob/adde000f4330af7e0a2e19bdfcb295f5eb9fe3da/packages/shared/src/store/sync.ts#L905-L910
+    // We are guaranteed to have the most recent post before `syncedAt`; and
+    // we are guaranteed to have the most recent post after `session.startTime`.
+
+    // This case checks that we have overlap between sync backfill and session subscription.
+    //
+    //   ------------------------| syncedAt
+    //     session.startTime |---------------
+    if (syncedAt >= (session.startTime ?? 0)) {
       return true;
-    } else if (lastPostAt && syncedAt && syncedAt > lastPostAt) {
+    }
+
+    // `lastPostAt` is set with the channel's latest post during session init:
+    // https://github.com/tloncorp/tlon-apps/blob/adde000f4330af7e0a2e19bdfcb295f5eb9fe3da/packages/shared/src/store/sync.ts#L1052
+    //
+    // Since we already checked that a session is active, this case checks
+    // that we've hit `syncedAt`'s "no newer posts" at some point _after_ the
+    // channel's most recent post's timestamp.
+    //
+    //          lastPostAt
+    //              v
+    //   ------------------------| syncedAt
+    //
+    // This check would fail if we first caught up via sync, and then later
+    // started a session: in that case, there could be missing posts between
+    // `syncedAt`'s "no newer posts" and the start of the session:
+    //
+    //                lastPostAt (post not received)
+    //                    v
+    //   ----| syncedAt
+    //         session.startTime |---------
+    //
+    // NB: In that case, we *do* have the single latest post for the channel,
+    // but we'd likely be missing all other posts in the gap. Wait until we
+    // filled in the gap to show posts.
+    if (lastPostAt && syncedAt > lastPostAt) {
       return true;
     }
     return false;
@@ -141,6 +175,20 @@ export default function ChannelScreen({
     }
   }, [channel?.id, cursor]);
 
+  // If scroll to bottom is pressed, it's most straighforward to ignore
+  // existing cursor
+  const [clearedCursor, setClearedCursor] = React.useState(false);
+
+  // But if a new post is selected, we should mark the cursor
+  // as uncleared
+  useEffect(() => {
+    setClearedCursor(false);
+  }, [selectedPostId]);
+
+  const handleScrollToBottom = useCallback(() => {
+    setClearedCursor(true);
+  }, []);
+
   const {
     posts,
     query: postsQuery,
@@ -152,7 +200,7 @@ export default function ChannelScreen({
     channelId: currentChannelId,
     count: 15,
     hasCachedNewest,
-    ...(cursor
+    ...(cursor && !clearedCursor
       ? {
           mode: 'around',
           cursor,
@@ -163,6 +211,12 @@ export default function ChannelScreen({
           firstPageCount: 50,
         }),
   });
+
+  const filteredPosts = useMemo(
+    () =>
+      channel?.type !== 'chat' ? posts?.filter((p) => !p.isDeleted) : posts,
+    [posts, channel]
+  );
 
   const sendPost = useCallback(
     async (content: Story, _channelId: string, metadata?: db.PostMetadata) => {
@@ -197,10 +251,43 @@ export default function ChannelScreen({
       if (!channel) {
         throw new Error('Tried to retry send before channel loaded');
       }
-      await store.retrySendPost({
-        channel,
-        post,
-      });
+
+      if (post.deliveryStatus === 'failed') {
+        await store.retrySendPost({
+          channel,
+          post,
+        });
+      }
+
+      if (post.editStatus === 'failed' && post.lastEditContent) {
+        const postFromDb = await db.getPost({ postId: post.id });
+        let metadata: db.PostMetadata | undefined;
+        if (post.lastEditTitle) {
+          metadata = {
+            title: post.lastEditTitle ?? undefined,
+          };
+        }
+
+        if (post.lastEditImage) {
+          metadata = {
+            ...metadata,
+            image: post.lastEditImage ?? undefined,
+          };
+        }
+
+        await store.editPost({
+          post,
+          content: JSON.parse(postFromDb?.lastEditContent as string) as Story,
+          parentId: post.parentId ?? undefined,
+          metadata,
+        });
+      }
+
+      if (post.deleteStatus === 'failed') {
+        await store.deletePost({
+          post,
+        });
+      }
     },
     [channel]
   );
@@ -219,16 +306,16 @@ export default function ChannelScreen({
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
-      navigateToDm(dmChannel);
+      props.navigation.push('DM', { channelId: dmChannel.id });
     },
-    [navigateToDm]
+    [props.navigation]
   );
 
-  const handleMarkRead = useCallback(() => {
+  const handleMarkRead = useCallback(async () => {
     if (channel && !channel.isPendingChannel) {
       store.markChannelRead(channel);
     }
-  }, [channel?.id, channel?.groupId, channel?.type]);
+  }, [channel]);
 
   const canUpload = useCanUpload();
 
@@ -246,10 +333,16 @@ export default function ChannelScreen({
 
   const handleGoToUserProfile = useCallback(
     (userId: string) => {
-      navigateToUserProfile(userId);
+      props.navigation.navigate('UserProfile', { userId });
     },
-    [navigateToUserProfile]
+    [props.navigation]
   );
+
+  const handleInviteSheetOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setInviteSheetGroup(null);
+    }
+  }, []);
 
   if (!channel) {
     return null;
@@ -257,22 +350,26 @@ export default function ChannelScreen({
 
   return (
     <ChatOptionsProvider
-      groupId={channelFromParams?.id}
+      groupId={group?.id}
       pinned={pinnedItems}
       useGroup={store.useGroup}
+      onPressInvite={(group) => {
+        setInviteSheetGroup(group);
+      }}
       {...chatOptionsNavProps}
     >
       <Channel
+        key={currentChannelId}
         headerMode={headerMode}
         channel={channel}
-        initialChannelUnread={initialChannelUnread}
+        initialChannelUnread={clearedCursor ? undefined : initialChannelUnread}
         isLoadingPosts={isLoadingPosts}
         hasNewerPosts={postsQuery.hasPreviousPage}
         hasOlderPosts={postsQuery.hasNextPage}
         group={group}
-        posts={posts}
+        posts={filteredPosts ?? null}
         selectedPostId={selectedPostId}
-        goBack={goBack}
+        goBack={props.navigation.goBack}
         messageSender={sendPost}
         goToPost={navigateToPost}
         goToImageViewer={navigateToImage}
@@ -289,7 +386,7 @@ export default function ChannelScreen({
         usePostReference={usePostReference}
         useGroup={useGroupPreview}
         onGroupAction={performGroupAction}
-        useChannel={useChannel}
+        useChannel={useChannelPreview}
         storeDraft={storeDraft}
         clearDraft={clearDraft}
         getDraft={getDraft}
@@ -300,15 +397,25 @@ export default function ChannelScreen({
         editPost={editPost}
         negotiationMatch={negotiationStatus.matchedOrPending}
         canUpload={canUpload}
+        startDraft={startDraft}
+        onPressScrollToBottom={handleScrollToBottom}
       />
       {group && (
-        <ChannelSwitcherSheet
-          open={channelNavOpen}
-          onOpenChange={(open) => setChannelNavOpen(open)}
-          group={group}
-          channels={group?.channels || []}
-          onSelect={handleChannelSelected}
-        />
+        <>
+          <ChannelSwitcherSheet
+            open={channelNavOpen}
+            onOpenChange={(open) => setChannelNavOpen(open)}
+            group={group}
+            channels={group?.channels || []}
+            onSelect={handleChannelSelected}
+          />
+          <InviteUsersSheet
+            open={inviteSheetGroup !== null}
+            onOpenChange={handleInviteSheetOpenChange}
+            onInviteComplete={() => setInviteSheetGroup(null)}
+            group={inviteSheetGroup ?? undefined}
+          />
+        </>
       )}
     </ChatOptionsProvider>
   );

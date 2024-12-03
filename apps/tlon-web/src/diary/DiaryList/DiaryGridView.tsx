@@ -1,4 +1,4 @@
-import { Post, PostTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { Post, PostTuple } from '@tloncorp/shared/urbit/channel';
 import {
   RenderComponentProps,
   useInfiniteLoader,

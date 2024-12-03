@@ -1,21 +1,23 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
-import * as store from '@tloncorp/shared/dist/store';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import React from 'react';
-import { FlatList, RefreshControl } from 'react-native';
-import { SizableText, View } from 'tamagui';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, RefreshControl, StyleProp, ViewStyle } from 'react-native';
+import { View, useStyle } from 'tamagui';
 
+import { NavigationProvider } from '../../contexts';
+import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { ActivityHeader } from './ActivityHeader';
-import { ChannelActivitySummary } from './ChannelActivitySummary';
-import { GroupActivitySummary } from './GroupActivitySummary';
+import { ActivityListItem } from './ActivityListItem';
 
 export function ActivityScreenView({
   isFocused,
   goToChannel,
   goToThread,
   goToGroup,
+  goToUserProfile,
+  onGroupAction,
   bucketFetchers,
   refresh,
 }: {
@@ -23,6 +25,8 @@ export function ActivityScreenView({
   goToChannel: (channel: db.Channel, selectedPostId?: string) => void;
   goToThread: (post: db.Post) => void;
   goToGroup: (group: db.Group) => void;
+  goToUserProfile: (userId: string) => void;
+  onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   bucketFetchers: store.BucketFetchers;
   refresh: () => Promise<void>;
 }) {
@@ -37,6 +41,7 @@ export function ActivityScreenView({
       bucketFetchers.all.activity[0]?.newest.timestamp ?? activitySeenMarker
     );
   }, [activitySeenMarker, bucketFetchers.all.activity]);
+
   const moveSeenMarker = useCallback(() => {
     setTimeout(() => {
       store.advanceActivitySeenMarker(newestTimestamp);
@@ -88,24 +93,16 @@ export function ActivityScreenView({
             console.warn('No group found for group-ask', event);
           }
           break;
+        case 'contact':
+          if (event.contactUserId) {
+            goToUserProfile(event.contactUserId);
+          }
+          break;
         default:
           break;
       }
     },
-    [goToChannel, goToThread, goToGroup]
-  );
-
-  const renderItem = useCallback(
-    ({ item }: { item: logic.SourceActivityEvents }) => {
-      return (
-        <SourceActivityDisplay
-          sourceActivity={item}
-          onPress={handlePressEvent}
-          seenMarker={activitySeenMarker ?? Date.now()}
-        />
-      );
-    },
-    [activitySeenMarker, handlePressEvent]
+    [goToChannel, goToThread, goToGroup, goToUserProfile]
   );
 
   const events = useMemo(
@@ -128,10 +125,6 @@ export function ActivityScreenView({
     }
   }, [currentFetcher]);
 
-  const keyExtractor = useCallback((item: logic.SourceActivityEvents) => {
-    return `${item.sourceId}/${item.newest.bucketId}/${item.all.length}`;
-  }, []);
-
   const [refreshing, setRefreshing] = React.useState(false);
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -140,68 +133,104 @@ export function ActivityScreenView({
   }, [refresh]);
 
   return (
-    <View flex={1}>
-      <ActivityHeader activeTab={activeTab} onTabPress={handleTabPress} />
-      {events.length > 0 && (
-        <FlatList
-          data={events}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          contentContainerStyle={{ paddingTop: 16, paddingHorizontal: 16 }}
-          onEndReached={handleEndReached}
-          ListFooterComponent={
-            currentFetcher.isFetching ? <LoadingSpinner /> : null
-          }
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        />
-      )}
-    </View>
+    <ActivityScreenContent
+      activeTab={activeTab}
+      onPressTab={handleTabPress}
+      onPressEvent={handlePressEvent}
+      onEndReached={handleEndReached}
+      events={events}
+      isFetching={currentFetcher.isFetching}
+      isRefreshing={refreshing}
+      onRefreshTriggered={onRefresh}
+      seenMarker={activitySeenMarker ?? Date.now()}
+      onGroupAction={onGroupAction}
+    />
   );
 }
 
-function ActivityEventRaw({
-  sourceActivity,
+export function ActivityScreenContent({
+  activeTab,
+  events,
+  isFetching,
+  isRefreshing,
+  onPressTab,
+  onPressEvent,
+  onEndReached,
+  onRefreshTriggered,
+  onGroupAction,
   seenMarker,
-  onPress,
 }: {
+  activeTab: db.ActivityBucket;
+  onPressTab: (tab: db.ActivityBucket) => void;
+  onPressEvent: (event: db.ActivityEvent) => void;
+  onEndReached: () => void;
+  events: logic.SourceActivityEvents[];
+  isFetching: boolean;
+  isRefreshing: boolean;
+  onRefreshTriggered: () => void;
   seenMarker: number;
-  sourceActivity: logic.SourceActivityEvents;
-  onPress: (event: db.ActivityEvent) => void;
+  onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
 }) {
-  const event = sourceActivity.newest;
-  const handlePress = useCallback(() => onPress(event), [event, onPress]);
+  const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
+  const handleGroupAction = useCallback(
+    (action: GroupPreviewAction, group: db.Group) => {
+      setSelectedGroup(null);
+      setTimeout(() => {
+        onGroupAction(action, group);
+      }, 100);
+    },
+    [onGroupAction]
+  );
 
-  if (db.isGroupEvent(event)) {
-    return (
-      <View onPress={handlePress} marginBottom="$xl">
-        <GroupActivitySummary
-          summary={sourceActivity}
+  const keyExtractor = useCallback((item: logic.SourceActivityEvents) => {
+    return `${item.newest.id}/${item.sourceId}/${item.newest.bucketId}/${item.all.length}`;
+  }, []);
+
+  const renderItem = useCallback(
+    ({ item }: { item: logic.SourceActivityEvents }) => {
+      return (
+        <ActivityListItem
+          sourceActivity={item}
+          onPress={onPressEvent}
           seenMarker={seenMarker}
-          pressHandler={handlePress}
+        />
+      );
+    },
+    [onPressEvent, seenMarker]
+  );
+
+  const containerStyle = useStyle({
+    padding: '$l',
+    gap: '$l',
+  }) as StyleProp<ViewStyle>;
+
+  return (
+    <NavigationProvider onPressGroupRef={setSelectedGroup}>
+      <View flex={1}>
+        <ActivityHeader activeTab={activeTab} onTabPress={onPressTab} />
+        {events.length > 0 && (
+          <FlatList
+            data={events}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={containerStyle}
+            onEndReached={onEndReached}
+            ListFooterComponent={isFetching ? <LoadingSpinner /> : null}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={onRefreshTriggered}
+              />
+            }
+          />
+        )}
+        <GroupPreviewSheet
+          open={!!selectedGroup}
+          onOpenChange={() => setSelectedGroup(null)}
+          group={selectedGroup ?? undefined}
+          onActionComplete={handleGroupAction}
         />
       </View>
-    );
-  }
-
-  if (
-    event.type === 'post' ||
-    event.type === 'reply' ||
-    event.type === 'flag-post' ||
-    event.type === 'flag-reply'
-  ) {
-    return (
-      <View onPress={handlePress} marginBottom="$xl">
-        <ChannelActivitySummary
-          summary={sourceActivity}
-          seenMarker={seenMarker}
-          pressHandler={handlePress}
-        />
-      </View>
-    );
-  }
-
-  return <SizableText> Event type {event.type} not supported</SizableText>;
+    </NavigationProvider>
+  );
 }
-const SourceActivityDisplay = React.memo(ActivityEventRaw);

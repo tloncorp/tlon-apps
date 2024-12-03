@@ -7,9 +7,13 @@
     "tamagui.config.ts",
     "tamagui.d.ts",
     "index.js",
-    "svg.d.ts"
+    "svg.d.ts",
+    "../../cosmos.imports.ts",
+    "../../packages/app/fixtures/**/*.tsx",
+    "../../packages/app/fixtures/**/*.ts"
   ],
   "compilerOptions": {
-    "composite": true
+    "composite": true,
+    "moduleSuffixes": [".native", ".ios", ".android", ""]
   }
 }

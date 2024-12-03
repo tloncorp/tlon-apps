@@ -14,12 +14,7 @@ export const ProfileBlock = ({
 >) => {
   const contact = useContact(contactId);
   return contact?.coverImage ? (
-    <ProfileCover
-      width={'100%'}
-      aspectRatio={1}
-      uri={contact.coverImage}
-      {...props}
-    >
+    <ProfileCover width={'100%'} uri={contact.coverImage} {...props}>
       <YStack flex={1} justifyContent="flex-end">
         <ProfileRow
           contactId={contactId}

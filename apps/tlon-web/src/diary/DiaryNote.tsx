@@ -1,4 +1,4 @@
-import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
+import { ViewProps } from '@tloncorp/shared/urbit/groups';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';

@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import {
   ReactNode,
   createContext,
@@ -23,6 +23,7 @@ export type ChatOptionsContextValue = {
   onPressChannelMeta: (channelId: string) => void;
   onTogglePinned: () => void;
   onPressLeave: () => Promise<void>;
+  onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
 } | null;
 
 const ChatOptionsContext = createContext<ChatOptionsContextValue>(null);
@@ -45,6 +46,8 @@ type ChatOptionsProviderProps = {
   onPressChannelMembers: (channelId: string) => void;
   onPressChannelMeta: (channelId: string) => void;
   onPressRoles: (groupId: string) => void;
+  onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
+  navigateOnLeave?: () => void;
 };
 
 export const ChatOptionsProvider = ({
@@ -60,6 +63,7 @@ export const ChatOptionsProvider = ({
   onPressChannelMembers,
   onPressChannelMeta,
   onPressRoles,
+  navigateOnLeave,
 }: ChatOptionsProviderProps) => {
   const groupQuery = useGroup({ id: groupId ?? '' });
   const group = groupId ? groupQuery.data ?? null : null;
@@ -78,7 +82,12 @@ export const ChatOptionsProvider = ({
     if (group) {
       await store.leaveGroup(group.id);
     }
-  }, [group]);
+    navigateOnLeave?.();
+  }, [group, navigateOnLeave]);
+
+  const onSelectSort = useCallback((sortBy: 'recency' | 'arranged') => {
+    db.storeChannelSortPreference(sortBy);
+  }, []);
 
   const contextValue: ChatOptionsContextValue = {
     pinned,
@@ -95,6 +104,7 @@ export const ChatOptionsProvider = ({
     onTogglePinned,
     onPressChannelMembers,
     onPressChannelMeta,
+    onSelectSort,
   };
 
   return (

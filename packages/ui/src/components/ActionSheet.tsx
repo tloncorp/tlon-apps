@@ -11,8 +11,10 @@ import {
 import { Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  Dialog,
   SheetProps,
   View,
+  VisuallyHidden,
   YStack,
   createStyledContext,
   getTokenValue,
@@ -21,6 +23,7 @@ import {
 } from 'tamagui';
 
 import { useCopy } from '../hooks/useCopy';
+import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
 import { Icon, IconType } from './Icon';
 import { ListItem } from './ListItem';
 import { Sheet } from './Sheet';
@@ -35,6 +38,7 @@ export type Action = {
   render?: (props: ActionRenderProps) => ReactElement;
   endIcon?: IconType | ReactElement;
   startIcon?: IconType | ReactElement;
+  accent?: Accent;
 };
 
 export type ActionRenderProps = {
@@ -71,6 +75,12 @@ export function createActionGroup(
 type ActionSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  title?: string;
+};
+
+const useAdaptiveMode = () => {
+  const isWindowNarrow = useIsWindowNarrow();
+  return isWindowNarrow ? 'sheet' : 'dialog';
 };
 
 // Main component
@@ -78,9 +88,11 @@ type ActionSheetProps = {
 const ActionSheetComponent = ({
   open,
   onOpenChange,
+  title,
   children,
   ...props
 }: PropsWithChildren<ActionSheetProps & SheetProps>) => {
+  const mode = useAdaptiveMode();
   const hasOpened = useRef(open);
   if (!hasOpened.current && open) {
     hasOpened.current = true;
@@ -88,6 +100,44 @@ const ActionSheetComponent = ({
 
   // Sheets are heavy; we don't want to render until we need to
   if (!hasOpened.current) return null;
+
+  if (mode === 'dialog') {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog.Portal>
+          <VisuallyHidden>
+            <Dialog.Title>{title}</Dialog.Title>
+          </VisuallyHidden>
+          <Dialog.Overlay
+            backgroundColor="$darkOverlay"
+            key="overlay"
+            opacity={0.5}
+          />
+          <Dialog.Content
+            borderWidth={1}
+            borderColor="$border"
+            padding={0}
+            minWidth={300}
+            key="content"
+          >
+            {children}
+          </Dialog.Content>
+        </Dialog.Portal>
+
+        {/* Should not be necessary, but just in case */}
+        <Dialog.Adapt when="sm">
+          <Dialog.Sheet>
+            <Dialog.Sheet.Overlay />
+            <Dialog.Sheet.Frame>
+              <Dialog.Sheet.ScrollView>
+                <Dialog.Adapt.Contents />
+              </Dialog.Sheet.ScrollView>
+            </Dialog.Sheet.Frame>
+          </Dialog.Sheet>
+        </Dialog.Adapt>
+      </Dialog>
+    );
+  }
 
   return (
     <Modal
@@ -106,7 +156,7 @@ const ActionSheetComponent = ({
         {...props}
       >
         <Sheet.Overlay animation="quick" />
-        {/* 
+        {/*
           press style is set here to ensure touch responders are added and drag gestures
           bubble up accordingly (unclear why needed after adding modal wrapper)
         */}
@@ -130,9 +180,7 @@ const ActionSheetHeader = ActionSheetHeaderFrame.styleable(
   ({ children, ...props }, ref) => {
     return (
       <ActionSheetHeaderFrame {...props} ref={ref}>
-        <ListItem pressable={false} paddingHorizontal="$2xl">
-          {children}
-        </ListItem>
+        <ListItem paddingHorizontal="$2xl">{children}</ListItem>
       </ActionSheetHeaderFrame>
     );
   }
@@ -180,6 +228,9 @@ const useContentStyle = () => {
 const ActionSheetContentBlock = styled(View, {
   name: 'ActionSheetContentBlock',
   padding: '$xl',
+  $gtSm: {
+    padding: '$l',
+  },
   variants: {
     form: {
       true: { paddingHorizontal: '$2xl' },
@@ -290,22 +341,30 @@ const ActionSheetActionFrame = styled(ListItem, {
   context: ActionSheetActionGroupContext,
   borderRadius: 0,
   paddingHorizontal: '$2xl',
+  paddingVertical: '$l',
+  $gtSm: {
+    paddingHorizontal: '$l',
+    paddingVertical: '$m',
+  },
   pressStyle: {
     backgroundColor: '$secondaryBackground',
   },
   variants: {
     type: {
       positive: {
+        backgroundColor: '$positiveBackground',
         pressStyle: {
           backgroundColor: '$positiveBackground',
         },
       },
       negative: {
+        backgroundColor: '$negativeBackground',
         pressStyle: {
           backgroundColor: '$negativeBackground',
         },
       },
       neutral: {},
+      disabled: {},
     },
   } as const,
 });
@@ -330,6 +389,10 @@ const ActionSheetActionTitle = styled(ListItem.Title, {
 
 const ActionSheetActionDescription = styled(ListItem.Subtitle, {
   context: ActionSheetActionGroupContext,
+  maxWidth: '100%',
+  $gtSm: {
+    maxWidth: 200,
+  },
   variants: {
     accent: {
       positive: {
@@ -343,33 +406,46 @@ const ActionSheetActionDescription = styled(ListItem.Subtitle, {
   } as const,
 });
 
+const ActionSheetMainContent = styled(YStack, {
+  name: 'ActionSheetMainContent',
+  flex: 1,
+  justifyContent: 'space-evenly',
+  height: '$4xl',
+});
+
 function ActionSheetAction({ action }: { action: Action }) {
   const accent = useContext(ActionSheetActionGroupContext).accent;
   return action.render ? (
     action.render({ action })
   ) : (
     <ActionSheetActionFrame
+      type={action.accent ?? (accent as Accent)}
       onPress={accent !== 'disabled' ? action.action : undefined}
     >
-      {action.startIcon && resolveIcon(action.startIcon)}
-      <ListItem.MainContent>
-        <ActionSheet.ActionTitle>{action.title}</ActionSheet.ActionTitle>
+      {action.startIcon &&
+        resolveIcon(action.startIcon, action.accent ?? accent)}
+      <ActionSheetMainContent>
+        <ActionSheet.ActionTitle accent={action.accent ?? accent}>
+          {action.title}
+        </ActionSheet.ActionTitle>
         {action.description && (
           <ActionSheet.ActionDescription>
             {action.description}
           </ActionSheet.ActionDescription>
         )}
-      </ListItem.MainContent>
+      </ActionSheetMainContent>
       {action.endIcon && (
-        <ListItem.EndContent>{resolveIcon(action.endIcon)}</ListItem.EndContent>
+        <ListItem.EndContent>
+          {resolveIcon(action.endIcon, action.accent ?? accent)}
+        </ListItem.EndContent>
       )}
     </ActionSheetActionFrame>
   );
 }
 
-function resolveIcon(icon: IconType | ReactElement) {
+function resolveIcon(icon: IconType | ReactElement, accent: Accent) {
   if (typeof icon === 'string') {
-    return <ActionSheetActionIcon type={icon} />;
+    return <ActionSheetActionIcon accent={accent} type={icon} />;
   }
   return icon;
 }
@@ -386,6 +462,9 @@ const ActionSheetActionIcon = styled(Icon, {
         color: '$negativeActionText',
       },
       neutral: {},
+      disabled: {
+        color: '$tertiaryText',
+      },
     },
   } as const,
 });
@@ -493,6 +572,7 @@ export const ActionSheet = withStaticProperties(ActionSheetComponent, {
   FormBlock: ActionSheetFormBlock,
   ActionGroup: ActionSheetActionGroup,
   Action: ActionSheetAction,
+  MainContent: ActionSheetMainContent,
   ActionFrame: ActionSheetActionFrame,
   ActionGroupContent: ActionSheetActionGroupContent,
   ActionGroupFrame: ActionSheetActionGroupFrame,

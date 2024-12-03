@@ -28,6 +28,7 @@ export async function createGroup({
       groupId,
       currentUserId,
     });
+    logger.log(`created group ${groupId}`);
 
     await sync.syncGroup(groupId);
     await sync.syncUnreads(); // ensure current user gets registered as a member of the channel
@@ -983,7 +984,7 @@ export async function leaveGroup(groupId: string) {
   }
 }
 
-export async function markGroupRead(group: db.Group) {
+export async function markGroupRead(group: db.Group, deep: boolean = false) {
   // optimistic update
   const existingUnread = await db.getGroupUnread({ groupId: group.id });
   if (existingUnread) {
@@ -991,9 +992,9 @@ export async function markGroupRead(group: db.Group) {
   }
 
   try {
-    await api.readGroup(group);
+    await api.readGroup(group, deep);
   } catch (e) {
-    console.error('Failed to read channel', e);
+    console.error('Failed to read group', e);
     // rollback optimistic update
     if (existingUnread) {
       await db.insertGroupUnreads([existingUnread]);

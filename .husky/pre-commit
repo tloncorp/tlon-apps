@@ -1,4 +1,0 @@
-#!/bin/sh
-git add ./apps/tlon-web/src/\*.snap
-
-pnpm exec lint-staged

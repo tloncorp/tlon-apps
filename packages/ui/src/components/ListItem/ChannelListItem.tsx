@@ -1,12 +1,18 @@
-import type * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
+import type * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import { useMemo } from 'react';
+import { View } from 'tamagui';
+import { isWeb } from 'tamagui';
+import { getVariableValue } from 'tamagui';
 
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
+import { Button } from '../Button';
+import { Chat } from '../ChatList';
+import { Icon } from '../Icon';
+import Pressable from '../Pressable';
 import { ListItem, type ListItemProps } from './ListItem';
-import { useBoundHandler } from './listItemUtils';
 
 export function ChannelListItem({
   model,
@@ -15,15 +21,25 @@ export function ChannelListItem({
   onPress,
   onLongPress,
   EndContent,
+  dimmed,
   ...props
 }: {
   useTypeIcon?: boolean;
   customSubtitle?: string;
-} & ListItemProps<db.Channel>) {
+  dimmed?: boolean;
+} & ListItemProps<Chat> & { model: db.Channel }) {
   const unreadCount = model.unread?.count ?? 0;
   const title = utils.useChannelTitle(model);
   const firstMemberId = model.members?.[0]?.contactId ?? '';
   const memberCount = model.members?.length ?? 0;
+
+  const handlePress = logic.useMutableCallback(() => {
+    onPress?.(model);
+  });
+
+  const handleLongPress = logic.useMutableCallback(() => {
+    onLongPress?.(model);
+  });
 
   const { subtitle, subtitleIcon } = useMemo(() => {
     if (model.type === 'dm' || model.type === 'groupDm') {
@@ -45,59 +61,69 @@ export function ChannelListItem({
   }, [model, firstMemberId, memberCount]);
 
   return (
-    <ListItem
-      {...props}
-      onPress={useBoundHandler(model, onPress)}
-      onLongPress={useBoundHandler(model, onLongPress)}
-    >
-      <ListItem.ChannelIcon
-        model={model}
-        useTypeIcon={useTypeIcon}
-        opacity={
-          logic.isMuted(model.volumeSettings?.level, 'channel') ? 0.2 : 1
-        }
-      />
-      <ListItem.MainContent>
-        <ListItem.Title
-          color={
-            logic.isMuted(model.volumeSettings?.level, 'channel')
-              ? '$tertiaryText'
-              : undefined
-          }
-        >
-          {title}
-        </ListItem.Title>
-        {customSubtitle ? (
-          <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
-        ) : (
-          <ListItem.SubtitleWithIcon icon={subtitleIcon}>
-            {subtitle}
-          </ListItem.SubtitleWithIcon>
-        )}
-        {model.lastPost && (
-          <ListItem.PostPreview
-            post={model.lastPost}
-            showAuthor={model.type !== 'dm'}
+    <View>
+      <Pressable
+        borderRadius="$xl"
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+      >
+        <ListItem {...props}>
+          <ListItem.ChannelIcon
+            model={model}
+            useTypeIcon={useTypeIcon}
+            dimmed={dimmed}
           />
-        )}
-      </ListItem.MainContent>
+          <ListItem.MainContent>
+            <ListItem.Title dimmed={dimmed}>{title}</ListItem.Title>
+            {customSubtitle ? (
+              <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
+            ) : (
+              <ListItem.SubtitleWithIcon icon={subtitleIcon}>
+                {subtitle}
+              </ListItem.SubtitleWithIcon>
+            )}
+            {model.lastPost && (
+              <ListItem.PostPreview
+                post={model.lastPost}
+                showAuthor={model.type !== 'dm'}
+              />
+            )}
+          </ListItem.MainContent>
 
-      {EndContent ?? (
-        <ListItem.EndContent>
-          {model.lastPost?.receivedAt ? (
-            <ListItem.Time time={model.lastPost.receivedAt} />
-          ) : null}
+          {EndContent ?? (
+            <ListItem.EndContent>
+              {model.lastPost?.receivedAt ? (
+                <ListItem.Time time={model.lastPost.receivedAt} />
+              ) : null}
 
-          {model.isDmInvite ? (
-            <Badge text="Invite" />
-          ) : (
-            <ListItem.Count
-              count={unreadCount}
-              muted={logic.isMuted(model.volumeSettings?.level, 'channel')}
-            />
+              {model.isDmInvite ? (
+                <Badge text="Invite" />
+              ) : (
+                <ListItem.Count
+                  count={unreadCount}
+                  muted={logic.isMuted(model.volumeSettings?.level, 'channel')}
+                  marginRight={
+                    isWeb ? getVariableValue('3xl', 'space') : 'unset'
+                  }
+                />
+              )}
+            </ListItem.EndContent>
           )}
-        </ListItem.EndContent>
+        </ListItem>
+      </Pressable>
+      {isWeb && (
+        <View position="absolute" right={-2} top={44} zIndex={1}>
+          <Button
+            onPress={handleLongPress}
+            borderWidth="unset"
+            size="$s"
+            paddingHorizontal={0}
+            marginHorizontal="$-m"
+          >
+            <Icon type="Overflow" />
+          </Button>
+        </View>
       )}
-    </ListItem>
+    </View>
   );
 }

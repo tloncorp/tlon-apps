@@ -1,20 +1,23 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { DEFAULT_ONBOARDING_NICKNAME } from '@tloncorp/app/constants';
 import { requestNotificationToken } from '@tloncorp/app/lib/notifications';
 import { trackError } from '@tloncorp/app/utils/posthog';
 import {
-  Button,
   Field,
-  GenericHeader,
-  SizableText,
-  Text,
+  Image,
+  ScreenHeader,
   TextInput,
+  TlonText,
   View,
+  XStack,
   YStack,
+  useTheme,
 } from '@tloncorp/ui';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import type { OnboardingStackParamList } from '../../types';
+import { useSignupContext } from '.././../lib/signupContext';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetNickname'>;
 
@@ -26,29 +29,38 @@ type FormData = {
 export const SetNicknameScreen = ({
   navigation,
   route: {
-    params: { user, signUpExtras },
+    params: { user },
   },
 }: Props) => {
+  const theme = useTheme();
+
+  const facesImage = theme.dark
+    ? require('../../../assets/images/faces-dark.png')
+    : require('../../../assets/images/faces.png');
+
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
     setValue,
   } = useForm<FormData>({
     defaultValues: {
-      nickname: signUpExtras.nickname,
+      nickname: DEFAULT_ONBOARDING_NICKNAME ?? '',
       notificationToken: undefined,
     },
   });
 
+  const signupContext = useSignupContext();
+
   const onSubmit = handleSubmit(({ nickname, notificationToken }) => {
-    navigation.navigate('SetTelemetry', {
+    signupContext.setOnboardingValues({
+      nickname,
+      notificationToken,
+      userWasReadyAt: Date.now(),
+    });
+
+    navigation.push('ReserveShip', {
       user,
-      signUpExtras: {
-        ...signUpExtras,
-        nickname,
-        notificationToken,
-      },
     });
   });
 
@@ -78,29 +90,40 @@ export const SetNicknameScreen = ({
   }, [setValue]);
 
   return (
-    <View flex={1}>
-      <GenericHeader
+    <View flex={1} backgroundColor={'$secondaryBackground'}>
+      <ScreenHeader
         title="Nickname"
         showSessionStatus={false}
-        rightContent={
-          <Button minimal onPress={onSubmit}>
-            <Text fontSize="$m">Next</Text>
-          </Button>
+        rightControls={
+          <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
+            Next
+          </ScreenHeader.TextButton>
         }
       />
-      <YStack gap="$xl" padding="$2xl">
-        <SizableText color="$primaryText">
+      <YStack gap="$xl" paddingHorizontal="$2xl">
+        <XStack justifyContent="center" paddingTop="$l">
+          <Image height={155} aspectRatio={862 / 609} source={facesImage} />
+        </XStack>
+
+        <TlonText.Text size="$body" padding="$xl">
           Choose the nickname you want to use on the Tlon network. By default,
           you will use a pseudonymous identifier.
-        </SizableText>
+        </TlonText.Text>
         <Controller
           control={control}
           name="nickname"
+          rules={{
+            required: 'Please enter a nickname.',
+            minLength: {
+              value: 1,
+              message: 'Please enter a nickname.',
+            },
+          }}
           render={({ field: { onChange, onBlur, value } }) => (
             <Field label="Nickname" error={errors.nickname?.message}>
               <TextInput
                 value={value}
-                placeholder="Choose a display name"
+                placeholder="Sampel Palnet"
                 onBlur={onBlur}
                 onChangeText={onChange}
                 onSubmitEditing={onSubmit}

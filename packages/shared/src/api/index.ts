@@ -1,6 +1,6 @@
+export * from './channelContentConfig';
 export * from './channelsApi';
 export * from './chatApi';
-export * from './contactsApi';
 export * from './contactsApi';
 export * from './groupsApi';
 export * from './landscapeApi';
@@ -15,3 +15,4 @@ export * from './settingsApi';
 export * from './activityApi';
 export * from './harkApi';
 export * from './storageApi';
+export * from './vitalsApi';

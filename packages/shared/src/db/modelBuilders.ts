@@ -9,7 +9,6 @@ import {
 import * as db from '../db';
 import * as logic from '../logic';
 import { convertToAscii } from '../logic';
-import { CurrentChats, PendingChats } from '../store';
 import * as ub from '../urbit';
 import { getChannelKindFromType } from '../urbit';
 import * as types from './types';
@@ -17,22 +16,14 @@ import * as types from './types';
 export function assembleNewChannelIdAndName({
   title,
   channelType,
-  currentChatData,
-  pendingChats,
+  existingChannels,
   currentUserId,
 }: {
   title: string;
   channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
-  currentChatData?: CurrentChats | null;
-  pendingChats?: PendingChats | null;
+  existingChannels: db.Channel[];
   currentUserId: string;
 }) {
-  const existingChannels = [
-    ...(pendingChats ?? []),
-    ...(currentChatData?.pinned ?? []),
-    ...(currentChatData?.unpinned ?? []),
-  ];
-
   const titleIsNumber = Number.isInteger(Number(title));
   // we need unique channel names that are valid for urbit's @tas type
   const tempChannelName = titleIsNumber
@@ -47,13 +38,12 @@ export function assembleNewChannelIdAndName({
     );
   };
 
-  const randomSmallNumber = Math.floor(Math.random() * 100);
+  const randomSmallNumber = Math.floor(Math.random() * 1000);
   const channelName = existingChannel()
     ? `${tempChannelName}-${randomSmallNumber}`
     : tempChannelName;
   const newChannelFlag = `${currentUserId}/${channelName}`;
-  const newChannelNest = `${channelType}/${newChannelFlag}`;
-
+  const newChannelNest = `${channelKind}/${newChannelFlag}`;
   return {
     name: channelName,
     id: newChannelNest,
@@ -239,11 +229,130 @@ export function buildPendingSingleDmChannel(
 
   return {
     id,
+    contactId: dmPartnerId,
     type: 'dm',
     currentUserIsMember: true,
     postCount: 0,
     unreadCount: 0,
     isPendingChannel: true,
+    isDmInvite: false,
     members: [partnerMember],
+  };
+}
+
+type Optional<Base, OptionalProperties extends keyof Base> = Omit<
+  Base,
+  OptionalProperties
+> &
+  Partial<Pick<Base, OptionalProperties>>;
+
+export function buildChannel(
+  overrides: Optional<
+    db.Channel,
+    | 'addedToGroupAt'
+    | 'contactId'
+    | 'contentConfiguration'
+    | 'coverImage'
+    | 'coverImageColor'
+    | 'currentUserIsMember'
+    | 'description'
+    | 'firstUnreadPostId'
+    | 'groupId'
+    | 'iconImage'
+    | 'iconImageColor'
+    | 'isDefaultWelcomeChannel'
+    | 'isDmInvite'
+    | 'isPendingChannel'
+    | 'lastPostAt'
+    | 'lastPostId'
+    | 'lastViewedAt'
+    | 'members'
+    | 'postCount'
+    | 'remoteUpdatedAt'
+    | 'syncedAt'
+    | 'title'
+    | 'unreadCount'
+  >
+): db.Channel {
+  return {
+    addedToGroupAt: null,
+    contactId: null,
+    contentConfiguration: null,
+    coverImage: null,
+    coverImageColor: null,
+    currentUserIsMember: null,
+    description: null,
+    firstUnreadPostId: null,
+    groupId: null,
+    iconImage: null,
+    iconImageColor: null,
+    isDefaultWelcomeChannel: null,
+    isDmInvite: false,
+    isPendingChannel: null,
+    lastPostAt: null,
+    lastPostId: null,
+    lastViewedAt: null,
+    members: [],
+    postCount: null,
+    remoteUpdatedAt: null,
+    syncedAt: null,
+    title: '',
+    unreadCount: null,
+    ...overrides,
+  };
+}
+
+export function buildChatMember(
+  overrides: Optional<
+    db.ChatMember,
+    'chatId' | 'contact' | 'joinedAt' | 'status'
+  >
+): db.ChatMember {
+  return {
+    chatId: null,
+    contact: null,
+    joinedAt: null,
+    status: null,
+    ...overrides,
+  };
+}
+
+interface ChatMembersBuilder {
+  add(
+    ...overrides: Array<
+      Optional<Omit<db.ChatMember, 'chatId' | 'membershipType'>, 'contact'>
+    >
+  ): ChatMembersBuilder;
+  build(): db.ChatMember[];
+}
+
+/**
+ * Build a list of chat members, specifying common fields in one place.
+ *
+ * ```ts
+ * const channel = {
+ *   members: buildChatMembers({ chatId: '1', membershipType: 'channel' })
+ *     .add({ contactId: '2', status: 'joined' })
+ *     .add({ contactId: '3', status: 'invited' })
+ *     .build()
+ * };
+ * ```
+ */
+export function buildChatMembers(
+  commonFields: Pick<db.ChatMember, 'chatId' | 'membershipType'>
+): ChatMembersBuilder {
+  const members: db.ChatMember[] = [];
+
+  return {
+    add(...overridesList) {
+      for (const overrides of overridesList) {
+        const member = buildChatMember({ ...commonFields, ...overrides });
+        members.push(member);
+      }
+      return this;
+    },
+    build() {
+      return members;
+    },
   };
 }

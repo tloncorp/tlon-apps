@@ -1,5 +1,10 @@
+import { useDebouncedValue } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import { compact } from 'lodash';
+import { useEffect } from 'react';
 
 import { trackError } from '../utils/posthog';
 import { connectNotifyProvider } from './notificationsApi';
@@ -69,3 +74,59 @@ export const connectNotifications = async () => {
     return false;
   }
 };
+
+const channelIdFromNotification = (notif: Notifications.Notification) => {
+  if (notif.request.trigger.type !== 'push') {
+    return null;
+  }
+  const out = notif.request.trigger.payload?.channelId;
+  if (typeof out !== 'string') {
+    return null;
+  }
+  return out;
+};
+
+/**
+ * Imprecise method to sync internal unreads with presented notifications.
+ * We should move to a serverside badge + dismiss notification system, and remove this.
+ */
+async function updatePresentedNotifications(badgeCount?: number) {
+  console.log('updatePresentedNotifications');
+  const presentedNotifs = await Notifications.getPresentedNotificationsAsync();
+  const allChannelIds = new Set(
+    compact(presentedNotifs.map(channelIdFromNotification))
+  );
+
+  const fullyReadChannels = new Set<string>();
+  for await (const channelId of allChannelIds) {
+    const channel = await db.getChannelWithRelations({ id: channelId });
+    if (channel?.unread?.count === 0) {
+      fullyReadChannels.add(channelId);
+    }
+  }
+
+  const notificationsToDelete = presentedNotifs.filter((notif) => {
+    const cId = channelIdFromNotification(notif);
+    // also delete notifications that have no channel id to avoid stuck notifs
+    return cId == null || fullyReadChannels.has(cId);
+  });
+
+  await Promise.all(
+    notificationsToDelete.map(async (notif) => {
+      await Notifications.dismissNotificationAsync(notif.request.identifier);
+    })
+  );
+
+  const count =
+    badgeCount ?? (await Notifications.getPresentedNotificationsAsync()).length;
+  await Notifications.setBadgeCountAsync(count);
+}
+
+export function useUpdatePresentedNotifications() {
+  const { data: unreadCount } = store.useUnreadsCountWithoutMuted();
+  useEffect(() => {
+    updatePresentedNotifications(unreadCount).catch((err) => {
+      console.error('Failed to update presented notifications:', err);
+    });
+  }, [unreadCount]);
+}

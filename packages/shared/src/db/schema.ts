@@ -1,4 +1,4 @@
-import { relations } from 'drizzle-orm';
+import { SQL, relations, sql } from 'drizzle-orm';
 import {
   index,
   integer,
@@ -8,6 +8,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
+import { ChannelContentConfiguration } from '../api';
 import { ExtendedEventType, NotificationLevel, Rank } from '../urbit';
 
 const boolean = (name: string) => {
@@ -54,13 +55,30 @@ export const settings = sqliteTable('settings', {
 
 export const contacts = sqliteTable('contacts', {
   id: text('id').primaryKey(),
-  nickname: text('nickname'),
+
+  peerNickname: text('peerNickname'),
+  customNickname: text('customNickname'),
+  nickname: text('nickname').generatedAlwaysAs(
+    (): SQL =>
+      sql`COALESCE(${contacts.customNickname}, ${contacts.peerNickname})`,
+    { mode: 'stored' }
+  ),
+
+  peerAvatarImage: text('peerAvatarImage'),
+  customAvatarImage: text('customAvatarImage'),
+  avatarImage: text('avatarImage').generatedAlwaysAs(
+    (): SQL =>
+      sql`COALESCE(${contacts.customAvatarImage}, ${contacts.peerAvatarImage})`,
+    { mode: 'stored' }
+  ),
+
   bio: text('bio'),
   status: text('status'),
   color: text('color'),
-  avatarImage: text('avatarImage'),
   coverImage: text('coverImage'),
   isBlocked: boolean('blocked'),
+  isContact: boolean('isContact'),
+  isContactSuggestion: boolean('isContactSuggestion'),
 });
 
 export const contactsRelations = relations(contacts, ({ many }) => ({
@@ -177,12 +195,46 @@ export const activityEvents = sqliteTable(
     shouldNotify: boolean('should_notify'),
     content: text('content', { mode: 'json' }),
     groupEventUserId: text('group_event_user_id'),
+    contactUserId: text('contact_user_id'),
+    contactUpdateType: text('contact_update_type'),
+    contactUpdateValue: text('contact_update_value'),
   },
   (table) => {
     return {
       pk: primaryKey({ columns: [table.id, table.bucketId] }),
     };
   }
+);
+
+export const activityEventContactGroups = sqliteTable(
+  'activity_event_contact_group_pins',
+  {
+    activityEventId: text('activity_event_id')
+      .references(() => activityEvents.id, { onDelete: 'cascade' })
+      .notNull(),
+    groupId: text('group_id')
+      .references(() => groups.id)
+      .notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.activityEventId, table.groupId] }),
+    };
+  }
+);
+
+export const activityEventContactGroupRelations = relations(
+  activityEventContactGroups,
+  ({ one }) => ({
+    activityEvent: one(activityEvents, {
+      fields: [activityEventContactGroups.activityEventId],
+      references: [activityEvents.id],
+    }),
+    group: one(groups, {
+      fields: [activityEventContactGroups.groupId],
+      references: [groups.id],
+    }),
+  })
 );
 
 export const activityRelations = relations(activityEvents, ({ one, many }) => ({
@@ -214,6 +266,7 @@ export const activityRelations = relations(activityEvents, ({ one, many }) => ({
     fields: [activityEvents.groupEventUserId],
     references: [contacts.id],
   }),
+  contactUpdateGroups: many(activityEventContactGroups),
 }));
 
 export type PinType = 'group' | 'channel' | 'dm' | 'groupDm';
@@ -680,7 +733,7 @@ export const channels = sqliteTable(
     lastPostId: text('last_post_id'),
     lastPostAt: timestamp('last_post_at'),
     isPendingChannel: boolean('is_cached_pending_channel'),
-    isDmInvite: boolean('is_dm_invite'),
+    isDmInvite: boolean('is_dm_invite').default(false),
 
     /**
      * Last time we ran a sync, in local time
@@ -702,6 +755,10 @@ export const channels = sqliteTable(
      * True if this channel was autocreated during new group creation (on this client)
      */
     isDefaultWelcomeChannel: boolean('is_default_welcome_channel'),
+
+    contentConfiguration: text('content_configuration', {
+      mode: 'json',
+    }).$type<ChannelContentConfiguration>(),
   },
   (table) => ({
     lastPostIdIndex: index('last_post_id').on(table.lastPostId),
@@ -772,6 +829,11 @@ export const posts = sqliteTable(
     isEdited: boolean('is_edited'),
     isDeleted: boolean('is_deleted'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
+    editStatus: text('edit_status').$type<PostDeliveryStatus>(),
+    deleteStatus: text('delete_status').$type<PostDeliveryStatus>(),
+    lastEditContent: text('last_edit_content', { mode: 'json' }),
+    lastEditTitle: text('last_edit_title'),
+    lastEditImage: text('last_edit_image'),
     syncedAt: timestamp('synced_at').notNull(),
     // backendTime translates to an unfortunate alternative timestamp that is used
     // in some places by the backend agents as part of a composite key for identifying a post.

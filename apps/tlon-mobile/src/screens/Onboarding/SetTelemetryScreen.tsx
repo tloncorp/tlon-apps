@@ -1,9 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { finishingSelfHostedLogin } from '@tloncorp/shared/db';
 import {
-  Button,
-  GenericHeader,
+  ScreenHeader,
   SizableText,
-  Text,
+  TlonText,
   View,
   XStack,
   YStack,
@@ -11,49 +11,47 @@ import {
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useState } from 'react';
 import { Switch } from 'react-native';
-import branch from 'react-native-branch';
 
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetTelemetry'>;
 
-export const SetTelemetryScreen = ({
-  navigation,
-  route: {
-    params: { user, signUpExtras },
-  },
-}: Props) => {
-  const [isEnabled, setIsEnabled] = useState(true);
-  const postHog = usePostHog();
+export const SetTelemetryScreen = () => {
+  const posthog = usePostHog();
+  const [isEnabled, setIsEnabled] = useState(false);
+  const { setValue: setFinishingSelfHostedLogin } =
+    finishingSelfHostedLogin.useStorageItem();
 
   const handleNext = useCallback(() => {
     if (!isEnabled) {
-      postHog?.optOut();
-      branch.disableTracking(true);
+      posthog?.optOut();
     }
-
-    navigation.push('ReserveShip', {
-      user,
-      signUpExtras: { ...signUpExtras, telemetry: isEnabled },
-    });
-  }, [isEnabled, user, postHog, navigation, signUpExtras]);
+    setFinishingSelfHostedLogin(false);
+  }, [isEnabled, posthog, setFinishingSelfHostedLogin]);
 
   return (
-    <View flex={1}>
-      <GenericHeader
+    <View flex={1} backgroundColor="$secondaryBackground">
+      <ScreenHeader
         title="Usage Statistics"
         showSessionStatus={false}
-        rightContent={
-          <Button minimal onPress={handleNext}>
-            <Text fontSize="$m">Next</Text>
-          </Button>
+        rightControls={
+          <ScreenHeader.TextButton onPress={handleNext}>
+            Next
+          </ScreenHeader.TextButton>
         }
       />
-      <YStack gap="$3xl" padding="$2xl">
-        <SizableText color="$primaryText">
-          We&rsquo;re trying to make the app better and knowing how people use
-          the app really helps.
-        </SizableText>
+      <YStack gap="$xl" paddingHorizontal="$2xl">
+        <View padding="$xl">
+          <TlonText.Text size="$body" color="$primaryText" marginBottom="$2xl">
+            We&rsquo;re trying to make the app better and knowing how people use
+            the app really helps.
+          </TlonText.Text>
+          <TlonText.Text size="$body" color="$primaryText">
+            These stats are anonymous, for product development purposes only,
+            and we don&rsquo;t share them with anyone.
+          </TlonText.Text>
+        </View>
+
         <XStack
           backgroundColor="$background"
           borderRadius="$l"

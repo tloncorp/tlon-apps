@@ -13,6 +13,7 @@ import {
   getJoinStatusFromGang,
 } from '../urbit';
 import { parseGroupId, toClientMeta } from './apiUtils';
+import { StructuredChannelDescriptionPayload } from './channelContentConfig';
 import {
   getCurrentUserId,
   poke,
@@ -310,6 +311,25 @@ export const pinItem = async (itemId: string) => {
   });
 };
 
+export const getChannelPreview = async (
+  channelId: string
+): Promise<db.Channel | null> => {
+  const channelPreview = await subscribeOnce<ub.ChannelPreview>({
+    app: 'groups',
+    path: `/chan/${channelId}`,
+  });
+
+  if (!channelPreview) {
+    return null;
+  }
+
+  return toClientChannelFromPreview({
+    id: channelId,
+    channel: channelPreview,
+    groupId: channelPreview.group.flag,
+  });
+};
+
 export const getGroupPreview = async (groupId: string) => {
   const result = await subscribeOnce<ub.GroupPreview>({
     app: 'groups',
@@ -330,7 +350,7 @@ export const findGroupsHostedBy = async (userId: string) => {
 
   logger.log('findGroupsHostedBy result', result);
 
-  return result;
+  return toClientGroupsFromPreview(result);
 };
 
 export const createGroup = async ({
@@ -921,13 +941,13 @@ export const subscribeGroups = async (
   subscribe<ub.GroupAction>(
     { app: 'groups', path: '/groups/ui' },
     (groupUpdateEvent) => {
-      logger.log('groupUpdateEvent', { groupUpdateEvent });
+      logger.log('groupUpdateEvent', groupUpdateEvent);
       eventHandler(toGroupUpdate(groupUpdateEvent));
     }
   );
 
   subscribe({ app: 'groups', path: '/gangs/updates' }, (rawEvent: ub.Gangs) => {
-    logger.log('gangsUpdateEvent:', rawEvent);
+    logger.log('gangsUpdateEvent', rawEvent);
     eventHandler(toGangsGroupsUpdate(rawEvent));
   });
 };
@@ -1337,6 +1357,8 @@ export function toClientGroup(
     haveInvite: false,
     currentUserIsMember: isJoined,
     currentUserIsHost: hostUserId === currentUserId,
+    // if meta is unset, it's still in the join process
+    joinStatus: !group.meta || group.meta.title === '' ? 'joining' : undefined,
     hostUserId,
     flaggedPosts,
     navSections: group['zone-ord']
@@ -1453,6 +1475,19 @@ function toClientChannel({
   channel: ub.GroupChannel;
   groupId: string;
 }): db.Channel {
+  const { description, channelContentConfiguration } =
+    StructuredChannelDescriptionPayload.decode(channel.meta.description);
+
+  const readerRoles = (channel.readers ?? []).map((roleId) => ({
+    channelId: id,
+    roleId,
+  }));
+
+  const writerRoles = (channel.writers ?? []).map((roleId) => ({
+    channelId: id,
+    roleId,
+  }));
+
   return {
     id,
     groupId,
@@ -1460,7 +1495,34 @@ function toClientChannel({
     iconImage: omitEmpty(channel.meta.image),
     title: omitEmpty(channel.meta.title),
     coverImage: omitEmpty(channel.meta.cover),
-    description: omitEmpty(channel.meta.description),
+    description,
+    contentConfiguration: channelContentConfiguration,
+    readerRoles,
+    writerRoles,
+  };
+}
+
+function toClientChannelFromPreview({
+  id,
+  channel,
+  groupId,
+}: {
+  id: string;
+  channel: ub.ChannelPreview;
+  groupId: string;
+}): db.Channel {
+  const { description, channelContentConfiguration } =
+    StructuredChannelDescriptionPayload.decode(channel.meta.description);
+
+  return {
+    id,
+    groupId,
+    type: getChannelType(id),
+    iconImage: omitEmpty(channel.meta.image),
+    title: omitEmpty(channel.meta.title),
+    coverImage: omitEmpty(channel.meta.cover),
+    description,
+    contentConfiguration: channelContentConfiguration,
   };
 }
 

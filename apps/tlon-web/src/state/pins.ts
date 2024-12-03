@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { Nest } from '@tloncorp/shared/dist/urbit/channel';
+import { Nest } from '@tloncorp/shared/urbit/channel';
 import _ from 'lodash';
 import { useMemo } from 'react';
 

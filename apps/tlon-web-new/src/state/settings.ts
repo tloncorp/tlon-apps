@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { DisplayMode, SortMode } from '@tloncorp/shared/dist/urbit/channel';
+import { DisplayMode, SortMode } from '@tloncorp/shared/urbit/channel';
 import { DelBucket, DelEntry, PutBucket, Value } from '@urbit/api';
 import cookies from 'browser-cookies';
 import produce from 'immer';
@@ -289,7 +289,9 @@ export function usePutEntryMutation({
     );
   };
 
-  return useMutation(['put-entry', bucket, key], mutationFn, {
+  return useMutation({
+    mutationKey: ['put-entry', bucket, key],
+    mutationFn: mutationFn,
     onMutate: ({ val }) => {
       const previousSettings = queryClient.getQueryData<{
         desk: SettingsState;
@@ -319,7 +321,7 @@ export function usePutEntryMutation({
       );
     },
     onSettled: () => {
-      queryClient.invalidateQueries(['settings', window.desk]);
+      queryClient.invalidateQueries({ queryKey: ['settings', window.desk] });
     },
   });
 }
@@ -675,7 +677,7 @@ export const useAnalyticsId = () => {
     }
 
     if (
-      status !== 'loading' &&
+      status !== 'pending' &&
       (data.groups.analyticsId === undefined || data.groups.analyticsId === '')
     ) {
       const newAnalyticsId = createAnalyticsId();

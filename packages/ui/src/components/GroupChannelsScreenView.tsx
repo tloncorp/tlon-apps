@@ -1,45 +1,49 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View } from 'tamagui';
+import {
+  Button,
+  ScrollView,
+  View,
+  YStack,
+  getVariableValue,
+  useTheme,
+} from 'tamagui';
 
-import { useChatOptions } from '../contexts/chatOptions';
-import { SimpleActionSheet } from './ActionSheet';
-import { Button } from './Button';
+import { useCurrentUserId } from '../contexts';
+import { useIsAdmin } from '../utils/channelUtils';
+import { Badge } from './Badge';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
-import { GenericHeader } from './GenericHeader';
-import { Icon } from './Icon';
-
-const ChannelSortOptions = ({
-  setShowSortOptions,
-}: {
-  setShowSortOptions: (show: boolean) => void;
-}) => {
-  return (
-    <Button borderWidth={0} onPress={() => setShowSortOptions(true)}>
-      <Icon type="Filter" />
-    </Button>
-  );
-};
+import { ChannelListItem } from './ListItem/ChannelListItem';
+import { LoadingSpinner } from './LoadingSpinner';
+import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
+import { ScreenHeader } from './ScreenHeader';
+import { Text } from './TextV2';
 
 type GroupChannelsScreenViewProps = {
+  group: db.Group | null;
+  unjoinedChannels?: db.Channel[];
   onChannelPressed: (channel: db.Channel) => void;
+  onJoinChannel: (channel: db.Channel) => void;
   onBackPressed: () => void;
-  currentUser: string;
+  enableCustomChannels?: boolean;
 };
 
 export function GroupChannelsScreenView({
+  group,
+  unjoinedChannels = [],
   onChannelPressed,
+  onJoinChannel,
   onBackPressed,
+  enableCustomChannels = false,
 }: GroupChannelsScreenViewProps) {
-  const groupOptions = useChatOptions();
-  const group = groupOptions?.group;
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
-
-  const [showSortOptions, setShowSortOptions] = useState(false);
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
   const insets = useSafeAreaInsets();
+  const userId = useCurrentUserId();
+  const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
 
   useEffect(() => {
     const getSortByPreference = async () => {
@@ -50,89 +54,118 @@ export function GroupChannelsScreenView({
     getSortByPreference();
   }, [setSortBy]);
 
-  const handleSortByChanged = useCallback(
-    (newSortBy: 'recency' | 'arranged') => {
-      setSortBy(newSortBy);
-      setShowSortOptions(false);
-      db.storeChannelSortPreference(newSortBy);
-    },
-    []
-  );
-
   const handlePressOverflowButton = useCallback(() => {
     if (group) {
       chatOptionsSheetRef.current?.open(group.id, 'group');
     }
   }, [group]);
 
+  const title = group ? group?.title ?? 'Untitled' : '';
+
+  const handleOpenChannelOptions = useCallback(
+    (channel: db.Channel) => {
+      if (group) {
+        chatOptionsSheetRef.current?.open(channel.id, channel.type);
+      }
+    },
+    [group]
+  );
+
+  const titleWidth = useCallback(() => {
+    if (isGroupAdmin) {
+      return 55;
+    } else {
+      return 75;
+    }
+  }, [isGroupAdmin]);
+
+  const listSectionTitleColor = getVariableValue(useTheme().secondaryText);
+
   return (
     <View flex={1}>
-      <GenericHeader
-        title={group ? group?.title ?? 'Untitled' : ''}
-        goBack={onBackPressed}
-        rightContent={
-          <View flexDirection="row" gap="$s">
-            <ChannelSortOptions setShowSortOptions={setShowSortOptions} />
-            <Button borderWidth={0} onPress={handlePressOverflowButton}>
-              <Icon type="Overflow" />
-            </Button>
-          </View>
+      <ScreenHeader
+        // When we're fetching the group from the local database, this component
+        // will initially mount with group undefined, then very quickly load the
+        // group in. Keeping the key consistent as long as the ID is prevents a
+        // full re-render / animation triggering almost immediately after the
+        // component mounts.
+        key={group?.id}
+        title={title}
+        titleWidth={titleWidth()}
+        backAction={onBackPressed}
+        rightControls={
+          <>
+            {isGroupAdmin && (
+              <ScreenHeader.IconButton
+                type="Add"
+                onPress={() => setShowCreateChannel(true)}
+              />
+            )}
+            <ScreenHeader.IconButton
+              type="Overflow"
+              onPress={handlePressOverflowButton}
+            />
+          </>
         }
       />
-      <ScrollView
-        contentContainerStyle={{
-          gap: '$s',
-          paddingTop: '$l',
-          paddingHorizontal: '$l',
-          paddingBottom: insets.bottom,
-        }}
-      >
-        {group && groupOptions.groupChannels ? (
+      {group && group.channels && group.channels.length ? (
+        <ScrollView
+          contentContainerStyle={{
+            gap: '$s',
+            paddingTop: '$l',
+            paddingHorizontal: '$l',
+            paddingBottom: insets.bottom,
+          }}
+        >
           <ChannelNavSections
             group={group}
-            channels={groupOptions.groupChannels}
+            channels={group.channels}
             onSelect={onChannelPressed}
-            sortBy={sortBy}
+            sortBy={sortBy || 'recency'}
+            onLongPress={handleOpenChannelOptions}
           />
-        ) : null}
-      </ScrollView>
-      <ChannelSortActionsSheet
-        open={showSortOptions}
-        onOpenChange={setShowSortOptions}
-        onSelectSort={handleSortByChanged}
-      />
-      <ChatOptionsSheet ref={chatOptionsSheetRef} />
-    </View>
-  );
-}
 
-export function ChannelSortActionsSheet({
-  open,
-  onOpenChange,
-  onSelectSort,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSelectSort: (sortBy: db.ChannelSortPreference) => void;
-}) {
-  return (
-    <SimpleActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      actions={[
-        {
-          title: 'Sort by recency',
-          action: () => {
-            onSelectSort('recency');
-          },
-        },
-        {
-          title: 'Sort by arrangement',
-          action: () => {
-            onSelectSort('arranged');
-          },
-        },
-      ]}
-    />
+          {unjoinedChannels.length > 0 && (
+            <YStack>
+              <Text
+                paddingHorizontal="$l"
+                paddingVertical="$xl"
+                fontSize="$s"
+                color={listSectionTitleColor}
+              >
+                Available Channels
+              </Text>
+              {unjoinedChannels.map((channel) => (
+                <ChannelListItem
+                  key={channel.id}
+                  model={channel}
+                  onPress={() => onJoinChannel(channel)}
+                  useTypeIcon={true}
+                  dimmed={true}
+                  EndContent={
+                    <View justifyContent="center">
+                      <Badge text="Join" />
+                    </View>
+                  }
+                />
+              ))}
+            </YStack>
+          )}
+        </ScrollView>
+      ) : (
+        <YStack flex={1} justifyContent="center" alignItems="center">
+          <LoadingSpinner />
+        </YStack>
+      )}
+
+      {showCreateChannel && group && (
+        <CreateChannelSheet
+          onOpenChange={(open) => setShowCreateChannel(open)}
+          group={group}
+          enableCustomChannels={enableCustomChannels}
+        />
+      )}
+      <ChatOptionsSheet ref={chatOptionsSheetRef} setSortBy={setSortBy} />
+    </View>
   );
 }

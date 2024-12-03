@@ -1,14 +1,9 @@
-import * as logic from '@tloncorp/shared/dist/logic';
+import { createDevLogger } from '@tloncorp/shared';
+import * as logic from '@tloncorp/shared/logic';
 import { Buffer } from 'buffer';
 import { Platform } from 'react-native';
 
-import {
-  API_AUTH_PASSWORD,
-  API_AUTH_USERNAME,
-  API_URL,
-  DEFAULT_LURE,
-  DEFAULT_PRIORITY_TOKEN,
-} from '../constants';
+import { API_AUTH_PASSWORD, API_AUTH_USERNAME, API_URL } from '../constants';
 import type {
   BootPhase,
   HostedShipStatus,
@@ -22,9 +17,19 @@ import {
   setHostingUserId,
 } from '../utils/hosting';
 
-type HostingError = {
-  message: string;
-};
+const logger = createDevLogger('hostingApi', true);
+
+export class HostingError extends Error {
+  code: number;
+  shouldTrack: boolean;
+
+  constructor(message: string, code: number, shouldTrack: boolean = true) {
+    super(message);
+    this.name = 'HostingError';
+    this.code = code;
+    this.shouldTrack = shouldTrack;
+  }
+}
 
 const hostingFetchResponse = async (
   path: string,
@@ -64,10 +69,12 @@ const hostingFetch = async <T extends object>(
   const responseText = await response.text();
 
   if (__DEV__) {
-    console.debug('Response:', responseText);
+    console.debug('Response:', response.status, responseText);
   }
 
-  const result = JSON.parse(responseText) as HostingError | T;
+  const result = !responseText
+    ? { message: 'Empty response' }
+    : (JSON.parse(responseText) as { message: string } | T);
   if (!response.ok) {
     throw new Error(
       'message' in result ? result.message : 'An unknown error has occurred.'
@@ -129,19 +136,25 @@ export const addUserToWaitlist = async ({
   );
 
 export const signUpHostingUser = async (params: {
-  email: string;
-  password: string;
+  phoneNumber?: string;
+  otp?: string;
+  email?: string;
+  password?: string;
   lure?: string;
   priorityToken?: string;
   recaptchaToken?: string;
-}) =>
-  hostingFetch<object>('/v1/sign-up', {
+}) => {
+  // TODO: we should eventually catch 409 here which in this context
+  // indicates no available inventory
+  return hostingFetch<User>('/v1/sign-up', {
     method: 'POST',
     body: JSON.stringify({
+      phoneNumber: params.phoneNumber,
+      otp: params.otp,
       email: params.email,
       password: params.password,
-      lure: params.lure || DEFAULT_LURE,
-      priorityToken: params.priorityToken || DEFAULT_PRIORITY_TOKEN,
+      lure: params.lure,
+      priorityToken: params.priorityToken,
       recaptcha: {
         recaptchaToken: { token: params.recaptchaToken || '' },
         recaptchaPlatform: Platform.OS,
@@ -151,10 +164,13 @@ export const signUpHostingUser = async (params: {
       'Content-Type': 'application/json',
     },
   });
+};
 
 export const logInHostingUser = async (params: {
-  email: string;
-  password: string;
+  email?: string;
+  phoneNumber?: string;
+  otp?: string;
+  password?: string;
 }) => {
   const response = await hostingFetchResponse('/v1/login', {
     method: 'POST',
@@ -199,6 +215,97 @@ export const requestPhoneVerify = async (userId: string, phoneNumber: string) =>
       'Content-Type': 'application/json',
     },
   });
+
+export const requestSignupOtp = async ({
+  email,
+  phoneNumber,
+  recaptchaToken,
+}: {
+  email?: string;
+  phoneNumber?: string;
+  recaptchaToken?: string;
+}) => {
+  const response = await rawHostingFetch('/v1/request-otp', {
+    method: 'POST',
+    body: JSON.stringify({
+      email,
+      phoneNumber,
+      otpMode: 'SignupOTP',
+      recaptcha: {
+        recaptchaToken: { token: recaptchaToken || '' },
+        recaptchaPlatform: Platform.OS,
+      },
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const ALREADY_IN_USE = 409;
+    const WAIT_TO_RESEND = 429;
+    const hostingError = new HostingError(
+      'Failed to send signup OTP',
+      response.status,
+      [ALREADY_IN_USE, WAIT_TO_RESEND].includes(response.status)
+    );
+
+    if (hostingError.shouldTrack) {
+      logger.trackError(logic.AnalyticsEvent.FailedSignupOTP, {
+        status: response.status,
+      });
+    }
+
+    throw hostingError;
+  }
+};
+
+export const requestLoginOtp = async ({
+  phoneNumber,
+  email,
+  recaptchaToken,
+}: {
+  phoneNumber?: string;
+  email?: string;
+  recaptchaToken: string;
+}) => {
+  if (!phoneNumber && !email) {
+    throw new Error('Either phone number or email must be provided');
+  }
+
+  const response = await rawHostingFetch('/v1/request-otp', {
+    method: 'POST',
+    body: JSON.stringify({
+      phoneNumber,
+      email,
+      otpMode: 'LoginOTP',
+      recaptcha: {
+        recaptchaToken: { token: recaptchaToken || '' },
+        recaptchaPlatform: Platform.OS,
+      },
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const WAIT_TO_RESEND = 429;
+    const hostingError = new HostingError(
+      'Failed to send login OTP',
+      response.status,
+      [WAIT_TO_RESEND].includes(response.status)
+    );
+
+    if (hostingError.shouldTrack) {
+      logger.trackError(logic.AnalyticsEvent.FailedLoginOTP, {
+        status: response.status,
+      });
+    }
+
+    throw hostingError;
+  }
+};
 
 export const checkPhoneVerify = async (userId: string, code: string) =>
   hostingFetch<object>(`/v1/users/${userId}/check-phone-verify`, {

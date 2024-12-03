@@ -3,6 +3,9 @@
   "include": ["**/*.ts", "**/*.tsx", "window.ts"],
   "compilerOptions": {
     "composite": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "paths": {
+      "sqlocal/drizzle": ["node_modules/sqlocal/dist/drizzle"]
+    }
   }
 }

@@ -1,54 +1,44 @@
-import { useChannelSearch } from '@tloncorp/shared/dist';
-import type * as db from '@tloncorp/shared/dist/db';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useChannelSearch, useChannelWithRelations } from '@tloncorp/shared';
+import type * as db from '@tloncorp/shared/db';
 import { Button, SearchBar, SearchResults, XStack, YStack } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function ChannelSearchScreen({
-  channel,
-  navigateToChannel,
-  navigateToReply,
-  cancelSearch,
-}: {
-  channel: db.Channel;
-  navigateToChannel: ({
-    channel,
-    selectedPostId,
-  }: {
-    channel: db.Channel;
-    selectedPostId?: string;
-  }) => void;
-  navigateToReply: ({
-    id,
-    authorId,
-    channelId,
-  }: {
-    id: string;
-    authorId: string;
-    channelId: string;
-  }) => void;
-  cancelSearch: () => void;
-}) {
+import type { RootStackParamList } from '../../navigation/types';
+import { useResetToChannel } from '../../navigation/utils';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'ChannelSearch'>;
+
+export default function ChannelSearchScreen(props: Props) {
+  const channelId = props.route.params.channelId;
+  const groupId = props.route.params.groupId;
+  const channelQuery = useChannelWithRelations({
+    id: channelId,
+  });
+
   const [query, setQuery] = useState('');
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
-    useChannelSearch(channel, query);
+    useChannelSearch(channelId, query);
+
+  const resetToChannel = useResetToChannel();
 
   const navigateToPost = useCallback(
     (post: db.Post) => {
       if (post.parentId) {
-        navigateToReply({
-          id: post.parentId,
+        props.navigation.replace('Post', {
+          postId: post.parentId,
+          channelId: post.channelId,
           authorId: post.authorId,
-          channelId: channel.id,
         });
       } else {
-        navigateToChannel({
-          channel,
+        resetToChannel(post.channelId, {
           selectedPostId: post.id,
+          groupId,
         });
       }
     },
-    [channel, navigateToChannel, navigateToReply]
+    [props.navigation, resetToChannel, groupId]
   );
 
   return (
@@ -57,9 +47,10 @@ export default function ChannelSearchScreen({
         <XStack gap="$l">
           <SearchBar
             onChangeQuery={setQuery}
-            placeholder={`Search ${channel.title}`}
+            placeholder={`Search ${channelQuery?.data?.title ?? ''}`}
+            inputProps={{ autoFocus: true }}
           />
-          <Button minimal onPress={() => cancelSearch()}>
+          <Button minimal onPress={() => props.navigation.pop()}>
             <Button.Text>Cancel</Button.Text>
           </Button>
         </XStack>

@@ -1,4 +1,4 @@
-import { ChannelFormSchema } from '@tloncorp/shared/dist/urbit/groups';
+import { ChannelFormSchema } from '@tloncorp/shared/urbit/groups';
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
 

@@ -1,8 +1,5 @@
-import {
-  ActivitySummary,
-  MessageKey,
-} from '@tloncorp/shared/dist/urbit/activity';
-import { Block } from '@tloncorp/shared/dist/urbit/channel';
+import { ActivitySummary, MessageKey } from '@tloncorp/shared/urbit/activity';
+import { Block } from '@tloncorp/shared/urbit/channel';
 import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';

@@ -1,4 +1,4 @@
-import { GroupPreview } from '@tloncorp/shared/dist/urbit/groups';
+import { GroupPreview } from '@tloncorp/shared/urbit/groups';
 import React from 'react';
 
 import GroupAvatar from '../GroupAvatar';

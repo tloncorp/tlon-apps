@@ -10,7 +10,7 @@
 ::
 /-  c=channels, g=groups, ha=hark, activity
 /-  meta
-/+  default-agent, verb, dbug, sparse, neg=negotiate, imp=import-aid
+/+  default-agent, verb, dbug, sparse, neg=negotiate, imp=import-aid, logs
 /+  utils=channel-utils, volume, s=subscriber
 ::  performance, keep warm
 /+  channel-json
@@ -78,7 +78,12 @@
   ::
   ++  on-peek    peek:cor
   ++  on-leave   on-leave:def
-  ++  on-fail    on-fail:def
+  ++  on-fail
+    |=  [=term =tang]
+    ^-  (quip card _this)
+    :_  this
+    [(log-fail:logs /logs our.bowl (fail-event:logs term tang))]~
+  ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
     ^-  (quip card _this)
@@ -641,6 +646,8 @@
   ?+    pole  ~|(bad-agent-wire+pole !!)
       ~          cor
       [%pimp ~]  cor
+      [%logs ~]  cor
+    ::
       [%hark ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
@@ -727,13 +734,16 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?>  ?=(^ pole)
-  =?  +.pole  !?=([?(%v0 %v1 %v2 %v3) *] +.pole)
+  =?  +.pole  !?=([?(%v0 %v1 %v2 %v3 %v4) *] +.pole)
     [%v0 +.pole]
   ?+    pole  [~ ~]
       [%x ?(%v0 %v1) %channels ~]   ``channels+!>((uv-channels-1:utils v-channels))
     ::
         [%x %v2 %channels full=?(~ [%full ~])]
       ``channels-2+!>((uv-channels-2:utils v-channels ?=(^ full.pole)))
+    ::
+        [%x %v3 %channels full=?(~ [%full ~])]
+      ``channels-3+!>((uv-channels-3:utils v-channels ?=(^ full.pole)))
     ::
       [%x ?(%v0 %v1) %init ~]    ``noun+!>([unreads (uv-channels-1:utils v-channels)])
       [%x %v2 %init ~]  ``noun+!>([unreads (uv-channels-2:utils v-channels |)])
@@ -752,7 +762,7 @@
     =/  =ship  (slav %p ship.pole)
     (ca-peek:(ca-abed:ca-core kind.pole ship name.pole) rest.pole v.pole)
   ::
-      [%u ?(%v0 %v1) =kind:c ship=@ name=@ ~]
+      [%u ?(%v0 %v1 %v2) =kind:c ship=@ name=@ ~]
     =/  =ship  (slav %p ship.pole)
     ``loob+!>((~(has by v-channels) kind.pole ship name.pole))
   ::

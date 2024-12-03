@@ -1,11 +1,10 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { DEFAULT_LURE, DEFAULT_PRIORITY_TOKEN } from '@tloncorp/app/constants';
-import { getHostingAvailability } from '@tloncorp/app/lib/hostingApi';
+import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import { trackError } from '@tloncorp/app/utils/posthog';
 import {
-  GenericHeader,
   Icon,
   PrimaryButton,
+  ScreenHeader,
   SizableText,
   Text,
   View,
@@ -15,33 +14,28 @@ import {
 import { useState } from 'react';
 import { Image } from 'react-native';
 
+import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'InventoryCheck'>;
 
-export const InventoryCheckScreen = ({
-  navigation,
-  route: {
-    params: {
-      lure = DEFAULT_LURE,
-      priorityToken = DEFAULT_PRIORITY_TOKEN,
-    } = {},
-  },
-}: Props) => {
+export const InventoryCheckScreen = ({ navigation }: Props) => {
+  const signupParams = useSignupParams();
   const [isChecking, setIsChecking] = useState(false);
+  const { hostingApi } = useOnboardingContext();
 
   const checkAvailability = async () => {
     setIsChecking(true);
 
     try {
-      const { enabled } = await getHostingAvailability({
-        lure,
-        priorityToken,
+      const { enabled } = await hostingApi.getHostingAvailability({
+        lure: signupParams.lureId,
+        priorityToken: signupParams.priorityToken,
       });
       if (enabled) {
-        navigation.navigate('SignUpEmail', { lure, priorityToken });
+        navigation.navigate('Signup');
       } else {
-        navigation.navigate('JoinWaitList', { lure });
+        navigation.navigate('PasteInviteLink');
       }
     } catch (err) {
       console.error('Error checking hosting availability:', err);
@@ -55,20 +49,16 @@ export const InventoryCheckScreen = ({
 
   return (
     <View flex={1}>
-      <GenericHeader
-        title="Welcome to Tlon"
+      <ScreenHeader
+        title="Welcome to TM"
         showSessionStatus={false}
-        goBack={() => navigation.goBack()}
-        showSpinner={isChecking}
+        backAction={() => navigation.goBack()}
+        isLoading={isChecking}
       />
 
       <YStack gap="$2xl" padding="$2xl">
         <View borderRadius="$xl" overflow="hidden">
-          <Image
-            style={{ width: '100%', height: 188 }}
-            resizeMode={'cover'}
-            source={require('../../../assets/images/welcome_blocks.jpg')}
-          />
+          <Image style={{ width: '100%', height: 188 }} resizeMode={'cover'} />
         </View>
 
         <View>

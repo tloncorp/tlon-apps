@@ -21,14 +21,14 @@ export default function AddGalleryPost({
 
   const actions = [
     {
-      title: 'Photo or Video',
+      title: 'Image',
       action: () => {
         setShowAddGalleryPost(false);
         setShowAttachmentSheet(true);
       },
     },
     {
-      title: 'Rich Text',
+      title: 'Text',
       action: () => {
         setShowAddGalleryPost(false);
         setShowGalleryInput(true);
@@ -52,9 +52,9 @@ export default function AddGalleryPost({
         actions={actions}
       />
       <AttachmentSheet
-        showAttachmentSheet={showAttachmentSheet}
-        setShowAttachmentSheet={setShowAttachmentSheet}
-        setImage={handleImageSet}
+        isOpen={showAttachmentSheet}
+        onOpenChange={setShowAttachmentSheet}
+        onAttachmentsSet={handleImageSet}
       />
     </>
   );

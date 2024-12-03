@@ -49,14 +49,18 @@ export function ChannelFooter({
 
   const animatedStyle = useAnimatedStyle(() => {
     const opacity = interpolate(shownAmount.value, [0, 1], [1, 0]);
-    const height = interpolate(shownAmount.value, [0, 1], [50, 0]);
+    const height = interpolate(
+      shownAmount.value,
+      [0, 1],
+      [insets.bottom + 50, 0]
+    );
 
     return {
       transform: [{ translateY: shownAmount.value * -(insets.top * 0.2) }],
       opacity: opacity,
       height: height,
     };
-  }, [easedValue, insets.top]);
+  }, [shownAmount.value, insets.top]);
 
   return (
     <Animated.View style={[{ flex: 0 }, animatedStyle]}>

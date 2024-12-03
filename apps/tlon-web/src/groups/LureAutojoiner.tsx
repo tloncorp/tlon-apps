@@ -1,4 +1,4 @@
-import { Gangs } from '@tloncorp/shared/dist/urbit/groups';
+import { Gangs } from '@tloncorp/shared/urbit/groups';
 import cookies from 'browser-cookies';
 import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';

@@ -1,63 +1,52 @@
-import { useNavigation } from '@react-navigation/native';
-import type { NavigationProp } from '@react-navigation/native';
-import { useBranch } from '@tloncorp/app/contexts/branch';
+import { NavigationProp, useNavigation } from '@react-navigation/native';
+import { useBranch, useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { inviteShipWithLure } from '@tloncorp/app/lib/hostingApi';
-import { trackError } from '@tloncorp/app/utils/posthog';
-import { useEffect } from 'react';
-import { Alert } from 'react-native';
+import { RootStackParamList } from '@tloncorp/app/navigation/types';
+import { useTypedReset } from '@tloncorp/app/navigation/utils';
+import { createDevLogger } from '@tloncorp/shared';
+import { useEffect, useRef } from 'react';
 
-import { RootStackParamList } from '../types';
+const logger = createDevLogger('deeplinkHandler', true);
 
 export const useDeepLinkListener = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const isHandlingLinkRef = useRef(false);
   const { ship } = useShip();
-  const { lure, deepLinkPath, clearLure, clearDeepLink } = useBranch();
+  const signupParams = useSignupParams();
+  const { clearLure, lure } = useBranch();
+  const reset = useTypedReset();
 
-  // If lure is present, invite it and mark as handled
   useEffect(() => {
-    if (ship && lure) {
+    if (ship && lure && !isHandlingLinkRef.current) {
       (async () => {
+        isHandlingLinkRef.current = true;
+        logger.log(`handling deep link`, lure, signupParams);
         try {
-          await inviteShipWithLure({ ship, lure });
-          Alert.alert(
-            '',
-            'Your invitation to the group is on its way. It will appear in the Groups list.',
-            [
-              {
-                text: 'OK',
-                onPress: () => null,
-              },
-            ],
-            { cancelable: true }
-          );
-        } catch (err) {
-          console.error(
-            '[useDeepLinkListener] Error inviting ship with lure:',
-            err
-          );
-          if (err instanceof Error) {
-            trackError(err);
+          // if the lure was clicked prior to authenticating, trigger the automatic join & DM
+          if (lure.shouldAutoJoin) {
+            // no-op for now, hosting will handle
+          } else {
+            // otherwise, treat it as a deeplink and navigate to the group
+            if (lure.invitedGroupId) {
+              logger.log(
+                `handling deep link to invited group`,
+                lure.invitedGroupId
+              );
+              reset([
+                {
+                  name: 'ChatList',
+                  params: { previewGroupId: lure.invitedGroupId },
+                },
+              ]);
+            }
           }
+        } catch (e) {
+          logger.error('Failed to handle deep link', lure, e);
+        } finally {
+          clearLure();
+          isHandlingLinkRef.current = false;
         }
-
-        clearLure();
       })();
     }
-  }, [ship, lure, clearLure]);
-
-  // If deep link clicked, broadcast that navigation update to the webview and mark as handled
-  useEffect(() => {
-    // TODO: hook up deep links without webview
-    // if (deepLinkPath && webviewContext.appLoaded) {
-    // console.debug(
-    // '[useDeepLinkListener] Setting webview path:',
-    // deepLinkPath
-    // );
-    // webviewContext.setGotoPath(deepLinkPath);
-    // const tab = parseActiveTab(deepLinkPath) ?? 'Groups';
-    // navigation.navigate(tab, { screen: 'Webview' });
-    // clearDeepLink();
-    // }
-  }, [deepLinkPath, navigation, clearDeepLink]);
+  }, [ship, signupParams, clearLure, lure, navigation, reset]);
 };

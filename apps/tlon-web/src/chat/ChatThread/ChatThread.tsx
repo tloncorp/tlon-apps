@@ -1,4 +1,4 @@
-import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { ReplyTuple } from '@tloncorp/shared/urbit/channel';
 import { formatUd } from '@urbit/aura';
 import bigInt from 'big-integer';
 import cn from 'classnames';

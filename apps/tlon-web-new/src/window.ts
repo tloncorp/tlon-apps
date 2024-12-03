@@ -1,5 +1,5 @@
 import type { NativeWebViewOptions } from '@tloncorp/shared';
-import { Rope } from '@tloncorp/shared/dist/urbit/hark';
+import { Rope } from '@tloncorp/shared/urbit/hark';
 
 declare global {
   interface Window {
@@ -11,6 +11,7 @@ declare global {
     toggleDevTools: () => void;
     unread: any;
     markRead: Rope;
+    regeneratorRuntime: any;
     recents: any;
     ReactNativeWebView?: {
       postMessage: (message: string) => void;

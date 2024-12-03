@@ -28,8 +28,7 @@
     "e2e:debug:bus": "cross-env DEBUG_PLAYWRIGHT=true SHIP_NAME=bus pnpm run e2e",
     "e2e:debug": "cross-env DEBUG_PLAYWRIGHT=true pnpm e2e",
     "tsc": "tsc --noEmit",
-    "e2e:codegen": "concurrently \"pnpm dev-no-ssl\" \"pnpm exec playwright codegen http://localhost:3000\"",
-    "cosmos": "cosmos"
+    "e2e:codegen": "concurrently \"pnpm dev-no-ssl\" \"pnpm exec playwright codegen http://localhost:3000\""
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
@@ -53,7 +52,7 @@
     "@radix-ui/react-toggle": "^1.0.2",
     "@radix-ui/react-toggle-group": "^1.0.4",
     "@radix-ui/react-tooltip": "^1.0.0",
-    "@tamagui/vite-plugin": "1.101.3",
+    "@tamagui/vite-plugin": "~1.101.3",
     "@tanstack/react-query": "^4.28.0",
     "@tanstack/react-query-devtools": "^4.28.0",
     "@tanstack/react-query-persist-client": "^4.28.0",
@@ -84,10 +83,10 @@
     "@tiptap/pm": "^2.6.6",
     "@tiptap/react": "^2.6.6",
     "@tiptap/suggestion": "^2.6.6",
+    "@tloncorp/app": "workspace:*",
     "@tloncorp/mock-http-api": "^1.2.0",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
-    "@tloncorp/app": "workspace:*",
     "@types/marked": "^4.3.0",
     "@urbit/api": "^2.2.0",
     "@urbit/aura": "^1.0.0",
@@ -206,8 +205,6 @@
     "postcss": "^8.4.12",
     "postcss-import": "^14.1.0",
     "prettier": "^3.1.1",
-    "react-cosmos": "6.1.1",
-    "react-cosmos-plugin-vite": "6.1.1",
     "react-test-renderer": "^18.2.0",
     "rollup-plugin-analyzer": "^4.0.0",
     "rollup-plugin-visualizer": "^5.6.0",

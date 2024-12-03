@@ -1,4 +1,8 @@
 import * as api from '../api';
+import {
+  ChannelContentConfiguration,
+  StructuredChannelDescriptionPayload,
+} from '../api/channelContentConfig';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';
@@ -11,26 +15,43 @@ export async function createChannel({
   channelId,
   name,
   title,
-  description,
+  // Alias to `rawDescription`, since we might need to synthesize a new
+  // `description` API value by merging with `contentConfiguration` below.
+  description: rawDescription,
   channelType,
+  contentConfiguration,
 }: {
   groupId: string;
   channelId: string;
   name: string;
   title: string;
-  description: string;
+  description?: string;
   channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
+  contentConfiguration?: ChannelContentConfiguration;
 }) {
   // optimistic update
   const newChannel: db.Channel = {
     id: channelId,
     title,
-    description,
+    description: rawDescription,
+    contentConfiguration,
     type: channelType as db.ChannelType,
     groupId,
     addedToGroupAt: Date.now(),
+    currentUserIsMember: true,
   };
   await db.insertChannels([newChannel]);
+
+  // If we have a `contentConfiguration`, we need to merge these fields to make
+  // a `StructuredChannelDescriptionPayload`, and use that as the `description`
+  // on the API.
+  const encodedDescription =
+    contentConfiguration == null
+      ? rawDescription
+      : StructuredChannelDescriptionPayload.encode({
+          description: rawDescription,
+          channelContentConfiguration: contentConfiguration,
+        });
 
   try {
     await api.addChannelToGroup({ groupId, channelId, sectionId: 'default' });
@@ -40,7 +61,7 @@ export async function createChannel({
       group: groupId,
       name,
       title,
-      description,
+      description: encodedDescription ?? '',
       readers: [],
       writers: [],
     });
@@ -77,21 +98,35 @@ export async function updateChannel({
   groupId,
   sectionId,
   readers,
+  writers,
   join,
   channel,
 }: {
   groupId: string;
   sectionId: string;
   readers: string[];
+  writers: string[];
   join: boolean;
   channel: db.Channel;
 }) {
-  // optimistic update
-  await db.updateChannel(channel);
+  const updatedChannel: db.Channel = {
+    ...channel,
+    readerRoles: readers.map((roleId) => ({
+      channelId: channel.id,
+      roleId,
+    })),
+    writerRoles: writers.map((roleId) => ({
+      channelId: channel.id,
+      roleId,
+    })),
+  };
+
+  await db.updateChannel(updatedChannel);
 
   const groupChannel: GroupChannel = {
     added: channel.addedToGroupAt ?? 0,
     readers,
+    writers,
     zone: sectionId,
     join,
     meta: {
@@ -110,7 +145,6 @@ export async function updateChannel({
     });
   } catch (e) {
     console.error('Failed to update channel', e);
-    // rollback optimistic update
     await db.updateChannel(channel);
   }
 }
@@ -173,7 +207,7 @@ export async function markChannelRead(params: MarkChannelReadParams) {
   try {
     await api.readChannel(params);
   } catch (e) {
-    console.error('Failed to read channel', e);
+    console.error('Failed to read channel', params, e);
     // rollback optimistic update
     if (existingUnread) {
       await db.insertChannelUnreads([existingUnread]);
@@ -288,4 +322,47 @@ export async function upsertDmChannel({
   await db.insertChannels([newDm]);
   logger.log(`returning new pending dm`, newDm);
   return newDm;
+}
+
+export async function leaveGroupChannel(channelId: string) {
+  const channel = await db.getChannel({ id: channelId });
+  if (!channel) {
+    throw new Error('Channel not found');
+  }
+
+  // optimistic update
+  await db.updateChannel({ id: channelId, currentUserIsMember: false });
+
+  try {
+    await api.leaveChannel(channelId);
+  } catch (e) {
+    console.error('Failed to leave channel', e);
+    // rollback optimistic update
+    await db.updateChannel({ id: channelId, currentUserIsMember: true });
+  }
+}
+
+export async function joinGroupChannel({
+  channelId,
+  groupId,
+}: {
+  channelId: string;
+  groupId: string;
+}) {
+  // optimistic update
+  await db.updateChannel({
+    id: channelId,
+    currentUserIsMember: true,
+  });
+
+  try {
+    await api.joinChannel(channelId, groupId);
+  } catch (e) {
+    // rollback on failure
+    logger.error('Failed to join group channel');
+    await db.updateChannel({
+      id: channelId,
+      currentUserIsMember: false,
+    });
+  }
 }

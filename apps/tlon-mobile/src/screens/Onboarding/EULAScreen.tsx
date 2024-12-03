@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { GenericHeader, SizableText, View, YStack } from '@tloncorp/ui';
+import { ScreenHeader, SizableText, View, YStack } from '@tloncorp/ui';
 import { ScrollView } from 'react-native';
 
 import type { OnboardingStackParamList } from '../../types';
@@ -8,11 +8,11 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'EULA'>;
 
 export const EULAScreen = ({ navigation }: Props) => {
   return (
-    <View flex={1}>
-      <GenericHeader
+    <View flex={1} backgroundColor={'$secondaryBackground'}>
+      <ScreenHeader
         title="EULA"
         showSessionStatus={false}
-        goBack={() => navigation.goBack()}
+        backAction={() => navigation.goBack()}
       />
       <ScrollView style={{ flex: 1 }}>
         <YStack gap="$xl" padding="$2xl">

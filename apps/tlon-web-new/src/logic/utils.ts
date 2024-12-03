@@ -1,4 +1,4 @@
-import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
+import { MessageKey } from '@tloncorp/shared/urbit/activity';
 import {
   CacheId,
   ChatStory,
@@ -9,13 +9,13 @@ import {
   Verse,
   VerseBlock,
   VerseInline,
-} from '@tloncorp/shared/dist/urbit/channel';
+} from '@tloncorp/shared/urbit/channel';
 import {
   Bold,
   Inline,
   Italics,
   Strikethrough,
-} from '@tloncorp/shared/dist/urbit/content';
+} from '@tloncorp/shared/urbit/content';
 import {
   Cabals,
   ChannelPrivacyType,
@@ -27,7 +27,7 @@ import {
   PrivacyType,
   Rank,
   Saga,
-} from '@tloncorp/shared/dist/urbit/groups';
+} from '@tloncorp/shared/urbit/groups';
 import {
   BigIntOrderedMap,
   Docket,
@@ -43,7 +43,6 @@ import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
 import _ from 'lodash';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router';
 import ob from 'urbit-ob';
 import { useCopyToClipboard } from 'usehooks-ts';
 import isURL from 'validator/es/lib/isURL';
@@ -1200,31 +1199,8 @@ export function useIsHttps() {
   return window.location.protocol === 'https:';
 }
 
-export function useIsInThread() {
-  const { idTime } = useParams<{
-    idTime: string;
-  }>();
-
-  return !!idTime;
-}
-
 export function useIsDmOrMultiDm(whom: string) {
   return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
-}
-
-export function useThreadParentId(whom: string) {
-  const isDMorMultiDM = useIsDmOrMultiDm(whom);
-
-  const { idShip, idTime } = useParams<{
-    idShip: string;
-    idTime: string;
-  }>();
-
-  if (isDMorMultiDM) {
-    return `${idShip}/${idTime}`;
-  }
-
-  return idTime;
 }
 
 export function cacheIdToString(id: CacheId) {

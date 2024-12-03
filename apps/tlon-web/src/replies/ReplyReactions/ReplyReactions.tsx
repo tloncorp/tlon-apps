@@ -1,4 +1,4 @@
-import { ReplySeal } from '@tloncorp/shared/dist/urbit/channel';
+import { ReplySeal } from '@tloncorp/shared/urbit/channel';
 import _ from 'lodash';
 import { useCallback, useState } from 'react';
 

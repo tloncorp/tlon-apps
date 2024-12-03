@@ -1,76 +1,104 @@
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useMutableRef } from '@tloncorp/shared';
 import { NavBarView, ProfileScreenView, View } from '@tloncorp/ui';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
+import { getVariableValue, useTheme } from 'tamagui';
 
 import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useHandleLogout } from '../../hooks/useHandleLogout';
+import { useResetDb } from '../../hooks/useResetDb';
+import { useFeatureFlag } from '../../lib/featureFlags';
+import { RootStackParamList } from '../../navigation/types';
+import { getHostingToken, getHostingUserId } from '../../utils/hosting';
 
-export default function ProfileScreen({
-  navigateToAppSettings,
-  navigateToEditProfile,
-  navigateToErrorReport,
-  navigateToProfile,
-  navigateToHome,
-  navigateToNotifications,
-  navigateToSettings,
-  handleLogout,
-}: {
-  navigateToAppSettings: () => void;
-  navigateToEditProfile: () => void;
-  navigateToErrorReport: () => void;
-  navigateToProfile: (userId: string) => void;
-  navigateToHome: () => void;
-  navigateToNotifications: () => void;
-  navigateToSettings: () => void;
-  handleLogout?: () => void;
-}) {
+type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
+
+export default function ProfileScreen(props: Props) {
+  const resetDb = useResetDb();
+  const handleLogout = useHandleLogout({ resetDb });
   const currentUserId = useCurrentUserId();
+  const { dmLink } = useDMLureLink();
+  const hasHostedAuth = useHasHostedAuth();
+  const navigationRef = useMutableRef(props.navigation);
 
-  const onAppSettingsPressed = useCallback(() => {
-    navigateToAppSettings();
-  }, [navigateToAppSettings]);
+  const onAppInfoPressed = useCallback(() => {
+    navigationRef.current.navigate('AppInfo');
+  }, [navigationRef]);
 
-  const onEditProfilePressed = useCallback(() => {
-    navigateToEditProfile();
-  }, [navigateToEditProfile]);
+  const onPushNotifPressed = useCallback(() => {
+    navigationRef.current.navigate('PushNotificationSettings');
+  }, [navigationRef]);
+
+  const onBlockedUsersPressed = useCallback(() => {
+    navigationRef.current.navigate('BlockedUsers');
+  }, [navigationRef]);
+
+  const onManageAccountPressed = useCallback(() => {
+    navigationRef.current.navigate('ManageAccount');
+  }, [navigationRef]);
+
+  const onExperimentalFeaturesPressed = useCallback(() => {
+    navigationRef.current.navigate('FeatureFlags');
+  }, [navigationRef]);
+
+  const onProfilePressed = useCallback(() => {
+    navigationRef.current.navigate('UserProfile', { userId: currentUserId });
+  }, [currentUserId, navigationRef]);
 
   const onSendBugReportPressed = useCallback(() => {
-    navigateToErrorReport();
-  }, [navigateToErrorReport]);
+    navigationRef.current.navigate('WompWomp');
+  }, [navigationRef]);
 
-  const onViewProfilePressed = useCallback(() => {
-    navigateToProfile(currentUserId);
-  }, [currentUserId, navigateToProfile]);
+  const onBack = useCallback(() => {
+    navigationRef.current.goBack();
+  }, [navigationRef]);
 
-  const { dmLink } = useDMLureLink();
+  const onThemePressed = useCallback(() => {
+    navigationRef.current.navigate('Theme');
+  }, [navigationRef]);
+
+  const backgroundColor = getVariableValue(useTheme().background);
 
   return (
-    <View backgroundColor="$background" flex={1}>
+    <View backgroundColor={backgroundColor} flex={1}>
       <ProfileScreenView
+        hasHostedAuth={hasHostedAuth}
         currentUserId={currentUserId}
-        onAppSettingsPressed={onAppSettingsPressed}
-        onEditProfilePressed={onEditProfilePressed}
-        onLogoutPressed={() => {
-          if (handleLogout) {
-            handleLogout();
-          }
-        }}
+        onProfilePressed={onProfilePressed}
+        onLogoutPressed={handleLogout}
         onSendBugReportPressed={onSendBugReportPressed}
-        onViewProfile={onViewProfilePressed}
+        onAppInfoPressed={onAppInfoPressed}
+        onNotificationSettingsPressed={onPushNotifPressed}
+        onBlockedUsersPressed={onBlockedUsersPressed}
+        onManageAccountPressed={onManageAccountPressed}
+        onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
+        onThemePressed={onThemePressed}
         dmLink={dmLink}
-      />
-      <NavBarView
-        navigateToHome={() => {
-          navigateToHome();
-        }}
-        navigateToNotifications={() => {
-          navigateToNotifications();
-        }}
-        navigateToProfile={() => {
-          navigateToSettings();
-        }}
-        currentRoute="Profile"
-        currentUserId={currentUserId}
+        onBackPressed={onBack}
       />
     </View>
   );
+}
+
+function useHasHostedAuth() {
+  const [hasHostedAuth, setHasHostedAuth] = useState(false);
+
+  useEffect(() => {
+    async function getHostingInfo() {
+      const [cookie, userId] = await Promise.all([
+        getHostingToken(),
+        getHostingUserId(),
+      ]);
+      if (cookie && userId) {
+        setHasHostedAuth(true);
+      }
+    }
+    if (Platform.OS !== 'web') {
+      getHostingInfo();
+    }
+  }, []);
+
+  return hasHostedAuth;
 }

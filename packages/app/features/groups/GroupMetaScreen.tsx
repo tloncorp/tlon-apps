@@ -1,6 +1,7 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
-import { uploadAsset, useCanUpload } from '@tloncorp/shared/dist/store';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
+import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import {
   AttachmentProvider,
   Button,
@@ -9,16 +10,22 @@ import {
 } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
-import { BRANCH_DOMAIN, BRANCH_KEY } from '../../constants';
+import {
+  INVITE_SERVICE_ENDPOINT,
+  INVITE_SERVICE_IS_DEV,
+} from '../../constants';
 import { useGroupContext } from '../../hooks/useGroupContext';
+import { GroupSettingsStackParamList } from '../../navigation/types';
 
-export function GroupMetaScreen({
-  groupId,
-  onGoBack,
-}: {
-  groupId: string;
-  onGoBack: () => void;
-}) {
+type Props = NativeStackScreenProps<
+  GroupSettingsStackParamList,
+  'GroupMeta'
+> & {
+  navigateToHome: () => void;
+};
+
+export function GroupMetaScreen(props: Props) {
+  const { groupId } = props.route.params;
   const { group, setGroupMetadata, deleteGroup } = useGroupContext({
     groupId,
   });
@@ -26,36 +33,36 @@ export function GroupMetaScreen({
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
   const { enabled, describe } = store.useLure({
     flag: groupId,
-    branchDomain: BRANCH_DOMAIN,
-    branchKey: BRANCH_KEY,
+    inviteServiceEndpoint: INVITE_SERVICE_ENDPOINT,
+    inviteServiceIsDev: INVITE_SERVICE_IS_DEV,
   });
 
   const handleSubmit = useCallback(
     (data: db.ClientMeta) => {
       setGroupMetadata(data);
-      onGoBack();
+      props.navigation.goBack();
       if (enabled) {
-        describe({
-          title: data.title ?? '',
-          description: data.description ?? '',
-          image: data.iconImage ?? '',
-          cover: data.coverImage ?? '',
-        });
+        describe();
       }
     },
-    [setGroupMetadata, onGoBack, enabled, describe]
+    [setGroupMetadata, props.navigation, enabled, describe]
   );
 
   const handlePressDelete = useCallback(() => {
     setShowDeleteSheet(true);
   }, []);
 
+  const handleDeleteGroup = useCallback(() => {
+    deleteGroup();
+    props.navigateToHome();
+  }, [deleteGroup, props]);
+
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
       <MetaEditorScreenView
         chat={group}
         title={'Edit group info'}
-        goBack={onGoBack}
+        goBack={props.navigation.goBack}
         onSubmit={handleSubmit}
       >
         <Button heroDestructive onPress={handlePressDelete}>
@@ -66,7 +73,7 @@ export function GroupMetaScreen({
           itemTypeDescription="group"
           open={showDeleteSheet}
           onOpenChange={setShowDeleteSheet}
-          deleteAction={deleteGroup}
+          deleteAction={handleDeleteGroup}
         />
       </MetaEditorScreenView>
     </AttachmentProvider>

@@ -4,7 +4,7 @@ import {
   getChannelSource,
   getDmSource,
   getThreadKey,
-} from '@tloncorp/shared/dist/urbit/activity';
+} from '@tloncorp/shared/urbit/activity';
 import { daToUnix } from '@urbit/api';
 import { BigInteger } from 'big-integer';
 import cn from 'classnames';

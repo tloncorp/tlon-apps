@@ -8,7 +8,10 @@ import {
   NativeSyntheticEvent,
 } from 'react-native';
 import { View } from 'tamagui';
+import { Dialog } from 'tamagui';
+import { VisuallyHidden } from 'tamagui';
 
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 import { Button } from '../Button';
 import KeyboardAvoidingView from '../KeyboardAvoidingView';
 import { SearchBar } from '../SearchBar';
@@ -102,7 +105,63 @@ export function EmojiPickerSheet(
     [handleEmojiSelect]
   );
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   const keyExtractor = useCallback((item: string) => item, []);
+
+  const hasOpened = useRef(props.open);
+  if (!hasOpened.current && props.open) {
+    hasOpened.current = true;
+  }
+
+  // Sheets are heavy; we don't want to render until we need to
+  if (!hasOpened.current) return null;
+
+  if (!isWindowNarrow) {
+    return (
+      <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+        <Dialog.Portal>
+          <Dialog.Overlay
+            backgroundColor="$overlayBackground"
+            key="overlay"
+            opacity={0.4}
+          />
+          <Dialog.Content
+            borderWidth={1}
+            borderColor="$border"
+            padding="$m"
+            minWidth={300}
+            key="content"
+          >
+            <VisuallyHidden>
+              <Dialog.Title>Emoji Picker</Dialog.Title>
+            </VisuallyHidden>
+            <View width="100%" marginBottom="$xl">
+              <SearchBar
+                debounceTime={300}
+                marginHorizontal="$m"
+                onChangeQuery={handleQueryChange}
+                inputProps={{ spellCheck: false, autoComplete: 'off' }}
+              />
+            </View>
+            <FlatList
+              style={{ width: '100%', height: 400 }}
+              horizontal={false}
+              // contentContainerStyle={{ flexGrow: 1 }}
+              onScroll={handleScroll}
+              onTouchStart={onTouchStart}
+              onTouchEnd={onTouchEnd}
+              data={listData}
+              keyExtractor={keyExtractor}
+              numColumns={6}
+              removeClippedSubviews
+              renderItem={renderItem}
+            />
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog>
+    );
+  }
 
   return (
     <Modal transparent visible={props.open} onDismiss={handleDismiss}>
@@ -130,7 +189,7 @@ export function EmojiPickerSheet(
                 marginHorizontal="$m"
                 onChangeQuery={handleQueryChange}
                 onFocus={handleInputFocus}
-                areaProps={{ spellCheck: false, autoComplete: 'off' }}
+                inputProps={{ spellCheck: false, autoComplete: 'off' }}
               />
             </View>
             <View onTouchStart={() => Keyboard.dismiss()}>

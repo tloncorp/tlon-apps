@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as Haptics from 'expo-haptics';
+import { ChannelAction } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import { RefObject, useEffect, useState } from 'react';
 import {
   DimensionValue,
@@ -14,8 +14,11 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, YStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
+import useIsWindowNarrow from '../../../hooks/useIsWindowNarrow';
+import { triggerHaptic } from '../../../utils';
+import { ActionSheet } from '../../ActionSheet';
 import { EmojiToolbar } from './EmojiToolbar';
 import MessageActions from './MessageActions';
 import { MessageContainer } from './MessageContainer';
@@ -30,23 +33,25 @@ interface LayoutStruct {
 export function ChatMessageActions({
   post,
   postRef,
-  channelType,
+  postActionIds,
   onDismiss,
   width,
   height,
   onReply,
   onEdit,
   onViewReactions,
+  onShowEmojiPicker,
 }: {
   post: db.Post;
+  postActionIds: ChannelAction.Id[];
   postRef: RefObject<RNView>;
-  channelType: db.ChannelType;
   onDismiss: () => void;
   width?: DimensionValue;
   height?: DimensionValue;
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
+  onShowEmojiPicker?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
@@ -59,6 +64,7 @@ export function ChatMessageActions({
   const translateY = useSharedValue(0);
   const scale = useSharedValue(0.3); // Start with a smaller scale
   const opacity = useSharedValue(0);
+  const isWindowNarrow = useIsWindowNarrow();
 
   function handleLayout(event: LayoutChangeEvent) {
     const { height, width, x, y } = event.nativeEvent.layout;
@@ -92,8 +98,7 @@ export function ChatMessageActions({
   }
 
   useEffect(() => {
-    // on mount, give initial haptic feeedback
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    triggerHaptic('sheetOpen');
   }, []);
 
   useEffect(() => {
@@ -137,6 +142,35 @@ export function ChatMessageActions({
     [translateX, translateY, scale]
   );
 
+  if (!isWindowNarrow) {
+    return (
+      <ActionSheet
+        // We use an action sheet on web so that it will render within a dialog
+        open
+        onOpenChange={(open: boolean) => (!open ? onDismiss() : undefined)}
+      >
+        <YStack gap="$xs">
+          <XStack justifyContent="center">
+            <EmojiToolbar
+              post={post}
+              onDismiss={onDismiss}
+              openExternalSheet={onShowEmojiPicker}
+            />
+          </XStack>
+          <MessageContainer post={post} />
+          <MessageActions
+            post={post}
+            postActionIds={postActionIds}
+            dismiss={onDismiss}
+            onReply={onReply}
+            onEdit={onEdit}
+            onViewReactions={onViewReactions}
+          />
+        </YStack>
+      </ActionSheet>
+    );
+  }
+
   return (
     <Animated.View style={animatedStyles}>
       <View
@@ -150,7 +184,7 @@ export function ChatMessageActions({
           <MessageContainer post={post} />
           <MessageActions
             post={post}
-            channelType={channelType}
+            postActionIds={postActionIds}
             dismiss={onDismiss}
             onReply={onReply}
             onEdit={onEdit}

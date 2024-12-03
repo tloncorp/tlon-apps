@@ -1,13 +1,16 @@
 import Clipboard from '@react-native-clipboard/clipboard';
-import * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
-import * as store from '@tloncorp/shared/dist/store';
-import * as Haptics from 'expo-haptics';
+import { ChannelAction } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { useMemo } from 'react';
+import { Alert } from 'react-native';
+import { isWeb } from 'tamagui';
 
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
 import { useCopy } from '../../../hooks/useCopy';
+import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
 
 const ENABLE_COPY_JSON = __DEV__;
@@ -15,8 +18,8 @@ const ENABLE_COPY_JSON = __DEV__;
 export default function MessageActions({
   dismiss,
   onReply,
-  channelType,
   post,
+  postActionIds,
   onEdit,
   onViewReactions,
 }: {
@@ -25,65 +28,120 @@ export default function MessageActions({
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
   post: db.Post;
-  channelType: db.ChannelType;
+  postActionIds: ChannelAction.Id[];
 }) {
-  const currentUserId = useCurrentUserId();
-  const { addAttachment } = useAttachmentContext();
-  const channel = useChannelContext();
-  const postActions = useMemo(() => {
-    return getPostActions({
-      post,
-      channelType,
-      isMuted: logic.isMuted(post.volumeSettings?.level, 'thread'),
-    }).filter((action) => {
-      switch (action.id) {
-        case 'startThread':
-          // only show start thread if
-          // 1. the message is delivered
-          // 2. the message isn't a reply
-          // 3. an existing thread for that message doesn't already exist
-          return (
-            !post.deliveryStatus && !post.parentId && post.replyCount === 0
-          );
-        case 'edit':
-          // only show edit for current user's posts
-          return post.authorId === currentUserId;
-        case 'viewReactions':
-          return (post.reactions?.length ?? 0) > 0;
-        default:
-          return true;
-      }
-    });
-  }, [post, channelType, currentUserId]);
-
+  // arbitrary width that looks reasonable given labels
+  const width = isWeb ? 'auto' : 220;
   return (
-    // arbitrary width that looks reasonable given labels
-    <ActionList width={220}>
-      {postActions.map((action, index) => (
-        <ActionList.Action
-          onPress={() =>
-            handleAction({
-              id: action.id,
-              post,
-              userId: currentUserId,
-              channel,
-              isMuted: logic.isMuted(post.volumeSettings?.level, 'thread'),
-              dismiss,
-              onReply,
-              onEdit,
-              onViewReactions,
-              addAttachment,
-            })
-          }
-          key={action.id}
-          actionType={action.actionType}
-          last={index === postActions.length - 1 && !__DEV__}
-        >
-          {action.label}
-        </ActionList.Action>
+    <ActionList width={width}>
+      {postActionIds.map((actionId, index, list) => (
+        <ConnectedAction
+          key={actionId}
+          last={index === list.length - 1 && !__DEV__}
+          {...{ dismiss, onReply, onEdit, onViewReactions, post, actionId }}
+        />
       ))}
       {ENABLE_COPY_JSON ? <CopyJsonAction post={post} /> : null}
     </ActionList>
+  );
+}
+
+function ConnectedAction({
+  actionId,
+  dismiss,
+  last,
+  onEdit,
+  onReply,
+  onViewReactions,
+  post,
+}: {
+  actionId: ChannelAction.Id;
+  post: db.Post;
+  last: boolean;
+
+  dismiss: () => void;
+  onReply?: (post: db.Post) => void;
+  onEdit?: () => void;
+  onViewReactions?: (post: db.Post) => void;
+}) {
+  const currentUserId = useCurrentUserId();
+  const connectionStatus = store.useConnectionStatus();
+  const channel = useChannelContext();
+  const { addAttachment } = useAttachmentContext();
+  const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
+
+  const { label } = useDisplaySpecForChannelActionId(actionId, {
+    post,
+    channel,
+  });
+  const action = useMemo(
+    () => ChannelAction.staticSpecForId(actionId),
+    [actionId]
+  );
+
+  const visible = useMemo(() => {
+    switch (actionId) {
+      case 'startThread':
+        // only show start thread if
+        // 1. the message is delivered
+        // 2. the message isn't a reply
+        // 3. an existing thread for that message doesn't already exist
+        return !post.deliveryStatus && !post.parentId && post.replyCount === 0;
+      case 'edit':
+        // only show edit for current user's posts OR admins of notebook posts
+        return (
+          post.authorId === currentUserId ||
+          (channel.type === 'notebook' && currentUserIsAdmin)
+        );
+      case 'delete':
+        // only show delete for current user's posts
+        return post.authorId === currentUserId || currentUserIsAdmin;
+      case 'viewReactions':
+        return (post.reactions?.length ?? 0) > 0;
+      default:
+        return true;
+    }
+  }, [
+    actionId,
+    post.deliveryStatus,
+    post.parentId,
+    post.replyCount,
+    post.authorId,
+    post.reactions?.length,
+    currentUserId,
+    channel.type,
+    currentUserIsAdmin,
+  ]);
+
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <ActionList.Action
+      disabled={action.isNetworkDependent && connectionStatus !== 'Connected'}
+      onPress={() =>
+        handleAction({
+          id: actionId,
+          post,
+          userId: currentUserId,
+          channel,
+          isMuted: logic.isMuted(post.volumeSettings?.level, 'thread'),
+          dismiss,
+          onReply,
+          onEdit,
+          onViewReactions,
+          addAttachment,
+          isConnected: connectionStatus === 'Connected',
+          isNetworkDependent: action.isNetworkDependent,
+        })
+      }
+      key={actionId}
+      actionType={action.actionType}
+      last={last}
+    >
+      {label}
+    </ActionList.Action>
   );
 }
 
@@ -99,69 +157,6 @@ function CopyJsonAction({ post }: { post: db.Post }) {
   );
 }
 
-interface ChannelAction {
-  id: string;
-  label: string;
-  actionType?: 'destructive';
-}
-export function getPostActions({
-  post,
-  channelType,
-  isMuted,
-}: {
-  post: db.Post;
-  channelType: db.ChannelType;
-  isMuted?: boolean;
-}): ChannelAction[] {
-  switch (channelType) {
-    case 'gallery':
-      return [
-        { id: 'startThread', label: 'Comment on post' },
-        { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
-        { id: 'copyRef', label: 'Copy link to post' },
-        { id: 'edit', label: 'Edit post' },
-        { id: 'report', label: 'Report post' },
-        { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
-        { id: 'delete', label: 'Delete message', actionType: 'destructive' },
-      ];
-    case 'notebook':
-      return [
-        { id: 'startThread', label: 'Comment on post' },
-        { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
-        { id: 'copyRef', label: 'Copy link to post' },
-        { id: 'edit', label: 'Edit post' },
-        { id: 'report', label: 'Report post' },
-        { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
-        { id: 'delete', label: 'Delete message', actionType: 'destructive' },
-      ];
-    case 'dm':
-    case 'groupDm':
-      return [
-        // { id: 'quote', label: 'Quote' },
-        { id: 'startThread', label: 'Start thread' },
-        { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
-        { id: 'viewReactions', label: 'View reactions' },
-        { id: 'copyText', label: 'Copy message text' },
-        { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
-        { id: 'delete', label: 'Delete message', actionType: 'destructive' },
-      ];
-    case 'chat':
-    default:
-      return [
-        { id: 'quote', label: 'Quote' },
-        { id: 'startThread', label: 'Start thread' },
-        { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
-        { id: 'viewReactions', label: 'View reactions' },
-        { id: 'copyRef', label: 'Copy link to message' },
-        { id: 'copyText', label: 'Copy message text' },
-        { id: 'edit', label: 'Edit message' },
-        { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
-        { id: 'report', label: 'Report message' },
-        { id: 'delete', label: 'Delete message', actionType: 'destructive' },
-      ];
-  }
-}
-
 export async function handleAction({
   id,
   post,
@@ -173,8 +168,10 @@ export async function handleAction({
   onEdit,
   onViewReactions,
   addAttachment,
+  isConnected,
+  isNetworkDependent,
 }: {
-  id: string;
+  id: ChannelAction.Id;
   post: db.Post;
   userId: string;
   channel: db.Channel;
@@ -184,7 +181,17 @@ export async function handleAction({
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
+  isConnected: boolean;
+  isNetworkDependent: boolean;
 }) {
+  if (isNetworkDependent && !isConnected) {
+    Alert.alert(
+      'App is disconnected',
+      'This action is unavailable while the app is in a disconnected state.'
+    );
+    return;
+  }
+
   const [path, reference] = logic.postToContentReference(post);
 
   switch (id) {
@@ -223,6 +230,83 @@ export async function handleAction({
       break;
   }
 
-  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  triggerHaptic('success');
   dismiss();
+}
+
+/**
+ * Extra information about how to display the action. This can change based on
+ * the UI context - e.g. the label for `startThread` changes based on channel
+ * type.
+ */
+export function useDisplaySpecForChannelActionId(
+  id: ChannelAction.Id,
+  {
+    post,
+    channel,
+  }: {
+    post: db.Post;
+    channel: db.Channel;
+  }
+): {
+  label: string;
+} {
+  const isMuted = logic.isMuted(post.volumeSettings?.level, 'thread');
+  const postTerm = useMemo(() => {
+    return ['dm', 'groupDm', 'chat'].includes(channel?.type)
+      ? 'message'
+      : 'post';
+  }, [channel?.type]);
+
+  return useMemo(() => {
+    switch (id) {
+      case 'copyRef':
+        return {
+          label:
+            postTerm === 'message'
+              ? 'Copy link to message'
+              : 'Copy link to post',
+        };
+
+      case 'copyText':
+        return { label: 'Copy message text' };
+
+      case 'delete':
+        return {
+          label: postTerm === 'message' ? 'Delete message' : 'Delete post',
+        };
+
+      case 'edit':
+        return {
+          label: postTerm === 'message' ? 'Edit message' : 'Edit post',
+        };
+
+      case 'muteThread':
+        return { label: isMuted ? 'Unmute thread' : 'Mute thread' };
+
+      case 'quote':
+        return { label: 'Quote' };
+
+      case 'report':
+        return {
+          label: postTerm === 'message' ? 'Report message' : 'Report post',
+        };
+
+      case 'startThread':
+        return {
+          label: ['dm', 'groupDm', 'chat'].includes(channel?.type)
+            ? 'Start thread'
+            : 'Comment on post',
+        };
+
+      case 'viewReactions':
+        return { label: 'View reactions' };
+
+      case 'visibility': {
+        const showMsg = postTerm === 'message' ? 'Show message' : 'Show post';
+        const hideMsg = postTerm === 'message' ? 'Hide message' : 'Hide post';
+        return { label: post.hidden ? showMsg : hideMsg };
+      }
+    }
+  }, [channel?.type, isMuted, post.hidden, id, postTerm]);
 }

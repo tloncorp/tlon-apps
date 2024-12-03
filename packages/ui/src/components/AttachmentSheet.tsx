@@ -1,57 +1,71 @@
-import { MessageAttachments } from '@tloncorp/shared/dist/api';
+import { createDevLogger } from '@tloncorp/shared';
+import { MessageAttachments } from '@tloncorp/shared/api';
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
+import { isWeb } from 'tamagui';
 
-import { ActionGroup, ActionSheet } from './ActionSheet';
+import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ListItem } from './ListItem';
 
+const logger = createDevLogger('AttachmentSheet', true);
+
 export default function AttachmentSheet({
-  showAttachmentSheet,
-  setShowAttachmentSheet,
-  setImage,
+  isOpen: showAttachmentSheet,
+  onOpenChange: onOpenChange,
+  showClearOption,
+  onClearAttachments,
+  onAttachmentsSet: onAttachmentsSet,
 }: {
-  showAttachmentSheet: boolean;
-  setShowAttachmentSheet: (open: boolean) => void;
-  setImage: (attachments: MessageAttachments) => void;
+  isOpen: boolean;
+  showClearOption?: boolean;
+  onClearAttachments?: () => void;
+  onOpenChange: (open: boolean) => void;
+  onAttachmentsSet: (attachments: MessageAttachments) => void;
 }) {
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
   const [cameraPermissionStatus, requestCameraPermission] =
     ImagePicker.useCameraPermissions();
 
-  const takePicture = async () => {
-    setShowAttachmentSheet(false);
-    // The image picker is attempting to mount inside the sheet, but
-    // the sheet closes before the picker can mount. This adds
-    // a slight timeout to let the picker have enough time to mount.
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false,
-      quality: 0.5,
-      exif: false,
-    });
+  const takePicture = useCallback(async () => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.5,
+        exif: false,
+      });
 
-    if (!result.canceled) {
-      setImage(result.assets);
+      onOpenChange(false);
+
+      if (!result.canceled) {
+        onAttachmentsSet(result.assets);
+      }
+    } catch (e) {
+      console.error('Error taking picture', e);
+      logger.trackError('Error taking picture', { error: e });
     }
-  };
+  }, [onAttachmentsSet, onOpenChange]);
 
-  const pickImage = async () => {
-    setShowAttachmentSheet(false);
-    // See the comment above about the picker not mounting in time.
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false,
-      quality: 0.5,
-      exif: false,
-    });
+  const pickImage = useCallback(async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.5,
+        exif: false,
+      });
 
-    if (!result.canceled) {
-      setImage(result.assets);
+      onOpenChange(false);
+
+      if (!result.canceled) {
+        onAttachmentsSet(result.assets);
+      }
+    } catch (e) {
+      console.error('Error picking image', e);
+      logger.trackError('Error picking image', { error: e });
     }
-  };
+  }, [onAttachmentsSet, onOpenChange]);
 
   useEffect(() => {
     if (
@@ -72,23 +86,35 @@ export default function AttachmentSheet({
     requestCameraPermission,
   ]);
 
-  const actionGroups: ActionGroup[] = [
-    {
-      accent: 'neutral',
-      actions: [
-        {
-          title: 'Photo Library',
-          description: 'Choose a photo from your library',
-          action: pickImage,
-        },
-        {
-          title: 'Take a Photo',
-          description: 'Use your camera to take a photo',
-          action: takePicture,
-        },
-      ],
-    },
-  ];
+  const actionGroups: ActionGroup[] = useMemo(
+    () =>
+      createActionGroups(
+        [
+          'neutral',
+          {
+            title: isWeb ? 'Upload an image' : 'Photo Library',
+            description: isWeb
+              ? 'Upload an image from your computer'
+              : 'Choose a photo from your library',
+            action: pickImage,
+          },
+          !isWeb && {
+            title: 'Take a Photo',
+            description: 'Use your camera to take a photo',
+            action: takePicture,
+          },
+        ],
+        showClearOption && [
+          'negative',
+          {
+            title: 'Clear',
+            description: 'Remove attached media',
+            action: onClearAttachments,
+          },
+        ]
+      ),
+    [onClearAttachments, pickImage, showClearOption, takePicture]
+  );
 
   const title = 'Attach a file';
   const subtitle = 'Choose a file to attach';
@@ -96,7 +122,7 @@ export default function AttachmentSheet({
   return (
     <ActionSheet
       open={showAttachmentSheet}
-      onOpenChange={(open: boolean) => setShowAttachmentSheet(open)}
+      onOpenChange={(open: boolean) => onOpenChange(open)}
     >
       <ActionSheet.Header>
         <ListItem.MainContent>

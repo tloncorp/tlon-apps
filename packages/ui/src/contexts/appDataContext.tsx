@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/dist/db';
-import { Session } from '@tloncorp/shared/dist/store';
+import * as db from '@tloncorp/shared/db';
+import { Session } from '@tloncorp/shared/store';
 import { PropsWithChildren, createContext, useContext, useMemo } from 'react';
 
 export type CalmState = {
@@ -14,8 +14,12 @@ export type CurrentAppDataState = {
   contactIndex: Record<string, db.Contact> | null;
   branchDomain: string;
   branchKey: string;
+  inviteServiceEndpoint: string;
+  inviteServiceIsDev: boolean;
   session: Session | null;
   calmSettings: CalmState;
+  webAppNeedsUpdate?: boolean;
+  triggerWebAppUpdate?: (returnToRoot?: boolean) => Promise<void>;
 };
 
 type ContextValue = CurrentAppDataState;
@@ -28,8 +32,12 @@ export const AppDataContextProvider = ({
   contacts,
   branchDomain,
   branchKey,
+  inviteServiceEndpoint,
+  inviteServiceIsDev,
   calmSettings,
   session,
+  webAppNeedsUpdate,
+  triggerWebAppUpdate,
 }: PropsWithChildren<Partial<CurrentAppDataState>>) => {
   const value = useMemo(
     () => ({
@@ -38,14 +46,29 @@ export const AppDataContextProvider = ({
       contactIndex: buildContactIndex(contacts ?? []),
       branchDomain: branchDomain ?? '',
       branchKey: branchKey ?? '',
+      inviteServiceEndpoint: inviteServiceEndpoint ?? '',
+      inviteServiceIsDev: inviteServiceIsDev ?? false,
       calmSettings: calmSettings ?? {
         disableRemoteContent: false,
         disableAvatars: false,
         disableNicknames: false,
       },
       session: session ?? null,
+      webAppNeedsUpdate,
+      triggerWebAppUpdate,
     }),
-    [currentUserId, contacts, branchDomain, branchKey, session, calmSettings]
+    [
+      currentUserId,
+      contacts,
+      branchDomain,
+      branchKey,
+      inviteServiceEndpoint,
+      inviteServiceIsDev,
+      calmSettings,
+      session,
+      webAppNeedsUpdate,
+      triggerWebAppUpdate,
+    ]
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 };
@@ -70,6 +93,14 @@ export const useContact = (ship: string) => {
   return contactIndex?.[ship] ?? null;
 };
 
+export const useInviteService = () => {
+  const context = useAppDataContext();
+  return {
+    endpoint: context.inviteServiceEndpoint,
+    isDev: context.inviteServiceIsDev,
+  };
+};
+
 export const useBranchDomain = () => {
   const context = useAppDataContext();
   return context.branchDomain;
@@ -83,6 +114,15 @@ export const useBranchKey = () => {
 export const useCalm = () => {
   const context = useAppDataContext();
   return context.calmSettings;
+};
+
+export const useWebAppUpdate = () => {
+  const context = useAppDataContext();
+
+  return {
+    webAppNeedsUpdate: context.webAppNeedsUpdate,
+    triggerWebAppUpdate: context.triggerWebAppUpdate,
+  };
 };
 
 const useAppDataContext = (): CurrentAppDataState => {

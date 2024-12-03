@@ -1,18 +1,23 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  Insets,
   Keyboard,
   NativeScrollEvent,
   NativeSyntheticEvent,
   SectionListRenderItemInfo,
+  StyleProp,
+  ViewStyle,
 } from 'react-native';
-import { View } from 'tamagui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, XStack, useStyle } from 'tamagui';
 
 import { useContactIndex, useContacts } from '../contexts';
 import {
   useAlphabeticallySegmentedContacts,
   useSortedContacts,
 } from '../hooks/contactSorters';
+import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
 import { ContactRow } from './ContactRow';
 import { SearchBar } from './SearchBar';
 import { BlockSectionList } from './SectionList';
@@ -24,6 +29,10 @@ export function ContactBook({
   multiSelect = false,
   onSelectedChange,
   onScrollChange,
+  explanationComponent,
+  quickActions,
+  height,
+  width,
 }: {
   searchPlaceholder?: string;
   searchable?: boolean;
@@ -31,6 +40,10 @@ export function ContactBook({
   multiSelect?: boolean;
   onSelectedChange?: (selected: string[]) => void;
   onScrollChange?: (scrolling: boolean) => void;
+  explanationComponent?: React.ReactElement;
+  quickActions?: React.ReactElement;
+  height?: number;
+  width?: number;
 }) {
   const contacts = useContacts();
   const contactsIndex = useContactIndex();
@@ -86,6 +99,7 @@ export function ContactBook({
           selectable={multiSelect}
           selected={isSelected}
           onPress={handleSelect}
+          pressStyle={{ backgroundColor: '$shadow' }}
         />
       );
     },
@@ -110,29 +124,73 @@ export function ContactBook({
     [onScrollChange]
   );
 
+  const insets = useSafeAreaInsets();
+
+  const contentContainerStyle = useStyle({
+    paddingBottom: insets.bottom,
+    paddingTop: '$s',
+  }) as StyleProp<ViewStyle>;
+
+  const scrollIndicatorInsets = useStyle({
+    bottom: insets.bottom,
+    top: '$xl',
+  }) as Insets;
+
+  const isWindowNarrow = useIsWindowNarrow();
+
+  const listStyle = useMemo(() => {
+    if (!isWindowNarrow) {
+      return {
+        flex: 1,
+        overflow: 'scroll' as const,
+      };
+    }
+    return undefined;
+  }, [isWindowNarrow]);
+
   return (
-    <View flex={1}>
+    <View
+      flex={1}
+      height={isWindowNarrow ? undefined : height || '100%'}
+      width={isWindowNarrow ? undefined : width || '100%'}
+      display={isWindowNarrow ? undefined : 'flex'}
+      flexDirection={isWindowNarrow ? undefined : 'column'}
+    >
       {searchable && (
-        <View marginBottom="$xl">
+        <XStack
+          alignItems="center"
+          justifyContent="space-between"
+          gap="$m"
+          paddingBottom="$s"
+          width="100%"
+        >
           <SearchBar
-            padding="$m"
             height="$4xl"
             debounceTime={100}
             onChangeQuery={setQuery}
             placeholder={searchPlaceholder ?? ''}
-            areaProps={{ spellCheck: false }}
+            inputProps={{ spellCheck: false }}
+          />
+        </XStack>
+      )}
+      {!showSearchResults && explanationComponent ? (
+        explanationComponent
+      ) : (
+        <View flex={1} onTouchStart={Keyboard.dismiss}>
+          <BlockSectionList
+            ListHeaderComponent={!showSearchResults ? quickActions : null}
+            sections={sections}
+            onScroll={handleScroll}
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+            renderItem={renderItem}
+            contentContainerStyle={contentContainerStyle}
+            automaticallyAdjustsScrollIndicatorInsets={false}
+            scrollIndicatorInsets={scrollIndicatorInsets}
+            style={listStyle}
           />
         </View>
       )}
-      <View flex={1} onTouchStart={Keyboard.dismiss}>
-        <BlockSectionList
-          sections={sections}
-          onScroll={handleScroll}
-          onTouchStart={onTouchStart}
-          onTouchEnd={onTouchEnd}
-          renderItem={renderItem}
-        />
-      </View>
     </View>
   );
 }

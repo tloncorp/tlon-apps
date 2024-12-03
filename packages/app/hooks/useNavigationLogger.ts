@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { createDevLogger } from '@tloncorp/shared/dist';
+import { createDevLogger } from '@tloncorp/shared';
 import { useEffect, useRef } from 'react';
 
 const logger = createDevLogger('navigation', false);
@@ -11,12 +11,12 @@ export function useNavigationLogging() {
   useEffect(() => {
     // Set initial route
     const state = navigation.getState();
-    routeNameRef.current = state ? state.routes[state.index].name : '';
+    routeNameRef.current = state ? state.routes[state.index]?.name : '';
 
     const unsubscribe = navigation.addListener('state', () => {
       const previousRouteName = routeNameRef?.current ?? '';
       const state = navigation.getState();
-      const currentRouteName = state ? state.routes[state.index].name : '';
+      const currentRouteName = state ? state.routes[state.index]?.name : '';
 
       if (
         previousRouteName &&
@@ -31,5 +31,5 @@ export function useNavigationLogging() {
     });
 
     return unsubscribe;
-  }, [logger, navigation]);
+  }, [navigation]);
 }

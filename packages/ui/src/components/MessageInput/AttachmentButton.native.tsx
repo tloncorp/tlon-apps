@@ -29,9 +29,9 @@ export default function AttachmentButton({
         <Add />
       </IconButton>
       <AttachmentSheet
-        showAttachmentSheet={showInputSelector}
-        setShowAttachmentSheet={setShowInputSelector}
-        setImage={attachAssets}
+        isOpen={showInputSelector}
+        onOpenChange={setShowInputSelector}
+        onAttachmentsSet={attachAssets}
       />
     </>
   );

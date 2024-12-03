@@ -1,6 +1,6 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as urbit from '@tloncorp/shared/dist/urbit';
-import { useMemo } from 'react';
+import * as db from '@tloncorp/shared/db';
+import * as urbit from '@tloncorp/shared/urbit';
+import { useEffect, useMemo } from 'react';
 import { FlatList } from 'react-native';
 import { View, YStack } from 'tamagui';
 
@@ -12,16 +12,11 @@ import { Text } from './TextV2';
 
 export interface DetailViewProps {
   post: db.Post;
+  channel: db.Channel;
   initialPostUnread?: db.ThreadUnreadState | null;
   children?: JSX.Element;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (
-    post: db.Post,
-    content: urbit.Story,
-    parentId?: string,
-    metadata?: db.PostMetadata
-  ) => Promise<void>;
   posts?: db.Post[];
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   goBack?: () => void;
@@ -29,29 +24,38 @@ export interface DetailViewProps {
   onPressDelete: (post: db.Post) => void;
   setActiveMessage: (post: db.Post | null) => void;
   activeMessage: db.Post | null;
+  headerMode: 'default' | 'next';
+  editorIsFocused: boolean;
+  flatListRef?: React.RefObject<FlatList>;
 }
 
 export const DetailView = ({
   post,
+  channel,
   initialPostUnread,
   editingPost,
   setEditingPost,
-  editPost,
   posts,
   onPressImage,
   onPressRetry,
   onPressDelete,
   setActiveMessage,
   activeMessage,
+  headerMode,
+  editorIsFocused,
+  flatListRef,
 }: DetailViewProps) => {
-  const channelType = useMemo(
-    () => urbit.getChannelType(post.channelId),
-    [post.channelId]
-  );
+  const channelType = channel.type;
   const isChat = channelType !== 'notebook' && channelType !== 'gallery';
   const resolvedPosts = useMemo(() => {
     return isChat && posts ? [...posts, post] : posts;
   }, [posts, post, isChat]);
+
+  useEffect(() => {
+    if (editorIsFocused && flatListRef) {
+      flatListRef.current?.scrollToIndex({ index: 1, animated: true });
+    }
+  }, [editorIsFocused, flatListRef]);
 
   const scroller = useMemo(() => {
     return (
@@ -59,11 +63,10 @@ export const DetailView = ({
         <Scroller
           inverted
           renderItem={ChatMessage}
-          channelType="chat"
-          channelId={post.channelId}
+          channel={channel}
+          collectionLayoutType="compact-list-bottom-to-top"
           editingPost={editingPost}
           setEditingPost={setEditingPost}
-          editPost={editPost}
           posts={resolvedPosts ?? null}
           showReplies={false}
           showDividers={isChat}
@@ -79,22 +82,23 @@ export const DetailView = ({
           unreadCount={initialPostUnread?.count ?? 0}
           activeMessage={activeMessage}
           setActiveMessage={setActiveMessage}
+          headerMode={headerMode}
         />
       </View>
     );
   }, [
     activeMessage,
-    editPost,
     editingPost,
     initialPostUnread,
     isChat,
     onPressDelete,
     onPressImage,
     onPressRetry,
-    post.channelId,
     resolvedPosts,
     setActiveMessage,
     setEditingPost,
+    headerMode,
+    channel,
   ]);
 
   return isChat ? (
@@ -102,6 +106,7 @@ export const DetailView = ({
   ) : (
     <FlatList
       data={isChat ? ['posts'] : ['header', 'posts']}
+      ref={flatListRef}
       renderItem={({ item }) => {
         if (item === 'header') {
           return (

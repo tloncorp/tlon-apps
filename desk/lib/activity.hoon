@@ -27,6 +27,7 @@
     =/  parent
       ?-  -.source
         %dm  [%base ~]
+        %contact  [%base ~]
         %group  [%base ~]
         %channel  [%group group.source]
         %dm-thread  [%dm whom.source]
@@ -37,7 +38,7 @@
   ++  get-children  ::  direct children only
     |=  [=indices:a =source:a]
     ^-  (list source:a)
-    ?:  ?=(?(%thread %dm-thread) -.source)  ~
+    ?:  ?=(?(%thread %dm-thread %contact) -.source)  ~
     %+  skim
       ~(tap in ~(key by indices))
     |=  src=source:a
@@ -54,7 +55,8 @@
     %~  got  by
     ^~
     %-  my
-    :~  [%thread 6]
+    :~  [%contact 7]
+        [%thread 6]
         [%dm-thread 5]
         [%channel 4]
         [%group 3]
@@ -73,6 +75,7 @@
       %dm-thread  (get-volumes vs %dm whom.source)
       %channel    (get-volumes vs %group group.source)
       %thread     (get-volumes vs %channel channel.source group.source)
+      %contact    (get-volumes vs %base ~)
     ==
   ::
   ++  sort-sources
@@ -140,9 +143,9 @@
       %chan-init      [%channel channel.event group.event]
       %post           [%channel channel.event group.event]
       %reply          [%thread parent.event channel.event group.event]
-      %dm-invite          [%dm whom.event]
-      %dm-post            [%dm whom.event]
-      %dm-reply           [%dm-thread parent.event whom.event]
+      %dm-invite      [%dm whom.event]
+      %dm-post        [%dm whom.event]
+      %dm-reply       [%dm-thread parent.event whom.event]
       %group-invite   [%group group.event]
       %group-kick     [%group group.event]
       %group-join     [%group group.event]
@@ -150,6 +153,7 @@
       %group-ask      [%group group.event]
       %flag-post      [%group group.event]
       %flag-reply     [%group group.event]
+      %contact        [%contact who.event]
     ==
   ::
   ++  event-type
@@ -168,10 +172,13 @@
     ?:  ?=(%none allowed)  |
     =/  type  (event-type incoming-event)
     ?+  type  |
+      %post  &
       %reply  &
-      %dm-invite  &
+      %contact  &
       %dm-post    &
       %dm-reply   &
+      %dm-invite  &
+      %group-invite  &
       %post-mention  &
       %reply-mention  &
       %dm-post-mention  &

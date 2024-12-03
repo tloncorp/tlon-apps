@@ -1,77 +1,219 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import { useMemo } from 'react';
-import { ScrollView, View } from 'tamagui';
+import { ScrollView, YStack, styled } from 'tamagui';
 
+import { useContactName } from '../ContactNameV2';
+import { ContentReferenceLoader, PostReference } from '../ContentReference';
 import { GalleryPost } from '../GalleryPost';
-import { NotebookPost } from '../NotebookPost';
-import { PostContentRenderer } from '../PostContent';
+import { Icon } from '../Icon';
+import { createContentRenderer } from '../PostContent';
+import {
+  BlockData,
+  InlineData,
+  prependInline,
+  usePostContent,
+} from '../PostContent/contentUtils';
+import { Text } from '../TextV2';
+
+type ActivitySourceContentProps = {
+  summary: logic.SourceActivityEvents;
+  unreadCount?: number;
+  pressHandler?: () => void;
+};
 
 export function ActivitySourceContent({
   summary,
+  unreadCount,
   pressHandler,
-}: {
-  summary: logic.SourceActivityEvents;
-  pressHandler?: () => void;
-}) {
-  const post = useMemo(() => getPost(summary.newest), [summary.newest]);
-  const allPosts = useMemo(() => {
-    const fullPosts =
-      summary.all?.map((event) => getPost(event)).filter(Boolean) ?? []; // defensive
-    const seen = new Set();
-    return fullPosts.filter((item) => {
-      if (seen.has(item.id)) {
-        return false;
-      }
-      seen.add(item.id);
-      return true;
-    });
-  }, [summary.all]);
+}: ActivitySourceContentProps) {
+  const isReply = !!summary.newest.parentId;
+  const isChatPost =
+    summary.newest.channel?.type !== 'gallery' &&
+    summary.newest.channel?.type !== 'notebook';
 
-  // thread or comment
-  if (summary.newest.parentId) {
-    return <PostContentRenderer post={post} />;
-  }
-
-  if (
-    summary.newest.channel?.type === 'gallery' ||
-    summary.newest.channel?.type === 'notebook'
-  ) {
+  if (summary.newest.type === 'contact') {
     return (
-      <ScrollView
-        gap="$s"
-        horizontal
-        alwaysBounceHorizontal={false}
-        showsHorizontalScrollIndicator={false}
-      >
-        {summary.newest.channel?.type === 'notebook' ? (
-          <>
-            {allPosts.map((post) => (
-              <View
-                key={post.id}
-                marginRight="$s"
-                onPress={pressHandler}
-                width={256}
-              >
-                <NotebookPost post={post} viewMode="activity" size="$s" />
-              </View>
-            ))}
-          </>
-        ) : (
-          <>
-            {allPosts.map((post) => (
-              <View key={post.id} onPress={pressHandler}>
-                <GalleryPost post={post} />
-              </View>
-            ))}
-          </>
-        )}
-      </ScrollView>
+      <ContactUpdateContentRenderer
+        summary={summary}
+        pressHandler={pressHandler}
+      />
     );
   }
 
-  return <PostContentRenderer post={post} />;
+  return isReply || isChatPost ? (
+    <ChatContentRenderer
+      summary={summary}
+      pressHandler={pressHandler}
+      unreadCount={unreadCount}
+    />
+  ) : (
+    <NotebookOrGalleryContentRenderer
+      summary={summary}
+      pressHandler={pressHandler}
+    />
+  );
 }
+
+function ContactUpdateContentRenderer({ summary }: ActivitySourceContentProps) {
+  const newest = summary.newest;
+  if (newest.contactUpdateType === 'status') {
+    return (
+      <Text size="$label/m" color="$primaryText" marginVertical="$m">
+        {newest.contactUpdateValue}
+      </Text>
+    );
+  }
+
+  if (newest.contactUpdateType === 'pinnedGroups') {
+    const groups =
+      (newest.contactUpdateGroups
+        ?.map((ug) => ug.group)
+        .filter((g) => g) as db.Group[]) ?? [];
+
+    console.log('con update groups renderer', groups);
+
+    if (!groups.length) {
+      return null;
+    }
+
+    return (
+      <YStack marginVertical="$m" gap="$m">
+        {groups.map((group) => (
+          <ContentReferenceLoader
+            key={group.id}
+            reference={{
+              type: 'reference',
+              referenceType: 'group',
+              groupId: group.id,
+            }}
+          />
+        ))}
+      </YStack>
+    );
+  }
+
+  return null;
+}
+
+function ChatContentRenderer({
+  summary,
+  unreadCount,
+}: ActivitySourceContentProps) {
+  const post = useMemo(() => getPost(summary.newest), [summary.newest]);
+  const postAuthorName = useContactName(post.authorId);
+  const content = usePostContent(post);
+  // We want to display the author name inline if possible, so we inject it into
+  // the content.
+  const enrichedContent: BlockData[] = useMemo(() => {
+    const authorNameInline: InlineData = {
+      type: 'text',
+      text: postAuthorName + ': ',
+    };
+    return prependInline(content, authorNameInline);
+  }, [content, postAuthorName]);
+  return (
+    <>
+      <ActivityContentRenderer content={enrichedContent} />
+      {(unreadCount ?? 0) > 1 ? (
+        <Text size="$label/m" color="$tertiaryText" trimmed={false}>
+          +{(unreadCount ?? 0) - 1} more
+        </Text>
+      ) : null}
+    </>
+  );
+}
+
+function NotebookOrGalleryContentRenderer({
+  summary,
+  pressHandler,
+}: ActivitySourceContentProps) {
+  const posts = useUniqueSummaryPosts(summary);
+  const isNote = summary.newest.channel?.type === 'notebook';
+
+  return (
+    <ScrollView
+      marginVertical="$m"
+      horizontal
+      height={128}
+      contentContainerStyle={{ gap: '$m' }}
+      alwaysBounceHorizontal={false}
+      showsHorizontalScrollIndicator={false}
+    >
+      {posts.map((post) =>
+        isNote ? (
+          <PostReference
+            key={post.id}
+            channelId={post.channelId}
+            post={post}
+            contentSize="$s"
+            aspectRatio={1.5}
+            onPress={pressHandler}
+          />
+        ) : (
+          <GalleryPost key={post.id} post={post} onPress={pressHandler} />
+        )
+      )}
+    </ScrollView>
+  );
+}
+
+function useUniqueSummaryPosts(summary: logic.SourceActivityEvents) {
+  return useMemo(() => {
+    const seen = new Set();
+    return summary.all?.flatMap((event) => {
+      if (event.postId && !seen.has(event.postId)) {
+        seen.add(event.postId);
+        return [getPost(event)];
+      }
+      return [];
+    });
+  }, [summary.all]);
+}
+
+const ActivityContentRenderer = createContentRenderer({
+  blockSettings: {
+    blockWrapper: {
+      padding: 0,
+    },
+    lineText: {
+      size: '$label/m',
+      trimmed: false,
+    },
+    image: {
+      flex: 1,
+      alignSelf: 'flex-start',
+      marginVertical: '$xs',
+      borderRadius: '$xs',
+      imageProps: {
+        width: '$4xl',
+        height: '$4xl',
+        aspectRatio: 'unset',
+      },
+    },
+    bigEmoji: {
+      marginVertical: '$s',
+    },
+  },
+  blockRenderers: {
+    reference: () => {
+      return <PlaceholderIcon type="ArrowRef" />;
+    },
+    code: () => {
+      return <PlaceholderIcon type="CodeBlock" />;
+    },
+    video: () => {
+      return <PlaceholderIcon type="Play" />;
+    },
+  },
+});
+
+const PlaceholderIcon = styled(Icon, {
+  backgroundColor: '$secondaryBackground',
+  borderRadius: '$xs',
+  customSize: [24, 12],
+  marginVertical: '$xs',
+});
 
 function getPost(event: db.ActivityEvent): db.Post {
   let post: db.Post;

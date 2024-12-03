@@ -115,6 +115,7 @@ To streamline testing the login flow, you can use env variables to prepopulate f
 ```
 DEFAULT_TLON_LOGIN_EMAIL=
 DEFAULT_TLON_LOGIN_PASSWORD=
+DEFAULT_INVITE_LINK_URL=
 DEFAULT_SHIP_LOGIN_URL=
 DEFAULT_SHIP_LOGIN_ACCESS_CODE=
 ```

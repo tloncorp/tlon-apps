@@ -135,9 +135,14 @@ enum NotificationCategory: String {
         content: UNMutableNotificationContent = UNMutableNotificationContent()
     ) async -> (UNNotificationContent, INSendMessageIntent?) {
         content.interruptionLevel = .active
-        content.threadIdentifier = yarn.channelID
+        content.threadIdentifier = yarn.rope.thread
         content.title = await yarn.getTitle()
         content.body = yarn.body
+        content.badge = await withUnsafeContinuation { cnt in
+            UNUserNotificationCenter.current().getDeliveredNotifications { notifs in
+                cnt.resume(returning: NSNumber(value: notifs.count + 1))
+            }
+        }
         content.categoryIdentifier = yarn.category.rawValue
         content.userInfo = yarn.userInfo
         content.sound = UNNotificationSound.default

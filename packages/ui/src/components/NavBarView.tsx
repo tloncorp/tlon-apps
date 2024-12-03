@@ -1,24 +1,55 @@
-import * as store from '@tloncorp/shared/dist/store';
+import * as store from '@tloncorp/shared/store';
+import { useCallback, useState } from 'react';
 
+import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
+import { triggerHaptic } from '../utils';
 import { AvatarNavIcon, NavBar, NavIcon } from './NavBar';
+import ProfileStatusSheet from './ProfileStatusSheet';
 
 export const NavBarView = ({
   navigateToHome,
   navigateToNotifications,
-  navigateToProfile,
+  navigateToContacts,
   currentRoute,
   currentUserId,
 }: {
   navigateToHome: () => void;
   navigateToNotifications: () => void;
-  navigateToProfile: () => void;
+  navigateToContacts?: () => void;
   currentRoute: string;
   currentUserId: string;
+  showContactsTab?: boolean;
 }) => {
-  const isRouteActive = (routeName: string) => {
+  const [showStatusSheet, setShowStatusSheet] = useState(false);
+  const isRouteActive = (routeName: string | string[]) => {
+    if (Array.isArray(routeName)) {
+      return routeName.includes(currentRoute);
+    }
     return currentRoute === routeName;
   };
   const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
+  const isWindowNarrow = useIsWindowNarrow();
+
+  const openStatusSheet = useCallback(() => {
+    triggerHaptic('sheetOpen');
+    setShowStatusSheet(true);
+  }, []);
+
+  const closeStatusSheet = useCallback(() => {
+    setShowStatusSheet(false);
+  }, []);
+
+  const handleUpdateStatus = useCallback(
+    (newStatus: string) => {
+      store.updateCurrentUserProfile({ status: newStatus });
+      closeStatusSheet();
+    },
+    [closeStatusSheet]
+  );
+
+  if (!isWindowNarrow) {
+    return null;
+  }
 
   return (
     <NavBar>
@@ -26,23 +57,29 @@ export const NavBarView = ({
         type="Home"
         activeType="HomeFilled"
         isActive={isRouteActive('ChatList')}
-        // hasUnreads={(unreadCount?.channels ?? 0) > 0}
-        // intentionally leave undotted for now
         hasUnreads={false}
-        onPress={() => navigateToHome()}
+        onPress={navigateToHome}
       />
       <NavIcon
         type="Notifications"
         activeType="NotificationsFilled"
         hasUnreads={haveUnreadUnseenActivity}
         isActive={isRouteActive('Activity')}
-        onPress={() => navigateToNotifications()}
+        onPress={navigateToNotifications}
       />
       <AvatarNavIcon
         id={currentUserId}
-        focused={isRouteActive('Profile')}
-        onPress={() => navigateToProfile()}
+        focused={isRouteActive('Contacts')}
+        onPress={navigateToContacts}
+        onLongPress={openStatusSheet}
       />
+      {showStatusSheet && (
+        <ProfileStatusSheet
+          open={showStatusSheet}
+          onOpenChange={closeStatusSheet}
+          onUpdateStatus={handleUpdateStatus}
+        />
+      )}
     </NavBar>
   );
 };

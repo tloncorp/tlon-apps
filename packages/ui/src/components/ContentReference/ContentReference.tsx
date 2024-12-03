@@ -1,7 +1,8 @@
 // tamagui-ignore
-import { ContentReference } from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
-import { getChannelType } from '@tloncorp/shared/dist/urbit';
+import { ContentReference } from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
+import { getChannelType } from '@tloncorp/shared/urbit';
+import React from 'react';
 import { ComponentProps, useCallback } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
@@ -74,30 +75,35 @@ export function PostReferenceLoader({
   postId: string;
   replyId?: string;
 }) {
-  const { usePostReference, useChannel } = useRequests();
+  const { usePostReference, useChannel, useGroup } = useRequests();
   const postQuery = usePostReference({
     postId: replyId ? replyId : postId,
     channelId: channelId,
   });
   const { data: channel } = useChannel({ id: channelId });
-  const { onPressRef } = useNavigation();
-  const handlePress = useCallback(() => {
-    if (channel && postQuery.data) {
+  const { data: group } = useGroup(channel?.groupId ?? '');
+  const { onPressRef, onPressGroupRef } = useNavigation();
+  const handlePress = useCallback(async () => {
+    if (channel && postQuery.data && group && group.currentUserIsMember) {
       onPressRef?.(channel, postQuery.data);
+    } else if (group) {
+      onPressGroupRef?.(group);
     }
-  }, [channel, onPressRef, postQuery.data]);
+  }, [channel, onPressRef, postQuery.data, group, onPressGroupRef]);
 
   return (
-    <PostReference
-      channelId={channelId}
-      post={postQuery.data}
-      isLoading={postQuery.isLoading}
-      isError={postQuery.isError}
-      errorMessage={postQuery.error?.message}
-      hasData={!!postQuery.data}
-      onPress={openOnPress ? handlePress : undefined}
-      {...props}
-    />
+    <>
+      <PostReference
+        channelId={channelId}
+        post={postQuery.data}
+        isLoading={postQuery.isLoading}
+        isError={postQuery.isError}
+        errorMessage={postQuery.error?.message}
+        hasData={!!postQuery.data}
+        onPress={openOnPress ? handlePress : undefined}
+        {...props}
+      />
+    </>
   );
 }
 
@@ -108,7 +114,7 @@ export const PostReference = ({
 }: ReferenceProps & { channelId: string; post?: db.Post | null }) => {
   const channelType = getChannelType(channelId);
   return (
-    <Reference {...props}>
+    <Reference {...props} hasData={!!post}>
       <ContentReferenceHeader type={channelType} />
       {post?.type === 'block' ? (
         <BlockReferenceContent post={post} />
@@ -246,7 +252,7 @@ const PostReferenceAuthorName = styled(Text, {
 
 // Group reference
 
-export function GroupReferenceLoader({
+export function GroupReferenceLoaderComponent({
   groupId,
   openOnPress = true,
   ...props
@@ -270,6 +276,8 @@ export function GroupReferenceLoader({
     />
   );
 }
+
+const GroupReferenceLoader = React.memo(GroupReferenceLoaderComponent);
 
 export function GroupReference({
   data,
@@ -307,11 +315,7 @@ export function GroupReference({
               </View>
             )
           ) : (
-            <ListItem
-              pressable={false}
-              backgroundColor={'transparent'}
-              gap="$m"
-            >
+            <ListItem backgroundColor={'transparent'} gap="$m">
               <ListItem.GroupIcon model={data} />
               <ListItem.MainContent>
                 <ListItem.Title>{data.title ?? data.id}</ListItem.Title>

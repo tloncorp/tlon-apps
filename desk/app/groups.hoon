@@ -3,12 +3,12 @@
 ::    note: all subscriptions are handled by the subscriber library so
 ::    we can have resubscribe loop protection.
 ::
-/-  g=groups, zero=groups-0, ha=hark, h=heap, d=channels, c=chat, tac=contacts,
-    activity
+/-  g=groups, zero=groups-0, ha=hark, h=heap, d=channels, c=chat,
+    tac=contacts-0, activity
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
-/+  v=volume, s=subscriber, imp=import-aid
+/+  v=volume, s=subscriber, imp=import-aid, logs
 /+  of
 /+  epos-lib=saga
 ::  performance, keep warm
@@ -69,7 +69,11 @@
   ++  on-peek   peek:cor
   ::
   ++  on-leave   on-leave:def
-  ++  on-fail    on-fail:def
+  ++  on-fail
+    |=  [=term =tang]
+    ^-  (quip card _this)
+    :_  this
+    [(log-fail:logs /logs our.bowl (fail-event:logs term tang))]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
@@ -146,7 +150,7 @@
     =+  !<(=flag:g vase)
     ?>  from-self
     ?<  =(our.bowl p.flag)
-    go-abet:go-leave:(go-abed:group-core flag)
+    go-abet:(go-leave:(go-abed:group-core flag) &)
   ::
       %group-create
     ?>  from-self
@@ -636,6 +640,7 @@
   ?+    pole  ~|(bad-agent-take/pole !!)
       ~   cor
       [%epic ~]  (take-epic sign)
+      [%logs ~]  cor
       [%helm *]  cor
       [%activity %submit *]  cor
       [%groups %role ~]  cor
@@ -758,10 +763,10 @@
     cor
   ::
       %fact
-    =+  !<(=update:tac q.cage.sign)
-    ?~  con.update  cor
+    =+  !<(=update-0:tac q.cage.sign)
+    ?~  con.update-0  cor
     %-  emil
-    %+  turn  ~(tap in groups.con.update)
+    %+  turn  ~(tap in groups.con.update-0)
     |=  =flag:g
     [%pass /gangs/(scot %p p.flag)/[q.flag]/preview %agent [p.flag dap.bowl] %watch /groups/(scot %p p.flag)/[q.flag]/preview]
   ==
@@ -1031,17 +1036,16 @@
     --
   ::
   ++  go-leave
-    =/  joined-channels
-      %-  ~(gas in *(set nest:g))
-      %+  murn  ~(tap in channels.group)
-      |=  [ch=nest:g =channel:g]
-      [~ ch]
+    |=  send-remove=?
+    =/  joined-channels  ~(tap in ~(key by channels.group))
     =.  cor
-      (emil (leave-channels:go-pass ~(tap in joined-channels)))
+      (emil (leave-channels:go-pass joined-channels))
     =.  cor
       (submit-activity [%del %group flag])
-    =.  cor  (emit remove-self:go-pass)
-    =.  cor  (emit %give %fact ~[/groups /groups/ui] group-leave+!>(flag))
+    =?  cor  send-remove
+      (emit remove-self:go-pass)
+    =.  cor
+      (emit %give %fact ~[/groups /groups/ui] group-leave+!>(flag))
     go-core(gone &)
   ::
   ++  go-init
@@ -1392,7 +1396,7 @@
       %zone     (go-zone-update +.diff)
       %meta     (go-meta-update p.diff)
       %secret   (go-secret-update p.diff)
-      %del      go-core(gone &)
+      %del      (go-leave |)
       %flag-content  (go-flag-content +:diff)
     ==
   ::
@@ -1778,7 +1782,7 @@
         =.  go-core  (go-activity %kick i.ships)
         $(ships t.ships)
       ?:  (~(has in ships) our.bowl)
-        go-core(gone &)
+        (go-leave |)
       go-core
     ::
         %add-sects
@@ -1846,7 +1850,6 @@
       =.  zones.group  (go-bump-zone ch channel.diff)
       =.  channels.group  (put:by-ch ch channel.diff)
       ?:  from-self  go-core
-      ?:  =(our.bowl p.flag)  go-core
       =.  cor  (emil (join-channels:go-pass ~[ch]))
       go-core
     ::
@@ -2040,7 +2043,8 @@
       =/  =action:g  [flag now.bowl %cordon %shut %del-ships %ask ships]
       (poke-host /rescind act:mar:g !>(action))
     ++  get-preview
-      =/  =wire  (welp ga-area /preview)
+      |=  invite=?
+      =/  =wire  (welp ga-area ?:(invite /preview/invite /preview))
       =/  =dock  [p.flag dap.bowl]
       =/  =path  /groups/(scot %p p.flag)/[q.flag]/preview
       =/  watch  [%pass wire %agent dock %watch path]
@@ -2076,23 +2080,23 @@
   ++  ga-watch
     |=  =(pole knot)
     ^+  ga-core
-    =.  cor  get-preview:ga-pass
+    =.  cor  (get-preview:ga-pass |)
     ga-core
   ::
   ++  ga-give-update
     (give %fact ~[/gangs/updates] gangs+!>((~(put by xeno) flag gang)))
   ++  ga-agent
-    |=  [=wire =sign:agent:gall]
+    |=  [=(pole knot) =sign:agent:gall]
     ^+  ga-core
-    ?+    wire  ~|(bad-agent-take/wire !!)
+    ?+    pole  ~|(bad-agent-take/pole !!)
           [%invite ~]
         ?>  ?=(%poke-ack -.sign)
         :: ?~  p.sign  ga-core
         :: %-  (slog leaf/"Failed to invite {<ship>}" u.p.sign)
         ga-core
       ::
-          [%preview ~]
-        ?+  -.sign  ~|(weird-take/[wire -.sign] !!)
+          [%preview inv=?(~ [%invite ~])]
+        ?+  -.sign  ~|(weird-take/[pole -.sign] !!)
           %kick  ga-core  ::  kick for single response sub, just take it
           %watch-ack
           ?~  p.sign  ga-core :: TODO: report retreival failure
@@ -2112,19 +2116,10 @@
           ?:  from-self  ga-core
           ?~  pev.gang   ga-core
           ?~  vit.gang   ga-core
-          =/  link  /find
-          =/  =new-yarn:ha
-            %-  spin
-            :*  [`flag ~ q.byk.bowl /(scot %p p.flag)/[q.flag]/invite]
-                link
-                `['Join Group' link]
-                :~  [%ship src.bowl]
-                    ' sent you an invite to '
-                    [%emph title.meta.u.pev.gang]
-                ==
-            ==
-          =?  cor  !(~(has by groups) flag)
-            (emit (pass-hark new-yarn))
+          ::  only send invites if this came from ga-invite and we
+          ::  aren't already in the group somehow
+          ?~  inv.pole   ga-core
+          ?:  (~(has by groups) flag)  ga-core
           (ga-activity %group-invite src.bowl)
           ::
         ==
@@ -2177,6 +2172,9 @@
   ++  ga-invite
     |=  =invite:g
     ^+  ga-core
+    ::  prevent spamming invites
+    ?.  =(~ vit.gang)  ga-core
+    ?:  (~(has by groups) p.invite)  ga-core
     %-  (log |.("received invite: {<invite>}"))
     ?:  &(?=(^ cam.gang) ?=(%knocking progress.u.cam.gang))
       %-  (log |.("was knocking: {<gang>}"))
@@ -2184,7 +2182,7 @@
       ?>  =(p.flag src.bowl)
       (ga-start-join join-all.u.cam.gang)
     =.  vit.gang  `invite
-    =.  cor  get-preview:ga-pass
+    =.  cor  (get-preview:ga-pass &)
     =.  cor  ga-give-update
     ga-core
   ::

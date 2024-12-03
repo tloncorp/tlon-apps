@@ -1,16 +1,16 @@
 import { Editor } from '@tiptap/core';
-import { MessageKey } from '@tloncorp/shared/dist/urbit';
+import { MessageKey } from '@tloncorp/shared/urbit';
 import {
   getChannelSource,
   getDmSource,
   getThreadKey,
-} from '@tloncorp/shared/dist/urbit/activity';
+} from '@tloncorp/shared/urbit/activity';
 import {
   Reply,
   Story,
   constructStory,
   emptyReply,
-} from '@tloncorp/shared/dist/urbit/channel';
+} from '@tloncorp/shared/urbit/channel';
 import { daToUnix } from '@urbit/api';
 import { formatUd } from '@urbit/aura';
 import bigInt, { BigInteger } from 'big-integer';

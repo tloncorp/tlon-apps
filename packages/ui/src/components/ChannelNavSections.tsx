@@ -1,6 +1,6 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { useMemo } from 'react';
-import { SizableText, YStack } from 'tamagui';
+import { SizableText, YStack, getVariableValue, useTheme } from 'tamagui';
 
 import ChannelNavSection from './ChannelNavSection';
 import { ChannelListItem } from './ListItem';
@@ -11,12 +11,14 @@ export default function ChannelNavSections({
   onSelect,
   sortBy,
   paddingBottom,
+  onLongPress,
 }: {
   group: db.Group;
   channels: db.Channel[];
   onSelect: (channel: any) => void;
   sortBy: 'recency' | 'arranged';
   paddingBottom?: number;
+  onLongPress?: (channel: any) => void;
 }) {
   const unGroupedChannels = useMemo(
     () =>
@@ -47,6 +49,8 @@ export default function ChannelNavSections({
     [unGroupedChannels]
   );
 
+  const listSectionTitleColor = getVariableValue(useTheme().secondaryText);
+
   if (sortBy === 'recency') {
     return (
       <YStack paddingBottom={paddingBottom} alignSelf="stretch" gap="$s">
@@ -56,6 +60,7 @@ export default function ChannelNavSections({
             model={item}
             onPress={onSelect}
             useTypeIcon={true}
+            onLongPress={onLongPress}
           />
         ))}
       </YStack>
@@ -79,6 +84,7 @@ export default function ChannelNavSections({
             section={section}
             channels={sectionChannels}
             onSelect={onSelect}
+            onLongPress={onLongPress}
           />
         );
       })}
@@ -88,7 +94,7 @@ export default function ChannelNavSections({
             paddingHorizontal="$l"
             paddingVertical="$xl"
             fontSize="$s"
-            color="$secondaryText"
+            color={listSectionTitleColor}
           >
             All Channels
           </SizableText>
@@ -97,6 +103,7 @@ export default function ChannelNavSections({
               key={item.id}
               model={item}
               onPress={onSelect}
+              onLongPress={onLongPress}
               useTypeIcon={true}
             />
           ))}

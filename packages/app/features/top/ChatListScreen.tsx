@@ -1,20 +1,25 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
-import * as store from '@tloncorp/shared/dist/store';
 import {
-  Button,
+  NavigationProp,
+  useIsFocused,
+  useNavigation,
+} from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
+import {
+  AddGroupSheet,
   ChatList,
   ChatOptionsProvider,
   ChatOptionsSheet,
   ChatOptionsSheetMethods,
-  FloatingAddButton,
+  GroupPreviewAction,
   GroupPreviewSheet,
-  Icon,
   InviteUsersSheet,
   NavBarView,
   RequestsProvider,
   ScreenHeader,
-  StartDmSheet,
   View,
   WelcomeSheet,
 } from '@tloncorp/ui';
@@ -23,40 +28,29 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useIsFocused } from '../../hooks/useIsFocused';
+import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
+import type { RootStackParamList } from '../../navigation/types';
+import { screenNameFromChannelId } from '../../navigation/utils';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 
-const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
-  return (
-    <Button borderWidth={0} onPress={onPress}>
-      <Icon type="Filter" size="$m" />
-    </Button>
-  );
-};
+const logger = createDevLogger('ChatListScreen', false);
 
-export default function ChatListScreen({
-  startDmOpen,
-  setStartDmOpen,
-  setAddGroupOpen,
-  navigateToDm,
-  navigateToGroupChannels,
-  navigateToSelectedPost,
-  navigateToHome,
-  navigateToNotifications,
-  navigateToProfile,
+type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
+
+export default function ChatListScreen(props: Props) {
+  const previewGroupId = props.route.params?.previewGroupId;
+  return <ChatListScreenView previewGroupId={previewGroupId} />;
+}
+
+export function ChatListScreenView({
+  previewGroupId,
 }: {
-  startDmOpen: boolean;
-  setStartDmOpen: (open: boolean) => void;
-  setAddGroupOpen: (open: boolean) => void;
-  navigateToDm: (channel: db.Channel) => void;
-  navigateToGroupChannels: (group: db.Group) => void;
-  navigateToSelectedPost: (channel: db.Channel, postId?: string | null) => void;
-  navigateToHome: () => void;
-  navigateToNotifications: () => void;
-  navigateToProfile: () => void;
+  previewGroupId?: string;
 }) {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
@@ -82,8 +76,12 @@ export default function ChatListScreen({
   const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
     'all'
   );
-  const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
+    previewGroupId ?? null
+  );
+  const { data: selectedGroup } = store.useGroup({ id: selectedGroupId ?? '' });
+
+  const [showSearchInput, setShowSearchInput] = useState(false);
   const isFocused = useIsFocused();
   const { data: pins } = store.usePins({
     enabled: isFocused,
@@ -95,8 +93,57 @@ export default function ChatListScreen({
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
   });
+  const { performGroupAction } = useGroupActions();
 
   const currentUser = useCurrentUserId();
+
+  const connStatus = store.useConnectionStatus();
+  const notReadyMessage: string | null = useMemo(() => {
+    // if not fully connected yet, show status
+    if (connStatus !== 'Connected') {
+      return `${connStatus}...`;
+    }
+
+    // if still loading the screen data, show loading
+    if (!chats || (!chats.unpinned.length && !chats.pinned.length)) {
+      return 'Loading...';
+    }
+
+    return null;
+  }, [connStatus, chats]);
+
+  /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
+  const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
+  const connectionAttempts = useRef(0);
+
+  useEffect(() => {
+    const checkConnection = () => {
+      if (connStatus === 'Connected') {
+        if (connectionTimeout.current) {
+          clearTimeout(connectionTimeout.current);
+        }
+        connectionAttempts.current = 0;
+      } else {
+        connectionAttempts.current += 1;
+        if (connectionAttempts.current >= 10) {
+          logger.error('Connection not established within 10 seconds');
+          if (connectionTimeout.current) {
+            clearTimeout(connectionTimeout.current);
+          }
+        } else {
+          connectionTimeout.current = setTimeout(checkConnection, 1000);
+        }
+      }
+    };
+
+    checkConnection();
+
+    return () => {
+      if (connectionTimeout.current) {
+        clearTimeout(connectionTimeout.current);
+      }
+    };
+  }, [connStatus]);
 
   const resolvedChats = useMemo(() => {
     return {
@@ -106,35 +153,56 @@ export default function ChatListScreen({
     };
   }, [chats, pendingChats]);
 
+  const handleNavigateToFindGroups = useCallback(() => {
+    setAddGroupOpen(false);
+    navigation.navigate('FindGroups');
+  }, [navigation]);
+
+  const handleNavigateToCreateGroup = useCallback(() => {
+    setAddGroupOpen(false);
+    navigation.navigate('CreateGroup');
+  }, [navigation]);
+
   const goToDm = useCallback(
-    async (participants: string[]) => {
+    async (userId: string) => {
       const dmChannel = await store.upsertDmChannel({
-        participants,
+        participants: [userId],
       });
-      setStartDmOpen(false);
-      navigateToDm(dmChannel);
+      setAddGroupOpen(false);
+      navigation.navigate('DM', { channelId: dmChannel.id });
     },
-    [navigateToDm, setStartDmOpen]
+    [navigation, setAddGroupOpen]
   );
+
+  const handleAddGroupOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setAddGroupOpen(false);
+    }
+  }, []);
 
   const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   const onPressChat = useCallback(
     (item: db.Channel | db.Group) => {
       if (logic.isGroup(item)) {
-        setSelectedGroup(item);
+        setSelectedGroupId(item.id);
       } else if (
         item.group &&
         !isChannelSwitcherEnabled &&
         // Should navigate to channel if it's pinned as a channel
         (!item.pin || item.pin.type === 'group')
       ) {
-        navigateToGroupChannels(item.group);
+        navigation.navigate('GroupChannels', { groupId: item.group.id });
       } else {
-        navigateToSelectedPost(item, item.firstUnreadPostId);
+        const screenName = screenNameFromChannelId(item.id);
+
+        navigation.navigate(screenName, {
+          channelId: item.id,
+          selectedPostId: item.firstUnreadPostId,
+        });
       }
     },
-    [navigateToGroupChannels, navigateToSelectedPost, isChannelSwitcherEnabled]
+    [isChannelSwitcherEnabled, navigation]
   );
 
   const onLongPressChat = useCallback((item: db.Channel | db.Group) => {
@@ -143,23 +211,18 @@ export default function ChatListScreen({
       if (item.pin?.type === 'channel' || !item.group) {
         chatOptionsSheetRef.current?.open(item.id, item.type);
       } else {
-        chatOptionsSheetRef.current?.open(item.group.id, 'group');
+        chatOptionsSheetRef.current?.open(
+          item.group.id,
+          'group',
+          item.group.unread?.count ?? undefined
+        );
       }
     }
   }, []);
 
-  const handleDmOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open) {
-        setStartDmOpen(false);
-      }
-    },
-    [setStartDmOpen]
-  );
-
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
-      setSelectedGroup(null);
+      setSelectedGroupId(null);
     }
   }, []);
 
@@ -169,14 +232,16 @@ export default function ChatListScreen({
     }
   }, []);
 
-  const { pinned: pinnedChats, unpinned } = resolvedChats;
-  const allChats = [...pinnedChats, ...unpinned];
-  const isTlonEmployee = !!allChats.find(
-    (obj) => obj.groupId === TLON_EMPLOYEE_GROUP
-  );
-  if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
-    identifyTlonEmployee();
-  }
+  const isTlonEmployee = useMemo(() => {
+    const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
+    return !!allChats.find((obj) => obj.groupId === TLON_EMPLOYEE_GROUP);
+  }, [resolvedChats]);
+
+  useEffect(() => {
+    if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
+      identifyTlonEmployee();
+    }
+  }, [isTlonEmployee]);
 
   const handleSectionChange = useCallback(
     (title: string) => {
@@ -215,16 +280,27 @@ export default function ChatListScreen({
     }
   }, []);
 
-  const headerControls = useMemo(() => {
-    return (
-      <ShowFiltersButton onPress={() => setShowFilters((prev) => !prev)} />
-    );
-  }, []);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearchInputToggled = useCallback(() => {
+    if (showSearchInput) {
+      setSearchQuery('');
+    }
+    setShowSearchInput(!showSearchInput);
+  }, [showSearchInput]);
+
+  const handleGroupAction = useCallback(
+    (action: GroupPreviewAction, group: db.Group) => {
+      performGroupAction(action, group);
+      setSelectedGroupId(null);
+    },
+    [performGroupAction]
+  );
 
   return (
     <RequestsProvider
       usePostReference={store.usePostReference}
-      useChannel={store.useChannelWithRelations}
+      useChannel={store.useChannelPreview}
       usePost={store.usePostWithRelations}
       useApp={store.useAppInfo}
       useGroup={store.useGroupPreview}
@@ -240,12 +316,19 @@ export default function ChatListScreen({
       >
         <View flex={1}>
           <ScreenHeader
-            title={
-              !chats || (!chats.unpinned.length && !chats.pinned.length)
-                ? 'Loading…'
-                : screenTitle
+            title={notReadyMessage ?? screenTitle}
+            rightControls={
+              <>
+                <ScreenHeader.IconButton
+                  type="Search"
+                  onPress={handleSearchInputToggled}
+                />
+                <ScreenHeader.IconButton
+                  type="Add"
+                  onPress={() => setAddGroupOpen(true)}
+                />
+              </>
             }
-            rightControls={headerControls}
           />
           {chats && chats.unpinned.length ? (
             <ChatList
@@ -256,38 +339,24 @@ export default function ChatListScreen({
               pendingChats={resolvedChats.pendingChats}
               onLongPressItem={onLongPressChat}
               onPressItem={onPressChat}
-              onPressMenuButton={onLongPressChat}
               onSectionChange={handleSectionChange}
-              showFilters={showFilters}
+              showSearchInput={showSearchInput}
+              onSearchToggle={handleSearchInputToggled}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
             />
           ) : null}
-          <View
-            zIndex={50}
-            position="absolute"
-            bottom="$s"
-            alignItems="center"
-            width={'100%'}
-            pointerEvents="box-none"
-          >
-            <FloatingAddButton
-              setStartDmOpen={setStartDmOpen}
-              setAddGroupOpen={setAddGroupOpen}
-            />
-          </View>
+
           <WelcomeSheet
             open={splashVisible}
             onOpenChange={handleWelcomeOpenChange}
           />
           <ChatOptionsSheet ref={chatOptionsSheetRef} />
-          <StartDmSheet
-            goToDm={goToDm}
-            open={startDmOpen}
-            onOpenChange={handleDmOpenChange}
-          />
           <GroupPreviewSheet
-            open={selectedGroup !== null}
+            open={!!selectedGroup}
             onOpenChange={handleGroupPreviewSheetOpenChange}
             group={selectedGroup ?? undefined}
+            onActionComplete={handleGroupAction}
           />
           <InviteUsersSheet
             open={inviteSheetGroup !== null}
@@ -297,19 +366,27 @@ export default function ChatListScreen({
           />
         </View>
         <NavBarView
+          navigateToContacts={() => {
+            navigation.navigate('Contacts');
+          }}
           navigateToHome={() => {
-            navigateToHome();
+            navigation.navigate('ChatList');
           }}
           navigateToNotifications={() => {
-            navigateToNotifications();
-          }}
-          navigateToProfile={() => {
-            navigateToProfile();
+            navigation.navigate('Activity');
           }}
           currentRoute="ChatList"
           currentUserId={currentUser}
         />
       </ChatOptionsProvider>
+
+      <AddGroupSheet
+        open={addGroupOpen}
+        onGoToDm={goToDm}
+        onOpenChange={handleAddGroupOpenChange}
+        navigateToFindGroups={handleNavigateToFindGroups}
+        navigateToCreateGroup={handleNavigateToCreateGroup}
+      />
     </RequestsProvider>
   );
 }

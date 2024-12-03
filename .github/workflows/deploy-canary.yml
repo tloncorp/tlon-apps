@@ -29,6 +29,8 @@ jobs:
           run_install: |
             - recursive: true
               args: [--frozen-lockfile]
+      - name: Build packages
+        run: pnpm build:all
       - working-directory: ./apps/tlon-web
         run: pnpm build
       - uses: actions/upload-artifact@v3
@@ -51,6 +53,8 @@ jobs:
           run_install: |
             - recursive: true
               args: [--frozen-lockfile]
+      - name: Build packages
+        run: pnpm build:all
       - working-directory: ./apps/tlon-web-new
         run: pnpm build:alpha
       - uses: actions/upload-artifact@v3
@@ -117,7 +121,7 @@ jobs:
         run: |
           git config --global user.name github-actions
           git config --global user.email github-actions@github.com
-          git add desk/desk.docket-0
+          git add tm-alpha-desk/desk.docket-0
           git commit -n -m "update glob: ${{ steps.glob.outputs.hash }} [skip actions]" || echo "No changes to commit"
           INPUT=${{ env.tag }}
           BRANCH=${INPUT:-"staging"}

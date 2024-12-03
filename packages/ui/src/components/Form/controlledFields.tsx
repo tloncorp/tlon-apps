@@ -10,6 +10,7 @@ import {
 
 import { Field } from './Form';
 import {
+  ImageInput,
   ListItemInput,
   ListItemInputOption,
   RadioInput,
@@ -20,26 +21,41 @@ import {
 type ControlledFieldProps<
   TFieldValues extends FieldValues,
   TName extends Path<TFieldValues>,
-> = {
+  TInputProps extends object,
+  TRequireInput = false,
+> = ComponentProps<typeof Field> & {
   name: TName;
   control: Control<TFieldValues>;
   label?: string;
   rules?: RegisterOptions<TFieldValues, TName>;
-  renderInput: (
-    controller: UseControllerReturn<TFieldValues, TName>
-  ) => React.ReactElement;
-};
+  inputProps?: TInputProps;
+  hideError?: boolean;
+} & (TRequireInput extends true
+    ? {
+        renderInput: ControlledFieldRenderInput<TFieldValues, TName>;
+      }
+    : {
+        renderInput?: ControlledFieldRenderInput<TFieldValues, TName>;
+      });
+
+type ControlledFieldRenderInput<
+  TFieldValues extends FieldValues,
+  TName extends Path<TFieldValues>,
+> = (controller: UseControllerReturn<TFieldValues, TName>) => React.ReactNode;
 
 export const ControlledField = <
   TFieldValues extends FieldValues,
   TName extends Path<TFieldValues>,
+  TInputProps extends object,
 >({
   name,
   label,
   control,
   rules,
   renderInput,
-}: ControlledFieldProps<TFieldValues, TName>) => {
+  hideError,
+  ...props
+}: ControlledFieldProps<TFieldValues, TName, TInputProps, true>) => {
   const controller = useController({
     name,
     control,
@@ -49,7 +65,8 @@ export const ControlledField = <
     <Field
       required={!!rules?.required}
       label={label}
-      error={controller.fieldState?.error?.message}
+      error={hideError ? undefined : controller.fieldState?.error?.message}
+      {...props}
     >
       {renderInput(controller)}
     </Field>
@@ -60,9 +77,10 @@ export const ControlledTextField = <
   TFieldValues extends FieldValues,
   TName extends Path<TFieldValues>,
 >(
-  props: { inputProps?: ComponentProps<typeof TextInput> } & Omit<
-    ControlledFieldProps<TFieldValues, TName>,
-    'renderInput'
+  props: ControlledFieldProps<
+    TFieldValues,
+    TName,
+    ComponentProps<typeof TextInput>
   >
 ) => {
   const renderInput = useCallback(
@@ -71,6 +89,63 @@ export const ControlledTextField = <
     }: UseControllerReturn<TFieldValues, TName>) => {
       return (
         <TextInput {...field} onChangeText={onChange} {...props.inputProps} />
+      );
+    },
+    [props.inputProps]
+  );
+  return <ControlledField renderInput={renderInput} {...props} />;
+};
+
+export const ControlledTextareaField = <
+  TFieldValues extends FieldValues,
+  TName extends Path<TFieldValues>,
+>(
+  props: ControlledFieldProps<
+    TFieldValues,
+    TName,
+    ComponentProps<typeof TextInput>
+  >
+) => {
+  const renderInput = useCallback(
+    ({
+      field: { onChange, ...field },
+    }: UseControllerReturn<TFieldValues, TName>) => {
+      return (
+        <TextInput
+          {...field}
+          onChangeText={onChange}
+          multiline={true}
+          minHeight={128}
+          {...props.inputProps}
+        />
+      );
+    },
+    [props.inputProps]
+  );
+  return <ControlledField {...props} renderInput={renderInput} />;
+};
+
+export const ControlledImageField = <
+  TFieldValues extends FieldValues,
+  TName extends Path<TFieldValues>,
+>(
+  props: ControlledFieldProps<
+    TFieldValues,
+    TName,
+    ComponentProps<typeof ImageInput>
+  >
+) => {
+  const renderInput = useCallback(
+    ({
+      field: {
+        onChange,
+        // we pull the ref off as this input doesn't support focus
+        ref: _ref,
+        ...field
+      },
+    }: UseControllerReturn<TFieldValues, TName>) => {
+      return (
+        <ImageInput {...field} onChange={onChange} {...props.inputProps} />
       );
     },
     [props.inputProps]
@@ -84,9 +159,10 @@ export const ControlledRadioField = <
 >({
   options,
   ...props
-}: { options: RadioInputOption<TFieldValues[TName]>[] } & Omit<
-  ControlledFieldProps<TFieldValues, TName>,
-  'renderInput'
+}: { options: RadioInputOption<TFieldValues[TName]>[] } & ControlledFieldProps<
+  TFieldValues,
+  TName,
+  ComponentProps<typeof RadioInput>
 >) => {
   const renderInput = useCallback(
     ({
@@ -105,9 +181,12 @@ export const ControlledListItemField = <
 >({
   options,
   ...props
-}: { options: ListItemInputOption<TFieldValues[TName]>[] } & Omit<
-  ControlledFieldProps<TFieldValues, TName>,
-  'renderInput'
+}: {
+  options: ListItemInputOption<TFieldValues[TName]>[];
+} & ControlledFieldProps<
+  TFieldValues,
+  TName,
+  ComponentProps<typeof ListItemInput>
 >) => {
   const renderInput = useCallback(
     ({

@@ -1,14 +1,17 @@
-import * as db from '@tloncorp/shared/dist/db';
-import { Story } from '@tloncorp/shared/dist/urbit';
+import * as db from '@tloncorp/shared/db';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
-import { View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import AuthorRow from '../AuthorRow';
+import { Button } from '../Button';
 import { Icon } from '../Icon';
-import { MessageInput } from '../MessageInput';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
-import { usePostContent } from '../PostContent/contentUtils';
+import {
+  usePostContent,
+  usePostLastEditContent,
+} from '../PostContent/contentUtils';
+import Pressable from '../Pressable';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { Text } from '../TextV2';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -25,11 +28,9 @@ const ChatMessage = ({
   onPressRetry,
   onPressDelete,
   showReplies,
-  editing,
-  editPost,
-  setEditingPost,
   setViewReactionsPost,
   isHighlighted,
+  hideOverflowMenu,
 }: {
   post: db.Post;
   showAuthor?: boolean;
@@ -42,34 +43,38 @@ const ChatMessage = ({
   onLongPress?: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => void;
   onPressDelete?: (post: db.Post) => void;
-  editing?: boolean;
-  editPost?: (post: db.Post, content: Story) => Promise<void>;
-  setEditingPost?: (post: db.Post | undefined) => void;
   setViewReactionsPost?: (post: db.Post) => void;
   isHighlighted?: boolean;
+  hideOverflowMenu?: boolean;
 }) => {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
+  const [showOverflowOnHover, setShowOverflowOnHover] = useState(false);
   const isNotice = post.type === 'notice';
 
   if (isNotice) {
     showAuthor = false;
   }
 
+  const deliveryFailed =
+    post.deliveryStatus === 'failed' ||
+    post.editStatus === 'failed' ||
+    post.deleteStatus === 'failed';
+
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
   }, [onPressReplies, post]);
 
   const shouldHandlePress = useMemo(() => {
-    return Boolean(onPress || post.deliveryStatus === 'failed');
-  }, [onPress, post.deliveryStatus]);
+    return Boolean(onPress || deliveryFailed);
+  }, [onPress, deliveryFailed]);
 
   const handlePress = useCallback(() => {
-    if (onPress) {
+    if (onPress && !deliveryFailed) {
       onPress(post);
-    } else if (post.deliveryStatus === 'failed') {
+    } else if (deliveryFailed) {
       setShowRetrySheet(true);
     }
-  }, [post, onPress]);
+  }, [post, onPress, deliveryFailed]);
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -92,27 +97,20 @@ const ChatMessage = ({
     setShowRetrySheet(false);
   }, [onPressDelete, post]);
 
-  const messageInputForEditing = useMemo(
-    () => (
-      <MessageInput
-        groupMembers={[]}
-        storeDraft={() => {}}
-        clearDraft={() => {}}
-        getDraft={async () => ({})}
-        shouldBlur={false}
-        setShouldBlur={() => {}}
-        send={async () => {}}
-        channelId={post.channelId}
-        editingPost={post}
-        editPost={editPost}
-        setEditingPost={setEditingPost}
-        channelType="chat"
-      />
-    ),
-    [post, editPost, setEditingPost]
-  );
+  const handleHoverIn = useCallback(() => {
+    if (isWeb) {
+      setShowOverflowOnHover(true);
+    }
+  }, []);
+
+  const handleHoverOut = useCallback(() => {
+    if (isWeb) {
+      setShowOverflowOnHover(false);
+    }
+  }, []);
 
   const content = usePostContent(post);
+  const lastEditContent = usePostLastEditContent(post);
 
   if (!post) {
     return null;
@@ -141,61 +139,71 @@ const ChatMessage = ({
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
 
   return (
-    <YStack
-      onLongPress={handleLongPress}
-      backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
-      key={post.id}
+    <Pressable
       // avoid setting the top level press handler at all unless we need to
       onPress={shouldHandlePress ? handlePress : undefined}
+      onLongPress={handleLongPress}
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
     >
-      {showAuthor ? (
-        <AuthorRow
-          padding="$l"
-          paddingBottom="$2xs"
-          author={post.author}
-          authorId={post.authorId}
-          sent={post.sentAt ?? 0}
-          type={post.type}
-          disabled={hideProfilePreview}
-          deliveryStatus={post.deliveryStatus}
-          showEditedIndicator={!!post.isEdited}
-        />
-      ) : null}
-      <View paddingLeft={!isNotice && '$4xl'}>
-        {editing ? (
-          messageInputForEditing
-        ) : (
+      <YStack
+        backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
+        key={post.id}
+      >
+        {showAuthor ? (
+          <AuthorRow
+            padding="$l"
+            paddingBottom="$2xs"
+            author={post.author}
+            authorId={post.authorId}
+            sent={post.sentAt ?? 0}
+            type={post.type}
+            disabled={hideProfilePreview}
+            deliveryStatus={post.deliveryStatus}
+            editStatus={post.editStatus}
+            deleteStatus={post.deleteStatus}
+            showEditedIndicator={!!post.isEdited}
+          />
+        ) : null}
+        <View paddingLeft={!isNotice && '$4xl'}>
           <ChatContentRenderer
-            content={content}
+            content={post.editStatus === 'failed' ? lastEditContent : content}
             isNotice={post.type === 'notice'}
             onPressImage={handleImagePressed}
-            onLongPress={handleLongPress}
           />
-        )}
-      </View>
+        </View>
 
-      <ReactionsDisplay
-        post={post}
-        onViewPostReactions={setViewReactionsPost}
-      />
+        <ReactionsDisplay
+          post={post}
+          onViewPostReactions={setViewReactionsPost}
+        />
 
-      {shouldRenderReplies ? (
-        <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
-          {shouldRenderReplies ? (
-            <ChatMessageReplySummary
-              post={post}
-              onPress={handleRepliesPressed}
-            />
-          ) : null}
-        </XStack>
-      ) : null}
-      <SendPostRetrySheet
-        open={showRetrySheet}
-        onOpenChange={setShowRetrySheet}
-        onPressRetry={handleRetryPressed}
-        onPressDelete={handleDeletePressed}
-      />
-    </YStack>
+        {shouldRenderReplies ? (
+          <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
+            {shouldRenderReplies ? (
+              <ChatMessageReplySummary
+                post={post}
+                onPress={handleRepliesPressed}
+              />
+            ) : null}
+          </XStack>
+        ) : null}
+        <SendPostRetrySheet
+          open={showRetrySheet}
+          post={post}
+          onOpenChange={setShowRetrySheet}
+          onPressRetry={handleRetryPressed}
+          onPressDelete={handleDeletePressed}
+        />
+      </YStack>
+      {isWeb && !hideOverflowMenu && showOverflowOnHover && (
+        <View position="absolute" top={0} right={12} width={0} height={0}>
+          <Button onPress={handleLongPress} borderWidth="unset" size="$l">
+            <Icon type="Overflow" />
+          </Button>
+        </View>
+      )}
+    </Pressable>
   );
 };
 
@@ -232,9 +240,6 @@ export default memo(ChatMessage, (prev, next) => {
   const areOtherPropsEqual =
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
-    prev.editing === next.editing &&
-    prev.editPost === next.editPost &&
-    prev.setEditingPost === next.setEditingPost &&
     prev.onPressReplies === next.onPressReplies &&
     prev.onPressImage === next.onPressImage &&
     prev.onLongPress === next.onLongPress &&

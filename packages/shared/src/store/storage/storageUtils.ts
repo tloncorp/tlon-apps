@@ -13,10 +13,10 @@ import { desig } from '../../urbit';
 
 const logger = createDevLogger('storage utils', true);
 
-export const fetchImageFromUri = async (
+export const fetchFileFromUri = async (
   uri: string,
-  height: number,
-  width: number
+  height?: number,
+  width?: number
 ) => {
   try {
     const response = await fetch(uri);
@@ -26,7 +26,7 @@ export const fetchImageFromUri = async (
     const file: RNFile = {
       uri,
       blob,
-      name: name ?? 'channel-image',
+      name: name ?? 'file',
       type: blob.type,
       height,
       width,
@@ -40,22 +40,12 @@ export const fetchImageFromUri = async (
 
 export type SizedImage = { uri: string; width: number; height: number };
 
-export const getShipInfo = () => {
-  const { ship, url } = client;
-
-  if (!ship) {
-    return { ship: '', shipUrl: '' };
-  }
-
-  return { ship: preSig(ship), shipUrl: url };
-};
-
 export const hasHostingUploadCreds = (
   configuration: StorageConfiguration | null,
   credentials: StorageCredentials | null
 ) => {
   return (
-    getIsHosted() &&
+    api.getCurrentUserIsHosted() &&
     (configuration?.service === 'presigned-url' ||
       !hasCustomS3Creds(configuration, credentials))
   );
@@ -78,26 +68,16 @@ export const hasCustomS3Creds = (
 
 const MEMEX_BASE_URL = 'https://memex.tlon.network';
 
-export const getIsHosted = () => {
-  const shipInfo = getShipInfo();
-  const isHosted = shipInfo?.shipUrl?.endsWith('tlon.network');
-  return isHosted;
-};
-
-interface MemexUploadParams {
+export interface MemexUploadParams {
   token: string;
   contentLength: number;
   contentType: string;
   fileName: string;
 }
 
-export const getMemexUpload = async ({
-  file,
-  uploadKey,
-}: {
-  file: api.RNFile;
-  uploadKey: string;
-}) => {
+export const getMemexUpload = async (
+  params: Omit<MemexUploadParams, 'token'>
+) => {
   const currentUser = api.getCurrentUserId();
   const token = await scry<string>({
     app: 'genuine',
@@ -108,9 +88,7 @@ export const getMemexUpload = async ({
 
   const uploadParams: MemexUploadParams = {
     token,
-    contentLength: file.blob.size,
-    contentType: file.type,
-    fileName: uploadKey,
+    ...params,
   };
 
   const endpoint = `${MEMEX_BASE_URL}/v1/${desig(currentUser)}/upload`;
@@ -142,6 +120,6 @@ export const getMemexUpload = async ({
 };
 
 export const getHostingUploadURL = async () => {
-  const isHosted = getIsHosted();
+  const isHosted = api.getCurrentUserIsHosted();
   return isHosted ? MEMEX_BASE_URL : '';
 };

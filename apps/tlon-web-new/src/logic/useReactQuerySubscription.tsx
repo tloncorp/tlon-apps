@@ -35,7 +35,7 @@ export default function useReactQuerySubscription<T, Event = null>({
   const invalidate = useRef(
     _.debounce(
       () => {
-        queryClient.invalidateQueries(queryKey);
+        queryClient.invalidateQueries({ queryKey: queryKey });
       },
       300,
       { leading: true, trailing: true }
@@ -60,7 +60,9 @@ export default function useReactQuerySubscription<T, Event = null>({
     });
   }, [app, path, queryClient, queryKey, onEvent]);
 
-  return useQuery(queryKey, fetchData, {
+  return useQuery({
+    queryKey,
+    queryFn: fetchData,
     staleTime: 60 * 1000,
     ...options,
   });

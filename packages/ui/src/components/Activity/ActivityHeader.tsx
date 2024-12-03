@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import React from 'react';
 import { View } from 'tamagui';
 
@@ -18,7 +18,7 @@ function ActivityHeaderRaw({
     <View>
       <View width="100%">
         <ScreenHeader>
-          <ScreenHeader.Title textAlign="left">Activity</ScreenHeader.Title>
+          <ScreenHeader.Title textAlign="center">Activity</ScreenHeader.Title>
         </ScreenHeader>
       </View>
       <Tabs>

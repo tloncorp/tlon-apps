@@ -1,48 +1,343 @@
-import React, { ComponentProps, ReactElement } from 'react';
-import { TextInput as BaseTextInput } from 'react-native';
-import { ScrollView, View, XStack, YStack, styled } from 'tamagui';
+import { ImagePickerAsset } from 'expo-image-picker';
+import React, {
+  ComponentProps,
+  ReactElement,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
+import { Alert, TextInput as RNTextInput } from 'react-native';
+import { ScrollView, Spinner, View, XStack, YStack, styled } from 'tamagui';
+import { isWeb } from 'tamagui';
 
+import {
+  useAttachmentContext,
+  useMappedImageAttachments,
+} from '../../contexts';
+import AttachmentSheet from '../AttachmentSheet';
 import { Button } from '../Button';
 import { Icon, IconType } from '../Icon';
+import { Image } from '../Image';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
+import Pressable from '../Pressable';
 import { Text } from '../TextV2';
 import { FieldContext } from './Form';
 
+const StyledTextInput = styled(
+  RNTextInput,
+  {},
+  {
+    isInput: true,
+    accept: {
+      placeholderTextColor: 'color',
+      selectionColor: 'color',
+    } as const,
+  }
+);
+
 // Text input
 
-export const TextInput = React.memo(
-  styled(
-    BaseTextInput,
-    {
-      context: FieldContext,
-      color: '$primaryText',
-      borderRadius: '$l',
-      borderWidth: 1,
-      borderColor: '$border',
-      placeholderTextColor: '$tertiaryText',
-      fontSize: '$l',
-      padding: '$xl',
-      fontFamily: '$body',
-      textAlignVertical: 'top',
-      variants: {
-        accent: {
-          negative: {
-            backgroundColor: '$negativeBackground',
-            color: '$negativeActionText',
-            borderColor: '$negativeBorder',
-          },
-        },
+export const BaseTextInput = styled(StyledTextInput, {
+  context: FieldContext,
+  color: '$primaryText',
+  borderRadius: '$l',
+  borderWidth: 1,
+  borderColor: '$border',
+  backgroundColor: '$background',
+  placeholderTextColor: '$tertiaryText',
+  fontSize: '$l',
+  padding: '$xl',
+  fontFamily: '$body',
+  textAlignVertical: 'top',
+  variants: {
+    accent: {
+      negative: {
+        backgroundColor: '$negativeBackground',
+        color: '$negativeActionText',
+        borderColor: '$negativeBorder',
       },
     },
-    {
-      isInput: true,
-      accept: {
-        placeholderTextColor: 'color',
-        selectionColor: 'color',
-      } as const,
+  },
+  ...(isWeb ? { outlineStyle: 'none' } : {}),
+});
+
+export const TextInput = React.memo(BaseTextInput);
+
+export const TextInputWithIcon = React.memo(
+  BaseTextInput.styleable<{ icon: IconType }>(({ icon, ...props }, ref) => {
+    return (
+      <XStack
+        borderRadius="$l"
+        borderWidth={1}
+        borderColor="$border"
+        alignItems="center"
+        paddingLeft="$xl"
+        gap="$l"
+      >
+        <Icon type={icon} customSize={['$2xl', '$2xl']} />
+        <BaseTextInput
+          paddingLeft={0}
+          borderWidth={0}
+          borderRadius={0}
+          flex={1}
+          ref={ref}
+          {...props}
+        />
+      </XStack>
+    );
+  })
+);
+
+interface TextInputWithButtonProps extends ComponentProps<typeof TextInput> {
+  buttonText: string;
+  onButtonPress: () => void;
+}
+
+const TextInputWithButtonFrame = styled(XStack, {
+  context: FieldContext,
+  borderWidth: 1,
+  borderColor: '$border',
+  borderRadius: '$l',
+  backgroundColor: '$background',
+  variants: {
+    accent: {
+      negative: {
+        backgroundColor: '$negativeBackground',
+        color: '$negativeActionText',
+        borderColor: '$negativeBorder',
+      },
+    },
+  } as const,
+});
+
+const TextInputButton = styled(Button, {
+  context: FieldContext,
+  backgroundColor: '$secondaryBackground',
+  padding: '$l',
+  borderRadius: '$m',
+  variants: {
+    accent: {
+      negative: {
+        backgroundColor: '$negativeBackground',
+        color: '$negativeActionText',
+        borderColor: '$negativeBorder',
+      },
+    },
+  } as const,
+});
+
+// Needs polish, I know we just talked about Ochre conformance plz forgive
+export const TextInputWithButton: React.FC<TextInputWithButtonProps> =
+  React.memo(function TextInputWithButtonRaw({
+    buttonText,
+    onButtonPress,
+    ...textInputProps
+  }) {
+    return (
+      <TextInputWithButtonFrame>
+        <TextInput
+          flex={1}
+          borderWidth={0}
+          textAlignVertical="unset"
+          {...textInputProps}
+        />
+        <View padding="$l">
+          <TextInputButton onPress={onButtonPress}>
+            <Button.Text>{buttonText}</Button.Text>
+          </TextInputButton>
+        </View>
+      </TextInputWithButtonFrame>
+    );
+  });
+
+export const ImageInput = XStack.styleable<{
+  buttonLabel?: string;
+  value?: string;
+  placeholderUri?: string;
+  onChange?: (value?: string) => void;
+  showClear?: boolean;
+}>(function ImageInput(
+  { buttonLabel, value, showClear = true, placeholderUri, onChange },
+  ref
+) {
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [assetUri, setAssetUri] = useState<string | undefined>(
+    value ?? undefined
+  );
+  const { attachAssets, canUpload } = useAttachmentContext();
+
+  useEffect(() => {
+    if (assetUri !== value) {
+      onChange?.(assetUri);
     }
-  )
+    // only want this to fire when the value changes, not the handler
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assetUri]);
+
+  const handleImageSelected = useCallback(
+    (assets: ImagePickerAsset[]) => {
+      attachAssets([assets[0]]);
+      setAssetUri(assets[0].uri);
+    },
+    [attachAssets]
+  );
+
+  const handleSheetToggled = useCallback(() => {
+    if (!canUpload) {
+      Alert.alert('Configure storage to upload images');
+    }
+    setSheetOpen((open) => !open);
+  }, [canUpload]);
+
+  const { attachment } = useMappedImageAttachments(
+    assetUri ? { attachment: assetUri } : {}
+  );
+
+  useEffect(() => {
+    if (attachment && attachment.uploadState?.status === 'success') {
+      setAssetUri?.(attachment.uploadState.remoteUri);
+    }
+  }, [attachment]);
+
+  const handleImageRemoved = useCallback(() => {
+    setAssetUri(undefined);
+  }, []);
+
+  return (
+    <>
+      <XStack gap="$m" ref={ref}>
+        <ImageInputButtonFrame group onPress={handleSheetToggled}>
+          <ImageInputButtonText>{buttonLabel}</ImageInputButtonText>
+        </ImageInputButtonFrame>
+        <ImageInputPreviewFrame onPress={handleSheetToggled}>
+          <Icon type="Camera" color="$tertiaryText" />
+          {placeholderUri ? (
+            <ImageInputPreviewImage source={{ uri: placeholderUri }} />
+          ) : null}
+          {assetUri ? (
+            <ImageInputPreviewImage source={{ uri: assetUri }} />
+          ) : null}
+          {attachment?.uploadState?.status === 'uploading' ? (
+            <ImageInputPreviewLoadingFrame>
+              <Spinner size="small" />
+            </ImageInputPreviewLoadingFrame>
+          ) : null}
+        </ImageInputPreviewFrame>
+      </XStack>
+      <AttachmentSheet
+        isOpen={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onAttachmentsSet={handleImageSelected}
+        showClearOption={showClear && !!value}
+        onClearAttachments={handleImageRemoved}
+      />
+    </>
+  );
+});
+
+const ImageInputButtonFrame = styled(XStack, {
+  context: FieldContext,
+  borderRadius: '$l',
+  overflow: 'hidden',
+  justifyContent: 'center',
+  borderWidth: 1,
+  borderColor: '$border',
+  backgroundColor: '$background',
+  padding: '$xl',
+  flex: 1,
+  pressStyle: { backgroundColor: '$border' },
+  variants: {
+    empty: {},
+    accent: {
+      negative: {
+        backgroundColor: '$negativeBackground',
+        color: '$negativeActionText',
+        borderColor: '$negativeBorder',
+      },
+    },
+  },
+});
+
+const ImageInputButtonText = styled(Text, {
+  size: '$label/xl',
+  trimmed: false,
+  color: '$secondaryText',
+  lineHeight: '$s',
+  '$group-press': { color: '$tertiaryText' },
+});
+
+const ImageInputPreviewFrame = styled(View, {
+  borderRadius: '$m',
+  aspectRatio: 1,
+  overflow: 'hidden',
+  backgroundColor: '$border',
+  alignItems: 'center',
+  justifyContent: 'center',
+  pressStyle: { opacity: 0.5 },
+});
+
+const ImageInputPreviewImage = styled(Image, {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
+});
+
+const ImageInputPreviewLoadingFrame = styled(View, {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
+  backgroundColor: 'rgba(0,0,0,.25)',
+  alignItems: 'center',
+  justifyContent: 'center',
+});
+
+interface TextInputWithIconAndButtonProps
+  extends ComponentProps<typeof TextInput> {
+  icon: IconType;
+  buttonText: string;
+  onButtonPress: () => void;
+}
+
+export const TextInputWithIconAndButton = React.memo(
+  function TextInputWithIconAndButtonRaw({
+    icon,
+    buttonText,
+    onButtonPress,
+    ...textInputProps
+  }: TextInputWithIconAndButtonProps) {
+    return (
+      <XStack
+        borderWidth={1}
+        borderColor="$border"
+        borderRadius="$l"
+        paddingHorizontal="$xl"
+        alignItems="center"
+        gap="$l"
+      >
+        <Icon type={icon} customSize={['$2xl', '$2xl']} />
+        <TextInput
+          paddingLeft={0}
+          borderWidth={0}
+          borderRadius={0}
+          flex={1}
+          {...textInputProps}
+        />
+        <Button
+          padding="$l"
+          onPress={onButtonPress}
+          backgroundColor="$secondaryBackground"
+          marginLeft="$-2xl"
+        >
+          <Button.Text size="$label/m">{buttonText}</Button.Text>
+        </Button>
+      </XStack>
+    );
+  }
 );
 
 // Toggle group
@@ -100,7 +395,7 @@ const ControlFrame = styled(View, {
   width: '$3xl',
   height: '$3xl',
   borderWidth: 1,
-  borderColor: '$shadow',
+  borderColor: '$border',
   alignItems: 'center',
   justifyContent: 'center',
   variants: {
@@ -287,24 +582,26 @@ function ListItemInputRow<T>({
 }) {
   const handlePress = useBoundHandler(option.value, onPress);
   return (
-    <ListItem onPress={handlePress}>
-      {option.icon ? (
-        typeof option.icon === 'string' ? (
-          <ListItem.SystemIcon icon={option.icon} />
-        ) : (
-          option.icon
-        )
-      ) : null}
-      <ListItem.MainContent>
-        <ListItem.Title>{option.title}</ListItem.Title>
-        {option.subtitle ? (
-          <ListItem.Subtitle>{option.subtitle}</ListItem.Subtitle>
+    <Pressable borderRadius="$xl" onPress={handlePress}>
+      <ListItem>
+        {option.icon ? (
+          typeof option.icon === 'string' ? (
+            <ListItem.SystemIcon icon={option.icon} />
+          ) : (
+            option.icon
+          )
         ) : null}
-      </ListItem.MainContent>
-      <ListItem.EndContent padding={0}>
-        {checked ? <RadioControl checked /> : null}
-      </ListItem.EndContent>
-    </ListItem>
+        <ListItem.MainContent>
+          <ListItem.Title>{option.title}</ListItem.Title>
+          {option.subtitle ? (
+            <ListItem.Subtitle>{option.subtitle}</ListItem.Subtitle>
+          ) : null}
+        </ListItem.MainContent>
+        <ListItem.EndContent padding={0}>
+          {checked ? <RadioControl checked /> : null}
+        </ListItem.EndContent>
+      </ListItem>
+    </Pressable>
   );
 }
 

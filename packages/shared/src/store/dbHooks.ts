@@ -9,7 +9,11 @@ import * as api from '../api';
 import * as db from '../db';
 import * as ub from '../urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
-import { syncPostReference } from './sync';
+import {
+  syncChannelPreivews,
+  syncGroupPreviews,
+  syncPostReference,
+} from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
@@ -26,6 +30,15 @@ export type CustomQueryConfig<T> = Pick<
   UseQueryOptions<T, Error, T>,
   'enabled'
 >;
+
+export const useAllChannels = ({ enabled }: { enabled?: boolean }) => {
+  const querykey = useKeyFromQueryDeps(db.getAllChannels);
+  return useQuery({
+    queryKey: ['allChannels', querykey],
+    queryFn: () => db.getAllChannels(),
+    enabled,
+  });
+};
 
 export const useCurrentChats = (
   queryConfig?: CustomQueryConfig<CurrentChats>
@@ -69,6 +82,20 @@ export const usePendingChats = (
   });
 };
 
+export const useUnjoinedGroupChannels = (groupId: string) => {
+  const deps = useKeyFromQueryDeps(db.getUnjoinedGroupChannels);
+  return useQuery({
+    queryKey: [['unjoinedChannels', groupId], deps],
+    queryFn: async () => {
+      if (!groupId) {
+        return [];
+      }
+      const unjoined = await db.getUnjoinedGroupChannels(groupId);
+      return unjoined;
+    },
+  });
+};
+
 export const usePins = (
   queryConfig?: CustomQueryConfig<db.Pin[]>
 ): UseQueryResult<db.Pin[] | null> => {
@@ -100,6 +127,13 @@ export const useAppInfo = () => {
   });
 };
 
+export const useDidShowBenefitsSheet = () => {
+  return useQuery({
+    queryKey: db.SHOW_BENEFITS_SHEET_QUERY_KEY,
+    queryFn: db.getDidShowBenefitsSheet,
+  });
+};
+
 export const useActivitySeenMarker = () => {
   return useQuery({
     queryKey: db.ACTIVITY_SEEN_MARKER_QUERY_KEY,
@@ -118,7 +152,7 @@ export const useIsTlonEmployee = () => {
   return useQuery({
     queryKey: db.IS_TLON_EMPLOYEE_QUERY_KEY,
     queryFn: db.getIsTlonEmployee,
-  });
+  }).data;
 };
 
 export const useCanUpload = () => {
@@ -164,10 +198,13 @@ export const useContacts = () => {
   });
 };
 
-export const useUnreadsCount = () => {
+export const useUnreadsCountWithoutMuted = () => {
   return useQuery({
-    queryKey: ['unreadsCount'],
-    queryFn: () => db.getUnreadsCount({}),
+    queryKey: [
+      'unreadsCount',
+      useKeyFromQueryDeps(db.getUnreadsCountWithoutMuted),
+    ],
+    queryFn: () => db.getUnreadsCountWithoutMuted({}),
   });
 };
 
@@ -289,8 +326,9 @@ export const useLiveGroupUnread = (unread: db.GroupUnread | null) => {
 };
 
 export const useLiveUnread = (
-  unread: db.ChannelUnread | db.ThreadUnreadState | null
+  unread: db.ChannelUnread | db.ThreadUnreadState | db.GroupUnread | null
 ) => {
+  const isGroup = useMemo(() => unread && 'groupId' in unread, [unread]);
   const isThread = useMemo(() => unread && 'threadId' in unread, [unread]);
   const threadUnread = useLiveThreadUnread(
     isThread ? (unread as db.ThreadUnreadState) : null
@@ -298,21 +336,16 @@ export const useLiveUnread = (
   const channelUnread = useLiveChannelUnread(
     isThread ? null : (unread as db.ChannelUnread | null)
   );
-  return isThread ? threadUnread : channelUnread;
+  const groupUnread = useLiveGroupUnread(
+    isGroup ? (unread as db.GroupUnread) : null
+  );
+  return isThread ? threadUnread : isGroup ? groupUnread : channelUnread;
 };
 
 export const useGroups = (options: db.GetGroupsOptions) => {
   return useQuery({
     queryKey: ['groups'],
     queryFn: () => db.getGroups(options).then((r) => r ?? null),
-  });
-};
-
-export const useGroupPreviews = (groupIds: string[]) => {
-  const depsKey = useKeyFromQueryDeps(db.getGroupPreviews);
-  return useQuery({
-    queryKey: ['groupPreviews', depsKey, groupIds],
-    queryFn: () => db.getGroupPreviews(groupIds),
   });
 };
 
@@ -341,7 +374,10 @@ export const useGroupByChannel = (channelId: string) => {
 
 export const useMemberRoles = (chatId: string, userId: string) => {
   const { data: chatMember } = useQuery({
-    queryKey: ['memberRoles', chatId, userId],
+    queryKey: [
+      ['memberRoles', chatId, userId],
+      useKeyFromQueryDeps(db.getChatMember),
+    ],
     queryFn: () => db.getChatMember({ chatId, contactId: userId }),
   });
 
@@ -354,18 +390,41 @@ export const useMemberRoles = (chatId: string, userId: string) => {
 };
 
 export const useGroupPreview = (groupId: string) => {
-  const tableDeps = useKeyFromQueryDeps(db.getGroup);
   return useQuery({
-    queryKey: ['groupPreview', tableDeps, groupId],
+    queryKey: ['groupPreview', groupId],
+    refetchOnReconnect: false,
+    refetchOnMount: false,
     queryFn: async () => {
-      const group = await db.getGroup({ id: groupId });
-      if (group) {
-        return group;
-      }
+      const [preview] = await syncGroupPreviews([groupId]);
+      return preview;
+    },
+  });
+};
 
-      const groupPreview = await api.getGroupPreview(groupId);
-      await db.insertUnjoinedGroups([groupPreview]);
-      return groupPreview;
+export const useUserContacts = () => {
+  const deps = useKeyFromQueryDeps(db.getUserContacts);
+  return useQuery({
+    queryKey: ['userContacts', deps],
+    queryFn: () => db.getUserContacts(),
+  });
+};
+
+export const useSuggestedContacts = () => {
+  const deps = useKeyFromQueryDeps(db.getSuggestedContacts);
+  return useQuery({
+    queryKey: ['suggestedContacts', deps],
+    queryFn: () => db.getSuggestedContacts(),
+  });
+};
+
+export const useChannelPreview = ({ id }: { id: string }) => {
+  return useQuery({
+    queryKey: ['channelPreview', id],
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    queryFn: async () => {
+      const [channel] = await syncChannelPreivews([id]);
+      return channel;
     },
   });
 };
@@ -399,12 +458,10 @@ export const useGroupsHostedBy = (userId: string) => {
     queryFn: async () => {
       // query backend for all groups the ship hosts
       const groups = await api.findGroupsHostedBy(userId);
-
-      const clientGroups = api.toClientGroupsFromPreview(groups);
       // insert any we didn't already have
-      await db.insertGroups({ groups: clientGroups, overWrite: false });
+      await db.insertGroupPreviews({ groups });
 
-      const groupIds = clientGroups.map((g) => g.id);
+      const groupIds = groups.map((g) => g.id);
       const groupPreviews = await db.getGroupPreviews(groupIds);
       return groupPreviews;
     },

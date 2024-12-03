@@ -1,4 +1,3 @@
-import { isChannelId } from '../api/apiUtils';
 import * as db from '../db';
 
 export function isChatChannel(channel: db.Channel): boolean {
@@ -10,9 +9,9 @@ export function isChatChannel(channel: db.Channel): boolean {
 }
 
 export function isChannel(obj: db.Channel | db.Group): obj is db.Channel {
-  return isChannelId(obj.id);
+  return !('hostUserId' in obj);
 }
 
 export function isGroup(obj: db.Channel | db.Group): obj is db.Group {
-  return !isChannelId(obj.id);
+  return 'hostUserId' in obj;
 }

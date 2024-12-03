@@ -29,11 +29,23 @@ export const DEFAULT_LURE = extra.defaultLure ?? '~nibset-napwyn/tlon';
 export const DEFAULT_PRIORITY_TOKEN = extra.defaultPriorityToken ?? 'mobile';
 export const DEFAULT_TLON_LOGIN_EMAIL = extra.defaultTlonLoginEmail ?? '';
 export const DEFAULT_TLON_LOGIN_PASSWORD = extra.defaultTlonLoginPassword ?? '';
+export const DEFAULT_INVITE_LINK_URL = extra.defaultInviteLinkUrl ?? '';
 export const DEFAULT_SHIP_LOGIN_URL = extra.defaultShipLoginUrl ?? '';
 export const DEFAULT_SHIP_LOGIN_ACCESS_CODE =
   extra.defaultShipLoginAccessCode ?? '';
+export const DEFAULT_ONBOARDING_PASSWORD =
+  extra.defaultOnboardingPassword ?? '';
+export const DEFAULT_ONBOARDING_TLON_EMAIL =
+  extra.defaultOnboardingTlonEmail ?? '';
+export const DEFAULT_ONBOARDING_NICKNAME =
+  extra.defaultOnboardingNickname ?? '';
+export const DEFAULT_ONBOARDING_PHONE_NUMBER =
+  extra.defaultOnboardingPhoneNumber;
+
 export const ENABLED_LOGGERS = extra.enabledLoggers?.split(',') ?? [];
 export const IGNORE_COSMOS = extra.ignoreCosmos === 'true';
 export const TLON_EMPLOYEE_GROUP = extra.TlonEmployeeGroup ?? '';
 export const BRANCH_KEY = extra.branchKey ?? '';
 export const BRANCH_DOMAIN = extra.branchDomain ?? '';
+export const INVITE_SERVICE_ENDPOINT = extra.inviteServiceEndpoint ?? '';
+export const INVITE_SERVICE_IS_DEV = extra.inviteServiceIsDev === 'true';

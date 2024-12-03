@@ -2,7 +2,7 @@ import { Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, SizableText, View, XStack } from 'tamagui';
 
-import { GenericHeader } from './GenericHeader';
+import { ScreenHeader } from './ScreenHeader';
 
 export function FeatureFlagScreenView({
   features,
@@ -14,11 +14,10 @@ export function FeatureFlagScreenView({
   onFlagToggled: (flagName: string, enabled: boolean) => void;
 }) {
   const insets = useSafeAreaInsets();
-  console.log('render', features);
 
   return (
-    <View flex={1}>
-      <GenericHeader title={'Feature Previews'} goBack={onBackPressed} />
+    <View flex={1} backgroundColor="$background">
+      <ScreenHeader title={'Feature Previews'} backAction={onBackPressed} />
       <ScrollView
         contentContainerStyle={{
           gap: '$s',

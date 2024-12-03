@@ -1,11 +1,11 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
 import { FlatList, ListRenderItemInfo } from 'react-native';
 import { View, getTokenValue } from 'tamagui';
 
 import ContactName from './ContactName';
-import { GenericHeader } from './GenericHeader';
 import { ListItem } from './ListItem';
+import { ScreenHeader } from './ScreenHeader';
 
 export function ChannelMembersScreenView({
   channel,
@@ -33,9 +33,9 @@ export function ChannelMembersScreenView({
 
   return (
     <View flex={1} backgroundColor="$background">
-      <GenericHeader
+      <ScreenHeader
         title={channel ? 'Loading...' : 'Members'}
-        goBack={goBack}
+        backAction={goBack}
       />
       <FlatList
         data={channel?.members}

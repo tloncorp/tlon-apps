@@ -1,9 +1,7 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
-import { Text } from 'tamagui';
 
-import { useNavigation } from '../contexts';
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { Button } from './Button';
@@ -38,6 +36,7 @@ export function ProfileSheet({
   onPressBan,
   onPressUnban,
   onPressKick,
+  onPressGoToDm,
 }: {
   contact?: db.Contact;
   contactId: string;
@@ -49,10 +48,9 @@ export function ProfileSheet({
   onPressKick?: () => void;
   onPressBan?: () => void;
   onPressUnban?: () => void;
+  onPressGoToDm?: () => void;
 }) {
   const currentUserId = useCurrentUserId();
-
-  const { onPressGoToDm } = useNavigation();
 
   const handleBlock = useCallback(() => {
     if (contact && contact.isBlocked) {
@@ -63,11 +61,6 @@ export function ProfileSheet({
     onOpenChange(false);
   }, [contact, contactId, onOpenChange]);
 
-  const handleGoToDm = useCallback(async () => {
-    onPressGoToDm?.([contactId]);
-    onOpenChange(false);
-  }, [contactId, onPressGoToDm, onOpenChange]);
-
   const isAdminnable = currentUserIsAdmin && currentUserId !== contactId;
 
   const actions: ActionGroup[] = createActionGroups(
@@ -75,7 +68,10 @@ export function ProfileSheet({
       'neutral',
       {
         title: 'Send message',
-        action: () => handleGoToDm,
+        action: () => {
+          onPressGoToDm?.();
+          onOpenChange(false);
+        },
         endIcon: 'ChevronRight',
       },
       {
@@ -116,7 +112,7 @@ export function ProfileSheet({
   );
 
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange} snapPoints={['90%']}>
+    <ActionSheet open={open} onOpenChange={onOpenChange}>
       <ActionSheet.ScrollableContent>
         <ActionSheet.ContentBlock>
           <ProfileBlock contactId={contactId} />

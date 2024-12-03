@@ -2,14 +2,14 @@ name: Deploy Groups (ephemeral)
 on:
   push:
     branches:
-      - 'do/ephemeral-moons'
+      - "do/ephemeral-moons"
 
   #pull_request:
 
 jobs:
   build-frontend:
     runs-on: ubuntu-latest
-    name: 'Build Frontend'
+    name: "Build Frontend"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,37 +26,39 @@ jobs:
             - recursive: true
               args: [--frozen-lockfile]
 
+      - name: Build packages
+        run: pnpm build:all
+
       - working-directory: ./apps/tlon-web
-        run:
-          pnpm build
+        run: pnpm build
 
       - uses: actions/upload-artifact@v4
         with:
-          name: 'ui-dist'
-          path:  apps/tlon-web/dist
+          name: "ui-dist"
+          path: apps/tlon-web/dist
 
   glob:
     runs-on: ubuntu-latest
-    name: 'Make a glob'
+    name: "Make a glob"
     needs: build-frontend
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/download-artifact@v4
         with:
-          name: 'ui-dist'
+          name: "ui-dist"
           path: apps/tlon-web/dist
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v1'
+      - id: "auth"
+        uses: "google-github-actions/auth@v1"
         with:
-          credentials_json: '${{ secrets.GCP_SERVICE_KEY }}'
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v1'
-      - name: 'glob'
+          credentials_json: "${{ secrets.GCP_SERVICE_KEY }}"
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v1"
+      - name: "glob"
         uses: ./.github/actions/glob
         with:
-          folder: 'apps/tlon-web/dist/*'
-          docket: 'desk/desk.docket-0'
+          folder: "apps/tlon-web/dist/*"
+          docket: "desk/desk.docket-0"
       - name: Commit and Push Glob
         run: |
           git config --global user.name github-actions
@@ -74,12 +76,12 @@ jobs:
     needs: glob
     steps:
       - uses: actions/checkout@v4
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v1'
+      - id: "auth"
+        uses: "google-github-actions/auth@v1"
         with:
-          credentials_json: '${{ secrets.GCP_SERVICE_KEY }}'
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v1'
+          credentials_json: "${{ secrets.GCP_SERVICE_KEY }}"
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v1"
       - id: create_moon
         name: Create Moon
         run: |
@@ -88,23 +90,24 @@ jobs:
           SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}
 
-
   deploy:
     needs: create_moon
     runs-on: ubuntu-latest
     name: "Release to ~binnec-dozzod-marnus (canary)"
     steps:
       - uses: actions/checkout@v4
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v1'
+      - id: "auth"
+        uses: "google-github-actions/auth@v1"
         with:
-          credentials_json: '${{ secrets.GCP_SERVICE_KEY }}'
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v1'
+          credentials_json: "${{ secrets.GCP_SERVICE_KEY }}"
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v1"
       - id: deploy
         name: Deploy
         run:
-          ./.github/helpers/deploy.sh tloncorp/tlon-apps groups ${{ needs.build_test_images.outputs.moon_name }} us-central1-a mainnet-tlon-other-2d
+          ./.github/helpers/deploy.sh tloncorp/tlon-apps groups ${{
+          needs.build_test_images.outputs.moon_name }} us-central1-a
+          mainnet-tlon-other-2d
         env:
           SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}

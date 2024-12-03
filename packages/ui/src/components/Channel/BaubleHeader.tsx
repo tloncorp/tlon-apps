@@ -1,5 +1,5 @@
 import { LinearGradient } from '@tamagui/linear-gradient';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { BlurView } from 'expo-blur';
 import { useCallback, useRef } from 'react';
 import { OpaqueColorValue } from 'react-native';
@@ -24,6 +24,7 @@ import { ContactAvatar } from '../Avatar';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
 import { Icon } from '../Icon';
 import { Image } from '../Image';
+import Pressable from '../Pressable';
 
 export function BaubleHeader({
   showSpinner,
@@ -96,7 +97,7 @@ export function BaubleHeader({
             animatedStyle,
           ]}
         >
-          <View
+          <Pressable
             borderWidth={1}
             borderColor={'$border'}
             borderRadius="$l"
@@ -178,7 +179,7 @@ export function BaubleHeader({
                   </Animated.View>
                 )}
             </BlurView>
-          </View>
+          </Pressable>
         </Animated.View>
       )}
       {isGroupContext && groupOptions && (

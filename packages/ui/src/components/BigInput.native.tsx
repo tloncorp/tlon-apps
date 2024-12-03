@@ -1,11 +1,10 @@
-import { EditorBridge } from '@10play/tentap-editor';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { useMemo, useRef, useState } from 'react';
 import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // TODO: replace input with our own input component
-import { Input, ScrollView, View, YStack, getToken } from 'tamagui';
+import { Input, View, YStack, getTokenValue } from 'tamagui';
 
 import { ImageAttachment, useAttachmentContext } from '../contexts/attachment';
 import AttachmentSheet from './AttachmentSheet';
@@ -38,12 +37,11 @@ export function BigInput({
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const editorRef = useRef<{
     editor: TlonEditorBridge | null;
-    setEditor: (editor: EditorBridge) => void;
   }>(null);
   const { top } = useSafeAreaInsets();
   const { width } = Dimensions.get('screen');
-  const titleInputHeight = getToken('$4xl', 'size');
-  const imageButtonHeight = getToken('$4xl', 'size');
+  const titleInputHeight = getTokenValue('$4xl', 'size');
+  const imageButtonHeight = getTokenValue('$4xl', 'size');
   const keyboardVerticalOffset =
     Platform.OS === 'ios' ? top + titleInputHeight : top;
 
@@ -127,16 +125,10 @@ export function BigInput({
           </View>
         </View>
       )}
-      <ScrollView
-        scrollEventThrottle={16}
-        scrollToOverflowEnabled
-        overScrollMode="always"
-        contentContainerStyle={{
-          paddingTop:
-            channelType === 'notebook'
-              ? titleInputHeight + imageButtonHeight
-              : 0,
-        }}
+      <View
+        paddingTop={
+          channelType === 'notebook' ? titleInputHeight + imageButtonHeight : 0
+        }
       >
         <MessageInput
           shouldBlur={shouldBlur}
@@ -161,9 +153,11 @@ export function BigInput({
           placeholder={placeholder}
           bigInput
           channelType={channelType}
+          shouldAutoFocus
+          draftType={channelType === 'gallery' ? 'text' : undefined}
           ref={editorRef}
         />
-      </ScrollView>
+      </View>
       {channelType === 'notebook' &&
         editorRef.current &&
         editorRef.current.editor && (
@@ -182,9 +176,9 @@ export function BigInput({
         )}
       {channelType === 'notebook' && showAttachmentSheet && (
         <AttachmentSheet
-          showAttachmentSheet={showAttachmentSheet}
-          setShowAttachmentSheet={setShowAttachmentSheet}
-          setImage={attachAssets}
+          isOpen={showAttachmentSheet}
+          onOpenChange={setShowAttachmentSheet}
+          onAttachmentsSet={attachAssets}
         />
       )}
     </YStack>

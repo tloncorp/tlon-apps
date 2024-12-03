@@ -1,172 +1,283 @@
-import * as api from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
-import { ImagePickerAsset } from 'expo-image-picker';
-import { useCallback, useState } from 'react';
+import * as api from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
+import { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Keyboard } from 'react-native';
+import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, YStack } from 'tamagui';
+import { ScrollView, View, XStack } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts';
-import { AttachmentProvider } from '../contexts/attachment';
-import { EditablePofileImages } from './EditableProfileImages';
+import { SigilAvatar } from './Avatar';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
-import { FormTextInput } from './FormInput';
-import { GenericHeader } from './GenericHeader';
+import {
+  ControlledImageField,
+  ControlledTextField,
+  ControlledTextareaField,
+  Field,
+  FormFrame,
+} from './Form';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
-import { SaveButton } from './MetaEditorScreenView';
+import { ScreenHeader } from './ScreenHeader';
+import { BioDisplay, PinnedGroupsDisplay } from './UserProfileScreenView';
 
 interface Props {
+  userId: string;
   onGoBack: () => void;
-  onSaveProfile: (update: {
-    profile: api.ProfileUpdate | null;
-    pinnedGroups?: db.Group[] | null;
-  }) => void;
-  uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
-  canUpload: boolean;
+  onSaveProfile: (update: api.ProfileUpdate | null) => void;
+  onUpdatePinnedGroups: (groups: db.Group[]) => void;
+  onUpdateCoverImage: (coverImage: string) => void;
+  onUpdateAvatarImage: (avatarImage: string) => void;
 }
 
 export function EditProfileScreenView(props: Props) {
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
-  const userContact = useContact(currentUserId);
+  const userContact = useContact(props.userId);
   const [pinnedGroups, setPinnedGroups] = useState<db.Group[]>(
     (userContact?.pinnedGroups
       ?.map((pin) => pin.group)
       .filter(Boolean) as db.Group[]) ?? []
   );
 
+  const isCurrUser = useMemo(
+    () => props.userId === currentUserId,
+    [props.userId, currentUserId]
+  );
+
+  const currentNickname = useMemo(() => {
+    return isCurrUser
+      ? userContact?.nickname
+      : userContact?.customNickname ?? '';
+  }, [isCurrUser, userContact?.nickname, userContact?.customNickname]);
+
+  const nicknamePlaceholder = useMemo(() => {
+    return isCurrUser
+      ? userContact?.id
+      : userContact?.peerNickname ?? userContact?.id;
+  }, [isCurrUser, userContact]);
+
+  const currentAvatarImage = useMemo(() => {
+    return isCurrUser
+      ? userContact?.avatarImage
+      : userContact?.customAvatarImage ?? '';
+  }, [isCurrUser, userContact]);
+
+  const avatarPlaceholder = useMemo(() => {
+    return isCurrUser ? undefined : userContact?.peerAvatarImage ?? undefined;
+  }, [isCurrUser, userContact]);
+
   const {
     control,
     handleSubmit,
-    formState: { errors, isDirty },
-    setValue,
+    formState: { isDirty, isValid },
   } = useForm({
+    mode: 'onChange',
     defaultValues: {
-      nickname: userContact?.nickname ?? '',
+      nickname: currentNickname ?? '',
+      status: userContact?.status ?? '',
       bio: userContact?.bio ?? '',
-      avatarImage: userContact?.avatarImage ?? '',
-      coverImage: userContact?.coverImage ?? '',
+      avatarImage: currentAvatarImage ?? '',
     },
   });
 
-  const onSavePressed = useCallback(() => {
-    // only pass pins to the save handler if changes were made
-    const initialPinnedIds = userContact?.pinnedGroups
-      ?.map((pin) => pin.group?.id)
-      .filter(Boolean) as string[];
-    const newPinnedIds = pinnedGroups.map((group) => group.id);
-    const didEditPinnedGroups =
-      initialPinnedIds.length !== newPinnedIds.length ||
-      !initialPinnedIds.every((id) => newPinnedIds.includes(id));
-
+  const handlePressDone = useCallback(() => {
     if (isDirty) {
-      console.log(`form is dirty, handling submit?`);
-      return handleSubmit((formData) => {
-        props.onSaveProfile({
-          profile: formData,
-          pinnedGroups: didEditPinnedGroups ? pinnedGroups : undefined,
-        });
-      })();
-    }
+      handleSubmit((formData) => {
+        const nicknameStartVal = isCurrUser
+          ? userContact?.nickname
+          : userContact?.customNickname;
+        const avatarStartVal = isCurrUser
+          ? userContact?.avatarImage
+          : userContact?.customAvatarImage;
 
-    if (didEditPinnedGroups) {
-      return props.onSaveProfile({
-        profile: null,
-        pinnedGroups,
-      });
+        const update = {
+          status: formData.status,
+          bio: formData.bio,
+          nickname: formData.nickname
+            ? formData.nickname
+            : nicknameStartVal
+              ? null // clear existing
+              : undefined,
+          avatarImage: formData.avatarImage
+            ? formData.avatarImage
+            : avatarStartVal
+              ? null // clear existing
+              : undefined,
+        };
+        props.onSaveProfile(update);
+      })();
+    } else {
+      props.onGoBack();
     }
-  }, [handleSubmit, isDirty, pinnedGroups, props, userContact?.pinnedGroups]);
+  }, [
+    handleSubmit,
+    isCurrUser,
+    isDirty,
+    props,
+    userContact?.avatarImage,
+    userContact?.customAvatarImage,
+    userContact?.customNickname,
+    userContact?.nickname,
+  ]);
+
+  const handlePressCancel = () => {
+    if (isDirty) {
+      Alert.alert('Discard changes?', 'Your changes will not be saved.', [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            props.onGoBack();
+          },
+        },
+      ]);
+    } else {
+      props.onGoBack();
+    }
+  };
+
+  const handleUpdatePinnedGroups = useCallback(
+    (groups: db.Group[]) => {
+      setPinnedGroups(groups);
+      props.onUpdatePinnedGroups(groups);
+    },
+    [props]
+  );
 
   return (
-    <AttachmentProvider
-      canUpload={props.canUpload}
-      uploadAsset={props.uploadAsset}
-    >
-      <View flex={1}>
-        <GenericHeader
-          title="Edit Profile"
-          goBack={props.onGoBack}
-          rightContent={isDirty && <SaveButton onPress={onSavePressed} />}
-        />
-        <KeyboardAvoidingView>
-          <ScrollView>
-            <YStack
-              onTouchStart={Keyboard.dismiss}
-              marginTop="$l"
-              marginHorizontal="$xl"
-              paddingBottom={insets.bottom}
-            >
-              <EditablePofileImages
-                contact={userContact ?? db.getFallbackContact(currentUserId)}
-                onSetCoverUrl={useCallback(
-                  (url: string) =>
-                    setValue('coverImage', url, { shouldDirty: true }),
-                  [setValue]
-                )}
-                onSetIconUrl={useCallback(
-                  (url: string) =>
-                    setValue('avatarImage', url, { shouldDirty: true }),
-                  [setValue]
-                )}
-              />
+    <View flex={1}>
+      <ScreenHeader
+        title="Edit Profile"
+        leftControls={
+          <ScreenHeader.TextButton onPress={handlePressCancel}>
+            Cancel
+          </ScreenHeader.TextButton>
+        }
+        rightControls={
+          <ScreenHeader.TextButton
+            onPress={handlePressDone}
+            color="$positiveActionText"
+            disabled={!isValid}
+          >
+            Done
+          </ScreenHeader.TextButton>
+        }
+      />
 
-              <FormTextInput marginTop="$m">
-                <FormTextInput.Label>Nickname</FormTextInput.Label>
-                <FormTextInput.Input
-                  control={control}
-                  errors={errors}
+      <KeyboardAvoidingView>
+        <ScrollView keyboardDismissMode="on-drag">
+          <FormFrame paddingBottom={insets.bottom}>
+            <XStack alignItems="flex-end" gap="$m">
+              <View flex={1}>
+                <ControlledTextField
                   name="nickname"
                   label="Nickname"
+                  control={control}
+                  renderInputContainer={
+                    isCurrUser
+                      ? ({ children }) => {
+                          return (
+                            <XStack gap="$m">
+                              <View flex={1}>{children}</View>
+                              <SigilAvatar
+                                contactId={currentUserId}
+                                width={56}
+                                height={56}
+                                borderRadius="$l"
+                                size="custom"
+                              />
+                            </XStack>
+                          );
+                        }
+                      : undefined
+                  }
+                  inputProps={{ placeholder: nicknamePlaceholder }}
                   rules={{
                     maxLength: {
                       value: 30,
                       message: 'Your nickname is limited to 30 characters',
                     },
                   }}
-                  placeholder={userContact?.id}
                 />
-              </FormTextInput>
+              </View>
+            </XStack>
 
-              <FormTextInput>
-                <FormTextInput.Label>Bio</FormTextInput.Label>
-                <FormTextInput.Input
+            <ControlledImageField
+              label="Avatar image"
+              name="avatarImage"
+              hideError={true}
+              control={control}
+              inputProps={{
+                buttonLabel: 'Change avatar image',
+                placeholderUri: avatarPlaceholder,
+              }}
+              rules={{
+                pattern: {
+                  value: /^(?!file).+/,
+                  message: 'Image has not finished uploading',
+                },
+              }}
+            />
+
+            {isCurrUser ? (
+              <>
+                <ControlledTextField
+                  name="status"
+                  label="Status"
                   control={control}
-                  errors={errors}
+                  inputProps={{
+                    placeholder: 'Hanging out...',
+                  }}
+                  rules={{
+                    maxLength: {
+                      value: 50,
+                      message: 'Your status is limited to 50 characters',
+                    },
+                  }}
+                />
+                <ControlledTextareaField
+                  name="bio"
+                  label="Bio"
+                  control={control}
+                  inputProps={{
+                    placeholder: 'About yourself',
+                    numberOfLines: 5,
+                    multiline: true,
+                  }}
                   rules={{
                     maxLength: {
                       value: 300,
                       message: 'Your bio is limited to 300 characters',
                     },
                   }}
-                  name="bio"
-                  label="Bio"
-                  placeholder="About yourself"
-                  frameProps={{
-                    height: 'auto',
-                    justifyContent: 'flex-start',
-                    alignItems: 'flex-start',
-                    overflow: 'scroll',
-                  }}
-                  areaProps={{
-                    numberOfLines: 5,
-                    multiline: true,
-                  }}
                 />
-              </FormTextInput>
-
-              <View marginTop="$2xl">
-                <FavoriteGroupsDisplay
-                  secondaryColors
-                  groups={pinnedGroups}
-                  editable
-                  onUpdate={setPinnedGroups}
+                <Field label="Pinned groups">
+                  <FavoriteGroupsDisplay
+                    groups={pinnedGroups}
+                    onUpdate={handleUpdatePinnedGroups}
+                  />
+                </Field>
+              </>
+            ) : (
+              <>
+                <BioDisplay
+                  bio={userContact?.bio ?? ''}
+                  backgroundColor="$secondaryBackground"
                 />
-              </View>
-            </YStack>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </View>
-    </AttachmentProvider>
+                <PinnedGroupsDisplay
+                  groups={pinnedGroups ?? []}
+                  onPressGroup={() => {}}
+                  backgroundColor="$secondaryBackground"
+                />
+              </>
+            )}
+          </FormFrame>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }

@@ -1,6 +1,6 @@
-import { createDevLogger, logSyncDuration } from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import { preSig } from '@tloncorp/shared/src/urbit';
+import { createDevLogger, logSyncDuration } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import { preSig } from '@tloncorp/shared/urbit';
 import anyAscii from 'any-ascii';
 import { useMemo } from 'react';
 import { isValidPatp } from 'urbit-ob';
@@ -33,7 +33,7 @@ export function useAlphabeticallySegmentedContacts(
       // convert contact to alphabetical representation and bucket by first letter
       for (const contact of contacts) {
         const sortableName = contact.nickname
-          ? anyAscii(contact.nickname.replace(/[~-]/g, ''))
+          ? anyAscii(contact.nickname!.replace(/[~-]/g, ''))
           : contact.id.replace(/[~-]/g, '');
         const firstAlpha = utils.getFirstAlphabeticalChar(sortableName);
         if (!segmented[firstAlpha]) {
@@ -167,8 +167,8 @@ function nicknameSorter(a: db.Contact, b: db.Contact): number {
 
   // prioritize nicknames that aren't just @p's
   if (b.nickname && a.nickname) {
-    const aIsPatp = isValidPatp(anyAscii(a.nickname.trim()));
-    const bIsPatp = isValidPatp(anyAscii(b.nickname.trim()));
+    const aIsPatp = isValidPatp(anyAscii(a.nickname!.trim()));
+    const bIsPatp = isValidPatp(anyAscii(b.nickname!.trim()));
     if (aIsPatp && !bIsPatp) {
       return 1;
     }

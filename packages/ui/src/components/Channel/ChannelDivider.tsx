@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/dist/db';
-import { isToday, makePrettyDay } from '@tloncorp/shared/dist/logic';
+import * as db from '@tloncorp/shared/db';
+import { isToday, makePrettyDay } from '@tloncorp/shared/logic';
 import { useMemo } from 'react';
 import { View, XStack } from 'tamagui';
 

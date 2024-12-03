@@ -3,7 +3,7 @@ import {
   GroupMeta,
   PrivacyType,
   ViewProps,
-} from '@tloncorp/shared/dist/urbit/groups';
+} from '@tloncorp/shared/urbit/groups';
 import React, { useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';

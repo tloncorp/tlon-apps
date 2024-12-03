@@ -165,10 +165,12 @@
   ::
   ++  on-init
     :_  this
-    :~  (~(watch-our pass:io /activity) %activity /notifications)
+    :*  (~(watch-our pass:io /activity) %activity /notifications)
         (~(wait pass:io /clear) (add now.bowl clear-interval))
-        [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]
         [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]
+      ::
+        ?.  =(~rivfur-livmet our.bowl)  ~
+        [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]~
     ==
   ::
   ++  on-save   !>(state)
@@ -181,11 +183,11 @@
       [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]~
     =/  migrated  (migrate-state old-state)
     :_  this(state migrated)
-    :-  [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]
     ?:  (~(has by wex.bowl) [/activity our.bowl %activity])
       caz
-    :_  caz
-    [(~(watch-our pass:io /activity) %activity /notifications)]
+    :-  (~(watch-our pass:io /activity) %activity /notifications)
+    ?.  =(~rivfur-livmet our.bowl)  caz
+    [[%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)] caz]
   ::
   ++  on-poke
     |=  [=mark =vase]

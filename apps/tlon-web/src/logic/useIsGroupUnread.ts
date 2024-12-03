@@ -1,4 +1,4 @@
-import { ActivitySummary } from '@tloncorp/shared/dist/urbit';
+import { ActivitySummary } from '@tloncorp/shared/urbit';
 import { useCallback } from 'react';
 
 import { emptySummary, useActivity } from '@/state/activity';

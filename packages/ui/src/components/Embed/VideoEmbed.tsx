@@ -2,7 +2,7 @@ import { ComponentProps } from 'react';
 import { View, YStack } from 'tamagui';
 import { BigPlayButton, Player } from 'video-react';
 
-export type VideoEmbedProps = ComponentProps<typeof View> & {
+type VideoEmbedProps = ComponentProps<typeof View> & {
   video: { width: number; height: number; src: string; alt?: string };
 };
 

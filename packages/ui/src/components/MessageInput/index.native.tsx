@@ -16,18 +16,19 @@ import {
   ShortcutsBridge,
 } from '@tloncorp/editor/src/bridges';
 import {
+  REF_REGEX,
   createDevLogger,
   extractContentTypesFromPost,
   tiptap,
-} from '@tloncorp/shared/dist';
+} from '@tloncorp/shared';
 import {
   contentReferenceToCite,
   toContentReference,
-} from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
+} from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import {
   Block,
-  Image,
   Inline,
   JSONContent,
   Story,
@@ -35,7 +36,7 @@ import {
   constructStory,
   isInline,
   pathToCite,
-} from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared/urbit';
 import {
   forwardRef,
   useCallback,
@@ -48,9 +49,10 @@ import {
 import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebViewMessageEvent } from 'react-native-webview';
-import { YStack, getToken, useWindowDimensions } from 'tamagui';
+import { YStack, getTokenValue, useWindowDimensions } from 'tamagui';
 import { XStack } from 'tamagui';
 
+import { useBranchDomain, useBranchKey } from '../../contexts';
 import {
   Attachment,
   UploadedImageAttachment,
@@ -58,6 +60,7 @@ import {
 } from '../../contexts/attachment';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
+import { processReferenceAndUpdateEditor } from './helpers';
 
 const messageInputLogger = createDevLogger('MessageInput', false);
 
@@ -105,7 +108,6 @@ export const DEFAULT_MESSAGE_INPUT_HEIGHT = 44;
 
 export interface MessageInputHandle {
   editor: EditorBridge | null;
-  setEditor: (editor: EditorBridge) => void;
 }
 
 export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
@@ -131,39 +133,45 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       initialHeight = DEFAULT_MESSAGE_INPUT_HEIGHT,
       placeholder = 'Message',
       bigInput = false,
+      draftType,
       title,
       image,
       channelType,
       setHeight,
+      shouldAutoFocus,
       goBack,
       onSend,
     },
     ref
   ) => {
-    const localEditorRef = useRef<EditorBridge | null>(null);
-
-    useImperativeHandle(ref, () => ({
-      editor: localEditorRef.current,
-      setEditor: (editor: EditorBridge) => {
-        localEditorRef.current = editor;
-      },
-    }));
-
+    const branchDomain = useBranchDomain();
+    const branchKey = useBranchKey();
     const [isSending, setIsSending] = useState(false);
+    const [sendError, setSendError] = useState(false);
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
+    const [hasAutoFocused, setHasAutoFocused] = useState(false);
     const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
     const [containerHeight, setContainerHeight] = useState(initialHeight);
     const { bottom, top } = useSafeAreaInsets();
     const { height } = useWindowDimensions();
     const headerHeight = 48;
     const titleInputHeight = 48;
-    const inputBasePadding = getToken('$s', 'space');
+    const inputBasePadding = getTokenValue('$s', 'space');
     const imageInputButtonHeight = 50;
-    const basicOffset =
-      top + headerHeight + titleInputHeight + imageInputButtonHeight;
-    const bigInputHeightBasic =
-      height - basicOffset - bottom - inputBasePadding * 2;
+    const maxInputHeightBasic = useMemo(
+      () => height - headerHeight - bottom - top,
+      [height, bottom, top, headerHeight]
+    );
+    const basicOffset = useMemo(
+      () => top + headerHeight + titleInputHeight + imageInputButtonHeight,
+      [top, headerHeight, titleInputHeight, imageInputButtonHeight]
+    );
+    const bigInputHeightBasic = useMemo(
+      () => height - basicOffset - bottom - inputBasePadding * 2,
+      [height, basicOffset, bottom, inputBasePadding]
+    );
     const [bigInputHeight, setBigInputHeight] = useState(bigInputHeightBasic);
+    const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
     const [mentionText, setMentionText] = useState<string>();
     const [showMentionPopup, setShowMentionPopup] = useState(false);
 
@@ -196,11 +204,15 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const editor = useEditorBridge({
       customSource: editorHtml,
-      autofocus: false,
+      autofocus: shouldAutoFocus || false,
       bridgeExtensions,
     });
     const editorState = useBridgeState(editor);
     const webviewRef = editor.webviewRef;
+
+    useImperativeHandle(ref, () => ({
+      editor,
+    }));
 
     const reloadWebview = useCallback(
       (reason: string) => {
@@ -211,26 +223,23 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       [webviewRef]
     );
 
-    useEffect(() => {
-      if (editor) {
-        localEditorRef.current = editor;
-      }
-
-      if (ref && typeof ref === 'object' && ref.current) {
-        ref.current.setEditor(editor);
-      }
-    }, [editor, ref]);
+    const lastEditingPost = useRef<db.Post | undefined>(editingPost);
 
     useEffect(() => {
       if (!hasSetInitialContent && editorState.isReady) {
+        messageInputLogger.log('Setting initial content');
         try {
-          getDraft().then((draft) => {
-            if (draft) {
+          getDraft(draftType).then((draft) => {
+            if (!editingPost && draft) {
+              messageInputLogger.log(
+                'Not editing and we have draft content',
+                draft
+              );
               const inlines = tiptap.JSONToInlines(draft);
               const newInlines = inlines
                 .map((inline) => {
                   if (typeof inline === 'string') {
-                    if (inline.match(tiptap.REF_REGEX)) {
+                    if (inline.match(REF_REGEX)) {
                       return null;
                     }
                     return inline;
@@ -240,12 +249,21 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 .filter((inline) => inline !== null) as Inline[];
               const newStory = constructStory(newInlines);
               const tiptapContent = tiptap.diaryMixedToJSON(newStory);
+              messageInputLogger.log(
+                'Setting content with draft',
+                tiptapContent
+              );
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(tiptapContent);
               setEditorIsEmpty(false);
+              messageInputLogger.log(
+                'set has set initial content, not editing'
+              );
+              setHasSetInitialContent(true);
             }
 
-            if (editingPost?.content) {
+            if (editingPost && editingPost.content) {
+              messageInputLogger.log('Editing post', editingPost);
               const {
                 story,
                 references: postReferences,
@@ -288,8 +306,15 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                   (c) => !('type' in c) && !('block' in c && 'image' in c.block)
                 ) as Story
               );
+              messageInputLogger.log(
+                'Setting content with edit post content',
+                tiptapContent
+              );
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(tiptapContent);
+              setEditorIsEmpty(false);
+              messageInputLogger.log('set has set initial content, editing');
+              setHasSetInitialContent(true);
             }
 
             if (editingPost?.image) {
@@ -305,13 +330,12 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           });
         } catch (e) {
           messageInputLogger.error('Error getting draft', e);
-        } finally {
-          setHasSetInitialContent(true);
         }
       }
     }, [
       editor,
       getDraft,
+      draftType,
       hasSetInitialContent,
       editorState.isReady,
       editingPost,
@@ -320,8 +344,33 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     ]);
 
     useEffect(() => {
+      if (editingPost && lastEditingPost.current?.id !== editingPost.id) {
+        messageInputLogger.log('Editing post changed', editingPost);
+        lastEditingPost.current = editingPost;
+        setHasSetInitialContent(false);
+      }
+    }, [editingPost]);
+
+    useEffect(() => {
+      if (
+        editor &&
+        editorState.isReady &&
+        !shouldBlur &&
+        shouldAutoFocus &&
+        !editorState.isFocused &&
+        !hasAutoFocused
+      ) {
+        messageInputLogger.log('Auto focusing editor', editorState);
+        editor.focus();
+        messageInputLogger.log('Auto focused editor');
+        setHasAutoFocused(true);
+      }
+    }, [shouldAutoFocus, editor, editorState, shouldBlur, hasAutoFocused]);
+
+    useEffect(() => {
       if (editor && shouldBlur && editorState.isFocused) {
         editor.blur();
+        messageInputLogger.log('Blurred editor');
         setShouldBlur(false);
       }
     }, [shouldBlur, editor, editorState, setShouldBlur]);
@@ -352,13 +401,19 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           attachments.length === 0;
 
         if (isEmpty !== editorIsEmpty) {
+          messageInputLogger.log('Editor is empty?', isEmpty);
           setEditorIsEmpty(isEmpty);
+          setContainerHeight(initialHeight);
         }
       });
-    }, [editor, attachments, editorIsEmpty]);
+    }, [editor, attachments, editorIsEmpty, initialHeight]);
 
     editor._onContentUpdate = async () => {
-      const json = await editor.getJSON();
+      messageInputLogger.log(
+        'Content updated, update draft and check for mention text'
+      );
+
+      const json = (await editor.getJSON()) as JSONContent;
       const inlines = (
         tiptap
           .JSONToInlines(json)
@@ -372,95 +427,119 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         (inline) => typeof inline === 'string' && inline.match(/\B[~@]/)
       ) as string | undefined;
       // extract the mention text from the mention inline
-      const mentionText = mentionInline
+      const mentionTextFromInline = mentionInline
         ? mentionInline.slice((mentionInline.match(/\B[~@]/)?.index ?? -1) + 1)
         : null;
-      if (mentionText !== null) {
+      if (mentionTextFromInline !== null) {
+        messageInputLogger.log('Mention text', mentionTextFromInline);
         // if we have a mention text, we show the mention popup
         setShowMentionPopup(true);
-        setMentionText(mentionText);
+        setMentionText(mentionTextFromInline);
       } else {
         setShowMentionPopup(false);
+        setMentionText('');
       }
 
-      storeDraft(json);
+      messageInputLogger.log('Storing draft', json);
+
+      if (
+        json.content?.length === 1 &&
+        json.content[0].type === 'paragraph' &&
+        !json.content[0].content
+      ) {
+        clearDraft(draftType);
+      }
+
+      storeDraft(json, draftType);
     };
 
     const handlePaste = useCallback(
       async (pastedText: string) => {
-        if (pastedText) {
-          const isRef = pastedText.match(tiptap.REF_REGEX);
-
-          if (isRef) {
-            const cite = pathToCite(isRef[0]);
-
+        messageInputLogger.log('Pasted text', pastedText);
+        // check for ref from pasted cite paths
+        const editorJson = await editor.getJSON();
+        const citePathAttachment = await processReferenceAndUpdateEditor({
+          editor,
+          editorJson,
+          pastedText,
+          matchRegex: REF_REGEX,
+          processMatch: async (match) => {
+            const cite = pathToCite(match);
             if (cite) {
               const reference = toContentReference(cite);
-              if (reference) {
-                addAttachment({
-                  type: 'reference',
-                  reference,
-                  path: isRef[0],
-                });
-              }
-
-              const json = await editor.getJSON();
-              const inlines = tiptap
-                .JSONToInlines(json)
-                .filter(
-                  (c) =>
-                    typeof c === 'string' ||
-                    (typeof c === 'object' && isInline(c))
-                ) as Inline[];
-              const blocks =
-                tiptap
-                  .JSONToInlines(json)
-                  .filter((c) => typeof c !== 'string' && 'block' in c) || [];
-
-              // then we need to find all the inlines without refs
-              // so we can render the input text without refs
-              const inlinesWithOutRefs = inlines
-                .map((inline) => {
-                  if (typeof inline === 'string') {
-                    const inlineLength = inline.length;
-                    const refLength =
-                      inline.match(tiptap.REF_REGEX)?.[0].length || 0;
-
-                    if (inlineLength === refLength) {
-                      return null;
-                    }
-
-                    return inline.replace(tiptap.REF_REGEX, '');
-                  }
-                  return inline;
-                })
-                .filter((inline) => inline !== null) as string[];
-
-              // we construct a story here so we can insert blocks back in
-              // and then convert it back to tiptap's JSON format
-              const newStory = constructStory(inlinesWithOutRefs);
-
-              if (blocks && blocks.length > 0) {
-                newStory.push(
-                  ...blocks.map((block) => ({
-                    block: block as unknown as Block,
-                  }))
-                );
-              }
-
-              const newJson = tiptap.diaryMixedToJSON(newStory);
-
-              // @ts-expect-error setContent does accept JSONContent
-              editor.setContent(newJson);
+              return reference
+                ? { type: 'reference', reference, path: match }
+                : null;
             }
-          }
+            return null;
+          },
+        });
+        if (citePathAttachment) {
+          addAttachment(citePathAttachment);
+        }
+
+        // check for refs from pasted deeplinks
+        const DEEPLINK_REGEX = new RegExp(`^(https?://)?${branchDomain}/\\S+$`);
+        const deepLinkAttachment = await processReferenceAndUpdateEditor({
+          editor,
+          editorJson,
+          pastedText,
+          matchRegex: DEEPLINK_REGEX,
+          processMatch: async (deeplink) => {
+            const deeplinkRef = await logic.getReferenceFromDeeplink({
+              deepLink: deeplink,
+              branchKey,
+              branchDomain,
+            });
+            return deeplinkRef
+              ? {
+                  type: 'reference',
+                  reference: deeplinkRef.reference,
+                  path: deeplinkRef.path,
+                }
+              : null;
+          },
+        });
+        if (deepLinkAttachment) {
+          addAttachment(deepLinkAttachment);
+        }
+
+        // check for refs from pasted lure links (after fallback redirect)
+        const TLON_LURE_REGEX =
+          /^(https?:\/\/)?(tlon\.network\/lure\/)(0v[^/]+)$/;
+        const lureLinkAttachment = await processReferenceAndUpdateEditor({
+          editor,
+          editorJson,
+          pastedText,
+          matchRegex: TLON_LURE_REGEX,
+          processMatch: async (tlonLure) => {
+            const parts = tlonLure.split('/');
+            const token = parts[parts.length - 1];
+            if (!token) return null;
+            const deeplinkRef = await logic.getReferenceFromDeeplink({
+              deepLink: `https://${branchDomain}/${token}`,
+              branchKey,
+              branchDomain,
+            });
+            return deeplinkRef
+              ? {
+                  type: 'reference',
+                  reference: deeplinkRef.reference,
+                  path: deeplinkRef.path,
+                }
+              : null;
+          },
+        });
+        if (lureLinkAttachment) {
+          addAttachment(lureLinkAttachment);
         }
       },
-      [editor, addAttachment]
+      [branchDomain, branchKey, addAttachment, editor]
     );
 
     const onSelectMention = useCallback(
       async (contact: db.Contact) => {
+        messageInputLogger.log('Selected mention', contact);
         const json = await editor.getJSON();
         const inlines = tiptap.JSONToInlines(json);
 
@@ -515,13 +594,27 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
         const newJson = tiptap.diaryMixedToJSON(newStory);
 
+        // insert empty text node after mention
+        newJson.content?.map((node) => {
+          const containsMention = node.content?.some(
+            (n) => n.type === 'mention'
+          );
+          if (containsMention) {
+            node.content?.push({
+              type: 'text',
+              text: ' ',
+            });
+          }
+        });
+
+        messageInputLogger.log('onSelectMention, setting new content', newJson);
         // @ts-expect-error setContent does accept JSONContent
         editor.setContent(newJson);
-        storeDraft(newJson);
+        storeDraft(newJson, draftType);
         setMentionText('');
         setShowMentionPopup(false);
       },
-      [editor, storeDraft]
+      [editor, storeDraft, draftType]
     );
 
     const sendMessage = useCallback(
@@ -619,7 +712,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         onSend?.();
         editor.setContent('');
         clearAttachments();
-        clearDraft();
+        clearDraft(draftType);
         setShowBigInput?.(false);
       },
       [
@@ -637,6 +730,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         channelType,
         send,
         channelId,
+        draftType,
       ]
     );
 
@@ -647,8 +741,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           await sendMessage(isEdit);
         } catch (e) {
           console.error('failed to send', e);
+          setSendError(true);
         }
         setIsSending(false);
+        setSendError(false);
       },
       [sendMessage]
     );
@@ -688,6 +784,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const handleMessage = useCallback(
       async (event: WebViewMessageEvent) => {
         const { data } = event.nativeEvent;
+        messageInputLogger.log('[webview] Message from editor', data);
         if (data === 'enter') {
           handleAddNewLine();
           return;
@@ -728,6 +825,12 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         }
 
         if (type === 'contentHeight') {
+          if (payload === containerHeight) {
+            return;
+          }
+          if (containerHeight > maxInputHeightBasic) {
+            return;
+          }
           setContainerHeight(payload);
           setHeight?.(payload);
           return;
@@ -768,6 +871,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         webviewRef,
         editorCrashed,
         setEditorCrashed,
+        containerHeight,
+        maxInputHeightBasic,
       ]
     );
 
@@ -777,7 +882,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     );
 
     useEffect(() => {
+      messageInputLogger.log('Setting up keyboard listeners');
       if (bigInput) {
+        messageInputLogger.log('Setting up keyboard listeners for big input');
         Keyboard.addListener('keyboardDidShow', () => {
           // we should always have the keyboard height here but just in case
           const keyboardHeight = Keyboard.metrics()?.height || 300;
@@ -788,11 +895,24 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           setBigInputHeight(bigInputHeightBasic);
         });
       }
-    }, [bigInput, bigInputHeightBasic]);
+
+      if (!bigInput) {
+        messageInputLogger.log('Setting up keyboard listeners for basic input');
+        Keyboard.addListener('keyboardDidShow', () => {
+          const keyboardHeight = Keyboard.metrics()?.height || 300;
+          setMaxInputHeight(maxInputHeightBasic - keyboardHeight);
+        });
+
+        Keyboard.addListener('keyboardDidHide', () => {
+          setMaxInputHeight(maxInputHeightBasic);
+        });
+      }
+    }, [bigInput, bigInputHeightBasic, maxInputHeightBasic]);
 
     // we need to check if the app within the webview actually loaded
     useEffect(() => {
       if (editorCrashed) {
+        messageInputLogger.warn('Editor crashed', editorCrashed);
         // if it hasn't loaded yet, we need to try loading the content again
         reloadWebview(`Editor crashed: ${editorCrashed}`);
       }
@@ -800,19 +920,28 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const titleIsEmpty = useMemo(() => !title || title.length === 0, [title]);
 
+    const handleCancelEditing = useCallback(() => {
+      setEditingPost?.(undefined);
+      setHasSetInitialContent(false);
+      editor.setContent('');
+      clearDraft(draftType);
+      clearAttachments();
+    }, [setEditingPost, editor, clearDraft, clearAttachments, draftType]);
+
     return (
       <MessageInputContainer
         setShouldBlur={setShouldBlur}
         onPressSend={handleSend}
         onPressEdit={handleEdit}
         containerHeight={containerHeight}
+        sendError={sendError}
         mentionText={mentionText}
         groupMembers={groupMembers}
         onSelectMention={onSelectMention}
         showMentionPopup={showMentionPopup}
         isEditing={!!editingPost}
         isSending={isSending}
-        cancelEditing={() => setEditingPost?.(undefined)}
+        cancelEditing={handleCancelEditing}
         showAttachmentButton={showAttachmentButton}
         floatingActionButton={floatingActionButton}
         disableSend={
@@ -827,12 +956,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           borderColor="$border"
           borderWidth={1}
           borderRadius="$xl"
+          maxHeight={maxInputHeight}
         >
           {showInlineAttachments && <AttachmentPreviewList />}
           <XStack height={bigInput ? bigInputHeight : containerHeight}>
             <RichText
               style={{
                 backgroundColor: 'transparent',
+                maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
               }}
               editor={editor}
               onMessage={handleMessage}

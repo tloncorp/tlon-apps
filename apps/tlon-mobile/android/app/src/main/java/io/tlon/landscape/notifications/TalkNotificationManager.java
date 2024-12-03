@@ -13,11 +13,13 @@ import androidx.core.app.Person;
 
 import com.android.volley.TimeoutError;
 import com.android.volley.VolleyError;
+import android.util.Log;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.Date;
+import java.util.Iterator;
 
 import io.invertase.firebase.crashlytics.ReactNativeFirebaseCrashlyticsNativeHelper;
 import io.tlon.landscape.AppLifecycleManager;
@@ -48,13 +50,18 @@ public class TalkNotificationManager {
     }
 
     public static void handleNotification(Context context, String uid) {
+        Log.d("TalkNotificationManager", "handleNotification: " + uid);
+        // Disabled for now, was causing issues with notifications not showing up
+        // while the app wasn't in the foreground (or even when it was killed)
         // Skip showing notifications when app is in foreground
-        if (AppLifecycleManager.isInForeground) {
-            return;
-        }
+        // if (AppLifecycleManager.isInForeground) {
+        // Log.d("TalkNotificationManager", "App is in foreground, skipping notification");
+        // return;
+        // }
 
         final TalkApi api = new TalkApi(context);
         final int id = UvParser.getIntCompatibleFromUv(uid);
+        Log.d("TalkNotificationManager", "fetching yarn: " + uid + " " + id);
         api.fetchYarn(uid, new TalkObjectCallback() {
             @Override
             public void onComplete(JSONObject response) {
@@ -66,19 +73,25 @@ public class TalkNotificationManager {
                     return;
                 }
 
+                Log.d("TalkNotificationManager", "handleNotification, yarn: " + yarn.toString());
+
                 // Skip if not a valid push notification
                 if (!yarn.isValidNotification) {
+                  Log.d("TalkNotificationManager", "Invalid notification, skipping");
                     return;
                 }
 
+                Log.d("TalkNotificationManager", "fetching contact: " + yarn.senderId);
                 api.fetchContact(yarn.senderId, new TalkObjectCallback() {
                     @Override
                     public void onComplete(JSONObject response) {
                         final Contact contact = new Contact(yarn.senderId, response);
+                        final String channelId = yarn.channelId.orElse("");
+                        Log.d("TalkNotificationManager", "handleNotification, contact: " + contact.toString());
                         createNotificationTitle(api, yarn, contact, title -> {
                             Bundle data = new Bundle();
                             data.putString("wer", yarn.wer);
-                            data.putString("channelId", yarn.channelId);
+                            data.putString("channelId", channelId);
                             data.putInt("notificationId", id);
                             sendNotification(
                                     context,
@@ -109,9 +122,9 @@ public class TalkNotificationManager {
     }
 
     private static void createNotificationTitle(TalkApi api, Yarn yarn, Contact contact, TalkNotificationContentCallback callback) {
-        if (yarn.isGroup) {
-            final String fallbackTitle = yarn.channelId.replace("chat/", "");
-            api.fetchGroupChannel(yarn.channelId, new TalkObjectCallback() {
+        if (yarn.isGroup && yarn.channelId.isPresent()) {
+            final String fallbackTitle = yarn.channelId.get().replace("chat/", "");
+            api.fetchGroupChannel(yarn.channelId.get(), new TalkObjectCallback() {
                 @Override
                 public void onComplete(JSONObject response) {
                     try {
@@ -131,18 +144,49 @@ public class TalkNotificationManager {
             return;
         }
 
-        if (yarn.isClub) {
-            api.fetchClub(yarn.channelId, new TalkObjectCallback() {
+        if (yarn.isGroup && yarn.groupId.isPresent() && !yarn.channelId.isPresent()) {
+            // this only works for group invites, if we start handling other events, we need to
+            // also fetch groups and prioritize that metadata over gangs
+            api.fetchGangs(new TalkObjectCallback() {
+                final String groupId = yarn.groupId.get();
                 @Override
                 public void onComplete(JSONObject response) {
-                    Club club = new Club(yarn.channelId, response);
+                    try {
+                        JSONObject group = response.getJSONObject(groupId);
+                        if (group.isNull("preview")) {
+                            callback.onComplete(groupId);
+                            return;
+                        }
+
+                        String title = group.getJSONObject("preview").getJSONObject("meta").getString("title");
+                        callback.onComplete(title.isEmpty() ? groupId : title);
+                    } catch (JSONException e) {
+                        callback.onComplete(groupId);
+                    }
+                }
+
+                @Override
+                public void onError(VolleyError error) {
+                    ReactNativeFirebaseCrashlyticsNativeHelper.recordNativeException(new Exception("notifications_fetch_groups", error));
+                    callback.onComplete(groupId);
+                }
+            });
+
+            return;
+        }
+
+        if (yarn.isClub && yarn.channelId.isPresent()) {
+            api.fetchClub(yarn.channelId.get(), new TalkObjectCallback() {
+                @Override
+                public void onComplete(JSONObject response) {
+                    Club club = new Club(yarn.channelId.get(), response);
                     callback.onComplete(club.displayName);
                 }
 
                 @Override
                 public void onError(VolleyError error) {
                     ReactNativeFirebaseCrashlyticsNativeHelper.recordNativeException(new Exception("notifications_fetch_club", error));
-                    callback.onComplete(yarn.channelId);
+                    callback.onComplete(yarn.channelId.get());
                 }
             });
             return;
@@ -152,6 +196,7 @@ public class TalkNotificationManager {
     }
 
     private static void sendNotification(Context context, int id, Person person, String title, String text, Boolean isGroupConversation, Bundle data) {
+        Log.d("TalkNotificationManager", "sendNotification: " + id + " " + title + " " + text + " " + isGroupConversation);
         Intent tapIntent = new Intent(context, MainActivity.class);
         tapIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         tapIntent.replaceExtras(data);

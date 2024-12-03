@@ -1,11 +1,23 @@
-import * as store from '@tloncorp/shared/dist/store';
+import * as store from '@tloncorp/shared/store';
 import { AppDataContextProvider } from '@tloncorp/ui';
 import { PropsWithChildren } from 'react';
 
-import { BRANCH_DOMAIN, BRANCH_KEY } from '../constants';
+import {
+  BRANCH_DOMAIN,
+  BRANCH_KEY,
+  INVITE_SERVICE_ENDPOINT,
+  INVITE_SERVICE_IS_DEV,
+} from '../constants';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 
-export function AppDataProvider({ children }: PropsWithChildren) {
+export function AppDataProvider({
+  webAppNeedsUpdate,
+  triggerWebAppUpdate,
+  children,
+}: PropsWithChildren<{
+  webAppNeedsUpdate?: boolean;
+  triggerWebAppUpdate?: (returnToRoot?: boolean) => Promise<void>;
+}>) {
   const currentUserId = useCurrentUserId();
   const session = store.useCurrentSession();
   const contactsQuery = store.useContacts();
@@ -16,8 +28,12 @@ export function AppDataProvider({ children }: PropsWithChildren) {
       contacts={contactsQuery.data}
       branchKey={BRANCH_KEY}
       branchDomain={BRANCH_DOMAIN}
+      inviteServiceEndpoint={INVITE_SERVICE_ENDPOINT}
+      inviteServiceIsDev={INVITE_SERVICE_IS_DEV}
       calmSettings={calmSettingsQuery.data}
       session={session}
+      webAppNeedsUpdate={webAppNeedsUpdate}
+      triggerWebAppUpdate={triggerWebAppUpdate}
     >
       {children}
     </AppDataContextProvider>

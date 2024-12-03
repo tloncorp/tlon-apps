@@ -1,4 +1,4 @@
-import { ReferenceResponse } from '@tloncorp/shared/dist/urbit/channel';
+import { ReferenceResponse } from '@tloncorp/shared/urbit/channel';
 import bigInt from 'big-integer';
 import cn from 'classnames';
 import React, { useMemo } from 'react';

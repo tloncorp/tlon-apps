@@ -1,0 +1,108 @@
+#groups--expose-all {
+  overflow: hidden;
+}
+
+.exposed {
+  width: 100%;
+  padding: 2em 2em;
+  margin-left: -2em;
+  border-bottom: 0.125em solid var(--border);
+}
+
+.exposed:first-of-type {
+  padding-top: 1em;
+}
+
+.exposed:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.exposed a {
+  text-decoration: none;
+}
+
+.exposed .content {
+  margin-bottom: 1em;
+}
+
+.exposed .content p:first-of-type {
+  margin-top: 0;
+}
+
+.exposed .content a {
+  color: var(--text-main);
+}
+
+.exposed .faux-a {
+  text-decoration: underline;
+  color: var(--links);
+}
+
+.exposed img {
+  border-radius: 0.5em;
+  margin-bottom: 1em;
+  width: 100%;
+}
+
+.exposed .diary img {
+  aspect-ratio: 16/10;
+  object-fit: cover;
+}
+
+.exposed h3 {
+  font-size: 2em;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  margin-top: 0;
+}
+
+.exposed .author-row {
+  font-size: 0.8em;
+  display: flex;
+  gap: 2em;
+  flex-direction: column;
+}
+
+@media screen and (min-width: 15em) {
+  .exposed .author-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.exposed:last-of-type .author-row {
+  padding-bottom: 0;
+}
+
+.exposed .author-row time {
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.exposed .author {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-weight: 500;
+  gap: 0.5em;
+}
+
+.exposed .author .avatar {
+  display: inline-block;
+  overflow: hidden;
+  border-radius: 0.25em;
+  width: 1.5625rem;
+  height: 1.5625rem;
+  flex-shrink: 0;
+}
+
+.exposed .author .avatar img {
+  border-radius: 0.25em !important;
+  width: 1.5625rem;
+  height: 1.5625rem;
+  object-fit: cover;
+}

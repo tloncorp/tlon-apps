@@ -1,12 +1,14 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { Alert } from 'react-native';
 import { View, YStack } from 'tamagui';
 
 import { Button } from '../Button';
 import { DeleteSheet } from '../DeleteSheet';
 import { FormInput } from '../FormInput';
-import { GenericHeader } from '../GenericHeader';
+import { ScreenHeader } from '../ScreenHeader';
 
 interface EditChannelScreenViewProps {
   goBack: () => void;
@@ -36,14 +38,9 @@ export function EditChannelScreenView({
     },
   });
 
-  useEffect(() => {
-    if (channel) {
-      reset({
-        title: channel.title,
-        description: channel.description,
-      });
-    }
-  }, [channel, reset]);
+  const { data: group } = store.useGroup({
+    id: channel?.groupId ?? '',
+  });
 
   const handleSave = useCallback(
     (data: {
@@ -58,6 +55,28 @@ export function EditChannelScreenView({
     [onSubmit]
   );
 
+  const handlePressDelete = useCallback(() => {
+    const channelCount = group?.channels?.length ?? 0;
+    if (channelCount <= 1) {
+      Alert.alert(
+        'Cannot Delete Channel',
+        'A group must have at least one channel. Create another channel before deleting this one.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    setShowDeleteSheet(true);
+  }, [group?.channels?.length]);
+
+  useEffect(() => {
+    if (channel) {
+      reset({
+        title: channel.title,
+        description: channel.description,
+      });
+    }
+  }, [channel, reset]);
+
   return (
     <View backgroundColor="$background" flex={1}>
       <YStack
@@ -65,12 +84,11 @@ export function EditChannelScreenView({
         justifyContent="space-between"
         flex={1}
       >
-        <GenericHeader
+        <ScreenHeader
           title="Edit channel"
-          goBack={goBack}
-          showSpinner={isLoading}
+          backAction={goBack}
+          isLoading={isLoading}
         />
-
         <YStack
           backgroundColor="$background"
           gap="$2xl"
@@ -100,7 +118,7 @@ export function EditChannelScreenView({
           <Button hero onPress={handleSubmit(handleSave)}>
             <Button.Text>Save</Button.Text>
           </Button>
-          <Button heroDestructive onPress={() => setShowDeleteSheet(true)}>
+          <Button heroDestructive onPress={handlePressDelete}>
             <Button.Text>Delete channel for everyone</Button.Text>
           </Button>
           <DeleteSheet

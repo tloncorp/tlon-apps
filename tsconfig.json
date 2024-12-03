@@ -9,7 +9,7 @@
     "incremental": true,
     "jsx": "react-jsx",
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "noEmitOnError": false,
     "noImplicitAny": true,
     "noImplicitReturns": false,
@@ -44,4 +44,3 @@
     }
   ]
 }
-

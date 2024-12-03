@@ -1,7 +1,13 @@
 import { utils } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { ComponentProps, ReactElement, useMemo } from 'react';
-import { isWeb, styled, withStaticProperties } from 'tamagui';
+import {
+  getVariableValue,
+  isWeb,
+  styled,
+  useTheme,
+  withStaticProperties,
+} from 'tamagui';
 import { SizableText, Stack, View, XStack, YStack } from 'tamagui';
 
 import { numberWithMax } from '../../utils';
@@ -9,6 +15,7 @@ import {
   ChannelAvatar,
   ContactAvatar,
   GroupAvatar,
+  ImageAvatar,
   SystemIconAvatar,
 } from '../Avatar';
 import ContactName from '../ContactName';
@@ -21,7 +28,6 @@ export interface BaseListItemProps<T> {
   EndContent?: ReactElement | null;
   onPress?: (model: T) => void;
   onLongPress?: (model: T) => void;
-  onPressMenuButton?: (model: T) => void;
   unreadCount?: number;
 }
 
@@ -37,19 +43,7 @@ export const ListItemFrame = styled(XStack, {
   gap: '$l',
   justifyContent: 'space-between',
   alignItems: 'stretch',
-  backgroundColor: '$background',
-  variants: {
-    pressable: {
-      true: {
-        pressStyle: {
-          backgroundColor: '$secondaryBackground',
-        },
-      },
-    },
-  } as const,
-  defaultVariants: {
-    pressable: true,
-  },
+  backgroundColor: '$transparent',
 });
 
 const ListItemIconContainer = styled(View, {
@@ -81,6 +75,8 @@ const ListItemContactIcon = ContactAvatar;
 
 const ListItemSystemIcon = SystemIconAvatar;
 
+const ListItemImageIcon = ImageAvatar;
+
 const ListItemMainContent = styled(YStack, {
   name: 'ListItemMainContent',
   flex: 1,
@@ -92,6 +88,13 @@ const ListItemTitle = styled(SizableText, {
   name: 'ListItemTitle',
   color: '$primaryText',
   numberOfLines: 1,
+  variants: {
+    dimmed: {
+      true: {
+        color: '$tertiaryText',
+      },
+    },
+  },
 });
 
 const ListItemSubtitleWithIcon = XStack.styleable<{ icon?: IconType }>(
@@ -169,31 +172,31 @@ const ListItemCount = ({
   count,
   ...rest
 }: { muted?: boolean; count: number } & ComponentProps<typeof Stack>) => {
+  const foregroundColor = getVariableValue(useTheme().secondaryText);
+  const backgroundColor = getVariableValue(useTheme().secondaryBackground);
   return (
     <Stack
       paddingHorizontal={'$m'}
-      backgroundColor={
-        count < 1 ? undefined : muted ? undefined : '$secondaryBackground'
-      }
+      backgroundColor={count < 1 ? undefined : backgroundColor}
       borderRadius="$l"
       {...rest}
     >
-      {muted ? (
-        <Icon type="Muted" customSize={[18, 18]} color="$tertiaryText" />
-      ) : (
-        <ListItemCountNumber hidden={!!(muted || count < 1)}>
+      <ListItemCountNumber hidden={count < 1}>
+        {muted && (
+          <Icon type="Muted" customSize={[12, 12]} color={foregroundColor} />
+        )}
+        <SizableText size="$s" color={foregroundColor}>
           {numberWithMax(count, 99)}
-        </ListItemCountNumber>
-      )}
+        </SizableText>
+      </ListItemCountNumber>
     </Stack>
   );
 };
 
-const ListItemCountNumber = styled(SizableText, {
+const ListItemCountNumber = styled(XStack, {
   name: 'ListItemCountNumber',
-  size: '$s',
-  color: '$secondaryText',
-  textAlign: 'center',
+  gap: '$s',
+  alignItems: 'center',
   variants: {
     hidden: {
       true: {
@@ -225,7 +228,7 @@ export const ListItemPostPreview = ({
           {': '}
         </>
       ) : null}
-      {post.textContent ?? ''}
+      {post.hidden ? '(This post has been hidden)' : post.textContent ?? ''}
     </ListItemSubtitle>
   );
 };
@@ -244,7 +247,6 @@ Dragger.displayName = 'Dragger';
 
 const ListItemEndContent = styled(YStack, {
   name: 'ListItemEndContent',
-  flex: 0,
   paddingTop: '$xs',
   gap: '$2xs',
   justifyContent: 'center',
@@ -258,6 +260,7 @@ export const ListItem = withStaticProperties(ListItemFrame, {
   ChannelIcon: ListItemChannelIcon,
   ContactIcon: ListItemContactIcon,
   SystemIcon: ListItemSystemIcon,
+  ImageIcon: ListItemImageIcon,
   Dragger,
   Count: ListItemCount,
   MainContent: ListItemMainContent,

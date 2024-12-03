@@ -1,19 +1,23 @@
-import * as db from '@tloncorp/shared/dist/db';
-import { GroupPrivacy } from '@tloncorp/shared/dist/db/schema';
+import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo, useState } from 'react';
 import { SectionList } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, getTokenValue } from 'tamagui';
 
+import { useIsAdmin } from '../utils';
 import { ContactList } from './ContactList';
-import { GenericHeader } from './GenericHeader';
 import { GroupJoinRequestSheet } from './GroupJoinRequestSheet';
 import { ProfileSheet } from './ProfileSheet';
+import { ScreenHeader } from './ScreenHeader';
 import { SectionListHeader } from './SectionList';
+
+type GroupPrivacy = db.schema.GroupPrivacy;
 
 export function GroupMembersScreenView({
   goBack,
   members,
   roles,
+  groupId,
   bannedUsers,
   joinRequests,
   groupPrivacyType,
@@ -23,11 +27,13 @@ export function GroupMembersScreenView({
   onPressUnban,
   onPressAcceptJoinRequest,
   onPressRejectJoinRequest,
+  onPressGoToDm,
 }: {
   goBack: () => void;
   members: db.ChatMember[];
   roles: db.GroupRole[];
   currentUserId: string;
+  groupId: string;
   bannedUsers: db.GroupMemberBan[];
   joinRequests: db.GroupJoinRequest[];
   groupPrivacyType: GroupPrivacy;
@@ -36,7 +42,9 @@ export function GroupMembersScreenView({
   onPressUnban: (contactId: string) => void;
   onPressAcceptJoinRequest: (contactId: string) => void;
   onPressRejectJoinRequest: (contactId: string) => void;
+  onPressGoToDm: (contactId: string) => void;
 }) {
+  const { bottom } = useSafeAreaInsets();
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const contacts = useMemo(
     () =>
@@ -128,7 +136,7 @@ export function GroupMembersScreenView({
               ]
             : []
         ),
-    [membersByRole, membersWithoutRoles, bannedUserData]
+    [membersByRole, joinRequestData, bannedUserData, membersWithoutRoles]
   );
 
   const keyExtractor = useCallback((item: db.ChatMember) => item.contactId, []);
@@ -156,22 +164,12 @@ export function GroupMembersScreenView({
     [roles]
   );
 
-  const currentUserIsAdmin = useMemo(
-    () =>
-      members.some(
-        (m) =>
-          m.contactId === currentUserId &&
-          m.roles !== undefined &&
-          m.roles !== null &&
-          m.roles.some((r) => r.roleId === 'admin')
-      ),
-    [members, currentUserId]
-  );
+  const currentUserIsAdmin = useIsAdmin(groupId, currentUserId);
 
   return (
     <>
       <View backgroundColor="$background" flex={1}>
-        <GenericHeader title="Members" goBack={goBack} />
+        <ScreenHeader title="Members" backAction={goBack} />
         <SectionList
           sections={sectionedData}
           keyExtractor={keyExtractor}
@@ -179,6 +177,7 @@ export function GroupMembersScreenView({
           initialNumToRender={11}
           contentContainerStyle={{
             paddingHorizontal: getTokenValue('$l', 'size'),
+            paddingBottom: bottom,
           }}
           windowSize={2}
           renderItem={renderItem}
@@ -204,6 +203,7 @@ export function GroupMembersScreenView({
           onPressKick={() => onPressKick(selectedContact)}
           onPressBan={() => onPressBan(selectedContact)}
           onPressUnban={() => onPressUnban(selectedContact)}
+          onPressGoToDm={() => onPressGoToDm(selectedContact)}
         />
       )}
       {selectedContact !== null && selectedIsRequest && (

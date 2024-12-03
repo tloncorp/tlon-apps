@@ -8,10 +8,14 @@ import {
   getCanonicalPostId,
   toClientMeta,
 } from './apiUtils';
+import {
+  ChannelContentConfiguration,
+  StructuredChannelDescriptionPayload,
+} from './channelContentConfig';
 import { toPostData, toPostReplyData, toReplyMeta } from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe, trackedPoke } from './urbit';
 
-const logger = createDevLogger('chatApi', true);
+const logger = createDevLogger('chatApi', false);
 
 export const markChatRead = (whom: string) =>
   poke({
@@ -303,7 +307,7 @@ export const getGroupDms = async (): Promise<GetDmsResponse> => {
 export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
   const currentUserId = getCurrentUserId();
   return Object.entries(groupDms)
-    .map(([id, club]) => {
+    .map(([id, club]): db.Channel | null => {
       const joinedMembers = club.team.map(
         (member): db.ChatMember => ({
           contactId: member,
@@ -333,12 +337,23 @@ export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
         return null;
       }
 
+      const metaFields = toClientMeta(club.meta);
+
+      // Channel meta is different from other metas, since we can overload the
+      // `description` to fit other channel-specific data.
+      // Attempt to decode that extra info here.
+      const decodedDesc = StructuredChannelDescriptionPayload.decode(
+        metaFields.description
+      );
+
       return {
         id,
         type: 'groupDm',
-        ...toClientMeta(club.meta),
+        ...metaFields,
         isDmInvite: !isJoined && isInvited,
         members: [...joinedMembers, ...invitedMembers],
+        contentConfiguration: decodedDesc.channelContentConfiguration,
+        description: decodedDesc.description,
       };
     })
     .filter(Boolean) as db.Channel[];

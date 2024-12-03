@@ -3,6 +3,7 @@ import { tamaguiPlugin } from '@tamagui/vite-plugin';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
+import fs from 'fs';
 import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
@@ -40,6 +41,8 @@ export default ({ mode }: { mode: string }) => {
 
   // eslint-disable-next-line
   const base = (mode: string) => {
+    console.log('mode', mode);
+
     if (mode === 'mock' || mode === 'staging') {
       return '';
     }
@@ -47,6 +50,8 @@ export default ({ mode }: { mode: string }) => {
     if (mode === 'alpha') {
       return '/apps/tm-alpha/';
     }
+
+    return '/apps/groups/';
   };
 
   // eslint-disable-next-line
@@ -62,6 +67,7 @@ export default ({ mode }: { mode: string }) => {
 
     return [
       process.env.SSL === 'true' ? (basicSsl() as PluginOption) : null,
+      exportingRawText(/\.sql$/),
       urbitPlugin({
         base: mode === 'alpha' ? 'tm-alpha' : 'groups',
         target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
@@ -113,12 +119,7 @@ export default ({ mode }: { mode: string }) => {
     external:
       mode === 'mock' || mode === 'staging'
         ? ['virtual:pwa-register/react']
-        : [
-            '@urbit/sigil-js/dist/core',
-            'react-native-device-info',
-            '@react-navigation/bottom-tabs',
-            '@react-navigation/native-stack',
-          ],
+        : ['@urbit/sigil-js/dist/core', 'react-native-device-info'],
     output: {
       hashCharacters: 'base36' as any,
       manualChunks: {
@@ -128,28 +129,12 @@ export default ({ mode }: { mode: string }) => {
         'urbit/http-api': ['@urbit/http-api'],
         'urbit/sigil-js': ['@urbit/sigil-js'],
         'any-ascii': ['any-ascii'],
-        'react-beautiful-dnd': ['react-beautiful-dnd'],
-        'emoji-mart': ['emoji-mart'],
         'tiptap/core': ['@tiptap/core'],
         'tiptap/extension-placeholder': ['@tiptap/extension-placeholder'],
         'tiptap/extension-link': ['@tiptap/extension-link'],
-        'react-virtuoso': ['react-virtuoso'],
-        'react-select': ['react-select'],
-        'react-hook-form': ['react-hook-form'],
-        'framer-motion': ['framer-motion'],
-        'date-fns': ['date-fns'],
-        'tippy.js': ['tippy.js'],
         'aws-sdk/client-s3': ['@aws-sdk/client-s3'],
         'aws-sdk/s3-request-presigner': ['@aws-sdk/s3-request-presigner'],
-        refractor: ['refractor'],
         'urbit-ob': ['urbit-ob'],
-        'hast-to-hyperscript': ['hast-to-hyperscript'],
-        'radix-ui/react-dialog': ['@radix-ui/react-dialog'],
-        'radix-ui/react-dropdown-menu': ['@radix-ui/react-dropdown-menu'],
-        'radix-ui/react-popover': ['@radix-ui/react-popover'],
-        'radix-ui/react-toast': ['@radix-ui/react-toast'],
-        'radix-ui/react-tooltip': ['@radix-ui/react-tooltip'],
-        'react-native-reanimated': ['react-native-reanimated'],
       },
     },
   };
@@ -215,42 +200,6 @@ export default ({ mode }: { mode: string }) => {
           find: '@',
           replacement: fileURLToPath(new URL('./src', import.meta.url)),
         },
-        {
-          find: '@react-native-firebase/crashlytics',
-          replacement: fileURLToPath(
-            new URL(
-              './src/mocks/react-native-firebase-crashlytics.js',
-              import.meta.url
-            )
-          ),
-        },
-        {
-          find: '@tloncorp/editor/dist/editorHtml',
-          replacement: fileURLToPath(
-            new URL('./src/mocks/tloncorp-editor-html.js', import.meta.url)
-          ),
-        },
-        {
-          find: '@tloncorp/editor/src/bridges',
-          replacement: fileURLToPath(
-            new URL('./src/mocks/tloncorp-editor-bridges.js', import.meta.url)
-          ),
-        },
-        {
-          find: '@10play/tentap-editor',
-          replacement: fileURLToPath(
-            new URL('./src/mocks/tentap-editor.js', import.meta.url)
-          ),
-        },
-        {
-          find: 'react-native-gesture-handler/ReanimatedSwipeable',
-          replacement: fileURLToPath(
-            new URL(
-              './src/mocks/react-native-gesture-handler.js',
-              import.meta.url
-            )
-          ),
-        },
       ],
     },
     optimizeDeps: {
@@ -270,3 +219,17 @@ export default ({ mode }: { mode: string }) => {
     },
   });
 };
+
+/** Transforms matching files into ES modules that export the file's content as a string */
+function exportingRawText(matchId: RegExp): Plugin {
+  return {
+    name: 'inline sql',
+    enforce: 'pre',
+    transform(_code, id) {
+      if (matchId.test(id)) {
+        const sql = fs.readFileSync(id, 'utf-8');
+        return `export default ${JSON.stringify(sql)}`;
+      }
+    },
+  };
+}

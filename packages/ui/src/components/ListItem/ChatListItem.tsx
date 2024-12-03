@@ -1,12 +1,11 @@
-import type * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
+import type * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import React, { useMemo } from 'react';
 
 import { Chat } from '../ChatList';
 import { ChannelListItem } from './ChannelListItem';
 import { GroupListItem } from './GroupListItem';
 import { ListItemProps } from './ListItem';
-import { useBoundHandler } from './listItemUtils';
 
 export const ChatListItem = React.memo(function ChatListItemComponent({
   model,
@@ -14,8 +13,13 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
   onLongPress,
   ...props
 }: ListItemProps<Chat>) {
-  const handlePress = useBoundHandler(model, onPress);
-  const handleLongPress = useBoundHandler(model, onLongPress);
+  const handlePress = logic.useMutableCallback(() => {
+    onPress?.(model);
+  });
+
+  const handleLongPress = logic.useMutableCallback(() => {
+    onLongPress?.(model);
+  });
 
   // if the chat list item is a group, it's pending
   if (logic.isGroup(model)) {

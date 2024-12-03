@@ -6,18 +6,18 @@ import * as FileSystem from 'expo-file-system';
 import { manipulateAsync } from 'expo-image-manipulator';
 import { ImagePickerAsset } from 'expo-image-picker';
 
-import { getCurrentUserId } from '../../api';
+import { RNFile, getCurrentUserId } from '../../api';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
 import { setUploadState } from './storageUploadState';
 import {
-  fetchImageFromUri,
+  fetchFileFromUri,
   getMemexUpload,
   hasCustomS3Creds,
   hasHostingUploadCreds,
 } from './storageUtils';
 
-const logger = createDevLogger('storageActions', true);
+const logger = createDevLogger('storageActions', false);
 
 export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
   logger.crumb(
@@ -30,7 +30,18 @@ export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
   logger.log('full asset', asset);
   setUploadState(asset.uri, { status: 'uploading', localUri: asset.uri });
   try {
-    const remoteUri = await performUpload(asset, isWeb);
+    logger.log('resizing asset', asset.uri);
+    const resizedAsset = await manipulateAsync(
+      asset.uri,
+      [
+        {
+          resize:
+            asset.width > asset.height ? { width: 1200 } : { height: 1200 },
+        },
+      ],
+      { compress: 0.75 }
+    );
+    const remoteUri = await performUpload(resizedAsset, isWeb);
     logger.crumb('upload succeeded');
     logger.log('final uri', remoteUri);
     setUploadState(asset.uri, { status: 'success', remoteUri });
@@ -41,8 +52,11 @@ export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
   }
 };
 
-const performUpload = async (asset: ImagePickerAsset, isWeb = false) => {
-  logger.log('performing upload', asset.uri, 'isWeb', isWeb);
+export const performUpload = async (
+  params: Pick<RNFile, 'uri' | 'height' | 'width'>,
+  isWeb = false
+) => {
+  logger.log('performing upload', params.uri, 'isWeb', isWeb);
   const [config, credentials] = await Promise.all([
     db.getStorageConfiguration(),
     db.getStorageCredentials(),
@@ -52,41 +66,29 @@ const performUpload = async (asset: ImagePickerAsset, isWeb = false) => {
     throw new Error('unable to upload: missing storage configuration');
   }
 
-  logger.log('resizing asset', asset.uri);
-  const resizedAsset = await manipulateAsync(
-    asset.uri,
-    [
-      {
-        resize: asset.width > asset.height ? { width: 1200 } : { height: 1200 },
-      },
-    ],
-    { compress: 0.75 }
-  );
+  const file = await fetchFileFromUri(params.uri, params.height, params.width);
+  if (!file) {
+    throw new Error('unable to fetch image from uri');
+  }
 
+  const contentType = file.type;
   const fileKey = `${deSig(getCurrentUserId())}/${deSig(
     formatDa(unixToDa(new Date().getTime()))
-  )}-${resizedAsset.uri.split('/').pop()}`;
+  )}-${params.uri.split('/').pop()}`;
   logger.log('asset key:', fileKey);
 
   if (hasHostingUploadCreds(config, credentials)) {
-    const file = await fetchImageFromUri(
-      resizedAsset.uri,
-      resizedAsset.height,
-      resizedAsset.width
-    );
-    if (!file) {
-      throw new Error('unable to fetch image from uri');
-    }
     const { hostedUrl, uploadUrl } = await getMemexUpload({
-      file,
-      uploadKey: fileKey,
+      contentLength: file.blob.size,
+      contentType,
+      fileName: fileKey,
     });
     await uploadFile(
       uploadUrl,
-      resizedAsset.uri,
+      params.uri,
       {
         'Cache-Control': 'public, max-age=3600',
-        'Content-Type': file.type,
+        'Content-Type': contentType,
       },
       isWeb
     );
@@ -104,22 +106,35 @@ const performUpload = async (asset: ImagePickerAsset, isWeb = false) => {
       credentials,
       forcePathStyle: true,
     });
+
+    const headers = {
+      'Content-Type': contentType ?? 'application/octet-stream',
+      'Cache-Control': 'public, max-age=3600',
+      'x-amz-acl': 'public-read', // necessary for digital ocean spaces
+    };
+
     const command = new PutObjectCommand({
       Bucket: config.currentBucket,
       Key: fileKey,
-      ContentType: asset.mimeType ?? 'application/octet-stream',
-      CacheControl: 'public, max-age=3600',
-      ACL: 'public-read',
+      ContentType: headers['Content-Type'],
+      CacheControl: headers['Cache-Control'],
+      ACL: headers['x-amz-acl'],
     });
-    const signedUrl = await getSignedUrl(client, command);
+
+    const signedUrl = await getSignedUrl(client, command, {
+      expiresIn: 3600,
+      signableHeaders: new Set(Object.keys(headers)),
+    });
+
+    logger.log('Signed URL:', signedUrl);
+    logger.log('Headers to be sent:', headers);
+
+    const isDigitalOcean = signedUrl.includes('digitaloceanspaces.com');
+
     await uploadFile(
       signedUrl,
-      resizedAsset.uri,
-      {
-        'Content-Type': asset.mimeType ?? 'application/octet-stream',
-        'Cache-Control': 'public, max-age=3600',
-        'x-amz-acl': 'public-read', // necessary for digital ocean spaces
-      },
+      params.uri,
+      isDigitalOcean ? headers : undefined,
       isWeb
     );
     return config.publicUrlBase
@@ -138,6 +153,7 @@ async function uploadFile(
   isWeb = false
 ) {
   logger.log('uploading', assetUri, 'to', presignedUrl, 'isWeb', isWeb);
+
   if (isWeb) {
     let body: Blob | string = assetUri;
 

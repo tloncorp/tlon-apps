@@ -1,4 +1,4 @@
-import { Vessel } from '@tloncorp/shared/dist/urbit/groups';
+import { Vessel } from '@tloncorp/shared/urbit/groups';
 import { MouseEvent, useCallback, useState } from 'react';
 
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
