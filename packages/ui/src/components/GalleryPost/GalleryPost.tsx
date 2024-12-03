@@ -9,6 +9,7 @@ import { DetailViewAuthorRow } from '../AuthorRow';
 import { ContactAvatar } from '../Avatar';
 import { Icon } from '../Icon';
 import { useBoundHandler } from '../ListItem/listItemUtils';
+import { OverflowMenuButton } from '../OverflowMenuButton';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   BlockData,
@@ -35,6 +36,7 @@ export function GalleryPost({
   onPressRetry,
   onPressDelete,
   showAuthor = true,
+  hideOverflowMenu,
   ...props
 }: {
   post: db.Post;
@@ -44,8 +46,10 @@ export function GalleryPost({
   onPressDelete?: (post: db.Post) => void;
   showAuthor?: boolean;
   isHighlighted?: boolean;
+  hideOverflowMenu?: boolean;
 } & Omit<ComponentProps<typeof GalleryPostFrame>, 'onPress' | 'onLongPress'>) {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
+  const [disableHandlePress, setDisableHandlePress] = useState(false);
 
   const handleRetryPressed = useCallback(() => {
     onPressRetry?.(post);
@@ -72,12 +76,27 @@ export function GalleryPost({
 
   const handleLongPress = useBoundHandler(post, onLongPress);
 
+  const onPressOverflow = useCallback(() => {
+    handleLongPress();
+  }, [handleLongPress]);
+
+  const onHoverIntoOverflow = useCallback(() => {
+    setDisableHandlePress(true);
+  }, []);
+
+  const onHoverOutOfOverflow = useCallback(() => {
+    setDisableHandlePress(false);
+  }, []);
+
   if (post.isDeleted) {
     return null;
   }
 
   return (
-    <Pressable onPress={handlePress} onLongPress={handleLongPress}>
+    <Pressable
+      onPress={disableHandlePress ? undefined : handlePress}
+      onLongPress={handleLongPress}
+    >
       <GalleryPostFrame {...props}>
         <GalleryContentRenderer post={post} pointerEvents="none" size="$s" />
         {showAuthor && !post.hidden && !post.isDeleted && (
@@ -117,6 +136,14 @@ export function GalleryPost({
           onPressDelete={handleDeletePressed}
           onPressRetry={handleRetryPressed}
         />
+        {!hideOverflowMenu && (
+          <OverflowMenuButton
+            backgroundColor="unset"
+            onPress={onPressOverflow}
+            onHoverIn={onHoverIntoOverflow}
+            onHoverOut={onHoverOutOfOverflow}
+          />
+        )}
       </GalleryPostFrame>
     </Pressable>
   );
@@ -338,7 +365,7 @@ const SmallContentRenderer = createContentRenderer({
     },
     image: {
       height: '100%',
-      imageProps: { aspectRatio: 'unset', height: '100%' },
+      imageProps: { aspectRatio: 'unset', height: '100%', contentFit: 'cover' },
       ...noWrapperPadding,
     },
     video: {

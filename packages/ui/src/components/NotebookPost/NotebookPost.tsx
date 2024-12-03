@@ -13,11 +13,13 @@ import {
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
 import { Image } from '../Image';
+import { OverflowMenuButton } from '../OverflowMenuButton';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
+import Pressable from '../Pressable';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { Text } from '../TextV2';
 
@@ -34,6 +36,7 @@ export function NotebookPost({
   showDate = false,
   viewMode,
   size = '$l',
+  hideOverflowMenu,
 }: {
   post: db.Post;
   onPress?: (post: db.Post) => void;
@@ -48,8 +51,11 @@ export function NotebookPost({
   viewMode?: 'activity';
   isHighlighted?: boolean;
   size?: '$l' | '$s' | '$xs';
+  hideOverflowMenu?: boolean;
 }) {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
+  const [disableHandlePress, setDisableHandlePress] = useState(false);
+
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
   }, [post, onLongPress]);
@@ -82,20 +88,31 @@ export function NotebookPost({
     onPress?.(post);
   }, [post, onPress, deliveryFailed]);
 
+  const onPressOverflow = useCallback(() => {
+    handleLongPress();
+  }, [handleLongPress]);
+
+  const onHoverIntoOverflow = useCallback(() => {
+    setDisableHandlePress(true);
+  }, []);
+
+  const onHoverOutOfOverflow = useCallback(() => {
+    setDisableHandlePress(false);
+  }, []);
+
   if (!post || post.isDeleted) {
     return null;
   }
 
   const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
   return (
-    <>
-      <NotebookPostFrame
-        size={size}
-        onPress={handlePress}
-        onLongPress={handleLongPress}
-        pressStyle={{ backgroundColor: '$secondaryBackground' }}
-        disabled={viewMode === 'activity'}
-      >
+    <Pressable
+      onPress={disableHandlePress ? undefined : handlePress}
+      onLongPress={handleLongPress}
+      pressStyle={{ backgroundColor: '$secondaryBackground' }}
+      borderRadius="$l"
+    >
+      <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
         {post.hidden ? (
           <XStack
             gap="$s"
@@ -144,6 +161,13 @@ export function NotebookPost({
             </Text>
           </XStack>
         ) : null}
+        {!hideOverflowMenu && (
+          <OverflowMenuButton
+            onPress={onPressOverflow}
+            onHoverIn={onHoverIntoOverflow}
+            onHoverOut={onHoverOutOfOverflow}
+          />
+        )}
       </NotebookPostFrame>
       <SendPostRetrySheet
         open={showRetrySheet}
@@ -152,7 +176,7 @@ export function NotebookPost({
         onPressRetry={handleRetryPressed}
         onPressDelete={handleDeletePressed}
       />
-    </>
+    </Pressable>
   );
 }
 
@@ -174,7 +198,7 @@ function NotebookPostHeader({
 
   return (
     <NotebookPostHeaderFrame {...props}>
-      {post.image && size !== '$xs' && (
+      {!!post.image && size !== '$xs' && (
         <NotebookPostHeroImage
           source={{
             uri:
