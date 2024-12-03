@@ -8,14 +8,12 @@ import {
   YStack,
   createStyledContext,
   styled,
-  isWeb,
 } from 'tamagui';
 
 import { DetailViewAuthorRow } from '../AuthorRow';
-import { Button } from '../Button';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
-import { Icon } from '../Icon';
 import { Image } from '../Image';
+import { OverflowMenuButton } from '../OverflowMenuButton';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
@@ -56,6 +54,8 @@ export function NotebookPost({
   hideOverflowMenu?: boolean;
 }) {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
+  const [disableHandlePress, setDisableHandlePress] = useState(false);
+
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
   }, [post, onLongPress]);
@@ -88,85 +88,95 @@ export function NotebookPost({
     onPress?.(post);
   }, [post, onPress, deliveryFailed]);
 
+  const onPressOverflow = useCallback(() => {
+    handleLongPress();
+  }, [handleLongPress]);
+
+  const onHoverIntoOverflow = useCallback(() => {
+    setDisableHandlePress(true);
+  }, []);
+
+  const onHoverOutOfOverflow = useCallback(() => {
+    setDisableHandlePress(false);
+  }, []);
+
   if (!post || post.isDeleted) {
     return null;
   }
 
   const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
   return (
-    <>
-      <Pressable
-        onPress={handlePress}
-        onLongPress={handleLongPress}
-        pressStyle={{ backgroundColor: '$secondaryBackground' }}
-        borderRadius="$l"
-      >
-        <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
-          {post.hidden ? (
-            <XStack
-              gap="$s"
-              paddingVertical="$xl"
-              justifyContent="center"
-              alignItems="center"
-            >
-              <Text color="$tertiaryText" size="$body">
-                You have hidden this post.
+    <Pressable
+      onPress={disableHandlePress ? undefined : handlePress}
+      onLongPress={handleLongPress}
+      pressStyle={{ backgroundColor: '$secondaryBackground' }}
+      borderRadius="$l"
+    >
+      <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
+        {post.hidden ? (
+          <XStack
+            gap="$s"
+            paddingVertical="$xl"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <Text color="$tertiaryText" size="$body">
+              You have hidden this post.
+            </Text>
+          </XStack>
+        ) : (
+          <>
+            <NotebookPostHeader
+              post={post}
+              showDate={showDate}
+              showAuthor={showAuthor && viewMode !== 'activity'}
+              size={size}
+            />
+
+            {viewMode !== 'activity' && (
+              <Text
+                size="$body"
+                color="$secondaryText"
+                numberOfLines={3}
+                paddingBottom={showReplies && hasReplies ? 0 : '$m'}
+              >
+                {post.textContent}
               </Text>
-            </XStack>
-          ) : (
-            <>
-              <NotebookPostHeader
+            )}
+
+            {showReplies && hasReplies ? (
+              <ChatMessageReplySummary
                 post={post}
-                showDate={showDate}
-                showAuthor={showAuthor && viewMode !== 'activity'}
-                size={size}
+                showTime={false}
+                textColor="$tertiaryText"
               />
+            ) : null}
+          </>
+        )}
 
-              {viewMode !== 'activity' && (
-                <Text
-                  size="$body"
-                  color="$secondaryText"
-                  numberOfLines={3}
-                  paddingBottom={showReplies && hasReplies ? 0 : '$m'}
-                >
-                  {post.textContent}
-                </Text>
-              )}
-
-              {showReplies && hasReplies ? (
-                <ChatMessageReplySummary
-                  post={post}
-                  showTime={false}
-                  textColor="$tertiaryText"
-                />
-              ) : null}
-            </>
-          )}
-
-          {post.deliveryStatus === 'failed' ? (
-            <XStack alignItems="center" justifyContent="flex-end">
-              <Text color="$negativeActionText" fontSize="$xs">
-                Message failed to send
-              </Text>
-            </XStack>
-          ) : null}
-        </NotebookPostFrame>
-        <SendPostRetrySheet
-          open={showRetrySheet}
-          post={post}
-          onOpenChange={setShowRetrySheet}
-          onPressRetry={handleRetryPressed}
-          onPressDelete={handleDeletePressed}
-        />
-      </Pressable>
-      {isWeb && !hideOverflowMenu && (
-        <View position="absolute" top={8} right={24} width={8} height={0}>
-          <Button onPress={handleLongPress} borderWidth="unset" size="$l">
-            <Icon type="Overflow" />
-          </Button>
-        </View>
-      )}
-    </>
+        {post.deliveryStatus === 'failed' ? (
+          <XStack alignItems="center" justifyContent="flex-end">
+            <Text color="$negativeActionText" fontSize="$xs">
+              Message failed to send
+            </Text>
+          </XStack>
+        ) : null}
+        {!hideOverflowMenu && (
+          <OverflowMenuButton
+            onPress={onPressOverflow}
+            onHoverIn={onHoverIntoOverflow}
+            onHoverOut={onHoverOutOfOverflow}
+          />
+        )}
+      </NotebookPostFrame>
+      <SendPostRetrySheet
+        open={showRetrySheet}
+        post={post}
+        onOpenChange={setShowRetrySheet}
+        onPressRetry={handleRetryPressed}
+        onPressDelete={handleDeletePressed}
+      />
+    </Pressable>
   );
 }
 

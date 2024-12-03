@@ -3,13 +3,13 @@ import * as db from '@tloncorp/shared/db';
 import { truncate } from 'lodash';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { PropsWithChildren } from 'react';
-import { View, XStack, isWeb, styled } from 'tamagui';
+import { View, XStack, styled } from 'tamagui';
 
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ContactAvatar } from '../Avatar';
-import { Button } from '../Button';
 import { Icon } from '../Icon';
 import { useBoundHandler } from '../ListItem/listItemUtils';
+import { OverflowMenuButton } from '../OverflowMenuButton';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   BlockData,
@@ -49,6 +49,7 @@ export function GalleryPost({
   hideOverflowMenu?: boolean;
 } & Omit<ComponentProps<typeof GalleryPostFrame>, 'onPress' | 'onLongPress'>) {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
+  const [disableHandlePress, setDisableHandlePress] = useState(false);
 
   const handleRetryPressed = useCallback(() => {
     onPressRetry?.(post);
@@ -75,67 +76,76 @@ export function GalleryPost({
 
   const handleLongPress = useBoundHandler(post, onLongPress);
 
+  const onPressOverflow = useCallback(() => {
+    handleLongPress();
+  }, [handleLongPress]);
+
+  const onHoverIntoOverflow = useCallback(() => {
+    setDisableHandlePress(true);
+  }, []);
+
+  const onHoverOutOfOverflow = useCallback(() => {
+    setDisableHandlePress(false);
+  }, []);
+
   if (post.isDeleted) {
     return null;
   }
 
   return (
-    <>
-      <Pressable onPress={handlePress} onLongPress={handleLongPress}>
-        <GalleryPostFrame {...props}>
-          <GalleryContentRenderer post={post} pointerEvents="none" size="$s" />
-          {showAuthor && !post.hidden && !post.isDeleted && (
-            <View
-              position="absolute"
-              bottom={0}
-              left={0}
-              right={0}
-              width="100%"
-              pointerEvents="none"
-            >
-              <XStack alignItems="center" gap="$xl" padding="$m" {...props}>
-                <ContactAvatar size="$2xl" contactId={post.authorId} />
-                {deliveryFailed && (
-                  <Text
-                    // applying some shadow here because we could be rendering it
-                    // on top of an image
-                    shadowOffset={{
-                      width: 0,
-                      height: 1,
-                    }}
-                    shadowOpacity={0.8}
-                    shadowColor="$redSoft"
-                    color="$negativeActionText"
-                    size="$label/s"
-                  >
-                    Tap to retry
-                  </Text>
-                )}
-              </XStack>
-            </View>
-          )}
-          <SendPostRetrySheet
-            open={showRetrySheet}
-            onOpenChange={setShowRetrySheet}
-            post={post}
-            onPressDelete={handleDeletePressed}
-            onPressRetry={handleRetryPressed}
-          />
-        </GalleryPostFrame>
-      </Pressable>
-      {isWeb && !hideOverflowMenu && (
-        <View position="absolute" top={8} right={24} width={8} height={0}>
-          <Button
-            backgroundColor="unset"
-            onPress={handleLongPress}
-            borderWidth="unset"
-            size="$l"
+    <Pressable
+      onPress={disableHandlePress ? undefined : handlePress}
+      onLongPress={handleLongPress}
+    >
+      <GalleryPostFrame {...props}>
+        <GalleryContentRenderer post={post} pointerEvents="none" size="$s" />
+        {showAuthor && !post.hidden && !post.isDeleted && (
+          <View
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            width="100%"
+            pointerEvents="none"
           >
-            <Icon type="Overflow" />
-          </Button>
-        </View>
-      )}
-    </>
+            <XStack alignItems="center" gap="$xl" padding="$m" {...props}>
+              <ContactAvatar size="$2xl" contactId={post.authorId} />
+              {deliveryFailed && (
+                <Text
+                  // applying some shadow here because we could be rendering it
+                  // on top of an image
+                  shadowOffset={{
+                    width: 0,
+                    height: 1,
+                  }}
+                  shadowOpacity={0.8}
+                  shadowColor="$redSoft"
+                  color="$negativeActionText"
+                  size="$label/s"
+                >
+                  Tap to retry
+                </Text>
+              )}
+            </XStack>
+          </View>
+        )}
+        <SendPostRetrySheet
+          open={showRetrySheet}
+          onOpenChange={setShowRetrySheet}
+          post={post}
+          onPressDelete={handleDeletePressed}
+          onPressRetry={handleRetryPressed}
+        />
+        {!hideOverflowMenu && (
+          <OverflowMenuButton
+            backgroundColor="unset"
+            onPress={onPressOverflow}
+            onHoverIn={onHoverIntoOverflow}
+            onHoverOut={onHoverOutOfOverflow}
+          />
+        )}
+      </GalleryPostFrame>
+    </Pressable>
   );
 }
 
