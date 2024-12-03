@@ -1001,9 +1001,6 @@ importers:
       '@tanstack/react-query-devtools':
         specifier: ^5.32.1
         version: 5.59.20(@tanstack/react-query@5.32.1(react@18.2.0))(react@18.2.0)
-      '@tanstack/react-query-persist-client':
-        specifier: ^5.32.1
-        version: 5.59.20(@tanstack/react-query@5.32.1(react@18.2.0))(react@18.2.0)
       '@tiptap/core':
         specifier: ^2.6.6
         version: 2.6.6(@tiptap/pm@2.6.6)
@@ -1388,7 +1385,7 @@ importers:
         version: link:../ui
       expo-notifications:
         specifier: ~0.27.6
-        version: 0.27.6(encoding@0.1.13)(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13))
+        version: 0.27.6(encoding@0.1.13)(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13))
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -6257,17 +6254,11 @@ packages:
   '@tanstack/query-core@5.32.1':
     resolution: {integrity: sha512-mCWa1wdGb1jiny4+qYegbSeadcFj+Nq65KFSs4A1DRveoIq7SrTwUhqu7hrB6d54cQH5x59DfJvxusn3w1Cj/g==}
 
-  '@tanstack/query-core@5.59.20':
-    resolution: {integrity: sha512-e8vw0lf7KwfGe1if4uPFhvZRWULqHjFcz3K8AebtieXvnMOz5FSzlZe3mTLlPuUBcydCnBRqYs2YJ5ys68wwLg==}
-
   '@tanstack/query-devtools@5.59.20':
     resolution: {integrity: sha512-vxhuQ+8VV4YWQSFxQLsuM+dnEKRY7VeRzpNabFXdhEwsBYLrjXlF1pM38A8WyKNLqZy8JjyRO8oP4Wd/oKHwuQ==}
 
   '@tanstack/query-persist-client-core@4.27.0':
     resolution: {integrity: sha512-A+dPA7zG0MJOMDeBc/2WcKXW4wV2JMkeBVydobPW9G02M4q0yAj7vI+7SmM2dFuXyIvxXp4KulCywN6abRKDSQ==}
-
-  '@tanstack/query-persist-client-core@5.59.20':
-    resolution: {integrity: sha512-RUaDys2zyhCw8MGcp0tirbpp8IjU7zrtdMaEYQ6WetrNvn/IOg9Y2Zpk55P7gjBq8fEyFlmuRM3cHVNn/Usg8w==}
 
   '@tanstack/react-query-devtools@4.29.0':
     resolution: {integrity: sha512-bzotqin4Wa/GlPgJ2dI7eggQcbMDLIOwEClHGrkyie76DbT8vEEmEV9Kbh6kriKVSqCLpa9ZrgG/f8/Bx1zIwA==}
@@ -6286,12 +6277,6 @@ packages:
     resolution: {integrity: sha512-xNpi3YdPOQIyYkKhByYDqTlyCeqICWFhV5PWkoVxYfzlRK6HYX4s+9Int407jEvhBz9cGC4OaL7rd6bynCFrYg==}
     peerDependencies:
       '@tanstack/react-query': 4.28.0
-
-  '@tanstack/react-query-persist-client@5.59.20':
-    resolution: {integrity: sha512-7dV9wGs9f8IvGysfmsmLcQztHjULOMB30HmERo8yjwVHRKhoQvdtKTvQ9aX2lSP5zzP1Qd1/IHF2hBB11Q/rwA==}
-    peerDependencies:
-      '@tanstack/react-query': ^5.59.20
-      react: ^18 || ^19
 
   '@tanstack/react-query@4.36.1':
     resolution: {integrity: sha512-y7ySVHFyyQblPl3J3eQBWpXZkliroki3ARnBKsdJchlgt7yJLRDUcf4B8soufgiYt3pEQIkBWBx1N9/ZPIeUWw==}
@@ -22024,17 +22009,11 @@ snapshots:
 
   '@tanstack/query-core@5.32.1': {}
 
-  '@tanstack/query-core@5.59.20': {}
-
   '@tanstack/query-devtools@5.59.20': {}
 
   '@tanstack/query-persist-client-core@4.27.0':
     dependencies:
       '@tanstack/query-core': 4.27.0
-
-  '@tanstack/query-persist-client-core@5.59.20':
-    dependencies:
-      '@tanstack/query-core': 5.59.20
 
   '@tanstack/react-query-devtools@4.29.0(@tanstack/react-query@4.36.1(react-dom@18.2.0(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
     dependencies:
@@ -22055,12 +22034,6 @@ snapshots:
     dependencies:
       '@tanstack/query-persist-client-core': 4.27.0
       '@tanstack/react-query': 4.36.1(react-dom@18.2.0(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
-
-  '@tanstack/react-query-persist-client@5.59.20(@tanstack/react-query@5.32.1(react@18.2.0))(react@18.2.0)':
-    dependencies:
-      '@tanstack/query-persist-client-core': 5.59.20
-      '@tanstack/react-query': 5.32.1(react@18.2.0)
-      react: 18.2.0
 
   '@tanstack/react-query@4.36.1(react-dom@18.2.0(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
     dependencies:
@@ -25207,6 +25180,10 @@ snapshots:
     dependencies:
       expo: 50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)
 
+  expo-application@5.8.3(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13)):
+    dependencies:
+      expo: 50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13)
+
   expo-asset@9.0.2(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)):
     dependencies:
       '@react-native/assets-registry': 0.73.1
@@ -25411,6 +25388,21 @@ snapshots:
       expo: 50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)
       expo-application: 5.8.3(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13))
       expo-constants: 15.4.5(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13))
+      fs-extra: 9.1.0
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+
+  expo-notifications@0.27.6(encoding@0.1.13)(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13)):
+    dependencies:
+      '@expo/image-utils': 0.4.1(encoding@0.1.13)
+      '@ide/backoff': 1.0.0
+      abort-controller: 3.0.0
+      assert: 2.1.0
+      badgin: 1.2.3
+      expo: 50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13)
+      expo-application: 5.8.3(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13))
+      expo-constants: 15.4.5(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13))
       fs-extra: 9.1.0
     transitivePeerDependencies:
       - encoding
