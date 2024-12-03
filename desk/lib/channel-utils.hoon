@@ -1056,7 +1056,6 @@
       ;br;
     ==
   --
-<<<<<<< HEAD
 ::
 ++  v-channels-7-to-8
   |=  vc=v-channels:v7:old:c
@@ -1068,12 +1067,12 @@
     (log-7-to-8 log.v)
   =/  [count=@ud =v-posts:c]
     (v-posts-7-to-8 posts.v mod)
-  =-  -(|1.- [count |1.-<])
-  %=  v
+  %*  .  *v-channel:c
+    count    count
     posts    v-posts
     log      log
     future   (future-8 log)
-    perm     [perm.v [0 ~]]
+    perm     perm.v
   ==
 ++  v-posts-7-to-8
   |=  [vp=v-posts:v7:old:c mod=(map id-post:c time)]
@@ -1083,8 +1082,7 @@
   |=  [[=id-post:c post=(unit v-post:v7:old:c)] count=@ud =_posts]
   ^+  [count posts]
   ::  for each post traversed, even if it was deleted,
-  ::  .count increases to generate correct post sequence
-  ::  number
+  ::  .count increases to generate a correct post sequence number
   ::
   =.  count  +(count)
   :-  count
@@ -1217,7 +1215,6 @@
     ?.  ?=(%post -.u)  diffs
     (~(put ju diffs) id.u u-post.u)
   ==
-=======
 ++  subject  ^~(!>(..compile))
 ++  compile
   |=  src=@t
@@ -1245,5 +1242,4 @@
   %-  (slog >outcome< ~)
   ?:  ?=(%.y -.outcome)  `p.outcome
   ((slog 'hook failed:' p.outcome) ~)
->>>>>>> develop
 --

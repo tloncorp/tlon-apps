@@ -17,7 +17,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %7
+    $:  %8
         =v-channels:c
         =hooks:h
         =pimp:imp
@@ -105,17 +105,38 @@
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
-  ?>  ?=(%7 -.old)
+  =?  old  ?=(%7 -.old)  (state-7-to-8 old)
+  ?>  ?=(%8 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-7 state-6 state-5 state-4 state-3 state-2 state-1 state-0)
-  +$  state-7  current-state
+  +$  versioned-state
+    $%  state-8
+        state-7
+        state-6
+        state-5
+        state-4
+        state-3
+        state-2
+        state-1
+        state-0
+    ==
+  +$  state-8  current-state
+  +$  state-7
+    $:  %7
+        =v-channels:v7:old:c
+        =hooks:h
+        =pimp:imp
+    ==
   +$  state-6
     $:  %6
       =v-channels:v7:old:c
       =pimp:imp
     ==
+  ++  state-7-to-8
+    |=  s=state-7
+    ^-  state-8
+    s(- %8, v-channels (v-channels-7-to-8:utils v-channels.s))
   ++  state-6-to-7
     |=  state-6
     ^-  state-7
@@ -125,10 +146,6 @@
         =v-channels:v6:old:c
         =pimp:imp
     ==
-  ++  state-6-to-7
-    |=  s=state-6
-    ^-  state-7
-    s(- %7, v-channels (v-channels-7-to-8:utils v-channels.s))
   ::
   ++  state-5-to-6
     |=  state-5
@@ -821,9 +838,9 @@
       :-  `[%post id.c-post %reacts reacts]
       %=  ca-core
           posts.channel
-        %+  put:on-v-posts:c  
-          posts-channel
-        [id-c-post ~ u.u.post(reacts reacts, mod-at now.bowl)]
+        %+  put:on-v-posts:c
+          posts.channel
+        [id.c-post ~ u.u.post(reacts reacts, mod-at now.bowl)]
       ==
     ::
         %reply
@@ -838,7 +855,7 @@
           posts.channel
         %+  put:on-v-posts:c
           posts.channel
-        [id-c-post ~ u.u.post(mod-at now.bowl)]
+        [id.c-post ~ u.u.post(mod-at now.bowl)]
       ==
     ==
   ::

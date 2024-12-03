@@ -1,7 +1,7 @@
 /-  c=chat, d=channels, g=groups, u=ui, e=epic, old=chat-2, activity
 /-  meta
 /-  ha=hark
-/-  contacts
+/-  contacts, contacts-0
 /+  default-agent, verb-lib=verb, dbug, neg=negotiate, em=emojimart
 /+  pac=dm
 /+  utils=channel-utils
