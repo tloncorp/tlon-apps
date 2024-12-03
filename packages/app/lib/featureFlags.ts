@@ -18,6 +18,10 @@ export const featureMeta = {
     default: false,
     label: 'Enable creating custom channels',
   },
+  contactsTab: {
+    default: false,
+    label: 'Enable contacts tab',
+  },
 } satisfies Record<string, { default: boolean; label: string }>;
 
 export type FeatureName = keyof typeof featureMeta;

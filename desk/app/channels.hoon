@@ -10,7 +10,7 @@
 ::
 /-  c=channels, g=groups, ha=hark, activity
 /-  meta
-/+  default-agent, verb, dbug, sparse, neg=negotiate, imp=import-aid
+/+  default-agent, verb, dbug, sparse, neg=negotiate, imp=import-aid, logs
 /+  utils=channel-utils, volume, s=subscriber
 ::  performance, keep warm
 /+  channel-json
@@ -78,7 +78,12 @@
   ::
   ++  on-peek    peek:cor
   ++  on-leave   on-leave:def
-  ++  on-fail    on-fail:def
+  ++  on-fail
+    |=  [=term =tang]
+    ^-  (quip card _this)
+    :_  this
+    [(log-fail:logs /logs our.bowl (fail-event:logs term tang))]~
+  ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
     ^-  (quip card _this)
@@ -641,6 +646,8 @@
   ?+    pole  ~|(bad-agent-wire+pole !!)
       ~          cor
       [%pimp ~]  cor
+      [%logs ~]  cor
+    ::
       [%hark ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
@@ -734,6 +741,9 @@
     ::
         [%x %v2 %channels full=?(~ [%full ~])]
       ``channels-2+!>((uv-channels-2:utils v-channels ?=(^ full.pole)))
+    ::
+        [%x %v3 %v-channels ~]
+      ``noun+!>(v-channels)
     ::
         [%x %v3 %channels full=?(~ [%full ~])]
       ``channels-3+!>((uv-channels-3:utils v-channels ?=(^ full.pole)))
@@ -2376,7 +2386,7 @@
     |=  sects=(set sect:g)
     =/  =flag:g  group.perm.perm.channel
     =/  exists-path
-      (scry-path %groups /exists/(scot %p p.flag)/[q.flag])
+      (scry-path %groups /exists/(scot %p p.flag)/[q.flag]/noun)
     =+  .^(exists=? %gx exists-path)
     ?.  exists  ca-core
     =/  =path

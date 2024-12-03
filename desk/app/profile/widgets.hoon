@@ -1,11 +1,11 @@
 ::  profile: construct stock widgets
 ::
-/-  contacts-0
+/-  co=contacts-0
 /+  sigil
 ::
 |=  =bowl:gall
-=/  ours=(unit contact-0:contacts-0)
-  =,  contacts-0
+=/  ours=(unit contact-0:co)
+  =,  co
   ::NOTE  we scry for the full rolodex, because we are not guaranteed to
   ::      have an entry for ourselves, and contacts doesn't expose a "safe"
   ::      (as in crashless) endpoint for checking
@@ -160,7 +160,7 @@
               =src  "{(trip u.avatar.u.ours)}"
               =alt  "Avatar";
           =/  value=@ux   ?~(ours 0x0 color.u.ours)
-          =/  color=tape  ((x-co:co 6) value)
+          =/  color=tape  ((x-co:^co 6) value)
           ;div.profile-headline-avatar-sigil(style "background-color: #{color}")
             ;+  %.  our.bowl
             %_  sigil
@@ -192,7 +192,7 @@
               =src  "{(trip u.avatar.u.ours)}"
               =alt  "Avatar";
           =/  value=@ux   ?~(ours 0x0 color.u.ours)
-          =/  color=tape  ((x-co:co 6) value)
+          =/  color=tape  ((x-co:^co 6) value)
           ;div.profile-headline-avatar-sigil(style "background-color: #{color}")
             ;+  %.  our.bowl
             %_  sigil

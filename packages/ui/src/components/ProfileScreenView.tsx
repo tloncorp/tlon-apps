@@ -18,10 +18,12 @@ interface Props {
   onNotificationSettingsPressed: () => void;
   onBlockedUsersPressed: () => void;
   onManageAccountPressed: () => void;
+  onThemePressed?: () => void;
   onLogoutPressed?: () => void;
   onSendBugReportPressed?: () => void;
   onExperimentalFeaturesPressed?: () => void;
   dmLink?: string;
+  onBackPressed?: () => void;
 }
 
 export function ProfileScreenView(props: Props) {
@@ -62,16 +64,9 @@ export function ProfileScreenView(props: Props) {
 
   return (
     <>
-      <ScreenHeader title="Settings" />
+      <ScreenHeader title="Settings" backAction={props.onBackPressed} />
       <ScrollView>
         <YStack flex={1} padding="$l" gap="$s">
-          <ProfileAction
-            leftIcon={<ContactAvatar contactId={props.currentUserId} />}
-            title="Profile"
-            subtitle={props.currentUserId}
-            onPress={props.onProfilePressed}
-            rightIcon={'ChevronRight'}
-          />
           {showDmLure && props.dmLink !== '' && (
             <ProfileAction
               title="Share app with friends"
@@ -112,6 +107,12 @@ export function ProfileScreenView(props: Props) {
               onPress={props.onManageAccountPressed}
             />
           )}
+          <ProfileAction
+            title="Theme"
+            leftIcon="ChannelGalleries"
+            rightIcon={'ChevronRight'}
+            onPress={props.onThemePressed}
+          />
           <ProfileAction
             title="App info"
             leftIcon="Info"

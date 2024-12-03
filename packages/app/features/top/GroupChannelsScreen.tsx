@@ -11,7 +11,7 @@ import {
   GroupChannelsScreenView,
   InviteUsersSheet,
 } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
@@ -30,19 +30,14 @@ export function GroupChannelsScreenContent({
   groupId: string;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-
   const isFocused = useIsFocused();
-  const { data: pins } = store.usePins({
-    enabled: isFocused,
-  });
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>(
     null
   );
   const { group } = useGroupContext({ groupId: id, isFocused });
-
-  const pinnedItems = useMemo(() => {
-    return pins ?? [];
-  }, [pins]);
+  const { data: unjoinedChannels } = store.useUnjoinedGroupChannels(
+    group?.id ?? ''
+  );
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
@@ -60,11 +55,22 @@ export function GroupChannelsScreenContent({
 
   const [enableCustomChannels] = useFeatureFlag('customChannelCreation');
 
+  const handleJoinChannel = useCallback(
+    async (channel: db.Channel) => {
+      try {
+        await store.joinGroupChannel({
+          channelId: channel.id,
+          groupId: id,
+        });
+      } catch (error) {
+        console.error('Failed to join channel:', error);
+      }
+    },
+    [id]
+  );
+
   return (
     <ChatOptionsProvider
-      groupId={id}
-      pinned={pinnedItems}
-      useGroup={store.useGroup}
       onPressInvite={(group) => {
         setInviteSheetGroup(group);
       }}
@@ -73,7 +79,9 @@ export function GroupChannelsScreenContent({
       <GroupChannelsScreenView
         onChannelPressed={handleChannelSelected}
         onBackPressed={handleGoBackPressed}
+        onJoinChannel={handleJoinChannel}
         group={group}
+        unjoinedChannels={unjoinedChannels}
         enableCustomChannels={enableCustomChannels}
       />
       <InviteUsersSheet

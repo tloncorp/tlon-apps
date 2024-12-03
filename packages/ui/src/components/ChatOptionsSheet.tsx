@@ -8,7 +8,6 @@ import React, {
   ReactElement,
   useCallback,
   useEffect,
-  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useState,
@@ -24,45 +23,22 @@ import { Action, ActionGroup, ActionSheet } from './ActionSheet';
 import { IconButton } from './IconButton';
 import { ListItem } from './ListItem';
 
-export type ChatType = 'group' | db.ChannelType;
-
-export type ChatOptionsSheetMethods = {
-  open: (chatId: string, chatType: ChatType, unreadCount?: number) => void;
-  close: () => void;
-};
-
-export type ChatOptionsSheetRef = React.Ref<ChatOptionsSheetMethods>;
-
 type ChatOptionsSheetProps = {
-  // We pass in setSortBy from GroupChannelsScreenView to live-update the sort
-  // preference in the channel list.
-  setSortBy?: (sortBy: db.ChannelSortPreference) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onPressConfigureChannel?: () => void;
+  chat?: {
+    type: 'group' | 'channel';
+    id: string;
+  } | null;
 };
 
-const ChatOptionsSheetComponent = React.forwardRef<
-  ChatOptionsSheetMethods,
-  ChatOptionsSheetProps
->(function ChatOptionsSheetImpl(props, ref) {
-  const [open, setOpen] = useState(false);
-  const [chat, setChat] = useState<{
-    type: ChatType;
-    id: string;
-    unreadCount?: number;
-  } | null>(null);
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      open: (chatId, chatType, unreadCount) => {
-        setOpen(true);
-        setChat({ id: chatId, type: chatType, unreadCount });
-      },
-      close: () => setOpen(false),
-    }),
-    []
-  );
-
+export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
+  open,
+  onOpenChange,
+  onPressConfigureChannel,
+  chat,
+}: ChatOptionsSheetProps) {
   if (!chat || !open) {
     return null;
   }
@@ -72,9 +48,7 @@ const ChatOptionsSheetComponent = React.forwardRef<
       <GroupOptionsSheetLoader
         groupId={chat.id}
         open={open}
-        onOpenChange={setOpen}
-        setSortBy={props.setSortBy}
-        unreadCount={chat.unreadCount}
+        onOpenChange={onOpenChange}
       />
     );
   }
@@ -83,26 +57,20 @@ const ChatOptionsSheetComponent = React.forwardRef<
     <ChannelOptionsSheetLoader
       channelId={chat.id}
       open={open}
-      onOpenChange={setOpen}
-      onPressConfigureChannel={props.onPressConfigureChannel}
+      onPressConfigureChannel={onPressConfigureChannel}
+      onOpenChange={onOpenChange}
     />
   );
 });
-
-export const ChatOptionsSheet = React.memo(ChatOptionsSheetComponent);
 
 export function GroupOptionsSheetLoader({
   groupId,
   open,
   onOpenChange,
-  setSortBy,
-  unreadCount,
 }: {
   groupId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  setSortBy?: (sortBy: db.ChannelSortPreference) => void;
-  unreadCount?: number;
 }) {
   const groupQuery = store.useGroup({ id: groupId });
   const [pane, setPane] = useState<
@@ -124,9 +92,8 @@ export function GroupOptionsSheetLoader({
         group={groupQuery.data}
         pane={pane}
         setPane={setPane}
-        setSortBy={setSortBy}
         onOpenChange={onOpenChange}
-        unreadCount={unreadCount}
+        unreadCount={groupQuery.data.unread?.count}
       />
     </ActionSheet>
   ) : null;
@@ -136,16 +103,14 @@ export function GroupOptions({
   group,
   pane,
   setPane,
-  setSortBy,
   onOpenChange,
   unreadCount,
 }: {
   group: db.Group;
   pane: 'initial' | 'edit' | 'notifications' | 'sort';
   setPane: (pane: 'initial' | 'edit' | 'notifications' | 'sort') => void;
-  setSortBy?: (sortBy: db.ChannelSortPreference) => void;
   onOpenChange: (open: boolean) => void;
-  unreadCount?: number;
+  unreadCount?: number | null;
 }) {
   const currentUser = useCurrentUserId();
   const { data: currentVolumeLevel } = store.useGroupVolumeLevel(group.id);
@@ -424,7 +389,6 @@ export function GroupOptions({
             title: 'Sort by recency',
             action: () => {
               onSelectSort?.('recency');
-              setSortBy?.('recency');
               onOpenChange(false);
             },
           },
@@ -432,14 +396,13 @@ export function GroupOptions({
             title: 'Sort by arrangement',
             action: () => {
               onSelectSort?.('arranged');
-              setSortBy?.('arranged');
               onOpenChange(false);
             },
           },
         ],
       },
     ];
-  }, [onSelectSort, setSortBy, onOpenChange]);
+  }, [onSelectSort, onOpenChange]);
 
   const memberCount = group?.members?.length
     ? group.members.length.toLocaleString()
@@ -511,7 +474,7 @@ export function ChannelOptionsSheetLoader({
   onPressConfigureChannel?: () => void;
 }) {
   const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
-  const channelQuery = store.useChannelWithRelations({
+  const channelQuery = store.useChannel({
     id: channelId,
   });
   const [enableCustomChannels, setEnableCustomChannels] = useState(false);
@@ -694,7 +657,7 @@ export function ChannelOptions({
               }
               channel.pin
                 ? store.unpinItem(channel.pin)
-                : store.pinItem(channel);
+                : store.pinChannel(channel);
             },
           },
         ],
@@ -835,7 +798,7 @@ export function ChannelOptions({
                     if (!isWeb) {
                       Alert.alert(
                         `Leave ${title}?`,
-                        'This will be removed from the list',
+                        'You will no longer receive updates from this channel.',
                         [
                           {
                             text: 'Cancel',

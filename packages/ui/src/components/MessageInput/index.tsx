@@ -7,7 +7,6 @@ import HardBreak from '@tiptap/extension-hard-break';
 import History from '@tiptap/extension-history';
 import Italic from '@tiptap/extension-italic';
 import Link from '@tiptap/extension-link';
-import Mention from '@tiptap/extension-mention';
 import Paragraph from '@tiptap/extension-paragraph';
 import Placeholder from '@tiptap/extension-placeholder';
 import Strike from '@tiptap/extension-strike';
@@ -26,9 +25,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import {
   Block,
-  Image,
   Inline,
-  JSONContent,
   Story,
   citeToPath,
   constructStory,
@@ -37,14 +34,14 @@ import {
 } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
-import { View, YStack } from 'tamagui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, YStack, getTokenValue, useWindowDimensions } from 'tamagui';
 
 import {
   Attachment,
   UploadedImageAttachment,
   useAttachmentContext,
 } from '../../contexts/attachment';
-import { Input } from '../Input';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 
@@ -88,14 +85,27 @@ export function MessageInput({
     waitForAttachmentUploads,
   } = useAttachmentContext();
 
-  const [containerHeight, setContainerHeight] = useState(initialHeight);
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState(false);
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
-  const [imageOnEditedPost, setImageOnEditedPost] = useState<Image | null>();
   const [editorIsEmpty, setEditorIsEmpty] = useState(attachments.length === 0);
   const [showMentionPopup, setShowMentionPopup] = useState(false);
   const [mentionText, setMentionText] = useState<string>();
+
+  const { bottom, top } = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const headerHeight = 48;
+  const titleInputHeight = 48;
+  const inputBasePadding = getTokenValue('$s', 'space');
+  const imageInputButtonHeight = 50;
+  const basicOffset = useMemo(
+    () => top + headerHeight + titleInputHeight + imageInputButtonHeight,
+    [top, headerHeight, titleInputHeight, imageInputButtonHeight]
+  );
+  const bigInputHeightBasic = useMemo(
+    () => height - basicOffset - bottom - inputBasePadding * 2,
+    [height, basicOffset, bottom, inputBasePadding]
+  );
 
   const extensions = [
     Blockquote,
@@ -159,12 +169,7 @@ export function MessageInput({
               blocks,
             } = extractContentTypesFromPost(editingPost);
 
-            if (
-              !story ||
-              story?.length === 0 ||
-              !postReferences ||
-              blocks.length === 0
-            ) {
+            if (story === null && !postReferences && blocks.length === 0) {
               return;
             }
 
@@ -195,12 +200,27 @@ export function MessageInput({
 
             resetAttachments(attachments);
 
+            if (story === null) {
+              return;
+            }
+
             const tiptapContent = tiptap.diaryMixedToJSON(
               story.filter(
                 (c) => !('type' in c) && !('block' in c && 'image' in c.block)
               ) as Story
             );
             editor.commands.setContent(tiptapContent);
+
+            if (editingPost.image) {
+              addAttachment({
+                type: 'image',
+                file: {
+                  uri: editingPost.image,
+                  height: 0,
+                  width: 0,
+                },
+              });
+            }
           }
         });
       } catch (e) {
@@ -209,7 +229,14 @@ export function MessageInput({
         setHasSetInitialContent(true);
       }
     }
-  }, [editor, getDraft, hasSetInitialContent, editingPost, resetAttachments]);
+  }, [
+    editor,
+    getDraft,
+    hasSetInitialContent,
+    editingPost,
+    resetAttachments,
+    addAttachment,
+  ]);
 
   useEffect(() => {
     if (editor && shouldBlur && editor.isFocused) {
@@ -451,17 +478,6 @@ export function MessageInput({
         return [];
       });
 
-      if (imageOnEditedPost) {
-        blocks.push({
-          image: {
-            src: imageOnEditedPost.image.src,
-            height: imageOnEditedPost.image.height,
-            width: imageOnEditedPost.image.width,
-            alt: imageOnEditedPost.image.alt,
-          },
-        });
-      }
-
       if (blocks && blocks.length > 0) {
         if (channelType === 'chat') {
           story.unshift(...blocks.map((block) => ({ block })));
@@ -470,11 +486,27 @@ export function MessageInput({
         }
       }
 
+      const metadata: db.PostMetadata = {};
+      if (title && title.length > 0) {
+        metadata['title'] = title;
+      }
+
+      if (image) {
+        const attachment = finalAttachments.find(
+          (a): a is UploadedImageAttachment =>
+            a.type === 'image' && a.file.uri === image.uri
+        );
+        if (!attachment) {
+          throw new Error('unable to attach image');
+        }
+        metadata['image'] = attachment.uploadState.remoteUri;
+      }
+
       if (isEdit && editingPost) {
         if (editingPost.parentId) {
-          await editPost?.(editingPost, story, editingPost.parentId);
+          await editPost?.(editingPost, story, editingPost.parentId, metadata);
         }
-        await editPost?.(editingPost, story);
+        await editPost?.(editingPost, story, undefined, metadata);
         setEditingPost?.(undefined);
       } else {
         const metadata: db.PostMetadata = {};
@@ -503,14 +535,12 @@ export function MessageInput({
       clearAttachments();
       clearDraft();
       setShowBigInput?.(false);
-      setImageOnEditedPost(null);
     },
     [
       json,
       onSend,
       editor,
       waitForAttachmentUploads,
-      imageOnEditedPost,
       editingPost,
       clearAttachments,
       clearDraft,
@@ -560,7 +590,7 @@ export function MessageInput({
       setShouldBlur={setShouldBlur}
       onPressSend={handleSend}
       onPressEdit={handleEdit}
-      containerHeight={containerHeight}
+      containerHeight={initialHeight}
       mentionText={mentionText}
       groupMembers={groupMembers}
       onSelectMention={onSelectMention}
@@ -585,7 +615,7 @@ export function MessageInput({
         borderRadius="$xl"
       >
         {showInlineAttachments && <AttachmentPreviewList />}
-        <View height={containerHeight} width="80%">
+        <View height={bigInput ? bigInputHeightBasic : initialHeight} width="80%">
           <EditorContent
             style={{
               width: '100%',

@@ -220,7 +220,7 @@ export const useGroupContext = ({
 
   const togglePinned = useCallback(async () => {
     if (group && group.channels[0]) {
-      group.pin ? store.unpinItem(group.pin) : store.pinItem(group.channels[0]);
+      group.pin ? store.unpinItem(group.pin) : store.pinGroup(group);
     }
   }, [group]);
 

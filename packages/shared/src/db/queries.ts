@@ -46,6 +46,7 @@ import {
   withTransactionCtx,
 } from './query';
 import {
+  activityEventContactGroups as $activityEventContactGroups,
   activityEvents as $activityEvents,
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
@@ -78,7 +79,7 @@ import {
   ActivityEvent,
   Channel,
   ChannelUnread,
-  ChatMember,
+  Chat,
   ClientMeta,
   Contact,
   Group,
@@ -195,31 +196,78 @@ export const getGroups = createReadQuery(
   ]
 );
 
-export const getPendingChats = createReadQuery(
-  'getPendingChats',
-  async (ctx: QueryCtx) => {
-    const pendingGroups = await ctx.db.query.groups.findMany({
-      where: or(
-        eq($groups.haveInvite, true),
-        isNotNull($groups.joinStatus),
-        eq($groups.haveRequestedInvite, true)
-      ),
-    });
+export const getUnjoinedGroupChannels = createReadQuery(
+  'getUnjoinedGroupChannels',
+  async (groupId: string, ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    logger.log(
+      'getUnjoinedGroupChannels: checking for user',
+      currentUserId,
+      'in group',
+      groupId
+    );
 
-    const pendingChannels = await ctx.db.query.channels.findMany({
-      where: eq($channels.isDmInvite, true),
+    const group = await ctx.db.query.groups.findFirst({
+      where: eq($groups.id, groupId),
       with: {
-        members: {
+        roles: {
           with: {
-            contact: true,
+            members: true,
           },
         },
       },
     });
 
-    return [...pendingChannels, ...pendingGroups];
+    if (!group) return [];
+
+    const userRolesForGroup =
+      group.roles
+        ?.filter((role) =>
+          role.members?.map((m) => m.contactId).includes(currentUserId)
+        )
+        .map((role) => role.id) ?? [];
+
+    logger.log('getUnjoinedGroupChannels: user roles', userRolesForGroup);
+
+    const allUnjoined = await ctx.db.query.channels.findMany({
+      where: and(
+        eq($channels.groupId, groupId),
+        eq($channels.currentUserIsMember, false)
+      ),
+      with: {
+        readerRoles: true,
+      },
+    });
+
+    logger.log(
+      'getUnjoinedGroupChannels: found unjoined channels',
+      allUnjoined.map((c) => ({
+        id: c.id,
+        readerRoles: c.readerRoles,
+      }))
+    );
+
+    return allUnjoined.filter((channel) => {
+      const isOpenChannel = channel.readerRoles?.length === 0;
+      const isClosedButCanRead = channel.readerRoles
+        ?.map((r) => r.roleId)
+        .some((r) => userRolesForGroup.includes(r));
+
+      const canRead = isOpenChannel || isClosedButCanRead;
+      logger.log(
+        'getUnjoinedGroupChannels: channel',
+        channel.id,
+        'isOpen:',
+        isOpenChannel,
+        'hasPermission:',
+        isClosedButCanRead,
+        'canRead:',
+        canRead
+      );
+      return canRead;
+    });
   },
-  ['groups', 'channels']
+  ['channels', 'groups']
 );
 
 export const getPins = createReadQuery(
@@ -240,124 +288,112 @@ export const getAllChannels = createReadQuery(
 
 export const getChats = createReadQuery(
   'getChats',
-  async (ctx: QueryCtx): Promise<Channel[]> => {
-    const partitionedGroupsQuery = ctx.db
-      .select({
-        ...getTableColumns($channels),
-        rowNumber:
-          sql`ROW_NUMBER() OVER(PARTITION BY ${$channels.groupId} ORDER BY COALESCE(${$channels.lastPostAt}, ${$channelUnreads.updatedAt}) DESC)`.as(
-            'row_number'
-          ),
-      })
-      .from($channels)
-      .where(
-        and(isNotNull($channels.groupId), eq($groups.currentUserIsMember, true))
-      )
-      .leftJoin($channelUnreads, eq($channelUnreads.channelId, $channels.id))
-      .leftJoin($groups, eq($groups.id, $channels.groupId))
-      .as('q');
-
-    const groupChannels = ctx.db
-      .select()
-      .from(partitionedGroupsQuery)
-      .where(eq(partitionedGroupsQuery.rowNumber, 1));
-
-    const allChannels = ctx.db
-      .select({
-        ...getTableColumns($channels),
-        rowNumber: sql`0`.as('row_number'),
-      })
-      .from($channels)
-      .where(and(isNull($channels.groupId), eq($channels.isDmInvite, false)))
-      .union(groupChannels)
-      .as('ac');
-
-    const $groupVolumeSettings = ctx.db
-      .select()
-      .from($volumeSettings)
-      .where(eq($volumeSettings.itemType, 'group'))
-      .as('gvs');
-
-    const result = await ctx.db
-      .select({
-        ...allQueryColumns(allChannels),
-        group: getTableColumns($groups),
-        groupUnread: getTableColumns($groupUnreads),
-        groupVolumeSettings: allQueryColumns($groupVolumeSettings),
-        volumeSettings: getTableColumns($volumeSettings),
-        unread: getTableColumns($channelUnreads),
-        pin: getTableColumns($pins),
-        lastPost: getTableColumns($posts),
-        member: {
-          ...getTableColumns($chatMembers),
+  async (
+    ctx: QueryCtx
+  ): Promise<{ pinned: Chat[]; pending: Chat[]; unpinned: Chat[] }> => {
+    const groups = await ctx.db.query.groups.findMany({
+      where: or(
+        eq($groups.currentUserIsMember, true),
+        eq($groups.isNew, true),
+        isNotNull($groups.joinStatus)
+      ),
+      with: {
+        volumeSettings: true,
+        unread: true,
+        channels: {
+          orderBy: [desc($channels.lastPostAt)],
+          with: {
+            lastPost: true,
+          },
         },
-        contact: getTableColumns($contacts),
-      })
-      .from(allChannels)
-      .leftJoin(
-        $groupVolumeSettings,
-        eq($groupVolumeSettings.itemId, allChannels.groupId)
-      )
-      .leftJoin($volumeSettings, eq($volumeSettings.itemId, allChannels.id))
-      .leftJoin($groups, eq($groups.id, allChannels.groupId))
-      .leftJoin($groupUnreads, eq($groupUnreads.groupId, allChannels.groupId))
-      .leftJoin($channelUnreads, eq($channelUnreads.channelId, allChannels.id))
-      .leftJoin(
-        $pins,
-        or(
-          eq(allChannels.groupId, $pins.itemId),
-          eq(allChannels.id, $pins.itemId)
-        )
-      )
-      .leftJoin($posts, eq($posts.id, allChannels.lastPostId))
-      .leftJoin($chatMembers, eq($chatMembers.chatId, allChannels.id))
-      .leftJoin($contacts, eq($contacts.id, $chatMembers.contactId))
-      .orderBy(
-        ascNullsLast($pins.index),
-        sql`(CASE WHEN ${$groups.isNew} = 1 THEN 1 ELSE 0 END) DESC`,
-        sql`COALESCE(${$channelUnreads.updatedAt}, ${allChannels.lastPostAt}) DESC`
-      );
-
-    const [chatMembers, filteredChannels] = result.reduce<
-      [
-        Record<string, (ChatMember & { contact: Contact | null })[]>,
-        typeof result,
-      ]
-    >(
-      ([members, filteredChannels], channel) => {
-        if (!channel.member || !members[channel.id]) {
-          filteredChannels.push(channel);
-        }
-        if (channel.member) {
-          members[channel.id] ||= [];
-          members[channel.id].push({
-            ...channel.member,
-            contact: channel.contact ?? null,
-          });
-        }
-        return [members, filteredChannels];
+        // Just need the first 3 members for possible title generation purposes
+        members: {
+          limit: 3,
+          orderBy: [asc($chatMembers.joinedAt)],
+          with: {
+            contact: true,
+          },
+        },
+        pin: true,
+        lastPost: true,
       },
-      [{}, [] as typeof result]
+    });
+
+    const channels = await ctx.db.query.channels.findMany({
+      where: isNull($channels.groupId),
+      with: {
+        volumeSettings: true,
+        unread: true,
+        members: {
+          with: {
+            contact: true,
+          },
+        },
+        pin: true,
+        lastPost: true,
+      },
+    });
+
+    const groupChats: Chat[] = groups.map((g) => ({
+      id: g.id,
+      type: 'group',
+      pin: g.pin,
+      timestamp: g.unread?.updatedAt ?? g.lastPostAt ?? 0,
+      volumeSettings: g.volumeSettings,
+      unreadCount: g.unread?.count ?? 0,
+      group: g,
+      isPending:
+        g.haveInvite === true ||
+        !!g.joinStatus ||
+        g.haveRequestedInvite ||
+        false,
+    }));
+
+    const channelChats: Chat[] = channels.map((c) => ({
+      id: c.id,
+      type: 'channel',
+      channel: c,
+      pin: c.pin,
+      volumeSettings: c.volumeSettings,
+      unreadCount: c.unread?.count ?? 0,
+      timestamp: c.unread?.updatedAt ?? c.lastPostAt ?? 0,
+      isPending: !!c.isDmInvite,
+    }));
+
+    const { pinnedChats, pendingChats, otherChats } = [
+      ...channelChats,
+      ...groupChats,
+    ].reduce(
+      (acc, chat) => {
+        if (chat.pin) {
+          acc.pinnedChats.push(chat);
+        } else if (chat.isPending) {
+          acc.pendingChats.push(chat);
+        } else {
+          acc.otherChats.push(chat);
+        }
+        return acc;
+      },
+      {
+        pinnedChats: [],
+        pendingChats: [],
+        otherChats: [],
+      } as Record<string, Chat[]>
     );
 
-    return filteredChannels.map((c) => {
-      return {
-        ...c,
-        members: chatMembers[c.id] ?? null,
-        group: !c.group
-          ? null
-          : {
-              ...c.group,
-              unread: c.groupUnread,
-              volumeSettings: c.groupVolumeSettings,
-            },
-      };
-    });
+    return {
+      pinned: pinnedChats.sort(
+        (a, b) => (a.pin?.index ?? 0) - (b.pin?.index ?? 0)
+      ),
+      pending: pendingChats,
+      unpinned: otherChats.sort((a, b) => b.timestamp - a.timestamp),
+    };
   },
   [
     'groups',
     'channels',
     'posts',
+    'contacts',
     'channelUnreads',
     'groupUnreads',
     'threadUnreads',
@@ -395,6 +431,16 @@ export const insertGroups = createWriteQuery(
           await txCtx.db.insert($groups).values(group).onConflictDoNothing();
         }
         if (group.channels?.length) {
+          logger.log(
+            'insertGroups: inserting channels for group',
+            group.id,
+            group.channels.map((c) => ({
+              id: c.id,
+              readerRoles: c.readerRoles,
+            }))
+          );
+
+          // First insert/update the channels
           await txCtx.db
             .insert($channels)
             .values(group.channels)
@@ -411,6 +457,25 @@ export const insertGroups = createWriteQuery(
                 $channels.contentConfiguration
               ),
             });
+
+          // Then handle reader roles separately
+          for (const channel of group.channels) {
+            if (channel.readerRoles) {
+              // Clear existing reader roles
+              await txCtx.db
+                .delete($channelReaders)
+                .where(eq($channelReaders.channelId, channel.id));
+
+              if (channel.readerRoles.length > 0) {
+                // Insert new reader roles
+                await txCtx.db
+                  .insert($channelReaders)
+                  .values(channel.readerRoles);
+              }
+            }
+          }
+
+          logger.log('insertGroups: finished inserting channels');
         }
         if (group.flaggedPosts?.length) {
           await txCtx.db
@@ -1077,14 +1142,15 @@ export const removeChatMembers = createWriteQuery(
   ['chatMembers', 'groups']
 );
 
-export const getUnreadsCount = createReadQuery(
-  'getUnreadsCount',
+export const getUnreadsCountWithoutMuted = createReadQuery(
+  'getUnreadsCountWithoutMuted',
   async ({ type }: { type?: ChannelUnread['type'] }, ctx: QueryCtx) => {
     const result = await ctx.db
       .select({ count: count() })
       .from($channelUnreads)
       .where(() =>
         and(
+          $channelUnreads.notify,
           gt($channelUnreads.count, 0),
           type ? eq($channelUnreads.type, type) : undefined
         )
@@ -1114,22 +1180,6 @@ export const getUnreads = createReadQuery(
       orderBy:
         orderBy === 'updatedAt' ? desc($channelUnreads.updatedAt) : undefined,
     });
-  },
-  ['channelUnreads']
-);
-
-export const getAllUnreadsCounts = createReadQuery(
-  'getAllUnreadCounts',
-  async (ctx: QueryCtx) => {
-    const [channelUnreadCount, dmUnreadCount] = await Promise.all([
-      getUnreadsCount({ type: 'channel' }, ctx),
-      getUnreadsCount({ type: 'dm' }, ctx),
-    ]);
-    return {
-      channels: channelUnreadCount ?? 0,
-      dms: dmUnreadCount ?? 0,
-      total: (channelUnreadCount ?? 0) + (dmUnreadCount ?? 0),
-    };
   },
   ['channelUnreads']
 );
@@ -1379,16 +1429,9 @@ export const getAllSingleDms = createReadQuery(
   []
 );
 
-export interface GetChannelWithRelations {
-  id: string;
-}
-
 export const getChannelWithRelations = createReadQuery(
   'getChannelWithRelations',
-  async (
-    { id }: GetChannelWithRelations,
-    ctx: QueryCtx
-  ): Promise<Channel | null> => {
+  async ({ id }: { id: string }, ctx: QueryCtx): Promise<Channel | null> => {
     const result = await ctx.db.query.channels.findFirst({
       where: eq($channels.id, id),
       with: {
@@ -1711,17 +1754,29 @@ export const addJoinedGroupChannel = createWriteQuery(
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
     logger.log('addJoinedGroupChannel', channelId);
 
-    await ctx.db.insert($groupNavSectionChannels).values({
-      channelId,
-      groupNavSectionId: 'default',
-    });
-
-    return await ctx.db
+    // First update the channel membership
+    await ctx.db
       .update($channels)
       .set({
         currentUserIsMember: true,
       })
       .where(eq($channels.id, channelId));
+
+    // Then check if channel exists in any section
+    const existingInAnySection = await ctx.db
+      .select()
+      .from($groupNavSectionChannels)
+      .where(eq($groupNavSectionChannels.channelId, channelId));
+
+    // Only add to default if it's not
+    if (existingInAnySection.length === 0) {
+      await ctx.db.insert($groupNavSectionChannels).values({
+        channelId,
+        groupNavSectionId: 'default',
+      });
+    }
+
+    return;
   },
   ['channels']
 );
@@ -2547,6 +2602,7 @@ export const getGroup = createReadQuery(
       .findFirst({
         where: (groups, { eq }) => eq(groups.id, id),
         with: {
+          unread: true,
           pin: true,
           channels: {
             where: (channels, { eq }) => eq(channels.currentUserIsMember, true),
@@ -2705,6 +2761,69 @@ export const updateContact = createWriteQuery(
   ['contacts']
 );
 
+export const upsertContact = createWriteQuery(
+  'upsertContact',
+  async (contact: Contact, ctx: QueryCtx) => {
+    const existingContact = await ctx.db.query.contacts.findFirst({
+      where: (contacts, { eq }) => eq(contacts.id, contact.id),
+    });
+
+    if (existingContact) {
+      return ctx.db
+        .update($contacts)
+        .set(contact)
+        .where(eq($contacts.id, contact.id));
+    }
+
+    // for new inserts, default to non contact if unspecified
+    const newContact: Contact = {
+      ...contact,
+      isContact: contact.isContact !== undefined ? contact.isContact : false,
+    };
+    return ctx.db.insert($contacts).values(newContact);
+  },
+  ['contacts']
+);
+
+export const getUserContacts = createReadQuery(
+  'getUserContacts',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.contacts.findMany({
+      where: and(eq($contacts.isContact, true)),
+      with: {
+        pinnedGroups: {
+          with: {
+            group: true,
+          },
+        },
+      },
+    });
+  },
+  ['contacts']
+);
+
+export const getSuggestedContacts = createReadQuery(
+  'getSuggestedContacts',
+  async (ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    return ctx.db.query.contacts.findMany({
+      where: and(
+        eq($contacts.isContact, false),
+        eq($contacts.isContactSuggestion, true),
+        not(eq($contacts.id, currentUserId))
+      ),
+      with: {
+        pinnedGroups: {
+          with: {
+            group: true,
+          },
+        },
+      },
+    });
+  },
+  ['contacts']
+);
+
 export const addPinnedGroup = createWriteQuery(
   'addPinnedGroup',
   async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
@@ -2725,6 +2844,25 @@ export const removePinnedGroup = createWriteQuery(
       contactId: currentUserId,
       groupId,
     });
+  },
+  ['contactGroups', 'contacts']
+);
+
+export const setPinnedGroups = createWriteQuery(
+  'setPinnedGroups',
+  async ({ groupIds }: { groupIds: string[] }, ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    await ctx.db
+      .delete($contactGroups)
+      .where(eq($contactGroups.contactId, currentUserId));
+
+    if (groupIds.length !== 0) {
+      const newGroups = groupIds.map((groupId) => ({
+        contactId: currentUserId,
+        groupId,
+      }));
+      await ctx.db.insert($contactGroups).values(newGroups);
+    }
   },
   ['contactGroups', 'contacts']
 );
@@ -2952,14 +3090,47 @@ export const clearThreadUnread = createWriteQuery(
 export const insertActivityEvents = createWriteQuery(
   'insertActivityEvents',
   async (events: ActivityEvent[], ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
     if (events.length === 0) return;
-    return ctx.db
-      .insert($activityEvents)
-      .values(events)
-      .onConflictDoUpdate({
-        target: [$activityEvents.id, $activityEvents.bucketId],
-        set: conflictUpdateSetAll($activityEvents),
-      });
+
+    const activityEventGroups = events.flatMap(
+      (contact) => contact.contactUpdateGroups || []
+    );
+
+    const targetGroups = activityEventGroups.map((g): Group => {
+      const { host: hostUserId } = parseGroupId(g.groupId);
+      return {
+        id: g.groupId,
+        hostUserId,
+        privacy: g.group?.privacy,
+        currentUserIsMember: false,
+        currentUserIsHost: currentUserId === hostUserId,
+      };
+    });
+
+    await withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .insert($activityEvents)
+        .values(events)
+        .onConflictDoUpdate({
+          target: [$activityEvents.id, $activityEvents.bucketId],
+          set: conflictUpdateSetAll($activityEvents),
+        });
+
+      if (targetGroups.length) {
+        await txCtx.db
+          .insert($groups)
+          .values(targetGroups)
+          .onConflictDoNothing();
+      }
+
+      if (activityEventGroups.length) {
+        await txCtx.db
+          .insert($activityEventContactGroups)
+          .values(activityEventGroups)
+          .onConflictDoNothing();
+      }
+    });
   },
   ['activityEvents']
 );
@@ -3128,7 +3299,10 @@ export const getAllOrRepliesPage = createReadQuery(
         .where(
           and(
             eq($activityEvents.bucketId, bucket),
-            eq($activityEvents.shouldNotify, true),
+            or(
+              eq($activityEvents.shouldNotify, true),
+              eq($activityEvents.type, 'contact')
+            ),
             lt($activityEvents.timestamp, resolvedCursor),
             bucket === 'all'
               ? gt($activityEvents.timestamp, 0) // noop
@@ -3155,7 +3329,10 @@ export const getAllOrRepliesPage = createReadQuery(
         .from($activityEvents)
         .where(
           and(
-            eq($activityEvents.shouldNotify, true),
+            or(
+              eq($activityEvents.shouldNotify, true),
+              eq($activityEvents.type, 'contact')
+            ),
             eq($activityEvents.bucketId, bucket)
           )
         )
@@ -3203,6 +3380,11 @@ export const getAllOrRepliesPage = createReadQuery(
               },
             },
             groupEventUser: true,
+            contactUpdateGroups: {
+              with: {
+                group: true,
+              },
+            },
           },
         });
       } else {
@@ -3370,6 +3552,7 @@ function conflictUpdateSetAll(table: Table, exclude?: string[]) {
   return conflictUpdateSet(
     ...Object.entries(columns)
       .filter(([k]) => !exclude?.includes(k))
+      .filter(([_, c]) => c.generated === undefined)
       .map(([_, v]) => v)
   );
 }

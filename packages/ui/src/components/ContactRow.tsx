@@ -12,6 +12,7 @@ function ContactRowItemRaw({
   contact,
   selected = false,
   selectable = false,
+  immutable = false,
   onPress,
   pressStyle,
   backgroundColor,
@@ -21,6 +22,7 @@ function ContactRowItemRaw({
   onPress: (id: string) => void;
   selectable?: boolean;
   selected?: boolean;
+  immutable?: boolean;
 } & Omit<ListItemProps, 'onPress'>) {
   const displayName = useMemo(() => getDisplayName(contact), [contact]);
 
@@ -44,9 +46,10 @@ function ContactRowItemRaw({
       <ListItem {...rest}>
         <ListItem.ContactIcon contactId={contact.id} />
         <ListItem.MainContent>
-          <XStack alignItems="center">
-            <ListItem.Title marginLeft="$l">{displayName}</ListItem.Title>
-          </XStack>
+          <ListItem.Title>{displayName}</ListItem.Title>
+          {contact?.nickname && (
+            <ListItem.Subtitle>{contact.id}</ListItem.Subtitle>
+          )}
         </ListItem.MainContent>
         {selectable && (
           <ListItem.EndContent>
@@ -56,8 +59,12 @@ function ContactRowItemRaw({
               height="$4xl"
               width="$4xl"
             >
-              {selected ? (
-                <Icon type="Checkmark" size="$xl" />
+              {selected || immutable ? (
+                <Icon
+                  type="Checkmark"
+                  size="$xl"
+                  color={immutable ? '$blue' : undefined}
+                />
               ) : (
                 <View
                   borderWidth={1}

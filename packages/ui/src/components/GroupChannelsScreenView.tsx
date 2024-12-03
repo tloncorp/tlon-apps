@@ -1,61 +1,58 @@
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, YStack } from 'tamagui';
+import { ScrollView, View, YStack, getVariableValue, useTheme } from 'tamagui';
 
-import { useCurrentUserId } from '../contexts';
+import { useChatOptions, useCurrentUserId } from '../contexts';
 import { useIsAdmin } from '../utils/channelUtils';
+import { Badge } from './Badge';
 import ChannelNavSections from './ChannelNavSections';
-import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
+import { ChannelListItem } from './ListItem/ChannelListItem';
 import { LoadingSpinner } from './LoadingSpinner';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
+import { Text } from './TextV2';
 
 type GroupChannelsScreenViewProps = {
   group: db.Group | null;
+  unjoinedChannels?: db.Channel[];
   onChannelPressed: (channel: db.Channel) => void;
+  onJoinChannel: (channel: db.Channel) => void;
   onBackPressed: () => void;
   enableCustomChannels?: boolean;
 };
 
 export function GroupChannelsScreenView({
   group,
+  unjoinedChannels = [],
   onChannelPressed,
+  onJoinChannel,
   onBackPressed,
   enableCustomChannels = false,
 }: GroupChannelsScreenViewProps) {
-  const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
-  const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
+  const sortBy = db.channelSortPreference.useValue();
   const insets = useSafeAreaInsets();
   const userId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
 
-  useEffect(() => {
-    const getSortByPreference = async () => {
-      const preference = await db.getChannelSortPreference();
-      setSortBy(preference ?? 'recency');
-    };
-
-    getSortByPreference();
-  }, [setSortBy]);
-
+  const chatOptions = useChatOptions();
   const handlePressOverflowButton = useCallback(() => {
     if (group) {
-      chatOptionsSheetRef.current?.open(group.id, 'group');
+      chatOptions.open(group.id, 'group');
     }
-  }, [group]);
-
-  const title = group ? group?.title ?? 'Untitled' : '';
+  }, [group, chatOptions]);
 
   const handleOpenChannelOptions = useCallback(
     (channel: db.Channel) => {
       if (group) {
-        chatOptionsSheetRef.current?.open(channel.id, channel.type);
+        chatOptions.open(channel.id, 'channel');
       }
     },
-    [group]
+    [group, chatOptions]
   );
+
+  const title = group ? group?.title ?? 'Untitled' : '';
 
   const titleWidth = useCallback(() => {
     if (isGroupAdmin) {
@@ -64,6 +61,8 @@ export function GroupChannelsScreenView({
       return 75;
     }
   }, [isGroupAdmin]);
+
+  const listSectionTitleColor = getVariableValue(useTheme().secondaryText);
 
   return (
     <View flex={1}>
@@ -108,6 +107,33 @@ export function GroupChannelsScreenView({
             sortBy={sortBy || 'recency'}
             onLongPress={handleOpenChannelOptions}
           />
+
+          {unjoinedChannels.length > 0 && (
+            <YStack>
+              <Text
+                paddingHorizontal="$l"
+                paddingVertical="$xl"
+                fontSize="$s"
+                color={listSectionTitleColor}
+              >
+                Available Channels
+              </Text>
+              {unjoinedChannels.map((channel) => (
+                <ChannelListItem
+                  key={channel.id}
+                  model={channel}
+                  onPress={() => onJoinChannel(channel)}
+                  useTypeIcon={true}
+                  dimmed={true}
+                  EndContent={
+                    <View justifyContent="center">
+                      <Badge text="Join" />
+                    </View>
+                  }
+                />
+              ))}
+            </YStack>
+          )}
         </ScrollView>
       ) : (
         <YStack flex={1} justifyContent="center" alignItems="center">
@@ -122,7 +148,6 @@ export function GroupChannelsScreenView({
           enableCustomChannels={enableCustomChannels}
         />
       )}
-      <ChatOptionsSheet ref={chatOptionsSheetRef} setSortBy={setSortBy} />
     </View>
   );
 }

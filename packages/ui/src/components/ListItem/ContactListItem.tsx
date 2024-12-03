@@ -1,4 +1,5 @@
 import { ComponentProps } from 'react';
+import { isWeb } from 'tamagui';
 
 import { AvatarProps } from '../Avatar';
 import ContactName from '../ContactName';
@@ -17,6 +18,7 @@ export const ContactListItem = ({
   showEndContent = false,
   endContent,
   matchText,
+  subtitle,
   size = '$2xl',
   ...props
 }: {
@@ -30,6 +32,7 @@ export const ContactListItem = ({
   showEndContent?: boolean;
   endContent?: React.ReactNode;
   matchText?: string;
+  subtitle?: string;
 } & Omit<ComponentProps<typeof ListItem>, 'onPress' | 'onLongPress'> &
   Pick<AvatarProps, 'size'>) => {
   const handlePress = useBoundHandler(contactId, onPress);
@@ -56,9 +59,13 @@ export const ContactListItem = ({
           {showUserId && showNickname ? (
             <ListItem.Subtitle>{contactId}</ListItem.Subtitle>
           ) : null}
+          {subtitle && <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>}
         </ListItem.MainContent>
         {showEndContent && (
-          <ListItem.EndContent flexGrow={1} justifyContent="flex-end">
+          <ListItem.EndContent
+            flexGrow={isWeb ? 1 : 'unset'}
+            justifyContent="flex-end"
+          >
             {endContent}
           </ListItem.EndContent>
         )}

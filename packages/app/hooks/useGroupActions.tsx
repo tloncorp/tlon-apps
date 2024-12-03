@@ -5,19 +5,19 @@ import { useCallback } from 'react';
 import { useGroupNavigation } from './useGroupNavigation';
 
 export const useGroupActions = () => {
-  const { goToHome, goToGroupChannels } = useGroupNavigation();
+  const { goToHome, goToGroup } = useGroupNavigation();
 
   const performGroupAction = useCallback(
     async (action: GroupPreviewAction, updatedGroup: db.Group) => {
       if (action === 'goTo') {
-        goToGroupChannels(updatedGroup.id);
+        goToGroup(updatedGroup.id);
       }
 
       if (action === 'joined') {
         goToHome();
       }
     },
-    [goToGroupChannels, goToHome]
+    [goToGroup, goToHome]
   );
 
   return {

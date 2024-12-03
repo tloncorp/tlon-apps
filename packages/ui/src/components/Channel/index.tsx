@@ -36,7 +36,6 @@ import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
 import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 import * as utils from '../../utils';
-import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { ChannelConfigurationBar } from '../ManageChannels/CreateChannelSheet';
 import { PostCollectionView } from '../PostCollectionView';
@@ -140,8 +139,7 @@ export function Channel({
   startDraft?: boolean;
   onPressScrollToBottom?: () => void;
 }) {
-  const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
-
+  // TODO(dil): `setEditingConfiguration` is never toggled on due to merge conflict
   const [editingConfiguration, setEditingConfiguration] = useState(false);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
@@ -247,15 +245,6 @@ export function Channel({
     }
   }, [goBack, draftInputPresentationMode, draftInputRef, setEditingPost]);
 
-  const handleOptionsSheetToggled = useCallback(() => {
-    chatOptionsSheetRef.current?.open(channel.id, channel.type);
-  }, [channel.id, channel.type]);
-
-  const handlePressConfigureChannel = useCallback(() => {
-    setEditingConfiguration(true);
-    chatOptionsSheetRef.current?.close();
-  }, []);
-
   useEffect(() => {
     if (startDraft) {
       draftInputRef.current?.startDraft?.();
@@ -303,12 +292,17 @@ export function Channel({
                             group={group}
                             mode={headerMode}
                             title={title ?? ''}
-                            goBack={isNarrow ? handleGoBack : undefined}
+                            goBack={
+                              isNarrow ||
+                              draftInputPresentationMode === 'fullscreen'
+                                ? handleGoBack
+                                : undefined
+                            }
                             showSearchButton={isChatChannel}
                             goToSearch={goToSearch}
+                            goToChannels={goToChannels}
                             showSpinner={isLoadingPosts}
                             showMenuButton={true}
-                            onPressOverflowMenu={handleOptionsSheetToggled}
                           />
                           <YStack alignItems="stretch" flex={1}>
                             <AnimatePresence>
@@ -424,12 +418,6 @@ export function Channel({
                             open={!!groupPreview}
                             onOpenChange={() => setGroupPreview(null)}
                             onActionComplete={handleGroupAction}
-                          />
-                          <ChatOptionsSheet
-                            ref={chatOptionsSheetRef}
-                            onPressConfigureChannel={
-                              handlePressConfigureChannel
-                            }
                           />
                         </>
                       </ChannelHeaderItemsProvider>

@@ -31,7 +31,10 @@ import {
   PagedPosts,
   PostDataResponse,
 } from '../urbit';
-import { Contact as UrbitContact } from '../urbit/contact';
+import {
+  ContactBookScryResult1,
+  Contact as UrbitContact,
+} from '../urbit/contact';
 import { Group as UrbitGroup } from '../urbit/groups';
 import {
   syncContacts,
@@ -44,9 +47,14 @@ import {
   syncThreadPosts,
 } from './sync';
 
+const rawContactsData2 = {};
+const rawContactSuggestionsData: string[] = [];
+
 const channelPostWithRepliesData =
   rawChannelPostWithRepliesData as unknown as PostDataResponse;
 const contactsData = rawContactsData as unknown as Record<string, UrbitContact>;
+const contactBookData = rawContactsData2 as unknown as ContactBookScryResult1;
+const suggestionsData = rawContactSuggestionsData as unknown as string[];
 const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
 const groupsInitData = rawGroupsInitData as unknown as GroupsInit;
 const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit;
@@ -96,7 +104,7 @@ test('syncs pins', async () => {
 });
 
 test('syncs contacts', async () => {
-  setScryOutput(contactsData);
+  setScryOutputs([contactsData, contactBookData, suggestionsData]);
   await syncContacts();
   const storedContacts = await db.getContacts();
   expect(storedContacts.length).toEqual(
@@ -107,7 +115,7 @@ test('syncs contacts', async () => {
     expect(original).toBeTruthy();
     expect(original.groups?.length ?? 0).toEqual(c.pinnedGroups.length);
   });
-  setScryOutput(contactsData);
+  setScryOutputs([contactsData, contactBookData, suggestionsData]);
   await syncContacts();
 });
 
@@ -288,9 +296,11 @@ test('syncs last posts', async () => {
   await syncLatestPosts();
   const chats = await db.getChats();
   const NUM_EMPTY_TEST_GROUPS = 6;
-  const chatsWithLatestPosts = chats.filter((c) => c.lastPost);
+  const chatsWithLatestPosts = chats.unpinned.filter((c) =>
+    c.type === 'channel' ? c.channel.lastPost : c.group.lastPost
+  );
   expect(chatsWithLatestPosts.length).toEqual(
-    chats.length - NUM_EMPTY_TEST_GROUPS
+    chats.unpinned.length - NUM_EMPTY_TEST_GROUPS
   );
 });
 

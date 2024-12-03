@@ -6,14 +6,11 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import {
   AddGroupSheet,
   ChatList,
   ChatOptionsProvider,
-  ChatOptionsSheet,
-  ChatOptionsSheetMethods,
   GroupPreviewAction,
   GroupPreviewSheet,
   InviteUsersSheet,
@@ -29,9 +26,11 @@ import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
-import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
-import { screenNameFromChannelId } from '../../navigation/utils';
+import {
+  screenNameFromChannelId,
+  useNavigateToGroup,
+} from '../../navigation/utils';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 
@@ -53,25 +52,6 @@ export function ChatListScreenView({
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
-  const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
-  const [longPressedChat, setLongPressedChat] = useState<
-    db.Channel | db.Group | null
-  >(null);
-  const chatOptionsGroupId = useMemo(() => {
-    if (!longPressedChat) {
-      return;
-    }
-    return logic.isGroup(longPressedChat)
-      ? longPressedChat.id
-      : longPressedChat.group?.id;
-  }, [longPressedChat]);
-
-  const chatOptionsChannelId = useMemo(() => {
-    if (!longPressedChat || logic.isGroup(longPressedChat)) {
-      return;
-    }
-    return longPressedChat.id;
-  }, [longPressedChat]);
 
   const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
     'all'
@@ -83,13 +63,7 @@ export function ChatListScreenView({
 
   const [showSearchInput, setShowSearchInput] = useState(false);
   const isFocused = useIsFocused();
-  const { data: pins } = store.usePins({
-    enabled: isFocused,
-  });
-  const pinned = useMemo(() => pins ?? [], [pins]);
-  const { data: pendingChats } = store.usePendingChats({
-    enabled: isFocused,
-  });
+
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
   });
@@ -149,9 +123,9 @@ export function ChatListScreenView({
     return {
       pinned: chats?.pinned ?? [],
       unpinned: chats?.unpinned ?? [],
-      pendingChats: pendingChats ?? [],
+      pending: chats?.pending ?? [],
     };
-  }, [chats, pendingChats]);
+  }, [chats]);
 
   const handleNavigateToFindGroups = useCallback(() => {
     setAddGroupOpen(false);
@@ -180,45 +154,25 @@ export function ChatListScreenView({
     }
   }, []);
 
-  const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
+  const navigateToGroup = useNavigateToGroup();
 
   const onPressChat = useCallback(
-    (item: db.Channel | db.Group) => {
-      if (logic.isGroup(item)) {
-        setSelectedGroupId(item.id);
-      } else if (
-        item.group &&
-        !isChannelSwitcherEnabled &&
-        // Should navigate to channel if it's pinned as a channel
-        (!item.pin || item.pin.type === 'group')
-      ) {
-        navigation.navigate('GroupChannels', { groupId: item.group.id });
+    async (item: db.Chat) => {
+      if (item.type === 'group') {
+        if (item.isPending) {
+          setSelectedGroupId(item.id);
+        } else {
+          navigateToGroup(item.group.id);
+        }
       } else {
         const screenName = screenNameFromChannelId(item.id);
-
         navigation.navigate(screenName, {
           channelId: item.id,
-          selectedPostId: item.firstUnreadPostId,
         });
       }
     },
-    [isChannelSwitcherEnabled, navigation]
+    [navigateToGroup, navigation]
   );
-
-  const onLongPressChat = useCallback((item: db.Channel | db.Group) => {
-    if (logic.isChannel(item) && !item.isDmInvite) {
-      setLongPressedChat(item);
-      if (item.pin?.type === 'channel' || !item.group) {
-        chatOptionsSheetRef.current?.open(item.id, item.type);
-      } else {
-        chatOptionsSheetRef.current?.open(
-          item.group.id,
-          'group',
-          item.group.unread?.count ?? undefined
-        );
-      }
-    }
-  }, []);
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -234,7 +188,9 @@ export function ChatListScreenView({
 
   const isTlonEmployee = useMemo(() => {
     const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
-    return !!allChats.find((obj) => obj.groupId === TLON_EMPLOYEE_GROUP);
+    return !!allChats.find(
+      (chat) => chat.type === 'group' && chat.group.id === TLON_EMPLOYEE_GROUP
+    );
   }, [resolvedChats]);
 
   useEffect(() => {
@@ -306,9 +262,6 @@ export function ChatListScreenView({
       useGroup={store.useGroupPreview}
     >
       <ChatOptionsProvider
-        channelId={chatOptionsChannelId}
-        groupId={chatOptionsGroupId}
-        pinned={pinned}
         {...useChatSettingsNavigation()}
         onPressInvite={(group) => {
           setInviteSheetGroup(group);
@@ -336,8 +289,7 @@ export function ChatListScreenView({
               setActiveTab={setActiveTab}
               pinned={resolvedChats.pinned}
               unpinned={resolvedChats.unpinned}
-              pendingChats={resolvedChats.pendingChats}
-              onLongPressItem={onLongPressChat}
+              pending={resolvedChats.pending}
               onPressItem={onPressChat}
               onSectionChange={handleSectionChange}
               showSearchInput={showSearchInput}
@@ -351,7 +303,6 @@ export function ChatListScreenView({
             open={splashVisible}
             onOpenChange={handleWelcomeOpenChange}
           />
-          <ChatOptionsSheet ref={chatOptionsSheetRef} />
           <GroupPreviewSheet
             open={!!selectedGroup}
             onOpenChange={handleGroupPreviewSheetOpenChange}
@@ -366,14 +317,14 @@ export function ChatListScreenView({
           />
         </View>
         <NavBarView
+          navigateToContacts={() => {
+            navigation.navigate('Contacts');
+          }}
           navigateToHome={() => {
             navigation.navigate('ChatList');
           }}
           navigateToNotifications={() => {
             navigation.navigate('Activity');
-          }}
-          navigateToProfileSettings={() => {
-            navigation.navigate('Profile');
           }}
           currentRoute="ChatList"
           currentUserId={currentUser}

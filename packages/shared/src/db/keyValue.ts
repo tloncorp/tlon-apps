@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
+import { ThemeName } from 'tamagui';
 
 import {
   StorageConfiguration,
@@ -27,26 +28,7 @@ export const IS_TLON_EMPLOYEE_QUERY_KEY = ['settings', 'isTlonEmployee'];
 export const APP_INFO_QUERY_KEY = ['settings', 'appInfo'];
 export const BASE_VOLUME_SETTING_QUERY_KEY = ['volume', 'base'];
 export const SHOW_BENEFITS_SHEET_QUERY_KEY = ['showBenefitsSheet'];
-
-export type ChannelSortPreference = 'recency' | 'arranged';
-export async function storeChannelSortPreference(
-  sortPreference: ChannelSortPreference
-) {
-  try {
-    await AsyncStorage.setItem('channelSortPreference', sortPreference);
-  } catch (error) {
-    logger.error('storeChannelSortPreference', error);
-  }
-}
-
-export async function getChannelSortPreference() {
-  try {
-    const value = await AsyncStorage.getItem('channelSortPreference');
-    return (value ?? 'recency') as ChannelSortPreference;
-  } catch (error) {
-    logger.error('getChannelSortPreference', error);
-  }
-}
+export const THEME_STORAGE_KEY = '@user_theme';
 
 export async function getActivitySeenMarker() {
   const marker = await AsyncStorage.getItem('activitySeenMarker');
@@ -294,4 +276,26 @@ export const lastAnonymousAppOpenAt = createStorageItem<number | null>({
 export const finishingSelfHostedLogin = createStorageItem<boolean>({
   key: 'finishingSelfHostedLogin',
   defaultValue: false,
+});
+
+export const postDraft = (opts: {
+  key: string;
+  type: 'caption' | 'text' | undefined; // matches GalleryDraftType
+}) => {
+  return createStorageItem<ub.JSONContent | null>({
+    key: `draft-${opts.key}${opts.type ? `-${opts.type}` : ''}`,
+    defaultValue: null,
+  });
+};
+
+export const themeSettings = createStorageItem<ThemeName | null>({
+  key: THEME_STORAGE_KEY,
+  defaultValue: null,
+});
+
+export type ChannelSortPreference = 'recency' | 'arranged';
+
+export const channelSortPreference = createStorageItem<ChannelSortPreference>({
+  key: 'channelSortPreference',
+  defaultValue: 'recency',
 });

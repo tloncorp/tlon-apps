@@ -1,10 +1,10 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { useMemo } from 'react';
-import { ScrollView, styled } from 'tamagui';
+import { ScrollView, YStack, styled } from 'tamagui';
 
 import { useContactName } from '../ContactNameV2';
-import { PostReference } from '../ContentReference';
+import { ContentReferenceLoader, PostReference } from '../ContentReference';
 import { GalleryPost } from '../GalleryPost';
 import { Icon } from '../Icon';
 import { createContentRenderer } from '../PostContent';
@@ -18,19 +18,35 @@ import { Text } from '../TextV2';
 
 type ActivitySourceContentProps = {
   summary: logic.SourceActivityEvents;
+  unreadCount?: number;
   pressHandler?: () => void;
 };
 
 export function ActivitySourceContent({
   summary,
+  unreadCount,
   pressHandler,
 }: ActivitySourceContentProps) {
   const isReply = !!summary.newest.parentId;
   const isChatPost =
     summary.newest.channel?.type !== 'gallery' &&
     summary.newest.channel?.type !== 'notebook';
+
+  if (summary.newest.type === 'contact') {
+    return (
+      <ContactUpdateContentRenderer
+        summary={summary}
+        pressHandler={pressHandler}
+      />
+    );
+  }
+
   return isReply || isChatPost ? (
-    <ChatContentRenderer summary={summary} pressHandler={pressHandler} />
+    <ChatContentRenderer
+      summary={summary}
+      pressHandler={pressHandler}
+      unreadCount={unreadCount}
+    />
   ) : (
     <NotebookOrGalleryContentRenderer
       summary={summary}
@@ -39,7 +55,51 @@ export function ActivitySourceContent({
   );
 }
 
-function ChatContentRenderer({ summary }: ActivitySourceContentProps) {
+function ContactUpdateContentRenderer({ summary }: ActivitySourceContentProps) {
+  const newest = summary.newest;
+  if (newest.contactUpdateType === 'status') {
+    return (
+      <Text size="$label/m" color="$primaryText" marginVertical="$m">
+        {newest.contactUpdateValue}
+      </Text>
+    );
+  }
+
+  if (newest.contactUpdateType === 'pinnedGroups') {
+    const groups =
+      (newest.contactUpdateGroups
+        ?.map((ug) => ug.group)
+        .filter((g) => g) as db.Group[]) ?? [];
+
+    console.log('con update groups renderer', groups);
+
+    if (!groups.length) {
+      return null;
+    }
+
+    return (
+      <YStack marginVertical="$m" gap="$m">
+        {groups.map((group) => (
+          <ContentReferenceLoader
+            key={group.id}
+            reference={{
+              type: 'reference',
+              referenceType: 'group',
+              groupId: group.id,
+            }}
+          />
+        ))}
+      </YStack>
+    );
+  }
+
+  return null;
+}
+
+function ChatContentRenderer({
+  summary,
+  unreadCount,
+}: ActivitySourceContentProps) {
   const post = useMemo(() => getPost(summary.newest), [summary.newest]);
   const postAuthorName = useContactName(post.authorId);
   const content = usePostContent(post);
@@ -55,9 +115,9 @@ function ChatContentRenderer({ summary }: ActivitySourceContentProps) {
   return (
     <>
       <ActivityContentRenderer content={enrichedContent} />
-      {summary.all.length > 1 ? (
+      {(unreadCount ?? 0) > 1 ? (
         <Text size="$label/m" color="$tertiaryText" trimmed={false}>
-          +{summary.all.length - 1} more
+          +{(unreadCount ?? 0) - 1} more
         </Text>
       ) : null}
     </>

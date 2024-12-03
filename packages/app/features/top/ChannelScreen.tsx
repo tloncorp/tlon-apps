@@ -311,23 +311,13 @@ export default function ChannelScreen(props: Props) {
     [props.navigation]
   );
 
-  const handleMarkRead = useCallback(() => {
+  const handleMarkRead = useCallback(async () => {
     if (channel && !channel.isPendingChannel) {
       store.markChannelRead(channel);
     }
   }, [channel]);
 
   const canUpload = useCanUpload();
-
-  const isFocused = useIsFocused();
-
-  const { data: pins } = store.usePins({
-    enabled: isFocused,
-  });
-
-  const pinnedItems = useMemo(() => {
-    return pins ?? [];
-  }, [pins]);
 
   const chatOptionsNavProps = useChatSettingsNavigation();
 
@@ -350,8 +340,6 @@ export default function ChannelScreen(props: Props) {
 
   return (
     <ChatOptionsProvider
-      groupId={group?.id}
-      pinned={pinnedItems}
       useGroup={store.useGroup}
       onPressInvite={(group) => {
         setInviteSheetGroup(group);

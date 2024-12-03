@@ -98,17 +98,30 @@ export async function updateChannel({
   groupId,
   sectionId,
   readers,
+  writers,
   join,
   channel,
 }: {
   groupId: string;
   sectionId: string;
   readers: string[];
+  writers: string[];
   join: boolean;
   channel: db.Channel;
 }) {
-  // optimistic update
-  await db.updateChannel(channel);
+  const updatedChannel: db.Channel = {
+    ...channel,
+    readerRoles: readers.map((roleId) => ({
+      channelId: channel.id,
+      roleId,
+    })),
+    writerRoles: writers.map((roleId) => ({
+      channelId: channel.id,
+      roleId,
+    })),
+  };
+
+  await db.updateChannel(updatedChannel);
 
   // If we have a `contentConfiguration`, we need to merge these fields to make
   // a `StructuredChannelDescriptionPayload`, and use that as the `description`
@@ -120,6 +133,7 @@ export async function updateChannel({
   const groupChannel: GroupChannel = {
     added: channel.addedToGroupAt ?? 0,
     readers,
+    writers,
     zone: sectionId,
     join,
     meta: {
@@ -138,22 +152,36 @@ export async function updateChannel({
     });
   } catch (e) {
     console.error('Failed to update channel', e);
-    // rollback optimistic update
     await db.updateChannel(channel);
   }
 }
 
-export async function pinItem(channel: db.Channel) {
-  // optimistic update
-  const partialPin = logic.getPinPartial(channel);
-  db.insertPinnedItem(partialPin);
+export async function pinChat(chat: db.Chat) {
+  return chat.type === 'group'
+    ? pinGroup(chat.group)
+    : pinChannel(chat.channel);
+}
 
+export async function pinGroup(group: db.Group) {
+  return savePin({ type: 'group', itemId: group.id });
+}
+
+export async function pinChannel(channel: db.Channel) {
+  const type =
+    channel.type === 'dm' || channel.type === 'groupDm'
+      ? channel.type
+      : 'channel';
+  return savePin({ type, itemId: channel.id });
+}
+
+async function savePin(pin: { type: db.PinType; itemId: string }) {
+  db.insertPinnedItem(pin);
   try {
-    await api.pinItem(partialPin.itemId);
+    await api.pinItem(pin.itemId);
   } catch (e) {
     console.error('Failed to pin item', e);
     // rollback optimistic update
-    db.deletePinnedItem(partialPin);
+    db.deletePinnedItem(pin);
   }
 }
 
@@ -330,8 +358,33 @@ export async function leaveGroupChannel(channelId: string) {
   try {
     await api.leaveChannel(channelId);
   } catch (e) {
-    console.error('Failed to leave chat channel', e);
+    console.error('Failed to leave channel', e);
     // rollback optimistic update
     await db.updateChannel({ id: channelId, currentUserIsMember: true });
+  }
+}
+
+export async function joinGroupChannel({
+  channelId,
+  groupId,
+}: {
+  channelId: string;
+  groupId: string;
+}) {
+  // optimistic update
+  await db.updateChannel({
+    id: channelId,
+    currentUserIsMember: true,
+  });
+
+  try {
+    await api.joinChannel(channelId, groupId);
+  } catch (e) {
+    // rollback on failure
+    logger.error('Failed to join group channel');
+    await db.updateChannel({
+      id: channelId,
+      currentUserIsMember: false,
+    });
   }
 }

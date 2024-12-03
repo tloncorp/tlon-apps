@@ -4,12 +4,11 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
 } from 'react';
 
-import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
-import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
+import { useChatOptions } from '../../contexts';
+import Pressable from '../Pressable';
 import { ScreenHeader } from '../ScreenHeader';
 import { BaubleHeader } from './BaubleHeader';
 
@@ -80,11 +79,11 @@ export function ChannelHeader({
   goBack,
   goToSearch,
   goToEdit,
+  goToChannels,
   showSpinner,
   showSearchButton = true,
   showMenuButton = false,
   showEditButton = false,
-  onPressOverflowMenu,
 }: {
   title: string;
   mode?: 'default' | 'next';
@@ -93,13 +92,19 @@ export function ChannelHeader({
   goBack?: () => void;
   goToSearch?: () => void;
   goToEdit?: () => void;
+  goToChannels?: () => void;
   showSpinner?: boolean;
   showSearchButton?: boolean;
   showMenuButton?: boolean;
   showEditButton?: boolean;
-  onPressOverflowMenu?: () => void;
   post?: db.Post;
 }) {
+  const chatOptions = useChatOptions();
+
+  const handlePressOverflowMenu = useCallback(() => {
+    chatOptions.open(channel.id, 'channel');
+  }, [channel.id, chatOptions]);
+
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
 
   if (mode === 'next') {
@@ -121,7 +126,11 @@ export function ChannelHeader({
   return (
     <>
       <ScreenHeader
-        title={title}
+        title={
+          <Pressable onPress={goToChannels}>
+            <ScreenHeader.Title>{title}</ScreenHeader.Title>
+          </Pressable>
+        }
         titleWidth={titleWidth()}
         showSessionStatus
         isLoading={showSpinner}
@@ -135,7 +144,7 @@ export function ChannelHeader({
             {showMenuButton && (
               <ScreenHeader.IconButton
                 type="Overflow"
-                onPress={onPressOverflowMenu}
+                onPress={handlePressOverflowMenu}
               />
             )}
             {showEditButton && (

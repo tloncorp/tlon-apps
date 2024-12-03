@@ -7,8 +7,7 @@ import { useCallback } from 'react';
 import { RootStackParamList } from '../navigation/types';
 
 export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
-  // Model context
-  const channelQuery = store.useChannelWithRelations({
+  const channelQuery = store.useChannel({
     id: channelId,
   });
 
