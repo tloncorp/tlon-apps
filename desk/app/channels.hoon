@@ -8,7 +8,7 @@
 ::    note: all subscriptions are handled by the subscriber library so
 ::    we can have resubscribe loop protection.
 ::
-/-  c=channels, g=groups, ha=hark, activity
+/-  c=channels, g=groups, ha=hark, activity, wrong=channels-wrong
 /-  meta
 /+  default-agent, verb, dbug, sparse, neg=negotiate, imp=import-aid
 /+  utils=channel-utils, volume, s=subscriber
@@ -129,12 +129,14 @@
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
+  =?  old  ?=(%8 -.old)  (state-8-to-7 old)
   ?>  ?=(%7 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-7
+    $%  state-8
+        state-7
         state-6
         state-5
         state-4
@@ -142,6 +144,27 @@
         state-2
         state-1
         state-0
+    ==
+  +$  state-8
+    $:  %8
+        =v-channels:wrong
+        voc=(map [nest:wrong plan:wrong] (unit said:wrong))
+        hidden-posts=(set id-post:wrong)
+        pending-ref-edits=(jug ship [=kind:wrong name=term])
+        =^subs:s
+        =pimp:imp
+    ==
+  ++  state-8-to-7
+    |=  s=state-8
+    ^-  state-7
+    =/  new=v-channels:c  (v-channels-8-to-7:utils v-channels.s)
+    :*  %7
+        new
+        (voc-8-to-7:utils voc.s)
+        hidden-posts.s
+        pending-ref-edits.s
+        subs.s
+        pimp
     ==
   +$  state-7  current-state
   +$  state-6

@@ -1,4 +1,5 @@
-/-  c=channels, g=groups, ci=cite
+/-  c=channels, g=groups, ci=cite, wrong=channels-wrong
+/+  em=emojimart
 ::  convert a post to a preview for a "said" response
 ::
 |%
@@ -676,4 +677,174 @@
       ;br;
     ==
   --
+++  voc-8-to-7
+  |=  voc=(map [nest:c plan:c] (unit said:wrong))
+  ^-  (map [nest:c plan:c] (unit said:c))
+  =|  new=(map [nest:c plan:c] (unit said:c))
+  %+  roll  ~(tap by voc)
+  |=  [[[=nest:c =plan:c] said=(unit said:wrong)] =_new]
+  %+  ~(put by new)  [nest plan]
+  ?~  said  ~
+  =*  ref  q.u.said
+  :-  ~
+  :-  p.u.said
+  ?-  -.ref
+    %post   [%post (simple-post-8-to-7 post.ref)]
+    %reply  [%reply id-post.ref (simple-reply-8-to-7 reply.ref)]
+  ==
+++  simple-post-8-to-7
+  |=  sp=simple-post:wrong
+  ^-  simple-post:c
+  :_  +.sp
+  :*  id.sp
+      (reacts-8-to-7 reacts.sp)
+      (simple-replies-8-to-7 replies.sp)
+      reply-meta.sp
+  ==
+++  simple-replies-8-to-7
+  |=  sp=simple-replies:wrong
+  ^-  simple-replies:c
+  %+  roll  ~(tap by sp)
+  |=  [[=time reply=simple-reply:wrong] new=simple-replies:c]
+  %+  ~(put by new)  time
+  (simple-reply-8-to-7 reply)
+++  simple-reply-8-to-7
+  |=  sr=simple-reply:wrong
+  ^-  simple-reply:c
+  :_  +.sr
+  [id.sr parent-id.sr (reacts-8-to-7 reacts.sr)]
+++  v-channels-8-to-7
+  |=  vc=v-channels:wrong
+  ^-  v-channels:c
+  %-  ~(run by vc)
+  |=  v=v-channel:wrong
+  ^-  v-channel:c
+  =/  log=log:v-channel:c
+    (log-8-to-7 log.v)
+  =/  new-posts=v-posts:c
+    (v-posts-8-to-7 posts.v)
+  :*  :*  new-posts
+          order.v
+          view.v
+          sort.v
+          perm.v
+      ==
+      net.v
+      log
+      remark.v
+      window.v
+      [~ ~]
+      pending.v
+      last-updated.v
+  ==
+++  v-posts-8-to-7
+  |=  vp=v-posts:wrong
+  ^-  v-posts:c
+  =|  posts=v-posts:c
+  %+  roll  (tap:on-v-posts:wrong vp)
+  |=  [[=id-post:c post=(unit v-post:wrong)] =_posts]
+  ^+  posts
+  ?~  post  posts
+  ::  insert seq and mod-at into seal
+  ::
+  =/  new-post=v-post:c
+    =/  new-seal=v-seal:c
+      :*  id-post
+          (v-replies-8-to-7 replies.u.post)
+          (v-reacts-8-to-7 reacts.u.post)
+      ==
+    [new-seal +.u.post]
+  (put:on-v-posts:c posts id-post `new-post)
+::
+++  v-replies-8-to-7
+  |=  =v-replies:wrong
+  ^-  v-replies:c
+  %+  run:on-v-replies:wrong  v-replies
+  |=  v-reply=(unit v-reply:wrong)
+  ^-  (unit v-reply:c)
+  ?~  v-reply  ~
+  %=  v-reply
+    reacts.u  (v-reacts-8-to-7 reacts.u.v-reply)
+  ==
+::
+++  v-reacts-8-to-7
+  |=  =v-reacts:wrong
+  ^-  v-reacts:c
+  %-  ~(run by v-reacts)
+  |=  v-react=(rev:c (unit react:wrong))
+  ^-  (rev:c (unit react:c))
+  ?~  +.v-react  [-.v-react ~]
+  v-react(u (react-8-to-7 u.v-react))
+::
+++  reacts-8-to-7
+  |=  =reacts:wrong
+  ^-  reacts:c
+  (~(run by reacts) react-8-to-7)
+++  react-8-to-7
+  |=  r=react:wrong
+  ^-  react:c
+  ?^  r  p.r
+  =+  rat=(rave:em r)
+  ?~  rat  r
+  u.rat
+::
+++  u-post-set-8-to-7
+  |=  u=u-post:wrong
+  ^-  $>(%set u-post:c)
+  ?>  ?=(%set -.u)
+  ::  %post %set
+  ::
+  ?~  post.u  u
+  =*  post  u.post.u
+  :-  %set
+  =/  new-seal=v-seal:c
+    :*  id.post
+        (v-replies-8-to-7 replies.post)
+        (v-reacts-8-to-7 reacts.post)
+    ==
+  (some [new-seal +.post])
+::
+++  u-post-not-set-8-to-7
+  |=  u=$<(%set u-post:wrong)
+  ^-  $<(%set u-post:c)
+  ?:  ?=(%essay -.u)  u
+  ::
+  ?:  ?=([%reply =id-reply:c %set *] u)
+    ?~  reply.u-reply.u  u
+    %=    u
+        reacts.u.reply.u-reply
+      %-  v-reacts-8-to-7
+      reacts.u.reply.u-reply.u
+    ==
+  ?:  ?=([%reply =id-reply:c %reacts *] u)
+    %=    u
+        reacts.u-reply
+      %-  v-reacts-8-to-7
+      reacts.u-reply.u
+    ==
+  ::  %reacts
+  ::
+  u(reacts (v-reacts-8-to-7 reacts.u))
+::
+++  log-8-to-7
+  |=  l=log:v-channel:wrong
+  ^-  log:v-channel:c
+  =|  =log:c
+  %+  roll  (tap:log-on:wrong l)
+  |=  [[=time =u-channel:wrong] =_log]
+  ^+  log
+  ?:  ?=(%meta -.u-channel)  log
+  ?.  ?=(%post -.u-channel)
+    (put:log-on:c log time u-channel)
+  ?.  ?=(%set -.u-post.u-channel)
+    (put:log-on:c log time %post id.u-channel (u-post-not-set-8-to-7 u-post.u-channel))
+  ::  %set
+  ::
+  ?~  post.u-post.u-channel
+    (put:log-on:c log time %post id.u-channel %set ~)
+  ::  %set post: increment .seq only for a new post
+  ::
+  %^  put:log-on:c  log  time
+  :+  %post  id.u-channel
+  (u-post-set-8-to-7 u-post.u-channel)
 --
