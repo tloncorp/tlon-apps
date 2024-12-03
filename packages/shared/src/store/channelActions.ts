@@ -55,9 +55,13 @@ export async function createChannel({
 
   try {
     await api.addChannelToGroup({ groupId, channelId, sectionId: 'default' });
+    // TODO: After awaiting create, send a separate update to set metadata
+    // (or wait until H adds `metadata` to create)
     await api.createChannel({
-      // @ts-expect-error this is fine
-      kind: getChannelKindFromType(channelType),
+      kind:
+        contentConfiguration == null
+          ? getChannelKindFromType(channelType)
+          : 'custom',
       group: groupId,
       name,
       title,

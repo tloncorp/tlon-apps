@@ -196,7 +196,9 @@ export function getChannelType(channelId: string) {
   }
 }
 
-export function getChannelKindFromType(type: 'chat' | 'gallery' | 'notebook') {
+export function getChannelKindFromType(
+  type: 'chat' | 'gallery' | 'notebook' | unknown
+) {
   if (type === 'chat') {
     return 'chat';
   } else if (type === 'gallery') {
