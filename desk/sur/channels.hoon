@@ -581,7 +581,6 @@
     ++  on-v-posts  ((on id-post (unit v-post)) lte)
     ++  mo-v-posts  ((mp id-post (unit v-post)) lte)
     +$  v-seal
-      $+  v-seal-v7
       $:  id=id-post
           replies=v-replies
           reacts=v-reacts
@@ -771,6 +770,9 @@
     |%
     ++  v-channels  (map nest v-channel)
     ++  v-channel
+      ::XX this kind of back-referencing should not occur.
+      ::   instead, $v-channel should be fixed under v6 and
+      ::   sourced in v8.
       |^  ,[global:v-channel:v7 local]
       +$  local
         $:  =net
