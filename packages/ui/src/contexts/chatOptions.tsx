@@ -53,6 +53,7 @@ type ChatOptionsProviderProps = {
   onPressRoles: (groupId: string) => void;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
   onLeaveGroup?: () => void;
+  onPressConfigureChannel?: () => void;
 };
 
 export const ChatOptionsProvider = ({
@@ -68,6 +69,7 @@ export const ChatOptionsProvider = ({
   onPressChannelMeta,
   onPressRoles,
   onLeaveGroup: navigateOnLeave,
+  onPressConfigureChannel,
 }: ChatOptionsProviderProps) => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [chat, setChat] = useState<{
@@ -158,7 +160,7 @@ export const ChatOptionsProvider = ({
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         chat={chat}
-        // TODO(dil): Needs `onPressConfigureChannel`
+        onPressConfigureChannel={onPressConfigureChannel}
       />
     </ChatOptionsContext.Provider>
   );

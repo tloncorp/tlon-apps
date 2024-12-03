@@ -108,7 +108,7 @@ interface ChannelProps {
 }
 
 interface ChannelMethods {
-  // placeholder
+  openChannelConfigurationBar: () => void;
 }
 
 export const Channel = forwardRef<ChannelMethods, ChannelProps>(
@@ -275,7 +275,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     useImperativeHandle(
       ref,
       () => ({
-        // placeholder
+        openChannelConfigurationBar() {
+          setEditingConfiguration(true);
+        },
       }),
       []
     );
