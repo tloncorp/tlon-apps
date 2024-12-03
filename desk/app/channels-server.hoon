@@ -2,7 +2,7 @@
 ::
 ::    this is the server-side from which /app/channels gets its data.
 ::
-/-  c=channels, g=groups
+/-  c=channels, g=groups, wrong=channels-wrong
 /+  utils=channel-utils, imp=import-aid
 /+  default-agent, verb, dbug, neg=negotiate
 ::
@@ -92,11 +92,21 @@
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
+  =?  old  ?=(%7 -.old)  (state-7-to-6 old)
   ?>  ?=(%6 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-6 state-5 state-4 state-3 state-2 state-1 state-0)
+  +$  versioned-state  $%(state-7 state-6 state-5 state-4 state-3 state-2 state-1 state-0)
+  +$  state-7
+    $:  %7
+        =v-channels:wrong
+        =pimp:imp
+    ==
+  ++  state-7-to-6
+    |=  s=state-7
+    ^-  state-6
+    s(- %6, v-channels (v-channels-8-to-7:utils v-channels.s))
   +$  state-6  current-state
   +$  state-5
     $:  %5
