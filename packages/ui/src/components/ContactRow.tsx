@@ -46,9 +46,10 @@ function ContactRowItemRaw({
       <ListItem {...rest}>
         <ListItem.ContactIcon contactId={contact.id} />
         <ListItem.MainContent>
-          <XStack alignItems="center">
-            <ListItem.Title marginLeft="$l">{displayName}</ListItem.Title>
-          </XStack>
+          <ListItem.Title>{displayName}</ListItem.Title>
+          {contact?.nickname && (
+            <ListItem.Subtitle>{contact.id}</ListItem.Subtitle>
+          )}
         </ListItem.MainContent>
         {selectable && (
           <ListItem.EndContent>

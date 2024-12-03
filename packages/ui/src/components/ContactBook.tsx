@@ -48,10 +48,18 @@ export function ContactBook({
   width?: number;
 }) {
   const contacts = useContacts();
+  const contactsForBook = useMemo(() => {
+    const markedContacts =
+      contacts?.filter((contact) => contact.isContact) ?? [];
+    if (markedContacts.length) {
+      return markedContacts;
+    }
+    return contacts;
+  }, [contacts]);
   const immutableSet = useMemo(() => new Set(immutableIds), [immutableIds]);
   const contactsIndex = useContactIndex();
   const segmentedContacts = useAlphabeticallySegmentedContacts(
-    contacts ?? [],
+    contactsForBook ?? [],
     contactsIndex ?? {}
   );
 
