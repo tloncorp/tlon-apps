@@ -1,6 +1,11 @@
 import { createDevLogger } from '@tloncorp/shared';
 import type { Schema } from '@tloncorp/shared/db';
-import { handleChange, schema, setClient } from '@tloncorp/shared/db';
+import {
+  handleChange,
+  schema,
+  setClient,
+  setSqlocal,
+} from '@tloncorp/shared/db';
 import { migrations } from '@tloncorp/shared/db/migrations';
 import { sql } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
@@ -55,6 +60,7 @@ export async function setupDb() {
     logger.log('SQLite database opened:', dbInfo);
 
     setClient(client);
+    setSqlocal(sqlocal);
   } catch (e) {
     logger.error('Failed to setup SQLite db', e);
   }

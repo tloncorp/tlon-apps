@@ -4,7 +4,7 @@ export * from './types';
 export * from './fallback';
 export * from './modelBuilders';
 export * from './keyValue';
-export { setClient } from './client';
+export { setClient, setSqlocal } from './client';
 export type { AnySqliteDatabase } from './client';
 export * from './changeListener';
 export * from './domainTypes';

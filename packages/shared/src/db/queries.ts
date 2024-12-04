@@ -2326,8 +2326,10 @@ async function updatePostWindows(
   const { oldestId, newestId } = (
     await ctx.db
       .select({
-        oldestId: min($postWindows.oldestPostId),
-        newestId: max($postWindows.newestPostId),
+        // Explicit aliases required for aggregation functions when using SQLocal transaction proxy.
+        // The proxy's result transformation requires these to map SQL results back to the expected field names.
+        oldestId: min($postWindows.oldestPostId).as('oldestId'),
+        newestId: max($postWindows.newestPostId).as('newestId'),
       })
       .from($postWindows)
       .where(overlapsWindow(referenceWindow))

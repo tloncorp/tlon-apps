@@ -1,6 +1,7 @@
 import type { QueryResult } from '@op-engineering/op-sqlite';
 import { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import { SqliteRemoteResult } from 'drizzle-orm/sqlite-proxy';
+import { SQLocalDrizzle } from 'sqlocal/drizzle';
 
 import { Schema } from './types';
 
@@ -18,9 +19,14 @@ export type AnySqliteTransaction = Parameters<
 >[0];
 
 let clientInstance: AnySqliteDatabase | null = null;
+let sqlocalInstance: SQLocalDrizzle | null = null;
 
 export function setClient<T extends AnySqliteDatabase>(client: T) {
   clientInstance = client;
+}
+
+export function setSqlocal(sqlocal: SQLocalDrizzle) {
+  sqlocalInstance = sqlocal;
 }
 
 export const client = new Proxy(
@@ -34,3 +40,15 @@ export const client = new Proxy(
     },
   }
 ) as AnySqliteDatabase;
+
+export const sqlocal = new Proxy(
+  {},
+  {
+    get: function (target, prop, receiver) {
+      if (!sqlocalInstance) {
+        return undefined;
+      }
+      return Reflect.get(sqlocalInstance, prop, receiver);
+    },
+  }
+) as SQLocalDrizzle;
