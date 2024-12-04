@@ -1,11 +1,10 @@
 import {
   PostCollectionLayoutType,
   configurationFromChannel,
+  createDevLogger,
   layoutForType,
-  layoutTypeFromChannel,
   useMutableCallback,
 } from '@tloncorp/shared';
-import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { isSameDay } from '@tloncorp/shared/logic';
 import { isEqual } from 'lodash';
@@ -77,7 +76,7 @@ const Scroller = forwardRef(
       showDividers = true,
       inverted,
       renderItem,
-      renderEmptyComponent: renderEmptyComponentFn,
+      renderEmptyComponent,
       posts,
       channel,
       collectionLayoutType,
@@ -384,20 +383,6 @@ const Scroller = forwardRef(
       }
       onStartReached?.();
     }, [onStartReached, readyToDisplayPosts]);
-
-    const renderEmptyComponent = useCallback(() => {
-      return (
-        <View
-          flex={1}
-          paddingBottom={'$l'}
-          paddingHorizontal="$l"
-          alignItems="center"
-          justifyContent="center"
-        >
-          {renderEmptyComponentFn?.()}
-        </View>
-      );
-    }, [renderEmptyComponentFn]);
 
     const [isAtBottom, setIsAtBottom] = useState(true);
     const handleScroll = useScrollDirectionTracker({ setIsAtBottom });
