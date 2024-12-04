@@ -40,11 +40,9 @@ export function ContactsScreenView(props: Props) {
   const sections = useMemo(() => {
     const result: Section[] = [];
 
-    if (userContact) {
-      result.push({
-        data: [userContact],
-      });
-    }
+    result.push({
+      data: [userContact ?? db.getFallbackContact(currentUserId)],
+    });
 
     if (sortedContacts.length > 0) {
       result.push({
@@ -60,11 +58,11 @@ export function ContactsScreenView(props: Props) {
     }
 
     return result;
-  }, [userContact, sortedContacts, trimmedSuggested]);
+  }, [userContact, currentUserId, sortedContacts, trimmedSuggested]);
 
   const renderItem = useCallback(
     ({ item }: { item: db.Contact }) => {
-      const isSelf = item.id === userContact?.id;
+      const isSelf = item.id === currentUserId;
       return (
         <ContactListItem
           size="$4xl"
