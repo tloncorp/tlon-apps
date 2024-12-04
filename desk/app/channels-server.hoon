@@ -140,7 +140,7 @@
   ++  state-6-to-7
     |=  state-6
     ^-  state-7
-    [%7 (v-channels-7-to-8:utils v-channels) *hooks:h pimp]
+    [%7 v-channels *hooks:h pimp]
   +$  state-5
     $:  %5
         =v-channels:v6:old:c
