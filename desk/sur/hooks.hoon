@@ -73,7 +73,7 @@
       [%rest id=id-hook =origin]
   ==
 ::  $bowl: ambient state that a hook should know about not
-::            necessarily tied to a specific event
+::         necessarily tied to a specific event
 ::
 ::    .channel: the channel that the hook is operating on
 ::    .group: the group that the channel belongs to

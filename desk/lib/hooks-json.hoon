@@ -69,15 +69,15 @@
     %-  pairs
     %+  turn
       ~(tap by cr)
-    |=  [=origin:h jb=job:h]
-    :_  (job jb)
+    |=  [=origin:h =job:h]
+    :_  (^job job)
     ?@(origin 'global' (nest-cord:enjs:cj origin))
   ++  job
-    |=  jb=job:h
+    |=  =job:h
     %-  pairs
-    :~  hook+(id id-hook.jb)
-        schedule+(schedule schedule.jb)
-        config+(config config.jb)
+    :~  hook+(id id-hook.job)
+        schedule+(schedule schedule.job)
+        config+(config config.job)
     ==
   ++  schedule
     |=  sch=schedule:h
