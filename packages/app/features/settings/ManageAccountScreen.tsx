@@ -6,13 +6,13 @@ import {
   YStack,
   isWeb,
 } from '@tloncorp/ui';
-import { useResetDb } from '../../hooks/useResetDb';
-import { useWebView } from '../../hooks/useWebview';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { useHandleLogout } from '../../hooks/useHandleLogout';
+import { useResetDb } from '../../hooks/useResetDb';
+import { useWebView } from '../../hooks/useWebview';
 import { checkIfAccountDeleted } from '../../lib/hostingApi';
 import { RootStackParamList } from '../../navigation/types';
 import { getHostingToken, getHostingUserId } from '../../utils/hosting';
@@ -31,20 +31,22 @@ interface HostingSession {
 export function ManageAccountScreen(props: Props) {
   const resetDb = useResetDb();
   const webview = useWebView();
-  const [goingBack, setGoingBack] = useState(false);
   const handleLogout = useHandleLogout({ resetDb });
   const [hostingSession, setHostingSession] = useState<HostingSession | null>(
     null
   );
 
   const handleBack = useCallback(async () => {
-    setGoingBack(true);
-    const wasDeleted = await checkIfAccountDeleted();
-    if (wasDeleted) {
-      handleLogout();
-    } else {
+    try {
+      const wasDeleted = await checkIfAccountDeleted();
+      if (wasDeleted) {
+        handleLogout();
+      } else {
+        props.navigation.goBack();
+      }
+    } catch (error) {
+      console.error('Error checking if account was deleted:', error);
       props.navigation.goBack();
-      setGoingBack(false);
     }
   }, [handleLogout, props.navigation]);
 
@@ -89,15 +91,9 @@ export function ManageAccountScreen(props: Props) {
   }, [hostingSession?.isExpired, handleLogout, props.navigation]);
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
-        leftControls={
-          goingBack ? (
-            <LoadingSpinner />
-          ) : (
-            <ScreenHeader.BackButton onPress={handleBack} />
-          )
-        }
+        leftControls={<ScreenHeader.BackButton onPress={handleBack} />}
         title="Manage account"
       />
       {isWeb && (

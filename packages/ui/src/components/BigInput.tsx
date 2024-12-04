@@ -1,11 +1,9 @@
 // import { EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/db';
-import { useMemo, useRef, useState } from 'react';
-import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
+import { useMemo, useState } from 'react';
 import { TouchableOpacity } from 'react-native-gesture-handler';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // TODO: replace input with our own input component
-import { Input, ScrollView, View, YStack, getTokenValue } from 'tamagui';
+import { Input, View, YStack, getTokenValue } from 'tamagui';
 
 import { ImageAttachment, useAttachmentContext } from '../contexts/attachment';
 import AttachmentSheet from './AttachmentSheet';
@@ -37,16 +35,8 @@ export function BigInput({
 } & MessageInputProps) {
   const [title, setTitle] = useState(editingPost?.title ?? '');
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
-  // const editorRef = useRef<{
-  // editor: TlonEditorBridge | null;
-  // setEditor: (editor: any) => void;
-  // }>(null);
-  const { top } = useSafeAreaInsets();
-  const { width } = Dimensions.get('screen');
   const titleInputHeight = getTokenValue('$4xl', 'size');
   const imageButtonHeight = getTokenValue('$4xl', 'size');
-  const keyboardVerticalOffset =
-    Platform.OS === 'ios' ? top + titleInputHeight : top;
 
   const { attachments, attachAssets } = useAttachmentContext();
   const imageAttachment = useMemo(() => {
@@ -90,11 +80,13 @@ export function BigInput({
           >
             {imageAttachment ? (
               <Image
-                source={{ uri: imageAttachment.file.uri }}
+                source={{
+                  uri: imageAttachment.file.uri,
+                }}
                 contentFit="cover"
+                height={imageButtonHeight}
                 style={{
                   width: '100%',
-                  height: '100%',
                   borderBottomLeftRadius: 16,
                   borderBottomRightRadius: 16,
                 }}
@@ -103,7 +95,7 @@ export function BigInput({
               <View
                 backgroundColor="$primaryText"
                 width="100%"
-                height="100%"
+                height={imageButtonHeight}
                 borderBottomLeftRadius="$xl"
                 borderBottomRightRadius="$xl"
                 padding="$2xl"
@@ -128,16 +120,10 @@ export function BigInput({
           </View>
         </View>
       )}
-      <ScrollView
-        scrollEventThrottle={16}
-        scrollToOverflowEnabled
-        overScrollMode="always"
-        contentContainerStyle={{
-          paddingTop:
-            channelType === 'notebook'
-              ? titleInputHeight + imageButtonHeight
-              : 0,
-        }}
+      <View
+        paddingTop={
+          channelType === 'notebook' ? titleInputHeight + imageButtonHeight : 0
+        }
       >
         <MessageInput
           shouldBlur={shouldBlur}
@@ -162,9 +148,10 @@ export function BigInput({
           placeholder={placeholder}
           bigInput
           channelType={channelType}
-          // ref={editorRef}
+          shouldAutoFocus
+          draftType={channelType === 'gallery' ? 'text' : undefined}
         />
-      </ScrollView>
+      </View>
       {/* channelType === 'notebook' &&
         editorRef.current &&
         editorRef.current.editor && (

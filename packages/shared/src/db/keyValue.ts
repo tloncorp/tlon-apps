@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
+import { ThemeName } from 'tamagui';
 
 import {
   StorageConfiguration,
@@ -10,6 +11,7 @@ import {
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import { NodeBootPhase, SignupParams } from './domainTypes';
+import { getStorageMethods } from './getStorageMethods';
 
 const logger = createDevLogger('keyValueStore', false);
 
@@ -26,26 +28,7 @@ export const IS_TLON_EMPLOYEE_QUERY_KEY = ['settings', 'isTlonEmployee'];
 export const APP_INFO_QUERY_KEY = ['settings', 'appInfo'];
 export const BASE_VOLUME_SETTING_QUERY_KEY = ['volume', 'base'];
 export const SHOW_BENEFITS_SHEET_QUERY_KEY = ['showBenefitsSheet'];
-
-export type ChannelSortPreference = 'recency' | 'arranged';
-export async function storeChannelSortPreference(
-  sortPreference: ChannelSortPreference
-) {
-  try {
-    await AsyncStorage.setItem('channelSortPreference', sortPreference);
-  } catch (error) {
-    logger.error('storeChannelSortPreference', error);
-  }
-}
-
-export async function getChannelSortPreference() {
-  try {
-    const value = await AsyncStorage.getItem('channelSortPreference');
-    return (value ?? 'recency') as ChannelSortPreference;
-  } catch (error) {
-    logger.error('getChannelSortPreference', error);
-  }
-}
+export const THEME_STORAGE_KEY = '@user_theme';
 
 export async function getActivitySeenMarker() {
   const marker = await AsyncStorage.getItem('activitySeenMarker');
@@ -216,14 +199,15 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
     serialize = JSON.stringify,
     deserialize = JSON.parse,
   } = config;
+  const storage = getStorageMethods(config.isSecure ?? false);
 
   const getValue = async (): Promise<T> => {
-    const value = await AsyncStorage.getItem(key);
+    const value = await storage.getItem(key);
     return value ? deserialize(value) : defaultValue;
   };
 
   const resetValue = async (): Promise<T> => {
-    await AsyncStorage.setItem(key, serialize(defaultValue));
+    await storage.setItem(key, serialize(defaultValue));
     queryClient.invalidateQueries({ queryKey: [key] });
     logger.log(`reset value ${key}`);
     return defaultValue;
@@ -238,7 +222,7 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
       newValue = valueInput;
     }
 
-    await AsyncStorage.setItem(key, serialize(newValue));
+    await storage.setItem(key, serialize(newValue));
     queryClient.invalidateQueries({ queryKey: [key] });
     logger.log(`set value ${key}`, newValue);
   };
@@ -277,4 +261,41 @@ export const lastAppVersion = createStorageItem<string | null>({
 export const didSignUp = createStorageItem<boolean>({
   key: 'didSignUp',
   defaultValue: false,
+});
+
+export const didInitializeTelemetry = createStorageItem<boolean>({
+  key: 'confirmedAnalyticsOptOut',
+  defaultValue: false,
+});
+
+export const lastAnonymousAppOpenAt = createStorageItem<number | null>({
+  key: 'lastAnonymousAppOpenAt',
+  defaultValue: null,
+});
+
+export const finishingSelfHostedLogin = createStorageItem<boolean>({
+  key: 'finishingSelfHostedLogin',
+  defaultValue: false,
+});
+
+export const postDraft = (opts: {
+  key: string;
+  type: 'caption' | 'text' | undefined; // matches GalleryDraftType
+}) => {
+  return createStorageItem<ub.JSONContent | null>({
+    key: `draft-${opts.key}${opts.type ? `-${opts.type}` : ''}`,
+    defaultValue: null,
+  });
+};
+
+export const themeSettings = createStorageItem<ThemeName | null>({
+  key: THEME_STORAGE_KEY,
+  defaultValue: null,
+});
+
+export type ChannelSortPreference = 'recency' | 'arranged';
+
+export const channelSortPreference = createStorageItem<ChannelSortPreference>({
+  key: 'channelSortPreference',
+  defaultValue: 'recency',
 });

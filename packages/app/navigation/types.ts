@@ -1,6 +1,11 @@
-import type { NavigatorScreenParams } from '@react-navigation/native';
+import type {
+  NavigationProp,
+  NavigatorScreenParams,
+} from '@react-navigation/native';
 
 export type RootStackParamList = {
+  Contacts: undefined;
+  Empty: undefined;
   ChatList: { previewGroupId: string } | undefined;
   Activity: undefined;
   Profile: undefined;
@@ -42,15 +47,19 @@ export type RootStackParamList = {
   };
   GroupSettings: NavigatorScreenParams<GroupSettingsStackParamList>;
   AppSettings: undefined;
+  Theme: undefined;
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BlockedUsers: undefined;
   AppInfo: undefined;
   PushNotificationSettings: undefined;
+  AddContacts: undefined;
   UserProfile: {
     userId: string;
   };
-  EditProfile: undefined;
+  EditProfile: {
+    userId: string;
+  };
   WompWomp: undefined;
   ChannelMembers: {
     channelId: string;
@@ -59,6 +68,8 @@ export type RootStackParamList = {
     channelId: string;
   };
 };
+
+export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
 
 export type RootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;

@@ -4,12 +4,11 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
 } from 'react';
 
-import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
-import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
+import { useChatOptions } from '../../contexts';
+import Pressable from '../Pressable';
 import { ScreenHeader } from '../ScreenHeader';
 import { BaubleHeader } from './BaubleHeader';
 
@@ -79,9 +78,12 @@ export function ChannelHeader({
   group,
   goBack,
   goToSearch,
+  goToEdit,
+  goToChannels,
   showSpinner,
   showSearchButton = true,
   showMenuButton = false,
+  showEditButton = false,
 }: {
   title: string;
   mode?: 'default' | 'next';
@@ -89,16 +91,19 @@ export function ChannelHeader({
   group?: db.Group | null;
   goBack?: () => void;
   goToSearch?: () => void;
+  goToEdit?: () => void;
+  goToChannels?: () => void;
   showSpinner?: boolean;
   showSearchButton?: boolean;
   showMenuButton?: boolean;
+  showEditButton?: boolean;
   post?: db.Post;
 }) {
-  const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
+  const chatOptions = useChatOptions();
 
   const handlePressOverflowMenu = useCallback(() => {
-    chatOptionsSheetRef.current?.open(channel.id, channel.type);
-  }, [channel.id, channel.type]);
+    chatOptions.open(channel.id, 'channel');
+  }, [channel.id, chatOptions]);
 
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
 
@@ -121,7 +126,11 @@ export function ChannelHeader({
   return (
     <>
       <ScreenHeader
-        title={title}
+        title={
+          <Pressable onPress={goToChannels}>
+            <ScreenHeader.Title>{title}</ScreenHeader.Title>
+          </Pressable>
+        }
         titleWidth={titleWidth()}
         showSessionStatus
         isLoading={showSpinner}
@@ -138,10 +147,14 @@ export function ChannelHeader({
                 onPress={handlePressOverflowMenu}
               />
             )}
+            {showEditButton && (
+              <ScreenHeader.TextButton onPress={goToEdit}>
+                Edit
+              </ScreenHeader.TextButton>
+            )}
           </>
         }
       />
-      <ChatOptionsSheet ref={chatOptionsSheetRef} />
     </>
   );
 }

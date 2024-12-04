@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useChannelSearch, useChannelWithRelations } from '@tloncorp/shared';
+import { useChannel, useChannelSearch } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import { Button, SearchBar, SearchResults, XStack, YStack } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
@@ -13,7 +13,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ChannelSearch'>;
 export default function ChannelSearchScreen(props: Props) {
   const channelId = props.route.params.channelId;
   const groupId = props.route.params.groupId;
-  const channelQuery = useChannelWithRelations({
+  const channelQuery = useChannel({
     id: channelId,
   });
 

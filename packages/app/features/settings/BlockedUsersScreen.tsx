@@ -36,7 +36,7 @@ export function BlockedUsersScreen(props: Props) {
   );
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
         backAction={() => props.navigation.goBack()}
         title="Blocked users"

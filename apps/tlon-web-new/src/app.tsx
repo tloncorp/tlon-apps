@@ -17,6 +17,7 @@ import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
+import { LoadingSpinner, View } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { PropsWithChildren, useEffect, useState } from 'react';
@@ -181,7 +182,18 @@ const App = React.memo(function AppComponent() {
       <MigrationCheck>
         <SafeAreaProvider>
           <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-            {dbIsLoaded && <AppRoutes isLoaded={dbIsLoaded} />}
+            {dbIsLoaded ? (
+              <AppRoutes isLoaded={dbIsLoaded} />
+            ) : (
+              <View
+                height="100%"
+                width="100%"
+                justifyContent="center"
+                alignItems="center"
+              >
+                <LoadingSpinner />
+              </View>
+            )}
           </TamaguiProvider>
         </SafeAreaProvider>
       </MigrationCheck>

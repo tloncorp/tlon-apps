@@ -1,7 +1,7 @@
 import { LinearGradient } from '@tamagui/linear-gradient';
 import * as db from '@tloncorp/shared/db';
 import { BlurView } from 'expo-blur';
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { OpaqueColorValue } from 'react-native';
 import Animated, {
   Easing,
@@ -21,7 +21,6 @@ import { Spinner, Text, View } from 'tamagui';
 import { useChatOptions } from '../../contexts/chatOptions';
 import { useScrollContext } from '../../contexts/scroll';
 import { ContactAvatar } from '../Avatar';
-import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
 import { Icon } from '../Icon';
 import { Image } from '../Image';
 import Pressable from '../Pressable';
@@ -37,12 +36,10 @@ export function BaubleHeader({
   showSpinner?: boolean;
   group?: db.Group | null;
 }) {
+  const chatOptions = useChatOptions();
   const [scrollValue] = useScrollContext();
   const insets = useSafeAreaInsets();
   const frame = useSafeAreaFrame();
-  const groupOptions = useChatOptions();
-  const isGroupContext = !!group && !!groupOptions;
-  const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
 
   const easedValue = useDerivedValue(
     () => Easing.ease(scrollValue.value),
@@ -67,12 +64,12 @@ export function BaubleHeader({
   }, [easedValue, insets.top]);
 
   const handlePress = useCallback(() => {
-    if (group && groupOptions) {
-      chatOptionsSheetRef.current?.open(group.id, 'group');
+    if (group) {
+      chatOptions.open(group.id, 'group');
     } else {
-      chatOptionsSheetRef.current?.open(channel.id, channel.type);
+      chatOptions.open(channel.id, 'channel');
     }
-  }, [channel.id, channel.type, group, groupOptions]);
+  }, [channel.id, group, chatOptions]);
 
   return (
     <View
@@ -181,9 +178,6 @@ export function BaubleHeader({
             </BlurView>
           </Pressable>
         </Animated.View>
-      )}
-      {isGroupContext && groupOptions && (
-        <ChatOptionsSheet ref={chatOptionsSheetRef} />
       )}
     </View>
   );

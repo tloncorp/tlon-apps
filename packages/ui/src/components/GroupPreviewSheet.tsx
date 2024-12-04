@@ -16,7 +16,7 @@ import { LoadingSpinner } from './LoadingSpinner';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onActionComplete?: (action: GroupPreviewAction, group: db.Group) => void;
+  onActionComplete: (action: GroupPreviewAction, group: db.Group) => void;
   group?: db.Group;
 }
 
@@ -44,7 +44,11 @@ function GroupPreviewSheetComponent({
 
   const actionHandler = useCallback(
     (action: GroupPreviewAction, updatedGroup: db.Group) => {
-      onActionComplete?.(action, updatedGroup);
+      // Delay the action complete callback to allow the sheet to close.
+      // If we don't do this the app will crash.
+      setTimeout(() => {
+        onActionComplete?.(action, updatedGroup);
+      }, 100);
       onOpenChange(false);
     },
     [onActionComplete, onOpenChange]

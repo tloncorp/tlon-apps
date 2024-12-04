@@ -38,27 +38,17 @@ interface LureState {
   lures: Lures;
   fetchLure: (
     flag: string,
-    branchDomain: string,
-    branchKey: string
+    inviteServiceEndpoint: string,
+    inviteServiceIsDev: boolean
   ) => Promise<void>;
-  describe: (
-    flag: string,
-    metadata: LureMetadata,
-    branchDomain: string,
-    branchKey: string
-  ) => Promise<void>;
-  toggle: (
-    flag: string,
-    metadata: GroupMeta,
-    branchDomain: string,
-    branchKey: string
-  ) => Promise<void>;
+  describe: (flag: string) => Promise<void>;
+  toggle: (flag: string) => Promise<void>;
   start: () => Promise<void>;
 }
 
-const lureLogger = createDevLogger('lure', true);
+const lureLogger = createDevLogger('lure', false);
 
-function groupsDescribe(meta: GroupMeta) {
+function groupsDescribe(meta: GroupMeta & DeepLinkMetadata) {
   return {
     tag: 'groups-0',
     fields: { ...meta }, // makes typescript happy
@@ -68,17 +58,44 @@ function groupsDescribe(meta: GroupMeta) {
 export const useLureState = create<LureState>((set, get) => ({
   bait: null,
   lures: {},
-  describe: async (flag, metadata, branchDomain, branchKey) => {
+  describe: async (flag) => {
+    const currentUserId = getCurrentUserId();
+    const group = await db.getGroup({ id: flag });
+    const user = await db.getContact({ id: currentUserId });
+
+    if (!group || !user) {
+      lureLogger.trackError('[describe] Error looking up group or user', {
+        groupId: flag,
+        group,
+        user,
+      });
+    }
+
     await poke({
       app: 'reel',
       mark: 'reel-describe',
       json: {
         token: flag,
-        metadata,
+        metadata: groupsDescribe({
+          // legacy keys
+          title: group?.title ?? '',
+          description: group?.description ?? '',
+          cover: group?.coverImage ?? '',
+          image: group?.iconImage ?? '',
+
+          // new-style metadata keys
+          inviterUserId: currentUserId,
+          inviterNickname: user?.nickname ?? '',
+          inviterAvatarImage: user?.avatarImage ?? '',
+          invitedGroupId: flag,
+          invitedGroupTitle: group?.title ?? '',
+          invitedGroupDescription: group?.description ?? '',
+          invitedGroupIconImageUrl: group?.iconImage ?? '',
+        }),
       },
     });
   },
-  toggle: async (flag, meta, branchDomain, branchKey) => {
+  toggle: async (flag) => {
     const { name } = getFlagParts(flag);
     const lure = get().lures[flag];
     const enabled = !lure?.enabled;
@@ -92,7 +109,7 @@ export const useLureState = create<LureState>((set, get) => ({
         },
       });
     } else {
-      get().describe(flag, groupsDescribe(meta), branchDomain, branchKey);
+      get().describe(flag);
     }
 
     set(
@@ -122,7 +139,7 @@ export const useLureState = create<LureState>((set, get) => ({
       })
     );
   },
-  fetchLure: async (flag, branchDomain, branchKey) => {
+  fetchLure: async (flag, inviteServiceEndpoint, inviteServiceIsDev) => {
     const { name } = getFlagParts(flag);
     const prevLure = get().lures[flag];
     lureLogger.crumb('fetching', flag, 'prevLure', prevLure);
@@ -203,8 +220,8 @@ export const useLureState = create<LureState>((set, get) => ({
         fallbackUrl: url,
         type: 'lure',
         path: flag,
-        branchDomain,
-        branchKey,
+        inviteServiceEndpoint,
+        inviteServiceIsDev,
         metadata,
       });
       lureLogger.crumb('deepLinkUrl created', deepLinkUrl);
@@ -230,13 +247,13 @@ const selLure = (flag: string) => (s: LureState) => ({
 
 export function useLure({
   flag,
-  branchDomain,
-  branchKey,
+  inviteServiceEndpoint,
+  inviteServiceIsDev,
   disableLoading = false,
 }: {
   flag: string;
-  branchDomain: string;
-  branchKey: string;
+  inviteServiceEndpoint: string;
+  inviteServiceIsDev: boolean;
   disableLoading?: boolean;
 }) {
   const fetchLure = useLureState((state) => state.fetchLure);
@@ -260,27 +277,27 @@ export function useLure({
   useQuery({
     queryKey: ['lureFetcher', flag],
     queryFn: async () => {
-      lureLogger.crumb('fetching', flag, branchDomain, branchKey);
-      await fetchLure(flag, branchDomain, branchKey);
+      lureLogger.crumb(
+        'fetching',
+        flag,
+        inviteServiceEndpoint,
+        inviteServiceIsDev
+      );
+      await fetchLure(flag, inviteServiceEndpoint, inviteServiceIsDev);
       return true;
     },
     enabled: canCheckForUpdate && uninitialized,
     refetchInterval: 5000,
   });
 
-  const toggle = async (meta: GroupMeta) => {
-    lureLogger.crumb('toggling', flag, meta, branchDomain, branchKey);
-    return useLureState.getState().toggle(flag, meta, branchDomain, branchKey);
+  const toggle = async () => {
+    lureLogger.crumb('toggling', flag);
+    return useLureState.getState().toggle(flag);
   };
 
-  const describe = useCallback(
-    (meta: GroupMeta) => {
-      return useLureState
-        .getState()
-        .describe(flag, groupsDescribe(meta), branchDomain, branchKey);
-    },
-    [flag, branchDomain, branchKey]
-  );
+  const describe = useCallback(() => {
+    return useLureState.getState().describe(flag);
+  }, [flag]);
 
   lureLogger.crumb('useLure', flag, bait, lure, describe);
 
@@ -319,18 +336,18 @@ export function useLureLinkChecked(url: string | undefined, enabled: boolean) {
 
 export function useLureLinkStatus({
   flag,
-  branchDomain,
-  branchKey,
+  inviteServiceEndpoint,
+  inviteServiceIsDev,
 }: {
   flag: string;
-  branchDomain: string;
-  branchKey: string;
+  inviteServiceEndpoint: string;
+  inviteServiceIsDev: boolean;
 }) {
   const { supported, fetched, enabled, url, deepLinkUrl, toggle, describe } =
     useLure({
       flag,
-      branchDomain,
-      branchKey,
+      inviteServiceEndpoint,
+      inviteServiceIsDev,
     });
   const { good, checked } = useLureLinkChecked(url, !!enabled);
 

@@ -5,7 +5,14 @@ import { ImagePickerAsset } from 'expo-image-picker';
 import { memo } from 'react';
 import { PropsWithChildren } from 'react';
 import { SpaceTokens } from 'tamagui';
-import { ThemeTokens, View, XStack, YStack } from 'tamagui';
+import {
+  ThemeTokens,
+  View,
+  XStack,
+  YStack,
+  getVariableValue,
+  useTheme,
+} from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
 import { Button } from '../Button';
@@ -28,7 +35,7 @@ export interface MessageInputProps {
   groupMembers: db.ChatMember[];
   storeDraft: (draft: JSONContent, draftType?: GalleryDraftType) => void;
   clearDraft: (draftType?: GalleryDraftType) => void;
-  getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent>;
+  getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (
@@ -100,10 +107,17 @@ export const MessageInputContainer = memo(
   }>) => {
     const { canUpload } = useAttachmentContext();
 
+    const defaultBackgroundColor = getVariableValue(useTheme().background);
+    const secondaryBackgroundColor = getVariableValue(
+      useTheme().secondaryBackground
+    );
+
     return (
       <YStack
         width="100%"
-        backgroundColor={isEditing ? '$secondaryBackground' : '$background'}
+        backgroundColor={
+          isEditing ? secondaryBackgroundColor : defaultBackgroundColor
+        }
       >
         <InputMentionPopup
           containerHeight={containerHeight}
@@ -118,6 +132,7 @@ export const MessageInputContainer = memo(
           gap="$l"
           alignItems="flex-end"
           justifyContent="space-between"
+          backgroundColor="$background"
         >
           {goBack ? (
             <View paddingBottom="$xs">

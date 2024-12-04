@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -7,11 +8,11 @@ import React, {
   ReactElement,
   useCallback,
   useEffect,
-  useImperativeHandle,
   useMemo,
   useState,
 } from 'react';
 import { Alert } from 'react-native';
+import { isWeb } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
 import { useChatOptions, useCurrentUserId } from '../contexts';
@@ -21,38 +22,20 @@ import { Action, ActionGroup, ActionSheet } from './ActionSheet';
 import { IconButton } from './IconButton';
 import { ListItem } from './ListItem';
 
-export type ChatType = 'group' | db.ChannelType;
-
-export type ChatOptionsSheetMethods = {
-  open: (chatId: string, chatType: ChatType) => void;
-};
-
-export type ChatOptionsSheetRef = React.Ref<ChatOptionsSheetMethods>;
-
 type ChatOptionsSheetProps = {
-  // We pass in setSortBy from GroupChannelsScreenView to live-update the sort
-  // preference in the channel list.
-  setSortBy?: (sortBy: db.ChannelSortPreference) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  chat?: {
+    type: 'group' | 'channel';
+    id: string;
+  } | null;
 };
 
-const ChatOptionsSheetComponent = React.forwardRef<
-  ChatOptionsSheetMethods,
-  ChatOptionsSheetProps
->(function ChatOptionsSheetImpl(props, ref) {
-  const [open, setOpen] = useState(false);
-  const [chat, setChat] = useState<{ type: ChatType; id: string } | null>(null);
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      open: (chatId, chatType) => {
-        setOpen(true);
-        setChat({ id: chatId, type: chatType });
-      },
-    }),
-    []
-  );
-
+export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
+  open,
+  onOpenChange,
+  chat,
+}: ChatOptionsSheetProps) {
   if (!chat || !open) {
     return null;
   }
@@ -62,8 +45,7 @@ const ChatOptionsSheetComponent = React.forwardRef<
       <GroupOptionsSheetLoader
         groupId={chat.id}
         open={open}
-        onOpenChange={setOpen}
-        setSortBy={props.setSortBy}
+        onOpenChange={onOpenChange}
       />
     );
   }
@@ -72,23 +54,19 @@ const ChatOptionsSheetComponent = React.forwardRef<
     <ChannelOptionsSheetLoader
       channelId={chat.id}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={onOpenChange}
     />
   );
 });
-
-export const ChatOptionsSheet = React.memo(ChatOptionsSheetComponent);
 
 export function GroupOptionsSheetLoader({
   groupId,
   open,
   onOpenChange,
-  setSortBy,
 }: {
   groupId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  setSortBy?: (sortBy: db.ChannelSortPreference) => void;
 }) {
   const groupQuery = store.useGroup({ id: groupId });
   const [pane, setPane] = useState<
@@ -110,8 +88,8 @@ export function GroupOptionsSheetLoader({
         group={groupQuery.data}
         pane={pane}
         setPane={setPane}
-        setSortBy={setSortBy}
         onOpenChange={onOpenChange}
+        unreadCount={groupQuery.data.unread?.count}
       />
     </ActionSheet>
   ) : null;
@@ -121,14 +99,14 @@ export function GroupOptions({
   group,
   pane,
   setPane,
-  setSortBy,
   onOpenChange,
+  unreadCount,
 }: {
   group: db.Group;
   pane: 'initial' | 'edit' | 'notifications' | 'sort';
   setPane: (pane: 'initial' | 'edit' | 'notifications' | 'sort') => void;
-  setSortBy?: (sortBy: db.ChannelSortPreference) => void;
   onOpenChange: (open: boolean) => void;
+  unreadCount?: number | null;
 }) {
   const currentUser = useCurrentUserId();
   const { data: currentVolumeLevel } = store.useGroupVolumeLevel(group.id);
@@ -252,6 +230,17 @@ export function GroupOptions({
     onOpenChange,
   ]);
 
+  const { data: groupUnread } = useQuery({
+    queryKey: ['groupUnread', group.id],
+
+    queryFn: async () => db.getGroupUnread({ groupId: group.id }),
+  });
+
+  const handleMarkAllRead = useCallback(() => {
+    store.markGroupRead(group, true);
+    onOpenChange(false);
+  }, [group, onOpenChange]);
+
   const actionGroups = useMemo(() => {
     const groupRef = logic.getGroupReferencePath(group.id);
 
@@ -266,6 +255,16 @@ export function GroupOptions({
             },
             endIcon: 'ChevronRight',
           },
+          ...(unreadCount === 0 || groupUnread?.count === 0
+            ? []
+            : [
+                {
+                  title: 'Mark all as read',
+                  action: () => {
+                    handleMarkAllRead();
+                  },
+                },
+              ]),
           {
             title: isPinned ? 'Unpin' : 'Pin',
             endIcon: 'Pin',
@@ -364,14 +363,17 @@ export function GroupOptions({
     return actionGroups;
   }, [
     group,
+    unreadCount,
+    groupUnread?.count,
     isPinned,
+    onTogglePinned,
     currentUserIsAdmin,
     setPane,
-    onTogglePinned,
+    handleMarkAllRead,
     onPressGroupMembers,
+    onOpenChange,
     onPressInvite,
     onPressLeave,
-    onOpenChange,
   ]);
 
   const actionSort: ActionGroup[] = useMemo(() => {
@@ -383,7 +385,6 @@ export function GroupOptions({
             title: 'Sort by recency',
             action: () => {
               onSelectSort?.('recency');
-              setSortBy?.('recency');
               onOpenChange(false);
             },
           },
@@ -391,14 +392,13 @@ export function GroupOptions({
             title: 'Sort by arrangement',
             action: () => {
               onSelectSort?.('arranged');
-              setSortBy?.('arranged');
               onOpenChange(false);
             },
           },
         ],
       },
     ];
-  }, [onSelectSort, setSortBy, onOpenChange]);
+  }, [onSelectSort, onOpenChange]);
 
   const memberCount = group?.members?.length
     ? group.members.length.toLocaleString()
@@ -468,7 +468,7 @@ export function ChannelOptionsSheetLoader({
   onOpenChange: (open: boolean) => void;
 }) {
   const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
-  const channelQuery = store.useChannelWithRelations({
+  const channelQuery = store.useChannel({
     id: channelId,
   });
 
@@ -515,7 +515,6 @@ export function ChannelOptions({
     onPressChannelMeta,
     onPressManageChannels,
     onPressInvite,
-    onPressLeave,
   } = useChatOptions() ?? {};
 
   const currentUserIsHost = useMemo(
@@ -598,6 +597,12 @@ export function ChannelOptions({
     [currentVolumeLevel, handleVolumeUpdate]
   );
 
+  const handleMarkRead = useCallback(() => {
+    if (channel && !channel.isPendingChannel) {
+      store.markChannelRead(channel);
+    }
+  }, [channel]);
+
   const actionGroups: ActionGroup[] = useMemo(() => {
     return [
       {
@@ -623,11 +628,26 @@ export function ChannelOptions({
               }
               channel.pin
                 ? store.unpinItem(channel.pin)
-                : store.pinItem(channel);
+                : store.pinChannel(channel);
             },
           },
         ],
       },
+      ...((channel.unread?.count ?? 0) > 0
+        ? [
+            {
+              accent: 'neutral',
+              actions: [
+                {
+                  title: 'Mark as read',
+                  action: () => {
+                    handleMarkRead(), onOpenChange(false);
+                  },
+                },
+              ],
+            } as ActionGroup,
+          ]
+        : []),
       ...(channel.type === 'groupDm'
         ? [
             {
@@ -738,35 +758,47 @@ export function ChannelOptions({
                     if (!channel) {
                       return;
                     }
-                    Alert.alert(
-                      `Leave ${title}?`,
-                      'This will be removed from the list',
-                      [
-                        {
-                          text: 'Cancel',
-                          onPress: () => console.log('Cancel Pressed'),
-                          style: 'cancel',
-                        },
-                        {
-                          text: 'Leave',
-                          style: 'destructive',
-                          onPress: () => {
-                            onOpenChange(false);
-                            if (
-                              channel.type === 'dm' ||
-                              channel.type === 'groupDm'
-                            ) {
-                              store.respondToDMInvite({
-                                channel,
-                                accept: false,
-                              });
-                            } else {
-                              store.leaveGroupChannel(channel.id);
-                            }
+                    if (!isWeb) {
+                      Alert.alert(
+                        `Leave ${title}?`,
+                        'You will no longer receive updates from this channel.',
+                        [
+                          {
+                            text: 'Cancel',
+                            onPress: () => console.log('Cancel Pressed'),
+                            style: 'cancel',
                           },
-                        },
-                      ]
-                    );
+                          {
+                            text: 'Leave',
+                            style: 'destructive',
+                            onPress: () => {
+                              onOpenChange(false);
+                              if (
+                                channel.type === 'dm' ||
+                                channel.type === 'groupDm'
+                              ) {
+                                store.respondToDMInvite({
+                                  channel,
+                                  accept: false,
+                                });
+                              } else {
+                                store.leaveGroupChannel(channel.id);
+                              }
+                            },
+                          },
+                        ]
+                      );
+                      return;
+                    }
+                    onOpenChange(false);
+                    if (channel.type === 'dm' || channel.type === 'groupDm') {
+                      store.respondToDMInvite({
+                        channel,
+                        accept: false,
+                      });
+                    } else {
+                      store.leaveGroupChannel(channel.id);
+                    }
                   },
                 },
               ],
@@ -780,12 +812,13 @@ export function ChannelOptions({
     group,
     currentUserIsHost,
     setPane,
+    handleMarkRead,
+    onOpenChange,
     onPressChannelMeta,
     onPressChannelMembers,
     onPressManageChannels,
     onPressInvite,
     title,
-    onOpenChange,
   ]);
 
   const displayTitle = useMemo((): string => {

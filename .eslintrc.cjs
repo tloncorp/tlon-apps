@@ -71,6 +71,11 @@ module.exports = {
         message:
           'Please use the useTypedReset() hook instead of importing reset from @react-navigation/native for type safety.',
       },
+      {
+        selector: 'ImportDeclaration > Literal[value=/^packages/]',
+        message:
+          'Do not import directly from the "packages" directory. Use the package name (or relative path, if within the same package) instead.',
+      },
     ],
   },
 };
