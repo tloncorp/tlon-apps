@@ -153,17 +153,7 @@ export const getGroupPreviews = createReadQuery(
   ['groups']
 );
 
-export const getJoinedGroupsCount = createReadQuery(
-  'getJoinedGroupCount',
-  async (ctx: QueryCtx) => {
-    const joinedGroups = await ctx.db.query.groups.findMany({
-      where: eq($groups.currentUserIsMember, true),
-    });
-    return joinedGroups.length;
-  },
-  ['groups']
-);
-
+// TODO: inefficient, should optimize
 export const getGroupsWithMemberThreshold = createReadQuery(
   'getGroupsWithMemberThreshold',
   async (threshold: number, ctx: QueryCtx) => {
