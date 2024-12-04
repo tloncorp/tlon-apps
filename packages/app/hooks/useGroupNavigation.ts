@@ -1,4 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
 
@@ -6,10 +7,10 @@ import { RootStackParamList } from '../navigation/types';
 import { useRootNavigation } from '../navigation/utils';
 
 export const useGroupNavigation = () => {
-  const navigation = useNavigation<
-    // @ts-expect-error - TODO: pass navigation handlers into context
-    NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
-  >();
+  const navigation =
+    useNavigation<
+      NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
+    >();
   const { resetToGroup } = useRootNavigation();
 
   const goToChannel = useCallback(
@@ -37,17 +38,9 @@ export const useGroupNavigation = () => {
     navigation.navigate('ChatList');
   }, [navigation]);
 
-  const goToContactHostedGroups = useCallback(
-    ({ contactId }: { contactId: string }) => {
-      navigation.navigate('ContactHostedGroups', { contactId });
-    },
-    [navigation]
-  );
-
   return {
     goToChannel,
     goToHome,
-    goToContactHostedGroups,
     goToGroup,
   };
 };
