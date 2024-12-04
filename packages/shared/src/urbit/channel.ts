@@ -274,7 +274,7 @@ interface DiffSort {
 }
 
 interface DiffMeta {
-  meta: Stringified<ChannelMetadata> | null;
+  meta: ChannelMetadata | null;
 }
 
 interface PostActionReply {
@@ -334,31 +334,15 @@ export interface PendingMessages {
   replies: Record<string, Record<string, Memo>>;
 }
 
-type JSONValue = number | string | boolean;
-
-interface PostInput {
-  type: string;
-  postType: string;
-  configuration?: Record<string, JSONValue>;
-}
-
-interface PostCollectionRenderer {
-  id: string;
-  configuration?: Record<string, JSONValue>;
-}
-
-interface ContentRenderer {
-  rendererId: string;
-}
-
-interface ChannelMetadataSchemaV1 {
-  version: 1;
-  postInput: PostInput;
-  postCollectionRenderer: PostCollectionRenderer;
-  defaultContentRenderer: ContentRenderer;
-}
-
-type ChannelMetadata = ChannelMetadataSchemaV1;
+/**
+ * Backend receives and emits this as an opaque string. We'll use an opaque
+ * type here to avoid passing unrelated data to this field, but consider this
+ * just a string.
+ *
+ * To make a `ChannelMetadata` value, cast:
+ *     'example' as ChannelMetadata
+ */
+type ChannelMetadata = string & { __nominalTypingHack: 'ChannelMetadata' };
 
 export interface Channel {
   perms: Perm;
@@ -375,7 +359,7 @@ export interface ChannelFromServer {
   order: string[];
   sort: SortMode;
   pending: PendingMessages;
-  meta: Stringified<ChannelMetadata> | null;
+  meta: ChannelMetadata | null;
 }
 
 export interface Channels {
@@ -388,7 +372,7 @@ export interface Create {
   name: string;
   title: string;
   description: string;
-  meta: Stringified<ChannelMetadata> | null;
+  meta: ChannelMetadata | null;
   readers: string[];
   writers: string[];
 }
@@ -484,7 +468,7 @@ export type Response =
   | { view: DisplayMode }
   | { sort: SortMode }
   | { perm: Perm }
-  | { meta: Stringified<ChannelMetadata> | null }
+  | { meta: ChannelMetadata | null }
   | { create: Perm }
   | { join: string }
   | { leave: null }
