@@ -1185,10 +1185,10 @@
     ::  ignore premature fires
     ?:  (lth now.bowl next.schedule.u.job)  cor
     =.  next.schedule.u.job
-      ::
       ::  we don't want to run the cron for every iteration it would
       ::  have run 'offline', so we check here to make sure that the
       ::  next fire time is in the future
+      ::
       =/  next  (add [next repeat]:schedule.u.job)
       |-
       ?:  (gte next now.bowl)  next
