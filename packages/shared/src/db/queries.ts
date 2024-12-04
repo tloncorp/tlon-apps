@@ -2628,7 +2628,13 @@ export const getPostWithRelations = createReadQuery(
 
 export const getGroup = createReadQuery(
   'getGroup',
-  async ({ id }: { id: string }, ctx: QueryCtx) => {
+  async (
+    {
+      id,
+      includeUnjoinedChannels = false,
+    }: { id: string; includeUnjoinedChannels?: boolean },
+    ctx: QueryCtx
+  ) => {
     return ctx.db.query.groups
       .findFirst({
         where: (groups, { eq }) => eq(groups.id, id),
@@ -2636,7 +2642,9 @@ export const getGroup = createReadQuery(
           unread: true,
           pin: true,
           channels: {
-            where: (channels, { eq }) => eq(channels.currentUserIsMember, true),
+            where: includeUnjoinedChannels
+              ? undefined
+              : (channels, { eq }) => eq(channels.currentUserIsMember, true),
             with: {
               lastPost: true,
               unread: true,

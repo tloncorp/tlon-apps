@@ -7,7 +7,7 @@ export default {
   basic: (
     <FixtureWrapper fillWidth fillHeight>
       <AppDataContextProvider contacts={initialContacts}>
-        <CreateGroupView goBack={() => {}} navigateToChannel={() => {}} />
+        <CreateGroupView goBack={() => {}} navigateToGroup={() => {}} />
       </AppDataContextProvider>
     </FixtureWrapper>
   ),

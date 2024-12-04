@@ -8,7 +8,6 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
-  AddGroupSheet,
   ChatList,
   ChatOptionsProvider,
   GroupPreviewAction,
@@ -28,12 +27,10 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import type { RootStackParamList } from '../../navigation/types';
-import {
-  screenNameFromChannelId,
-  useNavigateToGroup,
-} from '../../navigation/utils';
+import { useRootNavigation } from '../../navigation/utils';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
+import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
 
 const logger = createDevLogger('ChatListScreen', false);
 
@@ -52,7 +49,6 @@ export function ChatListScreenView({
   focusedChannelId?: string;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
 
@@ -130,35 +126,8 @@ export function ChatListScreenView({
     };
   }, [chats]);
 
-  const handleNavigateToFindGroups = useCallback(() => {
-    setAddGroupOpen(false);
-    navigation.navigate('FindGroups');
-  }, [navigation]);
-
-  const handleNavigateToCreateGroup = useCallback(() => {
-    setAddGroupOpen(false);
-    navigation.navigate('CreateGroup');
-  }, [navigation]);
-
-  const goToDm = useCallback(
-    async (userId: string) => {
-      const dmChannel = await store.upsertDmChannel({
-        participants: [userId],
-      });
-      setAddGroupOpen(false);
-      navigation.navigate('DM', { channelId: dmChannel.id });
-    },
-    [navigation, setAddGroupOpen]
-  );
-
-  const handleAddGroupOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setAddGroupOpen(false);
-    }
-  }, []);
-
-  const navigateToGroup = useNavigateToGroup();
-
+  const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
+  const { navigateToGroup, navigateToChannel } = useRootNavigation();
   const onPressChat = useCallback(
     async (item: db.Chat) => {
       if (item.type === 'group') {
@@ -168,14 +137,15 @@ export function ChatListScreenView({
           navigateToGroup(item.group.id);
         }
       } else {
-        const screenName = screenNameFromChannelId(item.id);
-        navigation.navigate(screenName, {
-          channelId: item.id,
-        });
+        navigateToChannel(item.channel.id);
       }
     },
-    [navigateToGroup, navigation]
+    [navigateToChannel, navigateToGroup]
   );
+
+  const handlePressAddChat = useCallback(() => {
+    createChatSheetRef.current?.open();
+  }, []);
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -282,7 +252,7 @@ export function ChatListScreenView({
                   />
                   <ScreenHeader.IconButton
                     type="Add"
-                    onPress={() => setAddGroupOpen(true)}
+                    onPress={handlePressAddChat}
                   />
                 </>
               }
@@ -336,13 +306,7 @@ export function ChatListScreenView({
         />
       </ChatOptionsProvider>
 
-      <AddGroupSheet
-        open={addGroupOpen}
-        onGoToDm={goToDm}
-        onOpenChange={handleAddGroupOpenChange}
-        navigateToFindGroups={handleNavigateToFindGroups}
-        navigateToCreateGroup={handleNavigateToCreateGroup}
-      />
+      <CreateChatSheet ref={createChatSheetRef} />
     </RequestsProvider>
   );
 }
