@@ -285,7 +285,7 @@
   ==
 ++  get-suggested-contacts
   =+  .^(chat-running=? (scry %gu %chat /$))
-  =|  suggestions=(set ship)
+  =/  suggestions=(set ship)  manual-contact-suggestions
   =?  suggestions  chat-running
     =+  .^  [dms=(map ship dm:c) *]
       (scry %gx %chat /full/noun)
@@ -304,8 +304,6 @@
   =?  suggestions  pals-running
     =+  .^(targets=(set ship) (scry %gx %pals /targets/noun))
     (~(uni in suggestions) targets)
-  =.  suggestions
-    (~(uni in suggestions) manual-contact-suggestions)
   (~(dif in suggestions) hidden-contact-suggestions)
 ++  import-pals
   =+  .^(pals-running=? (scry %gu %pals /$))
