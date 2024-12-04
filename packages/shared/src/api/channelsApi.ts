@@ -296,6 +296,7 @@ export const createNewGroupDefaultChannel = async ({
     description: 'Welcome to your new group!',
     readers: [],
     writers: [],
+    meta: null,
   };
 
   return trackedPoke<ub.ChannelsResponse>(

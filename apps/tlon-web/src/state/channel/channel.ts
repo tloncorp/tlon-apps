@@ -1955,6 +1955,7 @@ export function useCreateMutation() {
             order: [],
             sort: 'time',
             pending: emptyPending,
+            meta: null,
           },
         });
       }

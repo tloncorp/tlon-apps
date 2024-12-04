@@ -101,6 +101,7 @@ export default function NewChannelForm() {
           description: values.meta.description,
           readers: values.readers.includes('members') ? [] : values.readers,
           writers: values.writers.includes('members') ? [] : values.writers,
+          meta: null, // custom channels not supported
         });
       } catch (e) {
         console.log('NewChannelForm::onSubmit::createChannel', e);

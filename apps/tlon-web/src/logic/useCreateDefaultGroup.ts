@@ -49,6 +49,7 @@ export default function useCreateDefaultGroup() {
         description: 'Welcome to your new group!',
         readers: [],
         writers: [],
+        meta: null,
       });
     } catch (error) {
       // eslint-disable-next-line no-console

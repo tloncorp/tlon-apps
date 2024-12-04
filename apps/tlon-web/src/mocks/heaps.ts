@@ -3,7 +3,8 @@ import {
   ScryHandler,
   SubscriptionHandler,
 } from '@tloncorp/mock-http-api';
-import { Channels, Perm, Posts } from '@tloncorp/shared/urbit/channel';
+import { Channel, Channels, Perm, Posts } from '@tloncorp/shared/urbit/channel';
+import { Optional } from '@tloncorp/shared/utils';
 import { subMinutes } from 'date-fns';
 
 const unixTime = subMinutes(new Date(), 1).getTime();
@@ -13,8 +14,23 @@ const mockPerms: Perm = {
   group: '~zod/test',
 };
 
+function makeChannel(
+  overrides: Optional<Channel, 'meta' | 'order' | 'sort' | 'pending'>
+): Channel {
+  return {
+    order: [],
+    sort: 'time',
+    meta: null,
+    pending: {
+      posts: {},
+      replies: {},
+    },
+    ...overrides,
+  };
+}
+
 const mockStash: Channels = {
-  'heap/~zod/testHeap': {
+  'heap/~zod/testHeap': makeChannel({
     perms: mockPerms,
     view: 'grid',
     order: [],
@@ -23,7 +39,7 @@ const mockStash: Channels = {
       posts: {},
       replies: {},
     },
-  },
+  }),
 };
 
 const mockCurios: Posts = {

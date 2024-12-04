@@ -1,12 +1,12 @@
 import * as api from '../api';
-import {
-  ChannelContentConfiguration,
-  StructuredChannelDescriptionPayload,
-} from '../api/channelContentConfig';
+import { ChannelContentConfiguration } from '../api/channelContentConfig';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import * as logic from '../logic';
-import { GroupChannel, getChannelKindFromType } from '../urbit';
+import {
+  ChannelMetadata,
+  GroupChannel,
+  getChannelKindFromType,
+} from '../urbit';
 
 const logger = createDevLogger('ChannelActions', false);
 
@@ -15,9 +15,7 @@ export async function createChannel({
   channelId,
   name,
   title,
-  // Alias to `rawDescription`, since we might need to synthesize a new
-  // `description` API value by merging with `contentConfiguration` below.
-  description: rawDescription,
+  description,
   channelType,
   contentConfiguration,
 }: {
@@ -33,7 +31,7 @@ export async function createChannel({
   const newChannel: db.Channel = {
     id: channelId,
     title,
-    description: rawDescription,
+    description,
     contentConfiguration,
     type: channelType as db.ChannelType,
     groupId,
@@ -42,16 +40,7 @@ export async function createChannel({
   };
   await db.insertChannels([newChannel]);
 
-  // If we have a `contentConfiguration`, we need to merge these fields to make
-  // a `StructuredChannelDescriptionPayload`, and use that as the `description`
-  // on the API.
-  const encodedDescription =
-    contentConfiguration == null
-      ? rawDescription
-      : StructuredChannelDescriptionPayload.encode({
-          description: rawDescription,
-          channelContentConfiguration: contentConfiguration,
-        });
+  const meta = JSON.stringify(contentConfiguration) as ChannelMetadata;
 
   try {
     await api.addChannelToGroup({ groupId, channelId, sectionId: 'default' });
@@ -61,11 +50,12 @@ export async function createChannel({
       kind:
         contentConfiguration == null
           ? getChannelKindFromType(channelType)
-          : 'custom',
+          : 'chat',
+      meta,
       group: groupId,
       name,
       title,
-      description: encodedDescription ?? '',
+      description: description ?? '',
       readers: [],
       writers: [],
     });
