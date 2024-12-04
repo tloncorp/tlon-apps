@@ -334,9 +334,17 @@ export interface PendingMessages {
   replies: Record<string, Record<string, Memo>>;
 }
 
+type JSONValue = number | string | boolean;
+
 interface PostInput {
   type: string;
   postType: string;
+  configuration?: Record<string, JSONValue>;
+}
+
+interface PostCollectionRenderer {
+  id: string;
+  configuration?: Record<string, JSONValue>;
 }
 
 interface ContentRenderer {
@@ -345,11 +353,9 @@ interface ContentRenderer {
 
 interface ChannelMetadataSchemaV1 {
   version: 1;
-  postInputs: PostInput[];
-  postCollectionRenderer?: string;
-  defaultContentRenderers?: {
-    [match: string]: ContentRenderer;
-  };
+  postInput: PostInput;
+  postCollectionRenderer: PostCollectionRenderer;
+  defaultContentRenderer: ContentRenderer;
 }
 
 type ChannelMetadata = ChannelMetadataSchemaV1;
