@@ -646,6 +646,20 @@ export const deleteGroup = createWriteQuery(
   ['groups', 'channels']
 );
 
+export const updateLastVisitedChannelInGroup = createWriteQuery(
+  'updateLastVisitedChannelInGroup',
+  async (
+    { groupId, channelId }: { groupId: string; channelId: string },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($groups)
+      .set({ lastVisitedChannelId: channelId })
+      .where(eq($groups.id, groupId));
+  },
+  ['groups']
+);
+
 export const insertUnjoinedGroups = createWriteQuery(
   'insertUnjoinedGroups',
   async (groups: Group[], ctx: QueryCtx) => {

@@ -71,6 +71,14 @@ export default function ChannelScreen(props: Props) {
         store.syncChannelThreadUnreads(channel.id, {
           priority: store.SyncPriority.High,
         });
+        if (group) {
+          // Update the last visited channel in the group so we can return to it
+          // when we come back to the group
+          db.updateLastVisitedChannelInGroup({
+            groupId: group.id,
+            channelId: channel.id,
+          });
+        }
       }
       // Mark the channel as visited when we unfocus/leave this screen
       () => {
@@ -78,7 +86,7 @@ export default function ChannelScreen(props: Props) {
           store.markChannelVisited(channel);
         }
       };
-    }, [channel])
+    }, [channel, group])
   );
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);

@@ -226,7 +226,8 @@ CREATE TABLE `groups` (
 	`is_new` integer,
 	`join_status` text,
 	`last_post_id` text,
-	`last_post_at` integer
+	`last_post_at` integer,
+	`last_visited_channel_id` text
 );
 --> statement-breakpoint
 CREATE TABLE `pins` (
