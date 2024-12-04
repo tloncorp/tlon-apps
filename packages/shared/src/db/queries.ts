@@ -3180,16 +3180,27 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
       .where(
         and(
           gt($activityEvents.timestamp, seenMarker),
-          eq($activityEvents.shouldNotify, true),
           or(
-            and(eq($activityEvents.type, 'reply'), gt($threadUnreads.count, 0)),
-            and(eq($activityEvents.type, 'post'), gt($channelUnreads.count, 0)),
+            eq($activityEvents.type, 'contact'),
             and(
-              gt($groupUnreads.notifyCount, 0),
+              eq($activityEvents.shouldNotify, true),
               or(
-                eq($activityEvents.type, 'group-ask'),
-                eq($activityEvents.type, 'flag-post'),
-                eq($activityEvents.type, 'flag-reply')
+                and(
+                  eq($activityEvents.type, 'reply'),
+                  gt($threadUnreads.count, 0)
+                ),
+                and(
+                  eq($activityEvents.type, 'post'),
+                  gt($channelUnreads.count, 0)
+                ),
+                and(
+                  gt($groupUnreads.notifyCount, 0),
+                  or(
+                    eq($activityEvents.type, 'group-ask'),
+                    eq($activityEvents.type, 'flag-post'),
+                    eq($activityEvents.type, 'flag-reply')
+                  )
+                )
               )
             )
           )
