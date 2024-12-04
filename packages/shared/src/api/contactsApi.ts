@@ -48,7 +48,6 @@ export const removeContactSuggestion = async (contactId: string) => {
 };
 
 export const addContactSuggestions = async (contactIds: string[]) => {
-  console.log(`firing poke with`, contactIds);
   return poke({
     app: 'groups-ui',
     mark: 'ui-add-contact-suggestions',
