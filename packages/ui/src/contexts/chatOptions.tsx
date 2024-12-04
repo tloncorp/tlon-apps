@@ -160,7 +160,14 @@ export const ChatOptionsProvider = ({
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         chat={chat}
-        onPressConfigureChannel={onPressConfigureChannel}
+        onPressConfigureChannel={
+          onPressConfigureChannel == null
+            ? undefined
+            : () => {
+                onPressConfigureChannel();
+                setSheetOpen(false);
+              }
+        }
       />
     </ChatOptionsContext.Provider>
   );
