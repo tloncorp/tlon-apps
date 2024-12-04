@@ -7,8 +7,9 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %2
+    $:  %3
         hidden-contact-suggestions=(set ship)
+        manual-contact-suggestions=(set ship)
         pins=(list whom:u)
         first-load=?
     ==
@@ -90,18 +91,27 @@
       =?  old  ?=(~ old)     *current-state
       =?  old  ?=(%0 -.old)  (state-0-to-1 old)
       =?  old  ?=(%1 -.old)  (state-1-to-2 old)
-      ?>  ?=(%2 -.old)
+      =?  old  ?=(%2 -.old)  (state-2-to-3 old)
+      ?>  ?=(%3 -.old)
       =.  state  old
       init
   ::
-  +$  versioned-state  $@(~ $%(state-2 state-1 state-0))
-  +$  state-2  current-state
+  +$  versioned-state  $@(~ $%(state-3 state-2 state-1 state-0))
+  +$  state-3  current-state
+  +$  state-2
+    $:  %2
+        hidden-contact-suggestions=(set ship)
+        pins=(list whom:u)
+        first-load=?
+    ==
   +$  state-1
     $:  %1
         pins=(list whom:u)
         first-load=?
     ==
-  ::
+  :: 
+  ++  state-2-to-3
+    |=(state-2 [%3 hidden-contact-suggestions ~ pins first-load])
   ++  state-1-to-2
     |=(state-1 [%2 ~ pins first-load])
   +$  state-0  [%0 first-load=?]
@@ -228,6 +238,12 @@
       (~(put in hidden-contact-suggestions) ship)
     cor
   ::
+      %ui-add-contact-suggestions
+    =+  ship-list=!<((list @p) vase)
+    =.  manual-contact-suggestions
+      (~(gas in manual-contact-suggestions) ship-list)
+    cor
+  ::
       %ui-vita-toggle
     =+  !<(=vita-enabled:u vase)
     (emit %pass /vita-toggle %agent [our.bowl dap.bowl] %poke vita-client+!>([%set-enabled vita-enabled]))
@@ -269,7 +285,7 @@
   ==
 ++  get-suggested-contacts
   =+  .^(chat-running=? (scry %gu %chat /$))
-  =|  suggestions=(set ship)
+  =/  suggestions=(set ship)  manual-contact-suggestions
   =?  suggestions  chat-running
     =+  .^  [dms=(map ship dm:c) *]
       (scry %gx %chat /full/noun)
