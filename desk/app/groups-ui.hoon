@@ -241,7 +241,7 @@
       %ui-add-contact-suggestions
     =+  ship-list=!<((list @p) vase)
     =.  manual-contact-suggestions
-      (~(uni in manual-contact-suggestions) (sy ship-list))
+      (~(gas in manual-contact-suggestions) ship-list)
     cor
   ::
       %ui-vita-toggle
