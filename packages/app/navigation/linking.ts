@@ -26,12 +26,6 @@ export const getMobileLinkingConfig = (
             path: 'group/:groupId/channel/:channelId/:selectedPostId?',
             parse: parsePathParams('channelId', 'groupId', 'selectedPostId'),
           },
-          FindGroups: 'find-groups',
-          ContactHostedGroups: {
-            path: 'contacts/:contactId/hosted-groups',
-            parse: parsePathParams('channelId', 'postId'),
-          },
-          CreateGroup: 'create-group',
           ChannelSearch: { path: 'channel/:channelId/search' },
           Post: postScreenConfig(mode),
           ImageViewer: 'image-viewer/:postId',
