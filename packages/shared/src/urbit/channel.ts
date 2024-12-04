@@ -3,6 +3,7 @@ import { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
+import { Nominal } from '../utils';
 import { Inline } from './content';
 import { Flag } from './hark';
 
@@ -342,7 +343,7 @@ export interface PendingMessages {
  * To make a `ChannelMetadata` value, cast:
  *     'example' as ChannelMetadata
  */
-type ChannelMetadata = string & { __nominalTypingHack: 'ChannelMetadata' };
+export type ChannelMetadata = Nominal<string, 'ChannelMetadata'> | null;
 
 export interface Channel {
   perms: Perm;
