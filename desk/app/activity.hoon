@@ -615,8 +615,7 @@
     [(sub limit.acc 1) (snoc happenings.acc u.mention) collapsed.acc]
   =/  contact-bundle=(unit activity-bundle:a)
     ?.  ?=(%all type)  ~
-    =/  is-contact-event  ?=(%contact -<.event)
-    ?.  is-contact-event  ~
+    ?.  ?=(%contact -<.event)  ~
     `[source time ~[[time event]]]
   ?^  contact-bundle
     :-  sources.acc
