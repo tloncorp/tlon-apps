@@ -31,7 +31,6 @@ import {
   Said,
   SortMode,
   TogglePost,
-  makeChannel,
   newChatMap,
   newPostTupleArray,
 } from '@tloncorp/shared/urbit/channel';
@@ -1950,13 +1949,13 @@ export function useCreateMutation() {
       if (prev !== undefined) {
         queryClient.setQueryData<{ [nest: Nest]: Channel }>(channelKey(), {
           ...prev,
-          [`${variables.kind}/${window.our}/${variables.name}`]: makeChannel({
+          [`${variables.kind}/${window.our}/${variables.name}`]: {
             perms: { writers: [], group: variables.group },
             view: 'list',
             order: [],
             sort: 'time',
             pending: emptyPending,
-          }),
+          },
         });
       }
     },

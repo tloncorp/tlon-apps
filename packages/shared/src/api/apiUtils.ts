@@ -194,7 +194,6 @@ export function toPostEssay({
     sent: sentAt,
     'kind-data': kindData(),
     author: authorId,
-    blob: null,
   };
 
   return essay;

@@ -6,7 +6,6 @@ import {
   Story,
   storyFromChatStory,
 } from '@tloncorp/shared/urbit/channel';
-import { Optional } from '@tloncorp/shared/utils';
 import { decToUd, unixToDa } from '@urbit/api';
 import { subDays, subMinutes } from 'date-fns';
 import _ from 'lodash';
@@ -20,15 +19,6 @@ const getUnix = (count: number, setTime?: Date) =>
     : setTime
       ? setTime.getTime()
       : new Date().getTime();
-
-export function makeEssay(
-  overrides: Optional<Post['essay'], 'blob'>
-): Post['essay'] {
-  return {
-    blob: null,
-    ...overrides,
-  };
-}
 
 export const makeFakeChatWrit = (
   count: number,
@@ -51,14 +41,14 @@ export const makeFakeChatWrit = (
         lastReply: null,
       },
     },
-    essay: makeEssay({
+    essay: {
       'kind-data': {
         chat: null,
       },
       author,
       sent: unix,
       content: story,
-    }),
+    },
   };
 };
 
@@ -83,7 +73,7 @@ export const makeFakeChatNotice = (
         lastReply: null,
       },
     },
-    essay: makeEssay({
+    essay: {
       'kind-data': {
         chat: {
           notice: null,
@@ -92,7 +82,7 @@ export const makeFakeChatNotice = (
       author,
       sent: unix,
       content: [],
-    }),
+    },
   };
 };
 

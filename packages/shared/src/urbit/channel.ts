@@ -3,7 +3,6 @@ import { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
-import { Optional } from '../utils';
 import { Inline } from './content';
 import { Flag } from './hark';
 
@@ -379,33 +378,6 @@ export interface ChannelFromServer {
   meta: Stringified<ChannelMetadata> | null;
 }
 
-export function makeChannel(
-  overrides: Optional<
-    Channel,
-    'order' | 'sort' | 'pending' | 'hooks' | 'metadata'
-  >
-): Channel {
-  return {
-    order: [],
-    sort: 'time',
-    pending: {
-      posts: {},
-      replies: {},
-    },
-    hooks: {
-      allowed: [],
-      transform: [],
-      sort: [],
-      effect: [],
-    },
-    metadata: {
-      data: null,
-      revision: 0,
-    },
-    ...overrides,
-  };
-}
-
 export interface Channels {
   [key: string]: Channel;
 }
@@ -630,7 +602,6 @@ export const emptyPost: Post = {
     content: [],
     sent: 0,
     'kind-data': { chat: null },
-    blob: null,
   },
 };
 
