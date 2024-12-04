@@ -355,25 +355,37 @@ export const findGroupsHostedBy = async (userId: string) => {
 
 export const createGroup = async ({
   title,
-  shortCode,
+  slug,
+  privacy = 'secret',
+  memberIds,
 }: {
   title: string;
-  shortCode: string;
+  slug: string;
+  privacy: GroupPrivacy;
+  memberIds?: string[];
 }) => {
   const createGroupPayload: ub.GroupCreate = {
     title,
     description: '',
     image: '#999999',
     cover: '#D9D9D9',
-    name: shortCode,
-    members: {},
-    cordon: {
-      open: {
-        ships: [],
-        ranks: [],
-      },
-    },
-    secret: false,
+    name: slug,
+    members: Object.fromEntries((memberIds ?? []).map((id) => [id, []])),
+    cordon:
+      privacy === 'public'
+        ? {
+            open: {
+              ships: [],
+              ranks: [],
+            },
+          }
+        : {
+            shut: {
+              pending: [],
+              ask: [],
+            },
+          },
+    secret: privacy === 'secret',
   };
 
   return trackedPoke<ub.GroupAction>(

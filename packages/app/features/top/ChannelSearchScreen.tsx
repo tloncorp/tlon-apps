@@ -6,7 +6,7 @@ import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { RootStackParamList } from '../../navigation/types';
-import { useResetToChannel } from '../../navigation/utils';
+import { useRootNavigation } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChannelSearch'>;
 
@@ -21,7 +21,7 @@ export default function ChannelSearchScreen(props: Props) {
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
     useChannelSearch(channelId, query);
 
-  const resetToChannel = useResetToChannel();
+  const { resetToChannel } = useRootNavigation();
 
   const navigateToPost = useCallback(
     (post: db.Post) => {

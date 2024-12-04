@@ -10,13 +10,7 @@ import { Field, TextInput } from '../Form';
 
 export function CreateGroupWidget(props: {
   invitees: string[];
-  onCreatedGroup: ({
-    group,
-    channel,
-  }: {
-    group: db.Group;
-    channel: db.Channel;
-  }) => void;
+  onCreatedGroup: (group: db.Group) => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [groupName, setGroupName] = useState('');
@@ -30,19 +24,12 @@ export function CreateGroupWidget(props: {
     setLoading(true);
 
     try {
-      const { group, channel } = await store.createGroup({
+      const group = await store.createGroup({
         title: groupName,
-        shortCode,
+        memberIds: props.invitees,
       });
 
-      if (props.invitees.length > 0) {
-        await store.inviteGroupMembers({
-          groupId: group.id,
-          contactIds: props.invitees,
-        });
-      }
-
-      props.onCreatedGroup({ group, channel });
+      props.onCreatedGroup(group);
       triggerHaptic('success');
     } catch (e) {
       console.error(e);

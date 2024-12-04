@@ -3,14 +3,14 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
 
 import { RootStackParamList } from '../navigation/types';
-import { useResetToGroup } from '../navigation/utils';
+import { useRootNavigation } from '../navigation/utils';
 
 export const useGroupNavigation = () => {
   const navigation = useNavigation<
     // @ts-expect-error - TODO: pass navigation handlers into context
     NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
   >();
-  const resetToGroup = useResetToGroup();
+  const { resetToGroup } = useRootNavigation();
 
   const goToChannel = useCallback(
     async (

@@ -15,7 +15,7 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
-import { useNavigateToChannel } from '../../navigation/utils';
+import { useRootNavigation } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
 
@@ -140,7 +140,7 @@ export default function PostScreen(props: Props) {
     [props.navigation]
   );
 
-  const navigateToChannel = useNavigateToChannel();
+  const { navigateToChannel } = useRootNavigation();
   const handleGoBack = useCallback(() => {
     if (!channel) {
       props.navigation.goBack();

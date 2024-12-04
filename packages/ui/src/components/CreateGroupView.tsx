@@ -13,20 +13,20 @@ type screen = 'InviteUsers' | 'CreateGroup';
 
 export function CreateGroupView({
   goBack,
-  navigateToChannel,
+  navigateToGroup,
 }: {
   goBack: () => void;
-  navigateToChannel: (channel: db.Channel) => void;
+  navigateToGroup: (groupId: string) => void;
 }) {
   const { bottom } = useSafeAreaInsets();
   const [screen, setScreen] = useState<screen>('InviteUsers');
   const [invitees, setInvitees] = useState<string[]>([]);
 
   const handleCreatedGroup = useCallback(
-    ({ channel }: { channel: db.Channel }) => {
-      navigateToChannel(channel);
+    (group: db.Group) => {
+      navigateToGroup(group.id);
     },
-    [navigateToChannel]
+    [navigateToGroup]
   );
 
   return (

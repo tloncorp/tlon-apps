@@ -30,18 +30,18 @@ import * as fixture23 from './packages/app/fixtures/Form.fixture';
 import * as fixture24 from './packages/app/fixtures/FindGroups.fixture';
 import * as fixture25 from './packages/app/fixtures/EditProfileScreen.fixture';
 import * as fixture26 from './packages/app/fixtures/CreateGroup.fixture';
-import * as fixture27 from './packages/app/fixtures/ContactList.fixture';
-import * as fixture28 from './packages/app/fixtures/ChatMessage.fixture';
-import * as fixture29 from './packages/app/fixtures/ChannelSwitcherSheet.fixture';
-import * as fixture30 from './packages/app/fixtures/ChannelHeader.fixture';
-import * as fixture31 from './packages/app/fixtures/ChannelDivider.fixture';
-import * as fixture32 from './packages/app/fixtures/Channel.fixture';
-import * as fixture33 from './packages/app/fixtures/Button.fixture';
-import * as fixture34 from './packages/app/fixtures/BlockSectionList.fixture';
-import * as fixture35 from './packages/app/fixtures/Avatar.fixture';
-import * as fixture36 from './packages/app/fixtures/AudioEmbed.fixture';
-import * as fixture37 from './packages/app/fixtures/AttachmentPreviewList.fixture';
-import * as fixture38 from './packages/app/fixtures/AddGroupSheet.fixture';
+import * as fixture27 from './packages/app/fixtures/CreateChatSheet.fixture';
+import * as fixture28 from './packages/app/fixtures/ContactList.fixture';
+import * as fixture29 from './packages/app/fixtures/ChatMessage.fixture';
+import * as fixture30 from './packages/app/fixtures/ChannelSwitcherSheet.fixture';
+import * as fixture31 from './packages/app/fixtures/ChannelHeader.fixture';
+import * as fixture32 from './packages/app/fixtures/ChannelDivider.fixture';
+import * as fixture33 from './packages/app/fixtures/Channel.fixture';
+import * as fixture34 from './packages/app/fixtures/Button.fixture';
+import * as fixture35 from './packages/app/fixtures/BlockSectionList.fixture';
+import * as fixture36 from './packages/app/fixtures/Avatar.fixture';
+import * as fixture37 from './packages/app/fixtures/AudioEmbed.fixture';
+import * as fixture38 from './packages/app/fixtures/AttachmentPreviewList.fixture';
 import * as fixture39 from './packages/app/fixtures/Activity.fixture';
 import * as fixture40 from './packages/app/fixtures/DetailView/NotebookDetailView.fixture';
 import * as fixture41 from './packages/app/fixtures/DetailView/GalleryDetailView.fixture';
@@ -65,7 +65,7 @@ import * as decorator0 from './packages/app/fixtures/cosmos.decorator';
 import * as decorator1 from './apps/tlon-mobile/src/fixtures/cosmos.decorator';
 
 export const rendererConfig: RendererConfig = {
-  "playgroundUrl": "http://localhost:5001",
+  "playgroundUrl": "http://localhost:5002",
   "rendererUrl": null
 };
 
@@ -97,18 +97,18 @@ const fixtures = {
   'packages/app/fixtures/FindGroups.fixture.tsx': { module: fixture24 },
   'packages/app/fixtures/EditProfileScreen.fixture.tsx': { module: fixture25 },
   'packages/app/fixtures/CreateGroup.fixture.tsx': { module: fixture26 },
-  'packages/app/fixtures/ContactList.fixture.tsx': { module: fixture27 },
-  'packages/app/fixtures/ChatMessage.fixture.tsx': { module: fixture28 },
-  'packages/app/fixtures/ChannelSwitcherSheet.fixture.tsx': { module: fixture29 },
-  'packages/app/fixtures/ChannelHeader.fixture.tsx': { module: fixture30 },
-  'packages/app/fixtures/ChannelDivider.fixture.tsx': { module: fixture31 },
-  'packages/app/fixtures/Channel.fixture.tsx': { module: fixture32 },
-  'packages/app/fixtures/Button.fixture.tsx': { module: fixture33 },
-  'packages/app/fixtures/BlockSectionList.fixture.tsx': { module: fixture34 },
-  'packages/app/fixtures/Avatar.fixture.tsx': { module: fixture35 },
-  'packages/app/fixtures/AudioEmbed.fixture.tsx': { module: fixture36 },
-  'packages/app/fixtures/AttachmentPreviewList.fixture.tsx': { module: fixture37 },
-  'packages/app/fixtures/AddGroupSheet.fixture.tsx': { module: fixture38 },
+  'packages/app/fixtures/CreateChatSheet.fixture.tsx': { module: fixture27 },
+  'packages/app/fixtures/ContactList.fixture.tsx': { module: fixture28 },
+  'packages/app/fixtures/ChatMessage.fixture.tsx': { module: fixture29 },
+  'packages/app/fixtures/ChannelSwitcherSheet.fixture.tsx': { module: fixture30 },
+  'packages/app/fixtures/ChannelHeader.fixture.tsx': { module: fixture31 },
+  'packages/app/fixtures/ChannelDivider.fixture.tsx': { module: fixture32 },
+  'packages/app/fixtures/Channel.fixture.tsx': { module: fixture33 },
+  'packages/app/fixtures/Button.fixture.tsx': { module: fixture34 },
+  'packages/app/fixtures/BlockSectionList.fixture.tsx': { module: fixture35 },
+  'packages/app/fixtures/Avatar.fixture.tsx': { module: fixture36 },
+  'packages/app/fixtures/AudioEmbed.fixture.tsx': { module: fixture37 },
+  'packages/app/fixtures/AttachmentPreviewList.fixture.tsx': { module: fixture38 },
   'packages/app/fixtures/Activity.fixture.tsx': { module: fixture39 },
   'packages/app/fixtures/DetailView/NotebookDetailView.fixture.tsx': { module: fixture40 },
   'packages/app/fixtures/DetailView/GalleryDetailView.fixture.tsx': { module: fixture41 },

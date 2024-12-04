@@ -28,7 +28,7 @@ import { Icon, IconType } from './Icon';
 import { ListItem } from './ListItem';
 import { Sheet } from './Sheet';
 
-export type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
+type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
 
 export type Action = {
   title: string;

@@ -1,9 +1,9 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect } from 'react';
+import { ComponentProps, useCallback, useEffect } from 'react';
 import { Share } from 'react-native';
-import { Text, View, XStack, isWeb } from 'tamagui';
+import { isWeb } from 'tamagui';
 
 import { useCurrentUserId, useInviteService } from '../contexts';
 import { useCopy } from '../hooks/useCopy';
@@ -11,10 +11,14 @@ import { useIsAdmin } from '../utils';
 import { Button } from './Button';
 import { Icon } from './Icon';
 import { LoadingSpinner } from './LoadingSpinner';
+import { Text } from './TextV2';
 
 const logger = createDevLogger('InviteButton', true);
 
-export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
+export function InviteFriendsToTlonButton({
+  group,
+  ...props
+}: { group?: db.Group } & Omit<ComponentProps<typeof Button>, 'group'>) {
   const userId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
   const inviteService = useInviteService();
@@ -80,43 +84,44 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
     (group?.privacy === 'private' || group?.privacy === 'secret') &&
     !isGroupAdmin
   ) {
-    return <Text>Only administrators may invite people to this group.</Text>;
+    return (
+      <Text size="$label/l">
+        Only administrators may invite people to this group.
+      </Text>
+    );
   }
+
+  const linkIsLoading = status === 'loading' || status === 'stale';
+  const linkIsReady = status === 'ready' && typeof shareUrl === 'string';
+  const linkIsDisabled = status === 'disabled';
+  const linkFailed =
+    linkIsDisabled || status === 'error' || status === 'unsupported';
 
   return (
     <Button
-      hero
-      disabled={status !== 'ready' || typeof shareUrl !== 'string'}
+      secondary
+      disabled={!linkIsReady}
       onPress={handleInviteButtonPress}
-      borderRadius="$xl"
-      width="100%"
-      justifyContent="space-between"
+      {...props}
     >
-      <XStack gap="$xl" paddingHorizontal="$m" alignItems="center">
-        <View>
-          {status === 'error' || status === 'disabled' ? (
-            <Icon type="Close" size="$l" color="$background" />
-          ) : null}
-          {(status === 'loading' || status === 'stale') && (
-            <LoadingSpinner size="small" color="$background" />
-          )}
-          {status === 'ready' && (
-            <Icon type="Send" size="$l" color="$background" />
-          )}
-        </View>
-        <Text flex={1} color="$background" fontSize="$l">
-          {status === 'disabled' && 'Public invite links are disabled'}
-          {status === 'error' && 'Error generating invite link'}
-          {(status === 'loading' || status === 'stale') &&
-            'Generating invite link...'}
-          {status === 'ready' &&
-            typeof shareUrl === 'string' &&
-            'Invite Friends to Tlon'}
-        </Text>
-        {status === 'ready' && (
-          <Icon type="ChevronRight" size="$l" color="$background" />
-        )}
-      </XStack>
+      {linkIsReady ? (
+        <Icon type="AddPerson" color="$secondaryText" size="$m" />
+      ) : linkIsLoading ? (
+        <LoadingSpinner size="small" />
+      ) : linkFailed ? (
+        <Icon type="Placeholder" color="$secondaryText" size="$m" />
+      ) : null}
+      <Button.Text>
+        {linkIsReady
+          ? 'Add people'
+          : linkIsDisabled
+            ? 'Public invite links are disabled'
+            : linkFailed
+              ? 'Error generating invite link'
+              : linkIsLoading
+                ? 'Generating invite link...'
+                : null}
+      </Button.Text>
     </Button>
   );
 }
