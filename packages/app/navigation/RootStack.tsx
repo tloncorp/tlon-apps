@@ -19,10 +19,7 @@ import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChannelSearchScreen from '../features/top/ChannelSearchScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
-import { ContactHostedGroupsScreen } from '../features/top/ContactHostedGroupsScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
-import { CreateGroupScreen } from '../features/top/CreateGroupScreen';
-import { FindGroupsScreen } from '../features/top/FindGroupsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
 import ImageViewerScreen from '../features/top/ImageViewerScreen';
 import PostScreen from '../features/top/PostScreen';
@@ -84,12 +81,6 @@ export function RootStack() {
       {/* individual screens */}
       <Root.Screen name="AddContacts" component={AddContactsScreen} />
       <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
-      <Root.Screen name="FindGroups" component={FindGroupsScreen} />
-      <Root.Screen
-        name="ContactHostedGroups"
-        component={ContactHostedGroupsScreen}
-      />
-      <Root.Screen name="CreateGroup" component={CreateGroupScreen} />
       <Root.Screen name="Channel" component={ChannelScreen} />
       <Root.Screen name="DM" component={ChannelScreen} />
       <Root.Screen name="GroupDM" component={ChannelScreen} />
