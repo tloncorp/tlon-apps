@@ -117,9 +117,10 @@ async function updatePresentedNotifications(badgeCount?: number) {
     })
   );
 
-  const count =
-    badgeCount ?? (await Notifications.getPresentedNotificationsAsync()).length;
-  await Notifications.setBadgeCountAsync(count);
+  // NOTE: removing badging for now
+  // const count =
+  //   badgeCount ?? (await Notifications.getPresentedNotificationsAsync()).length;
+  // await Notifications.setBadgeCountAsync(count);
 }
 
 export function useUpdatePresentedNotifications() {
