@@ -153,6 +153,22 @@ export const getGroupPreviews = createReadQuery(
   ['groups']
 );
 
+// TODO: inefficient, should optimize
+export const getGroupsWithMemberThreshold = createReadQuery(
+  'getGroupsWithMemberThreshold',
+  async (threshold: number, ctx: QueryCtx) => {
+    const allJoinedWithMembers = await ctx.db.query.groups.findMany({
+      where: eq($groups.currentUserIsMember, true),
+      with: {
+        members: true,
+      },
+    });
+
+    return allJoinedWithMembers.filter((g) => g.members.length <= threshold);
+  },
+  ['groups']
+);
+
 export const getGroups = createReadQuery(
   'getGroups',
   async (

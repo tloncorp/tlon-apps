@@ -278,6 +278,11 @@ export const finishingSelfHostedLogin = createStorageItem<boolean>({
   defaultValue: false,
 });
 
+export const groupsUsedForSuggestions = createStorageItem<string[]>({
+  key: 'groupsUsedForSuggestions',
+  defaultValue: [],
+});
+
 export const postDraft = (opts: {
   key: string;
   type: 'caption' | 'text' | undefined; // matches GalleryDraftType
