@@ -1,8 +1,9 @@
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { syncContacts, syncGroup } from './sync';
 
-const logger = createDevLogger('ContactActions', false);
+const logger = createDevLogger('ContactActions', true);
 
 export async function addContact(contactId: string) {
   // Optimistic update
@@ -69,6 +70,145 @@ export async function removeContactSuggestion(contactId: string) {
     console.error('Error removing contact suggestion', e);
     await db.updateContact({ id: contactId, isContactSuggestion: true });
   }
+}
+
+export async function addContactSuggestions(contactIds: string[]) {
+  // optimistic update
+  const contacts = await db.getContacts();
+  const toUpdate = contacts.filter(
+    (c) => contactIds.includes(c.id) && !c.isContact
+  );
+  const optimisticUpdates = toUpdate.map((contact) =>
+    db.updateContact({ id: contact.id, isContactSuggestion: true })
+  );
+  await Promise.all(optimisticUpdates);
+
+  try {
+    await api.addContactSuggestions(contactIds);
+  } catch (e) {
+    // Rollback the update
+    const rolbacks = toUpdate.map((contact) =>
+      db.updateContact({ id: contact.id, isContactSuggestion: false })
+    );
+    await Promise.all(rolbacks);
+  }
+}
+
+export async function findContactSuggestions() {
+  const runContext: Record<string, any> = {};
+  const currentUserId = api.getCurrentUserId();
+  const GROUP_SIZE_LIMIT = 32; // arbitrary
+  const MAX_SUGGESTIONS = 6; // arbitrary
+
+  try {
+    // first see if we have any joined groups and seem to be a somewhat
+    // new user
+    const groups = await db.getGroups({ includeUnjoined: false });
+    runContext.joinedGroups = groups.length;
+    const hasFewGroups = groups.length < 4;
+    runContext.hasFewGroups = hasFewGroups;
+
+    if (groups.length > 0 && hasFewGroups) {
+      logger.crumb('Found joined groups');
+      // if yes, see if we have new groups and if some are small enough that
+      // grabbing suggestions at random might be worthwhile
+      const groupSyncs = groups.map((group) => syncGroup(group.id)); // sync member lists
+      await Promise.all(groupSyncs);
+
+      const groupchats =
+        await db.getGroupsWithMemberThreshold(GROUP_SIZE_LIMIT);
+      runContext.groupsWithinSizeLimit = groupchats.length;
+      const groupsFromLastRun = await db.groupsUsedForSuggestions.getValue();
+      const haveSomeNewGroups = groupchats.some(
+        (gc) => !groupsFromLastRun.includes(gc.id)
+      );
+      runContext.haveSomeNewGroups = haveSomeNewGroups;
+      if (groupchats.length > 0 && haveSomeNewGroups) {
+        logger.crumb('Found groups under size limit');
+        // if some are, load the profiles of all(?) members
+        const allRelevantMembers = groupchats
+          .reduce((acc, group) => {
+            return acc.concat(group.members.map((mem) => mem.contactId));
+          }, [] as string[])
+          .filter((mem) => mem !== currentUserId);
+
+        logger.crumb(`Found ${allRelevantMembers.length} relevant members`);
+
+        await api.syncUserProfiles(allRelevantMembers);
+        // hack: we don't track when the profiles actually populate, so wait a bit then resync
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        await syncContacts();
+
+        logger.crumb('Synced profiles and contacts');
+
+        const contacts = await db.getContacts();
+        const memberSet = new Set(allRelevantMembers);
+        const memberContacts = contacts.filter(
+          (c) => memberSet.has(c.id) && !c.isContact && !c.isContactSuggestion
+        );
+        runContext.relevantMembers = memberContacts.length;
+
+        // welcome to my suggestion ranking algorithm
+        const contactScores = memberContacts.map((contact) => {
+          let score = 0;
+          if (contact.nickname) {
+            score += 10;
+          }
+
+          if (contact.pinnedGroups.length > 0) {
+            score += 5;
+          }
+
+          if (contact.avatarImage) {
+            score += 3;
+          }
+
+          if (contact.bio) {
+            score += 2;
+          }
+
+          if (contact.status) {
+            score += 1;
+          }
+
+          return { userId: contact.id, score };
+        });
+
+        contactScores
+          .filter((item) => item.score > 0)
+          .sort((a, b) => b.score - a.score);
+        logger.crumb('Scored relevant members');
+
+        const suggestions = contactScores
+          .slice(0, MAX_SUGGESTIONS)
+          .map((s) => s.userId);
+        runContext.suggestions = suggestions.length;
+
+        logger.crumb(`Found ${suggestions.length} suggestions`);
+        db.groupsUsedForSuggestions.setValue(groupchats.map((g) => g.id));
+
+        if (suggestions.length > 0) {
+          await addContactSuggestions(suggestions);
+          logger.trackEvent('Client Contact Suggestions', {
+            ...runContext,
+            suggestionsFound: true,
+          });
+          return true;
+        }
+      }
+    }
+    logger.trackEvent('Client Contact Suggestions', {
+      ...runContext,
+      suggestionsFound: false,
+    });
+  } catch (e) {
+    logger.trackError('Client Contact Suggestions Failure', {
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
+  }
+  logger.log('No suggestions added');
+  return false;
 }
 
 export async function updateContactMetadata(

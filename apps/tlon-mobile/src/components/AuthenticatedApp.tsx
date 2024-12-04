@@ -15,6 +15,7 @@ import { AppStateStatus } from 'react-native';
 
 import { useCheckAppUpdated } from '../hooks/analytics';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
+import useFindContactSuggestions from '../hooks/useFindContactSuggestions';
 import useNotificationListener from '../hooks/useNotificationListener';
 
 function AuthenticatedApp() {
@@ -29,6 +30,7 @@ function AuthenticatedApp() {
   useNavigationLogging();
   useNetworkLogger();
   useCheckAppUpdated();
+  useFindContactSuggestions();
 
   useEffect(() => {
     configureClient();

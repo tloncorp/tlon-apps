@@ -37,29 +37,33 @@ export default function ContactsScreen(props: Props) {
   );
 
   const onContactLongPress = useCallback((contact: db.Contact) => {
-    if (!isWeb && contact.isContactSuggestion) {
-      Alert.alert(`Add ${getDisplayName(contact)}?`, '', [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Add Contact',
-          style: 'default',
-          onPress: () => {
-            store.addContact(contact.id);
-          },
-        },
-        {
-          text: 'Decline Suggestion',
-          style: 'destructive',
-          onPress: () => {
-            store.removeContactSuggestion(contact.id);
-          },
-        },
-      ]);
-    }
+    store.addContactSuggestions([contact.id]);
   }, []);
+
+  // const onContactLongPress = useCallback((contact: db.Contact) => {
+  //   if (!isWeb && contact.isContactSuggestion) {
+  //     Alert.alert(`Add ${getDisplayName(contact)}?`, '', [
+  //       {
+  //         text: 'Cancel',
+  //         style: 'cancel',
+  //       },
+  //       {
+  //         text: 'Add Contact',
+  //         style: 'default',
+  //         onPress: () => {
+  //           store.addContact(contact.id);
+  //         },
+  //       },
+  //       {
+  //         text: 'Decline Suggestion',
+  //         style: 'destructive',
+  //         onPress: () => {
+  //           store.removeContactSuggestion(contact.id);
+  //         },
+  //       },
+  //     ]);
+  //   }
+  // }, []);
 
   return (
     <AppDataContextProvider contacts={contacts} currentUserId={currentUser}>
