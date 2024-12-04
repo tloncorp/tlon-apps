@@ -47,11 +47,20 @@ export const removeContactSuggestion = async (contactId: string) => {
   });
 };
 
-export const addContacts = async (contactIds: string[]) => {
+export const addContactSuggestions = async (contactIds: string[]) => {
+  console.log(`firing poke with`, contactIds);
+  return poke({
+    app: 'groups-ui',
+    mark: 'ui-add-contact-suggestions',
+    json: contactIds,
+  });
+};
+
+export const syncUserProfiles = async (userIds: string[]) => {
   return poke({
     app: 'contacts',
-    mark: 'contact-action',
-    json: { heed: contactIds },
+    mark: 'contact-action-1',
+    json: { meet: userIds },
   });
 };
 

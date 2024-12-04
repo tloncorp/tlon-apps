@@ -10,5 +10,6 @@
 ++  grab
   |%
   ++  noun  ,(set ship)
+  ++  json  (ar:dejs:format ship:dejs:j)
   --
 --

@@ -365,6 +365,14 @@ export const useGroup = (options: { id?: string }) => {
   });
 };
 
+export const useJoinedGroupsCount = () => {
+  const deps = useKeyFromQueryDeps(db.getJoinedGroupsCount);
+  return useQuery({
+    queryKey: ['joinedGroupsCount', deps],
+    queryFn: () => db.getJoinedGroupsCount(),
+  });
+};
+
 export const useGroupByChannel = (channelId: string) => {
   return useQuery({
     queryKey: [['group', channelId]],
