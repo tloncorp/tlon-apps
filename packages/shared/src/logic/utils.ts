@@ -303,7 +303,8 @@ export const extractContentTypes = (
   blocks: ub.Block[];
   story: api.PostContent;
 } => {
-  const story = typeof content === 'string' ? JSON.parse(content) : content;
+  const story: api.PostContent =
+    typeof content === 'string' ? JSON.parse(content) : content;
   const inlines = extractInlinesFromContent(story);
   const references = extractReferencesFromContent(story);
   const blocks = extractBlocksFromContent(story);

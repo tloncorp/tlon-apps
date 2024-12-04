@@ -30,7 +30,6 @@ export function assembleNewChannelIdAndName({
   const tempChannelName = titleIsNumber
     ? `channel-${title}`
     : convertToAscii(title).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1');
-  // @ts-expect-error this is fine
   const channelKind = getChannelKindFromType(channelType);
   const tempNewChannelFlag = `${channelKind}/${currentUserId}/${tempChannelName}`;
   const existingChannel = () => {
