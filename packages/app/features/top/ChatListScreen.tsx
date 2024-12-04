@@ -45,8 +45,10 @@ export default function ChatListScreen(props: Props) {
 
 export function ChatListScreenView({
   previewGroupId,
+  focusedChannelId,
 }: {
   previewGroupId?: string;
+  focusedChannelId?: string;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [addGroupOpen, setAddGroupOpen] = useState(false);
@@ -296,6 +298,7 @@ export function ChatListScreenView({
               onSearchToggle={handleSearchInputToggled}
               searchQuery={searchQuery}
               onSearchQueryChange={setSearchQuery}
+              focusedChannelId={focusedChannelId}
             />
           ) : null}
 

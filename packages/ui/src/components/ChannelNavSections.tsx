@@ -12,6 +12,7 @@ export default function ChannelNavSections({
   sortBy,
   paddingBottom,
   onLongPress,
+  focusedChannelId,
 }: {
   group: db.Group;
   channels: db.Channel[];
@@ -19,6 +20,7 @@ export default function ChannelNavSections({
   sortBy: 'recency' | 'arranged';
   paddingBottom?: number;
   onLongPress?: (channel: any) => void;
+  focusedChannelId?: string;
 }) {
   const unGroupedChannels = useMemo(
     () =>
@@ -61,6 +63,7 @@ export default function ChannelNavSections({
             onPress={onSelect}
             useTypeIcon={true}
             onLongPress={onLongPress}
+            isFocused={item.id === focusedChannelId}
           />
         ))}
       </YStack>
@@ -85,6 +88,7 @@ export default function ChannelNavSections({
             channels={sectionChannels}
             onSelect={onSelect}
             onLongPress={onLongPress}
+            focusedChannelId={focusedChannelId}
           />
         );
       })}
@@ -105,6 +109,7 @@ export default function ChannelNavSections({
               onPress={onSelect}
               onLongPress={onLongPress}
               useTypeIcon={true}
+              isFocused={item.id === focusedChannelId}
             />
           ))}
         </YStack>

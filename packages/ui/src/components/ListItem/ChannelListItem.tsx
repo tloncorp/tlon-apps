@@ -19,6 +19,7 @@ export function ChannelListItem({
   onLongPress,
   EndContent,
   dimmed,
+  isFocused,
   ...props
 }: {
   useTypeIcon?: boolean;
@@ -63,6 +64,7 @@ export function ChannelListItem({
         borderRadius="$xl"
         onPress={handlePress}
         onLongPress={handleLongPress}
+        backgroundColor={isFocused ? '$secondaryBackground' : undefined}
       >
         <ListItem {...props}>
           <ListItem.ChannelIcon

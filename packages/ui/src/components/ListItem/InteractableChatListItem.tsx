@@ -29,6 +29,7 @@ function BaseInteractableChatRow({
   model,
   onPress,
   onLongPress,
+  ...props
 }: ListItemProps<db.Chat>) {
   const swipeableRef = useRef<SwipeableMethods>(null);
   const [currentSwipeDirection, setCurrentSwipeDirection] = useState<
@@ -136,12 +137,18 @@ function BaseInteractableChatRow({
           model={model}
           onPress={onPress}
           onLongPress={onLongPress}
+          {...props}
         />
       </Swipeable>
     );
   } else {
     return (
-      <ChatListItem model={model} onPress={onPress} onLongPress={onLongPress} />
+      <ChatListItem
+        model={model}
+        onPress={onPress}
+        onLongPress={onLongPress}
+        {...props}
+      />
     );
   }
 }

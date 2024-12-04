@@ -26,8 +26,10 @@ export function GroupChannelsScreen({ route }: Props) {
 
 export function GroupChannelsScreenContent({
   groupId: id,
+  focusedChannelId,
 }: {
   groupId: string;
+  focusedChannelId?: string;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isFocused = useIsFocused();
@@ -83,6 +85,7 @@ export function GroupChannelsScreenContent({
         group={group}
         unjoinedChannels={unjoinedChannels}
         enableCustomChannels={enableCustomChannels}
+        focusedChannelId={focusedChannelId}
       />
       <InviteUsersSheet
         open={inviteSheetGroup !== null}

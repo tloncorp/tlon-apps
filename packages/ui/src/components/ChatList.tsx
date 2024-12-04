@@ -41,6 +41,7 @@ export const ChatList = React.memo(function ChatListComponent({
   searchQuery,
   onSearchQueryChange,
   onSearchToggle,
+  focusedChannelId,
 }: db.GroupedChats & {
   onPressItem?: (chat: db.Chat) => void;
   onSectionChange?: (title: string) => void;
@@ -50,6 +51,7 @@ export const ChatList = React.memo(function ChatListComponent({
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
   onSearchToggle: () => void;
+  focusedChannelId?: string;
 }) {
   const displayData = useFilteredChats({
     pinned,
@@ -100,6 +102,7 @@ export const ChatList = React.memo(function ChatListComponent({
             model={item}
             onPress={onPressItem}
             onLongPress={handleLongPress}
+            isFocused={item.id === focusedChannelId}
           />
         );
       } else {
@@ -108,11 +111,12 @@ export const ChatList = React.memo(function ChatListComponent({
             model={item}
             onPress={onPressItem}
             onLongPress={handleLongPress}
+            isFocused={item.id === focusedChannelId}
           />
         );
       }
     },
-    [onPressItem, handleLongPress]
+    [onPressItem, handleLongPress, focusedChannelId]
   );
 
   const handlePressTryAll = useCallback(() => {
