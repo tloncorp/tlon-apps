@@ -62,11 +62,8 @@ export async function addContactSuggestions(contactIds: string[]) {
   try {
     await api.addContactSuggestions(contactIds);
   } catch (e) {
-    // Rollback the update
-    const rolbacks = toUpdate.map((contact) =>
-      db.updateContact({ id: contact.id, isContactSuggestion: false })
-    );
-    await Promise.all(rolbacks);
+    // Intentionally unhandled, make a best effort to persist the suggestions
+    // failure is acceptable
   }
 }
 
