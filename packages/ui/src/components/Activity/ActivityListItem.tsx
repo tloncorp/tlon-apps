@@ -5,7 +5,7 @@ import React, { PropsWithChildren, useCallback, useMemo } from 'react';
 import { XStack, YStack, styled } from 'tamagui';
 
 import { useCalm } from '../../contexts';
-import { useChannelTitle } from '../../utils';
+import { getGroupTitle, useChannelTitle } from '../../utils';
 import { ChannelAvatar, ContactAvatar, GroupAvatar } from '../Avatar';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
@@ -84,10 +84,10 @@ export function ActivityListItemContent({
       return 'Group chat';
     }
     if (group?.title) {
-      return `${group.title}: ${channelTitle}`;
+      return `${getGroupTitle(group, calm.disableNicknames)}: ${channelTitle}`;
     }
     return channelTitle;
-  }, [channelTitle, channel, group]);
+  }, [channel, channelTitle, group, calm.disableNicknames]);
 
   return (
     <ActivitySummaryFrame

@@ -5,6 +5,7 @@ import { View, isWeb } from 'tamagui';
 import { useGroupTitle } from '../../utils';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
+import { ContactName } from '../ContactNameV2';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
 import type { ListItemProps } from './ListItem';
@@ -51,6 +52,15 @@ export const GroupListItem = ({
                   ? model.channels?.[0]?.title
                   : 'Group'}
               </ListItem.SubtitleWithIcon>
+            ) : isPending && model.hostUserId ? (
+              <>
+                <ListItem.SubtitleWithIcon icon="Mail">
+                  Group invitation
+                </ListItem.SubtitleWithIcon>
+                <ListItem.Subtitle>
+                  Hosted by <ContactName contactId={model.hostUserId} />
+                </ListItem.Subtitle>
+              </>
             ) : null}
             {!isPending && model.lastPost ? (
               <ListItem.PostPreview post={model.lastPost} />

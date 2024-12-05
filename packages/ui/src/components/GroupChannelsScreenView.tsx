@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack, getVariableValue, useTheme } from 'tamagui';
 
 import { useChatOptions, useCurrentUserId } from '../contexts';
-import { useIsAdmin } from '../utils/channelUtils';
+import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
 import { Badge } from './Badge';
 import ChannelNavSections from './ChannelNavSections';
 import { ChannelListItem } from './ListItem/ChannelListItem';
@@ -52,7 +52,7 @@ export function GroupChannelsScreenView({
     [group, chatOptions]
   );
 
-  const title = group ? group?.title ?? 'Untitled' : '';
+  const title = useGroupTitle(group);
 
   const titleWidth = useCallback(() => {
     if (isGroupAdmin) {

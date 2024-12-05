@@ -3,6 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import anyAscii from 'any-ascii';
 import { useMemo } from 'react';
 
+import { useCalm } from '../contexts';
 import * as utils from '../utils';
 
 export type AlphaGroupsSegment = {
@@ -21,6 +22,7 @@ export function useAlphabeticallySegmentedGroups({
   groups: db.Group[];
   enabled?: boolean;
 }): AlphaSegmentedGroups {
+  const { disableNicknames } = useCalm();
   const segmentedContacts = useMemo(() => {
     if (!enabled) return [];
     return logSyncDuration('useAlphabeticallySegmentedContacts', logger, () => {
@@ -31,9 +33,9 @@ export function useAlphabeticallySegmentedGroups({
 
       // convert contact to alphabetical representation and bucket by first letter
       for (const group of groups) {
-        const sortableName = group.title
-          ? anyAscii(group.title.replace(/[~-]/g, ''))
-          : group.id.replace(/[~-]/g, '');
+        const sortableName = anyAscii(
+          utils.getGroupTitle(group, disableNicknames).replace(/[~-]/g, '')
+        );
         const firstAlpha = utils.getFirstAlphabeticalChar(sortableName);
         if (!segmented[firstAlpha]) {
           segmented[firstAlpha] = [];
@@ -68,7 +70,7 @@ export function useAlphabeticallySegmentedGroups({
 
       return segmentedContacts;
     });
-  }, [enabled, groups]);
+  }, [disableNicknames, enabled, groups]);
 
   return segmentedContacts;
 }

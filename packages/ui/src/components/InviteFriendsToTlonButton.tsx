@@ -7,7 +7,7 @@ import { isWeb } from 'tamagui';
 
 import { useCurrentUserId, useInviteService } from '../contexts';
 import { useCopy } from '../hooks/useCopy';
-import { useIsAdmin } from '../utils';
+import { useGroupTitle, useIsAdmin } from '../utils';
 import { Button } from './Button';
 import { Icon } from './Icon';
 import { LoadingSpinner } from './LoadingSpinner';
@@ -27,6 +27,7 @@ export function InviteFriendsToTlonButton({
     inviteServiceEndpoint: inviteService.endpoint,
     inviteServiceIsDev: inviteService.isDev,
   });
+  const title = useGroupTitle(group);
   const { doCopy } = useCopy(shareUrl || '');
 
   const handleInviteButtonPress = useCallback(async () => {
@@ -38,7 +39,7 @@ export function InviteFriendsToTlonButton({
         });
         if (navigator.share !== undefined) {
           await navigator.share({
-            title: `Join ${group.title} on Tlon`,
+            title: `Join ${title} on Tlon`,
             url: shareUrl,
           });
           return;
@@ -50,8 +51,8 @@ export function InviteFriendsToTlonButton({
 
       try {
         const result = await Share.share({
-          message: `Join ${group.title} on Tlon: ${shareUrl}`,
-          title: `Join ${group.title} on Tlon`,
+          message: `Join ${title} on Tlon: ${shareUrl}`,
+          title: `Join ${title} on Tlon`,
         });
 
         if (result.action === Share.sharedAction) {
@@ -65,7 +66,7 @@ export function InviteFriendsToTlonButton({
       }
       return;
     }
-  }, [shareUrl, status, group, doCopy]);
+  }, [shareUrl, status, group, doCopy, title]);
 
   useEffect(() => {
     const toggleLink = async () => {

@@ -21,11 +21,12 @@ import {
 
 import { useContact, useCurrentUserId, useNavigation } from '../contexts';
 import { useCopy } from '../hooks/useCopy';
-import { triggerHaptic } from '../utils';
+import { triggerHaptic, useGroupTitle } from '../utils';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { Button } from './Button';
 import { ContactName } from './ContactNameV2';
 import { Icon } from './Icon';
+import { useBoundHandler } from './ListItem/listItemUtils';
 import Pressable from './Pressable';
 import { ScreenHeader } from './ScreenHeader';
 import { Text } from './TextV2';
@@ -234,17 +235,20 @@ export function StatusDisplay({
   );
 }
 
-export function PinnedGroupsDisplay(
-  props: {
-    groups: db.Group[];
-    onPressGroup: (group: db.Group) => void;
-  } & ComponentProps<typeof PaddedBlock>
-) {
+export function PinnedGroupsDisplay({
+  groups,
+  onPressGroup,
+  itemProps,
+}: {
+  groups: db.Group[];
+  onPressGroup: (group: db.Group) => void;
+  itemProps?: Omit<ComponentProps<typeof PaddedBlock>, 'onPress'>;
+}) {
   const windowDimensions = useWindowDimensions();
   const [containerWidth, setContainerWidth] = useState(windowDimensions.width);
   const pinnedGroupsKey = useMemo(() => {
-    return props.groups.map((g) => g.id).join(',');
-  }, [props.groups]);
+    return groups.map((g) => g.id).join(',');
+  }, [groups]);
 
   useEffect(() => {
     if (pinnedGroupsKey.length) {
@@ -257,9 +261,7 @@ export function PinnedGroupsDisplay(
     setContainerWidth(width);
   };
 
-  const { groups, onPressGroup, ...rest } = props;
-
-  if (!props.groups.length) {
+  if (!groups.length) {
     return null;
   }
 
@@ -273,35 +275,56 @@ export function PinnedGroupsDisplay(
     >
       {groups.map((group, i) => {
         return (
-          <PaddedBlock
-            alignItems="center"
+          <GroupBlock
             key={group.id}
+            model={group}
             width={i === 0 ? '100%' : (containerWidth - 16) / 2}
-            onPress={() => onPressGroup(group)}
-            {...rest}
-          >
-            <GroupAvatar model={group} size="$4xl" />
-            <YStack gap="$m" alignItems="center">
-              <Text size="$label/s" textAlign="center">
-                {group.title}
-              </Text>
-
-              {i === 0 && (
-                <Text
-                  size="$label/s"
-                  textAlign="center"
-                  color="$tertiaryText"
-                  maxWidth={150}
-                  numberOfLines={3}
-                >
-                  {group.description}
-                </Text>
-              )}
-            </YStack>
-          </PaddedBlock>
+            showDescription={i === 0}
+            onPress={onPressGroup}
+            {...itemProps}
+          />
         );
       })}
     </View>
+  );
+}
+
+type GroupBlockProps = {
+  model: db.Group;
+  onPress: (group: db.Group) => void;
+  showDescription?: boolean;
+} & Omit<ComponentProps<typeof PaddedBlock>, 'onPress'>;
+
+function GroupBlock({
+  model,
+  onPress,
+  showDescription,
+  ...rest
+}: GroupBlockProps) {
+  const handlePress = useBoundHandler(model, onPress);
+  const title = useGroupTitle(model);
+
+  return (
+    <PaddedBlock alignItems="center" onPress={handlePress} {...rest}>
+      <GroupAvatar model={model} size="$4xl" />
+      <YStack gap="$m" alignItems="center">
+        <Text size="$label/s" textAlign="center">
+          {title}
+        </Text>
+
+        {showDescription && (
+          <Text
+            size="$label/s"
+            textAlign="center"
+            color="$tertiaryText"
+            maxWidth={150}
+            numberOfLines={3}
+          >
+            {model.description}
+          </Text>
+        )}
+      </YStack>
+    </PaddedBlock>
   );
 }
 
