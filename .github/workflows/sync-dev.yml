@@ -10,11 +10,13 @@ jobs:
     name: "Syncs the latest staging deploy from staging to develop"
     steps:
       - uses: actions/checkout@v3
+        with:
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
       - name: Set Git config
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "Github Actions"
-      - name: Merge Dev to Master
+      - name: Merge Staging to Develop
         run: |
           git fetch --unshallow
           git checkout staging
