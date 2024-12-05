@@ -45,8 +45,8 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
       />
       <AvatarNavIcon
         id={userId}
-        focused={isRouteActive('Profile')}
-        onPress={() => props.navigation.navigate('Profile')}
+        focused={isRouteActive('Contacts')}
+        onPress={() => props.navigation.navigate('Contacts')}
       />
       {webAppNeedsUpdate && (
         <NavIcon
@@ -80,7 +80,7 @@ export const TopLevelDrawer = () => {
     >
       <Drawer.Screen name="Home" component={HomeNavigator} />
       <Drawer.Screen name="Activity" component={ActivityScreen} />
-      <Drawer.Screen name="Profile" component={ProfileScreenNavigator} />
+      <Drawer.Screen name="Contacts" component={ProfileScreenNavigator} />
     </Drawer.Navigator>
   );
 };

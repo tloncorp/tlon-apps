@@ -126,7 +126,7 @@ export async function getMainGroupRoute(groupId: string) {
 export function screenNameFromChannelId(channelId: string) {
   return logic.isDmChannelId(channelId)
     ? 'DM'
-    : logic.isGroupChannelId(channelId)
+    : logic.isGroupDmChannelId(channelId)
       ? 'GroupDM'
       : 'Channel';
 }
