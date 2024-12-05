@@ -65,6 +65,11 @@ export type MarkChannelReadUpdate = {
   channelId: string;
 };
 
+export type MetaUpdate = {
+  type: 'channelMetaUpdate';
+  meta: Stringified<ub.ChannelMetadataSchemaV1> | null;
+};
+
 export type ChannelsUpdate =
   | AddPostUpdate
   | PostReactionsUpdate
@@ -73,6 +78,7 @@ export type ChannelsUpdate =
   | DeletePostUpdate
   | HidePostUpdate
   | ShowPostUpdate
+  | MetaUpdate
   // | CreateChannelUpdate
   | JoinChannelSuccessUpdate
   | LeaveChannelSuccessUpdate
@@ -89,7 +95,7 @@ export const createChannel = async (channelPayload: ub.Create) => {
         create: channelPayload,
       },
     },
-    { app: 'channels', path: '/v1' },
+    { app: 'channels', path: '/v2' },
     (event) => {
       return (
         'create' in event.response &&
@@ -100,11 +106,35 @@ export const createChannel = async (channelPayload: ub.Create) => {
   );
 };
 
+export async function updateChannelMeta(
+  channelId: string,
+  metaPayload: Stringified<ub.ChannelMetadataSchemaV1> | null
+) {
+  return trackedPoke<ub.ChannelsResponse>(
+    {
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        channel: {
+          nest: channelId,
+          action: {
+            meta: metaPayload,
+          },
+        },
+      },
+    },
+    { app: 'channels', path: '/v2' },
+    (event) => {
+      return 'meta' in event.response;
+    }
+  );
+}
+
 export const subscribeToChannelsUpdates = async (
   eventHandler: (update: ChannelsUpdate) => void
 ) => {
   subscribe(
-    { app: 'channels', path: '/v1' },
+    { app: 'channels', path: '/v2' },
     (rawEvent: ub.ChannelsSubscribeResponse) => {
       eventHandler(toChannelsUpdate(rawEvent));
     }
@@ -164,6 +194,13 @@ export const toChannelsUpdate = (
         channelId,
         writers: channelEvent.response.perm.writers,
         groupId: channelEvent.response.perm.group,
+      };
+    }
+
+    if ('meta' in channelEvent.response) {
+      return {
+        type: 'channelMetaUpdate',
+        meta: channelEvent.response.meta,
       };
     }
 
@@ -294,6 +331,7 @@ export const createNewGroupDefaultChannel = async ({
     name: `welcome-${randomNumber}`,
     title: 'Welcome',
     description: 'Welcome to your new group!',
+    meta: null,
     readers: [],
     writers: [],
   };
@@ -306,7 +344,7 @@ export const createNewGroupDefaultChannel = async ({
         create: channelPayload,
       },
     },
-    { app: 'channels', path: '/v1' },
+    { app: 'channels', path: '/v2' },
     (event) => {
       const { response, nest } = event;
       return (
@@ -390,7 +428,7 @@ export const leaveChannel = async (channelId: string) => {
         },
       },
     },
-    { app: 'channels', path: '/v1' },
+    { app: 'channels', path: '/v2' },
     (event) => {
       return 'leave' in event.response && event.response.leave === channelId;
     }
@@ -411,7 +449,7 @@ export const joinChannel = async (channelId: string, groupId: string) => {
         },
       },
     },
-    { app: 'channels', path: '/v1' },
+    { app: 'channels', path: '/v2' },
     (event) => {
       return 'join' in event.response && event.nest === channelId;
     }

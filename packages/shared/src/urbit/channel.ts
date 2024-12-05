@@ -334,31 +334,31 @@ export interface PendingMessages {
   replies: Record<string, Record<string, Memo>>;
 }
 
-type JSONValue = number | string | boolean;
+export type JSONValue = number | string | boolean;
 
-interface PostInput {
+export interface PostInput {
   type: string;
   postType: string;
   configuration?: Record<string, JSONValue>;
 }
 
-interface PostCollectionRenderer {
+export interface PostCollectionRenderer {
   id: string;
   configuration?: Record<string, JSONValue>;
 }
 
-interface ContentRenderer {
+export interface ContentRenderer {
   rendererId: string;
 }
 
-interface ChannelMetadataSchemaV1 {
+export interface ChannelMetadataSchemaV1 {
   version: 1;
   postInput: PostInput;
   postCollectionRenderer: PostCollectionRenderer;
   defaultContentRenderer: ContentRenderer;
 }
 
-type ChannelMetadata = ChannelMetadataSchemaV1;
+export type ChannelMetadata = ChannelMetadataSchemaV1;
 
 export interface Channel {
   perms: Perm;
