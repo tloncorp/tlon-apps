@@ -74,9 +74,9 @@ export default function ChannelScreen(props: Props) {
         if (group) {
           // Update the last visited channel in the group so we can return to it
           // when we come back to the group
-          db.updateLastVisitedChannelInGroup({
-            groupId: group.id,
-            channelId: channel.id,
+          db.updateGroup({
+            id: group.id,
+            lastVisitedChannelId: channel.id,
           });
         }
       }
