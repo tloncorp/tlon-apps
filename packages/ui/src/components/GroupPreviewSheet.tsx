@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { triggerHaptic } from '../utils';
+import { triggerHaptic, useGroupTitle } from '../utils';
 import {
   ActionGroup,
   ActionSheet,
@@ -146,10 +146,12 @@ export function GroupPreviewPane({
     }
   }, [isJoining, group.id, onActionComplete]);
 
+  const title = useGroupTitle(group);
+
   return (
     <>
       <SimpleActionSheetHeader
-        title={group?.title ?? group?.id}
+        title={title}
         subtitle={group.description ?? undefined}
         icon={<ListItem.GroupIcon model={group} />}
       />

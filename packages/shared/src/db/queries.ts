@@ -295,6 +295,7 @@ export const getChats = createReadQuery(
       where: or(
         eq($groups.currentUserIsMember, true),
         eq($groups.isNew, true),
+        eq($groups.haveInvite, true),
         isNotNull($groups.joinStatus)
       ),
       with: {
@@ -1461,31 +1462,6 @@ export const getChannelWithRelations = createReadQuery(
     return returnNullIfUndefined(result);
   },
   ['channels', 'volumeSettings', 'pins', 'groups', 'contacts', 'channelUnreads']
-);
-
-export const getStaleChannels = createReadQuery(
-  'getStaleChannels',
-  async (ctx: QueryCtx) => {
-    return ctx.db
-      .select({
-        ...getTableColumns($channels),
-        unread: getTableColumns($channelUnreads),
-      })
-      .from($channels)
-      .innerJoin($channelUnreads, eq($channelUnreads.channelId, $channels.id))
-      .where(
-        or(
-          isNull($channels.lastPostAt),
-          lt($channels.remoteUpdatedAt, $channelUnreads.updatedAt)
-        )
-      )
-      .leftJoin(
-        $pins,
-        or(eq($pins.itemId, $channels.id), eq($pins.itemId, $channels.groupId))
-      )
-      .orderBy(ascNullsLast($pins.index), desc($channelUnreads.updatedAt));
-  },
-  ['channels']
 );
 
 export const insertChannels = createWriteQuery(
