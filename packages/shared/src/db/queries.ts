@@ -311,6 +311,8 @@ export const getChats = createReadQuery(
       where: or(
         eq($groups.currentUserIsMember, true),
         eq($groups.isNew, true),
+        eq($groups.haveInvite, true),
+        eq($groups.haveRequestedInvite, true),
         isNotNull($groups.joinStatus)
       ),
       with: {
