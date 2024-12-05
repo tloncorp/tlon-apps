@@ -10,6 +10,7 @@ import {
   ChatOptionsProvider,
   GroupChannelsScreenView,
   InviteUsersSheet,
+  NavigationProvider,
 } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
@@ -78,15 +79,16 @@ export function GroupChannelsScreenContent({
       }}
       {...useChatSettingsNavigation()}
     >
-      <GroupChannelsScreenView
-        onChannelPressed={handleChannelSelected}
-        onBackPressed={handleGoBackPressed}
-        onJoinChannel={handleJoinChannel}
-        group={group}
-        unjoinedChannels={unjoinedChannels}
-        enableCustomChannels={enableCustomChannels}
-        focusedChannelId={focusedChannelId}
-      />
+      <NavigationProvider focusedChannelId={focusedChannelId}>
+        <GroupChannelsScreenView
+          onChannelPressed={handleChannelSelected}
+          onBackPressed={handleGoBackPressed}
+          onJoinChannel={handleJoinChannel}
+          group={group}
+          unjoinedChannels={unjoinedChannels}
+          enableCustomChannels={enableCustomChannels}
+        />
+      </NavigationProvider>
       <InviteUsersSheet
         open={inviteSheetGroup !== null}
         onOpenChange={(open) => {

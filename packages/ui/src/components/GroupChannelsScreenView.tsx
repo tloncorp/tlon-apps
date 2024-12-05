@@ -20,7 +20,6 @@ type GroupChannelsScreenViewProps = {
   onJoinChannel: (channel: db.Channel) => void;
   onBackPressed: () => void;
   enableCustomChannels?: boolean;
-  focusedChannelId?: string;
 };
 
 export function GroupChannelsScreenView({
@@ -30,7 +29,6 @@ export function GroupChannelsScreenView({
   onJoinChannel,
   onBackPressed,
   enableCustomChannels = false,
-  focusedChannelId,
 }: GroupChannelsScreenViewProps) {
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const sortBy = db.channelSortPreference.useValue();
@@ -108,7 +106,6 @@ export function GroupChannelsScreenView({
             onSelect={onChannelPressed}
             sortBy={sortBy || 'recency'}
             onLongPress={handleOpenChannelOptions}
-            focusedChannelId={focusedChannelId}
           />
 
           {unjoinedChannels.length > 0 && (

@@ -9,13 +9,11 @@ export default function ChannelNavSection({
   channels,
   onSelect,
   onLongPress,
-  focusedChannelId,
 }: {
   section: db.GroupNavSection;
   channels: db.Channel[];
   onSelect: (channel: any) => void;
   onLongPress?: (channel: any) => void;
-  focusedChannelId?: string;
 }) {
   const sectionChannels = useMemo(
     () =>
@@ -53,7 +51,6 @@ export default function ChannelNavSection({
           useTypeIcon={true}
           onPress={onSelect}
           onLongPress={onLongPress}
-          isFocused={focusedChannelId === item.channelId}
         />
       ))}
     </YStack>

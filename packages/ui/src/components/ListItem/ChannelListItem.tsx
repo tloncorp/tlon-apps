@@ -3,6 +3,7 @@ import * as logic from '@tloncorp/shared/logic';
 import { useMemo } from 'react';
 import { View, isWeb } from 'tamagui';
 
+import { useNavigation } from '../../contexts';
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
@@ -19,7 +20,6 @@ export function ChannelListItem({
   onLongPress,
   EndContent,
   dimmed,
-  isFocused,
   ...props
 }: {
   useTypeIcon?: boolean;
@@ -57,6 +57,8 @@ export function ChannelListItem({
       } as const;
     }
   }, [model, firstMemberId, memberCount]);
+
+  const isFocused = useNavigation().focusedChannelId === model.id;
 
   return (
     <View>
