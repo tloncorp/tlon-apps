@@ -56,6 +56,12 @@ test('uses init data to get chat list', async () => {
     '~hansel-ribbur',
     '~pondus-watbel',
   ]);
+
+  expect(result.pending.map((r) => r.id)).toEqual([
+    '~fabled-faster/new-york',
+    '~barmyl-sigted/network-being',
+    '~salfer-biswed/gamers',
+  ]);
 });
 
 const refDate = Date.now();
