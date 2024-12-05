@@ -44,21 +44,25 @@
 +$  attestation
   $:  when=@da
       proof=(unit proof)  ::TODO  set?
-      sign=urbit-signature  ::TODO  better signature type
+      half-sign=(urbit-signature half-sign-data-0)
+      full-sign=(urbit-signature full-sign-data-0)
   ==
 ::
 +$  proof
   $%  [%link @t]
   ==
 ::
-+$  urbit-signature
+++  urbit-signature
+  |$  dat
   $:  who=@p
       lyf=life
-      typ=%0
+      dat=dat
       sig=@ux
   ==
-+$  signed-data-0
-  [%verified when=@da for=@p id=identifier proof=(unit proof)]
++$  half-sign-data-0
+  [%0 %verified when=@da for=@p kind=id-kind]
++$  full-sign-data-0
+  [%0 %verified when=@da for=@p id=identifier proof=(unit proof)]
 ::
 +$  user-task
   $%  [%urbit pin=@]   ::  awaiting confirmation from other side

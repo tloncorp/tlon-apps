@@ -115,10 +115,10 @@
   [for faux-life sec:ex:(pit:nu:crub:crypto 8 for) ~]
 ::
 ++  faux-sign
-  |=  [host=@p for=@p id=identifier:v when=@da proof=(unit proof:v)]
-  ^-  @ux
-  =/  msg=@  (jam `signed-data-0:v`[%verified when for id proof])
-  (sign:as:(nol:nu:crub:crypto key:(faux-seed host)) msg)
+  |*  [host=@p dat=*]
+  ^-  (urbit-signature:v _dat)
+  =/  sig=@ux  (sign:as:(nol:nu:crub:crypto key:(faux-seed host)) (jam dat))
+  [host faux-life dat sig]
 ::
 ++  faux-scry
   |=  =path
@@ -132,9 +132,10 @@
   |=  [for=@p id=identifier:v proof=(unit proof:v)]
   =/  m  (mare ,attestation:v)
   ;<  bowl:gall  bind:m  get-bowl
-  =/  sig=@ux
-    (faux-sign our for id now proof)
-  (pure:m now ~ [our faux-life %0 sig])
+  %-  pure:m
+  :+  now  ~
+  :-  (faux-sign our `half-sign-data-0:v`[%0 %verified now for -.id])
+  (faux-sign our `full-sign-data-0:v`[%0 %verified now for id proof])
 ::
 ++  get-state
   =/  m  (mare state:v)
@@ -194,7 +195,7 @@
   ++  host-approves
     ;<  at=attestation:v  bind:m  (make-attestation ~nec id ~)
     ;<  ~  bind:m
-      (ex-scry-result /u/attestations/(scot %ux sig.sign.at) !>(|))
+      (ex-scry-result /u/attestations/(scot %ux sig.full-sign.at) !>(|))
     ;<  cas=(list card)  bind:m
       (host-does %dummy +.id %grant)
     ;<  ~  bind:m
@@ -203,7 +204,7 @@
     ::TODO  check scry (not state, that's too direct for tests. should test api)
     ::      (right??)
     ;<  ~  bind:m
-      (ex-scry-result /u/attestations/(scot %ux sig.sign.at) !>(&))
+      (ex-scry-result /u/attestations/(scot %ux sig.full-sign.at) !>(&))
     (pure:m ~)
   ::  host rejects the request, id gets freed up again
   ::
@@ -253,14 +254,15 @@
       ::TODO  don't test signature value, test whether it matches pubkey
       %+  ex-cards  cas
       [(ex-verifier-update ~nec %status id %done at)]~
-    ;<  ~  bind:m  (ex-scry-result /u/attestations/(scot %ux sig.sign.at) !>(&))
+    ;<  ~  bind:m  (ex-scry-result /u/attestations/(scot %ux sig.full-sign.at) !>(&))
     ;<  ~  bind:m
       ::TODO  test via scries instead?
       ;<  =state:v  bind:m  get-state
       %-  branch
       :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec ~2000.1.2 *config:v %done at]))
           'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
-          'att'^(ex-equal !>((~(get by attested.state) sig.sign.at)) !>(`id))
+          'ath'^(ex-equal !>((~(get by attested.state) sig.half-sign.at)) !>(`id))
+          'atf'^(ex-equal !>((~(get by attested.state) sig.full-sign.at)) !>(`id))
       ==
     (pure:m ~)
   ::
@@ -437,7 +439,8 @@
     %-  branch
     :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec ~2000.1.2 *config:v %done at]))
         'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
-        'att'^(ex-equal !>((~(get by attested.state) sig.sign.at)) !>(`id))
+        'ath'^(ex-equal !>((~(get by attested.state) sig.half-sign.at)) !>(`id))
+        'atf'^(ex-equal !>((~(get by attested.state) sig.full-sign.at)) !>(`id))
     ==
   --
 ::
@@ -604,18 +607,19 @@
       ==
   ?.  ?=(%done -.status)  [owners attested]
   :-  (~(put ju owners) for id)
-  (~(put by attested) sig.sign.status id)
+  (~(gas by attested) sig.half-sign.status^id sig.full-sign.status^id ~)
 ::
 ++  do-query-setup
   =/  m  (mare ,~)
   ;<  ~  bind:m  do-setup
+  =/  id=identifier:v  [%dummy 'test-id']
+  =/  wen=@da  ~2222.2.2
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl:gall b(now wen)))
+  ;<  at=attestation:v  bind:m  (make-attestation ~nec id ~)
   =/  =state:v
     %-  state-from-records
     %-  ~(gas by *(map identifier:v record:v))
-    :~  =/  id=identifier:v  [%dummy 'test-id']
-        =/  wen=@da  ~2222.2.2
-        ::TODO  mb use +make-attestation instead
-        [id ~nec wen %hidden %done wen ~ ~zod faux-life %0 (faux-sign ~zod ~nec id wen ~)]
+    :~  [id ~nec wen %hidden %done at]
     ==
   ;<  *  bind:m  (do-load agent `!>([%0 state]))
   (pure:m ~)
@@ -648,7 +652,9 @@
   ;<  ~  bind:m  do-query-setup
   ;<  ~  bind:m
     %^  expect-query-response  ~fed
-      [[%some-dude %my-nonce] %valid (faux-sign ~zod ~nec [%dummy 'test-id'] ~2222.2.2 ~)]
+      :+  [%some-dude %my-nonce]
+        %valid
+      sig:(faux-sign ~zod `full-sign-data-0:v`[%0 %verified ~2222.2.2 ~nec [%dummy 'test-id'] ~])
     [%valid &]
   ;<  ~  bind:m
     %^  expect-query-response  ~fed

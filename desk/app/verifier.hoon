@@ -114,19 +114,24 @@
   %_  state
     records   (~(put by records) id rec)
     owners    (~(put ju owners) for.rec id)
-    attested  (~(put by attested) sig.sign.tat id)
+    attested  (~(gas by attested) sig.half-sign.tat^id sig.full-sign.tat^id ~)
   ==
+::
+++  sign
+  |*  [our=@p now=@da dat=*]
+  ^-  (urbit-signature _dat)
+  =+  =>  [our=our now=now ..lull]  ~+
+      ;;(=seed:jael (cue .^(@ %j /(scot %p our)/vile/(scot %da now))))
+  ?>  =(who.seed our)
+  =/  sig=@ux  (sign:as:(nol:nu:crub:crypto key.seed) (jam dat))
+  [our lyf.seed dat sig]
 ::
 ++  attest
   |=  [our=@p now=@da for=@p id=identifier proof=(unit proof)]
   ^-  attestation
   :+  now  proof
-  ^-  urbit-signature
-  =+  ;;(=seed:jael (cue .^(@ %j /(scot %p our)/vile/(scot %da now))))
-  ?>  =(who.seed our)
-  =/  msg=@    (jam `signed-data-0`[%verified now for id proof])
-  =/  sig=@ux  (sign:as:(nol:nu:crub:crypto key.seed) msg)
-  [our lyf.seed %0 sig]
+  :-  (sign our now `half-sign-data-0`[%0 %verified now for -.id])
+  (sign our now `full-sign-data-0`[%0 %verified now for id proof])
 --
 ::
 =|  state-0
@@ -198,7 +203,9 @@
       =?  owners    ?=(%done -.status.rec)
         (~(del ju owners) for.rec id.cmd)
       =?  attested  ?=(%done -.status.rec)
-        (~(del by attested) sig.sign.status.rec)
+        %.  sig.full-sign.status.rec
+        %~  del  by
+        (~(del by attested) sig.half-sign.status.rec)
       this(records (~(del by records) id.cmd))
     ::
         %work
@@ -248,7 +255,9 @@
       =?  owners    ?=(%done -.status.rec)
         (~(del ju owners) for.rec id)
       =?  attested  ?=(%done -.status.rec)
-        (~(del by attested) sig.sign.status.rec)
+        %.  sig.full-sign.status.rec
+        %~  del  by
+        (~(del by attested) sig.half-sign.status.rec)
       :-  [(give-status for.rec id %gone)]~
       this(records (~(del by records) id))
     ::
