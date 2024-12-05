@@ -355,25 +355,37 @@ export const findGroupsHostedBy = async (userId: string) => {
 
 export const createGroup = async ({
   title,
-  shortCode,
+  slug,
+  privacy = 'secret',
+  memberIds,
 }: {
   title: string;
-  shortCode: string;
+  slug: string;
+  privacy: GroupPrivacy;
+  memberIds?: string[];
 }) => {
   const createGroupPayload: ub.GroupCreate = {
     title,
     description: '',
-    image: '#999999',
-    cover: '#D9D9D9',
-    name: shortCode,
-    members: {},
-    cordon: {
-      open: {
-        ships: [],
-        ranks: [],
-      },
-    },
-    secret: false,
+    image: '',
+    cover: '',
+    name: slug,
+    members: Object.fromEntries((memberIds ?? []).map((id) => [id, []])),
+    cordon:
+      privacy === 'public'
+        ? {
+            open: {
+              ships: [],
+              ranks: [],
+            },
+          }
+        : {
+            shut: {
+              pending: [],
+              ask: [],
+            },
+          },
+    secret: privacy === 'secret',
   };
 
   return trackedPoke<ub.GroupAction>(
@@ -1357,8 +1369,7 @@ export function toClientGroup(
     haveInvite: false,
     currentUserIsMember: isJoined,
     currentUserIsHost: hostUserId === currentUserId,
-    // if meta is unset, it's still in the join process
-    joinStatus: !group.meta || group.meta.title === '' ? 'joining' : undefined,
+    joinStatus: groupIsSyncing(group) ? 'joining' : undefined,
     hostUserId,
     flaggedPosts,
     navSections: group['zone-ord']
@@ -1398,6 +1409,23 @@ export function toClientGroup(
       ? toClientChannels({ channels: group.channels, groupId: id })
       : [],
   };
+}
+
+export function groupIsSyncing(group: ub.Group) {
+  // if group host is slow, there's a transitional state during group join
+  // where the group exists on the user's ship, but has not yet synced
+  // channels, meta, etc. there's no perfect way to handle this, so we attempt
+  // to use a few different heuristics to detect it. example responses here:
+  // https://gist.github.com/dnbrwstr/747c3beaa216bc235880c77d55e06448
+  return (
+    !group['zone-ord'].length &&
+    !group.bloc.length &&
+    group.meta?.title === '' &&
+    group.meta?.description === '' &&
+    group.meta?.cover === '' &&
+    group.meta?.image === '' &&
+    Object.keys(group.channels).length === 0
+  );
 }
 
 export function toClientGroupsFromPreview(

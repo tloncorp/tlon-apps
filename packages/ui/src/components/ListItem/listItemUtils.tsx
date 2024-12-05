@@ -28,14 +28,14 @@ export function getGroupStatus(group: db.Group) {
 
   const state = isNew
     ? 'new'
-    : isRequested
-      ? 'requested'
-      : isInvite
-        ? 'invited'
-        : isErrored
-          ? 'errored'
-          : isJoining
-            ? 'joining'
+    : isErrored
+      ? 'errored'
+      : isJoining
+        ? 'joining'
+        : isRequested
+          ? 'requested'
+          : isInvite
+            ? 'invited'
             : 'joined';
 
   const labels = {

@@ -21,7 +21,7 @@ export function useChannelMemberName(member: db.ChatMember) {
   return getChannelMemberName(member, disableNicknames);
 }
 
-function getChannelTitle({
+export function getChannelTitle({
   usesMemberListAsFallbackTitle,
   channelTitle,
   members,
@@ -45,25 +45,66 @@ function getChannelTitle({
   }
 }
 
+export function useChatTitle(
+  channel: db.Channel | null,
+  group?: db.Group | null
+) {
+  const { disableNicknames } = useCalm();
+
+  if (!channel || (channel.groupId && !group)) {
+    return null;
+  }
+
+  if (group?.channels?.length === 1) {
+    return getGroupTitle(group, disableNicknames);
+  } else {
+    return getChannelTitle({
+      ...configurationFromChannel(channel),
+      channelTitle: channel.title,
+      members: channel.members,
+      disableNicknames,
+    });
+  }
+}
+
 export function useChannelTitle(channel: db.Channel | null) {
   const { disableNicknames } = useCalm();
-  const usesMemberListAsFallbackTitle = useMemo(
-    () => configurationFromChannel(channel)?.usesMemberListAsFallbackTitle,
-    [channel]
-  );
 
-  return useMemo(
-    () =>
-      channel == null || usesMemberListAsFallbackTitle == null
-        ? null
-        : getChannelTitle({
-            usesMemberListAsFallbackTitle,
-            channelTitle: channel.title,
-            members: channel.members,
-            disableNicknames,
-          }),
-    [channel, disableNicknames, usesMemberListAsFallbackTitle]
-  );
+  return useMemo(() => {
+    return channel == null
+      ? null
+      : getChannelTitle({
+          ...configurationFromChannel(channel),
+          channelTitle: channel.title,
+          members: channel.members,
+          disableNicknames,
+        });
+  }, [channel, disableNicknames]);
+}
+
+export function getGroupTitle(
+  group: db.Group,
+  disableNicknames: boolean
+): string {
+  if (group?.title && group?.title !== '') {
+    return group.title;
+  } else if ((group?.members?.length ?? 0) > 1) {
+    return (
+      group.members
+        ?.map((member) => getChannelMemberName(member, disableNicknames))
+        .join(', ') ?? 'No title'
+    );
+  } else {
+    return 'Untitled group';
+  }
+}
+
+export function useGroupTitle(group?: db.Group | null) {
+  const { disableNicknames } = useCalm();
+  if (!group) {
+    return null;
+  }
+  return getGroupTitle(group, disableNicknames);
 }
 
 export function isDmChannel(channel: db.Channel): boolean {
