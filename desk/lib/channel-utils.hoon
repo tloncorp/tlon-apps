@@ -1067,12 +1067,24 @@
     (log-7-to-8 log.v)
   =/  [count=@ud =v-posts:c]
     (v-posts-7-to-8 posts.v mod)
-  %*  .  *v-channel:c
-    count    count
-    posts    v-posts
+  ::
+  =-  %=  w  -  :: change global in w
+        :*  posts.w
+            count
+            order.w
+            view.w
+            sort.w
+            perm.w
+            *(rev:c (unit @t))  ::  meta
+        ==
+      ==
+  ^=  w
+  %=  v
+    ::  global
+    posts  v-posts
+    ::  local
     log      log
     future   (future-8 log)
-    perm     perm.v
   ==
 ++  v-posts-7-to-8
   |=  [vp=v-posts:v7:old:c mod=(map id-post:c time)]
