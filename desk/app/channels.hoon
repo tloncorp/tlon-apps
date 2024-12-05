@@ -641,10 +641,10 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  =?  pole  !?=([?(%v0 %v1) *] pole)
+  =?  pole  !?=([?(%v0 %v1 %v2) *] pole)
     [%v0 pole]
   ?+    pole  ~|(bad-watch-path+`path`pole !!)
-      [?(%v0 %v1) ~]                        ?>(from-self cor)
+      [?(%v0 %v1 %v2) ~]                    ?>(from-self cor)
       [?(%v0 %v1) %unreads ~]               ?>(from-self cor)
       [?(%v0 %v1) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
       [?(%v0 %v1 %v2) %said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]

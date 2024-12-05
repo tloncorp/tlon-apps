@@ -964,6 +964,7 @@
         watch+ul
         unwatch+ul
       ::
+        meta+(mu so)
         post+a-post
         view+(su (perk %grid %list ~))
         sort+(su (perk %time %alpha %arranged ~))
