@@ -21,7 +21,7 @@ export function useChannelMemberName(member: db.ChatMember) {
   return getChannelMemberName(member, disableNicknames);
 }
 
-function getChannelTitle({
+export function getChannelTitle({
   usesMemberListAsFallbackTitle,
   channelTitle,
   members,
@@ -45,30 +45,41 @@ function getChannelTitle({
   }
 }
 
-export function useChannelTitle(
+export function useChatTitle(
   channel: db.Channel | null,
   group?: db.Group | null
 ) {
   const { disableNicknames } = useCalm();
-  const usesMemberListAsFallbackTitle = useMemo(
-    () => configurationFromChannel(channel)?.usesMemberListAsFallbackTitle,
-    [channel]
-  );
+
+  if (!channel || (channel.groupId && !group)) {
+    return null;
+  }
+
+  if (group?.channels?.length === 1) {
+    return getGroupTitle(group, disableNicknames);
+  } else {
+    return getChannelTitle({
+      ...configurationFromChannel(channel),
+      channelTitle: channel.title,
+      members: channel.members,
+      disableNicknames,
+    });
+  }
+}
+
+export function useChannelTitle(channel: db.Channel | null) {
+  const { disableNicknames } = useCalm();
 
   return useMemo(() => {
-    if (group?.channels?.length === 1) {
-      return getGroupTitle(group, disableNicknames);
-    }
-
-    return channel == null || usesMemberListAsFallbackTitle == null
+    return channel == null
       ? null
       : getChannelTitle({
-          usesMemberListAsFallbackTitle,
+          ...configurationFromChannel(channel),
           channelTitle: channel.title,
           members: channel.members,
           disableNicknames,
         });
-  }, [channel, disableNicknames, group, usesMemberListAsFallbackTitle]);
+  }, [channel, disableNicknames]);
 }
 
 export function getGroupTitle(
@@ -88,8 +99,11 @@ export function getGroupTitle(
   }
 }
 
-export function useGroupTitle(group: db.Group) {
+export function useGroupTitle(group?: db.Group | null) {
   const { disableNicknames } = useCalm();
+  if (!group) {
+    return null;
+  }
   return getGroupTitle(group, disableNicknames);
 }
 
