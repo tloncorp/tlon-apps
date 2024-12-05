@@ -200,6 +200,7 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
     deserialize = JSON.parse,
   } = config;
   const storage = getStorageMethods(config.isSecure ?? false);
+  let updateLock = Promise.resolve();
 
   const getValue = async (): Promise<T> => {
     const value = await storage.getItem(key);
@@ -207,24 +208,30 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
   };
 
   const resetValue = async (): Promise<T> => {
-    await storage.setItem(key, serialize(defaultValue));
-    queryClient.invalidateQueries({ queryKey: [key] });
-    logger.log(`reset value ${key}`);
+    updateLock = updateLock.then(async () => {
+      await storage.setItem(key, serialize(defaultValue));
+      queryClient.invalidateQueries({ queryKey: [key] });
+      logger.log(`reset value ${key}`);
+    });
+    await updateLock;
     return defaultValue;
   };
 
   const setValue = async (valueInput: T | ((curr: T) => T)): Promise<void> => {
-    let newValue: T;
-    if (valueInput instanceof Function) {
-      const currValue = await getValue();
-      newValue = valueInput(currValue);
-    } else {
-      newValue = valueInput;
-    }
+    updateLock = updateLock.then(async () => {
+      let newValue: T;
+      if (valueInput instanceof Function) {
+        const currValue = await getValue();
+        newValue = valueInput(currValue);
+      } else {
+        newValue = valueInput;
+      }
 
-    await storage.setItem(key, serialize(newValue));
-    queryClient.invalidateQueries({ queryKey: [key] });
-    logger.log(`set value ${key}`, newValue);
+      await storage.setItem(key, serialize(newValue));
+      queryClient.invalidateQueries({ queryKey: [key] });
+      logger.log(`set value ${key}`, newValue);
+    });
+    await updateLock;
   };
 
   function useValue() {
