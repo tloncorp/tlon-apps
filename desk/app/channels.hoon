@@ -641,10 +641,10 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  =?  pole  !?=([?(%v0 %v1) *] pole)
+  =?  pole  !?=([?(%v0 %v1 %v2) *] pole)
     [%v0 pole]
   ?+    pole  ~|(bad-watch-path+`path`pole !!)
-      [?(%v0 %v1) ~]                        ?>(from-self cor)
+      [?(%v0 %v1 %v2) ~]                    ?>(from-self cor)
       [?(%v0 %v1) %unreads ~]               ?>(from-self cor)
       [?(%v0 %v1) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
       [?(%v0 %v1 %v2) %said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
@@ -1031,6 +1031,7 @@
     ?<  (~(has by v-channels) nest)
     =.  channel  *v-channel:c
     =.  group.perm.perm.channel  group.create
+    =.  meta.channel  [0 meta.create]
     =.  last-read.remark.channel  now.bowl
     =.  ca-core  (send:ca-activity [%add %chan-init nest group.create] ~)
     =/  =cage  [%channel-command !>([%create create])]
@@ -1275,6 +1276,8 @@
       ?.  =(%channel-update p.cage)
         ~|(diary-strange-fact+p.cage !!)
       =+  !<(=update:c q.cage)
+      =?  meta.channel  ?=(%create -.u-channel.update)
+        [0 meta.u-channel.update]
       =.  ca-core  (ca-u-channels update)
       =.  ca-core  ca-give-unread
       =.  ca-core  (unsubscribe (weld ca-area /create) [ship.nest server])

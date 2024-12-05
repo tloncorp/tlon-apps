@@ -964,6 +964,7 @@
         watch+ul
         unwatch+ul
       ::
+        meta+(mu so)
         post+a-post
         view+(su (perk %grid %list ~))
         sort+(su (perk %time %alpha %arranged ~))
@@ -1064,6 +1065,7 @@
         group+flag
         title+so
         description+so
+        meta+(mu so)
         readers+(as (se %tas))
         writers+(as (se %tas))
     ==
