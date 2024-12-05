@@ -15,6 +15,7 @@ import {
   GroupPreviewSheet,
   InviteUsersSheet,
   NavBarView,
+  NavigationProvider,
   RequestsProvider,
   ScreenHeader,
   View,
@@ -45,8 +46,10 @@ export default function ChatListScreen(props: Props) {
 
 export function ChatListScreenView({
   previewGroupId,
+  focusedChannelId,
 }: {
   previewGroupId?: string;
+  focusedChannelId?: string;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [addGroupOpen, setAddGroupOpen] = useState(false);
@@ -267,55 +270,57 @@ export function ChatListScreenView({
           setInviteSheetGroup(group);
         }}
       >
-        <View flex={1}>
-          <ScreenHeader
-            title={notReadyMessage ?? screenTitle}
-            rightControls={
-              <>
-                <ScreenHeader.IconButton
-                  type="Search"
-                  onPress={handleSearchInputToggled}
-                />
-                <ScreenHeader.IconButton
-                  type="Add"
-                  onPress={() => setAddGroupOpen(true)}
-                />
-              </>
-            }
-          />
-          {chats && chats.unpinned.length ? (
-            <ChatList
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              pinned={resolvedChats.pinned}
-              unpinned={resolvedChats.unpinned}
-              pending={resolvedChats.pending}
-              onPressItem={onPressChat}
-              onSectionChange={handleSectionChange}
-              showSearchInput={showSearchInput}
-              onSearchToggle={handleSearchInputToggled}
-              searchQuery={searchQuery}
-              onSearchQueryChange={setSearchQuery}
+        <NavigationProvider focusedChannelId={focusedChannelId}>
+          <View flex={1}>
+            <ScreenHeader
+              title={notReadyMessage ?? screenTitle}
+              rightControls={
+                <>
+                  <ScreenHeader.IconButton
+                    type="Search"
+                    onPress={handleSearchInputToggled}
+                  />
+                  <ScreenHeader.IconButton
+                    type="Add"
+                    onPress={() => setAddGroupOpen(true)}
+                  />
+                </>
+              }
             />
-          ) : null}
+            {chats && chats.unpinned.length ? (
+              <ChatList
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                pinned={resolvedChats.pinned}
+                unpinned={resolvedChats.unpinned}
+                pending={resolvedChats.pending}
+                onPressItem={onPressChat}
+                onSectionChange={handleSectionChange}
+                showSearchInput={showSearchInput}
+                onSearchToggle={handleSearchInputToggled}
+                searchQuery={searchQuery}
+                onSearchQueryChange={setSearchQuery}
+              />
+            ) : null}
 
-          <WelcomeSheet
-            open={splashVisible}
-            onOpenChange={handleWelcomeOpenChange}
-          />
-          <GroupPreviewSheet
-            open={!!selectedGroup}
-            onOpenChange={handleGroupPreviewSheetOpenChange}
-            group={selectedGroup ?? undefined}
-            onActionComplete={handleGroupAction}
-          />
-          <InviteUsersSheet
-            open={inviteSheetGroup !== null}
-            onOpenChange={handleInviteSheetOpenChange}
-            onInviteComplete={() => setInviteSheetGroup(null)}
-            group={inviteSheetGroup ?? undefined}
-          />
-        </View>
+            <WelcomeSheet
+              open={splashVisible}
+              onOpenChange={handleWelcomeOpenChange}
+            />
+            <GroupPreviewSheet
+              open={!!selectedGroup}
+              onOpenChange={handleGroupPreviewSheetOpenChange}
+              group={selectedGroup ?? undefined}
+              onActionComplete={handleGroupAction}
+            />
+            <InviteUsersSheet
+              open={inviteSheetGroup !== null}
+              onOpenChange={handleInviteSheetOpenChange}
+              onInviteComplete={() => setInviteSheetGroup(null)}
+              group={inviteSheetGroup ?? undefined}
+            />
+          </View>
+        </NavigationProvider>
         <NavBarView
           navigateToContacts={() => {
             navigation.navigate('Contacts');

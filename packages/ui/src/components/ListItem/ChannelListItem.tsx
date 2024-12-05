@@ -3,6 +3,7 @@ import * as logic from '@tloncorp/shared/logic';
 import { useMemo } from 'react';
 import { View, isWeb } from 'tamagui';
 
+import { useNavigation } from '../../contexts';
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
@@ -57,12 +58,15 @@ export function ChannelListItem({
     }
   }, [model, firstMemberId, memberCount]);
 
+  const isFocused = useNavigation().focusedChannelId === model.id;
+
   return (
     <View>
       <Pressable
         borderRadius="$xl"
         onPress={handlePress}
         onLongPress={handleLongPress}
+        backgroundColor={isFocused ? '$secondaryBackground' : undefined}
       >
         <ListItem {...props}>
           <ListItem.ChannelIcon
