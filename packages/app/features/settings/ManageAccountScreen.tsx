@@ -6,13 +6,13 @@ import {
   YStack,
   isWeb,
 } from '@tloncorp/ui';
-import { useResetDb } from '../../hooks/useResetDb';
-import { useWebView } from '../../hooks/useWebview';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { useHandleLogout } from '../../hooks/useHandleLogout';
+import { useResetDb } from '../../hooks/useResetDb';
+import { useWebView } from '../../hooks/useWebview';
 import { checkIfAccountDeleted } from '../../lib/hostingApi';
 import { RootStackParamList } from '../../navigation/types';
 import { getHostingToken, getHostingUserId } from '../../utils/hosting';
@@ -89,7 +89,7 @@ export function ManageAccountScreen(props: Props) {
   }, [hostingSession?.isExpired, handleLogout, props.navigation]);
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
         leftControls={
           goingBack ? (

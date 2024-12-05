@@ -14,15 +14,16 @@ import Strike from '@tiptap/extension-strike';
 import Text from '@tiptap/extension-text';
 import { EditorContent, useEditor } from '@tiptap/react';
 import {
+  REF_REGEX,
   createDevLogger,
   extractContentTypesFromPost,
   tiptap,
-} from '@tloncorp/shared/dist';
+} from '@tloncorp/shared';
 import {
   contentReferenceToCite,
   toContentReference,
-} from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
+} from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
 import {
   Block,
   Image,
@@ -33,7 +34,7 @@ import {
   constructStory,
   isInline,
   pathToCite,
-} from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { View, YStack } from 'tamagui';
@@ -89,6 +90,7 @@ export function MessageInput({
 
   const [containerHeight, setContainerHeight] = useState(initialHeight);
   const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState(false);
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [imageOnEditedPost, setImageOnEditedPost] = useState<Image | null>();
   const [editorIsEmpty, setEditorIsEmpty] = useState(attachments.length === 0);
@@ -282,7 +284,7 @@ export function MessageInput({
         return;
       }
       if (pastedText) {
-        const isRef = pastedText.match(tiptap.REF_REGEX);
+        const isRef = pastedText.match(REF_REGEX);
 
         if (isRef) {
           const cite = pathToCite(isRef[0]);
@@ -315,14 +317,13 @@ export function MessageInput({
               .map((inline) => {
                 if (typeof inline === 'string') {
                   const inlineLength = inline.length;
-                  const refLength =
-                    inline.match(tiptap.REF_REGEX)?.[0].length || 0;
+                  const refLength = inline.match(REF_REGEX)?.[0].length || 0;
 
                   if (inlineLength === refLength) {
                     return null;
                   }
 
-                  return inline.replace(tiptap.REF_REGEX, '');
+                  return inline.replace(REF_REGEX, '');
                 }
                 return inline;
               })
@@ -531,8 +532,10 @@ export function MessageInput({
         await sendMessage(isEdit);
       } catch (e) {
         console.error('failed to send', e);
+        setSendError(true);
       }
       setIsSending(false);
+      setSendError(false);
     },
     [sendMessage]
   );
@@ -564,6 +567,7 @@ export function MessageInput({
       showMentionPopup={showMentionPopup}
       isEditing={!!editingPost}
       isSending={isSending}
+      sendError={sendError}
       cancelEditing={() => setEditingPost?.(undefined)}
       showAttachmentButton={showAttachmentButton}
       floatingActionButton={floatingActionButton}

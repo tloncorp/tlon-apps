@@ -1,21 +1,24 @@
-import { isChatChannel as getIsChatChannel } from '@tloncorp/shared/dist';
-import type * as db from '@tloncorp/shared/dist/db';
-import * as urbit from '@tloncorp/shared/dist/urbit';
-import { Story } from '@tloncorp/shared/dist/urbit';
+import { isChatChannel as getIsChatChannel } from '@tloncorp/shared';
+import type * as db from '@tloncorp/shared/db';
+import * as urbit from '@tloncorp/shared/urbit';
+import { Story } from '@tloncorp/shared/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
 import { NavigationProvider, useCurrentUserId } from '../contexts';
 import { AttachmentProvider } from '../contexts/attachment';
 import * as utils from '../utils';
+import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
 import { ChannelFooter } from './Channel/ChannelFooter';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import { DetailView } from './DetailView';
+import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
-import { MessageInput } from './MessageInput';
+import { TlonEditorBridge } from './MessageInput/toolbarActions.native';
 
 export function PostScreenView({
   channel,
@@ -38,6 +41,9 @@ export function PostScreenView({
   editPost,
   onPressRetry,
   onPressDelete,
+  onPressRef,
+  onGroupAction,
+  goToDm,
   negotiationMatch,
   headerMode,
   canUpload,
@@ -68,6 +74,9 @@ export function PostScreenView({
   ) => Promise<void>;
   onPressRetry: (post: db.Post) => void;
   onPressDelete: (post: db.Post) => void;
+  onPressRef: (channel: db.Channel, post: db.Post) => void;
+  onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
+  goToDm: (participants: string[]) => void;
   negotiationMatch: boolean;
   headerMode: 'default' | 'next';
   canUpload: boolean;
@@ -81,12 +90,26 @@ export function PostScreenView({
     () => posts?.filter((p) => p.id !== parentPost?.id) ?? [],
     [posts, parentPost]
   );
+  const editorRef = useRef<{
+    editor: TlonEditorBridge | null;
+  }>(null);
+  const [editorIsFocused, setEditorIsFocused] = useState(false);
+  const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
+  const flatListRef = useRef<FlatList>(null);
+
+  // We track the editor focus state to determine when we need to scroll to the
+  // bottom of the screen when the keyboard is opened/editor is focused.
+  editorRef.current?.editor?._subscribeToEditorStateUpdate((editorState) => {
+    setEditorIsFocused(editorState.isFocused);
+  });
 
   const { bottom } = useSafeAreaInsets();
 
   const headerTitle = isChatChannel
     ? `Thread: ${channel?.title ?? null}`
-    : parentPost?.title ?? 'Post';
+    : parentPost?.title && parentPost.title !== ''
+      ? parentPost.title
+      : 'Post';
 
   const hasLoaded = !!(posts && channel && parentPost);
   useEffect(() => {
@@ -101,16 +124,64 @@ export function PostScreenView({
     return editingPost && editingPost.id === parentPost?.id;
   }, [editingPost, parentPost]);
 
+  const onPressGroupRef = useCallback((group: db.Group) => {
+    setGroupPreview(group);
+  }, []);
+
+  const handleGroupAction = useCallback(
+    (action: GroupPreviewAction, group: db.Group) => {
+      onGroupAction(action, group);
+      setGroupPreview(null);
+    },
+    [onGroupAction]
+  );
+
+  const handleRefPress = useCallback(
+    (refChannel: db.Channel, post: db.Post) => {
+      const anchorIndex = posts?.findIndex((p) => p.id === post.id) ?? -1;
+
+      if (
+        refChannel.id === channel.id &&
+        anchorIndex !== -1 &&
+        flatListRef.current
+      ) {
+        // If the post is already loaded, scroll to it
+        flatListRef.current?.scrollToIndex({
+          index: anchorIndex,
+          animated: false,
+          viewPosition: 0.5,
+        });
+        return;
+      }
+
+      onPressRef(refChannel, post);
+    },
+    [onPressRef, posts, channel]
+  );
+
+  const handleGoBack = useCallback(() => {
+    if (isEditingParent) {
+      console.log('setEditingPost', undefined);
+      setEditingPost?.(undefined);
+    }
+    goBack?.();
+  }, [goBack, isEditingParent, setEditingPost]);
+
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
-      <NavigationProvider onGoToUserProfile={handleGoToUserProfile}>
+      <NavigationProvider
+        onGoToUserProfile={handleGoToUserProfile}
+        onPressRef={handleRefPress}
+        onPressGroupRef={onPressGroupRef}
+        onPressGoToDm={goToDm}
+      >
         <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
           <YStack flex={1} backgroundColor={'$background'}>
             <ChannelHeader
               channel={channel}
               group={channel.group}
               title={headerTitle}
-              goBack={goBack}
+              goBack={handleGoBack}
               showSearchButton={false}
               showSpinner={isLoadingPosts}
               post={parentPost ?? undefined}
@@ -120,6 +191,7 @@ export function PostScreenView({
               {parentPost ? (
                 <DetailView
                   post={parentPost}
+                  channel={channel}
                   initialPostUnread={initialThreadUnread}
                   onPressImage={handleGoToImage}
                   editingPost={editingPost}
@@ -131,11 +203,13 @@ export function PostScreenView({
                   activeMessage={activeMessage}
                   setActiveMessage={setActiveMessage}
                   headerMode={headerMode}
+                  editorIsFocused={editorIsFocused}
+                  flatListRef={flatListRef}
                 />
               ) : null}
 
               {negotiationMatch && channel && canWrite && (
-                <MessageInput
+                <BareChatInput
                   placeholder="Reply"
                   shouldBlur={inputShouldBlur}
                   setShouldBlur={setInputShouldBlur}
@@ -149,6 +223,8 @@ export function PostScreenView({
                   editPost={editPost}
                   channelType="chat"
                   getDraft={getDraft}
+                  showAttachmentButton={channel.type === 'chat'}
+                  showInlineAttachments={channel.type === 'chat'}
                   shouldAutoFocus={
                     (channel.type === 'chat' && parentPost?.replyCount === 0) ||
                     !!editingPost
@@ -199,6 +275,12 @@ export function PostScreenView({
                 />
               )}
             </KeyboardAvoidingView>
+            <GroupPreviewSheet
+              group={groupPreview ?? undefined}
+              open={!!groupPreview}
+              onOpenChange={() => setGroupPreview(null)}
+              onActionComplete={handleGroupAction}
+            />
           </YStack>
         </View>
       </NavigationProvider>

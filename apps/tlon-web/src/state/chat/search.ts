@@ -3,7 +3,7 @@ import {
   ChatMap,
   ReplyTuple,
   newChatMap,
-} from '@tloncorp/shared/dist/urbit/channel';
+} from '@tloncorp/shared/urbit/channel';
 import {
   ChatScam,
   ChatScan,
@@ -11,7 +11,7 @@ import {
   Writ,
   WritTuple,
   newWritMap,
-} from '@tloncorp/shared/dist/urbit/dms';
+} from '@tloncorp/shared/urbit/dms';
 import { decToUd } from '@urbit/api';
 import { daToUnix } from '@urbit/aura';
 import bigInt from 'big-integer';

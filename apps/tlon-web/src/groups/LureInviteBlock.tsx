@@ -1,4 +1,4 @@
-import { Group } from '@tloncorp/shared/dist/urbit/groups';
+import { Group } from '@tloncorp/shared/urbit/groups';
 import cn from 'classnames';
 import { useEffect } from 'react';
 

@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { ActivityAction, ActivityUpdate } from '@tloncorp/shared/dist/urbit';
+import { ActivityAction, ActivityUpdate } from '@tloncorp/shared/urbit';
 import cn from 'classnames';
 import { useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';

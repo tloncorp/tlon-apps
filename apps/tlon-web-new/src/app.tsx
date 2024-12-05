@@ -1,42 +1,42 @@
 // Copyright 2024, Tlon Corporation
-import { TooltipProvider } from '@radix-ui/react-tooltip';
 import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
-  useNavigationContainerRef,
 } from '@react-navigation/native';
+import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { checkDb, useMigrations } from '@tloncorp/app/lib/webDb';
-import { RootStack } from '@tloncorp/app/navigation/RootStack';
+import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
+import {
+  getDesktopLinkingConfig,
+  getMobileLinkingConfig,
+} from '@tloncorp/app/navigation/linking';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/dist/api';
-import * as store from '@tloncorp/shared/dist/store';
+import * as store from '@tloncorp/shared/store';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
-import React, { PropsWithChildren, useEffect, useMemo, useState } from 'react';
+import React, { PropsWithChildren, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import EyrieMenu from '@/eyrie/EyrieMenu';
 import { ANALYTICS_DEFAULT_PROPERTIES } from '@/logic/analytics';
-import useAppUpdates, { AppUpdateContext } from '@/logic/useAppUpdates';
+import useAppUpdates from '@/logic/useAppUpdates';
 import useErrorHandler from '@/logic/useErrorHandler';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
-import { useIsDark } from '@/logic/useMedia';
+import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
 import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
-  import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
-    (d) => ({
-      default: d.ReactQueryDevtools,
-    })
-  )
+  import('@tanstack/react-query-devtools/production').then((d) => ({
+    default: d.ReactQueryDevtools,
+  }))
 );
 
 function authRedirect() {
@@ -67,6 +67,7 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
   const contactsQuery = store.useContacts();
   const currentUserId = useCurrentUserId();
   const calmSettingsQuery = store.useCalmSettings({ userId: currentUserId });
+  const { needsUpdate, triggerUpdate } = useAppUpdates();
 
   useEffect(() => {
     const { data, refetch, isRefetching, isFetching } = contactsQuery;
@@ -84,22 +85,33 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
     }
   }, [calmSettingsQuery, isLoaded]);
 
+  const isMobile = useIsMobile();
   const isDarkMode = useIsDarkMode();
-
-  const navigationContainerRef = useNavigationContainerRef();
 
   if (!isLoaded) {
     return null;
   }
 
   return (
-    <AppDataProvider>
-      <NavigationContainer
-        theme={isDarkMode ? DarkTheme : DefaultTheme}
-        ref={navigationContainerRef}
-      >
-        <RootStack />
-      </NavigationContainer>
+    <AppDataProvider
+      webAppNeedsUpdate={needsUpdate}
+      triggerWebAppUpdate={triggerUpdate}
+    >
+      {isMobile ? (
+        <NavigationContainer
+          linking={getMobileLinkingConfig(import.meta.env.MODE)}
+          theme={isDarkMode ? DarkTheme : DefaultTheme}
+        >
+          <BasePathNavigator isMobile={isMobile} />
+        </NavigationContainer>
+      ) : (
+        <NavigationContainer
+          linking={getDesktopLinkingConfig(import.meta.env.MODE)}
+          theme={isDarkMode ? DarkTheme : DefaultTheme}
+        >
+          <BasePathNavigator isMobile={isMobile} />
+        </NavigationContainer>
+      )}
     </AppDataProvider>
   );
 }
@@ -121,6 +133,7 @@ const App = React.memo(function AppComponent() {
   const currentUserId = useCurrentUserId();
   const [dbIsLoaded, setDbIsLoaded] = useState(false);
   const [startedSync, setStartedSync] = useState(false);
+  const configureClient = useConfigureUrbitClient();
 
   useEffect(() => {
     handleError(() => {
@@ -129,11 +142,9 @@ const App = React.memo(function AppComponent() {
   }, [handleError]);
 
   useEffect(() => {
-    api.configureClient({
+    configureClient({
       shipName: currentUserId,
       shipUrl: '',
-      onReset: () => sync.syncStart(),
-      onChannelReset: () => sync.handleDiscontinuity(),
     });
     const syncStart = async () => {
       await sync.syncStart(startedSync);
@@ -170,7 +181,7 @@ const App = React.memo(function AppComponent() {
       <MigrationCheck>
         <SafeAreaProvider>
           <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-            <AppRoutes isLoaded={dbIsLoaded} />
+            {dbIsLoaded && <AppRoutes isLoaded={dbIsLoaded} />}
           </TamaguiProvider>
         </SafeAreaProvider>
       </MigrationCheck>
@@ -185,15 +196,9 @@ function RoutedApp() {
   const logActivity = useLogActivity();
   const posthog = usePostHog();
   const analyticsId = useAnalyticsId();
-  const { needsUpdate, triggerUpdate } = useAppUpdates();
   const body = document.querySelector('body');
   const colorSchemeFromNative =
     window.nativeOptions?.colorScheme ?? window.colorscheme;
-
-  const appUpdateContextValue = useMemo(
-    () => ({ needsUpdate, triggerUpdate }),
-    [needsUpdate, triggerUpdate]
-  );
 
   const theme = useTheme();
   const isDarkMode = useIsDark();
@@ -264,11 +269,7 @@ function RoutedApp() {
         <title>Tlon</title>
         <meta name="theme-color" content={userThemeColor} />
       </Helmet>
-      <AppUpdateContext.Provider value={appUpdateContextValue}>
-        <TooltipProvider delayDuration={0} skipDelayDuration={400}>
-          <App />
-        </TooltipProvider>
-      </AppUpdateContext.Provider>
+      <App />
       {showDevTools && (
         <>
           <React.Suspense fallback={null}>

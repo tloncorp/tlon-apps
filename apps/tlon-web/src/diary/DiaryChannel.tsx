@@ -2,8 +2,8 @@ import * as Toast from '@radix-ui/react-toast';
 import {
   ChannelsSubscribeResponse,
   PostTuple,
-} from '@tloncorp/shared/dist/urbit/channel';
-import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
+} from '@tloncorp/shared/urbit/channel';
+import { ViewProps } from '@tloncorp/shared/urbit/groups';
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';

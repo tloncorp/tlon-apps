@@ -1,5 +1,5 @@
-import { DeepLinkMetadata, createDevLogger } from '@tloncorp/shared/dist';
-import { DeepLinkData, extractLureMetadata } from '@tloncorp/shared/src/logic';
+import { DeepLinkMetadata, createDevLogger } from '@tloncorp/shared';
+import { DeepLinkData, extractLureMetadata } from '@tloncorp/shared/logic';
 import {
   type ReactNode,
   createContext,
@@ -11,6 +11,7 @@ import {
 import branch from 'react-native-branch';
 
 import { DEFAULT_LURE, DEFAULT_PRIORITY_TOKEN } from '../constants';
+import { useGroupNavigation } from '../hooks/useGroupNavigation';
 import storage from '../lib/storage';
 import { getPathFromWer } from '../utils/string';
 import { useShip } from './ship';
@@ -107,12 +108,35 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
     useState(INITIAL_STATE);
   const { isAuthenticated } = useShip();
 
+  const { goToChannel } = useGroupNavigation();
+
   useEffect(() => {
     console.debug('[branch] Subscribing to Branch listener');
 
     // Subscribe to Branch deep link listener
     const unsubscribe = branch.subscribe({
       onOpenComplete: ({ params }) => {
+        const nonBranchLink = params?.['+non_branch_link'];
+        if (nonBranchLink != null && typeof nonBranchLink === 'string') {
+          const asUrl = new URL(nonBranchLink);
+          if (asUrl.hostname === 'channel') {
+            switch (asUrl.pathname) {
+              // example: io.tlon.groups://channel/open?id=0v4.00000.qd4mk.d4htu.er4b8.eao21&startDraft=true
+              case '/open': {
+                const channelId = asUrl.searchParams.get('id');
+                const startDraft = Boolean(
+                  asUrl.searchParams.get('startDraft')
+                );
+                if (channelId) {
+                  goToChannel(channelId, { startDraft });
+                }
+                break;
+              }
+            }
+          }
+          return;
+        }
+
         // Handle Branch link click
         if (params?.['+clicked_branch_link']) {
           logger.log('detected Branch link click');

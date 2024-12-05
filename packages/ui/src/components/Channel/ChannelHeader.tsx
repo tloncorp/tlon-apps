@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import {
   createContext,
   useCallback,
@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react';
 
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from '../ChatOptionsSheet';
 import { ScreenHeader } from '../ScreenHeader';
 import { BaubleHeader } from './BaubleHeader';
@@ -124,7 +125,7 @@ export function ChannelHeader({
         titleWidth={titleWidth()}
         showSessionStatus
         isLoading={showSpinner}
-        leftControls={<ScreenHeader.BackButton onPress={goBack} />}
+        leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
         rightControls={
           <>
             {showSearchButton && (

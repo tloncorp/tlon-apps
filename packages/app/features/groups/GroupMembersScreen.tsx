@@ -1,12 +1,11 @@
-import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as store from '@tloncorp/shared/dist/store';
 import { GroupMembersScreenView } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import { useResetToDm } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<
   GroupSettingsStackParamList,
@@ -32,22 +31,13 @@ export function GroupMembersScreen({ route, navigation }: Props) {
 
   const currentUserId = useCurrentUserId();
 
+  const resetToDm = useResetToDm();
+
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
-      const dmChannel = await store.upsertDmChannel({
-        participants,
-      });
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 1,
-          routes: [
-            { name: 'ChatList' },
-            { name: 'Channel', params: { channel: dmChannel } },
-          ],
-        })
-      );
+      resetToDm(participants[0]);
     },
-    [navigation]
+    [resetToDm]
   );
 
   return (
@@ -56,6 +46,7 @@ export function GroupMembersScreen({ route, navigation }: Props) {
       onPressGoToDm={(contactId: string) => handleGoToDm([contactId])}
       members={groupMembers}
       roles={groupRoles}
+      groupId={groupId}
       currentUserId={currentUserId}
       onPressBan={banUser}
       onPressUnban={unbanUser}

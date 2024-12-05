@@ -1,6 +1,8 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useMutableRef } from '@tloncorp/shared';
 import { NavBarView, ProfileScreenView, View } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
@@ -17,41 +19,67 @@ export default function ProfileScreen(props: Props) {
   const currentUserId = useCurrentUserId();
   const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
+  const navigationRef = useMutableRef(props.navigation);
 
   const onAppInfoPressed = useCallback(() => {
-    props.navigation.navigate('AppInfo');
-  }, [props.navigation]);
+    navigationRef.current.navigate('AppInfo');
+  }, [navigationRef]);
 
   const onPushNotifPressed = useCallback(() => {
-    props.navigation.navigate('PushNotificationSettings');
-  }, [props.navigation]);
+    navigationRef.current.navigate('PushNotificationSettings');
+  }, [navigationRef]);
 
   const onBlockedUsersPressed = useCallback(() => {
-    props.navigation.navigate('BlockedUsers');
-  }, [props.navigation]);
+    navigationRef.current.navigate('BlockedUsers');
+  }, [navigationRef]);
 
   const onManageAccountPressed = useCallback(() => {
-    props.navigation.navigate('ManageAccount');
-  }, [props.navigation]);
+    navigationRef.current.navigate('ManageAccount');
+  }, [navigationRef]);
+
+  const onExperimentalFeaturesPressed = useCallback(() => {
+    navigationRef.current.navigate('FeatureFlags');
+  }, [navigationRef]);
+
+  const onProfilePressed = useCallback(() => {
+    navigationRef.current.navigate('UserProfile', { userId: currentUserId });
+  }, [currentUserId, navigationRef]);
+
+  const onSendBugReportPressed = useCallback(() => {
+    navigationRef.current.navigate('WompWomp');
+  }, [navigationRef]);
+
+  const onNavigateToHome = useCallback(() => {
+    navigationRef.current.navigate('ChatList');
+  }, [navigationRef]);
+
+  const onNavigateToNotifications = useCallback(() => {
+    navigationRef.current.navigate('Activity');
+  }, [navigationRef]);
+
+  const onNavigateToProfileSettings = useCallback(() => {
+    navigationRef.current.navigate('Profile');
+  }, [navigationRef]);
 
   return (
     <View backgroundColor="$background" flex={1}>
       <ProfileScreenView
         hasHostedAuth={hasHostedAuth}
         currentUserId={currentUserId}
-        onEditProfilePressed={() => props.navigation.navigate('EditProfile')}
+        onProfilePressed={onProfilePressed}
         onLogoutPressed={handleLogout}
-        onSendBugReportPressed={() => props.navigation.navigate('WompWomp')}
+        onSendBugReportPressed={onSendBugReportPressed}
         onAppInfoPressed={onAppInfoPressed}
         onNotificationSettingsPressed={onPushNotifPressed}
         onBlockedUsersPressed={onBlockedUsersPressed}
         onManageAccountPressed={onManageAccountPressed}
+        onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
         dmLink={dmLink}
       />
       <NavBarView
-        navigateToHome={() => props.navigation.navigate('ChatList')}
-        navigateToNotifications={() => props.navigation.navigate('Activity')}
-        navigateToProfileSettings={() => props.navigation.navigate('Profile')}
+        navigateToHome={onNavigateToHome}
+        navigateToNotifications={onNavigateToNotifications}
+        navigateToProfileSettings={onNavigateToProfileSettings}
         currentRoute="Profile"
         currentUserId={currentUserId}
       />
@@ -72,7 +100,9 @@ function useHasHostedAuth() {
         setHasHostedAuth(true);
       }
     }
-    getHostingInfo();
+    if (Platform.OS !== 'web') {
+      getHostingInfo();
+    }
   }, []);
 
   return hasHostedAuth;

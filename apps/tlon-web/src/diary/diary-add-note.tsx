@@ -1,5 +1,5 @@
-import { constructStory } from '@tloncorp/shared/dist/urbit/channel';
-import { JSONContent } from '@tloncorp/shared/dist/urbit/content';
+import { constructStory } from '@tloncorp/shared/urbit/channel';
+import { JSONContent } from '@tloncorp/shared/urbit/content';
 import cn from 'classnames';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';

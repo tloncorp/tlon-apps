@@ -1,6 +1,6 @@
 import { Editor } from '@tiptap/react';
-import { Cite, Kind, Story } from '@tloncorp/shared/dist/urbit/channel';
-import { Inline } from '@tloncorp/shared/dist/urbit/content';
+import { Cite, Kind, Story } from '@tloncorp/shared/urbit/channel';
+import { Inline } from '@tloncorp/shared/urbit/content';
 import cn from 'classnames';
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';

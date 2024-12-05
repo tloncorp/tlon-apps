@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "d3b5845c-7fa4-48d9-ba18-3e237654d040",
+  "id": "839147fe-9b23-480c-ac07-bcdee93e4828",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -387,7 +387,8 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": false
         },
         "synced_at": {
           "name": "synced_at",
@@ -413,6 +414,13 @@
         "is_default_welcome_channel": {
           "name": "is_default_welcome_channel",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "content_configuration": {
+          "name": "content_configuration",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -1749,6 +1757,41 @@
         },
         "delivery_status": {
           "name": "delivery_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "edit_status": {
+          "name": "edit_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "delete_status": {
+          "name": "delete_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_edit_content": {
+          "name": "last_edit_content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_edit_title": {
+          "name": "last_edit_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_edit_image": {
+          "name": "last_edit_image",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

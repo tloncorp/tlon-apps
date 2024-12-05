@@ -6,13 +6,13 @@ import {
   getDmSource,
   getKey,
   getThreadKey,
-} from '@tloncorp/shared/dist/urbit/activity';
+} from '@tloncorp/shared/urbit/activity';
 import {
   Post,
   Story,
   VerseBlock,
   constructStory,
-} from '@tloncorp/shared/dist/urbit/channel';
+} from '@tloncorp/shared/urbit/channel';
 import { daToUnix } from '@urbit/api';
 import { formatUd } from '@urbit/aura';
 import { BigInteger } from 'big-integer';

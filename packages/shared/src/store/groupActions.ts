@@ -994,7 +994,7 @@ export async function markGroupRead(group: db.Group) {
   try {
     await api.readGroup(group);
   } catch (e) {
-    console.error('Failed to read channel', e);
+    console.error('Failed to read group', e);
     // rollback optimistic update
     if (existingUnread) {
       await db.insertGroupUnreads([existingUnread]);

@@ -4,7 +4,7 @@ import {
   ActivityRelevancy,
   getAuthor,
   getChannelKind,
-} from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared/urbit';
 import React, { PropsWithChildren, useMemo } from 'react';
 
 import ShipName from '@/components/ShipName';

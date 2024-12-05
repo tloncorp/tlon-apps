@@ -25,7 +25,7 @@
     "tsc": "tsc --noEmit",
     "build": "pnpm generate",
     "cosmos": "cosmos-native",
-    "eas-build-post-install": "pnpm -w run build:all"
+    "eas-build-post-install": "pnpm -w run build:mobile-release"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,md,html}": [
@@ -37,7 +37,7 @@
     ]
   },
   "dependencies": {
-    "@10play/tentap-editor": "~0.5.11",
+    "@10play/tentap-editor": "~0.5.21",
     "@aws-sdk/client-s3": "^3.190.0",
     "@aws-sdk/s3-request-presigner": "^3.190.0",
     "@dev-plugins/async-storage": "^0.0.3",
@@ -53,16 +53,18 @@
     "@react-native-firebase/crashlytics": "^19.2.2",
     "@react-native-firebase/perf": "19.2.2",
     "@react-navigation/bottom-tabs": "^6.5.12",
+    "@react-navigation/drawer": "^6.7.2",
     "@react-navigation/native": "^6.1.7",
     "@react-navigation/native-stack": "^6.9.13",
     "@shopify/flash-list": "1.6.3",
+    "@tamagui/react-native-media-driver": "^1.116.12",
     "@tanstack/react-query": "~5.32.1",
     "@tloncorp/app": "workspace:*",
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
     "@urbit/aura": "^1.0.0",
-    "@urbit/http-api": "^3.1.0-dev-3",
+    "@urbit/http-api": "3.2.0-dev",
     "classnames": "^2.3.2",
     "dotenv-expand": "^11.0.6",
     "expo": "^50.0.6",

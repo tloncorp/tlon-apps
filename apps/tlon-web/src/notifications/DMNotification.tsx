@@ -1,10 +1,10 @@
-import { makePrettyTime } from '@tloncorp/shared/dist';
+import { makePrettyTime } from '@tloncorp/shared';
 import {
   ActivityBundle,
   ActivityEvent,
   ActivityRelevancy,
   Story,
-} from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared/urbit';
 import React from 'react';
 import { Link } from 'react-router-dom';
 

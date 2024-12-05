@@ -1,9 +1,13 @@
-import { useIsFocused } from '@react-navigation/native';
+import {
+  NavigationProp,
+  useIsFocused,
+  useNavigation,
+} from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
-import * as store from '@tloncorp/shared/dist/store';
+import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import {
   AddGroupSheet,
   ChatList,
@@ -25,6 +29,7 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
+import { screenNameFromChannelId } from '../../navigation/utils';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 
@@ -33,11 +38,16 @@ const logger = createDevLogger('ChatListScreen', false);
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
 
 export default function ChatListScreen(props: Props) {
-  const {
-    route: { params },
-    navigation: { navigate },
-  } = props;
-  const previewGroup = params?.previewGroup;
+  const previewGroupId = props.route.params?.previewGroupId;
+  return <ChatListScreenView previewGroupId={previewGroupId} />;
+}
+
+export function ChatListScreenView({
+  previewGroupId,
+}: {
+  previewGroupId?: string;
+}) {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
@@ -64,9 +74,11 @@ export default function ChatListScreen(props: Props) {
   const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
     'all'
   );
-  const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(
-    previewGroup ?? null
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
+    previewGroupId ?? null
   );
+  const { data: selectedGroup } = store.useGroup({ id: selectedGroupId ?? '' });
+
   const [showSearchInput, setShowSearchInput] = useState(false);
   const isFocused = useIsFocused();
   const { data: pins } = store.usePins({
@@ -140,13 +152,13 @@ export default function ChatListScreen(props: Props) {
 
   const handleNavigateToFindGroups = useCallback(() => {
     setAddGroupOpen(false);
-    navigate('FindGroups');
-  }, [navigate]);
+    navigation.navigate('FindGroups');
+  }, [navigation]);
 
   const handleNavigateToCreateGroup = useCallback(() => {
     setAddGroupOpen(false);
-    navigate('CreateGroup');
-  }, [navigate]);
+    navigation.navigate('CreateGroup');
+  }, [navigation]);
 
   const goToDm = useCallback(
     async (userId: string) => {
@@ -154,9 +166,9 @@ export default function ChatListScreen(props: Props) {
         participants: [userId],
       });
       setAddGroupOpen(false);
-      props.navigation.push('Channel', { channel: dmChannel });
+      navigation.navigate('DM', { channelId: dmChannel.id });
     },
-    [props.navigation, setAddGroupOpen]
+    [navigation, setAddGroupOpen]
   );
 
   const handleAddGroupOpenChange = useCallback((open: boolean) => {
@@ -170,22 +182,24 @@ export default function ChatListScreen(props: Props) {
   const onPressChat = useCallback(
     (item: db.Channel | db.Group) => {
       if (logic.isGroup(item)) {
-        setSelectedGroup(item);
+        setSelectedGroupId(item.id);
       } else if (
         item.group &&
         !isChannelSwitcherEnabled &&
         // Should navigate to channel if it's pinned as a channel
         (!item.pin || item.pin.type === 'group')
       ) {
-        navigate('GroupChannels', { group: item.group });
+        navigation.navigate('GroupChannels', { groupId: item.group.id });
       } else {
-        navigate('Channel', {
-          channel: item,
+        const screenName = screenNameFromChannelId(item.id);
+
+        navigation.navigate(screenName, {
+          channelId: item.id,
           selectedPostId: item.firstUnreadPostId,
         });
       }
     },
-    [isChannelSwitcherEnabled, navigate]
+    [isChannelSwitcherEnabled, navigation]
   );
 
   const onLongPressChat = useCallback((item: db.Channel | db.Group) => {
@@ -201,7 +215,7 @@ export default function ChatListScreen(props: Props) {
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
-      setSelectedGroup(null);
+      setSelectedGroupId(null);
     }
   }, []);
 
@@ -211,14 +225,16 @@ export default function ChatListScreen(props: Props) {
     }
   }, []);
 
-  const { pinned: pinnedChats, unpinned } = resolvedChats;
-  const allChats = [...pinnedChats, ...unpinned];
-  const isTlonEmployee = !!allChats.find(
-    (obj) => obj.groupId === TLON_EMPLOYEE_GROUP
-  );
-  if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
-    identifyTlonEmployee();
-  }
+  const isTlonEmployee = useMemo(() => {
+    const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
+    return !!allChats.find((obj) => obj.groupId === TLON_EMPLOYEE_GROUP);
+  }, [resolvedChats]);
+
+  useEffect(() => {
+    if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
+      identifyTlonEmployee();
+    }
+  }, [isTlonEmployee]);
 
   const handleSectionChange = useCallback(
     (title: string) => {
@@ -269,7 +285,7 @@ export default function ChatListScreen(props: Props) {
   return (
     <RequestsProvider
       usePostReference={store.usePostReference}
-      useChannel={store.useChannelWithRelations}
+      useChannel={store.useChannelPreview}
       usePost={store.usePostWithRelations}
       useApp={store.useAppInfo}
       useGroup={store.useGroupPreview}
@@ -308,7 +324,6 @@ export default function ChatListScreen(props: Props) {
               pendingChats={resolvedChats.pendingChats}
               onLongPressItem={onLongPressChat}
               onPressItem={onPressChat}
-              onPressMenuButton={onLongPressChat}
               onSectionChange={handleSectionChange}
               showSearchInput={showSearchInput}
               onSearchToggle={handleSearchInputToggled}
@@ -323,7 +338,7 @@ export default function ChatListScreen(props: Props) {
           />
           <ChatOptionsSheet ref={chatOptionsSheetRef} />
           <GroupPreviewSheet
-            open={selectedGroup !== null}
+            open={!!selectedGroup}
             onOpenChange={handleGroupPreviewSheetOpenChange}
             group={selectedGroup ?? undefined}
           />
@@ -336,13 +351,13 @@ export default function ChatListScreen(props: Props) {
         </View>
         <NavBarView
           navigateToHome={() => {
-            navigate('ChatList');
+            navigation.navigate('ChatList');
           }}
           navigateToNotifications={() => {
-            navigate('Activity');
+            navigation.navigate('Activity');
           }}
           navigateToProfileSettings={() => {
-            navigate('Profile');
+            navigation.navigate('Profile');
           }}
           currentRoute="ChatList"
           currentUserId={currentUser}

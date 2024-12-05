@@ -1,0 +1,47 @@
+diff --git a/lib/module/views/DrawerView.js b/lib/module/views/DrawerView.js
+index 38765bbff02327474d73480cc9e8996b6a22f019..c264fabce759878a62d495ed2676b730f4111283 100644
+--- a/lib/module/views/DrawerView.js
++++ b/lib/module/views/DrawerView.js
+@@ -13,6 +13,7 @@ import DrawerContent from './DrawerContent';
+ import DrawerToggleButton from './DrawerToggleButton';
+ import { GestureHandlerRootView } from './GestureHandler';
+ import { MaybeScreen, MaybeScreenContainer } from './ScreenFallback';
++import Drawer from './modern/Drawer';
+ const getDefaultDrawerWidth = _ref => {
+   let {
+     height,
+@@ -45,11 +46,10 @@ function DrawerViewBase(_ref2) {
+     useLegacyImplementation = !((_Reanimated$isConfigu = Reanimated.isConfigured) !== null && _Reanimated$isConfigu !== void 0 && _Reanimated$isConfigu.call(Reanimated))
+   } = _ref2;
+   // Reanimated v3 dropped legacy v1 syntax
+-  const legacyImplemenationNotAvailable = require('react-native-reanimated').abs === undefined;
++  const legacyImplemenationNotAvailable = true;
+   if (useLegacyImplementation && legacyImplemenationNotAvailable) {
+     throw new Error('The `useLegacyImplementation` prop is not available with Reanimated 3 as it no longer includes support for Reanimated 1 legacy API. Remove the `useLegacyImplementation` prop from `Drawer.Navigator` to be able to use it.');
+   }
+-  const Drawer = useLegacyImplementation ? require('./legacy/Drawer').default : require('./modern/Drawer').default;
+   const focusedRouteKey = state.routes[state.index].key;
+   const {
+     drawerHideStatusBarOnOpen = false,
+diff --git a/lib/module/views/modern/Drawer.js b/lib/module/views/modern/Drawer.js
+index 3aa1baa2efd65bab22da56416c90e3a294dab266..9c02ff62e84496e62e6c1843cd1786b37b9207a8 100644
+--- a/lib/module/views/modern/Drawer.js
++++ b/lib/module/views/modern/Drawer.js
+@@ -222,7 +222,7 @@ export default function Drawer(_ref) {
+         (drawerType === 'back' ? 0 : translateX.value) + (drawerPosition === 'left' ? isRTL ? -distanceFromEdge : 0 : isRTL ? 0 : distanceFromEdge)
+       }]
+     };
+-  });
++  }, [dimensions.width, drawerPosition, drawerType, drawerWidth, isRTL, translateX]);
+   const contentAnimatedStyle = useAnimatedStyle(() => {
+     return {
+       transform: drawerType === 'permanent' ?
+@@ -234,7 +234,7 @@ export default function Drawer(_ref) {
+         drawerType === 'front' ? 0 : translateX.value + drawerWidth * (drawerPosition === 'left' ? 1 : -1)
+       }]
+     };
+-  });
++  }, [drawerPosition, drawerType, drawerWidth, translateX]);
+   const progress = useDerivedValue(() => {
+     return drawerType === 'permanent' ? 1 : interpolate(translateX.value, [getDrawerTranslationX(false), getDrawerTranslationX(true)], [0, 1]);
+   });

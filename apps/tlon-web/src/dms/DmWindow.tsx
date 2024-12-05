@@ -1,4 +1,4 @@
-import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
+import { WritTuple } from '@tloncorp/shared/urbit/dms';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { ReactElement, useCallback, useEffect, useMemo, useRef } from 'react';

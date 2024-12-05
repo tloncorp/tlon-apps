@@ -6,3 +6,5 @@ export * from './types';
 export * from './activity';
 export * from './branch';
 export * from './deeplinks';
+export * from './analytics';
+export * from './tiptap';

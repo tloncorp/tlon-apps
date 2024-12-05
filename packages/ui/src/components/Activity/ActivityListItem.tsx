@@ -1,13 +1,14 @@
-import * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
-import * as store from '@tloncorp/shared/dist/store';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import React, { PropsWithChildren, useCallback, useMemo } from 'react';
-import { View, XStack, YStack, styled } from 'tamagui';
+import { XStack, YStack, styled } from 'tamagui';
 
 import { useCalm } from '../../contexts';
-import { getChannelTitle } from '../../utils';
+import { useChannelTitle } from '../../utils';
 import { ChannelAvatar, ContactAvatar, GroupAvatar } from '../Avatar';
 import { Icon } from '../Icon';
+import Pressable from '../Pressable';
 import { Text } from '../TextV2';
 import { UnreadDot } from '../UnreadDot';
 import { ActivitySourceContent } from './ActivitySourceContent';
@@ -33,13 +34,13 @@ export const ActivityListItem = React.memo(function ActivityListItem({
     event.type === 'group-ask'
   ) {
     return (
-      <View onPress={handlePress}>
+      <Pressable onPress={handlePress}>
         <ActivityListItemContent
           summary={sourceActivity}
           pressHandler={handlePress}
           seenMarker={seenMarker}
         />
-      </View>
+      </Pressable>
     );
   }
 
@@ -70,16 +71,22 @@ export function ActivityListItemContent({
     return (isGroupUnread(unread) ? unread.notifyCount : unread?.count) ?? 0;
   }, [unread]);
 
-  const title = !channel
-    ? group
-      ? group.title ?? ''
-      : ''
-    : channel.type === 'dm'
-      ? 'Direct message'
-      : channel.type === 'groupDm'
-        ? 'Group chat'
-        : (group?.title ? group.title + ': ' : '') +
-          getChannelTitle(channel, calm.disableNicknames);
+  const channelTitle = useChannelTitle(channel ?? null);
+  const title = useMemo(() => {
+    if (channel == null || channelTitle == null) {
+      return group?.title ?? '';
+    }
+    if (channel.type === 'dm') {
+      return 'Direct message';
+    }
+    if (channel.type === 'groupDm') {
+      return 'Group chat';
+    }
+    if (group?.title) {
+      return `${group.title}: ${channelTitle}`;
+    }
+    return channelTitle;
+  }, [channelTitle, channel, group]);
 
   return (
     <ActivitySummaryFrame

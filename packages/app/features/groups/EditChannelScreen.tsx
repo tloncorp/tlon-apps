@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as store from '@tloncorp/shared/dist/store';
+import * as store from '@tloncorp/shared/store';
 import { EditChannelScreenView } from '@tloncorp/ui';
 import { useCallback } from 'react';
 

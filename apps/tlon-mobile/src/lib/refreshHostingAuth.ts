@@ -5,7 +5,7 @@ import {
   setHostingAuthExpired,
   setLastHostingAuthCheck,
 } from '@tloncorp/app/utils/hosting';
-import { createDevLogger } from '@tloncorp/shared/dist';
+import { createDevLogger } from '@tloncorp/shared';
 
 const logger = createDevLogger('refreshHostingAuth', false);
 

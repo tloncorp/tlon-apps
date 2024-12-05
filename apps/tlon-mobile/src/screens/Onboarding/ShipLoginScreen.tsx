@@ -5,24 +5,29 @@ import {
   DEFAULT_SHIP_LOGIN_URL,
 } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
+import { setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { transformShipURL } from '@tloncorp/app/utils/string';
-import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
+import { didSignUp } from '@tloncorp/shared/db';
 import {
   Field,
   KeyboardAvoidingView,
   OnboardingTextBlock,
   ScreenHeader,
   TextInput,
+  TextInputWithButton,
   TlonText,
   View,
   YStack,
 } from '@tloncorp/ui';
-import { setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import type { OnboardingStackParamList } from '../../types';
+
+const logger = createDevLogger('ShipLoginScreen', true);
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ShipLogin'>;
 
@@ -53,6 +58,8 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     },
   });
   const { setShip } = useShip();
+
+  const [codevisible, setCodeVisible] = useState(false);
 
   const isValidUrl = useCallback((url: string) => {
     const urlPattern =
@@ -90,7 +97,13 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
           ship: shipId,
           shipUrl,
           authCookie,
+          authType: 'self',
         });
+
+        const hasSignedUp = await didSignUp.getValue();
+        if (!hasSignedUp) {
+          logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
+        }
       } else {
         setRemoteError(
           "Sorry, we couldn't log in to your ship. It may be busy or offline."
@@ -189,7 +202,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
               }}
               render={({ field: { onChange, onBlur, value } }) => (
                 <Field label="Access Code" error={errors.accessCode?.message}>
-                  <TextInput
+                  <TextInputWithButton
                     testID="textInput accessCode"
                     placeholder="xxxxxx-xxxxxx-xxxxxx-xxxxxx"
                     onBlur={() => {
@@ -199,11 +212,13 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
                     onChangeText={onChange}
                     onSubmitEditing={onSubmit}
                     value={value}
-                    secureTextEntry
+                    secureTextEntry={!codevisible}
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType="send"
                     enablesReturnKeyAutomatically
+                    buttonText={codevisible ? 'Hide' : 'Show'}
+                    onButtonPress={() => setCodeVisible(!codevisible)}
                   />
                 </Field>
               )}

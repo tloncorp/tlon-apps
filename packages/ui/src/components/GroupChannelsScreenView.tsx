@@ -1,42 +1,29 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts';
-import { useChatOptions } from '../contexts/chatOptions';
 import { useIsAdmin } from '../utils/channelUtils';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
 import { LoadingSpinner } from './LoadingSpinner';
-import {
-  ChannelTypeName,
-  CreateChannelSheet,
-} from './ManageChannels/CreateChannelSheet';
+import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
 
 type GroupChannelsScreenViewProps = {
+  group: db.Group | null;
   onChannelPressed: (channel: db.Channel) => void;
   onBackPressed: () => void;
-  currentUser: string;
-  createChannel: ({
-    title,
-    description,
-    channelType,
-  }: {
-    title: string;
-    description: string;
-    channelType: ChannelTypeName;
-  }) => Promise<void>;
+  enableCustomChannels?: boolean;
 };
 
 export function GroupChannelsScreenView({
+  group,
   onChannelPressed,
   onBackPressed,
-  createChannel,
+  enableCustomChannels = false,
 }: GroupChannelsScreenViewProps) {
-  const groupOptions = useChatOptions();
-  const group = groupOptions?.group;
   const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
@@ -105,9 +92,7 @@ export function GroupChannelsScreenView({
           </>
         }
       />
-      {group &&
-      groupOptions.groupChannels &&
-      groupOptions.groupChannels.length ? (
+      {group && group.channels && group.channels.length ? (
         <ScrollView
           contentContainerStyle={{
             gap: '$s',
@@ -118,7 +103,7 @@ export function GroupChannelsScreenView({
         >
           <ChannelNavSections
             group={group}
-            channels={groupOptions.groupChannels}
+            channels={group.channels}
             onSelect={onChannelPressed}
             sortBy={sortBy || 'recency'}
             onLongPress={handleOpenChannelOptions}
@@ -130,16 +115,11 @@ export function GroupChannelsScreenView({
         </YStack>
       )}
 
-      {showCreateChannel && (
+      {showCreateChannel && group && (
         <CreateChannelSheet
           onOpenChange={(open) => setShowCreateChannel(open)}
-          createChannel={async ({ title, description, channelType }) =>
-            createChannel({
-              title,
-              description,
-              channelType,
-            })
-          }
+          group={group}
+          enableCustomChannels={enableCustomChannels}
         />
       )}
       <ChatOptionsSheet ref={chatOptionsSheetRef} setSortBy={setSortBy} />

@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { useCallback, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
@@ -30,7 +30,7 @@ export function CreateGroupView({
   );
 
   return (
-    <View flex={1}>
+    <View backgroundColor="$background" flex={1}>
       <ScreenHeader
         title={'Create Group'}
         backAction={() =>

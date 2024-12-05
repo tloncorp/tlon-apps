@@ -16,3 +16,6 @@ export const isSplashDismissed = async () => {
 
 export const setSplashDismissed = () =>
   storage.save({ key: 'splash', data: true });
+
+export const clearSplashDismissed = () =>
+  storage.save({ key: 'splash', data: false });

@@ -1,7 +1,6 @@
-import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
+import type * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import {
   AppDataContextProvider,
   GroupPreviewSheet,
@@ -13,6 +12,7 @@ import { useCallback } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootStackParamList } from '../../navigation/types';
+import { useResetToDm } from '../../navigation/utils';
 import { useConnectionStatus } from './useConnectionStatus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
@@ -23,23 +23,13 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
   const { data: contacts } = store.useContacts();
   const connectionStatus = useConnectionStatus(userId);
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
+  const resetToDm = useResetToDm();
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
-      const dmChannel = await store.upsertDmChannel({
-        participants,
-      });
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 1,
-          routes: [
-            { name: 'ChatList' },
-            { name: 'Channel', params: { channel: dmChannel } },
-          ],
-        })
-      );
+      resetToDm(participants[0]);
     },
-    [navigation]
+    [resetToDm]
   );
 
   const handleGroupPreviewSheetOpenChange = useCallback(
@@ -48,6 +38,10 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
     },
     [selectedGroup]
   );
+
+  const handlePressEdit = useCallback(() => {
+    navigation.push('EditProfile');
+  }, [navigation]);
 
   return (
     <AppDataContextProvider
@@ -60,6 +54,7 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
           onBack={() => navigation.goBack()}
           connectionStatus={connectionStatus}
           onPressGroup={setSelectedGroup}
+          onPressEdit={handlePressEdit}
         />
         <GroupPreviewSheet
           open={selectedGroup !== null}

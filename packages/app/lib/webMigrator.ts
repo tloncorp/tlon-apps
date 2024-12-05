@@ -1,5 +1,5 @@
 import { createDevLogger } from '@tloncorp/shared';
-import { migrations as sharedMigrations } from '@tloncorp/shared/dist/db/migrations';
+import { migrations as sharedMigrations } from '@tloncorp/shared/db/migrations';
 import { sql } from 'drizzle-orm';
 import type { SqliteRemoteDatabase } from 'drizzle-orm/sqlite-proxy';
 import { SQLocalDrizzle } from 'sqlocal/drizzle';

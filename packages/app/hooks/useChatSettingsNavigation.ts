@@ -71,6 +71,13 @@ export const useChatSettingsNavigation = () => {
     [navigation]
   );
 
+  const navigateOnLeave = useCallback(
+    () => {
+      navigation.navigate('ChatList');
+    },
+    [navigation]
+  );
+
   return {
     onPressChannelMembers,
     onPressChannelMeta,
@@ -79,5 +86,6 @@ export const useChatSettingsNavigation = () => {
     onPressManageChannels,
     onPressGroupPrivacy,
     onPressRoles,
+    navigateOnLeave,
   };
 };

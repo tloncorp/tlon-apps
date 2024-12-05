@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/db';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import React from 'react';
 import {
@@ -252,7 +252,7 @@ export const TextAvatar = React.memo(function TextAvatarComponent({
   backgroundColor = '$secondaryBackground',
   ...props
 }: {
-  text: string;
+  text: string | null;
 } & AvatarProps) {
   const fontSize = {
     $xl: 12,
@@ -278,7 +278,7 @@ export const TextAvatar = React.memo(function TextAvatarComponent({
           fontSize={fontSize}
           color={getContrastingColor(finalBackgroundColor)}
         >
-          {text[0]?.toUpperCase()}
+          {text?.[0]?.toUpperCase()}
         </Text>
       </View>
     </AvatarFrame>

@@ -1,10 +1,10 @@
 import {
-  useChannel as useChannelFromStore,
+  useChannelPreview,
   useGroupPreview,
   usePostReference,
   usePostWithRelations,
-} from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
+} from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import { isEqual } from 'lodash';
 import {
   PropsWithChildren,
@@ -18,7 +18,7 @@ import {
 
 type State = {
   usePost: typeof usePostWithRelations;
-  useChannel: typeof useChannelFromStore;
+  useChannel: typeof useChannelPreview;
   useGroup: typeof useGroupPreview;
   useApp: (id: string) => void;
   usePostReference: typeof usePostReference;
@@ -28,7 +28,7 @@ type ContextValue = State;
 
 const Context = createContext<ContextValue>({
   usePost: usePostWithRelations,
-  useChannel: useChannelFromStore,
+  useChannel: useChannelPreview,
   useGroup: useGroupPreview,
   useApp: () => {},
   usePostReference: usePostReference,
@@ -46,7 +46,7 @@ export const useRequests = () => {
 
 type RequestProviderProps = {
   usePost: typeof usePostWithRelations;
-  useChannel: typeof useChannelFromStore;
+  useChannel: typeof useChannelPreview;
   useGroup: typeof useGroupPreview;
   useApp: (id: string) => void;
   usePostReference: typeof usePostReference;
