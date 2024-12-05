@@ -60,11 +60,12 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
 
   const handleSubmit = useCallback(
     async (params: CreateChatParams) => {
-      if (!isCreatingChat) {
-        const didCreate = await createChat(params);
-        if (didCreate) {
-          setStep('initial');
-        }
+      if (isCreatingChat) {
+        return;
+      }
+      const didCreate = await createChat(params);
+      if (didCreate) {
+        setStep('initial');
       }
     },
     [createChat, isCreatingChat]

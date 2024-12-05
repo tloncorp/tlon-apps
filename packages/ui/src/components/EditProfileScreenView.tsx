@@ -271,7 +271,7 @@ export function EditProfileScreenView(props: Props) {
                 <PinnedGroupsDisplay
                   groups={pinnedGroups ?? []}
                   onPressGroup={() => {}}
-                  backgroundColor="$secondaryBackground"
+                  itemProps={{ backgroundColor: '$secondaryBackground' }}
                 />
               </>
             )}

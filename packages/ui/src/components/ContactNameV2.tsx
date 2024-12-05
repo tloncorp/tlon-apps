@@ -3,7 +3,7 @@ import React, { useMemo } from 'react';
 import { useCalm } from '../contexts';
 import { useContact } from '../contexts/appDataContext';
 import { formatUserId } from '../utils/user';
-import { Text } from './TextV2';
+import { RawText } from './TextV2';
 
 // This file is temporary -- it uses the new text, and I want to make sure it works across all callsites before swapping it in
 
@@ -57,7 +57,7 @@ export const useContactName = (options: string | ContactNameOptions) => {
   return useContactNameProps(resolvedOptions).children;
 };
 
-const BaseContactName = Text.styleable<{
+const BaseContactName = RawText.styleable<{
   contactId: string;
   expandLongIds?: boolean;
   mode?: 'contactId' | 'nickname' | 'both' | 'auto';
@@ -83,10 +83,10 @@ const BaseContactName = Text.styleable<{
     }
 
     return (
-      <Text
+      <RawText
         {...useContactNameProps({ contactId, expandLongIds, mode })}
         {...props}
-      ></Text>
+      ></RawText>
     );
   },
   {

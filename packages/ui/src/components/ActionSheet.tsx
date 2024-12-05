@@ -487,7 +487,7 @@ export const SimpleActionSheetHeader = ({
   subtitle,
   icon,
 }: {
-  title?: string;
+  title?: string | null;
   subtitle?: string;
   icon?: ReactElement;
 }) => {
