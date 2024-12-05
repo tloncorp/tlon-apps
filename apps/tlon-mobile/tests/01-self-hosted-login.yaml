@@ -1,0 +1,36 @@
+appId: io.tlon.groups
+---
+- assertVisible: 'Welcome to TM'
+- swipe:
+    direction: 'DOWN'
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn: 'Have an account? Log in'
+- tapOn: 'Or configure self hosted'
+# Open EULA
+- tapOn:
+    point: '73%,55%'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'EULA'
+- tapOn:
+    point: '9%,7%'
+- waitForAnimationToEnd:
+    timeout: 5000
+# Log in
+- tapOn:
+    id: 'textInput shipUrl'
+- inputText: ${URL}
+- tapOn:
+    id: 'textInput accessCode'
+- inputText: ${CODE}
+- tapOn: 'Connect'
+# Dismiss password save prompt
+- tapOn: 'Not now'
+- tapOn: 'Next'
+- assertVisible: 'Welcome to TM'
+- swipe:
+    direction: 'DOWN'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'Home'

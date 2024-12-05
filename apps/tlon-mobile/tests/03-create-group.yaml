@@ -1,0 +1,43 @@
+appId: io.tlon.groups
+---
+# Create an empty group from the home screen
+- tapOn:
+    point: '91%,7%'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'Start a chat'
+- tapOn: 'Create group'
+- tapOn: 'Skip'
+- tapOn: 'Group name'
+- inputText: 'Automated Test Group'
+- tapOn:
+    point: '50%,33%'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'Welcome'
+- assertVisible:
+    'This is your group’s default welcome channel. Feel free to rename it or
+    create additional channels.'
+## Verify that channel properties sheet opens and all options are visible
+- tapOn:
+    point: '91%,7%'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'Channel in Automated Test Group'
+- tapOn: 'Notifications'
+- assertVisible: 'Only mentions and replies'
+- tapOn:
+    point: '17%,42%'
+- tapOn: 'Manage channels'
+- assertVisible: 'Create a channel'
+- tapOn:
+    point: '9%,7%'
+- tapOn: 'Welcome'
+- tapOn:
+    point: '91%,7%'
+- tapOn: 'Invite people'
+- assertVisible: 'Select people to invite'
+- swipe:
+    direction: 'DOWN'
+- tapOn:
+    point: '9%,7%'
