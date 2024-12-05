@@ -2,6 +2,7 @@ import { useShip } from '@tloncorp/app/contexts/ship';
 import { useAppStatusChange } from '@tloncorp/app/hooks/useAppStatusChange';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
+import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
@@ -29,6 +30,7 @@ function AuthenticatedApp() {
   useNavigationLogging();
   useNetworkLogger();
   useCheckAppUpdated();
+  useFindSuggestedContacts();
 
   useEffect(() => {
     configureClient();

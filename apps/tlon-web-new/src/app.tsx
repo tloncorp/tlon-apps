@@ -6,6 +6,7 @@ import {
 } from '@react-navigation/native';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
+import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { checkDb, useMigrations } from '@tloncorp/app/lib/webDb';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
@@ -135,6 +136,7 @@ const App = React.memo(function AppComponent() {
   const [dbIsLoaded, setDbIsLoaded] = useState(false);
   const [startedSync, setStartedSync] = useState(false);
   const configureClient = useConfigureUrbitClient();
+  useFindSuggestedContacts();
 
   useEffect(() => {
     handleError(() => {

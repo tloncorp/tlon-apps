@@ -290,6 +290,11 @@ export const groupsUsedForSuggestions = createStorageItem<string[]>({
   defaultValue: [],
 });
 
+export const lastAddedSuggestionsAt = createStorageItem<number>({
+  key: 'lastAddedSuggestionsAt',
+  defaultValue: 0,
+});
+
 export const postDraft = (opts: {
   key: string;
   type: 'caption' | 'text' | undefined; // matches GalleryDraftType
