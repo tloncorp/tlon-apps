@@ -16,11 +16,13 @@ export function DraftInputConnectedBigInput({
    * presence animation.
    */
   hidden = false,
+  overrideChannelType,
 }: {
   draftInputContext: DraftInputContext;
   // TODO: I think this is only used to dismiss big input on send - remove and just dismiss in `onSent` callback
   setShowBigInput: Dispatch<SetStateAction<boolean>>;
   hidden?: boolean;
+  overrideChannelType?: 'notebook' | 'gallery';
 }) {
   const {
     channel,
@@ -54,7 +56,9 @@ export function DraftInputConnectedBigInput({
           width="100%"
         >
           <BigInput
-            channelType={channel.type}
+            channelType={
+              overrideChannelType == null ? channel.type : overrideChannelType
+            }
             channelId={channel.id}
             groupMembers={group?.members ?? []}
             shouldBlur={shouldBlur}

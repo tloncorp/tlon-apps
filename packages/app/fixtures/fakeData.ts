@@ -668,7 +668,8 @@ const getRandomFakeContact = () => {
 export const createFakePost = (
   type?: db.PostType,
   content?: string,
-  image?: string
+  image?: string,
+  overrides?: Partial<db.Post>
 ): db.Post => {
   const fakeContact = getRandomFakeContact();
   const ship = fakeContact.id;
@@ -710,6 +711,7 @@ export const createFakePost = (
       Math.random() > 0.2 ? [] : createFakeReactions({ count: randInt(0, 10) }),
     hidden: false,
     syncedAt: 0,
+    ...overrides,
   };
 };
 
@@ -775,11 +777,12 @@ function getRandomTimeOnSameDay() {
 
 export const createFakePosts = (
   count: number,
-  type?: db.PostType
+  type?: db.PostType,
+  overrides?: Partial<db.Post>
 ): db.Post[] => {
   const posts = [];
   for (let i = 0; i < count; i++) {
-    posts.push(createFakePost(type));
+    posts.push(createFakePost(type, undefined, undefined, overrides));
   }
 
   // sort by timestamp

@@ -2,14 +2,15 @@ import {
   PostCollectionLayoutType,
   configurationFromChannel,
   layoutForType,
-  layoutTypeFromChannel,
   useMutableCallback,
 } from '@tloncorp/shared';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { isSameDay } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { isEqual } from 'lodash';
 import React, {
+  ComponentPropsWithoutRef,
   PropsWithChildren,
   ReactElement,
   RefObject,
@@ -455,7 +456,7 @@ const Scroller = forwardRef(
             ref={flatListRef as React.RefObject<Animated.FlatList<db.Post>>}
             // This is needed so that we can force a refresh of the list when
             // we need to switch from 1 to 2 columns or vice versa.
-            key={channel.type}
+            key={channel.type + '-' + collectionLayout.columnCount}
             data={postsWithNeighbors}
             // Disabled to prevent the user from accidentally blurring the edit
             // input while they're typing.
@@ -651,6 +652,15 @@ const BaseScrollerItem = ({
     }
   }, [dividerType, post, unreadCount, showDayDivider]);
 
+  const editPost = useCallback<
+    Exclude<ComponentPropsWithoutRef<RenderItemType>['editPost'], undefined>
+  >(async (post, content) => {
+    await store.editPost({
+      post,
+      content,
+    });
+  }, []);
+
   return (
     <View onLayout={handleLayout} flex={1} aspectRatio={itemAspectRatio}>
       {divider}
@@ -659,6 +669,7 @@ const BaseScrollerItem = ({
         isActive={activeMessage?.id === post.id}
       >
         <Component
+          editPost={editPost}
           isHighlighted={isSelected}
           post={post}
           setViewReactionsPost={setViewReactionsPost}

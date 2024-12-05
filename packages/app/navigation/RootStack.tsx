@@ -26,6 +26,7 @@ import { FindGroupsScreen } from '../features/top/FindGroupsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
 import ImageViewerScreen from '../features/top/ImageViewerScreen';
 import PostScreen from '../features/top/PostScreen';
+import { PostUsingContentConfigurationScreen } from '../features/top/PostUsingContentConfigurationScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { useFeatureFlag } from '../lib/featureFlags';
@@ -120,6 +121,10 @@ export function RootStack() {
       <Root.Screen name="WompWomp" component={UserBugReportScreen} />
       <Root.Screen name="ChannelMembers" component={ChannelMembersScreen} />
       <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
+      <Root.Screen
+        name="PostUsingContentConfiguration"
+        component={PostUsingContentConfigurationScreen}
+      />
     </Root.Navigator>
   );
 }

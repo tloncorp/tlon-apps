@@ -19,7 +19,7 @@ import {
   InviteUsersSheet,
   useCurrentUserId,
 } from '@tloncorp/ui';
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -334,6 +334,8 @@ export default function ChannelScreen(props: Props) {
     }
   }, []);
 
+  const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
+
   if (!channel) {
     return null;
   }
@@ -344,10 +346,12 @@ export default function ChannelScreen(props: Props) {
       onPressInvite={(group) => {
         setInviteSheetGroup(group);
       }}
+      onPressConfigureChannel={channelRef.current?.openChannelConfigurationBar}
       {...chatOptionsNavProps}
     >
       <Channel
         key={currentChannelId}
+        ref={channelRef}
         headerMode={headerMode}
         channel={channel}
         initialChannelUnread={clearedCursor ? undefined : initialChannelUnread}
