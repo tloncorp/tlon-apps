@@ -371,6 +371,7 @@ export default function BareChatInput({
       clearAttachments();
       clearDraft();
       setHasSetInitialContent(false);
+      setInputHeight(initialHeight);
     },
     [
       onSend,
@@ -387,6 +388,7 @@ export default function BareChatInput({
       send,
       channelId,
       setMentions,
+      initialHeight,
     ]
   );
 
@@ -558,7 +560,8 @@ export default function BareChatInput({
     setControlledText('');
     clearDraft();
     clearAttachments();
-  }, [setEditingPost, clearDraft, clearAttachments]);
+    setInputHeight(initialHeight);
+  }, [setEditingPost, clearDraft, clearAttachments, initialHeight]);
 
   const theme = useTheme();
 
