@@ -1175,10 +1175,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     });
 
   updateIsSyncing(false);
-
-  // finding contacts is a bit of an outlier here, but it's work we need to do
-  // that can roughly be batched whenever we sync
-  findContactSuggestions();
 };
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
