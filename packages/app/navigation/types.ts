@@ -73,7 +73,7 @@ export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
 
 export type RootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
-} & Pick<RootStackParamList, 'Activity' | 'Profile'>;
+} & Pick<RootStackParamList, 'Activity' | 'Contacts'>;
 
 export type HomeDrawerParamList = Pick<
   RootStackParamList,
