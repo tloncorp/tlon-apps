@@ -123,7 +123,7 @@
     ::
     ?>  !=(?=(%start +<.cmd) (~(has by records) key))
     :-  =/  =cage
-          [%verifier-command !>(`user-command`+.cmd)]
+          [%verifier-user-command !>(`user-command`+.cmd)]
         [%pass /verifier %agent [host %verifier] %poke cage]~
     =?  records  ?=(%start +<.cmd)
       (~(put by records) key *config %wait ~)
