@@ -32,7 +32,7 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, styled, useStyle, useTheme } from 'tamagui';
+import { View, getTokenValue, styled, useStyle, useTheme } from 'tamagui';
 
 import { RenderItemType } from '../../contexts/componentsKits';
 import { useLivePost } from '../../contexts/requests';
@@ -201,13 +201,16 @@ const Scroller = forwardRef(
 
     const theme = useTheme();
 
-    // Used to hide the scroller until we've found the anchor post.
     const style = useMemo(() => {
       return {
         backgroundColor: theme.background.val,
+        // Used to hide the scroller until we've found the anchor post.
         opacity: readyToDisplayPosts ? 1 : 0,
+        // Necessary to prevent content from flowing off the right side of the
+        // screen when the scroller is in two-column mode.
+        paddingRight: collectionLayoutType === 'grid' ? getTokenValue('$l') : 0,
       };
-    }, [readyToDisplayPosts, theme.background.val]);
+    }, [readyToDisplayPosts, theme.background.val, collectionLayoutType]);
 
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
       () =>
@@ -268,6 +271,7 @@ const Scroller = forwardRef(
             messageRef={activeMessageRefs.current[post.id]}
             dividersEnabled={collectionLayout.dividersEnabled}
             itemAspectRatio={collectionLayout.itemAspectRatio ?? undefined}
+            columnCount={collectionLayout.columnCount}
             {...anchorScrollLockScrollerItemProps}
           />
         );
@@ -580,6 +584,7 @@ const BaseScrollerItem = ({
   isLastPostOfBlock,
   dividersEnabled,
   itemAspectRatio,
+  columnCount,
 }: {
   showUnreadDivider: boolean;
   showAuthor: boolean;
@@ -603,6 +608,7 @@ const BaseScrollerItem = ({
   isLastPostOfBlock: boolean;
   dividersEnabled: boolean;
   itemAspectRatio?: number;
+  columnCount: number;
 }) => {
   const post = useLivePost(item);
 
@@ -652,7 +658,11 @@ const BaseScrollerItem = ({
   }, [dividerType, post, unreadCount, showDayDivider]);
 
   return (
-    <View onLayout={handleLayout} flex={1} aspectRatio={itemAspectRatio}>
+    <View
+      onLayout={handleLayout}
+      width={columnCount === 2 ? '50%' : '100%'}
+      aspectRatio={itemAspectRatio}
+    >
       {divider}
       <PressableMessage
         ref={messageRef}
