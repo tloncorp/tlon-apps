@@ -148,63 +148,41 @@
   :~
     ;style:"{(trip style)}"
   ::
-    ?~  cover
-      ;div.profile-without-header
-        ;div.profile-headline
-          ;+  ?^  avatar
-            ;img.profile-headline-avatar
-              =src  "{(trip u.avatar)}"
-              =alt  "Avatar";
-          =/  color=tape  ((x-co:^co 6) color)
-          ;div.profile-headline-avatar-sigil(style "background-color: #{color}")
-            ;+  %.  our.bowl
-            %_  sigil
-              bg  '#'^color
-              ::REVIEW  groups fe caps the color's lightness, instead of
-              ::        choosing between white/black fg. should we, too?
-              fg  "white" ::?:((gth (div (roll (rip 3 value) add) 3) 127) "black" "white")
-            ==
-          ==
-          ::
-          ;div.profile-headline-title
-            ;*  =*  name  (cite:title our.bowl)
-              =*  plain  ;h1.profile-headline-nickname(title "{(scow %p our.bowl)}"):"{name}"
-              ?~  nickname  [plain]~
-              :~  ;h1.profile-headline-nickname:"{(trip u.nickname)}"
-                  ;p.profile-headline-username(title "{(scow %p our.bowl)}"):"{name}"
-              ==
+    =*  profile-inner
+      ;div.profile-headline
+        ;+  ?^  avatar
+          ;img.profile-headline-avatar
+            =src  "{(trip u.avatar)}"
+            =alt  "Avatar";
+        =/  color=tape  ((x-co:^co 6) color)
+        ;div.profile-headline-avatar-sigil(style "background-color: #{color}")
+          ;+  %.  our.bowl
+          %_  sigil
+            bg  '#'^color
+            ::REVIEW  groups fe caps the color's lightness, instead of
+            ::        choosing between white/black fg. should we, too?
+            fg  "white" ::?:((gth (div (roll (rip 3 value) add) 3) 127) "black" "white")
           ==
         ==
+        ::
+        ;div.profile-headline-title
+          ;*  =*  name  (cite:title our.bowl)
+            =*  plain  ;h1.profile-headline-nickname(title "{(scow %p our.bowl)}"):"{name}"
+            ?~  nickname  [plain]~
+            :~  ;h1.profile-headline-nickname:"{(trip u.nickname)}"
+                ;p.profile-headline-username(title "{(scow %p our.bowl)}"):"{name}"
+            ==
+        ==
+      ==
+    ?~  cover
+      ;div.profile-without-header
+        ;+  profile-inner
       ==
     ;div.profile-with-header
       ;img#profile-background
         =src  "{(trip u.cover)}"
         =alt  "Background";
-        ;div.profile-headline
-          ;+  ?^  avatar
-            ;img.profile-headline-avatar
-              =src  "{(trip u.avatar)}"
-              =alt  "Avatar";
-          =/  color=tape  ((x-co:^co 6) color)
-          ;div.profile-headline-avatar-sigil(style "background-color: #{color}")
-            ;+  %.  our.bowl
-            %_  sigil
-              bg  '#'^color
-              ::REVIEW  groups fe caps the color's lightness, instead of
-              ::        choosing between white/black fg. should we, too?
-              fg  "white" ::?:((gth (div (roll (rip 3 value) add) 3) 127) "black" "white")
-            ==
-          ==
-          ::
-          ;div.profile-headline-title
-            ;*  =*  name  (cite:title our.bowl)
-              =*  plain  ;h1.profile-headline-nickname(title "{(scow %p our.bowl)}"):"{name}"
-              ?~  nickname  [plain]~
-              :~  ;h1.profile-headline-nickname:"{(trip u.nickname)}"
-                  ;p.profile-headline-username(title "{(scow %p our.bowl)}"):"{name}"
-              ==
-          ==
-        ==
+        ;+  profile-inner
       ==
     ==
 ::
