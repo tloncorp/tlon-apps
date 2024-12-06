@@ -1,10 +1,16 @@
 import { sql } from 'drizzle-orm';
+import { SQLocalDrizzle } from 'sqlocal/drizzle';
 
 import { queryClient } from '../api';
-import { createDevLogger, escapeLog, listDebugLabel, runIfDev } from '../debug';
+import { createDevLogger, escapeLog, listDebugLabel } from '../debug';
 import { startTrace } from '../perf';
 import * as changeListener from './changeListener';
-import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
+import {
+  AnySqliteDatabase,
+  AnySqliteTransaction,
+  client,
+  sqlocal,
+} from './client';
 import { TableName } from './types';
 
 const logger = createDevLogger('query', false);
@@ -27,6 +33,7 @@ export interface QueryMeta<TOptions> {
 
 export interface QueryCtx {
   db: AnySqliteTransaction | AnySqliteDatabase;
+  sqlocal?: SQLocalDrizzle;
   pendingEffects: Set<TableName>;
   meta: QueryMeta<any>;
 }
@@ -171,7 +178,7 @@ export async function withCtxOrDefault<T>(
 
   // Run query, passing pendingEffects with context to collect effects.
   const pendingEffects = new Set<TableName>();
-  const result = await queryFn({ meta, pendingEffects, db: client });
+  const result = await queryFn({ meta, pendingEffects, db: client, sqlocal });
 
   // Invalidate queries based on affected tables. We run in the next tick to
   // prevent possible loops.
@@ -220,6 +227,154 @@ const enqueueTransaction = async (fn: () => Promise<any>) => {
 
 const txLogger = createDevLogger('tx', false);
 
+const createTransactionProxyDb = (ctx: QueryCtx, tx: any) => {
+  function createQueryWrapper() {
+    let currentQuery: any = null;
+
+    // List of methods we want to proxy
+    const methodsToProxy = new Set([
+      'insert',
+      'select',
+      'update',
+      'delete',
+      'values',
+      'onConflictDoUpdate',
+      'onConflictDoNothing',
+      'where',
+      'orderBy',
+      'limit',
+      'offset',
+      'from',
+      'set',
+      'setWhere',
+      'returning',
+    ]);
+
+    const wrapper = new Proxy(
+      {},
+      {
+        get(target, prop) {
+          // Handle promise-like behavior
+          if (prop === 'then' || prop === 'catch' || prop === 'finally') {
+            txLogger.log('tx:proxy:executing:start');
+            try {
+              txLogger.log('tx:proxy:executing:getting-sql');
+              const { sql, params } = currentQuery.toSQL();
+              // Get selected fields map if this is a select query
+              const selectedFields = currentQuery.getSelectedFields?.();
+
+              const executeQuery = async () => {
+                const rawResults = await tx.query({ sql, params });
+
+                // If we have selected fields, transform the results
+                if (selectedFields) {
+                  return Array.isArray(rawResults)
+                    ? rawResults.map((row) => {
+                        const transformed: Record<string, any> = {};
+                        for (const [alias, field] of Object.entries(
+                          selectedFields
+                        )) {
+                          // Use the alias as the key instead of the column name
+                          // (preserves the alias in the result)
+                          transformed[alias] = row[(field as any).name];
+                        }
+                        return transformed;
+                      })
+                    : rawResults;
+                }
+
+                return rawResults;
+              };
+
+              const promise = executeQuery();
+              return promise[prop].bind(promise);
+            } catch (e) {
+              txLogger.error('tx:proxy:executing:error', e);
+              throw e;
+            }
+          }
+
+          // Get the original method/property
+          const originalValue = Reflect.get(currentQuery, prop);
+
+          // If it's not a method we want to proxy, return it directly
+          if (
+            typeof originalValue === 'function' &&
+            !methodsToProxy.has(String(prop))
+          ) {
+            return originalValue.bind(currentQuery);
+          }
+
+          // Handle query builder methods we want to proxy
+          if (typeof originalValue === 'function') {
+            return (...args: any[]) => {
+              const result = originalValue.apply(currentQuery, args);
+              currentQuery = result;
+              return wrapper;
+            };
+          }
+
+          return originalValue;
+        },
+      }
+    );
+
+    return {
+      wrap(query: any) {
+        currentQuery = query;
+        return wrapper;
+      },
+    };
+  }
+
+  return new Proxy(ctx.db, {
+    get(target, prop) {
+      const original = Reflect.get(target, prop);
+
+      // Handle the type-safe query API
+      if (prop === 'query') {
+        return new Proxy(original, {
+          get(queryTarget, queryProp) {
+            const queryOriginal = Reflect.get(queryTarget, queryProp);
+            if (typeof queryOriginal === 'object' && queryOriginal !== null) {
+              return new Proxy(queryOriginal, {
+                get(tableTarget, tableProp) {
+                  const tableMethod = Reflect.get(tableTarget, tableProp);
+                  if (typeof tableMethod === 'function') {
+                    return async (...args: any[]) => {
+                      const queryBuilder = tableMethod.apply(tableTarget, args);
+                      const { sql, params } = queryBuilder.toSQL();
+                      return tx.query({ sql, params });
+                    };
+                  }
+                  return tableMethod;
+                },
+              });
+            }
+            return queryOriginal;
+          },
+        });
+      }
+
+      if (typeof original === 'function') {
+        return (...args: any[]) => {
+          // For direct SQL operations
+          if (prop === 'run' || prop === 'all' || prop === 'get') {
+            return tx.query(args[0]);
+          }
+
+          // For query builders
+          const queryBuilder = original.apply(target, args);
+          const wrapper = createQueryWrapper();
+          return wrapper.wrap(queryBuilder);
+        };
+      }
+
+      return original;
+    },
+  }) as typeof ctx.db;
+};
+
 /**
  * Creates a new context that will run operations against a transaction.
  * Executes the handler directly if already in a transaction.
@@ -233,20 +388,57 @@ export async function withTransactionCtx<T>(
     enqueueTransaction(async () => {
       txLogger.log(ctx.meta.label, 'tx:handler');
       try {
-        await ctx.db.run(sql`BEGIN`);
-        txLogger.log(ctx.meta.label, 'tx:begin');
+        if (ctx.sqlocal?.transaction) {
+          txLogger.log('beginning transaction, sqlocal', ctx.sqlocal);
+          // Use the sqlocal transaction API. This is a bit more complex since
+          // we need to proxy the query builder to handle the transaction.
+          txLogger.log(ctx.meta.label, 'tx:sqlocal:before');
+          const result = await ctx.sqlocal.transaction(async (tx) => {
+            txLogger.log(ctx.meta.label, 'tx:sqlocal:transaction:start');
 
-        const result = await handler(ctx);
-        txLogger.log(ctx.meta.label, 'tx:run');
+            const proxyDb = createTransactionProxyDb(ctx, tx);
 
-        await ctx.db.run(sql`COMMIT`);
-        resolve(result);
-        txLogger.log(ctx.meta.label, 'tx:commit');
-        return result;
+            const txCtx = {
+              ...ctx,
+              db: proxyDb,
+            };
+
+            txLogger.log(ctx.meta.label, 'tx:sqlocal:before:handler');
+            const handlerResult = await handler(txCtx);
+            txLogger.log(ctx.meta.label, 'tx:sqlocal:after:handler', {
+              hasResult: !!handlerResult,
+            });
+            return handlerResult;
+          });
+
+          txLogger.log(ctx.meta.label, 'tx:sqlocal:after:transaction', {
+            hasResult: !!result,
+          });
+
+          resolve(result);
+          return result;
+        } else {
+          txLogger.log('beginning transaction, native');
+          await ctx.db.run(sql`BEGIN`);
+          txLogger.log(ctx.meta.label, 'tx:begin');
+
+          const result = await handler(ctx);
+          txLogger.log(ctx.meta.label, 'tx:run');
+
+          await ctx.db.run(sql`COMMIT`);
+          resolve(result);
+          txLogger.log(ctx.meta.label, 'tx:commit');
+          return result;
+        }
       } catch (e) {
         txLogger.log('tx:error', e);
         reject(e);
-        await ctx.db.run(sql`ROLLBACK`);
+        if (!ctx.sqlocal) {
+          // Rollback if we're not using sqlocal
+          // (sqlocal handles this automatically)
+          await ctx.db.run(sql`ROLLBACK`);
+          txLogger.log(ctx.meta.label, 'tx:rollback');
+        }
       }
     })
   );
