@@ -56,7 +56,19 @@ function DrawerContent(props: DrawerContentComponentProps) {
     'groupId' in focusedRoute.params &&
     focusedRoute.params.groupId
   ) {
+    if ('channelId' in focusedRoute.params) {
+      return (
+        <GroupChannelsScreenContent
+          groupId={focusedRoute.params.groupId}
+          focusedChannelId={focusedRoute.params.channelId}
+        />
+      );
+    }
     return <GroupChannelsScreenContent groupId={focusedRoute.params.groupId} />;
+  } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
+    return (
+      <ChatListScreenView focusedChannelId={focusedRoute.params.channelId} />
+    );
   } else {
     return <ChatListScreenView />;
   }

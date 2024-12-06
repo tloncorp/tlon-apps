@@ -29,6 +29,7 @@ export interface BaseListItemProps<T> {
   onPress?: (model: T) => void;
   onLongPress?: (model: T) => void;
   unreadCount?: number;
+  isFocused?: boolean;
 }
 
 export type ListItemProps<T> = BaseListItemProps<T> &

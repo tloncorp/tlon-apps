@@ -34,19 +34,25 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
         // hasUnreads={(unreadCount?.channels ?? 0) > 0}
         // intentionally leave undotted for now
         hasUnreads={false}
-        onPress={() => props.navigation.navigate('Home')}
+        onPress={() =>
+          props.navigation.reset({ index: 0, routes: [{ name: 'Home' }] })
+        }
       />
       <NavIcon
         type="Notifications"
         activeType="NotificationsFilled"
         hasUnreads={haveUnreadUnseenActivity}
         isActive={isRouteActive('Activity')}
-        onPress={() => props.navigation.navigate('Activity')}
+        onPress={() =>
+          props.navigation.reset({ index: 0, routes: [{ name: 'Activity' }] })
+        }
       />
       <AvatarNavIcon
         id={userId}
         focused={isRouteActive('Contacts')}
-        onPress={() => props.navigation.navigate('Contacts')}
+        onPress={() =>
+          props.navigation.reset({ index: 0, routes: [{ name: 'Contacts' }] })
+        }
       />
       {webAppNeedsUpdate && (
         <NavIcon

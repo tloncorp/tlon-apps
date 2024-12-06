@@ -6,6 +6,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import { useFeatureFlagStore } from '../lib/featureFlags';
@@ -92,25 +93,38 @@ export function useResetToGroup() {
 }
 
 export function useNavigateToGroup() {
+  const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation<RootStackNavigationProp>();
   const navigationRef = logic.useMutableRef(navigation);
   return useCallback(
     async (groupId: string) => {
-      navigationRef.current.navigate(await getMainGroupRoute(groupId));
+      navigationRef.current.navigate(
+        await getMainGroupRoute(groupId, isWindowNarrow)
+      );
     },
-    [navigationRef]
+    [navigationRef, isWindowNarrow]
   );
 }
 
-export async function getMainGroupRoute(groupId: string) {
+export async function getMainGroupRoute(
+  groupId: string,
+  isWindowNarrow?: boolean
+) {
   const group = await db.getGroup({ id: groupId });
   const channelSwitcherEnabled =
     useFeatureFlagStore.getState().flags.channelSwitcher;
   if (
     group &&
     group.channels &&
-    (group.channels.length === 1 || channelSwitcherEnabled)
+    (group.channels.length === 1 || channelSwitcherEnabled || !isWindowNarrow)
   ) {
+    if (!isWindowNarrow && group.lastVisitedChannelId) {
+      return {
+        name: 'Channel',
+        params: { channelId: group.lastVisitedChannelId, groupId },
+      } as const;
+    }
+
     return {
       name: 'Channel',
       params: { channelId: group.channels[0].id, groupId },
