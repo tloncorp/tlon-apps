@@ -18,6 +18,8 @@
                         ?:(&(?=(%look -.a) !=('' +.a)) `+.a ~)
 =/  cover=(unit @ta)    =+  a=(~(gut by contact) %cover %look '')
                         ?:(&(?=(%look -.a) !=('' +.a)) `+.a ~)
+=/  phone=(unit @da)    =+  a=(~(gut by contact) %lanyard-tmp-phone-since %date *@da)
+                        ?:(&(?=(%date -.a) !=(*@da +.a)) `+.a ~)
 |^  %-  ~(gas by *(map term [%0 @t %marl marl]))
     :~  [%profile %0 'Profile Header' %marl profile-widget]
         [%profile-bio %0 'Profile Bio' %marl profile-bio]
@@ -169,9 +171,13 @@
           ;*  =*  name  (cite:title our.bowl)
             =*  plain  ;h1.profile-headline-nickname(title "{(scow %p our.bowl)}"):"{name}"
             ?~  nickname  [plain]~
-            :~  ;h1.profile-headline-nickname:"{(trip u.nickname)}"
-                ;p.profile-headline-username(title "{(scow %p our.bowl)}"):"{name}"
-            ==
+            :+  ;h1.profile-headline-nickname:"{(trip u.nickname)}"
+              ;p.profile-headline-username(title "{(scow %p our.bowl)}"):"{name}"
+            ?~  phone  ~
+            :_  ~
+            =/  since=@da  (sub u.phone (mod u.phone ~d1))
+            ::TODO  link to proof/attestation?
+            ;p.verified(title "verified since {(scow %da since)}"):"✅"
         ==
       ==
     ?~  cover
