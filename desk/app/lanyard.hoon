@@ -7,7 +7,7 @@
 ::
 ::    xx api
 ::
-/-  *verifier
+/-  *verifier, c=contacts
 /+  dbug, verb, negotiate
 ::
 %-  %-  agent:negotiate
@@ -25,6 +25,61 @@
       queries=(map @ _+:*user-query)               ::  asked
   ==
 +$  card     card:agent:gall
+::
+++  inflate-contacts-profile
+  |=  [[our=@p now=@da] records=(map [h=@p id=identifier] id-state)]
+  ^-  (unit card)
+  =+  =>  [our=our now=now c=c ..lull]  ~+
+      .^(orig=contact:c %gx /(scot %p our)/contacts/(scot %da now)/v1/self/contact-1)
+  ::  build a new contact to submit
+  ::
+  =;  =contact:c
+    ?:  =(orig contact)  ~
+    =/  =action:c  [%self contact]
+    =/  =cage      [%contact-action-1 !>(action)]
+    `[%pass /contacts/set %agent [our %contacts] %poke cage]
+  %-  ~(gas by *contact:c)
+  ::  start by clearing out all our entries for a fresh start
+  ::
+  %+  weld
+    %+  skip  ~(tap by orig)
+    |=  [=term *]
+    =(%lanyard- (end 3^8 term))
+  ^-  (list [term value:c])
+  ::  then look at our records and inject as appropriate
+  ::
+  =+  %+  roll  ~(tap by records)
+      |=  $:  [[h=@p id=identifier] id-state]
+              urbits=(map @p (urbit-signature full-sign-data-0))
+              phone=(unit (urbit-signature half-sign-data-0))
+          ==
+      =*  nop  [urbits phone]
+      ?.  ?=(%done -.status)  nop
+      ::TODO  check privacy control? if we do, make %config facts call this too.
+      ?-  -.id
+        %dummy  nop
+        %urbit  [(~(put by urbits) +.id full-sign.status) phone]
+        %phone  [urbits `half-sign.status]
+      ==
+  %+  weld
+    ::  for "has verified a phone nr" status
+    ::
+    ^-  (list [term value:c])
+    ?~  phone  ~
+    ~?  !?=(%phone kind.dat.u.phone)  [%lanyard %strange-phone-sign-mismatch kind.dat.u.phone]
+    :~  [%lanyard-tmp-phone-since %date when.dat.u.phone]
+        [%lanyard-tmp-phone-sign %numb (jam u.phone)]
+    ==
+  ::  for "also knows as" display
+  ::
+  ^-  (list [term value:c])
+  ?:  =(~ urbits)  ~
+  :-  [%lanyard-tmp-urbits %set (~(run in ~(key by urbits)) (lead %ship))]
+  %+  turn  ~(tap by urbits)
+  |=  [who=@p sign=(urbit-signature full-sign-data-0)]
+  ^-  [term value:c]
+  :_  [%numb (jam sign)]
+  (rap 3 %lanyard-tmp-urbit- (rsh 3^1 (scot %p who)) '-sign' ~)
 --
 ::
 =|  state-0
@@ -43,7 +98,9 @@
 ++  on-load
   |=  ole=vase
   ^-  (quip card _this)
-  [~ this(state !<(state-0 ole))]
+  =.  state  !<(state-0 ole)
+  :_  this
+  (drop (inflate-contacts-profile [our now]:bowl records))
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -148,10 +205,11 @@
         =/  new=_records
           %-  malt  ::NOTE  +my doesn't work lol
           (turn ~(tap by all.upd) |*(* +<(- [src.bowl +<-])))
-        :_  this(records (~(uni by records) new))
-        =/  upd=update:l
-          [%full new]
-        [%give %fact ~[/ /records] %lanyard-update !>(upd)]~
+        =.  records  (~(uni by records) new)
+        :_  this
+        :_  (drop (inflate-contacts-profile [our now]:bowl records))
+        =/  upd=update:l  [%full new]
+        [%give %fact ~[/ /records] %lanyard-update !>(upd)]
       ::
           %config
         =*  key  [src.bowl id.upd]
@@ -169,8 +227,10 @@
           ?:  ?=(%gone status.upd)  (~(del by records) key)
           (~(put by records) key rec(status status.upd))
         :_  this
-        =/  upd=update:l  upd(id key)
-        [%give %fact ~[/ /records] %lanyard-update !>(upd)]~
+        :-  =/  upd=update:l  upd(id key)
+            [%give %fact ~[/ /records] %lanyard-update !>(upd)]
+        ?.  ?=(?(%gone [%done *]) status.upd)  ~
+        (drop (inflate-contacts-profile [our now]:bowl records))
       ==
     ==
   ::
@@ -186,6 +246,12 @@
     :_  this(queries (~(del by queries) nonce))
     =/  upd=update:l  [%query nonce %fail]  ::TODO  different?
     [%give %fact ~[/ /query /query/[i.t.wire]] %lanyard-update !>(upd)]~
+  ::
+      [%contacts %set ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  [~ this]
+    %.  [~ this]
+    (slog (cat 3 dap.bowl ': failed to update contacts') u.p.sign)
   ==
 ::
 ++  on-watch
