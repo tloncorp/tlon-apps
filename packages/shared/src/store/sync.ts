@@ -12,6 +12,7 @@ import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
+import { findContactSuggestions } from './contactActions';
 import { useLureState } from './lure';
 import { getSyncing, updateIsSyncing, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
