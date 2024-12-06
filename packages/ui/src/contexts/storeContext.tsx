@@ -4,13 +4,23 @@ import React, { createContext, useContext } from 'react';
 
 type StoreType = typeof store;
 type StoreContextType = StoreType;
+type NoOpFunction = (() => void) & { [key: string]: NoOpFunction };
 
 const logger = createDevLogger('StoreContext', true);
 
-function createNoOpFunction(key: string) {
+function createNoOpFunction(key: string): NoOpFunction {
   return new Proxy(() => {}, {
     apply: () => undefined,
     get: () => createNoOpFunction(`${key}.property`),
+  }) as unknown as NoOpFunction;
+}
+
+function createNoOpStore(): StoreType {
+  return new Proxy({} as StoreType, {
+    get: (target, prop) => {
+      logger.log('Mocked store call', prop.toString());
+      return createNoOpFunction(prop.toString());
+    },
   });
 }
 
@@ -24,12 +34,7 @@ interface StoreProviderProps {
 export function StoreProvider({ children, stub = false }: StoreProviderProps) {
   const storeValue = React.useMemo(() => {
     if (stub) {
-      return new Proxy({} as StoreType, {
-        get: (target, prop) => {
-          logger.log('Mocked store call', prop.toString());
-          return createNoOpFunction(prop.toString());
-        },
-      });
+      return createNoOpStore();
     }
     return store;
   }, [stub]);
