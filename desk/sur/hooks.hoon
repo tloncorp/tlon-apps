@@ -176,4 +176,11 @@
       [%wait waiting-hook]
   ==
 ::
++$  template
+  $:  from=nest
+      meta=data:m
+      hooks=(map id hook)
+      order=(list id)
+      crons=(list [id job])
+  ==
 --

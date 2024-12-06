@@ -344,6 +344,11 @@
                 cor(pimp `|+egg-any)
     ==
   ::
+      %hook-setup-template
+    ?>  =(src our):bowl
+    =+  !<([=nest:c =template:h] vase)
+    (setup-hook-template nest template)
+  ::
       %hook-action-0
     =+  !<(=action:h vase)
     ?>  =(our src):bowl
@@ -425,6 +430,9 @@
       [%v0 %hooks %full ~]
     =.  cor  (give %fact ~ hook-full+!>(hooks))
     (give %kick ~ ~)
+  ::
+      [%hooks %v0 %template =kind:c name=@ ~]
+    (get-hook-template kind.pole our.bowl name.pole)
   ::
       [=kind:c name=@ %create ~]
     ?>  =(our src):bowl
@@ -1269,4 +1277,63 @@
       (~(put by waiting.hooks) id.effect [origin +.effect])
     (schedule-waiting +.effect)
   ==
+++  get-hook-template
+  |=  =nest:c
+  ^+  cor
+  =/  order=(list id:h)  (~(got by order.hooks) nest)
+  =/  crons=(list [id:h job:h])
+    %+  roll  ~(tap by crons.hooks)
+    |=  [[=id:h =cron:h] cr=(list [id:h job:h])]
+    ?~  job=(~(get by cron) nest)  cr
+    (snoc cr [id u.job])
+  =/  ids=(list id:h)  (welp order (turn crons head))
+  =/  hooks=(map id:h hook:h)
+    %-  ~(gas by *(map id:h hook:h))
+    ^-  (list [id:h hook:h])
+    %+  turn  ids
+    |=  =id:h
+    ^-  [id:h hook:h]
+    =/  hook  (~(got by hooks.hooks) id)
+    =/  config  (~(gut by config.hook) nest ~)
+    =/  config-map  (~(put by *(map nest:c config:h)) nest config)
+    :-  id
+    hook(compiled ~, state !>(~), config config-map)
+  =/  =template:h
+    :*  nest
+        *data:m
+        hooks
+        order
+        crons
+    ==
+  =.  cor  (give %fact ~ hook-template+!>(template))
+  (give %kick ~ ~)
+++  setup-hook-template
+  |=  [=nest:c =template:h]
+  ^+  cor
+  =.  order.hooks
+    (~(put by order.hooks) nest order.template)
+  =.  crons.hooks
+    %-  ~(gas by crons.hooks)
+    %+  turn  crons.template
+    |=  [=id:h =job:h]
+    :-  id
+    (~(put by *cron:h) nest job)
+  =.  hooks.hooks
+    %-  ~(gas by hooks.hooks)
+    %+  turn
+      ~(tap by hooks.template)
+    |=  [=id:h =hook:h]
+    ?~  old-config=(~(get by config.hook) from.template)
+      [id hook(config ~)]
+    [id hook(config (my [nest u.old-config] ~))]
+  =/  crons  crons.template
+  |-
+  ?~  crons  cor
+  =*  cron  +.i.crons
+  =/  fires-at
+    ?@  schedule.cron
+      (add now.bowl schedule.cron)
+    (add now.bowl repeat.schedule.cron)
+  =.  cor  (schedule-cron nest cron(fires-at fires-at))
+  $(crons t.crons)
 --
