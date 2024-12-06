@@ -1,7 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import React, { useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getTokenValue, useWindowDimensions } from 'tamagui';
 
 import { ActionSheet } from './ActionSheet';
 import { InviteUsersWidget } from './InviteUsersWidget';
@@ -19,8 +18,6 @@ const InviteUsersSheetComponent = ({
 }) => {
   const { bottom } = useSafeAreaInsets();
   const hasOpened = useRef(open);
-  const { height } = useWindowDimensions();
-  const maxHeight = height - bottom - getTokenValue('$2xl');
 
   if (!hasOpened.current && open) {
     hasOpened.current = true;
@@ -37,7 +34,6 @@ const InviteUsersSheetComponent = ({
     >
       <ActionSheet.Content
         // prevent the modal from going off screen
-        maxHeight={maxHeight}
         flex={1}
         paddingBottom={bottom}
       >
