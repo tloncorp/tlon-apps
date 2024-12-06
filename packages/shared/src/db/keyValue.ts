@@ -188,14 +188,16 @@ type StorageItem<T> = {
   key: string;
   defaultValue: T;
   isSecure?: boolean;
+  persistAfterLogout?: boolean;
   serialize?: (value: T) => string;
   deserialize?: (value: string) => T;
 };
 
-const createStorageItem = <T>(config: StorageItem<T>) => {
+const createStorageItemImpl = <T>(config: StorageItem<T>) => {
   const {
     key,
     defaultValue,
+    persistAfterLogout = false,
     serialize = JSON.stringify,
     deserialize = JSON.parse,
   } = config;
@@ -248,7 +250,30 @@ const createStorageItem = <T>(config: StorageItem<T>) => {
     };
   }
 
-  return { getValue, setValue, resetValue, useValue, useStorageItem };
+  return {
+    getValue,
+    setValue,
+    resetValue,
+    useValue,
+    useStorageItem,
+    __persistAfterLogout: persistAfterLogout,
+  };
+};
+
+const storageItems: Array<ReturnType<typeof createStorageItemImpl<any>>> = [];
+export const clearNonPersistentStorageItems = async (): Promise<void> => {
+  const clearPromises = storageItems
+    .filter((item) => !item.__persistAfterLogout)
+    .map((item) => item.resetValue());
+
+  await Promise.all(clearPromises);
+  logger.log('Cleared all non-persistent storage items');
+};
+
+const createStorageItem = <T>(config: StorageItem<T>) => {
+  const storageItem = createStorageItemImpl(config);
+  storageItems.push(storageItem);
+  return storageItem;
 };
 
 export const signupData = createStorageItem<SignupParams>({
@@ -263,11 +288,13 @@ export const signupData = createStorageItem<SignupParams>({
 export const lastAppVersion = createStorageItem<string | null>({
   key: 'lastAppVersion',
   defaultValue: null,
+  persistAfterLogout: true,
 });
 
 export const didSignUp = createStorageItem<boolean>({
   key: 'didSignUp',
   defaultValue: false,
+  persistAfterLogout: true,
 });
 
 export const didInitializeTelemetry = createStorageItem<boolean>({
