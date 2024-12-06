@@ -14,6 +14,8 @@ export type CurrentAppDataState = {
   contactIndex: Record<string, db.Contact> | null;
   branchDomain: string;
   branchKey: string;
+  inviteServiceEndpoint: string;
+  inviteServiceIsDev: boolean;
   session: Session | null;
   calmSettings: CalmState;
   webAppNeedsUpdate?: boolean;
@@ -30,6 +32,8 @@ export const AppDataContextProvider = ({
   contacts,
   branchDomain,
   branchKey,
+  inviteServiceEndpoint,
+  inviteServiceIsDev,
   calmSettings,
   session,
   webAppNeedsUpdate,
@@ -42,6 +46,8 @@ export const AppDataContextProvider = ({
       contactIndex: buildContactIndex(contacts ?? []),
       branchDomain: branchDomain ?? '',
       branchKey: branchKey ?? '',
+      inviteServiceEndpoint: inviteServiceEndpoint ?? '',
+      inviteServiceIsDev: inviteServiceIsDev ?? false,
       calmSettings: calmSettings ?? {
         disableRemoteContent: false,
         disableAvatars: false,
@@ -56,8 +62,10 @@ export const AppDataContextProvider = ({
       contacts,
       branchDomain,
       branchKey,
-      session,
+      inviteServiceEndpoint,
+      inviteServiceIsDev,
       calmSettings,
+      session,
       webAppNeedsUpdate,
       triggerWebAppUpdate,
     ]
@@ -83,6 +91,14 @@ export const useContactIndex = () => {
 export const useContact = (ship: string) => {
   const contactIndex = useContactIndex();
   return contactIndex?.[ship] ?? null;
+};
+
+export const useInviteService = () => {
+  const context = useAppDataContext();
+  return {
+    endpoint: context.inviteServiceEndpoint,
+    isDev: context.inviteServiceIsDev,
+  };
 };
 
 export const useBranchDomain = () => {

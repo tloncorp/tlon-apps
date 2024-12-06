@@ -24,6 +24,7 @@
 ::            - thread
 ::        - dm
 ::          - dm-thread
+::        - contact
 ::
 ::    with this structure that means that data flows upwards from the
 ::    leaves to the root, and that we can easily keep the read state
@@ -41,7 +42,7 @@
 /-  a=activity, c=channels, ch=chat, g=groups
 /+  *activity, ch-utils=channel-utils, v=volume, aj=activity-json,
     imp=import-aid
-/+  default-agent, verb, dbug
+/+  default-agent, verb, dbug, logs
 ::
 =/  verbose  |
 =>
@@ -49,7 +50,7 @@
   +$  card  card:agent:gall
   ::
   +$  current-state
-    $:  %7
+    $:  %8
         allowed=notifications-allowed:a
         =indices:a
         =activity:a
@@ -107,7 +108,11 @@
   ++  on-agent   on-agent:def
   ++  on-peek    peek:cor
   ++  on-leave   on-leave:def
-  ++  on-fail    on-fail:def
+  ++  on-fail
+    |=  [=term =tang]
+    ^-  (quip card _this)
+    :_  this
+    [(log-fail:logs /logs our.bowl (fail-event:logs term tang))]~
   --
 |_  [=bowl:gall cards=(list card)]
 ++  abet  [(flop cards) state]
@@ -140,12 +145,21 @@
   =?  cor  ?=(%6 -.old)
     (emit %pass /adjust-old-default %agent [our.bowl dap.bowl] %poke noun+!>(%adjust-old-default))
   =?  old  ?=(%6 -.old)  [%7 +.old]
-  ?>  ?=(%7 -.old)
+  =?  old  ?=(%7 -.old)  [%8 +.old]
+  ?>  ?=(%8 -.old)
   =.  state  old
+  ::  insert missing volume defaults to %base
+  ::
+  =/  base-volume
+    (~(gut by volume-settings.state) [%base ~] *volume-map:a)
+  =.  volume-settings.state
+    %+  ~(put by volume-settings.state)  [%base ~]
+    (~(uni by base-volume) *volume-map:a)
   =.  allowed  %all
   (emit %pass /fix-init-unreads %agent [our.bowl dap.bowl] %poke noun+!>(%fix-init-unreads))
   +$  versioned-state
-    $%  state-7
+    $%  state-8
+        state-7
         state-6
         state-5
         state-4
@@ -153,9 +167,17 @@
         state-2
         state-1
     ==
-  +$  state-7  current-state
+  +$  state-8  current-state
+  +$  state-7
+    $:  %7
+        allowed=notifications-allowed:v7:old:a
+        =indices:v7:old:a
+        =activity:v7:old:a
+        =volume-settings:v7:old:a
+    ==
   +$  state-6  _%*(. *state-7 - %6)
   +$  state-5  _%*(. *state-7 - %5)
+  ::
   ++  state-5-to-6
     |=  old=state-5
     ^-  state-6
@@ -568,10 +590,11 @@
   ::  we only care about posts/replies events that are notified, and we
   ::  don't want to include events from sources whose latest event is
   ::  after the start so we always get "new" sources when paging
-  ?.  ?&  notified.event
+  ?.  ?&  ?|(notified.event ?=(%contact -<.event))
           (lth latest.src-info start)
           ?=  $?  %post  %reply  %dm-post  %dm-reply
                   %flag-post  %flag-reply  %group-ask
+                  %contact
               ==
             -<.event
       ==
@@ -590,6 +613,13 @@
   ?^  mention
     :-  sources.acc
     [(sub limit.acc 1) (snoc happenings.acc u.mention) collapsed.acc]
+  =/  contact-bundle=(unit activity-bundle:a)
+    ?.  ?=(%all type)  ~
+    ?.  ?=(%contact -<.event)  ~
+    `[source time ~[[time event]]]
+  ?^  contact-bundle
+    :-  sources.acc
+    [(sub limit.acc 1) (snoc happenings.acc u.contact-bundle) collapsed.acc]
   =/  care
     ?|  ?=(%all type)
         &(?=(%replies type) ?=(?(%reply %dm-reply) -<.event))
@@ -609,6 +639,7 @@
   :-  (~(put by sources.acc) source src-info(added &))
   ?~  top  +.acc
   [(sub limit.acc 1) (snoc happenings.acc [source time.i.top top]) collapsed]
+  ::
   +$  out
     $:  sources=(map source:a [latest=time-id:a added=?])
         limit=@ud
@@ -628,6 +659,7 @@
   ?:  child.event  [~ | acc]
   ?.  ?=  $?  %post  %reply  %dm-post  %dm-reply
               %flag-post  %flag-reply  %group-ask
+              %contact
           ==
         -<.event
     [~ | acc]
@@ -771,6 +803,7 @@
   =.  volume-settings  (~(del by volume-settings) source)
   ::  TODO: send notification removals?
   (give-update [%del source] [%hose ~])
+::
 ++  del-event
   |=  [=source:a event=incoming-event:a]
   ^+  cor
@@ -793,6 +826,7 @@
     (~(put by out) source (~(got by activity) source))
   %-  (log |.("sending activity: {<new-activity>}"))
   (give-update [%activity new-activity] [%hose ~])
+::
 ++  add-to-index
   |=  [=source:a =time-id:a =event:a]
   ^+  cor
@@ -800,6 +834,7 @@
   =/  new=_stream.index
     (put:on-event:a stream.index time-id event)
   (refresh-index source index(stream new))
+::
 ++  refresh-index
   |=  [=source:a new=index:a]
   %-  (log |.("refeshing index: {<source>}"))

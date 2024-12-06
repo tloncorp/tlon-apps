@@ -21,9 +21,9 @@ export function EditChannelScreen(props: Props) {
     const prevChannel = data;
     if (prevChannel) {
       deleteChannel(prevChannel.id);
-      props.navigation.goBack();
+      props.navigation.navigate('ManageChannels', { groupId });
     }
-  }, [data, deleteChannel, props.navigation]);
+  }, [data, deleteChannel, props.navigation, groupId]);
 
   const handleSubmit = useCallback(
     (title: string, description?: string) => {

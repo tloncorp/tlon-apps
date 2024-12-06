@@ -5,6 +5,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleProp, ViewStyle } from 'react-native';
 import { View, useStyle } from 'tamagui';
 
+import { NavigationProvider } from '../../contexts';
+import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { ActivityHeader } from './ActivityHeader';
 import { ActivityListItem } from './ActivityListItem';
@@ -14,6 +16,8 @@ export function ActivityScreenView({
   goToChannel,
   goToThread,
   goToGroup,
+  goToUserProfile,
+  onGroupAction,
   bucketFetchers,
   refresh,
 }: {
@@ -21,6 +25,8 @@ export function ActivityScreenView({
   goToChannel: (channel: db.Channel, selectedPostId?: string) => void;
   goToThread: (post: db.Post) => void;
   goToGroup: (group: db.Group) => void;
+  goToUserProfile: (userId: string) => void;
+  onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   bucketFetchers: store.BucketFetchers;
   refresh: () => Promise<void>;
 }) {
@@ -87,11 +93,16 @@ export function ActivityScreenView({
             console.warn('No group found for group-ask', event);
           }
           break;
+        case 'contact':
+          if (event.contactUserId) {
+            goToUserProfile(event.contactUserId);
+          }
+          break;
         default:
           break;
       }
     },
-    [goToChannel, goToThread, goToGroup]
+    [goToChannel, goToThread, goToGroup, goToUserProfile]
   );
 
   const events = useMemo(
@@ -132,6 +143,7 @@ export function ActivityScreenView({
       isRefreshing={refreshing}
       onRefreshTriggered={onRefresh}
       seenMarker={activitySeenMarker ?? Date.now()}
+      onGroupAction={onGroupAction}
     />
   );
 }
@@ -145,6 +157,7 @@ export function ActivityScreenContent({
   onPressEvent,
   onEndReached,
   onRefreshTriggered,
+  onGroupAction,
   seenMarker,
 }: {
   activeTab: db.ActivityBucket;
@@ -156,7 +169,19 @@ export function ActivityScreenContent({
   isRefreshing: boolean;
   onRefreshTriggered: () => void;
   seenMarker: number;
+  onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
 }) {
+  const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
+  const handleGroupAction = useCallback(
+    (action: GroupPreviewAction, group: db.Group) => {
+      setSelectedGroup(null);
+      setTimeout(() => {
+        onGroupAction(action, group);
+      }, 100);
+    },
+    [onGroupAction]
+  );
+
   const keyExtractor = useCallback((item: logic.SourceActivityEvents) => {
     return `${item.newest.id}/${item.sourceId}/${item.newest.bucketId}/${item.all.length}`;
   }, []);
@@ -180,24 +205,32 @@ export function ActivityScreenContent({
   }) as StyleProp<ViewStyle>;
 
   return (
-    <View flex={1}>
-      <ActivityHeader activeTab={activeTab} onTabPress={onPressTab} />
-      {events.length > 0 && (
-        <FlatList
-          data={events}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          contentContainerStyle={containerStyle}
-          onEndReached={onEndReached}
-          ListFooterComponent={isFetching ? <LoadingSpinner /> : null}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefreshTriggered}
-            />
-          }
+    <NavigationProvider onPressGroupRef={setSelectedGroup}>
+      <View flex={1}>
+        <ActivityHeader activeTab={activeTab} onTabPress={onPressTab} />
+        {events.length > 0 && (
+          <FlatList
+            data={events}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={containerStyle}
+            onEndReached={onEndReached}
+            ListFooterComponent={isFetching ? <LoadingSpinner /> : null}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={onRefreshTriggered}
+              />
+            }
+          />
+        )}
+        <GroupPreviewSheet
+          open={!!selectedGroup}
+          onOpenChange={() => setSelectedGroup(null)}
+          group={selectedGroup ?? undefined}
+          onActionComplete={handleGroupAction}
         />
-      )}
-    </View>
+      </View>
+    </NavigationProvider>
   );
 }

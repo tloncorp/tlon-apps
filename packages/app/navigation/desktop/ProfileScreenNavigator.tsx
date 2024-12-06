@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
+import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../../features/settings/ManageAccountScreen';
 import ProfileScreen from '../../features/settings/ProfileScreen';
@@ -47,6 +48,10 @@ export const ProfileScreenNavigator = () => {
       <ProfileScreenStack.Screen
         name="UserProfile"
         component={UserProfileScreen}
+      />
+      <ProfileScreenStack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
       />
     </ProfileScreenStack.Navigator>
   );

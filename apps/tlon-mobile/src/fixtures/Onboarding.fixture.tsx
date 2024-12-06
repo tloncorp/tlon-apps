@@ -1,13 +1,8 @@
 import { NavigationContainer } from '@react-navigation/native';
-import {
-  Context as BranchContext,
-  LureData,
-} from '@tloncorp/app/contexts/branch';
-import {
-  DeepLinkData,
-  QueryClientProvider,
-  queryClient,
-} from '@tloncorp/shared';
+import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
+import { group } from '@tloncorp/app/fixtures/fakeData';
+import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
+import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { Theme } from '@tloncorp/ui';
 import { PropsWithChildren, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
@@ -30,8 +25,6 @@ import { TlonLoginScreen } from '../screens/Onboarding/TlonLogin';
 import { TlonLoginLegacy } from '../screens/Onboarding/TlonLoginLegacy';
 import { WelcomeScreen } from '../screens/Onboarding/WelcomeScreen';
 import { OnboardingStackParamList, User } from '../types';
-import { exampleContacts } from './contentHelpers';
-import { group } from './fakeData';
 
 const sampleUser = {
   id: '1',
@@ -47,7 +40,7 @@ function OnboardingFixture({
   hasGroupInvite,
   children,
 }: PropsWithChildren<{ hasGroupInvite: boolean }>) {
-  const [lure, setLure] = useState<LureData | undefined>(
+  const [lure, setLure] = useState<AppInvite | undefined>(
     hasGroupInvite
       ? {
           id: group.id,
@@ -108,7 +101,7 @@ function OnboardingFixture({
           <BranchContext.Provider
             value={{
               lure,
-              setLure: setLure as unknown as (data: DeepLinkData) => void,
+              setLure: setLure as unknown as (lure: AppInvite) => void,
               clearLure: () => setLure(undefined),
               clearDeepLink: () => {},
               deepLinkPath: undefined,
@@ -206,7 +199,6 @@ export default {
     <SingleScreenFixture
       routeName="SetTelemetry"
       Component={SetTelemetryScreen}
-      params={{ user: sampleUser }}
     />
   ),
   Welcome: (

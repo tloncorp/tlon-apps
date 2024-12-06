@@ -106,7 +106,7 @@ export default function ContactName({
             <SizableText color="$secondaryText">
               {' '}
               <NickNameWithMatch
-                nickname={contact.nickname}
+                nickname={contact?.nickname ?? ''}
                 matchText={matchText}
                 secondary
               />
@@ -129,7 +129,7 @@ export default function ContactName({
       >
         {shouldShowNickname ? (
           <NickNameWithMatch
-            nickname={contact!.nickname!}
+            nickname={contact?.nickname ?? ''}
             matchText={matchText}
           />
         ) : (
