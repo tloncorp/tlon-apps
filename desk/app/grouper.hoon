@@ -143,7 +143,7 @@
       =/  wir=^wire  /dm/(scot %p joiner.bite)
       =/  =dock  [our.bowl %chat]
       =/  =id:c  [our now]:bowl
-      =/  =memo:ch
+      =/  =memo:v7:old:ch
         [~[[%inline ~[[%ship joiner.bite] ' has joined the network']]] id]
       =/  =action:dm:c
         :-  joiner.bite

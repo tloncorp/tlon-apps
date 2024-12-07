@@ -293,7 +293,7 @@
   ++  writ-4-to-5
     |=  [=time old=writ:two =replies:c]
     ^-  writ:c
-    =;  qm=reply-meta:d
+    =;  qm=reply-meta:v7:old:d
       :-  [id.old time feels.old replies qm]
       (essay-4-to-5 +.old)
     ::
@@ -319,7 +319,7 @@
   ::
   ++  memo-4-to-5
     |=  memo:two
-    ^-  memo:d
+    ^-  memo:v7:old:d
     [(story-4-to-5 author content) author sent]
   ::
   ++  essay-4-to-5
@@ -554,7 +554,7 @@
     ==
   ++  new-memo
     |=  memo:old
-    ^-  memo:d
+    ^-  memo:v7:old:d
     [(new-story author content) author sent]
   ::
   ++  new-story
@@ -877,7 +877,7 @@
     |=  [=ship text=cord]
     ^-  delta:writs:c
     =/  =story:d  ~[[%inline ~[[%ship ship] text]]]
-    =/  =memo:d  [story our.bowl now.bowl]
+    =/  =memo:v7:old:d  [story our.bowl now.bowl]
     [%add memo notice/~ `now.bowl]
 ::
 ++  check-writ-ownership
@@ -1127,7 +1127,11 @@
   ++  convert-essay
     |=  old=memo:t
     ^-  essay:d
-    [(convert-memo old) %chat ?-(-.content.old %story ~, %notice [%notice ~])]
+    :*  (convert-memo old)
+        [%chat ?-(-.content.old %story ~, %notice [%notice ~])]
+        *data:meta
+        ~
+    ==
   ::
   ++  convert-story
     |=  [=ship old=content:t]
@@ -1948,10 +1952,10 @@
             [~ author sent [%story ~ (verses-to-inlines content)]]
           =/  =id:c     [(slav %p i.t.wire) (slav %ud i.t.t.wire)]
           =/  rid=time  (slav %ud i.t.t.t.wire)
-          =/  msg=(unit memo:d)
+          =/  msg=(unit memo:v7:old:d)
             %+  biff  (get:di-pact id)
             |=  [time =writ:c]
-            ^-  (unit memo:d)
+            ^-  (unit memo:v7:old:d)
             ?~  id=(~(get by dex.pact.dm) our.bowl rid)  ~
             (bind (get:on:replies:c replies.writ u.id) tail)
           :-  [our.bowl rid]
