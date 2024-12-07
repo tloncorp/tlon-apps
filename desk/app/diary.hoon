@@ -647,7 +647,8 @@
   ++  convert-essay
     |=  old=essay:a
     ^-  essay:d
-    =-  [[- author.old sent.old] %diary title.old image.old]
+    =/  meta=data:meta  [title.old '' image.old '']
+    =-  [[- author.old sent.old] /diary meta ~]
     %+  turn  content.old
     |=  v=verse:a
     ^-  verse:d

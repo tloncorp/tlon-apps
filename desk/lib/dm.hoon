@@ -1,5 +1,5 @@
-/-  c=chat, d=channels
-/+  mp=mop-extensions
+/-  c=chat, d=channels, meta
+/+  mp=mop-extensions, cu=channel-utils
 |_  pac=pact:c
 ++  mope  ((mp time writ:c) lte)
 ++  gas
@@ -113,9 +113,9 @@
       ?:  |(=(~ entries) =(3 ~(wyt in repliers)))
         repliers
       =/  [* =reply:c]  -.entries
-      ?:  (~(has in repliers) author.reply)
+      ?:  (~(has in repliers) (get-author-ship:cu author.reply))
         $(entries +.entries)
-      (~(put in repliers) author.reply)
+      (~(put in repliers) (get-author-ship:cu author.reply))
     ==
   ::
       %add-react

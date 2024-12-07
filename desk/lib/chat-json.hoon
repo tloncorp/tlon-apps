@@ -320,7 +320,7 @@
     |=  =writ:c
     %-  pairs
     :~  seal+(seal -.writ)
-        essay+(essay:enjs:dj +.writ)
+        essay+(essay:v7:enjs:dj +.writ)
     ==
   ::
   ++  chat-heads
@@ -549,9 +549,9 @@
         reply/reply-delta
     ::
       :-  %add
-      ^-  $-(json [=memo:d =kind:c time=(unit time)])
+      ^-  $-(json [=memo:v7:old:d =kind:c time=(unit time)])
       %-  ot
-      :~  memo/memo:dejs:dj
+      :~  memo/memo:v7:dejs:dj
           kind/chat-kind:dejs:dj
           time/(mu (se %ud))
       ==
@@ -569,9 +569,9 @@
             del-react/ship
         ::
           :-  %add
-          ^-  $-(json [=memo:d time=(unit time)])
+          ^-  $-(json [=memo:v7:old:d time=(unit time)])
           %-  ot
-          :~  memo/memo:dejs:dj
+          :~  memo/memo:v7:dejs:dj
               time/(mu (se %ud))
           ==
         ==
