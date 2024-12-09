@@ -11,6 +11,7 @@ import {
 import { LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  Circle,
   ScrollView,
   View,
   XStack,
@@ -320,14 +321,18 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
         <YStack flex={1} justifyContent="center">
           {props.hasNickname ? (
             <>
-              <ContactName
-                contactId={props.userId}
-                mode="nickname"
-                fontSize={24}
-                lineHeight={24}
-                maxWidth="100%"
-                numberOfLines={1}
-              />
+              <XStack maxWidth="100%">
+                <ContactName
+                  contactId={props.userId}
+                  mode="nickname"
+                  fontSize={24}
+                  lineHeight={24}
+                  numberOfLines={1}
+                />
+                <Circle backgroundColor="$blue" marginLeft="$m">
+                  <Icon type="Checkmark" size="$m" color="$white" />
+                </Circle>
+              </XStack>
               <XStack alignItems="center">
                 <ContactName
                   contactId={props.userId}
@@ -345,11 +350,14 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
               </XStack>
             </>
           ) : (
-            <ContactName
-              fontSize={24}
-              lineHeight={24}
-              contactId={props.userId}
-            />
+            <XStack>
+              <ContactName
+                fontSize={24}
+                lineHeight={24}
+                contactId={props.userId}
+              />
+              <Icon type="Label" size="$s" color="$blue" />
+            </XStack>
           )}
         </YStack>
       </XStack>

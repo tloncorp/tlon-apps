@@ -69,6 +69,11 @@ export interface ContactFieldGroups {
   value: { type: 'flag'; value: string }[];
 }
 
+export interface VerifiedShipsField {
+  type: 'set';
+  value: { type: 'ship'; value: string }[];
+}
+
 export interface ContactBookProfile {
   nickname?: ContactFieldText;
   bio?: ContactFieldText;
@@ -77,6 +82,10 @@ export interface ContactBookProfile {
   color?: ContactFieldColor;
   groups?: ContactFieldGroups;
   status?: ContactFieldText;
+  ['lanyard-tmp-urbits']?: VerifiedShipsField;
+  ['lanyard-tmp-phone-since']?: string; // TODO
+  ['lanyard-tmp-phone-sign']?: string; // TODO
+  // ......
 }
 
 export interface ContactBookProfileEdit {
