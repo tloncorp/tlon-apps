@@ -322,6 +322,11 @@ export const lastAddedSuggestionsAt = createStorageItem<number>({
   defaultValue: 0,
 });
 
+export const personalInviteLink = createStorageItem<string | null>({
+  key: 'personalInviteLink',
+  defaultValue: null,
+});
+
 export const postDraft = (opts: {
   key: string;
   type: 'caption' | 'text' | undefined; // matches GalleryDraftType

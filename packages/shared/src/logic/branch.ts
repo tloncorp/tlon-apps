@@ -71,11 +71,13 @@ export interface DeepLinkMetadata {
   inviterUserId?: string;
   inviterNickname?: string;
   inviterAvatarImage?: string;
+  inviterColor?: string;
   invitedGroupId?: string;
   invitedGroupTitle?: string;
   invitedGroupDescription?: string;
   invitedGroupIconImageUrl?: string;
   invitedGroupiconImageColor?: string;
+  inviteType?: 'user' | 'group';
 }
 
 export interface AppInvite extends DeepLinkMetadata {
@@ -104,11 +106,13 @@ export function extractLureMetadata(branchParams: any) {
     inviterUserId: branchParams.inviterUserId,
     inviterNickname: branchParams.inviterNickname,
     inviterAvatarImage: branchParams.inviterAvatarImage,
+    inviterColor: branchParams.inviterColor,
     invitedGroupId: branchParams.invitedGroupId,
     invitedGroupTitle: branchParams.invitedGroupTitle,
     invitedGroupDescription: branchParams.invitedGroupDescription,
     invitedGroupIconImageUrl: branchParams.invitedGroupIconImageUrl,
     invitedGroupiconImageColor: branchParams.invitedGroupiconImageColor,
+    inviteType: branchParams.inviteType,
   };
 }
 
@@ -174,7 +178,7 @@ export const createDeepLink = async ({
 
   try {
     const inviteLink = await getLinkFromInviteService({
-      alias,
+      inviteId: alias,
       data,
       inviteServiceEndpoint,
       inviteServiceIsDev,
@@ -189,30 +193,31 @@ export const createDeepLink = async ({
 };
 
 async function getLinkFromInviteService({
-  alias,
+  inviteId,
   data,
   inviteServiceEndpoint,
   inviteServiceIsDev,
 }: {
-  alias: string;
+  inviteId: string;
   data: DeepLinkData;
   inviteServiceEndpoint: string;
   inviteServiceIsDev: boolean;
 }): Promise<string> {
+  console.log(`getting invite link from service`, { inviteId, data });
   const response = await fetch(inviteServiceEndpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      inviteId: alias,
+      inviteId,
       data: data,
       testEnv: inviteServiceIsDev,
     }),
   });
   if (!response.ok) {
     throw new Error(
-      `Failed to get invite link from service [${response.status}]: ${alias}`
+      `Failed to get invite link from service [${response.status}]: ${inviteId}`
     );
   }
 

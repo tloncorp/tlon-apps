@@ -16,6 +16,7 @@ import {
   InviteUsersSheet,
   NavBarView,
   NavigationProvider,
+  PersonalInviteSheet,
   RequestsProvider,
   ScreenHeader,
   View,
@@ -24,6 +25,10 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
+import {
+  INVITE_SERVICE_ENDPOINT,
+  INVITE_SERVICE_IS_DEV,
+} from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
@@ -53,8 +58,10 @@ export function ChatListScreenView({
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [addGroupOpen, setAddGroupOpen] = useState(false);
+  const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
+  const personalInvite = db.personalInviteLink.useValue();
 
   const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
     'all'
@@ -274,6 +281,15 @@ export function ChatListScreenView({
           <View flex={1}>
             <ScreenHeader
               title={notReadyMessage ?? screenTitle}
+              leftControls={
+                personalInvite ? (
+                  <ScreenHeader.IconButton
+                    type="Send"
+                    color="$blue"
+                    onPress={() => setPersonalInviteOpen(true)}
+                  />
+                ) : undefined
+              }
               rightControls={
                 <>
                   <ScreenHeader.IconButton
@@ -342,6 +358,10 @@ export function ChatListScreenView({
         onOpenChange={handleAddGroupOpenChange}
         navigateToFindGroups={handleNavigateToFindGroups}
         navigateToCreateGroup={handleNavigateToCreateGroup}
+      />
+      <PersonalInviteSheet
+        open={personalInviteOpen}
+        onOpenChange={() => setPersonalInviteOpen(false)}
       />
     </RequestsProvider>
   );
