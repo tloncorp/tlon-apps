@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { LayoutChangeEvent } from 'react-native';
@@ -86,11 +87,33 @@ export const ChatList = React.memo(function ChatListComponent({
     paddingBottom: 100, // bottom nav height + some cushion
   };
 
+  const sizeRefs = useRef({
+    sectionHeader: 28,
+    chatListItem: 72,
+  });
+
+  const handleHeaderLayout = useCallback((e: LayoutChangeEvent) => {
+    sizeRefs.current.sectionHeader = e.nativeEvent.layout.height;
+  }, []);
+
+  const handleItemLayout = useCallback((e: LayoutChangeEvent) => {
+    sizeRefs.current.chatListItem = e.nativeEvent.layout.height;
+  }, []);
+
+  const handleOverrideLayout = useCallback(
+    (layout: { span?: number; size?: number }, item: ChatListItemData) => {
+      layout.size = isSectionHeader(item)
+        ? sizeRefs.current.sectionHeader
+        : sizeRefs.current.chatListItem;
+    },
+    []
+  );
+
   const renderItem: ListRenderItem<ChatListItemData> = useCallback(
     ({ item }) => {
       if (isSectionHeader(item)) {
         return (
-          <SectionListHeader>
+          <SectionListHeader onLayout={handleHeaderLayout}>
             <SectionListHeader.Text>{item.title}</SectionListHeader.Text>
           </SectionListHeader>
         );
@@ -100,6 +123,7 @@ export const ChatList = React.memo(function ChatListComponent({
             model={item}
             onPress={onPressItem}
             onLongPress={handleLongPress}
+            onLayout={handleItemLayout}
           />
         );
       } else {
@@ -108,11 +132,12 @@ export const ChatList = React.memo(function ChatListComponent({
             model={item}
             onPress={onPressItem}
             onLongPress={handleLongPress}
+            onLayout={handleItemLayout}
           />
         );
       }
     },
-    [onPressItem, handleLongPress]
+    [handleHeaderLayout, onPressItem, handleLongPress, handleItemLayout]
   );
 
   const handlePressTryAll = useCallback(() => {
@@ -150,7 +175,8 @@ export const ChatList = React.memo(function ChatListComponent({
           keyExtractor={getChatKey}
           renderItem={renderItem}
           getItemType={getItemType}
-          estimatedItemSize={getTokenValue('$6xl', 'size')}
+          estimatedItemSize={sizeRefs.current.chatListItem}
+          overrideItemLayout={handleOverrideLayout}
         />
       )}
     </>
