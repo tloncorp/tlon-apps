@@ -12,7 +12,7 @@ class NotificationService: UNNotificationServiceExtension {
         Task { [weak bestAttemptContent] in
             let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
             switch parsedNotification {
-            case let .notify(yarn):
+            case let .yarn(yarn):
                 let (mutatedContent, messageIntent) = await PushNotificationManager.buildNotificationWithIntent(
                     yarn: yarn,
                     content: bestAttemptContent ?? UNMutableNotificationContent()

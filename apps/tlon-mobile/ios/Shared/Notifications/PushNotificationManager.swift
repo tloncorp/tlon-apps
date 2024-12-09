@@ -75,7 +75,7 @@ enum NotificationCategory: String {
     }
 
     enum ParseNotificationResult {
-        case notify(Yarn)
+        case yarn(Yarn)
         case dismiss(uid: String)
         case invalid
         case failedFetchContents(Error)
@@ -92,7 +92,7 @@ enum NotificationCategory: String {
         case "notify":
             do {
               let yarn: Yarn = try await PocketAPI.shared.fetchPushNotificationContents(uid)
-                return .notify(yarn)
+                return .yarn(yarn)
             } catch {
                 return .failedFetchContents(error)
             }
