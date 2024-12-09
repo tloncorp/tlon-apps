@@ -13,9 +13,8 @@ class NotificationService: UNNotificationServiceExtension {
             let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
             switch parsedNotification {
             case let .yarn(yarn):
-                let (mutatedContent, messageIntent) = await PushNotificationManager.buildNotificationWithIntent(
-                    yarn: yarn,
-                    content: bestAttemptContent ?? UNMutableNotificationContent()
+                let (mutatedContent, messageIntent) = await yarn.render(
+                  to: bestAttemptContent ?? UNMutableNotificationContent()
                 )
 
                 if let messageIntent {

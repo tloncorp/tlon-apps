@@ -24,56 +24,7 @@ enum NotificationCategory: String {
             NotificationCategory.message.category,
         ])
     }
-
-    static func buildNotificationWithIntent(
-        yarn: Yarn,
-        content: UNMutableNotificationContent = UNMutableNotificationContent()
-    ) async -> (UNNotificationContent, INSendMessageIntent?) {
-        content.interruptionLevel = .active
-        content.threadIdentifier = yarn.rope.thread
-        content.title = await yarn.getTitle()
-        content.body = yarn.body
-        // content.badge = await withUnsafeContinuation { cnt in
-        //     UNUserNotificationCenter.current().getDeliveredNotifications { notifs in
-        //         cnt.resume(returning: NSNumber(value: notifs.count + 1))
-        //     }
-        // }
-        content.categoryIdentifier = yarn.category.rawValue
-        content.userInfo = yarn.userInfo
-        content.sound = UNNotificationSound.default
-
-        if content.categoryIdentifier == NotificationCategory.message.rawValue,
-           let senderShipName = yarn.senderShipName
-        {
-            let sender = await INPerson.from(shipName: senderShipName, withImage: true)
-            let intent = INSendMessageIntent(
-                // Create empty recipient for groups because we don't need the OS creating the participant list
-                recipients: [INPerson.empty],
-                outgoingMessageType: .outgoingMessageText,
-                content: yarn.body,
-                speakableGroupName: INSpeakableString(spokenPhrase: content.title),
-                conversationIdentifier: content.threadIdentifier,
-                serviceName: nil,
-                sender: sender,
-                attachments: nil
-            )
-
-            if intent.speakableGroupName != nil, let image = sender.image {
-                intent.setImage(image, forParameterNamed: \.speakableGroupName)
-            }
-
-            do {
-                let updatedNotifContent = try content.updating(from: intent)
-                return (updatedNotifContent, intent)
-            } catch {
-                print("Error updating content for notification sender details: \(error)")
-                return (content, nil)
-            }
-        }
-
-        return (content, nil)
-    }
-
+  
     enum ParseNotificationResult {
         case yarn(Yarn)
         case dismiss(uid: String)
@@ -104,4 +55,72 @@ enum NotificationCategory: String {
             return .invalid
         }
     }
+}
+
+/**
+ This type's value can be represented as a user-facing push alert.
+ */
+protocol UNNotificationRenderable {
+  /**
+   Renders the receiver onto the specified notification content. Caller should discard the input
+   `UNMutableNotificationContent` and use the returned value, since the identity of the notification
+   content may change.
+   
+   ```swift
+   let (content, msgIntent) = await payload.render(to: mutableContent)
+   // `mutableContent` should no longer be used; use `content` instead
+   if let msgIntent {
+     // donate intent here
+   }
+   ```
+   */
+  func render(to content: UNMutableNotificationContent) async -> (UNNotificationContent, INSendMessageIntent?)
+}
+
+extension Yarn: UNNotificationRenderable {
+  func render(to content: UNMutableNotificationContent) async -> (UNNotificationContent, INSendMessageIntent?) {
+    content.interruptionLevel = .active
+    content.threadIdentifier = self.rope.thread
+    content.title = await self.getTitle()
+    content.body = self.body
+    // content.badge = await withUnsafeContinuation { cnt in
+    //     UNUserNotificationCenter.current().getDeliveredNotifications { notifs in
+    //         cnt.resume(returning: NSNumber(value: notifs.count + 1))
+    //     }
+    // }
+    content.categoryIdentifier = self.category.rawValue
+    content.userInfo = self.userInfo
+    content.sound = UNNotificationSound.default
+    
+    if content.categoryIdentifier == NotificationCategory.message.rawValue,
+       let senderShipName = self.senderShipName
+    {
+      let sender = await INPerson.from(shipName: senderShipName, withImage: true)
+      let intent = INSendMessageIntent(
+        // Create empty recipient for groups because we don't need the OS creating the participant list
+        recipients: [INPerson.empty],
+        outgoingMessageType: .outgoingMessageText,
+        content: self.body,
+        speakableGroupName: INSpeakableString(spokenPhrase: content.title),
+        conversationIdentifier: content.threadIdentifier,
+        serviceName: nil,
+        sender: sender,
+        attachments: nil
+      )
+      
+      if intent.speakableGroupName != nil, let image = sender.image {
+        intent.setImage(image, forParameterNamed: \.speakableGroupName)
+      }
+      
+      do {
+        let updatedNotifContent = try content.updating(from: intent)
+        return (updatedNotifContent, intent)
+      } catch {
+        print("Error updating content for notification sender details: \(error)")
+        return (content, nil)
+      }
+    }
+    
+    return (content, nil)
+  }
 }
