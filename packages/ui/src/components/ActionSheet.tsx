@@ -117,7 +117,7 @@ const ActionSheetComponent = ({
             borderWidth={1}
             borderColor="$border"
             padding={0}
-            minWidth={300}
+            minWidth="50%"
             key="content"
           >
             {children}
