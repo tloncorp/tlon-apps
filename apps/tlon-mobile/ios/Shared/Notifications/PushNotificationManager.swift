@@ -9,63 +9,12 @@ import Foundation
 import Intents
 import NotificationCenter
 
-enum NotificationAction: String {
-    case reply
-    case markAsRead
-    case accept
-    case deny
-
-    var title: String {
-        switch self {
-        case .reply:
-            return "Reply"
-        case .markAsRead:
-            return "Mark as Read"
-        case .accept:
-            return "Accept"
-        case .deny:
-            return "Deny"
-        }
-    }
-
-    var icon: UNNotificationActionIcon {
-        switch self {
-        case .reply:
-            return UNNotificationActionIcon(systemImageName: "arrowshape.turn.up.left")
-        case .markAsRead:
-            return UNNotificationActionIcon(systemImageName: "envelope.open")
-        case .accept:
-            return UNNotificationActionIcon(systemImageName: "checkmark")
-        case .deny:
-            return UNNotificationActionIcon(systemImageName: "xmark")
-        }
-    }
-
-    var action: UNNotificationAction {
-        if self == .reply {
-            return UNTextInputNotificationAction(identifier: rawValue, title: title, icon: icon)
-        }
-
-        return UNNotificationAction(identifier: rawValue, title: title, icon: icon)
-    }
-}
-
 enum NotificationCategory: String {
     case message
     case invitation
 
-    var actions: [NotificationAction] {
-        []
-//        switch self {
-//        case .message:
-//            return [.reply, .markAsRead]
-//        case .invitation:
-//            return [.accept, .deny]
-//        }
-    }
-
     var category: UNNotificationCategory {
-        UNNotificationCategory(identifier: rawValue, actions: actions.map(\.action), intentIdentifiers: [])
+        UNNotificationCategory(identifier: rawValue, actions: [], intentIdentifiers: [])
     }
 }
 
@@ -74,60 +23,6 @@ enum NotificationCategory: String {
         UNUserNotificationCenter.current().setNotificationCategories([
             NotificationCategory.message.category,
         ])
-    }
-
-    @objc static func handleBackgroundNotification(_ userInfo: [AnyHashable: Any]) async -> UIBackgroundFetchResult {
-        let parseResult = await parseNotificationUserInfo(userInfo)
-        switch parseResult {
-        case let .notify(yarn):
-            // Skip if not a valid push notification
-            guard yarn.isValidNotification else {
-                print("Skipping notification: \(yarn)")
-                return .noData
-            }
-
-            let success = await sendNotification(with: yarn)
-            return success ? .newData : .failed
-
-        case let .dismiss(uid):
-            UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [uid])
-            return .newData
-
-        case let .failedFetchContents(error):
-            error.logWithDomain(TlonError.NotificationsFetchYarn)
-
-            if error.isAFTimeout, await sendFallbackNotification() {
-                return .newData
-            }
-
-            return .failed
-
-        case .invalid:
-            return .noData
-        }
-    }
-
-    static func sendNotification(with yarn: Yarn) async -> Bool {
-        let (content, intent) = await buildNotificationWithIntent(yarn: yarn)
-
-        if let intent {
-            do {
-                let interaction = INInteraction(intent: intent, response: nil)
-                interaction.direction = .incoming
-                try await interaction.donate()
-            } catch {
-                print("Error donating interaction for notification sender details: \(error)")
-            }
-        }
-
-        let request = UNNotificationRequest(identifier: yarn.id, content: content, trigger: nil)
-        do {
-            try await UNUserNotificationCenter.current().add(request)
-            return true
-        } catch {
-            error.logWithDomain(TlonError.NotificationsShowBanner)
-            return false
-        }
     }
 
     static func buildNotificationWithIntent(
@@ -177,20 +72,6 @@ enum NotificationCategory: String {
         }
 
         return (content, nil)
-    }
-
-    static func sendFallbackNotification() async -> Bool {
-        let content = UNMutableNotificationContent()
-        content.body = "You have received a notification."
-        content.userInfo = ["wer": "/notifications"]
-        let request = UNNotificationRequest(identifier: "notification_fallback", content: content, trigger: nil)
-        do {
-            try await UNUserNotificationCenter.current().add(request)
-            return true
-        } catch {
-            error.logWithDomain(TlonError.NotificationsShowFallback)
-            return false
-        }
     }
 
     enum ParseNotificationResult {
