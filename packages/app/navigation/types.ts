@@ -67,6 +67,10 @@ export type RootStackParamList = {
   ChannelMeta: {
     channelId: string;
   };
+  PostUsingContentConfiguration: {
+    postId: string;
+    channelId: string;
+  };
 };
 
 export type RootStackNavigationProp = NavigationProp<RootStackParamList>;

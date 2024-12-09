@@ -1,3 +1,4 @@
+import { featureFlags as mirrorFeatureFlags } from '@tloncorp/shared/logic';
 import { mapValues } from 'lodash';
 import create from 'zustand';
 
@@ -76,6 +77,10 @@ async function loadInitialState() {
         console.warn('Unknown feature flag encountered in local storage', name);
       }
     });
+    mirrorFeatureFlags.updateFeatureFlags((prev) => ({
+      ...prev,
+      ...useFeatureFlagStore.getState().flags,
+    }));
   }
 }
 
@@ -84,6 +89,10 @@ async function setup() {
 
   // Write to local storage on changes, but only after initial load
   useFeatureFlagStore.subscribe(async (state) => {
+    mirrorFeatureFlags.updateFeatureFlags((prev) => ({
+      ...prev,
+      ...state.flags,
+    }));
     await storage.save({ key: storageKey, data: state.flags });
   });
 }

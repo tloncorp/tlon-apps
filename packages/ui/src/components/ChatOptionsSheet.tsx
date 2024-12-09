@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { sync } from '@tloncorp/shared';
+import { featureFlags, sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -8,6 +8,7 @@ import React, {
   ReactElement,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
@@ -25,6 +26,7 @@ import { ListItem } from './ListItem';
 type ChatOptionsSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onPressConfigureChannel?: () => void;
   chat?: {
     type: 'group' | 'channel';
     id: string;
@@ -34,6 +36,7 @@ type ChatOptionsSheetProps = {
 export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   open,
   onOpenChange,
+  onPressConfigureChannel,
   chat,
 }: ChatOptionsSheetProps) {
   if (!chat || !open) {
@@ -54,6 +57,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
     <ChannelOptionsSheetLoader
       channelId={chat.id}
       open={open}
+      onPressConfigureChannel={onPressConfigureChannel}
       onOpenChange={onOpenChange}
     />
   );
@@ -462,15 +466,26 @@ export function ChannelOptionsSheetLoader({
   channelId,
   open,
   onOpenChange,
+  onPressConfigureChannel,
 }: {
   channelId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onPressConfigureChannel?: () => void;
 }) {
   const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
   const channelQuery = store.useChannel({
     id: channelId,
   });
+  const [enableCustomChannels, setEnableCustomChannels] = useState(false);
+  // why useLayoutEffect?
+  // to try to get the synchronous read to avoid flicker on mount
+  useLayoutEffect(() => {
+    return featureFlags.subscribeToFeatureFlag(
+      'customChannels',
+      setEnableCustomChannels
+    );
+  }, []);
 
   const openChangeHandler = useCallback(
     (open: boolean) => {
@@ -483,13 +498,25 @@ export function ChannelOptionsSheetLoader({
   );
 
   return channelQuery.data ? (
-    <ActionSheet open={open} onOpenChange={openChangeHandler}>
-      <ChannelOptions
-        channel={channelQuery.data}
-        pane={pane}
-        setPane={setPane}
-        onOpenChange={onOpenChange}
-      />
+    <ActionSheet
+      open={open}
+      onOpenChange={openChangeHandler}
+      {...(enableCustomChannels
+        ? {
+            snapPointsMode: 'percent',
+            snapPoints: [75],
+          }
+        : {})}
+    >
+      <ActionSheet.ScrollableContent>
+        <ChannelOptions
+          channel={channelQuery.data}
+          pane={pane}
+          setPane={setPane}
+          onPressConfigureChannel={onPressConfigureChannel}
+          onOpenChange={onOpenChange}
+        />
+      </ActionSheet.ScrollableContent>
     </ActionSheet>
   ) : null;
 }
@@ -499,11 +526,13 @@ export function ChannelOptions({
   pane,
   setPane,
   onOpenChange,
+  onPressConfigureChannel,
 }: {
   channel: db.Channel;
   pane: 'initial' | 'notifications';
   setPane: (pane: 'initial' | 'notifications') => void;
   onOpenChange: (open: boolean) => void;
+  onPressConfigureChannel?: () => void;
 }) {
   const { data: group } = store.useGroup({
     id: channel?.groupId ?? undefined,
@@ -693,6 +722,14 @@ export function ChannelOptions({
             {
               accent: 'neutral',
               actions: [
+                ...(channel.contentConfiguration == null
+                  ? []
+                  : [
+                      {
+                        title: 'Configure view',
+                        action: onPressConfigureChannel,
+                      },
+                    ]),
                 {
                   title: 'Manage channels',
                   endIcon: 'ChevronRight',
@@ -808,6 +845,7 @@ export function ChannelOptions({
     ];
   }, [
     channel,
+    onPressConfigureChannel,
     currentUserIsAdmin,
     group,
     currentUserIsHost,

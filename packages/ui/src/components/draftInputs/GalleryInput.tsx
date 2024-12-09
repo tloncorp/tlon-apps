@@ -97,6 +97,7 @@ export function GalleryInput({
         draftInputContext={draftInputContext}
         setShowBigInput={setShowBigInput}
         hidden={!showBigInput}
+        overrideChannelType="gallery"
       />
 
       {headerMode === 'next' &&

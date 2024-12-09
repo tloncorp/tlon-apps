@@ -73,21 +73,21 @@ function channelContentConfigurationForChannelType(
   switch (channelType) {
     case 'chat':
       return {
-        draftInput: DraftInputId.chat,
-        defaultPostContentRenderer: PostContentRendererId.chat,
-        defaultPostCollectionRenderer: CollectionRendererId.chat,
+        draftInput: { id: DraftInputId.chat },
+        defaultPostContentRenderer: { id: PostContentRendererId.chat },
+        defaultPostCollectionRenderer: { id: CollectionRendererId.chat },
       };
     case 'notebook':
       return {
-        draftInput: DraftInputId.notebook,
-        defaultPostContentRenderer: PostContentRendererId.notebook,
-        defaultPostCollectionRenderer: CollectionRendererId.notebook,
+        draftInput: { id: DraftInputId.notebook },
+        defaultPostContentRenderer: { id: PostContentRendererId.notebook },
+        defaultPostCollectionRenderer: { id: CollectionRendererId.notebook },
       };
     case 'gallery':
       return {
-        draftInput: DraftInputId.gallery,
-        defaultPostContentRenderer: PostContentRendererId.gallery,
-        defaultPostCollectionRenderer: CollectionRendererId.gallery,
+        draftInput: { id: DraftInputId.gallery },
+        defaultPostContentRenderer: { id: PostContentRendererId.gallery },
+        defaultPostCollectionRenderer: { id: CollectionRendererId.gallery },
       };
   }
 
