@@ -153,6 +153,35 @@ export const getGroupPreviews = createReadQuery(
   ['groups']
 );
 
+export const getJoinedGroupsCount = createReadQuery(
+  'getJoinedGroupCount',
+  async (ctx: QueryCtx) => {
+    const result = await ctx.db
+      .select({ count: count() })
+      .from($groups)
+      .where(eq($groups.currentUserIsMember, true));
+
+    return result[0]?.count ?? 0;
+  },
+  ['groups']
+);
+
+// TODO: inefficient, should optimize
+export const getGroupsWithMemberThreshold = createReadQuery(
+  'getGroupsWithMemberThreshold',
+  async (threshold: number, ctx: QueryCtx) => {
+    const allJoinedWithMembers = await ctx.db.query.groups.findMany({
+      where: eq($groups.currentUserIsMember, true),
+      with: {
+        members: true,
+      },
+    });
+
+    return allJoinedWithMembers.filter((g) => g.members.length <= threshold);
+  },
+  ['groups']
+);
+
 export const getGroups = createReadQuery(
   'getGroups',
   async (
@@ -295,6 +324,8 @@ export const getChats = createReadQuery(
       where: or(
         eq($groups.currentUserIsMember, true),
         eq($groups.isNew, true),
+        eq($groups.haveInvite, true),
+        eq($groups.haveRequestedInvite, true),
         isNotNull($groups.joinStatus)
       ),
       with: {
@@ -3180,16 +3211,27 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
       .where(
         and(
           gt($activityEvents.timestamp, seenMarker),
-          eq($activityEvents.shouldNotify, true),
           or(
-            and(eq($activityEvents.type, 'reply'), gt($threadUnreads.count, 0)),
-            and(eq($activityEvents.type, 'post'), gt($channelUnreads.count, 0)),
+            eq($activityEvents.type, 'contact'),
             and(
-              gt($groupUnreads.notifyCount, 0),
+              eq($activityEvents.shouldNotify, true),
               or(
-                eq($activityEvents.type, 'group-ask'),
-                eq($activityEvents.type, 'flag-post'),
-                eq($activityEvents.type, 'flag-reply')
+                and(
+                  eq($activityEvents.type, 'reply'),
+                  gt($threadUnreads.count, 0)
+                ),
+                and(
+                  eq($activityEvents.type, 'post'),
+                  gt($channelUnreads.count, 0)
+                ),
+                and(
+                  gt($groupUnreads.notifyCount, 0),
+                  or(
+                    eq($activityEvents.type, 'group-ask'),
+                    eq($activityEvents.type, 'flag-post'),
+                    eq($activityEvents.type, 'flag-reply')
+                  )
+                )
               )
             )
           )

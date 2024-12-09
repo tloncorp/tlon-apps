@@ -25,12 +25,6 @@ interface Section {
 export function ContactsScreenView(props: Props) {
   const currentUserId = useCurrentUserId();
   const userContact = useContact(currentUserId);
-  const trimmedSuggested = useMemo(() => {
-    if (props.suggestions.length < 4 || props.contacts.length === 0) {
-      return props.suggestions;
-    }
-    return props.suggestions.slice(0, 4);
-  }, [props.contacts, props.suggestions]);
 
   const sortedContacts = useSortedContacts({
     contacts: props.contacts,
@@ -40,11 +34,9 @@ export function ContactsScreenView(props: Props) {
   const sections = useMemo(() => {
     const result: Section[] = [];
 
-    if (userContact) {
-      result.push({
-        data: [userContact],
-      });
-    }
+    result.push({
+      data: [userContact ?? db.getFallbackContact(currentUserId)],
+    });
 
     if (sortedContacts.length > 0) {
       result.push({
@@ -52,19 +44,19 @@ export function ContactsScreenView(props: Props) {
       });
     }
 
-    if (trimmedSuggested.length > 0) {
+    if (props.suggestions.length > 0) {
       result.push({
         title: 'Suggested from %pals and DMs',
-        data: trimmedSuggested,
+        data: props.suggestions,
       });
     }
 
     return result;
-  }, [userContact, sortedContacts, trimmedSuggested]);
+  }, [userContact, currentUserId, sortedContacts, props.suggestions]);
 
   const renderItem = useCallback(
     ({ item }: { item: db.Contact }) => {
-      const isSelf = item.id === userContact?.id;
+      const isSelf = item.id === currentUserId;
       return (
         <ContactListItem
           size="$4xl"

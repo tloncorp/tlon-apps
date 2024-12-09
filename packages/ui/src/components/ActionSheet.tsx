@@ -8,7 +8,7 @@ import {
   useMemo,
   useRef,
 } from 'react';
-import { Modal } from 'react-native';
+import { Modal, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Dialog,
@@ -190,7 +190,18 @@ const ActionSheetHeader = ActionSheetHeaderFrame.styleable(
 
 const ActionSheetContent = YStack.styleable((props, ref) => {
   const contentStyle = useContentStyle();
-  return <YStack {...contentStyle} {...props} ref={ref} />;
+  const { bottom } = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const maxHeight = height - bottom - getTokenValue('$2xl');
+  return (
+    <YStack
+      // prevent the modal from going off screen
+      maxHeight={maxHeight}
+      {...contentStyle}
+      {...props}
+      ref={ref}
+    />
+  );
 });
 
 const ActionSheetScrollableContent = ({

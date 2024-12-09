@@ -6,6 +6,7 @@ import {
 } from '@react-navigation/native';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
+import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { checkDb, useMigrations } from '@tloncorp/app/lib/webDb';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
@@ -17,7 +18,7 @@ import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
-import { LoadingSpinner, View } from '@tloncorp/ui';
+import { LoadingSpinner, StoreProvider, View } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { PropsWithChildren, useEffect, useState } from 'react';
@@ -135,6 +136,7 @@ const App = React.memo(function AppComponent() {
   const [dbIsLoaded, setDbIsLoaded] = useState(false);
   const [startedSync, setStartedSync] = useState(false);
   const configureClient = useConfigureUrbitClient();
+  useFindSuggestedContacts();
 
   useEffect(() => {
     handleError(() => {
@@ -182,18 +184,20 @@ const App = React.memo(function AppComponent() {
       <MigrationCheck>
         <SafeAreaProvider>
           <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-            {dbIsLoaded ? (
-              <AppRoutes isLoaded={dbIsLoaded} />
-            ) : (
-              <View
-                height="100%"
-                width="100%"
-                justifyContent="center"
-                alignItems="center"
-              >
-                <LoadingSpinner />
-              </View>
-            )}
+            <StoreProvider>
+              {dbIsLoaded ? (
+                <AppRoutes isLoaded={dbIsLoaded} />
+              ) : (
+                <View
+                  height="100%"
+                  width="100%"
+                  justifyContent="center"
+                  alignItems="center"
+                >
+                  <LoadingSpinner />
+                </View>
+              )}
+            </StoreProvider>
           </TamaguiProvider>
         </SafeAreaProvider>
       </MigrationCheck>
