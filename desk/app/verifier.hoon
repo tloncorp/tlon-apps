@@ -418,9 +418,16 @@
   ?>  ?=([%records @ ~] path)
   =+  who=(slav %p i.t.path)
   ?>  =(src.bowl who)
-  =+  %-  ~(rep in (~(get ju owners) who))
-      |=  [id=identifier all=(map identifier id-state)]
-      (~(put by all) id +>:(~(got by records) id))
+  ::TODO  but looking at owners here means we miss ids in pending states...
+  ::      can we just change owners to mean "owners of flows" instead of
+  ::      "owners of verifieds"?
+  :: =+  %-  ~(rep in (~(get ju owners) who))
+  ::     |=  [id=identifier all=(map identifier id-state)]
+  ::     (~(put by all) id +>:(~(got by records) id))
+  =+  %-  ~(rep by records)
+      |=  [[id=identifier =record] all=(map identifier id-state)]
+      ?.  =(src.bowl for.record)  all
+      (~(put by all) id +>.record)
   =/  upd=identifier-update  [%full all]
   [%give %fact ~ %verifier-update !>(upd)]~
 ::
