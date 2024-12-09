@@ -132,7 +132,7 @@
   =+  =>  [our=our now=now ..lull]  ~+
       ;;(=seed:jael (cue .^(@ %j /(scot %p our)/vile/(scot %da now))))
   ?>  =(who.seed our)
-  =/  sig=@ux  (sign:as:(nol:nu:crub:crypto key.seed) (jam dat))
+  =/  sig=@ux  (sigh:as:(nol:nu:crub:crypto key.seed) (jam dat))
   [our lyf.seed dat sig]
 ::
 ++  attest
