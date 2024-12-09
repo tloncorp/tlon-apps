@@ -22,12 +22,6 @@ export function EmptyChannelNotice({
   const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
   const isWelcomeNotice = isGroupAdmin && group?.channels?.length === 1;
 
-  const handlePressCustomize = useCallback(() => {
-    if (channel.groupId) {
-      onPressGroupMeta?.(channel.groupId);
-    }
-  }, [channel.groupId, onPressGroupMeta]);
-
   return isWelcomeNotice ? (
     <YStack
       flex={1}
@@ -43,7 +37,7 @@ export function EmptyChannelNotice({
         aspectRatio={911 / 755}
       />
       <YStack gap="$m" width={'100%'}>
-        <Button secondary onPress={handlePressCustomize}>
+        <Button secondary onPress={onPressGroupMeta}>
           <Icon type="Settings" size="$m" color="$secondaryText" />
           <Button.Text>Customize</Button.Text>
         </Button>

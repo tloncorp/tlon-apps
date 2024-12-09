@@ -1,7 +1,15 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useChannel, useChannelSearch } from '@tloncorp/shared';
+import { useChannel, useChannelSearch, useGroup } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import { Button, SearchBar, SearchResults, XStack, YStack } from '@tloncorp/ui';
+import {
+  Button,
+  SearchBar,
+  SearchResults,
+  XStack,
+  YStack,
+  useChannelTitle,
+  useGroupTitle,
+} from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -16,6 +24,13 @@ export default function ChannelSearchScreen(props: Props) {
   const channelQuery = useChannel({
     id: channelId,
   });
+  const groupQuery = useGroup({
+    id: groupId,
+  });
+  const isSingleChannelGroup = groupQuery.data?.channels.length === 1;
+  const groupTitle = useGroupTitle(groupQuery.data);
+  const channelTitle = useChannelTitle(channelQuery.data ?? null);
+  const title = isSingleChannelGroup ? groupTitle : channelTitle;
 
   const [query, setQuery] = useState('');
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
@@ -47,7 +62,7 @@ export default function ChannelSearchScreen(props: Props) {
         <XStack gap="$l">
           <SearchBar
             onChangeQuery={setQuery}
-            placeholder={`Search ${channelQuery?.data?.title ?? ''}`}
+            placeholder={`Search ${title ?? ''}`}
             inputProps={{ autoFocus: true }}
           />
           <Button minimal onPress={() => props.navigation.pop()}>

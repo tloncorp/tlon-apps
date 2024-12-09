@@ -185,7 +185,11 @@ export function ContactBook({
             debounceTime={100}
             onChangeQuery={setQuery}
             placeholder={searchPlaceholder ?? ''}
-            inputProps={{ spellCheck: false }}
+            inputProps={{
+              spellCheck: false,
+              autoCapitalize: 'none',
+              autoComplete: 'off',
+            }}
           />
         </XStack>
       )}

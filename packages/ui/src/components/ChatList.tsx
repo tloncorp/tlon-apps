@@ -76,7 +76,9 @@ export const ChatList = React.memo(function ChatListComponent({
   const chatOptions = useChatOptions();
   const handleLongPress = useCallback(
     (item: db.Chat) => {
-      chatOptions.open(item.id, item.type);
+      if (!item.isPending) {
+        chatOptions.open(item.id, item.type);
+      }
     },
     [chatOptions]
   );
