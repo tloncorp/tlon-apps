@@ -5,7 +5,7 @@ import React, { PropsWithChildren, useCallback, useMemo } from 'react';
 import { XStack, YStack, styled } from 'tamagui';
 
 import { useCalm } from '../../contexts';
-import { getGroupTitle, useChannelTitle } from '../../utils';
+import { getGroupTitle, useChannelTitle, useGroupTitle } from '../../utils';
 import { ChannelAvatar, ContactAvatar, GroupAvatar } from '../Avatar';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
@@ -72,10 +72,11 @@ export function ActivityListItemContent({
     return (isGroupUnread(unread) ? unread.notifyCount : unread?.count) ?? 0;
   }, [unread]);
 
+  const groupTitle = useGroupTitle(group ?? null);
   const channelTitle = useChannelTitle(channel ?? null);
   const title = useMemo(() => {
     if (channel == null || channelTitle == null) {
-      return group?.title ?? '';
+      return group ? getGroupTitle(group, calm.disableNicknames) : '';
     }
     if (channel.type === 'dm') {
       return 'Direct message';
@@ -83,11 +84,8 @@ export function ActivityListItemContent({
     if (channel.type === 'groupDm') {
       return 'Group chat';
     }
-    if (group?.title) {
-      return `${getGroupTitle(group, calm.disableNicknames)}: ${channelTitle}`;
-    }
-    return channelTitle;
-  }, [channel, channelTitle, group, calm.disableNicknames]);
+    return `${groupTitle}: ${channelTitle}`;
+  }, [channel, channelTitle, groupTitle, group, calm.disableNicknames]);
 
   return (
     <ActivitySummaryFrame

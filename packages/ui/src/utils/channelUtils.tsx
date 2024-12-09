@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 
 import type { IconType } from '../components/Icon';
 import { useCalm } from '../contexts/appDataContext';
+import { formatUserId } from './user';
 
 export function getChannelMemberName(
   member: db.ChatMember,
@@ -13,7 +14,7 @@ export function getChannelMemberName(
   if (disableNicknames) {
     return member.contactId;
   }
-  return member.contact?.nickname || member.contactId;
+  return member.contact?.nickname || formatUserId(member.contactId)?.display;
 }
 
 export function useChannelMemberName(member: db.ChatMember) {
@@ -69,16 +70,16 @@ export function useChatTitle(
 
 export function useChannelTitle(channel: db.Channel | null) {
   const { disableNicknames } = useCalm();
-
   return useMemo(() => {
-    return channel == null
-      ? null
-      : getChannelTitle({
-          ...configurationFromChannel(channel),
-          channelTitle: channel.title,
-          members: channel.members,
-          disableNicknames,
-        });
+    if (channel === null) {
+      return null;
+    }
+    return getChannelTitle({
+      ...configurationFromChannel(channel),
+      channelTitle: channel.title,
+      members: channel.members,
+      disableNicknames,
+    });
   }, [channel, disableNicknames]);
 }
 
