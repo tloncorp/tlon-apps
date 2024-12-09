@@ -101,7 +101,7 @@ export function InviteFriendsToTlonButton({
       {...props}
     >
       {linkIsReady ? (
-        <Icon type="AddPerson" color="$secondaryText" size="$m" />
+        <Icon type="Link" color="$secondaryText" size="$m" />
       ) : linkIsLoading ? (
         <LoadingSpinner size="small" />
       ) : linkFailed ? (
@@ -109,7 +109,7 @@ export function InviteFriendsToTlonButton({
       ) : null}
       <Button.Text>
         {linkIsReady
-          ? 'Add people'
+          ? 'Share invite link'
           : linkIsDisabled
             ? 'Public invite links are disabled'
             : linkFailed

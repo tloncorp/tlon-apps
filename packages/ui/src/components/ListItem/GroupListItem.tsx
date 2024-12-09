@@ -31,6 +31,8 @@ export const GroupListItem = ({
     onLongPress?.(model);
   });
 
+  const isSingleChannel = model.channels?.length === 1;
+
   return (
     <View>
       <Pressable
@@ -44,6 +46,10 @@ export const GroupListItem = ({
             <ListItem.Title>{title}</ListItem.Title>
             {customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
+            ) : isSingleChannel ? (
+              <ListItem.SubtitleWithIcon icon="ChannelMultiDM">
+                Group
+              </ListItem.SubtitleWithIcon>
             ) : model.lastPost ? (
               <ListItem.SubtitleWithIcon
                 icon={getPostTypeIcon(model.lastPost.type)}
@@ -62,8 +68,10 @@ export const GroupListItem = ({
                 </ListItem.Subtitle>
               </>
             ) : null}
-            {!isPending && model.lastPost ? (
+            {model.lastPost ? (
               <ListItem.PostPreview post={model.lastPost} />
+            ) : !isPending ? (
+              <ListItem.Subtitle>No posts yet</ListItem.Subtitle>
             ) : null}
           </ListItem.MainContent>
 

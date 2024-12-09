@@ -352,11 +352,9 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
                 numberOfLines={1}
               />
               <XStack alignItems="center">
-                <ContactName
-                  contactId={props.userId}
-                  color="$secondaryText"
-                  mode="contactId"
-                />
+                <Text color="$secondaryText">
+                  <ContactName contactId={props.userId} mode="contactId" />
+                </Text>
                 {didCopy ? (
                   <Icon
                     type="Checkmark"

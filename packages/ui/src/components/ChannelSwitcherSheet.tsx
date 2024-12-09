@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SizableText, Text, XStack } from 'tamagui';
 
 import { useChatOptions } from '../contexts';
+import { useGroupTitle } from '../utils';
 import ChannelNavSections from './ChannelNavSections';
 import { Icon } from './Icon';
 import Pressable from './Pressable';
@@ -44,6 +45,8 @@ export function ChannelSwitcherSheet({
     chatOptions.open(group.id, 'group');
   }, [chatOptions, group.id, onOpenChange]);
 
+  const title = useGroupTitle(group);
+
   return (
     <Sheet
       open={open}
@@ -65,7 +68,7 @@ export function ChannelSwitcherSheet({
               color="$primaryText"
               paddingHorizontal="$l"
             >
-              {group?.title}
+              {title}
             </SizableText>
             <TouchableOpacity onPress={handleSortByToggled}>
               <XStack

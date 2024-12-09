@@ -17,11 +17,9 @@ export function FavoriteGroupsDisplay(props: {
 
   // if editable, get sorted groups to pass to the selector
   const allGroups = useGroups();
-  const titledGroups = useMemo(() => {
-    return allGroups?.filter((g) => !!g.title) ?? [];
-  }, [allGroups]);
+
   const alphaSegmentedGroups = useAlphabeticallySegmentedGroups({
-    groups: titledGroups,
+    groups: allGroups ?? [],
     enabled: true,
   });
 
