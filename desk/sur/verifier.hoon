@@ -9,6 +9,7 @@
       ::TODO  (map identifier host-work) ? or would that be only for %dummy?
       ::NOTE  basic auth only for staging
       phone-api=[base=@t key=@t basic=(unit [user=@t pass=@t])]
+      domain=(unit @t)  ::  as 'https://example.org:123'
   ==
 ::
 +$  identifier
@@ -89,6 +90,7 @@
   $%  [%full all=(map identifier id-state)]
       [%status id=identifier status=?(%gone status)]
       [%config id=identifier =config]
+      [%endpoint base=(unit @t)]
   ==
 ::
 +$  user-query

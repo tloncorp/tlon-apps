@@ -29,6 +29,7 @@
 +$  card     card:agent:gall
 ::
 ++  attempt-timeout  ~h1
+++  binding  /verifier
 ::
 ++  id-wire
   |=  id=identifier
@@ -48,6 +49,14 @@
     %urbit  (bind (slaw %p i.t.wire) (lead %urbit))
     %phone  (bind (slaw %t i.t.wire) (lead %phone))
   ==
+::
+++  give-endpoint
+  |=  base=(unit @t)
+  ^-  card
+  =/  upd=identifier-update
+    :-  %endpoint
+    ?~(base ~ `(cat 3 u.base (spat binding)))
+  [%give %fact ~[/endpoint] %verifier-update !>(upd)]
 ::
 ++  give-update
   |=  [for=@p upd=identifier-update]
@@ -145,8 +154,7 @@
 ++  on-init
   ^-  (quip card _this)
   :_  this
-  ::TODO  handle http requests for proofs, attestations..?
-  [%pass /eyre %arvo %e %connect [~ /verifier] dap.bowl]~
+  [%pass /eyre %arvo %e %connect [~ binding] dap.bowl]~
 ::
 ++  on-load
   |=  ole=vase
@@ -166,6 +174,11 @@
         [%set-phone-api *]
       ?>  =(our src):bowl
       [~ this(phone-api !<([@t @t (unit [@t @t])] (slot 3 vase)))]
+    ::
+        [%set-domain base=(unit @t)]
+      ?:  =(base.q.vase domain)  [~ this]
+      :-  [(give-endpoint base.q.vase)]~
+      this(domain base.q.vase)
     ==
   ::
       %verifier-user-command
@@ -415,6 +428,11 @@
   |=  =path
   ^-  (quip card _this)
   :_  this
+  ?:  ?=([%endpoint ~] path)
+    =/  upd=identifier-update
+      :-  %endpoint
+      ?~(domain ~ `(cat 3 u.domain (spat binding)))
+    [%give %fact ~ %verifier-update !>(upd)]~
   ?>  ?=([%records @ ~] path)
   =+  who=(slav %p i.t.path)
   ?>  =(src.bowl who)

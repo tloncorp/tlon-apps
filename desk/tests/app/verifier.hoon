@@ -454,6 +454,7 @@
         owners=?:(?=(%done -.status) (my [~nec (sy id ~)] ~) ~)
         attested=(my [*@ux id] ~)
         phone-api=['https://phone.api/base' 'api-key' ~]
+        domain=`'http://sampel.net'
     ==
   ;<  *  bind:m  (do-load agent `!>([%0 state]))
   (pure:m ~)
@@ -600,7 +601,7 @@
   |=  records=(map identifier:v record:v)
   ^-  state:v
   :-  records
-  =<  [owners attested ['' '' ~]]
+  =<  [owners attested ['' '' ~] ~]
   %+  roll  ~(tap by records)
   |=  $:  [id=identifier:v record:v]
           [owners=(jug ship identifier:v) attested=(map @ux identifier:v)]

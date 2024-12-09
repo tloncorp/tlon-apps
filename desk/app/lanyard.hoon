@@ -21,13 +21,24 @@
 +$  state-0
   $:  %0
       records=(map [h=@p id=identifier] id-state)  ::  ours
-      provers=(jug identifier @p)                  ::  from
-      queries=(map @ _+:*user-query)               ::  asked
+      provers=(map identifier @p)                  ::  from  ::TODO  unused
+      ledgers=(map @p (unit @t))                   ::  services w/ base urls
+      queries=(map @ _+:*user-query)               ::  asked  ::TODO  response timestamps?
   ==
 +$  card     card:agent:gall
 ::
+++  join-service
+  |=  [our=@p host=@p]
+  ^-  (list card)
+  :~  [%pass /verifier %agent [host %verifier] %watch /records/(scot %p our)]
+      [%pass /verifier/endpoint %agent [host %verifier] %watch /endpoint]
+  ==
+::
 ++  inflate-contacts-profile
-  |=  [[our=@p now=@da] records=(map [h=@p id=identifier] id-state)]
+  |=  $:  [our=@p now=@da]
+          records=(map [h=@p id=identifier] id-state)
+          ledgers=(map @p (unit @t))
+      ==
   ^-  (unit card)
   =+  =>  [our=our now=now c=c ..lull]  ~+
       .^(orig=contact:c %gx /(scot %p our)/contacts/(scot %da now)/v1/self/contact-1)
@@ -50,36 +61,49 @@
   ::
   =+  %+  roll  ~(tap by records)
       |=  $:  [[h=@p id=identifier] id-state]
-              urbits=(map @p (urbit-signature full-sign-data-0))
-              phone=(unit (urbit-signature half-sign-data-0))
+              urbits=(map @p [h=@p (urbit-signature full-sign-data-0)])
+              phone=(unit [h=@p (urbit-signature half-sign-data-0)])
           ==
       =*  nop  [urbits phone]
       ?.  ?=(%done -.status)  nop
       ::TODO  check privacy control? if we do, make %config facts call this too.
+      ::TODO  for duplicates, don't overwrite versions that are clickable,
+      ::      with unclickable versions
       ?-  -.id
         %dummy  nop
-        %urbit  [(~(put by urbits) +.id full-sign.status) phone]
-        %phone  [urbits `half-sign.status]
+        %urbit  [(~(put by urbits) +.id h full-sign.status) phone]
+        %phone  [urbits `[h half-sign.status]]
       ==
+  =/  make-url
+    |=  [h=@p sig=@]
+    %+  bind  (~(gut by ledgers) h ~)
+    |=  base=@t
+    (rap 3 base '/attestations/' (scot %uw sig) ~)
   %+  weld
     ::  for "has verified a phone nr" status
     ::
     ^-  (list [term value:c])
     ?~  phone  ~
     ~?  !?=(%phone kind.dat.u.phone)  [%lanyard %strange-phone-sign-mismatch kind.dat.u.phone]
-    :~  [%lanyard-tmp-phone-since %date when.dat.u.phone]
-        [%lanyard-tmp-phone-sign %numb (jam u.phone)]
-    ==
+    :+  [%lanyard-tmp-phone-since %date when.dat.u.phone]
+      [%lanyard-tmp-phone-sign %numb (jam +.u.phone)]
+    ?~  url=(make-url h.u.phone sig.u.phone)  ~
+    [%lanyard-tmp-phone-url %text u.url]~
   ::  for "also knows as" display
   ::
   ^-  (list [term value:c])
   ?:  =(~ urbits)  ~
   :-  [%lanyard-tmp-urbits %set (~(run in ~(key by urbits)) (lead %ship))]
+  %-  zing
   %+  turn  ~(tap by urbits)
-  |=  [who=@p sign=(urbit-signature full-sign-data-0)]
-  ^-  [term value:c]
-  :_  [%numb (jam sign)]
-  (rap 3 %lanyard-tmp-urbit- (rsh 3^1 (scot %p who)) '-sign' ~)
+  |=  [who=@p h=@p sign=(urbit-signature full-sign-data-0)]
+  ^-  (list [term value:c])
+  :-  :_  [%numb (jam sign)]
+      (rap 3 %lanyard-tmp-urbit- (rsh 3^1 (scot %p who)) '-sign' ~)
+  ?~  url=(make-url h sig.sign)  ~
+  :_  ~
+  :_  [%text u.url]
+  (rap 3 %lanyard-tmp-urbit- (rsh 3^1 (scot %p who)) '-url' ~)
 --
 ::
 =|  state-0
@@ -92,15 +116,14 @@
 ++  on-save  !>(state)
 ++  on-init
   ^-  (quip card _this)
-  :_  this
-  [%pass /verifier %agent [default %verifier] %watch /records/(scot %p our.bowl)]~
+  [~ this]
 ::
 ++  on-load
   |=  ole=vase
   ^-  (quip card _this)
   =.  state  !<(state-0 ole)
   :_  this
-  (drop (inflate-contacts-profile [our now]:bowl records))
+  (drop (inflate-contacts-profile [our now]:bowl records ledgers))
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -118,18 +141,31 @@
     =/  key
       :-  host
       ?-(+<.cmd ?(%start %revoke) id.cmd, ?(%config %work) id.cmd)
+    ::  if the target service is unknown, do setup for it
+    ::
+    =^  caz  this
+      ::REVIEW  is this check a mistake? should we check for subs in the bowl?
+      ?:  (~(has by ledgers) host)  [~ this]
+      :-  (join-service our.bowl host)
+      this(ledgers (~(put by ledgers) host ~))
     ::  can only %start ids we haven't already worked with,
     ::  cannot do anything but %start ids we've never worked with.
     ::
     ?>  !=(?=(%start +<.cmd) (~(has by records) key))
-    :-  =/  =cage
-          [%verifier-user-command !>(`user-command`+.cmd)]
-        [%pass /verifier %agent [host %verifier] %poke cage]~
-    =?  records  ?=(%start +<.cmd)
-      (~(put by records) key *config %wait ~)
-    ::NOTE  we don't apply revocation eagerly, we can't re-start the identifier
-    ::      until the host has acknowledged the revocation anyway
-    this
+    ::  we apply creation eagerly, but don't apply revocation eagerly:
+    ::  we can't re-start the identifier until the host has acknowledged
+    ::  the revocation anyway.
+    ::
+    :_  =?  records  ?=(%start +<.cmd)
+          (~(put by records) key *config %wait ~)
+        this
+    ::NOTE  important to do setup before we poke, and important that the
+    ::      /records subscription has the same wire as the below poke,
+    ::      so that they get handled in the specified order.
+    %+  snoc  caz
+    =/  =cage
+      [%verifier-user-command !>(`user-command`+.cmd)]
+    [%pass /verifier %agent [host %verifier] %poke cage]
   ::
       %lanyard-query
     =+  !<(qer=query:l vase)
@@ -156,9 +192,18 @@
   ^-  (quip card _this)
   ~|  wire=wire
   ?+  wire  !!
-      [%verifier ~]
+      [%verifier ?(~ [%endpoint ~])]
+    ?.  (~(has by ledgers) src.bowl)
+      ::  we don't care for this ledger anymore, should've cleaned up,
+      ::  make doubly-sure here.
+      ::
+      ~&  [dap.bowl %uninterested src.bowl -.sign]
+      :_  this
+      ?.  ?=(%fact -.sign)  ~
+      [%pass wire %agent [src.bowl %verifier] %leave ~]~
     ?-  -.sign
         %poke-ack
+      ?>  ?=(~ t.wire)  ::NOTE  no pokes on /endpoint
       ?~  p.sign
         ::  the command is being processed, we'll get updates as facts
         ::  on our subscription
@@ -188,7 +233,8 @@
       ::      guarantee we regain consistency with the host. handling of other
       ::      facts below therefore isn't afraid to crash in unexpected
       ::      scenarios.
-      [%pass /verifier %agent [default %verifier] %watch /records/(scot %p our.bowl)]~
+      =/  =path  ?~(t.wire /endpoint /records/(scot %p our.bowl))
+      [%pass /verifier %agent [default %verifier] %watch path]~
     ::
         %fact
       ?.  =(%verifier-update p.cage.sign)
@@ -207,7 +253,7 @@
           (turn ~(tap by all.upd) |*(* +<(- [src.bowl +<-])))
         =.  records  (~(uni by records) new)
         :_  this
-        :_  (drop (inflate-contacts-profile [our now]:bowl records))
+        :_  (drop (inflate-contacts-profile [our now]:bowl records ledgers))
         =/  upd=update:l  [%full new]
         [%give %fact ~[/ /records] %lanyard-update !>(upd)]
       ::
@@ -230,7 +276,13 @@
         :-  =/  upd=update:l  upd(id key)
             [%give %fact ~[/ /records] %lanyard-update !>(upd)]
         ?.  ?=(?(%gone [%done *]) status.upd)  ~
-        (drop (inflate-contacts-profile [our now]:bowl records))
+        (drop (inflate-contacts-profile [our now]:bowl records ledgers))
+      ::
+          %endpoint
+        ?:  =(base.upd (~(got by ledgers) src.bowl))  [~ this]
+        =.  ledgers  (~(put by ledgers) src.bowl base.upd)
+        :_  this
+        (drop (inflate-contacts-profile [our now]:bowl records ledgers))
       ==
     ==
   ::
