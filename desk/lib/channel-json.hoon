@@ -399,14 +399,35 @@
     %+  turn  ~(tap by reacts)
     |=  [her=@p =react:c]
     [(scot %p her) (^react react)]
+  ++  author
+    |=  =author:c
+    ^-  json
+    ?@  author  (ship author)
+    %-  pairs
+    :~  ship+(ship ship.author)
+        nickname+?~(nickname.author ~ s/u.nickname.author)
+        avatar+?~(avatar.author ~ s/u.avatar.author)
+    ==
   ::
+  ++  meta
+    |=  meta=data:^meta
+    ^-  json
+    %-  pairs
+    :~  title+s/title.meta
+        description+s/description.meta
+        image+s/image.meta
+        cover+s/cover.meta
+    ==
   ++  essay
     |=  =essay:c
     %-  pairs
     :~  content+(story content.essay)
-        author+(ship author.essay)
+        author+(author author.essay)
         sent+(time sent.essay)
-        kind-data+(kind-data kind-data.essay)
+        ::
+        type+(path kind.essay)
+        meta+(meta meta.essay)
+        blob+?~(blob.essay ~ s/u.blob.essay)
     ==
   ::
   ++  kind-data
@@ -423,7 +444,7 @@
     %-  pairs
     :~  'replyCount'^(numb reply-count.r)
         'lastReply'^?~(last-reply.r ~ (time u.last-reply.r))
-        'lastRepliers'^a/(turn ~(tap in last-repliers.r) ship)
+        'lastRepliers'^a/(turn ~(tap in last-repliers.r) author)
     ==
   ::
   ++  verse
@@ -521,7 +542,7 @@
     ^-  json
     %-  pairs
     :~  content/(story content.m)
-        author/(ship author.m)
+        author/(author author.m)
         sent/(time sent.m)
     ==
   ::
@@ -641,6 +662,60 @@
         ==
       ==
     ::
+    ++  pending-msgs
+      |=  pm=pending-messages:v7:old:c
+      %-  pairs
+      :~  posts+(pending-posts posts.pm)
+          replies+(pending-replies replies.pm)
+      ==
+    ::
+    ++  pending-posts
+      |=  pp=pending-posts:v7:old:c
+      %-  pairs
+      %+  turn  ~(tap by pp)
+      |=  [cid=client-id:c es=essay:v7:old:c]
+      [(client-id-string cid) (essay es)]
+    ::
+    ++  pending-replies
+      |=  pr=pending-replies:v7:old:c
+      =/  replies
+        %+  roll  ~(tap by pr)
+        |=  $:  [[top=id-post:c cid=client-id:c] mem=memo:v7:old:c] 
+                rs=(map id-post:c (map client-id:c memo:c))
+            ==
+        ?.  (~(has by rs) top)  (~(put by rs) top (malt ~[[cid mem]]))
+        %+  ~(jab by rs)  top
+        |=  mems=(map client-id:c memo:c)
+        (~(put by mems) cid mem)
+      %-  pairs
+      %+  turn  ~(tap by replies)
+      |=  [top=id-post:c rs=(map client-id:c memo:c)]
+      :-  (rsh 4 (scot %ui top))
+      %-  pairs
+      %+  turn  ~(tap by rs)
+      |=  [cid=client-id:c mem=memo:c]
+      [(client-id-string cid) (memo mem)]
+    ::
+    ++  pending
+      |=  =r-channel:v7:old:c
+      ?>  ?=([%pending *] r-channel)
+      %-  pairs
+      :~  id+(client-id id.r-channel)
+          pending+(r-pending r-pending.r-channel)
+      ==
+    ++  r-pending  
+      |=  =r-pending:v7:old:c
+      %+  frond  -.r-pending
+      ?-  -.r-pending
+        %post  (essay essay.r-pending)
+      ::
+          %reply
+        %-  pairs
+        :~  top+(id top.r-pending)
+            meta+(reply-meta reply-meta.r-pending)
+            memo+(memo memo.r-pending)
+        ==
+      ==
     ++  channels
       |=  =channels:v7:old:c
       %-  pairs
@@ -667,7 +742,7 @@
       [(scot %ud id) ?~(post ~ (^post u.post))]
     ::
     ++  post
-      |=  [=seal:v7:old:c [rev=@ud =essay:c]]
+      |=  [=seal:v7:old:c [rev=@ud =essay:v7:old:c]]
       %-  pairs
       :~  seal+(^seal seal)
           revision+s+(scot %ud rev)
@@ -682,6 +757,15 @@
           reacts+(reacts reacts.seal)
           replies+(replies replies.seal)
           meta+(reply-meta reply-meta.seal)
+      ==
+    ::
+    ++  essay
+      |=  =essay:v7:old:c
+      %-  pairs
+      :~  content+(story content.essay)
+          author+(ship author.essay)
+          sent+(time sent.essay)
+          kind-data+(kind-data kind-data.essay)
       ==
     ::
     ++  channel-heads
@@ -765,7 +849,7 @@
       [(scot %ud id) ?~(post ~ (simple-post u.post))]
     ::
     ++  simple-post
-      |=  [seal=simple-seal:v7:old:c =essay:c]
+      |=  [seal=simple-seal:v7:old:c =essay:v7:old:c]
       %-  pairs
       :~  seal+(simple-seal seal)
           essay+(^essay essay)
@@ -879,19 +963,20 @@
           meta+(reply-meta reply-meta.seal)
       ==
     ++  post
-      |=  [=seal:v1:old:c [rev=@ud =essay:c]]
+      |=  [=seal:v1:old:c [rev=@ud =essay:v7:old:c]]
       %-  pairs
       :~  seal+(^seal seal)
           revision+s+(scot %ud rev)
-          essay+(^essay essay)
+          essay+(essay:v7 essay)
           type+s+%post
       ==
+    ++  simple-post  simple-post:v7
     ++  replies
       |=  =replies:v1:old:c
       %-  pairs
       %+  turn  (tap:on-replies:v1:old:c replies)
-      |=  [t=@da =reply:c]
-      [(scot %ud t) (^reply reply)]
+      |=  [t=@da =reply:v7:old:c]
+      [(scot %ud t) (reply:v7 reply)]
     --
   ::
   ++  v0
@@ -922,11 +1007,11 @@
       [(scot %ud id) ?~(post ~ (^post u.post))]
     ::
     ++  post
-      |=  [=seal:v7:old:c [rev=@ud =essay:c]]
+      |=  [=seal:v7:old:c [rev=@ud =essay:v7:old:c]]
       %-  pairs
       :~  seal+(^seal seal)
           revision+s+(scot %ud rev)
-          essay+(^essay essay)
+          essay+(essay:v7 essay)
           type+s+%post
       ==
     ::
@@ -992,6 +1077,47 @@
         add-react+(ot id+id ship+ship react+so ~)
         del-react+(ot id+id ship+ship ~)
     ==
+  ++  meta
+    ^-  $-(json data:^^meta)
+    %-  ot
+    :~  title/so
+        description/so
+        image/so
+        cover/so
+    ==
+  ++  author
+    |=  =json
+    ^-  author:c
+    ?:  ?=(%s -.json)
+      (ship json)
+    %.  json
+    %-  ot
+    :~  ship/ship
+        nickname/(mu so)
+        avator/(mu so)
+    ==
+  ++  memo
+    %-  ot
+    :~  content/story
+        author/author
+        sent/di
+    ==
+  ++  essay
+    ^-  $-(json essay:c)
+    %+  cu
+      |=  $:  =story:c  =author:c  =time:z
+              =path  meta=data:^^meta  blob=(unit @t)
+          ==
+      `essay:c`[[story author time] path meta blob]
+    %-  ot
+    :~  content/story
+        author/author
+        sent/di
+        ::
+        path/pa
+        meta/meta
+        blob/(mu so)
+    ==
   ::
   :: +|  %old
   ::
@@ -1021,6 +1147,25 @@
           order+(mu (ar id))
           add-writers+add-sects
           del-writers+del-sects
+      ==
+    ::
+    ++  memo
+      %-  ot
+      :~  content/story
+          author/ship
+          sent/di
+      ==
+    ::
+    ++  essay
+      ^-  $-(json essay:v7:old:c)
+      %+  cu
+        |=  [=story:c =ship:z =time:z =kind-data:c]
+        `essay:v7:old:c`[[story ship time] kind-data]
+      %-  ot
+      :~  content/story
+          author/ship
+          sent/di
+          kind-data/kind-data
       ==
     ::
     ++  a-post
@@ -1072,17 +1217,6 @@
   ++  del-sects  (as so)
   ::
   ++  story  (ar verse)
-  ++  essay
-    ^-  $-(json essay:c)
-    %+  cu
-      |=  [=story:c =ship:z =time:z =kind-data:c]
-      `essay:c`[[story ship time] kind-data]
-    %-  ot
-    :~  content/story
-        author/ship
-        sent/di
-        kind-data/kind-data
-    ==
   ::
   ++  kind-data
     ^-  $-(json kind-data:c)
@@ -1184,13 +1318,6 @@
       :~  checked/bo
           content/(ar inline)
       ==
-    ==
-  ::
-  ++  memo
-    %-  ot
-    :~  content/story
-        author/ship
-        sent/di
     ==
   ::
   ++  pins
