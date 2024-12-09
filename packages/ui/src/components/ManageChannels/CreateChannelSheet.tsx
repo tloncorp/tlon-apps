@@ -3,7 +3,7 @@ import {
   CollectionRendererId,
   DraftInputId,
   PostContentRendererId,
-  useCreateChannel,
+  createChannel,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
@@ -16,7 +16,6 @@ import {
 } from 'react';
 import { useForm } from 'react-hook-form';
 
-import { useCurrentUserId } from '../../contexts';
 import { ActionSheet } from '../ActionSheet';
 import { Button } from '../Button';
 import * as Form from '../Form';
@@ -71,27 +70,20 @@ export function CreateChannelSheet({
     },
   });
 
-  const currentUserId = useCurrentUserId();
-  const createChannel = useCreateChannel({
-    group,
-    currentUserId,
-  });
   const handlePressSave = useCallback(
     async (data: { title: string; channelType: ChannelTypeName }) => {
-      let contentConfiguration: ChannelContentConfiguration | undefined;
-      if (data.channelType === 'custom') {
-        contentConfiguration = customChannelConfigRef.current?.getFormValue();
-        // HACK: We don't have a custom channel type yet, so call it a chat
-        data.channelType = 'chat';
-      }
       createChannel({
+        groupId: group.id,
         title: data.title,
         channelType: data.channelType,
-        contentConfiguration,
+        contentConfiguration:
+          data.channelType === 'custom'
+            ? customChannelConfigRef.current?.getFormValue()
+            : undefined,
       });
       onOpenChange(false);
     },
-    [createChannel, onOpenChange]
+    [group.id, onOpenChange]
   );
 
   const availableChannelTypes = useMemo(

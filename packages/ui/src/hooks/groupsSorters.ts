@@ -3,6 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import anyAscii from 'any-ascii';
 import { useMemo } from 'react';
 
+import { useCalm } from '../contexts';
 import * as utils from '../utils';
 
 export type AlphaGroupsSegment = {
@@ -14,6 +15,8 @@ export type AlphaSegmentedGroups = AlphaGroupsSegment[];
 
 const logger = createDevLogger('groupSorter', false);
 
+type GroupSegment = { id: string; sortable: string; group: db.Group };
+
 export function useAlphabeticallySegmentedGroups({
   groups,
   enabled,
@@ -21,19 +24,17 @@ export function useAlphabeticallySegmentedGroups({
   groups: db.Group[];
   enabled?: boolean;
 }): AlphaSegmentedGroups {
-  const segmentedContacts = useMemo(() => {
+  const { disableNicknames } = useCalm();
+  const segmentedGroups = useMemo(() => {
     if (!enabled) return [];
     return logSyncDuration('useAlphabeticallySegmentedContacts', logger, () => {
-      const segmented: Record<
-        string,
-        { id: string; sortable: string; group: db.Group }[]
-      > = {};
+      const segmented: Record<string, GroupSegment[]> = {};
 
       // convert contact to alphabetical representation and bucket by first letter
       for (const group of groups) {
-        const sortableName = group.title
-          ? anyAscii(group.title.replace(/[~-]/g, ''))
-          : group.id.replace(/[~-]/g, '');
+        const sortableName = anyAscii(
+          utils.getGroupTitle(group, disableNicknames).replace(/[~-]/g, '')
+        );
         const firstAlpha = utils.getFirstAlphabeticalChar(sortableName);
         if (!segmented[firstAlpha]) {
           segmented[firstAlpha] = [];
@@ -50,60 +51,29 @@ export function useAlphabeticallySegmentedGroups({
       delete segmented['Other'];
 
       // order groupings alphabetically and sort hits within each bucket
-      const segmentedContacts = Object.entries(segmented)
+      const segmentedGroups = Object.entries(segmented)
         .filter(([_k, results]) => results.length > 0)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([label, results]) => {
-          const segmentGroups = results.map((r) => r.group).sort(groupsSorter);
+          const segmentGroups = results.sort(groupsSorter).map((r) => r.group);
           return { label, data: segmentGroups };
         });
 
       // add non-alphabetical names to the end
       if (nonAlphaNames && nonAlphaNames.length) {
-        segmentedContacts.push({
+        segmentedGroups.push({
           label: '_',
           data: nonAlphaNames.map((r) => r.group),
         });
       }
 
-      return segmentedContacts;
+      return segmentedGroups;
     });
-  }, [enabled, groups]);
+  }, [disableNicknames, enabled, groups]);
 
-  return segmentedContacts;
+  return segmentedGroups;
 }
 
-function groupsSorter(a: db.Group, b: db.Group): number {
-  if (a.title && !b.title) {
-    return -1;
-  }
-
-  if (b.title && !a.title) {
-    return 1;
-  }
-
-  if (b.title && a.title) {
-    // prioritize nicknames that don't look "urbity"
-    const aIsBadNickname = a.title.charAt(0) === '~';
-    const bIsBadNickname = b.title.charAt(0) === '~';
-    if (aIsBadNickname && !bIsBadNickname) {
-      return 1;
-    }
-    if (!aIsBadNickname && bIsBadNickname) {
-      return -1;
-    }
-
-    // otherwise, just alphabetical
-    const aTitleClean = a.title.replace(/[~-]/g, '');
-    const bTitleClean = b.title.replace(/[~-]/g, '');
-    return aTitleClean.localeCompare(bTitleClean);
-  }
-
-  try {
-    const aTitleClean = a.id.split('/')[1].replace(/[~-]/g, '');
-    const bTitleClean = b.id.split('/')[1].replace(/[~-]/g, '');
-    return aTitleClean.localeCompare(bTitleClean);
-  } catch (e) {
-    return 0;
-  }
+function groupsSorter(a: GroupSegment, b: GroupSegment): number {
+  return a.sortable.localeCompare(b.sortable);
 }
