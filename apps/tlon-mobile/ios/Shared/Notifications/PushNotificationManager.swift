@@ -91,7 +91,7 @@ enum NotificationCategory: String {
         switch action {
         case "notify":
             do {
-                let yarn = try await PocketAPI.shared.fetchPushNotificationContents(uid)
+              let yarn: Yarn = try await PocketAPI.shared.fetchPushNotificationContents(uid)
                 return .notify(yarn)
             } catch {
                 return .failedFetchContents(error)
