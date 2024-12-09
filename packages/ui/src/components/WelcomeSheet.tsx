@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, View, XStack, YStack } from 'tamagui';
+import { Text, View, XStack, YStack, isWeb } from 'tamagui';
 
 import { Icon } from './Icon';
 import { Sheet } from './Sheet';
@@ -41,7 +41,11 @@ function WelcomeSheetComponent({
               <Image
                 style={{ width: '100%', height: 188 }}
                 resizeMode={'cover'}
-                source={require('../assets/raster/welcome_flowers.jpg')}
+                source={
+                  isWeb
+                    ? './welcome_flowers.jpg'
+                    : require('../assets/raster/welcome_flowers.jpg')
+                }
               />
             </View>
             <YStack gap="$xs">
