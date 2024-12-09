@@ -206,11 +206,8 @@ const Scroller = forwardRef(
         backgroundColor: theme.background.val,
         // Used to hide the scroller until we've found the anchor post.
         opacity: readyToDisplayPosts ? 1 : 0,
-        // Necessary to prevent content from flowing off the right side of the
-        // screen when the scroller is in two-column mode.
-        paddingRight: collectionLayoutType === 'grid' ? getTokenValue('$l') : 0,
       };
-    }, [readyToDisplayPosts, theme.background.val, collectionLayoutType]);
+    }, [readyToDisplayPosts, theme.background.val]);
 
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
       () =>
@@ -294,6 +291,7 @@ const Scroller = forwardRef(
         showDividers,
         collectionLayout.dividersEnabled,
         collectionLayout.itemAspectRatio,
+        collectionLayout.columnCount,
       ]
     );
 
@@ -339,6 +337,9 @@ const Scroller = forwardRef(
         : {
             gap: '$l',
             width: '100%',
+            // Necessary to prevent content from flowing off the right side of the
+            // screen when the scroller is in two-column mode.
+            paddingRight: '$l',
           }
     ) as StyleProp<ViewStyle>;
 
