@@ -1,11 +1,6 @@
 import { ContentReference } from '../api';
 import { citeToPath } from '../urbit';
-import {
-  AppInvite,
-  DeepLinkMetadata,
-  getBranchLinkMeta,
-  isLureMeta,
-} from './branch';
+import { AppInvite, getBranchLinkMeta, isLureMeta } from './branch';
 
 export async function getReferenceFromDeeplink({
   deepLink,
@@ -23,6 +18,7 @@ export async function getReferenceFromDeeplink({
   });
 
   if (linkMeta && typeof linkMeta === 'object') {
+    // TODO: handle user invite links
     if (isLureMeta(linkMeta) && linkMeta.invitedGroupId) {
       return {
         reference: {
@@ -48,6 +44,8 @@ interface ProviderMetadataResponse {
     inviter?: string;
     inviterNickname?: string;
     inviterAvatarImage?: string;
+    inviterColor?: string;
+    inviteType?: 'user' | 'group';
   };
 }
 
@@ -92,6 +90,8 @@ export async function getInviteLinkMeta({
     invitedGroupIconImageUrl: responseMeta.fields.image,
     inviterNickname: responseMeta.fields.inviterNickname,
     inviterAvatarImage: responseMeta.fields.inviterAvatarImage,
+    inviterColor: responseMeta.fields.inviterColor,
+    inviteType: responseMeta.fields.inviteType,
   };
 
   // some links might not have everything, try to extend with branch (fine if fails)

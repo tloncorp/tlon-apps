@@ -78,6 +78,7 @@ export * from './components/View';
 export * from './components/WelcomeSheet';
 export * from './components/Image';
 export * from './components/ArvosDiscussing';
+export * from './components/PersonalInviteSheet';
 export * as Form from './components/Form';
 export * from './contexts';
 export * from './tamagui.config';
