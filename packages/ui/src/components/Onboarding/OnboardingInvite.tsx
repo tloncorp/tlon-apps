@@ -1,4 +1,5 @@
 import { DeepLinkMetadata } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import React, { ComponentProps } from 'react';
 
 import { AppDataContextProvider } from '../../contexts';
@@ -12,12 +13,6 @@ interface GroupShim {
   iconImageColor: string | undefined;
 }
 
-interface Inviter {
-  id: string;
-  nickname: string | undefined;
-  avatarImage: string | undefined;
-}
-
 export const OnboardingInviteBlock = React.memo(function OnboardingInviteBlock({
   metadata,
   ...rest
@@ -27,6 +22,7 @@ export const OnboardingInviteBlock = React.memo(function OnboardingInviteBlock({
     invitedGroupId,
     inviterNickname,
     inviterAvatarImage,
+    inviterColor,
     invitedGroupTitle,
     invitedGroupIconImageUrl,
     invitedGroupiconImageColor,
@@ -44,7 +40,8 @@ export const OnboardingInviteBlock = React.memo(function OnboardingInviteBlock({
     id: inviterUserId!,
     nickname: inviterNickname,
     avatarImage: inviterAvatarImage,
-  } as Inviter;
+    color: inviterColor,
+  } as db.Contact;
 
   const groupShim = {
     id: invitedGroupId,
@@ -63,7 +60,7 @@ export const OnboardingInviteBlock = React.memo(function OnboardingInviteBlock({
 function UserInvite({
   inviter,
   ...rest
-}: { inviter: Inviter } & ComponentProps<typeof ListItem>) {
+}: { inviter: db.Contact } & ComponentProps<typeof ListItem>) {
   return (
     // provider needed to support calm settings usage down the tree
     <AppDataContextProvider>
@@ -78,7 +75,7 @@ function UserInvite({
           width={100}
           height={100}
           contactId={inviter.id}
-          overrideUrl={inviter.avatarImage}
+          contactOverride={inviter}
         />
         <ListItem.MainContent>
           <ListItem.Title>{getDisplayName(inviter)}</ListItem.Title>
@@ -93,7 +90,7 @@ function GroupInvite({
   groupShim,
   inviter,
   ...rest
-}: { groupShim: GroupShim; inviter: Inviter } & ComponentProps<
+}: { groupShim: GroupShim; inviter: db.Contact } & ComponentProps<
   typeof ListItem
 >) {
   return (

@@ -76,21 +76,25 @@ export type AvatarProps = ComponentProps<typeof AvatarFrame> & {
 
 export const ContactAvatar = React.memo(function ContactAvatComponent({
   contactId,
+  contactOverride,
   overrideUrl,
   innerSigilSize,
   ...props
 }: {
   contactId: string;
+  contactOverride?: db.Contact;
   overrideUrl?: string;
   innerSigilSize?: number;
 } & AvatarProps) {
-  const contact = useContact(contactId);
+  const dbContact = useContact(contactId);
+  const contact = contactOverride ?? dbContact;
   return (
     <ImageAvatar
       imageUrl={overrideUrl ?? contact?.avatarImage ?? undefined}
       fallback={
         <SigilAvatar
           contactId={contactId}
+          contactOverride={contactOverride}
           innerSigilSize={innerSigilSize}
           {...props}
         />
@@ -293,11 +297,17 @@ export const TextAvatar = React.memo(function TextAvatarComponent({
 
 export const SigilAvatar = React.memo(function SigilAvatarComponent({
   contactId,
+  contactOverride,
   innerSigilSize,
   size = '$4xl',
   ...props
-}: { contactId: string; innerSigilSize?: number } & AvatarProps) {
-  const contact = useContact(contactId);
+}: {
+  contactId: string;
+  contactOverride?: db.Contact;
+  innerSigilSize?: number;
+} & AvatarProps) {
+  const dbContact = useContact(contactId);
+  const contact = contactOverride ?? dbContact;
   const colors = useSigilColors(contact?.color);
   const styles = useStyle(props, { resolveValues: 'value' });
   const sigilSize = useMemo(() => {
