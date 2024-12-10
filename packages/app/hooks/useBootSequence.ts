@@ -150,7 +150,10 @@ export function useBootSequence({
       const { invitedDm, invitedGroup } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
 
-      if (invitedDm && invitedGroup) {
+      const requiredInvites =
+        lureMeta?.inviteType === 'user' ? invitedDm : invitedGroup && invitedDm;
+
+      if (requiredInvites) {
         logger.crumb('confirmed node has the invites');
         return NodeBootPhase.ACCEPTING_INVITES;
       }
@@ -218,7 +221,10 @@ export function useBootSequence({
         updatedGroup.channels &&
         updatedGroup.channels.length > 0;
 
-      if (dmIsGood && groupIsGood) {
+      const hadSuccess =
+        lureMeta?.inviteType === 'user' ? dmIsGood : groupIsGood && dmIsGood;
+
+      if (hadSuccess) {
         logger.crumb('successfully accepted invites');
         if (updatedTlonTeamDm) {
           store.pinChannel(updatedTlonTeamDm);
@@ -244,6 +250,7 @@ export function useBootSequence({
     lureMeta,
     reservedNodeId,
     setShip,
+    telemetry,
   ]);
 
   // we increment a counter to ensure the effect executes after every run, even if
