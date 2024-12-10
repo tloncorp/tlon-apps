@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
 import { useRootNavigation } from '../../navigation/utils';
+import { trackError } from '../../utils/posthog';
 
 export type CreateChatParams =
   | { type: 'dm'; contactId: string }
@@ -43,6 +44,9 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   useEffect(() => {
     if (createChatError) {
       Alert.alert('Error creating chat', createChatError);
+      trackError({
+        message: 'Error creating chat: ' + createChatError,
+      });
     }
   }, [createChatError]);
 
@@ -228,6 +232,7 @@ function useCreateChat() {
         }
         return true;
       } catch (e) {
+        trackError(e);
         setCreateChatError(e.message);
         return false;
       } finally {

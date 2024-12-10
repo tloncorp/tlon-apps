@@ -1,5 +1,4 @@
 import * as db from '@tloncorp/shared/db';
-import { useCallback } from 'react';
 import { YStack, styled } from 'tamagui';
 
 import { useChatOptions, useGroup } from '../../contexts';
@@ -17,7 +16,7 @@ export function EmptyChannelNotice({
   channel: db.Channel;
   userId: string;
 }) {
-  const { onPressGroupMeta } = useChatOptions() ?? {};
+  const { onPressGroupMeta } = useChatOptions();
   const group = useGroup(channel.groupId ?? '');
   const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
   const isWelcomeNotice = isGroupAdmin && group?.channels?.length === 1;
