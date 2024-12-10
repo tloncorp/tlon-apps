@@ -4,6 +4,7 @@
 // which isn't made for web.
 import { createDevLogger } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
+import { clearNonPersistentStorageItems } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
@@ -33,7 +34,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
     removeHostingUserId();
     removeHostingAuthTracking();
     clearSplashDismissed();
-    // signupContext.clear();
+    clearNonPersistentStorageItems();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');
       return;

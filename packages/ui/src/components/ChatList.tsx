@@ -1,7 +1,5 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
 import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
 import React, {
@@ -9,6 +7,7 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { LayoutChangeEvent } from 'react-native';
@@ -19,6 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Text, View, YStack, getTokenValue } from 'tamagui';
 
+import { useCalm, useChatOptions } from '../contexts';
 import { interactionWithTiming } from '../utils/animation';
 import { TextInputWithIconAndButton } from './Form';
 import { ChatListItem, InteractableChatListItem } from './ListItem';
@@ -26,18 +26,15 @@ import Pressable from './Pressable';
 import { SectionListHeader } from './SectionList';
 import { Tabs } from './Tabs';
 
-export type Chat = db.Channel | db.Group;
-
 export type TabName = 'all' | 'groups' | 'messages';
 
 type SectionHeaderData = { type: 'sectionHeader'; title: string };
-type ChatListItemData = Chat | SectionHeaderData;
+type ChatListItemData = db.Chat | SectionHeaderData;
 
 export const ChatList = React.memo(function ChatListComponent({
   pinned,
   unpinned,
-  pendingChats,
-  onLongPressItem,
+  pending,
   onPressItem,
   activeTab,
   setActiveTab,
@@ -45,10 +42,8 @@ export const ChatList = React.memo(function ChatListComponent({
   searchQuery,
   onSearchQueryChange,
   onSearchToggle,
-}: store.CurrentChats & {
-  pendingChats: store.PendingChats;
-  onPressItem?: (chat: Chat) => void;
-  onLongPressItem?: (chat: Chat) => void;
+}: db.GroupedChats & {
+  onPressItem?: (chat: db.Chat) => void;
   onSectionChange?: (title: string) => void;
   activeTab: TabName;
   setActiveTab: (tab: TabName) => void;
@@ -60,7 +55,7 @@ export const ChatList = React.memo(function ChatListComponent({
   const displayData = useFilteredChats({
     pinned,
     unpinned,
-    pending: pendingChats,
+    pending,
     searchQuery,
     activeTab,
   });
@@ -76,6 +71,14 @@ export const ChatList = React.memo(function ChatListComponent({
     [displayData]
   );
 
+  const chatOptions = useChatOptions();
+  const handleLongPress = useCallback(
+    (item: db.Chat) => {
+      chatOptions.open(item.id, item.type);
+    },
+    [chatOptions]
+  );
+
   // removed the use of useStyle here because it was causing FlashList to
   // peg the CPU and freeze the app on web
   // see: https://github.com/Shopify/flash-list/pull/852
@@ -84,20 +87,43 @@ export const ChatList = React.memo(function ChatListComponent({
     paddingBottom: 100, // bottom nav height + some cushion
   };
 
+  const sizeRefs = useRef({
+    sectionHeader: 28,
+    chatListItem: 72,
+  });
+
+  const handleHeaderLayout = useCallback((e: LayoutChangeEvent) => {
+    sizeRefs.current.sectionHeader = e.nativeEvent.layout.height;
+  }, []);
+
+  const handleItemLayout = useCallback((e: LayoutChangeEvent) => {
+    sizeRefs.current.chatListItem = e.nativeEvent.layout.height;
+  }, []);
+
+  const handleOverrideLayout = useCallback(
+    (layout: { span?: number; size?: number }, item: ChatListItemData) => {
+      layout.size = isSectionHeader(item)
+        ? sizeRefs.current.sectionHeader
+        : sizeRefs.current.chatListItem;
+    },
+    []
+  );
+
   const renderItem: ListRenderItem<ChatListItemData> = useCallback(
     ({ item }) => {
       if (isSectionHeader(item)) {
         return (
-          <SectionListHeader>
+          <SectionListHeader onLayout={handleHeaderLayout}>
             <SectionListHeader.Text>{item.title}</SectionListHeader.Text>
           </SectionListHeader>
         );
-      } else if (logic.isChannel(item)) {
+      } else if (item.type === 'channel' || !item.isPending) {
         return (
           <InteractableChatListItem
             model={item}
             onPress={onPressItem}
-            onLongPress={onLongPressItem}
+            onLongPress={handleLongPress}
+            onLayout={handleItemLayout}
           />
         );
       } else {
@@ -105,12 +131,13 @@ export const ChatList = React.memo(function ChatListComponent({
           <ChatListItem
             model={item}
             onPress={onPressItem}
-            onLongPress={onLongPressItem}
+            onLongPress={handleLongPress}
+            onLayout={handleItemLayout}
           />
         );
       }
     },
-    [onPressItem, onLongPressItem]
+    [handleHeaderLayout, onPressItem, handleLongPress, handleItemLayout]
   );
 
   const handlePressTryAll = useCallback(() => {
@@ -148,7 +175,8 @@ export const ChatList = React.memo(function ChatListComponent({
           keyExtractor={getChatKey}
           renderItem={renderItem}
           getItemType={getItemType}
-          estimatedItemSize={getTokenValue('$6xl', 'size')}
+          estimatedItemSize={sizeRefs.current.chatListItem}
+          overrideItemLayout={handleOverrideLayout}
         />
       )}
     </>
@@ -156,17 +184,7 @@ export const ChatList = React.memo(function ChatListComponent({
 });
 
 function getItemType(item: ChatListItemData) {
-  return isSectionHeader(item)
-    ? 'sectionHeader'
-    : logic.isGroup(item)
-      ? 'group'
-      : logic.isChannel(item)
-        ? item.type === 'dm' ||
-          item.type === 'groupDm' ||
-          item.pin?.type === 'channel'
-          ? 'channel'
-          : 'groupAdapter'
-        : 'default';
+  return isSectionHeader(item) ? 'sectionHeader' : item.type;
 }
 
 function isSectionHeader(data: ChatListItemData): data is SectionHeaderData {
@@ -182,9 +200,6 @@ function getChatKey(chatItem: ChatListItemData) {
     return chatItem.title;
   }
 
-  if (logic.isGroup(chatItem)) {
-    return chatItem.id;
-  }
   return `${chatItem.id}-${chatItem.pin?.itemId ?? ''}`;
 }
 
@@ -290,13 +305,13 @@ function useFilteredChats({
   searchQuery,
   activeTab,
 }: {
-  pinned: Chat[];
-  unpinned: Chat[];
-  pending: Chat[];
+  pinned: db.Chat[];
+  unpinned: db.Chat[];
+  pending: db.Chat[];
   searchQuery: string;
   activeTab: TabName;
 }) {
-  const performSearch = useChatSearch({ pinned, unpinned });
+  const performSearch = useChatSearch({ pinned, unpinned, pending });
   const debouncedQuery = useDebouncedValue(searchQuery, 200);
   const searchResults = useMemo(
     () => performSearch(debouncedQuery),
@@ -331,42 +346,53 @@ function useFilteredChats({
   }, [activeTab, pending, searchQuery, searchResults, unpinned, pinned]);
 }
 
-function filterPendingChats(pending: Chat[], activeTab: TabName) {
+function filterPendingChats(pending: db.Chat[], activeTab: TabName) {
   if (activeTab === 'all') return pending;
   return pending.filter((chat) => {
-    const isGroupChannel = logic.isGroup(chat);
-    return activeTab === 'groups' ? isGroupChannel : !isGroupChannel;
+    const isGroup = chat.type === 'group';
+    return activeTab === 'groups' ? isGroup : !isGroup;
   });
 }
 
-function filterChats(chats: Chat[], activeTab: TabName) {
+function filterChats(chats: db.Chat[], activeTab: TabName) {
   if (activeTab === 'all') return chats;
   return chats.filter((chat) => {
-    const isGroupChannel = logic.isGroupChannelId(chat.id);
-    return activeTab === 'groups' ? isGroupChannel : !isGroupChannel;
+    const isGroup = chat.type === 'group';
+    return activeTab === 'groups' ? isGroup : !isGroup;
   });
 }
 
 function useChatSearch({
   pinned,
   unpinned,
+  pending,
 }: {
-  pinned: Chat[];
-  unpinned: Chat[];
+  pinned: db.Chat[];
+  unpinned: db.Chat[];
+  pending: db.Chat[];
 }) {
+  const { disableNicknames } = useCalm();
+
   const fuse = useMemo(() => {
-    const allData = [...pinned, ...unpinned];
+    const allData = [...pinned, ...unpinned, ...pending];
     return new Fuse(allData, {
       keys: [
-        'id',
-        'group.title',
-        'contact.nickname',
-        'members.contact.nickname',
-        'members.contact.id',
+        {
+          name: 'title',
+          getFn: (chat: db.Chat) => {
+            const title = getChatTitle(chat, disableNicknames);
+            return Array.isArray(title)
+              ? title.map(normalizeString)
+              : normalizeString(title);
+          },
+        },
       ],
-      threshold: 0.3,
     });
-  }, [pinned, unpinned]);
+  }, [pinned, unpinned, pending, disableNicknames]);
+
+  function normalizeString(str: string) {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
 
   const performSearch = useCallback(
     (query: string) => {
@@ -379,6 +405,34 @@ function useChatSearch({
   );
 
   return performSearch;
+}
+
+function getChatTitle(
+  chat: db.Chat,
+  disableNicknames: boolean
+): string | string[] {
+  if (chat.type === 'channel') {
+    if (chat.channel.title) {
+      return chat.channel.title;
+    } else if (chat.channel.members) {
+      return chat.channel.members
+        .map((member) => {
+          const nickname = member.contact
+            ? (member.contact as db.Contact).nickname
+            : null;
+          return nickname && !disableNicknames ? nickname : member.contactId;
+        })
+        .join(', ');
+    } else {
+      return [];
+    }
+  } else {
+    if (chat.group.title) {
+      return chat.group.title;
+    } else {
+      return [];
+    }
+  }
 }
 
 function useDebouncedValue<T>(input: T, delay: number) {

@@ -316,10 +316,7 @@ export function Channel({
                   initialAttachments={initialAttachments}
                   uploadAsset={uploadAsset}
                 >
-                  <View
-                    backgroundColor={backgroundColor}
-                    flex={1}
-                  >
+                  <View backgroundColor={backgroundColor} flex={1}>
                     <YStack
                       justifyContent="space-between"
                       width="100%"
@@ -332,9 +329,15 @@ export function Channel({
                             group={group}
                             mode={headerMode}
                             title={title ?? ''}
-                            goBack={isNarrow ? handleGoBack : undefined}
+                            goBack={
+                              isNarrow ||
+                              draftInputPresentationMode === 'fullscreen'
+                                ? handleGoBack
+                                : undefined
+                            }
                             showSearchButton={isChatChannel}
                             goToSearch={goToSearch}
+                            goToChannels={goToChannels}
                             showSpinner={isLoadingPosts}
                             showMenuButton={true}
                           />

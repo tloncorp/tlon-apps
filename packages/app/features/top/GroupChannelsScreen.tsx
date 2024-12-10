@@ -10,8 +10,9 @@ import {
   ChatOptionsProvider,
   GroupChannelsScreenView,
   InviteUsersSheet,
+  NavigationProvider,
 } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
@@ -26,15 +27,13 @@ export function GroupChannelsScreen({ route }: Props) {
 
 export function GroupChannelsScreenContent({
   groupId: id,
+  focusedChannelId,
 }: {
   groupId: string;
+  focusedChannelId?: string;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-
   const isFocused = useIsFocused();
-  const { data: pins } = store.usePins({
-    enabled: isFocused,
-  });
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>(
     null
   );
@@ -42,10 +41,6 @@ export function GroupChannelsScreenContent({
   const { data: unjoinedChannels } = store.useUnjoinedGroupChannels(
     group?.id ?? ''
   );
-
-  const pinnedItems = useMemo(() => {
-    return pins ?? [];
-  }, [pins]);
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
@@ -79,22 +74,21 @@ export function GroupChannelsScreenContent({
 
   return (
     <ChatOptionsProvider
-      groupId={id}
-      pinned={pinnedItems}
-      useGroup={store.useGroup}
       onPressInvite={(group) => {
         setInviteSheetGroup(group);
       }}
       {...useChatSettingsNavigation()}
     >
-      <GroupChannelsScreenView
-        onChannelPressed={handleChannelSelected}
-        onBackPressed={handleGoBackPressed}
-        onJoinChannel={handleJoinChannel}
-        group={group}
-        unjoinedChannels={unjoinedChannels}
-        enableCustomChannels={enableCustomChannels}
-      />
+      <NavigationProvider focusedChannelId={focusedChannelId}>
+        <GroupChannelsScreenView
+          onChannelPressed={handleChannelSelected}
+          onBackPressed={handleGoBackPressed}
+          onJoinChannel={handleJoinChannel}
+          group={group}
+          unjoinedChannels={unjoinedChannels}
+          enableCustomChannels={enableCustomChannels}
+        />
+      </NavigationProvider>
       <InviteUsersSheet
         open={inviteSheetGroup !== null}
         onOpenChange={(open) => {

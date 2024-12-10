@@ -2,9 +2,10 @@
 ::
 ::    this is the server-side from which /app/channels gets its data.
 ::
-/-  c=channels, g=groups
+/-  c=channels, g=groups, h=hooks, m=meta
 /+  utils=channel-utils, imp=import-aid
 /+  default-agent, verb, dbug, neg=negotiate, logs
+/+  hj=hooks-json
 ::
 %-  %-  agent:neg
     [| [~.channels^%1 ~ ~] ~]
@@ -16,8 +17,9 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %6
+    $:  %7
         =v-channels:c
+        =hooks:h
         =pimp:imp
     ==
   --
@@ -56,7 +58,7 @@
       abet:(watch:cor path)
     [cards this]
   ::
-  ++  on-peek    on-peek:def
+  ++  on-peek    peek:cor
   ++  on-leave   on-leave:def
   ++  on-fail
     |=  [=term =tang]
@@ -71,7 +73,12 @@
       abet:(agent:cor wire sign)
     [cards this]
   ::
-  ++  on-arvo    on-arvo:def
+  ++  on-arvo
+    |=  [=wire sign=sign-arvo]
+    ^-  (quip card _this)
+    =^  cards  state
+      abet:(arvo:cor wire sign)
+    [cards this]
   --
 ::
 |_  [=bowl:gall cards=(list card)]
@@ -97,12 +104,22 @@
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
-  ?>  ?=(%6 -.old)
+  =?  old  ?=(%6 -.old)  (state-6-to-7 old)
+  ?>  ?=(%7 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-6 state-5 state-4 state-3 state-2 state-1 state-0)
-  +$  state-6  current-state
+  +$  versioned-state  $%(state-7 state-6 state-5 state-4 state-3 state-2 state-1 state-0)
+  +$  state-7  current-state
+  +$  state-6
+    $:  %6
+        =v-channels:c
+        =pimp:imp
+    ==
+  ++  state-6-to-7
+    |=  state-6
+    ^-  state-7
+    [%7 v-channels *hooks:h pimp]
   +$  state-5
     $:  %5
         =v-channels:v6:old:c
@@ -326,6 +343,38 @@
       [~ %| *]  ~&  [dap.bowl %overwriting-pending-import]
                 cor(pimp `|+egg-any)
     ==
+  ::
+      %hook-action-0
+    =+  !<(=action:h vase)
+    ?>  =(our src):bowl
+    ?-  -.action
+        %add
+      ho-abet:(ho-add:ho-core [name src]:action)
+    ::
+        %edit
+      ho-abet:(ho-edit:(ho-abed:ho-core id.action) +>.action)
+    ::
+        %del
+      ho-abet:ho-del:(ho-abed:ho-core id.action)
+    ::
+        %order
+      =/  seq
+        %+  skim
+          seq.action
+        ~(has by hooks.hooks)
+      =.  order.hooks  (~(put by order.hooks) nest.action seq)
+      =/  =response:h  [%order nest.action seq]
+      (give %fact ~[/v0/hooks] hook-response-0+!>(response))
+    ::
+        %config
+      ho-abet:(ho-configure:(ho-abed:ho-core id.action) +>.action)
+    ::
+        %cron
+      ho-abet:(ho-cron:(ho-abed:ho-core id.action) +>.action)
+    ::
+        %rest
+      ho-abet:(ho-rest:(ho-abed:ho-core id.action) origin.action)
+    ==
   ==
 ::
 ++  run-import
@@ -371,6 +420,12 @@
   ^+  cor
   ~|  watch-path=`path`pole
   ?+    pole  ~|(%bad-watch-path !!)
+      [%v0 %hooks ~]  cor
+  ::
+      [%v0 %hooks %full ~]
+    =.  cor  (give %fact ~ hook-full+!>(hooks))
+    (give %kick ~ ~)
+  ::
       [=kind:c name=@ %create ~]
     ?>  =(our src):bowl
     =*  nest  [kind.pole our.bowl name.pole]
@@ -429,6 +484,14 @@
       cor
     ==
   ::
+      [%hooks %effect ~]
+    ?+    -.sign  !!
+        %poke-ack
+      ?~  p.sign  cor
+      %-  (slog 'hook effect: poke failure' >wire< u.p.sign)
+      cor
+    ==
+  ::
       [%groups ~]
     ?+    -.sign  !!
         %kick       watch-groups
@@ -463,6 +526,24 @@
         %poke-ack
       cor
     ==
+  ==
+::
+++  peek
+  |=  =(pole knot)
+  ^-  (unit (unit cage))
+  =?  +.pole  !?=([%v0 *] +.pole)
+    [%v0 +.pole]
+  ?+  pole  [~ ~]
+      [%x %v0 %hooks ~]
+    ``hook-full+!>(hooks)
+  ==
+::
+++  arvo
+  |=  [=(pole knot) sign=sign-arvo]
+  ^+  cor
+  ?+  pole  ~|(bad-arvo-take/pole !!)
+      [%hooks rest=*]
+    (wake-hook rest.pole)
   ==
 ::
 ++  watch-groups  (safe-watch /groups [our.bowl %groups] /groups)
@@ -642,7 +723,7 @@
       (ca-update %perm perm.channel)
     ::
         %post
-      =^  update=(unit u-channel:c)  posts.channel
+      =^  update=(unit u-channel:c)  ca-core
         (ca-c-post c-post.c-channel)
       ?~  update  ca-core
       (ca-update u.update)
@@ -650,11 +731,12 @@
   ::
   ++  ca-c-post
     |=  =c-post:c
-    ^-  [(unit u-channel:c) _posts.channel]
+    ^-  [(unit u-channel:c) _ca-core]
     ?>  (can-write:ca-perms src.bowl writers.perm.perm.channel)
+    =*  no-op  `ca-core
     ?-    -.c-post
         %add
-      ?>  =(src.bowl author.essay.c-post)
+      ?>  |(=(src.bowl our.bowl) =(src.bowl author.essay.c-post))
       ?>  =(kind.nest -.kind-data.essay.c-post)
       =/  id=id-post:c
         |-
@@ -662,52 +744,91 @@
         ?~  post  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
       =/  new=v-post:c  [[id ~ ~] 0 essay.c-post]
+      =^  result=(each event:h tang)  cor
+        =/  =event:h  [%on-post %add new]
+        (run-hooks event nest 'post blocked')
+      ?:  ?=(%.n -.result)
+        ((slog p.result) [~ ca-core])
+      =.  new
+        ?>  ?=([%on-post %add *] p.result)
+        post.p.result
       :-  `[%post id %set ~ new]
-      (put:on-v-posts:c posts.channel id ~ new)
+      ca-core(posts.channel (put:on-v-posts:c posts.channel id ~ new))
     ::
         %edit
       ?>  |(=(src.bowl author.essay.c-post) (is-admin:ca-perms src.bowl))
-      ?>  =(kind.nest -.kind-data.essay.c-post)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
-      ?~  post  `posts.channel
-      ?~  u.post  `posts.channel
+      ?~  post  no-op
+      ?~  u.post  no-op
       ?>  |(=(src.bowl author.u.u.post) (is-admin:ca-perms src.bowl))
+      =^  result=(each event:h tang)  cor
+        =/  =event:h  [%on-post %edit u.u.post essay.c-post]
+        (run-hooks event nest 'edit blocked')
+      ?:  ?=(%.n -.result)
+        ((slog p.result) no-op)
+      =/  =essay:c
+        ?>  ?=([%on-post %edit *] p.result)
+        essay.p.result
       ::TODO  could optimize and no-op if the edit is identical to current
-      =/  new=v-post:c  [-.u.u.post +(rev.u.u.post) essay.c-post]
+      =/  new=v-post:c  [-.u.u.post +(rev.u.u.post) essay]
       :-  `[%post id.c-post %set ~ new]
-      (put:on-v-posts:c posts.channel id.c-post ~ new)
+      ca-core(posts.channel (put:on-v-posts:c posts.channel id.c-post ~ new))
     ::
         %del
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
-      ?~  post  `(put:on-v-posts:c posts.channel id.c-post ~)
-      ?~  u.post  `posts.channel
+      ?~  post  `ca-core(posts.channel (put:on-v-posts:c posts.channel id.c-post ~))
+      ?~  u.post  no-op
       ?>  |(=(src.bowl author.u.u.post) (is-admin:ca-perms src.bowl))
+      =^  result=(each event:h tang)  cor
+        =/  =event:h  [%on-post %del u.u.post]
+        (run-hooks event nest 'delete blocked')
+      ?>  =(& -.result)
       :-  `[%post id.c-post %set ~]
-      (put:on-v-posts:c posts.channel id.c-post ~)
+      ca-core(posts.channel (put:on-v-posts:c posts.channel id.c-post ~))
     ::
         ?(%add-react %del-react)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
-      ?~  post  `posts.channel
-      ?~  u.post  `posts.channel
-      =/  [update=? reacts=v-reacts:c]  (ca-c-react reacts.u.u.post c-post)
-      ?.  update  `posts.channel
+      ?~  post  no-op
+      ?~  u.post  no-op
+      =^  result=(each event:h tang)  cor
+        =/  =event:h
+          :*  %on-post  %react  u.u.post
+              ?:  ?=(%del-react -.c-post)  [p.c-post ~]
+              [p `q]:c-post
+          ==
+        (run-hooks event nest 'react action blocked')
+      ?:  ?=(%.n -.result)
+        ((slog p.result) no-op)
+      =/  new=$>(?(%add-react %del-react) c-post:c)
+        ?>  ?=([%on-post %react *] p.result)
+        ?~  react.p.result
+          [%del-react id.c-post ship.p.result]
+        [%add-react id.c-post [ship u.react]:p.result]
+      =/  [update=? reacts=v-reacts:c]
+        (ca-c-react reacts.u.u.post new)
+      ?.  update  no-op
       :-  `[%post id.c-post %reacts reacts]
-      (put:on-v-posts:c posts.channel id.c-post ~ u.u.post(reacts reacts))
+      %=  ca-core  posts.channel
+        (put:on-v-posts:c posts.channel id.c-post ~ u.u.post(reacts reacts))
+      ==
     ::
         %reply
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
-      ?~  post  `posts.channel
-      ?~  u.post  `posts.channel
+      ?~  post  no-op
+      ?~  u.post  no-op
       =^  update=(unit u-post:c)  replies.u.u.post
-        (ca-c-reply replies.u.u.post c-reply.c-post)
-      ?~  update  `posts.channel
+        (ca-c-reply u.u.post c-reply.c-post)
+      ?~  update  no-op
       :-  `[%post id.c-post u.update]
-      (put:on-v-posts:c posts.channel id.c-post ~ u.u.post)
+      %=  ca-core  posts.channel
+        (put:on-v-posts:c posts.channel id.c-post ~ u.u.post)
+      ==
     ==
   ::
   ++  ca-c-reply
-    |=  [replies=v-replies:c =c-reply:c]
-    ^-  [(unit u-post:c) _replies]
+    |=  [parent=v-post:c =c-reply:c]
+    ^-  [(unit u-post:c) v-replies:c]
+    =*  replies  replies.parent
     ?-    -.c-reply
         %add
       ?>  =(src.bowl author.memo.c-reply)
@@ -718,6 +839,14 @@
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
       =/  reply-seal=v-reply-seal:c  [id ~]
       =/  new=v-reply:c  [reply-seal 0 memo.c-reply]
+      =^  result=(each event:h tang)  cor
+        =/  =event:h  [%on-reply %add parent new]
+        (run-hooks event nest 'reply blocked')
+      ?:  ?=(%.n -.result)
+        ((slog p.result) [~ replies])
+      =.  new
+        ?>  ?=([%on-reply %add *] p.result)
+        reply.p.result
       :-  `[%reply id %set ~ new]
       (put:on-v-replies:c replies id ~ new)
     ::
@@ -726,8 +855,16 @@
       ?~  reply    `replies
       ?~  u.reply  `replies
       ?>  =(src.bowl author.u.u.reply)
+      =^  result=(each event:h tang)  cor
+        =/  =event:h  [%on-reply %edit parent u.u.reply memo.c-reply]
+        (run-hooks event nest 'edit blocked')
+      ?:  ?=(%.n -.result)
+        ((slog p.result) [~ replies])
+      =/  =memo:c
+        ?>  ?=([%on-reply %edit *] p.result)
+        memo.p.result
       ::TODO  could optimize and no-op if the edit is identical to current
-      =/  new=v-reply:c  [-.u.u.reply +(rev.u.u.reply) memo.c-reply]
+      =/  new=v-reply:c  [-.u.u.reply +(rev.u.u.reply) memo]
       :-  `[%reply id.c-reply %set ~ new]
       (put:on-v-replies:c replies id.c-reply ~ new)
     ::
@@ -736,6 +873,10 @@
       ?~  reply  `(put:on-v-replies:c replies id.c-reply ~)
       ?~  u.reply  `replies
       ?>  |(=(src.bowl author.u.u.reply) (is-admin:ca-perms src.bowl))
+      =^  result=(each event:h tang)  cor
+        =/  =event:h  [%on-reply %del parent u.u.reply]
+        (run-hooks event nest 'delete blocked')
+      ?>  =(& -.result)
       :-  `[%reply id.c-reply %set ~]
       (put:on-v-replies:c replies id.c-reply ~)
     ::
@@ -743,7 +884,21 @@
       =/  reply  (get:on-v-replies:c replies id.c-reply)
       ?~  reply  `replies
       ?~  u.reply  `replies
-      =/  [update=? reacts=v-reacts:c]  (ca-c-react reacts.u.u.reply c-reply)
+      =^  result=(each event:h tang)  cor
+        =/  =event:h
+          :*  %on-reply  %react  parent  u.u.reply
+              ?:  ?=(%del-react -.c-reply)  [p.c-reply ~]
+              [p `q]:c-reply
+          ==
+        (run-hooks event nest 'delete blocked')
+      ?:  ?=(%.n -.result)
+        ((slog p.result) [~ replies])
+      =/  new=$>(?(%add-react %del-react) c-reply:c)
+        ?>  ?=([%on-reply %react *] p.result)
+        ?~  react.p.result  [%del-react id.c-reply ship.p.result]
+        [%add-react id.c-reply [ship u.react]:p.result]
+      =/  [update=? reacts=v-reacts:c]
+        (ca-c-react reacts.u.u.reply new)
       ?.  update  `replies
       :-  `[%reply id.c-reply %reacts reacts]
       (put:on-v-replies:c replies id.c-reply ~ u.u.reply(reacts reacts))
@@ -753,7 +908,7 @@
     |=  [reacts=v-reacts:c =c-react:c]
     ^-  [changed=? v-reacts:c]
     =/  =ship     ?:(?=(%add-react -.c-react) p.c-react p.c-react)
-    ?>  =(src.bowl ship)
+    ?>  |(=(src.bowl our.bowl) =(src.bowl ship))
     =/  new-react  ?:(?=(%add-react -.c-react) `q.c-react ~)
     =/  [changed=? new-rev=@ud]
       =/  old-react  (~(get by reacts) ship)
@@ -842,4 +997,276 @@
       (said:utils nest plan posts.channel)
     (give %kick ~ ~)
   --
+++  scry-path
+  |=  [=dude:gall =path]
+  %+  welp
+  /(scot %p our.bowl)/[dude]/(scot %da now.bowl)
+  path
+++  get-hook-bowl
+  |=  [channel=(unit [nest:c v-channel:c]) =config:h]
+  ^-  bowl:h
+  =/  group
+    ?~  channel  ~
+    =*  flag  group.perm.perm.+.u.channel
+    %-  some
+    ?.  .^(? %gu (scry-path %groups /$))  *group-ui:g
+    ?.  .^(? %gx (scry-path %groups /exists/(scot %p p.flag)/[q.flag]/noun))
+      *group-ui:g
+    .^(group-ui:g %gx (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/v1/noun))
+  :*  channel
+      group
+      v-channels
+      *hook:h  ::  we default this because each hook will replace with itself
+      config
+      [now our src eny]:bowl
+  ==
+::
+++  ho-core
+  |_  [id=id-hook:h =hook:h gone=_|]
+  ++  ho-core  .
+  ++  emit  |=(=card ho-core(cor (^emit card)))
+  ++  emil  |=(caz=(list card) ho-core(cor (^emil caz)))
+  ++  give  |=(=gift:agent:gall ho-core(cor (^give gift)))
+  ++  ho-abet
+    %_  cor
+        hooks.hooks
+      ?:(gone (~(del by hooks.hooks) id) (~(put by hooks.hooks) id hook))
+    ==
+  ::
+  ++  ho-abed
+    |=  i=id-hook:h
+    ho-core(id i, hook (~(got by hooks.hooks) i))
+  ::
+  ++  ho-add
+    |=  [name=@t src=@t]
+    ^+  ho-core
+    =.  id
+      =+  i=(end 7 eny.bowl)
+      |-(?:((~(has by hooks.hooks) i) $(i +(i)) i))
+    =/  result=(each vase tang)
+      (compile:utils src)
+    =/  compiled
+      ?:  ?=(%| -.result)
+        ((slog 'compilation result:' p.result) ~)
+      `p.result
+    =.  hook  [id %0 name *data:m src compiled !>(~) ~]
+    =/  error=(unit tang)
+      ?:(?=(%& -.result) ~ `p.result)
+    (ho-give-response [%set id name src meta.hook error])
+  ++  ho-edit
+    |=  [name=(unit @t) src=(unit @t) meta=(unit data:m)]
+    =?  src.hook  ?=(^ src)  u.src
+    =/  result=(each vase tang)
+      (compile:utils src.hook)
+    ?:  ?=(%| -.result)
+      %-  ho-give-response
+      [%set id name.hook src.hook meta.hook `p.result]
+    =?  name.hook  ?=(^ name)  u.name
+    =?  meta.hook  ?=(^ meta)  u.meta
+    =.  compiled.hook  `p.result
+    %-  ho-give-response
+    [%set id name.hook src.hook meta.hook ~]
+  ::
+  ++  ho-del
+    =.  gone  &
+    =.  cor
+      %+  roll
+        ~(tap by (~(gut by crons.hooks) id *cron:h))
+      |=  [[=origin:h =job:h] cr=_cor]
+      (unschedule-cron:cr origin job)
+    =.  crons.hooks  (~(del by crons.hooks) id)
+    =.  order.hooks
+      %+  roll
+        ~(tap by order.hooks)
+      |=  [[=nest:c ids=(list id-hook:h)] or=(map nest:c (list id-hook:h))]
+      =-  (~(put by or) nest -)
+      (skip ids |=(i=id-hook:h =(id i)))
+    =.  waiting.hooks
+      %+  roll
+        ~(tap by waiting.hooks)
+      |=  [[=id-wait:h w=[* waiting-hook:h]] wh=_waiting.hooks]
+      ?.  =(id hook.w)  wh
+      (~(del by wh) id-wait)
+    (ho-give-response [%gone id])
+  ++  ho-configure
+    |=  [=nest:c =config:h]
+    ^+  ho-core
+    =.  config.hook  (~(put by config.hook) nest config)
+    (ho-give-response [%config id nest config])
+  ++  ho-cron
+    |=  [=origin:h schedule=$@(@dr schedule:h) =config:h]
+    ^+  ho-core
+    =?  schedule  ?=(@ schedule)
+      [now.bowl schedule]
+    ?>  ?=(^ schedule)
+    =/  =cron:h  (~(gut by crons.hooks) id *cron:h)
+    =/  =job:h  [id schedule config]
+    =.  crons.hooks
+      =-  (~(put by crons.hooks) id.hook -)
+      (~(put by cron) origin job)
+    =.  cor  (schedule-cron origin job)
+    (ho-give-response [%cron id origin schedule config])
+  ++  ho-rest
+    |=  =origin:h
+    ^+  ho-core
+    =/  crons  (~(got by crons.hooks) id)
+    =/  cron  (~(got by crons) origin)
+    =.  crons.hooks
+      (~(put by crons.hooks) id (~(del by crons) origin))
+    =.  cor  (unschedule-cron origin cron)
+    (ho-give-response [%rest id origin])
+  ++  ho-run-single
+    |=  [=event:h prefix=tape =origin:h =config:h]
+    =/  channel
+      ?@  origin  ~
+      ?~  ch=(~(get by v-channels) origin)  ~
+      `[origin u.ch]
+    =/  =bowl:h  (get-hook-bowl channel config)
+    =/  return=(unit return:h)
+      (run-hook:utils [event bowl(hook hook)] hook)
+    ?~  return
+      %-  (slog (crip "{prefix} {<id>} failed, running on {<origin>}") ~)
+      ho-core
+    %-  (slog (crip "{prefix} {<id>} ran on {<origin>}") ~)
+    =.  hook  hook(state new-state.u.return)
+    =.  cor  (run-hook-effects effects.u.return origin)
+    ho-core
+  ++  ho-give-response
+    |=  =response:h
+    (give %fact ~[/v0/hooks] hook-response-0+!>(response))
+  --
+++  run-hooks
+  |=  [=event:h =nest:c default=cord]
+  ^-  [(each event:h tang) _cor]
+  =;  [result=(each event:h tang) effects=(list effect:h)]
+    [result (run-hook-effects effects nest)]
+  =|  effects=(list effect:h)
+  =/  order  (~(gut by order.hooks) nest ~)
+  =/  channel  `[nest (~(got by v-channels) nest)]
+  =/  =bowl:h  (get-hook-bowl channel *config:h)
+  |-
+  ?~  order
+    [&+event effects]
+  =*  next  $(order t.order)
+  =/  hook  (~(got by hooks.hooks) i.order)
+  =.  bowl  bowl(hook hook, config (~(gut by config.hook) nest ~))
+  =/  return=(unit return:h)
+    (run-hook:utils [event bowl] hook)
+  ?~  return  next
+  =*  result  result.u.return
+  =.  effects  (weld effects effects.u.return)
+  =.  hooks.hooks  (~(put by hooks.hooks) i.order hook(state new-state.u.return))
+  ?:  ?=(%denied -.result)
+    [|+~[(fall msg.result default)] effects]
+  =.  event  event.result
+  next
+++  wake-hook
+  |=  =(pole knot)
+  ^+  cor
+  ?+  pole  ~|(bad-arvo-take+pole !!)
+      [%waiting id=@ ~]
+    =/  id=id-hook:h  (slav %uv id.pole)
+    ?~  wh=(~(get by waiting.hooks) id)  cor
+    ::  make sure we clean up
+    =.  waiting.hooks  (~(del by waiting.hooks) id)
+    ::  ignore premature fires
+    ?:  (lth now.bowl fires-at.u.wh)  cor
+    =*  origin  origin.u.wh
+    =/  hook  (~(got by hooks.hooks) hook.u.wh)
+    =/  config  ?@(origin ~ (~(gut by config.hook) origin ~))
+    =/  args  [[%wake +.u.wh] "waiting hook" origin config]
+    ho-abet:(ho-run-single:(ho-abed:ho-core hook.u.wh) args)
+  ::
+      [%cron id=@ kind=?(%chat %diary %heap) ship=@ name=@ ~]
+    =/  id=id-hook:h  (slav %uv id.pole)
+    =/  =origin:h  [kind.pole (slav %p ship.pole) name.pole]
+    ::  if unscheduled, ignore
+    ?~  cron=(~(get by crons.hooks) id)  cor
+    ?~  job=(~(get by u.cron) origin)  cor
+    ::  ignore premature fires
+    ?:  (lth now.bowl next.schedule.u.job)  cor
+    =.  next.schedule.u.job
+      ::  we don't want to run the cron for every iteration it would
+      ::  have run 'offline', so we check here to make sure that the
+      ::  next fire time is in the future
+      ::
+      =/  next  (add [next repeat]:schedule.u.job)
+      |-
+      ?:  (gte next now.bowl)  next
+      $(next (add next repeat.schedule.u.job))
+    =.  crons.hooks
+      %+  ~(put by crons.hooks)  id
+      (~(put by u.cron) origin u.job)
+    =.  cor
+      (schedule-cron origin u.job)
+    =/  args  [[%cron ~] "cron job" origin config.u.job]
+    ho-abet:(ho-run-single:(ho-abed:ho-core id-hook.u.job) args)
+  ==
+++  schedule-cron
+  |=  [=origin:h =job:h]
+  ^+  cor
+  =/  wire
+    %+  welp  /hooks/cron/(scot %uv id-hook.job)
+    ?@  origin  ~
+    /[kind.origin]/(scot %p ship.origin)/[name.origin]
+  (emit [%pass wire %arvo %b %wait next.schedule.job])
+++  unschedule-cron
+  |=  [=origin:h =job:h]
+  =/  wire
+    %+  welp  /hooks/cron/(scot %uv id-hook.job)
+    ?@  origin  ~
+    /[kind.origin]/(scot %p ship.origin)/[name.origin]
+  (emit [%pass wire %arvo %b %rest next.schedule.job])
+++  schedule-waiting
+  |=  wh=waiting-hook:h
+  =/  =wire  /hooks/waiting/(scot %uv id.wh)
+  (emit [%pass wire %arvo %b %wait fires-at.wh])
+++  unschedule-waiting
+  |=  id=id-hook:h
+  ^+  cor
+  ?~  previous=(~(get by waiting.hooks) id)  cor
+  =/  =wire  /hooks/waiting/(scot %uv id.u.previous)
+  (emit [%pass wire %arvo %b %rest fires-at.u.previous])
+++  run-hook-effects
+  |=  [effects=(list effect:h) =origin:h]
+  ^+  cor
+  |-
+  ?~  effects
+    cor
+  =/  =effect:h  i.effects
+  =;  new-cor=_cor
+    =.  cor  new-cor
+    $(effects t.effects)
+  ?-  -.effect
+      %channels
+    =/  =cage  channel-action+!>(a-channels.effect)
+    (emit [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
+  ::
+      %groups
+    =/  =cage  group-action-3+!>(action.effect)
+    (emit [%pass /hooks/effect %agent [our.bowl %groups] %poke cage])
+  ::
+      %activity
+    =/  =cage  activity-action+!>(action.effect)
+    (emit [%pass /hooks/effect %agent [our.bowl %activity] %poke cage])
+  ::
+      %dm
+    =/  =cage  chat-dm-action+!>(action.effect)
+    (emit [%pass /hooks/effect %agent [our.bowl %chat] %poke cage])
+  ::
+      %club
+    =/  =cage  chat-club-action+!>(action.effect)
+    (emit [%pass /hooks/effect %agent [our.bowl %chat] %poke cage])
+  ::
+      %contacts
+    =/  =cage  contacts-action-1+!>(action.effect)
+    (emit [%pass /hooks/effect %agent [our.bowl %contacts] %poke cage])
+  ::
+      %wait
+    =/  =wire  /hooks/waiting/(scot %uv id.effect)
+    =.  cor  (unschedule-waiting id.effect)
+    =.  waiting.hooks
+      (~(put by waiting.hooks) id.effect [origin +.effect])
+    (schedule-waiting +.effect)
+  ==
 --

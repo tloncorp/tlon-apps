@@ -44,12 +44,8 @@ export type ActivityEvent = BaseModel<'activityEvents'>;
 export type ActivityEventContactUpdateGroups =
   ActivityEvent['contactUpdateGroups'];
 export type ActivityBucket = schema.ActivityBucket;
-// TODO: We need to include unread count here because it's  returned by the chat
-// list query, but doesn't feel great.
-export type Group = BaseModel<'groups'> & {
-  unreadCount?: number | null;
-  lastChannel?: string | null;
-};
+export type Group = BaseModel<'groups'>;
+
 export type ClientMeta = Pick<
   Group,
   | 'title'
@@ -99,6 +95,21 @@ export type PinType = schema.PinType;
 export type Settings = BaseModel<'settings'>;
 export type PostWindow = BaseModel<'postWindows'>;
 export type VolumeSettings = BaseModel<'volumeSettings'>;
+
+export type Chat = {
+  id: string;
+  pin: Pin | null;
+  volumeSettings: VolumeSettings | null;
+  timestamp: number;
+  isPending: boolean;
+  unreadCount: number;
+} & ({ type: 'group'; group: Group } | { type: 'channel'; channel: Channel });
+
+export interface GroupedChats {
+  pinned: Chat[];
+  unpinned: Chat[];
+  pending: Chat[];
+}
 
 export interface GroupEvent extends ActivityEvent {
   type: 'group-ask';

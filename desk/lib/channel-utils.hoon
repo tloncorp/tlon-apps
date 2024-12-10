@@ -1,4 +1,4 @@
-/-  c=channels, g=groups, ci=cite
+/-  c=channels, g=groups, ci=cite, h=hooks
 ::  convert a post to a preview for a "said" response
 ::
 |%
@@ -676,4 +676,31 @@
       ;br;
     ==
   --
+++  subject  ^~(!>(..compile))
+++  compile
+  |=  src=@t
+  ^-  (each vase tang)
+  =/  tonk=(each vase tang)
+    =/  vex=(like hoon)  ((full vest) [0 0] (trip src))
+    ?~  q.vex  |+~[leaf+"\{{<p.p.vex>} {<q.p.vex>}}" 'syntax error']
+    %-  mule
+    |.((~(mint ut p:subject) %noun p.u.q.vex))
+  %-  (slog (crip "parsed hoon: {<-.tonk>}") ~)
+  ?:  ?=(%| -.tonk)
+    %-  (slog 'returning error' p.tonk)
+    tonk
+  &+p.tonk
+++  run-hook
+  |=  [=args:h =hook:h]
+  ^-  (unit return:h)
+  %-  (slog (crip "running hook: {<name.hook>} {<id.hook>}") ~)
+  %-  ?~  channel.bowl.args  same
+      (slog (crip "on channel: {<nest.u.channel.bowl.args>}") ~)
+  ?~  compiled.hook  ~
+  =/  gate  [p.u.compiled.hook .*(q:subject q.u.compiled.hook)]
+  =+  !<(=outcome:h (slam gate !>(args)))
+  %-  (slog (crip "{(trip name.hook)} {<id.hook>} hook run:") ~)
+  %-  (slog >outcome< ~)
+  ?:  ?=(%.y -.outcome)  `p.outcome
+  ((slog 'hook failed:' p.outcome) ~)
 --

@@ -311,6 +311,7 @@ export const groups = sqliteTable('groups', {
   joinStatus: text('join_status').$type<GroupJoinStatus>(),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
+  lastVisitedChannelId: text('last_visited_channel_id'),
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({

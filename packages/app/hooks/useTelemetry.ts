@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 
 import { useShip } from '../contexts/ship';
 import { TelemetryClient } from '../types/telemetry';
-import { useCurrentUserId } from './useCurrentUser.native';
+import { useCurrentUserId } from './useCurrentUser';
 import { usePosthog } from './usePosthog';
 
 export function useClearTelemetryConfig() {

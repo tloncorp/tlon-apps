@@ -8,17 +8,13 @@
 // This is a temporary fix until we can figure out why this is happening.
 // This was most likely caused by a recent dependency change.
 import regeneratorRuntime from '@babel/runtime/regenerator';
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { EditorView } from '@tiptap/pm/view';
 import { setupDb } from '@tloncorp/app/lib/webDb';
-import { queryClient } from '@tloncorp/shared/api';
+import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
 import { PostHogProvider } from 'posthog-js/react';
-import React from 'react';
 import { createRoot } from 'react-dom/client';
 
-import _api from './api';
 import App from './app';
-import indexedDBPersistor from './indexedDBPersistor';
 import { analyticsClient, captureError } from './logic/analytics';
 import './styles/index.css';
 
@@ -54,17 +50,11 @@ setupDb().then(() => {
   root.render(
     // Strict mode disabled as it breaks react-navigation on web
     // <React.StrictMode>
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{
-        persister: indexedDBPersistor(`${window.our}-landscape`),
-        buster: `${window.our}-landscape-4.0.1`,
-      }}
-    >
+    <QueryClientProvider client={queryClient}>
       <PostHogProvider client={analyticsClient}>
         <App />
       </PostHogProvider>
-    </PersistQueryClientProvider>
+    </QueryClientProvider>
     // </React.StrictMode>
   );
 });

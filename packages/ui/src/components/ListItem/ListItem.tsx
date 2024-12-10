@@ -3,12 +3,11 @@ import * as db from '@tloncorp/shared/db';
 import { ComponentProps, ReactElement, useMemo } from 'react';
 import {
   getVariableValue,
-  isWeb,
   styled,
   useTheme,
   withStaticProperties,
 } from 'tamagui';
-import { SizableText, Stack, View, XStack, YStack } from 'tamagui';
+import { Stack, View, XStack, YStack } from 'tamagui';
 
 import { numberWithMax } from '../../utils';
 import {
@@ -20,6 +19,7 @@ import {
 } from '../Avatar';
 import ContactName from '../ContactName';
 import { Icon, IconType } from '../Icon';
+import { Text } from '../TextV2';
 
 export interface BaseListItemProps<T> {
   model: T;
@@ -29,6 +29,7 @@ export interface BaseListItemProps<T> {
   onPress?: (model: T) => void;
   onLongPress?: (model: T) => void;
   unreadCount?: number;
+  isFocused?: boolean;
 }
 
 export type ListItemProps<T> = BaseListItemProps<T> &
@@ -44,6 +45,7 @@ export const ListItemFrame = styled(XStack, {
   justifyContent: 'space-between',
   alignItems: 'stretch',
   backgroundColor: '$transparent',
+  height: '$6xl',
 });
 
 const ListItemIconContainer = styled(View, {
@@ -80,14 +82,16 @@ const ListItemImageIcon = ImageAvatar;
 const ListItemMainContent = styled(YStack, {
   name: 'ListItemMainContent',
   flex: 1,
-  justifyContent: 'space-evenly',
-  height: isWeb ? '$5xl' : '$4xl',
+  justifyContent: 'space-around',
+  height: '$4xl',
 });
 
-const ListItemTitle = styled(SizableText, {
+const ListItemTitle = styled(Text, {
   name: 'ListItemTitle',
   color: '$primaryText',
   numberOfLines: 1,
+  size: '$label/l',
+  paddingBottom: 1,
   variants: {
     dimmed: {
       true: {
@@ -121,19 +125,19 @@ const ListItemSubtitleIcon = styled(Icon, {
   size: '$s',
 });
 
-const ListItemSubtitle = styled(SizableText, {
+const ListItemSubtitle = styled(Text, {
   name: 'ListItemSubtitle',
   numberOfLines: 1,
-  size: '$s',
+  size: '$label/m',
   color: '$tertiaryText',
 });
 
-export const ListItemTimeText = styled(SizableText, {
+export const ListItemTimeText = styled(Text, {
   name: 'ListItemTimeText',
   numberOfLines: 1,
   color: '$tertiaryText',
-  size: '$s',
-  lineHeight: '$xs',
+  size: '$label/m',
+  paddingBottom: '$xs',
 });
 
 const ListItemTime = ListItemTimeText.styleable<{
@@ -185,9 +189,9 @@ const ListItemCount = ({
         {muted && (
           <Icon type="Muted" customSize={[12, 12]} color={foregroundColor} />
         )}
-        <SizableText size="$s" color={foregroundColor}>
+        <Text size="$label/m" color={foregroundColor}>
           {numberWithMax(count, 99)}
-        </SizableText>
+        </Text>
       </ListItemCountNumber>
     </Stack>
   );
@@ -197,6 +201,7 @@ const ListItemCountNumber = styled(XStack, {
   name: 'ListItemCountNumber',
   gap: '$s',
   alignItems: 'center',
+  paddingVertical: '$s',
   variants: {
     hidden: {
       true: {

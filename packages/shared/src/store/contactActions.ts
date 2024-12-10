@@ -22,6 +22,30 @@ export async function addContact(contactId: string) {
   }
 }
 
+export async function addContacts(contacts: string[]) {
+  const optimisticUpdates = contacts.map((contactId) =>
+    db.updateContact({
+      id: contactId,
+      isContact: true,
+      isContactSuggestion: false,
+    })
+  );
+  await Promise.all(optimisticUpdates);
+
+  try {
+    await api.addUserContacts(contacts);
+  } catch (e) {
+    // Rollback the update
+    const rolbacks = contacts.map((contactId) =>
+      db.updateContact({
+        id: contactId,
+        isContact: false,
+      })
+    );
+    await Promise.all(rolbacks);
+  }
+}
+
 export async function removeContact(contactId: string) {
   // Optimistic update
   await db.updateContact({ id: contactId, isContact: false });
@@ -74,6 +98,14 @@ export async function findContactSuggestions() {
   const MAX_SUGGESTIONS = 6; // arbitrary
 
   try {
+    // if we've already added suggestions recently, don't do it again
+    const lastAddedSuggestionsAt = await db.lastAddedSuggestionsAt.getValue();
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    if (lastAddedSuggestionsAt > oneDayAgo) {
+      logger.log('Suggestions added recently, skipping');
+      return;
+    }
+
     // first see if we have any joined groups and seem to be a somewhat
     // new user
     const groups = await db.getGroups({ includeUnjoined: false });
@@ -158,10 +190,11 @@ export async function findContactSuggestions() {
         runContext.suggestions = suggestions.length;
 
         logger.crumb(`Found ${suggestions.length} suggestions`);
-        db.groupsUsedForSuggestions.setValue(groupchats.map((g) => g.id));
 
         if (suggestions.length > 0) {
-          await addContactSuggestions(suggestions);
+          addContactSuggestions(suggestions);
+          db.groupsUsedForSuggestions.setValue(groupchats.map((g) => g.id));
+          db.lastAddedSuggestionsAt.setValue(Date.now());
           logger.trackEvent('Client Contact Suggestions', {
             ...runContext,
             suggestionsFound: true,

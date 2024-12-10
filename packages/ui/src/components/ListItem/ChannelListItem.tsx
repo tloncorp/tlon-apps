@@ -1,15 +1,13 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { useMemo } from 'react';
-import { View } from 'tamagui';
-import { isWeb } from 'tamagui';
-import { getVariableValue } from 'tamagui';
+import { View, isWeb } from 'tamagui';
 
+import { useNavigation } from '../../contexts';
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
-import { Chat } from '../ChatList';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
 import { ListItem, type ListItemProps } from './ListItem';
@@ -27,7 +25,7 @@ export function ChannelListItem({
   useTypeIcon?: boolean;
   customSubtitle?: string;
   dimmed?: boolean;
-} & ListItemProps<Chat> & { model: db.Channel }) {
+} & ListItemProps<db.Channel>) {
   const unreadCount = model.unread?.count ?? 0;
   const title = utils.useChannelTitle(model);
   const firstMemberId = model.members?.[0]?.contactId ?? '';
@@ -60,12 +58,15 @@ export function ChannelListItem({
     }
   }, [model, firstMemberId, memberCount]);
 
+  const isFocused = useNavigation().focusedChannelId === model.id;
+
   return (
     <View>
       <Pressable
         borderRadius="$xl"
         onPress={handlePress}
         onLongPress={handleLongPress}
+        backgroundColor={isFocused ? '$secondaryBackground' : undefined}
       >
         <ListItem {...props}>
           <ListItem.ChannelIcon
@@ -77,12 +78,13 @@ export function ChannelListItem({
             <ListItem.Title dimmed={dimmed}>{title}</ListItem.Title>
             {customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
-            ) : (
+            ) : (model.type === 'dm' || model.type === 'groupDm') &&
+              utils.hasNickname(model.members?.[0]?.contact) ? (
               <ListItem.SubtitleWithIcon icon={subtitleIcon}>
                 {subtitle}
               </ListItem.SubtitleWithIcon>
-            )}
-            {model.lastPost && (
+            ) : null}
+            {model.lastPost && !model.isDmInvite && (
               <ListItem.PostPreview
                 post={model.lastPost}
                 showAuthor={model.type !== 'dm'}
@@ -102,9 +104,7 @@ export function ChannelListItem({
                 <ListItem.Count
                   count={unreadCount}
                   muted={logic.isMuted(model.volumeSettings?.level, 'channel')}
-                  marginRight={
-                    isWeb ? getVariableValue('3xl', 'space') : 'unset'
-                  }
+                  marginRight={isWeb ? '$s' : 'unset'}
                 />
               )}
             </ListItem.EndContent>
@@ -112,13 +112,13 @@ export function ChannelListItem({
         </ListItem>
       </Pressable>
       {isWeb && (
-        <View position="absolute" right={-2} top={44} zIndex={1}>
+        <View position="absolute" right="$-2xs" top="$2xl" zIndex={1}>
           <Button
             onPress={handleLongPress}
             borderWidth="unset"
-            size="$s"
             paddingHorizontal={0}
             marginHorizontal="$-m"
+            minimal
           >
             <Icon type="Overflow" />
           </Button>

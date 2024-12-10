@@ -1,9 +1,38 @@
 import { Image as BaseImage, ImageErrorEventData } from 'expo-image';
 import { ReactElement, useCallback, useState } from 'react';
 import { Platform, StyleSheet } from 'react-native';
-import { styled } from 'tamagui';
+import { SizableText, View, styled } from 'tamagui';
 
-const WebImage = ({ source, style, alt, onLoad, ...props }: any) => {
+import { Icon } from './Icon';
+
+const DefaultImageFallback = () => (
+  <View flex={1} alignItems="center" justifyContent="center">
+    <Icon type="Placeholder" color="$tertiaryText" />
+    <SizableText color="$tertiaryText">Unable to load image</SizableText>
+  </View>
+);
+
+const WebImage = ({
+  source,
+  style,
+  alt,
+  onLoad,
+  onError,
+  fallback,
+  ...props
+}: any) => {
+  const [hasError, setHasError] = useState(false);
+
+  const handleError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    setHasError(true);
+    if (onError) {
+      onError({
+        error: new Error('Image loading failed'),
+        target: e.currentTarget,
+      });
+    }
+  };
+
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     if (onLoad) {
       // Mimic expo-image's onLoad event structure
@@ -16,6 +45,16 @@ const WebImage = ({ source, style, alt, onLoad, ...props }: any) => {
     }
   };
 
+  const { contentFit } = props;
+
+  if (hasError && fallback) {
+    return fallback;
+  }
+
+  if (hasError) {
+    return <DefaultImageFallback />;
+  }
+
   return (
     <img
       src={source.uri}
@@ -23,9 +62,11 @@ const WebImage = ({ source, style, alt, onLoad, ...props }: any) => {
       style={{
         ...StyleSheet.flatten(style),
         maxWidth: '100%',
-        height: 'auto',
+        height: props.height ? props.height : '100%',
+        objectFit: contentFit ? contentFit : undefined,
       }}
       onLoad={handleLoad}
+      onError={handleError}
       {...props}
     />
   );
@@ -48,11 +89,15 @@ export const ImageWithFallback = StyledBaseImage.styleable<{
       [onError]
     );
 
-    return hasErrored ? (
-      fallback
-    ) : (
-      <StyledBaseImage ref={ref} {...props} onError={handleError} />
-    );
+    if (hasErrored && fallback) {
+      return fallback;
+    }
+
+    if (hasErrored) {
+      return <DefaultImageFallback />;
+    }
+
+    return <StyledBaseImage ref={ref} {...props} onError={handleError} />;
   },
   {
     staticConfig: {

@@ -87,7 +87,7 @@ export const getDesktopLinkingConfig = (
         initialRouteName: 'Home',
         screens: {
           Activity: 'activity',
-          Profile: 'profile',
+          Contacts: 'contacts',
           Home: {
             screens: {
               ChatList: '',

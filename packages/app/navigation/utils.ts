@@ -3,10 +3,14 @@ import {
   NavigationProp,
   useNavigation,
 } from '@react-navigation/native';
+import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import { useIsWindowNarrow } from '@tloncorp/ui';
+import { useCallback } from 'react';
 
-import { RootStackParamList } from './types';
+import { useFeatureFlagStore } from '../lib/featureFlags';
+import { RootStackNavigationProp, RootStackParamList } from './types';
 
 type ResetRouteConfig<T extends Record<string, any>> = {
   name: Extract<keyof T, string>;
@@ -83,18 +87,60 @@ export function useResetToDm() {
 export function useResetToGroup() {
   const reset = useTypedReset();
 
-  return function resetToGroup(groupId: string) {
-    reset([
-      { name: 'ChatList' },
-      { name: 'GroupChannels', params: { groupId } },
-    ]);
+  return async function resetToGroup(groupId: string) {
+    reset([{ name: 'ChatList' }, await getMainGroupRoute(groupId)]);
   };
+}
+
+export function useNavigateToGroup() {
+  const isWindowNarrow = useIsWindowNarrow();
+  const navigation = useNavigation<RootStackNavigationProp>();
+  const navigationRef = logic.useMutableRef(navigation);
+  return useCallback(
+    async (groupId: string) => {
+      navigationRef.current.navigate(
+        await getMainGroupRoute(groupId, isWindowNarrow)
+      );
+    },
+    [navigationRef, isWindowNarrow]
+  );
+}
+
+export async function getMainGroupRoute(
+  groupId: string,
+  isWindowNarrow?: boolean
+) {
+  const group = await db.getGroup({ id: groupId });
+  const channelSwitcherEnabled =
+    useFeatureFlagStore.getState().flags.channelSwitcher;
+  if (
+    group &&
+    group.channels &&
+    (group.channels.length === 1 || channelSwitcherEnabled || !isWindowNarrow)
+  ) {
+    if (!isWindowNarrow && group.lastVisitedChannelId) {
+      return {
+        name: 'Channel',
+        params: { channelId: group.lastVisitedChannelId, groupId },
+      } as const;
+    }
+
+    return {
+      name: 'Channel',
+      params: { channelId: group.channels[0].id, groupId },
+    } as const;
+  } else {
+    return {
+      name: 'GroupChannels',
+      params: { groupId },
+    } as const;
+  }
 }
 
 export function screenNameFromChannelId(channelId: string) {
   return logic.isDmChannelId(channelId)
     ? 'DM'
-    : logic.isGroupChannelId(channelId)
+    : logic.isGroupDmChannelId(channelId)
       ? 'GroupDM'
       : 'Channel';
 }

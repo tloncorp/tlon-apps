@@ -103,6 +103,14 @@ export const addContact = async (contactId: string) => {
   });
 };
 
+// TODO: once we can add in bulk from the backend, do so
+export const addUserContacts = async (contactIds: string[]) => {
+  const promises = contactIds.map((contactId) => {
+    return addContact(contactId);
+  });
+  return Promise.all(promises);
+};
+
 export const removeContact = async (contactId: string) => {
   return poke({
     app: 'contacts',
@@ -255,6 +263,7 @@ export const v0PeerToClientProfile = (
     isContactSuggestion?: boolean;
   }
 ): db.Contact => {
+  const currentUserId = getCurrentUserId();
   return {
     id,
     peerNickname: contact?.nickname ?? null,
@@ -270,7 +279,7 @@ export const v0PeerToClientProfile = (
       })) ?? [],
 
     isContact: false,
-    isContactSuggestion: config?.isContactSuggestion,
+    isContactSuggestion: config?.isContactSuggestion && id !== currentUserId,
   };
 };
 
@@ -295,6 +304,7 @@ export const v1PeerToClientProfile = (
     isContactSuggestion?: boolean;
   }
 ): db.Contact => {
+  const currentUserId = getCurrentUserId();
   return {
     id,
     peerNickname: contact.nickname?.value ?? null,
@@ -309,7 +319,8 @@ export const v1PeerToClientProfile = (
         contactId: id,
       })) ?? [],
     isContact: config?.isContact,
-    isContactSuggestion: config?.isContactSuggestion && !config?.isContact,
+    isContactSuggestion:
+      config?.isContactSuggestion && !config?.isContact && id !== currentUserId,
   };
 };
 

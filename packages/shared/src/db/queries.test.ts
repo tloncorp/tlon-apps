@@ -42,15 +42,25 @@ test('uses init data to get chat list', async () => {
   await syncInitData();
 
   const result = await queries.getChats();
-  expect(result.map((r) => r.id).slice(0, 8)).toEqual([
+
+  expect(result.pinned.map((r) => r.id)).toEqual([
     '0v4.00000.qd6oi.a3f6t.5sd9v.fjmp2',
-    'chat/~nibset-napwyn/commons',
+  ]);
+
+  expect(result.unpinned.map((r) => r.id).slice(0, 7)).toEqual([
+    '~nibset-napwyn/tlon',
     '~nocsyx-lassul',
-    'chat/~pondus-watbel/new-channel',
+    '~pondus-watbel/testing-facility',
     '~ravseg-nosduc',
     '~solfer-magfed',
     '~hansel-ribbur',
     '~pondus-watbel',
+  ]);
+
+  expect(result.pending.map((r) => r.id)).toEqual([
+    '~fabled-faster/new-york',
+    '~barmyl-sigted/network-being',
+    '~salfer-biswed/gamers',
   ]);
 });
 
