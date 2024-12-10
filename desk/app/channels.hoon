@@ -551,6 +551,15 @@
       [~ %| *]  ~&  [dap.bowl %overwriting-pending-import]
                 cor(pimp `|+egg-any)
     ==
+  ::
+      %channel-create-from-template
+    =+  !<(args=[nest:c flag:g (unit @t)] vase)
+    %-  emit
+    :*  %pass  /create-template
+        %arvo  %k  %fard
+        q.byk.bowl  %channel-create-from-template  %noun
+        !>(`args)
+    ==
   ==
   ++  toggle-post
     |=  toggle=post-toggle:c
@@ -592,6 +601,12 @@
       [?(%v0 %v1) ~]                        ?>(from-self cor)
       [?(%v0 %v1) %unreads ~]               ?>(from-self cor)
       [?(%v0 %v1) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
+  ::
+      [%v1 %hooks %preview =kind:c host=@ name=@ ~]
+    =/  host=ship   (slav %p host.pole)
+    =/  =path  /v0/hooks/preview/[kind.pole]/[name.pole]
+    ((safe-watch pole [host %channels-server] path) |)
+  ::
       [?(%v0 %v1) %said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
@@ -697,6 +712,16 @@
       ?~  p.sign  cor
       %-  (slog 'channels: migration poke failure' >wire< u.p.sign)
       cor
+    ==
+  ::
+      [%v1 %hooks %preview =kind:c host=@ name=@ ~]
+    ?+  -.sign  !!
+        %kick  cor
+        %fact  (give %fact ~[pole] cage.sign)
+    ::
+        %watch-ack
+      ?~  p.sign  cor
+      ((slog leaf+"Preview failed" u.p.sign) cor)
     ==
   ==
 ::

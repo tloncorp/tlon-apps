@@ -428,11 +428,17 @@
       [%v0 %hooks ~]  cor
   ::
       [%v0 %hooks %full ~]
-    =.  cor  (give %fact ~ hook-full+!>(hooks))
-    (give %kick ~ ~)
+    (give %fact ~ hook-full+!>(hooks))
   ::
-      [%hooks %v0 %template =kind:c name=@ ~]
-    (get-hook-template kind.pole our.bowl name.pole)
+      [%v0 %hooks %preview =kind:c name=@ ~]
+    =/  cp=channel-preview:h
+      (get-channel-hooks-preview kind.pole our.bowl name.pole)
+    (give %fact ~ hook-channel-preview+!>(cp))
+  ::
+      [%v0 %hooks %template =kind:c name=@ ~]
+    =/  =template:h
+      (get-hook-template kind.pole our.bowl name.pole)
+    (give %fact ~ hook-template+!>(template))
   ::
       [=kind:c name=@ %create ~]
     ?>  =(our src):bowl
@@ -1279,34 +1285,31 @@
   ==
 ++  get-hook-template
   |=  =nest:c
-  ^+  cor
-  =/  order=(list id:h)  (~(got by order.hooks) nest)
-  =/  crons=(list [id:h job:h])
+  ^-  template:h
+  =/  order=(list id-hook:h)  (~(got by order.hooks) nest)
+  =/  crons=(list [id-hook:h job:h])
     %+  roll  ~(tap by crons.hooks)
-    |=  [[=id:h =cron:h] cr=(list [id:h job:h])]
+    |=  [[=id-hook:h =cron:h] cr=(list [id-hook:h job:h])]
     ?~  job=(~(get by cron) nest)  cr
-    (snoc cr [id u.job])
-  =/  ids=(list id:h)  (welp order (turn crons head))
-  =/  hooks=(map id:h hook:h)
-    %-  ~(gas by *(map id:h hook:h))
-    ^-  (list [id:h hook:h])
+    (snoc cr [id-hook u.job])
+  =/  ids=(list id-hook:h)  (welp order (turn crons head))
+  =/  hooks=(map id-hook:h hook:h)
+    %-  ~(gas by *(map id-hook:h hook:h))
+    ^-  (list [id-hook:h hook:h])
     %+  turn  ids
-    |=  =id:h
-    ^-  [id:h hook:h]
-    =/  hook  (~(got by hooks.hooks) id)
+    |=  =id-hook:h
+    ^-  [id-hook:h hook:h]
+    =/  hook  (~(got by hooks.hooks) id-hook)
     =/  config  (~(gut by config.hook) nest ~)
     =/  config-map  (~(put by *(map nest:c config:h)) nest config)
-    :-  id
+    :-  id-hook
     hook(compiled ~, state !>(~), config config-map)
-  =/  =template:h
-    :*  nest
-        *data:m
-        hooks
-        order
-        crons
-    ==
-  =.  cor  (give %fact ~ hook-template+!>(template))
-  (give %kick ~ ~)
+  :*  nest
+      *data:m
+      hooks
+      order
+      crons
+  ==
 ++  setup-hook-template
   |=  [=nest:c =template:h]
   ^+  cor
@@ -1315,25 +1318,33 @@
   =.  crons.hooks
     %-  ~(gas by crons.hooks)
     %+  turn  crons.template
-    |=  [=id:h =job:h]
-    :-  id
+    |=  [=id-hook:h =job:h]
+    :-  id-hook
     (~(put by *cron:h) nest job)
   =.  hooks.hooks
     %-  ~(gas by hooks.hooks)
     %+  turn
       ~(tap by hooks.template)
-    |=  [=id:h =hook:h]
+    |=  [=id-hook:h =hook:h]
     ?~  old-config=(~(get by config.hook) from.template)
-      [id hook(config ~)]
-    [id hook(config (my [nest u.old-config] ~))]
+      [id-hook hook(config ~)]
+    [id-hook hook(config (my [nest u.old-config] ~))]
   =/  crons  crons.template
   |-
   ?~  crons  cor
   =*  cron  +.i.crons
   =/  fires-at
-    ?@  schedule.cron
-      (add now.bowl schedule.cron)
+    ?:  (gth next.schedule.cron now.bowl)
+      next.schedule.cron
     (add now.bowl repeat.schedule.cron)
-  =.  cor  (schedule-cron nest cron(fires-at fires-at))
+  =.  cor  (schedule-cron nest cron(next.schedule fires-at))
   $(crons t.crons)
+++  get-channel-hooks-preview
+  |=  =nest:c
+  ^-  channel-preview:h
+  =/  =template:h  (get-hook-template nest)
+  %+  turn
+    ~(tap by hooks.template)
+  |=  [=id-hook:h =hook:h]
+  [name.hook meta.hook]
 --

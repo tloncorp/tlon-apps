@@ -231,7 +231,8 @@ export async function subscribe<T>(
 
 export async function subscribeOnce<T>(
   endpoint: UrbitEndpoint,
-  timeout?: number
+  timeout?: number,
+  ship?: string
 ) {
   if (!config.client) {
     throw new Error('Client not initialized');
@@ -241,7 +242,12 @@ export async function subscribeOnce<T>(
   }
   logger.log('subscribing once to', printEndpoint(endpoint));
   try {
-    return config.client.subscribeOnce<T>(endpoint.app, endpoint.path, timeout);
+    return config.client.subscribeOnce<T>(
+      endpoint.app,
+      endpoint.path,
+      ship,
+      timeout
+    );
   } catch (err) {
     if (err !== 'timeout' && err !== 'quit') {
       logger.trackError(`bad subscribeOnce ${printEndpoint(endpoint)}`, {
@@ -258,7 +264,12 @@ export async function subscribeOnce<T>(
     }
 
     await reauth();
-    return config.client.subscribeOnce<T>(endpoint.app, endpoint.path, timeout);
+    return config.client.subscribeOnce<T>(
+      endpoint.app,
+      endpoint.path,
+      ship,
+      timeout
+    );
   }
 }
 

@@ -176,11 +176,13 @@
       [%wait waiting-hook]
   ==
 ::
++$  channel-preview  (list [name=@t meta=data:m])
+::
 +$  template
   $:  from=nest
       meta=data:m
-      hooks=(map id hook)
-      order=(list id)
-      crons=(list [id job])
+      hooks=(map id-hook hook)
+      order=(list id-hook)
+      crons=(list [id-hook job])
   ==
 --

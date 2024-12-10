@@ -4,6 +4,7 @@ import _ from 'lodash';
 import BTree from 'sorted-btree';
 
 import { Inline } from './content';
+import { GroupMeta } from './groups';
 import { Flag } from './hark';
 
 export interface CacheId {
@@ -725,3 +726,5 @@ export type ChannelHead = {
 };
 
 export type ChannelHeadsResponse = ChannelHead[];
+
+export type ChannelHooksPreview = { name: string; meta: GroupMeta }[];

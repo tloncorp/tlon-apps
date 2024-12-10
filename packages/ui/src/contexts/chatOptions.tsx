@@ -23,6 +23,7 @@ export type ChatOptionsContextValue = {
   onPressRoles: (groupId: string) => void;
   onPressChannelMembers: (channelId: string) => void;
   onPressChannelMeta: (channelId: string) => void;
+  onPressChannelTemplate: (channelId: string) => void;
   onTogglePinned: () => void;
   onPressLeave: () => Promise<void>;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
@@ -50,6 +51,7 @@ type ChatOptionsProviderProps = {
   onPressGroupPrivacy: (groupId: string) => void;
   onPressChannelMembers: (channelId: string) => void;
   onPressChannelMeta: (channelId: string) => void;
+  onPressChannelTemplate: (channelId: string) => void;
   onPressRoles: (groupId: string) => void;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
   onLeaveGroup?: () => void;
@@ -66,6 +68,7 @@ export const ChatOptionsProvider = ({
   onPressGroupPrivacy,
   onPressChannelMembers,
   onPressChannelMeta,
+  onPressChannelTemplate,
   onPressRoles,
   onLeaveGroup: navigateOnLeave,
 }: ChatOptionsProviderProps) => {
@@ -129,6 +132,7 @@ export const ChatOptionsProvider = ({
       onTogglePinned,
       onPressChannelMembers,
       onPressChannelMeta,
+      onPressChannelTemplate,
       onSelectSort,
       open,
     }),
@@ -137,6 +141,7 @@ export const ChatOptionsProvider = ({
       groupChannels,
       onPressChannelMembers,
       onPressChannelMeta,
+      onPressChannelTemplate,
       onPressGroupMembers,
       onPressGroupMeta,
       onPressGroupPrivacy,
