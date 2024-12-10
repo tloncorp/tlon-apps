@@ -12,6 +12,7 @@ import {
 } from '@tloncorp/shared/store';
 import { Story } from '@tloncorp/shared/urbit';
 import {
+  AttachmentProvider,
   Channel,
   ChannelSwitcherSheet,
   ChatOptionsProvider,
@@ -358,48 +359,50 @@ export default function ChannelScreen(props: Props) {
       }}
       {...chatOptionsNavProps}
     >
-      <Channel
-        key={currentChannelId}
-        headerMode={headerMode}
-        channel={channel}
-        initialChannelUnread={clearedCursor ? undefined : initialChannelUnread}
-        isLoadingPosts={isLoadingPosts}
-        hasNewerPosts={postsQuery.hasPreviousPage}
-        hasOlderPosts={postsQuery.hasNextPage}
-        group={group}
-        posts={filteredPosts ?? null}
-        selectedPostId={selectedPostId}
-        goBack={props.navigation.goBack}
-        messageSender={sendPost}
-        goToPost={navigateToPost}
-        goToImageViewer={navigateToImage}
-        goToChannels={handleChannelNavButtonPressed}
-        goToSearch={navigateToSearch}
-        goToDm={handleGoToDm}
-        goToUserProfile={handleGoToUserProfile}
-        uploadAsset={store.uploadAsset}
-        onScrollEndReached={loadOlder}
-        onScrollStartReached={loadNewer}
-        onPressRef={navigateToRef}
-        markRead={handleMarkRead}
-        usePost={usePostWithRelations}
-        usePostReference={usePostReference}
-        useGroup={useGroupPreview}
-        onGroupAction={performGroupAction}
-        useChannel={useChannelPreview}
-        storeDraft={storeDraft}
-        clearDraft={clearDraft}
-        getDraft={getDraft}
-        editingPost={editingPost}
-        onPressDelete={handleDeletePost}
-        onPressRetry={handleRetrySend}
-        setEditingPost={setEditingPost}
-        editPost={editPost}
-        negotiationMatch={negotiationStatus.matchedOrPending}
-        canUpload={canUpload}
-        startDraft={startDraft}
-        onPressScrollToBottom={handleScrollToBottom}
-      />
+      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
+        <Channel
+          key={currentChannelId}
+          headerMode={headerMode}
+          channel={channel}
+          initialChannelUnread={
+            clearedCursor ? undefined : initialChannelUnread
+          }
+          isLoadingPosts={isLoadingPosts}
+          hasNewerPosts={postsQuery.hasPreviousPage}
+          hasOlderPosts={postsQuery.hasNextPage}
+          group={group}
+          posts={filteredPosts ?? null}
+          selectedPostId={selectedPostId}
+          goBack={props.navigation.goBack}
+          messageSender={sendPost}
+          goToPost={navigateToPost}
+          goToImageViewer={navigateToImage}
+          goToChannels={handleChannelNavButtonPressed}
+          goToSearch={navigateToSearch}
+          goToDm={handleGoToDm}
+          goToUserProfile={handleGoToUserProfile}
+          onScrollEndReached={loadOlder}
+          onScrollStartReached={loadNewer}
+          onPressRef={navigateToRef}
+          markRead={handleMarkRead}
+          usePost={usePostWithRelations}
+          usePostReference={usePostReference}
+          useGroup={useGroupPreview}
+          onGroupAction={performGroupAction}
+          useChannel={useChannelPreview}
+          storeDraft={storeDraft}
+          clearDraft={clearDraft}
+          getDraft={getDraft}
+          editingPost={editingPost}
+          onPressDelete={handleDeletePost}
+          onPressRetry={handleRetrySend}
+          setEditingPost={setEditingPost}
+          editPost={editPost}
+          negotiationMatch={negotiationStatus.matchedOrPending}
+          startDraft={startDraft}
+          onPressScrollToBottom={handleScrollToBottom}
+        />
+      </AttachmentProvider>
       {group && (
         <>
           <ChannelSwitcherSheet
