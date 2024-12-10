@@ -12,9 +12,11 @@ export function getChannelMemberName(
   disableNicknames: boolean
 ) {
   if (disableNicknames) {
-    return member.contactId;
+    return formatUserId(member.contactId);
   }
-  return member.contact?.nickname || formatUserId(member.contactId)?.display;
+  return member.contact?.nickname
+    ? member.contact.nickname
+    : formatUserId(member.contactId)?.display;
 }
 
 export function useChannelMemberName(member: db.ChatMember) {

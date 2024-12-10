@@ -76,7 +76,7 @@ export function ActivityListItemContent({
   const channelTitle = useChannelTitle(channel ?? null);
   const title = useMemo(() => {
     if (channel == null || channelTitle == null) {
-      return group ? getGroupTitle(group, calm.disableNicknames) : '';
+      return groupTitle ?? '';
     }
     if (channel.type === 'dm') {
       return 'Direct message';
@@ -85,7 +85,7 @@ export function ActivityListItemContent({
       return 'Group chat';
     }
     return `${groupTitle}: ${channelTitle}`;
-  }, [channel, channelTitle, groupTitle, group, calm.disableNicknames]);
+  }, [channel, channelTitle, groupTitle]);
 
   return (
     <ActivitySummaryFrame
