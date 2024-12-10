@@ -10,7 +10,7 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
-import { screenNameFromChannelId } from '../../navigation/utils';
+import { useNavigateToChannel, useNavigateToPost } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
 
@@ -19,6 +19,7 @@ export function ActivityScreen(props: Props) {
   const currentUserId = useCurrentUserId();
   const [contactsTabEnabled] = useFeatureFlag('contactsTab');
   const { performGroupAction } = useGroupActions();
+  const navigateToChannel = useNavigateToChannel();
 
   const allFetcher = store.useInfiniteBucketedActivity('all');
   const mentionsFetcher = store.useInfiniteBucketedActivity('mentions');
@@ -37,27 +38,20 @@ export function ActivityScreen(props: Props) {
 
   const handleGoToChannel = useCallback(
     (channel: db.Channel, selectedPostId?: string) => {
-      const screenName = screenNameFromChannelId(channel.id);
-      props.navigation.navigate(screenName, {
-        channelId: channel.id,
-        selectedPostId,
-      });
+      navigateToChannel(channel, selectedPostId);
     },
-    [props.navigation]
+    [navigateToChannel]
   );
 
+  const navigateToPost = useNavigateToPost();
   // TODO: if diary or gallery, figure out a way to pop open the comment
   // sheet
   const handleGoToThread = useCallback(
     (post: db.Post) => {
       // TODO: we have no way to route to specific thread message rn
-      props.navigation.navigate('Post', {
-        postId: post.id,
-        authorId: post.authorId,
-        channelId: post.channelId,
-      });
+      navigateToPost(post);
     },
-    [props.navigation]
+    [navigateToPost]
   );
 
   const handleGoToGroup = useCallback(
