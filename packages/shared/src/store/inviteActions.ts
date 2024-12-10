@@ -28,7 +28,6 @@ export async function verifyUserInviteLink({
     }
 
     let inviteLink = await api.checkExistingUserInviteLink();
-    console.log(`checked for existing invite link`, inviteLink);
     if (!inviteLink) {
       inviteLink = await withRetry(() =>
         createUserInviteLink({

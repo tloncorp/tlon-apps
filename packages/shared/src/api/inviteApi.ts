@@ -4,7 +4,11 @@ import { GroupMeta } from '../urbit';
 import { getCurrentUserId, poke, subscribeOnce } from './urbit';
 
 const ID_LINK_TIMEOUT = 3 * 1000;
-const SELF_INVITE_KEY = 'personal-invite-link'; // needed to allow processing on %grouper without corresponding group entry
+
+// Note: Ideally we could avoid "faking" a groupId for these invites, but for now:
+// 1. Must be present for %reel to make any sense of it
+// 2. Must be flag shaped for %grouper not to crash
+const SELF_INVITE_KEY = '~zod/personal-invite-link';
 
 function groupsDescribe(meta: GroupMeta & DeepLinkMetadata) {
   return {
@@ -14,16 +18,22 @@ function groupsDescribe(meta: GroupMeta & DeepLinkMetadata) {
 }
 
 export async function checkExistingUserInviteLink(): Promise<string | null> {
-  const tlonNetworkUrl = await subscribeOnce<string>(
-    { app: 'reel', path: `/v1/id-link/${SELF_INVITE_KEY}` },
-    ID_LINK_TIMEOUT
-  );
+  try {
+    const tlonNetworkUrl = await subscribeOnce<string>(
+      { app: 'reel', path: `/v1/id-link/${SELF_INVITE_KEY}` },
+      ID_LINK_TIMEOUT
+    );
 
-  if (!tlonNetworkUrl) {
+    if (!tlonNetworkUrl) {
+      return null;
+    }
+
+    return tlonNetworkUrl;
+  } catch (e) {
+    // expected to throw if it times out. Could harden this handling, but for
+    // now just assume that means it's not there
     return null;
   }
-
-  return tlonNetworkUrl;
 }
 
 export async function createPersonalInviteLink(
