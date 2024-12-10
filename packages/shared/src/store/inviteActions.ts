@@ -11,7 +11,6 @@ import {
 const logger = createDevLogger('inviteActions', true);
 
 export async function verifyUserInviteLink() {
-  console.log('verifying user invite link');
   try {
     const cachedInviteLink = await db.personalInviteLink.getValue();
     if (cachedInviteLink) {
@@ -31,7 +30,7 @@ export async function verifyUserInviteLink() {
       await db.personalInviteLink.setValue(inviteLink);
     }
   } catch (e) {
-    logger.trackError('Failed to verify user invite link', {
+    logger.trackError('Failed to verify personal invite link', {
       errorMessage: e.message,
       errorStack: e.stack,
     });

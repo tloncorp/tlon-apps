@@ -197,7 +197,6 @@ async function getLinkFromInviteService({
   data: DeepLinkData;
 }): Promise<string> {
   const env = getConstants();
-  console.log(`getting invite link from service`, { inviteId, data });
   const response = await fetch(env.INVITE_SERVICE_ENDPOINT, {
     method: 'POST',
     headers: {

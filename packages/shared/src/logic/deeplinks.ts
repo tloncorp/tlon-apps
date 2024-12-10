@@ -19,7 +19,7 @@ export async function getReferenceFromDeeplink({
   });
 
   if (linkMeta && typeof linkMeta === 'object') {
-    // TODO: handle user invite links
+    // TODO: handle personal invite links
     if (isLureMeta(linkMeta) && linkMeta.invitedGroupId) {
       return {
         reference: {
