@@ -222,8 +222,6 @@ export const useLureState = create<LureState>((set, get) => ({
         fallbackUrl: url,
         type: 'lure',
         path: flag,
-        inviteServiceEndpoint,
-        inviteServiceIsDev,
         metadata,
       });
       lureLogger.crumb('deepLinkUrl created', deepLinkUrl);
