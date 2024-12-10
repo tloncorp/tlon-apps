@@ -2,6 +2,7 @@ import { isValidPatp } from '@urbit/aura';
 
 import { getPostInfoFromWer } from '../api/harkApi';
 import { createDevLogger } from '../debug';
+import { getConstants } from '../domain';
 
 const logger = createDevLogger('branch', true);
 
@@ -137,17 +138,15 @@ export const createDeepLink = async ({
   fallbackUrl,
   type,
   path,
-  inviteServiceEndpoint,
-  inviteServiceIsDev,
   metadata,
 }: {
   fallbackUrl: string | undefined;
   type: DeepLinkType;
   path: string;
-  inviteServiceEndpoint: string;
-  inviteServiceIsDev: boolean;
   metadata?: DeepLinkMetadata;
 }) => {
+  const env = getConstants();
+
   if (!fallbackUrl || !path) {
     return undefined;
   }
@@ -180,8 +179,6 @@ export const createDeepLink = async ({
     const inviteLink = await getLinkFromInviteService({
       inviteId: alias,
       data,
-      inviteServiceEndpoint,
-      inviteServiceIsDev,
     });
     return inviteLink;
   } catch (e) {
@@ -195,16 +192,13 @@ export const createDeepLink = async ({
 async function getLinkFromInviteService({
   inviteId,
   data,
-  inviteServiceEndpoint,
-  inviteServiceIsDev,
 }: {
   inviteId: string;
   data: DeepLinkData;
-  inviteServiceEndpoint: string;
-  inviteServiceIsDev: boolean;
 }): Promise<string> {
+  const env = getConstants();
   console.log(`getting invite link from service`, { inviteId, data });
-  const response = await fetch(inviteServiceEndpoint, {
+  const response = await fetch(env.INVITE_SERVICE_ENDPOINT, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -212,7 +206,7 @@ async function getLinkFromInviteService({
     body: JSON.stringify({
       inviteId,
       data: data,
-      testEnv: inviteServiceIsDev,
+      testEnv: env.INVITE_SERVICE_IS_DEV,
     }),
   });
   if (!response.ok) {

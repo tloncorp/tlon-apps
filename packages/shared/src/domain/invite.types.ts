@@ -1,4 +1,4 @@
-export interface DeepLinkMetadata {
+export interface InviteLinkMetadata {
   $og_title?: string;
   $og_description?: string;
   $og_image_url?: string;

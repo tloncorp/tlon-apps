@@ -1177,11 +1177,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   updateIsSyncing(false);
 
   // post sync initialization work
-  verifyUserInviteLink({
-    inviteServiceEndpoint: 'https://serverless-infra.vercel.app/api/inviteLink',
-    inviteServiceIsDev: true,
-    branchDomain: 'sa96e.test-app.link',
-  });
+  verifyUserInviteLink();
 };
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {

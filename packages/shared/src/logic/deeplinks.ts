@@ -1,4 +1,5 @@
 import { ContentReference } from '../api';
+import { getConstants } from '../domain';
 import { citeToPath } from '../urbit';
 import { AppInvite, getBranchLinkMeta, isLureMeta } from './branch';
 
@@ -137,19 +138,17 @@ export function extractTokenFromInviteLink(
   return null;
 }
 
-export function extractNormalizedInviteLink(
-  url: string,
-  branchDomain: string
-): string | null {
+export function extractNormalizedInviteLink(url: string): string | null {
   if (!url) return null;
-  const INVITE_LINK_REGEX = createInviteLinkRegex(branchDomain);
+  const env = getConstants();
+  const INVITE_LINK_REGEX = createInviteLinkRegex(env.BRANCH_DOMAIN);
   const match = url.trim().match(INVITE_LINK_REGEX);
 
   if (match) {
     const parts = match[0].split('/');
     const token = parts[parts.length - 1];
     if (token) {
-      return `https://${branchDomain}/${token}`;
+      return `https://${env.BRANCH_DOMAIN}/${token}`;
     }
   }
 

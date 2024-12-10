@@ -1,5 +1,5 @@
 import * as db from '../db';
-import { DeepLinkMetadata } from '../domain/invite.types';
+import { InviteLinkMetadata } from '../domain/invite.types';
 import { GroupMeta } from '../urbit';
 import { getCurrentUserId, poke, subscribeOnce } from './urbit';
 
@@ -10,7 +10,7 @@ const ID_LINK_TIMEOUT = 3 * 1000;
 // 2. Must be flag shaped for %grouper not to crash
 const SELF_INVITE_KEY = '~zod/personal-invite-link';
 
-function groupsDescribe(meta: GroupMeta & DeepLinkMetadata) {
+function groupsDescribe(meta: GroupMeta & InviteLinkMetadata) {
   return {
     tag: 'groups-0',
     fields: { ...meta }, // makes typescript happy

@@ -10,15 +10,7 @@ import {
 
 const logger = createDevLogger('inviteActions', true);
 
-export async function verifyUserInviteLink({
-  branchDomain,
-  inviteServiceEndpoint,
-  inviteServiceIsDev,
-}: {
-  branchDomain: string;
-  inviteServiceEndpoint: string;
-  inviteServiceIsDev: boolean;
-}) {
+export async function verifyUserInviteLink() {
   console.log('verifying user invite link');
   try {
     const cachedInviteLink = await db.personalInviteLink.getValue();
@@ -29,15 +21,10 @@ export async function verifyUserInviteLink({
 
     let inviteLink = await api.checkExistingUserInviteLink();
     if (!inviteLink) {
-      inviteLink = await withRetry(() =>
-        createUserInviteLink({
-          inviteServiceEndpoint,
-          inviteServiceIsDev,
-        })
-      );
+      inviteLink = await withRetry(() => createUserInviteLink());
       logger.trackEvent('Created personal invite link');
     } else {
-      inviteLink = extractNormalizedInviteLink(inviteLink, branchDomain);
+      inviteLink = extractNormalizedInviteLink(inviteLink);
     }
 
     if (inviteLink) {
@@ -51,13 +38,7 @@ export async function verifyUserInviteLink({
   }
 }
 
-export async function createUserInviteLink({
-  inviteServiceEndpoint,
-  inviteServiceIsDev,
-}: {
-  inviteServiceEndpoint: string;
-  inviteServiceIsDev: boolean;
-}): Promise<string> {
+export async function createUserInviteLink(): Promise<string> {
   const currentUserId = getCurrentUserId();
   const user = await db.getContact({ id: currentUserId });
 
@@ -76,8 +57,6 @@ export async function createUserInviteLink({
       inviteType: 'user',
       invitedGroupId: '',
     },
-    inviteServiceEndpoint,
-    inviteServiceIsDev,
   });
 
   if (!inviteLink) {
