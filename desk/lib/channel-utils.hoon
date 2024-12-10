@@ -437,21 +437,31 @@
   ^-  ship
   ?@  author  author
   ship.author
-::XX fill in
+::
 ++  memo-1
-  |=  memo:c
+  |=  =memo:c
   ^-  memo:v7:old:c
-  *memo:v7:old:c
+  memo(author (author-1 author.memo))
 ::
 ++  essay-1
   |=  =essay:c
   ^-  essay:v7:old:c
-  *essay:v7:old:c
+  :-  (memo-1 -.essay)
+  ^-  kind-data:v7:old:c
+  ?+    kind.essay  ~|(essay-1-fail+kind.essay !!)
+    [%chat $@(~ [%notice ~])]  kind.essay
+  ::
+      [%diary ~]
+    [%diary title.meta image.meta]:essay
+  ::
+      [%heap ~]
+    [%heap ?:(=('' title) ~ `title)]:meta.essay
+  ==
 ::
 ++  rev-essay-1
   |=  essay=(rev:c essay:c)
   ^-  (rev:c essay:v7:old:c)
-  [rev.essay *essay:v7:old:c]
+  [rev.essay (essay-1 +.essay)]
 ::
 ++  post-1
   |=  =post:c

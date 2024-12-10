@@ -443,7 +443,6 @@
       [%sort =sort]
       [%perm =perm]
       [%meta meta=(unit @t)]
-      ::XX should this carry meta as well?
       [%create =perm]
       [%join group=flag:g]
       [%leave ~]
