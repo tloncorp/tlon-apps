@@ -4,7 +4,7 @@ import {
   useNavigation,
 } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
@@ -263,6 +263,11 @@ export function ChatListScreenView({
     [performGroupAction]
   );
 
+  const handlePersonalInvitePress = useCallback(() => {
+    logger.trackEvent(AnalyticsEvent.PersonalInvitePressed);
+    setPersonalInviteOpen(true);
+  }, []);
+
   return (
     <RequestsProvider
       usePostReference={store.usePostReference}
@@ -286,7 +291,7 @@ export function ChatListScreenView({
                   <ScreenHeader.IconButton
                     type="Send"
                     color="$blue"
-                    onPress={() => setPersonalInviteOpen(true)}
+                    onPress={handlePersonalInvitePress}
                   />
                 ) : undefined
               }

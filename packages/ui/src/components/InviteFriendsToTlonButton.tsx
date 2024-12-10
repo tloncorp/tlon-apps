@@ -28,6 +28,10 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
   const handleInviteButtonPress = useCallback(async () => {
     if (shareUrl && status === 'ready' && group) {
       if (isWeb) {
+        logger.trackEvent(AnalyticsEvent.InviteShared, {
+          inviteId: shareUrl.split('/').pop() ?? null,
+          inviteType: 'group',
+        });
         if (navigator.share !== undefined) {
           await navigator.share({
             title: `Join ${group.title} on Tlon`,
@@ -49,6 +53,7 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
         if (result.action === Share.sharedAction) {
           logger.trackEvent(AnalyticsEvent.InviteShared, {
             inviteId: shareUrl.split('/').pop() ?? null,
+            inviteType: 'group',
           });
         }
       } catch (error) {

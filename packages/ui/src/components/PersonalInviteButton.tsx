@@ -27,6 +27,10 @@ export function PersonalInviteButton() {
   const handleInviteButtonPress = useCallback(async () => {
     if (isWeb) {
       if (navigator.share !== undefined) {
+        logger.trackEvent(AnalyticsEvent.InviteShared, {
+          inviteId: inviteLink.split('/').pop() ?? null,
+          inviteType: 'personal',
+        });
         await navigator.share({
           title: `${userDisplayName} invited you to TM`,
           url: inviteLink,
@@ -47,6 +51,7 @@ export function PersonalInviteButton() {
       if (result.action === Share.sharedAction) {
         logger.trackEvent(AnalyticsEvent.InviteShared, {
           inviteId: inviteLink.split('/').pop() ?? null,
+          inviteType: 'personal',
         });
       }
     } catch (error) {
