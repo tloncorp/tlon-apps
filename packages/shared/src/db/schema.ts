@@ -752,11 +752,6 @@ export const channels = sqliteTable(
      */
     lastViewedAt: timestamp('last_viewed_at'),
 
-    /**
-     * True if this channel was autocreated during new group creation (on this client)
-     */
-    isDefaultWelcomeChannel: boolean('is_default_welcome_channel'),
-
     contentConfiguration: text('content_configuration', {
       mode: 'json',
     }).$type<ChannelContentConfiguration>(),

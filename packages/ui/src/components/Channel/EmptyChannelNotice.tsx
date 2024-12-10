@@ -1,10 +1,13 @@
 import * as db from '@tloncorp/shared/db';
-import { useMemo, useState } from 'react';
-import { SizableText, YStack } from 'tamagui';
+import { YStack, styled } from 'tamagui';
 
-import { useGroup } from '../../contexts';
+import { useChatOptions, useGroup } from '../../contexts';
 import { useIsAdmin } from '../../utils';
+import { ArvosDiscussing } from '../ArvosDiscussing';
+import { Button } from '../Button';
+import { Icon } from '../Icon';
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
+import { Text } from '../TextV2';
 
 export function EmptyChannelNotice({
   channel,
@@ -13,33 +16,42 @@ export function EmptyChannelNotice({
   channel: db.Channel;
   userId: string;
 }) {
-  const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
+  const { onPressGroupMeta } = useChatOptions();
   const group = useGroup(channel.groupId ?? '');
-  const [isFirstVisit] = useState(() => channel.lastViewedAt == null);
-  const isWelcomeChannel = !!channel.isDefaultWelcomeChannel;
-  const noticeText = useMemo(() => {
-    if (isGroupAdmin && isFirstVisit && isWelcomeChannel) {
-      return 'This is your group’s default welcome channel. Feel free to rename it or create additional channels.';
-    }
+  const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
+  const isWelcomeNotice = isGroupAdmin && group?.channels?.length === 1;
 
-    return 'There are no messages... yet.';
-  }, [isGroupAdmin, isFirstVisit, isWelcomeChannel]);
-
-  return (
+  return isWelcomeNotice ? (
     <YStack
-      height="100%"
-      gap="$9xl"
-      justifyContent="flex-end"
-      paddingHorizontal="$xl"
+      flex={1}
+      justifyContent="center"
+      paddingHorizontal="$2xl"
+      alignItems="center"
+      gap="$3xl"
     >
-      <YStack height="70%" justifyContent="center">
-        <SizableText textAlign="center" color="$tertiaryText">
-          {noticeText}
-        </SizableText>
-      </YStack>
-      {isGroupAdmin && isWelcomeChannel && (
+      <TitleText color="$secondaryText">Welcome to your group!</TitleText>
+      <ArvosDiscussing
+        color="$tertiaryText"
+        maxHeight={150}
+        aspectRatio={911 / 755}
+      />
+      <YStack gap="$m" width={'100%'}>
+        <Button secondary onPress={onPressGroupMeta}>
+          <Icon type="Settings" size="$m" color="$secondaryText" />
+          <Button.Text>Customize</Button.Text>
+        </Button>
         <InviteFriendsToTlonButton group={group} />
-      )}
+      </YStack>
+    </YStack>
+  ) : (
+    <YStack flex={1} justifyContent="center" alignItems="center" gap="$3xl">
+      <TitleText> There are no messages... yet.</TitleText>
     </YStack>
   );
 }
+
+const TitleText = styled(Text, {
+  color: '$tertiaryText',
+  size: '$label/l',
+  textAlign: 'center',
+});

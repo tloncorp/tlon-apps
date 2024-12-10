@@ -43,7 +43,7 @@ export function ChannelListItem({
     if (model.type === 'dm' || model.type === 'groupDm') {
       return {
         subtitle: [
-          firstMemberId,
+          utils.formatUserId(firstMemberId)?.display,
           memberCount > 2 && `and ${memberCount - 1} others`,
         ]
           .filter((v) => !!v)

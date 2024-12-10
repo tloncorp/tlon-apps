@@ -47,6 +47,7 @@ export const ButtonFrame = styled(Stack, {
   borderRadius: '$l',
   paddingVertical: '$s',
   paddingHorizontal: '$l',
+  gap: '$s',
   variants: {
     size: {
       '...size': (name, { tokens }) => {
@@ -110,9 +111,8 @@ export const ButtonFrame = styled(Stack, {
     },
     secondary: {
       true: {
-        backgroundColor: '$border',
-        padding: '$xl',
-        borderWidth: 0,
+        height: 56,
+        borderColor: '$shadow',
         pressStyle: {
           backgroundColor: '$secondaryBackground',
         },
@@ -169,9 +169,7 @@ export const ButtonText = styled(Text, {
     },
     secondary: {
       true: {
-        width: '100%',
-        textAlign: 'center',
-        fontWeight: '500',
+        color: '$secondaryText',
       },
     },
     disabled: {} as Record<'true' | 'false', ViewStyle>,

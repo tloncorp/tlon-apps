@@ -7,7 +7,7 @@ import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { useFeatureFlagStore } from '../lib/featureFlags';
 import { RootStackNavigationProp, RootStackParamList } from './types';
@@ -92,17 +92,34 @@ export function useResetToGroup() {
   };
 }
 
-export function useNavigateToGroup() {
+export function useRootNavigation() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation<RootStackNavigationProp>();
   const navigationRef = logic.useMutableRef(navigation);
-  return useCallback(
+  const navigateToGroup = useCallback(
     async (groupId: string) => {
       navigationRef.current.navigate(
         await getMainGroupRoute(groupId, isWindowNarrow)
       );
     },
     [navigationRef, isWindowNarrow]
+  );
+
+  const navigateToChannel = useCallback(
+    (channelId: string) => {
+      const screenName = screenNameFromChannelId(channelId);
+      navigationRef.current.navigate(screenName, {
+        channelId: channelId,
+      });
+    },
+    [navigationRef]
+  );
+
+  const resetToGroup = useResetToGroup();
+
+  return useMemo(
+    () => ({ navigateToGroup, navigateToChannel, resetToGroup }),
+    [navigateToChannel, navigateToGroup, resetToGroup]
   );
 }
 

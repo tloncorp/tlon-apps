@@ -1,5 +1,6 @@
-import { AddGroupSheet, AppDataContextProvider } from '@tloncorp/ui';
+import { AppDataContextProvider } from '@tloncorp/ui';
 
+import { CreateChatSheet } from '../features/top/CreateChatSheet';
 import { FixtureWrapper } from './FixtureWrapper';
 import { initialContacts } from './fakeData';
 
@@ -7,13 +8,7 @@ export default {
   basic: (
     <FixtureWrapper>
       <AppDataContextProvider contacts={initialContacts} currentUserId="zod">
-        <AddGroupSheet
-          open
-          onOpenChange={() => {}}
-          onGoToDm={() => {}}
-          navigateToFindGroups={() => {}}
-          navigateToCreateGroup={() => {}}
-        />
+        <CreateChatSheet defaultOpen={true} />
       </AppDataContextProvider>
     </FixtureWrapper>
   ),
