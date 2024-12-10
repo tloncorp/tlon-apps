@@ -13,7 +13,7 @@ export function getChannelMemberName(
   if (disableNicknames) {
     return member.contactId;
   }
-  return member.contact?.nickname ?? member.contactId;
+  return member.contact?.nickname || member.contactId;
 }
 
 export function useChannelMemberName(member: db.ChatMember) {
@@ -110,4 +110,8 @@ export function getChannelTypeIcon(type: db.Channel['type']): IconType {
     default:
       return 'ChannelTalk';
   }
+}
+
+export function hasNickname(contact: db.Contact | null | undefined): boolean {
+  return 'nickname' in (contact ?? {}) && (contact?.nickname?.length ?? 0) > 0;
 }

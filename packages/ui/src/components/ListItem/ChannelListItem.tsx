@@ -78,11 +78,12 @@ export function ChannelListItem({
             <ListItem.Title dimmed={dimmed}>{title}</ListItem.Title>
             {customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
-            ) : (
+            ) : (model.type === 'dm' || model.type === 'groupDm') &&
+              utils.hasNickname(model.members?.[0]?.contact) ? (
               <ListItem.SubtitleWithIcon icon={subtitleIcon}>
                 {subtitle}
               </ListItem.SubtitleWithIcon>
-            )}
+            ) : null}
             {model.lastPost && !model.isDmInvite && (
               <ListItem.PostPreview
                 post={model.lastPost}
