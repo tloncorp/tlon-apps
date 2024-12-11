@@ -9,40 +9,40 @@ class NotificationService: UNNotificationServiceExtension {
         self.contentHandler = contentHandler
         bestAttemptContent = (request.content.mutableCopy() as? UNMutableNotificationContent)
 
-        Task { [weak bestAttemptContent] in
-            let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
-            switch parsedNotification {
-            case let .yarn(yarn):
-                let (mutatedContent, messageIntent) = await yarn.render(
-                  to: bestAttemptContent ?? UNMutableNotificationContent()
-                )
-
-                if let messageIntent {
-                    do {
-                        let interaction = INInteraction(intent: messageIntent, response: nil)
-                        interaction.direction = .incoming
-                        try await interaction.donate()
-                    } catch {
-                        print("Error donating interaction for notification sender details: \(error)")
-                    }
-                }
-
-                contentHandler(mutatedContent)
-                return
-
-            case let .failedFetchContents(err):
-                packErrorOnNotification(err)
-                contentHandler(bestAttemptContent!)
-                return
-
-            case .invalid:
-                fallthrough
-
-            case .dismiss:
-                contentHandler(bestAttemptContent!)
-                return
+      Task { [weak bestAttemptContent] in
+        let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
+        switch parsedNotification {
+        case let .yarn(yarn, activityEvent):
+          var notifContent = await handle(yarn)
+          if let activityEvent {
+            if let dm = activityEvent.dmPost {
+              let mutableNotifContent = notifContent.mutableCopy() as! UNMutableNotificationContent
+              // convert to JSON because `userInfo` needs NSSecureCoding
+              mutableNotifContent.userInfo["dmPost"] = try! dm.asJson() 
+              notifContent = mutableNotifContent
+            } else if let post = activityEvent.post {
+              let mutableNotifContent = notifContent.mutableCopy() as! UNMutableNotificationContent
+              // convert to JSON because `userInfo` needs NSSecureCoding
+              mutableNotifContent.userInfo["post"] = try! post.asJson()
+              notifContent = mutableNotifContent
             }
+          }
+          contentHandler(notifContent)
+          return
+          
+        case let .failedFetchContents(err):
+          packErrorOnNotification(err)
+          contentHandler(bestAttemptContent!)
+          return
+          
+        case .invalid:
+          fallthrough
+          
+        case .dismiss:
+          contentHandler(bestAttemptContent!)
+          return
         }
+      }
     }
 
     /** Appends an error onto the `bestAttemptContent` payload; does *not* attempt to complete the notification request. */
@@ -60,6 +60,24 @@ class NotificationService: UNNotificationServiceExtension {
             contentHandler(bestAttemptContent)
         }
     }
+  
+  private func handle(_ renderable: UNNotificationRenderable) async -> UNNotificationContent {
+    let (mutatedContent, messageIntent) = await renderable.render(
+      to: bestAttemptContent ?? UNMutableNotificationContent()
+    )
+
+    if let messageIntent {
+        do {
+            let interaction = INInteraction(intent: messageIntent, response: nil)
+            interaction.direction = .incoming
+            try await interaction.donate()
+        } catch {
+            print("Error donating interaction for notification sender details: \(error)")
+        }
+    }
+    
+    return mutatedContent
+  }
 }
 
 extension Error {
@@ -68,4 +86,11 @@ extension Error {
     func logWithDomain(_ domain: String) {
         print(domain, self)
     }
+}
+
+extension Encodable {
+  func asJson() throws -> Any {
+    let data = try JSONEncoder().encode(self)
+    return try JSONSerialization.jsonObject(with: data, options: [])
+  }
 }
