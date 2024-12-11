@@ -7,7 +7,7 @@
 ::  $writ: a chat message
 +$  writ   [seal essay]
 ::  $reply: a chat reply
-+$  reply   [reply-seal memo:d]
++$  reply   [reply-seal memo:v7:old:d]
 ::  $react: either an emoji identifier like :wave: or a URL for custom
 +$  react   @ta
 ::  $scam: bounded search results
@@ -59,7 +59,7 @@
   ==
 ::
 ::  $essay: a chat message with metadata
-+$  essay  [memo:d %chat =kind]
++$  essay  [memo:v7:old:d %chat =kind]
 ::  $kind: whether or not the chat is a system message
 +$  kind  $@(~ [%notice ~])
 ::  $reacts: a set of reactions to a chat message
@@ -96,7 +96,7 @@
   +$  delta
     ::  time and meta are units because we won't have it when we send,
     ::  but we need it upon receipt
-    $%  [%add =memo:d =kind time=(unit time)]
+    $%  [%add =memo:v7:old:d =kind time=(unit time)]
         [%del ~]
         [%reply =id meta=(unit reply-meta) =delta:replies]
         [%add-react =ship =react]
@@ -104,7 +104,7 @@
     ==
   +$  response  [=id response=response-delta]
   +$  response-delta
-    $%  [%add =memo:d =time]
+    $%  [%add =memo:v7:old:d =time]
         [%del ~]
         [%reply =id meta=(unit reply-meta) delta=response-delta:replies]
         [%add-react =ship =react]
@@ -122,13 +122,13 @@
   ++  on
     ((^on time reply) lte)
   +$  delta
-    $%  [%add =memo:d time=(unit time)]
+    $%  [%add =memo:v7:old:d time=(unit time)]
         [%del ~]
         [%add-react =ship =react]
         [%del-react =ship]
     ==
   +$  response-delta
-    $%  [%add =memo:d =time]
+    $%  [%add =memo:v7:old:d =time]
         [%del ~]
         [%add-react =ship =react]
         [%del-react =ship]
