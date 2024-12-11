@@ -16,7 +16,7 @@
 ::    discovery of someone's identifiers becomes possible.
 ::
 /-  *verifier
-/+  dbug, verb, negotiate
+/+  hu=http-utils, dbug, verb, negotiate
 ::
 %-  %-  agent:negotiate
     [notify=| expose=[~.verifier^%0 ~ ~] expect=~]
@@ -141,6 +141,32 @@
   :+  now  proof
   :-  (sign our now `half-sign-data-0`[%0 %verified now for -.id])
   (sign our now `full-sign-data-0`[%0 %verified now for id proof])
+::
+++  display
+  |=  [full=? tat=attestation]
+  ^-  octs
+  %-  as-octs:mimes:html
+  %+  rap  3
+  :~  'verified that '
+      (scot %p for.dat.half-sign.tat)
+      ' has '
+    ::
+      ?.  full
+        ?-  kind.dat.half-sign.tat
+          %dummy  'a dummy identifier'
+          %urbit  'another urbit'
+          %phone  'a phone number'
+        ==
+      =*  id  id.dat.full-sign.tat
+      ?-  -.id.dat.full-sign.tat
+        %dummy  (cat 3 'dummy id ' +.id)
+        %urbit  (cat 3 'control over ' (scot %p +.id))
+        %phone  (cat 3 'phone nr ' +.id)
+      ==
+    ::
+      ' on '
+      (scot %da (sub when.tat (mod when.tat ~d1)))
+  ==
 --
 ::
 =|  state-0
@@ -315,6 +341,32 @@
         |=(id=identifier =(-.id -.id.qer))
       ==
     ==
+  ::
+      %handle-http-request
+    ::TODO  rate-limiting
+    :_  this  ::  never change state
+    =+  !<(order:hu vase)
+    ?.  ?=(%'GET' method.request)
+      (spout:hu id [405 ~] `(as-octs:mimes:html 'read-only'))
+    =/  qer=query:hu  (purse:hu url.request)
+    =*  fof  (spout:hu id [404 ~] `(as-octs:mimes:html 'not found'))
+    ?.  ?=([%verifier *] site.qer)
+      fof
+    ?+  t.site.qer  fof
+        [%attestations @ ~]
+      ?~  sig=(slaw %uw i.t.t.site.qer)   fof
+      ?~  aid=(~(get by attested) u.sig)  fof
+      ?~  rec=(~(get by records) u.aid)   fof
+      ?.  ?=(%done -.status.u.rec)        fof
+      ?:  =(sig.half-sign.status.u.rec u.sig)
+        (spout:hu id [200 ~] `(display | +.status.u.rec))
+      ?:  =(sig.full-sign.status.u.rec u.sig)
+        (spout:hu id [200 ~] `(display & +.status.u.rec))
+      ::  if we make it into this branch our bookkeeping is bad
+      ::
+      ~&  [dap.bowl %no-such-sig sig=`@uw`u.sig in=u.aid]
+      fof
+    ==
   ==
 ::
 ++  on-agent
@@ -428,6 +480,8 @@
   |=  =path
   ^-  (quip card _this)
   :_  this
+  ?:  ?=([%http-response *] path)
+    ~
   ?:  ?=([%endpoint ~] path)
     =/  upd=identifier-update
       :-  %endpoint
