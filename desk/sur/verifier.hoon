@@ -9,7 +9,6 @@
       ::TODO  (map identifier host-work) ? or would that be only for %dummy?
       ::NOTE  basic auth only for staging
       phone-api=[base=@t key=@t basic=(unit [user=@t pass=@t])]
-      :: :verifier [%set-phone-api 'https://test.tlon.systems/v1/vnd' 'jBn9iZC.yJtz2xoZ3m@sk7N3GQRWcinrfU' ~ 'tlon' 'hidruc-folrup-mismut']
       domain=(unit @t)  ::  as 'https://example.org:123'
   ==
 ::
