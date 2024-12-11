@@ -10,7 +10,7 @@ import {
   screenNameFromChannelId,
 } from '@tloncorp/app/navigation/utils';
 import * as posthog from '@tloncorp/app/utils/posthog';
-import { syncDms, syncGroups } from '@tloncorp/shared';
+import { createDevLogger, syncDms, syncGroups } from '@tloncorp/shared';
 import { markChatRead } from '@tloncorp/shared/api';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
@@ -21,6 +21,8 @@ import {
   addNotificationResponseReceivedListener,
 } from 'expo-notifications';
 import { useEffect, useState } from 'react';
+
+const logger = createDevLogger('useNotificationListener', false);
 
 type RouteStack = {
   name: keyof RootStackParamList;
