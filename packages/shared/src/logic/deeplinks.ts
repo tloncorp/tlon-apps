@@ -1,11 +1,7 @@
 import { ContentReference } from '../api';
+import { getConstants } from '../domain';
 import { citeToPath } from '../urbit';
-import {
-  AppInvite,
-  DeepLinkMetadata,
-  getBranchLinkMeta,
-  isLureMeta,
-} from './branch';
+import { AppInvite, getBranchLinkMeta, isLureMeta } from './branch';
 
 export async function getReferenceFromDeeplink({
   deepLink,
@@ -23,6 +19,7 @@ export async function getReferenceFromDeeplink({
   });
 
   if (linkMeta && typeof linkMeta === 'object') {
+    // TODO: handle personal invite links
     if (isLureMeta(linkMeta) && linkMeta.invitedGroupId) {
       return {
         reference: {
@@ -48,6 +45,8 @@ interface ProviderMetadataResponse {
     inviter?: string;
     inviterNickname?: string;
     inviterAvatarImage?: string;
+    inviterColor?: string;
+    inviteType?: 'user' | 'group';
   };
 }
 
@@ -92,6 +91,8 @@ export async function getInviteLinkMeta({
     invitedGroupIconImageUrl: responseMeta.fields.image,
     inviterNickname: responseMeta.fields.inviterNickname,
     inviterAvatarImage: responseMeta.fields.inviterAvatarImage,
+    inviterColor: responseMeta.fields.inviterColor,
+    inviteType: responseMeta.fields.inviteType,
   };
 
   // some links might not have everything, try to extend with branch (fine if fails)
@@ -137,19 +138,17 @@ export function extractTokenFromInviteLink(
   return null;
 }
 
-export function extractNormalizedInviteLink(
-  url: string,
-  branchDomain: string
-): string | null {
+export function extractNormalizedInviteLink(url: string): string | null {
   if (!url) return null;
-  const INVITE_LINK_REGEX = createInviteLinkRegex(branchDomain);
+  const env = getConstants();
+  const INVITE_LINK_REGEX = createInviteLinkRegex(env.BRANCH_DOMAIN);
   const match = url.trim().match(INVITE_LINK_REGEX);
 
   if (match) {
     const parts = match[0].split('/');
     const token = parts[parts.length - 1];
     if (token) {
-      return `https://${branchDomain}/${token}`;
+      return `https://${env.BRANCH_DOMAIN}/${token}`;
     }
   }
 

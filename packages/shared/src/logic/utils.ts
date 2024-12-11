@@ -506,7 +506,7 @@ export interface RetryConfig {
   numOfAttempts?: number;
 }
 
-export const withRetry = (fn: () => Promise<any>, config?: RetryConfig) => {
+export const withRetry = <T>(fn: () => Promise<T>, config?: RetryConfig) => {
   return backOff(fn, {
     delayFirstAttempt: false,
     startingDelay: config?.startingDelay ?? 1000,
