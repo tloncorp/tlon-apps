@@ -93,19 +93,23 @@
       [%endpoint base=(unit @t)]
   ==
 ::
-+$  user-query
-  $:  [=dude:gall nonce=@]
-  $%  [%has-any who=@p kind=id-kind]
-      [%valid sig=@ux]
-      [%whose id=identifier]
-      ::TODO  %whose-many
-  ==  ==
-+$  query-result
-  $:  nonce=@
-  $%  [%has-any has=?]
-      [%valid valid=?]
-      [%whose who=(unit @p)]
-  ==  ==
+++  user-query
+  |^  ,[[=dude:gall nonce=@] query]
+  +$  query
+    $%  [%has-any who=@p kind=id-kind]
+        [%valid sig=@ux]
+        [%whose id=identifier]
+        ::TODO  %whose-many
+    ==
+  --
+++  query-result
+  |^  ,[nonce=@ result]
+  +$  result
+    $%  [%has-any has=?]
+        [%valid valid=?]
+        [%whose who=(unit @p)]
+    ==
+  --
 ::
 ::REVIEW  i don't think we need the client to bring their own nonces, right?
 ::        just let these be for internal comms only, hold the client's hand
@@ -113,8 +117,8 @@
 ++  l  ::  lanyard  ::TODO  separate file
   |%
   +$  command  [(unit host=@p) user-command]
-  +$  query    [(unit host=@p) _+:*user-query]
-  +$  result   $@(%fail _+:*query-result)
+  +$  query    [(unit host=@p) query:user-query]
+  +$  result   $@(%fail result:query-result)
   +$  update
     $%  [%query nonce=@ result]  ::TODO  different?
         [%status [host=@p id=identifier] status=?(%gone status)]
