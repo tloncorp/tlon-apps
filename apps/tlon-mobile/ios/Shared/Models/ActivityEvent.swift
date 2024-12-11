@@ -1,6 +1,11 @@
 import Foundation
 
 struct ActivityEvent {
+  struct ActivityEventResponse: Codable {
+    let event: ActivityEvent
+    let time: String
+  }
+  
   // MARK: - ActvityEvent
   struct ActivityEvent: Codable {
     let notified: Bool

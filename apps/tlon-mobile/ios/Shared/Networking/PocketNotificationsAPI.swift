@@ -14,7 +14,7 @@ extension PocketAPI {
         return yarn
     }
   
-  func fetchPushNotificationContents(_ uid: String) async throws -> ActivityEvent.ActivityEvent {
+  func fetchPushNotificationContents(_ uid: String) async throws -> ActivityEvent.ActivityEventResponse {
       try await fetchDecodable("/apps/groups/~/notify/note/\(uid)/activity-event", timeoutInterval: 8)
   }
 }
