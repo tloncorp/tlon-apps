@@ -15,6 +15,7 @@ import { markChatRead } from '@tloncorp/shared/api';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import * as ub from '@tloncorp/shared/urbit';
 import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/urbit';
 import {
   Notification,
@@ -37,6 +38,7 @@ interface WerNotificationData extends BaseNotificationData {
   channelId: string;
   postInfo: { id: string; authorId: string; isDm: boolean } | null;
   wer: string;
+  post?: db.Post;
 }
 interface UnrecognizedNotificationData extends BaseNotificationData {
   type: 'unrecognized';
@@ -67,12 +69,27 @@ function payloadFromNotification(
 
   // welcome to my validation library ;)
   if (payload.wer != null && payload.channelId != null) {
+    const dmPost = payload.dmPost as ub.DmPostEvent['dm-post'] | undefined;
+    const receivedAt = Date.now();
     return {
       ...baseNotificationData,
       type: 'wer',
       channelId: payload.channelId,
       postInfo: api.getPostInfoFromWer(payload.wer),
       wer: payload.wer,
+      post:
+        dmPost == null
+          ? undefined
+          : {
+              id: dmPost.key.id.split('/')[1],
+              authorId: (dmPost.whom as { ship: string }).ship!,
+              channelId: (dmPost.whom as { ship: string }).ship!,
+              content: dmPost.content,
+              type: 'chat',
+              receivedAt,
+              syncedAt: receivedAt, // sorry
+              sentAt: parseFloat(dmPost.key.time),
+            },
     };
   }
   return {
@@ -127,6 +144,12 @@ export default function useNotificationListener() {
               : undefined,
           });
           return;
+        }
+
+        if (data.post != null) {
+          db.insertLatestPosts([data.post]).catch((err) => {
+            logger.error('Failed to handoff post', err);
+          });
         }
 
         const { actionIdentifier, userText } = response;
