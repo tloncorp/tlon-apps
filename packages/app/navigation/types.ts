@@ -41,6 +41,7 @@ export type RootStackParamList = {
     postId: string;
     channelId: string;
     authorId: string;
+    groupId?: string;
   };
   ImageViewer: {
     uri?: string;
@@ -75,11 +76,32 @@ export type RootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
 } & Pick<RootStackParamList, 'Activity' | 'Contacts'>;
 
+export type CombinedParamList = RootStackParamList & RootDrawerParamList;
+
 export type HomeDrawerParamList = Pick<
   RootStackParamList,
-  'ChatList' | 'GroupChannels' | 'Channel' | 'DM' | 'GroupDM'
+  'ChatList' | 'GroupChannels'
 > & {
   MainContent: undefined;
+  Channel:
+    | NavigatorScreenParams<ChannelStackParamList>
+    | RootStackParamList['Channel'];
+  DM: NavigatorScreenParams<ChannelStackParamList> | RootStackParamList['DM'];
+  GroupDM:
+    | NavigatorScreenParams<ChannelStackParamList>
+    | RootStackParamList['GroupDM'];
+};
+
+export type ChannelStackParamList = {
+  ChannelRoot: RootStackParamList['Channel'];
+  GroupSettings: RootStackParamList['GroupSettings'];
+  ChannelSearch: RootStackParamList['ChannelSearch'];
+  Post: RootStackParamList['Post'];
+  ImageViewer: RootStackParamList['ImageViewer'];
+  UserProfile: RootStackParamList['UserProfile'];
+  EditProfile: RootStackParamList['EditProfile'];
+  ChannelMembers: RootStackParamList['ChannelMembers'];
+  ChannelMeta: RootStackParamList['ChannelMeta'];
 };
 
 export type DesktopChannelStackParamList = Pick<

@@ -157,6 +157,7 @@ export default function useNotificationListener() {
         const routeStack: RouteStack = [{ name: 'ChatList' }];
         if (channel.groupId) {
           const mainGroupRoute = await getMainGroupRoute(channel.groupId);
+          // @ts-expect-error - we know we're on mobile and we can't get a "Home" route
           routeStack.push(mainGroupRoute);
         }
         // Only push the channel if it wasn't already handled by the main group stack

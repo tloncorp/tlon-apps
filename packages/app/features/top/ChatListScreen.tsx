@@ -34,7 +34,7 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import type { RootStackParamList } from '../../navigation/types';
 import {
-  screenNameFromChannelId,
+  useNavigateToChannel,
   useNavigateToGroup,
 } from '../../navigation/utils';
 import { identifyTlonEmployee } from '../../utils/posthog';
@@ -165,6 +165,7 @@ export function ChatListScreenView({
   }, []);
 
   const navigateToGroup = useNavigateToGroup();
+  const navigateToChannel = useNavigateToChannel();
 
   const onPressChat = useCallback(
     async (item: db.Chat) => {
@@ -175,13 +176,10 @@ export function ChatListScreenView({
           navigateToGroup(item.group.id);
         }
       } else {
-        const screenName = screenNameFromChannelId(item.id);
-        navigation.navigate(screenName, {
-          channelId: item.id,
-        });
+        navigateToChannel(item.channel);
       }
     },
-    [navigateToGroup, navigation]
+    [navigateToGroup, navigateToChannel]
   );
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
