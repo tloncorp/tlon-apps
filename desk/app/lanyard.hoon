@@ -240,7 +240,7 @@
       ?.  =(%verifier-update p.cage.sign)
         ~&  [dap.bowl %unexpected-verifier-fact p.cage.sign]
         [~ this]
-      =+  !<(upd=identifier-update q.cage.sign)
+      =+  !<(upd=update q.cage.sign)
       ?-  -.upd
           %full
         ::  update our state to match what we received,

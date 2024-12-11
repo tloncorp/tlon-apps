@@ -86,7 +86,7 @@
       [%dummy id=@t do=?(%grant %reject)]
   ==
 ::
-+$  identifier-update  ::TODO  $verifier-update
++$  update
   $%  [%full all=(map identifier id-state)]
       [%status id=identifier status=?(%gone status)]
       [%config id=identifier =config]

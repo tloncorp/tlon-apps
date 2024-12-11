@@ -19,7 +19,7 @@
 ::
 ++  ex-verifier-update
   =/  initial=?  |
-  |=  [for=@p upd=identifier-update:v]
+  |=  [for=@p upd=update:v]
   ::TODO  this is a bit weird, maybe.
   ::      want to test received sign against faux pubkey instead
   :: =?  upd  ?=([%status * %done *] upd)

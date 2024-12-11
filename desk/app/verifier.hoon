@@ -53,13 +53,13 @@
 ++  give-endpoint
   |=  base=(unit @t)
   ^-  card
-  =/  upd=identifier-update
+  =/  upd=update
     :-  %endpoint
     ?~(base ~ `(cat 3 u.base (spat binding)))
   [%give %fact ~[/endpoint] %verifier-update !>(upd)]
 ::
 ++  give-update
-  |=  [for=@p upd=identifier-update]
+  |=  [for=@p upd=update]
   ^-  card
   [%give %fact ~[/records/(scot %p for)] %verifier-update !>(upd)]
 ::
@@ -483,7 +483,7 @@
   ?:  ?=([%http-response *] path)
     ~
   ?:  ?=([%endpoint ~] path)
-    =/  upd=identifier-update
+    =/  upd=update
       :-  %endpoint
       ?~(domain ~ `(cat 3 u.domain (spat binding)))
     [%give %fact ~ %verifier-update !>(upd)]~
@@ -500,7 +500,7 @@
       |=  [[id=identifier =record] all=(map identifier id-state)]
       ?.  =(src.bowl for.record)  all
       (~(put by all) id +>.record)
-  =/  upd=identifier-update  [%full all]
+  =/  upd=update  [%full all]
   [%give %fact ~ %verifier-update !>(upd)]~
 ::
 ++  on-leave  |=(* `this)
