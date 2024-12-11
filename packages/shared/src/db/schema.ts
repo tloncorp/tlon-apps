@@ -80,6 +80,7 @@ export const contacts = sqliteTable('contacts', {
   isContact: boolean('isContact'),
   isContactSuggestion: boolean('isContactSuggestion'),
   hasVerifiedPhone: boolean('hasVerifiedPhone'),
+  verifiedPhoneSignature: text('verifiedPhoneSignature'),
   verifiedPhoneAt: timestamp('verifiedPhoneAt'),
 });
 

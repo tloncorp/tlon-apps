@@ -122,6 +122,7 @@ CREATE TABLE `contacts` (
 	`isContact` integer,
 	`isContactSuggestion` integer,
 	`hasVerifiedPhone` integer,
+	`verifiedPhoneSignature` text,
 	`verifiedPhoneAt` integer
 );
 --> statement-breakpoint

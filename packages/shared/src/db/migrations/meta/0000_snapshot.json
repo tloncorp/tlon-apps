@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "35eb7305-3824-4cd8-88b6-b64501d55ad6",
+  "id": "9ba42a11-b57b-4f0e-a9fe-991715ac5f98",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -823,6 +823,13 @@
         "hasVerifiedPhone": {
           "name": "hasVerifiedPhone",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "verifiedPhoneSignature": {
+          "name": "verifiedPhoneSignature",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
