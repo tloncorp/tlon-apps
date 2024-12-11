@@ -19,7 +19,7 @@
 ::
 ++  ex-verifier-update
   =/  initial=?  |
-  |=  [for=@p upd=identifier-update:v]
+  |=  [for=@p upd=update:v]
   ::TODO  this is a bit weird, maybe.
   ::      want to test received sign against faux pubkey instead
   :: =?  upd  ?=([%status * %done *] upd)
@@ -117,7 +117,7 @@
 ++  faux-sign
   |*  [host=@p dat=*]
   ^-  (urbit-signature:v _dat)
-  =/  sig=@ux  (sign:as:(nol:nu:crub:crypto key:(faux-seed host)) (jam dat))
+  =/  sig=@ux  (sigh:as:(nol:nu:crub:crypto key:(faux-seed host)) (jam dat))
   [host faux-life dat sig]
 ::
 ++  faux-scry
