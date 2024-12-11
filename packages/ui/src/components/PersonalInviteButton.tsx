@@ -45,7 +45,7 @@ export function PersonalInviteButton() {
     try {
       const result = await Share.share({
         message: `${userDisplayName} invited you to TM: ${inviteLink}`,
-        title: `${userDisplayName} invited you to TMn`,
+        title: `${userDisplayName} invited you to TM`,
       });
 
       if (result.action === Share.sharedAction) {
