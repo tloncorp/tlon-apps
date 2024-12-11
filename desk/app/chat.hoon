@@ -1129,8 +1129,7 @@
     ^-  essay:d
     :*  (convert-memo old)
         [%chat ?-(-.content.old %story ~, %notice [%notice ~])]
-        *data:meta
-        ~
+        ~  ~
     ==
   ::
   ++  convert-story

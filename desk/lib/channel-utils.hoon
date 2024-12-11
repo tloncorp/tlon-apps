@@ -452,10 +452,12 @@
     [%chat $@(~ [%notice ~])]  kind.essay
   ::
       [%diary ~]
-    [%diary title.meta image.meta]:essay
+    ?~  meta.essay  [%diary '' '']
+    [%diary title image]:u.meta.essay
   ::
       [%heap ~]
-    [%heap ?:(=('' title) ~ `title)]:meta.essay
+    ?~  meta.essay  [%heap ~]
+    [%heap `title.u.meta.essay]
   ==
 ::
 ++  rev-essay-1
@@ -644,31 +646,33 @@
   ?~  q.plan
     =/  post=simple-post:c
       ?~  post
-        ::TODO  give "outline" that formally declares deletion
         :-  *simple-seal:c
         ?-  kind.nest
-          %diary  [*memo:c /diary/null *data:m ~]
-          %heap   [*memo:c /heap/null *data:m ~]
-          %chat   :_  [/chat/null *data:m ~]
-                  [~ ~nul *@da]
+          %diary  [*memo:c /diary/unknown ~ ~]
+          %heap   [*memo:c /heap/unknown ~ ~]
+          %chat   [*memo:c /chat/unknown ~ ~]
         ==
       ?~  u.post
         :-  *simple-seal:c
         ?-  kind.nest
-            %diary  [*memo:c /diary/null *data:m ~]
-            %heap   [*memo:c /heap/null *data:m ~]
-            %chat   :_  [/chat/null *data:m ~]
-                    [~ ~nul *@da]
+            %diary  [*memo:c /diary/null ~ ~]
+            %heap   [*memo:c /heap/null ~ ~]
+            %chat   [*memo:c /chat/null ~ ~]
         ==
       (suv-post-without-replies-2 u.u.post)
     [%channel-said-1 !>(`said:c`[nest %post post])]
-  ::
   =/  reply=[reply-seal:c memo:c]
+    ::XX the missing/deleted handling here is not great,
+    ::   and can't be fixed, unlike above. one way to rectify this
+    ::   would be to introduce a third variant, %miss, in $reference
+    ::   to encode a missing/deleted content.
+    ::
     ?~  post
       [*reply-seal:c ~[%inline 'Comment on unknown post']~ ~nul *@da]
     ?~  u.post
       [*reply-seal:c ~[%inline 'Comment on deleted post']~ ~nul *@da]
-    =/  reply=(unit (unit v-reply:c))  (get:on-v-replies:c replies.u.u.post u.q.plan)
+    =/  reply=(unit (unit v-reply:c))
+      (get:on-v-replies:c replies.u.u.post u.q.plan)
     ?~  reply
       [*reply-seal:c ~[%inline 'Unknown comment']~ ~nul *@da]
     ?~  u.reply
@@ -682,19 +686,8 @@
   %+  turn  scan
   |=  ref=reference:c
   ?-  -.ref
-      %post
-    ref(post (simple-post-1 post.ref))
-    :: %=  ref
-    ::   +.post  (essay-1 +.post.ref)
-    ::   reacts.post  (reacts-1 reacts.post.ref)
-    ::   replies.post  (simple-replies-1 replies.post.ref)
-    :: ==
-      %reply
-    ref(reply (simple-reply-1 reply.ref))
-    :: %=  ref
-    ::   +.reply  (memo-1 +.reply.ref)
-    ::   reacts.reply  (reacts-1 reacts.reply.ref)
-    :: ==
+      %post   ref(post (simple-post-1 post.ref))
+      %reply  ref(reply (simple-reply-1 reply.ref))
   ==
 ::
 ++  scam-1
@@ -1229,7 +1222,8 @@
   ?-    -.kind-data.essay
       %diary
     :-  /diary
-    :_  ~
+    :_  ~  ::  blob
+    %-  some
     %*  .  *data:m
       title  title.kind-data.essay
       image  image.kind-data.essay
@@ -1238,13 +1232,13 @@
       %heap
     :-  /heap
     :_  ~
-    %*(. *data:m title (fall title.kind-data.essay ''))
+    (some %*(. *data:m title (fall title.kind-data.essay '')))
     ::
       %chat
     ?~  kind.kind-data.essay
-      [/chat *data:m ~]
+      [/chat ~ ~]
     ?>  ?=([%notice ~] kind.kind-data.essay)
-    [/chat/notice *data:m ~]
+    [/chat/notice ~ ~]
   ==
 ++  v-posts-7-to-8
   |=  [vp=v-posts:v7:old:c mod=(map id-post:c time)]

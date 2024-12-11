@@ -648,7 +648,7 @@
     |=  old=essay:a
     ^-  essay:d
     =/  meta=data:meta  [title.old '' image.old '']
-    =-  [[- author.old sent.old] /diary meta ~]
+    =-  [[- author.old sent.old] /diary `meta ~]
     %+  turn  content.old
     |=  v=verse:a
     ^-  verse:d

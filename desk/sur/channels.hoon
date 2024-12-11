@@ -108,7 +108,7 @@
 +$  essay
   $:  memo
       kind=path
-      meta=data:m
+      meta=(unit data:m)
       blob=(unit @t)
   ==
 ::  $reply-meta: metadata for all replies
@@ -458,7 +458,7 @@
 ::
 +$  r-pending
   $%  [%post =essay]
-      [%reply top=id-post =reply-meta =memo]  ::XX author present in both fields
+      [%reply top=id-post =reply-meta =memo]
   ==
 +$  r-reply
   $%  [%set reply=(unit reply)]

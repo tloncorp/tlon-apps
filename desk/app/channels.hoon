@@ -1724,15 +1724,17 @@
       ::  preparation of common cases
       ::
       =*  diary-notification
+        =*  post-title  ?~(meta.post '' title.u.meta.post)
         :~  [%ship reply-author]  ' commented on '
-            [%emph title.meta.post]   ': '
+            [%emph post-title]   ': '
             [%ship reply-author]  ': '
             (flatten:utils content.reply)
         ==
       =*  heap-notification
         =/  content  (flatten:utils content.reply)
+        =*  post-title  ?~(meta.post '' title.u.meta.post)
         =/  title=@t
-          ?.  =(0 (met 3 title.meta.post))  title.meta.post
+          ?.  =(0 (met 3 post-title))  post-title
           ?:  (lte (met 3 content) 80)  content
           (cat 3 (end [3 77] content) '...')
         :~  [%ship reply-author]  ' commented on '
@@ -2529,28 +2531,18 @@
         %ship                                  =(nedl p.inline)
         ?(%bold %italics %strike %blockquote)  ^$(p.verse p.inline)
       ==
-    ::XX this probably needs custom search strategy across whole of meta
-    ::   and content
     ::
     ++  match-post-text
       |=  [nedl=@t post=v-post:c]
       ^-  ?
-      ?+    -.kind.post
-          ::  default
-          (match-story-text nedl ~[%inline title.meta.post] content.post)
-
-          %diary
-        (match-story-text nedl ~[%inline title.meta.post] content.post)
+      ?:  ?=([%chat %notice ~] kind.post)  |
       ::
-          %heap
-        %+  match-story-text  nedl
-        [~[%inline title.meta.post] content.post]
-      ::
-          %chat
-        ::XX  what is the reason we exclude /chat/notice from
-        ::    search?
-        ?:  =([%notice ~] +.kind.post)  |
+      ?~  meta.post
         (match-story-text nedl content.post)
+      %+  match-story-text  nedl
+      :*  ~[%inline title.u.meta.post]
+          ~[%inline description.u.meta.post]
+          content.post
       ==
     ::
     ++  match-story-text

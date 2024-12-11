@@ -410,13 +410,15 @@
     ==
   ::
   ++  meta
-    |=  meta=data:^meta
+    |=  meta=(unit data:^meta)
     ^-  json
+    ?~  meta  ~
     %-  pairs
-    :~  title+s/title.meta
-        description+s/description.meta
-        image+s/image.meta
-        cover+s/cover.meta
+    =,  u.meta
+    :~  title+s/title
+        description+s/description
+        image+s/image
+        cover+s/cover
     ==
   ++  essay
     |=  =essay:c
@@ -1106,7 +1108,7 @@
     ^-  $-(json essay:c)
     %+  cu
       |=  $:  =story:c  =author:c  =time:z
-              =path  meta=data:^^meta  blob=(unit @t)
+              =path  meta=(unit data:^^meta)  blob=(unit @t)
           ==
       `essay:c`[[story author time] path meta blob]
     %-  ot
@@ -1115,7 +1117,7 @@
         sent/di
         ::
         path/pa
-        meta/meta
+        meta/(mu meta)
         blob/(mu so)
     ==
   ::

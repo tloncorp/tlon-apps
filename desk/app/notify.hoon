@@ -385,7 +385,7 @@
           (add accumulator (lent ~(tap by clients.provider-entry)))
       ~&  ['total clients on all providers' total-clients]
       =/  story=story:c  [[%inline [[%bold ['BotPoast: ' ~]] 'Daily ' [%inline-code '%notify'] ' provider check-in. Total providers: ' [%bold [(scot %u total-providers) ~]] ', total clients: ' [%bold [(scot %u total-clients) ~]] '.' ~]]~]
-      =/  essay=essay:c  [[story our.bowl now.bowl] /chat *data:meta ~]
+      =/  essay=essay:c  [[story our.bowl now.bowl] /chat ~ ~]
       =/  nest=nest:c  [%chat ~bitpyx-dildus %interface]
       =/  channel-action=a-channels:c  [%channel nest [%post [%add essay]]]
       =/  new-timer  (add now daily-stats-interval)
