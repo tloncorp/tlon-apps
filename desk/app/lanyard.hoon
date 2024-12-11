@@ -86,7 +86,7 @@
     ?~  phone  ~
     ~?  !?=(%phone kind.dat.u.phone)  [%lanyard %strange-phone-sign-mismatch kind.dat.u.phone]
     :+  [%lanyard-tmp-phone-since %date when.dat.u.phone]
-      [%lanyard-tmp-phone-sign %numb (jam +.u.phone)]
+      [%lanyard-tmp-phone-sign %text (scot %uw (jam +.u.phone))]
     ?~  url=(make-url h.u.phone sig.u.phone)  ~
     [%lanyard-tmp-phone-url %text u.url]~
   ::  for "also knows as" display
@@ -98,7 +98,7 @@
   %+  turn  ~(tap by urbits)
   |=  [who=@p h=@p sign=(urbit-signature full-sign-data-0)]
   ^-  (list [term value:c])
-  :-  :_  [%numb (jam sign)]
+  :-  :_  [%text (scot %uw (jam sign))]
       (rap 3 %lanyard-tmp-urbit- (rsh 3^1 (scot %p who)) '-sign' ~)
   ?~  url=(make-url h sig.sign)  ~
   :_  ~
