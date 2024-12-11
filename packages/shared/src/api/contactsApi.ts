@@ -1,3 +1,6 @@
+import { daToUnix, formatDa, parseDa } from '@urbit/aura';
+import bigInt from 'big-integer';
+
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, normalizeUrbitColor } from '../logic';
@@ -264,6 +267,9 @@ export const v0PeerToClientProfile = (
   }
 ): db.Contact => {
   const currentUserId = getCurrentUserId();
+  const phoneVerify = contact?.['lanyard-tmp-phone-sign']
+    ? contactVerifyToClientForm(contact)
+    : null;
   return {
     id,
     peerNickname: contact?.nickname ?? null,
@@ -280,8 +286,23 @@ export const v0PeerToClientProfile = (
 
     isContact: false,
     isContactSuggestion: config?.isContactSuggestion && id !== currentUserId,
+    hasVerifiedPhone: phoneVerify?.hasVerifiedPhone ?? null,
+    verifiedPhoneAt: phoneVerify?.verifiedPhoneAt ?? null,
   };
 };
+
+function contactVerifyToClientForm(
+  contact: ub.Contact | ub.ContactBookProfile
+): { hasVerifiedPhone: boolean; verifiedPhoneAt: number | null } {
+  console.log(`bl: parsing phone verifs`, contact);
+  const parsed = {
+    hasVerifiedPhone: contact['lanyard-tmp-phone-sign']?.value ? true : false,
+    verifiedPhoneAt: contact['lanyard-tmp-phone-since']?.value
+      ? daToUnix(parseDa(contact['lanyard-tmp-phone-since'].value))
+      : null,
+  };
+  return parsed;
+}
 
 export const v1PeersToClientProfiles = (
   peers: ub.ContactsAllScryResult1,
@@ -305,6 +326,9 @@ export const v1PeerToClientProfile = (
   }
 ): db.Contact => {
   const currentUserId = getCurrentUserId();
+  const phoneVerify = contact?.['lanyard-tmp-phone-sign']
+    ? contactVerifyToClientForm(contact)
+    : null;
   return {
     id,
     peerNickname: contact.nickname?.value ?? null,
@@ -321,6 +345,8 @@ export const v1PeerToClientProfile = (
     isContact: config?.isContact,
     isContactSuggestion:
       config?.isContactSuggestion && !config?.isContact && id !== currentUserId,
+    hasVerifiedPhone: phoneVerify?.hasVerifiedPhone ?? null,
+    verifiedPhoneAt: phoneVerify?.verifiedPhoneAt ?? null,
   };
 };
 
@@ -349,6 +375,10 @@ export const contactToClientProfile = (
   }
 ): db.Contact => {
   const [base, overrides] = contact;
+  const phoneVerify = base?.['lanyard-tmp-phone-sign']
+    ? contactVerifyToClientForm(base)
+    : null;
+  console.log(`got result`, phoneVerify);
 
   return {
     id: userId,
@@ -367,5 +397,7 @@ export const contactToClientProfile = (
       })) ?? [],
     isContact: true,
     isContactSuggestion: false,
+    hasVerifiedPhone: phoneVerify?.hasVerifiedPhone ?? null,
+    verifiedPhoneAt: phoneVerify?.verifiedPhoneAt ?? null,
   };
 };

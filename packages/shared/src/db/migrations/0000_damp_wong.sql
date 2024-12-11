@@ -120,7 +120,9 @@ CREATE TABLE `contacts` (
 	`coverImage` text,
 	`blocked` integer,
 	`isContact` integer,
-	`isContactSuggestion` integer
+	`isContactSuggestion` integer,
+	`hasVerifiedPhone` integer,
+	`verifiedPhoneAt` integer
 );
 --> statement-breakpoint
 CREATE TABLE `group_flagged_posts` (

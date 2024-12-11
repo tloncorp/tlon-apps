@@ -104,6 +104,7 @@ export function UserProfileScreenView(props: Props) {
         <UserInfoRow
           userId={props.userId}
           hasNickname={!!userContact?.nickname?.length}
+          isVerified={!!userContact?.hasVerifiedPhone}
         />
         {userContact?.status && <View width="100%"></View>}
 
@@ -306,7 +307,11 @@ export function PinnedGroupsDisplay(
   );
 }
 
-function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
+function UserInfoRow(props: {
+  userId: string;
+  hasNickname: boolean;
+  isVerified: boolean;
+}) {
   const { didCopy, doCopy } = useCopy(props.userId);
 
   const handleCopy = useCallback(() => {
@@ -329,9 +334,9 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
                   lineHeight={24}
                   numberOfLines={1}
                 />
-                <Circle backgroundColor="$blue" marginLeft="$m">
-                  <Icon type="Checkmark" size="$m" color="$white" />
-                </Circle>
+                {props.isVerified && (
+                  <Icon type="Label" size="$s" color="$blue" />
+                )}
               </XStack>
               <XStack alignItems="center">
                 <ContactName
@@ -356,7 +361,9 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
                 lineHeight={24}
                 contactId={props.userId}
               />
-              <Icon type="Label" size="$s" color="$blue" />
+              {props.isVerified && (
+                <Icon type="Label" size="$s" color="$blue" />
+              )}
             </XStack>
           )}
         </YStack>

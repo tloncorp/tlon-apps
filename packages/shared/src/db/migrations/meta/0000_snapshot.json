@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "74260723-19aa-401e-92d0-c790bcc15a53",
+  "id": "35eb7305-3824-4cd8-88b6-b64501d55ad6",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -815,6 +815,20 @@
         },
         "isContactSuggestion": {
           "name": "isContactSuggestion",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "hasVerifiedPhone": {
+          "name": "hasVerifiedPhone",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "verifiedPhoneAt": {
+          "name": "verifiedPhoneAt",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

@@ -79,6 +79,8 @@ export const contacts = sqliteTable('contacts', {
   isBlocked: boolean('blocked'),
   isContact: boolean('isContact'),
   isContactSuggestion: boolean('isContactSuggestion'),
+  hasVerifiedPhone: boolean('hasVerifiedPhone'),
+  verifiedPhoneAt: timestamp('verifiedPhoneAt'),
 });
 
 export const contactsRelations = relations(contacts, ({ many }) => ({

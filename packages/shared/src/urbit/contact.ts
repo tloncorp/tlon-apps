@@ -8,6 +8,9 @@ export interface Contact {
   avatar: string | null;
   cover: string | null;
   groups: string[];
+  ['lanyard-tmp-urbits']?: VerifiedShipsField;
+  ['lanyard-tmp-phone-since']?: PhoneVerifySign;
+  ['lanyard-tmp-phone-sign']?: PhoneVerifiedAt;
 }
 
 export interface ContactAddGroup {
@@ -74,6 +77,16 @@ export interface VerifiedShipsField {
   value: { type: 'ship'; value: string }[];
 }
 
+export interface PhoneVerifySign {
+  type: 'text';
+  value: string;
+}
+
+export interface PhoneVerifiedAt {
+  type: 'date';
+  value: string;
+}
+
 export interface ContactBookProfile {
   nickname?: ContactFieldText;
   bio?: ContactFieldText;
@@ -83,9 +96,8 @@ export interface ContactBookProfile {
   groups?: ContactFieldGroups;
   status?: ContactFieldText;
   ['lanyard-tmp-urbits']?: VerifiedShipsField;
-  ['lanyard-tmp-phone-since']?: string; // TODO
-  ['lanyard-tmp-phone-sign']?: string; // TODO
-  // ......
+  ['lanyard-tmp-phone-since']?: PhoneVerifySign;
+  ['lanyard-tmp-phone-sign']?: PhoneVerifiedAt;
 }
 
 export interface ContactBookProfileEdit {
