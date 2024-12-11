@@ -162,10 +162,14 @@
     ::NOTE  important to do setup before we poke, and important that the
     ::      /records subscription has the same wire as the below poke,
     ::      so that they get handled in the specified order.
-    %+  snoc  caz
-    =/  =cage
-      [%verifier-user-command !>(`user-command`+.cmd)]
-    [%pass /verifier %agent [host %verifier] %poke cage]
+    %+  weld  caz
+    ^-  (list card)
+    :-  =/  =cage
+          [%verifier-user-command !>(`user-command`+.cmd)]
+        [%pass /verifier %agent [host %verifier] %poke cage]
+    ?.  ?=(%start +<.cmd)  ~
+    =/  upd=update:l  [%status key %wait ~]
+    [%give %fact ~[/ /records] %lanyard-update !>(upd)]~
   ::
       %lanyard-query
     =+  !<(qer=query:l vase)
