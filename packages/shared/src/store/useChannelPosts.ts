@@ -245,7 +245,8 @@ function useRefreshPosts(channelId: string, posts: db.Post[] | null) {
       posts?.filter(
         (post) =>
           session &&
-          post.syncedAt < (session?.startTime ?? 0) &&
+          (post.syncedAt == null ||
+            post.syncedAt < (session?.startTime ?? 0)) &&
           !pendingStalePosts.current.has(post.id)
       ) || [];
 
