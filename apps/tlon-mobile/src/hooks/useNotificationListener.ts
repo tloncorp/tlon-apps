@@ -1,6 +1,7 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
+import { useAppStatusChange } from '@tloncorp/app/hooks/useAppStatusChange';
 import { useFeatureFlag } from '@tloncorp/app/lib/featureFlags';
 import { connectNotifications } from '@tloncorp/app/lib/notifications';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
@@ -20,8 +21,10 @@ import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/urbit';
 import {
   Notification,
   addNotificationResponseReceivedListener,
+  getPresentedNotificationsAsync,
 } from 'expo-notifications';
-import { useEffect, useState } from 'react';
+import { udToDate } from 'packages/shared/src/api/apiUtils';
+import { useCallback, useEffect, useState } from 'react';
 
 const logger = createDevLogger('useNotificationListener', false);
 
@@ -69,27 +72,49 @@ function payloadFromNotification(
 
   // welcome to my validation library ;)
   if (payload.wer != null && payload.channelId != null) {
-    const dmPost = payload.dmPost as ub.DmPostEvent['dm-post'] | undefined;
-    const receivedAt = Date.now();
+    const postInfo = api.getPostInfoFromWer(payload.wer);
+    const handoffPost: db.Post | undefined = (() => {
+      const receivedAt = Date.now();
+      const dmPost = payload.dmPost as ub.DmPostEvent['dm-post'] | undefined;
+      if (dmPost != null) {
+        return {
+          // key.id looks like `dm/000.000.000.mor.eme.ssa.gei.dxx`
+          id: dmPost.key.id.split('/')[1],
+          authorId: (dmPost.whom as { ship: string }).ship!,
+          channelId: (dmPost.whom as { ship: string }).ship!,
+          content: dmPost.content,
+          type: 'chat',
+          receivedAt,
+          syncedAt: undefined,
+          sentAt: udToDate(dmPost.key.time),
+        };
+      }
+
+      const post = payload.post as ub.PostEvent['post'] | undefined;
+      if (post != null && postInfo?.authorId != null) {
+        return {
+          // key.id looks like `dm/000.000.000.mor.eme.ssa.gei.dxx`
+          id: post.key.id.split('/')[1],
+          // idk how else to get author
+          authorId: postInfo.authorId,
+          channelId: post.channel,
+          content: post.content,
+          type: 'chat',
+          receivedAt,
+          syncedAt: undefined,
+          sentAt: udToDate(post.key.time),
+        };
+      }
+
+      return undefined;
+    })();
     return {
       ...baseNotificationData,
       type: 'wer',
       channelId: payload.channelId,
-      postInfo: api.getPostInfoFromWer(payload.wer),
+      postInfo,
       wer: payload.wer,
-      post:
-        dmPost == null
-          ? undefined
-          : {
-              id: dmPost.key.id.split('/')[1],
-              authorId: (dmPost.whom as { ship: string }).ship!,
-              channelId: (dmPost.whom as { ship: string }).ship!,
-              content: dmPost.content,
-              type: 'chat',
-              receivedAt,
-              syncedAt: receivedAt, // sorry
-              sentAt: parseFloat(dmPost.key.time),
-            },
+      post: handoffPost,
     };
   }
   return {
@@ -144,12 +169,6 @@ export default function useNotificationListener() {
               : undefined,
           });
           return;
-        }
-
-        if (data.post != null) {
-          db.insertLatestPosts([data.post]).catch((err) => {
-            logger.error('Failed to handoff post', err);
-          });
         }
 
         const { actionIdentifier, userText } = response;
@@ -257,4 +276,37 @@ export default function useNotificationListener() {
       })();
     }
   }, [notifToProcess, navigation, isTlonEmployee, channelSwitcherEnabled]);
+
+  const slurpHandoffs = useCallback(async () => {
+    const presentedNotifications = await getPresentedNotificationsAsync();
+    const handoffPosts = presentedNotifications.flatMap((notification) => {
+      const data = payloadFromNotification(notification);
+      if (data == null || data.type === 'unrecognized' || data.post == null) {
+        return [];
+      }
+      return [data.post];
+    });
+
+    if (handoffPosts.length > 0) {
+      handoffPosts.sort((a, b) => a.sentAt - b.sentAt);
+      console.log('Handing off', handoffPosts);
+      await db.insertUnconfirmedPosts({ posts: handoffPosts });
+    }
+  }, []);
+
+  useEffect(() => {
+    slurpHandoffs().catch((e) => {
+      logger.error('Failed to slurp handoffs:', e);
+    });
+  }, [slurpHandoffs]);
+
+  useAppStatusChange(
+    useCallback(async (status) => {
+      console.log('App status changed:', status);
+      if (status !== 'active') {
+        return;
+      }
+      await slurpHandoffs();
+    }, [])
+  );
 }
