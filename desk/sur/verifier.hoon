@@ -116,9 +116,17 @@
 ::        through that and just deliver them the status updates as they happen..
 ++  l  ::  lanyard  ::TODO  separate file
   |%
-  +$  command  [(unit host=@p) user-command]
-  +$  query    [(unit host=@p) query:user-query]
-  +$  result   $@(%fail result:query-result)
+  +$  command  [host=(unit @p) user-command]
+  +$  query    [host=(unit @p) nonce=(unit @) query=question]
+  +$  question
+    $%  [%valid-jam @uw]  ::  jammed $urbit-signature
+        query:user-query
+    ==
+  +$  result
+    $%  [%fail why=@t]
+        [%valid-jam valid=$@(sig=? [sig=? liv=?])]
+        result:query-result
+    ==
   +$  update
     $%  [%query nonce=@ result]  ::TODO  different?
         [%status [host=@p id=identifier] status=?(%gone status)]

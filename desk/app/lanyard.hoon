@@ -23,7 +23,7 @@
       records=(map [h=@p id=identifier] id-state)  ::  ours
       provers=(map identifier @p)                  ::  from  ::TODO  unused
       ledgers=(map @p (unit @t))                   ::  services w/ base urls
-      queries=(map @ _+:*user-query)               ::  asked  ::TODO  response timestamps?
+      queries=(map @uv (each [q=question:l a=result:l] question:l))  ::  asked
   ==
 +$  card     card:agent:gall
 ::
@@ -137,7 +137,7 @@
       %lanyard-command
     =+  !<(cmd=command:l vase)
     =/  host=@p
-      ?~(-.cmd default host.u.cmd)
+      ?~(host.cmd default u.host.cmd)
     =/  key
       :-  host
       ?-(+<.cmd ?(%start %revoke) id.cmd, ?(%config %work) id.cmd)
@@ -174,19 +174,32 @@
       %lanyard-query
     =+  !<(qer=query:l vase)
     =/  [host=@p nonce=@]
-      :-  ?~(-.qer default host.u.qer)
+      :-  ?~(host.qer default u.host.qer)
+      ?^  nonce.qer  u.nonce.qer
       =+  non=(end 6 eny.bowl)
       |-(?:((~(has by queries) non) $(non +(non)) non))
     ?<  (~(has by queries) nonce)
-    :_  this(queries (~(put by queries) nonce +.qer))
+    ::TODO  handle %valid-jam locally first
+    :_  this(queries (~(put by queries) nonce [%| query.qer]))
+    ::TODO  time out query responses?
     =/  =cage
-      [%verifier-query !>(`user-query`[[dap.bowl nonce] +.qer])]
+      [%verifier-query !>(`user-query`[[dap.bowl nonce] query.qer])]
     [%pass /query/(scot %uv nonce) %agent [host %verifier] %poke cage]~
   ::
       %verifier-result
     =+  !<(res=query-result vase)
-    ?>  (~(has by queries) nonce.res)
-    :_  this(queries (~(del by queries) nonce.res))
+    =/  qer  (~(got by queries) nonce.res)
+    =/  qes
+      ?-  -.qer
+        %|  p.qer
+        %&  q.p.qer
+      ==
+    =/  rez=result:l
+      ?.  ?=(%valid-jam -.qes)  +.res
+      ?>  ?=(%valid +<.res)
+      [%valid-jam & valid.res]
+    ::TODO  mark result for deletion after time?
+    :_  this(queries (~(put by queries) nonce.res [%& qes rez]))
     =/  upd=update:l  [%query res]  ::TODO  different?
     [%give %fact ~[/ /query /query/(scot %uv nonce.res)] %lanyard-update !>(upd)]~
   ==
@@ -296,11 +309,17 @@
     ::  query failed
     ::
     =/  nonce=@  (slav %uv i.t.wire)
-    ?.  (~(has by queries) nonce)
+    ?~  qer=(~(get by queries) nonce)
       ~&  [dap.bowl %strange-disappeared-query nonce]
       [~ this]
-    :_  this(queries (~(del by queries) nonce))
-    =/  upd=update:l  [%query nonce %fail]  ::TODO  different?
+    =/  qes
+      ?-  -.u.qer
+        %|  p.u.qer
+        %&  q.p.u.qer
+      ==
+    ::TODO  mark result for deletion after time?
+    :_  this(queries (~(put by queries) nonce &+[qes %fail 'poke nacked']))
+    =/  upd=update:l  [%query nonce %fail 'poke nacked']  ::TODO  different?
     [%give %fact ~[/ /query /query/[i.t.wire]] %lanyard-update !>(upd)]~
   ::
       [%contacts %set ~]
