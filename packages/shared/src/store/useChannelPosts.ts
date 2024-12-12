@@ -12,6 +12,7 @@ import {
   useLiveRef,
   useOptimizedQueryResults,
 } from '../logic/utilHooks';
+import { useChannelUnconfirmedPosts } from './dbHooks';
 import { queryClient } from './reactQuery';
 import { useCurrentSession } from './session';
 import * as sync from './sync';
@@ -154,7 +155,10 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
   );
   useSubscriptionPostListener(handleNewPost);
 
-  const rawPosts = useMemo<db.Post[] | null>(() => {
+  const unconfirmedPostsQuery = useChannelUnconfirmedPosts({
+    channelId: options.channelId,
+  });
+  const rawPostsWithNewPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
     if (!newPosts.length || query.hasPreviousPage) {
       return queryPosts;
@@ -176,6 +180,30 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       ) ?? [];
     return newestQueryPostId ? [...newerPosts, ...dedupedQueryPosts] : newPosts;
   }, [query.data, query.hasPreviousPage, newPosts]);
+
+  const rawPosts = useMemo(() => {
+    const out = [...(rawPostsWithNewPosts ?? [])];
+
+    // bubble-insert unconfirmed posts
+    const unconfirmedPosts = [...(unconfirmedPostsQuery.data ?? [])].sort(
+      (a, b) => b.sentAt - a.sentAt
+    );
+    for (const p of unconfirmedPosts) {
+      // skip if we already have this post
+      if (out.some((qp) => qp.id === p.id)) {
+        continue;
+      }
+
+      const insertIdx = out.findIndex((qp) => qp.sentAt <= p.sentAt);
+      if (insertIdx === -1) {
+        out.push(p);
+      } else {
+        out.splice(insertIdx, 0, p);
+      }
+    }
+
+    return out;
+  }, [rawPostsWithNewPosts, unconfirmedPostsQuery.data]);
 
   const posts = useOptimizedQueryResults(rawPosts);
 
@@ -244,9 +272,9 @@ function useRefreshPosts(channelId: string, posts: db.Post[] | null) {
     const toSync =
       posts?.filter(
         (post) =>
-          session &&
+          // consider unconfirmed posts as stale
           (post.syncedAt == null ||
-            post.syncedAt < (session?.startTime ?? 0)) &&
+            (session && post.syncedAt < (session?.startTime ?? 0))) &&
           !pendingStalePosts.current.has(post.id)
       ) || [];
 
