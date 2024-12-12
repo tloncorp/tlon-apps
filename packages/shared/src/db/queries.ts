@@ -1909,21 +1909,31 @@ export const getChannelPosts = createReadQuery(
       volumeSettings: true,
     } as const;
 
+    const inWindowOrUnconfirmed = or(
+      // In the target window
+      and(
+        gte($posts.id, window.oldestPostId),
+        lte($posts.id, window.newestPostId)
+      ),
+      // ... or an unconfirmed post (which we always show)
+      isNull($posts.syncedAt)
+    );
+
     if (mode === 'newer' || mode === 'newest' || mode === 'older') {
       // Simple case: just grab a set of posts from either side of the cursor.
       const posts = await ctx.db.query.posts.findMany({
         where: and(
-          // From this channel
-          eq($posts.channelId, channelId),
-          // Not a reply
-          not(eq($posts.type, 'reply')),
-          // In the target window
-          gte($posts.id, window.oldestPostId),
-          lte($posts.id, window.newestPostId),
-          // Depending on mode, either older or newer than cursor. If mode is
-          // `newest`, we don't need to filter by cursor.
-          cursor && mode === 'older' ? lt($posts.id, cursor) : undefined,
-          cursor && mode === 'newer' ? gt($posts.id, cursor) : undefined
+          and(
+            // From this channel
+            eq($posts.channelId, channelId),
+            // Not a reply
+            not(eq($posts.type, 'reply')),
+            // Depending on mode, either older or newer than cursor. If mode is
+            // `newest`, we don't need to filter by cursor.
+            cursor && mode === 'older' ? lt($posts.id, cursor) : undefined,
+            cursor && mode === 'newer' ? gt($posts.id, cursor) : undefined
+          ),
+          inWindowOrUnconfirmed
         ),
         with: relationConfig,
         // If newer, we have to ensure that these are the newer posts directly following the cursor
@@ -1959,10 +1969,8 @@ export const getChannelPosts = createReadQuery(
         .from($posts)
         .where(
           and(
-            eq($posts.channelId, channelId),
-            not(eq($posts.type, 'reply')),
-            gte($posts.id, window.oldestPostId),
-            lte($posts.id, window.newestPostId)
+            and(eq($posts.channelId, channelId), not(eq($posts.type, 'reply'))),
+            inWindowOrUnconfirmed
           )
         )
         .as('posts');
