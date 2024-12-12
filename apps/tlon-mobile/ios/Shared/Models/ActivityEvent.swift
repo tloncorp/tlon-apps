@@ -191,10 +191,9 @@ struct ActivityEvent {
   
   /// A reference to the accompanying blocks, indexed at 0
   // MARK: - Ship
-  struct Ship: Codable {
+  struct InlineContent: Codable {
     let ship: String?
     let italics, bold, strike: [Inline]?
-    let shipBreak: JSONNull?
     let inlineCode, code: String?
     let blockquote: [Inline]?
     let block: BlockClass?
@@ -204,24 +203,36 @@ struct ActivityEvent {
     
     enum CodingKeys: String, CodingKey {
       case ship, italics, bold, strike
-      case shipBreak = "break"
       case inlineCode = "inline-code"
       case code, blockquote, block, tag, link, task
     }
   }
   
+  struct InlineLinebreak: Codable {
+    let linebreak: JSONNull
+    
+    enum CodingKeys: String, CodingKey {
+      case linebreak = "break"
+    }
+  }
+  
   enum Inline: Codable {
-    case ship(Ship)
-    case string(String)
+    case content(InlineContent)
+    case linebreak(InlineLinebreak)
+    case literal(String)
     
     init(from decoder: Decoder) throws {
       let container = try decoder.singleValueContainer()
       if let x = try? container.decode(String.self) {
-        self = .string(x)
+        self = .literal(x)
         return
       }
-      if let x = try? container.decode(Ship.self) {
-        self = .ship(x)
+      if let x = try? container.decode(InlineLinebreak.self) {
+        self = .linebreak(x)
+        return
+      }
+      if let x = try? container.decode(InlineContent.self) {
+        self = .content(x)
         return
       }
       throw DecodingError.typeMismatch(Inline.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for Inline"))
@@ -230,9 +241,11 @@ struct ActivityEvent {
     func encode(to encoder: Encoder) throws {
       var container = encoder.singleValueContainer()
       switch self {
-      case .ship(let x):
+      case .content(let x):
         try container.encode(x)
-      case .string(let x):
+      case .linebreak(let x):
+        try container.encode(x)
+      case .literal(let x):
         try container.encode(x)
       }
     }
