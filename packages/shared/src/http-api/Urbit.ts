@@ -1,4 +1,4 @@
-import { formatUw, patp2dec } from '@urbit/aura';
+import { formatUw, patp2bn, patp2dec } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
 import { isBrowser } from 'browser-or-node';
 
@@ -674,7 +674,10 @@ export class Urbit {
     this.outstandingPokes.set(eventId, params);
 
     if (isNoun(noun)) {
-      const shipAtom = Atom.fromString(patp2dec(ship as string), 10);
+      // const shipAtom = Atom.fromString(patp2dec(ship as string), 10);
+      // ^ that's what was there, but seemed to fail?
+      const shipNum = patp2bn(`~${ship}`);
+      const shipAtom = new Atom(shipNum);
       // [%poke request-id=@ud ship=@p app=term mark=@tas =noun]
       const non = ['poke', eventId, shipAtom, app, mark, noun];
       await this.sendNounsToChannel(non);
