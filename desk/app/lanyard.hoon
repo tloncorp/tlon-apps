@@ -1,4 +1,4 @@
-::  pasaporte: verification service client
+::  lanyard: verification service client
 ::
 ::    xx overview
 ::    remembers state concerning ourselves and
@@ -17,13 +17,13 @@
 ::
 =>
 |%
-++  default  ~zod  ::TODO
+++  default  ~mapryl-bolnub-palfun-foslup  ::TODO
 +$  state-0
   $:  %0
       records=(map [h=@p id=identifier] id-state)  ::  ours
       provers=(map identifier @p)                  ::  from  ::TODO  unused
       ledgers=(map @p (unit @t))                   ::  services w/ base urls
-      queries=(map @ _+:*user-query)               ::  asked  ::TODO  response timestamps?
+      queries=(map @uv (each [q=question:l a=result:l] question:l))  ::  asked
   ==
 +$  card     card:agent:gall
 ::
@@ -137,7 +137,7 @@
       %lanyard-command
     =+  !<(cmd=command:l vase)
     =/  host=@p
-      ?~(-.cmd default host.u.cmd)
+      ?~(host.cmd default u.host.cmd)
     =/  key
       :-  host
       ?-(+<.cmd ?(%start %revoke) id.cmd, ?(%config %work) id.cmd)
@@ -174,19 +174,78 @@
       %lanyard-query
     =+  !<(qer=query:l vase)
     =/  [host=@p nonce=@]
-      :-  ?~(-.qer default host.u.qer)
+      :-  ?~(host.qer default u.host.qer)
+      ?^  nonce.qer  u.nonce.qer
       =+  non=(end 6 eny.bowl)
       |-(?:((~(has by queries) non) $(non +(non)) non))
     ?<  (~(has by queries) nonce)
-    :_  this(queries (~(put by queries) nonce +.qer))
-    =/  =cage
-      [%verifier-query !>(`user-query`[[dap.bowl nonce] +.qer])]
-    [%pass /query/(scot %uv nonce) %agent [host %verifier] %poke cage]~
+    ?.  ?=(%valid-jam -.query.qer)
+      :_  this(queries (~(put by queries) nonce [%| query.qer]))
+      ::TODO  time out query responses?
+      =/  =cage
+        [%verifier-query !>(`user-query`[[dap.bowl nonce] query.qer])]
+      [%pass /query/(scot %uv nonce) %agent [host %verifier] %poke cage]~
+    ::  handle %valid-jam queries locally first, we should be able to say
+    ::  something about the signature without going over the network.
+    ::
+    ::TODO  should this check for expected kind/id too?
+    ::      otherwise you could inject any valid signature and it'd
+    ::      show up as "yes legit", despite not matching what it was
+    ::      displayed as...
+    ::      but that (like the cue & soft) is something the client could check..
+    ::
+    ::  valid: if we know, validity of the signature
+    ::  sig:   the signature being validated. if ~, valid is always |.
+    ::
+    =/  [valid=(unit ?) sig=(unit @ux)]
+      =/  sign=(unit (urbit-signature))
+        %+  biff
+          (mole |.((cue +.query.qer)))
+        (soft (urbit-signature ?(half-sign-data-0 full-sign-data-0)))
+      ?~  sign  [`| ~]
+      :_  `sig.u.sign
+      ::  if we don't know the current life of the signer,
+      ::  or the life used to sign is beyond what we know,
+      ::  we can't validate locally.
+      ::
+      =+  .^(lyf=(unit life) %j /(scot %p our.bowl)/lyfe/(scot %da now.bowl)/(scot %p who.u.sign))
+      ?~  |(?=(~ lyf) (gth lyf.u.sign u.lyf))
+        ~
+      ::  jael should have the pubkey. get it and validate.
+      ::
+      =+  .^([life =pass (unit @ux)] %j /(scot %p our.bowl)/deed/(scot %da now.bowl)/(scot %p who.u.sign)/(scot %ud lyf.u.sign))
+      `(safe:as:(com:nu:crub:crypto pass) sig.u.sign (jam dat.u.sign))
+    =.  queries
+      %+  ~(put by queries)  nonce
+      ?~  valid  [%| query.qer]
+      [%& query.qer %valid-jam u.valid]
+    :_  this
+    =*  give
+      =/  upd=update:l  [%query nonce %valid-jam (need valid)]
+      [%give %fact ~[/ /query /query/(scot %uv nonce)] %lanyard-update !>(upd)]
+    =*  ask
+      =/  =cage
+        [%verifier-query !>(`user-query`[[dap.bowl nonce] %valid u.sig])]
+      [%pass /query/(scot %uv nonce) %agent [host %verifier] %poke cage]
+    ?~  sig      [give]~  ::  can't ask, give our result
+    ?~  valid    [ask]~   ::  don't know, defer to service
+    ?.  u.valid  [give]~  ::  invalid, no need to ask further
+    ~[ask give]           ::  valid, give intermediate result and ask service
   ::
       %verifier-result
     =+  !<(res=query-result vase)
-    ?>  (~(has by queries) nonce.res)
-    :_  this(queries (~(del by queries) nonce.res))
+    =/  qer  (~(got by queries) nonce.res)
+    =/  qes
+      ?-  -.qer
+        %|  p.qer
+        %&  q.p.qer
+      ==
+    =/  rez=result:l
+      ?.  ?=(%valid-jam -.qes)  +.res
+      ?>  ?=(%valid +<.res)
+      [%valid-jam & valid.res]
+    ::TODO  mark result for deletion after time?
+    :_  this(queries (~(put by queries) nonce.res [%& qes rez]))
     =/  upd=update:l  [%query res]  ::TODO  different?
     [%give %fact ~[/ /query /query/(scot %uv nonce.res)] %lanyard-update !>(upd)]~
   ==
@@ -296,11 +355,17 @@
     ::  query failed
     ::
     =/  nonce=@  (slav %uv i.t.wire)
-    ?.  (~(has by queries) nonce)
+    ?~  qer=(~(get by queries) nonce)
       ~&  [dap.bowl %strange-disappeared-query nonce]
       [~ this]
-    :_  this(queries (~(del by queries) nonce))
-    =/  upd=update:l  [%query nonce %fail]  ::TODO  different?
+    =/  qes
+      ?-  -.u.qer
+        %|  p.u.qer
+        %&  q.p.u.qer
+      ==
+    ::TODO  mark result for deletion after time?
+    :_  this(queries (~(put by queries) nonce &+[qes %fail 'poke nacked']))
+    =/  upd=update:l  [%query nonce %fail 'poke nacked']  ::TODO  different?
     [%give %fact ~[/ /query /query/[i.t.wire]] %lanyard-update !>(upd)]~
   ::
       [%contacts %set ~]
@@ -326,6 +391,20 @@
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
     [%records ~]  ``noun+!>(records)
+  ::
+      [%record ?([@ @ ~] [@ @ @ ~])]
+    =;  key=[@p identifier]
+      ``noun+!>((~(got by records) key))
+    :-  ?:(?=([@ @ ~] t.path) default (slav %p i.t.path))
+    =/  dip  ?:(?=([@ @ ~] t.path) t.path t.t.path)
+    ?+  dip  !!
+      [%dummy @ ~]  [-.dip (slav %t +<.dip)]
+      [%urbit @ ~]  [-.dip (slav %p +<.dip)]
+      [%phone @ ~]  [-.dip (slav %t +<.dip)]
+    ==
+  ::
+    [%queries ~]    ``noun+!>(queries)
+    [%queries @ ~]  ``noun+!>((~(got by queries) (slav %uv i.t.path)))
   ==
 ::
 ++  on-leave  |=(* `this)

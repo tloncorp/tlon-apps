@@ -372,6 +372,13 @@
 ++  on-agent
   |=  [=wire =sign:agent:gall]
   ^-  (quip card _this)
+  ?:  =(/query/result wire)
+    ::  we don't care whether they ack the query response poke or not,
+    ::  we did what we had to, everything else is up to them.
+    ::
+    [~ this]
+  ~&  [dap.bowl %on-agent-strange-wire wire]
+  ~|  wire
   !!
 ::
 ++  on-arvo
@@ -417,8 +424,8 @@
       ::TODO  and log
       :-  [(give-status for.u.rec id %gone)]~
       this(records (~(del by records) id))
-    ::TODO  handle %cancel (and %progress?)
-    ::      for cancel, should just retry? or for %submit, set status to %want again?
+    ::TODO  handle %cancel. retry! or for %submit, set status to %want again?
+    ::TODO  what about %progress?
     ?>  ?=(%finished -.res)
     =*  cod  status-code.response-header.res
     =/  jon=json
