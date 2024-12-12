@@ -131,6 +131,8 @@ export default function useNotificationListener() {
   const [notifToProcess, setNotifToProcess] =
     useState<WerNotificationData | null>(null);
 
+  const handoffDataFrom = useHandoffNotificationData();
+
   // Start notifications prompt
   useEffect(() => {
     connectNotifications();
@@ -141,6 +143,8 @@ export default function useNotificationListener() {
     // This only seems to get triggered on iOS. Android handles the tap and other intents in native code.
     const notificationTapListener = addNotificationResponseReceivedListener(
       (response) => {
+        handoffDataFrom([response.notification]);
+
         const data = payloadFromNotification(response.notification);
 
         // If the NSE caught an error, it puts it in a list under
@@ -186,7 +190,7 @@ export default function useNotificationListener() {
       // Clean up listeners
       notificationTapListener.remove();
     };
-  }, [navigation, isTlonEmployee]);
+  }, [navigation, isTlonEmployee, handoffDataFrom]);
 
   // If notification tapped, push channel on stack
   useEffect(() => {
@@ -276,10 +280,11 @@ export default function useNotificationListener() {
       })();
     }
   }, [notifToProcess, navigation, isTlonEmployee, channelSwitcherEnabled]);
+}
 
-  const slurpHandoffs = useCallback(async () => {
-    const presentedNotifications = await getPresentedNotificationsAsync();
-    const handoffPosts = presentedNotifications.flatMap((notification) => {
+function useHandoffNotificationData() {
+  const handoffDataFrom = useCallback(async (notifications: Notification[]) => {
+    const handoffPosts = notifications.flatMap((notification) => {
       const data = payloadFromNotification(notification);
       if (data == null || data.type === 'unrecognized' || data.post == null) {
         return [];
@@ -294,19 +299,29 @@ export default function useNotificationListener() {
     }
   }, []);
 
+  // take data from presented notifications
+  const handoffFromPresentedNotifications = useCallback(async () => {
+    handoffDataFrom(await getPresentedNotificationsAsync());
+  }, [handoffDataFrom]);
+
+  // take data on launch
   useEffect(() => {
-    slurpHandoffs().catch((e) => {
+    handoffFromPresentedNotifications().catch((e) => {
       logger.error('Failed to slurp handoffs:', e);
     });
-  }, [slurpHandoffs]);
+  }, [handoffFromPresentedNotifications]);
 
+  // take data on each app resume
   useAppStatusChange(
-    useCallback(async (status) => {
-      console.log('App status changed:', status);
-      if (status !== 'active') {
-        return;
-      }
-      await slurpHandoffs();
-    }, [])
+    useCallback(
+      async (status) => {
+        if (status === 'active') {
+          await handoffFromPresentedNotifications();
+        }
+      },
+      [handoffFromPresentedNotifications]
+    )
   );
+
+  return handoffDataFrom;
 }
