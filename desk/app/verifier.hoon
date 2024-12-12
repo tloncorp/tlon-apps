@@ -372,6 +372,13 @@
 ++  on-agent
   |=  [=wire =sign:agent:gall]
   ^-  (quip card _this)
+  ?:  =(/query/result wire)
+    ::  we don't care whether they ack the query response poke or not,
+    ::  we did what we had to, everything else is up to them.
+    ::
+    [~ this]
+  ~&  [dap.bowl %on-agent-strange-wire wire]
+  ~|  wire
   !!
 ::
 ++  on-arvo
