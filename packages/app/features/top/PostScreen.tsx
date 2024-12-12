@@ -15,6 +15,7 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
+import { useNavigateToChannel } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
 
@@ -139,6 +140,16 @@ export default function PostScreen(props: Props) {
     [props.navigation]
   );
 
+  const navigateToChannel = useNavigateToChannel();
+  const handleGoBack = useCallback(() => {
+    if (!channel) {
+      props.navigation.goBack();
+      return;
+    }
+    // This allows us to navigate to and highlight the message in the scroller
+    navigateToChannel(channel, postId);
+  }, [channel, navigateToChannel, postId, props.navigation]);
+
   const chatOptionsNavProps = useChatSettingsNavigation();
 
   return currentUserId && channel && post ? (
@@ -151,7 +162,7 @@ export default function PostScreen(props: Props) {
         isLoadingPosts={isLoadingPosts}
         channel={channel}
         initialThreadUnread={initialThreadUnread}
-        goBack={props.navigation.goBack}
+        goBack={handleGoBack}
         sendReply={sendReply}
         groupMembers={group?.members ?? []}
         uploadAsset={store.uploadAsset}

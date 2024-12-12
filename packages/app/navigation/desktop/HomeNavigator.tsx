@@ -65,6 +65,28 @@ function DrawerContent(props: DrawerContentComponentProps) {
       );
     }
     return <GroupChannelsScreenContent groupId={focusedRoute.params.groupId} />;
+  } else if (
+    // This accounts for the case where we've navigated to a screen within the ChannelSack.
+    focusedRoute.params &&
+    'params' in focusedRoute.params &&
+    focusedRoute.params.params &&
+    'groupId' in focusedRoute.params.params &&
+    focusedRoute.params.params.groupId
+  ) {
+    if ('channelId' in focusedRoute.params.params) {
+      return (
+        <GroupChannelsScreenContent
+          groupId={focusedRoute.params.params.groupId}
+          focusedChannelId={focusedRoute.params.params.channelId}
+        />
+      );
+    }
+    return (
+      <GroupChannelsScreenContent
+        // @ts-expect-error - groupId is guaranteed to be in focusedRoute.
+        groupId={focusedRoute.params.params.groupId}
+      />
+    );
   } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
     return (
       <ChatListScreenView focusedChannelId={focusedRoute.params.channelId} />
@@ -106,15 +128,25 @@ const ChannelStackNavigator = createNativeStackNavigator();
 function ChannelStack(
   props: NativeStackScreenProps<HomeDrawerParamList, 'Channel'>
 ) {
+  const navKey = () => {
+    if ('channelId' in props.route.params) {
+      return props.route.params.channelId;
+    }
+    if (props.route.params.params && 'channelId' in props.route.params.params) {
+      return props.route.params.params.channelId;
+    }
+
+    return 'none';
+  };
+
   return (
     <ChannelStackNavigator.Navigator
       screenOptions={{
         headerShown: false,
       }}
+      initialRouteName="ChannelRoot"
     >
-      <ChannelStackNavigator.Group
-        navigationKey={props.route.params.channelId ?? 'none'}
-      >
+      <ChannelStackNavigator.Group navigationKey={navKey()}>
         <ChannelStackNavigator.Screen
           name="ChannelRoot"
           component={ChannelScreen}
@@ -128,7 +160,11 @@ function ChannelStack(
           name="ChannelSearch"
           component={ChannelSearchScreen}
         />
-        <ChannelStackNavigator.Screen name="Post" component={PostScreen} />
+        <ChannelStackNavigator.Screen
+          name="Post"
+          component={PostScreen}
+          initialParams={props.route.params}
+        />
         <ChannelStackNavigator.Screen
           name="ImageViewer"
           component={ImageViewerScreen}

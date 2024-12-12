@@ -4,21 +4,17 @@ import { CreateGroupView } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import type { RootStackParamList } from '../../navigation/types';
+import { useNavigateToChannel } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
 
 export function CreateGroupScreen(props: Props) {
+  const navigateToChannel = useNavigateToChannel();
   const handleGoToChannel = useCallback(
     (channel: db.Channel) => {
-      props.navigation.reset({
-        index: 1,
-        routes: [
-          { name: 'ChatList' },
-          { name: 'Channel', params: { channelId: channel.id } },
-        ],
-      });
+      navigateToChannel(channel);
     },
-    [props.navigation]
+    [navigateToChannel]
   );
 
   return (

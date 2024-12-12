@@ -5,6 +5,7 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { RootStackParamList } from '../navigation/types';
+import { useNavigateToChannel, useNavigateToPost } from '../navigation/utils';
 
 export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
   const channelQuery = store.useChannel({
@@ -16,16 +17,8 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
       NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
     >();
 
-  const navigateToPost = useCallback(
-    (post: db.Post) => {
-      navigation.push('Post', {
-        postId: post.id,
-        channelId,
-        authorId: post.authorId,
-      });
-    },
-    [channelId, navigation]
-  );
+  const navigateToPost = useNavigateToPost();
+  const navigateToChannel = useNavigateToChannel();
 
   const navigateToRef = useCallback(
     (channel: db.Channel, post: db.Post) => {
@@ -35,13 +28,10 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
           selectedPostId: post.id,
         });
       } else {
-        navigation.replace('Channel', {
-          channelId: channel.id,
-          selectedPostId: post.id,
-        });
+        navigateToChannel(channel, post.id);
       }
     },
-    [navigation, channelId]
+    [navigation, channelId, navigateToChannel]
   );
 
   const navigateToImage = useCallback(
