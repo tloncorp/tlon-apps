@@ -5,8 +5,6 @@
   $:  records=(map identifier record)
       owners=(jug ship identifier)
       attested=(map @ux identifier)
-      ::TODO  need attestation for [@p id-kind], for profile exposing
-      ::TODO  (map identifier host-work) ? or would that be only for %dummy?
       ::NOTE  basic auth only for staging
       phone-api=[base=@t key=@t basic=(unit [user=@t pass=@t])]
       domain=(unit @t)  ::  as 'https://example.org:123'
@@ -15,7 +13,7 @@
 +$  identifier
   $%  [%dummy @t]
       [%urbit @p]
-      [%phone @t]
+      [%phone @t]  ::  normalized phone nr, a la +31612345678
   ==
 +$  id-kind  ?(%dummy %urbit %phone)
 ::
@@ -43,8 +41,8 @@
   ==
 ::
 +$  attestation
-  $:  when=@da
-      proof=(unit proof)  ::TODO  set?
+  $:  when=@da  ::TODO  redundant with signs?
+      proof=(unit proof)  ::TODO  set?  ::TODO  redundant with full-sign?
       half-sign=(urbit-signature half-sign-data-0)
       full-sign=(urbit-signature full-sign-data-0)
   ==
@@ -88,7 +86,7 @@
 ::
 +$  update
   $%  [%full all=(map identifier id-state)]
-      [%status id=identifier status=?(%gone status)]
+      [%status id=identifier status=?(%gone status)]  ::TODO  %gone w/ msg
       [%config id=identifier =config]
       [%endpoint base=(unit @t)]
   ==

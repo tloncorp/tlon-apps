@@ -1,4 +1,4 @@
-::  pasaporte: verification service client
+::  lanyard: verification service client
 ::
 ::    xx overview
 ::    remembers state concerning ourselves and

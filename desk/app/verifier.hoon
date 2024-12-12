@@ -424,8 +424,8 @@
       ::TODO  and log
       :-  [(give-status for.u.rec id %gone)]~
       this(records (~(del by records) id))
-    ::TODO  handle %cancel (and %progress?)
-    ::      for cancel, should just retry? or for %submit, set status to %want again?
+    ::TODO  handle %cancel. retry! or for %submit, set status to %want again?
+    ::TODO  what about %progress?
     ?>  ?=(%finished -.res)
     =*  cod  status-code.response-header.res
     =/  jon=json
