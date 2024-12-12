@@ -88,7 +88,7 @@ export function MetaEditorScreenView({
             paddingBottom: insets.bottom,
           }}
         >
-          <FormFrame paddingBottom={insets.bottom} flex={1}>
+          <FormFrame paddingBottom={'$2xl'} flex={1}>
             <ControlledTextField
               name="title"
               label="Name"
