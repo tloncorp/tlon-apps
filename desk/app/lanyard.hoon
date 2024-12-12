@@ -179,12 +179,58 @@
       =+  non=(end 6 eny.bowl)
       |-(?:((~(has by queries) non) $(non +(non)) non))
     ?<  (~(has by queries) nonce)
-    ::TODO  handle %valid-jam locally first
-    :_  this(queries (~(put by queries) nonce [%| query.qer]))
-    ::TODO  time out query responses?
-    =/  =cage
-      [%verifier-query !>(`user-query`[[dap.bowl nonce] query.qer])]
-    [%pass /query/(scot %uv nonce) %agent [host %verifier] %poke cage]~
+    ?.  ?=(%valid-jam -.query.qer)
+      :_  this(queries (~(put by queries) nonce [%| query.qer]))
+      ::TODO  time out query responses?
+      =/  =cage
+        [%verifier-query !>(`user-query`[[dap.bowl nonce] query.qer])]
+      [%pass /query/(scot %uv nonce) %agent [host %verifier] %poke cage]~
+    ::  handle %valid-jam queries locally first, we should be able to say
+    ::  something about the signature without going over the network.
+    ::
+    ::TODO  should this check for expected kind/id too?
+    ::      otherwise you could inject any valid signature and it'd
+    ::      show up as "yes legit", despite not matching what it was
+    ::      displayed as...
+    ::      but that (like the cue & soft) is something the client could check..
+    ::
+    ::  valid: if we know, validity of the signature
+    ::  sig:   the signature being validated. if ~, valid is always |.
+    ::
+    =/  [valid=(unit ?) sig=(unit @ux)]
+      =/  sign=(unit (urbit-signature))
+        %+  biff
+          (mole |.((cue +.query.qer)))
+        (soft (urbit-signature ?(half-sign-data-0 full-sign-data-0)))
+      ?~  sign  [`| ~]
+      :_  `sig.u.sign
+      ::  if we don't know the current life of the signer,
+      ::  or the life used to sign is beyond what we know,
+      ::  we can't validate locally.
+      ::
+      =+  .^(lyf=(unit life) %j /(scot %p our.bowl)/lyfe/(scot %da now.bowl)/(scot %p who.u.sign))
+      ?~  |(?=(~ lyf) (gth lyf.u.sign u.lyf))
+        ~
+      ::  jael should have the pubkey. get it and validate.
+      ::
+      =+  .^([life =pass (unit @ux)] %j /(scot %p our.bowl)/deed/(scot %da now.bowl)/(scot %p who.u.sign)/(scot %ud lyf.u.sign))
+      `(safe:as:(com:nu:crub:crypto pass) sig.u.sign (jam dat.u.sign))
+    =.  queries
+      %+  ~(put by queries)  nonce
+      ?~  valid  [%| query.qer]
+      [%& query.qer %valid-jam u.valid]
+    :_  this
+    =*  give
+      =/  upd=update:l  [%query nonce %valid-jam (need valid)]
+      [%give %fact ~[/ /query /query/(scot %uv nonce)] %lanyard-update !>(upd)]
+    =*  ask
+      =/  =cage
+        [%verifier-query !>(`user-query`[[dap.bowl nonce] %valid u.sig])]
+      [%pass /query/(scot %uv nonce) %agent [host %verifier] %poke cage]
+    ?~  sig      [give]~  ::  can't ask, give our result
+    ?~  valid    [ask]~   ::  don't know, defer to service
+    ?.  u.valid  [give]~  ::  invalid, no need to ask further
+    ~[ask give]           ::  valid, give intermediate result and ask service
   ::
       %verifier-result
     =+  !<(res=query-result vase)
