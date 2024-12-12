@@ -2224,6 +2224,42 @@ export const insertUnconfirmedPosts = createWriteQuery(
 );
 
 async function insertPosts(posts: Post[], ctx: QueryCtx) {
+  // HACK: I can't get onConflictDoUpdate to work - manually manage conflicts.
+  await (async () => {
+    const existing = await ctx.db.query.posts.findMany({
+      where: inArray(
+        $posts.id,
+        posts.map((p) => p.id)
+      ),
+    });
+    if (existing.length === 0) {
+      return;
+    }
+    const replace: typeof posts = [];
+    for (const x of existing) {
+      // Skip insert if we already have a confirmed post and the insert is unconfirmed
+      // (iow: we want to update unconfirmed posts with confirmed or
+      // unconfirmed updates; we want to update confirmed posts only with
+      // confirmed updates)
+      if (x.syncedAt != null) {
+        const toInsertIdx = posts.findIndex((p) => p.id === x.id);
+        if (toInsertIdx !== -1 && posts[toInsertIdx].syncedAt == null) {
+          posts.splice(toInsertIdx, 1);
+        }
+      } else {
+        replace.push(x);
+      }
+    }
+
+    // Manually delete existing posts that we'll replace.
+    await ctx.db.delete($posts).where(
+      inArray(
+        $posts.id,
+        replace.map((p) => p.id)
+      )
+    );
+  })();
+
   await ctx.db
     .insert($posts)
     .values(
