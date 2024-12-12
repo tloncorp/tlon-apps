@@ -389,6 +389,9 @@
 ++  on-peek
   |=  =path
   ^-  (unit (unit cage))
+  =.  path
+    ?>  ?=([%x *] path)
+    t.path
   ?+  path  [~ ~]
     [%records ~]  ``noun+!>(records)
   ::
