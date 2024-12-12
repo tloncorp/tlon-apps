@@ -1902,6 +1902,34 @@ export const getChannelPosts = createReadQuery(
     { channelId, cursor, mode, count = 50 }: GetChannelPostsOptions,
     ctx: QueryCtx
   ): Promise<Post[]> => {
+    /** We'll only fetch posts in the window containing this post.
+     *
+     * Why not just use `cursor`? Because `cursor` may be an unconfirmed post,
+     * which will not be in an explicit window, and thus we'd only show the
+     * single post until more posts loaded.
+     * In that case, we want to move to the closest confirmed window. */
+    const windowPost = await (async () => {
+      if (cursor == null) {
+        return null;
+      }
+      const cursorPost = await ctx.db.query.posts.findFirst({
+        where: eq($posts.id, cursor),
+      });
+      if (cursorPost == null || cursorPost.syncedAt != null) {
+        return cursorPost;
+      }
+
+      // `cursorPost` is unconfirmed; its window won't have many (any) more posts.
+      // Use the next less-recent confirmed post instead.
+      return await ctx.db.query.posts.findFirst({
+        where: and(
+          eq($posts.channelId, channelId),
+          lte($posts.id, cursor),
+          isNotNull($posts.syncedAt) // i.e. post is confirmed
+        ),
+      });
+    })();
+
     // Find the window (set of contiguous posts) that this cursor belongs to.
     // These are the posts that we can return safely without gaps and without hitting the api.
     const window = await ctx.db.query.postWindows.findFirst({
@@ -1910,8 +1938,8 @@ export const getChannelPosts = createReadQuery(
         eq($postWindows.channelId, channelId),
         // Depending on mode, either older or newer than cursor. If mode is
         // `newest`, we don't need to filter by cursor.
-        cursor ? gte($postWindows.newestPostId, cursor) : undefined,
-        cursor ? lte($postWindows.oldestPostId, cursor) : undefined
+        windowPost ? gte($postWindows.newestPostId, windowPost.id) : undefined,
+        windowPost ? lte($postWindows.oldestPostId, windowPost.id) : undefined
       ),
       orderBy: [desc($postWindows.newestPostId)],
       columns: {
@@ -1931,31 +1959,24 @@ export const getChannelPosts = createReadQuery(
       volumeSettings: true,
     } as const;
 
-    const inWindowOrUnconfirmed = or(
-      // In the target window
-      and(
-        gte($posts.id, window.oldestPostId),
-        lte($posts.id, window.newestPostId)
-      ),
-      // ... or an unconfirmed post (which we always show)
-      isNull($posts.syncedAt)
-    );
+    const isPostConfirmed = isNotNull($posts.syncedAt);
 
     if (mode === 'newer' || mode === 'newest' || mode === 'older') {
       // Simple case: just grab a set of posts from either side of the cursor.
       const posts = await ctx.db.query.posts.findMany({
         where: and(
-          and(
-            // From this channel
-            eq($posts.channelId, channelId),
-            // Not a reply
-            not(eq($posts.type, 'reply')),
-            // Depending on mode, either older or newer than cursor. If mode is
-            // `newest`, we don't need to filter by cursor.
-            cursor && mode === 'older' ? lt($posts.id, cursor) : undefined,
-            cursor && mode === 'newer' ? gt($posts.id, cursor) : undefined
-          ),
-          inWindowOrUnconfirmed
+          // From this channel
+          eq($posts.channelId, channelId),
+          // Not a reply
+          not(eq($posts.type, 'reply')),
+          // In the target window
+          gte($posts.id, window.oldestPostId),
+          lte($posts.id, window.newestPostId),
+          // Depending on mode, either older or newer than cursor. If mode is
+          // `newest`, we don't need to filter by cursor.
+          cursor && mode === 'older' ? lt($posts.id, cursor) : undefined,
+          cursor && mode === 'newer' ? gt($posts.id, cursor) : undefined,
+          isPostConfirmed
         ),
         with: relationConfig,
         // If newer, we have to ensure that these are the newer posts directly following the cursor
@@ -1991,8 +2012,11 @@ export const getChannelPosts = createReadQuery(
         .from($posts)
         .where(
           and(
-            and(eq($posts.channelId, channelId), not(eq($posts.type, 'reply'))),
-            inWindowOrUnconfirmed
+            eq($posts.channelId, channelId),
+            not(eq($posts.type, 'reply')),
+            gte($posts.id, window.oldestPostId),
+            lte($posts.id, window.newestPostId),
+            isPostConfirmed
           )
         )
         .as('posts');
@@ -2032,7 +2056,8 @@ export const getChannelPosts = createReadQuery(
             .where(
               and(
                 gte($windowQuery.rowNumber, startRow),
-                lte($windowQuery.rowNumber, endRow)
+                lte($windowQuery.rowNumber, endRow),
+                isPostConfirmed
               )
             )
         ),
