@@ -182,19 +182,16 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
   }, [query.data, query.hasPreviousPage, newPosts]);
 
   const rawPosts = useMemo(() => {
+    // bubble-insert unconfirmed posts
     const out = [...(rawPostsWithNewPosts ?? [])];
 
-    // bubble-insert unconfirmed posts
-    const unconfirmedPosts = [...(unconfirmedPostsQuery.data ?? [])].sort(
-      (a, b) => b.sentAt - a.sentAt
-    );
-    for (const p of unconfirmedPosts) {
+    for (const p of unconfirmedPostsQuery.data ?? []) {
       // skip if we already have this post
       if (out.some((qp) => qp.id === p.id)) {
         continue;
       }
 
-      const insertIdx = out.findIndex((qp) => qp.sentAt <= p.sentAt);
+      const insertIdx = out.findIndex((x) => x.sentAt <= p.sentAt);
       if (insertIdx === -1) {
         out.push(p);
       } else {
