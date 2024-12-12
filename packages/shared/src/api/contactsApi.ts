@@ -1,5 +1,4 @@
-import { daToUnix, formatDa, parseDa } from '@urbit/aura';
-import bigInt from 'big-integer';
+import { daToUnix, parseDa } from '@urbit/aura';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
