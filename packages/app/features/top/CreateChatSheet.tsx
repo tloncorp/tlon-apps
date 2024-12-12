@@ -165,6 +165,14 @@ export function CreateChatInviteSheet({
 
   const insets = useSafeAreaInsets();
 
+  const { title, subtitle } = {
+    dm: { title: 'New chat', subtitle: 'Select a contact to chat with' },
+    group: {
+      title: 'New group',
+      subtitle: 'Select contacts to invite',
+    },
+  }[chatType];
+
   return (
     <ActionSheet
       disableDrag={screenScrolling}
@@ -174,9 +182,7 @@ export function CreateChatInviteSheet({
       snapPoints={[90]}
       snapPointsMode="percent"
     >
-      <ActionSheet.SimpleHeader
-        title={chatType === 'dm' ? 'New chat' : 'New group'}
-      />
+      <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
       <YStack flex={1} paddingHorizontal="$2xl">
         <ContactBook
           searchable
