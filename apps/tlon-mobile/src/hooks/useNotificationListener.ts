@@ -295,7 +295,6 @@ function useHandoffNotificationData() {
     });
 
     if (handoffPosts.length > 0) {
-      handoffPosts.sort((a, b) => a.sentAt - b.sentAt);
       console.log('Handing off', handoffPosts);
       await db.insertUnconfirmedPosts({ posts: handoffPosts });
     }
