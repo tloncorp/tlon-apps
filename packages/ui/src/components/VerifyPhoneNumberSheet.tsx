@@ -1,3 +1,4 @@
+import * as api from '@tloncorp/shared/api';
 import { useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -21,7 +22,9 @@ export function VerifyPhoneNumberSheet(props: {
   });
 
   //
-  const handleSubmitPhoneNumber = useCallback(() => {}, []);
+  const handleSubmitPhoneNumber = useCallback(() => {
+    api.initiatePhoneVerify('+12623881275');
+  }, []);
 
   return (
     <ActionSheet
@@ -42,7 +45,7 @@ export function VerifyPhoneNumberSheet(props: {
           </ActionSheet.ContentBlock>
           <ActionSheet.ContentBlock gap="$xl">
             <PhoneNumberInput form={phoneForm} />
-            <Button hero>
+            <Button hero onPress={handleSubmitPhoneNumber}>
               <Button.Text>Send verification code</Button.Text>
             </Button>
           </ActionSheet.ContentBlock>

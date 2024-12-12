@@ -555,8 +555,16 @@ export class Urbit {
   //      should result in a noun nesting inside of the xx $eyre-command type
   private async sendNounsToChannel(...args: (Noun | any)[]): Promise<void> {
     const options = this.fetchOptionsNoun('PUT', 'noun');
+    console.log(`put options`, options);
+    console.log(`processing noun`, dejs.list(args));
     const body = formatUw(jam(dejs.list(args)).number.toString());
     console.log(body, options);
+    const finalThing = {
+      ...options,
+      method: 'PUT',
+      body,
+    };
+    console.log(`sending`, finalThing);
     const response = await this.fetchFn(this.channelUrl, {
       ...options,
       method: 'PUT',
@@ -677,10 +685,15 @@ export class Urbit {
       // const shipAtom = Atom.fromString(patp2dec(ship as string), 10);
       // ^ that's what was there, but seemed to fail?
       const shipNum = patp2bn(`~${ship}`);
-      const shipAtom = new Atom(shipNum);
+      console.log(`patp2bn output`, shipNum);
+      console.log(`typeof thing`, typeof shipNum);
+      console.log(`typeof literal`, typeof 0n);
+      const shipAtom = new Atom(BigInt(shipNum.toString()));
       // [%poke request-id=@ud ship=@p app=term mark=@tas =noun]
       const non = ['poke', eventId, shipAtom, app, mark, noun];
+      console.log(`sending noun to channel`, non.toString());
       await this.sendNounsToChannel(non);
+      console.log(`finnished sending noun to channel`);
     } else {
       throw new Error('pokeNoun requires a noun');
     }
@@ -865,20 +878,35 @@ export class Urbit {
     //   pathAsString = enjs.array(enjs.cord)(path).join('/');
     // }
 
-    const response = await this.fetchFn(
-      `${this.url}/~/scry/${app}${path}.noun`,
-      this.fetchOptions('GET')
-    );
+    console.log(`client scrying noun`, `${this.url}/~/scry/${app}${path}.noun`);
 
-    if (!response.ok || !response.body) {
-      return Promise.reject(response);
+    try {
+      const response = await this.fetchFn(
+        `${this.url}/~/scry/${app}${path}.noun`,
+        this.fetchOptions
+      );
+      console.log(`response`, response);
+
+      if (!response.ok || !response.body) {
+        return Promise.reject(response);
+      }
+
+      // if ((mark || 'noun') !== 'noun') {
+      //   return response.json();
+      // }
+
+      try {
+        const unpacked = await unpackJamBytes(await response.arrayBuffer());
+        console.log(`unpacked`, unpacked);
+        return unpacked;
+      } catch (e) {
+        console.error('Unpack failed', e);
+        throw e;
+      }
+    } catch (e) {
+      console.error(e);
+      throw e;
     }
-
-    // if ((mark || 'noun') !== 'noun') {
-    //   return response.json();
-    // }
-
-    return unpackJamBytes(await response.arrayBuffer());
   }
 
   /**

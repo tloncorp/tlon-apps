@@ -12,7 +12,7 @@ import {
 import { desig, preSig } from '../urbit';
 import { getLandscapeAuthCookie } from './landscapeApi';
 
-const logger = createDevLogger('urbit', false);
+const logger = createDevLogger('urbit', true);
 
 interface Config
   extends Pick<
@@ -302,6 +302,7 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
     if (config.pendingAuth) {
       await config.pendingAuth;
     }
+    console.log(`doing the poke...`);
     return config.client.pokeNoun({
       ...params,
       app,

@@ -5,6 +5,7 @@ import {
 } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
@@ -282,7 +283,8 @@ export function ChatListScreenView({
                   />
                   <ScreenHeader.IconButton
                     type="Add"
-                    onPress={() => setAddGroupOpen(true)}
+                    // onPress={() => setAddGroupOpen(true)}
+                    onPress={() => api.getSelfVerificationStatus()}
                   />
                 </>
               }
