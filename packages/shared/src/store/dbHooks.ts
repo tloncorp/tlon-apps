@@ -489,6 +489,7 @@ export const usePostWithRelations = (
   });
 };
 
+// Includes latest post as well as unconfirmed posts
 export const useChannelUnconfirmedPosts = (options: { channelId?: string }) => {
   return useQuery({
     queryKey: ['channelUnconfirmedPosts', options.channelId],

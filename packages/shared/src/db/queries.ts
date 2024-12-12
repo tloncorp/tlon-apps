@@ -110,6 +110,13 @@ const GROUP_META_COLUMNS = {
   coverImageColor: true,
 };
 
+const POST_RELATIONS_DEFAULT = {
+  author: true,
+  reactions: true,
+  threadUnread: true,
+  volumeSettings: true,
+} as const;
+
 export interface GetGroupsOptions {
   includeUnjoined?: boolean;
   includeUnreads?: boolean;
@@ -1867,23 +1874,27 @@ export const setLeftGroups = createWriteQuery(
   ['groups', 'channels']
 );
 
+// Includes latest post as well as unconfirmed posts
 export const getUnconfirmedPosts = createReadQuery(
   'getUnconfirmedPosts',
   async ({ channelId }: { channelId: string }, ctx) => {
+    const lastPostResults = await ctx.db
+      .select({ lastPostId: $channels.lastPostId })
+      .from($channels)
+      .where(eq($channels.id, channelId));
+    const lastPostId =
+      lastPostResults.length === 0 ? null : lastPostResults[0].lastPostId;
     return ctx.db.query.posts.findMany({
-      where: and(
-        eq($posts.channelId, channelId),
-        isNull($posts.syncedAt),
-        not(eq($posts.type, 'reply'))
+      where: or(
+        and(
+          eq($posts.channelId, channelId),
+          isNull($posts.syncedAt),
+          not(eq($posts.type, 'reply'))
+        ),
+        lastPostId == null ? undefined : eq($posts.id, lastPostId)
       ),
       orderBy: asc($posts.id),
-      // matches getChannelPosts
-      with: {
-        author: true,
-        reactions: true,
-        threadUnread: true,
-        volumeSettings: true,
-      },
+      with: POST_RELATIONS_DEFAULT,
     });
   },
   ['posts']
@@ -1952,13 +1963,6 @@ export const getChannelPosts = createReadQuery(
       return [];
     }
 
-    const relationConfig = {
-      author: true,
-      reactions: true,
-      threadUnread: true,
-      volumeSettings: true,
-    } as const;
-
     const isPostConfirmed = isNotNull($posts.syncedAt);
 
     if (mode === 'newer' || mode === 'newest' || mode === 'older') {
@@ -1978,7 +1982,7 @@ export const getChannelPosts = createReadQuery(
           cursor && mode === 'newer' ? gt($posts.id, cursor) : undefined,
           isPostConfirmed
         ),
-        with: relationConfig,
+        with: POST_RELATIONS_DEFAULT,
         // If newer, we have to ensure that these are the newer posts directly following the cursor
         orderBy: [mode === 'newer' ? asc($posts.id) : desc($posts.id)],
         limit: count,
@@ -2061,7 +2065,7 @@ export const getChannelPosts = createReadQuery(
               )
             )
         ),
-        with: relationConfig,
+        with: POST_RELATIONS_DEFAULT,
         orderBy: [desc($posts.id)],
         limit: count,
       });
