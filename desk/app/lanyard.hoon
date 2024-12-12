@@ -391,6 +391,20 @@
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
     [%records ~]  ``noun+!>(records)
+  ::
+      [%record ?([@ @ ~] [@ @ @ ~])]
+    =;  key=[@p identifier]
+      ``noun+!>((~(got by records) key))
+    :-  ?:(?=([@ @ ~] t.path) default (slav %p i.t.path))
+    =/  dip  ?:(?=([@ @ ~] t.path) t.path t.t.path)
+    ?+  dip  !!
+      [%dummy @ ~]  [-.dip (slav %t +<.dip)]
+      [%urbit @ ~]  [-.dip (slav %p +<.dip)]
+      [%phone @ ~]  [-.dip (slav %t +<.dip)]
+    ==
+  ::
+    [%queries ~]    ``noun+!>(queries)
+    [%queries @ ~]  ``noun+!>((~(got by queries) (slav %uv i.t.path)))
   ==
 ::
 ++  on-leave  |=(* `this)
