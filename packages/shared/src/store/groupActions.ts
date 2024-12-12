@@ -8,10 +8,14 @@ import { createChannel } from './channelActions';
 
 const logger = createDevLogger('groupActions', true);
 
-export async function createGroup(params: {
+interface CreateGroupParams {
   title?: string;
   memberIds?: string[];
-}): Promise<db.Group> {
+}
+
+export async function createGroup(
+  params: CreateGroupParams
+): Promise<db.Group> {
   const currentUserId = api.getCurrentUserId();
   const groupSlug = getRandomId();
   const groupId = `${currentUserId}/${groupSlug}`;
@@ -21,6 +25,7 @@ export async function createGroup(params: {
 
     await api.createGroup({
       title: params.title ?? '',
+      placeholderTitle: await getPlaceholderTitle(params),
       slug: groupSlug,
       privacy: 'secret',
       memberIds: params.memberIds,
@@ -46,6 +51,21 @@ export async function createGroup(params: {
     console.error(`${groupSlug}: failed to create group`, e);
     throw new Error('Something went wrong');
   }
+}
+
+async function getPlaceholderTitle({ memberIds, title }: CreateGroupParams) {
+  // No need to set a placeholder title if the user has already set a title
+  if (title) {
+    return;
+  }
+  const currentUserId = api.getCurrentUserId();
+  const contactIds = [...(memberIds ?? []), currentUserId];
+  const memberContacts = await Promise.all(
+    contactIds.map(
+      async (id): Promise<db.Contact> => (await db.getContact({ id })) ?? { id }
+    )
+  );
+  return memberContacts.map((c) => c?.nickname ?? c?.id).join(', ');
 }
 
 export async function acceptGroupInvitation(group: db.Group) {

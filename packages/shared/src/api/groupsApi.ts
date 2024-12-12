@@ -353,19 +353,23 @@ export const findGroupsHostedBy = async (userId: string) => {
   return toClientGroupsFromPreview(result);
 };
 
+const GENERATED_GROUP_TITLE_END_CHAR = '\u2060';
+
 export const createGroup = async ({
   title,
+  placeholderTitle,
   slug,
   privacy = 'secret',
   memberIds,
 }: {
-  title: string;
+  title?: string;
+  placeholderTitle?: string;
   slug: string;
   privacy: GroupPrivacy;
   memberIds?: string[];
 }) => {
   const createGroupPayload: ub.GroupCreate = {
-    title,
+    title: title ? title : placeholderTitle + GENERATED_GROUP_TITLE_END_CHAR,
     description: '',
     image: '',
     cover: '',
@@ -1365,7 +1369,7 @@ export function toClientGroup(
     id,
     roles,
     privacy: extractGroupPrivacy(group),
-    ...toClientMeta(group.meta),
+    ...toClientGroupMeta(group.meta),
     haveInvite: false,
     currentUserIsMember: isJoined,
     currentUserIsHost: hostUserId === currentUserId,
@@ -1478,8 +1482,23 @@ export function toClientGroupFromGang(id: string, gang: ub.Gang): db.Group {
     haveInvite: !!gang.invite,
     haveRequestedInvite: gang.claim?.progress === 'knocking',
     joinStatus,
-    ...(gang.preview ? toClientMeta(gang.preview.meta) : {}),
+    ...(gang.preview ? toClientGroupMeta(gang.preview.meta) : {}),
   };
+}
+
+function toClientGroupMeta(meta: ub.GroupMeta) {
+  return {
+    ...toClientMeta(meta),
+    title: toClientGroupTitle(meta.title),
+  };
+}
+
+function toClientGroupTitle(title: string) {
+  if (title.at(-1) === GENERATED_GROUP_TITLE_END_CHAR) {
+    return '';
+  } else {
+    return title;
+  }
 }
 
 function toClientChannels({
