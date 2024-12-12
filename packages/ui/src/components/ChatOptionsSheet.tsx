@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -43,7 +42,13 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   }
 
   if (chat.type === 'group') {
-    return <GroupOptionsSheetLoader open={open} onOpenChange={onOpenChange} />;
+    return (
+      <GroupOptionsSheetLoader
+        groupId={chat.id}
+        open={open}
+        onOpenChange={onOpenChange}
+      />
+    );
   }
 
   return (
@@ -56,9 +61,11 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
 });
 
 export function GroupOptionsSheetLoader({
+  groupId,
   open,
   onOpenChange,
 }: {
+  groupId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -84,8 +91,11 @@ export function GroupOptionsSheetLoader({
   }, [setPane]);
 
   const title = utils.useGroupTitle(group) ?? 'Loading...';
-
-  return group ? (
+  const currentUserId = useCurrentUserId();
+  const currentUserIsAdmin = useIsAdmin(groupId, currentUserId);
+  const { data: groupUnread, isFetched: groupUnreadIsFetched } =
+    store.useGroupUnread({ groupId });
+  return group && groupUnreadIsFetched ? (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       {pane === 'notifications' ? (
         <NotificationsSheetContent chatTitle={title} onPressBack={resetPane} />
@@ -95,6 +105,8 @@ export function GroupOptionsSheetLoader({
         <SortChannelsSheetContent chatTitle={title} onPressBack={resetPane} />
       ) : (
         <GroupOptionsSheetContent
+          currentUserIsAdmin={currentUserIsAdmin}
+          groupUnread={groupUnread ?? null}
           onPressNotifications={handlePressNotifications}
           onPressSort={handlePressSort}
           onPressEditGroup={handlePressEdit}
@@ -109,17 +121,20 @@ export function GroupOptionsSheetLoader({
 function GroupOptionsSheetContent({
   chatTitle,
   group,
+  groupUnread,
+  currentUserIsAdmin,
   onPressNotifications,
   onPressSort,
   onPressEditGroup,
 }: {
   group: db.Group;
+  groupUnread: db.GroupUnread | null;
+  currentUserIsAdmin: boolean;
   chatTitle: string;
   onPressNotifications: () => void;
   onPressSort: () => void;
   onPressEditGroup: () => void;
 }) {
-  console.log('group options sheet');
   const {
     markGroupRead,
     onPressGroupMembers,
@@ -127,14 +142,8 @@ function GroupOptionsSheetContent({
     togglePinned,
     leaveGroup,
   } = useChatOptions();
-  const currentUser = useCurrentUserId();
-  const { data: groupUnread } = useQuery({
-    queryKey: ['groupUnread', group.id],
-    queryFn: async () => db.getGroupUnread({ groupId: group.id }),
-  });
   const groupRef = logic.getGroupReferencePath(group.id);
   const canMarkRead = !(group.unread?.count === 0 || groupUnread?.count === 0);
-  const currentUserIsAdmin = useIsAdmin(group.id, currentUser);
   const canSortChannels = (group.channels?.length ?? 0) > 1;
   const canInvite = currentUserIsAdmin || group.privacy === 'public';
   const canLeave = !group.currentUserIsHost;
@@ -176,7 +185,7 @@ function GroupOptionsSheetContent({
           'neutral',
           currentUserIsAdmin && {
             title: 'Edit group',
-            action: () => onPressEditGroup,
+            action: onPressEditGroup,
             endIcon: 'ChevronRight',
           },
           {
@@ -406,7 +415,7 @@ function ChannelOptionsSheetContent({
   const invitationsEnabled =
     group?.privacy === 'private' || group?.privacy === 'secret';
   const canInvite = invitationsEnabled && currentUserIsAdmin;
-  const canMarkRead = !((channel.unread?.count ?? 0) > 0);
+  const canMarkRead = !(channel.unread?.count === 0);
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>

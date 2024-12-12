@@ -153,7 +153,10 @@ export default function PostScreen(props: Props) {
   const chatOptionsNavProps = useChatSettingsNavigation();
 
   return currentUserId && channel && post ? (
-    <ChatOptionsProvider {...chatOptionsNavProps}>
+    <ChatOptionsProvider
+      initialChat={{ type: 'channel', id: channelId }}
+      {...chatOptionsNavProps}
+    >
       <PostScreenView
         handleGoToUserProfile={handleGoToUserProfile}
         canUpload={canUpload}

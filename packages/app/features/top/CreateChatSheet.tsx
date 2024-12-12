@@ -120,7 +120,7 @@ export function CreateChatTypeSheet({
       },
       {
         title: 'New group',
-        description: 'Create a new group chat or customizable social space',
+        description: 'Create customizable group chat',
         action: () => onSelectType('group'),
       },
     ],
@@ -191,6 +191,7 @@ export function CreateChatInviteSheet({
           <Button
             position="absolute"
             bottom={insets.bottom}
+            marginBottom={'$2xl'}
             left={'$xl'}
             right={'$xl'}
             hero

@@ -62,10 +62,15 @@ type ChatOptionsProviderProps = {
   onPressRoles: (groupId: string) => void;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
   onLeaveGroup?: () => void;
+  initialChat?: {
+    id: string;
+    type: 'group' | 'channel';
+  };
 };
 
 export const ChatOptionsProvider = ({
   children,
+  initialChat,
   useChannel = store.useChannel,
   useGroup = store.useGroup,
   onPressGroupMeta,
@@ -82,7 +87,7 @@ export const ChatOptionsProvider = ({
   const [chat, setChat] = useState<{
     id: string;
     type: 'group' | 'channel';
-  } | null>(null);
+  } | null>(initialChat ?? null);
 
   const openSheet = useCallback(
     (chatId: string, chatType: 'group' | 'channel') => {
