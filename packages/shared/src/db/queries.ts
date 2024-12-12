@@ -1867,6 +1867,28 @@ export const setLeftGroups = createWriteQuery(
   ['groups', 'channels']
 );
 
+export const getUnconfirmedPosts = createReadQuery(
+  'getUnconfirmedPosts',
+  async ({ channelId }: { channelId: string }, ctx) => {
+    return ctx.db.query.posts.findMany({
+      where: and(
+        eq($posts.channelId, channelId),
+        isNull($posts.syncedAt),
+        not(eq($posts.type, 'reply'))
+      ),
+      orderBy: asc($posts.id),
+      // matches getChannelPosts
+      with: {
+        author: true,
+        reactions: true,
+        threadUnread: true,
+        volumeSettings: true,
+      },
+    });
+  },
+  ['posts']
+);
+
 export type GetChannelPostsOptions = {
   channelId: string;
   count?: number;
@@ -2154,6 +2176,23 @@ export const insertLatestPosts = createWriteQuery(
         newPosts: [post],
       }));
       await Promise.all(postUpdates.map((p) => updatePostWindows(p, txCtx)));
+    });
+  },
+  ['posts']
+);
+
+export const insertUnconfirmedPosts = createWriteQuery(
+  'insertUnconfirmedPosts',
+  async ({ posts }: { posts: Post[] }, ctx: QueryCtx) => {
+    if (!posts.length) {
+      return;
+    }
+    if (posts.some((p) => p.syncedAt != null)) {
+      throw new Error('insertUnconfirmedPosts: posts should not have syncedAt');
+    }
+    return withTransactionCtx(ctx, async (txCtx) => {
+      // insertPosts does multiple queries internally, so we need to wrap it in a transaction
+      await insertPosts(posts, txCtx);
     });
   },
   ['posts']

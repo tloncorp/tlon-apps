@@ -1,6 +1,7 @@
 import {
   UseQueryOptions,
   UseQueryResult,
+  skipToken,
   useQuery,
 } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -485,5 +486,18 @@ export const usePostWithRelations = (
     staleTime: Infinity,
     ...(initialData ? { initialData } : {}),
     queryFn: () => db.getPostWithRelations(options),
+  });
+};
+
+export const useChannelUnconfirmedPosts = (options: { channelId?: string }) => {
+  return useQuery({
+    queryKey: ['channelUnconfirmedPosts', options.channelId],
+    staleTime: Infinity,
+    ...(options.channelId == null
+      ? { skip: true }
+      : {
+          queryFn: () =>
+            db.getUnconfirmedPosts({ channelId: options.channelId! }),
+        }),
   });
 };
