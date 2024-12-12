@@ -74,12 +74,13 @@ function payloadFromNotification(
   if (payload.wer != null && payload.channelId != null) {
     const postInfo = api.getPostInfoFromWer(payload.wer);
     const handoffPost: db.Post | undefined = (() => {
-      const receivedAt = Date.now();
       const dmPost = payload.dmPost as ub.DmPostEvent['dm-post'] | undefined;
       if (dmPost != null) {
+        // key.id looks like `dm/000.000.000.mor.eme.ssa.gei.dxx`
+        const id = dmPost.key.id.split('/')[1];
+        const receivedAt = getReceivedAtFromId(id);
         return {
-          // key.id looks like `dm/000.000.000.mor.eme.ssa.gei.dxx`
-          id: dmPost.key.id.split('/')[1],
+          id,
           authorId: (dmPost.whom as { ship: string }).ship!,
           channelId: (dmPost.whom as { ship: string }).ship!,
           content: dmPost.content,
@@ -92,9 +93,10 @@ function payloadFromNotification(
 
       const post = payload.post as ub.PostEvent['post'] | undefined;
       if (post != null && postInfo?.authorId != null) {
+        const id = post.key.id.split('/')[1];
+        const receivedAt = getReceivedAtFromId(id);
         return {
-          // key.id looks like `dm/000.000.000.mor.eme.ssa.gei.dxx`
-          id: post.key.id.split('/')[1],
+          id,
           // idk how else to get author
           authorId: postInfo.authorId,
           channelId: post.channel,
@@ -324,4 +326,8 @@ function useHandoffNotificationData() {
   );
 
   return handoffDataFrom;
+}
+
+function getReceivedAtFromId(postId: string) {
+  return udToDate(postId.split('/').pop() ?? postId);
 }
