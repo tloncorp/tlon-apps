@@ -339,7 +339,7 @@ function UserInfoRow(props: {
         <YStack flex={1} justifyContent="center">
           {props.hasNickname ? (
             <>
-              <XStack maxWidth="100%">
+              <XStack maxWidth="100%" alignItems="center">
                 <ContactName
                   contactId={props.userId}
                   mode="nickname"
@@ -347,9 +347,7 @@ function UserInfoRow(props: {
                   lineHeight={24}
                   numberOfLines={1}
                 />
-                {props.isVerified && (
-                  <Icon type="Label" size="$s" color="$blue" />
-                )}
+                {props.isVerified && <VerifiedBadge />}
               </XStack>
               <XStack alignItems="center">
                 <ContactName
@@ -374,14 +372,20 @@ function UserInfoRow(props: {
                 lineHeight={24}
                 contactId={props.userId}
               />
-              {props.isVerified && (
-                <Icon type="Label" size="$s" color="$blue" />
-              )}
+              {props.isVerified && <VerifiedBadge />}
             </XStack>
           )}
         </YStack>
       </XStack>
     </Pressable>
+  );
+}
+
+function VerifiedBadge() {
+  return (
+    <Circle marginLeft="$s" size="$xl" backgroundColor="$blue">
+      <Icon type="Checkmark" size="$s" color="$white" />
+    </Circle>
   );
 }
 
