@@ -53,9 +53,10 @@
   ::  start by clearing out all our entries for a fresh start
   ::
   %+  weld
-    %+  skip  ~(tap by orig)
-    |=  [=term *]
-    =(%lanyard- (end 3^8 term))
+    %+  turn  ~(tap by orig)
+    |=  [=term =value:c]
+    :-  term
+    ?:(=(%lanyard- (end 3^8 term)) ~ value)
   ^-  (list [term value:c])
   ::  then look at our records and inject as appropriate
   ::
