@@ -1,3 +1,4 @@
+import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
@@ -513,3 +514,13 @@ export const withRetry = <T>(fn: () => Promise<T>, config?: RetryConfig) => {
     numOfAttempts: config?.numOfAttempts ?? 4,
   });
 };
+
+/**
+ * Random id value for group or channel, 4 bits of entropy, eg 0v2a.lmibb
+ */
+export function getRandomId() {
+  return formatUv(Math.floor(Math.random() * 0xffffffff).toString()).replace(
+    /[^a-z]*([a-z][-\w\d]+)/gi,
+    '$1'
+  );
+}

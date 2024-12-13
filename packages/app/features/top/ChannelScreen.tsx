@@ -1,4 +1,4 @@
-import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger, useChannelContext } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -348,6 +348,10 @@ export default function ChannelScreen(props: Props) {
 
   return (
     <ChatOptionsProvider
+      initialChat={{
+        type: 'channel',
+        id: currentChannelId,
+      }}
       useGroup={store.useGroup}
       onPressInvite={(group) => {
         setInviteSheetGroup(group);

@@ -1,4 +1,4 @@
-import { sync, useCreateChannel } from '@tloncorp/shared';
+import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo } from 'react';

@@ -2,52 +2,70 @@ import * as api from '../api';
 import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
+import { getRandomId } from '../logic';
 import { createSectionId } from '../urbit';
-import * as sync from './sync';
+import { createChannel } from './channelActions';
 
-const logger = createDevLogger('groupActions', false);
+const logger = createDevLogger('groupActions', true);
 
-export async function createGroup({
-  title,
-  shortCode,
-}: {
-  title: string;
-  shortCode: string;
-}): Promise<{ group: db.Group; channel: db.Channel }> {
-  logger.log(`${shortCode}: creating group`);
+interface CreateGroupParams {
+  title?: string;
+  memberIds?: string[];
+}
+
+export async function createGroup(
+  params: CreateGroupParams
+): Promise<db.Group> {
   const currentUserId = api.getCurrentUserId();
+  const groupSlug = getRandomId();
+  const groupId = `${currentUserId}/${groupSlug}`;
+
   try {
+    logger.log('creating group', groupId);
+
     await api.createGroup({
-      title,
-      shortCode,
+      title: params.title ?? '',
+      placeholderTitle: await getPlaceholderTitle(params),
+      slug: groupSlug,
+      privacy: 'secret',
+      memberIds: params.memberIds,
     });
 
-    const groupId = `${currentUserId}/${shortCode}`;
+    logger.log(`created group ${groupId}, adding default channel`);
 
-    await api.createNewGroupDefaultChannel({
-      groupId,
-      currentUserId,
+    await createChannel({
+      groupId: groupId,
+      title: 'General',
+      channelType: 'chat',
     });
-    logger.log(`created group ${groupId}`);
 
-    await sync.syncGroup(groupId);
-    await sync.syncUnreads(); // ensure current user gets registered as a member of the channel
+    logger.log(`created default channel for ${groupId}, syncing now`);
+
     const group = await db.getGroup({ id: groupId });
-
-    if (group && group.channels.length) {
-      const channel = group.channels[0];
-
-      await db.updateChannel({ id: channel.id, isDefaultWelcomeChannel: true });
-
-      return { group, channel };
+    if (!group || !group.channels.length) {
+      throw new Error('Something went wrong');
     }
 
-    // TODO: should we have a UserFacingError type?
-    throw new Error('Something went wrong');
+    return group;
   } catch (e) {
-    console.error(`${shortCode}: failed to create group`, e);
+    console.error(`${groupSlug}: failed to create group`, e);
     throw new Error('Something went wrong');
   }
+}
+
+async function getPlaceholderTitle({ memberIds, title }: CreateGroupParams) {
+  // No need to set a placeholder title if the user has already set a title
+  if (title) {
+    return;
+  }
+  const currentUserId = api.getCurrentUserId();
+  const contactIds = [...(memberIds ?? []), currentUserId];
+  const memberContacts = await Promise.all(
+    contactIds.map(
+      async (id): Promise<db.Contact> => (await db.getContact({ id })) ?? { id }
+    )
+  );
+  return memberContacts.map((c) => c?.nickname ?? c?.id).join(', ');
 }
 
 export async function acceptGroupInvitation(group: db.Group) {

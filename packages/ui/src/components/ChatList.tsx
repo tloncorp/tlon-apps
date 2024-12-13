@@ -1,4 +1,5 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
+import { configurationFromChannel } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
@@ -19,6 +20,7 @@ import Animated, {
 import { Text, View, YStack, getTokenValue } from 'tamagui';
 
 import { useCalm, useChatOptions } from '../contexts';
+import { getChannelTitle, getGroupTitle } from '../utils';
 import { interactionWithTiming } from '../utils/animation';
 import { TextInputWithIconAndButton } from './Form';
 import { ChatListItem, InteractableChatListItem } from './ListItem';
@@ -74,7 +76,9 @@ export const ChatList = React.memo(function ChatListComponent({
   const chatOptions = useChatOptions();
   const handleLongPress = useCallback(
     (item: db.Chat) => {
-      chatOptions.open(item.id, item.type);
+      if (!item.isPending) {
+        chatOptions.open(item.id, item.type);
+      }
     },
     [chatOptions]
   );
@@ -407,31 +411,17 @@ function useChatSearch({
   return performSearch;
 }
 
-function getChatTitle(
-  chat: db.Chat,
-  disableNicknames: boolean
-): string | string[] {
+function getChatTitle(chat: db.Chat, disableNicknames: boolean): string {
   if (chat.type === 'channel') {
-    if (chat.channel.title) {
-      return chat.channel.title;
-    } else if (chat.channel.members) {
-      return chat.channel.members
-        .map((member) => {
-          const nickname = member.contact
-            ? (member.contact as db.Contact).nickname
-            : null;
-          return nickname && !disableNicknames ? nickname : member.contactId;
-        })
-        .join(', ');
-    } else {
-      return [];
-    }
+    return getChannelTitle({
+      disableNicknames,
+      channelTitle: chat.channel.title,
+      members: chat.channel.members,
+      usesMemberListAsFallbackTitle: configurationFromChannel(chat.channel)
+        .usesMemberListAsFallbackTitle,
+    });
   } else {
-    if (chat.group.title) {
-      return chat.group.title;
-    } else {
-      return [];
-    }
+    return getGroupTitle(chat.group, disableNicknames);
   }
 }
 

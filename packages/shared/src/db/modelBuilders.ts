@@ -29,7 +29,6 @@ export function assembleNewChannelIdAndName({
   const tempChannelName = titleIsNumber
     ? `channel-${title}`
     : convertToAscii(title).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1');
-  // @ts-expect-error this is fine
   const channelKind = getChannelKindFromType(channelType);
   const tempNewChannelFlag = `${channelKind}/${currentUserId}/${tempChannelName}`;
   const existingChannel = () => {
@@ -260,7 +259,6 @@ export function buildChannel(
     | 'groupId'
     | 'iconImage'
     | 'iconImageColor'
-    | 'isDefaultWelcomeChannel'
     | 'isDmInvite'
     | 'isPendingChannel'
     | 'lastPostAt'
@@ -286,7 +284,6 @@ export function buildChannel(
     groupId: null,
     iconImage: null,
     iconImageColor: null,
-    isDefaultWelcomeChannel: null,
     isDmInvite: false,
     isPendingChannel: null,
     lastPostAt: null,

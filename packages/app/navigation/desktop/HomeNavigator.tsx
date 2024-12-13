@@ -13,9 +13,6 @@ import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import ChannelScreen from '../../features/top/ChannelScreen';
 import ChannelSearchScreen from '../../features/top/ChannelSearchScreen';
 import { ChatListScreenView } from '../../features/top/ChatListScreen';
-import { ContactHostedGroupsScreen } from '../../features/top/ContactHostedGroupsScreen';
-import { CreateGroupScreen } from '../../features/top/CreateGroupScreen';
-import { FindGroupsScreen } from '../../features/top/FindGroupsScreen';
 import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScreen';
 import ImageViewerScreen from '../../features/top/ImageViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
@@ -107,18 +104,6 @@ function MainStack() {
       initialRouteName="Home"
     >
       <MainStackNavigator.Screen name="Home" component={Empty} />
-      <MainStackNavigator.Screen
-        name="CreateGroup"
-        component={CreateGroupScreen}
-      />
-      <MainStackNavigator.Screen
-        name="FindGroups"
-        component={FindGroupsScreen}
-      />
-      <MainStackNavigator.Screen
-        name="ContactHostedGroups"
-        component={ContactHostedGroupsScreen}
-      />
     </MainStackNavigator.Navigator>
   );
 }

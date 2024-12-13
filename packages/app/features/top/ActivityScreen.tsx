@@ -5,12 +5,11 @@ import * as store from '@tloncorp/shared/store';
 import { ActivityScreenView, NavBarView, View } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
-// import ErrorBoundary from '../../ErrorBoundary';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
-import { useNavigateToChannel, useNavigateToPost } from '../../navigation/utils';
+import { useRootNavigation } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
 
@@ -19,7 +18,7 @@ export function ActivityScreen(props: Props) {
   const currentUserId = useCurrentUserId();
   const [contactsTabEnabled] = useFeatureFlag('contactsTab');
   const { performGroupAction } = useGroupActions();
-  const navigateToChannel = useNavigateToChannel();
+  const { navigateToChannel, navigateToPost } = useRootNavigation();
 
   const allFetcher = store.useInfiniteBucketedActivity('all');
   const mentionsFetcher = store.useInfiniteBucketedActivity('mentions');
@@ -43,7 +42,6 @@ export function ActivityScreen(props: Props) {
     [navigateToChannel]
   );
 
-  const navigateToPost = useNavigateToPost();
   // TODO: if diary or gallery, figure out a way to pop open the comment
   // sheet
   const handleGoToThread = useCallback(

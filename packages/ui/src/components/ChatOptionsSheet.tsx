@@ -1,5 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
-import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -11,14 +9,17 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Alert } from 'react-native';
-import { isWeb } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
 import { useChatOptions, useCurrentUserId } from '../contexts';
 import * as utils from '../utils';
 import { useIsAdmin } from '../utils';
-import { Action, ActionGroup, ActionSheet } from './ActionSheet';
+import {
+  Action,
+  ActionGroup,
+  ActionSheet,
+  createActionGroups,
+} from './ActionSheet';
 import { IconButton } from './IconButton';
 import { ListItem } from './ListItem';
 
@@ -68,207 +69,104 @@ export function GroupOptionsSheetLoader({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const groupQuery = store.useGroup({ id: groupId });
   const [pane, setPane] = useState<
-    'initial' | 'edit' | 'notifications' | 'sort'
+    'initial' | 'notifications' | 'sort' | 'edit'
   >('initial');
-  const openChangeHandler = useCallback(
-    (open: boolean) => {
-      if (!open) {
-        setPane('initial');
-      }
-      onOpenChange(open);
-    },
-    [onOpenChange]
-  );
+  const { group } = useChatOptions();
 
-  return groupQuery.data ? (
-    <ActionSheet open={open} onOpenChange={openChangeHandler}>
-      <GroupOptions
-        group={groupQuery.data}
-        pane={pane}
-        setPane={setPane}
-        onOpenChange={onOpenChange}
-        unreadCount={groupQuery.data.unread?.count}
-      />
+  const handlePressNotifications = useCallback(() => {
+    setPane('notifications');
+  }, [setPane]);
+
+  const handlePressSort = useCallback(() => {
+    setPane('sort');
+  }, [setPane]);
+
+  const handlePressEdit = useCallback(() => {
+    setPane('edit');
+  }, [setPane]);
+
+  const resetPane = useCallback(() => {
+    setPane('initial');
+  }, [setPane]);
+
+  const title = utils.useGroupTitle(group) ?? 'Loading...';
+  const currentUserId = useCurrentUserId();
+  const currentUserIsAdmin = useIsAdmin(groupId, currentUserId);
+  const { data: groupUnread, isFetched: groupUnreadIsFetched } =
+    store.useGroupUnread({ groupId });
+  return group && groupUnreadIsFetched ? (
+    <ActionSheet open={open} onOpenChange={onOpenChange}>
+      {pane === 'notifications' ? (
+        <NotificationsSheetContent chatTitle={title} onPressBack={resetPane} />
+      ) : pane === 'edit' ? (
+        <EditGroupSheetContent chatTitle={title} onPressBack={resetPane} />
+      ) : pane === 'sort' ? (
+        <SortChannelsSheetContent chatTitle={title} onPressBack={resetPane} />
+      ) : (
+        <GroupOptionsSheetContent
+          currentUserIsAdmin={currentUserIsAdmin}
+          groupUnread={groupUnread ?? null}
+          onPressNotifications={handlePressNotifications}
+          onPressSort={handlePressSort}
+          onPressEditGroup={handlePressEdit}
+          chatTitle={title}
+          group={group}
+        />
+      )}
     </ActionSheet>
   ) : null;
 }
 
-export function GroupOptions({
+function GroupOptionsSheetContent({
+  chatTitle,
   group,
-  pane,
-  setPane,
-  onOpenChange,
-  unreadCount,
+  groupUnread,
+  currentUserIsAdmin,
+  onPressNotifications,
+  onPressSort,
+  onPressEditGroup,
 }: {
   group: db.Group;
-  pane: 'initial' | 'edit' | 'notifications' | 'sort';
-  setPane: (pane: 'initial' | 'edit' | 'notifications' | 'sort') => void;
-  onOpenChange: (open: boolean) => void;
-  unreadCount?: number | null;
+  groupUnread: db.GroupUnread | null;
+  currentUserIsAdmin: boolean;
+  chatTitle: string;
+  onPressNotifications: () => void;
+  onPressSort: () => void;
+  onPressEditGroup: () => void;
 }) {
-  const currentUser = useCurrentUserId();
-  const { data: currentVolumeLevel } = store.useGroupVolumeLevel(group.id);
-
   const {
+    markGroupRead,
     onPressGroupMembers,
-    onPressGroupMeta,
-    onPressManageChannels,
     onPressInvite,
-    onPressGroupPrivacy,
-    onPressLeave,
-    onTogglePinned,
-    onSelectSort,
-  } = useChatOptions() ?? {};
-
-  useEffect(() => {
-    sync.syncGroup(group.id, { priority: store.SyncPriority.High });
-  }, [group]);
-
+    togglePinned,
+    leaveGroup,
+  } = useChatOptions();
+  const groupRef = logic.getGroupReferencePath(group.id);
+  const canMarkRead = !(group.unread?.count === 0 || groupUnread?.count === 0);
+  const canSortChannels = (group.channels?.length ?? 0) > 1;
+  const canInvite = currentUserIsAdmin || group.privacy === 'public';
+  const canLeave = !group.currentUserIsHost;
   const isPinned = group?.pin;
 
-  const currentUserIsAdmin = useIsAdmin(group.id, currentUser);
-
-  const handleVolumeUpdate = useCallback(
-    (newLevel: string) => {
-      if (group) {
-        store.setGroupVolumeLevel({
-          group: group,
-          level: newLevel as ub.NotificationLevel,
-        });
-      }
-    },
-    [group]
-  );
-
-  const actionNotifications: ActionGroup[] = useMemo(
-    () => [
-      {
-        accent: 'neutral',
-        actions: [
-          {
-            title: 'All activity',
-            accent: currentVolumeLevel === 'loud' ? 'positive' : 'neutral',
-            action: () => {
-              handleVolumeUpdate('loud');
-            },
-            endIcon: currentVolumeLevel === 'loud' ? 'Checkmark' : undefined,
-          },
-          {
-            title: 'Posts, mentions, and replies',
-            accent: currentVolumeLevel === 'medium' ? 'positive' : 'neutral',
-            action: () => {
-              handleVolumeUpdate('medium');
-            },
-            endIcon: currentVolumeLevel === 'medium' ? 'Checkmark' : undefined,
-          },
-          {
-            title: 'Only mentions and replies',
-            accent: currentVolumeLevel === 'soft' ? 'positive' : 'neutral',
-            action: () => {
-              handleVolumeUpdate('soft');
-            },
-            endIcon: currentVolumeLevel === 'soft' ? 'Checkmark' : undefined,
-          },
-          {
-            title: 'Nothing',
-            accent: currentVolumeLevel === 'hush' ? 'positive' : 'neutral',
-            action: () => {
-              handleVolumeUpdate('hush');
-            },
-            endIcon: currentVolumeLevel === 'hush' ? 'Checkmark' : undefined,
-          },
-        ],
-      },
-    ],
-    [currentVolumeLevel, handleVolumeUpdate]
-  );
-
-  const actionEdit = useMemo(() => {
-    const metadataAction: Action = {
-      title: 'Edit group info',
-      description: 'Change name, description, and image',
-      action: () => {
-        onOpenChange(false);
-        onPressGroupMeta?.(group.id);
-      },
-      endIcon: 'ChevronRight',
-    };
-
-    const manageChannelsAction: Action = {
-      title: 'Manage channels',
-      description: 'Add or remove channels in this group',
-      action: () => {
-        onOpenChange(false);
-        onPressManageChannels?.(group.id);
-      },
-      endIcon: 'ChevronRight',
-    };
-
-    const managePrivacyAction: Action = {
-      title: 'Privacy',
-      description: 'Change who can find or join this group',
-      action: () => {
-        onOpenChange(false);
-        onPressGroupPrivacy?.(group.id);
-      },
-      endIcon: 'ChevronRight',
-    };
-    const actionEdit: ActionGroup[] = [
-      {
-        accent: 'neutral',
-        actions: [metadataAction, manageChannelsAction, managePrivacyAction],
-      },
-    ];
-    return actionEdit;
-  }, [
-    group.id,
-    onPressGroupMeta,
-    onPressGroupPrivacy,
-    onPressManageChannels,
-    onOpenChange,
-  ]);
-
-  const { data: groupUnread } = useQuery({
-    queryKey: ['groupUnread', group.id],
-
-    queryFn: async () => db.getGroupUnread({ groupId: group.id }),
-  });
-
-  const handleMarkAllRead = useCallback(() => {
-    store.markGroupRead(group, true);
-    onOpenChange(false);
-  }, [group, onOpenChange]);
-
-  const actionGroups = useMemo(() => {
-    const groupRef = logic.getGroupReferencePath(group.id);
-
-    const actionGroups: ActionGroup[] = [
-      {
-        accent: 'neutral',
-        actions: [
+  const actionGroups = useMemo(
+    () =>
+      createActionGroups(
+        [
+          'neutral',
           {
             title: 'Notifications',
-            action: () => {
-              setPane('notifications');
-            },
+            action: onPressNotifications,
             endIcon: 'ChevronRight',
           },
-          ...(unreadCount === 0 || groupUnread?.count === 0
-            ? []
-            : [
-                {
-                  title: 'Mark all as read',
-                  action: () => {
-                    handleMarkAllRead();
-                  },
-                },
-              ]),
+          canMarkRead && {
+            title: 'Mark all as read',
+            action: markGroupRead,
+          },
           {
             title: isPinned ? 'Unpin' : 'Pin',
             endIcon: 'Pin',
-            action: onTogglePinned,
+            action: togglePinned,
           },
           {
             title: 'Copy group reference',
@@ -277,183 +175,160 @@ export function GroupOptions({
               <ActionSheet.CopyAction {...props} copyText={groupRef} />
             ),
           },
+          canSortChannels && {
+            title: 'Sort channels',
+            endIcon: 'ChevronRight',
+            action: onPressSort,
+          },
         ],
-      },
-    ];
-
-    if (group.channels && group.channels.length > 1) {
-      actionGroups[0].actions.push({
-        title: 'Sort channels',
-        endIcon: 'ChevronRight',
-        action: () => {
-          setPane('sort');
-        },
-      });
-    }
-
-    const editAction: Action = {
-      title: 'Edit group',
-      action: () => {
-        setPane('edit');
-      },
-      endIcon: 'ChevronRight',
-    };
-
-    const goToMembersAction: Action = {
-      title: 'Members',
-      endIcon: 'ChevronRight',
-      action: () => {
-        onPressGroupMembers?.(group.id);
-        onOpenChange(false);
-      },
-    };
-
-    const inviteAction: Action = {
-      title: 'Invite people',
-      action: () => {
-        onOpenChange(false);
-        onPressInvite?.(group);
-      },
-      endIcon: 'ChevronRight',
-    };
-
-    const inviteNotice: Action = {
-      accent: 'disabled',
-      title: 'Invites disabled',
-      description: 'Only admins may invite people to this group.',
-    };
-
-    if (currentUserIsAdmin) {
-      actionGroups.push({
-        accent: 'neutral',
-        actions: [editAction],
-      });
-    }
-
-    if (currentUserIsAdmin) {
-      actionGroups.push({
-        accent: 'neutral',
-        actions: [goToMembersAction, inviteAction],
-      });
-    } else {
-      actionGroups.push({
-        accent: 'neutral',
-        actions:
-          group.privacy === 'public'
-            ? [goToMembersAction, inviteAction]
-            : [goToMembersAction, inviteNotice],
-      });
-    }
-
-    if (!group.currentUserIsHost) {
-      actionGroups.push({
-        accent: 'negative',
-        actions: [
+        [
+          'neutral',
+          currentUserIsAdmin && {
+            title: 'Edit group',
+            action: onPressEditGroup,
+            endIcon: 'ChevronRight',
+          },
+          {
+            title: 'Members',
+            endIcon: 'ChevronRight',
+            action: onPressGroupMembers,
+          },
+          canInvite
+            ? {
+                title: 'Invite people',
+                action: onPressInvite,
+                endIcon: 'ChevronRight',
+              }
+            : {
+                accent: 'disabled',
+                title: 'Invites disabled',
+                description: 'Only admins may invite people to this group.',
+              },
+        ],
+        canLeave && [
+          'negative',
           {
             title: 'Leave group',
             endIcon: 'LogOut',
-            action: () => {
-              onOpenChange(false);
-              onPressLeave?.();
-            },
+            action: leaveGroup,
           },
-        ],
-      });
-    }
-    return actionGroups;
-  }, [
-    group,
-    unreadCount,
-    groupUnread?.count,
-    isPinned,
-    onTogglePinned,
-    currentUserIsAdmin,
-    setPane,
-    handleMarkAllRead,
-    onPressGroupMembers,
-    onOpenChange,
-    onPressInvite,
-    onPressLeave,
-  ]);
+        ]
+      ),
+    [
+      canInvite,
+      canLeave,
+      canMarkRead,
+      canSortChannels,
+      currentUserIsAdmin,
+      groupRef,
+      isPinned,
+      leaveGroup,
+      markGroupRead,
+      onPressEditGroup,
+      onPressGroupMembers,
+      onPressInvite,
+      onPressNotifications,
+      onPressSort,
+      togglePinned,
+    ]
+  );
 
-  const actionSort: ActionGroup[] = useMemo(() => {
-    return [
-      {
-        accent: 'neutral',
-        actions: [
-          {
-            title: 'Sort by recency',
-            action: () => {
-              onSelectSort?.('recency');
-              onOpenChange(false);
-            },
-          },
-          {
-            title: 'Sort by arrangement',
-            action: () => {
-              onSelectSort?.('arranged');
-              onOpenChange(false);
-            },
-          },
-        ],
-      },
-    ];
-  }, [onSelectSort, onOpenChange]);
-
-  const memberCount = group?.members?.length
-    ? group.members.length.toLocaleString()
-    : 0;
-  const title = group?.title ?? 'Loading…';
+  const memberCount = group?.members?.length ? group.members.length : 0;
   const privacy = group?.privacy
     ? group.privacy.charAt(0).toUpperCase() + group.privacy.slice(1)
     : '';
   const subtitle = memberCount
     ? `${privacy} group with ${memberCount} member${group.members?.length === 1 ? '' : 's'}`
     : '';
+
+  console.log(chatTitle, subtitle, actionGroups);
+
   return (
     <ChatOptionsSheetContent
-      actionGroups={
-        pane === 'initial'
-          ? actionGroups
-          : pane === 'notifications'
-            ? actionNotifications
-            : pane === 'edit'
-              ? actionEdit
-              : pane === 'sort'
-                ? actionSort
-                : []
-      }
-      title={
-        pane === 'initial'
-          ? title
-          : pane === 'notifications'
-            ? 'Notifications for ' + title
-            : pane === 'edit'
-              ? 'Edit ' + title
-              : pane === 'sort'
-                ? 'Sort channels in ' + title
-                : ''
-      }
-      subtitle={
-        pane === 'initial'
-          ? subtitle
-          : pane === 'notifications'
-            ? 'Set what you want to be notified about'
-            : pane === 'sort'
-              ? 'Choose your display preference'
-              : pane === 'edit'
-                ? 'Edit group details'
-                : ''
-      }
-      icon={
-        pane === 'initial' ? (
-          <ListItem.GroupIcon model={group} />
-        ) : (
-          <IconButton width="$4xl" onPress={() => setPane('initial')}>
-            <ChevronLeft />
-          </IconButton>
-        )
-      }
+      title={chatTitle}
+      subtitle={subtitle}
+      actionGroups={actionGroups}
+      icon={<ListItem.GroupIcon model={group} />}
+    />
+  );
+}
+
+function SortChannelsSheetContent({
+  chatTitle,
+  onPressBack,
+}: {
+  chatTitle: string;
+  onPressBack: () => void;
+}) {
+  const { setChannelSortPreference } = useChatOptions()!;
+
+  const sortActions = useMemo(
+    () =>
+      createActionGroups([
+        'neutral',
+        {
+          title: 'Sort by recency',
+          action: () => setChannelSortPreference?.('recency'),
+        },
+        {
+          title: 'Sort by arrangement',
+          action: () => setChannelSortPreference?.('arranged'),
+        },
+      ]),
+    [setChannelSortPreference]
+  );
+
+  return (
+    <ChatOptionsSheetContent
+      title={'Sort channels in ' + chatTitle}
+      subtitle="Choose your display preference"
+      actionGroups={sortActions}
+      icon={<SheetBackButton onPress={onPressBack} />}
+    />
+  );
+}
+
+function EditGroupSheetContent({
+  chatTitle,
+  onPressBack,
+}: {
+  chatTitle: string;
+  onPressBack: () => void;
+}) {
+  const { onPressGroupMeta, onPressManageChannels, onPressGroupPrivacy } =
+    useChatOptions();
+  const editActions = useMemo(
+    () =>
+      createActionGroups([
+        'neutral',
+        {
+          title: 'Edit group info',
+          description: 'Change name, description, and image',
+          action: onPressGroupMeta,
+          endIcon: 'ChevronRight',
+        },
+        {
+          title: 'Manage channels',
+          description: 'Add or remove channels in this group',
+          action: onPressManageChannels,
+          endIcon: 'ChevronRight',
+        },
+        {
+          title: 'Privacy',
+          description: 'Change who can find or join this group',
+          action: onPressGroupPrivacy,
+          endIcon: 'ChevronRight',
+        },
+      ]),
+    [onPressGroupMeta, onPressGroupPrivacy, onPressManageChannels]
+  );
+
+  return (
+    <ChatOptionsSheetContent
+      title={'Edit ' + chatTitle}
+      subtitle="Edit group details"
+      actionGroups={editActions}
+      icon={<SheetBackButton onPress={onPressBack} />}
     />
   );
 }
@@ -471,60 +346,156 @@ export function ChannelOptionsSheetLoader({
   const channelQuery = store.useChannel({
     id: channelId,
   });
+  const { data: group } = store.useGroup({
+    id: channelQuery.data?.groupId ?? undefined,
+  });
+  const groupTitle = utils.useGroupTitle(group) ?? 'group';
+  const channelTitle =
+    utils.useChannelTitle(channelQuery.data ?? null) ?? 'channel';
+  const isSingleChannelGroup = group?.channels.length === 1;
+  const chatTitle = isSingleChannelGroup ? groupTitle : channelTitle;
 
-  const openChangeHandler = useCallback(
-    (open: boolean) => {
-      if (!open) {
-        setPane('initial');
-      }
-      onOpenChange(open);
-    },
-    [onOpenChange]
-  );
+  const handlePressNotifications = useCallback(() => {
+    setPane('notifications');
+  }, [setPane]);
+
+  const resetPane = useCallback(() => {
+    setPane('initial');
+  }, [setPane]);
+
+  useEffect(() => {
+    if (!open) {
+      resetPane();
+    }
+  }, [open, resetPane]);
 
   return channelQuery.data ? (
-    <ActionSheet open={open} onOpenChange={openChangeHandler}>
-      <ChannelOptions
-        channel={channelQuery.data}
-        pane={pane}
-        setPane={setPane}
-        onOpenChange={onOpenChange}
-      />
+    <ActionSheet open={open} onOpenChange={onOpenChange}>
+      {pane === 'notifications' ? (
+        <NotificationsSheetContent
+          chatTitle={chatTitle}
+          onPressBack={resetPane}
+        />
+      ) : (
+        <ChannelOptionsSheetContent
+          chatTitle={chatTitle}
+          channel={channelQuery.data}
+          onPressNotifications={handlePressNotifications}
+        />
+      )}
     </ActionSheet>
   ) : null;
 }
 
-export function ChannelOptions({
+function ChannelOptionsSheetContent({
+  chatTitle,
   channel,
-  pane,
-  setPane,
-  onOpenChange,
+  onPressNotifications,
 }: {
+  chatTitle: string;
   channel: db.Channel;
-  pane: 'initial' | 'notifications';
-  setPane: (pane: 'initial' | 'notifications') => void;
-  onOpenChange: (open: boolean) => void;
+  onPressNotifications: () => void;
 }) {
-  const { data: group } = store.useGroup({
-    id: channel?.groupId ?? undefined,
-  });
-  const { data: currentVolumeLevel } = store.useChannelVolumeLevel(channel.id);
-  const currentUser = useCurrentUserId();
   const {
+    group,
     onPressChannelMembers,
     onPressChannelMeta,
     onPressManageChannels,
     onPressInvite,
-  } = useChatOptions() ?? {};
+    togglePinned,
+    leaveChannel,
+    markChannelRead,
+  } = useChatOptions();
 
-  const currentUserIsHost = useMemo(
-    () => group?.currentUserIsHost ?? false,
-    [group?.currentUserIsHost]
-  );
-
+  const currentUser = useCurrentUserId();
+  const currentUserIsHost = group?.currentUserIsHost ?? false;
   const currentUserIsAdmin = useIsAdmin(channel.groupId ?? '', currentUser);
+  const groupTitle = utils.useGroupTitle(group) ?? 'group';
+  const isSingleChannelGroup = group?.channels?.length === 1;
+  const invitationsEnabled =
+    group?.privacy === 'private' || group?.privacy === 'secret';
+  const canInvite = invitationsEnabled && currentUserIsAdmin;
+  const canMarkRead = !(channel.unread?.count === 0);
 
-  const title = utils.useChannelTitle(channel);
+  const actionGroups: ActionGroup[] = useMemo(
+    () =>
+      createActionGroups(
+        [
+          'neutral',
+          {
+            title: 'Notifications',
+            endIcon: 'ChevronRight',
+            action: onPressNotifications,
+          },
+          {
+            title: channel?.pin ? 'Unpin' : 'Pin',
+            endIcon: 'Pin',
+            action: togglePinned,
+          },
+          canMarkRead && {
+            title: 'Mark as read',
+            action: markChannelRead,
+          },
+        ],
+        channel.type === 'groupDm' && [
+          'neutral',
+          {
+            title: 'Edit group info',
+            endIcon: 'ChevronRight',
+            action: onPressChannelMeta,
+          },
+          {
+            title: 'Members',
+            endIcon: 'ChevronRight',
+            action: onPressChannelMembers,
+          },
+        ],
+        group && [
+          'neutral',
+          currentUserIsAdmin && {
+            title: 'Manage channels',
+            endIcon: 'ChevronRight',
+            action: onPressManageChannels,
+          },
+          canInvite
+            ? {
+                title: 'Invite people',
+                action: onPressInvite,
+                endIcon: 'ChevronRight',
+              }
+            : {
+                title: 'Invites disabled',
+                accent: 'disabled',
+                description: 'Only admins may invite people to this group.',
+              },
+        ],
+        !currentUserIsHost && [
+          'negative',
+          {
+            title: `Leave`,
+            endIcon: 'LogOut',
+            action: leaveChannel,
+          },
+        ]
+      ),
+    [
+      onPressNotifications,
+      channel?.pin,
+      channel.type,
+      togglePinned,
+      canMarkRead,
+      markChannelRead,
+      onPressChannelMeta,
+      onPressChannelMembers,
+      group,
+      currentUserIsAdmin,
+      onPressManageChannels,
+      canInvite,
+      onPressInvite,
+      currentUserIsHost,
+      leaveChannel,
+    ]
+  );
 
   const subtitle = useMemo(() => {
     if (!channel) {
@@ -538,316 +509,20 @@ export function ChannelOptions({
           ? `Chat with ${channel.members[0].contactId} and ${channel.members?.length - 1} others`
           : 'Group chat';
       default:
-        return group ? `Channel in ${group?.title}` : '';
+        return group
+          ? isSingleChannelGroup
+            ? `Group with ${group.members?.length ?? 0} members`
+            : `Channel in ${groupTitle}`
+          : '';
     }
-  }, [channel, group]);
-
-  const handleVolumeUpdate = useCallback(
-    (newLevel: string) => {
-      if (channel) {
-        store.setChannelVolumeLevel({
-          channel: channel,
-          level: newLevel as ub.NotificationLevel,
-        });
-      }
-    },
-    [channel]
-  );
-
-  const actionNotifications: ActionGroup[] = useMemo(
-    () => [
-      {
-        accent: 'neutral',
-        actions: [
-          {
-            title: 'All activity',
-            accent: currentVolumeLevel === 'loud' ? 'positive' : 'neutral',
-            action: () => {
-              handleVolumeUpdate('loud');
-            },
-            endIcon: currentVolumeLevel === 'loud' ? 'Checkmark' : undefined,
-          },
-          {
-            title: 'Posts, mentions, and replies',
-            accent: currentVolumeLevel === 'medium' ? 'positive' : 'neutral',
-            action: () => {
-              handleVolumeUpdate('medium');
-            },
-            endIcon: currentVolumeLevel === 'medium' ? 'Checkmark' : undefined,
-          },
-          {
-            title: 'Only mentions and replies',
-            accent: currentVolumeLevel === 'soft' ? 'positive' : 'neutral',
-            action: () => {
-              handleVolumeUpdate('soft');
-            },
-            endIcon: currentVolumeLevel === 'soft' ? 'Checkmark' : undefined,
-          },
-          {
-            title: 'Nothing',
-            accent: currentVolumeLevel === 'hush' ? 'positive' : 'neutral',
-            action: () => {
-              handleVolumeUpdate('hush');
-            },
-            endIcon: currentVolumeLevel === 'hush' ? 'Checkmark' : undefined,
-          },
-        ],
-      },
-    ],
-    [currentVolumeLevel, handleVolumeUpdate]
-  );
-
-  const handleMarkRead = useCallback(() => {
-    if (channel && !channel.isPendingChannel) {
-      store.markChannelRead(channel);
-    }
-  }, [channel]);
-
-  const actionGroups: ActionGroup[] = useMemo(() => {
-    return [
-      {
-        accent: 'neutral',
-        actions: [
-          {
-            title: 'Notifications',
-            endIcon: 'ChevronRight',
-            action: () => {
-              if (!channel) {
-                return;
-              }
-              setPane('notifications');
-            },
-            icon: 'ChevronRight',
-          },
-          {
-            title: channel?.pin ? 'Unpin' : 'Pin',
-            endIcon: 'Pin',
-            action: () => {
-              if (!channel) {
-                return;
-              }
-              channel.pin
-                ? store.unpinItem(channel.pin)
-                : store.pinChannel(channel);
-            },
-          },
-        ],
-      },
-      ...((channel.unread?.count ?? 0) > 0
-        ? [
-            {
-              accent: 'neutral',
-              actions: [
-                {
-                  title: 'Mark as read',
-                  action: () => {
-                    handleMarkRead(), onOpenChange(false);
-                  },
-                },
-              ],
-            } as ActionGroup,
-          ]
-        : []),
-      ...(channel.type === 'groupDm'
-        ? [
-            {
-              accent: 'neutral',
-              actions: [
-                {
-                  title: 'Edit group info',
-                  endIcon: 'ChevronRight',
-                  action: () => {
-                    if (!channel) {
-                      return;
-                    }
-                    onPressChannelMeta?.(channel.id);
-                    onOpenChange(false);
-                  },
-                },
-              ],
-            } as ActionGroup,
-          ]
-        : []),
-      ...(channel.type === 'groupDm'
-        ? [
-            {
-              accent: 'neutral',
-              actions: [
-                {
-                  title: 'Members',
-                  endIcon: 'ChevronRight',
-                  action: () => {
-                    if (!channel) {
-                      return;
-                    }
-                    onPressChannelMembers?.(channel.id);
-                    onOpenChange(false);
-                  },
-                },
-              ],
-            } as ActionGroup,
-          ]
-        : []),
-      ...(currentUserIsAdmin
-        ? [
-            {
-              accent: 'neutral',
-              actions: [
-                {
-                  title: 'Manage channels',
-                  endIcon: 'ChevronRight',
-                  action: () => {
-                    if (!group) {
-                      return;
-                    }
-                    onPressManageChannels?.(group.id);
-                    onOpenChange(false);
-                  },
-                },
-              ],
-            } as ActionGroup,
-          ]
-        : []),
-      // TODO: redefine in a more readable way.
-      ...(group &&
-      !['groupDm', 'dm'].includes(channel.type) &&
-      (group.privacy === 'public' ||
-        (currentUserIsAdmin &&
-          ['private', 'secret'].includes(group.privacy ?? '')))
-        ? [
-            {
-              accent: 'neutral',
-              actions: [
-                {
-                  title: 'Invite people',
-                  action: () => {
-                    onOpenChange(false);
-                    onPressInvite?.(group);
-                  },
-                  endIcon: 'ChevronRight',
-                },
-              ],
-            } as ActionGroup,
-          ]
-        : []),
-      ...(group &&
-      !['groupDm', 'dm'].includes(channel.type) &&
-      !currentUserIsAdmin &&
-      ['private', 'secret'].includes(group.privacy ?? '')
-        ? [
-            {
-              accent: 'disabled',
-              actions: [
-                {
-                  title: 'Invites disabled',
-                  description: 'Only admins may invite people to this group.',
-                },
-              ],
-            } as ActionGroup,
-          ]
-        : []),
-      ...(!currentUserIsHost
-        ? [
-            {
-              accent: 'negative',
-              actions: [
-                {
-                  title: `Leave`,
-                  endIcon: 'LogOut',
-                  action: () => {
-                    if (!channel) {
-                      return;
-                    }
-                    if (!isWeb) {
-                      Alert.alert(
-                        `Leave ${title}?`,
-                        'You will no longer receive updates from this channel.',
-                        [
-                          {
-                            text: 'Cancel',
-                            onPress: () => console.log('Cancel Pressed'),
-                            style: 'cancel',
-                          },
-                          {
-                            text: 'Leave',
-                            style: 'destructive',
-                            onPress: () => {
-                              onOpenChange(false);
-                              if (
-                                channel.type === 'dm' ||
-                                channel.type === 'groupDm'
-                              ) {
-                                store.respondToDMInvite({
-                                  channel,
-                                  accept: false,
-                                });
-                              } else {
-                                store.leaveGroupChannel(channel.id);
-                              }
-                            },
-                          },
-                        ]
-                      );
-                      return;
-                    }
-                    onOpenChange(false);
-                    if (channel.type === 'dm' || channel.type === 'groupDm') {
-                      store.respondToDMInvite({
-                        channel,
-                        accept: false,
-                      });
-                    } else {
-                      store.leaveGroupChannel(channel.id);
-                    }
-                  },
-                },
-              ],
-            } as ActionGroup,
-          ]
-        : []),
-    ];
-  }, [
-    channel,
-    currentUserIsAdmin,
-    group,
-    currentUserIsHost,
-    setPane,
-    handleMarkRead,
-    onOpenChange,
-    onPressChannelMeta,
-    onPressChannelMembers,
-    onPressManageChannels,
-    onPressInvite,
-    title,
-  ]);
-
-  const displayTitle = useMemo((): string => {
-    if (pane === 'initial') {
-      return title ?? '';
-    }
-    if (title == null) {
-      return 'Notifications';
-    } else {
-      return 'Notifications for ' + title;
-    }
-  }, [title, pane]);
+  }, [channel, group, groupTitle, isSingleChannelGroup]);
 
   return (
     <ChatOptionsSheetContent
-      actionGroups={pane === 'initial' ? actionGroups : actionNotifications}
-      title={displayTitle}
-      subtitle={
-        pane === 'initial' ? subtitle : 'Set what you want to be notified about'
-      }
-      icon={
-        pane === 'initial' ? (
-          <ListItem.ChannelIcon model={channel} />
-        ) : (
-          <IconButton width="$4xl" onPress={() => setPane('initial')}>
-            <ChevronLeft />
-          </IconButton>
-        )
-      }
+      title={chatTitle ?? ''}
+      subtitle={subtitle}
+      actionGroups={actionGroups}
+      icon={<ListItem.ChannelIcon model={channel} />}
     />
   );
 }
@@ -878,5 +553,68 @@ function ChatOptionsSheetContent({
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
       </ActionSheet.ScrollableContent>
     </>
+  );
+}
+
+const notificationOptions: { title: string; value: ub.NotificationLevel }[] = [
+  {
+    title: 'All activity',
+    value: 'loud',
+  },
+  {
+    title: 'Posts, mentions, and replies',
+    value: 'medium',
+  },
+  {
+    title: 'Only mentions and replies',
+    value: 'soft',
+  },
+  {
+    title: 'Nothing',
+    value: 'hush',
+  },
+];
+
+function NotificationsSheetContent({
+  chatTitle,
+  onPressBack,
+}: {
+  chatTitle?: string | null;
+  onPressBack: () => void;
+}) {
+  const { updateVolume, group } = useChatOptions() ?? {};
+  const { data: currentVolumeLevel } = store.useGroupVolumeLevel(
+    group?.id ?? ''
+  );
+  const notificationActions = useMemo(
+    () =>
+      createActionGroups([
+        'neutral',
+        ...notificationOptions.map(
+          ({ title, value }): Action => ({
+            title,
+            accent: currentVolumeLevel === value ? 'positive' : 'neutral',
+            action: () => updateVolume(value),
+            endIcon: currentVolumeLevel === value ? 'Checkmark' : undefined,
+          })
+        ),
+      ]),
+    [currentVolumeLevel, updateVolume]
+  );
+  return (
+    <ChatOptionsSheetContent
+      title={chatTitle ? 'Notifications for ' + chatTitle : 'Notifications'}
+      actionGroups={notificationActions}
+      subtitle={'Set what you want to be notified about'}
+      icon={<SheetBackButton onPress={onPressBack} />}
+    />
+  );
+}
+
+function SheetBackButton({ onPress }: { onPress: () => void }) {
+  return (
+    <IconButton width="$4xl" onPress={onPress}>
+      <ChevronLeft />
+    </IconButton>
   );
 }

@@ -25,11 +25,6 @@ export type RootStackParamList = {
     selectedPostId?: string | null;
     startDraft?: boolean;
   };
-  FindGroups: undefined;
-  ContactHostedGroups: {
-    contactId: string;
-  };
-  CreateGroup: undefined;
   GroupChannels: {
     groupId: string;
   };
