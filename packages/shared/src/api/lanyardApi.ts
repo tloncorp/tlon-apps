@@ -42,7 +42,7 @@ export function startPhoneVerify(phoneNumber: string) {
 
   return poke({
     app: 'lanyard',
-    mark: 'lanyard-command',
+    mark: 'json',
     json: command,
   });
 }
@@ -64,7 +64,7 @@ export function checkPhoneVerifyOtp(phoneNumber: string, otp: string) {
 
   return poke({
     app: 'lanyard',
-    mark: 'lanyard-command',
+    mark: 'json',
     json: command,
   });
 }
@@ -82,9 +82,9 @@ function lanyardRecordToVerification(
     value: ub.isPhoneRecord(record)
       ? record.identifier.phone
       : record.identifier.urbit,
-    initiatedAt: daToUnix(parseDa(record.record.start)),
-    status: parseLanyardStatus(record.record.state.status),
-    visibility: parseLanyardConfig(record.record.state.config),
+    initiatedAt: Date.now(), //  TODO: update once backend supports
+    status: parseLanyardStatus(record.record.status),
+    visibility: parseLanyardConfig(record.record.config),
   };
 }
 

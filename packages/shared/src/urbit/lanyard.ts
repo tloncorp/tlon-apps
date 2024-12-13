@@ -12,22 +12,17 @@ export type LanyardRecordIdentifier =
 
 export interface LanyardPhoneRecord {
   identifier: { phone: string };
-  record: LanyardRecordValue;
+  record: LanyardRecordState;
 }
 
 export interface LanyardNodeRecord {
   identifier: { urbit: string };
-  record: LanyardRecordValue;
+  record: LanyardRecordState;
 }
 
 export interface LanyardDummyRecord {
   identifier: { dummy: string };
-  record: LanyardRecordValue;
-}
-
-export interface LanyardRecordValue {
-  start: string;
-  state: LanyardRecordState;
+  record: LanyardRecordState;
 }
 
 export interface LanyardRecordState {
@@ -77,5 +72,5 @@ export interface LanyardWorkCommand {
 }
 
 export type LanyardUserWork =
-  | { urbit: { pin: string } }
+  | { urbit: { pin: number } }
   | { phone: { otp: string } };
