@@ -126,9 +126,6 @@
   ==
 ::  $author: post author
 +$  author  $@(ship bot-meta)
-::XX consider
-:: +$  author  [=ship meta=(unit bot-meta)]
-:: +$  bot-meta  [nickname=(unit @t) avatar=(unit @t)]
 ::  $bot-meta: bot metadata
 +$  bot-meta
   $:  =ship
@@ -225,12 +222,12 @@
   $%  [%hide =id-post]
       [%show =id-post]
   ==
-::  $react: emoji encoding
+::  $react: post reaction
 +$  react
   $@  @t           ::  direct unicode character representation
   $%  [%any p=@t]  ::  any string representation (for backcompat)
   ==
-+$  v-reacts  (map ship (rev (unit react)))
++$  v-reacts  (map author (rev (unit react)))
 +$  client-id  [author=ship sent=time]
 +$  pending-posts  (map client-id essay)
 +$  pending-replies  (map [top=id-post id=client-id] memo)
@@ -541,7 +538,7 @@
       replies=simple-replies
       =reply-meta
   ==
-+$  reacts      (map ship react)
++$  reacts      (map author react)
 +$  reply       [reply-seal (rev memo)]
 +$  simple-reply  [reply-seal memo]
 +$  replies     ((mop id-reply (unit reply)) lte)

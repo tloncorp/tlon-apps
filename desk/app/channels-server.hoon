@@ -943,21 +943,22 @@
   ++  ca-c-react
     |=  [reacts=v-reacts:c =c-react:c]
     ^-  [changed=? v-reacts:c]
-    =/  =ship     
-      %-  get-author-ship:utils
-      ?:  ?=(%add-react -.c-react) 
-        p.c-react 
+    =/  =author:c
+      ?:  ?=(%add-react -.c-react)
+        p.c-react
       p.c-react
-    ?>  |(=(src.bowl our.bowl) =(src.bowl ship))
+    ?>  ?|  =(src.bowl our.bowl)
+            =(src.bowl (get-author-ship:utils author))
+        ==
     =/  new-react  ?:(?=(%add-react -.c-react) `q.c-react ~)
     =/  [changed=? new-rev=@ud]
-      =/  old-react  (~(get by reacts) ship)
+      =/  old-react  (~(get by reacts) author)
       ?~  old-react  &+0
-      ?:  =(new-react +.u.old-react)
+      ?:  =(new-react old-react)
         |+rev.u.old-react
       &++(rev.u.old-react)
     ?.  changed  [| reacts]
-    &+(~(put by reacts) ship new-rev new-react)
+    &+(~(put by reacts) author new-rev new-react)
   ::
   ++  ca-update
     |=  =u-channel:c

@@ -380,19 +380,19 @@
   ^-  reacts:c
   %-  ~(gas by *reacts:c)
   %+  murn  ~(tap by v-reacts)
-  |=  [=ship (rev:c react=(unit react:c))]
+  |=  [=author:c (rev:c react=(unit react:c))]
   ?~  react  ~
-  (some ship u.react)
+  (some author u.react)
 ::
 ++  uv-reacts-1
   |=  =v-reacts:c
   ^-  reacts:v7:old:c
   %-  ~(gas by *reacts:v7:old:c)
   %+  murn  ~(tap by v-reacts)
-  |=  [=ship (rev:c react=(unit react:c))]
+  |=  [=author:c (rev:c react=(unit react:c))]
   ?~  react  ~
   ?~  react-1=(react-1 u.react)  ~
-  (some ship u.react-1)
+  (some (get-author-ship author) u.react-1)
 ::
 ::
 ++  react-1
@@ -408,10 +408,10 @@
   |=  =reacts:c
   ^-  reacts:v7:old:c
   %-  ~(rep by reacts)
-  |=  [[=ship =react:c] =reacts:v7:old:c]
+  |=  [[=author:c =react:c] =reacts:v7:old:c]
   ?~  react=(react-1 react)
     reacts
-  (~(put by reacts) ship u.react)
+  (~(put by reacts) (get-author-ship author) u.react)
 ::
 ++  replies-1
   |=  =replies:c
@@ -1386,10 +1386,17 @@
   ==
 ::
 ++  get-author-ship
-  |=  author=$@(ship bot-meta:c)
+  |=  =author:c
   ^-  ship
   ?@  author  author
   ship.author
+::
+++  get-person-ship
+  |=  =author:c
+  ^-  (unit ship)
+  ?^  author  ~
+  (some author)
+
 ::
 ++  subject  ^~(!>(..compile))
 ::

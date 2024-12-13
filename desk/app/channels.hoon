@@ -1393,13 +1393,13 @@
   ::
   ++  ca-fetch-contacts
     |=  chk=u-checkpoint:c
-    =/  authors=(list ship)
+    =/  authors=(list author:c)
       %~  tap  in  %-  sy
       %+  murn  ~(val by posts.chk)
         |=  up=(unit v-post:c)
         ?~  up  ~
-        `(get-author-ship:utils author.u.up)
-    (ca-heed authors)
+        `author.u.up
+    (ca-meet authors)
   ::
   ++  ca-apply-checkpoint
     |=  [chk=u-checkpoint:c send=?]
@@ -1525,7 +1525,7 @@
       ?~  post
         =/  post=(unit post:c)  (bind post.u-post uv-post-2:utils)
         =?  ca-core  ?=(^ post.u-post)
-          (ca-heed ~[(get-author-ship:utils author.u.post.u-post)])
+          (ca-meet ~[author.u.post.u-post])
         =?  ca-core  ?=(^ post.u-post)
           ::TODO  what about the "mention was added during edit" case?
           (on-post:ca-hark id-post u.post.u-post)
@@ -1540,7 +1540,7 @@
         =.  posts.channel  (put:on-v-posts:c posts.channel id-post ~)
         (ca-response %post id-post %set ~)
       ::
-      =.  ca-core  (ca-heed ~[(get-author-ship:utils author.u.post.u-post)])
+      =.  ca-core  (ca-meet ~[author.u.post.u-post])
       =*  old  u.u.post
       =*  new  u.post.u-post
       =/  merged  (ca-apply-post id-post old new)
@@ -1563,7 +1563,7 @@
         %reply
       (ca-u-reply id-post u.u.post id.u-post u-reply.u-post)
         %reacts
-      =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.u.post)))
+      =.  ca-core  (ca-meet ~(tap in ~(key by reacts.u.u.post)))
       =/  merged  (ca-apply-reacts reacts.u.u.post reacts.u-post)
       ?:  =(merged reacts.u.u.post)  ca-core
       =.  posts.channel
@@ -1571,16 +1571,25 @@
       (ca-response %post id-post %reacts (uv-reacts-2:utils merged))
     ::
         %essay
-      =.  ca-core  (ca-heed ~[(get-author-ship:utils author.u.u.post)])
+      =.  ca-core  (ca-meet ~[author.u.u.post])
       =^  changed  +.u.u.post  (apply-rev:c +.u.u.post +.u-post)
       ?.  changed  ca-core
       =.  posts.channel  (put:on-v-posts:c posts.channel id-post `u.u.post)
       (ca-response %post id-post %essay +>.u.u.post)
     ==
   ::
-  ++  ca-heed
-    |=  authors=(list ship)
-    (emit [%pass /contacts/heed %agent [our.bowl %contacts] %poke contact-action-0+!>([%heed authors])])
+  ++  ca-meet
+    |=  authors=(list author:c)
+    %^    emit
+        %pass
+      /contacts/heed
+    :*  %agent
+        [our.bowl %contacts]
+        %poke
+        ::  only meet authors who are persons
+        ::
+        contact-action-0+!>([%heed (murn authors get-person-ship:utils)])
+    ==
   ++  ca-u-reply
     |=  [=id-post:c post=v-post:c =id-reply:c =u-reply:c]
     ^+  ca-core
@@ -1612,12 +1621,11 @@
       =*  new  u.reply.u-reply
       =/  merged  (need (ca-apply-reply id-reply `old `new))
       ?:  =(merged old)  ca-core
-      =.  ca-core  (ca-heed ~[(get-author-ship:utils author.new)])
+      =.  ca-core  (ca-meet ~[author.new])
       (put-reply `merged %set `(uv-reply-2:utils id-post merged))
     ::
     ?~  reply  ca-core
-    ::
-    =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.u.reply)))
+    =.  ca-core  (ca-meet ~(tap in ~(key by reacts.u.u.reply)))
     =/  merged  (ca-apply-reacts reacts.u.u.reply reacts.u-reply)
     ?:  =(merged reacts.u.u.reply)  ca-core
     (put-reply `u.u.reply(reacts merged) %reacts (uv-reacts-2:utils merged))

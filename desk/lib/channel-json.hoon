@@ -397,8 +397,15 @@
     ^-  json
     %-  pairs
     %+  turn  ~(tap by reacts)
-    |=  [her=@p =react:c]
-    [(scot %p her) (^react react)]
+    |=  [=author:c =react:c]
+    ?@  author  
+      [(scot %p author) (^react react)]
+    :-  (scot %p ship.author)
+    %-  pairs
+    :~  react+(^react react)
+        nickname+?~(nickname.author ~ s/u.nickname.author)
+        avatar+?~(avatar.author ~ s/u.avatar.author)
+    ==
   ++  author
     |=  =author:c
     ^-  json
