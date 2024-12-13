@@ -1,7 +1,6 @@
 import {
   UseQueryOptions,
   UseQueryResult,
-  skipToken,
   useQuery,
 } from '@tanstack/react-query';
 import { useMemo } from 'react';
