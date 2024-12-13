@@ -304,6 +304,11 @@
     :~  [%pass /contacts/ours %agent [our.bowl %contacts] %leave ~]
         [%pass /contacts/news %agent [our.bowl %contacts] %watch /news]
     ==
+  ::  ensure contacts subscription is in place
+  ::
+  =?  caz  &(!?=(%0 ver) !(~(has by wex.bowl) /contacts/news our.bowl %contacts))
+    %+  snoc  caz
+    [%pass /contacts/news %agent [our.bowl %contacts] %watch /news]
   [caz this]
   ::
   +$  versioned-state
