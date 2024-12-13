@@ -4,6 +4,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
 import {
+  AttachmentProvider,
   ChatOptionsProvider,
   PostScreenView,
   useCurrentUserId,
@@ -157,34 +158,34 @@ export default function PostScreen(props: Props) {
       initialChat={{ type: 'channel', id: channelId }}
       {...chatOptionsNavProps}
     >
-      <PostScreenView
-        handleGoToUserProfile={handleGoToUserProfile}
-        canUpload={canUpload}
-        parentPost={post}
-        posts={posts}
-        isLoadingPosts={isLoadingPosts}
-        channel={channel}
-        initialThreadUnread={initialThreadUnread}
-        goBack={handleGoBack}
-        sendReply={sendReply}
-        groupMembers={group?.members ?? []}
-        uploadAsset={store.uploadAsset}
-        handleGoToImage={navigateToImage}
-        getDraft={getDraft}
-        storeDraft={storeDraft}
-        clearDraft={clearDraft}
-        markRead={markRead}
-        editingPost={editingPost}
-        onPressDelete={handleDeletePost}
-        onPressRetry={handleRetrySend}
-        onPressRef={navigateToRef}
-        onGroupAction={performGroupAction}
-        goToDm={handleGoToDm}
-        setEditingPost={setEditingPost}
-        editPost={editPost}
-        negotiationMatch={negotiationStatus.matchedOrPending}
-        headerMode={headerMode}
-      />
+      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
+        <PostScreenView
+          handleGoToUserProfile={handleGoToUserProfile}
+          parentPost={post}
+          posts={posts}
+          isLoadingPosts={isLoadingPosts}
+          channel={channel}
+          initialThreadUnread={initialThreadUnread}
+          goBack={handleGoBack}
+          sendReply={sendReply}
+          groupMembers={group?.members ?? []}
+          handleGoToImage={navigateToImage}
+          getDraft={getDraft}
+          storeDraft={storeDraft}
+          clearDraft={clearDraft}
+          markRead={markRead}
+          editingPost={editingPost}
+          onPressDelete={handleDeletePost}
+          onPressRetry={handleRetrySend}
+          onPressRef={navigateToRef}
+          onGroupAction={performGroupAction}
+          goToDm={handleGoToDm}
+          setEditingPost={setEditingPost}
+          editPost={editPost}
+          negotiationMatch={negotiationStatus.matchedOrPending}
+          headerMode={headerMode}
+        />
+      </AttachmentProvider>
     </ChatOptionsProvider>
   ) : null;
 }
