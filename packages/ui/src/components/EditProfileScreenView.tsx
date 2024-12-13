@@ -1,10 +1,10 @@
 import * as db from '@tloncorp/shared/db';
 import { Button, useStore } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Alert } from 'react-native';
+import { Alert, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, XStack } from 'tamagui';
+import { ScrollView, SizableText, View, XStack } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts';
 import { SigilAvatar } from './Avatar';
@@ -69,6 +69,18 @@ export function EditProfileScreenView(props: Props) {
   const avatarPlaceholder = useMemo(() => {
     return isCurrUser ? undefined : userContact?.peerAvatarImage ?? undefined;
   }, [isCurrUser, userContact]);
+
+  const [hasVerifiedPhone, sethasVerifiedPhone] = useState<boolean | null>(
+    null
+  );
+
+  // Always show button if it was unverified when you opened the screen
+  useEffect(() => {
+    if (!phoneVerificationLoading && hasVerifiedPhone === null) {
+      sethasVerifiedPhone(phoneVerification?.status === 'verified');
+    }
+  }, [hasVerifiedPhone, phoneVerification, phoneVerificationLoading]);
+  const [fakePhoneVisible, setFakePhoneVisible] = useState(true);
 
   const {
     control,
@@ -271,11 +283,47 @@ export function EditProfileScreenView(props: Props) {
                   />
                 </Field>
 
-                <Field label="Verified Phone Number">
-                  <Button hero onPress={() => setVerifyPhoneOpen(true)}>
-                    <Button.Text>Verify a phone number</Button.Text>
-                  </Button>
-                </Field>
+                {hasVerifiedPhone ? (
+                  <Field label="Share Phone Verification" paddingBottom="$2xl">
+                    {/* <Switch
+                      value={fakePhoneVisible}
+                      onValueChange={setFakePhoneVisible}
+                    /> */}
+                    <XStack
+                      backgroundColor="$background"
+                      borderRadius="$l"
+                      borderWidth={1}
+                      borderColor="$border"
+                      paddingHorizontal="$xl"
+                      paddingVertical="$l"
+                      alignItems="center"
+                      justifyContent="space-between"
+                    >
+                      <SizableText color="$primaryText">
+                        Share on profile
+                      </SizableText>
+                      <Switch
+                        value={fakePhoneVisible}
+                        onValueChange={setFakePhoneVisible}
+                      />
+                    </XStack>
+                    <Text
+                      color="$tertiaryText"
+                      paddingBottom="$l"
+                      paddingTop="$m"
+                      marginLeft="$s"
+                    >
+                      You can let others know you've verified a phone number
+                      without revealing what the number is.
+                    </Text>
+                  </Field>
+                ) : (
+                  <Field label="Verified Phone Number">
+                    <Button hero onPress={() => setVerifyPhoneOpen(true)}>
+                      <Button.Text>Manage verifications</Button.Text>
+                    </Button>
+                  </Field>
+                )}
               </>
             ) : (
               <>
