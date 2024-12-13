@@ -76,34 +76,35 @@ function payloadFromNotification(
       const dmPost = payload.dmPost as ub.DmPostEvent['dm-post'] | undefined;
       if (dmPost != null) {
         // key.id looks like `dm/000.000.000.mor.eme.ssa.gei.dxx`
+        const { sent, author } = ub.getIdParts(dmPost.key.id);
         const id = dmPost.key.id.split('/')[1];
         const receivedAt = getReceivedAtFromId(id);
         return {
           id,
-          authorId: (dmPost.whom as { ship: string }).ship!,
+          authorId: author,
           channelId: (dmPost.whom as { ship: string }).ship!,
           content: dmPost.content,
           type: 'chat',
           receivedAt,
           syncedAt: undefined,
-          sentAt: api.udToDate(dmPost.key.time),
+          sentAt: sent,
         };
       }
 
       const post = payload.post as ub.PostEvent['post'] | undefined;
-      if (post != null && postInfo?.authorId != null) {
+      if (post != null) {
         const id = post.key.id.split('/')[1];
         const receivedAt = getReceivedAtFromId(id);
+        const { sent, author } = ub.getIdParts(post.key.id);
         return {
           id,
-          // idk how else to get author
-          authorId: postInfo.authorId,
+          authorId: author,
           channelId: post.channel,
           content: post.content,
           type: 'chat',
           receivedAt,
           syncedAt: undefined,
-          sentAt: api.udToDate(post.key.time),
+          sentAt: sent,
         };
       }
 
