@@ -119,6 +119,9 @@ export function UserProfileScreenView(props: Props) {
 
         <StatusBlock status={nodeStatus} label="Node" />
         <StatusBlock status={sponsorStatus} label="Sponsor" />
+        {userContact?.hasVerifiedPhone && (
+          <StatusBlock status="verified" label="Phone" />
+        )}
 
         <PinnedGroupsDisplay
           groups={pinnedGroups}
@@ -133,7 +136,7 @@ function StatusBlock({
   status,
   label,
 }: {
-  status: 'online' | 'offline' | 'pending';
+  status: 'online' | 'offline' | 'pending' | 'verified';
   label: string;
 }) {
   const windowDimensions = useWindowDimensions();
@@ -155,12 +158,14 @@ function StatusBlock({
   );
 }
 
-function statusText(status: 'online' | 'offline' | 'pending') {
+function statusText(status: 'online' | 'offline' | 'pending' | 'verified') {
   return status === 'online'
     ? 'Online'
     : status === 'offline'
       ? 'Offline'
-      : 'Pending';
+      : status === 'pending'
+        ? 'Pending'
+        : 'Verified';
 }
 
 function StatusIndicator({
@@ -168,7 +173,7 @@ function StatusIndicator({
   status,
 }: {
   label: string;
-  status: 'online' | 'offline' | 'pending';
+  status: 'online' | 'offline' | 'pending' | 'verified';
   children?: React.ReactNode;
   onPress?: () => void;
 }) {
@@ -184,7 +189,9 @@ function StatusIndicator({
           ? '$positiveActionText'
           : status === 'offline'
             ? '$negativeActionText'
-            : '$secondaryText'
+            : status === 'pending'
+              ? '$secondaryText'
+              : '$greenSoft'
       }
     >
       {status === 'pending' ? (
@@ -193,9 +200,15 @@ function StatusIndicator({
         </Text>
       ) : (
         <Icon
-          type={status === 'offline' ? 'Stop' : 'Record'}
-          size="$s"
-          color="$background"
+          type={
+            status === 'offline'
+              ? 'Stop'
+              : status === 'online'
+                ? 'Record'
+                : 'Checkmark'
+          }
+          size={status === 'verified' ? '$m' : '$s'}
+          color={status === 'verified' ? '$green' : '$background'}
         />
       )}
     </View>

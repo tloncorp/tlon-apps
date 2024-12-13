@@ -120,6 +120,12 @@ export function ProfileScreenView(props: Props) {
             onPress={props.onAppInfoPressed}
           />
           <ProfileAction
+            title="Manage Verifications"
+            leftIcon="Checkmark"
+            rightIcon={'ChevronRight'}
+            onPress={() => {}}
+          />
+          <ProfileAction
             title="Report a bug"
             leftIcon="Send"
             rightIcon={'ChevronRight'}

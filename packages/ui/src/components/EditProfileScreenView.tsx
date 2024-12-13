@@ -318,7 +318,7 @@ export function EditProfileScreenView(props: Props) {
                     </Text>
                   </Field>
                 ) : (
-                  <Field label="Verified Phone Number">
+                  <Field label="Share Phone Verification">
                     <Button hero onPress={() => setVerifyPhoneOpen(true)}>
                       <Button.Text>Manage verifications</Button.Text>
                     </Button>
