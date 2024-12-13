@@ -61,6 +61,9 @@ export function VerifyPhoneNumberSheet(props: {
   }, [phoneForm, store]);
 
   useEffect(() => {
+    // once phone # is submitted, wait for backend
+    // to confirm otp was sent ('pending' status) before
+    // transitioning panes
     if (
       pane === 'submitPhone' &&
       readyForOtp &&
