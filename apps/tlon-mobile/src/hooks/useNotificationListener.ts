@@ -92,7 +92,7 @@ function payloadFromNotification(
       }
 
       const post = payload.post as ub.PostEvent['post'] | undefined;
-      if (post != null && postInfo?.authorId != null) {
+      if (post != null) {
         const id = post.key.id.split('/')[1];
         const receivedAt = getReceivedAtFromId(id);
         const { sent, author } = ub.getIdParts(post.key.id);
