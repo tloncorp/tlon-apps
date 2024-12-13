@@ -82,6 +82,7 @@ export const contacts = sqliteTable('contacts', {
   hasVerifiedPhone: boolean('hasVerifiedPhone'),
   verifiedPhoneSignature: text('verifiedPhoneSignature'),
   verifiedPhoneAt: timestamp('verifiedPhoneAt'),
+  verifiedNodeIds: text('verifiedNodeIds', { mode: 'json' }),
 });
 
 export const contactsRelations = relations(contacts, ({ many }) => ({
@@ -297,6 +298,25 @@ export const pinRelations = relations(pins, ({ one }) => ({
     references: [channels.id],
   }),
 }));
+
+export type VerificationType = 'phone' | 'node';
+export type VerificationVisibility = 'public' | 'discoverable' | 'hidden';
+export type VerificationStatus = 'waiting' | 'pending' | 'verified';
+export const verifications = sqliteTable(
+  'verifications',
+  {
+    type: text('type').$type<VerificationType>().notNull(),
+    value: text('value').notNull(),
+    initiatedAt: timestamp('initiated_at'),
+    visibility: text('visibility').$type<VerificationVisibility>().notNull(),
+    status: text('status').$type<VerificationStatus>().notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.type, table.value] }),
+    };
+  }
+);
 
 export type GroupJoinStatus = 'joining' | 'errored';
 export type GroupPrivacy = 'public' | 'private' | 'secret';
