@@ -203,14 +203,15 @@ async function runPostSignupActions(params: {
     }
   }
 
-  if (params.phoneNumber && params.shouldVerifyPhone) {
-    try {
-      await store.startPhoneVerify(params.phoneNumber);
-    } catch (e) {
-      logger.trackError('post signup: failed to verify phone', {
-        errorMessage: e.message,
-        errorStack: e.stack,
-      });
-    }
-  }
+  // Can't actually do this yet since not on livenet hosting ships
+  // if (params.phoneNumber && params.shouldVerifyPhone) {
+  //   try {
+  //     await store.startPhoneVerify(params.phoneNumber);
+  //   } catch (e) {
+  //     logger.trackError('post signup: failed to verify phone', {
+  //       errorMessage: e.message,
+  //       errorStack: e.stack,
+  //     });
+  //   }
+  // }
 }
