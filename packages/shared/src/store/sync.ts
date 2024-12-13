@@ -179,6 +179,7 @@ export const syncVerifications = async (ctx?: SyncCtx) => {
   const verifications = await syncQueue.add('verifications', ctx, () =>
     api.getVerifications()
   );
+  console.log('bl: inserting verifications');
   await db.insertVerifications({ verifications });
 };
 
@@ -206,9 +207,11 @@ export const syncContacts = async (ctx?: SyncCtx) => {
   const contacts = await syncQueue.add('contacts', ctx, () =>
     api.getContacts()
   );
-  logger.log('got contacts from api', contacts);
+  const self = await syncQueue.add('self', ctx, () => api.getSelfContact());
+  const merged = [self, ...contacts];
+  logger.log('got contacts from api', merged);
   try {
-    await db.insertContacts(contacts);
+    await db.insertContacts(merged);
   } catch (e) {
     logger.error('error inserting contacts', e);
   }
@@ -1171,9 +1174,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     syncAppInfo({ priority: SyncPriority.Low }).then(() => {
       logger.crumb(`finished syncing app info`);
     }),
-    // syncVerifications({ priority: SyncPriority.Low }).then(() => {
-    //   logger.crumb(`finished syncing verifications`);
-    // }),
+    syncVerifications({ priority: SyncPriority.Low }).then(() => {
+      logger.crumb(`finished syncing verifications`);
+    }),
   ];
 
   await Promise.all(lowPriorityPromises)

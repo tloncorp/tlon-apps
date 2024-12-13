@@ -11,7 +11,7 @@ export async function getVerifications(): Promise<db.Verification[]> {
   logger.log(`getting verifications`);
   const records = await scry<ub.LanyardRecords>({
     app: 'lanyard',
-    path: '/records',
+    path: '/records/json',
   });
 
   logger.log('lanyard/records scry result', records);

@@ -27,6 +27,7 @@ import { ContactAvatar, GroupAvatar } from './Avatar';
 import { Button } from './Button';
 import { ContactName } from './ContactNameV2';
 import { Icon } from './Icon';
+import { ContactListItem } from './ListItem';
 import Pressable from './Pressable';
 import { ScreenHeader } from './ScreenHeader';
 import { Text } from './TextV2';
@@ -44,6 +45,7 @@ export function UserProfileScreenView(props: Props) {
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
   const userContact = useContact(props.userId);
+  console.log(`UserProfileScreen`, userContact);
   const pinnedGroups = useMemo(() => {
     return (
       userContact?.pinnedGroups?.flatMap((g) => (g.group ? [g.group] : [])) ??
@@ -122,6 +124,13 @@ export function UserProfileScreenView(props: Props) {
         {userContact?.hasVerifiedPhone && (
           <StatusBlock status="verified" label="Phone" />
         )}
+
+        {userContact?.verifiedNodeIds &&
+        Array.isArray(userContact.verifiedNodeIds) ? (
+          <VerifiedNodesDisplay
+            nodes={userContact.verifiedNodeIds as string[]}
+          />
+        ) : null}
 
         <PinnedGroupsDisplay
           groups={pinnedGroups}
@@ -378,6 +387,31 @@ function UserInfoRow(props: {
         </YStack>
       </XStack>
     </Pressable>
+  );
+}
+
+function VerifiedNodesDisplay(props: { nodes: string[] }) {
+  console.log(`nodes`, props.nodes);
+  const nodesKey = useMemo(() => props.nodes.join(','), [props.nodes]);
+  useEffect(() => {
+    api.syncUserProfiles(props.nodes);
+  }, [nodesKey]);
+  return (
+    <WidgetPane width="100%">
+      <WidgetPane.Title>Controlled Accounts</WidgetPane.Title>
+      <YStack>
+        {props.nodes.map((node) => {
+          return (
+            <ContactListItem
+              key={node}
+              contactId={node}
+              showUserId
+              showNickname
+            />
+          );
+        })}
+      </YStack>
+    </WidgetPane>
   );
 }
 

@@ -138,7 +138,7 @@ export function VerifyPhoneNumberSheet(props: {
     if (shouldPoll && !pollingRef.current) {
       pollingRef.current = setInterval(async () => {
         console.log('polling for verification status');
-        // await store.syncVerifications();
+        await store.syncVerifications();
       }, 2000);
     } else {
       if (pollingRef.current) {
@@ -146,7 +146,7 @@ export function VerifyPhoneNumberSheet(props: {
         pollingRef.current = null;
       }
     }
-  });
+  }, [pane, readyForOtp, sentOtp, store]);
 
   return (
     <ActionSheet
@@ -206,6 +206,11 @@ export function VerifyPhoneNumberSheet(props: {
                 label="Please enter your code below"
               />
             </ActionSheet.ContentBlock>
+            {(sentOtp || verification?.status === 'waiting') && (
+              <ActionSheet.ContentBlock>
+                <LoadingSpinner />
+              </ActionSheet.ContentBlock>
+            )}
           </ActionSheet.Content>
         )}
 

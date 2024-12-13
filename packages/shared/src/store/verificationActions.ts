@@ -16,18 +16,18 @@ export async function startPhoneVerify(phoneNumber: string) {
 
   try {
     // use api when ready
-    // await api.startPhoneVerify(phoneNumber);
+    await api.startPhoneVerify(phoneNumber);
 
     // fake it updating status
-    setTimeout(() => {
-      db.updateVerification({
-        verification: {
-          type: 'phone',
-          value: phoneNumber,
-          status: 'pending',
-        },
-      });
-    }, 3000);
+    // setTimeout(() => {
+    //   db.updateVerification({
+    //     verification: {
+    //       type: 'phone',
+    //       value: phoneNumber,
+    //       status: 'pending',
+    //     },
+    //   });
+    // }, 3000);
   } catch (e) {
     logger.trackError('Failed to start phone verification', e);
     // rollback the update
@@ -38,18 +38,18 @@ export async function startPhoneVerify(phoneNumber: string) {
 export async function checkPhoneVerifyOtp(phoneNumber: string, otp: string) {
   try {
     // use api when ready
-    // await api.checkPhoneVerifyOtp(phoneNumber, otp);
+    await api.checkPhoneVerifyOtp(phoneNumber, otp);
 
     // fake it updating status
-    setTimeout(() => {
-      db.updateVerification({
-        verification: {
-          type: 'phone',
-          value: phoneNumber,
-          status: 'verified',
-        },
-      });
-    }, 3000);
+    // setTimeout(() => {
+    //   db.updateVerification({
+    //     verification: {
+    //       type: 'phone',
+    //       value: phoneNumber,
+    //       status: 'verified',
+    //     },
+    //   });
+    // }, 3000);
   } catch (e) {
     logger.trackError('Failed to check phone verification OTP', e);
   }

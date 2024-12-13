@@ -9,13 +9,24 @@ import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('contactsApi', true);
 
+export const getSelfContact = async () => {
+  const currentUserId = getCurrentUserId();
+  const selfResponse = await scry<ub.ContactBookProfile>({
+    app: 'contacts',
+    path: '/v1/self',
+  });
+  return v1PeerToClientProfile(currentUserId, selfResponse);
+};
+
 export const getContacts = async () => {
+  const currentUserId = getCurrentUserId();
   // this is all peers we know about, with merged profile data for
   // contacts
   const peersResponse = await scry<ub.ContactRolodex>({
     app: 'contacts',
     path: '/all',
   });
+  peersResponse[currentUserId] = null;
 
   // this is all of your contacts, with unmerged profile data + user overrides
   const contactsResponse = await scry<ub.ContactBookScryResult1>({
@@ -38,6 +49,8 @@ export const getContacts = async () => {
   const contactProfiles = contactsToClientProfiles(contactsResponse, {
     contactSuggestions,
   });
+
+  console.log(`get contacts`, { peerProfiles, contactProfiles });
 
   return [...peerProfiles, ...contactProfiles];
 };
@@ -294,12 +307,19 @@ function contactVerifyToClientForm(
   if (!contact) {
     return {};
   }
+
+  let nodeIds = null;
+  if (contact['lanyard-tmp-urbits']) {
+    nodeIds = contact['lanyard-tmp-urbits'].value.map((node) => node.value);
+  }
+
   return {
     hasVerifiedPhone: contact['lanyard-tmp-phone-sign']?.value ? true : false,
     verifiedPhoneSignature: contact['lanyard-tmp-phone-sign']?.value ?? null,
     verifiedPhoneAt: contact['lanyard-tmp-phone-since']?.value
       ? daToUnix(parseDa(contact['lanyard-tmp-phone-since'].value))
       : null,
+    verifiedNodeIds: nodeIds,
   };
 }
 
@@ -326,6 +346,7 @@ export const v1PeerToClientProfile = (
 ): db.Contact => {
   const currentUserId = getCurrentUserId();
   const phoneVerify = contactVerifyToClientForm(contact);
+  console.log(`contact ${id}`, contact, phoneVerify);
   return {
     id,
     peerNickname: contact.nickname?.value ?? null,

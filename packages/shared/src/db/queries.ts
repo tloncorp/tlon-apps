@@ -1424,7 +1424,18 @@ export const insertVerifications = createWriteQuery(
     { verifications }: { verifications: Verification[] },
     ctx: QueryCtx
   ) => {
-    if (verifications.length === 0) return;
+    if (verifications.length === 0) {
+      await ctx.db
+        .delete($verifications)
+        .where(isNotNull($verifications.value));
+      return;
+    } else {
+      const values = verifications.map((v) => v.value);
+      await ctx.db
+        .delete($verifications)
+        .where(not(inArray($verifications.value, values)));
+    }
+
     return ctx.db
       .insert($verifications)
       .values(verifications)

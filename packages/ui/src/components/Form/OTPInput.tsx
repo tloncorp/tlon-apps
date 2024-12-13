@@ -77,7 +77,7 @@ export function OTPInput({
             key={i}
             ref={inputRefs[i]}
             onKeyPress={({ nativeEvent }) => handleKeyPress(i, nativeEvent.key)}
-            placeholder="5"
+            placeholder="7"
             onChangeText={(text) => handleChangeText(i, text)}
             value={value.length > i ? value[i] : ''}
             keyboardType="numeric"
