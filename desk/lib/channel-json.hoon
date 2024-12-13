@@ -398,14 +398,23 @@
     %-  pairs
     %+  turn  ~(tap by reacts)
     |=  [=author:c =react:c]
-    ?@  author  
+    ?@  author
       [(scot %p author) (^react react)]
-    :-  (scot %p ship.author)
+    ::  a bot is identified by the
+    ::  'ship-nickname' string
+    ::
+    :-  (id-author author)
     %-  pairs
-    :~  react+(^react react)
+    :~  ship+(ship ship.author)
         nickname+?~(nickname.author ~ s/u.nickname.author)
         avatar+?~(avatar.author ~ s/u.avatar.author)
+        react+(^react react)
     ==
+  ++  id-author
+    |=  =author:c
+    ^-  @t
+    ?@  author  (scot %p author)
+    (rap 3 ~[(scot %p ship.author) '-' (fall nickname.author '')])
   ++  author
     |=  =author:c
     ^-  json
@@ -689,7 +698,7 @@
       |=  pr=pending-replies:v7:old:c
       =/  replies
         %+  roll  ~(tap by pr)
-        |=  $:  [[top=id-post:c cid=client-id:c] mem=memo:v7:old:c] 
+        |=  $:  [[top=id-post:c cid=client-id:c] mem=memo:v7:old:c]
                 rs=(map id-post:c (map client-id:c memo:c))
             ==
         ?.  (~(has by rs) top)  (~(put by rs) top (malt ~[[cid mem]]))
@@ -712,7 +721,7 @@
       :~  id+(client-id id.r-channel)
           pending+(r-pending r-pending.r-channel)
       ==
-    ++  r-pending  
+    ++  r-pending
       |=  =r-pending:v7:old:c
       %+  frond  -.r-pending
       ?-  -.r-pending
@@ -926,6 +935,15 @@
       :~  nest/(nest p.s)
           reference/(reference q.s)
       ==
+    ::
+    ++  reply-meta
+      |=  r=reply-meta:v7:old:c
+      %-  pairs
+      :~  'replyCount'^(numb reply-count.r)
+          'lastReply'^?~(last-reply.r ~ (time u.last-reply.r))
+          'lastRepliers'^a/(turn ~(tap in last-repliers.r) author)
+      ==
+    ::
     --
   ++  v1
     |%
@@ -1065,6 +1083,14 @@
         add-writers+add-sects
         del-writers+del-sects
     ==
+  ++  react
+    ^-  $-(json react:c)
+    |=  =json
+    ?:  ?=(%s -.json)  p.json
+    %.  json
+    %-  of
+    :~  any+so
+    ==
   ::
   ++  a-post
     ^-  $-(json a-post:c)
@@ -1073,7 +1099,7 @@
         edit+(ot id+id essay+essay ~)
         del+id
         reply+(ot id+id action+a-reply ~)
-        add-react+(ot id+id ship+ship react+so ~)
+        add-react+(ot id+id ship+ship react+react ~)
         del-react+(ot id+id ship+ship ~)
     ==
 
@@ -1083,7 +1109,7 @@
     :~  add+memo
         del+id
         edit+(ot id+id memo+memo ~)
-        add-react+(ot id+id ship+ship react+so ~)
+        add-react+(ot id+id ship+ship react+react ~)
         del-react+(ot id+id ship+ship ~)
     ==
   ++  meta
@@ -1103,7 +1129,7 @@
     %-  ot
     :~  ship/ship
         nickname/(mu so)
-        avator/(mu so)
+        avatar/(mu so)
     ==
   ++  memo
     %-  ot
@@ -1115,15 +1141,15 @@
     ^-  $-(json essay:c)
     %+  cu
       |=  $:  =story:c  =author:c  =time:z
-              =path  meta=(unit data:^^meta)  blob=(unit @t)
+              kind=path  meta=(unit data:^^meta)  blob=(unit @t)
           ==
-      `essay:c`[[story author time] path meta blob]
+      `essay:c`[[story author time] kind meta blob]
     %-  ot
     :~  content/story
         author/author
         sent/di
         ::
-        path/pa
+        kind/pa
         meta/(mu meta)
         blob/(mu so)
     ==

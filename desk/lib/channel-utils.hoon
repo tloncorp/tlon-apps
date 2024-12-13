@@ -1291,9 +1291,12 @@
   ^-  (rev:c (unit react:c))
   ?~  +.v-react  [-.v-react ~]
   =+  rat=(kill:em u.v-react)
-  ?~  rat
-    v-react(u [%any u.v-react])
-  v-react(u u.rat)
+  v-react(u (fall rat any+u.v-react))
+++  react-7-to-8
+  |=  =react:v7:old:c
+  ^-  react:c
+  =+  rat=(kill:em react)
+  (fall rat any+react)
 ::
 ::
 ++  u-post-set-7-to-8
@@ -1396,7 +1399,6 @@
   ^-  (unit ship)
   ?^  author  ~
   (some author)
-
 ::
 ++  subject  ^~(!>(..compile))
 ::

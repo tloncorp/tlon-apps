@@ -143,11 +143,11 @@
       =/  wir=^wire  /dm/(scot %p joiner.bite)
       =/  =dock  [our.bowl %chat]
       =/  =id:c  [our now]:bowl
-      =/  =memo:v7:old:ch
+      =/  =memo:ch
         [~[[%inline ~[[%ship joiner.bite] ' has joined the network']]] id]
       =/  =action:dm:c
         :-  joiner.bite
-        [id %add memo [%notice ~] ~]
+        [id %add %*(. *essay:ch - memo, kind chat/notice/~) ~]
       =/  =cage  chat-dm-action+!>(`action:dm:c`action)
       (snoc caz [%pass wir %agent dock %poke cage])
     ?~  group=(~(get by fields.metadata.bite) 'group')
