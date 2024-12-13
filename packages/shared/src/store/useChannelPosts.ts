@@ -63,7 +63,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     refetchOnMount: false,
     queryFn: async (ctx): Promise<PostQueryPage> => {
       const queryOptions = ctx.pageParam || options;
-      postsLogger.log('loading posts', queryOptions);
+      postsLogger.log('loading posts', { queryOptions, options });
       // We should figure out why this is necessary.
       if (
         queryOptions &&
@@ -86,7 +86,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
         },
         { priority: SyncPriority.High }
       );
-      postsLogger.log('loaded', res.posts?.length, 'posts from api');
+      postsLogger.log('loaded', res.posts?.length, 'posts from api', { res });
       const secondResult = await db.getChannelPosts(queryOptions);
       postsLogger.log(
         'returning',
@@ -127,12 +127,19 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     },
     getPreviousPageParam: (
       firstPage,
-      _allPages,
+      allPages,
       _firstPageParam
     ): UseChannelPostsPageParams | undefined => {
-      if (!firstPage.canFetchNewerPosts) {
+
+      // if any page has reached the newest post, we can't fetch any newer posts
+      // page order for allPages should be newest -> oldest
+      // but apparently on channels with less than 50 posts, the order is reversed (on web only)
+      const hasReachedNewest = allPages.some((p) => !p.canFetchNewerPosts);
+
+      if (hasReachedNewest) {
         return undefined;
       }
+
       return {
         ...options,
         mode: 'newer',
