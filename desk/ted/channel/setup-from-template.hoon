@@ -7,15 +7,11 @@
 ^-  form:m
 =/  [example=nest:c target=nest:c]
   (need !<((unit [nest:c nest:c]) arg))
-~&  [example target]
 ;<  ~  bind:m
   (watch:s /template [ship.example %channels-server] /v0/hooks/template/[kind.example]/[name.example])
-~&  "getting template"
 ;<  =cage  bind:m  (take-fact:s /template)
 ?>  ?=(%hook-template p.cage)
-~&  "received template"
 =+  !<(=template:h q.cage)
 =/  =^cage  hook-setup-template+!>([target template])
-~&  "setting up template"
 ;<  ~  bind:m  (poke-our:s %channels-server cage)
 (pure:m !>(`json`s+'success'))

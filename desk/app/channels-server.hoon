@@ -347,7 +347,6 @@
       %hook-setup-template
     ?>  =(src our):bowl
     =+  !<([=nest:c =template:h] vase)
-    ~&  "setting up template for {<nest>}"
     (setup-hook-template nest template)
   ::
       %hook-action-0
