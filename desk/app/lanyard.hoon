@@ -309,8 +309,8 @@
       ::      guarantee we regain consistency with the host. handling of other
       ::      facts below therefore isn't afraid to crash in unexpected
       ::      scenarios.
-      =/  =path  ?~(t.wire /endpoint /records/(scot %p our.bowl))
-      [%pass /verifier %agent [default %verifier] %watch path]~
+      =/  =path  ?~(t.wire /records/(scot %p our.bowl) /endpoint)
+      [%pass wire %agent [default %verifier] %watch path]~
     ::
         %fact
       ?.  =(%verifier-update p.cage.sign)
