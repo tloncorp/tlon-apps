@@ -175,6 +175,13 @@ export const syncLatestPosts = async (
   }
 };
 
+export const syncVerifications = async (ctx?: SyncCtx) => {
+  const verifications = await syncQueue.add('verifications', ctx, () =>
+    api.getVerifications()
+  );
+  await db.insertVerifications({ verifications });
+};
+
 export const syncSettings = async (ctx?: SyncCtx) => {
   const settings = await syncQueue.add('settings', ctx, () =>
     api.getSettings()
@@ -1163,6 +1170,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     ),
     syncAppInfo({ priority: SyncPriority.Low }).then(() => {
       logger.crumb(`finished syncing app info`);
+    }),
+    syncVerifications({ priority: SyncPriority.Low }).then(() => {
+      logger.crumb(`finished syncing verifications`);
     }),
   ];
 

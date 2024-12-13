@@ -72,6 +72,7 @@ import {
   posts as $posts,
   settings as $settings,
   threadUnreads as $threadUnreads,
+  verifications as $verifications,
   volumeSettings as $volumeSettings,
 } from './schema';
 import {
@@ -95,6 +96,7 @@ import {
   Settings,
   TableName,
   ThreadUnreadState,
+  Verification,
   VolumeSettings,
 } from './types';
 
@@ -1414,6 +1416,48 @@ export const getThreadActivity = createReadQuery(
     });
   },
   ['channelUnreads', 'threadUnreads']
+);
+
+export const insertVerifications = createWriteQuery(
+  'insertVerifications',
+  async (
+    { verifications }: { verifications: Verification[] },
+    ctx: QueryCtx
+  ) => {
+    if (verifications.length === 0) return;
+    return ctx.db
+      .insert($verifications)
+      .values(verifications)
+      .onConflictDoUpdate({
+        target: [$verifications.type, $verifications.value],
+        set: conflictUpdateSetAll($verifications),
+      });
+  },
+  ['verifications']
+);
+
+export const updateVerification = createWriteQuery(
+  'updateVerification',
+  async ({ verification }: { verification: Verification }, ctx: QueryCtx) => {
+    return ctx.db
+      .update($verifications)
+      .set(verification)
+      .where(
+        and(
+          eq($verifications.type, verification.type),
+          eq($verifications.value, verification.value)
+        )
+      );
+  },
+  ['verifications']
+);
+
+export const getVerifications = createReadQuery(
+  'getVerifications',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.verifications.findMany();
+  },
+  ['verifications']
 );
 
 export const getChannel = createReadQuery(
