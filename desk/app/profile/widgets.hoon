@@ -9,15 +9,15 @@
     ==
 ::NOTE  can't quite make a nice helper for this, wetness not wet enough...
 =/  nickname=(unit @t)  =+  a=(~(gut by contact) %nickname %text '')
-                        ?:(&(?=(%text -.a) !=('' +.a)) `+.a ~)
+                        ?:(&(?=([%text *] a) !=('' +.a)) `+.a ~)
 =/  bio=(unit @t)       =+  a=(~(gut by contact) %bio %text '')
-                        ?:(&(?=(%text -.a) !=('' +.a)) `+.a ~)
+                        ?:(&(?=([%text *] a) !=('' +.a)) `+.a ~)
 =/  color=@ux           =+  a=(~(gut by contact) %color %tint 0x0)
-                        ?:(?=(%tint -.a) +.a 0x0)
+                        ?:(?=([%tint *] a) +.a 0x0)
 =/  avatar=(unit @ta)   =+  a=(~(gut by contact) %avatar %look '')
-                        ?:(&(?=(%look -.a) !=('' +.a)) `+.a ~)
+                        ?:(&(?=([%look *] a) !=('' +.a)) `+.a ~)
 =/  cover=(unit @ta)    =+  a=(~(gut by contact) %cover %look '')
-                        ?:(&(?=(%look -.a) !=('' +.a)) `+.a ~)
+                        ?:(&(?=([%look *] a) !=('' +.a)) `+.a ~)
 |^  %-  ~(gas by *(map term [%0 @t %marl marl]))
     :~  [%profile %0 'Profile Header' %marl profile-widget]
         [%profile-bio %0 'Profile Bio' %marl profile-bio]
