@@ -1,9 +1,7 @@
-import { useFeatureFlag } from 'posthog-react-native';
 import { ReactElement } from 'react';
-import { Alert, Share } from 'react-native';
+import { Alert } from 'react-native';
 import { ScrollView, View, YStack } from 'tamagui';
 
-import { ContactAvatar } from './Avatar';
 import { IconType } from './Icon';
 import { ListItem } from './ListItem';
 import Pressable from './Pressable';
@@ -27,8 +25,6 @@ interface Props {
 }
 
 export function ProfileScreenView(props: Props) {
-  const showDmLure = useFeatureFlag('share-dm-lure');
-
   // TODO: Add logout back in when we figure out TLON-2098.
   const handleLogoutPressed = () => {
     Alert.alert('Log out', 'Are you sure you want to log out?', [
@@ -44,37 +40,11 @@ export function ProfileScreenView(props: Props) {
     ]);
   };
 
-  const onShare = async () => {
-    try {
-      await Share.share(
-        {
-          message:
-            'I’m inviting you to Tlon, the only communication tool you can trust.',
-          url: props.dmLink,
-          title: 'Join me on Tlon',
-        },
-        {
-          subject: 'Join me on Tlon',
-        }
-      );
-    } catch (error) {
-      console.error(error.message);
-    }
-  };
-
   return (
     <>
       <ScreenHeader title="Settings" backAction={props.onBackPressed} />
       <ScrollView>
         <YStack flex={1} padding="$l" gap="$s">
-          {showDmLure && props.dmLink !== '' && (
-            <ProfileAction
-              title="Share app with friends"
-              leftIcon="Send"
-              rightIcon={'ChevronRight'}
-              onPress={onShare}
-            />
-          )}
           <ProfileAction
             title="Notification settings"
             leftIcon="Notifications"
