@@ -1,7 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
+import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
 import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
 import { group } from '@tloncorp/app/fixtures/fakeData';
-import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
 import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { Theme } from '@tloncorp/ui';
 import { PropsWithChildren, useState } from 'react';
@@ -15,6 +15,7 @@ import { EULAScreen } from '../screens/Onboarding/EULAScreen';
 import { InventoryCheckScreen } from '../screens/Onboarding/InventoryCheckScreen';
 import { JoinWaitListScreen } from '../screens/Onboarding/JoinWaitListScreen';
 import { PasteInviteLinkScreen } from '../screens/Onboarding/PasteInviteLinkScreen';
+import { PhoneDiscoveryScreen } from '../screens/Onboarding/PhoneDiscoveryScreen';
 import { RequestPhoneVerifyScreen } from '../screens/Onboarding/RequestPhoneVerifyScreen';
 import { ReserveShipScreen } from '../screens/Onboarding/ReserveShipScreen';
 import { SetNicknameScreen } from '../screens/Onboarding/SetNicknameScreen';
@@ -192,6 +193,13 @@ export default {
     <SingleScreenFixture
       routeName="SetNickname"
       Component={SetNicknameScreen}
+      params={{ user: sampleUser }}
+    />
+  ),
+  PhoneDiscovery: (
+    <SingleScreenFixture
+      routeName="PhoneDiscovery"
+      Component={PhoneDiscoveryScreen}
       params={{ user: sampleUser }}
     />
   ),

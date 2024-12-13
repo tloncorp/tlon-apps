@@ -59,9 +59,15 @@ export const SetNicknameScreen = ({
       userWasReadyAt: Date.now(),
     });
 
-    navigation.push('ReserveShip', {
-      user,
-    });
+    if (signupContext.phoneNumber) {
+      navigation.push('PhoneDiscovery', {
+        user,
+      });
+    } else {
+      navigation.push('ReserveShip', {
+        user,
+      });
+    }
   });
 
   // Disable back button

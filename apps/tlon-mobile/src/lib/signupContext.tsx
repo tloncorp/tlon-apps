@@ -80,6 +80,8 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       logger.log('running post-signup actions');
       didSignUp.setValue(true);
       const postSignupParams = {
+        phoneNumber: values.phoneNumber,
+        shouldVerifyPhone: values.shouldMarkPhoneVerified,
         nickname: values.nickname,
         telemetry: values.telemetry,
         notificationToken: values.notificationToken,
@@ -104,6 +106,8 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       setTimeout(() => clear(), 2000);
     }
   }, [
+    values.phoneNumber,
+    values.shouldMarkPhoneVerified,
     values.nickname,
     values.telemetry,
     values.notificationToken,
@@ -148,6 +152,8 @@ export function useSignupContext() {
 }
 
 async function runPostSignupActions(params: {
+  phoneNumber?: string;
+  shouldVerifyPhone?: boolean;
   nickname?: string;
   telemetry?: boolean;
   notificationToken?: string;
@@ -191,6 +197,17 @@ async function runPostSignupActions(params: {
       await connectNotifyProvider(params.notificationToken);
     } catch (e) {
       logger.trackError('post signup: failed to set notification token', {
+        errorMessage: e.message,
+        errorStack: e.stack,
+      });
+    }
+  }
+
+  if (params.phoneNumber && params.shouldVerifyPhone) {
+    try {
+      await store.startPhoneVerify(params.phoneNumber);
+    } catch (e) {
+      logger.trackError('post signup: failed to verify phone', {
         errorMessage: e.message,
         errorStack: e.stack,
       });

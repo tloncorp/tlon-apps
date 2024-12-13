@@ -21,6 +21,7 @@ export interface SignupParams {
   reservedNodeId: string | null;
   bootPhase: NodeBootPhase;
   userWasReadyAt?: number;
+  shouldMarkPhoneVerified?: boolean;
 }
 
 export enum NodeBootPhase {
