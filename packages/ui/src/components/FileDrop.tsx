@@ -29,7 +29,6 @@ export function FileDrop({
         height: number;
         file: File;
       }[];
-      console.log('on assets dropped', measuredFiles);
       onAssetsDropped(measuredFiles);
     },
     [onAssetsDropped]
