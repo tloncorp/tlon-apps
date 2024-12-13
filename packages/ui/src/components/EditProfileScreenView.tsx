@@ -28,8 +28,12 @@ interface Props {
 }
 
 export function EditProfileScreenView(props: Props) {
-  const [verifyPhoneOpen, setVerifyPhoneOpen] = useState(false);
   const store = useStore();
+  const [verifyPhoneOpen, setVerifyPhoneOpen] = useState(false);
+  const {
+    verification: phoneVerification,
+    isLoading: phoneVerificationLoading,
+  } = store.usePhoneVerification();
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
   const userContact = useContact(props.userId);
@@ -292,6 +296,8 @@ export function EditProfileScreenView(props: Props) {
       <VerifyPhoneNumberSheet
         open={verifyPhoneOpen}
         onOpenChange={() => setVerifyPhoneOpen(false)}
+        verification={phoneVerification}
+        verificationLoading={phoneVerificationLoading}
       />
     </View>
   );

@@ -98,6 +98,21 @@ export const useVerifications = () => {
   });
 };
 
+export const usePhoneVerification = (): {
+  verification: db.Verification | null;
+  isLoading: boolean;
+} => {
+  const { data: verifications, isLoading } = useVerifications();
+  if (!verifications || verifications.length === 0) {
+    return { verification: null, isLoading };
+  }
+
+  return {
+    verification: verifications.find((v) => v.type === 'phone') ?? null,
+    isLoading,
+  };
+};
+
 export const useDidShowBenefitsSheet = () => {
   return useQuery({
     queryKey: db.SHOW_BENEFITS_SHEET_QUERY_KEY,

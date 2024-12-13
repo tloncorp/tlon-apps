@@ -51,6 +51,7 @@ export * from './components/MetaEditorScreenView';
 export * from './components/IconButton';
 export * from './components/ImageViewerScreenView';
 export * from './components/Input';
+export * from './components/VerifyPhoneNumberSheet';
 export { default as KeyboardAvoidingView } from './components/KeyboardAvoidingView';
 export * from './components/ListItem';
 export * from './components/LoadingSpinner';

@@ -9,6 +9,7 @@ export function OTPInput({
   length,
   value,
   mode = 'email',
+  label,
   onChange,
   error,
 }: {
@@ -17,6 +18,7 @@ export function OTPInput({
   value: string[];
   onChange?: (value: string[]) => void;
   error?: string;
+  label?: string;
 }) {
   const inputRefs = useMemo(
     () => Array.from({ length }).map(() => createRef<RNTextInput>()),
@@ -63,7 +65,7 @@ export function OTPInput({
 
   return (
     <Field
-      label={`Check your ${mode} for a confirmation code`}
+      label={label ?? `Check your ${mode} for a confirmation code`}
       error={error}
       justifyContent="center"
       alignItems="center"

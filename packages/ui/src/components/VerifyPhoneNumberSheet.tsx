@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import * as db from '@tloncorp/shared/db';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { useStore } from '../contexts';
@@ -6,6 +7,8 @@ import { ActionSheet } from './ActionSheet';
 import { PrimaryButton } from './Buttons';
 import { OTPInput } from './Form/OTPInput';
 import { PhoneNumberInput } from './Form/PhoneNumberInput';
+import { ListItem } from './ListItem';
+import { LoadingSpinner } from './LoadingSpinner';
 import { Text } from './TextV2';
 
 type PhoneFormData = {
@@ -17,31 +20,58 @@ const NUM_OTP_DIGITS = 6;
 export function VerifyPhoneNumberSheet(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  verification: db.Verification | null;
+  verificationLoading: boolean;
 }) {
+  const { verification, verificationLoading } = props;
   const store = useStore();
-  const { data: verifications } = store.useVerifications();
 
-  // for now, assume you only ever have one phone verification
-  const verification = useMemo(
-    () => verifications?.find((v) => v.type === 'phone'),
-    [verifications]
-  );
-
-  const [pane, setPane] = useState<'submitPhone' | 'submitOtp' | 'success'>(
-    'submitPhone'
-  );
+  const [pane, setPane] = useState<
+    'init' | 'submitPhone' | 'submitOtp' | 'success'
+  >('init');
   const [error, setError] = useState<string | undefined>();
   const [isPoking, setIsPoking] = useState(false);
   const [readyForOtp, setReadyForOtp] = useState(false);
+  const [sentOtp, setSentOtp] = useState(false);
   const [otp, setOtp] = useState<string[]>([]);
+  const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleClose = useCallback(() => {
+    setPane('init');
+    setError(undefined);
+    setOtp([]);
+    setIsPoking(false);
+    setReadyForOtp(false);
+    setSentOtp(false);
+    props.onOpenChange(false);
+  }, [props]);
+
+  // when we open the sheet, check the verification to determine what pane to show
+  useEffect(() => {
+    if (props.open) {
+      if (pane === 'init' && !verificationLoading) {
+        if (!verification) {
+          setPane('submitPhone');
+          return;
+        }
+        if (verification.status === 'verified') {
+          setPane('success');
+          return;
+        }
+
+        setPane('submitOtp');
+        return;
+      }
+    }
+  }, [pane, props.open, verification, verificationLoading]);
 
   const phoneForm = useForm<PhoneFormData>({
     defaultValues: {
       phoneNumber: '',
     },
+    reValidateMode: 'onChange',
   });
 
-  //
   const handleSubmitPhoneNumber = useCallback(async () => {
     console.log('handleSubmitPhoneNumber');
     setIsPoking(true);
@@ -73,22 +103,50 @@ export function VerifyPhoneNumberSheet(props: {
     }
   }, [pane, readyForOtp, verification]);
 
-  const handleCodeChanged = useCallback((nextCode: string[]) => {
-    setOtp(nextCode);
-    if (nextCode.length === NUM_OTP_DIGITS && nextCode.every(Boolean)) {
-      // do work
-      console.log('submitting otp');
-    }
-  }, []);
+  const handleCodeChanged = useCallback(
+    async (nextCode: string[]) => {
+      setOtp(nextCode);
+      if (nextCode.length === NUM_OTP_DIGITS && nextCode.every(Boolean)) {
+        // do work
+        console.log('submitting otp');
+        await store.checkPhoneVerifyOtp(verification!.value, nextCode.join(''));
+        setSentOtp(true);
+      }
+    },
+    [store, verification]
+  );
 
-  const handleClose = useCallback(() => {
-    setPane('submitPhone');
-    setOtp([]);
-    setError(undefined);
-    setIsPoking(false);
-    setReadyForOtp(false);
-    props.onOpenChange(false);
-  }, [props]);
+  // after we've sent the code, wait for the verification to be confirmed
+  useEffect(() => {
+    if (
+      pane === 'submitOtp' &&
+      sentOtp &&
+      verification?.status === 'verified'
+    ) {
+      setPane('success');
+      setTimeout(() => {
+        handleClose();
+      }, 4000);
+    }
+  }, [handleClose, pane, sentOtp, verification]);
+
+  // no subscription right now, so we need to poll for verification status
+  useEffect(() => {
+    const shouldPoll =
+      (pane === 'submitPhone' && readyForOtp) ||
+      (pane === 'submitOtp' && sentOtp);
+    if (shouldPoll && !pollingRef.current) {
+      pollingRef.current = setInterval(async () => {
+        console.log('polling for verification status');
+        // await store.syncVerifications();
+      }, 2000);
+    } else {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    }
+  });
 
   return (
     <ActionSheet
@@ -121,12 +179,22 @@ export function VerifyPhoneNumberSheet(props: {
           </ActionSheet.Content>
         )}
 
+        {pane === 'init' && (
+          <ActionSheet.Content
+            flex={1}
+            justifyContent="center"
+            alignItems="center"
+          >
+            <LoadingSpinner />
+          </ActionSheet.Content>
+        )}
+
         {pane === 'submitOtp' && (
           <ActionSheet.Content>
             <ActionSheet.ContentBlock paddingTop={0}>
               <Text color="$secondaryText">
-                A verification code was sent to $
-                {phoneForm.getValues().phoneNumber}. Please enter it below.
+                A confirmation code was sent to{' '}
+                <Text>{phoneForm.getValues().phoneNumber}</Text>
               </Text>
             </ActionSheet.ContentBlock>
             <ActionSheet.ContentBlock gap="$xl">
@@ -135,6 +203,7 @@ export function VerifyPhoneNumberSheet(props: {
                 mode="phone"
                 value={otp}
                 onChange={handleCodeChanged}
+                label="Please enter your code below"
               />
             </ActionSheet.ContentBlock>
           </ActionSheet.Content>
@@ -143,7 +212,18 @@ export function VerifyPhoneNumberSheet(props: {
         {pane === 'success' && (
           <ActionSheet.Content>
             <ActionSheet.ContentBlock paddingTop={0}>
-              <Text color="$green">Your phone number has been verified.</Text>
+              <ListItem backgroundColor="$greenSoft">
+                <ListItem.SystemIcon
+                  icon="Checkmark"
+                  color="$greenSoft"
+                  backgroundColor="$green"
+                />
+                <ListItem.MainContent>
+                  <ListItem.Title color="$green">
+                    Verification Complete
+                  </ListItem.Title>
+                </ListItem.MainContent>
+              </ListItem>
             </ActionSheet.ContentBlock>
           </ActionSheet.Content>
         )}

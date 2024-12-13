@@ -1596,6 +1596,9 @@ importers:
       moti:
         specifier: ^0.28.1
         version: 0.28.1(react-dom@18.2.0(react@18.2.0))(react-native-reanimated@3.8.1(patch_hash=iololnqcieadxwydikuxdlowf4)(@babel/core@7.25.2)(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react@18.2.0)
+      phone:
+        specifier: ^3.1.55
+        version: 3.1.55
       react:
         specifier: '*'
         version: 18.2.0
@@ -11326,6 +11329,10 @@ packages:
   pem@1.14.8:
     resolution: {integrity: sha512-ZpbOf4dj9/fQg5tQzTqv4jSKJQsK7tPl0pm4/pvPcZVjZcJg7TMfr3PBk6gJH97lnpJDu4e4v8UUqEz5daipCg==}
     engines: {node: '>=14.0.0'}
+
+  phone@3.1.55:
+    resolution: {integrity: sha512-tl34PREeFWwjBGa1mumtBrrSOb6v2cWkFz50n+nsb7aTFsvEyRPw8uGdd+kHOh9Z3SpbHIUZcHOuLA4hXNgEiQ==}
+    engines: {node: '>=12'}
 
   picocolors@1.0.0:
     resolution: {integrity: sha512-1fygroTLlHu66zi26VoTDv8yRgm0Fccecssto+MhsZ0D/DGW2sm8E8AjW7NU5VVTRt5GxbeZ5qBuJr+HyLYkjQ==}
@@ -28506,6 +28513,8 @@ snapshots:
       md5: 2.3.0
       os-tmpdir: 1.0.2
       which: 2.0.2
+
+  phone@3.1.55: {}
 
   picocolors@1.0.0: {}
 

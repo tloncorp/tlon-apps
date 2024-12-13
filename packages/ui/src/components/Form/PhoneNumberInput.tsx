@@ -1,4 +1,5 @@
 import { Field, TextInput, XStack, useTheme } from '@tloncorp/ui';
+import phone from 'phone';
 import {
   createRef,
   useCallback,
@@ -41,6 +42,7 @@ export function PhoneNumberInput({
         control={form.control}
         rules={{
           required: 'Please enter a valid phone number.',
+          validate: (value) => phone(value).isValid,
         }}
         render={({ field: { onChange } }) => (
           <Field
