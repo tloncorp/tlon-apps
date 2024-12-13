@@ -1171,9 +1171,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     syncAppInfo({ priority: SyncPriority.Low }).then(() => {
       logger.crumb(`finished syncing app info`);
     }),
-    syncVerifications({ priority: SyncPriority.Low }).then(() => {
-      logger.crumb(`finished syncing verifications`);
-    }),
+    // syncVerifications({ priority: SyncPriority.Low }).then(() => {
+    //   logger.crumb(`finished syncing verifications`);
+    // }),
   ];
 
   await Promise.all(lowPriorityPromises)

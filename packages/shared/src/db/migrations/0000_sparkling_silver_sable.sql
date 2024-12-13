@@ -123,7 +123,8 @@ CREATE TABLE `contacts` (
 	`isContactSuggestion` integer,
 	`hasVerifiedPhone` integer,
 	`verifiedPhoneSignature` text,
-	`verifiedPhoneAt` integer
+	`verifiedPhoneAt` integer,
+	`verifiedNodeIds` text
 );
 --> statement-breakpoint
 CREATE TABLE `group_flagged_posts` (
@@ -337,6 +338,15 @@ CREATE TABLE `thread_unreads` (
 	`first_unread_post_id` text,
 	`first_unread_post_received_at` integer,
 	PRIMARY KEY(`channel_id`, `thread_id`)
+);
+--> statement-breakpoint
+CREATE TABLE `verifications` (
+	`type` text NOT NULL,
+	`value` text NOT NULL,
+	`initiated_at` integer,
+	`visibility` text NOT NULL,
+	`status` text NOT NULL,
+	PRIMARY KEY(`type`, `value`)
 );
 --> statement-breakpoint
 CREATE TABLE `volume_settings` (

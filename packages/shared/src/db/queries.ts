@@ -1438,7 +1438,17 @@ export const insertVerifications = createWriteQuery(
 
 export const updateVerification = createWriteQuery(
   'updateVerification',
-  async ({ verification }: { verification: Verification }, ctx: QueryCtx) => {
+  async (
+    {
+      verification,
+    }: {
+      verification: Partial<Verification> & {
+        type: Verification['type'];
+        value: string;
+      };
+    },
+    ctx: QueryCtx
+  ) => {
     return ctx.db
       .update($verifications)
       .set(verification)
@@ -1447,6 +1457,21 @@ export const updateVerification = createWriteQuery(
           eq($verifications.type, verification.type),
           eq($verifications.value, verification.value)
         )
+      );
+  },
+  ['verifications']
+);
+
+export const deleteVerification = createWriteQuery(
+  'deleteVerifications',
+  async (
+    { type, value }: { type: Verification['type']; value: string },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .delete($verifications)
+      .where(
+        and(eq($verifications.type, type), eq($verifications.value, value))
       );
   },
   ['verifications']

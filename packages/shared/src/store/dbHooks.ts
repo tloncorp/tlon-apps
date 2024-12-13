@@ -90,6 +90,14 @@ export const useAppInfo = () => {
   });
 };
 
+export const useVerifications = () => {
+  const deps = useKeyFromQueryDeps(db.getVerifications);
+  return useQuery({
+    queryKey: ['verifications', deps],
+    queryFn: () => db.getVerifications(),
+  });
+};
+
 export const useDidShowBenefitsSheet = () => {
   return useQuery({
     queryKey: db.SHOW_BENEFITS_SHEET_QUERY_KEY,
