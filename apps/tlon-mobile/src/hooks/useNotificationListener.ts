@@ -23,7 +23,6 @@ import {
   addNotificationResponseReceivedListener,
   getPresentedNotificationsAsync,
 } from 'expo-notifications';
-import { udToDate } from 'packages/shared/src/api/apiUtils';
 import { useCallback, useEffect, useState } from 'react';
 
 const logger = createDevLogger('useNotificationListener', false);
@@ -87,7 +86,7 @@ function payloadFromNotification(
           type: 'chat',
           receivedAt,
           syncedAt: undefined,
-          sentAt: udToDate(dmPost.key.time),
+          sentAt: api.udToDate(dmPost.key.time),
         };
       }
 
@@ -104,7 +103,7 @@ function payloadFromNotification(
           type: 'chat',
           receivedAt,
           syncedAt: undefined,
-          sentAt: udToDate(post.key.time),
+          sentAt: api.udToDate(post.key.time),
         };
       }
 
@@ -328,5 +327,5 @@ function useHandoffNotificationData() {
 }
 
 function getReceivedAtFromId(postId: string) {
-  return udToDate(postId.split('/').pop() ?? postId);
+  return api.udToDate(postId.split('/').pop() ?? postId);
 }
