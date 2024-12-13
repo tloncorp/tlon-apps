@@ -20,6 +20,7 @@ export function uncamelize(str: string, separator = '-') {
 }
 
 export async function unpackJamBytes(buf: ArrayBufferLike): Promise<Noun> {
+  console.log(`NEW-ER unpackJamBytes`, buf);
   const hex = [...new Uint8Array(buf)]
     .reverse() //  endianness shenanigans
     .map((x) => x.toString(16).padStart(2, '0'))

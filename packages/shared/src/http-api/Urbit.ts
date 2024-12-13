@@ -886,6 +886,17 @@ export class Urbit {
         this.fetchOptions
       );
       console.log(`response`, response);
+      // console.log(`response blob`, await response.blob());
+      const responseBlob = await response.blob();
+      // const buffer: ArrayBuffer = await new Promise((resolve, reject) => {
+      //   const reader = new FileReader();
+      //   reader.onload = () => resolve(reader.result as ArrayBuffer);
+      //   reader.readAsArrayBuffer(responseBlob);
+      // });
+      console.log(`response blob`, responseBlob);
+      const buffer = await responseBlob.arrayBuffer();
+      console.log(`response buffer`, buffer);
+      // console.log(`resp buffer`, await response.arrayBuffer());
 
       if (!response.ok || !response.body) {
         return Promise.reject(response);
@@ -896,7 +907,7 @@ export class Urbit {
       // }
 
       try {
-        const unpacked = await unpackJamBytes(await response.arrayBuffer());
+        const unpacked = await unpackJamBytes(buffer);
         console.log(`unpacked`, unpacked);
         return unpacked;
       } catch (e) {

@@ -8,7 +8,7 @@
     "android:preview": "expo run:android --variant=previewDebug",
     "bundler": "expo start",
     "clearcache": "expo start -c",
-    "ios": "expo run:ios --port 8082",
+    "ios": "expo run:ios",
     "ios:release": "pnpm exec expo run:ios --configuration Release",
     "ios:preview": "expo run:ios --scheme=Landscape-preview",
     "generate": "pnpm generate:tailwind && pnpm run generate:ios",

@@ -1,14 +1,66 @@
-import { patp2bn } from '@urbit/aura';
-import { Atom, dwim } from '@urbit/nockjs';
+import { patp, patp2bn } from '@urbit/aura';
+import { Atom, Cell, Noun, dwim, enjs } from '@urbit/nockjs';
 
+import { unpackJamBytes } from '../http-api/utils';
 import { getCurrentUserId, pokeNoun, scryNoun } from './urbit';
 
 export async function getSelfVerificationStatus() {
-  const result = await scryNoun({
-    app: 'lanyard',
-    path: '/records',
+  // const result = await scryNoun({
+  //   app: 'lanyard',
+  //   path: '/records',
+  // });
+  // console.log(`bl: scry result`, result);
+
+  // const tada =
+  //   'FaB3vs7sBn+/OQM8cGhvbmWA3kqMjI3MDA5OjMxNHeBDSyMjK3MH/LswN3rjU+C90cFT';
+  // // const myBuffer = base64ToArrayBuffer(tada);
+  // console.log(`bl: myBuffer`, myBuffer);
+
+  const hexValues = [
+    0x15, 0xa0, 0x77, 0xbe, 0xce, 0xec, 0x06, 0x7f, 0xbf, 0x39, 0x03, 0x3c,
+    0x70, 0x68, 0x6f, 0x6e, 0x65, 0x80, 0xde, 0x4a, 0x8c, 0x8c, 0x8d, 0xcc,
+    0x0c, 0x0e, 0x4e, 0x8c, 0xcc, 0x4d, 0x1d, 0xe0, 0x43, 0x4b, 0x23, 0x23,
+    0x2b, 0x73, 0x07, 0xfc, 0xbb, 0x30, 0x37, 0x7a, 0xe3, 0x53, 0xe0, 0xbd,
+    0xd1, 0xc1, 0x53,
+  ];
+
+  const abuf = new ArrayBuffer(hexValues.length);
+  const myBuffer = new Uint8Array(abuf);
+  hexValues.forEach((value, index) => {
+    myBuffer[index] = value;
   });
-  console.log(`bl: scry result`, result);
+
+  const theRealBuffer = myBuffer.buffer;
+  const unpacked = await unpackJamBytes(theRealBuffer);
+  console.log(`bl: unpacked`, unpacked);
+
+  // minimum viable unpacking
+  const tree = enjs.tree((treeNode: Noun) => {
+    if (!(treeNode instanceof Cell)) {
+      throw new Error('expected a cell');
+    }
+
+    const head = treeNode.head; // pair of ship and identifier
+    if (!(head instanceof Cell)) {
+      throw new Error('expected a cell');
+    }
+    const idNoun = head.tail;
+    const id = enjs.frond([
+      { tag: 'phone', get: (n: Noun) => Atom.cordToString(n as Atom) },
+      { tag: 'urbit', get: (n: Noun) => patp((n as Atom).number) },
+    ])(idNoun);
+
+    console.log(`bl: id json`, id);
+
+    // if (!(identifier instanceof Cell)) {
+    //   throw new Error('expected a cell');
+    // }
+    // const idType = identifier.head;
+    // const idValue = identifier.tail;
+
+    return id;
+  })(unpacked);
+  console.log(`whole tree`, tree);
 }
 
 // step 1, send %start command
