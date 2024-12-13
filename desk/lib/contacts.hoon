@@ -244,7 +244,7 @@
   =?  don  !=(~ del)
     %+  roll  del
     |=  [key=@tas acc=_don]
-    (~(del by don) key)
+    (~(del by acc) key)
   don
 ::  +from-0: legacy to new type
 ::
