@@ -179,7 +179,7 @@
             :_  ~
             =/  since=@da  (sub u.phone (mod u.phone ~d1))
             ::TODO  link to proof/attestation?
-            ;a.verified/"{(trip (need phurl))}"
+            ;a.verified/"{?~(phurl "#" (trip u.phurl))}"
               =title  "verified since {(scow %da since)}"
               ; ✅
             ==
