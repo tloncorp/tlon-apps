@@ -9,19 +9,19 @@
     ==
 ::NOTE  can't quite make a nice helper for this, wetness not wet enough...
 =/  nickname=(unit @t)  =+  a=(~(gut by contact) %nickname %text '')
-                        ?:(&(?=(%text -.a) !=('' +.a)) `+.a ~)
+                        ?:(&(?=([%text *] a) !=('' +.a)) `+.a ~)
 =/  bio=(unit @t)       =+  a=(~(gut by contact) %bio %text '')
-                        ?:(&(?=(%text -.a) !=('' +.a)) `+.a ~)
+                        ?:(&(?=([%text *] a) !=('' +.a)) `+.a ~)
 =/  color=@ux           =+  a=(~(gut by contact) %color %tint 0x0)
-                        ?:(?=(%tint -.a) +.a 0x0)
+                        ?:(?=([%tint *] a) +.a 0x0)
 =/  avatar=(unit @ta)   =+  a=(~(gut by contact) %avatar %look '')
-                        ?:(&(?=(%look -.a) !=('' +.a)) `+.a ~)
+                        ?:(&(?=([%look *] a) !=('' +.a)) `+.a ~)
 =/  cover=(unit @ta)    =+  a=(~(gut by contact) %cover %look '')
-                        ?:(&(?=(%look -.a) !=('' +.a)) `+.a ~)
+                        ?:(&(?=([%look *] a) !=('' +.a)) `+.a ~)
 =/  phone=(unit @da)    =+  a=(~(gut by contact) %lanyard-tmp-phone-since %date *@da)
-                        ?:(&(?=(%date -.a) !=(*@da +.a)) `+.a ~)
+                        ?:(&(?=([%date *] a) !=(*@da +.a)) `+.a ~)
 =/  phurl=(unit @t)     =+  a=(~(gut by contact) %lanyard-tmp-phone-url %text *@t)
-                        ?:(&(?=(%text -.a) !=(*@t +.a)) `+.a ~)
+                        ?:(&(?=([%text *] a) !=(*@t +.a)) `+.a ~)
 |^  %-  ~(gas by *(map term [%0 @t %marl marl]))
     :~  [%profile %0 'Profile Header' %marl profile-widget]
         [%profile-bio %0 'Profile Bio' %marl profile-bio]
@@ -179,7 +179,7 @@
             :_  ~
             =/  since=@da  (sub u.phone (mod u.phone ~d1))
             ::TODO  link to proof/attestation?
-            ;a.verified/"{(trip (need phurl))}"
+            ;a.verified/"{?~(phurl "#" (trip u.phurl))}"
               =title  "verified since {(scow %da since)}"
               ; ✅
             ==

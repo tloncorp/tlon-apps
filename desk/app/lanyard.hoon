@@ -53,9 +53,10 @@
   ::  start by clearing out all our entries for a fresh start
   ::
   %+  weld
-    %+  skip  ~(tap by orig)
-    |=  [=term *]
-    =(%lanyard- (end 3^8 term))
+    %+  turn  ~(tap by orig)
+    |=  [=term =value:c]
+    :-  term
+    ?:(=(%lanyard- (end 3^8 term)) ~ value)
   ^-  (list [term value:c])
   ::  then look at our records and inject as appropriate
   ::
@@ -133,6 +134,18 @@
       %noun
     ?.  ?=([@ *] q.vase)  !!
     $(mark -.q.vase, vase (slot 3 vase))
+  ::
+      %json  ::TMP
+    =;  cmd=command:l
+      $(mark %lanyard-command, vase !>(-))
+    %.  !<(jon=json vase)
+    =,  dejs:format
+    =/  pid   'id'^(of %dummy^so %urbit^(se %p) %phone^so ~)
+    =/  pork  'work'^(of %urbit^(ot 'pin'^ni ~) %phone^(ot 'otp'^so ~) ~)
+    %-  ot
+    :~  'host'^(mu (se %p))
+        'command'^(of %start^(ot pid ~) %work^(ot pid pork ~) ~)
+    ==
   ::
       %lanyard-command
     =+  !<(cmd=command:l vase)
@@ -389,11 +402,37 @@
 ++  on-peek
   |=  =path
   ^-  (unit (unit cage))
-  =.  path
+  =.  path  ::TODO  hack
     ?>  ?=([%x *] path)
     t.path
+  ::TODO  minimum viable records json
+  ::TODO  minimum viable json poke for phone registration
   ?+  path  [~ ~]
     [%records ~]  ``noun+!>(records)
+  ::
+      [%records %json ~]  ::TMP
+    :^  ~  ~  %json
+    !>  ^-  json
+    =,  enjs:format
+    :-  %a
+    %+  turn  ~(tap by records)
+    |=  [[h=@p id=identifier] id-state]
+    ^-  json
+    %-  pairs
+    :~  :-  'identifier'
+        %+  frond  -.id
+        ?-  -.id
+          %dummy  [%s +.id]
+          %urbit  [%s (scot %p +.id)]
+          %phone  [%s +.id]
+        ==
+      ::
+        :-  'record'
+        %-  pairs
+        :~  'config'^[%s config]
+            'status'^[%s -.status]
+        ==
+    ==
   ::
       [%record ?([@ @ ~] [@ @ @ ~])]
     =;  key=[@p identifier]
