@@ -136,6 +136,9 @@
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
   ?>  ?=(%7 -.old)
   =.  state  old
+  =/  =wire  /v1/hooks/preview/chat/~simtyc-tirter-nocsyx-lassul/test
+  =/  =dock  [~simtyc-tirter-nocsyx-lassul %channels-server]
+  =.  cor  (emit %pass wire %agent dock %leave ~)
   inflate-io
   ::
   +$  versioned-state
@@ -551,15 +554,6 @@
       [~ %| *]  ~&  [dap.bowl %overwriting-pending-import]
                 cor(pimp `|+egg-any)
     ==
-  ::
-      %channel-create-from-template
-    =+  !<(args=[nest:c flag:g (unit @t)] vase)
-    %-  emit
-    :*  %pass  /create-template
-        %arvo  %k  %fard
-        q.byk.bowl  %channel-create-from-template  %noun
-        !>(`args)
-    ==
   ==
   ++  toggle-post
     |=  toggle=post-toggle:c
@@ -717,7 +711,9 @@
       [%v1 %hooks %preview =kind:c host=@ name=@ ~]
     ?+  -.sign  !!
         %kick  cor
-        %fact  (give %fact ~[pole] cage.sign)
+        %fact
+      =.  cor  (give %fact ~[pole] cage.sign)
+      (emit %pass pole %agent [host.pole %channels] %leave ~)
     ::
         %watch-ack
       ?~  p.sign  cor

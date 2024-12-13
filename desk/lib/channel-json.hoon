@@ -861,11 +861,5 @@
     :~  hide/(se %ud)
         show/(se %ud)
     ==
-  ++  template-create
-    %-  ot
-    :~  nest/nest
-        flag/flag
-        name/(mu so)
-    ==
   --
 --

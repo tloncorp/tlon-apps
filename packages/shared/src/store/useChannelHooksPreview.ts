@@ -9,5 +9,6 @@ export function useChannelHooksPreview(channelId: string) {
     queryKey: ['channelHooksPreview', channelId],
     queryFn: () => getChannelHooksPreview(channelId),
     enabled: ub.idIsNest(channelId),
+    staleTime: 30_000,
   });
 }

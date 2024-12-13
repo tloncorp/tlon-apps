@@ -775,13 +775,15 @@ export class Urbit {
       throw new Error('Must supply desk to run thread from');
     }
     const res = await this.fetchFn(
-      `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}.json`,
+      `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
       {
         ...this.fetchOptions,
         method: 'POST',
         body: JSON.stringify(body),
       }
     );
+
+    console.log('thread returned', res.status, await res.clone().text());
 
     return res.json();
   }

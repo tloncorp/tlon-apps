@@ -760,6 +760,7 @@ export function ChannelOptions({
                   description: 'Create a new channel based on this one',
                   endIcon: 'Copy',
                   action: () => {
+                    onOpenChange(false);
                     onPressChannelTemplate(channel.id);
                   },
                 },
@@ -832,6 +833,7 @@ export function ChannelOptions({
     currentUserIsAdmin,
     group,
     currentUserIsHost,
+    hooksPreview,
     setPane,
     handleMarkRead,
     onOpenChange,

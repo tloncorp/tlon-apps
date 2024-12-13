@@ -12,7 +12,14 @@ import {
   isGroupChannelId,
 } from './apiUtils';
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
-import { scry, subscribe, subscribeOnce, trackedPoke } from './urbit';
+import {
+  client,
+  getCurrentUserId,
+  scry,
+  subscribe,
+  subscribeOnce,
+  trackedPoke,
+} from './urbit';
 
 const logger = createDevLogger('channelsSub', false);
 
@@ -94,10 +101,26 @@ export const createChannel = async (channelPayload: ub.Create) => {
       return (
         'create' in event.response &&
         event.nest ===
-          `${channelPayload.kind}/${channelPayload.group}/${channelPayload.name}`
+          `${channelPayload.kind}/${getCurrentUserId()}/${channelPayload.name}`
       );
     }
   );
+};
+
+export const setupChannelFromTemplate = async (
+  exampleChannelId: string,
+  targetChannelId: string
+) => {
+  return client.thread<string>({
+    desk: 'groups',
+    inputMark: 'hook-setup-template-args',
+    outputMark: 'json',
+    threadName: 'channel-setup-from-template',
+    body: {
+      example: exampleChannelId,
+      target: targetChannelId,
+    },
+  });
 };
 
 export const subscribeToChannelsUpdates = async (

@@ -347,6 +347,7 @@
       %hook-setup-template
     ?>  =(src our):bowl
     =+  !<([=nest:c =template:h] vase)
+    ~&  "setting up template for {<nest>}"
     (setup-hook-template nest template)
   ::
       %hook-action-0
@@ -428,17 +429,20 @@
       [%v0 %hooks ~]  cor
   ::
       [%v0 %hooks %full ~]
-    (give %fact ~ hook-full+!>(hooks))
+    =.  cor  (give %fact ~ hook-full+!>(hooks))
+    (give %kick ~ ~)
   ::
       [%v0 %hooks %preview =kind:c name=@ ~]
     =/  cp=channel-preview:h
       (get-channel-hooks-preview kind.pole our.bowl name.pole)
-    (give %fact ~ hook-channel-preview+!>(cp))
+    =.  cor  (give %fact ~ hook-channel-preview+!>(cp))
+    (give %kick ~ ~)
   ::
       [%v0 %hooks %template =kind:c name=@ ~]
     =/  =template:h
       (get-hook-template kind.pole our.bowl name.pole)
-    (give %fact ~ hook-template+!>(template))
+    =.  cor  (give %fact ~ hook-template+!>(template))
+    (give %kick ~ ~)
   ::
       [=kind:c name=@ %create ~]
     ?>  =(our src):bowl
@@ -1326,9 +1330,15 @@
     %+  turn
       ~(tap by hooks.template)
     |=  [=id-hook:h =hook:h]
+    =/  result=(each vase tang)
+      (compile:utils src.hook)
+    =/  compiled
+      ?:  ?=(%| -.result)
+        ((slog 'compilation result:' p.result) ~)
+      `p.result
     ?~  old-config=(~(get by config.hook) from.template)
-      [id-hook hook(config ~)]
-    [id-hook hook(config (my [nest u.old-config] ~))]
+      [id-hook hook(config ~, compiled compiled)]
+    [id-hook hook(config (my [nest u.old-config] ~), compiled compiled)]
   =/  crons  crons.template
   |-
   ?~  crons  cor

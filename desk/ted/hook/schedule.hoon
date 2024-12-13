@@ -24,7 +24,9 @@
   %-  (slog (crip "stopped scheduled hook {<id.response>} running on {<origin.response>}") ~)
   (pure:m !>(~))
 ;<  now=time  bind:m  get-time:s
-=/  fires-at  next.schedule.response
+=/  fires-at
+  ?^  next.schedule.response
+  (add now schedule.response)
 %-  (slog (crip "starting hook {<id.response>}, scheduled to run on {<origin.response>} at {<fires-at>}") ~)
 (pure:m !>(~))
 +$  action
