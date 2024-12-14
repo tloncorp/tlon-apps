@@ -8,6 +8,7 @@ import { EULAScreen } from './screens/Onboarding/EULAScreen';
 import { InventoryCheckScreen } from './screens/Onboarding/InventoryCheckScreen';
 import { JoinWaitListScreen } from './screens/Onboarding/JoinWaitListScreen';
 import { PasteInviteLinkScreen } from './screens/Onboarding/PasteInviteLinkScreen';
+import { PhoneDiscoveryScreen } from './screens/Onboarding/PhoneDiscoveryScreen';
 import { RequestPhoneVerifyScreen } from './screens/Onboarding/RequestPhoneVerifyScreen';
 import { ReserveShipScreen } from './screens/Onboarding/ReserveShipScreen';
 import { ResetPasswordScreen } from './screens/Onboarding/ResetPasswordScreen';
@@ -76,6 +77,10 @@ export function OnboardingStack() {
       <OnboardingStackNavigator.Screen
         name="SetNickname"
         component={SetNicknameScreen}
+      />
+      <OnboardingStackNavigator.Screen
+        name="PhoneDiscovery"
+        component={PhoneDiscoveryScreen}
       />
       <OnboardingStackNavigator.Screen
         name="SetTelemetry"

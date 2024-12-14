@@ -122,6 +122,7 @@
 ++  on-load
   |=  ole=vase
   ^-  (quip card _this)
+  ~&  'loading!'
   =.  state  !<(state-0 ole)
   :_  this
   (drop (inflate-contacts-profile [our now]:bowl records ledgers))

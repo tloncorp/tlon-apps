@@ -45,6 +45,19 @@ export function UserProfileScreenView(props: Props) {
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
   const userContact = useContact(props.userId);
+  const phoneVerification = store.usePhoneVerification();
+  const hasPhoneVerification = useMemo(() => {
+    if (props.userId === currentUserId) {
+      return (
+        (phoneVerification.verification &&
+          phoneVerification.verification.status === 'verified') ??
+        false
+      );
+    } else {
+      return userContact?.hasVerifiedPhone ?? false;
+    }
+  }, [phoneVerification, props.userId, currentUserId, userContact]);
+
   console.log(`UserProfileScreen`, userContact);
   const pinnedGroups = useMemo(() => {
     return (
@@ -106,7 +119,7 @@ export function UserProfileScreenView(props: Props) {
         <UserInfoRow
           userId={props.userId}
           hasNickname={!!userContact?.nickname?.length}
-          isVerified={!!userContact?.hasVerifiedPhone}
+          isVerified={hasPhoneVerification}
         />
         {userContact?.status && <View width="100%"></View>}
 
@@ -121,7 +134,7 @@ export function UserProfileScreenView(props: Props) {
 
         <StatusBlock status={nodeStatus} label="Node" />
         <StatusBlock status={sponsorStatus} label="Sponsor" />
-        {userContact?.hasVerifiedPhone && (
+        {hasPhoneVerification && (
           <StatusBlock status="verified" label="Phone" />
         )}
 
@@ -398,7 +411,7 @@ function VerifiedNodesDisplay(props: { nodes: string[] }) {
   }, [nodesKey]);
   return (
     <WidgetPane width="100%">
-      <WidgetPane.Title>Controlled Accounts</WidgetPane.Title>
+      <WidgetPane.Title>Managed Accounts</WidgetPane.Title>
       <YStack>
         {props.nodes.map((node) => {
           return (
