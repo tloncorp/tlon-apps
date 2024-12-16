@@ -5,7 +5,7 @@
 ::    then visit in the browser:
 ::    /expose/that/reference/as/copied/123456789
 ::
-/-  c=cite, d=channels, co=contacts-0
+/-  c=cite, d=channels, co=contacts, c0=contacts-0
 /+  u=channel-utils, hutils=http-utils,
     dbug, verb
 ::
@@ -72,6 +72,23 @@
     |=  ref=cite:c
     ^-  card
     (store:hutils (cat 3 '/expose' (spat (print:c ref))) ~)
+  ::
+  ++  refresh-contacts-profile
+    |=  [bowl:gall cis=(list cite:c)]
+    ^-  (unit card)
+    =+  =>  [our=our now=now co=co ..lull]  ~+
+        .^(orig=contact:co %gx /(scot %p our)/contacts/(scot %da now)/v1/self/contact-1)
+    ::  build a new contact to submit
+    ::
+    =;  =contact:co
+      ?:  =(orig contact)  ~
+      =/  =action:co  [%self contact]
+      =/  =cage       [%contact-action-1 !>(action)]
+      `[%pass /contacts/set %agent [our %contacts] %poke cage]
+    %+  ~(put by orig)  %expose--all
+    ^-  value:co
+    ?:  =(~ cis)  ~
+    [%set (sy (turn cis :(cork print:c spat (lead %text))))]
   --
 --
 ::
@@ -146,10 +163,12 @@
         ?>  ?=(^ pag)
         =.  open    (~(put in open) ref)
         :_  this
-        :_  (refresh-widget:e bowl open)
-        %+  store:hutils
-          (cat 3 '/expose' (spat path.act))
-        `[| %payload (paint:hutils %page u.pag)]
+        :-  %+  store:hutils
+              (cat 3 '/expose' (spat path.act))
+            `[| %payload (paint:hutils %page u.pag)]
+        %+  weld
+          (refresh-widget:e bowl open)
+        (drop (refresh-contacts-profile:e bowl ~(tap in open)))
       ::
           %hide
         =/  ref=cite:c
@@ -158,11 +177,13 @@
           [~ this]
         =.  open    (~(del in open) ref)
         :_  this
-        :_  (refresh-widget:e bowl open)
-        %+  store:hutils
-          (cat 3 '/expose' (spat path.act))
-        :^  ~  |  %payload
-        [[404 ~] `(as-octs:mimes:html 'not found')]
+        :-  %+  store:hutils
+              (cat 3 '/expose' (spat path.act))
+            :^  ~  |  %payload
+            [[404 ~] `(as-octs:mimes:html 'not found')]
+        %+  weld
+          (refresh-widget:e bowl open)
+        (drop (refresh-contacts-profile:e bowl ~(tap in open)))
       ==
     ==
   ::
@@ -215,9 +236,11 @@
   ::
       [%refresh ~]
     :_  this
-    %+  weld
+    ;:  weld
       (refresh-widget:e bowl open)
-    (refresh-pages:e bowl ~(tap in open))
+      (refresh-pages:e bowl ~(tap in open))
+      (drop (refresh-contacts-profile:e bowl ~(tap in open)))
+    ==
   ==
 ::
 ++  on-agent
@@ -304,7 +327,7 @@
       ::  fresh(er), we should just set an hourly timer that re-render the
       ::  entire cache.
       ::
-      =+  !<(=news-0:co q.cage.sign)
+      =+  !<(=news-0:c0 q.cage.sign)
       ?.  =(our.bowl who.news-0)  `this
       :_  this
       %+  weld
