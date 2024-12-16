@@ -69,6 +69,21 @@ export interface ContactFieldGroups {
   value: { type: 'flag'; value: string }[];
 }
 
+export interface ContactFieldTunes {
+  type: 'set';
+  value: { type: 'text'; value: string }[];
+}
+
+export interface ContactFieldLinks {
+  type: 'set';
+  value: { type: 'text'; value: string }[];
+}
+
+export interface ContactFieldLocation {
+  type: 'text';
+  value: string;
+}
+
 export interface ContactBookProfile {
   nickname?: ContactFieldText;
   bio?: ContactFieldText;
@@ -77,6 +92,9 @@ export interface ContactBookProfile {
   color?: ContactFieldColor;
   groups?: ContactFieldGroups;
   status?: ContactFieldText;
+  tunes?: ContactFieldTunes;
+  location?: ContactFieldLocation;
+  links?: ContactFieldLinks;
 }
 
 export interface ContactBookProfileEdit {
@@ -87,6 +105,9 @@ export interface ContactBookProfileEdit {
   color?: ContactFieldColor | null;
   groups?: ContactFieldGroups | null;
   status?: ContactFieldText | null;
+  tunes?: ContactFieldTunes;
+  location?: ContactFieldLocation | null;
+  links?: ContactFieldLinks | null;
 }
 
 // first element is the contact's profile, second is any user overrides

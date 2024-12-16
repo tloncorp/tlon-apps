@@ -17,3 +17,6 @@ export * from './harkApi';
 export * from './storageApi';
 export * from './vitalsApi';
 export * from './inviteApi';
+export * from './musicApi';
+export * from './locationApi';
+export * from './linksApi';

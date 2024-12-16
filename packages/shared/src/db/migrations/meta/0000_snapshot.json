@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "74260723-19aa-401e-92d0-c790bcc15a53",
+  "id": "81434c0c-6c12-4a2b-b90d-8035f1b52f64",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -495,13 +495,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "is_default_welcome_channel": {
-          "name": "is_default_welcome_channel",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "content_configuration": {
           "name": "content_configuration",
           "type": "text",
@@ -794,6 +787,27 @@
         },
         "coverImage": {
           "name": "coverImage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tunes": {
+          "name": "tunes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "location": {
+          "name": "location",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "links": {
+          "name": "links",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

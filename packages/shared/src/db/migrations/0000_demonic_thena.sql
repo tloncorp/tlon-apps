@@ -74,7 +74,6 @@ CREATE TABLE `channels` (
 	`synced_at` integer,
 	`remote_updated_at` integer,
 	`last_viewed_at` integer,
-	`is_default_welcome_channel` integer,
 	`content_configuration` text,
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
@@ -118,6 +117,9 @@ CREATE TABLE `contacts` (
 	`status` text,
 	`color` text,
 	`coverImage` text,
+	`tunes` text,
+	`location` text,
+	`links` text,
 	`blocked` integer,
 	`isContact` integer,
 	`isContactSuggestion` integer

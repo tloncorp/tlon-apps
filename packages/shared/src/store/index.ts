@@ -17,4 +17,5 @@ export * from './contactActions';
 export * from './clientActions';
 export * from './lure';
 export * from './inviteActions';
+export * from './audioHooks';
 export { useChannelContext } from './useChannelContext';

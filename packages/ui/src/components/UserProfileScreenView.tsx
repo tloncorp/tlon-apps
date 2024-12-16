@@ -1,5 +1,6 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import {
   ComponentProps,
@@ -8,6 +9,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { Linking } from 'react-native';
 import { LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -19,14 +21,22 @@ import {
   useWindowDimensions,
 } from 'tamagui';
 
-import { useContact, useCurrentUserId, useNavigation } from '../contexts';
+import {
+  useAudioPlayer,
+  useContact,
+  useCurrentUserId,
+  useNavigation,
+} from '../contexts';
 import { useCopy } from '../hooks/useCopy';
 import { triggerHaptic, useGroupTitle } from '../utils';
+import { MiniPlayableTrack } from './AddProfileAudioScreenView';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { Button } from './Button';
 import { ContactName } from './ContactNameV2';
+import { getSocialIcon } from './EditProfileLinksPane';
 import { Icon } from './Icon';
 import { useBoundHandler } from './ListItem/listItemUtils';
+import { LocationDisplayWidget } from './LocationWidgets';
 import Pressable from './Pressable';
 import { ScreenHeader } from './ScreenHeader';
 import { Text } from './TextV2';
@@ -50,6 +60,18 @@ export function UserProfileScreenView(props: Props) {
       []
     );
   }, [userContact?.pinnedGroups]);
+
+  const pinnedTunes = useMemo(() => {
+    return (userContact?.tunes ?? []) as domain.NormalizedTrack[];
+  }, [userContact?.tunes]);
+
+  const location = useMemo(() => {
+    return (userContact?.location ?? null) as domain.ProfileLocation | null;
+  }, [userContact?.location]);
+
+  const links = useMemo(() => {
+    return (userContact?.links ?? []) as domain.ProfileLink[];
+  }, [userContact?.links]);
 
   const nodeStatus = !props.connectionStatus?.complete
     ? 'pending'
@@ -116,8 +138,13 @@ export function UserProfileScreenView(props: Props) {
         )}
         <BioDisplay bio={userContact?.bio ?? ''} />
 
+        {pinnedTunes.length > 0 && <PinnedTunesDisplay tunes={pinnedTunes} />}
+
+        {location && <LocationDisplayWidget location={location} />}
         <StatusBlock status={nodeStatus} label="Node" />
         <StatusBlock status={sponsorStatus} label="Sponsor" />
+
+        {links.length > 0 && <PinnedLinksDisplay links={links} />}
 
         <PinnedGroupsDisplay
           groups={pinnedGroups}
@@ -125,6 +152,35 @@ export function UserProfileScreenView(props: Props) {
         />
       </ScrollView>
     </View>
+  );
+}
+
+export function PinnedTunesDisplay(props: {
+  tunes: domain.NormalizedTrack[];
+  playableTrackSize?: number;
+}) {
+  const windowDimensions = useWindowDimensions();
+  const player = useAudioPlayer();
+  return (
+    <WidgetPane
+      width={
+        props.tunes.length > 1 ? '100%' : (windowDimensions.width - 36) / 2
+      }
+    >
+      <WidgetPane.Title>Jukebox</WidgetPane.Title>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View flexDirection="row" gap="$l">
+          {props.tunes.map((tune) => (
+            <MiniPlayableTrack
+              key={tune.id}
+              track={tune}
+              player={player}
+              size={props.playableTrackSize}
+            />
+          ))}
+        </View>
+      </ScrollView>
+    </WidgetPane>
   );
 }
 
@@ -232,6 +288,71 @@ export function StatusDisplay({
       <WidgetPane.Title>Status</WidgetPane.Title>
       <Text size="$body">{status}</Text>
     </WidgetPane>
+  );
+}
+
+export function PinnedLinksDisplay({ links }: { links: domain.ProfileLink[] }) {
+  const socialLinks = useMemo(() => {
+    return links.filter((link) => link.socialPlatformId && link.socialUserId);
+  }, [links]);
+
+  const otherLinks = useMemo(() => {
+    return links.filter((link) => !link.socialPlatformId || !link.socialUserId);
+  }, [links]);
+
+  return (
+    <WidgetPane width="100%">
+      <WidgetPane.Title>Links</WidgetPane.Title>
+      <XStack gap="$m" flexWrap="wrap">
+        {socialLinks.map((link) => (
+          <ProfileLinkDisplay key={link.url} link={link} />
+        ))}
+        {otherLinks.map((link) => (
+          <ProfileLinkDisplay key={link.url} link={link} />
+        ))}
+      </XStack>
+      <XStack gap="$m"></XStack>
+    </WidgetPane>
+  );
+}
+
+export function ProfileLinkDisplay({ link }: { link: domain.ProfileLink }) {
+  const handlePress = useCallback(() => {
+    Linking.openURL(link.url);
+  }, [link.url]);
+
+  if (link.socialPlatformId && link.socialUserId) {
+    return (
+      <Pressable onPress={handlePress}>
+        <XStack
+          alignItems="center"
+          gap="$m"
+          backgroundColor="$secondaryBackground"
+          paddingVertical="$m"
+          paddingHorizontal="$xl"
+          borderRadius="$l"
+        >
+          <Icon type={getSocialIcon(link.socialPlatformId)} />
+          <Text>{link.socialUserId}</Text>
+        </XStack>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Pressable onPress={handlePress}>
+      <XStack
+        alignItems="center"
+        gap="$m"
+        backgroundColor="$secondaryBackground"
+        paddingVertical="$m"
+        paddingHorizontal="$xl"
+        borderRadius="$l"
+      >
+        <Icon type="Link" />
+        <Text>{link.title || link.url}</Text>
+      </XStack>
+    </Pressable>
   );
 }
 

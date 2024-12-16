@@ -2,7 +2,6 @@ import { useAsyncStorageDevTools } from '@dev-plugins/async-storage';
 import { useReactNavigationDevTools } from '@dev-plugins/react-navigation';
 import { useReactQueryDevTools } from '@dev-plugins/react-query';
 import NetInfo from '@react-native-community/netinfo';
-import crashlytics from '@react-native-firebase/crashlytics';
 import {
   DarkTheme,
   DefaultTheme,
@@ -15,13 +14,13 @@ import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
-import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
 import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
 import {
+  AudioPlayerProvider,
   LoadingSpinner,
   PortalProvider,
   StoreProvider,
@@ -145,19 +144,21 @@ export default function ConnectedApp() {
                       <SafeAreaProvider>
                         <MigrationCheck>
                           <QueryClientProvider client={queryClient}>
-                            <SignupProvider>
-                              <PortalProvider>
-                                <App />
-                              </PortalProvider>
+                            <AudioPlayerProvider>
+                              <SignupProvider>
+                                <PortalProvider>
+                                  <App />
+                                </PortalProvider>
 
-                              {__DEV__ && (
-                                <DevTools
-                                  navigationContainerRef={
-                                    navigationContainerRef
-                                  }
-                                />
-                              )}
-                            </SignupProvider>
+                                {__DEV__ && (
+                                  <DevTools
+                                    navigationContainerRef={
+                                      navigationContainerRef
+                                    }
+                                  />
+                                )}
+                              </SignupProvider>
+                            </AudioPlayerProvider>
                           </QueryClientProvider>
                         </MigrationCheck>
                       </SafeAreaProvider>

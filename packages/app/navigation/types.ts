@@ -63,6 +63,8 @@ export type RootStackParamList = {
   ChannelMeta: {
     channelId: string;
   };
+  AddProfileAudio: undefined;
+  EditProfileLinks: undefined;
 };
 
 export type RootStackNavigationProp = NavigationProp<RootStackParamList>;

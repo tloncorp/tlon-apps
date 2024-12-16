@@ -7,3 +7,4 @@ export * from './appDataContext';
 export * from './attachment';
 export * from './requests';
 export * from './storeContext';
+export * from './audioPlayerContext';

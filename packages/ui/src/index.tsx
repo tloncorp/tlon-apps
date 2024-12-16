@@ -56,6 +56,7 @@ export * from './components/MessageInput';
 export * from './components/MessageInput/AttachmentPreviewList';
 export * from './components/NavBarView';
 export * from './components/Modal';
+export * from './components/AddProfileAudioScreenView';
 export * from './components/NavBar';
 export * from './components/Onboarding';
 export * from './components/ParentAgnosticKeyboardAvoidingView';
@@ -81,6 +82,7 @@ export * from './tamagui.config';
 export * from './types';
 export * from './utils';
 export * as TlonText from './components/TextV2';
+export * from './components/EditProfileLinksPane';
 export { default as useIsWindowNarrow } from './hooks/useIsWindowNarrow';
 
 export {

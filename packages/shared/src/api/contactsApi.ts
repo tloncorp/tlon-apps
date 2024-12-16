@@ -1,12 +1,25 @@
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import * as domain from '../domain';
 import { AnalyticsEvent, normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
+import { NormalizedTrack } from './musicApi';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('contactsApi', true);
 
+export const getSelf = async () => {
+  const currentUserId = getCurrentUserId();
+  const response = await scry<ub.ContactBookProfile>({
+    app: 'contacts',
+    path: '/v1/self',
+  });
+
+  return v1PeerToClientProfile(currentUserId, response);
+};
+
 export const getContacts = async () => {
+  const currentUserId = getCurrentUserId();
   // this is all peers we know about, with merged profile data for
   // contacts
   const peersResponse = await scry<ub.ContactRolodex>({
@@ -19,7 +32,10 @@ export const getContacts = async () => {
     app: 'contacts',
     path: '/v1/book',
   });
-  const skipContacts = new Set(Object.keys(contactsResponse));
+  const skipContacts = new Set([
+    ...Object.keys(contactsResponse),
+    currentUserId,
+  ]);
 
   const suggestionsResponse = await scry<string[]>({
     app: 'groups-ui',
@@ -33,6 +49,7 @@ export const getContacts = async () => {
     contactSuggestions,
   });
   const contactProfiles = contactsToClientProfiles(contactsResponse, {
+    userIdsToOmit: new Set([currentUserId]),
     contactSuggestions,
   });
 
@@ -91,6 +108,67 @@ export const updateContactMetadata = async (
   });
 };
 
+export const updateSelfContactMetadata = async (metadata: ProfileUpdate) => {
+  console.log(`updateSelfContactMetadata`, metadata);
+  const contactUpdate: ub.ContactBookProfileEdit = {};
+
+  if (metadata.status !== undefined) {
+    contactUpdate.status = metadata.status
+      ? { type: 'text', value: metadata.status }
+      : null;
+  }
+
+  if (metadata.nickname !== undefined) {
+    contactUpdate.nickname = metadata.nickname
+      ? { type: 'text', value: metadata.nickname }
+      : null;
+  }
+
+  if (metadata.avatarImage !== undefined) {
+    contactUpdate.avatar = metadata.avatarImage
+      ? { type: 'look', value: metadata.avatarImage }
+      : null;
+  }
+
+  if (metadata.bio !== undefined) {
+    contactUpdate.bio = metadata.bio
+      ? { type: 'text', value: metadata.bio }
+      : null;
+  }
+
+  if (metadata.coverImage !== undefined) {
+    contactUpdate.cover = metadata.coverImage
+      ? { type: 'look', value: metadata.coverImage }
+      : null;
+  }
+
+  if (metadata.location !== undefined) {
+    contactUpdate.location = metadata.location
+      ? { type: 'text', value: JSON.stringify(metadata.location) }
+      : null;
+  }
+
+  if (metadata.links !== undefined) {
+    contactUpdate.links = metadata.links
+      ? {
+          type: 'set',
+          value: metadata.links.map((link) => ({
+            type: 'text',
+            value: JSON.stringify(link),
+          })),
+        }
+      : null;
+  }
+
+  console.log(`filing self poke`, { self: contactUpdate });
+
+  return poke({
+    app: 'contacts',
+    mark: 'contact-action-1',
+    json: { self: contactUpdate },
+  });
+};
+
 export const addContact = async (contactId: string) => {
   removeContactSuggestion(contactId);
   logger.trackEvent(AnalyticsEvent.ContactAdded);
@@ -125,6 +203,8 @@ export interface ProfileUpdate {
   bio?: string;
   avatarImage?: string | null;
   coverImage?: string;
+  location?: domain.ProfileLocation | null;
+  links?: domain.ProfileLink[] | null;
 }
 export const updateCurrentUserProfile = async (update: ProfileUpdate) => {
   const editedFields: ub.ContactEditField[] = [];
@@ -182,6 +262,22 @@ export const setPinnedGroups = async (groupIds: string[]) => {
   contactUpdate.groups = {
     type: 'set',
     value: groupIds.map((groupId) => ({ type: 'flag', value: groupId })),
+  };
+
+  console.log(`contact-action-1`, { self: { contact: contactUpdate } });
+
+  return poke({
+    app: 'contacts',
+    mark: 'contact-action-1',
+    json: { self: contactUpdate },
+  });
+};
+
+export const setPinnedTunes = async (tunes: NormalizedTrack[]) => {
+  const contactUpdate: ub.ContactBookProfileEdit = {};
+  contactUpdate.tunes = {
+    type: 'set',
+    value: tunes.map((tune) => ({ type: 'text', value: JSON.stringify(tune) })),
   };
 
   console.log(`contact-action-1`, { self: { contact: contactUpdate } });
@@ -305,6 +401,10 @@ export const v1PeerToClientProfile = (
   }
 ): db.Contact => {
   const currentUserId = getCurrentUserId();
+  const tunes = parsePinnedTunes(contact);
+  const location = parseLocation(contact);
+  const links = parseLinks(contact);
+
   return {
     id,
     peerNickname: contact.nickname?.value ?? null,
@@ -318,6 +418,9 @@ export const v1PeerToClientProfile = (
         groupId: group.value,
         contactId: id,
       })) ?? [],
+    tunes,
+    location,
+    links,
     isContact: config?.isContact,
     isContactSuggestion:
       config?.isContactSuggestion && !config?.isContact && id !== currentUserId,
@@ -327,18 +430,23 @@ export const v1PeerToClientProfile = (
 export const contactsToClientProfiles = (
   contacts: ub.ContactBookScryResult1,
   config?: {
+    userIdsToOmit?: Set<string>;
     contactSuggestions?: Set<string>;
   }
 ): db.Contact[] => {
-  return Object.entries(contacts).flatMap(([userId, contact]) =>
-    contact === null
-      ? []
-      : [
-          contactToClientProfile(userId, contact, {
-            isContactSuggestion: config?.contactSuggestions?.has(userId),
-          }),
-        ]
-  );
+  return Object.entries(contacts)
+    .filter(([ship]) =>
+      config?.userIdsToOmit ? !config.userIdsToOmit.has(ship) : true
+    )
+    .flatMap(([userId, contact]) =>
+      contact === null
+        ? []
+        : [
+            contactToClientProfile(userId, contact, {
+              isContactSuggestion: config?.contactSuggestions?.has(userId),
+            }),
+          ]
+    );
 };
 
 export const contactToClientProfile = (
@@ -349,6 +457,9 @@ export const contactToClientProfile = (
   }
 ): db.Contact => {
   const [base, overrides] = contact;
+  const tunes = parsePinnedTunes(base);
+  const location = parseLocation(base);
+  const links = parseLinks(base);
 
   return {
     id: userId,
@@ -365,7 +476,52 @@ export const contactToClientProfile = (
         groupId: group.value,
         contactId: userId,
       })) ?? [],
+    tunes,
+    location,
+    links,
     isContact: true,
     isContactSuggestion: false,
   };
+};
+
+export const parsePinnedTunes = (
+  contact: ub.ContactBookProfile
+): domain.NormalizedTrack[] => {
+  if (!contact || !contact.tunes) {
+    return [];
+  }
+
+  return contact.tunes.value.map(
+    (tune) => JSON.parse(tune.value) as NormalizedTrack
+  );
+};
+
+export const parseLocation = (
+  contact: ub.ContactBookProfile
+): domain.ProfileLocation | null => {
+  if (!contact || !contact.location) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(contact.location.value);
+  } catch (e) {
+    return null;
+  }
+};
+
+export const parseLinks = (
+  contact: ub.ContactBookProfile
+): domain.ProfileLink[] | null => {
+  if (!contact || !contact.links) {
+    return null;
+  }
+
+  try {
+    return contact.links.value.map((link) =>
+      JSON.parse(link.value)
+    ) as domain.ProfileLink[];
+  } catch (e) {
+    return null;
+  }
 };

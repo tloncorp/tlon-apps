@@ -6,8 +6,10 @@ import { Platform, StatusBar } from 'react-native';
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
 import { AddContactsScreen } from '../features/contacts/AddContactsScreen';
+import { AddProfileAudioScreen } from '../features/settings/AddProfileAudioScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
+import { EditProfileLinksScreen } from '../features/settings/EditProfileLinksScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
 import { FeatureFlagScreen } from '../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../features/settings/ManageAccountScreen';
@@ -111,6 +113,8 @@ export function RootStack() {
       <Root.Screen name="WompWomp" component={UserBugReportScreen} />
       <Root.Screen name="ChannelMembers" component={ChannelMembersScreen} />
       <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
+      <Root.Screen name="AddProfileAudio" component={AddProfileAudioScreen} />
+      <Root.Screen name="EditProfileLinks" component={EditProfileLinksScreen} />
     </Root.Navigator>
   );
 }

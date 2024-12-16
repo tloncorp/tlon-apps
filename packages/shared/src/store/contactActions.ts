@@ -1,6 +1,7 @@
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import * as domain from '../domain';
 import { syncContacts, syncGroup } from './sync';
 
 const logger = createDevLogger('ContactActions', false);
@@ -263,6 +264,8 @@ export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
     status: currentUserContact?.status,
     bio: currentUserContact?.bio,
     peerAvatarImage: currentUserContact?.peerAvatarImage,
+    location: currentUserContact?.location,
+    links: currentUserContact?.links,
   };
 
   const editedFields: Partial<db.Contact> = {
@@ -270,13 +273,15 @@ export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
     status: update.status,
     bio: update.bio,
     peerAvatarImage: update.avatarImage,
+    location: update.location,
+    links: update.links,
   };
 
   // Optimistic update
   await db.updateContact({ id: currentUserId, ...editedFields });
 
   try {
-    await api.updateCurrentUserProfile(update);
+    await api.updateSelfContactMetadata(update);
   } catch (e) {
     console.error('Error updating profile', e);
     // Rollback the update
@@ -325,5 +330,28 @@ export async function updateProfilePinnedGroups(newPinned: db.Group[]) {
   } catch (e) {
     // Rollback the update
     await db.setPinnedGroups({ groupIds: existingPinnedIds });
+  }
+}
+
+export async function updateProfilePinnedTunes(
+  newPinned: api.NormalizedTrack[]
+) {
+  logger.log(`setting pinned tunes`, newPinned);
+
+  const currentUserId = api.getCurrentUserId();
+  const existingContact = await db.getContact({ id: currentUserId });
+  const existingTunes =
+    (existingContact?.tunes as domain.NormalizedTrack[]) ?? [];
+
+  // optimistic update
+  await db.setPinnedTunes({ tunes: newPinned });
+
+  try {
+    await api.setPinnedTunes(newPinned);
+    logger.log('set pinned tunes success');
+  } catch (e) {
+    // rollback the update
+    logger.error('set pinned tunes error', e);
+    await db.setPinnedTunes({ tunes: existingTunes });
   }
 }

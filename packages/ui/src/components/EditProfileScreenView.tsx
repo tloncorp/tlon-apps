@@ -1,12 +1,13 @@
 import * as db from '@tloncorp/shared/db';
-import { useStore } from '@tloncorp/ui';
+import * as domain from '@tloncorp/shared/domain';
+import { ListItem, MiniPlayableTrack, Pressable, useStore } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, XStack } from 'tamagui';
+import { ScrollView, View, XStack, YStack } from 'tamagui';
 
-import { useContact, useCurrentUserId } from '../contexts';
+import { useAudioPlayer, useContact, useCurrentUserId } from '../contexts';
 import { SigilAvatar } from './Avatar';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
 import {
@@ -17,12 +18,21 @@ import {
   FormFrame,
 } from './Form';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
+import { LocationPicker } from './LocationWidgets';
 import { ScreenHeader } from './ScreenHeader';
-import { BioDisplay, PinnedGroupsDisplay } from './UserProfileScreenView';
+import { Text } from './TextV2';
+import {
+  BioDisplay,
+  PinnedGroupsDisplay,
+  PinnedTunesDisplay,
+  ProfileLinkDisplay,
+} from './UserProfileScreenView';
 
 interface Props {
   userId: string;
   onGoBack: () => void;
+  onGoToAddProfileAudio: () => void;
+  onGoToEditLinks: () => void;
 }
 
 export function EditProfileScreenView(props: Props) {
@@ -35,6 +45,24 @@ export function EditProfileScreenView(props: Props) {
       ?.map((pin) => pin.group)
       .filter(Boolean) as db.Group[]) ?? []
   );
+
+  const initialLocation = useMemo(() => {
+    return userContact?.location
+      ? (userContact.location as domain.ProfileLocation)
+      : null;
+  }, [userContact]);
+
+  const [location, setLocation] = useState<domain.ProfileLocation | null>(
+    initialLocation
+  );
+
+  const pinnedTunes = useMemo(() => {
+    return (userContact?.tunes ?? []) as domain.NormalizedTrack[];
+  }, [userContact?.tunes]);
+
+  const pinnedLinks = useMemo(() => {
+    return (userContact?.links ?? []) as domain.ProfileLink[];
+  }, [userContact?.links]);
 
   const isCurrUser = useMemo(
     () => props.userId === currentUserId,
@@ -78,7 +106,11 @@ export function EditProfileScreenView(props: Props) {
   });
 
   const handlePressDone = useCallback(() => {
-    if (isDirty) {
+    const locationChanged = !domain.locationsEquivalent(
+      location,
+      initialLocation
+    );
+    if (isDirty || locationChanged) {
       handleSubmit((formData) => {
         const nicknameStartVal = isCurrUser
           ? userContact?.nickname
@@ -100,6 +132,13 @@ export function EditProfileScreenView(props: Props) {
             : avatarStartVal
               ? null // clear existing
               : undefined,
+          location: location
+            ? domain.locationsEquivalent(location, initialLocation)
+              ? undefined
+              : location
+            : initialLocation
+              ? null
+              : undefined,
         };
 
         if (isCurrUser) {
@@ -115,8 +154,10 @@ export function EditProfileScreenView(props: Props) {
     props.onGoBack();
   }, [
     handleSubmit,
+    initialLocation,
     isCurrUser,
     isDirty,
+    location,
     props,
     store,
     userContact?.avatarImage,
@@ -263,6 +304,24 @@ export function EditProfileScreenView(props: Props) {
                     onUpdate={handleUpdatePinnedGroups}
                   />
                 </Field>
+                <Field label="Pinned Tunes">
+                  <EditPinnedTunesWidget
+                    tunes={pinnedTunes}
+                    onAddTune={() => props.onGoToAddProfileAudio()}
+                  />
+                </Field>
+                <Field label="Location">
+                  <LocationPicker
+                    initialLocation={initialLocation}
+                    onLocationChange={setLocation}
+                  />
+                </Field>
+                <Field label="Links">
+                  <EditPinnedLinksWidget
+                    links={pinnedLinks}
+                    onAddLink={props.onGoToEditLinks}
+                  />
+                </Field>
               </>
             ) : (
               <>
@@ -281,5 +340,92 @@ export function EditProfileScreenView(props: Props) {
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
+  );
+}
+
+function EditPinnedTunesWidget(props: {
+  tunes: domain.NormalizedTrack[];
+  onAddTune?: () => void;
+}) {
+  const player = useAudioPlayer();
+  return (
+    <YStack
+      marginTop="$m"
+      gap="$l"
+      borderWidth={1}
+      borderColor="$border"
+      padding="$m"
+      borderRadius="$l"
+      justifyContent="center"
+    >
+      {props.tunes.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          marginTop="$l"
+        >
+          <View marginLeft="$m" flexDirection="row" gap="$l">
+            {props.tunes.map((tune) => (
+              <MiniPlayableTrack
+                key={tune.id}
+                track={tune}
+                player={player}
+                size={50}
+              />
+            ))}
+          </View>
+        </ScrollView>
+      )}
+      <Pressable onPress={props.onAddTune}>
+        <ListItem padding="$m" backgroundColor="$unset">
+          <ListItem.MainContent>
+            <ListItem.Title>Select tunes</ListItem.Title>
+          </ListItem.MainContent>
+          <ListItem.EndContent>
+            <ListItem.SystemIcon icon="ChevronRight" backgroundColor="$unset" />
+          </ListItem.EndContent>
+        </ListItem>
+      </Pressable>
+    </YStack>
+  );
+}
+
+function EditPinnedLinksWidget(props: {
+  links: domain.ProfileLink[];
+  onAddLink?: () => void;
+}) {
+  return (
+    <YStack
+      marginTop="$m"
+      gap="$l"
+      borderWidth={1}
+      borderColor="$border"
+      padding="$m"
+      borderRadius="$l"
+      justifyContent="center"
+    >
+      {/* {props.links.length > 0 && (
+        <XStack gap="$m">
+          {props.links.map((link) => (
+            <ProfileLinkDisplay key={link.url} link={link} />
+          ))}
+        </XStack>
+      )} */}
+      {props.links.length > 0 && (
+        <Text marginTop="$2xl" marginLeft="$m" size="$label/l">
+          You have {props.links.length} Pinned Links
+        </Text>
+      )}
+      <Pressable onPress={props.onAddLink}>
+        <ListItem padding="$m" backgroundColor="$unset">
+          <ListItem.MainContent>
+            <ListItem.Title>Select links</ListItem.Title>
+          </ListItem.MainContent>
+          <ListItem.EndContent>
+            <ListItem.SystemIcon icon="ChevronRight" backgroundColor="$unset" />
+          </ListItem.EndContent>
+        </ListItem>
+      </Pressable>
+    </YStack>
   );
 }

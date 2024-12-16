@@ -76,3 +76,8 @@ export { default as Strikethrough } from './Strikethrough.svg';
 export { default as TBlock } from './TBlock.svg';
 export { default as Underline } from './Underline.svg';
 export { default as Undo } from './Undo.svg';
+export { default as LogoInstagram } from './LogoInstagram.svg';
+export { default as LogoSoundcloud } from './LogoSoundcloud.svg';
+export { default as LogoYoutube } from './LogoYoutube.svg';
+export { default as LogoTwitter } from './LogoTwitter.svg';
+export { default as LogoTiktok } from './LogoTiktok.svg';

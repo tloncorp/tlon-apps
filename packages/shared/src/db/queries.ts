@@ -32,6 +32,7 @@ import {
 } from '../api';
 import { parseGroupId } from '../api/apiUtils';
 import { createDevLogger } from '../debug';
+import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
 import {
   SourceActivityEvents,
@@ -2877,6 +2878,18 @@ export const setPinnedGroups = createWriteQuery(
       }));
       await ctx.db.insert($contactGroups).values(newGroups);
     }
+  },
+  ['contactGroups', 'contacts']
+);
+
+export const setPinnedTunes = createWriteQuery(
+  'setPinnedTunes',
+  async ({ tunes }: { tunes: domain.NormalizedTrack[] }, ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    await ctx.db
+      .update($contacts)
+      .set({ tunes })
+      .where(eq($contacts.id, currentUserId));
   },
   ['contactGroups', 'contacts']
 );
