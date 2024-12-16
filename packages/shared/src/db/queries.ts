@@ -1897,7 +1897,7 @@ export const getUnconfirmedPosts = createReadQuery(
       with: POST_RELATIONS_DEFAULT,
     });
   },
-  ['posts']
+  ['posts', 'channels']
 );
 
 export type GetChannelPostsOptions = {
