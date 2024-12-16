@@ -103,7 +103,7 @@ function useResetToGroup() {
 
   return async function resetToGroup(groupId: string) {
     if (isWindowNarrow) {
-      reset([{ name: 'ChatList' }, await getMainGroupRoute(groupId)]);
+      reset([{ name: 'ChatList' }, await getMainGroupRoute(groupId, true)]);
     } else {
       reset([
         {
@@ -241,7 +241,7 @@ export function getDesktopChannelRoute(
 
 export async function getMainGroupRoute(
   groupId: string,
-  isWindowNarrow?: boolean
+  isWindowNarrow: boolean
 ) {
   const group = await db.getGroup({ id: groupId });
   const channelSwitcherEnabled =

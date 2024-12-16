@@ -16,6 +16,7 @@ import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/urbit';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   Notification,
   addNotificationResponseReceivedListener,
@@ -144,6 +145,8 @@ export default function useNotificationListener() {
     };
   }, [navigation, isTlonEmployee]);
 
+  const isDesktop = useIsWindowNarrow();
+
   // If notification tapped, push channel on stack
   useEffect(() => {
     if (notifToProcess && notifToProcess.channelId) {
@@ -156,7 +159,10 @@ export default function useNotificationListener() {
 
         const routeStack: RouteStack = [{ name: 'ChatList' }];
         if (channel.groupId) {
-          const mainGroupRoute = await getMainGroupRoute(channel.groupId);
+          const mainGroupRoute = await getMainGroupRoute(
+            channel.groupId,
+            isDesktop
+          );
           // @ts-expect-error - we know we're on mobile and we can't get a "Home" route
           routeStack.push(mainGroupRoute);
         }
