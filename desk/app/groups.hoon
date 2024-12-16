@@ -2061,7 +2061,7 @@
     ::  already in the group
     ?:  (~(has by groups) flag)  ga-core
     ::  already valid join in progress
-    ?.  |(?=(@ cam.gang) =(%error progress.u.cam.gang))
+    ?:  &(?=(^ cam.gang) !=(%error progress.u.cam.gang))
       ga-core
     =.  cam.gang  `[join-all %adding]
     =.  cor  (emit add-self:ga-pass)
