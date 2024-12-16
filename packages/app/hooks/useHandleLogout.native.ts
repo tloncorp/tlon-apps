@@ -6,7 +6,6 @@ import { useCallback } from 'react';
 
 import { useBranch } from '../contexts/branch';
 import { clearShipInfo, useShip } from '../contexts/ship';
-import { clearHasOpenedDmInvite } from '../utils/dmInvite';
 import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 import { clearSplashDismissed } from '../utils/splash';
 import { useClearTelemetryConfig } from './useTelemetry';
@@ -28,7 +27,6 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     clearLure();
     clearDeepLink();
     clearSplashDismissed();
-    clearHasOpenedDmInvite();
     clearTelemetry();
     clearNonPersistentStorageItems();
     if (!resetDb) {

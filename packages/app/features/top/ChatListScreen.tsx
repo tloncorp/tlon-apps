@@ -25,16 +25,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
-import {
-  INVITE_SERVICE_ENDPOINT,
-  INVITE_SERVICE_IS_DEV,
-} from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
-import { hasOpenedDmInvite, setHasOpenedDmInvite } from '../../utils/dmInvite';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
@@ -60,19 +55,19 @@ export function ChatListScreenView({
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
   const personalInvite = db.personalInviteLink.useValue();
-
+  const viewedPersonalInvite = db.hasViewedPersonalInvite.useValue();
   const theme = useTheme();
-  const [dmInviteColor, setDmInviteColor] = useState();
-
-  useEffect(() => {
-    async function checkColor() {
-      const opened = await hasOpenedDmInvite();
-      setDmInviteColor(
-        opened ? theme?.primaryText?.val : theme?.positiveActionText?.val
-      );
-    }
-    checkColor();
-  }, [theme]);
+  const inviteButtonColor = useMemo(
+    () =>
+      viewedPersonalInvite
+        ? theme?.primaryText?.val
+        : theme?.positiveActionText?.val,
+    [
+      theme?.positiveActionText?.val,
+      theme?.primaryText?.val,
+      viewedPersonalInvite,
+    ]
+  );
 
   const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
     'all'
@@ -251,7 +246,7 @@ export function ChatListScreenView({
 
   const handlePersonalInvitePress = useCallback(() => {
     logger.trackEvent(AnalyticsEvent.PersonalInvitePressed);
-    setHasOpenedDmInvite();
+    db.hasViewedPersonalInvite.setValue(true);
     setPersonalInviteOpen(true);
   }, []);
 
@@ -277,7 +272,7 @@ export function ChatListScreenView({
                 personalInvite ? (
                   <ScreenHeader.IconButton
                     type="Send"
-                    color={dmInviteColor}
+                    color={inviteButtonColor}
                     onPress={handlePersonalInvitePress}
                   />
                 ) : undefined

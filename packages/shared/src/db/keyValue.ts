@@ -327,6 +327,11 @@ export const personalInviteLink = createStorageItem<string | null>({
   defaultValue: null,
 });
 
+export const hasViewedPersonalInvite = createStorageItem<boolean>({
+  key: 'hasViewedPersonalInvite',
+  defaultValue: false,
+});
+
 export const postDraft = (opts: {
   key: string;
   type: 'caption' | 'text' | undefined; // matches GalleryDraftType

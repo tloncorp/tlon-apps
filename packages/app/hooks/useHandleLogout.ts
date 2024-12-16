@@ -9,7 +9,6 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { clearShipInfo, useShip } from '../contexts/ship';
-import { clearHasOpenedDmInvite } from '../utils/dmInvite';
 // Can't signup via the webapp, so this is commented out.
 // We might allow this in a desktop app in the future.
 // import { useSignupContext } from '../contexts/signup';
@@ -34,7 +33,6 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
     removeHostingToken();
     removeHostingUserId();
     removeHostingAuthTracking();
-    clearHasOpenedDmInvite();
     clearSplashDismissed();
     clearNonPersistentStorageItems();
     if (!resetDb) {
