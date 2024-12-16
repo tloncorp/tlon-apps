@@ -573,10 +573,17 @@ function NotificationsSheetContent({
   chatTitle?: string | null;
   onPressBack: () => void;
 }) {
-  const { updateVolume, group } = useChatOptions();
-  const { data: currentVolumeLevel } = store.useGroupVolumeLevel(
+  const { updateVolume, group, channel } = useChatOptions();
+  const { data: currentChannelVolume } = store.useChannelVolumeLevel(
+    channel?.id ?? ''
+  );
+  const { data: currentGroupVolume } = store.useGroupVolumeLevel(
     group?.id ?? ''
   );
+  const currentVolumeLevel = channel?.id
+    ? currentChannelVolume
+    : currentGroupVolume;
+
   const notificationActions = useMemo(
     () =>
       createActionGroups([
