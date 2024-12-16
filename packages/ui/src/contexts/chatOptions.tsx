@@ -111,15 +111,16 @@ export const ChatOptionsProvider = ({
     id: isChannel ? chat.id : undefined,
   });
   const channelTitle = useChannelTitle(channel ?? null);
+  const groupId = isGroup ? chat.id : channel?.groupId ?? undefined;
   const { data: group } = useGroup({
-    id: isGroup ? chat.id : channel?.groupId ?? undefined,
+    id: groupId,
   });
 
   useEffect(() => {
-    if (group) {
-      store.syncGroup(group.id, { priority: store.SyncPriority.High });
+    if (groupId) {
+      store.syncGroup(groupId, { priority: store.SyncPriority.Medium });
     }
-  }, [group]);
+  }, [groupId]);
 
   const togglePinned = useCallback(() => {
     if (group && group.channels?.[0]) {
