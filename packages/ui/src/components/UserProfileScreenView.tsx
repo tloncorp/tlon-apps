@@ -16,6 +16,7 @@ import {
   XStack,
   YStack,
   styled,
+  useTheme,
   useWindowDimensions,
 } from 'tamagui';
 
@@ -51,6 +52,8 @@ export function UserProfileScreenView(props: Props) {
     );
   }, [userContact?.pinnedGroups]);
 
+  const theme = useTheme();
+
   const nodeStatus = !props.connectionStatus?.complete
     ? 'pending'
     : props.connectionStatus.status === 'yes'
@@ -79,7 +82,7 @@ export function UserProfileScreenView(props: Props) {
   }, [currentUserId, props.userId, userContact]);
 
   return (
-    <View flex={1} backgroundColor={'$secondaryBackground'}>
+    <View flex={1} backgroundColor={theme.secondaryBackground.val}>
       <ScreenHeader
         title="Profile"
         leftControls={<ScreenHeader.BackButton onPress={props.onBack} />}
@@ -345,6 +348,7 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
             <>
               <ContactName
                 contactId={props.userId}
+                color="$primaryText"
                 mode="nickname"
                 fontSize={24}
                 lineHeight={24}
