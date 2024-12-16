@@ -33,31 +33,22 @@ type ChatOptionsSheetProps = {
 };
 
 export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
-  open,
-  onOpenChange,
   chat,
+  ...props
 }: ChatOptionsSheetProps) {
-  if (!chat || !open) {
+  const { group } = useChatOptions();
+
+  if (!chat || !props.open) {
     return null;
   }
 
   if (chat.type === 'group') {
-    return (
-      <GroupOptionsSheetLoader
-        groupId={chat.id}
-        open={open}
-        onOpenChange={onOpenChange}
-      />
-    );
+    return <GroupOptionsSheetLoader groupId={chat.id} {...props} />;
+  } else if (group?.id && group?.channels?.length === 1) {
+    return <GroupOptionsSheetLoader groupId={group?.id} {...props} />;
   }
 
-  return (
-    <ChannelOptionsSheetLoader
-      channelId={chat.id}
-      open={open}
-      onOpenChange={onOpenChange}
-    />
-  );
+  return <ChannelOptionsSheetLoader channelId={chat.id} {...props} />;
 });
 
 export function GroupOptionsSheetLoader({
@@ -260,7 +251,7 @@ function SortChannelsSheetContent({
   chatTitle: string;
   onPressBack: () => void;
 }) {
-  const { setChannelSortPreference } = useChatOptions()!;
+  const { setChannelSortPreference } = useChatOptions();
 
   const sortActions = useMemo(
     () =>
@@ -582,7 +573,7 @@ function NotificationsSheetContent({
   chatTitle?: string | null;
   onPressBack: () => void;
 }) {
-  const { updateVolume, group } = useChatOptions() ?? {};
+  const { updateVolume, group } = useChatOptions();
   const { data: currentVolumeLevel } = store.useGroupVolumeLevel(
     group?.id ?? ''
   );
