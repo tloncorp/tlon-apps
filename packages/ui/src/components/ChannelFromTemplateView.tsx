@@ -1,4 +1,5 @@
 import {
+  AnalyticsEvent,
   createDevLogger,
   deleteChannel,
   useChannelHooksPreview,
@@ -86,7 +87,7 @@ export function ChannelFromTemplateView({
         logger.log('sending template');
         await api.setupChannelFromTemplate(channel.id, newChannel.id);
         logger.log('template setup');
-        logger.trackEvent('setupChannelTemplate');
+        logger.trackEvent(AnalyticsEvent.ChannelTemplateSetup);
         // navigate to channel
         navigateToChannel(newChannel);
       } catch (e) {
