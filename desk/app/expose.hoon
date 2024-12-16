@@ -224,6 +224,11 @@
   |=  [=wire =sign:agent:gall]
   ^-  (quip card _this)
   ?+  wire  ~&([dap.bowl strange-wire=wire] [~ this])
+      [%profile %widget %all ~]
+    ?+  -.sign  ~&([dap.bowl wire=wire strange-sign=-.sign] [~ this])
+      %poke-ack  [~ this]
+    ==
+  ::
       [%channels ~]
     ?-  -.sign
       %poke-ack  !!
