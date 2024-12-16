@@ -1291,10 +1291,10 @@
   ^-  template:h
   =/  order=(list id-hook:h)  (~(got by order.hooks) nest)
   =/  crons=(list [id-hook:h job:h])
-    %+  roll  ~(tap by crons.hooks)
-    |=  [[=id-hook:h =cron:h] cr=(list [id-hook:h job:h])]
-    ?~  job=(~(get by cron) nest)  cr
-    (snoc cr [id-hook u.job])
+    %+  murn  ~(tap by crons.hooks)
+    |=  [=id-hook:h =cron:h]
+    ?~  job=(~(get by cron) nest)  ~
+    `[id-hook u.job]
   =/  ids=(list id-hook:h)  (welp order (turn crons head))
   =/  hooks=(map id-hook:h hook:h)
     %-  ~(gas by *(map id-hook:h hook:h))
