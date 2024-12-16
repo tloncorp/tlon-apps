@@ -783,8 +783,6 @@ export class Urbit {
       }
     );
 
-    console.log('thread returned', res.status, await res.clone().text());
-
     return res.json();
   }
 
