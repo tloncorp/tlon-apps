@@ -487,18 +487,3 @@ export const usePostWithRelations = (
     queryFn: () => db.getPostWithRelations(options),
   });
 };
-
-// Includes latest post as well as unconfirmed posts
-export const useChannelUnconfirmedPosts = (options: { channelId?: string }) => {
-  const tableDeps = useKeyFromQueryDeps(db.getUnconfirmedPosts);
-  return useQuery({
-    queryKey: [['channelUnconfirmedPosts', options.channelId], tableDeps],
-    staleTime: Infinity,
-    ...(options.channelId == null
-      ? { skip: true }
-      : {
-          queryFn: () =>
-            db.getUnconfirmedPosts({ channelId: options.channelId! }),
-        }),
-  });
-};

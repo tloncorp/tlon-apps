@@ -12,7 +12,6 @@ import {
   useLiveRef,
   useOptimizedQueryResults,
 } from '../logic/utilHooks';
-import { useChannelUnconfirmedPosts } from './dbHooks';
 import { queryClient } from './reactQuery';
 import { useCurrentSession } from './session';
 import * as sync from './sync';
@@ -155,9 +154,19 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
   );
   useSubscriptionPostListener(handleNewPost);
 
-  const unconfirmedPostsQuery = useChannelUnconfirmedPosts({
-    channelId: options.channelId,
-  });
+  // Why store the unconfirmed posts in a separate state?
+  // With a live query, we'd see duplicates between the latest post from
+  // getUnconfirmedPosts and latest post from the main useChannelPosts query.
+  // (This *shouldn't* be the case - we should be deduplicating - but I think
+  // there's a timing issue here that is taking too long to debug.)
+  const [unconfirmedPosts, setUnconfirmedPosts] = useState<db.Post[] | null>(
+    null
+  );
+  useEffect(() => {
+    db.getUnconfirmedPosts({ channelId: options.channelId }).then(
+      setUnconfirmedPosts
+    );
+  }, [options.channelId]);
   const rawPostsWithNewPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
     if (!newPosts.length || query.hasPreviousPage) {
@@ -185,7 +194,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     // bubble-insert unconfirmed posts
     const out = [...(rawPostsWithNewPosts ?? [])];
 
-    for (const p of unconfirmedPostsQuery.data ?? []) {
+    for (const p of unconfirmedPosts ?? []) {
       // skip if we already have this post
       if (out.some((qp) => qp.id === p.id)) {
         continue;
@@ -200,7 +209,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     }
 
     return out;
-  }, [rawPostsWithNewPosts, unconfirmedPostsQuery.data]);
+  }, [rawPostsWithNewPosts, unconfirmedPosts]);
 
   const posts = useOptimizedQueryResults(rawPosts);
 
