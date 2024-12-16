@@ -180,7 +180,6 @@
 ::
 +$  template
   $:  from=nest
-      meta=data:m
       hooks=(map id-hook hook)
       order=(list id-hook)
       crons=(list [id-hook job])

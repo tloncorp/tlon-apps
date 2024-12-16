@@ -1308,7 +1308,6 @@
     :-  id-hook
     hook(compiled ~, state !>(~), config config-map)
   :*  nest
-      *data:m
       hooks
       order
       crons
