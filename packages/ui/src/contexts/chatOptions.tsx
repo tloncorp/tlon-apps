@@ -250,8 +250,9 @@ export const ChatOptionsProvider = ({
   const handlePressGroupPrivacy = useCallback(() => {
     if (group) {
       onPressGroupPrivacy?.(group.id);
+      closeSheet();
     }
-  }, [group, onPressGroupPrivacy]);
+  }, [closeSheet, group, onPressGroupPrivacy]);
 
   const handlePressGroupRoles = useCallback(() => {
     if (group) {
