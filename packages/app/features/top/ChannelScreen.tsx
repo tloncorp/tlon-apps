@@ -58,36 +58,47 @@ export default function ChannelScreen(props: Props) {
     isChannelSwitcherEnabled,
   });
 
+  const groupId = channel?.groupId ?? group?.id;
   const currentUserId = useCurrentUserId();
+
+  const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
     useCallback(() => {
-      if (group?.isNew) {
-        store.markGroupVisited(group);
-      }
-    }, [group])
-  );
-  useFocusEffect(
-    useCallback(() => {
-      if (channel && !channel.isPendingChannel) {
-        store.syncChannelThreadUnreads(channel.id, {
+      if (!channelIsPending) {
+        store.syncChannelThreadUnreads(channelId, {
           priority: store.SyncPriority.High,
         });
-        if (group) {
-          // Update the last visited channel in the group so we can return to it
-          // when we come back to the group
-          db.updateGroup({
-            id: group.id,
-            lastVisitedChannelId: channel.id,
-          });
-        }
       }
       // Mark the channel as visited when we unfocus/leave this screen
       () => {
-        if (channel) {
-          store.markChannelVisited(channel);
+        if (!channelIsPending) {
+          store.markChannelVisited(channelId);
         }
       };
-    }, [channel, group])
+    }, [channelId, channelIsPending])
+  );
+
+  const groupIsNew = group?.isNew;
+  useFocusEffect(
+    useCallback(() => {
+      // Mark group visited on enter if new
+      if (groupId && groupIsNew) {
+        store.markGroupVisited(groupId);
+      }
+    }, [groupId, groupIsNew])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (groupId) {
+        // Update the last visited channel in the group so we can return to it
+        // when we come back to the group
+        db.updateGroup({
+          id: groupId,
+          lastVisitedChannelId: channelId,
+        });
+      }
+    }, [groupId, channelId])
   );
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
