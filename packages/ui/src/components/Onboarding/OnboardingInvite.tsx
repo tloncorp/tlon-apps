@@ -104,8 +104,6 @@ function GroupInvite({
         {...rest}
       >
         <ListItem.GroupIcon
-          width={100}
-          height={100}
           model={groupShim}
           backgroundColor={groupShim.iconImageColor ?? '$secondaryBorder'}
         />
