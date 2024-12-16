@@ -22,7 +22,7 @@ import {
   WelcomeSheet,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTheme } from 'tamagui';
+import { ColorTokens, useTheme } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -59,9 +59,9 @@ export function ChatListScreenView({
   const theme = useTheme();
   const inviteButtonColor = useMemo(
     () =>
-      viewedPersonalInvite
+      (viewedPersonalInvite
         ? theme?.primaryText?.val
-        : theme?.positiveActionText?.val,
+        : theme?.positiveActionText?.val) as ColorTokens,
     [
       theme?.positiveActionText?.val,
       theme?.primaryText?.val,
