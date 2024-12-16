@@ -82,6 +82,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           'The app accesses your microphone to allow you to record audio.',
       },
     ],
+    [
+      "expo-location",
+      {
+        "locationAlwaysAndWhenInUsePermission": "Allow TM to use your location."
+      }
+    ]
   ],
   updates: {
     url: `https://u.expo.dev/${projectId}`,

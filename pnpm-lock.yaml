@@ -244,8 +244,8 @@ importers:
         specifier: ~14.8.3
         version: 14.8.3(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13))
       expo-location:
-        specifier: ^18.0.4
-        version: 18.0.4(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13))
+        specifier: ^16.5.5
+        version: 16.5.5(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13))
       expo-modules-core:
         specifier: ~1.11.8
         version: 1.11.8
@@ -8901,6 +8901,11 @@ packages:
     peerDependencies:
       expo: '*'
 
+  expo-location@16.5.5:
+    resolution: {integrity: sha512-dXEd1HaZgdi6yHVF8R+SMnGlKDYrD+Hkkzd/b9edjMSUBLxF2y824AFSSNUf6BVOM53tJBOFEELneXkU1uj9nA==}
+    peerDependencies:
+      expo: '*'
+
   expo-location@18.0.4:
     resolution: {integrity: sha512-OrZTxRpfi4bCJxjW186wt3kfoe0FHwXceE6dXdbxvjxnwMP9cbKeqY6Y2M1bVwboq7PI2eV/e1rOaGq+F+fZyw==}
     peerDependencies:
@@ -13019,12 +13024,15 @@ packages:
 
   sudo-prompt@8.2.5:
     resolution: {integrity: sha512-rlBo3HU/1zAJUrkY6jNxDOC9eVYliG6nS4JA8u8KAshITd07tafMc/Br7xQwCSseXwJ2iCcHCE8SNWX3q8Z+kw==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   sudo-prompt@9.1.1:
     resolution: {integrity: sha512-es33J1g2HjMpyAhz8lOR+ICmXXAqTuKbuXuUWLhOLew20oN9oUCgCJx615U/v7aioZg7IX5lIh9x34vwneu4pA==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   sudo-prompt@9.2.1:
     resolution: {integrity: sha512-Mu7R0g4ig9TUuGSxJavny5Rv0egCEtpZRNMrZaYS1vxkiIxGiGUwoezU3LazIQ+KE04hTrTfNPgxU5gzi7F5Pw==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   superjson@1.12.2:
     resolution: {integrity: sha512-ugvUo9/WmvWOjstornQhsN/sR9mnGtWGYeTxFuqLb4AiT4QdUavjGFRALCPKWWnAiUJ4HTpytj5e0t5HoMRkXg==}
@@ -25397,7 +25405,7 @@ snapshots:
       expo: 50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)
       rtl-detect: 1.1.2
 
-  expo-location@18.0.4(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)):
+  expo-location@16.5.5(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)):
     dependencies:
       expo: 50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)
 

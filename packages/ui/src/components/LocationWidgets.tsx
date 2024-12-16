@@ -106,6 +106,7 @@ export function LocationPicker(props: {
       }
     }
     const currLoc = await location.getCurrentLocation();
+    console.log(`got current location`, currLoc);
     const processed = await api.processDeviceLocation({
       latitude: currLoc.coords.latitude,
       longitude: currLoc.coords.longitude,
