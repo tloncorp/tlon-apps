@@ -17,6 +17,7 @@ import Animated, {
 import { Circle, ScrollView, Stack, View, YStack, ZStack } from 'tamagui';
 
 import { useAudioPlayer, useStore } from '../contexts';
+import { triggerHaptic } from '../utils';
 import { TextInputWithIcon } from './Form';
 import { Icon } from './Icon';
 import { ListItem } from './ListItem';
@@ -61,6 +62,7 @@ export function AddProfileAudioScreenView(props: {
 
   const pressSelectTrack = useCallback(
     (track: AugmentedTrack) => {
+      triggerHaptic('baseButtonClick');
       if (selectedSet.has(track.id)) {
         setSelectedTracks(() =>
           selectedTracks.filter(

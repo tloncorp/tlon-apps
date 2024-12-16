@@ -7,6 +7,7 @@ import { Switch, useWindowDimensions } from 'react-native';
 import { XStack, YStack, styled } from 'tamagui';
 
 import { useLocation } from '../hooks/useLocation';
+import { triggerHaptic } from '../utils';
 import { Button } from './Button';
 import { ControlledTextField, ToggleGroupInput } from './Form';
 import Pressable from './Pressable';
@@ -92,6 +93,7 @@ export function LocationPicker(props: {
   }, [watch, updateLocation]);
 
   const onPressUseLocation = useCallback(async () => {
+    triggerHaptic('baseButtonClick');
     console.log(`use location pressed`, location);
     if (!location.isAvailable) {
       if (location.canRequest) {

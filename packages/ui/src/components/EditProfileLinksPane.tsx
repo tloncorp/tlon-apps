@@ -1,10 +1,11 @@
-import * as api from '@tloncorp/shared/api';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import { useCallback, useEffect, useState } from 'react';
+import { Keyboard } from 'react-native';
 import { ScrollView, View, YStack } from 'tamagui';
 
 import { useStore } from '../contexts';
+import { triggerHaptic } from '../utils';
 import { Button } from './Button';
 import { Field, TextInput, TextInputWithIcon } from './Form';
 import { IconType } from './Icon';
@@ -52,6 +53,7 @@ export function EditProfileLinksPane(props: Props) {
   }, []);
 
   const onPressAddLink = () => {
+    triggerHaptic('baseButtonClick');
     console.log('addding link', link);
     try {
       const socialLink = logic.parseSocialLink(link);
@@ -71,6 +73,7 @@ export function EditProfileLinksPane(props: Props) {
   };
 
   const onTitleLink = () => {
+    triggerHaptic('baseButtonClick');
     setLinks((prev) => [
       ...prev,
       {
@@ -104,6 +107,7 @@ export function EditProfileLinksPane(props: Props) {
                 placeholder="https://example.com"
                 value={link}
                 onChangeText={onChangeText}
+                autoFocus
               />
             </Field>
             <Button hero disabled={!haveValidLink} onPress={onPressAddLink}>
@@ -119,6 +123,7 @@ export function EditProfileLinksPane(props: Props) {
                 value={title}
                 onChangeText={setTitle}
                 maxLength={30}
+                autoFocus
               />
             </Field>
             <Button hero disabled={!haveValidLink} onPress={onTitleLink}>
@@ -127,7 +132,7 @@ export function EditProfileLinksPane(props: Props) {
           </>
         )}
       </YStack>
-      <ScrollView marginTop="$xl" flex={1}>
+      <ScrollView marginTop="$xl" flex={1} onTouchStart={Keyboard.dismiss}>
         {links.map((link) => (
           <ListItem key={link.url} marginHorizontal="$m">
             <ListItem.SystemIcon icon={getSocialIcon(link.socialPlatformId)} />
