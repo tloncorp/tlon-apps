@@ -22,12 +22,9 @@ import {
   WelcomeSheet,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ColorTokens, useTheme } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
-import {
-  INVITE_SERVICE_ENDPOINT,
-  INVITE_SERVICE_IS_DEV,
-} from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
@@ -58,6 +55,19 @@ export function ChatListScreenView({
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
   const personalInvite = db.personalInviteLink.useValue();
+  const viewedPersonalInvite = db.hasViewedPersonalInvite.useValue();
+  const theme = useTheme();
+  const inviteButtonColor = useMemo(
+    () =>
+      (viewedPersonalInvite
+        ? theme?.primaryText?.val
+        : theme?.positiveActionText?.val) as ColorTokens,
+    [
+      theme?.positiveActionText?.val,
+      theme?.primaryText?.val,
+      viewedPersonalInvite,
+    ]
+  );
 
   const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
     'all'
@@ -236,6 +246,7 @@ export function ChatListScreenView({
 
   const handlePersonalInvitePress = useCallback(() => {
     logger.trackEvent(AnalyticsEvent.PersonalInvitePressed);
+    db.hasViewedPersonalInvite.setValue(true);
     setPersonalInviteOpen(true);
   }, []);
 
@@ -261,7 +272,7 @@ export function ChatListScreenView({
                 personalInvite ? (
                   <ScreenHeader.IconButton
                     type="Send"
-                    color="$blue"
+                    color={inviteButtonColor}
                     onPress={handlePersonalInvitePress}
                   />
                 ) : undefined
