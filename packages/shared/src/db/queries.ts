@@ -153,6 +153,35 @@ export const getGroupPreviews = createReadQuery(
   ['groups']
 );
 
+export const getJoinedGroupsCount = createReadQuery(
+  'getJoinedGroupCount',
+  async (ctx: QueryCtx) => {
+    const result = await ctx.db
+      .select({ count: count() })
+      .from($groups)
+      .where(eq($groups.currentUserIsMember, true));
+
+    return result[0]?.count ?? 0;
+  },
+  ['groups']
+);
+
+// TODO: inefficient, should optimize
+export const getGroupsWithMemberThreshold = createReadQuery(
+  'getGroupsWithMemberThreshold',
+  async (threshold: number, ctx: QueryCtx) => {
+    const allJoinedWithMembers = await ctx.db.query.groups.findMany({
+      where: eq($groups.currentUserIsMember, true),
+      with: {
+        members: true,
+      },
+    });
+
+    return allJoinedWithMembers.filter((g) => g.members.length <= threshold);
+  },
+  ['groups']
+);
+
 export const getGroups = createReadQuery(
   'getGroups',
   async (
@@ -295,6 +324,8 @@ export const getChats = createReadQuery(
       where: or(
         eq($groups.currentUserIsMember, true),
         eq($groups.isNew, true),
+        eq($groups.haveInvite, true),
+        eq($groups.haveRequestedInvite, true),
         isNotNull($groups.joinStatus)
       ),
       with: {
@@ -1463,31 +1494,6 @@ export const getChannelWithRelations = createReadQuery(
   ['channels', 'volumeSettings', 'pins', 'groups', 'contacts', 'channelUnreads']
 );
 
-export const getStaleChannels = createReadQuery(
-  'getStaleChannels',
-  async (ctx: QueryCtx) => {
-    return ctx.db
-      .select({
-        ...getTableColumns($channels),
-        unread: getTableColumns($channelUnreads),
-      })
-      .from($channels)
-      .innerJoin($channelUnreads, eq($channelUnreads.channelId, $channels.id))
-      .where(
-        or(
-          isNull($channels.lastPostAt),
-          lt($channels.remoteUpdatedAt, $channelUnreads.updatedAt)
-        )
-      )
-      .leftJoin(
-        $pins,
-        or(eq($pins.itemId, $channels.id), eq($pins.itemId, $channels.groupId))
-      )
-      .orderBy(ascNullsLast($pins.index), desc($channelUnreads.updatedAt));
-  },
-  ['channels']
-);
-
 export const insertChannels = createWriteQuery(
   'insertChannels',
   async (channels: Channel[], ctx: QueryCtx) => {
@@ -2597,7 +2603,13 @@ export const getPostWithRelations = createReadQuery(
 
 export const getGroup = createReadQuery(
   'getGroup',
-  async ({ id }: { id: string }, ctx: QueryCtx) => {
+  async (
+    {
+      id,
+      includeUnjoinedChannels = false,
+    }: { id: string; includeUnjoinedChannels?: boolean },
+    ctx: QueryCtx
+  ) => {
     return ctx.db.query.groups
       .findFirst({
         where: (groups, { eq }) => eq(groups.id, id),
@@ -2605,7 +2617,9 @@ export const getGroup = createReadQuery(
           unread: true,
           pin: true,
           channels: {
-            where: (channels, { eq }) => eq(channels.currentUserIsMember, true),
+            where: includeUnjoinedChannels
+              ? undefined
+              : (channels, { eq }) => eq(channels.currentUserIsMember, true),
             with: {
               lastPost: true,
               unread: true,
@@ -3180,16 +3194,27 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
       .where(
         and(
           gt($activityEvents.timestamp, seenMarker),
-          eq($activityEvents.shouldNotify, true),
           or(
-            and(eq($activityEvents.type, 'reply'), gt($threadUnreads.count, 0)),
-            and(eq($activityEvents.type, 'post'), gt($channelUnreads.count, 0)),
+            eq($activityEvents.type, 'contact'),
             and(
-              gt($groupUnreads.notifyCount, 0),
+              eq($activityEvents.shouldNotify, true),
               or(
-                eq($activityEvents.type, 'group-ask'),
-                eq($activityEvents.type, 'flag-post'),
-                eq($activityEvents.type, 'flag-reply')
+                and(
+                  eq($activityEvents.type, 'reply'),
+                  gt($threadUnreads.count, 0)
+                ),
+                and(
+                  eq($activityEvents.type, 'post'),
+                  gt($channelUnreads.count, 0)
+                ),
+                and(
+                  gt($groupUnreads.notifyCount, 0),
+                  or(
+                    eq($activityEvents.type, 'group-ask'),
+                    eq($activityEvents.type, 'flag-post'),
+                    eq($activityEvents.type, 'flag-reply')
+                  )
+                )
               )
             )
           )

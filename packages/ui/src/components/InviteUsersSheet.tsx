@@ -32,7 +32,11 @@ const InviteUsersSheetComponent = ({
       snapPoints={[85]}
       snapPointsMode="percent"
     >
-      <ActionSheet.Content flex={1} paddingBottom={bottom}>
+      <ActionSheet.Content
+        // prevent the modal from going off screen
+        flex={1}
+        paddingBottom={bottom}
+      >
         <InviteUsersWidget group={group} onInviteComplete={onInviteComplete} />
       </ActionSheet.Content>
     </ActionSheet>

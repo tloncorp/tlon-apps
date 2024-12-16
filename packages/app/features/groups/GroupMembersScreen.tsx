@@ -5,7 +5,7 @@ import { useCallback } from 'react';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
-import { useResetToDm } from '../../navigation/utils';
+import { useRootNavigation } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<
   GroupSettingsStackParamList,
@@ -31,7 +31,7 @@ export function GroupMembersScreen({ route, navigation }: Props) {
 
   const currentUserId = useCurrentUserId();
 
-  const resetToDm = useResetToDm();
+  const { resetToDm } = useRootNavigation();
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {

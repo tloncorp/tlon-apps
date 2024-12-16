@@ -5,15 +5,18 @@ import { useMemo } from 'react';
 
 import type { IconType } from '../components/Icon';
 import { useCalm } from '../contexts/appDataContext';
+import { formatUserId } from './user';
 
 export function getChannelMemberName(
   member: db.ChatMember,
   disableNicknames: boolean
 ) {
   if (disableNicknames) {
-    return member.contactId;
+    return formatUserId(member.contactId);
   }
-  return member.contact?.nickname ?? member.contactId;
+  return member.contact?.nickname
+    ? member.contact.nickname
+    : formatUserId(member.contactId)?.display;
 }
 
 export function useChannelMemberName(member: db.ChatMember) {
@@ -21,7 +24,7 @@ export function useChannelMemberName(member: db.ChatMember) {
   return getChannelMemberName(member, disableNicknames);
 }
 
-function getChannelTitle({
+export function getChannelTitle({
   usesMemberListAsFallbackTitle,
   channelTitle,
   members,
@@ -45,25 +48,66 @@ function getChannelTitle({
   }
 }
 
+export function useChatTitle(
+  channel: db.Channel | null,
+  group?: db.Group | null
+) {
+  const { disableNicknames } = useCalm();
+
+  if (!channel || (channel.groupId && !group)) {
+    return null;
+  }
+
+  if (group?.channels?.length === 1) {
+    return getGroupTitle(group, disableNicknames);
+  } else {
+    return getChannelTitle({
+      ...configurationFromChannel(channel),
+      channelTitle: channel.title,
+      members: channel.members,
+      disableNicknames,
+    });
+  }
+}
+
 export function useChannelTitle(channel: db.Channel | null) {
   const { disableNicknames } = useCalm();
-  const usesMemberListAsFallbackTitle = useMemo(
-    () => configurationFromChannel(channel)?.usesMemberListAsFallbackTitle,
-    [channel]
-  );
+  return useMemo(() => {
+    if (channel === null) {
+      return null;
+    }
+    return getChannelTitle({
+      ...configurationFromChannel(channel),
+      channelTitle: channel.title,
+      members: channel.members,
+      disableNicknames,
+    });
+  }, [channel, disableNicknames]);
+}
 
-  return useMemo(
-    () =>
-      channel == null || usesMemberListAsFallbackTitle == null
-        ? null
-        : getChannelTitle({
-            usesMemberListAsFallbackTitle,
-            channelTitle: channel.title,
-            members: channel.members,
-            disableNicknames,
-          }),
-    [channel, disableNicknames, usesMemberListAsFallbackTitle]
-  );
+export function getGroupTitle(
+  group: db.Group,
+  disableNicknames: boolean
+): string {
+  if (group?.title && group?.title !== '') {
+    return group.title;
+  } else if ((group?.members?.length ?? 0) > 1) {
+    return (
+      group.members
+        ?.map((member) => getChannelMemberName(member, disableNicknames))
+        .join(', ') ?? 'No title'
+    );
+  } else {
+    return 'Untitled group';
+  }
+}
+
+export function useGroupTitle(group?: db.Group | null) {
+  const { disableNicknames } = useCalm();
+  if (!group) {
+    return null;
+  }
+  return getGroupTitle(group, disableNicknames);
 }
 
 export function isDmChannel(channel: db.Channel): boolean {
@@ -110,4 +154,8 @@ export function getChannelTypeIcon(type: db.Channel['type']): IconType {
     default:
       return 'ChannelTalk';
   }
+}
+
+export function hasNickname(contact: db.Contact | null | undefined): boolean {
+  return 'nickname' in (contact ?? {}) && (contact?.nickname?.length ?? 0) > 0;
 }

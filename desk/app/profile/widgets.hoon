@@ -18,10 +18,13 @@
                         ?:(&(?=([%look *] a) !=('' +.a)) `+.a ~)
 =/  cover=(unit @ta)    =+  a=(~(gut by contact) %cover %look '')
                         ?:(&(?=([%look *] a) !=('' +.a)) `+.a ~)
+<<<<<<< HEAD
 =/  phone=(unit @da)    =+  a=(~(gut by contact) %lanyard-tmp-phone-since %date *@da)
                         ?:(&(?=([%date *] a) !=(*@da +.a)) `+.a ~)
 =/  phurl=(unit @t)     =+  a=(~(gut by contact) %lanyard-tmp-phone-url %text *@t)
                         ?:(&(?=([%text *] a) !=(*@t +.a)) `+.a ~)
+=======
+>>>>>>> develop
 |^  %-  ~(gas by *(map term [%0 @t %marl marl]))
     :~  [%profile %0 'Profile Header' %marl profile-widget]
         [%profile-bio %0 'Profile Bio' %marl profile-bio]

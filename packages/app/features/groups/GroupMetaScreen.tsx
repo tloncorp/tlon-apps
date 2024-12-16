@@ -7,6 +7,8 @@ import {
   Button,
   DeleteSheet,
   MetaEditorScreenView,
+  YStack,
+  useGroupTitle,
 } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
@@ -57,6 +59,8 @@ export function GroupMetaScreen(props: Props) {
     props.navigateToHome();
   }, [deleteGroup, props]);
 
+  const title = useGroupTitle(group);
+
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
       <MetaEditorScreenView
@@ -65,16 +69,18 @@ export function GroupMetaScreen(props: Props) {
         goBack={props.navigation.goBack}
         onSubmit={handleSubmit}
       >
-        <Button heroDestructive onPress={handlePressDelete}>
-          <Button.Text>Delete group for everyone</Button.Text>
-        </Button>
-        <DeleteSheet
-          title={group?.title ?? 'This Group'}
-          itemTypeDescription="group"
-          open={showDeleteSheet}
-          onOpenChange={setShowDeleteSheet}
-          deleteAction={handleDeleteGroup}
-        />
+        <YStack flex={1} justifyContent="flex-end">
+          <Button heroDestructive onPress={handlePressDelete}>
+            <Button.Text>Delete group for everyone</Button.Text>
+          </Button>
+          <DeleteSheet
+            title={title ?? 'This group'}
+            itemTypeDescription="group"
+            open={showDeleteSheet}
+            onOpenChange={setShowDeleteSheet}
+            deleteAction={handleDeleteGroup}
+          />
+        </YStack>
       </MetaEditorScreenView>
     </AttachmentProvider>
   );

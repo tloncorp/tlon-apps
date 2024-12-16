@@ -10,6 +10,8 @@ jobs:
     name: "Syncs the latest livenet deploy from develop to master"
     steps:
       - uses: actions/checkout@v3
+        with:
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
       - name: Set Git config
         run: |
           git config --local user.email "actions@github.com"

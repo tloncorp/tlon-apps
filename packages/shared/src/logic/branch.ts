@@ -2,6 +2,7 @@ import { isValidPatp } from '@urbit/aura';
 
 import { getPostInfoFromWer } from '../api/harkApi';
 import { createDevLogger } from '../debug';
+import { getConstants } from '../domain';
 
 const logger = createDevLogger('branch', true);
 
@@ -71,11 +72,13 @@ export interface DeepLinkMetadata {
   inviterUserId?: string;
   inviterNickname?: string;
   inviterAvatarImage?: string;
+  inviterColor?: string;
   invitedGroupId?: string;
   invitedGroupTitle?: string;
   invitedGroupDescription?: string;
   invitedGroupIconImageUrl?: string;
   invitedGroupiconImageColor?: string;
+  inviteType?: 'user' | 'group';
 }
 
 export interface AppInvite extends DeepLinkMetadata {
@@ -104,11 +107,13 @@ export function extractLureMetadata(branchParams: any) {
     inviterUserId: branchParams.inviterUserId,
     inviterNickname: branchParams.inviterNickname,
     inviterAvatarImage: branchParams.inviterAvatarImage,
+    inviterColor: branchParams.inviterColor,
     invitedGroupId: branchParams.invitedGroupId,
     invitedGroupTitle: branchParams.invitedGroupTitle,
     invitedGroupDescription: branchParams.invitedGroupDescription,
     invitedGroupIconImageUrl: branchParams.invitedGroupIconImageUrl,
     invitedGroupiconImageColor: branchParams.invitedGroupiconImageColor,
+    inviteType: branchParams.inviteType,
   };
 }
 
@@ -133,17 +138,15 @@ export const createDeepLink = async ({
   fallbackUrl,
   type,
   path,
-  inviteServiceEndpoint,
-  inviteServiceIsDev,
   metadata,
 }: {
   fallbackUrl: string | undefined;
   type: DeepLinkType;
   path: string;
-  inviteServiceEndpoint: string;
-  inviteServiceIsDev: boolean;
   metadata?: DeepLinkMetadata;
 }) => {
+  const env = getConstants();
+
   if (!fallbackUrl || !path) {
     return undefined;
   }
@@ -174,10 +177,8 @@ export const createDeepLink = async ({
 
   try {
     const inviteLink = await getLinkFromInviteService({
-      alias,
+      inviteId: alias,
       data,
-      inviteServiceEndpoint,
-      inviteServiceIsDev,
     });
     return inviteLink;
   } catch (e) {
@@ -189,30 +190,27 @@ export const createDeepLink = async ({
 };
 
 async function getLinkFromInviteService({
-  alias,
+  inviteId,
   data,
-  inviteServiceEndpoint,
-  inviteServiceIsDev,
 }: {
-  alias: string;
+  inviteId: string;
   data: DeepLinkData;
-  inviteServiceEndpoint: string;
-  inviteServiceIsDev: boolean;
 }): Promise<string> {
-  const response = await fetch(inviteServiceEndpoint, {
+  const env = getConstants();
+  const response = await fetch(env.INVITE_SERVICE_ENDPOINT, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      inviteId: alias,
+      inviteId,
       data: data,
-      testEnv: inviteServiceIsDev,
+      testEnv: env.INVITE_SERVICE_IS_DEV,
     }),
   });
   if (!response.ok) {
     throw new Error(
-      `Failed to get invite link from service [${response.status}]: ${alias}`
+      `Failed to get invite link from service [${response.status}]: ${inviteId}`
     );
   }
 

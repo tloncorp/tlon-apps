@@ -8,7 +8,7 @@ import {
   useMemo,
   useRef,
 } from 'react';
-import { Modal } from 'react-native';
+import { Modal, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Dialog,
@@ -28,7 +28,7 @@ import { Icon, IconType } from './Icon';
 import { ListItem } from './ListItem';
 import { Sheet } from './Sheet';
 
-export type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
+type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
 
 export type Action = {
   title: string;
@@ -117,7 +117,9 @@ const ActionSheetComponent = ({
             borderWidth={1}
             borderColor="$border"
             padding={0}
-            minWidth={300}
+            width="50%"
+            maxWidth={800}
+            minWidth={400}
             key="content"
           >
             {children}
@@ -190,7 +192,18 @@ const ActionSheetHeader = ActionSheetHeaderFrame.styleable(
 
 const ActionSheetContent = YStack.styleable((props, ref) => {
   const contentStyle = useContentStyle();
-  return <YStack {...contentStyle} {...props} ref={ref} />;
+  const { bottom } = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const maxHeight = height - bottom - getTokenValue('$2xl');
+  return (
+    <YStack
+      // prevent the modal from going off screen
+      maxHeight={maxHeight}
+      {...contentStyle}
+      {...props}
+      ref={ref}
+    />
+  );
 });
 
 const ActionSheetScrollableContent = ({
@@ -476,7 +489,7 @@ export const SimpleActionSheetHeader = ({
   subtitle,
   icon,
 }: {
-  title?: string;
+  title?: string | null;
   subtitle?: string;
   icon?: ReactElement;
 }) => {
