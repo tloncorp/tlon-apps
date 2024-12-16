@@ -2,7 +2,7 @@ import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '../debug';
 import { AuthError, ChannelStatus, PokeInterface, Urbit } from '../http-api';
-import { desig, preSig } from '../urbit';
+import { preSig } from '../urbit';
 import { getLandscapeAuthCookie } from './landscapeApi';
 
 const logger = createDevLogger('urbit', false);

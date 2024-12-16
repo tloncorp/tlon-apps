@@ -1,5 +1,6 @@
 import {
   createDevLogger,
+  deleteChannel,
   useChannelHooksPreview,
   useCreateChannel,
 } from '@tloncorp/shared';
@@ -7,6 +8,7 @@ import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
@@ -89,6 +91,11 @@ export function ChannelFromTemplateView({
         navigateToChannel(newChannel);
       } catch (e) {
         logger.trackError('Failed to setup channel template', { stack: e });
+        deleteChannel({
+          channelId: newChannel.id,
+          groupId: newChannel.groupId ?? '',
+        });
+        Alert.alert('Channel failed to setup with modifications');
       }
     },
     [navigateToChannel, channel, selectedGroup]
