@@ -64,7 +64,7 @@ export function useMusicSearch(initialQuery: string = '') {
 
   // Search function that doesn't depend on loadReleases
   const performSearch = async (searchQuery: string) => {
-    // console.log('performing search', searchQuery);
+    console.log('performing search', searchQuery);
     setIsLoading(true);
     setError(null);
     try {
@@ -83,7 +83,7 @@ export function useMusicSearch(initialQuery: string = '') {
   };
 
   const debouncedSearch = useMemo(
-    () => _.debounce(performSearch, 300),
+    () => _.debounce(performSearch, 300, { trailing: true }),
     [] // No dependencies needed
   );
 

@@ -2,8 +2,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as domain from '@tloncorp/shared/domain';
 import {
   AddProfileAudioScreenView,
-  ScreenHeader,
   View,
+  useAudioPlayer,
   useContact,
 } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
@@ -14,9 +14,11 @@ import { RootStackParamList } from '../../navigation/types';
 type Props = NativeStackScreenProps<RootStackParamList, 'AddProfileAudio'>;
 
 export function AddProfileAudioScreen(props: Props) {
+  const player = useAudioPlayer();
   const goBack = useCallback(() => {
+    player.stop();
     props.navigation.goBack();
-  }, [props.navigation]);
+  }, [player, props.navigation]);
 
   const currentUserId = useCurrentUserId();
   const contact = useContact(currentUserId);

@@ -141,22 +141,6 @@ export async function searchMusic(query: string) {
     console.log(`Failed to search for music`, e);
     return [];
   }
-  // const results: MusicSearchResult = await musicPost('/search', { query });
-
-  // if (results.releases.length > 0) {
-  //   console.log(`got results`, results.releases);
-  //   const firstResults = results.releases.slice(0, 5);
-  //   const releaseRequests = firstResults.map((release) =>
-  //     getRelease(release.publicKey)
-  //   );
-  //   const releases = await Promise.all(releaseRequests);
-  //   // console.log(`got releases`, releases);
-  //   const allTracks = releases.map((r) => r.release).flatMap(normalizeRelease);
-  //   console.log(`got tracks`, allTracks.length);
-  //   return allTracks;
-  // }
-
-  return [];
 }
 
 export async function getReleaseTracks(releaseId: string) {

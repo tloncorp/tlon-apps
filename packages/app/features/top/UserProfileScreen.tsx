@@ -8,6 +8,7 @@ import {
   GroupPreviewSheet,
   NavigationProvider,
   UserProfileScreenView,
+  useAudioPlayer,
 } from '@tloncorp/ui';
 import { useState } from 'react';
 import { useCallback } from 'react';
@@ -28,6 +29,7 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
   const connectionStatus = useConnectionStatus(userId);
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const { resetToDm } = useRootNavigation();
+  const player = useAudioPlayer();
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
@@ -57,6 +59,11 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
     [performGroupAction]
   );
 
+  const goBack = useCallback(() => {
+    player.stop();
+    navigation.goBack();
+  }, [navigation, player]);
+
   return (
     <AppDataContextProvider
       currentUserId={currentUserId}
@@ -69,7 +76,7 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
         >
           <UserProfileScreenView
             userId={userId}
-            onBack={() => navigation.goBack()}
+            onBack={goBack}
             connectionStatus={connectionStatus}
             onPressGroup={setSelectedGroup}
             onPressEdit={handlePressEdit}

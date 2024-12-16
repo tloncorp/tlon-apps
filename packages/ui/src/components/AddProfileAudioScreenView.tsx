@@ -16,7 +16,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Circle, ScrollView, Stack, View, YStack, ZStack } from 'tamagui';
 
-import { useStore } from '../contexts';
+import { useAudioPlayer, useStore } from '../contexts';
 import { TextInputWithIcon } from './Form';
 import { Icon } from './Icon';
 import { ListItem } from './ListItem';
@@ -310,98 +310,4 @@ export function MiniPlayableTrack(props: {
       </ZStack>
     </Pressable>
   );
-}
-
-interface AudioPlayerState {
-  isPlaying: boolean;
-  currentTrack: api.NormalizedTrack | null;
-  sound: Audio.Sound | null;
-}
-
-function useAudioPlayer() {
-  const [state, setState] = useState<AudioPlayerState>({
-    isPlaying: false,
-    currentTrack: null,
-    sound: null,
-  });
-
-  // Cleanup sound on unmount
-  useEffect(() => {
-    return () => {
-      if (state.sound) {
-        state.sound.unloadAsync();
-      }
-    };
-  }, []);
-
-  const playTrack = async (track: api.NormalizedTrack) => {
-    try {
-      // If we're already playing this track, just pause/resume
-      if (state.currentTrack?.id === track.id && state.sound) {
-        if (state.isPlaying) {
-          await state.sound.pauseAsync();
-          setState((prev) => ({ ...prev, isPlaying: false }));
-        } else {
-          await state.sound.playAsync();
-          setState((prev) => ({ ...prev, isPlaying: true }));
-        }
-        return;
-      }
-
-      // Unload any existing sound
-      if (state.sound) {
-        await state.sound.unloadAsync();
-      }
-
-      // Load and play the new track
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: track.audioUrl },
-        { shouldPlay: true },
-        (status: AVPlaybackStatus) => {
-          // This is our playback status callback
-          if (status.isLoaded && status.didJustFinish) {
-            setState((prev) => ({ ...prev, isPlaying: false }));
-          }
-        }
-      );
-
-      setState({
-        sound,
-        currentTrack: track,
-        isPlaying: true,
-      });
-    } catch (error) {
-      console.error('Error playing track:', error);
-    }
-  };
-
-  const pause = async () => {
-    if (state.sound) {
-      await state.sound.pauseAsync();
-      setState((prev) => ({ ...prev, isPlaying: false }));
-    }
-  };
-
-  const resume = async () => {
-    if (state.sound) {
-      await state.sound.playAsync();
-      setState((prev) => ({ ...prev, isPlaying: true }));
-    }
-  };
-
-  const stop = async () => {
-    if (state.sound) {
-      await state.sound.stopAsync();
-      setState((prev) => ({ ...prev, isPlaying: false }));
-    }
-  };
-
-  return {
-    playTrack,
-    pause,
-    resume,
-    stop,
-    isPlaying: state.isPlaying,
-    currentTrack: state.currentTrack,
-  };
 }
