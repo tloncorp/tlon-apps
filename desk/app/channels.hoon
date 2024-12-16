@@ -136,9 +136,6 @@
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
   ?>  ?=(%7 -.old)
   =.  state  old
-  =/  =wire  /v1/hooks/preview/chat/~simtyc-tirter-nocsyx-lassul/test
-  =/  =dock  [~simtyc-tirter-nocsyx-lassul %channels-server]
-  =.  cor  (emit %pass wire %agent dock %leave ~)
   inflate-io
   ::
   +$  versioned-state
