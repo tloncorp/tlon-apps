@@ -42,6 +42,7 @@ interface Props {
 }
 
 export function UserProfileScreenView(props: Props) {
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
   const userContact = useContact(props.userId);
@@ -51,8 +52,6 @@ export function UserProfileScreenView(props: Props) {
       []
     );
   }, [userContact?.pinnedGroups]);
-
-  const theme = useTheme();
 
   const nodeStatus = !props.connectionStatus?.complete
     ? 'pending'

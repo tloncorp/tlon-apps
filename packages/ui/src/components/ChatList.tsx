@@ -17,7 +17,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import { Text, View, YStack, getTokenValue } from 'tamagui';
+import { Text, View, YStack, getTokenValue, useTheme } from 'tamagui';
 
 import { useCalm, useChatOptions } from '../contexts';
 import { getChannelTitle, getGroupTitle } from '../utils';
@@ -242,6 +242,7 @@ const ChatListSearch = React.memo(function ChatListSearchComponent({
   onPressClear: () => void;
   onPressClose: () => void;
 }) {
+  const theme = useTheme();
   const [contentHeight, setContentHeight] = useState(0);
 
   const openProgress = useSharedValue(isOpen ? 1 : 0);
@@ -277,7 +278,7 @@ const ChatListSearch = React.memo(function ChatListSearchComponent({
       <YStack
         onLayout={handleContentLayout}
         flexShrink={0}
-        backgroundColor="$background"
+        backgroundColor={theme.background.val}
         gap="$m"
         position="absolute"
         top={0}

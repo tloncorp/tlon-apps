@@ -4,6 +4,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { ActivityScreenView, NavBarView, View } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
+import { useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
@@ -14,6 +15,7 @@ import { useRootNavigation } from '../../navigation/utils';
 type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
 
 export function ActivityScreen(props: Props) {
+  const theme = useTheme();
   const isFocused = useIsFocused();
   const currentUserId = useCurrentUserId();
   const [contactsTabEnabled] = useFeatureFlag('contactsTab');
@@ -69,9 +71,8 @@ export function ActivityScreen(props: Props) {
     },
     [props.navigation]
   );
-
   return (
-    <View backgroundColor="$background" flex={1}>
+    <View backgroundColor={theme.background?.val} flex={1}>
       <ActivityScreenView
         bucketFetchers={bucketedActivity}
         isFocused={isFocused}
