@@ -117,7 +117,8 @@
 ++  on-save  !>(state)
 ++  on-init
   ^-  (quip card _this)
-  [~ this]
+  :_  this
+  (drop (inflate-contacts-profile [our now]:bowl records ledgers))
 ::
 ++  on-load
   |=  ole=vase
