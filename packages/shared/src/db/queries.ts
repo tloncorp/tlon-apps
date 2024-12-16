@@ -1927,7 +1927,7 @@ export const getChannelPosts = createReadQuery(
         where: eq($posts.id, cursor),
       });
       if (cursorPost == null || cursorPost.syncedAt != null) {
-        return cursorPost;
+        return { id: cursor };
       }
 
       // `cursorPost` is unconfirmed; its window won't have many (any) more posts.
