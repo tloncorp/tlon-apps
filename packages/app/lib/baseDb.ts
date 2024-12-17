@@ -4,7 +4,6 @@ import { sql } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { useEffect, useMemo, useState } from 'react';
 
-const POLL_INTERVAL = 100;
 export const enableLogger = false;
 export const logger = createDevLogger('db', enableLogger);
 
@@ -53,18 +52,11 @@ export abstract class BaseDb {
   abstract getDbPath(): Promise<string | undefined>;
   abstract runMigrations(): Promise<void>;
 
-  protected startChangePolling() {
-    if (this.isPolling) return;
-    this.isPolling = true;
-    this.pollChanges();
-  }
-
-  private async pollChanges() {
+  protected async processChanges() {
     if (!this.client) return;
 
     try {
       const changes = await this.client.select().from(changeLogTable).all();
-
       for (const change of changes) {
         handleChange({
           table: change.table_name,
@@ -72,12 +64,9 @@ export abstract class BaseDb {
           row: JSON.parse(change.row_data ?? ''),
         });
       }
-
       await this.client.delete(changeLogTable).run();
-    } catch (error) {
-      console.error('Error polling changes:', error);
-    } finally {
-      setTimeout(() => this.pollChanges(), POLL_INTERVAL);
+    } catch (e) {
+      logger.error('failed to process changes:', e);
     }
   }
 

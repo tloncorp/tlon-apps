@@ -220,7 +220,7 @@ index 07cae6b6cb6c0c1a11d283ae26aad1c1c1d7cd4d..021c904e0b9d22fad58853669c341b51
  }
  export {};
 diff --git a/op-sqlite/session.js b/op-sqlite/session.js
-index ff84604e7998182ef78fbffc8d20019aaf76755e..454f154677b6761798419b9196b1ba5674cbb5c6 100644
+index ff84604e7998182ef78fbffc8d20019aaf76755e..b924059196f0bc7f368bebd920aa0cbca89f65eb 100644
 --- a/op-sqlite/session.js
 +++ b/op-sqlite/session.js
 @@ -1,6 +1,6 @@
@@ -285,8 +285,12 @@ index ff84604e7998182ef78fbffc8d20019aaf76755e..454f154677b6761798419b9196b1ba56
    }
  }
  class OPSQLitePreparedQuery extends SQLitePreparedQuery {
-@@ -72,7 +69,14 @@ class OPSQLitePreparedQuery extends SQLitePreparedQuery {
-     return this.client.executeAsync(this.query.sql, params);
+@@ -69,10 +66,17 @@ class OPSQLitePreparedQuery extends SQLitePreparedQuery {
+   run(placeholderValues) {
+     const params = fillPlaceholders(this.query.params, placeholderValues ?? {});
+     this.logger.logQuery(this.query.sql, params);
+-    return this.client.executeAsync(this.query.sql, params);
++    return this.client.execute(this.query.sql, params);
    }
    async all(placeholderValues) {
 -    const { fields, joinsNotNullableMap, query, logger, customResultMapper, client } = this;
@@ -317,6 +321,15 @@ index ff84604e7998182ef78fbffc8d20019aaf76755e..454f154677b6761798419b9196b1ba56
      const params = fillPlaceholders(query.params, placeholderValues ?? {});
      logger.logQuery(query.sql, params);
      if (!fields && !customResultMapper) {
+@@ -105,7 +116,7 @@ class OPSQLitePreparedQuery extends SQLitePreparedQuery {
+   values(placeholderValues) {
+     const params = fillPlaceholders(this.query.params, placeholderValues ?? {});
+     this.logger.logQuery(this.query.sql, params);
+-    return this.client.executeRawAsync(this.query.sql, params);
++    return this.client.executeRaw(this.query.sql, params);
+   }
+   /** @internal */
+   isResponseInArrayMode() {
 diff --git a/op-sqlite/session.js.map b/op-sqlite/session.js.map
 index e9d9ca06b6bed8fa265438fc41fe35e20723f61a..ebfae284accc68b35aae9d8dc8e61fdbe07f8f15 100644
 --- a/op-sqlite/session.js.map

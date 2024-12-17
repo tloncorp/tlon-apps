@@ -20,16 +20,19 @@ export class NativeDb extends BaseDb {
       logger.warn('setupDb called multiple times, ignoring');
       return;
     }
-    this.connection = new OPSQLite$SQLiteConnection(
-      // NB: the iOS code in SQLiteDB.swift relies on this path - if you change
-      // this, you should change that too.
-      open({ location: 'default', name: 'tlon.sqlite' })
-    );
+    // NB: the iOS code in SQLiteDB.swift relies on this path - if you change
+    // this, you should change that too.
+    const db = open({ location: 'default', name: 'tlon.sqlite' });
+    this.connection = new OPSQLite$SQLiteConnection(db);
     // Experimental SQLite settings. May cause crashes. More here:
     // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
     this.connection.execute('PRAGMA mmap_size=268435456');
     this.connection.execute('PRAGMA journal_mode=MEMORY');
     this.connection.execute('PRAGMA synchronous=OFF');
+
+    db.commitHook(() => {
+      this.processChanges();
+    });
 
     this.client = this.connection.createClient({
       schema,
@@ -67,7 +70,6 @@ export class NativeDb extends BaseDb {
     try {
       await this.connection?.migrateClient(this.client!);
       this.connection?.execute(TRIGGER_SETUP);
-      this.startChangePolling();
       return;
     } catch (e) {
       logger.log('migrations failed, purging db and retrying', e);

@@ -29,6 +29,7 @@ export function handleChange({
    * keys (`id`, `channel_id`, 'group_id`, etc.) */
   row?: any;
 }) {
+  console.log('handleChange', table, operation, row);
   if (table === 'posts' && row && !row.parent_id) {
     postEvents[row.channel_id] ||= [];
     postEvents[row.channel_id].push(row.id);

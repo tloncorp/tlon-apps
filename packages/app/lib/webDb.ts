@@ -30,6 +30,10 @@ export class WebDb extends BaseDb {
       await this.sqlocal.sql('PRAGMA synchronous=OFF');
       await this.sqlocal.sql('PRAGMA journal_mode=WAL');
 
+      await this.sqlocal.createCallbackFunction('processChanges', async () =>
+        this.processChanges()
+      );
+
       const { driver } = this.sqlocal;
 
       this.client = drizzle(driver, { schema });
@@ -80,7 +84,15 @@ export class WebDb extends BaseDb {
       await migrate<Schema>(this.client, migrations, this.sqlocal);
       logger.log('runMigrations: migrations succeeded');
       await this.sqlocal.sql(TRIGGER_SETUP);
-      this.startChangePolling();
+
+      await this.sqlocal.sql(`
+        CREATE TRIGGER IF NOT EXISTS after_changes_insert
+        AFTER INSERT ON __change_log
+        BEGIN
+          SELECT processChanges();
+        END;
+      `);
+
       return;
     } catch (e) {
       logger.log('migrations failed, purging db and retrying', e);
