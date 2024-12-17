@@ -204,11 +204,19 @@ export function getDesktopChannelRoute(
       params: {
         screen: 'ChannelRoot',
         channelId,
-        params: {
-          channelId,
-          groupId,
-          selectedPostId,
-        },
+        ...(groupId || selectedPostId
+          ? {
+              params: {
+                ...(groupId
+                  ? {
+                      groupId,
+                      // channelId,
+                    }
+                  : undefined),
+                ...(selectedPostId ? { selectedPostId } : undefined),
+              },
+            }
+          : {}),
       },
     },
   } as const;

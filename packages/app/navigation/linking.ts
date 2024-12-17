@@ -93,12 +93,12 @@ export const getDesktopLinkingConfig = (
               ChatList: '',
               GroupChannels: 'group/:groupId',
               DM: {
-                path: 'dm/:channelId/:selectedPostId?',
-                parse: parsePathParams('channelId', 'selectedPostId'),
+                path: 'dm/:channelId/:screen',
+                parse: parsePathParams('selectedPostId', 'channelId', 'screen'),
               },
               GroupDM: {
-                path: 'group-dm/:channelId/:selectedPostId?',
-                parse: parsePathParams('channelId', 'selectedPostId'),
+                path: 'group-dm/:channelId/:screen',
+                parse: parsePathParams('channelId', 'selectedPostId', 'screen'),
               },
               Channel: {
                 initialRouteName: 'ChannelRoot',
