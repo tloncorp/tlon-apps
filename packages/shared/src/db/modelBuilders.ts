@@ -1,11 +1,7 @@
 import { unixToDa } from '@urbit/aura';
 
 import * as api from '../api';
-import {
-  getCanonicalPostId,
-  isDmChannelId,
-  isGroupDmChannelId,
-} from '../api/apiUtils';
+import { getCanonicalPostId } from '../api/apiUtils';
 import * as db from '../db';
 import * as logic from '../logic';
 import { convertToAscii } from '../logic';
@@ -150,13 +146,6 @@ export function buildPendingPost({
     parentId,
   });
 
-  // TODO: punt on DM delivery status until we have a single subscription
-  // to lean on
-  const deliveryStatus =
-    isDmChannelId(channel.id) || isGroupDmChannelId(channel.id)
-      ? null
-      : 'pending';
-
   return {
     id,
     author,
@@ -177,7 +166,7 @@ export function buildPendingPost({
     replyCount: 0,
     hidden: false,
     parentId,
-    deliveryStatus,
+    deliveryStatus: 'pending',
     syncedAt: Date.now(),
     ...postFlags,
   };

@@ -18,7 +18,6 @@ import { useAttachmentContext } from '../../contexts/attachment';
 import { Button } from '../Button';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
-import { LoadingSpinner } from '../LoadingSpinner';
 import { GalleryDraftType } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
@@ -188,11 +187,7 @@ export const MessageInputContainer = memo(
                 borderColor="transparent"
                 opacity={disableSend ? 0.5 : 1}
               >
-                {isSending ? (
-                  <View width="$2xl" height="$2xl">
-                    <LoadingSpinner size="small" color="$secondaryText" />
-                  </View>
-                ) : isEditing ? (
+                {isEditing ? (
                   <Icon size="$m" type="Checkmark" />
                 ) : (
                   <Icon size="$m" type="ArrowUp" />
