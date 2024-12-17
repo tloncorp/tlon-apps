@@ -281,7 +281,7 @@ export function ChatListScreenView({
         }}
       >
         <NavigationProvider focusedChannelId={focusedChannelId}>
-          <View flex={1}>
+          <View userSelect="none" flex={1}>
             <ScreenHeader
               title={notReadyMessage ?? screenTitle}
               leftControls={

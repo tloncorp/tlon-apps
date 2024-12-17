@@ -84,7 +84,7 @@ export function DetailViewAuthorRow({
 
   return (
     <Pressable onPress={deliveryFailed ? undefined : openProfile}>
-      <XStack gap="$l" alignItems="center" {...props}>
+      <XStack gap="$l" alignItems="center" userSelect="none" {...props}>
         <ContactAvatar size="$2xl" contactId={authorId} />
         <ContactName
           contactId={authorId}
@@ -134,7 +134,7 @@ export function ChatAuthorRow({
 
   return (
     <Pressable onPress={deliveryFailed ? undefined : openProfile}>
-      <XStack gap="$l" alignItems="center" {...props}>
+      <XStack gap="$l" alignItems="center" userSelect="none" {...props}>
         <ContactAvatar size="$2xl" contactId={authorId} />
         <XStack gap="$l" alignItems="flex-end">
           <ContactName
