@@ -2229,6 +2229,7 @@ export const insertUnconfirmedPosts = createWriteQuery(
 
 async function insertPosts(posts: Post[], ctx: QueryCtx) {
   // HACK: I can't get onConflictDoUpdate to work - manually manage conflicts.
+  // Likely https://github.com/drizzle-team/drizzle-orm/issues/2276
   await (async () => {
     const existing = await ctx.db.query.posts.findMany({
       where: inArray(
