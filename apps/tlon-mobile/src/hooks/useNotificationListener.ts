@@ -295,7 +295,6 @@ function useHandoffNotificationData() {
     });
 
     if (handoffPosts.length > 0) {
-      console.log('Handing off', handoffPosts);
       await db.insertUnconfirmedPosts({ posts: handoffPosts });
     }
   }, []);
