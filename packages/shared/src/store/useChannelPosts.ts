@@ -197,6 +197,13 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       return rawPostsWithoutUnconfirmeds;
     }
 
+    // Then, add "unconfirmed" posts (which we have received through e.g. push
+    // notifications but haven't confirmed via sync). Skip if we already have a
+    // confirmed version of the post.
+    //
+    // Why not dedupe these alongside `newPosts`? We hold off on showing
+    // `newPosts` until we've fully backfilled the channel
+    // (`!query.hasPreviousPage`) - but we want to show unconfirmeds ASAP.
     const out = rawPostsWithoutUnconfirmeds ?? [];
     // bubble-insert unconfirmed posts
     for (const p of unconfirmedPosts ?? []) {
