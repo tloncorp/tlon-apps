@@ -167,33 +167,38 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       setUnconfirmedPosts
     );
   }, [options.channelId]);
-  const rawPostsWithNewPosts = useMemo<db.Post[] | null>(() => {
-    const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
-    if (!newPosts.length || query.hasPreviousPage) {
-      return queryPosts;
+  const rawPosts = useMemo<db.Post[] | null>(() => {
+    const rawPostsWithoutUnconfirmeds = (() => {
+      const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
+      if (!newPosts.length || query.hasPreviousPage) {
+        return queryPosts;
+      }
+      const newestQueryPostId = queryPosts?.[0]?.id;
+      const newerPosts = newPosts.filter(
+        (p) => !newestQueryPostId || p.id > newestQueryPostId
+      );
+      // Deduping is necessary because the query data may not have been updated
+      // at this point and we may have already added the post.
+      // This is most likely to happen in bad network conditions or when the
+      // ship is under heavy load.
+      // This seems to be caused by an async issue where clearMatchedPendingPosts
+      // is called before the new post is added to the query data.
+      // TODO: Figure out why this is happening.
+      const dedupedQueryPosts =
+        queryPosts?.filter(
+          (p) => !newerPosts.some((newer) => newer.sentAt === p.sentAt)
+        ) ?? [];
+      return newestQueryPostId
+        ? [...newerPosts, ...dedupedQueryPosts]
+        : newPosts;
+    })();
+
+    if (unconfirmedPosts == null) {
+      return rawPostsWithoutUnconfirmeds;
     }
-    const newestQueryPostId = queryPosts?.[0]?.id;
-    const newerPosts = newPosts.filter(
-      (p) => !newestQueryPostId || p.id > newestQueryPostId
-    );
-    // Deduping is necessary because the query data may not have been updated
-    // at this point and we may have already added the post.
-    // This is most likely to happen in bad network conditions or when the
-    // ship is under heavy load.
-    // This seems to be caused by an async issue where clearMatchedPendingPosts
-    // is called before the new post is added to the query data.
-    // TODO: Figure out why this is happening.
-    const dedupedQueryPosts =
-      queryPosts?.filter(
-        (p) => !newerPosts.some((newer) => newer.sentAt === p.sentAt)
-      ) ?? [];
-    return newestQueryPostId ? [...newerPosts, ...dedupedQueryPosts] : newPosts;
-  }, [query.data, query.hasPreviousPage, newPosts]);
 
-  const rawPosts = useMemo(() => {
+    const out = rawPostsWithoutUnconfirmeds ?? [];
     // bubble-insert unconfirmed posts
-    const out = [...(rawPostsWithNewPosts ?? [])];
-
     for (const p of unconfirmedPosts ?? []) {
       // skip if we already have this post
       if (out.some((qp) => qp.id === p.id)) {
@@ -209,7 +214,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     }
 
     return out;
-  }, [rawPostsWithNewPosts, unconfirmedPosts]);
+  }, [query.data, query.hasPreviousPage, newPosts, unconfirmedPosts]);
 
   const posts = useOptimizedQueryResults(rawPosts);
 
