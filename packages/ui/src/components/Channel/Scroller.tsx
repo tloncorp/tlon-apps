@@ -755,7 +755,7 @@ function useAnchorScrollLock({
       return;
     }
     if (userHasScrolled) {
-      logger.log('bail: !userHasScrolled');
+      logger.log('bail: userHasScrolled');
       return;
     }
     if (anchorIndex === -1) {
