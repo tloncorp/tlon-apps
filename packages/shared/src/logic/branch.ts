@@ -231,6 +231,9 @@ export async function checkInviteServiceLinkExists(inviteId: string) {
   );
   const response = await fetch(`${serverlessInfraUrl}/checkLink`, {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify({ inviteId }),
   });
 
