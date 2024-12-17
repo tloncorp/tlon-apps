@@ -1,5 +1,4 @@
 import { Atom, Noun, cue, jam } from '@urbit/nockjs';
-import Buffer from 'buffer';
 
 export function camelize(str: string) {
   return str

@@ -1,7 +1,6 @@
 import { createDevLogger, sync } from '@tloncorp/shared';
 import { ClientParams } from '@tloncorp/shared/api';
 import { configureClient } from '@tloncorp/shared/store';
-import { EventStreamContentType } from 'packages/shared/src/http-api/fetch-event-source';
 import { useCallback } from 'react';
 
 import { ENABLED_LOGGERS } from '../constants';
@@ -45,7 +44,7 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
     credentials: undefined,
     signal: abortController.signal,
   };
-  const containsEventStream = headers['accept'] === EventStreamContentType;
+  const containsEventStream = headers['accept'] === 'text/event-stream';
   console.log(`new init 2`, newInit, containsEventStream);
   return containsEventStream
     ? platformFetch(input, newInit)

@@ -1,7 +1,6 @@
 import { formatUw, patp2bn, patp2dec } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
 import { isBrowser } from 'browser-or-node';
-import Buffer from 'buffer';
 
 import { desig } from '../urbit';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
@@ -875,10 +874,7 @@ export class Urbit {
     try {
       const response = await this.fetchFn(
         `${this.url}/~/scry/${app}${path}.noun`,
-        {
-          ...this.fetchOptionsNoun('GET', 'noun'),
-          responseType: 'blob',
-        }
+        this.fetchOptionsNoun('GET', 'noun')
       );
       const responseBlob = await response.blob();
       console.log('responseBlob', responseBlob);
