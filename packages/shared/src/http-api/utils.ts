@@ -1,4 +1,5 @@
 import { Atom, Noun, cue, jam } from '@urbit/nockjs';
+import Buffer from 'buffer';
 
 export function camelize(str: string) {
   return str
@@ -19,7 +20,7 @@ export function uncamelize(str: string, separator = '-') {
   return str.replace(new RegExp('^' + separator), '');
 }
 
-export async function unpackJamBytes(buf: ArrayBufferLike): Promise<Noun> {
+export async function unpackJamBytes(buf: ArrayBuffer): Promise<Noun> {
   console.log(`NEW-ER unpackJamBytes`, buf);
   const hex = [...new Uint8Array(buf)]
     .reverse() //  endianness shenanigans

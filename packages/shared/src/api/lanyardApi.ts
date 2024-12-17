@@ -5,34 +5,34 @@ import { unpackJamBytes } from '../http-api/utils';
 import { getCurrentUserId, pokeNoun, scryNoun } from './urbit';
 
 export async function getSelfVerificationStatus() {
-  // const result = await scryNoun({
-  //   app: 'lanyard',
-  //   path: '/records',
-  // });
-  // console.log(`bl: scry result`, result);
+  const result = await scryNoun({
+    app: 'lanyard',
+    path: '/records',
+  });
+  console.log(`bl: scry result`, result);
 
   // const tada =
   //   'FaB3vs7sBn+/OQM8cGhvbmWA3kqMjI3MDA5OjMxNHeBDSyMjK3MH/LswN3rjU+C90cFT';
   // // const myBuffer = base64ToArrayBuffer(tada);
   // console.log(`bl: myBuffer`, myBuffer);
 
-  const hexValues = [
-    0x15, 0xa0, 0x77, 0xbe, 0xce, 0xec, 0x06, 0x7f, 0xbf, 0x39, 0x03, 0x3c,
-    0x70, 0x68, 0x6f, 0x6e, 0x65, 0x80, 0xde, 0x4a, 0x8c, 0x8c, 0x8d, 0xcc,
-    0x0c, 0x0e, 0x4e, 0x8c, 0xcc, 0x4d, 0x1d, 0xe0, 0x43, 0x4b, 0x23, 0x23,
-    0x2b, 0x73, 0x07, 0xfc, 0xbb, 0x30, 0x37, 0x7a, 0xe3, 0x53, 0xe0, 0xbd,
-    0xd1, 0xc1, 0x53,
-  ];
+  // const hexValues = [
+  //   0x15, 0xa0, 0x77, 0xbe, 0xce, 0xec, 0x06, 0x7f, 0xbf, 0x39, 0x03, 0x3c,
+  //   0x70, 0x68, 0x6f, 0x6e, 0x65, 0x80, 0xde, 0x4a, 0x8c, 0x8c, 0x8d, 0xcc,
+  //   0x0c, 0x0e, 0x4e, 0x8c, 0xcc, 0x4d, 0x1d, 0xe0, 0x43, 0x4b, 0x23, 0x23,
+  //   0x2b, 0x73, 0x07, 0xfc, 0xbb, 0x30, 0x37, 0x7a, 0xe3, 0x53, 0xe0, 0xbd,
+  //   0xd1, 0xc1, 0x53,
+  // ];
 
-  const abuf = new ArrayBuffer(hexValues.length);
-  const myBuffer = new Uint8Array(abuf);
-  hexValues.forEach((value, index) => {
-    myBuffer[index] = value;
-  });
+  // const abuf = new ArrayBuffer(hexValues.length);
+  // const myBuffer = new Uint8Array(abuf);
+  // hexValues.forEach((value, index) => {
+  //   myBuffer[index] = value;
+  // });
 
-  const theRealBuffer = myBuffer.buffer;
-  const unpacked = await unpackJamBytes(theRealBuffer);
-  console.log(`bl: unpacked`, unpacked);
+  // const theRealBuffer = myBuffer.buffer;
+  // const unpacked = await unpackJamBytes(theRealBuffer);
+  // console.log(`bl: unpacked`, unpacked);
 
   // minimum viable unpacking
   const tree = enjs.tree((treeNode: Noun) => {
@@ -59,7 +59,7 @@ export async function getSelfVerificationStatus() {
     // const idValue = identifier.tail;
 
     return id;
-  })(unpacked);
+  })(result as Noun);
   console.log(`whole tree`, tree);
 }
 
@@ -68,7 +68,8 @@ export async function getSelfVerificationStatus() {
 // step 3: if good to go, show shiny green check
 // step 3b: if bad, prompt for otp
 
-export function initiatePhoneVerify(phoneNumber: string) {
+export function initiatePhoneVerify() {
+  const phoneNumber = '+13375812665';
   const currentUserId = getCurrentUserId();
   console.log(`getting azimut point`, currentUserId);
   const azimuthPoint = new Atom(BigInt(patp2bn(currentUserId).toString()));
@@ -106,20 +107,20 @@ export function confirmPhoneVerify(phoneNumber: string, otp: string) {
 
 /*
   Take 1 yields:
-  "TypeError: Cannot convert BigInt to number\n    
-    at bitLength (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:161267:13)\n    
-    at met (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:161780:25)\n    
-    at mat (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162397:28)\n    
-    at _jam_in_flat (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162426:16)\n    
-    at _jam_in (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162434:86)\n    
-    at _jam_in_pair (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162413:18)\n    
-    at _jam_in (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162434:46)\n    
-    at _jam_in_pair (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162415:18)\n    
-    at _jam_in (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162434:46)\n    
-    at _jam_in_pair (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162415:18)\n    
-    at _jam_in (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162434:46)\n    
-    at _jam_in_pair (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162413:18)\n    
-    at _jam_in (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162434:46)\n    
-    at jam (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162442:20)\n    
-    at ?anon_0_ 
+  "TypeError: Cannot convert BigInt to number\n
+    at bitLength (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:161267:13)\n
+    at met (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:161780:25)\n
+    at mat (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162397:28)\n
+    at _jam_in_flat (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162426:16)\n
+    at _jam_in (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162434:86)\n
+    at _jam_in_pair (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162413:18)\n
+    at _jam_in (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162434:46)\n
+    at _jam_in_pair (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162415:18)\n
+    at _jam_in (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162434:46)\n
+    at _jam_in_pair (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162415:18)\n
+    at _jam_in (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162434:46)\n
+    at _jam_in_pair (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162413:18)\n
+    at _jam_in (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162434:46)\n
+    at jam (http://192.168.0.180:8082/index.bundle//&platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app:162442:20)\n
+    at ?anon_0_
   */

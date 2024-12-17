@@ -1,6 +1,7 @@
 import { createDevLogger, sync } from '@tloncorp/shared';
 import { ClientParams } from '@tloncorp/shared/api';
 import { configureClient } from '@tloncorp/shared/store';
+import { EventStreamContentType } from 'packages/shared/src/http-api/fetch-event-source';
 import { useCallback } from 'react';
 
 import { ENABLED_LOGGERS } from '../constants';
@@ -28,15 +29,15 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
     };
   }
 
-  const headers = new Headers(init.headers);
+  const headers: any = { ...init.headers };
   console.log(`bl: resolved headers`, headers);
   // The urbit client is inconsistent about sending cookies, sometimes causing
   // the server to send back a new, anonymous, cookie, which is sent on all
   // subsequent requests and screws everything up. This ensures that explicit
   // cookie headers are never set, delegating all cookie handling to the
   // native http client.
-  headers.delete('Cookie');
-  headers.delete('cookie');
+  delete headers['Cookie'];
+  delete headers['cookie'];
   const newInit: RequestInit = {
     ...init,
     headers,
@@ -44,8 +45,11 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
     credentials: undefined,
     signal: abortController.signal,
   };
-  console.log(`new init`, newInit);
-  return platformFetch(input, newInit);
+  const containsEventStream = headers['accept'] === EventStreamContentType;
+  console.log(`new init 2`, newInit, containsEventStream);
+  return containsEventStream
+    ? platformFetch(input, newInit)
+    : fetch(input, newInit);
 };
 
 export function useConfigureUrbitClient() {

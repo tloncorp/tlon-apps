@@ -1,6 +1,7 @@
 import { formatUw, patp2bn, patp2dec } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
 import { isBrowser } from 'browser-or-node';
+import Buffer from 'buffer';
 
 import { desig } from '../urbit';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
@@ -869,42 +870,24 @@ export class Urbit {
   async scryNoun(params: Scry): Promise<Noun | ReadableStream<Uint8Array>> {
     const { app, path } = params;
 
-    // let pathAsString: string = '';
-    // if (typeof path === 'string') {
-    //   pathAsString = path;
-    // } else if (Array.isArray(path)) {
-    //   pathAsString = path.join('/');
-    // } else if (path instanceof Atom || path instanceof Cell) {
-    //   pathAsString = enjs.array(enjs.cord)(path).join('/');
-    // }
-
     console.log(`client scrying noun`, `${this.url}/~/scry/${app}${path}.noun`);
 
     try {
       const response = await this.fetchFn(
         `${this.url}/~/scry/${app}${path}.noun`,
-        this.fetchOptions
+        {
+          ...this.fetchOptionsNoun('GET', 'noun'),
+          responseType: 'blob',
+        }
       );
-      console.log(`response`, response);
-      // console.log(`response blob`, await response.blob());
       const responseBlob = await response.blob();
-      // const buffer: ArrayBuffer = await new Promise((resolve, reject) => {
-      //   const reader = new FileReader();
-      //   reader.onload = () => resolve(reader.result as ArrayBuffer);
-      //   reader.readAsArrayBuffer(responseBlob);
-      // });
-      console.log(`response blob`, responseBlob);
-      const buffer = await responseBlob.arrayBuffer();
+      console.log('responseBlob', responseBlob);
+      const buffer: ArrayBuffer = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.readAsArrayBuffer(responseBlob);
+      });
       console.log(`response buffer`, buffer);
-      // console.log(`resp buffer`, await response.arrayBuffer());
-
-      if (!response.ok || !response.body) {
-        return Promise.reject(response);
-      }
-
-      // if ((mark || 'noun') !== 'noun') {
-      //   return response.json();
-      // }
 
       try {
         const unpacked = await unpackJamBytes(buffer);
