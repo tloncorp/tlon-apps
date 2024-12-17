@@ -2,7 +2,6 @@ import {
   PostCollectionLayoutType,
   configurationFromChannel,
   layoutForType,
-  layoutTypeFromChannel,
   useMutableCallback,
 } from '@tloncorp/shared';
 import { createDevLogger } from '@tloncorp/shared';
@@ -32,7 +31,7 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, getTokenValue, styled, useStyle, useTheme } from 'tamagui';
+import { View, styled, useStyle, useTheme } from 'tamagui';
 
 import { RenderItemType } from '../../contexts/componentsKits';
 import { useLivePost } from '../../contexts/requests';
@@ -118,7 +117,7 @@ const Scroller = forwardRef(
       showReplies?: boolean;
       editingPost?: db.Post;
       setEditingPost?: (post: db.Post | undefined) => void;
-      onPressRetry: (post: db.Post) => void;
+      onPressRetry: (post: db.Post) => Promise<void>;
       onPressDelete: (post: db.Post) => void;
       hasNewerPosts?: boolean;
       activeMessage: db.Post | null;

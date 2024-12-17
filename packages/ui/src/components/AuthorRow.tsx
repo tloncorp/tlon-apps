@@ -83,7 +83,7 @@ export function DetailViewAuthorRow({
   const shouldTruncate = showEditedIndicator || deliveryFailed;
 
   return (
-    <Pressable onPress={openProfile}>
+    <Pressable onPress={deliveryFailed ? undefined : openProfile}>
       <XStack gap="$l" alignItems="center" {...props}>
         <ContactAvatar size="$2xl" contactId={authorId} />
         <ContactName
@@ -133,7 +133,7 @@ export function ChatAuthorRow({
   const shouldTruncate = showEditedIndicator || firstRole || deliveryFailed;
 
   return (
-    <Pressable onPress={openProfile}>
+    <Pressable onPress={deliveryFailed ? undefined : openProfile}>
       <XStack gap="$l" alignItems="center" {...props}>
         <ContactAvatar size="$2xl" contactId={authorId} />
         <XStack gap="$l" alignItems="flex-end">

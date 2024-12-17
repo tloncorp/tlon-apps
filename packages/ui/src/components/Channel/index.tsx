@@ -126,7 +126,7 @@ export function Channel({
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => Promise<void>;
-  onPressRetry: (post: db.Post) => void;
+  onPressRetry: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
   initialAttachments?: Attachment[];
   negotiationMatch: boolean;
