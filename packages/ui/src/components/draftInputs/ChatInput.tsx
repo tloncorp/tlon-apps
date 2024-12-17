@@ -1,5 +1,7 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { isWeb } from 'tamagui';
 
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 import BareChatInput from '../BareChatInput';
 import { ParentAgnosticKeyboardAvoidingView } from '../ParentAgnosticKeyboardAvoidingView';
 import { DraftInputContext } from './shared';
@@ -23,6 +25,8 @@ export function ChatInput({
     storeDraft,
   } = draftInputContext;
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <SafeAreaView edges={['right', 'left', 'bottom']}>
       <ParentAgnosticKeyboardAvoidingView>
@@ -39,7 +43,7 @@ export function ChatInput({
           setEditingPost={setEditingPost}
           editPost={editPost}
           channelType={channel.type}
-          shouldAutoFocus={!!editingPost}
+          shouldAutoFocus={!!editingPost || (isWeb && !isWindowNarrow)}
           showInlineAttachments
           showAttachmentButton
         />

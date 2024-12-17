@@ -8,6 +8,7 @@ import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitCl
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { loadConstants } from '@tloncorp/app/lib/constants';
 import { checkDb, useMigrations } from '@tloncorp/app/lib/webDb';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
 import {
@@ -18,7 +19,7 @@ import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
-import { LoadingSpinner, View } from '@tloncorp/ui';
+import { LoadingSpinner, StoreProvider, View } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { PropsWithChildren, useEffect, useState } from 'react';
@@ -34,6 +35,8 @@ import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
 import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
+
+loadConstants();
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/production').then((d) => ({
@@ -184,18 +187,20 @@ const App = React.memo(function AppComponent() {
       <MigrationCheck>
         <SafeAreaProvider>
           <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-            {dbIsLoaded ? (
-              <AppRoutes isLoaded={dbIsLoaded} />
-            ) : (
-              <View
-                height="100%"
-                width="100%"
-                justifyContent="center"
-                alignItems="center"
-              >
-                <LoadingSpinner />
-              </View>
-            )}
+            <StoreProvider>
+              {dbIsLoaded ? (
+                <AppRoutes isLoaded={dbIsLoaded} />
+              ) : (
+                <View
+                  height="100%"
+                  width="100%"
+                  justifyContent="center"
+                  alignItems="center"
+                >
+                  <LoadingSpinner />
+                </View>
+              )}
+            </StoreProvider>
           </TamaguiProvider>
         </SafeAreaProvider>
       </MigrationCheck>

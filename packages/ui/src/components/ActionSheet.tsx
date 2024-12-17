@@ -28,7 +28,7 @@ import { Icon, IconType } from './Icon';
 import { ListItem } from './ListItem';
 import { Sheet } from './Sheet';
 
-export type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
+type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
 
 export type Action = {
   title: string;
@@ -117,7 +117,9 @@ const ActionSheetComponent = ({
             borderWidth={1}
             borderColor="$border"
             padding={0}
-            minWidth={300}
+            width="50%"
+            maxWidth={800}
+            minWidth={400}
             key="content"
           >
             {children}
@@ -487,7 +489,7 @@ export const SimpleActionSheetHeader = ({
   subtitle,
   icon,
 }: {
-  title?: string;
+  title?: string | null;
   subtitle?: string;
   icon?: ReactElement;
 }) => {

@@ -83,12 +83,12 @@ export default function ProfileStatusSheet({
               }}
             />
             <Button
-              hero
               onPress={handleSave}
               disabled={!isValid}
-              paddingHorizontal="$l"
+              paddingVertical="$l"
+              borderColor="transparent"
             >
-              <Icon type="Send" color="$background" />
+              <Icon type="ArrowUp" />
             </Button>
           </XStack>
         </YStack>

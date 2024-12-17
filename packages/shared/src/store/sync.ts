@@ -12,7 +12,7 @@ import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
-import { findContactSuggestions } from './contactActions';
+import { verifyUserInviteLink } from './inviteActions';
 import { useLureState } from './lure';
 import { getSyncing, updateIsSyncing, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
@@ -297,6 +297,10 @@ export async function syncUpdatedPosts(
   await db.insertChannelPosts({
     channelId: options.channelId,
     posts: response.posts,
+  });
+
+  await db.deletePosts({
+    ids: response.deletedPosts ?? [],
   });
 
   return response;
@@ -1175,6 +1179,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     });
 
   updateIsSyncing(false);
+
+  // post sync initialization work
+  verifyUserInviteLink();
 };
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {

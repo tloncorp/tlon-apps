@@ -554,6 +554,51 @@ export default function BareChatInput({
     setMentions,
   ]);
 
+  // Handle pastes on web
+  useEffect(() => {
+    // For now, we only check to make sure we're on web,
+    // we don't check if the input is focused. This allows users to paste
+    // images before they select the input. We may want to change this behavior
+    // if this feels weird, but it feels like a nice quality of life improvement.
+    // We can do this because there is only ever one input on the screen at a time,
+    // unlike the old app where you could have both the main chat input and the
+    // thread input on screen at the same time.
+    if (!isWeb) return;
+
+    const handlePaste = async (e: ClipboardEvent) => {
+      const items = Array.from(e.clipboardData?.items || []);
+      const image = items.find((item) => item.type.includes('image'));
+
+      if (!image) return;
+
+      const file = image.getAsFile();
+      if (!file) return;
+
+      const uri = URL.createObjectURL(file);
+
+      const img = new Image();
+
+      img.onload = () => {
+        addAttachment({
+          type: 'image',
+          file: {
+            uri,
+            height: img.height,
+            width: img.width,
+          },
+        });
+      };
+
+      img.src = uri;
+    };
+
+    document.addEventListener('paste', handlePaste);
+
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, [addAttachment]);
+
   const handleCancelEditing = useCallback(() => {
     setEditingPost?.(undefined);
     setHasSetInitialContent(false);

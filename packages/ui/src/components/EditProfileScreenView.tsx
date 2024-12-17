@@ -1,5 +1,5 @@
-import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import { useStore } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
@@ -23,13 +23,10 @@ import { BioDisplay, PinnedGroupsDisplay } from './UserProfileScreenView';
 interface Props {
   userId: string;
   onGoBack: () => void;
-  onSaveProfile: (update: api.ProfileUpdate | null) => void;
-  onUpdatePinnedGroups: (groups: db.Group[]) => void;
-  onUpdateCoverImage: (coverImage: string) => void;
-  onUpdateAvatarImage: (avatarImage: string) => void;
 }
 
 export function EditProfileScreenView(props: Props) {
+  const store = useStore();
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
   const userContact = useContact(props.userId);
@@ -104,16 +101,24 @@ export function EditProfileScreenView(props: Props) {
               ? null // clear existing
               : undefined,
         };
-        props.onSaveProfile(update);
+
+        if (isCurrUser) {
+          store.updateCurrentUserProfile(update);
+        } else {
+          store.updateContactMetadata(props.userId, {
+            nickname: update.nickname,
+            avatarImage: update.avatarImage,
+          });
+        }
       })();
-    } else {
-      props.onGoBack();
     }
+    props.onGoBack();
   }, [
     handleSubmit,
     isCurrUser,
     isDirty,
     props,
+    store,
     userContact?.avatarImage,
     userContact?.customAvatarImage,
     userContact?.customNickname,
@@ -140,13 +145,10 @@ export function EditProfileScreenView(props: Props) {
     }
   };
 
-  const handleUpdatePinnedGroups = useCallback(
-    (groups: db.Group[]) => {
-      setPinnedGroups(groups);
-      props.onUpdatePinnedGroups(groups);
-    },
-    [props]
-  );
+  const handleUpdatePinnedGroups = useCallback((groups: db.Group[]) => {
+    setPinnedGroups(groups);
+    store.updateProfilePinnedGroups(groups);
+  }, []);
 
   return (
     <View flex={1}>
@@ -271,7 +273,7 @@ export function EditProfileScreenView(props: Props) {
                 <PinnedGroupsDisplay
                   groups={pinnedGroups ?? []}
                   onPressGroup={() => {}}
-                  backgroundColor="$secondaryBackground"
+                  itemProps={{ backgroundColor: '$secondaryBackground' }}
                 />
               </>
             )}

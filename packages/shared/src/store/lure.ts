@@ -7,9 +7,11 @@ import { getCurrentUserId, poke, scry, subscribeOnce } from '../api/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { DeepLinkMetadata, createDeepLink } from '../logic/branch';
-import { asyncWithDefault, getFlagParts } from '../logic/utils';
+import { asyncWithDefault, getFlagParts, withRetry } from '../logic/utils';
 import { stringToTa } from '../urbit';
 import { GroupMeta } from '../urbit/groups';
+
+const logger = createDevLogger('lure', true);
 
 interface LureMetadata {
   tag: string;
@@ -220,8 +222,6 @@ export const useLureState = create<LureState>((set, get) => ({
         fallbackUrl: url,
         type: 'lure',
         path: flag,
-        inviteServiceEndpoint,
-        inviteServiceIsDev,
         metadata,
       });
       lureLogger.crumb('deepLinkUrl created', deepLinkUrl);
