@@ -221,3 +221,18 @@ async function getLinkFromInviteService({
 
   return inviteLink;
 }
+
+export async function checkInviteServiceLinkExists(inviteId: string) {
+  const env = getConstants();
+  // hack to avoid shuffling env vars around
+  const serverlessInfraUrl = env.INVITE_SERVICE_ENDPOINT.substring(
+    0,
+    env.INVITE_SERVICE_ENDPOINT.lastIndexOf('/')
+  );
+  const response = await fetch(`${serverlessInfraUrl}/checkLink`, {
+    method: 'POST',
+    body: JSON.stringify({ inviteId }),
+  });
+
+  return response.status === 200;
+}

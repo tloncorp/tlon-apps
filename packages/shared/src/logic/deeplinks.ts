@@ -123,10 +123,13 @@ export function createInviteLinkRegex(branchDomain: string) {
 
 export function extractTokenFromInviteLink(
   url: string,
-  branchDomain: string
+  branchDomain?: string
 ): string | null {
+  const env = getConstants();
   if (!url) return null;
-  const INVITE_LINK_REGEX = createInviteLinkRegex(branchDomain);
+  const INVITE_LINK_REGEX = createInviteLinkRegex(
+    branchDomain ?? env.BRANCH_DOMAIN
+  );
   const match = url.trim().match(INVITE_LINK_REGEX);
 
   if (match) {
