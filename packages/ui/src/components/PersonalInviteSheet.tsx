@@ -18,29 +18,30 @@ export function PersonalInviteSheet({
 
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange} snapPointsMode="fit">
-      <ActionSheet.Header>
-        <ListItem.Title>Invite Friends to TM</ListItem.Title>
-      </ActionSheet.Header>
-      <ActionSheet.Content>
-        <ActionSheet.ContentBlock>
-          <TlonText.Text size="$label/m" color="$secondaryText">
-            Anyone you invite will skip the waitlist and be added to your
-            contacts. You&apos;ll receive a DM when they join.
-          </TlonText.Text>
-        </ActionSheet.ContentBlock>
-        <ActionSheet.ContentBlock>
-          <View padding="$l" width="100%" display="flex" alignItems="center">
-            <QRCode
-              value={inviteLink}
-              size={200}
-              fgColor={theme.primaryText.val}
-              bgColor="transparent"
-            />
-          </View>
-        </ActionSheet.ContentBlock>
-        <ActionSheet.ContentBlock>
-          <PersonalInviteButton />
-        </ActionSheet.ContentBlock>
+      <ActionSheet.SimpleHeader title="Invite Friends to TM" />
+      <ActionSheet.Content paddingHorizontal={40}>
+        <TlonText.Text
+          size="$label/m"
+          color="$secondaryText"
+          marginBottom="$2xl"
+        >
+          Anyone you invite will skip the waitlist and be added to your
+          contacts. You&apos;ll receive a DM when they join.
+        </TlonText.Text>
+        <View
+          width="100%"
+          display="flex"
+          alignItems="center"
+          marginBottom="$3xl"
+        >
+          <QRCode
+            value={inviteLink}
+            size={200}
+            fgColor={theme.primaryText.val}
+            bgColor="transparent"
+          />
+        </View>
+        <PersonalInviteButton />
       </ActionSheet.Content>
     </ActionSheet>
   );

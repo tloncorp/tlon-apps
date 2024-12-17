@@ -177,18 +177,16 @@ export const ButtonText = styled(Text, {
 });
 
 const ButtonIcon = (props: { color?: ColorTokens; children: any }) => {
-  const { size, color, hero, heroDestructive } = useContext(
-    ButtonContext.context
-  );
-  const smaller = getSize(size, {
-    shift: -1,
-  });
+  const context = useContext(ButtonContext.context);
+
+  const iconColor =
+    props.color ??
+    (context.hero || context.heroDestructive
+      ? '$background'
+      : context.color ?? '$primaryText');
+
   return cloneElement(props.children, {
-    size: smaller.val,
-    color:
-      props.color ??
-      color ??
-      (hero || heroDestructive ? '$white' : '$primaryText'),
+    color: iconColor,
   });
 };
 
