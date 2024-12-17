@@ -45,6 +45,7 @@ export const ListItemFrame = styled(XStack, {
   justifyContent: 'space-between',
   alignItems: 'stretch',
   backgroundColor: '$transparent',
+  userSelect: 'none',
   height: '$6xl',
 });
 

@@ -21,6 +21,7 @@ const ContentRendererFrame = styled(YStack, {
   name: 'ContentFrame',
   context: ContentContext,
   width: '100%',
+  userSelect: 'text',
 });
 
 // Renderers
