@@ -42,7 +42,7 @@ export async function verifyUserInviteLink() {
     }
 
     if (finalInviteLink) {
-      await db.personalInviteLink.setValue(inviteLink);
+      await db.personalInviteLink.setValue(finalInviteLink);
     }
   } catch (e) {
     logger.trackError('Failed to verify personal invite link', {
