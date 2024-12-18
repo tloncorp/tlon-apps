@@ -129,9 +129,10 @@ async function getInvitedGroupAndDm(lureMeta: AppInvite | null): Promise<{
   if (!lureMeta) {
     throw new Error('no stored invite found, cannot check');
   }
-  const { invitedGroupId, inviterUserId } = lureMeta;
+  const { invitedGroupId, inviterUserId, inviteType } = lureMeta;
   const tlonTeam = `~wittyr-witbes`;
-  if (!invitedGroupId || !inviterUserId) {
+  const isPersonalInvite = inviteType === 'user';
+  if (!inviterUserId || (!isPersonalInvite && !invitedGroupId)) {
     throw new Error(
       `invalid invite metadata: group[${invitedGroupId}] inviter[${inviterUserId}]`
     );
@@ -139,7 +140,9 @@ async function getInvitedGroupAndDm(lureMeta: AppInvite | null): Promise<{
   // use api client to see if you have pending DM and group invite
   const invitedDm = await db.getChannel({ id: inviterUserId });
   const tlonTeamDM = await db.getChannel({ id: tlonTeam });
-  const invitedGroup = await db.getGroup({ id: invitedGroupId });
+  const invitedGroup = isPersonalInvite
+    ? null
+    : await db.getGroup({ id: invitedGroupId! });
 
   return { invitedDm, invitedGroup, tlonTeamDM };
 }
