@@ -15,7 +15,7 @@ import { useCallback } from 'react';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { RootStackParamList } from '../../navigation/types';
-import { useResetToDm } from '../../navigation/utils';
+import { useRootNavigation } from '../../navigation/utils';
 import { useConnectionStatus } from './useConnectionStatus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
@@ -27,7 +27,7 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
   const { data: contacts } = store.useContacts();
   const connectionStatus = useConnectionStatus(userId);
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
-  const resetToDm = useResetToDm();
+  const { resetToDm } = useRootNavigation();
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {

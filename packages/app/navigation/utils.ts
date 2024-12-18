@@ -7,7 +7,7 @@ import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { useFeatureFlagStore } from '../lib/featureFlags';
 import { CombinedParamList } from './types';
@@ -43,11 +43,10 @@ export function createTypedReset<T extends Record<string, any>>(
 // specific route or set of routes.
 export function useTypedReset() {
   const navigation = useNavigation();
-
   return createTypedReset(navigation);
 }
 
-export function useResetToChannel() {
+function useResetToChannel() {
   const reset = useTypedReset();
   const isWindowNarrow = useIsWindowNarrow();
 
@@ -83,7 +82,7 @@ export function useResetToChannel() {
   };
 }
 
-export function useResetToDm() {
+function useResetToDm() {
   const resetToChannel = useResetToChannel();
 
   return async function resetToDm(contactId: string) {
@@ -98,13 +97,13 @@ export function useResetToDm() {
   };
 }
 
-export function useResetToGroup() {
+function useResetToGroup() {
   const reset = useTypedReset();
   const isWindowNarrow = useIsWindowNarrow();
 
   return async function resetToGroup(groupId: string) {
     if (isWindowNarrow) {
-      reset([{ name: 'ChatList' }, await getMainGroupRoute(groupId)]);
+      reset([{ name: 'ChatList' }, await getMainGroupRoute(groupId, true)]);
     } else {
       reset([
         {
@@ -121,7 +120,7 @@ export function useResetToGroup() {
   };
 }
 
-export function useNavigateToChannel() {
+function useNavigateToChannel() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
 
@@ -189,17 +188,47 @@ export function useNavigateBackFromPost() {
   );
 }
 
-export function useNavigateToGroup() {
+export function useRootNavigation() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
   const navigationRef = logic.useMutableRef(navigation);
-  return useCallback(
+  const navigateToGroup = useCallback(
     async (groupId: string) => {
       navigationRef.current.navigate(
         await getMainGroupRoute(groupId, isWindowNarrow)
       );
     },
     [navigationRef, isWindowNarrow]
+  );
+
+  const resetToChannel = useResetToChannel();
+  const navigateToChannel = useNavigateToChannel();
+  const navigateBackFromPost = useNavigateBackFromPost();
+  const navigateToPost = useNavigateToPost();
+  const resetToGroup = useResetToGroup();
+  const resetToDm = useResetToDm();
+
+  return useMemo(
+    () => ({
+      navigation,
+      navigateToGroup,
+      navigateToChannel,
+      navigateBackFromPost,
+      navigateToPost,
+      resetToGroup,
+      resetToChannel,
+      resetToDm,
+    }),
+    [
+      navigation,
+      navigateToChannel,
+      navigateBackFromPost,
+      navigateToGroup,
+      navigateToPost,
+      resetToGroup,
+      resetToChannel,
+      resetToDm,
+    ]
   );
 }
 
@@ -225,7 +254,7 @@ export function getDesktopChannelRoute(
 
 export async function getMainGroupRoute(
   groupId: string,
-  isWindowNarrow?: boolean
+  isWindowNarrow: boolean
 ) {
   const group = await db.getGroup({ id: groupId });
   const channelSwitcherEnabled =

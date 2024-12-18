@@ -294,7 +294,7 @@ CREATE TABLE `posts` (
 	`last_edit_content` text,
 	`last_edit_title` text,
 	`last_edit_image` text,
-	`synced_at` integer NOT NULL,
+	`synced_at` integer,
 	`backend_time` text
 );
 --> statement-breakpoint

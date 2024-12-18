@@ -5,7 +5,7 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { RootStackParamList } from '../navigation/types';
-import { useNavigateToChannel, useNavigateToPost } from '../navigation/utils';
+import { useRootNavigation } from '../navigation/utils';
 
 export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
   const channelQuery = store.useChannel({
@@ -17,8 +17,7 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
       NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
     >();
 
-  const navigateToPost = useNavigateToPost();
-  const navigateToChannel = useNavigateToChannel();
+  const { navigateToPost, navigateToChannel } = useRootNavigation();
 
   const navigateToRef = useCallback(
     (channel: db.Channel, post: db.Post) => {

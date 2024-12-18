@@ -15,7 +15,7 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
-import { useNavigateToChannel, useNavigation } from '../../navigation/utils';
+import { useRootNavigation } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GroupChannels'>;
 
@@ -30,7 +30,6 @@ export function GroupChannelsScreenContent({
   groupId: string;
   focusedChannelId?: string;
 }) {
-  const navigation = useNavigation();
   const isFocused = useIsFocused();
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>(
     null
@@ -39,7 +38,7 @@ export function GroupChannelsScreenContent({
   const { data: unjoinedChannels } = store.useUnjoinedGroupChannels(
     group?.id ?? ''
   );
-  const navigateToChannel = useNavigateToChannel();
+  const { navigateToChannel, navigation } = useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
 
   const handleChannelSelected = useCallback(

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "74260723-19aa-401e-92d0-c790bcc15a53",
+  "id": "faa3b44e-123d-4ff7-88c8-5e2a6fefa25b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -1961,7 +1961,7 @@
           "name": "synced_at",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "backend_time": {
