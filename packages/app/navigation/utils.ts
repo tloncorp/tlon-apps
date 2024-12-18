@@ -132,6 +132,7 @@ export function useNavigateToChannel() {
         navigation.navigate(screenName, {
           channelId: channel.id,
           selectedPostId,
+          ...(channel.groupId ? { groupId: channel.groupId } : {}),
         });
       } else {
         const channelRoute = getDesktopChannelRoute(
@@ -147,29 +148,40 @@ export function useNavigateToChannel() {
 }
 
 export function useNavigateToPost() {
-  const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
 
   return useCallback(
     (post: db.Post) => {
+      navigation.navigate('Post', {
+        postId: post.id,
+        authorId: post.authorId,
+        channelId: post.channelId,
+        groupId: post.groupId ?? undefined,
+      });
+    },
+    [navigation]
+  );
+}
+
+export function useNavigateBackFromPost() {
+  const isWindowNarrow = useIsWindowNarrow();
+  const navigation = useNavigation();
+
+  return useCallback(
+    (channel: db.Channel, postId: string) => {
       if (isWindowNarrow) {
-        navigation.navigate('Post', {
-          postId: post.id,
-          authorId: post.authorId,
-          channelId: post.channelId,
+        const screenName = screenNameFromChannelId(channel.id);
+        navigation.navigate(screenName, {
+          channelId: channel.id,
+          selectedPostId: postId,
+          ...(channel.groupId ? { groupId: channel.groupId } : {}),
         });
       } else {
-        navigation.navigate('Home', {
-          screen: 'Channel',
-          params: {
-            screen: 'Post',
-            params: {
-              postId: post.id,
-              authorId: post.authorId,
-              channelId: post.channelId,
-              groupId: post.groupId ?? undefined,
-            },
-          },
+        // @ts-expect-error - ChannelRoot is fine here.
+        navigation.navigate('ChannelRoot', {
+          channelId: channel.id,
+          selectedPostId: postId,
+          groupId: channel.groupId ?? undefined,
         });
       }
     },
@@ -201,22 +213,11 @@ export function getDesktopChannelRoute(
     name: 'Home',
     params: {
       screen: screenName,
+      initial: true,
       params: {
-        screen: 'ChannelRoot',
         channelId,
-        ...(groupId || selectedPostId
-          ? {
-              params: {
-                ...(groupId
-                  ? {
-                      groupId,
-                      // channelId,
-                    }
-                  : undefined),
-                ...(selectedPostId ? { selectedPostId } : undefined),
-              },
-            }
-          : {}),
+        selectedPostId,
+        ...(groupId ? { groupId } : {}),
       },
     },
   } as const;

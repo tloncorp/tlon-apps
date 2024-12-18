@@ -93,12 +93,18 @@ export const getDesktopLinkingConfig = (
               ChatList: '',
               GroupChannels: 'group/:groupId',
               DM: {
-                path: 'dm/:channelId/:screen',
-                parse: parsePathParams('selectedPostId', 'channelId', 'screen'),
+                path: 'dm/:channelId',
+                parse: parsePathParams('channelId', 'selectedPostId'),
+                screens: {
+                  ChannelRoot: '',
+                },
               },
               GroupDM: {
-                path: 'group-dm/:channelId/:screen',
-                parse: parsePathParams('channelId', 'selectedPostId', 'screen'),
+                path: 'group-dm/:channelId/',
+                parse: parsePathParams('channelId', 'selectedPostId'),
+                screens: {
+                  ChannelRoot: '',
+                },
               },
               Channel: {
                 initialRouteName: 'ChannelRoot',
@@ -143,8 +149,10 @@ export const getDesktopLinkingConfig = (
 });
 
 const postScreenConfig = (mode: string) => ({
-  path: basePathForMode(mode) + '/channel/:channelId/post/:authorId/:postId',
-  parse: parsePathParams('channelId', 'authorId', 'postId'),
+  path:
+    basePathForMode(mode) +
+    '/group/:groupId/channel/:channelId/post/:authorId/:postId',
+  parse: parsePathParams('groupId', 'channelId', 'authorId', 'postId'),
   exact: true,
 });
 
