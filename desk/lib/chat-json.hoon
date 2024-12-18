@@ -437,135 +437,6 @@
         ==
       ==
     ::
-    ++  club-invite
-      |=  i=invite:club:c
-      %-  pairs
-      :~  id/s/(scot %uv id.i)
-          team/a/(turn ~(tap in team.i) ship)
-          hive/a/(turn ~(tap in hive.i) ship)
-          meta/(meta met.i)
-      ==
-    ::
-    ++  club-rsvp
-      |=  r=rsvp:club:c
-      %-  pairs
-      :~  id/s/(scot %uv id.r)
-          ship/s/(scot %p ship.r)
-          ok/b/ok.r
-      ==
-    ::
-    ++  rsvp
-      |=  r=rsvp:dm:c
-      %-  pairs
-      :~  ship/(ship ship.r)
-          ok/b/ok.r
-      ==
-    ::
-    ++  blocked-by-ship
-      |=  s=ship:c
-      %-  pairs
-      :~  blocked-by/s/(scot %p s)
-      ==
-    ::
-    ++  unblocked-by-ship
-      |=  s=ship:c
-      %-  pairs
-      :~  unblocked-by/s/(scot %p s)
-      ==
-    ::
-    ++  block-ship
-      |=  s=ship:c
-      %-  pairs
-      :~  ship/s/(scot %p s)
-      ==
-    ::
-    ++  unblock-ship
-      |=  s=ship:c
-      %-  pairs
-      :~  ship/s/(scot %p s)
-      ==
-    ::
-    ++  toggle-message
-      |=  m=message-toggle:c
-      %+  frond  -.m
-      ?-  -.m
-        %hide  (id id.m)
-        %show  (id id.m)
-      ==
-    ::
-    ++  hidden-messages
-      |=  hm=hidden-messages:c
-      a+(turn ~(tap in hm) id)
-    ::
-    ++  whom
-      |=  w=whom:c
-      ?-  -.w
-        %ship  (scot %p p.w)
-        %club  (scot %uv p.w)
-      ==
-    ::
-    ++  unreads
-      |=  bs=unreads:c
-      %-  pairs
-      %+  turn  ~(tap by bs)
-      |=  [w=whom:c b=unread:unreads:c]
-      [(whom w) (unread b)]
-    ::
-    ++  unread-update
-      |=  u=update:unreads:c
-      %-  pairs
-      :~  whom/s/(whom p.u)
-          unread/(unread q.u)
-      ==
-    ::
-    ++  unread
-      |=  b=unread:unreads:c
-      %-  pairs
-      :~  recency/(time recency.b)
-          count/(numb count.b)
-          threads/(unread-threads threads.b)
-      ::
-        :-  %unread
-        ?~  unread.b  ~
-        %-  pairs
-        :~  id/(id id.u.unread.b)
-            time/(time-id time.u.unread.b)
-            count/(numb count.u.unread.b)
-        ==
-      ==
-    ::
-    ++  unread-threads
-      |=  u=(map message-key:c [message-key:c @ud])
-      %-  pairs
-      %+  turn  ~(tap by u)
-      |=  [top=message-key:c unread=message-key:c count=@ud]
-      :-  (rap 3 (scot %p p.id.top) '/' (scot %ud q.id.top) ~)
-      %-  pairs
-      :~  parent-time/(time-id time.top)
-          id/(id id.unread)
-          time/(time-id time.unread)
-          count/(numb count)
-      ==
-    ::
-    ++  pins
-      |=  ps=(list whom:c)
-      %-  pairs
-      :~  pins/a/(turn ps (cork whom (lead %s)))
-      ==
-    ::
-    ++  blocked
-      |=  bs=(set @p)
-      %-  pairs
-      :~  blocked/a/(turn ~(tap in bs) ship)
-      ==
-    ::
-    ++  ship
-      |=  her=@p
-      n+(rap 3 '"' (scot %p her) '"' ~)
-    ++  id
-      |=  =id:c
-      n+(rap 3 '"' (scot %p p.id) '/' (scot %ud q.id) '"' ~)
-    ::
     ++  writs-diff
       |=  =diff:writs:old-3
       %-  pairs
@@ -652,6 +523,7 @@
             ==
           ==
       ==
+    ::
     ++  add-react
       |=  [her=@p =react:old-3]
       %-  pairs
@@ -664,22 +536,6 @@
       %-  pairs
       :~  ship+(ship p.action)
           diff+(writs-diff q.action)
-      ==
-    ::
-    ++  clubs
-      |=  cs=(map id:club:c crew:club:c)
-      %-  pairs
-      %+  turn  ~(tap by cs)
-      |=  [=id:club:c cr=crew:club:c]
-      [(scot %uv id) (crew cr)]
-    ::
-    ++  crew
-      |=  cr=crew:club:c
-      %-  pairs
-      :~  team/a/(turn ~(tap in team.cr) ship)
-          hive/a/(turn ~(tap in hive.cr) ship)
-          meta/(meta met.cr)
-          net/s/net.cr
       ==
     ::
     ++  writ-list

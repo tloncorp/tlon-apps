@@ -783,7 +783,7 @@
       [%contacts ship=@ ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
-    %-  (slog leaf/"Failed to meet contact {(trip ship.pole)}" u.p.sign)
+    %-  (slog leaf/"Failed to heed contact {(trip ship.pole)}" u.p.sign)
     cor
   ::
       [%dm ship=@ rest=*]
@@ -899,30 +899,8 @@
   ::
   ==
 ::
-++  old-reply-3
-  |=  =reply:c
-  ^-  reply:old-3
-  %=  reply
-    reacts  (reacts-1:utils reacts.reply)
-    ::  memo
-    +  (memo-1:utils +.reply)
-  ==
-::
-++  old-writ-3
-  |=  =writ:c
-  ^-  writ:old-3
-  %=    writ
-    reacts  (reacts-1:utils reacts.writ)
-    author  (author-1:utils author.writ)
-    reply-meta  (reply-meta-1:utils reply-meta.writ)
-    ::  essay
-    +  =-  ?>(?=([%chat kind:old-3] kind-data.-) -)
-       (essay-1:utils +.writ)
-  ::
-      replies
-    ^-  replies:old-3
-    (run:on:replies:c replies.writ old-reply-3)
-  ==
+++  old-reply-3  old-reply-3:pac
+++  old-writ-3   old-writ-3:pac
 ++  old-scan-3
   |=  =scan:c
   ^-  scan:old-3
@@ -2216,7 +2194,7 @@
         (slav %ud count.pole)
       (slav %p nedl.pole)
     ==
-    ::
+  ::
   ++  di-unread
     %+  unread:di-pact  our.bowl
     [recency last-read unread-threads]:remark.dm
