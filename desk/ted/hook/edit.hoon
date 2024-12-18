@@ -5,7 +5,7 @@
 |=  arg=vase
 =/  m  (strand ,vase)
 ^-  form:m
-=+  !<([~ =id:h name=(unit @t) src=(unit @t) meta=(unit data:meta)] arg)
+=+  !<([~ id=id-hook:h name=(unit @t) src=(unit @t) meta=(unit data:meta)] arg)
 ;<  our=@p  bind:m  get-our:s
 ;<  ~  bind:m  (watch:s /responses [our %channels-server] /v0/hooks)
 =/  =cage  hook-action-0+!>(`action:h`[%edit id name src meta])
