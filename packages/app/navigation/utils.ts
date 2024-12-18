@@ -131,6 +131,7 @@ function useNavigateToChannel() {
         navigation.navigate(screenName, {
           channelId: channel.id,
           selectedPostId,
+          ...(channel.groupId ? { groupId: channel.groupId } : {}),
         });
       } else {
         const channelRoute = getDesktopChannelRoute(
@@ -145,30 +146,41 @@ function useNavigateToChannel() {
   );
 }
 
-function useNavigateToPost() {
-  const isWindowNarrow = useIsWindowNarrow();
+export function useNavigateToPost() {
   const navigation = useNavigation();
 
   return useCallback(
     (post: db.Post) => {
+      navigation.navigate('Post', {
+        postId: post.id,
+        authorId: post.authorId,
+        channelId: post.channelId,
+        groupId: post.groupId ?? undefined,
+      });
+    },
+    [navigation]
+  );
+}
+
+export function useNavigateBackFromPost() {
+  const isWindowNarrow = useIsWindowNarrow();
+  const navigation = useNavigation();
+
+  return useCallback(
+    (channel: db.Channel, postId: string) => {
       if (isWindowNarrow) {
-        navigation.navigate('Post', {
-          postId: post.id,
-          authorId: post.authorId,
-          channelId: post.channelId,
+        const screenName = screenNameFromChannelId(channel.id);
+        navigation.navigate(screenName, {
+          channelId: channel.id,
+          selectedPostId: postId,
+          ...(channel.groupId ? { groupId: channel.groupId } : {}),
         });
       } else {
-        navigation.navigate('Home', {
-          screen: 'Channel',
-          params: {
-            screen: 'Post',
-            params: {
-              postId: post.id,
-              authorId: post.authorId,
-              channelId: post.channelId,
-              groupId: post.groupId ?? undefined,
-            },
-          },
+        // @ts-expect-error - ChannelRoot is fine here.
+        navigation.navigate('ChannelRoot', {
+          channelId: channel.id,
+          selectedPostId: postId,
+          groupId: channel.groupId ?? undefined,
         });
       }
     },
@@ -191,6 +203,7 @@ export function useRootNavigation() {
 
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();
+  const navigateBackFromPost = useNavigateBackFromPost();
   const navigateToPost = useNavigateToPost();
   const resetToGroup = useResetToGroup();
   const resetToDm = useResetToDm();
@@ -200,6 +213,7 @@ export function useRootNavigation() {
       navigation,
       navigateToGroup,
       navigateToChannel,
+      navigateBackFromPost,
       navigateToPost,
       resetToGroup,
       resetToChannel,
@@ -208,6 +222,7 @@ export function useRootNavigation() {
     [
       navigation,
       navigateToChannel,
+      navigateBackFromPost,
       navigateToGroup,
       navigateToPost,
       resetToGroup,
@@ -227,13 +242,11 @@ export function getDesktopChannelRoute(
     name: 'Home',
     params: {
       screen: screenName,
+      initial: true,
       params: {
-        screen: 'ChannelRoot',
-        params: {
-          channelId,
-          groupId,
-          selectedPostId,
-        },
+        channelId,
+        selectedPostId,
+        ...(groupId ? { groupId } : {}),
       },
     },
   } as const;

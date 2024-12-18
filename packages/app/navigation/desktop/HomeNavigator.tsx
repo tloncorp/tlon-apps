@@ -62,28 +62,6 @@ function DrawerContent(props: DrawerContentComponentProps) {
       );
     }
     return <GroupChannelsScreenContent groupId={focusedRoute.params.groupId} />;
-  } else if (
-    // This accounts for the case where we've navigated to a screen within the ChannelSack.
-    focusedRoute.params &&
-    'params' in focusedRoute.params &&
-    focusedRoute.params.params &&
-    'groupId' in focusedRoute.params.params &&
-    focusedRoute.params.params.groupId
-  ) {
-    if ('channelId' in focusedRoute.params.params) {
-      return (
-        <GroupChannelsScreenContent
-          groupId={focusedRoute.params.params.groupId}
-          focusedChannelId={focusedRoute.params.params.channelId}
-        />
-      );
-    }
-    return (
-      <GroupChannelsScreenContent
-        // @ts-expect-error - groupId is guaranteed to be in focusedRoute.
-        groupId={focusedRoute.params.params.groupId}
-      />
-    );
   } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
     return (
       <ChatListScreenView focusedChannelId={focusedRoute.params.channelId} />
