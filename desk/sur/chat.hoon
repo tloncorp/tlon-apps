@@ -56,6 +56,12 @@
   ==
 ::
 ::  $essay: a chat message with metadata
+::
+::  $memo: post data
+::  .kind: /chat post kind
+::  .meta: post metadata
+::  .blob: custom payload
+::
 +$  essay
   $:  memo:d
       kind=[%chat kind]
