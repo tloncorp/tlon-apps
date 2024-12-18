@@ -458,6 +458,8 @@ export function GroupOptions({
   );
 }
 
+type ChannelPanes = 'initial' | 'notifications';
+
 export function ChannelOptionsSheetLoader({
   channelId,
   open,
@@ -467,7 +469,7 @@ export function ChannelOptionsSheetLoader({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
+  const [pane, setPane] = useState<ChannelPanes>('initial');
   const channelQuery = store.useChannel({
     id: channelId,
   });
@@ -501,8 +503,8 @@ export function ChannelOptions({
   onOpenChange,
 }: {
   channel: db.Channel;
-  pane: 'initial' | 'notifications';
-  setPane: (pane: 'initial' | 'notifications') => void;
+  pane: ChannelPanes;
+  setPane: (pane: ChannelPanes) => void;
   onOpenChange: (open: boolean) => void;
 }) {
   const { data: group } = store.useGroup({
@@ -515,7 +517,9 @@ export function ChannelOptions({
     onPressChannelMeta,
     onPressManageChannels,
     onPressInvite,
+    onPressChannelTemplate,
   } = useChatOptions() ?? {};
+  const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
 
   const currentUserIsHost = useMemo(
     () => group?.currentUserIsHost ?? false,
@@ -746,6 +750,24 @@ export function ChannelOptions({
             } as ActionGroup,
           ]
         : []),
+      ...(hooksPreview
+        ? [
+            {
+              accent: 'neutral',
+              actions: [
+                {
+                  title: 'Use channel as template',
+                  description: 'Create a new channel based on this one',
+                  endIcon: 'Copy',
+                  action: () => {
+                    onOpenChange(false);
+                    onPressChannelTemplate(channel.id);
+                  },
+                },
+              ],
+            } as ActionGroup,
+          ]
+        : []),
       ...(!currentUserIsHost
         ? [
             {
@@ -811,6 +833,7 @@ export function ChannelOptions({
     currentUserIsAdmin,
     group,
     currentUserIsHost,
+    hooksPreview,
     setPane,
     handleMarkRead,
     onOpenChange,

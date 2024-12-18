@@ -36,6 +36,10 @@ export function useCreateChannel({
       channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
       contentConfiguration?: ChannelContentConfiguration;
     }) => {
+      if (!group) {
+        return;
+      }
+
       const { name, id } = assembleNewChannelIdAndName({
         title,
         channelType,
@@ -43,19 +47,17 @@ export function useCreateChannel({
         currentUserId,
       });
 
-      if (group) {
-        await createChannel({
-          groupId: group.id,
-          name,
-          channelId: id,
-          title,
-          description,
-          channelType,
-          contentConfiguration:
-            contentConfiguration ??
-            channelContentConfigurationForChannelType(channelType),
-        });
-      }
+      return createChannel({
+        groupId: group.id,
+        name,
+        channelId: id,
+        title,
+        description,
+        channelType,
+        contentConfiguration:
+          contentConfiguration ??
+          channelContentConfigurationForChannelType(channelType),
+      });
     },
     [group, currentUserId, existingChannels]
   );
