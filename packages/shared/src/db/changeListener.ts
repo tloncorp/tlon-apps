@@ -29,9 +29,11 @@ export function handleChange({
    * keys (`id`, `channel_id`, 'group_id`, etc.) */
   row?: any;
 }) {
-  console.log('handleChange', table, operation, row);
-  if (table === 'posts' && row && !row.parent_id) {
+  if (table === 'posts' && row && !row.parent_id && operation !== 'INSERT') {
     postEvents[row.channel_id] ||= [];
+    if (postEvents[row.channel_id].includes(row.id)) {
+      return;
+    }
     postEvents[row.channel_id].push(row.id);
   }
   // We count updates to a post's reaction as post updates so that they trigger

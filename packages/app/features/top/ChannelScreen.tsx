@@ -68,9 +68,6 @@ export default function ChannelScreen(props: Props) {
   useFocusEffect(
     useCallback(() => {
       if (channel && !channel.isPendingChannel) {
-        store.syncChannelThreadUnreads(channel.id, {
-          priority: store.SyncPriority.High,
-        });
         if (group) {
           // Update the last visited channel in the group so we can return to it
           // when we come back to the group

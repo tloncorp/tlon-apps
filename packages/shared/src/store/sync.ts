@@ -247,24 +247,6 @@ export const syncUnreads = async (ctx?: SyncCtx) => {
   );
 };
 
-export const syncChannelThreadUnreads = async (
-  channelId: string,
-  ctx?: SyncCtx
-) => {
-  const channel = await db.getChannel({ id: channelId });
-  if (!channel) {
-    console.warn(
-      'cannot get thread unreads for non-existent channel',
-      channelId
-    );
-    return;
-  }
-  const unreads = await syncQueue.add('thread unreads', ctx, () =>
-    api.getThreadUnreadsByChannel(channel)
-  );
-  await db.insertThreadUnreads(unreads);
-};
-
 export async function syncPostReference(options: {
   postId: string;
   channelId: string;
