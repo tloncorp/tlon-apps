@@ -12,4 +12,5 @@ export enum AnalyticsEvent {
   InvitedUserFailedInventoryCheck = 'Invited User Failed Inventory Check',
   PersonalInvitePressed = 'Personal Invite Shown',
   ChannelTemplateSetup = 'Channel Created from Template',
+  ChannelLoadComplete = 'Channel Load Complete',
 }
