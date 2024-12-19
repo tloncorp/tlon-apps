@@ -58,6 +58,7 @@ export default function ChannelScreen(props: Props) {
   });
 
   const currentUserId = useCurrentUserId();
+  const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
     useCallback(() => {
       if (group?.isNew) {
@@ -67,7 +68,10 @@ export default function ChannelScreen(props: Props) {
   );
   useFocusEffect(
     useCallback(() => {
-      if (channel && !channel.isPendingChannel) {
+      if (!channelIsPending) {
+        store.syncChannelThreadUnreads(channel.id, {
+          priority: store.SyncPriority.High,
+        });
         if (group) {
           // Update the last visited channel in the group so we can return to it
           // when we come back to the group
@@ -79,12 +83,20 @@ export default function ChannelScreen(props: Props) {
       }
       // Mark the channel as visited when we unfocus/leave this screen
       () => {
-        if (channel) {
+        if (!channelIsPending) {
           store.markChannelVisited(channel);
         }
       };
-    }, [channel, group])
+    }, [channel, group, channelIsPending])
   );
+
+  useEffect(() => {
+    if (!channelIsPending) {
+      store.syncChannelThreadUnreads(channelId, {
+        priority: store.SyncPriority.High,
+      });
+    }
+  }, [channelIsPending, channelId]);
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
   const [inviteSheetGroup, setInviteSheetGroup] =

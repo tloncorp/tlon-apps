@@ -247,6 +247,36 @@ export const syncUnreads = async (ctx?: SyncCtx) => {
   );
 };
 
+export const syncChannelThreadUnreads = async (
+  channelId: string,
+  ctx?: SyncCtx
+) => {
+  const channel = await db.getChannel({ id: channelId });
+  if (!channel) {
+    console.warn(
+      'cannot get thread unreads for non-existent channel',
+      channelId
+    );
+    return;
+  }
+  const unreads = await syncQueue.add('thread unreads', ctx, () =>
+    api.getThreadUnreadsByChannel(channel)
+  );
+
+  const existingUnreads = await db.getThreadUnreadsByChannel({ channelId });
+
+  const newUnreads = unreads.filter(
+    (unread) =>
+      !existingUnreads.some((existing) => existing.threadId === unread.threadId)
+  );
+
+  if (newUnreads.length === 0) {
+    return;
+  }
+
+  await db.insertThreadUnreads(newUnreads);
+};
+
 export async function syncPostReference(options: {
   postId: string;
   channelId: string;
