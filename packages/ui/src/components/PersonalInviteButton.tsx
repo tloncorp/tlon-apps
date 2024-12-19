@@ -4,12 +4,12 @@ import { useCallback, useMemo } from 'react';
 import { Share } from 'react-native';
 import { isWeb } from 'tamagui';
 
-import { TlonText } from '..';
 import { useContact, useCurrentUserId } from '../contexts';
 import { useCopy } from '../hooks/useCopy';
 import { getDisplayName } from '../utils';
 import { Button } from './Button';
 import { Icon } from './Icon';
+import { Text } from './TextV2';
 
 const logger = createDevLogger('PersonalInviteButton', true);
 
@@ -66,9 +66,9 @@ export function PersonalInviteButton() {
       <Button.Icon>
         <Icon type="Link" />
       </Button.Icon>
-      <TlonText.Text color="$background" size="$label/l">
+      <Text color="$background" size="$label/l">
         Share invite link
-      </TlonText.Text>
+      </Text>
     </Button>
   );
 }
