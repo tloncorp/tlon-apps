@@ -78,8 +78,8 @@ BEGIN
     VALUES (
         'post_reactions',
         'DELETE',
-        OLD.id,
-        json_object('id', OLD.id, 'post_id', OLD.post_id)
+        OLD.value,
+        json_object('value', OLD.value, 'post_id', OLD.post_id)
     );
 END;
 

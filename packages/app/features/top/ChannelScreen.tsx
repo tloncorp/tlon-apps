@@ -64,11 +64,6 @@ export default function ChannelScreen(props: Props) {
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
     useCallback(() => {
-      if (!channelIsPending) {
-        store.syncChannelThreadUnreads(channelId, {
-          priority: store.SyncPriority.High,
-        });
-      }
       // Mark the channel as visited when we unfocus/leave this screen
       () => {
         if (!channelIsPending) {
@@ -100,6 +95,14 @@ export default function ChannelScreen(props: Props) {
       }
     }, [groupId, channelId])
   );
+
+  useEffect(() => {
+    if (!channelIsPending) {
+      store.syncChannelThreadUnreads(channelId, {
+        priority: store.SyncPriority.High,
+      });
+    }
+  }, [channelIsPending, channelId]);
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
   const [inviteSheetGroup, setInviteSheetGroup] =
