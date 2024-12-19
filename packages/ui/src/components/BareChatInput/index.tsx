@@ -377,15 +377,16 @@ export default function BareChatInput({
         onSend?.();
         bareChatInputLogger.log('sent message', story);
         setMentions([]);
-        bareChatInputLogger.log('clearing attachments');
-        clearAttachments();
         bareChatInputLogger.log('clearing draft');
         clearDraft();
         bareChatInputLogger.log('setting initial content');
         setHasSetInitialContent(false);
-        bareChatInputLogger.log('resetting input height');
-        setInputHeight(initialHeight);
       }
+
+      bareChatInputLogger.log('clearing attachments');
+      clearAttachments();
+      bareChatInputLogger.log('resetting input height');
+      setInputHeight(initialHeight);
     },
     [
       onSend,
