@@ -640,7 +640,7 @@
     ?+    -.q.diff  q.diff
         %add
       ^-  delta:writs:c
-      [%add [memo chat/kind ~ ~]:q.diff time.q.diff]
+      [%add [memo [%chat kind] ~ ~]:q.diff time.q.diff]
     ::
         %reply
       [%reply id.q.diff meta.q.diff (new-delta-replies-3 delta.q.diff)]
@@ -1035,7 +1035,7 @@
     ^-  delta:writs:c
     =/  =story:d  ~[[%inline ~[[%ship ship] text]]]
     =/  =memo:d  [story our.bowl now.bowl]
-    [%add [memo chat/notice/~ ~ ~] `now.bowl]
+    [%add [memo [%chat %notice ~] ~ ~] `now.bowl]
 ::
 ++  get-ship-dw
   |=  =delta:writs:c

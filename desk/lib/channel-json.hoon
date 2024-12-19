@@ -401,7 +401,7 @@
     ?@  author
       [(scot %p author) (^react react)]
     ::  a bot is identified by the
-    ::  'ship-nickname' string
+    ::  'ship/nickname' string
     ::
     :-  (id-author author)
     %-  pairs
@@ -414,7 +414,7 @@
     |=  =author:c
     ^-  @t
     ?@  author  (scot %p author)
-    (rap 3 ~[(scot %p ship.author) '-' (fall nickname.author '')])
+    (rap 3 ~[(scot %p ship.author) '/' (fall nickname.author '')])
   ++  author
     |=  =author:c
     ^-  json
@@ -1087,10 +1087,7 @@
     ^-  $-(json react:c)
     |=  =json
     ?:  ?=(%s -.json)  p.json
-    %.  json
-    %-  of
-    :~  any+so
-    ==
+    ((of any+so ~) json)
   ::
   ++  a-post
     ^-  $-(json a-post:c)

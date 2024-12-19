@@ -655,17 +655,17 @@
       ?~  u.post
         :-  *simple-seal:c
         ?-  kind.nest
-            %diary  [*memo:c /diary/null ~ ~]
-            %heap   [*memo:c /heap/null ~ ~]
-            %chat   [*memo:c /chat/null ~ ~]
+            %diary  [*memo:c /diary/deleted ~ ~]
+            %heap   [*memo:c /heap/deleted ~ ~]
+            %chat   [*memo:c /chat/deleted ~ ~]
         ==
       (suv-post-without-replies-2 u.u.post)
     [%channel-said-1 !>(`said:c`[nest %post post])]
   =/  reply=[reply-seal:c memo:c]
     ::XX the missing/deleted handling here is not great,
-    ::   and can't be fixed, unlike above. one way to rectify this
-    ::   would be to introduce a third variant, %miss, in $reference
-    ::   to encode a missing/deleted content.
+    ::   and can't be fixed in the same manner as above.
+    ::   it seems $reference should explicitly support
+    ::   missing/deleted content
     ::
     ?~  post
       [*reply-seal:c ~[%inline 'Comment on unknown post']~ ~nul *@da]
