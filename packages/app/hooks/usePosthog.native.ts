@@ -1,50 +1,18 @@
 import { usePostHog as useNativePosthog } from 'posthog-react-native';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 
 export function usePosthog() {
   const posthog = useNativePosthog();
 
-  const optedOut = useMemo(() => {
-    return posthog?.optedOut ?? false;
+  return useMemo(() => {
+    return {
+      optedOut: posthog?.optedOut ?? false,
+      optIn: posthog?.optIn,
+      optOut: posthog?.optOut,
+      identify: posthog?.identify,
+      capture: posthog?.capture,
+      flush: posthog?.flush,
+      reset: posthog?.reset,
+    };
   }, [posthog]);
-
-  const optIn = useCallback(() => {
-    return posthog?.optIn();
-  }, [posthog]);
-
-  const optOut = useCallback(() => {
-    return posthog?.optOut();
-  }, [posthog]);
-
-  const identify = useCallback(
-    (userId: string, properties: Record<string, any>) => {
-      return posthog?.identify(userId, properties);
-    },
-    [posthog]
-  );
-
-  const capture = useCallback(
-    (eventName: string, properties?: Record<string, any>) => {
-      return posthog?.capture(eventName, properties);
-    },
-    [posthog]
-  );
-
-  const flush = useCallback(async () => {
-    // TODO: how to send await all pending events sent?
-  }, []);
-
-  const reset = useCallback(() => {
-    return posthog?.reset();
-  }, [posthog]);
-
-  return {
-    optedOut,
-    optIn,
-    optOut,
-    identify,
-    capture,
-    flush,
-    reset,
-  };
 }
