@@ -659,7 +659,10 @@
   ++  convert-essay
     |=  old=heart:h
     ^-  essay:c
-    [(convert-memo old) %heap title.old]
+    =/  meta=(unit data:meta)
+      ?~  title.old  ~
+      (some %*(. *data:meta title u.title.old))
+    [(convert-memo old) /heap meta ~]
   ::
   ++  convert-story
     |=  old=content:h

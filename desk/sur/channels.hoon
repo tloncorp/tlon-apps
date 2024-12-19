@@ -15,7 +15,7 @@
 ::    commands _may_ become updates,
 ::    updates _may_ become responses.
 ::
-/-  g=groups, c=cite
+/-  g=groups, c=cite, m=meta
 /+  mp=mop-extensions
 |%
 +|  %ancients
@@ -98,13 +98,23 @@
   $:  id=id-reply
       reacts=v-reacts
   ==
-::  $essay: top-level post, with metadata
+::  $essay: top-level post
 ::
-+$  essay  [memo =kind-data]
+::  $memo: post data
+::  .kind: post kind
+::  .meta: post metadata
+::  .blob: custom payload
+::
++$  essay
+  $:  memo
+      kind=path
+      meta=(unit data:m)
+      blob=(unit @t)
+  ==
 ::  $reply-meta: metadata for all replies
 +$  reply-meta
   $:  reply-count=@ud
-      last-repliers=(set ship)
+      last-repliers=(set author)
       last-reply=(unit time)
   ==
 ::  $kind-data: metadata for a channel type's "post"
@@ -114,6 +124,14 @@
       [%heap title=(unit @t)]
       [%chat kind=$@(~ [%notice ~])]
   ==
+::  $author: post author
++$  author  $@(ship bot-meta)
+::  $bot-meta: bot metadata
++$  bot-meta
+  $:  =ship
+      nickname=(unit @t)
+      avatar=(unit @t)
+  ==
 ::  $memo: post data proper
 ::
 ::    content: the body of the comment
@@ -122,7 +140,7 @@
 ::
 +$  memo
   $:  content=story
-      author=ship
+      =author
       sent=time
   ==
 ::  $story: post body content
@@ -204,12 +222,12 @@
   $%  [%hide =id-post]
       [%show =id-post]
   ==
-::  $react: emoji encoding
+::  $react: post reaction
 +$  react
   $@  @t           ::  direct unicode character representation
   $%  [%any p=@t]  ::  any string representation (for backcompat)
   ==
-+$  v-reacts  (map ship (rev (unit react)))
++$  v-reacts  (map author (rev (unit react)))
 +$  client-id  [author=ship sent=time]
 +$  pending-posts  (map client-id essay)
 +$  pending-replies  (map [top=id-post id=client-id] memo)
@@ -377,8 +395,8 @@
   ==
 ::
 +$  c-react
-  $%  [%add-react id=@da p=ship q=react]
-      [%del-react id=@da p=ship]
+  $%  [%add-react id=@da p=author q=react]
+      [%del-react id=@da p=author]
   ==
 ::
 +|  %updates
@@ -398,6 +416,7 @@
 +$  u-post
   $%  [%set post=(unit v-post)]
       [%reacts reacts=v-reacts]
+      ::XX make it a standard to always face rev value
       [%essay (rev =essay)]
       [%reply id=id-reply =u-reply]
   ==
@@ -421,7 +440,6 @@
       [%sort =sort]
       [%perm =perm]
       [%meta meta=(unit @t)]
-    ::
       [%create =perm]
       [%join group=flag:g]
       [%leave ~]
@@ -520,8 +538,8 @@
       replies=simple-replies
       =reply-meta
   ==
-+$  reacts      (map ship react)
-+$  reply       [reply-seal [rev=@ud memo]]
++$  reacts      (map author react)
++$  reply       [reply-seal (rev memo)]
 +$  simple-reply  [reply-seal memo]
 +$  replies     ((mop id-reply (unit reply)) lte)
 +$  simple-replies     ((mop id-reply simple-reply) lte)
@@ -550,7 +568,7 @@
             =remark:^v-channel
             =window:^v-channel
             =future
-            pending=pending-messages:^v-channel
+            pending=pending-messages
             =last-updated:^v-channel
         ==
       +$  future
@@ -585,6 +603,12 @@
           replies=v-replies
           reacts=v-reacts
       ==
+    +$  memo
+      $:  content=story
+          author=ship
+          sent=time
+      ==
+    +$  essay  [memo =kind-data]
     +$  v-replies     ((mop id-reply (unit v-reply)) lte)
     +$  channels  (map nest channel)
     ++  channel
@@ -603,7 +627,7 @@
             pending=pending-messages
         ==
       --
-    +$  post   [seal [rev=@ud essay]]
+    +$  post   [seal (rev essay)]
     +$  seal
       $:  id=id-post
           =reacts
@@ -661,6 +685,11 @@
     +$  r-reply
       $%  [%set reply=(unit reply)]
           [%reacts =reacts]
+      ==
+    ::
+    +$  r-pending
+      $%  [%post =essay]
+          [%reply top=id-post =reply-meta =memo]
       ==
     ::
     +$  r-channels-simple-post  [=nest =r-channel-simple-post]
@@ -765,6 +794,17 @@
           [%reacts reacts=v-reacts]
       ==
     +$  simple-posts  ((mop id-post (unit simple-post)) lte)
+    +$  reply-meta
+      $:  reply-count=@ud
+          last-repliers=(set ship)
+          last-reply=(unit time)
+      ==
+    +$  pending-posts  (map client-id essay)
+    +$  pending-replies  (map [top=id-post id=client-id] memo)
+    +$  pending-messages
+      $:  posts=pending-posts
+          replies=pending-replies
+      ==
     --
   ++  v6
     |%
@@ -780,13 +820,13 @@
             =remark
             =window:^v-channel
             =future:v-channel:v7
-            pending=pending-messages
+            pending=pending-messages:v7
         ==
       --
     --
   ++  v1
     |%
-    +$  post  [seal [rev=@ud essay]]
+    +$  post  [seal (rev essay)]
     +$  essay  essay:v7
     +$  posts  ((mop id-post (unit post)) lte)
     ++  on-posts    ((on id-post (unit post)) lte)
@@ -801,6 +841,8 @@
     +$  reply  reply:v7
     +$  simple-seal  simple-seal:v7
     +$  simple-post  [simple-seal essay]
+    +$  simple-posts  simple-posts:v7
+    ++  on-simple-posts  on-simple-posts:v7
     +$  paged-posts
       $:  =posts
           newer=(unit time)
