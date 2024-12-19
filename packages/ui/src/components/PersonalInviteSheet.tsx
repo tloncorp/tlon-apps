@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import QRCode from 'react-qr-code';
 
-import { ListItem, TlonText, View } from '..';
+import { TlonText, View } from '..';
 import { useTheme } from '../';
 import { ActionSheet } from './ActionSheet';
 import { PersonalInviteButton } from './PersonalInviteButton';
@@ -13,7 +13,7 @@ export function PersonalInviteSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const inviteLink = db.personalInviteLink.useValue() as string;
+  const inviteLink = db.personalInviteLink.useValue();
   const theme = useTheme();
 
   return (
@@ -34,12 +34,14 @@ export function PersonalInviteSheet({
           alignItems="center"
           marginBottom="$3xl"
         >
-          <QRCode
-            value={inviteLink}
-            size={200}
-            fgColor={theme.primaryText.val}
-            bgColor="transparent"
-          />
+          {inviteLink && (
+            <QRCode
+              value={inviteLink}
+              size={200}
+              fgColor={theme.primaryText.val}
+              bgColor="transparent"
+            />
+          )}
         </View>
         <PersonalInviteButton />
       </ActionSheet.Content>
