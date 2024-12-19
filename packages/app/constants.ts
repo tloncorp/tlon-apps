@@ -9,46 +9,81 @@ export const SHIP_URL_REGEX = /^https?:\/\/([\w-]+\.)+[\w-]+(:\d+)?(?=\/?$)/;
 export const IS_IOS = Platform.OS === 'ios';
 export const IS_ANDROID = Platform.OS === 'android';
 
-const extra = (Constants.expoConfig?.extra ?? {}) as Record<
+function formatWebEnv() {
+  // @ts-expect-error — TS doesn't like accessing import like that from a non-module file?
+  const env = import.meta.env;
+  return {
+    notifyProvider: env.VITE_NOTIFY_PROVIDER,
+    notifyService: env.VITE_NOTIFY_SERVICE,
+    postHogApiKey: env.VITE_POST_HOG_API_KEY,
+    apiUrl: env.VITE_API_URL,
+    apiAuthUsername: env.VITE_API_AUTH_USERNAME,
+    apiAuthPassword: env.VITE_API_AUTH_PASSWORD,
+    recaptchaSiteKey: env.VITE_RECAPTCHA_SITE_KEY,
+    shipUrlPattern: env.VITE_SHIP_URL_PATTERN,
+    defaultLure: env.VITE_DEFAULT_LURE,
+    defaultPriorityToken: env.VITE_DEFAULT_PRIORITY_TOKEN,
+    defaultTlonLoginEmail: env.VITE_DEFAULT_TLON_LOGIN_EMAIL,
+    defaultTlonLoginPassword: env.VITE_DEFAULT_TLON_LOGIN_PASSWORD,
+    defaultInviteLinkUrl: env.VITE_DEFAULT_INVITE_LINK_URL,
+    defaultShipLoginUrl: env.VITE_DEFAULT_SHIP_LOGIN_URL,
+    defaultShipLoginAccessCode: env.VITE_DEFAULT_SHIP_LOGIN_ACCESS_CODE,
+    defaultOnboardingPassword: env.VITE_DEFAULT_ONBOARDING_PASSWORD,
+    defaultOnboardingTlonEmail: env.VITE_DEFAULT_ONBOARDING_TLON_EMAIL,
+    defaultOnboardingNickname: env.VITE_DEFAULT_ONBOARDING_NICKNAME,
+    defaultOnboardingPhoneNumber: env.VITE_DEFAULT_ONBOARDING_PHONE_NUMBER,
+    enabledLoggers: env.VITE_ENABLED_LOGGERS,
+    ignoreCosmos: env.VITE_IGNORE_COSMOS,
+    TlonEmployeeGroup: env.VITE_TLON_EMPLOYEE_GROUP,
+    branchKey: env.VITE_BRANCH_KEY,
+    branchDomain: env.VITE_BRANCH_DOMAIN,
+    inviteServiceEndpoint: env.VITE_INVITE_SERVICE_ENDPOINT,
+    inviteServiceIsDev: env.VITE_INVITE_SERVICE_IS_DEV,
+  };
+}
+
+const envVars = (Constants.expoConfig?.extra ?? formatWebEnv() ?? {}) as Record<
   string,
   string | undefined
 >;
 
-export const NOTIFY_PROVIDER = extra.notifyProvider ?? 'rivfur-livmet';
-export const NOTIFY_SERVICE = extra.notifyService ?? 'groups-native';
-export const POST_HOG_API_KEY = extra.postHogApiKey ?? '';
-export const API_URL = extra.apiUrl ?? 'https://tlon.network';
-export const API_AUTH_USERNAME = extra.apiAuthUsername;
-export const API_AUTH_PASSWORD = extra.apiAuthPassword;
+export const NOTIFY_PROVIDER = envVars.notifyProvider ?? 'rivfur-livmet';
+export const NOTIFY_SERVICE = envVars.notifyService ?? 'groups-native';
+export const POST_HOG_API_KEY = envVars.postHogApiKey ?? '';
+export const API_URL = envVars.apiUrl ?? 'https://tlon.network';
+export const API_AUTH_USERNAME = envVars.apiAuthUsername;
+export const API_AUTH_PASSWORD = envVars.apiAuthPassword;
 export const RECAPTCHA_SITE_KEY =
-  (IS_ANDROID ? extra.recaptchaSiteKeyAndroid : extra.recaptchaSiteKeyIOS) ??
-  '';
+  (IS_ANDROID
+    ? envVars.recaptchaSiteKeyAndroid
+    : envVars.recaptchaSiteKeyIOS) ?? '';
 export const SHIP_URL_PATTERN =
-  extra.shipUrlPattern ?? 'https://{shipId}.tlon.network';
-export const DEFAULT_LURE = extra.defaultLure ?? '~nibset-napwyn/tlon';
-export const DEFAULT_PRIORITY_TOKEN = extra.defaultPriorityToken ?? 'mobile';
-export const DEFAULT_TLON_LOGIN_EMAIL = extra.defaultTlonLoginEmail ?? '';
-export const DEFAULT_TLON_LOGIN_PASSWORD = extra.defaultTlonLoginPassword ?? '';
-export const DEFAULT_INVITE_LINK_URL = extra.defaultInviteLinkUrl ?? '';
-export const DEFAULT_SHIP_LOGIN_URL = extra.defaultShipLoginUrl ?? '';
+  envVars.shipUrlPattern ?? 'https://{shipId}.tlon.network';
+export const DEFAULT_LURE = envVars.defaultLure ?? '~nibset-napwyn/tlon';
+export const DEFAULT_PRIORITY_TOKEN = envVars.defaultPriorityToken ?? 'mobile';
+export const DEFAULT_TLON_LOGIN_EMAIL = envVars.defaultTlonLoginEmail ?? '';
+export const DEFAULT_TLON_LOGIN_PASSWORD =
+  envVars.defaultTlonLoginPassword ?? '';
+export const DEFAULT_INVITE_LINK_URL = envVars.defaultInviteLinkUrl ?? '';
+export const DEFAULT_SHIP_LOGIN_URL = envVars.defaultShipLoginUrl ?? '';
 export const DEFAULT_SHIP_LOGIN_ACCESS_CODE =
-  extra.defaultShipLoginAccessCode ?? '';
+  envVars.defaultShipLoginAccessCode ?? '';
 export const DEFAULT_ONBOARDING_PASSWORD =
-  extra.defaultOnboardingPassword ?? '';
+  envVars.defaultOnboardingPassword ?? '';
 export const DEFAULT_ONBOARDING_TLON_EMAIL =
-  extra.defaultOnboardingTlonEmail ?? '';
+  envVars.defaultOnboardingTlonEmail ?? '';
 export const DEFAULT_ONBOARDING_NICKNAME =
-  extra.defaultOnboardingNickname ?? '';
+  envVars.defaultOnboardingNickname ?? '';
 export const DEFAULT_ONBOARDING_PHONE_NUMBER =
-  extra.defaultOnboardingPhoneNumber;
+  envVars.defaultOnboardingPhoneNumber;
 
-export const ENABLED_LOGGERS = extra.enabledLoggers?.split(',') ?? [];
-export const IGNORE_COSMOS = extra.ignoreCosmos === 'true';
-export const TLON_EMPLOYEE_GROUP = extra.TlonEmployeeGroup ?? '';
-export const BRANCH_KEY = extra.branchKey ?? '';
-export const BRANCH_DOMAIN = extra.branchDomain ?? '';
-export const INVITE_SERVICE_ENDPOINT = extra.inviteServiceEndpoint ?? '';
-export const INVITE_SERVICE_IS_DEV = extra.inviteServiceIsDev === 'true';
+export const ENABLED_LOGGERS = envVars.enabledLoggers?.split(',') ?? [];
+export const IGNORE_COSMOS = envVars.ignoreCosmos === 'true';
+export const TLON_EMPLOYEE_GROUP = envVars.TlonEmployeeGroup ?? '';
+export const BRANCH_KEY = envVars.branchKey ?? '';
+export const BRANCH_DOMAIN = envVars.branchDomain ?? '';
+export const INVITE_SERVICE_ENDPOINT = envVars.inviteServiceEndpoint ?? '';
+export const INVITE_SERVICE_IS_DEV = envVars.inviteServiceIsDev === 'true';
 
 export const ENV_VARS = {
   NOTIFY_PROVIDER,
