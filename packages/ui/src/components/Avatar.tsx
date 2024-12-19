@@ -114,9 +114,15 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
   model,
   ...props
 }: { model: db.Group | GroupImageShim } & AvatarProps) {
+  const { disableNicknames } = useCalm();
+  const fallbackTitle = useMemo(() => {
+    return isGroupImageShim(model)
+      ? model.title
+      : utils.getGroupTitle(model, disableNicknames);
+  }, [disableNicknames, model]);
   const fallback = (
     <TextAvatar
-      text={model.title ?? model.id.replace('~', '')}
+      text={fallbackTitle ?? 'G'}
       backgroundColor={model.iconImageColor ?? undefined}
       {...props}
     />
@@ -129,6 +135,12 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
     />
   );
 });
+
+function isGroupImageShim(
+  group: db.Group | GroupImageShim
+): group is GroupImageShim {
+  return !('description' in group);
+}
 
 export const ChannelAvatar = React.memo(function ChannelAvatarComponent({
   model,
@@ -233,6 +245,7 @@ export const ImageAvatar = function ImageAvatarComponent({
   const isSVG = imageUrl?.endsWith('.svg');
 
   return imageUrl &&
+    imageUrl !== '' &&
     !isSVG &&
     (props.ignoreCalm || !calmSettings.disableAvatars) &&
     !loadFailed ? (

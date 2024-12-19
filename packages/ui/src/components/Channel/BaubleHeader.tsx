@@ -20,6 +20,7 @@ import { Spinner, Text, View } from 'tamagui';
 
 import { useChatOptions } from '../../contexts/chatOptions';
 import { useScrollContext } from '../../contexts/scroll';
+import { useGroupTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
 import { Icon } from '../Icon';
 import { Image } from '../Image';
@@ -40,6 +41,7 @@ export function BaubleHeader({
   const [scrollValue] = useScrollContext();
   const insets = useSafeAreaInsets();
   const frame = useSafeAreaFrame();
+  const groupTitle = useGroupTitle(group);
 
   const easedValue = useDerivedValue(
     () => Easing.ease(scrollValue.value),
@@ -168,7 +170,7 @@ export function BaubleHeader({
                     exiting={FadeOut.duration(128)}
                   >
                     <ListItemTextIcon
-                      fallbackText={group?.title ?? ''}
+                      fallbackText={groupTitle ?? ''}
                       backgroundColor={
                         group?.iconImageColor as unknown as OpaqueColorValue
                       }

@@ -126,6 +126,8 @@ export const LineText = styled(Text, {
   color: '$primaryText',
   size: '$body',
   context: cn.ContentContext,
+  userSelect: 'text',
+  cursor: 'text',
   variants: {
     isNotice: {
       true: {

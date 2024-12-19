@@ -9,7 +9,7 @@ import { getLastScreen, setLastScreen } from '../utils/lastScreen';
 import { RootStack } from './RootStack';
 import { TopLevelDrawer } from './desktop/TopLevelDrawer';
 import { RootDrawerParamList, RootStackParamList } from './types';
-import { useResetToChannel, useTypedReset } from './utils';
+import { useRootNavigation, useTypedReset } from './utils';
 
 export type MobileBasePathStackParamList = {
   Root: NavigatorScreenParams<RootStackParamList>;
@@ -88,7 +88,7 @@ export function BasePathNavigator({ isMobile }: { isMobile: boolean }) {
     return undefined;
   }, [isMobile, rootState]);
 
-  const resetToChannel = useResetToChannel();
+  const { resetToChannel } = useRootNavigation();
   const reset = useTypedReset();
 
   useEffect(() => {

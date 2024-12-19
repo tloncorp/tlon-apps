@@ -42,7 +42,7 @@ export function GalleryPost({
   post: db.Post;
   onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
-  onPressRetry?: (post: db.Post) => void;
+  onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete?: (post: db.Post) => void;
   showAuthor?: boolean;
   isHighlighted?: boolean;

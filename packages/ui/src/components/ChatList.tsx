@@ -1,4 +1,5 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
+import { configurationFromChannel } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
@@ -16,9 +17,10 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import { Text, View, YStack, getTokenValue } from 'tamagui';
+import { Text, View, YStack, getTokenValue, useTheme } from 'tamagui';
 
 import { useCalm, useChatOptions } from '../contexts';
+import { getChannelTitle, getGroupTitle } from '../utils';
 import { interactionWithTiming } from '../utils/animation';
 import { TextInputWithIconAndButton } from './Form';
 import { ChatListItem, InteractableChatListItem } from './ListItem';
@@ -74,7 +76,9 @@ export const ChatList = React.memo(function ChatListComponent({
   const chatOptions = useChatOptions();
   const handleLongPress = useCallback(
     (item: db.Chat) => {
-      chatOptions.open(item.id, item.type);
+      if (!item.isPending) {
+        chatOptions.open(item.id, item.type);
+      }
     },
     [chatOptions]
   );
@@ -213,13 +217,19 @@ function ChatListTabs({
   return (
     <Tabs>
       <Tabs.Tab name="all" activeTab={activeTab} onTabPress={onPressTab}>
-        <Tabs.Title active={activeTab === 'all'}>All</Tabs.Title>
+        <Tabs.Title cursor="pointer" active={activeTab === 'all'}>
+          All
+        </Tabs.Title>
       </Tabs.Tab>
       <Tabs.Tab name="groups" activeTab={activeTab} onTabPress={onPressTab}>
-        <Tabs.Title active={activeTab === 'groups'}>Groups</Tabs.Title>
+        <Tabs.Title cursor="pointer" active={activeTab === 'groups'}>
+          Groups
+        </Tabs.Title>
       </Tabs.Tab>
       <Tabs.Tab name="messages" activeTab={activeTab} onTabPress={onPressTab}>
-        <Tabs.Title active={activeTab === 'messages'}>Messages</Tabs.Title>
+        <Tabs.Title cursor="pointer" active={activeTab === 'messages'}>
+          Messages
+        </Tabs.Title>
       </Tabs.Tab>
     </Tabs>
   );
@@ -238,6 +248,7 @@ const ChatListSearch = React.memo(function ChatListSearchComponent({
   onPressClear: () => void;
   onPressClose: () => void;
 }) {
+  const theme = useTheme();
   const [contentHeight, setContentHeight] = useState(0);
 
   const openProgress = useSharedValue(isOpen ? 1 : 0);
@@ -273,7 +284,7 @@ const ChatListSearch = React.memo(function ChatListSearchComponent({
       <YStack
         onLayout={handleContentLayout}
         flexShrink={0}
-        backgroundColor="$background"
+        backgroundColor={theme.background.val}
         gap="$m"
         position="absolute"
         top={0}
@@ -407,31 +418,17 @@ function useChatSearch({
   return performSearch;
 }
 
-function getChatTitle(
-  chat: db.Chat,
-  disableNicknames: boolean
-): string | string[] {
+function getChatTitle(chat: db.Chat, disableNicknames: boolean): string {
   if (chat.type === 'channel') {
-    if (chat.channel.title) {
-      return chat.channel.title;
-    } else if (chat.channel.members) {
-      return chat.channel.members
-        .map((member) => {
-          const nickname = member.contact
-            ? (member.contact as db.Contact).nickname
-            : null;
-          return nickname && !disableNicknames ? nickname : member.contactId;
-        })
-        .join(', ');
-    } else {
-      return [];
-    }
+    return getChannelTitle({
+      disableNicknames,
+      channelTitle: chat.channel.title,
+      members: chat.channel.members,
+      usesMemberListAsFallbackTitle: configurationFromChannel(chat.channel)
+        .usesMemberListAsFallbackTitle,
+    });
   } else {
-    if (chat.group.title) {
-      return chat.group.title;
-    } else {
-      return [];
-    }
+    return getGroupTitle(chat.group, disableNicknames);
   }
 }
 

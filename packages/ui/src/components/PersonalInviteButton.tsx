@@ -2,8 +2,9 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo } from 'react';
 import { Share } from 'react-native';
-import { Text, View, XStack, isWeb } from 'tamagui';
+import { isWeb } from 'tamagui';
 
+import { TlonText } from '..';
 import { useContact, useCurrentUserId } from '../contexts';
 import { useCopy } from '../hooks/useCopy';
 import { getDisplayName } from '../utils';
@@ -61,22 +62,13 @@ export function PersonalInviteButton() {
   }, [doCopy, inviteLink, userDisplayName]);
 
   return (
-    <Button
-      hero
-      onPress={handleInviteButtonPress}
-      borderRadius="$xl"
-      width="100%"
-      justifyContent="space-between"
-    >
-      <XStack gap="$xl" paddingHorizontal="$m" alignItems="center">
-        <View>
-          <Icon type="Send" size="$l" color="$background" />
-        </View>
-        <Text flex={1} color="$background" fontSize="$l">
-          Invite Friends to Tlon
-        </Text>
-        <Icon type="ChevronRight" size="$l" color="$background" />
-      </XStack>
+    <Button hero onPress={handleInviteButtonPress}>
+      <Button.Icon>
+        <Icon type="Link" />
+      </Button.Icon>
+      <TlonText.Text color="$background" size="$label/l">
+        Share invite link
+      </TlonText.Text>
     </Button>
   );
 }

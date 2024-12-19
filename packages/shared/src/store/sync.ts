@@ -311,6 +311,10 @@ export async function syncUpdatedPosts(
     posts: response.posts,
   });
 
+  await db.deletePosts({
+    ids: response.deletedPosts ?? [],
+  });
+
   return response;
 }
 
