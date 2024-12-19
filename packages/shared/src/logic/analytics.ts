@@ -13,4 +13,5 @@ export enum AnalyticsEvent {
   PersonalInvitePressed = 'Personal Invite Shown',
   ChannelTemplateSetup = 'Channel Created from Template',
   ChannelLoadComplete = 'Channel Load Complete',
+  SessionInitialized = 'Session Initialized',
 }
