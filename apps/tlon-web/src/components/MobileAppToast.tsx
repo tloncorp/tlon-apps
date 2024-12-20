@@ -1,19 +1,15 @@
 import * as Toast from '@radix-ui/react-toast';
-import { useState } from 'react';
+import { useLocalStorage } from 'usehooks-ts';
 
 import TlonIcon from './icons/TlonIcon';
 
 export default function MobileAppToast() {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useLocalStorage('showMobileAppToast', true);
 
   return (
     <Toast.Provider>
       <div className="relative flex flex-col items-center">
-        <Toast.Root
-          duration={10000}
-          open={open}
-          onOpenChange={setOpen}
-        >
+        <Toast.Root duration={10000} open={open} onOpenChange={setOpen}>
           <Toast.Description asChild>
             <div className="absolute w-full z-50 flex flex-col md:flex-row -translate-x-2/4 items-center justify-between space-x-2 bg-white font-semibold text-black shadow-xl dark:bg-gray-200 p-4">
               <div className="flex items-center space-x-2">
