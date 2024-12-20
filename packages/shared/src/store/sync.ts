@@ -263,7 +263,20 @@ export const syncChannelThreadUnreads = async (
   const unreads = await syncQueue.add('thread unreads', ctx, () =>
     api.getThreadUnreadsByChannel(channel)
   );
-  await db.insertThreadUnreads(unreads);
+  const existingUnreads = await db.getThreadUnreadsByChannel({ channelId });
+
+  // filter out any unreads that we already have in the db so we can avoid
+  // invalidating queries that don't need to be invalidated
+  const newUnreads = unreads.filter(
+    (unread) =>
+      !existingUnreads.some((existing) => existing.threadId === unread.threadId)
+  );
+
+  if (newUnreads.length === 0) {
+    return;
+  }
+
+  await db.insertThreadUnreads(newUnreads);
 };
 
 export async function syncPostReference(options: {
