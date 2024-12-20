@@ -187,9 +187,16 @@ export function useNavigateToPost() {
 export function useNavigateBackFromPost() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
+  const length = navigation.getState()?.routes.length;
+  const lastScreenWasActivity =
+    navigation.getState()?.routes[length - 2]?.name === 'Activity';
 
   return useCallback(
     (channel: db.Channel, postId: string) => {
+      if (lastScreenWasActivity) {
+        navigation.navigate('Activity');
+        return;
+      }
       if (isWindowNarrow) {
         const screenName = screenNameFromChannelId(channel.id);
         navigation.navigate(screenName, {
@@ -206,7 +213,7 @@ export function useNavigateBackFromPost() {
         });
       }
     },
-    [navigation, isWindowNarrow]
+    [navigation, isWindowNarrow, lastScreenWasActivity]
   );
 }
 
