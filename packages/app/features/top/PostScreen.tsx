@@ -148,6 +148,7 @@ export default function PostScreen(props: Props) {
       return;
     }
     // This allows us to navigate to the channel and highlight the message in the scroller
+    // OR navigate back to Activity if we came from there
     navigateBackFromPost(channel!, postId);
   }, [channel, postId, props.navigation, navigateBackFromPost]);
 

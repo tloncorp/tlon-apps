@@ -147,10 +147,32 @@ function useNavigateToChannel() {
 }
 
 export function useNavigateToPost() {
+  const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
+  const activityIndex = navigation
+    .getState()
+    ?.routes.findIndex((route) => route.name === 'Activity');
+  const currentScreenIsActivity =
+    navigation.getState()?.index === activityIndex;
 
   return useCallback(
     (post: db.Post) => {
+      if (!isWindowNarrow && currentScreenIsActivity) {
+        navigation.navigate('Home', {
+          screen: 'Channel',
+          params: {
+            screen: 'Post',
+            params: {
+              postId: post.id,
+              authorId: post.authorId,
+              channelId: post.channelId,
+              groupId: post.groupId ?? undefined,
+            },
+          },
+        });
+        return;
+      }
+
       navigation.navigate('Post', {
         postId: post.id,
         authorId: post.authorId,
@@ -158,16 +180,23 @@ export function useNavigateToPost() {
         groupId: post.groupId ?? undefined,
       });
     },
-    [navigation]
+    [navigation, isWindowNarrow, currentScreenIsActivity]
   );
 }
 
 export function useNavigateBackFromPost() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
+  const length = navigation.getState()?.routes.length;
+  const lastScreenWasActivity =
+    navigation.getState()?.routes[length - 2]?.name === 'Activity';
 
   return useCallback(
     (channel: db.Channel, postId: string) => {
+      if (lastScreenWasActivity) {
+        navigation.navigate('Activity');
+        return;
+      }
       if (isWindowNarrow) {
         const screenName = screenNameFromChannelId(channel.id);
         navigation.navigate(screenName, {
@@ -184,7 +213,7 @@ export function useNavigateBackFromPost() {
         });
       }
     },
-    [navigation, isWindowNarrow]
+    [navigation, isWindowNarrow, lastScreenWasActivity]
   );
 }
 
