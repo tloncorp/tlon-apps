@@ -11,7 +11,8 @@ import React, {
 } from 'react';
 
 import { ChevronLeft } from '../assets/icons';
-import { useChatOptions, useCurrentUserId } from '../contexts';
+import { useCurrentUserId } from '../contexts/appDataContext';
+import { useChatOptions } from '../contexts/chatOptions';
 import * as utils from '../utils';
 import { useIsAdmin } from '../utils';
 import {

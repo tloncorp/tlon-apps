@@ -73,7 +73,7 @@ export const client = new Proxy(
   {
     get: function (target, prop, receiver) {
       if (!config.client) {
-        throw new Error('Database not set.');
+        throw new Error('Urbit client not set.');
       }
       return Reflect.get(config.client, prop, receiver);
     },
