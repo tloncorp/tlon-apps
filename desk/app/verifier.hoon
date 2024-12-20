@@ -357,25 +357,76 @@
       :_  this
       =/  =cage  [%verifier-result !>([nonce.qer res])]
       [%pass /query/result %agent [src.bowl dude.qer] %poke cage]~
-    =/  lims=allowance
-      (get-allowance limits src.bowl now.bowl)
-    =.  queries.lims
-      ~|  %would-exceed-rate-limit
-      (dec queries.lims)
-    :_  state(limits (~(put by limits) src.bowl lims))
     ?-  +<.qer
-        %has-any
-      :-  %has-any
-      %+  lien  ~(tap in (~(get ju owners) who.qer))
-      |=(id=identifier =(-.id kind.qer))
-    ::
-        %valid
-      [%valid (~(has by attested) sig.qer)]
-    ::
-        %whose
-      :-  %whose
-      (find-whose id.qer (~(get by records) id.qer) (~(get ju owners) src.bowl))
+        ?(%has-any %valid %whose)
+      =/  lims=allowance
+        (get-allowance limits src.bowl now.bowl)
+      =.  queries.lims
+        ~|  %would-exceed-rate-limit
+        (dec queries.lims)
+      :_  state(limits (~(put by limits) src.bowl lims))
+      ?-  +<.qer
+          %has-any
+        :-  %has-any
+        %+  lien  ~(tap in (~(get ju owners) who.qer))
+        |=(id=identifier =(-.id kind.qer))
       ::
+          %valid
+        [%valid (~(has by attested) sig.qer)]
+      ::
+          %whose
+        :-  %whose
+        (find-whose id.qer (~(get by records) id.qer) (~(get ju owners) src.bowl))
+      ==
+    ::
+        %whose-bulk
+      ::  first, rate-limiting logic
+      ::REVIEW  sha-256 fine, or do we want sha-512 (or other) for some reason?
+      ::
+      ::  lims: rate-limiting allowance pool
+      ::  bulk: full set to query on  ::TODO  limit total size?
+      ::  cost: .batch.lims allowance cost of resolving .bulk
+      ::
+      =/  lims=allowance
+        (get-allowance limits src.bowl now.bowl)
+      =/  bulk=(set identifier)
+        (~(dif in (~(uni in last.qer) add.qer)) del.qer)
+      =/  cost=@
+        ::  calculate their proclaimed hash by salting the "last" set with the
+        ::  provided salt. for the first request case, it doesn't matter that
+        ::  the client can't provide a salt that results in the "expected"
+        ::  (in reality bunted) hash, because the request should only have
+        ::  additions, no pre-existing entries in the set.
+        ::
+        =/  lash=@
+          ::  the set must be well-formed, to ensure the same data always has the
+          ::  same shape
+          ::
+          ?>  ~(apt in last.qer)
+          (shas last-salt.qer (jam last.qer))
+        ::  if the query has continuity with the previous batch from the
+        ::  requester, they only "pay" for the new entries
+        ::
+        ?:  =(lash last-batch.lims)
+          ~(wyt in add.qer)
+        ::  if there is discontinuity, consider the entirety of the
+        ::  request new, and make them "pay" for each entry
+        ::
+        ~(wyt in bulk)
+      =.  batch.lims
+        ~|  %would-exceed-rate-limit
+        (sub batch.lims cost)
+      =/  salt             (shas %whose-salt eny.bowl)
+      =.  last-batch.lims  (shas salt (jam bulk))
+      :_  state(limits (~(put by limits) src.bowl lims))
+      ::  assuming the prior didn't crash, we can proceed with the query
+      ::
+      :+  %whose-bulk  salt
+      %-  ~(rep in bulk)
+      =/  own  (~(get ju owners) src.bowl)
+      |=  [id=identifier out=(map identifier (unit @p))]
+      %+  ~(put by out)  id
+      (find-whose id (~(get by records) id) own)
     ==
   ::
       %handle-http-request

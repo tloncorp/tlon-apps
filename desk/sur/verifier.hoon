@@ -115,7 +115,13 @@
     $%  [%has-any who=@p kind=id-kind]
         [%valid sig=@ux]
         [%whose id=identifier]
-        ::TODO  %whose-many
+      ::
+        $:  %whose-bulk
+            last-salt=@ux
+            last=(set identifier)
+            add=(set identifier)
+            del=(set identifier)
+        ==
     ==
   --
 ++  query-result
@@ -124,6 +130,7 @@
     $%  [%has-any has=?]
         [%valid valid=?]
         [%whose who=(unit @p)]
+        [%whose-bulk next-salt=@ux who=(map identifier (unit @p))]  ::REVIEW  or just absence?
     ==
   --
 ::
