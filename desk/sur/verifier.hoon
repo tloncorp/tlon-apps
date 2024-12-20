@@ -75,7 +75,7 @@
   ==
 ++  rates  ::REVIEW
   |%
-  ++  phone    [n=1 p=~h1]
+  ++  phone    [n=1 p=~d1]  ::NOTE  hosting allows 1/min, up to 5/hour
   ++  queries  [n=1 p=~m5]
   ++  batch    [n=10 p=~d1]
   --

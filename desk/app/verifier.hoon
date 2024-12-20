@@ -263,6 +263,12 @@
       =.  records
         %+  ~(put by records)  id.cmd
         [src.bowl now.bowl *config status]
+      =?  limits  ?=(%phone -.id.cmd)
+        =/  lim  (get-allowance limits src.bowl now.bowl)
+        =.  phone.lim
+          ~|  %would-exceed-rate-limit
+          (dec phone.lim)
+        (~(put by limits) src.bowl lim)
       :_  this
       :+  (give-status src.bowl id.cmd status)
         :+  %pass  [%expire (snoc (id-wire id.cmd) (scot %da now.bowl))]
