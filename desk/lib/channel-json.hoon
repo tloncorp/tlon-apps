@@ -443,7 +443,7 @@
         author+(author author.essay)
         sent+(time sent.essay)
         ::
-        type+(path kind.essay)
+        kind+(path kind.essay)
         meta+(meta meta.essay)
         blob+?~(blob.essay ~ s/u.blob.essay)
     ==

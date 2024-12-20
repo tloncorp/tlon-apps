@@ -263,7 +263,7 @@
       reacts  (~(run by reacts.writ) react-7-to-8:utils)
       replies  (run:on:replies:three replies.writ reply-7-to-8)
       :: essay
-      +  =-  ?>(?=([%chat kind:c] kind.-) -)
+      +  =-  ?>(?=([%chat *] kind.-) -)
          (essay-7-to-8:utils +.writ)
     ==
   ++  reply-7-to-8
@@ -1035,7 +1035,7 @@
     ^-  delta:writs:c
     =/  =story:d  ~[[%inline ~[[%ship ship] text]]]
     =/  =memo:d  [story our.bowl now.bowl]
-    [%add [memo [%chat %notice ~] ~ ~] `now.bowl]
+    [%add [memo [%chat /notice] ~ ~] `now.bowl]
 ::
 ++  get-ship-dw
   |=  =delta:writs:c
@@ -1306,8 +1306,9 @@
     |=  old=memo:t
     ^-  essay:d
     :*  (convert-memo old)
-        [%chat ?-(-.content.old %story ~, %notice [%notice ~])]
-        ~  ~
+        [%chat ?-(-.content.old %story ~, %notice /notice)]
+        ~
+        ~
     ==
   ::
   ++  convert-story

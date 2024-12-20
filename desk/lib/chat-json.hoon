@@ -456,7 +456,7 @@
           %add
         %-  pairs
         :~  memo+(memo:v7:enjs:dj memo.delta)
-            kind+?~(kind.delta ~ (pairs notice/~ ~))
+            kind+?~(kind.delta ~ (pairs [%notice ~] ~))
             time+?~(time.delta ~ (time-id u.time.delta))
         ==
       ==
@@ -772,7 +772,7 @@
     ^-  $-(json essay:c)
     %+  cu
       |=  $:  =story:d  =author:c  =time
-              kind=[%chat kind:c]  meta=(unit data:^^meta)
+              kind=[%chat path]  meta=(unit data:^^meta)
               blob=(unit @t)
           ==
       `essay:c`[[story author time] kind meta blob]
@@ -780,8 +780,8 @@
     :~  content/story:dejs:dj
         author/author:dejs:dj
         sent/di
-        :-  %pa
-        (cu |=(=path ?>(?=([%chat kind:c] path) path)) pa)
+        :-  %kind
+        (cu |=(=path ?>(?=([%chat *] path) path)) pa)
         ::
         meta/(mu meta)
         blob/(mu so)
@@ -913,7 +913,7 @@
           reply/reply-delta
       ::
         :-  %add
-        ^-  $-(json [=memo:v7:old:d =kind:c time=(unit time)])
+        ^-  $-(json [=memo:v7:old:d =kind:old-3 time=(unit time)])
         %-  ot
         :~  memo/memo:v7:dejs:dj
             kind/chat-kind:dejs:dj

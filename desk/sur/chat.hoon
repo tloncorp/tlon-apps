@@ -64,12 +64,10 @@
 ::
 +$  essay
   $:  memo:d
-      kind=[%chat kind]
+      kind=[%chat path]
       meta=(unit data:meta)
       blob=(unit @t)
   ==
-::XX do we want to relax this type to a generic path?
-+$  kind  $@(~ [%notice ~])
 ::  $reacts: a set of reactions to a chat message
 +$  reacts  (map author react)
 ::
