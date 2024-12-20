@@ -5,6 +5,9 @@
   $:  records=(map identifier record)
       owners=(jug ship identifier)
       attested=(map @ux identifier)
+    ::
+      limits=(map @p allowance)
+    ::
       ::NOTE  basic auth only for staging
       phone-api=[base=@t key=@t basic=(unit [user=@t pass=@t])]
       domain=(unit @t)  ::  as 'https://example.org:123'
@@ -62,6 +65,21 @@
   [%0 %verified when=@da for=@p kind=id-kind]
 +$  full-sign-data-0
   [%0 %verified when=@da for=@p id=identifier proof=(unit proof)]
+::
++$  allowance         ::  remaining "request token" balance
+  $:  since=@da       ::  time of last request
+      phone=_5        ::  remaining text msgs
+      queries=_100    ::  remaining queries
+      batch=_1.000    ::  remaining new %whose-bulk entries  ::TODO  use .queries?
+      last-batch=@ux  ::  previous batch set salted hash
+  ==
+++  rates  ::REVIEW
+  |%
+  ++  phone    [n=1 p=~h1]
+  ++  queries  [n=1 p=~m5]
+  ++  batch    [n=10 p=~d1]
+  --
+::
 ::
 +$  user-task
   $%  [%urbit pin=@]   ::  awaiting confirmation from other side

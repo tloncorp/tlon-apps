@@ -142,6 +142,47 @@
   :-  (sign our now `half-sign-data-0`[%0 %verified now for -.id])
   (sign our now `full-sign-data-0`[%0 %verified now for id proof])
 ::
+++  get-allowance
+  ::TODO  don't give comets allowance? or just much more stingy?
+  |=  [lims=(map @p allowance) for=@p now=@da]
+  ^-  allowance
+  ?~  lim=(~(get by lims) for)
+    %*(. *allowance since now)
+  =/  max  *allowance
+  =/  d    (sub now since.u.lim)
+  :*  now
+      (calc-new phone.u.lim phone.max d phone:rates)
+      (calc-new queries.u.lim queries.max d queries:rates)
+      (calc-new batch.u.lim batch.max d batch:rates)
+      last-batch.u.lim
+  ==
+::
+++  calc-new
+  |=  [i=@ud m=@ud d=@dr n=@ud p=@dr]
+  ^-  @ud
+  (min (add i (calc-gain d n p)) m)
+::
+++  calc-gain
+  |=  [d=@dr n=@ud p=@dr]
+  ^-  @ud
+  (abs:si (need (toi:rd (mul:rd (sun:rd n) (div:rd (sun:rd `@`d) (sun:rd `@`p))))))
+::
+++  find-whose
+  |=  [id=identifier sat=(unit record) src=(set identifier)]
+  ^-  (unit @p)
+  ?~  sat  ~
+  ?.  ?=(%done -.status.u.sat)  ~
+  =;  vis=?
+    ?:(vis `for.u.sat ~)
+  ?-  config.u.sat
+    %public  &
+    %hidden  |
+  ::
+      %verified
+    %+  lien  ~(tap in src)
+    |=(i=identifier =(-.i -.id))
+  ==
+::
 ++  display
   |=  [full=? tat=attestation]
   ^-  octs
@@ -310,36 +351,31 @@
     ==
   ::
       %verifier-query
-    ::TODO  crash for rate-limiting
-    :_  this
     =+  !<(qer=user-query vase)
-    =;  res=(unit _+:*query-result)
-      ?~  res  !!
-      =/  =cage  [%verifier-result !>([nonce.qer u.res])]
+    =;  [res=result:query-result nu=_state]
+      =.  state  nu
+      :_  this
+      =/  =cage  [%verifier-result !>([nonce.qer res])]
       [%pass /query/result %agent [src.bowl dude.qer] %poke cage]~
+    =/  lims=allowance
+      (get-allowance limits src.bowl now.bowl)
+    =.  queries.lims
+      ~|  %would-exceed-rate-limit
+      (dec queries.lims)
+    :_  state(limits (~(put by limits) src.bowl lims))
     ?-  +<.qer
         %has-any
-      :+  ~  %has-any
+      :-  %has-any
       %+  lien  ~(tap in (~(get ju owners) who.qer))
       |=(id=identifier =(-.id kind.qer))
     ::
         %valid
-      `[%valid (~(has by attested) sig.qer)]
+      [%valid (~(has by attested) sig.qer)]
     ::
         %whose
-      :+  ~  %whose
-      ?~  sat=(~(get by records) id.qer)  ~
-      ?.  ?=(%done -.status.u.sat)  ~
-      =;  vis=?
-        ?:(vis `for.u.sat ~)
-      ?-  config.u.sat
-        %public  &
-        %hidden  |
+      :-  %whose
+      (find-whose id.qer (~(get by records) id.qer) (~(get ju owners) src.bowl))
       ::
-          %verified
-        %+  lien  ~(tap in (~(get ju owners) src.bowl))
-        |=(id=identifier =(-.id -.id.qer))
-      ==
     ==
   ::
       %handle-http-request
