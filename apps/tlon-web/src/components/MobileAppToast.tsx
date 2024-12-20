@@ -15,7 +15,7 @@ export default function MobileAppToast() {
           onOpenChange={setOpen}
         >
           <Toast.Description asChild>
-            <div className="absolute w-full z-10 flex -translate-x-2/4 items-center justify-between space-x-2 bg-white font-semibold text-black shadow-xl dark:bg-gray-200 p-4">
+            <div className="absolute w-full z-50 flex flex-col md:flex-row -translate-x-2/4 items-center justify-between space-x-2 bg-white font-semibold text-black shadow-xl dark:bg-gray-200 p-4">
               <div className="flex items-center space-x-2">
                 <TlonIcon className="w-6 h-6" />
                 <span className="px-4 py-2">
