@@ -198,9 +198,9 @@ export async function markGroupNew(group: db.Group) {
   await db.updateGroup({ id: group.id, isNew: true });
 }
 
-export async function markGroupVisited(group: db.Group) {
-  logger.log('marking new group as visited', group.id);
-  await db.updateGroup({ id: group.id, isNew: false });
+export async function markGroupVisited(groupId: string) {
+  logger.log('marking new group as visited', groupId);
+  await db.updateGroup({ id: groupId, isNew: false });
 }
 
 export async function updateGroupPrivacy(

@@ -11,7 +11,8 @@ import React, {
 } from 'react';
 
 import { ChevronLeft } from '../assets/icons';
-import { useChatOptions, useCurrentUserId } from '../contexts';
+import { useCurrentUserId } from '../contexts/appDataContext';
+import { useChatOptions } from '../contexts/chatOptions';
 import * as utils from '../utils';
 import { useIsAdmin } from '../utils';
 import {
@@ -33,31 +34,22 @@ type ChatOptionsSheetProps = {
 };
 
 export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
-  open,
-  onOpenChange,
   chat,
+  ...props
 }: ChatOptionsSheetProps) {
-  if (!chat || !open) {
+  const { group } = useChatOptions();
+
+  if (!chat || !props.open) {
     return null;
   }
 
   if (chat.type === 'group') {
-    return (
-      <GroupOptionsSheetLoader
-        groupId={chat.id}
-        open={open}
-        onOpenChange={onOpenChange}
-      />
-    );
+    return <GroupOptionsSheetLoader groupId={chat.id} {...props} />;
+  } else if (group?.id && group?.channels?.length === 1) {
+    return <GroupOptionsSheetLoader groupId={group?.id} {...props} />;
   }
 
-  return (
-    <ChannelOptionsSheetLoader
-      channelId={chat.id}
-      open={open}
-      onOpenChange={onOpenChange}
-    />
-  );
+  return <ChannelOptionsSheetLoader channelId={chat.id} {...props} />;
 });
 
 export function GroupOptionsSheetLoader({
@@ -260,7 +252,7 @@ function SortChannelsSheetContent({
   chatTitle: string;
   onPressBack: () => void;
 }) {
-  const { setChannelSortPreference } = useChatOptions()!;
+  const { setChannelSortPreference } = useChatOptions();
 
   const sortActions = useMemo(
     () =>
@@ -333,6 +325,8 @@ function EditGroupSheetContent({
   );
 }
 
+type ChannelPanes = 'initial' | 'notifications';
+
 export function ChannelOptionsSheetLoader({
   channelId,
   open,
@@ -342,7 +336,7 @@ export function ChannelOptionsSheetLoader({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
+  const [pane, setPane] = useState<ChannelPanes>('initial');
   const channelQuery = store.useChannel({
     id: channelId,
   });
@@ -400,12 +394,14 @@ function ChannelOptionsSheetContent({
     group,
     onPressChannelMembers,
     onPressChannelMeta,
+    onPressChannelTemplate,
     onPressManageChannels,
     onPressInvite,
     togglePinned,
     leaveChannel,
     markChannelRead,
   } = useChatOptions();
+  const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
 
   const currentUser = useCurrentUserId();
   const currentUserIsHost = group?.currentUserIsHost ?? false;
@@ -468,6 +464,15 @@ function ChannelOptionsSheetContent({
                 accent: 'disabled',
                 description: 'Only admins may invite people to this group.',
               },
+        ],
+        hooksPreview && [
+          'neutral',
+          {
+            title: 'Use channel as template',
+            description: 'Create a new channel based on this one',
+            endIcon: 'Copy',
+            action: onPressChannelTemplate,
+          },
         ],
         !currentUserIsHost && [
           'negative',
@@ -582,10 +587,17 @@ function NotificationsSheetContent({
   chatTitle?: string | null;
   onPressBack: () => void;
 }) {
-  const { updateVolume, group } = useChatOptions() ?? {};
-  const { data: currentVolumeLevel } = store.useGroupVolumeLevel(
+  const { updateVolume, group, channel } = useChatOptions();
+  const { data: currentChannelVolume } = store.useChannelVolumeLevel(
+    channel?.id ?? ''
+  );
+  const { data: currentGroupVolume } = store.useGroupVolumeLevel(
     group?.id ?? ''
   );
+  const currentVolumeLevel = channel?.id
+    ? currentChannelVolume
+    : currentGroupVolume;
+
   const notificationActions = useMemo(
     () =>
       createActionGroups([

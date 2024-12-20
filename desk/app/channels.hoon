@@ -592,6 +592,12 @@
       [?(%v0 %v1) ~]                        ?>(from-self cor)
       [?(%v0 %v1) %unreads ~]               ?>(from-self cor)
       [?(%v0 %v1) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
+  ::
+      [%v1 %hooks %preview =kind:c host=@ name=@ ~]
+    =/  host=ship   (slav %p host.pole)
+    =/  =path  /v0/hooks/preview/[kind.pole]/[name.pole]
+    ((safe-watch pole [host %channels-server] path) |)
+  ::
       [?(%v0 %v1) %said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
@@ -697,6 +703,18 @@
       ?~  p.sign  cor
       %-  (slog 'channels: migration poke failure' >wire< u.p.sign)
       cor
+    ==
+  ::
+      [%v1 %hooks %preview =kind:c host=@ name=@ ~]
+    ?+  -.sign  !!
+        %kick  cor
+        %fact
+      =.  cor  (give %fact ~[pole] cage.sign)
+      (emit %pass pole %agent [host.pole %channels] %leave ~)
+    ::
+        %watch-ack
+      ?~  p.sign  cor
+      ((slog leaf+"Preview failed" u.p.sign) cor)
     ==
   ==
 ::

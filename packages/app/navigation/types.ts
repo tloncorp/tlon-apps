@@ -65,6 +65,9 @@ export type RootStackParamList = {
   };
   AddProfileAudio: undefined;
   EditProfileLinks: undefined;
+  ChannelTemplate: {
+    channelId: string;
+  };
 };
 
 export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
@@ -111,6 +114,7 @@ export type DesktopChannelStackParamList = Pick<
   | 'EditProfile'
   | 'ChannelMembers'
   | 'ChannelMeta'
+  | 'ChannelTemplate'
 > & { ChannelRoot: RootStackParamList['Channel'] };
 
 export type GroupSettingsStackParamList = {

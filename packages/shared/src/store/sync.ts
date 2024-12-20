@@ -8,6 +8,7 @@ import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger, runIfDev } from '../debug';
 import * as domain from '../domain';
+import { AnalyticsEvent } from '../logic';
 import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
@@ -1113,6 +1114,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     // we probably don't want multiple sync starts
     return;
   }
+  const startTime = Date.now();
 
   updateIsSyncing(true);
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
@@ -1155,6 +1157,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     logger.crumb('finished initializing high priority subs');
 
     logger.crumb(`finished high priority init sync`);
+    logger.trackEvent(AnalyticsEvent.SessionInitialized, {
+      duration: Date.now() - startTime,
+    });
     updateSession({ startTime: Date.now() });
   });
 

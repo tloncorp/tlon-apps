@@ -72,8 +72,6 @@ function UserInvite({
         {...rest}
       >
         <ListItem.ContactIcon
-          width={100}
-          height={100}
           contactId={inviter.id}
           contactOverride={inviter}
         />
@@ -104,8 +102,6 @@ function GroupInvite({
         {...rest}
       >
         <ListItem.GroupIcon
-          width={100}
-          height={100}
           model={groupShim}
           backgroundColor={groupShim.iconImageColor ?? '$secondaryBorder'}
         />

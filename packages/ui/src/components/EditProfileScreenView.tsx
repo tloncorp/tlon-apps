@@ -1,13 +1,18 @@
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import { ListItem, MiniPlayableTrack, Pressable, useStore } from '@tloncorp/ui';
+import { ListItem, MiniPlayableTrack, Pressable } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
 
-import { useAudioPlayer, useContact, useCurrentUserId } from '../contexts';
+import {
+  useAudioPlayer,
+  useContact,
+  useCurrentUserId,
+  useStore,
+} from '../contexts';
 import { SigilAvatar } from './Avatar';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
 import {

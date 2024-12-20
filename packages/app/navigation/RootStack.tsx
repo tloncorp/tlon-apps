@@ -5,6 +5,7 @@ import { Platform, StatusBar } from 'react-native';
 
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
+import { ChannelTemplateScreen } from '../features/channels/ChannelTemplateScreen';
 import { AddContactsScreen } from '../features/contacts/AddContactsScreen';
 import { AddProfileAudioScreen } from '../features/settings/AddProfileAudioScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
@@ -115,6 +116,7 @@ export function RootStack() {
       <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
       <Root.Screen name="AddProfileAudio" component={AddProfileAudioScreen} />
       <Root.Screen name="EditProfileLinks" component={EditProfileLinksScreen} />
+      <Root.Screen name="ChannelTemplate" component={ChannelTemplateScreen} />
     </Root.Navigator>
   );
 }

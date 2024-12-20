@@ -13,6 +13,7 @@ export * from './components/Channel/BaubleHeader';
 export * from './components/Channel/ChannelDivider';
 export * from './components/Channel/ChannelHeader';
 export * from './components/ChannelMembersScreenView';
+export * from './components/ChannelFromTemplateView';
 export * from './components/ChannelSearch';
 export * from './components/ChannelSwitcherSheet';
 export * from './components/ChatList';

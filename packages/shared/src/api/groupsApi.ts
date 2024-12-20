@@ -265,12 +265,12 @@ export async function updateGroupPrivacy(params: {
       });
       await poke(cordonSwapAction);
     }
-
-    const secretAction = groupAction(params.groupId, {
-      secret: params.newPrivacy === 'secret',
-    });
-    await poke(secretAction);
   }
+
+  const secretAction = groupAction(params.groupId, {
+    secret: params.newPrivacy === 'secret',
+  });
+  await poke(secretAction);
 }
 
 export const getPinnedItemType = (rawItem: string) => {

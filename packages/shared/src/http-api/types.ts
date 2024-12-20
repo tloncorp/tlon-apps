@@ -174,6 +174,7 @@ export interface SubscriptionRequestInterface extends SubscriptionInterface {
    * Whether to resubscribe this exact subscription on quit
    */
   resubOnQuit?: boolean;
+  ship?: string;
 }
 
 export interface headers {

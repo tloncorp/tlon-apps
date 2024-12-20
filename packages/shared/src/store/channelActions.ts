@@ -66,6 +66,7 @@ export async function createChannel({
       readers: [],
       writers: [],
     });
+    return newChannel;
   } catch (e) {
     console.error('Failed to create channel', e);
     // rollback optimistic update
@@ -227,13 +228,8 @@ export async function unpinItem(pin: db.Pin) {
   }
 }
 
-export async function markChannelVisited(channel: db.Channel) {
-  const now = Date.now();
-  logger.log(
-    `marking channel as visited (${channel.lastViewedAt} -> ${now})`,
-    channel.id
-  );
-  await db.updateChannel({ id: channel.id, lastViewedAt: now });
+export async function markChannelVisited(channelId: string) {
+  await db.updateChannel({ id: channelId, lastViewedAt: Date.now() });
 }
 
 export type MarkChannelReadParams = Pick<db.Channel, 'id' | 'groupId' | 'type'>;

@@ -872,7 +872,10 @@ export const posts = sqliteTable(
     lastEditContent: text('last_edit_content', { mode: 'json' }),
     lastEditTitle: text('last_edit_title'),
     lastEditImage: text('last_edit_image'),
-    syncedAt: timestamp('synced_at').notNull(),
+    /**
+     * If `syncedAt` is null, it indicates that the post is unconfirmed by sync.
+     */
+    syncedAt: timestamp('synced_at'),
     // backendTime translates to an unfortunate alternative timestamp that is used
     // in some places by the backend agents as part of a composite key for identifying a post.
     // You should not be accessing this field except in very particular contexts.

@@ -27,21 +27,27 @@ function ActivityHeaderRaw({
           onTabPress={() => onTabPress('all')}
           name="all"
         >
-          <Tabs.Title active={activeTab === 'all'}>All</Tabs.Title>
+          <Tabs.Title cursor="pointer" active={activeTab === 'all'}>
+            All
+          </Tabs.Title>
         </Tabs.Tab>
         <Tabs.Tab
           activeTab={activeTab}
           onTabPress={() => onTabPress('mentions')}
           name="mentions"
         >
-          <Tabs.Title active={activeTab === 'mentions'}>Mentions</Tabs.Title>
+          <Tabs.Title cursor="pointer" active={activeTab === 'mentions'}>
+            Mentions
+          </Tabs.Title>
         </Tabs.Tab>
         <Tabs.Tab
           activeTab={activeTab}
           onTabPress={() => onTabPress('replies')}
           name="replies"
         >
-          <Tabs.Title active={activeTab === 'replies'}>Replies</Tabs.Title>
+          <Tabs.Title cursor="pointer" active={activeTab === 'replies'}>
+            Replies
+          </Tabs.Title>
         </Tabs.Tab>
       </Tabs>
     </View>
