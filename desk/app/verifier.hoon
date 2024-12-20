@@ -243,6 +243,7 @@
       [~ this(phone-api !<([@t @t (unit [@t @t])] (slot 3 vase)))]
     ::
         [%set-domain base=(unit @t)]
+      ?>  =(our src):bowl
       ?:  =(base.q.vase domain)  [~ this]
       :-  [(give-endpoint base.q.vase)]~
       this(domain base.q.vase)
