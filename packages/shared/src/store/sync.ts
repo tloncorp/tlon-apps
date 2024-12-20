@@ -267,10 +267,17 @@ export const syncChannelThreadUnreads = async (
 
   // filter out any unreads that we already have in the db so we can avoid
   // invalidating queries that don't need to be invalidated
-  const newUnreads = unreads.filter(
-    (unread) =>
-      !existingUnreads.some((existing) => existing.threadId === unread.threadId)
-  );
+  const newUnreads = unreads.filter((unread) => {
+    const existing = existingUnreads.find(
+      (u) => u.threadId === unread.threadId
+    );
+
+    if (!existing) {
+      return true;
+    }
+
+    return !_.isEqual(unread, existing);
+  });
 
   if (newUnreads.length === 0) {
     return;
