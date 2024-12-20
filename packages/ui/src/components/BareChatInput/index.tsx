@@ -353,25 +353,39 @@ export default function BareChatInput({
         metadata['image'] = attachment.uploadState.remoteUri;
       }
 
-      if (isEdit && editingPost) {
-        if (editingPost.parentId) {
-          await editPost?.(editingPost, story, editingPost.parentId, metadata);
-        }
-        await editPost?.(editingPost, story, undefined, metadata);
-        setEditingPost?.(undefined);
-      } else {
-        // not awaiting since we don't want to wait for the send to complete
-        // before clearing the draft and the editor content
-        send(story, channelId, metadata);
-      }
+      try {
+        setControlledText('');
+        bareChatInputLogger.log('clearing attachments');
+        clearAttachments();
+        bareChatInputLogger.log('resetting input height');
+        setInputHeight(initialHeight);
 
-      onSend?.();
-      setControlledText('');
-      setMentions([]);
-      clearAttachments();
-      clearDraft();
-      setHasSetInitialContent(false);
-      setInputHeight(initialHeight);
+        if (isEdit && editingPost) {
+          if (editingPost.parentId) {
+            await editPost?.(
+              editingPost,
+              story,
+              editingPost.parentId,
+              metadata
+            );
+          }
+          await editPost?.(editingPost, story, undefined, metadata);
+          setEditingPost?.(undefined);
+        } else {
+          await send(story, channelId, metadata);
+        }
+      } catch (e) {
+        bareChatInputLogger.error('Error sending message', e);
+        setSendError(true);
+      } finally {
+        onSend?.();
+        bareChatInputLogger.log('sent message', story);
+        setMentions([]);
+        bareChatInputLogger.log('clearing draft');
+        clearDraft();
+        bareChatInputLogger.log('setting initial content');
+        setHasSetInitialContent(false);
+      }
     },
     [
       onSend,
