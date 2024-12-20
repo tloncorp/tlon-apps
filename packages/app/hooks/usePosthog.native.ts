@@ -1,18 +1,21 @@
 import { usePostHog as useNativePosthog } from 'posthog-react-native';
 import { useMemo } from 'react';
 
+import { PosthogClient } from './usePosthog.base';
+
 export function usePosthog() {
   const posthog = useNativePosthog();
 
-  return useMemo(() => {
+  return useMemo((): PosthogClient => {
     return {
       optedOut: posthog?.optedOut ?? false,
-      optIn: posthog?.optIn,
-      optOut: posthog?.optOut,
-      identify: posthog?.identify,
-      capture: posthog?.capture,
-      flush: posthog?.flush,
-      reset: posthog?.reset,
+      optIn: () => posthog?.optIn(),
+      optOut: () => posthog?.optOut(),
+      identify: (userId, properties) => posthog?.identify(userId, properties),
+      capture: (eventName, properties) =>
+        posthog?.capture(eventName, properties),
+      flush: async () => posthog?.flush(),
+      reset: () => posthog?.reset(),
     };
   }, [posthog]);
 }

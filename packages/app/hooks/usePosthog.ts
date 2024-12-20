@@ -1,18 +1,22 @@
 import { usePostHog as useWebPosthog } from 'posthog-js/react';
 import { useMemo } from 'react';
 
+import { PosthogClient } from './usePosthog.base';
+
 export function usePosthog() {
   const posthog = useWebPosthog();
-  return useMemo(() => {
+  return useMemo((): PosthogClient => {
     return {
       optedOut: posthog?.has_opted_out_capturing() ?? false,
-      optIn: posthog?.opt_in_capturing,
-      identify: posthog?.identify,
-      capture: posthog?.capture,
-      flush: () => {
+      optIn: () => posthog?.opt_in_capturing(),
+      optOut: () => posthog?.opt_out_capturing(),
+      identify: (userId, properties) => posthog?.identify(userId, properties),
+      capture: (eventName, properties) =>
+        posthog?.capture(eventName, properties),
+      flush: async () => {
         // TODO: how to send await all pending events sent?
       },
-      reset: posthog?.reset,
+      reset: () => posthog?.reset(),
     };
   }, [posthog]);
 }
