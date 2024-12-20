@@ -354,6 +354,14 @@ export default function ChannelScreen(props: Props) {
     }
   }, []);
 
+  const handleGoBack = useCallback(() => {
+    if (groupId) {
+      props.navigation.navigate('GroupChannels', { groupId });
+    } else {
+      props.navigation.navigate('ChatList');
+    }
+  }, [props.navigation, groupId]);
+
   if (!channel) {
     return null;
   }
@@ -384,7 +392,7 @@ export default function ChannelScreen(props: Props) {
           group={group}
           posts={filteredPosts ?? null}
           selectedPostId={selectedPostId}
-          goBack={props.navigation.goBack}
+          goBack={handleGoBack}
           messageSender={sendPost}
           goToPost={navigateToPost}
           goToImageViewer={navigateToImage}
