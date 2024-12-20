@@ -503,6 +503,7 @@ function EditPinnedPostsWidget(props: {
           isLoading={false}
           removable
           onRemove={props.onRemovePost}
+          defaultVertical={false}
         />
       ) : (
         <Text paddingVertical="$xl" paddingLeft="$m" size="$label/l">

@@ -149,14 +149,20 @@ export function LocationPicker(props: {
               {getAddressDisplay(profileLocation.address)}
             </Text>
           )}
-          <Button hero onPress={onPressUseLocation}>
-            <Button.Text>
-              {profileLocation && profileLocation.type === 'device'
-                ? 'Refresh '
-                : 'Use current'}{' '}
-              location
-            </Button.Text>
-          </Button>
+          {location.isAvailable || location.canRequest ? (
+            <Button hero onPress={onPressUseLocation}>
+              <Button.Text>
+                {profileLocation && profileLocation.type === 'device'
+                  ? 'Refresh '
+                  : 'Use current'}{' '}
+                location
+              </Button.Text>
+            </Button>
+          ) : (
+            <Button hero onPress={location.openSettings}>
+              <Button.Text>Enable location permission</Button.Text>
+            </Button>
+          )}
         </>
       )}
 

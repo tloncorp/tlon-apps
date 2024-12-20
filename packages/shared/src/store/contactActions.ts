@@ -367,6 +367,11 @@ export async function pinPostToProfile({ post }: { post: db.Post }) {
     return;
   }
 
+  if (existingPinnedPosts.length >= 6) {
+    logger.error(`Cannot pin post, already at max of 6`);
+    return;
+  }
+
   const newPostRef: domain.ChannelReference = {
     type: 'reference',
     referenceType: 'channel',

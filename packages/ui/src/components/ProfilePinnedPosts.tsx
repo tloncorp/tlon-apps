@@ -20,9 +20,10 @@ export function PinnedPostsDisplay(props: {
   pinnedPosts: db.ContactPinnedPost[];
   isLoading: boolean;
   removable?: boolean;
+  defaultVertical?: boolean;
   onRemove?: (postId: string) => void;
 }) {
-  const [isVertical, setIsVertical] = useState(true);
+  const [isVertical, setIsVertical] = useState(props.defaultVertical ?? true);
   if (isVertical) {
     return (
       <YStack flex={1} gap="$l">
@@ -129,6 +130,7 @@ function PinnedPostContent(props: {
       // backgroundColor="$background"
       height="auto"
       {...customProps.containerProps}
+      justifyContent="space-between"
     >
       {props.removable && (
         <XStack width="100%" justifyContent="flex-end">

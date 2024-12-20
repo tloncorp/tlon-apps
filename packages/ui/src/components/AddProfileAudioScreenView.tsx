@@ -98,6 +98,9 @@ export function AddProfileAudioScreenView(props: {
             autoFocus
           />
         </View>
+        <Text color="$tertiaryText" marginLeft="$xl">
+          *Genre tag discovery coming soon
+        </Text>
         <View>
           <SelectedTracks
             tracks={selectedTracks}

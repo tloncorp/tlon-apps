@@ -337,6 +337,10 @@ export function ProfileLinkDisplay({ link }: { link: domain.ProfileLink }) {
     Linking.openURL(link.url);
   }, [link.url]);
 
+  const displayText = useMemo(() => {
+    return link.title || link.url.replace(/^https?:\/\/|\/+$/g, '');
+  }, [link]);
+
   if (link.socialPlatformId && link.socialUserId) {
     return (
       <Pressable onPress={handlePress}>
@@ -366,7 +370,7 @@ export function ProfileLinkDisplay({ link }: { link: domain.ProfileLink }) {
         borderRadius="$l"
       >
         <Icon type="Link" />
-        <Text>{link.title || link.url}</Text>
+        <Text>{displayText}</Text>
       </XStack>
     </Pressable>
   );
