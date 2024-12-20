@@ -3,17 +3,19 @@ import {
   UseQueryResult,
   useQuery,
 } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import * as api from '../api';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
+import * as domain from '../domain';
 import * as ub from '../urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import {
   syncChannelPreivews,
   syncGroupPreviews,
   syncPostReference,
+  syncUserProfilePinnedPosts,
 } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
@@ -497,3 +499,55 @@ export const usePostWithRelations = (
     queryFn: () => db.getPostWithRelations(options),
   });
 };
+
+export const useSyncUserProfile = (userId: string) => {
+  const { data: contact } = useContact({ id: userId });
+  const groupsKey = useMemo(
+    () => contact?.pinnedGroups.map((g) => g.groupId).join(','),
+    [contact]
+  );
+  const pinnedPostsKey = useMemo(
+    () =>
+      ((contact?.pinnedPostsMeta ?? []) as domain.ChannelReference[])
+        ?.map((p) => p.postId)
+        .join(','),
+    [contact]
+  );
+
+  useEffect(() => {
+    // TODO: do this here instead?
+    // syncGroupPreviews(groupsKey?.split(',') ?? []);
+  }, [groupsKey]);
+
+  useEffect(() => {
+    if (pinnedPostsKey.length) {
+      syncUserProfilePinnedPosts(userId);
+    }
+  }, [pinnedPostsKey, userId]);
+};
+
+export const useIsPinnedPost = (postId: string) => {
+  const currentUserId = useMemo(() => api.getCurrentUserId(), []);
+  const { data: contact } = useContact({ id: currentUserId });
+  const pinnedPostIds = useMemo(() => {
+    return (
+      ((contact?.pinnedPostsMeta ?? []) as domain.ChannelReference[]).map(
+        (p) => p.postId
+      ) ?? []
+    );
+  }, [contact]);
+
+  const isPinned = useMemo(
+    () => pinnedPostIds.includes(postId),
+    [pinnedPostIds, postId]
+  );
+  return isPinned;
+};
+
+export function useFakePinnedPosts() {
+  const depsKey = useKeyFromQueryDeps(db.getFakePinnedPosts);
+  return useQuery({
+    queryKey: ['fakePinnedPosts', depsKey],
+    queryFn: () => db.getFakePinnedPosts(),
+  });
+}

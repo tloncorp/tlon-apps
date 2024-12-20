@@ -105,6 +105,14 @@ CREATE TABLE `contact_group_pins` (
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE TABLE `contact_pinned_posts` (
+	`contact_id` text NOT NULL,
+	`post_id` text NOT NULL,
+	PRIMARY KEY(`contact_id`, `post_id`),
+	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
 CREATE TABLE `contacts` (
 	`id` text PRIMARY KEY NOT NULL,
 	`peerNickname` text,
@@ -120,6 +128,7 @@ CREATE TABLE `contacts` (
 	`tunes` text,
 	`location` text,
 	`links` text,
+	`pinnedPostMeta` text,
 	`blocked` integer,
 	`isContact` integer,
 	`isContactSuggestion` integer

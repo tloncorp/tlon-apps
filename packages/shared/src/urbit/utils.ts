@@ -2,9 +2,10 @@ import { formatUd, formatUv, isValidPatp, unixToDa } from '@urbit/aura';
 import bigInt from 'big-integer';
 import { useMemo } from 'react';
 
-import { ContentReference, PostContent } from '../api';
+import { PostContent } from '../api';
 import { ChannelType } from '../db';
 import { GroupJoinStatus, GroupPrivacy } from '../db/schema';
+import { ContentReference } from '../domain';
 import * as ub from './channel';
 import * as ubc from './content';
 import * as ubd from './dms';

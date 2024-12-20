@@ -84,6 +84,11 @@ export interface ContactFieldLocation {
   value: string;
 }
 
+export interface ContactFieldPinnedPosts {
+  type: 'set';
+  value: { type: 'text'; value: string }[];
+}
+
 export interface ContactBookProfile {
   nickname?: ContactFieldText;
   bio?: ContactFieldText;
@@ -95,6 +100,7 @@ export interface ContactBookProfile {
   tunes?: ContactFieldTunes;
   location?: ContactFieldLocation;
   links?: ContactFieldLinks;
+  ['pinned-posts']: ContactFieldPinnedPosts;
 }
 
 export interface ContactBookProfileEdit {
@@ -108,6 +114,7 @@ export interface ContactBookProfileEdit {
   tunes?: ContactFieldTunes;
   location?: ContactFieldLocation | null;
   links?: ContactFieldLinks | null;
+  ['pinned-posts']?: ContactFieldPinnedPosts | null;
 }
 
 // first element is the contact's profile, second is any user overrides

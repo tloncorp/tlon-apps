@@ -30,6 +30,7 @@ export * from './components/ContentReference';
 export * from './components/PostContent';
 export * from './components/DeleteSheet';
 export * from './components/EditProfileScreenView';
+export * from './components/ProfileUserInfo';
 export * from './components/EditableProfileImages';
 export * from './components/Embed';
 export * from './components/Emoji';

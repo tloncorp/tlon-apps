@@ -1,6 +1,7 @@
 import { utils } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import { Post } from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import * as ub from '@tloncorp/shared/urbit';
 import { useContext, useMemo } from 'react';
 import { createStyledContext } from 'tamagui';
@@ -96,7 +97,7 @@ export type EmbedBlockData = {
   type: 'embed';
 };
 
-export type ReferenceBlockData = api.ContentReference;
+export type ReferenceBlockData = domain.ContentReference;
 
 export type CodeBlockData = {
   type: 'code';
@@ -194,8 +195,11 @@ export function convertContent(input: unknown): PostContent {
   return blocks;
 }
 
-export function usePostContent(post: Post): BlockData[] {
+export function usePostContent(post?: Post | null): BlockData[] {
   return useMemo(() => {
+    if (!post) {
+      return [];
+    }
     try {
       return convertContent(post.content);
     } catch (e) {

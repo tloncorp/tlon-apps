@@ -69,6 +69,7 @@ function ConnectedAction({
   const channel = useChannelContext();
   const { addAttachment } = useAttachmentContext();
   const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
+  const isPinned = store.useIsPinnedPost(post.id);
 
   const { label } = useDisplaySpecForChannelActionId(actionId, {
     post,
@@ -98,6 +99,8 @@ function ConnectedAction({
         return post.authorId === currentUserId || currentUserIsAdmin;
       case 'viewReactions':
         return (post.reactions?.length ?? 0) > 0;
+      case 'pin':
+        return channel.group?.privacy === 'public' && !post.deliveryStatus;
       default:
         return true;
     }
@@ -110,6 +113,7 @@ function ConnectedAction({
     post.reactions?.length,
     currentUserId,
     channel.type,
+    channel.group?.privacy,
     currentUserIsAdmin,
   ]);
 
@@ -128,6 +132,7 @@ function ConnectedAction({
           userId: currentUserId,
           channel,
           isMuted: logic.isMuted(post.volumeSettings?.level, 'thread'),
+          isPinned,
           dismiss,
           onReply,
           onEdit,
@@ -164,6 +169,7 @@ export async function handleAction({
   userId,
   channel,
   isMuted,
+  isPinned,
   dismiss,
   onReply,
   onEdit,
@@ -177,6 +183,7 @@ export async function handleAction({
   userId: string;
   channel: db.Channel;
   isMuted?: boolean;
+  isPinned?: boolean;
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
@@ -229,6 +236,11 @@ export async function handleAction({
     case 'visibility':
       post.hidden ? store.showPost({ post }) : store.hidePost({ post });
       break;
+    case 'pin':
+      isPinned
+        ? store.unpinPostFromProfile({ post })
+        : store.pinPostToProfile({ post });
+      break;
   }
 
   triggerHaptic('success');
@@ -253,6 +265,7 @@ export function useDisplaySpecForChannelActionId(
   label: string;
 } {
   const isMuted = logic.isMuted(post.volumeSettings?.level, 'thread');
+  const isPinned = store.useIsPinnedPost(post.id);
   const postTerm = useMemo(() => {
     return ['dm', 'groupDm', 'chat'].includes(channel?.type)
       ? 'message'
@@ -293,6 +306,11 @@ export function useDisplaySpecForChannelActionId(
           label: postTerm === 'message' ? 'Report message' : 'Report post',
         };
 
+      case 'pin':
+        return {
+          label: isPinned ? 'Unpin post' : 'Pin post',
+        };
+
       case 'startThread':
         return {
           label: ['dm', 'groupDm', 'chat'].includes(channel?.type)
@@ -309,5 +327,5 @@ export function useDisplaySpecForChannelActionId(
         return { label: post.hidden ? showMsg : hideMsg };
       }
     }
-  }, [channel?.type, isMuted, post.hidden, id, postTerm]);
+  }, [id, postTerm, isMuted, isPinned, channel?.type, post.hidden]);
 }

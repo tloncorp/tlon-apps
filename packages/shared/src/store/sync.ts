@@ -7,6 +7,7 @@ import { GetChangedPostsOptions } from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger, runIfDev } from '../debug';
+import * as domain from '../domain';
 import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
@@ -279,6 +280,21 @@ export async function syncPostReference(options: {
     channelId: options.channelId,
     posts: [response],
   });
+}
+
+export async function syncUserProfilePinnedPosts(userId: string) {
+  console.log('syncing user profile pinned posts', userId);
+  const profile = await db.getContact({ id: userId });
+  if (profile?.pinnedPostsMeta) {
+    const posts = await api.fetchUserProfilePinnedPosts(
+      userId,
+      profile.pinnedPostsMeta as domain.ChannelReference[]
+    );
+    const inserts = posts.map((post) =>
+      db.insertChannelPosts({ channelId: post.channelId, posts: [post] })
+    );
+    await Promise.all(inserts);
+  }
 }
 
 export async function syncUpdatedPosts(

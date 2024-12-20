@@ -23,6 +23,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
 export function UserProfileScreen({ route: { params }, navigation }: Props) {
   const userId = params.userId;
+  store.useSyncUserProfile(userId);
   const { performGroupAction } = useGroupActions();
   const currentUserId = useCurrentUserId();
   const { data: contacts } = store.useContacts();

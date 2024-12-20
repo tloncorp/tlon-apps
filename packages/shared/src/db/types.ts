@@ -38,6 +38,7 @@ export type Contact = BaseModel<'contacts'> & {
   avatarImage?: string | null;
 };
 export type ContactPinnedGroups = Contact['pinnedGroups'];
+export type ContactPinnedPost = BaseModel<'contactPinnedPosts'>;
 export type ChannelUnread = BaseModel<'channelUnreads'>;
 export type GroupUnread = BaseModel<'groupUnreads'>;
 export type ActivityEvent = BaseModel<'activityEvents'>;

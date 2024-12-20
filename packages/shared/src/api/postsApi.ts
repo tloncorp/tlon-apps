@@ -3,6 +3,7 @@ import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import * as domain from '../domain';
 import { IMAGE_URL_REGEX } from '../logic';
 import * as ub from '../urbit';
 import {
@@ -39,7 +40,7 @@ import { poke, scry, subscribeOnce } from './urbit';
 const logger = createDevLogger('postsApi', false);
 
 export type Cursor = string | Date;
-export type PostContent = (ub.Verse | ContentReference)[] | null;
+export type PostContent = (ub.Verse | domain.ContentReference)[] | null;
 export type PostContentAndFlags = [PostContent, db.PostFlags | null];
 
 export function channelAction(
@@ -759,29 +760,6 @@ export interface DeletedPost {
   channelId: string;
 }
 
-export interface ChannelReference {
-  type: 'reference';
-  referenceType: 'channel';
-  channelId: string;
-  postId: string;
-  replyId?: string;
-}
-
-export interface GroupReference {
-  type: 'reference';
-  referenceType: 'group';
-  groupId: string;
-}
-
-export interface AppReference {
-  type: 'reference';
-  referenceType: 'app';
-  userId: string;
-  appId: string;
-}
-
-export type ContentReference = ChannelReference | GroupReference | AppReference;
-
 export function toPagedPostsData(
   channelId: string,
   data: ub.PagedPosts | ub.PagedWrits
@@ -1019,7 +997,9 @@ export function toUrbitStory(content: PostContent): Story {
   });
 }
 
-export function toContentReference(cite: ub.Cite): ContentReference | null {
+export function toContentReference(
+  cite: ub.Cite
+): domain.ContentReference | null {
   if ('chan' in cite) {
     const channelId = cite.chan.nest;
     // I've seen these forms of reference path:
@@ -1058,7 +1038,9 @@ export function toContentReference(cite: ub.Cite): ContentReference | null {
   return null;
 }
 
-export function contentReferenceToCite(reference: ContentReference): ub.Cite {
+export function contentReferenceToCite(
+  reference: domain.ContentReference
+): ub.Cite {
   if (reference.referenceType === 'channel') {
     return {
       chan: {

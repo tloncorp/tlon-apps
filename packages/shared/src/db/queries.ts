@@ -56,6 +56,7 @@ import {
   chatMemberGroupRoles as $chatMemberGroupRoles,
   chatMembers as $chatMembers,
   contactGroups as $contactGroups,
+  contactPinnedPosts as $contactPinnedPosts,
   contacts as $contacts,
   groupFlaggedPosts as $groupFlaggedPosts,
   groupJoinRequests as $groupJoinRequests,
@@ -1495,6 +1496,62 @@ export const getChannelWithRelations = createReadQuery(
   ['channels', 'volumeSettings', 'pins', 'groups', 'contacts', 'channelUnreads']
 );
 
+export const getFakePinnedPosts = createReadQuery(
+  'getFakePinnedPosts',
+  async (ctx: QueryCtx) => {
+    const chat = await ctx.db.query.posts.findMany({
+      where: eq($posts.type, 'chat'),
+      orderBy: [desc($posts.receivedAt)],
+      limit: 5,
+    });
+
+    // const gallery = await ctx.db.query.posts.findMany({
+    //   where: eq($posts.type, 'block'),
+    //   orderBy: [desc($posts.receivedAt)],
+    //   limit: 10,
+    // });
+
+    const gallery = await ctx.db.query.posts.findMany({
+      where: and(
+        eq($posts.type, 'block'),
+        eq($posts.channelId, 'heap/~tommur-dostyn/staging')
+      ),
+      orderBy: [desc($posts.receivedAt)],
+      limit: 10,
+    });
+
+    const note = await ctx.db.query.posts.findMany({
+      where: eq($posts.type, 'note'),
+      orderBy: [desc($posts.receivedAt)],
+      limit: 5,
+    });
+
+    const maxLength = Math.max(chat.length, gallery.length, note.length);
+    const result = [];
+
+    // Interleave elements
+    for (let i = 0; i < maxLength; i++) {
+      // Add chat element if available
+      if (i < chat.length) {
+        result.push(chat[i]);
+      }
+
+      // Add block element if available
+      if (i < gallery.length) {
+        result.push(gallery[i]);
+      }
+
+      // Add note element if available
+      if (i < note.length) {
+        result.push(note[i]);
+      }
+    }
+
+    return result;
+  },
+  ['posts']
+);
+
 export const insertChannels = createWriteQuery(
   'insertChannels',
   async (channels: Channel[], ctx: QueryCtx) => {
@@ -2720,6 +2777,11 @@ export const getContacts = createReadQuery(
             group: true,
           },
         },
+        pinnedPosts: {
+          with: {
+            post: true,
+          },
+        },
       },
     });
   },
@@ -2768,6 +2830,18 @@ export const getContact = createReadQuery(
 export const updateContact = createWriteQuery(
   'updateContact',
   async (contact: Partial<Contact> & { id: string }, ctx: QueryCtx) => {
+    if (contact.pinnedPosts) {
+      await ctx.db
+        .delete($contactPinnedPosts)
+        .where(eq($contactPinnedPosts.contactId, contact.id));
+      if (contact.pinnedPosts.length > 0) {
+        await ctx.db
+          .insert($contactPinnedPosts)
+          .values(contact.pinnedPosts)
+          .onConflictDoNothing();
+      }
+    }
+
     return ctx.db
       .update($contacts)
       .set(contact)
@@ -2920,6 +2994,10 @@ export const insertContacts = createWriteQuery(
       (contact) => contact.pinnedGroups || []
     );
 
+    const pinnedPosts = contactsData.flatMap(
+      (contact) => contact.pinnedPosts || []
+    );
+
     const targetGroups = contactGroups.map((g): Group => {
       const { host: hostUserId } = parseGroupId(g.groupId);
       return {
@@ -2951,6 +3029,17 @@ export const insertContacts = createWriteQuery(
         await txCtx.db
           .insert($contactGroups)
           .values(contactGroups)
+          .onConflictDoNothing();
+      }
+
+      if (pinnedPosts.length) {
+        const pinners = pinnedPosts.map((p) => p.contactId);
+        await txCtx.db
+          .delete($contactPinnedPosts)
+          .where(inArray($contactPinnedPosts.contactId, pinners));
+        await txCtx.db
+          .insert($contactPinnedPosts)
+          .values(pinnedPosts)
           .onConflictDoNothing();
       }
     });

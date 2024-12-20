@@ -19,6 +19,7 @@ import {
 } from './Form';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { LocationPicker } from './LocationWidgets';
+import { PinnedPostsDisplay } from './ProfilePinnedPosts';
 import { ScreenHeader } from './ScreenHeader';
 import { Text } from './TextV2';
 import {
@@ -51,6 +52,22 @@ export function EditProfileScreenView(props: Props) {
       ? (userContact.location as domain.ProfileLocation)
       : null;
   }, [userContact]);
+
+  const initialPinnedPosts = useMemo(() => {
+    return userContact?.pinnedPosts ?? [];
+  }, [userContact?.pinnedPosts]);
+  const initialPinnedPostsKey = useMemo(() => {
+    return (userContact?.pinnedPosts?.map((pp) => pp.postId) ?? []).join(',');
+  }, [userContact?.pinnedPosts]);
+
+  const [pinnedPosts, setPinnedPosts] = useState(initialPinnedPosts);
+  const currPinnedPostsKey = useMemo(() => {
+    return pinnedPosts.map((p) => p.postId).join(',');
+  }, [pinnedPosts]);
+
+  const handleRemovePinnedPost = useCallback((postId: string) => {
+    setPinnedPosts((curr) => curr.filter((p) => p.postId !== postId));
+  }, []);
 
   const [location, setLocation] = useState<domain.ProfileLocation | null>(
     initialLocation
@@ -94,7 +111,7 @@ export function EditProfileScreenView(props: Props) {
   const {
     control,
     handleSubmit,
-    formState: { isDirty, isValid },
+    formState: { isDirty: formIsDirty, isValid },
   } = useForm({
     mode: 'onChange',
     defaultValues: {
@@ -105,12 +122,26 @@ export function EditProfileScreenView(props: Props) {
     },
   });
 
+  const locationIsDirty = useMemo(
+    () => !domain.locationsEquivalent(location, initialLocation),
+    [location, initialLocation]
+  );
+
+  const pinnedPostsIsDirty = useMemo(() => {
+    console.log('pinnedPostsIsDirty', {
+      initial: initialPinnedPostsKey,
+      curr: currPinnedPostsKey,
+    });
+    return initialPinnedPostsKey !== currPinnedPostsKey;
+  }, [initialPinnedPostsKey, currPinnedPostsKey]);
+
+  const isDirty = useMemo(
+    () => formIsDirty || locationIsDirty || pinnedPostsIsDirty,
+    [formIsDirty, locationIsDirty, pinnedPostsIsDirty]
+  );
+
   const handlePressDone = useCallback(() => {
-    const locationChanged = !domain.locationsEquivalent(
-      location,
-      initialLocation
-    );
-    if (isDirty || locationChanged) {
+    if (isDirty) {
       handleSubmit((formData) => {
         const nicknameStartVal = isCurrUser
           ? userContact?.nickname
@@ -143,6 +174,15 @@ export function EditProfileScreenView(props: Props) {
 
         if (isCurrUser) {
           store.updateCurrentUserProfile(update);
+          if (pinnedPostsIsDirty) {
+            console.log('updating pinned posts', pinnedPosts);
+            store.setProfilePinnedPosts({
+              // this will auto remove any posts that haven't loaded (you should always have your own pinned ones)
+              posts: pinnedPosts
+                .map((p) => p.post)
+                .filter(Boolean) as db.Post[],
+            });
+          }
         } else {
           store.updateContactMetadata(props.userId, {
             nickname: update.nickname,
@@ -158,6 +198,8 @@ export function EditProfileScreenView(props: Props) {
     isCurrUser,
     isDirty,
     location,
+    pinnedPosts,
+    pinnedPostsIsDirty,
     props,
     store,
     userContact?.avatarImage,
@@ -322,6 +364,12 @@ export function EditProfileScreenView(props: Props) {
                     onAddLink={props.onGoToEditLinks}
                   />
                 </Field>
+                <Field label="Pinned Posts">
+                  <EditPinnedPostsWidget
+                    posts={pinnedPosts}
+                    onRemovePost={handleRemovePinnedPost}
+                  />
+                </Field>
               </>
             ) : (
               <>
@@ -426,6 +474,36 @@ function EditPinnedLinksWidget(props: {
           </ListItem.EndContent>
         </ListItem>
       </Pressable>
+    </YStack>
+  );
+}
+
+function EditPinnedPostsWidget(props: {
+  posts: db.ContactPinnedPost[];
+  onRemovePost: (postId: string) => void;
+}) {
+  return (
+    <YStack
+      marginTop="$m"
+      gap="$l"
+      borderWidth={1}
+      borderColor="$border"
+      padding="$m"
+      borderRadius="$l"
+      justifyContent="center"
+    >
+      {props.posts.length > 0 ? (
+        <PinnedPostsDisplay
+          pinnedPosts={props.posts}
+          isLoading={false}
+          removable
+          onRemove={props.onRemovePost}
+        />
+      ) : (
+        <Text paddingVertical="$xl" paddingLeft="$m" size="$label/l">
+          You have no pinned posts
+        </Text>
+      )}
     </YStack>
   );
 }

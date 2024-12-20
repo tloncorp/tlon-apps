@@ -4,6 +4,11 @@ import * as domain from '../domain';
 import { AnalyticsEvent, normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
 import { NormalizedTrack } from './musicApi';
+import {
+  contentReferenceToCite,
+  getPostReference,
+  toContentReference,
+} from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('contactsApi', true);
@@ -160,13 +165,63 @@ export const updateSelfContactMetadata = async (metadata: ProfileUpdate) => {
       : null;
   }
 
-  console.log(`filing self poke`, { self: contactUpdate });
+  return poke({
+    app: 'contacts',
+    mark: 'contact-action-1',
+    json: { self: contactUpdate },
+  });
+};
+
+export const setProfilePinnnedPosts = async ({
+  postReferences,
+}: {
+  postReferences: domain.ChannelReference[];
+}) => {
+  const refPaths = postReferences.map((pr) =>
+    ub.citeToPath(contentReferenceToCite(pr))
+  );
+  const contactUpdate: ub.ContactBookProfileEdit = {};
+
+  if (refPaths.length > 0) {
+    contactUpdate['pinned-posts'] = {
+      type: 'set',
+      value: refPaths.map((path) => ({ type: 'text', value: path })),
+    };
+  } else {
+    contactUpdate['pinned-posts'] = null;
+  }
+
+  console.log(`poking pinned posts`, contactUpdate);
 
   return poke({
     app: 'contacts',
     mark: 'contact-action-1',
     json: { self: contactUpdate },
   });
+};
+
+export const fetchUserProfilePinnedPosts = async (
+  userId: string,
+  pinnedPostMeta: domain.ChannelReference[]
+): Promise<db.Post[]> => {
+  // logger.log(`perf: fetching ${userId}'s pinned posts`, pinnedPostMeta);
+  const startTime = Date.now();
+  const postRequests = pinnedPostMeta.map((meta) => getPostReference(meta));
+  const posts = (await Promise.all(postRequests)).filter(
+    (post) => post.authorId !== '~nul' && post.sentAt !== 0
+  );
+  const finishTime = Date.now();
+
+  if (posts.length < pinnedPostMeta.length) {
+    console.log(
+      `perf: warning, dropped ${pinnedPostMeta.length - posts.length} pinned posts`
+    );
+  }
+
+  console.log(
+    `perf: fetched ${posts.length} pinned posts in ${finishTime - startTime}ms`
+  );
+  return posts;
 };
 
 export const addContact = async (contactId: string) => {
@@ -404,6 +459,18 @@ export const v1PeerToClientProfile = (
   const tunes = parsePinnedTunes(contact);
   const location = parseLocation(contact);
   const links = parseLinks(contact);
+  const pinnedPostsMeta = parsePinnedPosts(contact);
+
+  if (id === '~dozped-mogtec') {
+    console.log(
+      `dozped contact serialize`,
+      pinnedPostsMeta,
+      pinnedPostsMeta?.map((meta) => ({
+        contactId: id,
+        postId: meta.replyId ?? meta.postId,
+      })) ?? []
+    );
+  }
 
   return {
     id,
@@ -421,6 +488,12 @@ export const v1PeerToClientProfile = (
     tunes,
     location,
     links,
+    pinnedPostsMeta,
+    pinnedPosts:
+      pinnedPostsMeta?.map((meta) => ({
+        contactId: id,
+        postId: meta.replyId || meta.postId,
+      })) ?? [],
     isContact: config?.isContact,
     isContactSuggestion:
       config?.isContactSuggestion && !config?.isContact && id !== currentUserId,
@@ -460,6 +533,7 @@ export const contactToClientProfile = (
   const tunes = parsePinnedTunes(base);
   const location = parseLocation(base);
   const links = parseLinks(base);
+  const pinnedPostsMeta = parsePinnedPosts(base);
 
   return {
     id: userId,
@@ -479,6 +553,12 @@ export const contactToClientProfile = (
     tunes,
     location,
     links,
+    pinnedPostsMeta,
+    pinnedPosts:
+      pinnedPostsMeta?.map((meta) => ({
+        contactId: userId,
+        postId: meta.replyId ?? meta.postId,
+      })) ?? [],
     isContact: true,
     isContactSuggestion: false,
   };
@@ -522,6 +602,27 @@ export const parseLinks = (
       JSON.parse(link.value)
     ) as domain.ProfileLink[];
   } catch (e) {
+    return null;
+  }
+};
+
+export const parsePinnedPosts = (
+  contact: ub.ContactBookProfile
+): domain.ChannelReference[] | null => {
+  if (!contact || !contact['pinned-posts']) {
+    return [];
+  }
+
+  try {
+    const pinnedPostCites = contact['pinned-posts'].value.map((pp) =>
+      ub.pathToCite(pp.value)
+    ) as ub.ChanCite[];
+
+    return pinnedPostCites
+      .map((cite) => toContentReference(cite))
+      .filter(Boolean) as domain.ChannelReference[];
+  } catch (e) {
+    logger.error('Failed to parse pinned posts', e, contact['pinned-posts']);
     return null;
   }
 };

@@ -39,6 +39,8 @@ import { Icon } from './Icon';
 import { useBoundHandler } from './ListItem/listItemUtils';
 import { LocationDisplayWidget } from './LocationWidgets';
 import Pressable from './Pressable';
+import { PinnedPostsDisplay } from './ProfilePinnedPosts';
+import { ProfileUserInfo } from './ProfileUserInfo';
 import { ScreenHeader } from './ScreenHeader';
 import { Text } from './TextV2';
 import { WidgetPane } from './WidgetPane';
@@ -56,6 +58,7 @@ export function UserProfileScreenView(props: Props) {
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
   const userContact = useContact(props.userId);
+  store.useSyncUserProfile(props.userId);
   const pinnedGroups = useMemo(() => {
     return (
       userContact?.pinnedGroups?.flatMap((g) => (g.group ? [g.group] : [])) ??
@@ -74,6 +77,10 @@ export function UserProfileScreenView(props: Props) {
   const links = useMemo(() => {
     return (userContact?.links ?? []) as domain.ProfileLink[];
   }, [userContact?.links]);
+
+  const pinnedPosts = useMemo(() => {
+    return userContact?.pinnedPosts ?? [];
+  }, [userContact?.pinnedPosts]);
 
   const nodeStatus = !props.connectionStatus?.complete
     ? 'pending'
@@ -119,7 +126,7 @@ export function UserProfileScreenView(props: Props) {
         flex={1}
         contentContainerStyle={{
           padding: '$l',
-          gap: '$l',
+          gap: '$m',
           paddingBottom: insets.bottom,
           flexWrap: 'wrap',
           flexDirection: 'row',
@@ -129,6 +136,9 @@ export function UserProfileScreenView(props: Props) {
           userId={props.userId}
           hasNickname={!!userContact?.nickname?.length}
         />
+
+        {props.userId === currentUserId && <ProfileUserInfo />}
+
         {userContact?.status && <View width="100%"></View>}
 
         {currentUserId !== props.userId ? (
@@ -144,7 +154,7 @@ export function UserProfileScreenView(props: Props) {
 
         {location && <LocationDisplayWidget location={location} />}
         <StatusBlock status={nodeStatus} label="Node" />
-        <StatusBlock status={sponsorStatus} label="Sponsor" />
+        {!location && <StatusBlock status={sponsorStatus} label="Sponsor" />}
 
         {links.length > 0 && <PinnedLinksDisplay links={links} />}
 
@@ -152,6 +162,10 @@ export function UserProfileScreenView(props: Props) {
           groups={pinnedGroups}
           onPressGroup={onPressGroup}
         />
+
+        {pinnedPosts && pinnedPosts?.length > 0 && (
+          <PinnedPostsDisplay isLoading={false} pinnedPosts={pinnedPosts} />
+        )}
       </ScrollView>
     </View>
   );
@@ -169,7 +183,7 @@ export function PinnedTunesDisplay(props: {
         props.tunes.length > 1 ? '100%' : (windowDimensions.width - 36) / 2
       }
     >
-      <WidgetPane.Title>Jukebox</WidgetPane.Title>
+      <WidgetPane.Title>Sounds</WidgetPane.Title>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View flexDirection="row" gap="$l">
           {props.tunes.map((tune) => (
@@ -238,7 +252,7 @@ function StatusIndicator({
       justifyContent="center"
       backgroundColor={
         status === 'online'
-          ? '$positiveActionText'
+          ? '$primaryText'
           : status === 'offline'
             ? '$negativeActionText'
             : '$secondaryText'

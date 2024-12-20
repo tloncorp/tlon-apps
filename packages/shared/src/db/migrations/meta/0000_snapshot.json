@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "81434c0c-6c12-4a2b-b90d-8035f1b52f64",
+  "id": "01f2c304-2853-4d02-bba0-5cf3817e926f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -704,6 +704,65 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "contact_pinned_posts": {
+      "name": "contact_pinned_posts",
+      "columns": {
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "post_id": {
+          "name": "post_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "contact_pinned_posts_contact_id_contacts_id_fk": {
+          "name": "contact_pinned_posts_contact_id_contacts_id_fk",
+          "tableFrom": "contact_pinned_posts",
+          "tableTo": "contacts",
+          "columnsFrom": [
+            "contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "contact_pinned_posts_post_id_posts_id_fk": {
+          "name": "contact_pinned_posts_post_id_posts_id_fk",
+          "tableFrom": "contact_pinned_posts",
+          "tableTo": "posts",
+          "columnsFrom": [
+            "post_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "contact_pinned_posts_contact_id_post_id_pk": {
+          "columns": [
+            "contact_id",
+            "post_id"
+          ],
+          "name": "contact_pinned_posts_contact_id_post_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "contacts": {
       "name": "contacts",
       "columns": {
@@ -808,6 +867,13 @@
         },
         "links": {
           "name": "links",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pinnedPostMeta": {
+          "name": "pinnedPostMeta",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

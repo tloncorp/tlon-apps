@@ -355,3 +355,132 @@ export async function updateProfilePinnedTunes(
     await db.setPinnedTunes({ tunes: existingTunes });
   }
 }
+
+export async function pinPostToProfile({ post }: { post: db.Post }) {
+  logger.log(`pinning post`, post);
+  const currentUserId = api.getCurrentUserId();
+  const existingContact = await db.getContact({ id: currentUserId });
+
+  const existingPinnedPosts = (existingContact?.pinnedPostsMeta ??
+    []) as domain.ChannelReference[];
+  if (existingPinnedPosts.some((p) => p.postId === post.id)) {
+    return;
+  }
+
+  const newPostRef: domain.ChannelReference = {
+    type: 'reference',
+    referenceType: 'channel',
+    channelId: post.channelId,
+    postId: post.parentId ? post.parentId : post.id,
+    replyId: post.parentId ? post.id : undefined,
+  };
+  const newPinnedPosts = [...existingPinnedPosts, newPostRef];
+
+  // Optimistic update
+  await db.updateContact({
+    id: currentUserId,
+    pinnedPostsMeta: newPinnedPosts,
+    pinnedPosts: newPinnedPosts.map((p) => ({
+      postId: p.replyId ?? p.postId,
+      contactId: currentUserId,
+    })),
+  });
+
+  try {
+    await api.setProfilePinnnedPosts({ postReferences: newPinnedPosts });
+  } catch (e) {
+    logger.error('Error pinning post', e);
+    // Rollback the update
+    await db.updateContact({
+      id: currentUserId,
+      pinnedPostsMeta: existingContact?.pinnedPostsMeta,
+    });
+  }
+}
+
+export async function unpinPostFromProfile({ post }: { post: db.Post }) {
+  logger.log(`unpinning post`, post);
+  const currentUserId = api.getCurrentUserId();
+  const existingContact = await db.getContact({ id: currentUserId });
+
+  const existingPinnedPosts = (existingContact?.pinnedPostsMeta ??
+    []) as domain.ChannelReference[];
+  if (
+    !existingPinnedPosts.some((existing) =>
+      post.parentId ? existing.replyId === post.id : existing.postId === post.id
+    )
+  ) {
+    return;
+  }
+
+  const newPinnedPosts = existingPinnedPosts.filter((p) =>
+    post.parentId ? p.replyId !== post.id : p.postId !== post.id
+  );
+
+  // Optimistic update
+  await db.updateContact({
+    id: currentUserId,
+    pinnedPostsMeta: newPinnedPosts,
+    pinnedPosts: newPinnedPosts.map((p) => ({
+      postId: p.replyId ?? p.postId,
+      contactId: currentUserId,
+    })),
+  });
+
+  try {
+    await api.setProfilePinnnedPosts({ postReferences: newPinnedPosts });
+  } catch (e) {
+    logger.error('Error unpinning post', e);
+    // Rollback the update
+    await db.updateContact({
+      id: currentUserId,
+      pinnedPostsMeta: existingContact?.pinnedPostsMeta,
+    });
+  }
+}
+
+export async function setProfilePinnedPosts({ posts }: { posts: db.Post[] }) {
+  const currentUserId = api.getCurrentUserId();
+  const existingContact = await db.getContact({ id: currentUserId });
+
+  const existingPinnedPosts = (existingContact?.pinnedPostsMeta ??
+    []) as domain.ChannelReference[];
+
+  const postReferences = posts.map((post) => {
+    const newPostRef: domain.ChannelReference = {
+      type: 'reference',
+      referenceType: 'channel',
+      channelId: post.channelId,
+      postId: post.parentId ? post.parentId : post.id,
+      replyId: post.parentId ? post.id : undefined,
+    };
+    return newPostRef;
+  });
+
+  console.log('setProfilePinnedPosts', postReferences);
+
+  // Optimistic update
+  await db.updateContact({
+    id: currentUserId,
+    pinnedPostsMeta: postReferences,
+    pinnedPosts: postReferences.map((p) => ({
+      postId: p.replyId ?? p.postId,
+      contactId: currentUserId,
+    })),
+  });
+
+  try {
+    await api.setProfilePinnnedPosts({ postReferences });
+  } catch (e) {
+    logger.error('Error setting profile pinned posts', e);
+    // Rollback the update
+    await db.updateContact({
+      id: currentUserId,
+      pinnedPostsMeta: existingPinnedPosts,
+      pinnedPosts: existingPinnedPosts.map((p) => ({
+        postId: p.replyId ?? p.postId,
+        contactId: currentUserId,
+      })),
+    });
+  }
+}
