@@ -355,6 +355,10 @@ export default function BareChatInput({
 
       try {
         setControlledText('');
+        bareChatInputLogger.log('clearing attachments');
+        clearAttachments();
+        bareChatInputLogger.log('resetting input height');
+        setInputHeight(initialHeight);
 
         if (isEdit && editingPost) {
           if (editingPost.parentId) {
@@ -382,11 +386,6 @@ export default function BareChatInput({
         bareChatInputLogger.log('setting initial content');
         setHasSetInitialContent(false);
       }
-
-      bareChatInputLogger.log('clearing attachments');
-      clearAttachments();
-      bareChatInputLogger.log('resetting input height');
-      setInputHeight(initialHeight);
     },
     [
       onSend,
