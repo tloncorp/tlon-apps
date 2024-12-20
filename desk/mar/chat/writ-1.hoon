@@ -1,11 +1,11 @@
-/-  c=chat-3
+/-  c=chat
 /+  j=chat-json
 |_  =writ:c
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  writ
-  ++  json  (writ:v7:enjs:j writ)
+  ++  json  (writ:enjs:j writ)
   --
 ++  grab
   |%

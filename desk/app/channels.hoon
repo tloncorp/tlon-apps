@@ -183,7 +183,10 @@
   ++  state-7-to-8
     |=  s=state-7
     ^-  state-8
-    s(- %8, v-channels (v-channels-7-to-8:utils v-channels.s))
+    %=  s  -  %8
+      v-channels  (v-channels-7-to-8:utils v-channels.s)
+      voc  (~(run by voc.s) |=(s=(unit said:v7:old:c) ?~(s ~ `(said-7-to-8:utils u.s))))
+    ==
   ::
   ++  state-6-to-7
     |=  s=state-6
@@ -286,7 +289,7 @@
       ==
     +$  window    window:v-channel:c
     +$  future    [=window diffs=(jug id-post:c u-post-1)]
-    +$  local     [=net:c log=log-1 =remark:c =window =future]
+    +$  local     [=net:c log=log-1 =remark:v7:old:c =window =future]
     --
   ::
   ++  v-channel-2
@@ -294,7 +297,7 @@
     +$  local
       $:  =net:c
           =log:v7:old:c
-          =remark:c
+          =remark:v7:old:c
           =window:v-channel:c
           =future:v-channel:v7:old:c
       ==
@@ -314,11 +317,11 @@
                       ==
   +$  v-posts-1       ((mop id-post:c (unit v-post-1)) lte)
   ++  on-v-posts-1    ((on id-post:c (unit v-post-1)) lte)
-  +$  v-post-1        [v-seal-1 (rev:c essay:c)]
+  +$  v-post-1        [v-seal-1 (rev:c essay:v7:old:c)]
   +$  v-seal-1        [id=id-post:c replies=v-replies-1 reacts=v-reacts:v7:old:c]
   +$  v-replies-1     ((mop id-reply:c (unit v-reply-1)) lte)
   ++  on-v-replies-1  ((on id-reply:c (unit v-reply-1)) lte)
-  +$  v-reply-1       [v-reply-seal:v7:old:c memo:c]
+  +$  v-reply-1       [v-reply-seal:v7:old:c memo:v7:old:c]
   ++  state-1-to-2
     |=  s=state-1
     ^-  state-2
@@ -334,7 +337,7 @@
   ++  v-channel-2-to-3
     |=  v=v-channel-2
     ^-  v-channel:v6:old:c
-    v(future [future.v *pending-messages:c])
+    v(future [future.v *pending-messages:v7:old:c])
   ++  v-channel-1-to-2
     |=  v=v-channel-1
     ^-  v-channel-2
@@ -505,6 +508,19 @@
       ::  upconvert emoji
       ::
       ?+    a-channel.old-a-channels  old-a-channels
+        ::
+          [%post %add *]
+        %=    old-a-channels
+            essay.c-post.a-channel
+          (essay-7-to-8:utils essay.c-post.a-channel.old-a-channels)
+        ==
+        ::
+          [%post %edit *]
+        %=    old-a-channels
+            essay.c-post.a-channel
+          (essay-7-to-8:utils essay.c-post.a-channel.old-a-channels)
+        ==
+        ::
           [%post %add-react *]
         %=  old-a-channels
             q.c-post.a-channel
@@ -514,7 +530,20 @@
             [%any ^react]
           u.react
         ==
-          [%post %reply @ %add-react *]
+        ::
+          [%post %reply * %add *]
+        %=    old-a-channels
+            memo.c-reply.c-post.a-channel
+          (memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels)
+        ==
+        ::
+          [%post %reply * %edit *]
+        %=    old-a-channels
+            memo.c-reply.c-post.a-channel
+          (memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels)
+        ==
+        ::
+          [%post %reply * %add-react *]
         %=  old-a-channels
             q.c-reply.c-post.a-channel
           ^-  react:c
@@ -641,12 +670,12 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  =?  pole  !?=([?(%v0 %v1) *] pole)
+  =?  pole  !?=([?(%v0 %v1 %v2) *] pole)
     [%v0 pole]
   ?+    pole  ~|(bad-watch-path+`path`pole !!)
-      [?(%v0 %v1) ~]                        ?>(from-self cor)
+      [?(%v0 %v1 %v2) ~]                        ?>(from-self cor)
       [?(%v0 %v1) %unreads ~]               ?>(from-self cor)
-      [?(%v0 %v1) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
+      [?(%v0 %v1 %v2) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
       [?(%v0 %v1 %v2) %said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
@@ -694,14 +723,15 @@
       ?+  p.cage.sign  ~|(funny-mark+p.cage.sign !!)
         %channel-denied  cage.sign
       ::
-          %channel-said-2
+          %channel-said-1
         =+  !<(=said:c q.cage.sign)
+        ::  NB: mark version is not the type version
         channels-said+!>((to-said-1:utils said))
       ==
     =.  cor  (give %kick ~[path v0+path v1+path v2+path] ~)
     ?+    p.cage.sign  ~|(funny-mark+p.cage.sign !!)
         %channel-denied  cor(voc (~(put by voc) [nest plan] ~))
-        %channel-said-2
+        %channel-said-1
       =+  !<(=said:c q.cage.sign)
       cor(voc (~(put by voc) [nest plan] `said))
     ==
@@ -936,14 +966,15 @@
     ++  on-post
       |=  v-post:c
       ^+  ca-core
+      =*  author-ship  (get-author-ship:utils author)
       ?.  .^(? %gu (scry-path %activity /$))
         ca-core
-      ?:  =(author our.bowl)
+      ?:  =(author-ship our.bowl)
         =/  =source  [%channel nest group.perm.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
       =/  mention=?  (was-mentioned:utils content our.bowl)
       =/  action
-        [%add %post [[author id] id] nest group.perm.perm.channel content mention]
+        [%add %post [[author-ship id] id] nest group.perm.perm.channel content mention]
       (send ~[action])
     ::
     ++  on-post-delete
@@ -953,7 +984,8 @@
       ::
       =*  group  group.perm.perm.channel
       =/  chan=source  [%channel nest group]
-      =/  key=message-key  [[author id] id]
+      =/  key=message-key
+        [[(get-author-ship:utils author) id] id]
       =/  thread=source  [%thread key nest group]
       =/  mention  (was-mentioned:utils content our.bowl)
       =/  =incoming-event  [%post key nest group content mention]
@@ -961,11 +993,14 @@
     ::
     ++  on-reply
       |=  [parent=v-post:c v-reply:c]
+      =*  parent-author  (get-author-ship:utils author.parent)
+      =*  reply-author   (get-author-ship:utils author)
       ^+  ca-core
       ?.  .^(? %gu (scry-path %activity /$))
         ca-core
-      =/  parent-key=message-key  [[author id]:parent id.parent]
-      ?:  =(author our.bowl)
+      =/  parent-key=message-key
+        [[parent-author id.parent] id.parent]
+      ?:  =(reply-author our.bowl)
         =/  =source  [%thread parent-key nest group.perm.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
       =/  mention=?  (was-mentioned:utils content our.bowl)
@@ -973,12 +1008,12 @@
           %+  lien  (tap:on-v-replies:c replies.parent)
           |=  [=time reply=(unit v-reply:c)]
           ?~  reply  |
-          =(author.u.reply our.bowl)
+          =((get-author-ship:utils author.u.reply) our.bowl)
       =/  =path  (scry-path %activity /volume-settings/noun)
       =+  .^(settings=volume-settings %gx path)
       =/  =action
         :*  %add  %reply
-            [[author id] id]
+            [[reply-author id] id]
             parent-key
             nest
             group.perm.perm.channel
@@ -991,7 +1026,7 @@
       ?.  ?&  !(~(has by settings) thread)
               ?|  mention
                   in-replies
-                  =(author.parent our.bowl)
+                  =(parent-author our.bowl)
               ==
           ==
         (send ~[action])
@@ -1000,11 +1035,15 @@
     ++  on-reply-delete
       |=  [parent=v-post:c reply=v-reply:c]
       ^+  ca-core
+      =*  parent-author  (get-author-ship:utils author.parent)
+      =*  reply-author   (get-author-ship:utils author.reply)
       ::  remove any activity that might've happened under this post
       ::
       =*  group  group.perm.perm.channel
-      =/  key=message-key  [[author id] id]:reply
-      =/  top=message-key  [[author id] id]:parent
+      =/  key=message-key
+        [[reply-author id.reply] id.reply]
+      =/  top=message-key
+        [[parent-author id.parent] id.parent]
       =/  thread=source  [%thread top nest group]
       =/  mention  (was-mentioned:utils content.reply our.bowl)
       =/  =incoming-event  [%reply key top nest group content.reply mention]
@@ -1077,7 +1116,9 @@
         =/  id  id.c-post.a-channel
         =/  post  (got:on-v-posts:c posts.channel id)
         ?~  post  ~
-        `[%thread [[author.u.post id] id] nest group.perm.perm.channel]
+        =/  =message-key:activity
+          [[(get-author-ship:utils author.u.post) id] id]
+        `[%thread [message-key nest group.perm.perm.channel]]
       =?  ca-core  ?=(^ source)  (send:ca-activity [%bump u.source] ~)
       (ca-send-command [%channel nest a-channel])
     ==
@@ -1150,7 +1191,8 @@
         ?+  -.rest  [pending ca-core]
             %add
           =/  essay  essay.rest
-          =/  client-id  [author sent]:essay
+          =/  client-id
+            [(get-author-ship:utils author.essay) sent.essay]
           =/  new-posts  (~(put by posts.pending) client-id essay)
           :-  [new-posts replies.pending]
           (ca-response %pending client-id [%post essay])
@@ -1162,7 +1204,8 @@
             =/  post  (get:on-v-posts:c posts.channel id.rest)
             ?~  post  [pending ca-core]
             ?~  u.post  [pending ca-core]
-            =/  client-id  [author sent]:memo
+            =/  client-id
+              [(get-author-ship:utils author.memo) sent.memo]
             =/  new-replies
               (~(put by replies.pending) [id.rest client-id] memo)
             =/  old  (get-reply-meta:utils u.u.post)
@@ -1350,7 +1393,7 @@
   ::
   ++  ca-fetch-contacts
     |=  chk=u-checkpoint:c
-    =/  authors=(list ship)
+    =/  authors=(list author:c)
       %~  tap  in  %-  sy
       %+  murn  ~(val by posts.chk)
         |=  up=(unit v-post:c)
@@ -1536,8 +1579,17 @@
     ==
   ::
   ++  ca-heed
-    |=  authors=(list ship)
-    (emit [%pass /contacts/heed %agent [our.bowl %contacts] %poke contact-action-0+!>([%heed authors])])
+    |=  authors=(list author:c)
+    %^    emit
+        %pass
+      /contacts/heed
+    :*  %agent
+        [our.bowl %contacts]
+        %poke
+        ::  only meet authors who are persons
+        ::
+        contact-action-0+!>([%heed (murn authors get-person-ship:utils)])
+    ==
   ++  ca-u-reply
     |=  [=id-post:c post=v-post:c =id-reply:c =u-reply:c]
     ^+  ca-core
@@ -1573,7 +1625,6 @@
       (put-reply `merged %set `(uv-reply-2:utils id-post merged))
     ::
     ?~  reply  ca-core
-    ::
     =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.u.reply)))
     =/  merged  (ca-apply-reacts reacts.u.u.reply reacts.u-reply)
     ?:  =(merged reacts.u.u.reply)  ca-core
@@ -1652,46 +1703,51 @@
     ++  on-post
       |=  [=id-post:c post=v-post:c]
       ^+  ca-core
-      ?:  =(author.post our.bowl)
+      =*  post-author  (get-author-ship:utils author.post)
+      ?:  =(post-author our.bowl)
         ca-core
       ::  we want to be notified if we were mentioned in the post
       ::
-      =/  =rope:ha  (ca-rope -.kind-data.post id-post ~)
+      ?.  ?=(kind:c -.kind.post)  ca-core
+      =/  =rope:ha  (ca-rope -.kind.post id-post ~)
       ?:  (was-mentioned:utils content.post our.bowl)
         ?.  (want-hark %mention)
           ca-core
         =/  cs=(list content:ha)
-          ~[[%ship author.post] ' mentioned you: ' (flatten:utils content.post)]
+          ~[[%ship post-author] ' mentioned you: ' (flatten:utils content.post)]
         (emit (pass-yarn (ca-spin rope cs ~)))
       ::
       ?:  (want-hark %any)
         =/  cs=(list content:ha)
-          ~[[%ship author.post] ' sent a message: ' (flatten:utils content.post)]
+          ~[[%ship post-author] ' sent a message: ' (flatten:utils content.post)]
         (emit (pass-yarn (ca-spin rope cs ~)))
       ca-core
     ::
     ++  on-reply
       |=  [=id-post:c post=v-post:c reply=v-reply:c]
       ^+  ca-core
-      ?:  =(author.reply our.bowl)
+      =*  reply-author  (get-author-ship:utils author.reply)
+      ?:  =(reply-author our.bowl)
         ca-core
       ::  preparation of common cases
       ::
       =*  diary-notification
-        :~  [%ship author.reply]  ' commented on '
-            [%emph title.kind-data.post]   ': '
-            [%ship author.reply]  ': '
+        =*  post-title  ?~(meta.post 'unknown' title.u.meta.post)
+        :~  [%ship reply-author]  ' commented on '
+            [%emph post-title]   ': '
+            [%ship reply-author]  ': '
             (flatten:utils content.reply)
         ==
       =*  heap-notification
         =/  content  (flatten:utils content.reply)
+        =*  post-title  ?~(meta.post '' title.u.meta.post)
         =/  title=@t
-          ?^  title.kind-data.post  (need title.kind-data.post)
+          ?.  =(0 (met 3 post-title))  post-title
           ?:  (lte (met 3 content) 80)  content
           (cat 3 (end [3 77] content) '...')
-        :~  [%ship author.reply]  ' commented on '
+        :~  [%ship reply-author]  ' commented on '
             [%emph title]   ': '
-            [%ship author.reply]  ': '
+            [%ship reply-author]  ': '
             content
         ==
       ::  construct a notification message based on the reason to notify,
@@ -1699,18 +1755,19 @@
       ::
       =;  cs=(unit (list content:ha))
         ?~  cs  ca-core
-        =/  =rope:ha  (ca-rope -.kind-data.post id-post `id.reply)
+        ?.  ?=(kind:c -.kind.post)  ca-core
+        =/  =rope:ha  (ca-rope -.kind.post id-post `id.reply)
         (emit (pass-yarn (ca-spin rope u.cs ~)))
       ::  notify because we wrote the post the reply responds to
       ::
       ?:  =(author.post our.bowl)
         ?.  (want-hark %ours)  ~
-        ?-    -.kind-data.post
+        ?+    -.kind.post  ~
             %diary  `diary-notification
             %heap   `heap-notification
             %chat
           :-  ~
-          :~  [%ship author.reply]
+          :~  [%ship reply-author]
               ' replied to you: '
               (flatten:utils content.reply)
           ==
@@ -1719,24 +1776,24 @@
       ::
       ?:  (was-mentioned:utils content.reply our.bowl)
         ?.  (want-hark %mention)  ~
-        `~[[%ship author.reply] ' mentioned you: ' (flatten:utils content.reply)]
+        `~[[%ship reply-author] ' mentioned you: ' (flatten:utils content.reply)]
       ::  notify because we ourselves responded to this post previously
       ::
       ?:  %+  lien  (tap:on-v-replies:c replies.post)
           |=  [=time reply=(unit v-reply:c)]
           ?~  reply  |
-          =(author.u.reply our.bowl)
+          =((get-author-ship:utils author.u.reply) our.bowl)
         ?.  (want-hark %ours)  ~
-        ?-    -.kind-data.post
+        ?+    -.kind.post  ~
             %diary  `diary-notification
             %heap   `heap-notification
             %chat
           :-  ~
-          :~  [%ship author.reply]
+          :~  [%ship reply-author]
               ' replied to your message “'
               (flatten:utils content.post)
               '”: '
-              [%ship author.reply]
+              [%ship reply-author]
               ': '
               (flatten:utils content.reply)
           ==
@@ -1745,12 +1802,12 @@
       ::
       ?.  (want-hark %any)
         ~
-      ?-    -.kind-data.post
+      ?+    -.kind.post  ~
           %diary  ~
           %heap   ~
           %chat
         :-  ~
-        :~  [%ship author.reply]
+        :~  [%ship reply-author]
             ' sent a message: '
             (flatten:utils content.reply)
         ==
@@ -1803,6 +1860,8 @@
       %^  give  %fact
         ~[/v2 v2+ca-area]
       channel-response-3+!>(r-channels)
+    ::
+    ::  omit %meta response in previous versions
     ?:  ?=(%meta -.r-channel)  ca-core
     =.  ca-core
       %^  give  %fact
@@ -1813,7 +1872,7 @@
         ~[/ ca-area /v0 v0+ca-area]
       channel-response+!>(r-simple)
     :-  nest
-    ?+  r-channel  r-channel
+    ?+    r-channel  r-channel
         [%posts *]
       r-channel(posts (s-posts-1:utils posts.r-channel))
     ::
@@ -1821,13 +1880,46 @@
       r-channel(post.r-post (bind post.r-post.r-channel s-post-1:utils))
     ::
         [%post * %reply * * %set *]
-      r-channel(reply.r-reply.r-post (bind reply.r-reply.r-post.r-channel s-reply-1:utils))
+      %=    r-channel
+          ::
+          reply.r-reply.r-post
+        (bind reply.r-reply.r-post.r-channel s-reply-1:utils)
+        ::
+          reply-meta.r-post
+        (reply-meta-1:utils reply-meta.r-post.r-channel)
+      ==
     ::
         [%post * %reply * * %reacts *]
-      r-channel(reacts.r-reply.r-post (reacts-1:utils reacts.r-reply.r-post.r-channel))
+      %=    r-channel
+          ::
+          reply-meta.r-post
+        (reply-meta-1:utils reply-meta.r-post.r-channel)
+        ::
+          reacts.r-reply.r-post
+        (reacts-1:utils reacts.r-reply.r-post.r-channel)
+      ==
     ::
         [%post * %reacts *]
       r-channel(reacts.r-post (reacts-1:utils reacts.r-post.r-channel))
+    ::
+        [%post id-post:c %essay *]
+      r-channel(essay.r-post (essay-1:utils essay.r-post.r-channel))
+    ::
+        [%pending client-id:c %post *]
+      %=    r-channel
+          essay.r-pending
+        (essay-1:utils essay.r-pending.r-channel)
+      ==
+    ::
+        [%pending client-id:c %reply *]
+      %=    r-channel
+          ::
+          reply-meta.r-pending
+        (reply-meta-1:utils reply-meta.r-pending.r-channel)
+        ::
+          memo.r-pending
+        (memo-1:utils memo.r-pending.r-channel)
+      ==
     ==
   ::
   ::  produce an up-to-date unread state
@@ -2346,7 +2438,7 @@
         ?~  val.n.posts  scan.s
         ?.  (match u.val.n.posts match-type)  scan.s
         :_  scan.s
-        [%post `simple-post:c`(suv-post-without-replies:utils u.val.n.posts)]
+        [%post `simple-post:c`(suv-post-without-replies-2:utils u.val.n.posts)]
       ::
       =.  scan.s
         ?~  val.n.posts  scan.s
@@ -2388,7 +2480,7 @@
         ?.  (match u.val.n.posts match-type)  s
         ?:  (gth skip.s 0)
           s(skip (dec skip.s))
-        =/  res  [%post (suv-post-without-replies:utils u.val.n.posts)]
+        =/  res  [%post (suv-post-without-replies-2:utils u.val.n.posts)]
         s(len (dec len.s), scan [res scan.s])
       ::
       =.  s
@@ -2433,7 +2525,7 @@
     ++  match-post-mention
       |=  [nedl=ship post=v-post:c]
       ^-  ?
-      ?:  ?=([%chat %notice ~] kind-data.post)  |
+      ?:  ?=([%chat %notice ~] kind.post)  |
       (match-story-mention nedl content.post)
     ::
     ++  match-story-mention
@@ -2451,19 +2543,14 @@
     ++  match-post-text
       |=  [nedl=@t post=v-post:c]
       ^-  ?
-      ?-    -.kind-data.post
-          %diary
-        (match-story-text nedl ~[%inline title.kind-data.post] content.post)
+      ?:  ?=([%chat %notice ~] kind.post)  |
       ::
-          %heap
-        %+  match-story-text  nedl
-        ?~  title.kind-data.post
-          content.post
-        [~[%inline u.title.kind-data.post] content.post]
-      ::
-          %chat
-        ?:  =([%notice ~] kind.kind-data.post)  |
+      ?~  meta.post
         (match-story-text nedl content.post)
+      %+  match-story-text  nedl
+      :*  ~[%inline title.u.meta.post]
+          ~[%inline description.u.meta.post]
+          content.post
       ==
     ::
     ++  match-story-text
