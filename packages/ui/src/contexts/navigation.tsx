@@ -6,6 +6,7 @@ type State = {
   onPressGroupRef?: (group: db.Group) => void;
   onPressGoToDm?: (participants: string[]) => void;
   onGoToUserProfile?: (userId: string) => void;
+  focusedChannelId?: string;
 };
 
 type ContextValue = State;
@@ -41,16 +42,30 @@ export const NavigationProvider = ({
   onPressGroupRef,
   onPressGoToDm,
   onGoToUserProfile,
+  focusedChannelId,
 }: {
   children: React.ReactNode;
   onPressRef?: (channel: db.Channel, post: db.Post) => void;
   onPressGroupRef?: (group: db.Group) => void;
   onPressGoToDm?: (participants: string[]) => void;
   onGoToUserProfile?: (userId: string) => void;
+  focusedChannelId?: string;
 }) => {
   const value = useMemo(
-    () => ({ onPressRef, onPressGroupRef, onPressGoToDm, onGoToUserProfile }),
-    [onPressRef, onPressGroupRef, onPressGoToDm, onGoToUserProfile]
+    () => ({
+      onPressRef,
+      onPressGroupRef,
+      onPressGoToDm,
+      onGoToUserProfile,
+      focusedChannelId,
+    }),
+    [
+      onPressRef,
+      onPressGroupRef,
+      onPressGoToDm,
+      onGoToUserProfile,
+      focusedChannelId,
+    ]
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 };

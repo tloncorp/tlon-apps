@@ -592,6 +592,12 @@
       [?(%v0 %v1) ~]                        ?>(from-self cor)
       [?(%v0 %v1) %unreads ~]               ?>(from-self cor)
       [?(%v0 %v1) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
+  ::
+      [%v1 %hooks %preview =kind:c host=@ name=@ ~]
+    =/  host=ship   (slav %p host.pole)
+    =/  =path  /v0/hooks/preview/[kind.pole]/[name.pole]
+    ((safe-watch pole [host %channels-server] path) |)
+  ::
       [?(%v0 %v1) %said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
@@ -698,6 +704,18 @@
       %-  (slog 'channels: migration poke failure' >wire< u.p.sign)
       cor
     ==
+  ::
+      [%v1 %hooks %preview =kind:c host=@ name=@ ~]
+    ?+  -.sign  !!
+        %kick  cor
+        %fact
+      =.  cor  (give %fact ~[pole] cage.sign)
+      (emit %pass pole %agent [host.pole %channels] %leave ~)
+    ::
+        %watch-ack
+      ?~  p.sign  cor
+      ((slog leaf+"Preview failed" u.p.sign) cor)
+    ==
   ==
 ::
 ++  watch-groups  (safe-watch /groups [our.bowl %groups] /groups)
@@ -741,6 +759,9 @@
     ::
         [%x %v2 %channels full=?(~ [%full ~])]
       ``channels-2+!>((uv-channels-2:utils v-channels ?=(^ full.pole)))
+    ::
+        [%x %v3 %v-channels ~]
+      ``noun+!>(v-channels)
     ::
         [%x %v3 %channels full=?(~ [%full ~])]
       ``channels-3+!>((uv-channels-3:utils v-channels ?=(^ full.pole)))
@@ -2383,7 +2404,7 @@
     |=  sects=(set sect:g)
     =/  =flag:g  group.perm.perm.channel
     =/  exists-path
-      (scry-path %groups /exists/(scot %p p.flag)/[q.flag])
+      (scry-path %groups /exists/(scot %p p.flag)/[q.flag]/noun)
     =+  .^(exists=? %gx exists-path)
     ?.  exists  ca-core
     =/  =path

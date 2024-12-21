@@ -6,12 +6,14 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useState,
 } from 'react';
 
+import { ChatOptionsSheet } from '../components/ChatOptionsSheet';
+
 export type ChatOptionsContextValue = {
-  pinned: db.Pin[];
   useGroup: typeof store.useGroup;
-  group: db.Group | null;
+  group?: db.Group | null;
   groupChannels: db.Channel[];
   onPressGroupMeta: (groupId: string) => void;
   onPressGroupMembers: (groupId: string) => void;
@@ -21,22 +23,26 @@ export type ChatOptionsContextValue = {
   onPressRoles: (groupId: string) => void;
   onPressChannelMembers: (channelId: string) => void;
   onPressChannelMeta: (channelId: string) => void;
+  onPressChannelTemplate: (channelId: string) => void;
   onTogglePinned: () => void;
   onPressLeave: () => Promise<void>;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
+  open: (chatId: string, chatType: 'group' | 'channel') => void;
 } | null;
 
 const ChatOptionsContext = createContext<ChatOptionsContextValue>(null);
 
 export const useChatOptions = () => {
-  return useContext(ChatOptionsContext);
+  const value = useContext(ChatOptionsContext);
+  if (!value) {
+    throw new Error('useChatOptions used outside of ChatOptions context');
+  }
+  return value;
 };
 
 type ChatOptionsProviderProps = {
   children: ReactNode;
-  groupId?: string;
-  channelId?: string;
-  pinned: db.Pin[];
+  useChannel?: typeof store.useChannel;
   useGroup?: typeof store.useGroup;
   onPressGroupMeta: (groupId: string) => void;
   onPressGroupMembers: (groupId: string) => void;
@@ -45,15 +51,15 @@ type ChatOptionsProviderProps = {
   onPressGroupPrivacy: (groupId: string) => void;
   onPressChannelMembers: (channelId: string) => void;
   onPressChannelMeta: (channelId: string) => void;
+  onPressChannelTemplate: (channelId: string) => void;
   onPressRoles: (groupId: string) => void;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
-  navigateOnLeave?: () => void;
+  onLeaveGroup?: () => void;
 };
 
 export const ChatOptionsProvider = ({
   children,
-  groupId,
-  pinned = [],
+  useChannel = store.useChannel,
   useGroup = store.useGroup,
   onPressGroupMeta,
   onPressGroupMembers,
@@ -62,19 +68,33 @@ export const ChatOptionsProvider = ({
   onPressGroupPrivacy,
   onPressChannelMembers,
   onPressChannelMeta,
+  onPressChannelTemplate,
   onPressRoles,
-  navigateOnLeave,
+  onLeaveGroup: navigateOnLeave,
 }: ChatOptionsProviderProps) => {
-  const groupQuery = useGroup({ id: groupId ?? '' });
-  const group = groupId ? groupQuery.data ?? null : null;
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [chat, setChat] = useState<{
+    id: string;
+    type: 'group' | 'channel';
+  } | null>(null);
+
+  const isChannel = chat?.type === 'channel';
+  const isGroup = chat?.type === 'group';
+
+  const { data: channel } = useChannel({
+    id: isChannel ? chat.id : undefined,
+  });
+  const { data: group } = useGroup({
+    id: isGroup ? chat.id : channel?.groupId ?? undefined,
+  });
 
   const groupChannels = useMemo(() => {
     return group?.channels ?? [];
   }, [group?.channels]);
 
   const onTogglePinned = useCallback(() => {
-    if (group && group.channels[0]) {
-      group.pin ? store.unpinItem(group.pin) : store.pinItem(group.channels[0]);
+    if (group && group.channels?.[0]) {
+      group.pin ? store.unpinItem(group.pin) : store.pinGroup(group);
     }
   }, [group]);
 
@@ -86,30 +106,64 @@ export const ChatOptionsProvider = ({
   }, [group, navigateOnLeave]);
 
   const onSelectSort = useCallback((sortBy: 'recency' | 'arranged') => {
-    db.storeChannelSortPreference(sortBy);
+    db.channelSortPreference.setValue(sortBy);
   }, []);
 
-  const contextValue: ChatOptionsContextValue = {
-    pinned,
-    useGroup,
-    group,
-    groupChannels,
-    onPressGroupMeta,
-    onPressGroupMembers,
-    onPressManageChannels,
-    onPressInvite,
-    onPressGroupPrivacy,
-    onPressRoles,
-    onPressLeave,
-    onTogglePinned,
-    onPressChannelMembers,
-    onPressChannelMeta,
-    onSelectSort,
-  };
+  const open = useCallback((chatId: string, chatType: 'group' | 'channel') => {
+    setChat({
+      id: chatId,
+      type: chatType,
+    });
+    setSheetOpen(true);
+  }, []);
+
+  const contextValue: ChatOptionsContextValue = useMemo(
+    () => ({
+      useGroup,
+      group,
+      groupChannels,
+      onPressGroupMeta,
+      onPressGroupMembers,
+      onPressManageChannels,
+      onPressInvite,
+      onPressGroupPrivacy,
+      onPressRoles,
+      onPressLeave,
+      onTogglePinned,
+      onPressChannelMembers,
+      onPressChannelMeta,
+      onPressChannelTemplate,
+      onSelectSort,
+      open,
+    }),
+    [
+      group,
+      groupChannels,
+      onPressChannelMembers,
+      onPressChannelMeta,
+      onPressChannelTemplate,
+      onPressGroupMembers,
+      onPressGroupMeta,
+      onPressGroupPrivacy,
+      onPressInvite,
+      onPressLeave,
+      onPressManageChannels,
+      onPressRoles,
+      onSelectSort,
+      onTogglePinned,
+      open,
+      useGroup,
+    ]
+  );
 
   return (
     <ChatOptionsContext.Provider value={contextValue}>
       {children}
+      <ChatOptionsSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        chat={chat}
+      />
     </ChatOptionsContext.Provider>
   );
 };

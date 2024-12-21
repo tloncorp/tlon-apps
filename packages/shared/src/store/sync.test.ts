@@ -296,9 +296,11 @@ test('syncs last posts', async () => {
   await syncLatestPosts();
   const chats = await db.getChats();
   const NUM_EMPTY_TEST_GROUPS = 6;
-  const chatsWithLatestPosts = chats.filter((c) => c.lastPost);
+  const chatsWithLatestPosts = chats.unpinned.filter((c) =>
+    c.type === 'channel' ? c.channel.lastPost : c.group.lastPost
+  );
   expect(chatsWithLatestPosts.length).toEqual(
-    chats.length - NUM_EMPTY_TEST_GROUPS
+    chats.unpinned.length - NUM_EMPTY_TEST_GROUPS
   );
 });
 

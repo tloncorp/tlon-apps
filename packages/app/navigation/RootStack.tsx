@@ -5,6 +5,8 @@ import { Platform, StatusBar } from 'react-native';
 
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
+import { ChannelTemplateScreen } from '../features/channels/ChannelTemplateScreen';
+import { AddContactsScreen } from '../features/contacts/AddContactsScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
@@ -81,6 +83,7 @@ export function RootStack() {
       />
 
       {/* individual screens */}
+      <Root.Screen name="AddContacts" component={AddContactsScreen} />
       <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
       <Root.Screen name="FindGroups" component={FindGroupsScreen} />
       <Root.Screen
@@ -118,6 +121,7 @@ export function RootStack() {
       <Root.Screen name="WompWomp" component={UserBugReportScreen} />
       <Root.Screen name="ChannelMembers" component={ChannelMembersScreen} />
       <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
+      <Root.Screen name="ChannelTemplate" component={ChannelTemplateScreen} />
     </Root.Navigator>
   );
 }

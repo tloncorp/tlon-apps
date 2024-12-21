@@ -804,7 +804,6 @@ export const groupWithColorAndNoImage: db.Group = {
   currentUserIsHost: false,
   title: 'Test Group',
   privacy: 'private',
-  unreadCount: 1,
   iconImage: null,
   iconImageColor: '#FF00FF',
   coverImage: null,
@@ -813,7 +812,6 @@ export const groupWithColorAndNoImage: db.Group = {
   currentUserIsMember: true,
   lastPostId: 'test-post',
   lastPostAt: dates.now,
-  lastChannel: tlonLocalSupport.title,
   lastPost: { ...createFakePost() },
 };
 
@@ -822,7 +820,6 @@ export const groupWithLongTitle: db.Group = {
   id: '~nibset-napwyn/tlon/long-title',
   title: 'And here, a reallly long title, wazzup, ok',
   lastPostAt: dates.earlierToday,
-  lastChannel: tlonLocalSupport.title,
   lastPost: {
     ...createFakePost(),
     textContent:
@@ -836,8 +833,6 @@ export const groupWithNoColorOrImage: db.Group = {
   iconImageColor: null,
   lastPost: createFakePost(),
   lastPostAt: dates.yesterday,
-  lastChannel: tlonLocalSupport.title,
-  unreadCount: Math.floor(random() * 20),
 };
 
 export const groupWithImage: db.Group = {
@@ -847,8 +842,6 @@ export const groupWithImage: db.Group = {
     'https://dans-gifts.s3.amazonaws.com/dans-gifts/solfer-magfed/2024.4.6..15.49.54..4a7e.f9db.22d0.e560-IMG_4770.jpg',
   lastPost: createFakePost(),
   lastPostAt: dates.lastWeek,
-  lastChannel: tlonLocalSupport.title,
-  unreadCount: Math.floor(random() * 20),
 };
 
 export const groupWithSvgImage: db.Group = {
@@ -857,8 +850,6 @@ export const groupWithSvgImage: db.Group = {
   iconImage: 'https://tlon.io/local-icon.svg',
   lastPost: createFakePost(),
   lastPostAt: dates.lastMonth,
-  lastChannel: tlonLocalSupport.title,
-  unreadCount: Math.floor(random() * 20),
 };
 
 function randInt(min: number, max: number) {

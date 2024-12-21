@@ -1,4 +1,7 @@
-import type { NavigatorScreenParams } from '@react-navigation/native';
+import type {
+  NavigationProp,
+  NavigatorScreenParams,
+} from '@react-navigation/native';
 
 export type RootStackParamList = {
   Contacts: undefined;
@@ -50,6 +53,7 @@ export type RootStackParamList = {
   BlockedUsers: undefined;
   AppInfo: undefined;
   PushNotificationSettings: undefined;
+  AddContacts: undefined;
   UserProfile: {
     userId: string;
   };
@@ -63,11 +67,16 @@ export type RootStackParamList = {
   ChannelMeta: {
     channelId: string;
   };
+  ChannelTemplate: {
+    channelId: string;
+  };
 };
+
+export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
 
 export type RootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
-} & Pick<RootStackParamList, 'Activity' | 'Profile'>;
+} & Pick<RootStackParamList, 'Activity' | 'Contacts'>;
 
 export type HomeDrawerParamList = Pick<
   RootStackParamList,
@@ -86,6 +95,7 @@ export type DesktopChannelStackParamList = Pick<
   | 'EditProfile'
   | 'ChannelMembers'
   | 'ChannelMeta'
+  | 'ChannelTemplate'
 > & { ChannelRoot: RootStackParamList['Channel'] };
 
 export type GroupSettingsStackParamList = {

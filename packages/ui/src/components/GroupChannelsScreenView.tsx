@@ -1,20 +1,12 @@
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  Button,
-  ScrollView,
-  View,
-  YStack,
-  getVariableValue,
-  useTheme,
-} from 'tamagui';
+import { ScrollView, View, YStack, getVariableValue, useTheme } from 'tamagui';
 
-import { useCurrentUserId } from '../contexts';
+import { useChatOptions, useCurrentUserId } from '../contexts';
 import { useIsAdmin } from '../utils/channelUtils';
 import { Badge } from './Badge';
 import ChannelNavSections from './ChannelNavSections';
-import { ChatOptionsSheet, ChatOptionsSheetMethods } from './ChatOptionsSheet';
 import { ChannelListItem } from './ListItem/ChannelListItem';
 import { LoadingSpinner } from './LoadingSpinner';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
@@ -38,38 +30,29 @@ export function GroupChannelsScreenView({
   onBackPressed,
   enableCustomChannels = false,
 }: GroupChannelsScreenViewProps) {
-  const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
-  const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
+  const sortBy = db.channelSortPreference.useValue();
   const insets = useSafeAreaInsets();
   const userId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
 
-  useEffect(() => {
-    const getSortByPreference = async () => {
-      const preference = await db.getChannelSortPreference();
-      setSortBy(preference ?? 'recency');
-    };
-
-    getSortByPreference();
-  }, [setSortBy]);
-
+  const chatOptions = useChatOptions();
   const handlePressOverflowButton = useCallback(() => {
     if (group) {
-      chatOptionsSheetRef.current?.open(group.id, 'group');
+      chatOptions.open(group.id, 'group');
     }
-  }, [group]);
-
-  const title = group ? group?.title ?? 'Untitled' : '';
+  }, [group, chatOptions]);
 
   const handleOpenChannelOptions = useCallback(
     (channel: db.Channel) => {
       if (group) {
-        chatOptionsSheetRef.current?.open(channel.id, channel.type);
+        chatOptions.open(channel.id, 'channel');
       }
     },
-    [group]
+    [group, chatOptions]
   );
+
+  const title = group ? group?.title ?? 'Untitled' : '';
 
   const titleWidth = useCallback(() => {
     if (isGroupAdmin) {
@@ -165,7 +148,6 @@ export function GroupChannelsScreenView({
           enableCustomChannels={enableCustomChannels}
         />
       )}
-      <ChatOptionsSheet ref={chatOptionsSheetRef} setSortBy={setSortBy} />
     </View>
   );
 }

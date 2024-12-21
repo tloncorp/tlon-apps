@@ -43,11 +43,11 @@ export const GroupListItem = ({
             {customSubtitle && (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
             )}
-            {model.lastPost && !customSubtitle && (
+            {model.lastPost && model.channels?.length && !customSubtitle && (
               <ListItem.SubtitleWithIcon
                 icon={getPostTypeIcon(model.lastPost.type)}
               >
-                {model.lastChannel}
+                {model.channels[0].title}
               </ListItem.SubtitleWithIcon>
             )}
             {!isPending && model.lastPost ? (
@@ -68,7 +68,7 @@ export const GroupListItem = ({
                   <ListItem.Count
                     count={unreadCount}
                     muted={logic.isMuted(model.volumeSettings?.level, 'group')}
-                    marginRight={isWeb ? '$l' : 'unset'}
+                    marginRight={isWeb ? '$s' : 'unset'}
                   />
                 </>
               )}
@@ -77,13 +77,13 @@ export const GroupListItem = ({
         </ListItem>
       </Pressable>
       {isWeb && !isPending && (
-        <View position="absolute" right={-2} top={44} zIndex={1}>
+        <View position="absolute" right="$-2xs" top="$2xl" zIndex={1}>
           <Button
             onPress={handleLongPress}
             borderWidth="unset"
-            size="$s"
             paddingHorizontal={0}
             marginHorizontal="$-m"
+            minimal
           >
             <Icon type="Overflow" />
           </Button>

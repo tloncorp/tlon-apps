@@ -4,8 +4,8 @@ import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import AuthorRow from '../AuthorRow';
-import { Button } from '../Button';
 import { Icon } from '../Icon';
+import { OverflowMenuButton } from '../OverflowMenuButton';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
@@ -196,12 +196,13 @@ const ChatMessage = ({
           onPressDelete={handleDeletePressed}
         />
       </YStack>
-      {isWeb && !hideOverflowMenu && showOverflowOnHover && (
-        <View position="absolute" top={0} right={12} width={0} height={0}>
-          <Button onPress={handleLongPress} borderWidth="unset" size="$l">
-            <Icon type="Overflow" />
-          </Button>
-        </View>
+      {!hideOverflowMenu && showOverflowOnHover && (
+        <OverflowMenuButton
+          onPress={handleLongPress}
+          top={0}
+          right={12}
+          width={0}
+        />
       )}
     </Pressable>
   );

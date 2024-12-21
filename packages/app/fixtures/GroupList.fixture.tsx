@@ -13,7 +13,7 @@ import {
 
 let id = 0;
 
-function makeChannelSummary({
+function makeChat({
   group,
   channel,
   lastPost,
@@ -23,37 +23,56 @@ function makeChannelSummary({
   group?: db.Group;
   lastPost?: db.Post;
   members?: (db.ChatMember & { contact: db.Contact | null })[];
-}): db.Channel {
-  return {
-    id: 'channel-' + id++,
-    type: 'chat',
-    title: '',
-    description: '',
-    groupId: group?.id ?? null,
-    iconImage: null,
-    iconImageColor: null,
-    coverImage: null,
-    coverImageColor: null,
-    addedToGroupAt: null,
-    currentUserIsMember: null,
-    postCount: null,
-    unreadCount: group?.unreadCount ?? null,
-    firstUnreadPostId: null,
-    lastPostId: group?.lastPostId ?? null,
-    lastPostAt: group?.lastPostAt ?? null,
-    syncedAt: null,
-    remoteUpdatedAt: null,
-    ...channel,
+}): db.Chat {
+  if (group) {
+    const groupId = 'group-' + id++;
+    return {
+      type: 'group',
+      id: groupId,
+      group: { ...group, id: groupId },
+      isPending: false,
+      pin: group.pin ?? null,
+      timestamp: group.unread?.updatedAt ?? group.lastPostAt ?? 0,
+      volumeSettings: group.volumeSettings ?? null,
+      unreadCount: 0,
+    };
+  }
 
-    group: group ?? null,
-    unread: null,
-    lastPost: lastPost ?? group?.lastPost ?? null,
+  const channelId = 'channel-' + id++;
+  return {
+    type: 'channel',
+    id: channelId,
+    timestamp: lastPost?.sentAt ?? 0,
+    isPending: !!channel?.isDmInvite,
+    volumeSettings: channel?.volumeSettings ?? null,
     pin: null,
-    members: members ?? null,
+    unreadCount: 0,
+    channel: {
+      id: channelId,
+      type: 'chat',
+      title: '',
+      description: '',
+      iconImage: null,
+      iconImageColor: null,
+      coverImage: null,
+      coverImageColor: null,
+      addedToGroupAt: null,
+      currentUserIsMember: null,
+      postCount: null,
+      firstUnreadPostId: null,
+      syncedAt: null,
+      remoteUpdatedAt: null,
+      ...channel,
+      group: group ?? null,
+      unread: null,
+      lastPost: lastPost ?? null,
+      pin: null,
+      members: members ?? null,
+    },
   };
 }
 
-const dmSummary = makeChannelSummary({
+const dmSummary = makeChat({
   channel: { type: 'dm' },
   lastPost: createFakePost(),
   members: [
@@ -67,7 +86,7 @@ const dmSummary = makeChannelSummary({
   ],
 });
 
-const groupDmSummary = makeChannelSummary({
+const groupDmSummary = makeChat({
   channel: { type: 'groupDm' },
   lastPost: createFakePost(),
   group: groupWithLongTitle,
@@ -98,7 +117,7 @@ const groupDmSummary = makeChannelSummary({
 
 export default {
   basic: (
-    <FixtureWrapper fillWidth>
+    <FixtureWrapper fillWidth fillHeight safeArea>
       <ChatList
         activeTab="all"
         setActiveTab={() => {}}
@@ -106,21 +125,20 @@ export default {
         onSearchQueryChange={() => {}}
         showSearchInput={false}
         pinned={[groupWithLongTitle, groupWithImage].map((g) =>
-          makeChannelSummary({ group: g })
+          makeChat({ group: g })
         )}
         unpinned={[
           groupWithColorAndNoImage,
           groupWithImage,
-          groupWithSvgImage,
           groupWithNoColorOrImage,
-        ].map((g) => makeChannelSummary({ group: g }))}
-        pendingChats={[]}
+        ].map((g) => makeChat({ group: g }))}
+        pending={[]}
         onSearchToggle={() => {}}
       />
     </FixtureWrapper>
   ),
   emptyPinned: (
-    <FixtureWrapper fillWidth>
+    <FixtureWrapper fillWidth fillHeight safeArea>
       <ChatList
         activeTab="all"
         setActiveTab={() => {}}
@@ -131,8 +149,8 @@ export default {
           groupWithImage,
           groupWithSvgImage,
           groupWithNoColorOrImage,
-        ].map((g) => makeChannelSummary({ group: g }))}
-        pendingChats={[]}
+        ].map((g) => makeChat({ group: g }))}
+        pending={[]}
         searchQuery=""
         onSearchQueryChange={() => {}}
         onSearchToggle={() => {}}
@@ -140,14 +158,14 @@ export default {
     </FixtureWrapper>
   ),
   loading: (
-    <FixtureWrapper fillWidth>
+    <FixtureWrapper fillWidth fillHeight safeArea>
       <ChatList
         activeTab="all"
         setActiveTab={() => {}}
         showSearchInput={false}
         pinned={[]}
         unpinned={[]}
-        pendingChats={[]}
+        pending={[]}
         searchQuery=""
         onSearchQueryChange={() => {}}
         onSearchToggle={() => {}}

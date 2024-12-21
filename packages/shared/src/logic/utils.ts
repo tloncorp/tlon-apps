@@ -207,28 +207,10 @@ export function normalizeUrbitColor(color: string): string {
     return color;
   }
 
-  const colorString = color.slice(2).replace('.', '').toUpperCase();
-  const lengthAdjustedColor = colorString.padStart(6, '0');
+  const noDots = color.replace('.', '');
+  const prefixStripped = color.startsWith('0x') ? noDots.slice(2) : noDots;
+  const lengthAdjustedColor = prefixStripped.toUpperCase().padStart(6, '0');
   return `#${lengthAdjustedColor}`;
-}
-
-export function getPinPartial(channel: db.Channel): {
-  type: db.PinType;
-  itemId: string;
-} {
-  if (channel.groupId) {
-    return { type: 'group', itemId: channel.groupId };
-  }
-
-  if (channel.type === 'dm') {
-    return { type: 'dm', itemId: channel.id };
-  }
-
-  if (channel.type === 'groupDm') {
-    return { type: 'groupDm', itemId: channel.id };
-  }
-
-  return { type: 'channel', itemId: channel.id };
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;

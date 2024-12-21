@@ -1,21 +1,23 @@
 ::  profile: construct stock widgets
 ::
-/-  co=contacts-0
+/-  co=contacts
 /+  sigil
 ::
 |=  =bowl:gall
-=/  ours=(unit contact-0:co)
-  =,  co
-  ::NOTE  we scry for the full rolodex, because we are not guaranteed to
-  ::      have an entry for ourselves, and contacts doesn't expose a "safe"
-  ::      (as in crashless) endpoint for checking
-  =+  .^  =rolodex
-        /gx/(scot %p our.bowl)/contacts/(scot %da now.bowl)/all/contact-rolodex
-      ==
-  =/  =foreign-0  (~(gut by rolodex) our.bowl *foreign-0)
-  ?:  ?=([[@ ^] *] foreign-0)
-    `con.for.foreign-0
-  ~
+=+  .^  =contact:co
+      /gx/(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/self/contact-1
+    ==
+::NOTE  can't quite make a nice helper for this, wetness not wet enough...
+=/  nickname=(unit @t)  =+  a=(~(gut by contact) %nickname %text '')
+                        ?:(&(?=(%text -.a) !=('' +.a)) `+.a ~)
+=/  bio=(unit @t)       =+  a=(~(gut by contact) %bio %text '')
+                        ?:(&(?=(%text -.a) !=('' +.a)) `+.a ~)
+=/  color=@ux           =+  a=(~(gut by contact) %color %tint 0x0)
+                        ?:(?=(%tint -.a) +.a 0x0)
+=/  avatar=(unit @ta)   =+  a=(~(gut by contact) %avatar %look '')
+                        ?:(&(?=(%look -.a) !=('' +.a)) `+.a ~)
+=/  cover=(unit @ta)    =+  a=(~(gut by contact) %cover %look '')
+                        ?:(&(?=(%look -.a) !=('' +.a)) `+.a ~)
 |^  %-  ~(gas by *(map term [%0 @t %marl marl]))
     :~  [%profile %0 'Profile Header' %marl profile-widget]
         [%profile-bio %0 'Profile Bio' %marl profile-bio]
@@ -69,10 +71,9 @@
               ;p(style "margin-bottom: 0;")
                 ;em:"A {class} flying through space since {since}..."
               ==
-            ?~  ours  stand-in
-            ?:  =('' bio.u.ours)  stand-in
+            ?~  bio  stand-in
             %+  join  `manx`;br;
-            %+  turn  (to-wain:format bio.u.ours)
+            %+  turn  (to-wain:format u.bio)
             |=  p=@t  ^-  manx
             [[%$ [%$ (trip p)] ~] ~]
       ==
@@ -95,7 +96,7 @@
       flex-direction: column;
     }
     @media screen and (min-width: 15em) {
-      .profile-headline { 
+      .profile-headline {
         flex-direction: row;
       }
     }
@@ -147,72 +148,41 @@
   :~
     ;style:"{(trip style)}"
   ::
-    =/  src=(unit @t)
-      ?~  ours  ~
-      ?~  cover.u.ours  ~
-      ?:  =('' u.cover.u.ours)  ~
-      `u.cover.u.ours
-    ?~  src
-      ;div.profile-without-header
-        ;div.profile-headline
-          ;+  ?:  &(?=(^ ours) ?=(^ avatar.u.ours) !=('' u.avatar.u.ours))
-            ;img.profile-headline-avatar
-              =src  "{(trip u.avatar.u.ours)}"
-              =alt  "Avatar";
-          =/  value=@ux   ?~(ours 0x0 color.u.ours)
-          =/  color=tape  ((x-co:^co 6) value)
-          ;div.profile-headline-avatar-sigil(style "background-color: #{color}")
-            ;+  %.  our.bowl
-            %_  sigil
-              bg  '#'^color
-              ::REVIEW  groups fe caps the color's lightness, instead of
-              ::        choosing between white/black fg. should we, too?
-              fg  "white" ::?:((gth (div (roll (rip 3 value) add) 3) 127) "black" "white")
+    =*  profile-inner
+      ;div.profile-headline
+        ;+  ?^  avatar
+          ;img.profile-headline-avatar
+            =src  "{(trip u.avatar)}"
+            =alt  "Avatar";
+        =/  color=tape  ((x-co:^co 6) color)
+        ;div.profile-headline-avatar-sigil(style "background-color: #{color}")
+          ;+  %.  our.bowl
+          %_  sigil
+            bg  '#'^color
+            ::REVIEW  groups fe caps the color's lightness, instead of
+            ::        choosing between white/black fg. should we, too?
+            fg  "white" ::?:((gth (div (roll (rip 3 value) add) 3) 127) "black" "white")
+          ==
+        ==
+        ::
+        ;div.profile-headline-title
+          ;*  =*  name  (cite:title our.bowl)
+            =*  plain  ;h1.profile-headline-nickname(title "{(scow %p our.bowl)}"):"{name}"
+            ?~  nickname  [plain]~
+            :~  ;h1.profile-headline-nickname:"{(trip u.nickname)}"
+                ;p.profile-headline-username(title "{(scow %p our.bowl)}"):"{name}"
             ==
-          ==
-          ::
-          ;div.profile-headline-title
-            ;*  =*  name  (cite:title our.bowl)
-              =*  plain  ;h1.profile-headline-nickname(title "{(scow %p our.bowl)}"):"{name}"
-              ?~  ours  [plain]~
-              ?:  =('' nickname.u.ours)  [plain]~
-              :~  ;h1.profile-headline-nickname:"{(trip nickname.u.ours)}"
-                  ;p.profile-headline-username(title "{(scow %p our.bowl)}"):"{name}"
-          ==
         ==
-        ==
+      ==
+    ?~  cover
+      ;div.profile-without-header
+        ;+  profile-inner
       ==
     ;div.profile-with-header
       ;img#profile-background
-        =src  "{(trip u.src)}"
+        =src  "{(trip u.cover)}"
         =alt  "Background";
-        ;div.profile-headline
-          ;+  ?:  &(?=(^ ours) ?=(^ avatar.u.ours) !=('' u.avatar.u.ours))
-            ;img.profile-headline-avatar
-              =src  "{(trip u.avatar.u.ours)}"
-              =alt  "Avatar";
-          =/  value=@ux   ?~(ours 0x0 color.u.ours)
-          =/  color=tape  ((x-co:^co 6) value)
-          ;div.profile-headline-avatar-sigil(style "background-color: #{color}")
-            ;+  %.  our.bowl
-            %_  sigil
-              bg  '#'^color
-              ::REVIEW  groups fe caps the color's lightness, instead of
-              ::        choosing between white/black fg. should we, too?
-              fg  "white" ::?:((gth (div (roll (rip 3 value) add) 3) 127) "black" "white")
-            ==
-          ==
-          ::
-          ;div.profile-headline-title
-            ;*  =*  name  (cite:title our.bowl)
-              =*  plain  ;h1.profile-headline-nickname(title "{(scow %p our.bowl)}"):"{name}"
-              ?~  ours  [plain]~
-              ?:  =('' nickname.u.ours)  [plain]~
-              :~  ;h1.profile-headline-nickname:"{(trip nickname.u.ours)}"
-                  ;p.profile-headline-username(title "{(scow %p our.bowl)}"):"{name}"
-          ==
-        ==
-        ==
+        ;+  profile-inner
       ==
     ==
 ::

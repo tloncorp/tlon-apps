@@ -71,6 +71,14 @@ export default function ChannelScreen(props: Props) {
         store.syncChannelThreadUnreads(channel.id, {
           priority: store.SyncPriority.High,
         });
+        if (group) {
+          // Update the last visited channel in the group so we can return to it
+          // when we come back to the group
+          db.updateGroup({
+            id: group.id,
+            lastVisitedChannelId: channel.id,
+          });
+        }
       }
       // Mark the channel as visited when we unfocus/leave this screen
       () => {
@@ -78,7 +86,7 @@ export default function ChannelScreen(props: Props) {
           store.markChannelVisited(channel);
         }
       };
-    }, [channel])
+    }, [channel, group])
   );
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
@@ -319,16 +327,6 @@ export default function ChannelScreen(props: Props) {
 
   const canUpload = useCanUpload();
 
-  const isFocused = useIsFocused();
-
-  const { data: pins } = store.usePins({
-    enabled: isFocused,
-  });
-
-  const pinnedItems = useMemo(() => {
-    return pins ?? [];
-  }, [pins]);
-
   const chatOptionsNavProps = useChatSettingsNavigation();
 
   const handleGoToUserProfile = useCallback(
@@ -350,8 +348,6 @@ export default function ChannelScreen(props: Props) {
 
   return (
     <ChatOptionsProvider
-      groupId={group?.id}
-      pinned={pinnedItems}
       useGroup={store.useGroup}
       onPressInvite={(group) => {
         setInviteSheetGroup(group);

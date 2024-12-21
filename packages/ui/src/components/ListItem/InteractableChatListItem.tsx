@@ -20,7 +20,6 @@ import Animated, {
 import { ColorTokens, Stack, View, getTokenValue, isWeb } from 'tamagui';
 
 import * as utils from '../../utils';
-import { Chat } from '../ChatList';
 import { Icon, IconType } from '../Icon';
 import { ChatListItem } from './ChatListItem';
 import { ListItemProps } from './ListItem';
@@ -30,19 +29,15 @@ function BaseInteractableChatRow({
   model,
   onPress,
   onLongPress,
-}: ListItemProps<Chat> & { model: db.Channel }) {
+  ...props
+}: ListItemProps<db.Chat>) {
   const swipeableRef = useRef<SwipeableMethods>(null);
   const [currentSwipeDirection, setCurrentSwipeDirection] = useState<
     'left' | 'right' | null
   >(null);
 
   const isMuted = useMemo(() => {
-    if (model.group) {
-      return logic.isMuted(model.group.volumeSettings?.level, 'group');
-    } else if (model.type === 'dm' || model.type === 'groupDm') {
-      return logic.isMuted(model.volumeSettings?.level, 'channel');
-    }
-    return false;
+    return logic.isMuted(model.volumeSettings?.level, model.type);
   }, [model]);
 
   // prevent color flicker when unmuting
@@ -60,16 +55,16 @@ function BaseInteractableChatRow({
       utils.triggerHaptic('swipeAction');
       switch (actionId) {
         case 'pin':
-          model.pin ? store.unpinItem(model.pin) : store.pinItem(model);
+          model.pin ? store.unpinItem(model.pin) : store.pinChat(model);
           break;
         case 'mute':
           isMuted ? store.unmuteChat(model) : store.muteChat(model);
           break;
         case 'markRead':
-          if (model.group) {
+          if (model.type === 'group') {
             store.markGroupRead(model.group, true);
           } else {
-            store.markChannelRead(model);
+            store.markChannelRead(model.channel);
           }
           break;
         default:
@@ -89,9 +84,7 @@ function BaseInteractableChatRow({
 
   const renderLeftActions = useCallback(
     (progress: SharedValue<number>, drag: SharedValue<number>) => {
-      const hasUnread = model.group
-        ? (model.group.unread?.count ?? 0) > 0
-        : (model.unread?.count ?? 0) > 0;
+      const hasUnread = model.unreadCount > 0;
 
       if (currentSwipeDirection === 'right' || !hasUnread) {
         return <View />;
@@ -105,7 +98,7 @@ function BaseInteractableChatRow({
         />
       );
     },
-    [handleAction, model.group, model.unread?.count, currentSwipeDirection]
+    [model.unreadCount, currentSwipeDirection, handleAction]
   );
 
   const renderRightActions = useCallback(
@@ -144,12 +137,18 @@ function BaseInteractableChatRow({
           model={model}
           onPress={onPress}
           onLongPress={onLongPress}
+          {...props}
         />
       </Swipeable>
     );
   } else {
     return (
-      <ChatListItem model={model} onPress={onPress} onLongPress={onLongPress} />
+      <ChatListItem
+        model={model}
+        onPress={onPress}
+        onLongPress={onLongPress}
+        {...props}
+      />
     );
   }
 }

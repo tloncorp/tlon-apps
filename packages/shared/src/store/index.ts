@@ -3,6 +3,7 @@ export * from './reactQuery';
 export * from './sync';
 export * from './useChannelPosts';
 export * from './useChannelSearch';
+export * from './useChannelHooksPreview';
 export * from './useCreateChannel';
 export * from './postActions';
 export * from './channelActions';

@@ -2,6 +2,7 @@ import { useShip } from '@tloncorp/app/contexts/ship';
 import { useAppStatusChange } from '@tloncorp/app/hooks/useAppStatusChange';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
+import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
@@ -9,7 +10,7 @@ import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
-import { ZStack } from '@tloncorp/ui';
+import { PortalProvider, ZStack } from '@tloncorp/ui';
 import { useCallback, useEffect } from 'react';
 import { AppStateStatus } from 'react-native';
 
@@ -29,6 +30,7 @@ function AuthenticatedApp() {
   useNavigationLogging();
   useNetworkLogger();
   useCheckAppUpdated();
+  useFindSuggestedContacts();
 
   useEffect(() => {
     configureClient();
@@ -58,7 +60,13 @@ function AuthenticatedApp() {
 export default function ConnectedAuthenticatedApp() {
   return (
     <AppDataProvider>
-      <AuthenticatedApp />
+      {/* 
+        This portal provider overrides the root portal provider 
+        to ensure that sheets have access to `AppDataContext`
+      */}
+      <PortalProvider>
+        <AuthenticatedApp />
+      </PortalProvider>
     </AppDataProvider>
   );
 }

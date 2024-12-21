@@ -160,7 +160,7 @@ export function ChatAuthorRow({
             </Text>
           ) : null}
         </XStack>
-        {deliveryStatus && deliveryStatus !== 'failed' ? (
+        {!!deliveryStatus && deliveryStatus !== 'failed' ? (
           <ChatMessageDeliveryStatus status={deliveryStatus} />
         ) : null}
       </XStack>

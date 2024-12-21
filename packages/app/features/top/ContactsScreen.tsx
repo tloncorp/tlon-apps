@@ -63,9 +63,15 @@ export default function ContactsScreen(props: Props) {
 
   return (
     <AppDataContextProvider contacts={contacts} currentUserId={currentUser}>
-      <View flex={1}>
+      <View backgroundColor="$background" flex={1}>
         <ScreenHeader
           title="Contacts"
+          leftControls={
+            <ScreenHeader.IconButton
+              type="Add"
+              onPress={() => navigate('AddContacts')}
+            />
+          }
           rightControls={
             <ScreenHeader.IconButton
               type="Settings"
