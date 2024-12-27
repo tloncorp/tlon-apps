@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import create from 'zustand';
 
+import { storage } from './db';
 import { useLiveRef } from './logic/utilHooks';
 import { useCurrentSession } from './store/session';
 
@@ -78,9 +79,10 @@ export const useDebugStore = create<DebugStore>((set, get) => ({
   platform: null,
   appInfo: null,
   toggle: (enabled) => {
-    set(() => ({
+    storage.debugMode.setValue(enabled);
+    set({
       enabled,
-    }));
+    });
   },
   appendLog: (log: Log) => {
     set((state) => ({
@@ -154,6 +156,14 @@ export const useDebugStore = create<DebugStore>((set, get) => ({
     }));
   },
 }));
+
+async function rehydrateDebugState() {
+  const enabled = await storage.debugMode.getValue();
+  useDebugStore.getState().toggle(enabled);
+}
+// Immediately attempt to rehydrate debug state.
+// This should probably be called somewhere else...
+rehydrateDebugState();
 
 export function addCustomEnabledLoggers(loggers: string[]) {
   return useDebugStore.getState().addCustomEnabledLoggers(loggers);
