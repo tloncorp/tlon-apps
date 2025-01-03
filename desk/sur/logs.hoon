@@ -15,7 +15,7 @@
       [%tell id=(unit @ta) vol=volume =echo]
   ==
 ::
-::  $log-item: an event with timestamp
+::  $log-item: event with timestamp
 +$  log-item  [=time event=log-event]
 ::
 +$  a-log
