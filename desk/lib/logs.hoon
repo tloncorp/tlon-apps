@@ -62,6 +62,8 @@
         %tell
       =-  ?>(?=(%o -.-) -)
       %-  pairs:enjs
+      ::
+      ::  insert tell id if present
       =-  ?~  id.e  -
           [id/s+u.id.e -]
       :~  type/s+event-type
