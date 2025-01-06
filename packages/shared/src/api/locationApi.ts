@@ -13,20 +13,22 @@ export async function processDeviceLocation({
   const place = await response.json();
   console.log('place', place);
 
-  const timezoneResponse = await fetch(
-    `https://api.geotimezone.com/public/timezone?latitude=${latitude}&longitude=${longitude}`
-  );
-  const timezone = await timezoneResponse.json();
+  const timezone = await getDeviceTimezone();
   console.log('timezone', timezone);
 
   const profileLocation: domain.ProfileDeviceLocation = {
     type: 'device',
     address: place.address,
     placeId: place.place_id,
-    ianaTimezone: timezone?.['iana_timezone'],
+    ianaTimezone: timezone,
     latitude,
     longitude,
   };
 
   return profileLocation;
+}
+
+export function getDeviceTimezone(): string {
+  // Works in both web and React Native!
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }

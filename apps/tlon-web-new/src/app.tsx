@@ -19,7 +19,12 @@ import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
-import { LoadingSpinner, StoreProvider, View } from '@tloncorp/ui';
+import {
+  AudioPlayerProvider,
+  LoadingSpinner,
+  StoreProvider,
+  View,
+} from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { PropsWithChildren, useEffect, useState } from 'react';
@@ -188,18 +193,20 @@ const App = React.memo(function AppComponent() {
         <SafeAreaProvider>
           <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
             <StoreProvider>
-              {dbIsLoaded ? (
-                <AppRoutes isLoaded={dbIsLoaded} />
-              ) : (
-                <View
-                  height="100%"
-                  width="100%"
-                  justifyContent="center"
-                  alignItems="center"
-                >
-                  <LoadingSpinner />
-                </View>
-              )}
+              <AudioPlayerProvider>
+                {dbIsLoaded ? (
+                  <AppRoutes isLoaded={dbIsLoaded} />
+                ) : (
+                  <View
+                    height="100%"
+                    width="100%"
+                    justifyContent="center"
+                    alignItems="center"
+                  >
+                    <LoadingSpinner />
+                  </View>
+                )}
+              </AudioPlayerProvider>
             </StoreProvider>
           </TamaguiProvider>
         </SafeAreaProvider>

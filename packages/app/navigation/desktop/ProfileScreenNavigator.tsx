@@ -1,8 +1,10 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { AddContactsScreen } from '../../features/contacts/AddContactsScreen';
+import { AddProfileAudioScreen } from '../../features/settings/AddProfileAudioScreen';
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
+import { EditProfileLinksScreen } from '../../features/settings/EditProfileLinksScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../../features/settings/ManageAccountScreen';
@@ -57,6 +59,14 @@ export const ProfileScreenNavigator = () => {
       <ProfileScreenStack.Screen
         name="EditProfile"
         component={EditProfileScreen}
+      />
+      <ProfileScreenStack.Screen
+        name="AddProfileAudio"
+        component={AddProfileAudioScreen}
+      />
+      <ProfileScreenStack.Screen
+        name="EditProfileLinks"
+        component={EditProfileLinksScreen}
       />
       <ProfileScreenStack.Screen name="Theme" component={ThemeScreen} />
     </ProfileScreenStack.Navigator>
