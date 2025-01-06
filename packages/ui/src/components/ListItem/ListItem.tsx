@@ -256,6 +256,9 @@ const ListItemEndContent = styled(YStack, {
   gap: '$2xs',
   justifyContent: 'center',
   alignItems: 'flex-end',
+  $gtSm: {
+    paddingTop: 0,
+  },
 });
 
 export type ListItem = typeof ListItemFrame;

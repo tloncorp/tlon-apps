@@ -12,6 +12,7 @@ import { Modal, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Dialog,
+  ScrollView,
   SheetProps,
   View,
   VisuallyHidden,
@@ -121,8 +122,10 @@ const ActionSheetComponent = ({
             maxWidth={800}
             minWidth={400}
             key="content"
+            maxHeight="100%"
+            marginVertical="$2xl"
           >
-            {children}
+            <ScrollView>{children}</ScrollView>
           </Dialog.Content>
         </Dialog.Portal>
 
@@ -355,6 +358,7 @@ const ActionSheetActionFrame = styled(ListItem, {
   borderRadius: 0,
   paddingHorizontal: '$2xl',
   paddingVertical: '$l',
+  alignItems: 'center',
   $gtSm: {
     paddingHorizontal: '$l',
     paddingVertical: '$m',
@@ -404,7 +408,7 @@ const ActionSheetActionDescription = styled(ListItem.Subtitle, {
   context: ActionSheetActionGroupContext,
   maxWidth: '100%',
   $gtSm: {
-    maxWidth: 200,
+    maxWidth: '100%',
   },
   variants: {
     accent: {

@@ -157,6 +157,7 @@ export const ChatList = React.memo(function ChatListComponent({
   }, [onSearchToggle]);
 
   return (
+    // <Popover placement="right" size="$2xl" open>
     <>
       <ChatListTabs onPressTab={setActiveTab} activeTab={activeTab} />
       <ChatListSearch
@@ -183,6 +184,10 @@ export const ChatList = React.memo(function ChatListComponent({
           overrideItemLayout={handleOverrideLayout}
         />
       )}
+      {/* <Popover.Content>
+        hi
+      </Popover.Content>
+    </Popover> */}
     </>
   );
 });

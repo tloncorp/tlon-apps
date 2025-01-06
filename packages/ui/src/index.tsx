@@ -1,5 +1,6 @@
 export * from './components/Activity/ActivityScreenView';
 export * from './components/ActionSheet';
+export * from './components/ActionMenu';
 export * from './components/AppSetting';
 export * from './components/Avatar';
 export * from './components/BigInput';
