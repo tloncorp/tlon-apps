@@ -718,7 +718,7 @@
     ?-    -.diff
         ?(%add-sects %del-sects)  [%perm 0 perm]~
         %create
-      :-  [%create p.diff]
+      :-  [%create p.diff ~]
       %+  murn  (tap:on:notes:a q.diff)
       |=  [=^time =note:a]
       =/  new-post  (get:on-v-posts:d posts time)

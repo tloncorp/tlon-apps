@@ -714,7 +714,7 @@
         ::  december migration
         %view                     [%view 0 p.diff]~
         %create
-      :-  [%create p.diff]
+      :-  [%create p.diff ~]
       %+  murn  (tap:on:curios:h q.diff)
       |=  [=^time =curio:h]
       =/  new-post  (get:on-v-posts:c posts time)

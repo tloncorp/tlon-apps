@@ -1350,6 +1350,10 @@
   %+  roll  (tap:log-on:v7:old:c l)
   |=  [[=time =u-channel:v7:old:c] [count=@ud =_seq-log] =_log =_mod]
   ^+  [[count seq-log] log mod]
+  ?:  ?=(%create -.u-channel)
+    :-  [count seq-log]
+    :_  mod
+    (put:log-on:c log time %create perm.u-channel ~)
   ?.  ?=(%post -.u-channel)
     :-  [count seq-log]
     :_  mod

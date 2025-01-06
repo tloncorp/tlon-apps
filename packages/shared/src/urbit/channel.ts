@@ -273,6 +273,10 @@ interface DiffSort {
   sort: SortMode;
 }
 
+interface DiffMeta {
+  meta: Stringified<ChannelMetadata> | null;
+}
+
 interface PostActionReply {
   reply: {
     id: string; // post id
@@ -330,12 +334,48 @@ export interface PendingMessages {
   replies: Record<string, Record<string, Memo>>;
 }
 
+export type JSONValue = number | string | boolean;
+
+export interface PostInput {
+  type: string;
+  postType: string;
+  configuration?: Record<string, JSONValue>;
+}
+
+export interface PostCollectionRenderer {
+  id: string;
+  configuration?: Record<string, JSONValue>;
+}
+
+export interface ContentRenderer {
+  rendererId: string;
+}
+
+export interface ChannelMetadataSchemaV1 {
+  version: 1;
+  postInput: PostInput;
+  postCollectionRenderer: PostCollectionRenderer;
+  defaultContentRenderer: ContentRenderer;
+}
+
+export type ChannelMetadata = ChannelMetadataSchemaV1;
+
 export interface Channel {
   perms: Perm;
   view: DisplayMode;
   order: string[];
   sort: SortMode;
   pending: PendingMessages;
+  meta: ChannelMetadata;
+}
+
+export interface ChannelFromServer {
+  perms: Perm;
+  view: DisplayMode;
+  order: string[];
+  sort: SortMode;
+  pending: PendingMessages;
+  meta: Stringified<ChannelMetadata> | null;
 }
 
 export interface Channels {
@@ -348,6 +388,7 @@ export interface Create {
   name: string;
   title: string;
   description: string;
+  meta: Stringified<ChannelMetadata> | null;
   readers: string[];
   writers: string[];
 }
@@ -400,7 +441,8 @@ export type Command =
   | DiffAddWriters
   | DiffDelWriters
   | DiffArrangedPosts
-  | DiffSort;
+  | DiffSort
+  | DiffMeta;
 
 export type PostResponse =
   | { set: Post | null }
@@ -442,6 +484,7 @@ export type Response =
   | { view: DisplayMode }
   | { sort: SortMode }
   | { perm: Perm }
+  | { meta: Stringified<ChannelMetadata> | null }
   | { create: Perm }
   | { join: string }
   | { leave: null }

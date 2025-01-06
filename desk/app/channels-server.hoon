@@ -146,7 +146,6 @@
         =v-channels:v6:old:c
         =pimp:imp
     ==
-  ::
   ++  state-5-to-6
     |=  state-5
     ^-  state-6
@@ -675,6 +674,7 @@
     ?>  ((sane %tas) name.nest)
     =.  channel
       %*  .  *v-channel:c
+        meta  [0 meta.new]
         perm  [1 writers.new group.new]
       ==
     =.  ca-core
