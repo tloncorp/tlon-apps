@@ -380,11 +380,6 @@ export const shipInfo = createStorageItem<ShipInfo | null>({
   defaultValue: null,
 });
 
-export const debugMode = createStorageItem<boolean>({
-  key: 'debug',
-  defaultValue: false,
-});
-
 export const featureFlags = createStorageItem<any>({
   key: 'featureFlags',
   defaultValue: null,
