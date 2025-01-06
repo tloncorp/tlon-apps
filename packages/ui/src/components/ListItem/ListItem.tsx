@@ -29,6 +29,7 @@ export interface BaseListItemProps<T> {
   onPress?: (model: T) => void;
   onLongPress?: (model: T) => void;
   unreadCount?: number;
+  isFocused?: boolean;
 }
 
 export type ListItemProps<T> = BaseListItemProps<T> &
@@ -44,6 +45,8 @@ export const ListItemFrame = styled(XStack, {
   justifyContent: 'space-between',
   alignItems: 'stretch',
   backgroundColor: '$transparent',
+  userSelect: 'none',
+  height: '$6xl',
 });
 
 const ListItemIconContainer = styled(View, {

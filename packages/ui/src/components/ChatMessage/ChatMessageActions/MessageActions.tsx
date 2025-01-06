@@ -120,6 +120,7 @@ function ConnectedAction({
   return (
     <ActionList.Action
       disabled={action.isNetworkDependent && connectionStatus !== 'Connected'}
+      height="auto"
       onPress={() =>
         handleAction({
           id: actionId,
@@ -151,7 +152,7 @@ function CopyJsonAction({ post }: { post: db.Post }) {
   }, [post.content]);
   const { doCopy, didCopy } = useCopy(jsonString);
   return (
-    <ActionList.Action onPress={doCopy} last>
+    <ActionList.Action height="auto" onPress={doCopy} last>
       {!didCopy ? 'Copy post JSON' : 'Copied'}
     </ActionList.Action>
   );

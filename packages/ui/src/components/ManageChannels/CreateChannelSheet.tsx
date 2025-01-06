@@ -1,9 +1,5 @@
-import {
-  JSONValue,
-  useCreateChannel,
-  useGroup,
-  useUpdateChannel,
-} from '@tloncorp/shared';
+import { JSONValue, useGroup, useUpdateChannel } from '@tloncorp/shared';
+import { createChannel } from '@tloncorp/shared';
 import {
   ChannelContentConfiguration,
   CollectionRendererId,
@@ -32,7 +28,6 @@ import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
-import { useCurrentUserId } from '../../contexts';
 import { Action, ActionSheet, SimpleActionSheet } from '../ActionSheet';
 import { Button } from '../Button';
 import * as Form from '../Form';
@@ -98,27 +93,20 @@ export function CreateChannelSheet({
     },
   });
 
-  const currentUserId = useCurrentUserId();
-  const createChannel = useCreateChannel({
-    group,
-    currentUserId,
-  });
   const handlePressSave = useCallback(
     async (data: { title: string; channelType: ChannelTypeName }) => {
-      let contentConfiguration: ChannelContentConfiguration | undefined;
-      if (data.channelType === 'custom') {
-        contentConfiguration = customChannelConfigRef.current?.getFormValue();
-        // HACK: We don't have a custom channel type yet, so call it a chat
-        data.channelType = 'chat';
-      }
       createChannel({
+        groupId: group.id,
         title: data.title,
         channelType: data.channelType,
-        contentConfiguration,
+        contentConfiguration:
+          data.channelType === 'custom'
+            ? customChannelConfigRef.current?.getFormValue()
+            : undefined,
       });
       onOpenChange(false);
     },
-    [createChannel, onOpenChange]
+    [group.id, onOpenChange]
   );
 
   const availableChannelTypes = useMemo(

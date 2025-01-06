@@ -21,7 +21,7 @@ export function PictoMessage({
   editing?: boolean;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (post: db.Post, content: Story) => Promise<void>;
-  onPressRetry: (post: db.Post) => void;
+  onPressRetry: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
 }) {
   const image = useMemo(() => {

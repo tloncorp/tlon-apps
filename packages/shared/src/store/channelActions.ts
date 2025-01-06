@@ -5,40 +5,42 @@ import {
 } from '../api/channelContentConfig';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import * as logic from '../logic';
+import { getRandomId } from '../logic';
 import { GroupChannel, getChannelKindFromType } from '../urbit';
 
 const logger = createDevLogger('ChannelActions', false);
 
 export async function createChannel({
   groupId,
-  channelId,
-  name,
   title,
   // Alias to `rawDescription`, since we might need to synthesize a new
   // `description` API value by merging with `contentConfiguration` below.
   description: rawDescription,
-  channelType,
+  channelType: rawChannelType,
   contentConfiguration,
 }: {
   groupId: string;
-  channelId: string;
-  name: string;
   title: string;
   description?: string;
-  channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
+  channelType: Omit<db.ChannelType, 'dm' | 'groupDm'> | 'custom';
   contentConfiguration?: ChannelContentConfiguration;
 }) {
+  const currentUserId = api.getCurrentUserId();
+  const channelType = rawChannelType === 'custom' ? 'chat' : rawChannelType;
+  const channelSlug = getRandomId();
+  const channelId = `${getChannelKindFromType(channelType)}/${currentUserId}/${channelSlug}`;
   // optimistic update
   const newChannel: db.Channel = {
     id: channelId,
     title,
     description: rawDescription,
-    contentConfiguration,
     type: channelType as db.ChannelType,
     groupId,
     addedToGroupAt: Date.now(),
     currentUserIsMember: true,
+    contentConfiguration:
+      contentConfiguration ??
+      channelContentConfigurationForChannelType(channelType),
   };
   await db.insertChannels([newChannel]);
 
@@ -54,22 +56,57 @@ export async function createChannel({
         });
 
   try {
-    await api.addChannelToGroup({ groupId, channelId, sectionId: 'default' });
     await api.createChannel({
-      // @ts-expect-error this is fine
+      id: channelId,
       kind: getChannelKindFromType(channelType),
       group: groupId,
-      name,
+      name: channelSlug,
       title,
       description: encodedDescription ?? '',
       readers: [],
       writers: [],
     });
+    return newChannel;
   } catch (e) {
     console.error('Failed to create channel', e);
     // rollback optimistic update
     await db.deleteChannel(channelId);
   }
+
+  return newChannel;
+}
+
+/**
+ * Creates a `ChannelContentConfiguration` matching our built-in legacy
+ * channel types. With this configuration in place, we can treat these channels
+ * as we would any other custom channel, and avoid switching on `channel.type`
+ * in client code.
+ */
+function channelContentConfigurationForChannelType(
+  channelType: Omit<db.Channel['type'], 'dm' | 'groupDm'>
+): ChannelContentConfiguration {
+  switch (channelType) {
+    case 'chat':
+      return {
+        draftInput: api.DraftInputId.chat,
+        defaultPostContentRenderer: api.PostContentRendererId.chat,
+        defaultPostCollectionRenderer: api.CollectionRendererId.chat,
+      };
+    case 'notebook':
+      return {
+        draftInput: api.DraftInputId.notebook,
+        defaultPostContentRenderer: api.PostContentRendererId.notebook,
+        defaultPostCollectionRenderer: api.CollectionRendererId.notebook,
+      };
+    case 'gallery':
+      return {
+        draftInput: api.DraftInputId.gallery,
+        defaultPostContentRenderer: api.PostContentRendererId.gallery,
+        defaultPostCollectionRenderer: api.CollectionRendererId.gallery,
+      };
+  }
+
+  throw new Error('Unknown channel type');
 }
 
 export async function deleteChannel({
@@ -198,13 +235,8 @@ export async function unpinItem(pin: db.Pin) {
   }
 }
 
-export async function markChannelVisited(channel: db.Channel) {
-  const now = Date.now();
-  logger.log(
-    `marking channel as visited (${channel.lastViewedAt} -> ${now})`,
-    channel.id
-  );
-  await db.updateChannel({ id: channel.id, lastViewedAt: now });
+export async function markChannelVisited(channelId: string) {
+  await db.updateChannel({ id: channelId, lastViewedAt: Date.now() });
 }
 
 export type MarkChannelReadParams = Pick<db.Channel, 'id' | 'groupId' | 'type'>;

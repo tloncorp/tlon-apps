@@ -226,7 +226,8 @@ CREATE TABLE `groups` (
 	`is_new` integer,
 	`join_status` text,
 	`last_post_id` text,
-	`last_post_at` integer
+	`last_post_at` integer,
+	`last_visited_channel_id` text
 );
 --> statement-breakpoint
 CREATE TABLE `pins` (
@@ -293,7 +294,7 @@ CREATE TABLE `posts` (
 	`last_edit_content` text,
 	`last_edit_title` text,
 	`last_edit_image` text,
-	`synced_at` integer NOT NULL,
+	`synced_at` integer,
 	`backend_time` text
 );
 --> statement-breakpoint

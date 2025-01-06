@@ -16,7 +16,7 @@ export interface PostCollectionContextValue {
   initialChannelUnread?: db.ChannelUnread | null;
   isLoadingPosts: boolean;
   onPressDelete: (post: db.Post) => void;
-  onPressRetry: (post: db.Post) => void;
+  onPressRetry: (post: db.Post) => Promise<void>;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   posts?: db.Post[];

@@ -1,6 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
-import { finishingSelfHostedLogin } from '@tloncorp/shared/db';
+import { clearNonPersistentStorageItems } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
@@ -28,7 +28,7 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     clearDeepLink();
     clearSplashDismissed();
     clearTelemetry();
-    finishingSelfHostedLogin.resetValue();
+    clearNonPersistentStorageItems();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');
       return;

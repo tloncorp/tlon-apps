@@ -51,7 +51,7 @@ type RenderItemProps = {
   setEditingPost?: (post: db.Post | undefined) => void;
   setViewReactionsPost?: (post: db.Post) => void;
   editPost?: (post: db.Post, content: Story) => Promise<void>;
-  onPressRetry: (post: db.Post) => void;
+  onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
   isHighlighted?: boolean;
   contentRendererConfiguration?: Record<string, unknown>;

@@ -11600,7 +11600,10 @@
     "~fabled-faster/new-york": {
       "preview": null,
       "invite": null,
-      "claim": null
+      "claim": {
+        "progress": "knocking",
+        "join-all": false
+      }
     },
     "~barmyl-sigted/network-being": {
       "preview": {
@@ -11615,7 +11618,10 @@
           "description": "A group to discuss Heidegger, cybernetics, and the phenomenology of being online. "
         }
       },
-      "invite": null,
+      "invite": {
+        "flag": "~dacler-ricwyt/new-new-new-york",
+        "ship": "~solfer-magfed"
+      },
       "claim": null
     },
     "~salfer-biswed/gamers": {
@@ -11632,7 +11638,10 @@
         }
       },
       "invite": null,
-      "claim": null
+      "claim": {
+        "progress": "adding",
+        "join-all": true
+      }
     },
     "~dacler-ricwyt/new-new-new-york": {
       "preview": {

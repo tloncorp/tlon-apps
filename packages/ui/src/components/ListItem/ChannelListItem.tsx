@@ -3,6 +3,7 @@ import * as logic from '@tloncorp/shared/logic';
 import { useMemo } from 'react';
 import { View, isWeb } from 'tamagui';
 
+import { useNavigation } from '../../contexts';
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
@@ -42,7 +43,7 @@ export function ChannelListItem({
     if (model.type === 'dm' || model.type === 'groupDm') {
       return {
         subtitle: [
-          firstMemberId,
+          utils.formatUserId(firstMemberId)?.display,
           memberCount > 2 && `and ${memberCount - 1} others`,
         ]
           .filter((v) => !!v)
@@ -57,12 +58,15 @@ export function ChannelListItem({
     }
   }, [model, firstMemberId, memberCount]);
 
+  const isFocused = useNavigation().focusedChannelId === model.id;
+
   return (
     <View>
       <Pressable
         borderRadius="$xl"
         onPress={handlePress}
         onLongPress={handleLongPress}
+        backgroundColor={isFocused ? '$secondaryBackground' : undefined}
       >
         <ListItem {...props}>
           <ListItem.ChannelIcon
@@ -74,11 +78,12 @@ export function ChannelListItem({
             <ListItem.Title dimmed={dimmed}>{title}</ListItem.Title>
             {customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
-            ) : (
+            ) : (model.type === 'dm' || model.type === 'groupDm') &&
+              utils.hasNickname(model.members?.[0]?.contact) ? (
               <ListItem.SubtitleWithIcon icon={subtitleIcon}>
                 {subtitle}
               </ListItem.SubtitleWithIcon>
-            )}
+            ) : null}
             {model.lastPost && !model.isDmInvite && (
               <ListItem.PostPreview
                 post={model.lastPost}

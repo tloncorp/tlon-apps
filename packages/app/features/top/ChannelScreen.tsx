@@ -1,4 +1,4 @@
-import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger, useChannelContext } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -12,6 +12,7 @@ import {
 } from '@tloncorp/shared/store';
 import { Story } from '@tloncorp/shared/urbit';
 import {
+  AttachmentProvider,
   Channel,
   ChannelSwitcherSheet,
   ChatOptionsProvider,
@@ -57,28 +58,47 @@ export default function ChannelScreen(props: Props) {
     isChannelSwitcherEnabled,
   });
 
+  const groupId = channel?.groupId ?? group?.id;
   const currentUserId = useCurrentUserId();
+
+  const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
     useCallback(() => {
-      if (group?.isNew) {
-        store.markGroupVisited(group);
-      }
-    }, [group])
-  );
-  useFocusEffect(
-    useCallback(() => {
-      if (channel && !channel.isPendingChannel) {
-        store.syncChannelThreadUnreads(channel.id, {
+      if (!channelIsPending) {
+        store.syncChannelThreadUnreads(channelId, {
           priority: store.SyncPriority.High,
         });
       }
       // Mark the channel as visited when we unfocus/leave this screen
       () => {
-        if (channel) {
-          store.markChannelVisited(channel);
+        if (!channelIsPending) {
+          store.markChannelVisited(channelId);
         }
       };
-    }, [channel])
+    }, [channelId, channelIsPending])
+  );
+
+  const groupIsNew = group?.isNew;
+  useFocusEffect(
+    useCallback(() => {
+      // Mark group visited on enter if new
+      if (groupId && groupIsNew) {
+        store.markGroupVisited(groupId);
+      }
+    }, [groupId, groupIsNew])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (groupId) {
+        // Update the last visited channel in the group so we can return to it
+        // when we come back to the group
+        db.updateGroup({
+          id: groupId,
+          lastVisitedChannelId: channelId,
+        });
+      }
+    }, [groupId, channelId])
   );
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
@@ -342,6 +362,10 @@ export default function ChannelScreen(props: Props) {
 
   return (
     <ChatOptionsProvider
+      initialChat={{
+        type: 'channel',
+        id: currentChannelId,
+      }}
       useGroup={store.useGroup}
       onPressInvite={(group) => {
         setInviteSheetGroup(group);
@@ -349,49 +373,51 @@ export default function ChannelScreen(props: Props) {
       onPressConfigureChannel={channelRef.current?.openChannelConfigurationBar}
       {...chatOptionsNavProps}
     >
-      <Channel
-        key={currentChannelId}
-        ref={channelRef}
-        headerMode={headerMode}
-        channel={channel}
-        initialChannelUnread={clearedCursor ? undefined : initialChannelUnread}
-        isLoadingPosts={isLoadingPosts}
-        hasNewerPosts={postsQuery.hasPreviousPage}
-        hasOlderPosts={postsQuery.hasNextPage}
-        group={group}
-        posts={filteredPosts ?? null}
-        selectedPostId={selectedPostId}
-        goBack={props.navigation.goBack}
-        messageSender={sendPost}
-        goToPost={navigateToPost}
-        goToImageViewer={navigateToImage}
-        goToChannels={handleChannelNavButtonPressed}
-        goToSearch={navigateToSearch}
-        goToDm={handleGoToDm}
-        goToUserProfile={handleGoToUserProfile}
-        uploadAsset={store.uploadAsset}
-        onScrollEndReached={loadOlder}
-        onScrollStartReached={loadNewer}
-        onPressRef={navigateToRef}
-        markRead={handleMarkRead}
-        usePost={usePostWithRelations}
-        usePostReference={usePostReference}
-        useGroup={useGroupPreview}
-        onGroupAction={performGroupAction}
-        useChannel={useChannelPreview}
-        storeDraft={storeDraft}
-        clearDraft={clearDraft}
-        getDraft={getDraft}
-        editingPost={editingPost}
-        onPressDelete={handleDeletePost}
-        onPressRetry={handleRetrySend}
-        setEditingPost={setEditingPost}
-        editPost={editPost}
-        negotiationMatch={negotiationStatus.matchedOrPending}
-        canUpload={canUpload}
-        startDraft={startDraft}
-        onPressScrollToBottom={handleScrollToBottom}
-      />
+      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
+        <Channel
+          key={currentChannelId}
+          ref={channelRef}
+          headerMode={headerMode}
+          channel={channel}
+          initialChannelUnread={
+            clearedCursor ? undefined : initialChannelUnread
+          }
+          isLoadingPosts={isLoadingPosts}
+          hasNewerPosts={postsQuery.hasPreviousPage}
+          hasOlderPosts={postsQuery.hasNextPage}
+          group={group}
+          posts={filteredPosts ?? null}
+          selectedPostId={selectedPostId}
+          goBack={props.navigation.goBack}
+          messageSender={sendPost}
+          goToPost={navigateToPost}
+          goToImageViewer={navigateToImage}
+          goToChannels={handleChannelNavButtonPressed}
+          goToSearch={navigateToSearch}
+          goToDm={handleGoToDm}
+          goToUserProfile={handleGoToUserProfile}
+          onScrollEndReached={loadOlder}
+          onScrollStartReached={loadNewer}
+          onPressRef={navigateToRef}
+          markRead={handleMarkRead}
+          usePost={usePostWithRelations}
+          usePostReference={usePostReference}
+          useGroup={useGroupPreview}
+          onGroupAction={performGroupAction}
+          useChannel={useChannelPreview}
+          storeDraft={storeDraft}
+          clearDraft={clearDraft}
+          getDraft={getDraft}
+          editingPost={editingPost}
+          onPressDelete={handleDeletePost}
+          onPressRetry={handleRetrySend}
+          setEditingPost={setEditingPost}
+          editPost={editPost}
+          negotiationMatch={negotiationStatus.matchedOrPending}
+          startDraft={startDraft}
+          onPressScrollToBottom={handleScrollToBottom}
+        />
+      </AttachmentProvider>
       {group && (
         <>
           <ChannelSwitcherSheet

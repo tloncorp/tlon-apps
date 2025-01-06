@@ -43,7 +43,6 @@ export function GalleryPost({
 }: MinimalRenderItemProps &
   Omit<ComponentProps<typeof GalleryPostFrame>, 'onPress' | 'onLongPress'> & {
     hideOverflowMenu?: boolean;
- 
   }) {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const embedded = useMemo(

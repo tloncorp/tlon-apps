@@ -353,24 +353,39 @@ export default function BareChatInput({
         metadata['image'] = attachment.uploadState.remoteUri;
       }
 
-      if (isEdit && editingPost) {
-        if (editingPost.parentId) {
-          await editPost?.(editingPost, story, editingPost.parentId, metadata);
-        }
-        await editPost?.(editingPost, story, undefined, metadata);
-        setEditingPost?.(undefined);
-      } else {
-        // not awaiting since we don't want to wait for the send to complete
-        // before clearing the draft and the editor content
-        send(story, channelId, metadata);
-      }
+      try {
+        setControlledText('');
+        bareChatInputLogger.log('clearing attachments');
+        clearAttachments();
+        bareChatInputLogger.log('resetting input height');
+        setInputHeight(initialHeight);
 
-      onSend?.();
-      setControlledText('');
-      setMentions([]);
-      clearAttachments();
-      clearDraft();
-      setHasSetInitialContent(false);
+        if (isEdit && editingPost) {
+          if (editingPost.parentId) {
+            await editPost?.(
+              editingPost,
+              story,
+              editingPost.parentId,
+              metadata
+            );
+          }
+          await editPost?.(editingPost, story, undefined, metadata);
+          setEditingPost?.(undefined);
+        } else {
+          await send(story, channelId, metadata);
+        }
+      } catch (e) {
+        bareChatInputLogger.error('Error sending message', e);
+        setSendError(true);
+      } finally {
+        onSend?.();
+        bareChatInputLogger.log('sent message', story);
+        setMentions([]);
+        bareChatInputLogger.log('clearing draft');
+        clearDraft();
+        bareChatInputLogger.log('setting initial content');
+        setHasSetInitialContent(false);
+      }
     },
     [
       onSend,
@@ -387,6 +402,7 @@ export default function BareChatInput({
       send,
       channelId,
       setMentions,
+      initialHeight,
     ]
   );
 
@@ -552,13 +568,59 @@ export default function BareChatInput({
     setMentions,
   ]);
 
+  // Handle pastes on web
+  useEffect(() => {
+    // For now, we only check to make sure we're on web,
+    // we don't check if the input is focused. This allows users to paste
+    // images before they select the input. We may want to change this behavior
+    // if this feels weird, but it feels like a nice quality of life improvement.
+    // We can do this because there is only ever one input on the screen at a time,
+    // unlike the old app where you could have both the main chat input and the
+    // thread input on screen at the same time.
+    if (!isWeb) return;
+
+    const handlePaste = async (e: ClipboardEvent) => {
+      const items = Array.from(e.clipboardData?.items || []);
+      const image = items.find((item) => item.type.includes('image'));
+
+      if (!image) return;
+
+      const file = image.getAsFile();
+      if (!file) return;
+
+      const uri = URL.createObjectURL(file);
+
+      const img = new Image();
+
+      img.onload = () => {
+        addAttachment({
+          type: 'image',
+          file: {
+            uri,
+            height: img.height,
+            width: img.width,
+          },
+        });
+      };
+
+      img.src = uri;
+    };
+
+    document.addEventListener('paste', handlePaste);
+
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, [addAttachment]);
+
   const handleCancelEditing = useCallback(() => {
     setEditingPost?.(undefined);
     setHasSetInitialContent(false);
     setControlledText('');
     clearDraft();
     clearAttachments();
-  }, [setEditingPost, clearDraft, clearAttachments]);
+    setInputHeight(initialHeight);
+  }, [setEditingPost, clearDraft, clearAttachments, initialHeight]);
 
   const theme = useTheme();
 

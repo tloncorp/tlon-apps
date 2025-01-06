@@ -12,6 +12,7 @@ import {
 } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
+import { useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import type { RootStackParamList } from '../../navigation/types';
@@ -19,6 +20,7 @@ import type { RootStackParamList } from '../../navigation/types';
 type Props = NativeStackScreenProps<RootStackParamList, 'Contacts'>;
 
 export default function ContactsScreen(props: Props) {
+  const theme = useTheme();
   const {
     navigation: { navigate },
   } = props;
@@ -63,7 +65,7 @@ export default function ContactsScreen(props: Props) {
 
   return (
     <AppDataContextProvider contacts={contacts} currentUserId={currentUser}>
-      <View backgroundColor="$background" flex={1}>
+      <View backgroundColor={theme?.background?.val} flex={1}>
         <ScreenHeader
           title="Contacts"
           leftControls={

@@ -25,6 +25,7 @@ import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/sha
 import {
   LoadingSpinner,
   PortalProvider,
+  StoreProvider,
   Text,
   View,
   usePreloadedEmojis,
@@ -129,41 +130,43 @@ export default function ConnectedApp() {
                 theme={isDarkMode ? DarkTheme : DefaultTheme}
                 ref={navigationContainerRef}
               >
-                <BranchProvider>
-                  <PostHogProvider
-                    client={posthogAsync}
-                    autocapture={{
-                      captureTouches: false,
-                    }}
-                    options={{
-                      enable:
-                        process.env.NODE_ENV !== 'test' ||
-                        !!process.env.POST_HOG_IN_DEV,
-                    }}
-                  >
-                    <GestureHandlerRootView style={{ flex: 1 }}>
-                      <SafeAreaProvider>
-                        <MigrationCheck>
-                          <QueryClientProvider client={queryClient}>
-                            <SignupProvider>
-                              <PortalProvider>
-                                <App />
-                              </PortalProvider>
+                <StoreProvider>
+                  <BranchProvider>
+                    <PostHogProvider
+                      client={posthogAsync}
+                      autocapture={{
+                        captureTouches: false,
+                      }}
+                      options={{
+                        enable:
+                          process.env.NODE_ENV !== 'test' ||
+                          !!process.env.POST_HOG_IN_DEV,
+                      }}
+                    >
+                      <GestureHandlerRootView style={{ flex: 1 }}>
+                        <SafeAreaProvider>
+                          <MigrationCheck>
+                            <QueryClientProvider client={queryClient}>
+                              <SignupProvider>
+                                <PortalProvider>
+                                  <App />
+                                </PortalProvider>
 
-                              {__DEV__ && (
-                                <DevTools
-                                  navigationContainerRef={
-                                    navigationContainerRef
-                                  }
-                                />
-                              )}
-                            </SignupProvider>
-                          </QueryClientProvider>
-                        </MigrationCheck>
-                      </SafeAreaProvider>
-                    </GestureHandlerRootView>
-                  </PostHogProvider>
-                </BranchProvider>
+                                {__DEV__ && (
+                                  <DevTools
+                                    navigationContainerRef={
+                                      navigationContainerRef
+                                    }
+                                  />
+                                )}
+                              </SignupProvider>
+                            </QueryClientProvider>
+                          </MigrationCheck>
+                        </SafeAreaProvider>
+                      </GestureHandlerRootView>
+                    </PostHogProvider>
+                  </BranchProvider>
+                </StoreProvider>
               </NavigationContainer>
             </ShipProvider>
           </TamaguiProvider>

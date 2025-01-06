@@ -34,6 +34,7 @@ export const ButtonContext = createStyledContext<{
 
 export const ButtonFrame = styled(Stack, {
   name: 'Button',
+  cursor: 'pointer',
   context: ButtonContext,
   backgroundColor: '$background',
   alignItems: 'center',
@@ -47,6 +48,7 @@ export const ButtonFrame = styled(Stack, {
   borderRadius: '$l',
   paddingVertical: '$s',
   paddingHorizontal: '$l',
+  gap: '$s',
   variants: {
     size: {
       '...size': (name, { tokens }) => {
@@ -114,9 +116,8 @@ export const ButtonFrame = styled(Stack, {
     },
     secondary: {
       true: {
-        backgroundColor: '$border',
-        padding: '$xl',
-        borderWidth: 0,
+        height: 56,
+        borderColor: '$shadow',
         pressStyle: {
           backgroundColor: '$secondaryBackground',
         },
@@ -173,9 +174,7 @@ export const ButtonText = styled(Text, {
     },
     secondary: {
       true: {
-        width: '100%',
-        textAlign: 'center',
-        fontWeight: '500',
+        color: '$secondaryText',
       },
     },
     disabled: {} as Record<'true' | 'false', ViewStyle>,
@@ -183,18 +182,16 @@ export const ButtonText = styled(Text, {
 });
 
 const ButtonIcon = (props: { color?: ColorTokens; children: any }) => {
-  const { size, color, hero, heroDestructive } = useContext(
-    ButtonContext.context
-  );
-  const smaller = getSize(size, {
-    shift: -1,
-  });
+  const context = useContext(ButtonContext.context);
+
+  const iconColor =
+    props.color ??
+    (context.hero || context.heroDestructive
+      ? '$background'
+      : context.color ?? '$primaryText');
+
   return cloneElement(props.children, {
-    size: smaller.val,
-    color:
-      props.color ??
-      color ??
-      (hero || heroDestructive ? '$white' : '$primaryText'),
+    color: iconColor,
   });
 };
 

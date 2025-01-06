@@ -19,6 +19,7 @@ type Props = NativeStackScreenProps<
 >;
 
 const noop = (..._args: unknown[]) => {};
+const asyncNoop = async (..._args: unknown[]) => {};
 
 export function PostUsingContentConfigurationScreen({
   route: {
@@ -36,6 +37,7 @@ export function PostUsingContentConfigurationScreen({
   // TODO: probably needs AttachmentProvider, NavigationProvider
   return (
     <ChatOptionsProvider
+      onPressChannelTemplate={noop}
       onPressGroupMeta={noop}
       onPressGroupMembers={noop}
       onPressManageChannels={noop}
@@ -64,7 +66,7 @@ export function PostUsingContentConfigurationScreen({
               initialChannelUnread: undefined,
               isLoadingPosts: false,
               onPressDelete: noop,
-              onPressRetry: noop,
+              onPressRetry: asyncNoop,
               onScrollEndReached: noop,
               onScrollStartReached: noop,
               posts: undefined,

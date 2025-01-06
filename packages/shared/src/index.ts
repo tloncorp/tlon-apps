@@ -32,6 +32,7 @@ export {
 export { parseActiveTab, trimFullPath } from './logic/navigation';
 export * from './logic';
 export * from './store';
+export * from './domain';
 export * as sync from './store/sync';
 export * as utils from './logic/utils';
 export * as tiptap from './logic/tiptap';

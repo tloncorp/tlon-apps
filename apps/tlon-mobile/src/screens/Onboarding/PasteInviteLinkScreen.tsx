@@ -61,10 +61,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   const inviteLinkValue = watch('inviteLink');
   useEffect(() => {
     async function handleInviteLinkChange() {
-      const extractedLink = extractNormalizedInviteLink(
-        inviteLinkValue,
-        BRANCH_DOMAIN
-      );
+      const extractedLink = extractNormalizedInviteLink(inviteLinkValue);
       setMetadataError(null);
       if (extractedLink) {
         try {
@@ -103,6 +100,10 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
       trackOnboardingAction({
         actionName: 'Invite Link Added',
         lure: lureMeta.id,
+        inviteType:
+          lureMeta.inviteType && lureMeta.inviteType === 'user'
+            ? 'personal'
+            : 'group',
       });
 
       navigation.reset({

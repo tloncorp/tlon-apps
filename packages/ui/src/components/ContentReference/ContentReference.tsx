@@ -8,6 +8,7 @@ import { View, XStack, styled } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
 import { useRequests } from '../../contexts/requests';
+import { useGroupTitle } from '../../utils';
 import { ContactAvatar, GroupAvatar } from '../Avatar';
 import { useContactName } from '../ContactNameV2';
 import { GalleryContentRenderer } from '../GalleryPost';
@@ -283,6 +284,7 @@ export function GroupReference({
   data,
   ...props
 }: { data?: db.Group | null } & ReferenceProps) {
+  const title = useGroupTitle(data);
   return (
     <Reference {...props}>
       <ContentReferenceHeader type="group" />
@@ -310,7 +312,7 @@ export function GroupReference({
                   textAlign="center"
                   paddingHorizontal="$m"
                 >
-                  {data.title}
+                  {title}
                 </Text>
               </View>
             )
@@ -318,7 +320,7 @@ export function GroupReference({
             <ListItem backgroundColor={'transparent'} gap="$m">
               <ListItem.GroupIcon model={data} />
               <ListItem.MainContent>
-                <ListItem.Title>{data.title ?? data.id}</ListItem.Title>
+                <ListItem.Title>{title}</ListItem.Title>
                 <ListItem.Subtitle>{data.description}</ListItem.Subtitle>
               </ListItem.MainContent>
             </ListItem>

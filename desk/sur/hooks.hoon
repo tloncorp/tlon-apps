@@ -1,20 +1,22 @@
 /-  *channels, g=groups, a=activity, ch=chat, co=contacts, m=meta
 |%
-::  $id: a unique identifier for a hook
-+$  id  @uv
+::  $id-hook: a unique identifier for a hook
++$  id-hook  @uv
 ::
-::  $hook: a pure function that runs on triggers in a channel
+::  $hook: a function that runs on triggers in a channel, can produce
+::         effects, and change its own state
 ::
-::    $id: a unique identifier for the hook
-::    $name: a human-readable name for the hook
-::    $version: the version the hook was compiled with
-::    $src: the source code of the hook
-::    $compiled: the compiled version of the hook
-::    $state: the current state of the hook
-::    $config: any configuration data for the hook
+::    .id: a unique identifier for the hook
+::    .name: a human-readable name for the hook
+::    .version: the version the hook was compiled with
+::    .src: the source code of the hook
+::    .compiled: the compiled hook
+::    .state: the current state of the hook
+::    .config: any configuration data for the instance of the hook
+::             running on a channel
 ::
 ++  hook
-  $:  =id
+  $:  id=id-hook
       version=%0
       name=@t
       meta=data:m
@@ -23,62 +25,67 @@
       state=vase
       config=(map nest config)
   ==
-::  $hooks: collection of hooks, the order they should be run in, and
-::          any delayed hooks that need to be run
+::  $hooks: collection of hooks, the order they should be run in, hooks
+::          running on a schedule, and any hooks waiting to run
 ++  hooks
-  $:  hooks=(map id hook)
-      order=(map nest (list id))
-      crons=(map id (map origin cron))
-      delayed=(map delay-id [=origin delayed-hook])
+  $:  hooks=(map id-hook hook)
+      order=(map nest (list id-hook))
+      crons=(map id-hook cron)
+      waiting=(map id-wait [=origin waiting-hook])
   ==
 +$  origin  $@(~ nest)
-+$  delay-id  id
-+$  schedule  [next=@da repeat=@dr]
-+$  cron
-  $:  hook=id
++$  cron  (map origin job)
++$  job
+  $:  =id-hook
       =schedule
       =config
   ==
-::  $delayed-hook: metadata for when a delayed hook fires from the timer
-+$  delayed-hook
-  $:  id=delay-id
-      hook=id
++$  schedule  [next=@da repeat=@dr]
++$  id-wait  @uv
+::  $waiting-hook: metadata for when a waiting hook fires from the timer
++$  waiting-hook
+  $:  id=id-wait
+      hook=id-hook
       data=vase
       fires-at=time
   ==
-::
+::  $config: configuration data for a hook instance
 +$  config  (map @t *)
+::
+::  $action: what we can do with a hook
 +$  action
   $%  [%add name=@t src=@t]
-      [%edit =id name=(unit @t) src=(unit @t) meta=(unit data:m)]
-      [%del =id]
-      [%order =nest seq=(list id)]
-      [%config =id =nest =config]
-      [%wait =id =origin schedule=$@(@dr schedule) =config]
-      [%rest =id =origin]
+      [%edit id=id-hook name=(unit @t) src=(unit @t) meta=(unit data:m)]
+      [%del id=id-hook]
+      [%order =nest seq=(list id-hook)]
+      [%config id=id-hook =nest =config]
+      [%cron id=id-hook =origin schedule=$@(@dr schedule) =config]
+      [%rest id=id-hook =origin]
   ==
+::
+::  $response: the result of an action on a hook
 +$  response
-  $%  [%set =id name=@t src=@t meta=data:m error=(unit tang)]
-      [%gone =id]
-      [%order =nest seq=(list id)]
-      [%config =id =nest =config]
-      [%wait =id =origin schedule=$@(@dr schedule) =config]
-      [%rest =id =origin]
+  $%  [%set id=id-hook name=@t src=@t meta=data:m error=(unit tang)]
+      [%gone id=id-hook]
+      [%order =nest seq=(list id-hook)]
+      [%config id=id-hook =nest =config]
+      [%cron id=id-hook =origin schedule=$@(@dr schedule) =config]
+      [%rest id=id-hook =origin]
   ==
-::  $context: ambient state that a hook should know about not
-::            necessarily tied to a specific event
+::  $bowl: ambient state that a hook should know about not
+::         necessarily tied to a specific event
 ::
-::    $channel: the channel that the hook is operating on
-::    $group: the group that the channel belongs to
-::    $channels: all the channels in the group
-::    $hook: the hook that's running
-::    $config: the configuration data for this instance of the hook
-::    $now: the current time
-::    $our: the ship that the hook is running on
-::    $src: the ship that triggered the hook
-::    $eny: entropy for random number generation or key derivation
+::    .channel: the channel that the hook is operating on
+::    .group: the group that the channel belongs to
+::    .channels: all the channels in the group
+::    .hook: the hook that's running
+::    .config: the configuration data for this instance of the hook
+::    .now: the current time
+::    .our: the ship that the hook is running on
+::    .src: the ship that triggered the hook
+::    .eny: entropy for random number generation or key derivation
 ::
-+$  context
++$  bowl
   $:  channel=(unit [=nest v-channel])
       group=(unit group-ui:g)
       channels=v-channels
@@ -102,7 +109,7 @@
   $%  [%on-post on-post]
       [%on-reply on-reply]
       [%cron ~]
-      [%wake delayed-hook]
+      [%wake waiting-hook]
   ==
 ::
 ::  $on-post: a hook event that fires when posts are interacted with
@@ -124,26 +131,26 @@
 ::  $args: the arguments passed to a hook
 +$  args
   $:  =event
-      =context
+      =bowl
   ==
 ::  $outcome: the result of a hook running
 +$  outcome  (each return tang)
 ::
 ::  $return: the data returned from a hook
 ::
-::    $result: whether the action was allowed or denied and any
+::    .result: whether the action was allowed or denied and any
 ::             transformed values
-::    $actions: any actions that should be taken on other agents or delay
-::    $new-state: the new state of the hook after running
+::    .effects: any actions that should be taken on other agents or wait
+::    .new-state: the new state of the hook after running
 ::
 +$  return
-  $:  $:  =result
+  $:  $:  result=event-result
           effects=(list effect)
       ==
       new-state=vase
   ==
 ::
-::  $result: whether to allow the action, and any transformations to
+::  $event-result: whether to allow the action, and any transformations to
 ::           the event
 ::
 ::    $allowed: represents the action being allowed to go through, and
@@ -151,8 +158,8 @@
 ::    $denied: represents the action being denied along with the reason
 ::             that the action was denied
 ::
-+$  result
-  $%  [%allowed new=event]
++$  event-result
+  $%  [%allowed =event]
       [%denied msg=(unit cord)]
   ==
 ::
@@ -166,7 +173,15 @@
       [%dm =action:dm:ch]
       [%club =action:club:ch]
       [%contacts =action:co]
-      [%wait delayed-hook]
+      [%wait waiting-hook]
   ==
 ::
++$  channel-preview  (list [name=@t meta=data:m])
+::
++$  template
+  $:  from=nest
+      hooks=(map id-hook hook)
+      order=(list id-hook)
+      crons=(list [id-hook job])
+  ==
 --
