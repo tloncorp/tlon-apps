@@ -146,7 +146,7 @@ export function ImageViewerScreenView(props: {
         {/* overlay */}
         {showOverlay ? (
           <YStack padding="$xl" paddingTop={top}>
-            <XStack justifyContent="space-between" gap="$m">
+            <XStack justifyContent={isWeb ? "flex-end" : "space-between"} gap="$m">
               {!isWeb && (
                 <TouchableOpacity
                   onPress={handleDownloadImage}
