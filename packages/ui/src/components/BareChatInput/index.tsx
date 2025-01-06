@@ -36,6 +36,7 @@ import {
   UploadedImageAttachment,
   useAttachmentContext,
 } from '../../contexts';
+import { useGlobalSearch } from '../../contexts/globalSearch';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
 import {
@@ -642,9 +643,34 @@ export default function BareChatInput({
     }
   };
 
+  const { setIsOpen } = useGlobalSearch();
+
   const handleBlur = useCallback(() => {
     setShouldBlur(true);
   }, [setShouldBlur]);
+
+  const handleKeyPress = useCallback(
+    (e: any) => {
+      const keyEvent = e.nativeEvent as unknown as KeyboardEvent;
+      if (!isWeb) return;
+
+      if (
+        (keyEvent.metaKey || keyEvent.ctrlKey) &&
+        keyEvent.key.toLowerCase() === 'k'
+      ) {
+        e.preventDefault();
+        inputRef.current?.blur();
+        setIsOpen(true);
+        return;
+      }
+
+      if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    },
+    [setIsOpen, handleSend]
+  );
 
   return (
     <MessageInputContainer
@@ -682,15 +708,7 @@ export default function BareChatInput({
           onChange={isWeb ? adjustTextInputSize : undefined}
           onLayout={isWeb ? adjustTextInputSize : undefined}
           onBlur={handleBlur}
-          onKeyPress={(e) => {
-            if (isWeb && e.nativeEvent.key === 'Enter') {
-              const keyEvent = e.nativeEvent as unknown as KeyboardEvent;
-              if (!keyEvent.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }
-          }}
+          onKeyPress={handleKeyPress}
           multiline
           placeholder={placeholder}
           {...(!isWeb ? placeholderTextColor : {})}
