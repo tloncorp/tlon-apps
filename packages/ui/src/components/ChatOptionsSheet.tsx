@@ -52,12 +52,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
     return <GroupOptionsSheetLoader groupId={group?.id} {...props} />;
   }
 
-  return (
-    <ChannelOptionsSheetLoader
-      channelId={chat.id}
-      {...props}
-    />
-  );
+  return <ChannelOptionsSheetLoader channelId={chat.id} {...props} />;
 });
 
 export function GroupOptionsSheetLoader({
@@ -351,16 +346,6 @@ export function ChannelOptionsSheetLoader({
     id: channelId,
   });
 
-  const [enableCustomChannels, setEnableCustomChannels] = useState(false);
-  // why useLayoutEffect?
-  // to try to get the synchronous read to avoid flicker on mount
-  useLayoutEffect(() => {
-    return featureFlags.subscribeToFeatureFlag(
-      'customChannels',
-      setEnableCustomChannels
-    );
-  }, []);
-
   const { data: group } = store.useGroup({
     id: channelQuery.data?.groupId ?? undefined,
   });
@@ -385,31 +370,20 @@ export function ChannelOptionsSheetLoader({
   }, [open, resetPane]);
 
   return channelQuery.data ? (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      {...(enableCustomChannels
-        ? {
-            snapPointsMode: 'percent',
-            snapPoints: [75],
-          }
-        : {})}
-    >
-      <ActionSheet.ScrollableContent>
-        {pane === 'notifications' ? (
-          <NotificationsSheetContent
-            chatTitle={chatTitle}
-            onPressBack={resetPane}
-          />
-        ) : (
-          <ChannelOptionsSheetContent
-            chatTitle={chatTitle}
-            channel={channelQuery.data}
-            onPressNotifications={handlePressNotifications}
-            onPressConfigureChannel={onPressConfigureChannel}
-          />
-        )}
-      </ActionSheet.ScrollableContent>
+    <ActionSheet open={open} onOpenChange={onOpenChange}>
+      {pane === 'notifications' ? (
+        <NotificationsSheetContent
+          chatTitle={chatTitle}
+          onPressBack={resetPane}
+        />
+      ) : (
+        <ChannelOptionsSheetContent
+          chatTitle={chatTitle}
+          channel={channelQuery.data}
+          onPressNotifications={handlePressNotifications}
+          onPressConfigureChannel={onPressConfigureChannel}
+        />
+      )}
     </ActionSheet>
   ) : null;
 }
@@ -447,6 +421,7 @@ function ChannelOptionsSheetContent({
     group?.privacy === 'private' || group?.privacy === 'secret';
   const canInvite = invitationsEnabled && currentUserIsAdmin;
   const canMarkRead = !(channel.unread?.count === 0);
+  const enableCustomChannels = useCustomChannelsEnabled();
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
@@ -489,9 +464,10 @@ function ChannelOptionsSheetContent({
             action: onPressManageChannels,
           },
           currentUserIsAdmin &&
-            channel.contentConfiguration != null && {
+            enableCustomChannels && {
               title: 'Configure view',
               action: onPressConfigureChannel,
+              endIcon: 'ChevronRight',
             },
           canInvite
             ? {
@@ -524,7 +500,7 @@ function ChannelOptionsSheetContent({
         ]
       ),
     [
-      channel.contentConfiguration,
+      enableCustomChannels,
       onPressConfigureChannel,
       onPressNotifications,
       channel?.pin,
@@ -671,4 +647,17 @@ function SheetBackButton({ onPress }: { onPress: () => void }) {
       <ChevronLeft />
     </IconButton>
   );
+}
+
+function useCustomChannelsEnabled() {
+  const [enableCustomChannels, setEnableCustomChannels] = useState(false);
+  // why useLayoutEffect?
+  // to try to get the synchronous read to avoid flicker on mount
+  useLayoutEffect(() => {
+    return featureFlags.subscribeToFeatureFlag('customChannels', (flag) => {
+      setEnableCustomChannels(flag);
+    });
+  }, []);
+
+  return enableCustomChannels;
 }
