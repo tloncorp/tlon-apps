@@ -174,7 +174,7 @@
   ++  v-channel-2-to-3
     |=  v=v-channel-2
     ^-  v-channel:v6:old:c
-    v(future [future.v *pending-messages:c])
+    v(future [future.v *pending-messages:v7:old:c])
   ++  v-channels-2  (map nest:c v-channel-2)
   ++  v-channel-2
     |^  ,[global:v-channel:v7:old:c local]
@@ -227,11 +227,11 @@
                       ==
   +$  v-posts-1       ((mop id-post:c (unit v-post-1)) lte)
   ++  on-v-posts-1    ((on id-post:c (unit v-post-1)) lte)
-  +$  v-post-1        [v-seal-1 (rev:c essay:c)]
+  +$  v-post-1        [v-seal-1 (rev:c essay:v7:old:c)]
   +$  v-seal-1        [id=id-post:c replies=v-replies-1 reacts=v-reacts:v7:old:c]
   +$  v-replies-1     ((mop id-reply:c (unit v-reply-1)) lte)
   ++  on-v-replies-1  ((on id-reply:c (unit v-reply-1)) lte)
-  +$  v-reply-1       [v-reply-seal:v7:old:c memo:c]
+  +$  v-reply-1       [v-reply-seal:v7:old:c memo:v7:old:c]
   ++  state-1-to-2
     |=  s=state-1
     ^-  state-2
@@ -765,7 +765,7 @@
     ?-    -.c-post
         %add
       ?>  |(=(src.bowl our.bowl) =(src.bowl author.essay.c-post))
-      ?>  =(kind.nest -.kind-data.essay.c-post)
+      ?>  =(kind.nest -.kind.essay.c-post)
       =/  id=id-post:c
         |-
         =/  post  (get:on-v-posts:c posts.channel now.bowl)
@@ -821,9 +821,10 @@
       ?~  u.post  no-op
       =^  result=(each event:h tang)  cor
         =/  =event:h
+          =*  post-author  (get-author-ship:utils p.c-post)
           :*  %on-post  %react  u.u.post
-              ?:  ?=(%del-react -.c-post)  [p.c-post ~]
-              [p `q]:c-post
+              ?:  ?=(%del-react -.c-post)  [post-author ~]
+              [post-author `q.c-post]
           ==
         (run-hooks event nest 'react action blocked')
       ?:  ?=(%.n -.result)
@@ -921,8 +922,8 @@
       =^  result=(each event:h tang)  cor
         =/  =event:h
           :*  %on-reply  %react  parent  u.u.reply
-              ?:  ?=(%del-react -.c-reply)  [p.c-reply ~]
-              [p `q]:c-reply
+              ?:  ?=(%del-react -.c-reply)  [(get-author-ship:utils p.c-reply) ~]
+              [(get-author-ship:utils p.c-reply) `q.c-reply]
           ==
         (run-hooks event nest 'delete blocked')
       ?:  ?=(%.n -.result)
@@ -942,17 +943,22 @@
   ++  ca-c-react
     |=  [reacts=v-reacts:c =c-react:c]
     ^-  [changed=? v-reacts:c]
-    =/  =ship     ?:(?=(%add-react -.c-react) p.c-react p.c-react)
-    ?>  |(=(src.bowl our.bowl) =(src.bowl ship))
+    =/  =author:c
+      ?:  ?=(%add-react -.c-react)
+        p.c-react
+      p.c-react
+    ?>  ?|  =(src.bowl our.bowl)
+            =(src.bowl (get-author-ship:utils author))
+        ==
     =/  new-react  ?:(?=(%add-react -.c-react) `q.c-react ~)
     =/  [changed=? new-rev=@ud]
-      =/  old-react  (~(get by reacts) ship)
+      =/  old-react  (~(get by reacts) author)
       ?~  old-react  &+0
-      ?:  =(new-react +.u.old-react)
+      ?:  =(new-react old-react)
         |+rev.u.old-react
       &++(rev.u.old-react)
     ?.  changed  [| reacts]
-    &+(~(put by reacts) ship new-rev new-react)
+    &+(~(put by reacts) author new-rev new-react)
   ::
   ++  ca-update
     |=  =u-channel:c
