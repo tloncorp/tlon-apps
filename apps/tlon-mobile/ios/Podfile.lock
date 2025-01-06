@@ -1161,7 +1161,7 @@ PODS:
     - React-Core
   - react-native-safe-area-context (4.9.0):
     - React-Core
-  - react-native-skia (1.5.3):
+  - react-native-skia (1.8.0):
     - glog
     - RCT-Folly (= 2022.05.16.00)
     - React
@@ -1846,7 +1846,7 @@ SPEC CHECKSUMS:
   react-native-get-random-values: 21325b2244dfa6b58878f51f9aa42821e7ba3d06
   react-native-netinfo: 3aa5637c18834966e0c932de8ae1ae56fea20a97
   react-native-safe-area-context: b97eb6f9e3b7f437806c2ce5983f479f8eb5de4b
-  react-native-skia: 211686d244201306777e3b8d8396df0e5e38b96a
+  react-native-skia: a58796100803a5741e75ff3a648ac6a22b3d8c37
   react-native-webview: ad868affda04ff2b204de83546193bc0325a8280
   React-nativeconfig: 44cd3076b158c39cb6758f238cd3e65953e989c0
   React-NativeModulesApple: af58ca346cf42c3bb4dab9173b6edd0c83c2a21c
@@ -1894,4 +1894,4 @@ SPEC CHECKSUMS:
 
 PODFILE CHECKSUM: 0cb7a78e5777e69c86c1bf4bb5135fd660376dbe
 
-COCOAPODS: 1.16.2
+COCOAPODS: 1.15.2
