@@ -11,7 +11,8 @@ import React, {
 } from 'react';
 
 import { ChevronLeft } from '../assets/icons';
-import { useChatOptions, useCurrentUserId } from '../contexts';
+import { useCurrentUserId } from '../contexts/appDataContext';
+import { useChatOptions } from '../contexts/chatOptions';
 import * as utils from '../utils';
 import { useIsAdmin } from '../utils';
 import {
@@ -324,6 +325,8 @@ function EditGroupSheetContent({
   );
 }
 
+type ChannelPanes = 'initial' | 'notifications';
+
 export function ChannelOptionsSheetLoader({
   channelId,
   open,
@@ -333,7 +336,7 @@ export function ChannelOptionsSheetLoader({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [pane, setPane] = useState<'initial' | 'notifications'>('initial');
+  const [pane, setPane] = useState<ChannelPanes>('initial');
   const channelQuery = store.useChannel({
     id: channelId,
   });
@@ -391,12 +394,14 @@ function ChannelOptionsSheetContent({
     group,
     onPressChannelMembers,
     onPressChannelMeta,
+    onPressChannelTemplate,
     onPressManageChannels,
     onPressInvite,
     togglePinned,
     leaveChannel,
     markChannelRead,
   } = useChatOptions();
+  const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
 
   const currentUser = useCurrentUserId();
   const currentUserIsHost = group?.currentUserIsHost ?? false;
@@ -459,6 +464,15 @@ function ChannelOptionsSheetContent({
                 accent: 'disabled',
                 description: 'Only admins may invite people to this group.',
               },
+        ],
+        hooksPreview && [
+          'neutral',
+          {
+            title: 'Use channel as template',
+            description: 'Create a new channel based on this one',
+            endIcon: 'Copy',
+            action: onPressChannelTemplate,
+          },
         ],
         !currentUserIsHost && [
           'negative',

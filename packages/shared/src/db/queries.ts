@@ -3195,6 +3195,16 @@ export const insertThreadUnreads = createWriteQuery(
   ['threadUnreads', 'channelUnreads']
 );
 
+export const getThreadUnreadsByChannel = createReadQuery(
+  'getThreadUnreadsByChannel',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    return ctx.db.query.threadUnreads.findMany({
+      where: eq($threadUnreads.channelId, channelId),
+    });
+  },
+  ['threadUnreads']
+);
+
 export const clearThreadUnread = createWriteQuery(
   'clearThreadUnread',
   async (

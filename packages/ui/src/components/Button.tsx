@@ -34,6 +34,7 @@ export const ButtonContext = createStyledContext<{
 
 export const ButtonFrame = styled(Stack, {
   name: 'Button',
+  cursor: 'pointer',
   context: ButtonContext,
   backgroundColor: '$background',
   alignItems: 'center',

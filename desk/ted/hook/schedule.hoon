@@ -6,7 +6,7 @@
 =/  m  (strand ,vase)
 ^-  form:m
 |^
-=+  !<([~ =id:h =origin:h =action] arg)
+=+  !<([~ id=id-hook:h =origin:h =action] arg)
 ;<  our=@p  bind:m  get-our:s
 ;<  ~  bind:m  (watch:s /responses [our %channels-server] /v0/hooks)
 =/  =cage
@@ -25,8 +25,8 @@
   (pure:m !>(~))
 ;<  now=time  bind:m  get-time:s
 =/  fires-at
-  ?@  schedule.response  (add now schedule.response)
-  next.schedule.response
+  ?^  next.schedule.response
+  (add now schedule.response)
 %-  (slog (crip "starting hook {<id.response>}, scheduled to run on {<origin.response>} at {<fires-at>}") ~)
 (pure:m !>(~))
 +$  action

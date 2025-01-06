@@ -75,6 +75,7 @@ export const ScreenHeaderComponent = ({
 const HeaderIconButton = styled(Icon, {
   customSize: ['$3xl', '$2xl'],
   borderRadius: '$m',
+  cursor: 'pointer',
   pressStyle: {
     opacity: 0.5,
   },

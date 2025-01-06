@@ -66,6 +66,7 @@ export async function createChannel({
       readers: [],
       writers: [],
     });
+    return newChannel;
   } catch (e) {
     console.error('Failed to create channel', e);
     // rollback optimistic update

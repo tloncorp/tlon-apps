@@ -30,6 +30,7 @@ export type ChatOptionsContextValue = {
   onPressRoles: () => void;
   onPressChannelMembers: () => void;
   onPressChannelMeta: () => void;
+  onPressChannelTemplate: () => void;
   togglePinned: () => void;
   leaveGroup: () => Promise<void>;
   leaveChannel: () => void;
@@ -59,6 +60,7 @@ type ChatOptionsProviderProps = {
   onPressGroupPrivacy: (groupId: string) => void;
   onPressChannelMembers: (channelId: string) => void;
   onPressChannelMeta: (channelId: string) => void;
+  onPressChannelTemplate: (channelId: string) => void;
   onPressRoles: (groupId: string) => void;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
   onLeaveGroup?: () => void;
@@ -80,6 +82,7 @@ export const ChatOptionsProvider = ({
   onPressGroupPrivacy,
   onPressChannelMembers,
   onPressChannelMeta,
+  onPressChannelTemplate,
   onPressRoles,
   onLeaveGroup: navigateOnLeave,
 }: ChatOptionsProviderProps) => {
@@ -260,6 +263,13 @@ export const ChatOptionsProvider = ({
     }
   }, [group, onPressRoles]);
 
+  const handlePressChannelTemplate = useCallback(() => {
+    if (channel) {
+      onPressChannelTemplate(channel.id);
+      closeSheet();
+    }
+  }, [channel, onPressChannelTemplate]);
+
   const contextValue: ChatOptionsContextValue = useMemo(
     () => ({
       useGroup,
@@ -268,6 +278,7 @@ export const ChatOptionsProvider = ({
       markGroupRead,
       markChannelRead,
       onPressGroupMeta: handlePressGroupMeta,
+      onPressChannelTemplate: handlePressChannelTemplate,
       onPressGroupMembers: handlePressGroupMembers,
       onPressManageChannels: handlePressManageChannels,
       onPressInvite: handlePressInvite,
@@ -294,6 +305,7 @@ export const ChatOptionsProvider = ({
       handlePressInvite,
       handlePressGroupPrivacy,
       handlePressGroupRoles,
+      onPressChannelTemplate,
       leaveGroup,
       leaveChannel,
       togglePinned,

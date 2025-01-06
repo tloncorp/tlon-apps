@@ -5,8 +5,10 @@ import {
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { getChannelIdType } from '../api/apiUtils';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../logic';
 import {
   useDebouncedValue,
   useLiveRef,
@@ -32,7 +34,7 @@ type UseChannelPostsPageParams = db.GetChannelPostsOptions;
 type PostQueryData = InfiniteData<PostQueryPage, unknown>;
 type SubscriptionPost = [db.Post, string | undefined];
 
-type UseChanelPostsParams = UseChannelPostsPageParams & {
+type UseChannelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
   firstPageCount?: number;
   hasCachedNewest?: boolean;
@@ -42,7 +44,7 @@ export const clearChannelPostsQueries = () => {
   queryClient.invalidateQueries({ queryKey: ['channelPosts'] });
 };
 
-export const useChannelPosts = (options: UseChanelPostsParams) => {
+export const useChannelPosts = (options: UseChannelPostsParams) => {
   const mountTime = useMemo(() => {
     return Date.now();
   }, []);
@@ -63,7 +65,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     refetchOnMount: false,
     queryFn: async (ctx): Promise<PostQueryPage> => {
       const queryOptions = ctx.pageParam || options;
-      postsLogger.log('loading posts', queryOptions);
+      postsLogger.log('loading posts', { queryOptions, options });
       // We should figure out why this is necessary.
       if (
         queryOptions &&
@@ -86,7 +88,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
         },
         { priority: SyncPriority.High }
       );
-      postsLogger.log('loaded', res.posts?.length, 'posts from api');
+      postsLogger.log('loaded', res.posts?.length, 'posts from api', { res });
       const secondResult = await db.getChannelPosts(queryOptions);
       postsLogger.log(
         'returning',
@@ -127,12 +129,18 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     },
     getPreviousPageParam: (
       firstPage,
-      _allPages,
+      allPages,
       _firstPageParam
     ): UseChannelPostsPageParams | undefined => {
-      if (!firstPage.canFetchNewerPosts) {
+      // if any page has reached the newest post, we can't fetch any newer posts
+      // page order for allPages should be newest -> oldest
+      // but apparently on channels with less than 50 posts, the order is reversed (on web only)
+      const hasReachedNewest = allPages.some((p) => !p.canFetchNewerPosts);
+
+      if (hasReachedNewest) {
         return undefined;
       }
+
       return {
         ...options,
         mode: 'newer',
@@ -238,11 +246,48 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
 
   const { loadOlder, loadNewer } = useLoadActionsWithPendingHandlers(query);
 
+  useTrackReady(posts, query, options.channelId);
+
   return useMemo(
     () => ({ posts, query, loadOlder, loadNewer, isLoading }),
     [posts, query, loadOlder, loadNewer, isLoading]
   );
 };
+
+/**
+ * Send a posthog event once we either have ~enough posts to fill the screen, or
+ * we've loaded all posts.
+ */
+function useTrackReady(
+  posts: db.Post[] | null,
+  query: UseInfiniteQueryResult<InfiniteData<PostQueryPage, unknown>, Error>,
+  channelId: string
+) {
+  const startTimeRef = useRef(Date.now());
+  const loadTracked = useRef(false);
+  const alreadyTracked = loadTracked.current;
+  const postsLength = posts?.length ?? 0;
+  const hasEnoughPosts = postsLength > 30;
+  const isLoading = query.isLoading || query.isPending;
+  const canLoadMore = query.hasNextPage || query.hasPreviousPage;
+
+  useEffect(() => {
+    if (!alreadyTracked && (hasEnoughPosts || (!isLoading && !canLoadMore))) {
+      loadTracked.current = true;
+      postsLogger.trackEvent(AnalyticsEvent.ChannelLoadComplete, {
+        channelType: getChannelIdType(channelId),
+        duration: Date.now() - startTimeRef.current,
+      });
+    }
+  }, [
+    alreadyTracked,
+    canLoadMore,
+    channelId,
+    hasEnoughPosts,
+    isLoading,
+    postsLength,
+  ]);
+}
 
 /**
  * Insert a post into our working posts array, merging + resorting if necessary.

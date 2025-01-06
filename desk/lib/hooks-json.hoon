@@ -141,6 +141,16 @@
     ~!  tk
     =/  next=^tape  ~(ram re tk)
     (welp (snoc tp '\0a') next)
+  ++  channel-preview
+    |=  cp=channel-preview:h
+    :-  %a
+    %+  turn
+      cp
+    |=  [name=@t meta=data:m]
+    %-  pairs
+    :~  name+s+name
+        meta+(meta:enjs:gj meta)
+    ==
   --
 ::
 ++  dejs

@@ -63,6 +63,9 @@ export type RootStackParamList = {
   ChannelMeta: {
     channelId: string;
   };
+  ChannelTemplate: {
+    channelId: string;
+  };
 };
 
 export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
@@ -109,6 +112,7 @@ export type DesktopChannelStackParamList = Pick<
   | 'EditProfile'
   | 'ChannelMembers'
   | 'ChannelMeta'
+  | 'ChannelTemplate'
 > & { ChannelRoot: RootStackParamList['Channel'] };
 
 export type GroupSettingsStackParamList = {
