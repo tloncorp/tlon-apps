@@ -14,7 +14,7 @@ export const featureMeta = {
     default: false,
     label: 'Enable collecting and reporting performance data',
   },
-  customChannelCreation: {
+  customChannels: {
     default: false,
     label: 'Enable creating custom channels',
   },
