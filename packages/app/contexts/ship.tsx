@@ -11,7 +11,6 @@ import {
 } from 'react';
 import { NativeModules } from 'react-native';
 
-// import storage from '../lib/storage';
 import { transformShipURL } from '../utils/string';
 
 const { UrbitModule } = NativeModules;
