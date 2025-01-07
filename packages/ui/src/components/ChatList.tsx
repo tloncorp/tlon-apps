@@ -31,7 +31,7 @@ import { Tabs } from './Tabs';
 export type TabName = 'all' | 'groups' | 'messages';
 
 type SectionHeaderData = { type: 'sectionHeader'; title: string };
-type ChatListItemData = db.Chat | SectionHeaderData;
+export type ChatListItemData = db.Chat | SectionHeaderData;
 
 export const ChatList = React.memo(function ChatListComponent({
   pinned,
@@ -187,15 +187,15 @@ export const ChatList = React.memo(function ChatListComponent({
   );
 });
 
-function getItemType(item: ChatListItemData) {
+export function getItemType(item: ChatListItemData) {
   return isSectionHeader(item) ? 'sectionHeader' : item.type;
 }
 
-function isSectionHeader(data: ChatListItemData): data is SectionHeaderData {
+export function isSectionHeader(data: ChatListItemData): data is SectionHeaderData {
   return 'type' in data && data.type === 'sectionHeader';
 }
 
-function getChatKey(chatItem: ChatListItemData) {
+export function getChatKey(chatItem: ChatListItemData) {
   if (!chatItem || typeof chatItem !== 'object') {
     return 'invalid-item';
   }
@@ -309,7 +309,7 @@ const ChatListSearch = React.memo(function ChatListSearchComponent({
   );
 });
 
-function useFilteredChats({
+export function useFilteredChats({
   pinned,
   unpinned,
   pending,
