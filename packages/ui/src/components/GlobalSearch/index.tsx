@@ -41,6 +41,7 @@ export function GlobalSearch({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<TextInput>(null);
+  const listRef = useRef<FlashList<ChatListItemData>>(null);
   const groupsQuery = store.useGroups({});
   const contactsQuery = store.useContacts();
 
@@ -176,6 +177,7 @@ export function GlobalSearch({
           }
           if (nextIndex < listItems.length) {
             setSelectedIndex(nextIndex);
+            listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
           }
           break;
         case 'ArrowUp':
@@ -185,7 +187,11 @@ export function GlobalSearch({
           }
           if (nextIndex >= 0) {
             setSelectedIndex(nextIndex);
+            listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
           }
+          break;
+        case 'Escape':
+          setIsOpen(false);
           break;
         case 'Enter':
           if (selectedItem && !isSectionHeader(selectedItem)) {
@@ -194,7 +200,7 @@ export function GlobalSearch({
           break;
       }
     },
-    [selectedIndex, listItems, onPressItem]
+    [selectedIndex, listItems, onPressItem, setIsOpen]
   );
 
   const contentContainerStyle = useMemo(
@@ -322,6 +328,7 @@ export function GlobalSearch({
             </Text>
           ) : (
             <FlashList
+              ref={listRef}
               data={listItems}
               contentContainerStyle={contentContainerStyle}
               keyExtractor={getChatKey}
