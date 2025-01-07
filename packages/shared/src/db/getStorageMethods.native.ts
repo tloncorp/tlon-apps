@@ -6,11 +6,13 @@ export function getStorageMethods(isSecure: boolean) {
     return {
       getItem: SecureStore.getItemAsync,
       setItem: SecureStore.setItemAsync,
+      removeItem: SecureStore.deleteItemAsync,
     };
   }
 
   return {
     getItem: AsyncStorage.getItem,
     setItem: AsyncStorage.setItem,
+    removeItem: AsyncStorage.removeItem,
   };
 }

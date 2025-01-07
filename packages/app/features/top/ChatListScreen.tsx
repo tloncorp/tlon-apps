@@ -33,7 +33,6 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import { identifyTlonEmployee } from '../../utils/posthog';
-import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
 
 const logger = createDevLogger('ChatListScreen', false);
@@ -216,7 +215,7 @@ export function ChatListScreenView({
 
   useEffect(() => {
     const checkSplashDismissed = async () => {
-      const dismissed = await isSplashDismissed();
+      const dismissed = await db.storage.splashDismissed.getValue();
       setSplashVisible(!dismissed);
     };
 
@@ -226,7 +225,7 @@ export function ChatListScreenView({
   const handleWelcomeOpenChange = useCallback((open: boolean) => {
     if (!open) {
       setSplashVisible(false);
-      setSplashDismissed();
+      db.storage.splashDismissed.setValue(true);
     }
   }, []);
 

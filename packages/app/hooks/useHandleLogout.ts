@@ -8,7 +8,7 @@ import { clearNonPersistentStorageItems } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
-import { clearShipInfo, useShip } from '../contexts/ship';
+import { useShip } from '../contexts/ship';
 // Can't signup via the webapp, so this is commented out.
 // We might allow this in a desktop app in the future.
 // import { useSignupContext } from '../contexts/signup';
@@ -17,7 +17,6 @@ import {
   removeHostingToken,
   removeHostingUserId,
 } from '../utils/hosting';
-import { clearSplashDismissed } from '../utils/splash';
 
 const logger = createDevLogger('logout', true);
 
@@ -29,11 +28,9 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
     api.queryClient.clear();
     store.removeClient();
     clearShip();
-    clearShipInfo();
     removeHostingToken();
     removeHostingUserId();
     removeHostingAuthTracking();
-    clearSplashDismissed();
     clearNonPersistentStorageItems();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');
