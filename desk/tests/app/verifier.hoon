@@ -612,18 +612,32 @@
   (~(gas by attested) sig.half-sign.status^id sig.full-sign.status^id ~)
 ::
 ++  do-query-setup
+  |=  $@  entries=_1
+      [entries=@ud =config:v]
+  =/  [entries=@ud =config:v]
+    ?^(+< +< [+< %hidden])
   =/  m  (mare ,~)
   ;<  ~  bind:m  do-setup
-  =/  id=identifier:v  [%dummy 'test-id']
+  =/  base-id    [%dummy 'test-id']
+  =/  base-ship  ~nec
   =/  wen=@da  ~2222.2.2
   ;<  ~  bind:m  (jab-bowl |=(b=bowl:gall b(now wen)))
-  ;<  at=attestation:v  bind:m  (make-attestation ~nec id ~)
-  =/  =state:v
-    %-  state-from-records
-    %-  ~(gas by *(map identifier:v record:v))
-    :~  [id ~nec wen %hidden %done at]
-    ==
-  ;<  *  bind:m  (do-load agent `!>([%0 state]))
+  =|  records=(map identifier:v record:v)
+  =/  i  0
+  |-  =*  loop  $
+  ?:  (lth i entries)
+    =/  this-id
+      ?:  =(0 i)  base-id
+      base-id(+ (rap 3 +.base-id ' ' (scot %ud i) ~))
+    =/  this-ship
+      (add base-ship i)
+    ;<  at=attestation:v  bind:m
+      (make-attestation this-ship this-id ~)
+    =.  records
+      %+  ~(put by records)  this-id
+      [this-ship wen config %done at]
+    $(i +(i))
+  ;<  *  bind:m  (do-load agent `!>([%0 (state-from-records records)]))
   (pure:m ~)
 ::
 ++  expect-query-response
@@ -637,7 +651,7 @@
 ++  test-query-has-any
   %-  eval-mare
   =/  m  (mare ,~)
-  ;<  ~  bind:m  do-query-setup
+  ;<  ~  bind:m  (do-query-setup)
   ;<  ~  bind:m
     %^  expect-query-response  ~fed
       [[%some-dude %my-nonce] %has-any ~nec %dummy]
@@ -651,7 +665,7 @@
 ++  test-query-valid
   %-  eval-mare
   =/  m  (mare ,~)
-  ;<  ~  bind:m  do-query-setup
+  ;<  ~  bind:m  (do-query-setup)
   ;<  ~  bind:m
     %^  expect-query-response  ~fed
       :+  [%some-dude %my-nonce]
@@ -667,7 +681,7 @@
 ++  test-query-whose  ::  with respect for different configs
   %-  eval-mare
   =/  m  (mare ,~)
-  ;<  ~  bind:m  do-query-setup
+  ;<  ~  bind:m  (do-query-setup)
   =/  id=identifier:v  [%dummy 'test-id']
   ::  discoverability config %hidden
   ::
@@ -707,9 +721,128 @@
     [%whose ~]
   (pure:m ~)
 ::
-::TODO  test that timeout timers get set & fire when waiting on user action
+++  test-query-whose-bulk
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (do-query-setup 10 %public)
+  ::
+  ;<  ~  bind:m
+    %^  expect-query-response  ~fed
+      =;  s=(set identifier:v)
+        [[%some-dude %my-nonce] %whose-bulk 0x0 ~ s ~]
+      (sy [%dummy 'test-id'] [%dummy 'test-id 1'] [%dummy 'test-id x'] ~)
+    :+  %whose-bulk
+      0xcfc7.1531.8e8b.0153.9b11.db7f.bbc2.0a6c.
+        1311.c6a7.2292.b906.96c2.6466.f03d.2ddb
+    %-  ~(gas by *(map identifier:v (unit @p)))
+    :~  :-  [%dummy 'test-id']    `~nec
+        :-  [%dummy 'test-id 1']  `~bud
+        :-  [%dummy 'test-id x']  ~
+    ==
+  ::
+  (pure:m ~)
+::
+::  rate-limiting tests
+::
+++  test-query-rate-limits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (do-query-setup)
+  =/  id=identifier:v  [%dummy 'test-id']
+  =*  request
+    %^  expect-query-response  ~fed
+      [[%some-dude %my-nonce] %whose id]
+    [%whose ~]
+  ::  exhaust our allotted requests
+  ::
+  =/  n=@ud  queries:*allowance:v
+  |-  =*  loop  $
+  ?.  =(0 n)
+    ;<  ~  bind:m  request
+    loop(n (dec n))
+  ::  next request should go over the limit
+  ::
+  ;<  ~  bind:m  (ex-fail request)
+  ::  waiting for a little bit should let us make some requests again
+  ::
+  ;<  ~  bind:m  (wait ~m16)
+  =.  n  3
+  |-  =*  loop  $
+  ?.  =(0 n)
+    ;<  ~  bind:m  request
+    loop(n (dec n))
+  (ex-fail request)
+::
+++  test-query-bulk-rate-limits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (do-query-setup)
+  =/  base  batch:*allowance:v
+  =/  query
+    :*  %whose-bulk
+        last-salt=0x0
+        last=*(set identifier:v)
+        add=(~(gas in *(set identifier:v)) (turn (gulf 1 base) |=(a=@ [%dummy (scot %ud a)])))
+        del=*(set identifier:v)
+    ==
+  ::  can keep querying the same large set indefinitely
+  ::
+  =|  eny=@
+  =/  n=@ud  10
+  |-  =*  loop  $
+  ?.  =(0 n)
+    ;<  ~  bind:m  (jab-bowl |=(b=bowl b(eny eny)))
+    =/  expected-salt  (shas %whose-salt eny)
+    ;<  *  bind:m
+      (user-asks ~fed [%some-dude %my-nonce] query)
+    %_  loop
+      n    (dec n)
+      eny  +(eny)
+      last-salt.query  expected-salt
+      last.query       (~(uni in last.query) add.query)
+      add.query        ~
+    ==
+  ::  but can only do additions at limited rate,
+  ::  and breaking set continuity causes the whole set to count again.
+  ::
+  =.  add.query  (~(gas in *(set identifier:v)) (turn (gulf +(base) (add base 5)) |=(a=@ [%dummy (scot %ud a)])))
+  %-  branch
+  :~  :-  'eager'
+      (ex-fail (user-asks ~fed [%some-dude %my-nonce] query))
+    ::
+      :-  'continuous'
+      ;<  ~  bind:m  (wait ~h12)
+      ;<  *  bind:m  (user-asks ~fed [%some-dude %my-nonce] query)
+      (pure:m ~)
+    ::
+      :-  'discontinuous'
+      ;<  ~  bind:m  (wait ~h12)
+      =.  last-salt.query  0xdead
+      (ex-fail (user-asks ~fed [%some-dude %my-nonce] query))
+  ==
+::
+++  test-phone-otp-rate-limits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  do-setup
+  ::  request verification texts until we hit the expected limit
+  ::
+  =/  n=@ud  phone:*allowance:v
+  |-  =*  loop  $
+  ?.  =(0 n)
+    ;<  *  bind:m  (user-does ~nec %start %phone (scot %ud n))
+    ;<  *  bind:m  (user-does ~nec %revoke %phone (scot %ud n))
+    loop(n (dec n))
+  ;<  ~  bind:m  (ex-fail (user-does ~nec %start %phone '+123456789'))
+  ::  if we wait, we may continue new attempts
+  ::
+  ;<  ~  bind:m  (wait p:phone:rates:v)
+  ;<  *  bind:m  (user-does ~nec %start %phone '+123456789')
+  ::
+  (pure:m ~)
 ::
 ::TODO  test lanyard:
 ::TODO  test resubscribe on poke nack
 ::TODO  test %full handling
+::TODO  test %kick handling behavior, regression from 78f1b76b8
 --
