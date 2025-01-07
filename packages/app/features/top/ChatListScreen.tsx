@@ -20,6 +20,8 @@ import {
   ScreenHeader,
   View,
   WelcomeSheet,
+  useGlobalSearch,
+  useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ColorTokens, useTheme } from 'tamagui';
@@ -56,6 +58,7 @@ export function ChatListScreenView({
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
   const personalInvite = db.personalInviteLink.useValue();
   const viewedPersonalInvite = db.hasViewedPersonalInvite.useValue();
+  const { isOpen, setIsOpen } = useGlobalSearch();
   const theme = useTheme();
   const inviteButtonColor = useMemo(
     () =>
@@ -229,12 +232,18 @@ export function ChatListScreenView({
 
   const [searchQuery, setSearchQuery] = useState('');
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   const handleSearchInputToggled = useCallback(() => {
-    if (showSearchInput) {
-      setSearchQuery('');
+    if (isWindowNarrow) {
+      if (showSearchInput) {
+        setSearchQuery('');
+      }
+      setShowSearchInput(!showSearchInput);
+    } else {
+      setIsOpen(!isOpen);
     }
-    setShowSearchInput(!showSearchInput);
-  }, [showSearchInput]);
+  }, [showSearchInput, isWindowNarrow, isOpen, setIsOpen]);
 
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {

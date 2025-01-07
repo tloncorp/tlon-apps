@@ -39,6 +39,7 @@ export * from './components/FloatingActionButton';
 export * from './components/FormInput';
 export * from './components/Form';
 export * from './components/GlobalSearch';
+export * from './contexts/globalSearch';
 export * from './components/GalleryPost';
 export * from './components/GroupChannelsScreenView';
 export * from './components/GroupMembersScreenView';

@@ -300,7 +300,7 @@ export function GlobalSearch({
       >
         <TextInputWithIconAndButton
           ref={inputRef}
-          placeholder={`Search for groups or DMs (${
+          placeholder={`Navigate to groups or DMs (${
             navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'
           })`}
           icon="Search"
