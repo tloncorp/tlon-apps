@@ -8,7 +8,6 @@ import {
 import { useBranch, useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
-  DeepLinkData,
   createInviteLinkRegex,
   extractNormalizedInviteLink,
   getInviteLinkMeta,
@@ -17,7 +16,7 @@ import {
   Field,
   Pressable,
   ScreenHeader,
-  TextInputWithButton,
+  TextInput,
   TlonText,
   View,
   YStack,
@@ -159,7 +158,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
                 error={metadataError ?? errors.inviteLink?.message}
                 paddingTop="$l"
               >
-                <TextInputWithButton
+                <TextInput
                   placeholder="join.tlon.io/0v4.pca0n.evapv..."
                   onBlur={onBlur}
                   onChangeText={onChange}
@@ -167,8 +166,12 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
-                  buttonText="Paste"
-                  onButtonPress={onHandlePasteClick}
+                  rightControls={
+                    <TextInput.InnerButton
+                      label="Paste"
+                      onPress={onHandlePasteClick}
+                    />
+                  }
                 />
               </Field>
             )}

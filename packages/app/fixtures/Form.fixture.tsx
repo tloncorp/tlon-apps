@@ -1,6 +1,6 @@
-import { Button, ScrollView } from '@tloncorp/ui';
+import { Button, IconType, ScrollView, View } from '@tloncorp/ui';
 import * as Form from '@tloncorp/ui/src/components/Form';
-import { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,7 +25,12 @@ const FormFixture = () => {
 
   const options: Form.RadioInputOption<string>[] = [
     { title: 'One', value: 'one', description: 'This is one things' },
-    { title: 'Two', value: 'two', description: 'This is two things' },
+    {
+      title: 'Two',
+      value: 'two',
+      description: 'This is two things',
+      disabled: true,
+    },
     { title: 'Three', value: 'three', description: 'This is three things' },
   ];
 
@@ -51,10 +56,21 @@ const FormFixture = () => {
       icon: 'ChannelGalleries',
     },
   ];
+  const [selectedToggleGroupOption, setSelectedToggleGroupOptions] =
+    useState('chat');
+
+  const toggleGroupOptions: { label: string; value: string }[] = [
+    { label: 'Chat', value: 'chat' },
+    { label: 'Notebook', value: 'notebook' },
+    { label: 'Gallery', value: 'gallery' },
+    { label: 'And', value: '0' },
+    { label: 'More', value: '1' },
+    { label: 'Items', value: '2' },
+  ];
 
   return (
     <ScrollView flex={1} contentContainerStyle={{ paddingTop: insets.top }}>
-      <Form.FormFrame>
+      <Form.FormFrame backgroundType="secondary">
         <Form.ControlledImageField
           name={'image'}
           label="Image"
@@ -66,6 +82,7 @@ const FormFixture = () => {
           label="Title"
           control={control}
           rules={formRules}
+          inputProps={{ icon: 'Search', placeholder: 'Type here' }}
         />
         <Form.ControlledRadioField
           options={options}
@@ -79,28 +96,38 @@ const FormFixture = () => {
           label="List input"
           control={control}
         />
-        <Form.RadioControl disabled={true} />
-        <Form.RadioControl checked={false} />
-        <Form.RadioControl checked={true} />
-        <Form.ListItemInput options={listOptions} />
+
+        <Form.Field label="Toggle group">
+          <Form.ToggleGroupInput
+            value={selectedToggleGroupOption}
+            onChange={setSelectedToggleGroupOptions}
+            options={toggleGroupOptions}
+          />
+        </Form.Field>
         <Form.Field required error="Bad thing happen" label="My label">
           <Form.TextInput placeholder="Type here" />
         </Form.Field>
-        <Button
-          onPress={() =>
-            reset({
-              title: 'monk',
-              description: '',
-            })
-          }
-        >
-          <Button.Text>Reseet</Button.Text>
-        </Button>
+
+        <Form.Field label="Button input">
+          <Button
+            secondary
+            onPress={() =>
+              reset({
+                title: 'monk',
+                description: '',
+              })
+            }
+          >
+            <Button.Text>Reseet</Button.Text>
+          </Button>
+        </Form.Field>
+
         <Form.Field label="Find Friends">
-          <Form.TextInputWithIconAndButton
+          <Form.TextInput
             icon="Search"
-            buttonText="Clear"
-            onButtonPress={() => {}}
+            rightControls={
+              <Form.TextInput.InnerButton label="Clear" onPress={() => {}} />
+            }
           />
         </Form.Field>
       </Form.FormFrame>
@@ -108,8 +135,68 @@ const FormFixture = () => {
   );
 };
 
-export default (
-  <FixtureWrapper fillWidth fillHeight>
-    <FormFixture />
-  </FixtureWrapper>
-);
+const accents: Form.Accent[] = ['neutral', 'positive', 'negative'];
+const icons: (IconType | undefined)[] = [undefined, 'Search'];
+const buttonLabels: (string | undefined)[] = [undefined, 'Clear'];
+const backgroundTypes = ['primary', 'secondary'] as const;
+
+export default {
+  textInput: (
+    <FixtureWrapper fillWidth fillHeight safeArea={true}>
+      <ScrollView flex={1}>
+        {backgroundTypes.map((backgroundType) => (
+          <Form.FormFrame backgroundType={backgroundType} key={backgroundType}>
+            {buttonLabels.map((buttonLabel) => (
+              <React.Fragment key={buttonLabel ?? 'no-label'}>
+                {icons.map((icon) => (
+                  <React.Fragment key={icon ?? 'no-icon'}>
+                    <Form.FieldLabel paddingVertical="$2xl" margin={0}>
+                      {!icon && !buttonLabel
+                        ? 'Default'
+                        : icon && !buttonLabel
+                          ? 'Icon, no button'
+                          : !icon && buttonLabel
+                            ? 'Button, no icon'
+                            : 'Icon and button'}
+                    </Form.FieldLabel>
+                    <React.Fragment>
+                      {accents.map((accent) => (
+                        <Form.Field
+                          label={`Accent: ${accent}`}
+                          accent={accent}
+                          error={
+                            accent === 'negative'
+                              ? 'Bad thing happen'
+                              : undefined
+                          }
+                          key={accent + icon + buttonLabel}
+                        >
+                          <Form.TextInput
+                            icon={icon}
+                            placeholder="Type here"
+                            rightControls={
+                              buttonLabel ? (
+                                <Form.TextInput.InnerButton
+                                  label={buttonLabel}
+                                />
+                              ) : undefined
+                            }
+                          />
+                        </Form.Field>
+                      ))}
+                    </React.Fragment>
+                  </React.Fragment>
+                ))}
+              </React.Fragment>
+            ))}
+          </Form.FormFrame>
+        ))}
+      </ScrollView>
+    </FixtureWrapper>
+  ),
+  full: (
+    <FixtureWrapper fillWidth fillHeight>
+      <FormFixture />
+    </FixtureWrapper>
+  ),
+};
