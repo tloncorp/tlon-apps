@@ -6,6 +6,7 @@ import {
   ChatListItemData,
   LoadingSpinner,
   SectionListHeader,
+  TabName,
   Text,
   TextInputWithIconAndButton,
   View,
@@ -32,7 +33,10 @@ export interface GlobalSearchProps {
   navigateToChannel: (channel: db.Channel) => void;
 }
 
-export function GlobalSearch({ navigateToGroup, navigateToChannel }: GlobalSearchProps) {
+export function GlobalSearch({
+  navigateToGroup,
+  navigateToChannel,
+}: GlobalSearchProps) {
   const { isOpen, setIsOpen } = useGlobalSearch();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -54,13 +58,18 @@ export function GlobalSearch({ navigateToGroup, navigateToChannel }: GlobalSearc
     };
   }, [chats]);
 
-  const displayData = useFilteredChats({
-    pinned: resolvedChats.pinned,
-    unpinned: resolvedChats.unpinned,
-    pending: [],
-    searchQuery,
-    activeTab: 'all',
-  });
+  const filteredChatsConfig = useMemo(
+    () => ({
+      pinned: resolvedChats.pinned,
+      unpinned: resolvedChats.unpinned,
+      pending: [],
+      searchQuery,
+      activeTab: 'all' as TabName,
+    }),
+    [resolvedChats, searchQuery, selectedIndex] // We need to include selectedIndex to trigger re-render when it changes
+  );
+
+  const displayData = useFilteredChats(filteredChatsConfig);
 
   const listItems: ChatListItemData[] = useMemo(
     () =>
@@ -83,11 +92,6 @@ export function GlobalSearch({ navigateToGroup, navigateToChannel }: GlobalSearc
       setSelectedIndex(firstItemIndex);
     }
   }, [searchQuery]); // Only run when search query changes
-
-  const contentContainerStyle = {
-    padding: getTokenValue('$l', 'size'),
-    paddingBottom: 100, // bottom nav height + some cushion
-  };
 
   const sizeRefs = useRef({
     sectionHeader: 28,
@@ -193,6 +197,36 @@ export function GlobalSearch({ navigateToGroup, navigateToChannel }: GlobalSearc
     [selectedIndex, listItems, onPressItem]
   );
 
+  const contentContainerStyle = useMemo(
+    () => ({
+      padding: getTokenValue('$l', 'size'),
+      paddingBottom: 100, // bottom nav height + some cushion
+    }),
+    []
+  );
+
+  const handleKeyPress = useCallback(
+    (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+      const key = e.nativeEvent.key;
+      const metaKey = (e.nativeEvent as any).metaKey;
+      const ctrlKey = (e.nativeEvent as any).ctrlKey;
+
+      if ((metaKey || ctrlKey) && key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsOpen(false);
+      } else if (
+        key === 'ArrowDown' ||
+        key === 'ArrowUp' ||
+        key === 'Enter' ||
+        key === 'Escape'
+      ) {
+        e.preventDefault();
+        handleNavigationKey(key);
+      }
+    },
+    [handleNavigationKey, setIsOpen]
+  );
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -232,7 +266,6 @@ export function GlobalSearch({ navigateToGroup, navigateToChannel }: GlobalSearc
       <View
         // eslint-disable-next-line
         onPress={() => {
-          console.log('pressed');
           setIsOpen(false);
         }}
         style={{
@@ -267,24 +300,7 @@ export function GlobalSearch({ navigateToGroup, navigateToChannel }: GlobalSearc
           icon="Search"
           value={searchQuery}
           onChangeText={setSearchQuery}
-          onKeyPress={(e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
-            const key = e.nativeEvent.key;
-            const metaKey = (e.nativeEvent as any).metaKey;
-            const ctrlKey = (e.nativeEvent as any).ctrlKey;
-            
-            if ((metaKey || ctrlKey) && key.toLowerCase() === 'k') {
-              e.preventDefault();
-              setIsOpen(false);
-            } else if (
-              key === 'ArrowDown' ||
-              key === 'ArrowUp' ||
-              key === 'Enter' ||
-              key === 'Escape'
-            ) {
-              e.preventDefault();
-              handleNavigationKey(key);
-            }
-          }}
+          onKeyPress={handleKeyPress}
           onButtonPress={() => setIsOpen(false)}
           buttonText="Close"
           spellCheck={false}
