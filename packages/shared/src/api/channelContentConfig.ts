@@ -139,10 +139,6 @@ export const allDraftInputs = {
     displayName: 'Mic',
     enumTag: 'mic',
   },
-  'tlon.r0.input.picto': {
-    displayName: 'Picto',
-    enumTag: 'picto',
-  },
   'tlon.r0.input.color': {
     displayName: 'Color',
     enumTag: 'color',
@@ -181,10 +177,6 @@ export const allContentRenderers = {
   'tlon.r0.content.notebook': {
     displayName: 'Notebook',
     enumTag: 'notebook',
-  },
-  'tlon.r0.content.picto': {
-    displayName: 'Picto',
-    enumTag: 'picto',
   },
   'tlon.r0.content.audio': {
     displayName: 'Audio',

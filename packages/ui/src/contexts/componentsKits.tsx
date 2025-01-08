@@ -10,11 +10,9 @@ import { ReactElement, createContext, useContext, useMemo } from 'react';
 import { Text } from 'react-native';
 
 import { AudioPost } from '../components/AudioPost';
-import { PictoMessage } from '../components/Channel/PictoMessage';
 import { ChatMessage } from '../components/ChatMessage';
 import { ColorPost } from '../components/ColorPost';
 import { useContactName } from '../components/ContactNameV2';
-import { StandaloneDrawingInput } from '../components/DrawingInput';
 import { EditableNotePostContent } from '../components/EditableNotePostContent';
 import { GalleryPost } from '../components/GalleryPost';
 import { NotebookPost } from '../components/NotebookPost';
@@ -115,7 +113,6 @@ const BUILTIN_CONTENT_RENDERERS: { [id: string]: RenderItemType } = {
   [PostContentRendererId.chat]: ChatMessage,
   [PostContentRendererId.gallery]: GalleryPost,
   [PostContentRendererId.notebook]: NotebookPost,
-  [PostContentRendererId.picto]: PictoMessage,
   [PostContentRendererId.audio]: AudioPost,
   [PostContentRendererId.color]: ColorPost,
   [PostContentRendererId.raw]: ({ post, contentRendererConfiguration }) => {
@@ -153,7 +150,6 @@ const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
       )}
     />
   ),
-  [DraftInputId.picto]: StandaloneDrawingInput,
   [DraftInputId.mic]: MicInput,
   [DraftInputId.color]: ColorInput,
 };
