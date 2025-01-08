@@ -5,6 +5,7 @@ import { useReviveSavedOnboarding } from './hooks/useReviveSavedOnboarding';
 import { CheckOTPScreen } from './screens/Onboarding/CheckOTPScreen';
 import { CheckVerifyScreen } from './screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from './screens/Onboarding/EULAScreen';
+import { GettingNodeReadyScreen } from './screens/Onboarding/GettingNodeReadyScreen';
 import { InventoryCheckScreen } from './screens/Onboarding/InventoryCheckScreen';
 import { JoinWaitListScreen } from './screens/Onboarding/JoinWaitListScreen';
 import { PasteInviteLinkScreen } from './screens/Onboarding/PasteInviteLinkScreen';
@@ -96,6 +97,10 @@ export function OnboardingStack() {
       <OnboardingStackNavigator.Screen
         name="ResetPassword"
         component={ResetPasswordScreen}
+      />
+      <OnboardingStackNavigator.Screen
+        name="GettingNodeReadyScreen"
+        component={GettingNodeReadyScreen}
       />
     </OnboardingStackNavigator.Navigator>
   );

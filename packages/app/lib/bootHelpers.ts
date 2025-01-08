@@ -86,7 +86,7 @@ export async function reserveNode(
   return ship.id;
 }
 
-async function checkNodeBooted(nodeId: string): Promise<boolean> {
+export async function checkNodeBooted(nodeId: string): Promise<boolean> {
   const shipsWithStatus = await hostingApi.getShipsWithStatus([nodeId]);
   if (!shipsWithStatus) {
     return false;

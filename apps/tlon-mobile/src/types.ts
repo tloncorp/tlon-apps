@@ -20,6 +20,7 @@ export type OnboardingStackParamList = {
   TlonLoginLegacy: undefined;
   ShipLogin: undefined;
   ResetPassword: { email?: string };
+  GettingNodeReadyScreen: { waitType?: 'paused' | 'suspended' | 'unknown' };
 };
 
 export type User = {

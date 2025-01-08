@@ -394,3 +394,23 @@ export const splashDismissed = createStorageItem<boolean>({
   key: 'splash',
   defaultValue: false,
 });
+
+export const haveHostedLogin = createStorageItem<boolean>({
+  key: 'haveHostedLogin',
+  defaultValue: false,
+});
+
+export const hostedUserNodeId = createStorageItem<string | null>({
+  key: 'hostedUserNodeId',
+  defaultValue: null,
+});
+
+export const hostedAccountIsInitialized = createStorageItem<boolean>({
+  key: 'hostedAccountIsInitialized',
+  defaultValue: false,
+});
+
+export const hostedNodeIsRunning = createStorageItem<boolean>({
+  key: 'hostedNodeIsRunning',
+  defaultValue: false,
+});

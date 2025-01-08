@@ -7,8 +7,9 @@ import { getShipUrl } from '@tloncorp/app/utils/ship';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
+import * as db from '@tloncorp/shared/db';
 import { ScreenHeader, TlonText, View, YStack } from '@tloncorp/ui';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { OTPInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
@@ -36,6 +37,26 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
   const codeLength =
     otpMethod === 'email' ? EMAIL_CODE_LENGTH : PHONE_CODE_LENGTH;
 
+  const accountCreds = useMemo(
+    () => ({
+      phoneNumber:
+        otpMethod === 'phone'
+          ? params.phoneNumber ?? signupContext.phoneNumber!
+          : undefined,
+      email:
+        otpMethod === 'email'
+          ? params.email ?? signupContext.email!
+          : undefined,
+    }),
+    [
+      otpMethod,
+      params.email,
+      params.phoneNumber,
+      signupContext.email,
+      signupContext.phoneNumber,
+    ]
+  );
+
   const handleSignup = useCallback(
     async (otpCode: string) => {
       try {
@@ -47,54 +68,26 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
 
         const user = await hostingApi.signUpHostingUser({
           otp: otpCode,
-          phoneNumber:
-            otpMethod === 'phone'
-              ? params.phoneNumber ?? signupContext.phoneNumber!
-              : undefined,
-          email:
-            otpMethod === 'email'
-              ? params.email ?? signupContext.email!
-              : undefined,
           lure: signupParams.lureId,
           priorityToken: signupParams.priorityToken,
           recaptchaToken,
+          ...accountCreds,
         });
         trackOnboardingAction({
           actionName: 'Verification Submitted',
-          phoneNumber:
-            otpMethod === 'phone'
-              ? params.phoneNumber ?? signupContext.phoneNumber!
-              : undefined,
-          email:
-            otpMethod === 'email'
-              ? params.email ?? signupContext.email!
-              : undefined,
+          ...accountCreds,
         });
         trackOnboardingAction({
           actionName: 'Account Created',
-          phoneNumber:
-            otpMethod === 'phone'
-              ? params.phoneNumber ?? signupContext.phoneNumber!
-              : undefined,
-          email:
-            otpMethod === 'email'
-              ? params.email ?? signupContext.email!
-              : undefined,
           lure: signupParams.lureId,
+          ...accountCreds,
         });
         return user;
       } catch (err) {
         logger.trackError('Error signing up user', {
           errorMessage: err.message,
           errorStack: err.stack,
-          phoneNumber:
-            otpMethod === 'phone'
-              ? params.phoneNumber ?? signupContext.phoneNumber!
-              : undefined,
-          email:
-            otpMethod === 'email'
-              ? params.email ?? signupContext.email!
-              : undefined,
+          ...accountCreds,
         });
         throw err;
       }
@@ -114,20 +107,22 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
 
   const handleLogin = useCallback(
     async (otpCode: string) => {
+      console.log(`bl: checking otp code: ${otpCode}`);
       const user = await hostingApi.logInHostingUser({
         otp: otpCode,
-        phoneNumber:
-          otpMethod === 'phone'
-            ? params.phoneNumber ?? signupContext.phoneNumber!
-            : undefined,
-        email:
-          otpMethod === 'email'
-            ? params.email ?? signupContext.email!
-            : undefined,
+        ...accountCreds,
       });
 
+      logger.trackEvent('Authenticated with hosting', accountCreds);
+      db.haveHostedLogin.setValue(true);
+
+      console.log(`bl: got user`, user);
       if (user.ships.length > 0) {
-        const shipsWithStatus = await hostingApi.getShipsWithStatus(user.ships);
+        db.hostedAccountIsInitialized.setValue(true);
+        const nodeId = user.ships[0];
+        db.hostedUserNodeId.setValue(nodeId);
+
+        const shipsWithStatus = await hostingApi.getShipsWithStatus([nodeId]);
         if (shipsWithStatus) {
           const { status, shipId } = shipsWithStatus;
           if (status === 'Ready') {
@@ -162,7 +157,13 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
               );
             }
           } else {
-            navigation.navigate('ReserveShip', { user });
+            logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+              context: 'User logged in, but node is not running',
+              ...accountCreds,
+            });
+            navigation.navigate('GettingNodeReadyScreen', {
+              waitType: 'paused',
+            });
           }
         } else {
           throw new Error(
@@ -170,6 +171,10 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
           );
         }
       } else {
+        logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+          context: 'User has no assigned node',
+          ...accountCreds,
+        });
         signupContext.setOnboardingValues({
           phoneNumber:
             otpMethod === 'phone' ? signupContext.phoneNumber! : undefined,

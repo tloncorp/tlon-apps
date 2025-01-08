@@ -1,4 +1,5 @@
 import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { preSig } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -73,6 +74,7 @@ export function useBootSequence({
       const reservedNodeId = await BootHelpers.reserveNode(hostingUser.id);
       setReservedNodeId(reservedNodeId);
       logger.crumb(`reserved node`, reservedNodeId);
+      db.hostedAccountIsInitialized.setValue(true);
       return NodeBootPhase.BOOTING;
     }
 
