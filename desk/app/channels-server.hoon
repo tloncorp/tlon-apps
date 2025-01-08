@@ -1155,15 +1155,13 @@
 ++  run-hooks
   |=  [=event:h =nest:c default=cord]
   ^-  [(each event:h tang) _cor]
-  =;  [result=(each event:h tang) effects=(list effect:h)]
-    [result (run-hook-effects effects nest)]
   =|  effects=(list effect:h)
   =/  order  (~(gut by order.hooks) nest ~)
   =/  channel  `[nest (~(got by v-channels) nest)]
   =/  =bowl:h  (get-hook-bowl channel *config:h)
   |-
   ?~  order
-    [&+event effects]
+    [&+event (run-hook-effects effects nest)]
   =*  next  $(order t.order)
   =/  hook  (~(got by hooks.hooks) i.order)
   =.  bowl  bowl(hook hook, config (~(gut by config.hook) nest ~))
@@ -1174,7 +1172,7 @@
   =.  effects  (weld effects effects.u.return)
   =.  hooks.hooks  (~(put by hooks.hooks) i.order hook(state new-state.u.return))
   ?:  ?=(%denied -.result)
-    [|+~[(fall msg.result default)] effects]
+    [|+~[(fall msg.result default)] (run-hook-effects effects nest)]
   =.  event  event.result
   next
 ++  wake-hook
