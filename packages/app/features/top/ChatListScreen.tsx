@@ -20,6 +20,8 @@ import {
   ScreenHeader,
   View,
   WelcomeSheet,
+  useGlobalSearch,
+  useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ColorTokens, useTheme } from 'tamagui';
@@ -31,7 +33,6 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import { identifyTlonEmployee } from '../../utils/posthog';
-import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
 
 const logger = createDevLogger('ChatListScreen', false);
@@ -56,6 +57,7 @@ export function ChatListScreenView({
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
   const personalInvite = db.personalInviteLink.useValue();
   const viewedPersonalInvite = db.hasViewedPersonalInvite.useValue();
+  const { isOpen, setIsOpen } = useGlobalSearch();
   const theme = useTheme();
   const inviteButtonColor = useMemo(
     () =>
@@ -213,7 +215,7 @@ export function ChatListScreenView({
 
   useEffect(() => {
     const checkSplashDismissed = async () => {
-      const dismissed = await isSplashDismissed();
+      const dismissed = await db.storage.splashDismissed.getValue();
       setSplashVisible(!dismissed);
     };
 
@@ -223,18 +225,24 @@ export function ChatListScreenView({
   const handleWelcomeOpenChange = useCallback((open: boolean) => {
     if (!open) {
       setSplashVisible(false);
-      setSplashDismissed();
+      db.storage.splashDismissed.setValue(true);
     }
   }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   const handleSearchInputToggled = useCallback(() => {
-    if (showSearchInput) {
-      setSearchQuery('');
+    if (isWindowNarrow) {
+      if (showSearchInput) {
+        setSearchQuery('');
+      }
+      setShowSearchInput(!showSearchInput);
+    } else {
+      setIsOpen(!isOpen);
     }
-    setShowSearchInput(!showSearchInput);
-  }, [showSearchInput]);
+  }, [showSearchInput, isWindowNarrow, isOpen, setIsOpen]);
 
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {

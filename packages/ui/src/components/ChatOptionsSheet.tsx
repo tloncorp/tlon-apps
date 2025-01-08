@@ -654,9 +654,12 @@ function useCustomChannelsEnabled() {
   // why useLayoutEffect?
   // to try to get the synchronous read to avoid flicker on mount
   useLayoutEffect(() => {
-    return featureFlags.subscribeToFeatureFlag('customChannels', (flag) => {
-      setEnableCustomChannels(flag);
-    });
+    return featureFlags.subscribeToFeatureFlag(
+      'customChannelCreation',
+      (flag) => {
+        setEnableCustomChannels(flag);
+      }
+    );
   }, []);
 
   return enableCustomChannels;

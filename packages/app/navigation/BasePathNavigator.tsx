@@ -1,14 +1,19 @@
 import {
   NavigatorScreenParams,
+  RouteProp,
   useNavigationState,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { storage } from '@tloncorp/shared/db';
 import { useEffect, useMemo, useRef } from 'react';
 
-import { getLastScreen, setLastScreen } from '../utils/lastScreen';
 import { RootStack } from './RootStack';
 import { TopLevelDrawer } from './desktop/TopLevelDrawer';
-import { RootDrawerParamList, RootStackParamList } from './types';
+import {
+  CombinedParamList,
+  RootDrawerParamList,
+  RootStackParamList,
+} from './types';
 import { useRootNavigation, useTypedReset } from './utils';
 
 export type MobileBasePathStackParamList = {
@@ -92,13 +97,11 @@ export function BasePathNavigator({ isMobile }: { isMobile: boolean }) {
   const reset = useTypedReset();
 
   useEffect(() => {
-    const lastScreen = async () => getLastScreen();
-
     // if we're switching between mobile and desktop, we want to reset the
     // navigator to the last screen that was open in the other mode
     if (lastWasMobile.current !== isMobile) {
       setTimeout(() => {
-        lastScreen().then((lastScreen) => {
+        getLastScreen().then((lastScreen) => {
           if (!lastScreen) {
             return;
           }
@@ -108,8 +111,8 @@ export function BasePathNavigator({ isMobile }: { isMobile: boolean }) {
             lastScreen.name === 'GroupDM' ||
             lastScreen.name === 'DM'
           ) {
-            resetToChannel(lastScreen.params.channelId, {
-              groupId: lastScreen.params.groupId,
+            resetToChannel(lastScreen.params?.channelId, {
+              groupId: lastScreen.params?.groupId,
             });
           } else if (isMobile && lastScreen.name === 'Home') {
             reset([{ name: 'ChatList' }]);
@@ -130,7 +133,7 @@ export function BasePathNavigator({ isMobile }: { isMobile: boolean }) {
 
   useEffect(() => {
     if (currentScreenAndParams && isMobile === lastWasMobile.current) {
-      setLastScreen(currentScreenAndParams);
+      storage.lastScreen.setValue(currentScreenAndParams);
     }
   }, [currentScreenAndParams, isMobile]);
 
@@ -143,3 +146,6 @@ export function BasePathNavigator({ isMobile }: { isMobile: boolean }) {
     </Navigator.Navigator>
   );
 }
+
+export const getLastScreen = storage.lastScreen
+  .getValue as () => Promise<null | RouteProp<CombinedParamList, any>>;

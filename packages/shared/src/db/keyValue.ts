@@ -9,6 +9,7 @@ import {
   queryClient,
 } from '../api';
 import { createDevLogger } from '../debug';
+import { Lure } from '../logic';
 import * as ub from '../urbit';
 import { NodeBootPhase, SignupParams } from './domainTypes';
 import { getStorageMethods } from './getStorageMethods';
@@ -352,4 +353,44 @@ export type ChannelSortPreference = 'recency' | 'arranged';
 export const channelSortPreference = createStorageItem<ChannelSortPreference>({
   key: 'channelSortPreference',
   defaultValue: 'recency',
+});
+
+export const lastScreen = createStorageItem<{
+  name: string;
+  params: any;
+} | null>({
+  key: 'lastScreen',
+  defaultValue: null,
+});
+
+export const invitation = createStorageItem<Lure | null>({
+  key: 'lure',
+  defaultValue: null,
+});
+
+export type ShipInfo = {
+  authType: 'self' | 'hosted';
+  ship: string | undefined;
+  shipUrl: string | undefined;
+  authCookie: string | undefined;
+};
+
+export const shipInfo = createStorageItem<ShipInfo | null>({
+  key: 'store',
+  defaultValue: null,
+});
+
+export const featureFlags = createStorageItem<any>({
+  key: 'featureFlags',
+  defaultValue: null,
+});
+
+export const eulaAgreed = createStorageItem<boolean>({
+  key: 'eula',
+  defaultValue: false,
+});
+
+export const splashDismissed = createStorageItem<boolean>({
+  key: 'splash',
+  defaultValue: false,
 });
