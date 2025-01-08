@@ -109,6 +109,7 @@ export interface SettingsState {
     newGroupFlags: string[];
     groupsNavState?: string;
     messagesNavState?: string;
+    seenMobileAppToast?: boolean;
   };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;

@@ -325,6 +325,16 @@ export const useGroup = ({ id }: { id?: string }) => {
   });
 };
 
+export const useGroupUnread = ({ groupId }: { groupId: string }) => {
+  return useQuery({
+    queryKey: [
+      ['groupUnread', { groupId: groupId }],
+      useKeyFromQueryDeps(db.getGroupUnread, { groupId: groupId }),
+    ],
+    queryFn: async () => db.getGroupUnread({ groupId: groupId }),
+  });
+};
+
 export const useJoinedGroupsCount = () => {
   const deps = useKeyFromQueryDeps(db.getJoinedGroupsCount);
   return useQuery({

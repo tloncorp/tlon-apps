@@ -5,9 +5,8 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { useBranch } from '../contexts/branch';
-import { clearShipInfo, useShip } from '../contexts/ship';
+import { useShip } from '../contexts/ship';
 import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
-import { clearSplashDismissed } from '../utils/splash';
 import { useClearTelemetryConfig } from './useTelemetry';
 
 const logger = createDevLogger('logout', true);
@@ -21,12 +20,10 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     api.queryClient.clear();
     store.removeClient();
     clearShip();
-    clearShipInfo();
     removeHostingToken();
     removeHostingUserId();
     clearLure();
     clearDeepLink();
-    clearSplashDismissed();
     clearTelemetry();
     clearNonPersistentStorageItems();
     if (!resetDb) {

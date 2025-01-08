@@ -37,6 +37,7 @@ export function ChannelDivider({
           ellipsizeMode="middle"
           numberOfLines={1}
           color={textColor}
+          userSelect="none"
         >
           {!hideTime ? `${time}` : null}
           {!hideTime && unreadCount ? ' • ' : null}

@@ -20,7 +20,7 @@ export interface DetailViewProps {
   posts?: db.Post[];
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   goBack?: () => void;
-  onPressRetry: (post: db.Post) => void;
+  onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
   setActiveMessage: (post: db.Post | null) => void;
   activeMessage: db.Post | null;

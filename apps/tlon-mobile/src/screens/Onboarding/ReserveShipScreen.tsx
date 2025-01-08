@@ -105,7 +105,7 @@ function BootStepDisplay(props: {
           props.bootPhase <= step.endInclusive;
         const hasCompleted = props.bootPhase > step.endInclusive;
         return (
-          <ListItem backgroundColor="unset" key={index} paddingVertical={0}>
+          <ListItem backgroundColor="unset" key={index}>
             <ListItem.SystemIcon color="$primaryText" icon={step.icon} />
             <ListItem.MainContent>
               <ListItem.Title>{step.description}</ListItem.Title>

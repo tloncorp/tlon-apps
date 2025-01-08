@@ -1,4 +1,4 @@
-import { parseUd } from '@urbit/aura';
+import { daToUnix, parseUd } from '@urbit/aura';
 import _ from 'lodash';
 
 import { Kind, Story } from './channel';
@@ -760,7 +760,7 @@ export function getIdParts(id: string): { author: string; sent: number } {
   const [author, sentStr] = id.split('/');
   return {
     author,
-    sent: parseInt(parseUd(sentStr).toString(), 10),
+    sent: daToUnix(parseUd(sentStr)),
   };
 }
 

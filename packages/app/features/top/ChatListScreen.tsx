@@ -4,11 +4,10 @@ import {
   useNavigation,
 } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
-  AddGroupSheet,
   ChatList,
   ChatOptionsProvider,
   GroupPreviewAction,
@@ -16,24 +15,25 @@ import {
   InviteUsersSheet,
   NavBarView,
   NavigationProvider,
+  PersonalInviteSheet,
   RequestsProvider,
   ScreenHeader,
   View,
   WelcomeSheet,
+  useGlobalSearch,
+  useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ColorTokens, useTheme } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import type { RootStackParamList } from '../../navigation/types';
-import {
-  screenNameFromChannelId,
-  useNavigateToGroup,
-} from '../../navigation/utils';
+import { useRootNavigation } from '../../navigation/utils';
 import { identifyTlonEmployee } from '../../utils/posthog';
-import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
+import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
 
 const logger = createDevLogger('ChatListScreen', false);
 
@@ -52,9 +52,24 @@ export function ChatListScreenView({
   focusedChannelId?: string;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const [addGroupOpen, setAddGroupOpen] = useState(false);
+  const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
   const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
+  const personalInvite = db.personalInviteLink.useValue();
+  const viewedPersonalInvite = db.hasViewedPersonalInvite.useValue();
+  const { isOpen, setIsOpen } = useGlobalSearch();
+  const theme = useTheme();
+  const inviteButtonColor = useMemo(
+    () =>
+      (viewedPersonalInvite
+        ? theme?.primaryText?.val
+        : theme?.positiveActionText?.val) as ColorTokens,
+    [
+      theme?.positiveActionText?.val,
+      theme?.primaryText?.val,
+      viewedPersonalInvite,
+    ]
+  );
 
   const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
     'all'
@@ -130,35 +145,9 @@ export function ChatListScreenView({
     };
   }, [chats]);
 
-  const handleNavigateToFindGroups = useCallback(() => {
-    setAddGroupOpen(false);
-    navigation.navigate('FindGroups');
-  }, [navigation]);
+  const { navigateToGroup, navigateToChannel } = useRootNavigation();
 
-  const handleNavigateToCreateGroup = useCallback(() => {
-    setAddGroupOpen(false);
-    navigation.navigate('CreateGroup');
-  }, [navigation]);
-
-  const goToDm = useCallback(
-    async (userId: string) => {
-      const dmChannel = await store.upsertDmChannel({
-        participants: [userId],
-      });
-      setAddGroupOpen(false);
-      navigation.navigate('DM', { channelId: dmChannel.id });
-    },
-    [navigation, setAddGroupOpen]
-  );
-
-  const handleAddGroupOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setAddGroupOpen(false);
-    }
-  }, []);
-
-  const navigateToGroup = useNavigateToGroup();
-
+  const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
   const onPressChat = useCallback(
     async (item: db.Chat) => {
       if (item.type === 'group') {
@@ -168,14 +157,15 @@ export function ChatListScreenView({
           navigateToGroup(item.group.id);
         }
       } else {
-        const screenName = screenNameFromChannelId(item.id);
-        navigation.navigate(screenName, {
-          channelId: item.id,
-        });
+        navigateToChannel(item.channel);
       }
     },
-    [navigateToGroup, navigation]
+    [navigateToGroup, navigateToChannel]
   );
+
+  const handlePressAddChat = useCallback(() => {
+    createChatSheetRef.current?.open();
+  }, []);
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -225,7 +215,7 @@ export function ChatListScreenView({
 
   useEffect(() => {
     const checkSplashDismissed = async () => {
-      const dismissed = await isSplashDismissed();
+      const dismissed = await db.storage.splashDismissed.getValue();
       setSplashVisible(!dismissed);
     };
 
@@ -235,18 +225,24 @@ export function ChatListScreenView({
   const handleWelcomeOpenChange = useCallback((open: boolean) => {
     if (!open) {
       setSplashVisible(false);
-      setSplashDismissed();
+      db.storage.splashDismissed.setValue(true);
     }
   }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   const handleSearchInputToggled = useCallback(() => {
-    if (showSearchInput) {
-      setSearchQuery('');
+    if (isWindowNarrow) {
+      if (showSearchInput) {
+        setSearchQuery('');
+      }
+      setShowSearchInput(!showSearchInput);
+    } else {
+      setIsOpen(!isOpen);
     }
-    setShowSearchInput(!showSearchInput);
-  }, [showSearchInput]);
+  }, [showSearchInput, isWindowNarrow, isOpen, setIsOpen]);
 
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
@@ -255,6 +251,12 @@ export function ChatListScreenView({
     },
     [performGroupAction]
   );
+
+  const handlePersonalInvitePress = useCallback(() => {
+    logger.trackEvent(AnalyticsEvent.PersonalInvitePressed);
+    db.hasViewedPersonalInvite.setValue(true);
+    setPersonalInviteOpen(true);
+  }, []);
 
   return (
     <RequestsProvider
@@ -271,9 +273,18 @@ export function ChatListScreenView({
         }}
       >
         <NavigationProvider focusedChannelId={focusedChannelId}>
-          <View flex={1}>
+          <View userSelect="none" flex={1}>
             <ScreenHeader
               title={notReadyMessage ?? screenTitle}
+              leftControls={
+                personalInvite ? (
+                  <ScreenHeader.IconButton
+                    type="Send"
+                    color={inviteButtonColor}
+                    onPress={handlePersonalInvitePress}
+                  />
+                ) : undefined
+              }
               rightControls={
                 <>
                   <ScreenHeader.IconButton
@@ -282,7 +293,7 @@ export function ChatListScreenView({
                   />
                   <ScreenHeader.IconButton
                     type="Add"
-                    onPress={() => setAddGroupOpen(true)}
+                    onPress={handlePressAddChat}
                   />
                 </>
               }
@@ -336,12 +347,10 @@ export function ChatListScreenView({
         />
       </ChatOptionsProvider>
 
-      <AddGroupSheet
-        open={addGroupOpen}
-        onGoToDm={goToDm}
-        onOpenChange={handleAddGroupOpenChange}
-        navigateToFindGroups={handleNavigateToFindGroups}
-        navigateToCreateGroup={handleNavigateToCreateGroup}
+      <CreateChatSheet ref={createChatSheetRef} />
+      <PersonalInviteSheet
+        open={personalInviteOpen}
+        onOpenChange={() => setPersonalInviteOpen(false)}
       />
     </RequestsProvider>
   );

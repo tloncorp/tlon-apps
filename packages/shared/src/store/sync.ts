@@ -7,12 +7,13 @@ import { GetChangedPostsOptions } from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger, runIfDev } from '../debug';
+import { AnalyticsEvent } from '../logic';
 import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
-import { findContactSuggestions } from './contactActions';
+import { verifyUserInviteLink } from './inviteActions';
 import { useLureState } from './lure';
 import { getSyncing, updateIsSyncing, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
@@ -262,7 +263,27 @@ export const syncChannelThreadUnreads = async (
   const unreads = await syncQueue.add('thread unreads', ctx, () =>
     api.getThreadUnreadsByChannel(channel)
   );
-  await db.insertThreadUnreads(unreads);
+  const existingUnreads = await db.getThreadUnreadsByChannel({ channelId });
+
+  // filter out any unreads that we already have in the db so we can avoid
+  // invalidating queries that don't need to be invalidated
+  const newUnreads = unreads.filter((unread) => {
+    const existing = existingUnreads.find(
+      (u) => u.threadId === unread.threadId
+    );
+
+    if (!existing) {
+      return true;
+    }
+
+    return !_.isEqual(unread, existing);
+  });
+
+  if (newUnreads.length === 0) {
+    return;
+  }
+
+  await db.insertThreadUnreads(newUnreads);
 };
 
 export async function syncPostReference(options: {
@@ -297,6 +318,10 @@ export async function syncUpdatedPosts(
   await db.insertChannelPosts({
     channelId: options.channelId,
     posts: response.posts,
+  });
+
+  await db.deletePosts({
+    ids: response.deletedPosts ?? [],
   });
 
   return response;
@@ -1092,6 +1117,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     // we probably don't want multiple sync starts
     return;
   }
+  const startTime = Date.now();
 
   updateIsSyncing(true);
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
@@ -1134,6 +1160,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     logger.crumb('finished initializing high priority subs');
 
     logger.crumb(`finished high priority init sync`);
+    logger.trackEvent(AnalyticsEvent.SessionInitialized, {
+      duration: Date.now() - startTime,
+    });
     updateSession({ startTime: Date.now() });
   });
 
@@ -1175,6 +1204,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     });
 
   updateIsSyncing(false);
+
+  // post sync initialization work
+  verifyUserInviteLink();
 };
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
