@@ -102,7 +102,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
             : null
         }
         unreadCount={ctx.initialChannelUnread?.countWithoutThreads ?? 0}
-        onPressPost={canDrillIntoPost ? undefined : ctx.goToPost}
+        onPressPost={canDrillIntoPost ? ctx.goToPost : undefined}
         onPressReplies={ctx.goToPost}
         onPressImage={ctx.goToImageViewer}
         onEndReached={ctx.onScrollEndReached}
