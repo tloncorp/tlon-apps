@@ -673,7 +673,7 @@ export const updateGroup = createWriteQuery(
   async (group: Partial<Group> & { id: string }, ctx: QueryCtx) => {
     return ctx.db.update($groups).set(group).where(eq($groups.id, group.id));
   },
-  ['groups']
+  ['groups', 'channels', 'groupNavSections', 'groupNavSectionChannels']
 );
 
 export const deleteGroup = createWriteQuery(
@@ -1607,6 +1607,33 @@ export const addNavSectionToGroup = createWriteQuery(
   ['groupNavSections']
 );
 
+export const updateNavSectionChannel = createWriteQuery(
+  'updateNavSectionChannel',
+  async (
+    {
+      channelId,
+      groupNavSectionId,
+      channelIndex,
+    }: {
+      channelId: string;
+      groupNavSectionId: string;
+      channelIndex: number;
+    },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($groupNavSectionChannels)
+      .set({ channelIndex })
+      .where(
+        and(
+          eq($groupNavSectionChannels.channelId, channelId),
+          eq($groupNavSectionChannels.groupNavSectionId, groupNavSectionId)
+        )
+      );
+  },
+  ['groupNavSectionChannels']
+);
+
 export const updateNavSection = createWriteQuery(
   'updateNavSection',
   async (
@@ -1656,7 +1683,7 @@ export const addChannelToNavSection = createWriteQuery(
       })
       .onConflictDoNothing();
   },
-  ['groupNavSectionChannels']
+  ['groupNavSectionChannels', 'groups']
 );
 
 export const deleteChannelFromNavSection = createWriteQuery(
@@ -2765,6 +2792,7 @@ export const getGroup = createReadQuery(
     'channels',
     'groupJoinRequests',
     'groupMemberBans',
+    'groupNavSectionChannels'
   ]
 );
 

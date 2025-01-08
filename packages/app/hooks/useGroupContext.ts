@@ -56,9 +56,20 @@ export const useGroupContext = ({
   const groupNavSectionsWithChannels = useMemo(() => {
     return groupNavSections.map((section) => ({
       ...section,
-      channels: groupChannels.filter((channel) =>
-        section.channels.map((c) => c.channelId).includes(channel.id)
-      ),
+      channels: groupChannels
+        .filter((channel) =>
+          section.channels.map((c) => c.channelId).includes(channel.id)
+        )
+        .sort((a, b) => {
+          const aIndex =
+            section.channels.find((c) => c.channelId === a.id)?.channelIndex ??
+            0;
+          const bIndex =
+            section.channels.find((c) => c.channelId === b.id)?.channelIndex ??
+            0;
+
+          return aIndex - bIndex;
+        }),
     }));
   }, [groupNavSections, groupChannels]);
 
@@ -176,13 +187,25 @@ export const useGroupContext = ({
 
   const moveChannelToNavSection = useCallback(
     async (channelId: string, navSectionId: string) => {
-      if (group) {
-        await store.addChannelToNavSection({
-          group,
-          channelId,
-          navSectionId,
-        });
+      if (!group) return;
+
+      // Find current section for the channel
+      const currentSection = group.navSections?.find((section) =>
+        section.channels?.some((channel) => channel.channelId === channelId)
+      );
+
+      if (!currentSection) {
+        console.error('Channel not found in any section');
+        return;
       }
+
+      // Use addChannelToNavSection which handles both adding to new section
+      // and removing from the previous section
+      await store.addChannelToNavSection({
+        group,
+        channelId,
+        navSectionId,
+      });
     },
     [group]
   );
