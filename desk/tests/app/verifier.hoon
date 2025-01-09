@@ -782,7 +782,11 @@
     :*  %whose-bulk
         last-salt=0x0
         last=*(set identifier:v)
-        add=(~(gas in *(set identifier:v)) (turn (gulf 1 base) |=(a=@ [%dummy (scot %ud a)])))
+      ::
+        ^=  add
+        %-  ~(gas in *(set identifier:v))
+        (turn (gulf 1 base) |=(a=@ [%dummy (scot %ud a)]))
+      ::
         del=*(set identifier:v)
     ==
   ::  can keep querying the same large set indefinitely
@@ -805,7 +809,9 @@
   ::  but can only do additions at limited rate,
   ::  and breaking set continuity causes the whole set to count again.
   ::
-  =.  add.query  (~(gas in *(set identifier:v)) (turn (gulf +(base) (add base 5)) |=(a=@ [%dummy (scot %ud a)])))
+  =.  add.query
+    %-  ~(gas in *(set identifier:v))
+    (turn (gulf +(base) (add base 5)) |=(a=@ [%dummy (scot %ud a)]))
   %-  branch
   :~  :-  'eager'
       (ex-fail (user-asks ~fed [%some-dude %my-nonce] query))
@@ -820,6 +826,47 @@
       =.  last-salt.query  0xdead
       (ex-fail (user-asks ~fed [%some-dude %my-nonce] query))
   ==
+::
+++  test-query-bulk-max-size
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (do-query-setup)
+  =/  base  0
+  =/  step  batch:*allowance:v
+  =/  query
+    :*  %whose-bulk
+        last-salt=0x0
+        last=*(set identifier:v)
+        add=*(set identifier:v)
+        del=*(set identifier:v)
+    ==
+  ::  keep expanding the set we ask about
+  ::
+  =|  eny=@
+  =/  n=@ud  batch-upper-bound:rates:v
+  |-  =*  loop  $
+  ?.  =(0 n)
+    =.  last.query  (~(uni in last.query) add.query)
+    =/  a  (min n step)
+    =.  add.query
+      %-  ~(gas in *(set identifier:v))
+      (turn (gulf base (add base (dec a))) |=(a=@ [%dummy (scot %ud a)]))
+    =.  n  (sub n a)
+    =.  base  (add base step)
+    ;<  ~  bind:m  (jab-bowl |=(b=bowl b(eny eny)))
+    =/  expected-salt  (shas %whose-salt eny)
+    ;<  *  bind:m
+      (user-asks ~fed [%some-dude %my-nonce] query)
+    ;<  ~  bind:m  (wait ~d365)
+    %_  loop
+      eny  +(eny)
+      last-salt.query  expected-salt
+    ==
+  ::  expect the next one to crash due to too-big bulk request
+  ::
+  =.  last.query  (~(uni in last.query) add.query)
+  =.  add.query   (sy [%dummy (scot %ud base)] ~)
+  (ex-fail (user-asks ~fed [%some-dude %my-nonce] query))
 ::
 ++  test-phone-otp-rate-limits
   %-  eval-mare

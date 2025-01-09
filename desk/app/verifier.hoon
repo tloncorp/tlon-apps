@@ -391,13 +391,15 @@
       ::REVIEW  sha-256 fine, or do we want sha-512 (or other) for some reason?
       ::
       ::  lims: rate-limiting allowance pool
-      ::  bulk: full set to query on  ::TODO  limit total size?
+      ::  bulk: full set to query on
       ::  cost: .batch.lims allowance cost of resolving .bulk
       ::
       =/  lims=allowance
         (get-allowance limits src.bowl now.bowl)
       =/  bulk=(set identifier)
         (~(dif in (~(uni in last.qer) add.qer)) del.qer)
+      ?:  (gth ~(wyt in bulk) batch-upper-bound:rates)
+        ~|(%bulk-too-big !!)
       =/  cost=@
         ::  calculate their proclaimed hash by salting the "last" set with the
         ::  provided salt. for the first request case, it doesn't matter that
