@@ -14,6 +14,7 @@ import {
   AppDataContextProvider,
   Channel,
   ChannelSwitcherSheet,
+  ChatOptionsProvider,
   Sheet,
 } from '@tloncorp/ui';
 import { UnconnectedChannelConfigurationBar as ChannelConfigurationBar } from '@tloncorp/ui/src/components/ManageChannels/CreateChannelSheet';
@@ -75,13 +76,19 @@ const fakeLoadingMostRecentFile: Upload = {
   size: [100, 100],
 };
 
+function noopProps<T extends object>() {
+  return new Proxy<T>({} as unknown as T, {
+    get: (_target, prop) => () => console.log(`${String(prop)} called`),
+  });
+}
+
 const ChannelFixtureWrapper = ({
   children,
 }: PropsWithChildren<{ theme?: 'light' | 'dark' }>) => {
   return (
     <AppDataContextProvider contacts={initialContacts}>
       <FixtureWrapper fillWidth fillHeight>
-        {children}
+        <ChatOptionsProvider {...noopProps()}>{children}</ChatOptionsProvider>
       </FixtureWrapper>
     </AppDataContextProvider>
   );
@@ -104,7 +111,6 @@ const baseProps: ComponentProps<typeof Channel> = {
   messageSender: async () => {},
   markRead: () => {},
   editPost: async () => {},
-  uploadAsset: async () => {},
   onPressRef: () => {},
   usePost: usePostWithRelations,
   usePostReference: usePostReference,
@@ -114,7 +120,6 @@ const baseProps: ComponentProps<typeof Channel> = {
   getDraft: async () => ({}),
   storeDraft: () => {},
   clearDraft: () => {},
-  canUpload: true,
   onPressRetry: async () => {},
   onPressDelete: () => {},
 } as const;
