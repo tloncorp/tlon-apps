@@ -5,14 +5,14 @@ import {
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
+import { getShipUrl } from '@tloncorp/app/utils/ship';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import {
   getShipAccessCode,
   getShipsWithStatus,
   logInHostingUser,
   requestPhoneVerify,
-} from '@tloncorp/app/lib/hostingApi';
-import { getShipUrl } from '@tloncorp/app/utils/ship';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+} from '@tloncorp/shared/api';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
 import {

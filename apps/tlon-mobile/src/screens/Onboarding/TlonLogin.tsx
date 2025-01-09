@@ -5,8 +5,8 @@ import {
   DEFAULT_TLON_LOGIN_PASSWORD,
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
-import { HostingError } from '@tloncorp/app/lib/hostingApi';
 import { createDevLogger } from '@tloncorp/shared';
+import { HostingError } from '@tloncorp/shared/api';
 import {
   Field,
   KeyboardAvoidingView,
@@ -20,6 +20,7 @@ import {
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { Platform } from 'react-native';
 
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
@@ -90,7 +91,11 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
 
       if (otpMethod === 'phone') {
         await phoneForm.handleSubmit(async ({ phoneNumber }) => {
-          await hostingApi.requestLoginOtp({ phoneNumber, recaptchaToken });
+          await hostingApi.requestLoginOtp({
+            phoneNumber,
+            recaptchaToken,
+            platform: Platform.OS,
+          });
           logger.trackEvent('Initiated login', { type: 'phone', phoneNumber });
           navigation.navigate('CheckOTP', {
             mode: 'login',
@@ -100,7 +105,11 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
         })();
       } else {
         await emailForm.handleSubmit(async ({ email }) => {
-          await hostingApi.requestLoginOtp({ email, recaptchaToken });
+          await hostingApi.requestLoginOtp({
+            email,
+            recaptchaToken,
+            platform: Platform.OS,
+          });
           logger.trackEvent('Initiated login', { type: 'email', email });
           navigation.navigate('CheckOTP', {
             mode: 'login',

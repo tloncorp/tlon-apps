@@ -1,10 +1,10 @@
 import { AppInvite } from '@tloncorp/shared';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
+import * as hostingApi from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 
 import { trackOnboardingAction } from '../utils/posthog';
 import { getShipFromCookie, getShipUrl } from '../utils/ship';
-import * as hostingApi from './hostingApi';
 
 export enum NodeBootPhase {
   IDLE = 1,

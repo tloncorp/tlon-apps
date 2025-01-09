@@ -1,5 +1,5 @@
-import { getHostingHeartBeat } from '@tloncorp/app/lib/hostingApi';
 import { createDevLogger } from '@tloncorp/shared';
+import { getHostingHeartBeat } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 
 const logger = createDevLogger('refreshHostingAuth', false);

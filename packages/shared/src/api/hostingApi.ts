@@ -1,16 +1,16 @@
-import { AnalyticsEvent, createDevLogger, withRetry } from '@tloncorp/shared';
+import { createDevLogger, withRetry } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Buffer } from 'buffer';
-import { Platform } from 'react-native';
 
-import { API_AUTH_PASSWORD, API_AUTH_USERNAME, API_URL } from '../constants';
-import type {
+import {
+  AnalyticsEvent,
   BootPhase,
   HostedShipStatus,
   ReservableShip,
   ReservedShip,
   User,
-} from '../types/hosting';
+  getConstants,
+} from '../domain';
 
 const logger = createDevLogger('hostingApi', true);
 
@@ -30,13 +30,14 @@ const hostingFetchResponse = async (
   path: string,
   init?: RequestInit
 ): Promise<Response> => {
+  const env = getConstants();
   const fetchInit = {
     ...init,
   };
-  if (API_AUTH_USERNAME && API_AUTH_PASSWORD) {
+  if (env.API_AUTH_USERNAME && env.API_AUTH_PASSWORD) {
     fetchInit.headers = {
       Authorization: `Basic ${Buffer.from(
-        `${API_AUTH_USERNAME}:${API_AUTH_PASSWORD}`
+        `${env.API_AUTH_USERNAME}:${env.API_AUTH_PASSWORD}`
       ).toString('base64')}`,
       ...fetchInit.headers,
     };
@@ -48,7 +49,7 @@ const hostingFetchResponse = async (
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15_000);
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(`${env.API_URL}${path}`, {
     ...fetchInit,
     signal: controller.signal,
   });
@@ -138,6 +139,7 @@ export const signUpHostingUser = async (params: {
   lure?: string;
   priorityToken?: string;
   recaptchaToken?: string;
+  platform?: 'ios' | 'android' | 'web' | 'macos' | 'windows';
 }) => {
   // TODO: we should eventually catch 409 here which in this context
   // indicates no available inventory
@@ -152,7 +154,7 @@ export const signUpHostingUser = async (params: {
       priorityToken: params.priorityToken,
       recaptcha: {
         recaptchaToken: { token: params.recaptchaToken || '' },
-        recaptchaPlatform: Platform.OS,
+        recaptchaPlatform: params.platform,
       },
     }),
     headers: {
@@ -211,10 +213,12 @@ export const requestSignupOtp = async ({
   email,
   phoneNumber,
   recaptchaToken,
+  platform,
 }: {
   email?: string;
   phoneNumber?: string;
   recaptchaToken?: string;
+  platform?: 'ios' | 'android' | 'web' | 'macos' | 'windows';
 }) => {
   const response = await rawHostingFetch('/v1/request-otp', {
     method: 'POST',
@@ -224,7 +228,7 @@ export const requestSignupOtp = async ({
       otpMode: 'SignupOTP',
       recaptcha: {
         recaptchaToken: { token: recaptchaToken || '' },
-        recaptchaPlatform: Platform.OS,
+        recaptchaPlatform: platform,
       },
     }),
     headers: {
@@ -255,10 +259,12 @@ export const requestLoginOtp = async ({
   phoneNumber,
   email,
   recaptchaToken,
+  platform,
 }: {
   phoneNumber?: string;
   email?: string;
   recaptchaToken: string;
+  platform: 'ios' | 'android' | 'web' | 'macos' | 'windows';
 }) => {
   if (!phoneNumber && !email) {
     throw new Error('Either phone number or email must be provided');
@@ -272,7 +278,7 @@ export const requestLoginOtp = async ({
       otpMode: 'LoginOTP',
       recaptcha: {
         recaptchaToken: { token: recaptchaToken || '' },
-        recaptchaPlatform: Platform.OS,
+        recaptchaPlatform: platform,
       },
     }),
     headers: {

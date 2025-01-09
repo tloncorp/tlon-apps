@@ -1,4 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { checkIfAccountDeleted } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import {
   LoadingSpinner,
@@ -14,7 +15,6 @@ import { WebView } from 'react-native-webview';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { useWebView } from '../../hooks/useWebview';
-import { checkIfAccountDeleted } from '../../lib/hostingApi';
 import { RootStackParamList } from '../../navigation/types';
 
 const MANAGE_ACCOUNT_URL = 'https://tlon.network/account';

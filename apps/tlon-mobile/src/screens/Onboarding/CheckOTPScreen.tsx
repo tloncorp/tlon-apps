@@ -1,15 +1,16 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { HostingError } from '@tloncorp/app/lib/hostingApi';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { HostingError } from '@tloncorp/shared/api';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
 import { ScreenHeader, TlonText, View, YStack } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { OTPInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
@@ -248,11 +249,13 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         await apiCall({
           email: params.email ?? signupContext.email!,
           recaptchaToken,
+          platform: Platform.OS,
         });
       } else {
         await apiCall({
           phoneNumber: params.phoneNumber ?? signupContext.phoneNumber!,
           recaptchaToken,
+          platform: Platform.OS,
         });
       }
     } catch (err) {
