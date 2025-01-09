@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { omit } from 'lodash';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, Text, View, XStack, YStack } from 'tamagui';
 
@@ -22,7 +22,7 @@ export type Section = {
 type Channel = {
   id: string;
   type: db.ChannelType;
-  title?: string | null;
+  title: string;
   index?: number;
 };
 
@@ -316,6 +316,25 @@ export function ManageChannelsScreenView({
   const [editSection, setEditSection] = useState<Section | null>(null);
   const [showAddSection, setShowAddSection] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
+
+  useEffect(() => {
+    const newNavSections = groupNavSectionsWithChannels.map((s) => ({
+      id: s.sectionId,
+      title: s.title ?? 'Untitled Section',
+      channels: s.channels.map((c) => ({
+        id: c.id,
+        title: c.title ?? 'Untitled Channel',
+        type: c.type,
+      })),
+    }));
+
+    // Only update if the total number of sections have changed
+    if (newNavSections.length === sections.length) {
+      return;
+    }
+
+    setSections(newNavSections);
+  }, [groupNavSectionsWithChannels, sections]);
 
   const handleUpdateSection = useCallback(
     async (sectionId: string, title: string) => {

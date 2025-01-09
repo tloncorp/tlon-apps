@@ -1604,7 +1604,7 @@ export const addNavSectionToGroup = createWriteQuery(
         set: conflictUpdateSetAll($groupNavSections),
       });
   },
-  ['groupNavSections']
+  ['groups','groupNavSections', 'groupNavSectionChannels']
 );
 
 export const updateNavSectionChannel = createWriteQuery(
