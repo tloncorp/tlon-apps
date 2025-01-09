@@ -1,4 +1,5 @@
 import { AnalyticsEvent, createDevLogger, withRetry } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import { Buffer } from 'buffer';
 import { Platform } from 'react-native';
 
@@ -10,11 +11,6 @@ import type {
   ReservedShip,
   User,
 } from '../types/hosting';
-import {
-  getHostingUserId,
-  setHostingToken,
-  setHostingUserId,
-} from '../utils/hosting';
 
 const logger = createDevLogger('hostingApi', true);
 
@@ -90,7 +86,7 @@ const rawHostingFetch = async (path: string, init?: RequestInit) => {
 
 export type HostingHeartBeatCode = 'expired' | 'ok' | 'unknown';
 export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
-  const userId = await getHostingUserId();
+  const userId = await db.hostingUserId.getValue();
   const response = await rawHostingFetch(`/v1/users/${userId}`);
 
   // 401 indicates that the authentication token is expired
@@ -189,18 +185,14 @@ export const logInHostingUser = async (params: {
   const setCookie = response.headers.get('Set-Cookie');
   const user = 'id' in result && (result as User).id;
   if (setCookie) {
-    setHostingToken(setCookie);
+    db.hostingAuthToken.setValue(setCookie);
   }
 
   if (user) {
-    setHostingUserId(user);
+    db.hostingUserId.setValue(user);
   }
 
   return result as User;
-};
-
-export const isUsingTlonAuth = () => {
-  return Boolean(getHostingUserId() ?? false);
 };
 
 export const getHostingUser = async (userId: string) =>
@@ -427,7 +419,7 @@ export const inviteShipWithLure = async (params: {
   });
 
 export const checkIfAccountDeleted = async (): Promise<boolean> => {
-  const hostingUserId = await getHostingUserId();
+  const hostingUserId = await db.hostingUserId.getValue();
   if (hostingUserId) {
     try {
       const user = await withRetry(() => getHostingUser(hostingUserId), {

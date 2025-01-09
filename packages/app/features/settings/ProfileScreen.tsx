@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMutableRef } from '@tloncorp/shared';
-import { NavBarView, ProfileScreenView, View } from '@tloncorp/ui';
+import * as db from '@tloncorp/shared/db';
+import { ProfileScreenView, View } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { getVariableValue, useTheme } from 'tamagui';
@@ -11,7 +12,6 @@ import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
-import { getHostingToken, getHostingUserId } from '../../utils/hosting';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
@@ -88,8 +88,8 @@ function useHasHostedAuth() {
   useEffect(() => {
     async function getHostingInfo() {
       const [cookie, userId] = await Promise.all([
-        getHostingToken(),
-        getHostingUserId(),
+        db.hostingAuthToken.getValue(),
+        db.hostingUserId.getValue(),
       ]);
       if (cookie && userId) {
         setHasHostedAuth(true);

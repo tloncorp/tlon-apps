@@ -6,7 +6,6 @@ import { useCallback } from 'react';
 
 import { useBranch } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
-import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 import { useClearTelemetryConfig } from './useTelemetry';
 
 const logger = createDevLogger('logout', true);
@@ -20,8 +19,6 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     api.queryClient.clear();
     store.removeClient();
     clearShip();
-    removeHostingToken();
-    removeHostingUserId();
     clearLure();
     clearDeepLink();
     clearTelemetry();

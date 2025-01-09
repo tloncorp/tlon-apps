@@ -1,11 +1,6 @@
 import { getHostingHeartBeat } from '@tloncorp/app/lib/hostingApi';
-import {
-  getHostingAuthExpired,
-  getLastHostingAuthCheck,
-  setHostingAuthExpired,
-  setLastHostingAuthCheck,
-} from '@tloncorp/app/utils/hosting';
 import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 
 const logger = createDevLogger('refreshHostingAuth', false);
 
@@ -19,8 +14,8 @@ export async function refreshHostingAuth() {
     logger.log('development mode, skipping');
   }
 
-  const expired = await getHostingAuthExpired();
-  const lastCheck = await getLastHostingAuthCheck();
+  const expired = await db.hostingAuthExpired.getValue();
+  const lastCheck = await db.hostingLastAuthCheck.getValue();
 
   if (expired) {
     logger.log('hosting auth is already expired');
@@ -33,12 +28,12 @@ export async function refreshHostingAuth() {
       const result = await getHostingHeartBeat();
       if (result === 'expired') {
         logger.crumb('hosting auth has newly expired');
-        setHostingAuthExpired(true);
+        db.hostingAuthExpired.setValue(true);
       }
     } catch (e) {
       logger.error('error checking hosting auth:', e);
     } finally {
-      setLastHostingAuthCheck(Date.now());
+      db.hostingLastAuthCheck.setValue(Date.now());
     }
   }
 }

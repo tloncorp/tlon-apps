@@ -1,4 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as db from '@tloncorp/shared/db';
 import {
   LoadingSpinner,
   ScreenHeader,
@@ -15,8 +16,6 @@ import { useResetDb } from '../../hooks/useResetDb';
 import { useWebView } from '../../hooks/useWebview';
 import { checkIfAccountDeleted } from '../../lib/hostingApi';
 import { RootStackParamList } from '../../navigation/types';
-import { getHostingToken, getHostingUserId } from '../../utils/hosting';
-import { getHostingAuthExpired } from '../../utils/hosting';
 
 const MANAGE_ACCOUNT_URL = 'https://tlon.network/account';
 
@@ -53,9 +52,9 @@ export function ManageAccountScreen(props: Props) {
   useEffect(() => {
     async function initialize() {
       const [cookie, userId, isExpired] = await Promise.all([
-        getHostingToken(),
-        getHostingUserId(),
-        getHostingAuthExpired(),
+        db.hostingAuthToken.getValue(),
+        db.hostingUserId.getValue(),
+        db.hostingAuthExpired.getValue(),
       ]);
       if (cookie && userId) {
         // we need to strip HttpOnly from the cookie or it won't get sent along with the request

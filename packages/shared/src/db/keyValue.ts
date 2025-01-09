@@ -243,3 +243,25 @@ export const hostedNodeIsRunning = createStorageItem<boolean>({
   key: 'hostedNodeIsRunning',
   defaultValue: false,
 });
+
+export const hostingAuthExpired = createStorageItem<boolean>({
+  key: 'hosting:hostingAuthExpired',
+  defaultValue: false,
+});
+
+export const hostingLastAuthCheck = createStorageItem<number>({
+  key: 'hosting:lastAuthCheck',
+  defaultValue: 0,
+});
+
+export const hostingAuthToken = createStorageItem<string>({
+  key: 'hostingToken',
+  defaultValue: '',
+  isSecure: true,
+});
+
+export const hostingUserId = createStorageItem<string>({
+  key: 'hostingUserId',
+  defaultValue: '',
+  isSecure: true,
+});
