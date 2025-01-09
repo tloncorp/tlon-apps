@@ -1,15 +1,24 @@
 import * as Toast from '@radix-ui/react-toast';
-import { useLocalStorage } from 'usehooks-ts';
-
+import { usePutEntryMutation, useMergedSettings } from '@/state/settings';
 import TlonIcon from './icons/TlonIcon';
 
 export default function MobileAppToast() {
-  const [open, setOpen] = useLocalStorage('showMobileAppToast', true);
+  const { data: settings, isLoading } = useMergedSettings();
+  const { mutate } = usePutEntryMutation({
+    bucket: 'groups',
+    key: 'seenMobileAppToast'
+  });
+
+  const hasSeenToast = settings?.groups?.seenMobileAppToast ?? false;
+
+  if (isLoading || hasSeenToast) {
+    return null;
+  }
 
   return (
     <Toast.Provider>
       <div className="relative flex flex-col items-center">
-        <Toast.Root duration={10000} open={open} onOpenChange={setOpen}>
+        <Toast.Root duration={10000} open={!hasSeenToast}>
           <Toast.Description asChild>
             <div className="absolute w-full z-50 flex flex-col md:flex-row -translate-x-2/4 items-center justify-between space-x-2 bg-white font-semibold text-black shadow-xl dark:bg-gray-200 p-4">
               <div className="flex items-center space-x-2">
@@ -37,9 +46,7 @@ export default function MobileAppToast() {
                 </a>
                 <button
                   className="secondary-button"
-                  onClick={() => {
-                    setOpen(false);
-                  }}
+                  onClick={() => mutate({ val: true })}
                 >
                   Dismiss
                 </button>

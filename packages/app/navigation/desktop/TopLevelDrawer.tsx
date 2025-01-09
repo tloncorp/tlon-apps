@@ -3,12 +3,20 @@ import {
   createDrawerNavigator,
 } from '@react-navigation/drawer';
 import * as store from '@tloncorp/shared/store';
-import { AvatarNavIcon, NavIcon, YStack, useWebAppUpdate } from '@tloncorp/ui';
+import {
+  AvatarNavIcon,
+  GlobalSearch,
+  GlobalSearchProvider,
+  NavIcon,
+  YStack,
+  useWebAppUpdate,
+} from '@tloncorp/ui';
 import { getVariableValue, useTheme } from 'tamagui';
 
 import { ActivityScreen } from '../../features/top/ActivityScreen';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootDrawerParamList } from '../types';
+import { useRootNavigation } from '../utils';
 import { HomeNavigator } from './HomeNavigator';
 import { ProfileScreenNavigator } from './ProfileScreenNavigator';
 
@@ -68,25 +76,33 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
 };
 
 export const TopLevelDrawer = () => {
+  const { navigateToGroup, navigateToChannel } = useRootNavigation();
+
   return (
-    <Drawer.Navigator
-      drawerContent={(props: DrawerContentComponentProps) => {
-        return <DrawerContent {...props} />;
-      }}
-      initialRouteName="Home"
-      screenOptions={{
-        drawerType: 'permanent',
-        headerShown: false,
-        drawerStyle: {
-          width: 48,
-          backgroundColor: getVariableValue(useTheme().background),
-          borderRightColor: getVariableValue(useTheme().border),
-        },
-      }}
-    >
-      <Drawer.Screen name="Home" component={HomeNavigator} />
-      <Drawer.Screen name="Activity" component={ActivityScreen} />
-      <Drawer.Screen name="Contacts" component={ProfileScreenNavigator} />
-    </Drawer.Navigator>
+    <GlobalSearchProvider>
+      <GlobalSearch
+        navigateToGroup={navigateToGroup}
+        navigateToChannel={navigateToChannel}
+      />
+      <Drawer.Navigator
+        drawerContent={(props: DrawerContentComponentProps) => {
+          return <DrawerContent {...props} />;
+        }}
+        initialRouteName="Home"
+        screenOptions={{
+          drawerType: 'permanent',
+          headerShown: false,
+          drawerStyle: {
+            width: 48,
+            backgroundColor: getVariableValue(useTheme().background),
+            borderRightColor: getVariableValue(useTheme().border),
+          },
+        }}
+      >
+        <Drawer.Screen name="Home" component={HomeNavigator} />
+        <Drawer.Screen name="Activity" component={ActivityScreen} />
+        <Drawer.Screen name="Contacts" component={ProfileScreenNavigator} />
+      </Drawer.Navigator>
+    </GlobalSearchProvider>
   );
 };

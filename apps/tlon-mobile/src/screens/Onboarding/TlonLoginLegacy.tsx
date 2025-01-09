@@ -11,11 +11,10 @@ import {
   logInHostingUser,
   requestPhoneVerify,
 } from '@tloncorp/app/lib/hostingApi';
-import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
-import { didSignUp } from '@tloncorp/shared/db';
+import { storage } from '@tloncorp/shared/db';
 import {
   Field,
   KeyboardAvoidingView,
@@ -78,7 +77,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
   const onSubmit = handleSubmit(async (params) => {
     setIsSubmitting(true);
 
-    await setEulaAgreed();
+    await storage.eulaAgreed.setValue(true);
 
     try {
       const user = await logInHostingUser(params);
@@ -95,7 +94,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
                 accessCode
               );
               if (authCookie) {
-                if (await isEulaAgreed()) {
+                if (await storage.eulaAgreed.getValue()) {
                   setShip({
                     ship: shipId,
                     shipUrl,
@@ -103,7 +102,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
                     authType: 'hosted',
                   });
 
-                  const hasSignedUp = await didSignUp.getValue();
+                  const hasSignedUp = await storage.didSignUp.getValue();
                   if (!hasSignedUp) {
                     logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
                   }
