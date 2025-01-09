@@ -12,10 +12,9 @@ import {
 } from '@tloncorp/app/navigation/utils';
 import * as posthog from '@tloncorp/app/utils/posthog';
 import { createDevLogger, syncDms, syncGroups } from '@tloncorp/shared';
-import { markChatRead } from '@tloncorp/shared/api';
 import * as api from '@tloncorp/shared/api';
+import { markChatRead } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
 import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
@@ -101,7 +100,7 @@ function payloadFromNotification(
 
 export default function useNotificationListener() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const isTlonEmployee = store.useIsTlonEmployee();
+  const isTlonEmployee = db.isTlonEmployee.useValue();
   const [channelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   const [notifToProcess, setNotifToProcess] =

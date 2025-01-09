@@ -185,7 +185,7 @@ export const syncSettings = async (ctx?: SyncCtx) => {
 
 export const syncAppInfo = async (ctx?: SyncCtx) => {
   const appInfo = await syncQueue.add('appInfo', ctx, () => api.getAppInfo());
-  return db.setAppInfoSettings(appInfo);
+  return db.appInfo.setValue(appInfo);
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -363,10 +363,10 @@ export const syncStorageSettings = (ctx?: SyncCtx) => {
   return Promise.all([
     syncQueue
       .add('storageSettings', ctx, () => api.getStorageConfiguration())
-      .then((config) => db.setStorageConfiguration(config)),
+      .then((config) => db.storageConfiguration.setValue(config)),
     syncQueue
       .add('storageCredentials', ctx, () => api.getStorageCredentials())
-      .then((creds) => db.setStorageCredentials(creds)),
+      .then((creds) => db.storageCredentials.setValue(creds)),
   ]);
 };
 
@@ -416,7 +416,7 @@ export const syncPushNotificationsSetting = async (ctx?: SyncCtx) => {
   const setting = await syncQueue.add('getPushNotificationSettings', ctx, () =>
     api.getPushNotificationsSetting()
   );
-  await db.setPushNotificationsSetting(setting);
+  await db.pushNotificationSettings.setValue(setting);
 };
 
 async function handleGroupUpdate(update: api.GroupUpdate) {
@@ -713,7 +713,7 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
         queue.activityEvents.push(...event.events);
         break;
       case 'updatePushNotificationsSetting':
-        db.setPushNotificationsSetting(event.value);
+        db.pushNotificationSettings.setValue(event.value);
         break;
     }
     processQueue();
@@ -740,11 +740,11 @@ export const handleContactUpdate = async (update: api.ContactsUpdate) => {
 export const handleStorageUpdate = async (update: api.StorageUpdate) => {
   switch (update.type) {
     case 'storageCredentialsChanged': {
-      await db.setStorageCredentials(update.credentials);
+      await db.storageCredentials.setValue(update.credentials);
       break;
     }
     case 'storageCongfigurationChanged': {
-      await db.setStorageConfiguration(update.configuration);
+      await db.storageConfiguration.setValue(update.configuration);
       break;
     }
     case 'storageAccessKeyIdChanged': {
