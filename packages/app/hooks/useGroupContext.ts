@@ -175,7 +175,7 @@ export const useGroupContext = ({
     async (channelId: string, navSectionId: string, index: number) => {
       if (group) {
         await store.moveChannel({
-          group,
+          groupId: group.id,
           channelId,
           navSectionId,
           index,
@@ -202,7 +202,7 @@ export const useGroupContext = ({
       // Use addChannelToNavSection which handles both adding to new section
       // and removing from the previous section
       await store.addChannelToNavSection({
-        group,
+        groupId: group.id,
         channelId,
         navSectionId,
       });

@@ -5,6 +5,7 @@ import { createDevLogger } from '../debug';
 import { getRandomId } from '../logic';
 import { createSectionId } from '../urbit';
 import { createChannel } from './channelActions';
+import isEqual from 'lodash/isEqual';
 
 const logger = createDevLogger('groupActions', false);
 
@@ -440,29 +441,29 @@ export async function moveNavSection(
 }
 
 export async function addChannelToNavSection({
-  group,
+  groupId,
   channelId,
   navSectionId,
 }: {
-  group: db.Group;
+  groupId: string;
   channelId: string;
   navSectionId: string;
 }) {
   logger.log(
     'adding channel to nav section',
-    group.id,
+    groupId,
     channelId,
     navSectionId
   );
 
-  const existingGroup = await db.getGroup({ id: group.id });
+  const existingGroup = await db.getGroup({ id: groupId });
 
   if (!existingGroup) {
-    logger.error('Group not found', group.id);
+    logger.error('Group not found', groupId);
     return;
   }
 
-  const navSections = group.navSections ?? [];
+  const navSections = existingGroup.navSections ?? [];
   const navSection = navSections.find(
     (section) => section.sectionId === navSectionId
   );
@@ -472,33 +473,20 @@ export async function addChannelToNavSection({
     return;
   }
 
-  const newNavSections = navSections.map((section) => {
-    if (section.sectionId !== navSectionId) {
-      return section;
-    }
-
-    return {
-      ...section,
-      channels: [
-        ...(section.channels ?? []),
-        {
-          channelId,
-          index: section.channels?.length ?? 0,
-        },
-      ],
-    };
-  });
-
-  logger.log('newNavSections', newNavSections);
-
   const previousNavSection = navSections.find(
     (section) =>
       section.channels?.find((channel) => channel.channelId === channelId) !==
       undefined
   );
 
-  // First remove from previous section if it exists
   if (previousNavSection) {
+    // First make sure this channel isn't already in the section
+    if (previousNavSection.sectionId === navSectionId) {
+      logger.log('Channel already in section', channelId, navSectionId);
+      return;
+    }
+
+    // Then remove from previous section if it exists
     await db.deleteChannelFromNavSection({
       channelId,
       groupNavSectionId: previousNavSection.id,
@@ -508,14 +496,14 @@ export async function addChannelToNavSection({
   // Then add to new section
   await db.addChannelToNavSection({
     channelId,
-    groupNavSectionId: navSectionId,
+    groupNavSectionId: `${groupId}-${navSectionId}`,
     // The %groups agent only supports adding new channels to the start of a section.
     index: 0,
   });
 
   try {
     await api.addChannelToNavSection({
-      groupId: group.id,
+      groupId: groupId,
       channelId,
       navSectionId,
     });
@@ -546,25 +534,25 @@ export async function addChannelToNavSection({
 }
 
 export async function moveChannel({
-  group,
+  groupId,
   channelId,
   navSectionId,
   index,
 }: {
-  group: db.Group;
+  groupId: string;
   channelId: string;
   navSectionId: string;
   index: number;
 }): Promise<void> {
-  logger.log('moving channel', group.id, channelId, navSectionId, index);
+  logger.log('moving channel', groupId, channelId, navSectionId, index);
 
-  const existingGroup = await db.getGroup({ id: group.id });
+  const existingGroup = await db.getGroup({ id: groupId });
   if (!existingGroup) {
     logger.error('Group not found');
     return;
   }
 
-  const navSections = group.navSections ?? [];
+  const navSections = existingGroup.navSections ?? [];
   const navSection = navSections.find(
     (section) => section.sectionId === navSectionId
   );
@@ -626,11 +614,14 @@ export async function moveChannel({
     };
   });
 
-  logger.log('newNavSections', newNavSections);
+  if (isEqual(newNavSections, navSections)) {
+    logger.log('No change in channel order');
+    return;
+  }
 
   // optimistic update
   await db.updateGroup({
-    id: group.id,
+    id: groupId,
     navSections: newNavSections,
   });
 
@@ -657,7 +648,7 @@ export async function moveChannel({
 
   try {
     await api.moveChannel({
-      groupId: group.id,
+      groupId: groupId,
       channelId,
       navSectionId,
       index,
