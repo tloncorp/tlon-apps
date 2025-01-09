@@ -674,16 +674,15 @@ export function ManageChannelsScreenView({
         <YStack
           backgroundColor="$background"
           gap="$2xl"
-          // padding="$xl"
           alignItems="center"
           flex={1}
         >
           <ScrollView
             style={{ zIndex: 1, elevation: 1, width: '100%' }}
             gap="$2xl"
-            paddingBottom={bottom}
             contentContainerStyle={{
               alignItems: 'center',
+              paddingBottom: bottom,
             }}
           >
             {renderSectionsAndChannels}
