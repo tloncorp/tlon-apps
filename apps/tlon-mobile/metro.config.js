@@ -113,6 +113,9 @@ module.exports = mergeConfig(config, {
 
     // Enables importing alternative package exports, e.g. `react-tweet/api`
     unstable_enablePackageExports: true,
+    // Removes import, which causes issues for zustand
+    // This is the default setting in newer versions of react-native
+    unstable_conditionNames: ['require'],
   },
 });
 

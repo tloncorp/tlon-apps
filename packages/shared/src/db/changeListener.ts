@@ -29,9 +29,14 @@ export function handleChange({
    * keys (`id`, `channel_id`, 'group_id`, etc.) */
   row?: any;
 }) {
+  // If a post is updated, we need to refetch the post. If it's a new post, we
+  // no-op because there's no query to invalidate.
   if (table === 'posts' && row && !row.parent_id && operation !== 'INSERT') {
     postEvents[row.channel_id] ||= [];
     if (postEvents[row.channel_id].includes(row.id)) {
+      // We already have this post in the batch, no need to add it again.
+      // Without this check, we could end up with duplicate post IDs in the
+      // batch, which would cause the query to be invalidated multiple times.
       return;
     }
     postEvents[row.channel_id].push(row.id);

@@ -1,12 +1,11 @@
 import * as db from '@tloncorp/shared/db';
-import { useStore } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack } from 'tamagui';
 
-import { useContact, useCurrentUserId } from '../contexts';
+import { useContact, useCurrentUserId, useStore } from '../contexts';
 import { SigilAvatar } from './Avatar';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
 import {

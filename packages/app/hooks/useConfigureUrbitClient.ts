@@ -49,11 +49,12 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
 export function useConfigureUrbitClient() {
   const shipInfo = useShip();
   const { ship, shipUrl, authType } = shipInfo;
+  const runResetDb = useCallback(() => {
+    clientLogger.log('Resetting db on logout');
+    resetDb();
+  }, []);
   const logout = useHandleLogout({
-    resetDb: () => {
-      clientLogger.log('Resetting db on logout');
-      resetDb();
-    },
+    resetDb: runResetDb,
   });
 
   return useCallback(

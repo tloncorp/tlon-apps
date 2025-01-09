@@ -19,6 +19,11 @@ PODS:
   - EXJSONUtils (0.12.3)
   - EXManifests (0.13.2):
     - ExpoModulesCore
+  - EXMediaLibrary (15.9.2):
+    - ExpoModulesCore
+    - glog
+    - RCT-Folly (= 2022.05.16.00)
+    - React-Core
   - EXNotifications (0.27.6):
     - ExpoModulesCore
   - Expo (50.0.6):
@@ -271,7 +276,7 @@ PODS:
     - nanopb/encode (= 2.30910.0)
   - nanopb/decode (2.30910.0)
   - nanopb/encode (2.30910.0)
-  - op-sqlite (11.2.4):
+  - op-sqlite (5.0.5):
     - React
     - React-callinvoker
     - React-Core
@@ -1406,6 +1411,7 @@ DEPENDENCIES:
   - EXImageLoader (from `../../../node_modules/expo-image-loader/ios`)
   - EXJSONUtils (from `../../../node_modules/expo-json-utils/ios`)
   - EXManifests (from `../../../node_modules/expo-manifests/ios`)
+  - EXMediaLibrary (from `../../../node_modules/expo-media-library/ios`)
   - EXNotifications (from `../../../node_modules/expo-notifications/ios`)
   - Expo (from `../../../node_modules/expo`)
   - expo-dev-client (from `../../../node_modules/expo-dev-client/ios`)
@@ -1559,6 +1565,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-json-utils/ios"
   EXManifests:
     :path: "../../../node_modules/expo-manifests/ios"
+  EXMediaLibrary:
+    :path: "../../../node_modules/expo-media-library/ios"
   EXNotifications:
     :path: "../../../node_modules/expo-notifications/ios"
   Expo:
@@ -1757,6 +1765,7 @@ SPEC CHECKSUMS:
   EXImageLoader: 55080616b2fe9da19ef8c7f706afd9814e279b6b
   EXJSONUtils: 5c42959e87be238b045ef37cc5268b16a6c0ad4a
   EXManifests: 5e8c29f36c716af768a4ea47ec05e1b89ab93091
+  EXMediaLibrary: 70cf1fb7028fda2d682090c9fe57568674e4abab
   EXNotifications: e11f0e9a5b657c064a481a5d522f3bc5a07bf7cd
   Expo: fb745b3074989670b6641f9f20463e8ee56a69ca
   expo-dev-client: dbc8e8a81d17a9d92e083a2856d056ba9a58984d
@@ -1807,7 +1816,7 @@ SPEC CHECKSUMS:
   libvmaf: 27f523f1e63c694d14d534cd0fddd2fab0ae8711
   libwebp: 1786c9f4ff8a279e4dac1e8f385004d5fc253009
   nanopb: 438bc412db1928dac798aa6fd75726007be04262
-  op-sqlite: f3b4b5ea0baa4a15259875ba126fe3fcf02ee092
+  op-sqlite: 12039198fdf455a3af0e18420b656c23cf8ecc01
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   PromisesSwift: 9d77319bbe72ebf6d872900551f7eeba9bce2851
   RCT-Folly: 7169b2b1c44399c76a47b5deaaba715eeeb476c0
@@ -1884,4 +1893,4 @@ SPEC CHECKSUMS:
 
 PODFILE CHECKSUM: 0cb7a78e5777e69c86c1bf4bb5135fd660376dbe
 
-COCOAPODS: 1.16.2
+COCOAPODS: 1.15.2
