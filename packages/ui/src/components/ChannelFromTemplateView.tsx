@@ -1,9 +1,9 @@
 import {
   AnalyticsEvent,
+  createChannel,
   createDevLogger,
   deleteChannel,
   useChannelHooksPreview,
-  useCreateChannel,
 } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
@@ -58,11 +58,6 @@ export function ChannelFromTemplateView({
     },
   });
 
-  const createChannel = useCreateChannel({
-    group: selectedGroup,
-    currentUserId,
-  });
-
   const onConfirm = useCallback(
     async (data: { title: string }) => {
       logger.log('onConfirm', channel, selectedGroup);
@@ -73,6 +68,7 @@ export function ChannelFromTemplateView({
       logger.log('creating channel', data);
       // create channel
       const newChannel = await createChannel({
+        groupId: selectedGroup.id,
         title: data.title,
         channelType: channel.type,
       });

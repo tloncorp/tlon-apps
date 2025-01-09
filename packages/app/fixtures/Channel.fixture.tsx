@@ -109,7 +109,7 @@ const baseProps: ComponentProps<typeof Channel> = {
   storeDraft: () => {},
   clearDraft: () => {},
   canUpload: true,
-  onPressRetry: () => {},
+  onPressRetry: async () => {},
   onPressDelete: () => {},
 } as const;
 

@@ -59,6 +59,10 @@ export const WelcomeScreen = ({ navigation }: Props) => {
       trackOnboardingAction({
         actionName: 'Invite Link Added',
         lure: lureMeta.id,
+        inviteType:
+          lureMeta.inviteType && lureMeta.inviteType === 'user'
+            ? 'personal'
+            : 'group',
       });
     }
   }, [lureMeta]);

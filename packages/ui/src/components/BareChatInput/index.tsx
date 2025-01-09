@@ -36,6 +36,7 @@ import {
   UploadedImageAttachment,
   useAttachmentContext,
 } from '../../contexts';
+import { useGlobalSearch } from '../../contexts/globalSearch';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
 import {
@@ -353,25 +354,39 @@ export default function BareChatInput({
         metadata['image'] = attachment.uploadState.remoteUri;
       }
 
-      if (isEdit && editingPost) {
-        if (editingPost.parentId) {
-          await editPost?.(editingPost, story, editingPost.parentId, metadata);
-        }
-        await editPost?.(editingPost, story, undefined, metadata);
-        setEditingPost?.(undefined);
-      } else {
-        // not awaiting since we don't want to wait for the send to complete
-        // before clearing the draft and the editor content
-        send(story, channelId, metadata);
-      }
+      try {
+        setControlledText('');
+        bareChatInputLogger.log('clearing attachments');
+        clearAttachments();
+        bareChatInputLogger.log('resetting input height');
+        setInputHeight(initialHeight);
 
-      onSend?.();
-      setControlledText('');
-      setMentions([]);
-      clearAttachments();
-      clearDraft();
-      setHasSetInitialContent(false);
-      setInputHeight(initialHeight);
+        if (isEdit && editingPost) {
+          if (editingPost.parentId) {
+            await editPost?.(
+              editingPost,
+              story,
+              editingPost.parentId,
+              metadata
+            );
+          }
+          await editPost?.(editingPost, story, undefined, metadata);
+          setEditingPost?.(undefined);
+        } else {
+          await send(story, channelId, metadata);
+        }
+      } catch (e) {
+        bareChatInputLogger.error('Error sending message', e);
+        setSendError(true);
+      } finally {
+        onSend?.();
+        bareChatInputLogger.log('sent message', story);
+        setMentions([]);
+        bareChatInputLogger.log('clearing draft');
+        clearDraft();
+        bareChatInputLogger.log('setting initial content');
+        setHasSetInitialContent(false);
+      }
     },
     [
       onSend,
@@ -628,9 +643,34 @@ export default function BareChatInput({
     }
   };
 
+  const { setIsOpen } = useGlobalSearch();
+
   const handleBlur = useCallback(() => {
     setShouldBlur(true);
   }, [setShouldBlur]);
+
+  const handleKeyPress = useCallback(
+    (e: any) => {
+      const keyEvent = e.nativeEvent as unknown as KeyboardEvent;
+      if (!isWeb) return;
+
+      if (
+        (keyEvent.metaKey || keyEvent.ctrlKey) &&
+        keyEvent.key.toLowerCase() === 'k'
+      ) {
+        e.preventDefault();
+        inputRef.current?.blur();
+        setIsOpen(true);
+        return;
+      }
+
+      if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    },
+    [setIsOpen, handleSend]
+  );
 
   return (
     <MessageInputContainer
@@ -668,15 +708,7 @@ export default function BareChatInput({
           onChange={isWeb ? adjustTextInputSize : undefined}
           onLayout={isWeb ? adjustTextInputSize : undefined}
           onBlur={handleBlur}
-          onKeyPress={(e) => {
-            if (isWeb && e.nativeEvent.key === 'Enter') {
-              const keyEvent = e.nativeEvent as unknown as KeyboardEvent;
-              if (!keyEvent.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }
-          }}
+          onKeyPress={handleKeyPress}
           multiline
           placeholder={placeholder}
           {...(!isWeb ? placeholderTextColor : {})}

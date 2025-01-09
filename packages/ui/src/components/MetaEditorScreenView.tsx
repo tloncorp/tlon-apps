@@ -8,10 +8,16 @@ import {
   useState,
 } from 'react';
 import { useForm } from 'react-hook-form';
-import { View, YStack } from 'tamagui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, View } from 'tamagui';
 
-import { EditablePofileImages } from './EditableProfileImages';
-import { FormInput } from './FormInput';
+import { capitalize } from '../utils';
+import {
+  ControlledImageField,
+  ControlledTextField,
+  ControlledTextareaField,
+  FormFrame,
+} from './Form';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { ScreenHeader } from './ScreenHeader';
 
@@ -29,20 +35,13 @@ export function MetaEditorScreenView({
 }>) {
   const [modelLoaded, setModelLoaded] = useState(!!chat);
   const defaultValues = useMemo(() => getMetaWithDefaults(chat), [chat]);
-  const { group, channel } = useMemo(() => {
-    if (chat) {
-      return logic.isGroup(chat)
-        ? { group: chat, channel: null }
-        : { group: null, channel: chat };
-    }
-    return { group: null, channel: null };
-  }, [chat]);
+
+  const label = chat && logic.isGroup(chat) ? 'group' : 'channel';
 
   const {
     control,
     handleSubmit,
-    formState: { errors },
-    setValue,
+    formState: { isValid },
     reset,
   } = useForm({
     defaultValues,
@@ -60,47 +59,83 @@ export function MetaEditorScreenView({
     [handleSubmit, onSubmit]
   );
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <View backgroundColor="$background" flex={1}>
-      <YStack justifyContent="space-between" width="100%" height="100%">
-        <ScreenHeader
-          title={title}
-          backAction={goBack}
-          rightControls={
-            <ScreenHeader.TextButton onPress={runSubmit}>
-              Save
-            </ScreenHeader.TextButton>
-          }
-        />
-        <KeyboardAvoidingView style={{ flex: 1 }}>
-          <YStack gap="$2xl" padding="$xl" alignItems="center" flex={1}>
-            <EditablePofileImages
-              group={group}
-              channel={channel}
-              onSetCoverUrl={(url) => setValue('coverImage', url)}
-              onSetIconUrl={(url) => setValue('iconImage', url)}
+    <View flex={1} backgroundColor={'$background'}>
+      <ScreenHeader
+        title={title}
+        leftControls={
+          <ScreenHeader.TextButton onPress={goBack}>
+            Cancel
+          </ScreenHeader.TextButton>
+        }
+        rightControls={
+          <ScreenHeader.TextButton
+            onPress={runSubmit}
+            color="$positiveActionText"
+            disabled={!isValid}
+          >
+            Save
+          </ScreenHeader.TextButton>
+        }
+      />
+      <KeyboardAvoidingView style={{ flex: 1 }}>
+        <ScrollView
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={{
+            minHeight: '100%',
+            paddingBottom: insets.bottom,
+          }}
+        >
+          <FormFrame paddingBottom={'$2xl'} flex={1}>
+            <ControlledTextField
+              name="title"
+              label="Name"
+              control={control}
+              inputProps={{ placeholder: capitalize(label) + ' name' }}
+              rules={{
+                maxLength: {
+                  value: 30,
+                  message: `Your ${label} name is limited to 30 characters`,
+                },
+              }}
             />
-            <YStack gap="$m" width="100%">
-              <FormInput
-                name="title"
-                label="Group Name"
-                control={control}
-                errors={errors}
-                rules={{ required: 'Group name is required' }}
-                placeholder="Group Name"
-              />
-              <FormInput
-                name="description"
-                label="Group Description"
-                control={control}
-                errors={errors}
-                placeholder="Group Description"
-              />
-              {children}
-            </YStack>
-          </YStack>
-        </KeyboardAvoidingView>
-      </YStack>
+            <ControlledImageField
+              label="Icon image"
+              name="iconImage"
+              hideError={true}
+              control={control}
+              inputProps={{
+                buttonLabel: 'Change icon image',
+              }}
+              rules={{
+                pattern: {
+                  value: /^(?!file).+/,
+                  message: 'Image has not finished uploading',
+                },
+              }}
+            />
+            <ControlledTextareaField
+              name="description"
+              label={`Description`}
+              control={control}
+              inputProps={{
+                placeholder: `About this ${label}`,
+                numberOfLines: 5,
+                multiline: true,
+              }}
+              rules={{
+                maxLength: {
+                  value: 300,
+                  message: 'Description is limited to 300 characters',
+                },
+              }}
+            />
+            {children}
+          </FormFrame>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

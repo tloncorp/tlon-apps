@@ -2,20 +2,23 @@ import { isChatChannel as getIsChatChannel } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import * as urbit from '@tloncorp/shared/urbit';
 import { Story } from '@tloncorp/shared/urbit';
-import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
-import { NavigationProvider, useCurrentUserId } from '../contexts';
-import { AttachmentProvider } from '../contexts/attachment';
+import {
+  NavigationProvider,
+  useAttachmentContext,
+  useCurrentUserId,
+} from '../contexts';
 import * as utils from '../utils';
 import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
 import { ChannelFooter } from './Channel/ChannelFooter';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import { DetailView } from './DetailView';
+import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { TlonEditorBridge } from './MessageInput/toolbarActions.native';
@@ -30,7 +33,6 @@ export function PostScreenView({
   markRead,
   goBack,
   groupMembers,
-  uploadAsset,
   handleGoToImage,
   handleGoToUserProfile,
   storeDraft,
@@ -46,7 +48,6 @@ export function PostScreenView({
   goToDm,
   negotiationMatch,
   headerMode,
-  canUpload,
 }: {
   channel: db.Channel;
   initialThreadUnread?: db.ThreadUnreadState | null;
@@ -60,7 +61,6 @@ export function PostScreenView({
   groupMembers: db.ChatMember[];
   handleGoToImage?: (post: db.Post, uri?: string) => void;
   handleGoToUserProfile: (userId: string) => void;
-  uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
   storeDraft: (draft: urbit.JSONContent) => void;
   clearDraft: () => void;
   getDraft: () => Promise<urbit.JSONContent | null>;
@@ -72,14 +72,13 @@ export function PostScreenView({
     parentId?: string,
     metadata?: db.PostMetadata
   ) => Promise<void>;
-  onPressRetry: (post: db.Post) => void;
+  onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
   onPressRef: (channel: db.Channel, post: db.Post) => void;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
   negotiationMatch: boolean;
   headerMode: 'default' | 'next';
-  canUpload: boolean;
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
@@ -211,127 +210,131 @@ export function PostScreenView({
     };
   }, [channel.type, getDraft, storeDraft, clearDraft]);
 
+  const { attachAssets } = useAttachmentContext();
+
   return (
-    <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
-      <NavigationProvider
-        onGoToUserProfile={handleGoToUserProfile}
-        onPressRef={handleRefPress}
-        onPressGroupRef={onPressGroupRef}
-        onPressGoToDm={goToDm}
+    <NavigationProvider
+      onGoToUserProfile={handleGoToUserProfile}
+      onPressRef={handleRefPress}
+      onPressGroupRef={onPressGroupRef}
+      onPressGoToDm={goToDm}
+    >
+      <FileDrop
+        paddingBottom={bottom}
+        backgroundColor="$background"
+        flex={1}
+        onAssetsDropped={attachAssets}
       >
-        <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
-          <YStack flex={1} backgroundColor={'$background'}>
-            <ChannelHeader
-              channel={channel}
-              group={channel.group}
-              title={headerTitle}
-              goBack={handleGoBack}
-              showSearchButton={false}
-              showSpinner={isLoadingPosts}
-              post={parentPost ?? undefined}
-              mode={headerMode}
-              showEditButton={showEdit}
-              goToEdit={handleEditPress}
-            />
-            <KeyboardAvoidingView enabled={!activeMessage}>
-              {parentPost ? (
-                <DetailView
-                  post={parentPost}
-                  channel={channel}
-                  initialPostUnread={initialThreadUnread}
-                  onPressImage={handleGoToImage}
-                  editingPost={editingPost}
-                  setEditingPost={setEditingPost}
-                  onPressRetry={onPressRetry}
-                  onPressDelete={onPressDelete}
-                  posts={postsWithoutParent}
-                  goBack={goBack}
-                  activeMessage={activeMessage}
-                  setActiveMessage={setActiveMessage}
-                  headerMode={headerMode}
-                  editorIsFocused={editorIsFocused}
-                  flatListRef={flatListRef}
-                />
-              ) : null}
+        <YStack flex={1} backgroundColor={'$background'}>
+          <ChannelHeader
+            channel={channel}
+            group={channel.group}
+            title={headerTitle}
+            goBack={handleGoBack}
+            showSearchButton={false}
+            showSpinner={isLoadingPosts}
+            post={parentPost ?? undefined}
+            mode={headerMode}
+            showEditButton={showEdit}
+            goToEdit={handleEditPress}
+          />
+          <KeyboardAvoidingView enabled={!activeMessage}>
+            {parentPost ? (
+              <DetailView
+                post={parentPost}
+                channel={channel}
+                initialPostUnread={initialThreadUnread}
+                onPressImage={handleGoToImage}
+                editingPost={editingPost}
+                setEditingPost={setEditingPost}
+                onPressRetry={onPressRetry}
+                onPressDelete={onPressDelete}
+                posts={postsWithoutParent}
+                goBack={goBack}
+                activeMessage={activeMessage}
+                setActiveMessage={setActiveMessage}
+                headerMode={headerMode}
+                editorIsFocused={editorIsFocused}
+                flatListRef={flatListRef}
+              />
+            ) : null}
 
-              {negotiationMatch &&
-                channel &&
-                canWrite &&
-                !(isEditingParent && channel.type === 'notebook') && (
-                  <BareChatInput
-                    placeholder="Reply"
-                    shouldBlur={inputShouldBlur}
-                    setShouldBlur={setInputShouldBlur}
-                    send={sendReply}
-                    channelId={channel.id}
-                    groupMembers={groupMembers}
-                    {...bareInputDraftProps}
-                    editingPost={editingPost}
-                    setEditingPost={setEditingPost}
-                    editPost={editPost}
-                    channelType="chat"
-                    showAttachmentButton={channel.type === 'chat'}
-                    showInlineAttachments={channel.type === 'chat'}
-                    shouldAutoFocus={
-                      (channel.type === 'chat' &&
-                        parentPost?.replyCount === 0) ||
-                      !!editingPost
-                    }
-                  />
-                )}
-              {!negotiationMatch && channel && canWrite && (
-                <View
-                  position={isChatChannel ? undefined : 'absolute'}
-                  bottom={0}
-                  width="90%"
-                  alignItems="center"
-                  justifyContent="center"
-                  backgroundColor="$secondaryBackground"
-                  borderRadius="$xl"
-                  padding="$l"
-                >
-                  <Text>
-                    Your ship&apos;s version of the Tlon app doesn&apos;t match
-                    the channel host.
-                  </Text>
-                </View>
-              )}
-
-              {parentPost &&
-              isEditingParent &&
-              (channel.type === 'notebook' || channel.type === 'gallery') ? (
-                <BigInput
-                  channelType={urbit.getChannelType(parentPost.channelId)}
-                  channelId={parentPost?.channelId}
+            {negotiationMatch &&
+              channel &&
+              canWrite &&
+              !(isEditingParent && channel.type === 'notebook') && (
+                <BareChatInput
+                  placeholder="Reply"
+                  shouldBlur={inputShouldBlur}
+                  setShouldBlur={setInputShouldBlur}
+                  send={sendReply}
+                  channelId={channel.id}
+                  groupMembers={groupMembers}
+                  {...bareInputDraftProps}
                   editingPost={editingPost}
                   setEditingPost={setEditingPost}
                   editPost={editPost}
-                  shouldBlur={inputShouldBlur}
-                  setShouldBlur={setInputShouldBlur}
-                  send={async () => {}}
-                  getDraft={getDraft}
-                  storeDraft={storeDraft}
-                  clearDraft={clearDraft}
-                  groupMembers={groupMembers}
-                />
-              ) : null}
-              {headerMode === 'next' && (
-                <ChannelFooter
-                  showSearchButton={false}
-                  title={'Thread: ' + channel.title}
-                  goBack={goBack}
+                  channelType="chat"
+                  showAttachmentButton={channel.type === 'chat'}
+                  showInlineAttachments={channel.type === 'chat'}
+                  shouldAutoFocus={
+                    (channel.type === 'chat' && parentPost?.replyCount === 0) ||
+                    !!editingPost
+                  }
                 />
               )}
-            </KeyboardAvoidingView>
-            <GroupPreviewSheet
-              group={groupPreview ?? undefined}
-              open={!!groupPreview}
-              onOpenChange={() => setGroupPreview(null)}
-              onActionComplete={handleGroupAction}
-            />
-          </YStack>
-        </View>
-      </NavigationProvider>
-    </AttachmentProvider>
+            {!negotiationMatch && channel && canWrite && (
+              <View
+                position={isChatChannel ? undefined : 'absolute'}
+                bottom={0}
+                width="90%"
+                alignItems="center"
+                justifyContent="center"
+                backgroundColor="$secondaryBackground"
+                borderRadius="$xl"
+                padding="$l"
+              >
+                <Text>
+                  Your ship&apos;s version of the Tlon app doesn&apos;t match
+                  the channel host.
+                </Text>
+              </View>
+            )}
+
+            {parentPost &&
+            isEditingParent &&
+            (channel.type === 'notebook' || channel.type === 'gallery') ? (
+              <BigInput
+                channelType={urbit.getChannelType(parentPost.channelId)}
+                channelId={parentPost?.channelId}
+                editingPost={editingPost}
+                setEditingPost={setEditingPost}
+                editPost={editPost}
+                shouldBlur={inputShouldBlur}
+                setShouldBlur={setInputShouldBlur}
+                send={async () => {}}
+                getDraft={getDraft}
+                storeDraft={storeDraft}
+                clearDraft={clearDraft}
+                groupMembers={groupMembers}
+              />
+            ) : null}
+            {headerMode === 'next' && (
+              <ChannelFooter
+                showSearchButton={false}
+                title={'Thread: ' + channel.title}
+                goBack={goBack}
+              />
+            )}
+          </KeyboardAvoidingView>
+          <GroupPreviewSheet
+            group={groupPreview ?? undefined}
+            open={!!groupPreview}
+            onOpenChange={() => setGroupPreview(null)}
+            onActionComplete={handleGroupAction}
+          />
+        </YStack>
+      </FileDrop>
+    </NavigationProvider>
   );
 }

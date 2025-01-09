@@ -12,6 +12,7 @@ export type OnboardingProperties = {
   phoneNumber?: string;
   ship?: string;
   telemetryEnabled?: boolean;
+  inviteType?: 'personal' | 'group';
 };
 
 export let posthog: PostHog | undefined;

@@ -5,8 +5,10 @@ import {
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { getChannelIdType } from '../api/apiUtils';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../logic';
 import {
   useDebouncedValue,
   useLiveRef,
@@ -32,7 +34,7 @@ type UseChannelPostsPageParams = db.GetChannelPostsOptions;
 type PostQueryData = InfiniteData<PostQueryPage, unknown>;
 type SubscriptionPost = [db.Post, string | undefined];
 
-type UseChanelPostsParams = UseChannelPostsPageParams & {
+type UseChannelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
   firstPageCount?: number;
   hasCachedNewest?: boolean;
@@ -42,7 +44,7 @@ export const clearChannelPostsQueries = () => {
   queryClient.invalidateQueries({ queryKey: ['channelPosts'] });
 };
 
-export const useChannelPosts = (options: UseChanelPostsParams) => {
+export const useChannelPosts = (options: UseChannelPostsParams) => {
   const mountTime = useMemo(() => {
     return Date.now();
   }, []);
@@ -63,7 +65,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     refetchOnMount: false,
     queryFn: async (ctx): Promise<PostQueryPage> => {
       const queryOptions = ctx.pageParam || options;
-      postsLogger.log('loading posts', queryOptions);
+      postsLogger.log('loading posts', { queryOptions, options });
       // We should figure out why this is necessary.
       if (
         queryOptions &&
@@ -86,7 +88,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
         },
         { priority: SyncPriority.High }
       );
-      postsLogger.log('loaded', res.posts?.length, 'posts from api');
+      postsLogger.log('loaded', res.posts?.length, 'posts from api', { res });
       const secondResult = await db.getChannelPosts(queryOptions);
       postsLogger.log(
         'returning',
@@ -127,12 +129,18 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     },
     getPreviousPageParam: (
       firstPage,
-      _allPages,
+      allPages,
       _firstPageParam
     ): UseChannelPostsPageParams | undefined => {
-      if (!firstPage.canFetchNewerPosts) {
+      // if any page has reached the newest post, we can't fetch any newer posts
+      // page order for allPages should be newest -> oldest
+      // but apparently on channels with less than 50 posts, the order is reversed (on web only)
+      const hasReachedNewest = allPages.some((p) => !p.canFetchNewerPosts);
+
+      if (hasReachedNewest) {
         return undefined;
       }
+
       return {
         ...options,
         mode: 'newer',
@@ -154,28 +162,74 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
   );
   useSubscriptionPostListener(handleNewPost);
 
-  const rawPosts = useMemo<db.Post[] | null>(() => {
-    const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
-    if (!newPosts.length || query.hasPreviousPage) {
-      return queryPosts;
-    }
-    const newestQueryPostId = queryPosts?.[0]?.id;
-    const newerPosts = newPosts.filter(
-      (p) => !newestQueryPostId || p.id > newestQueryPostId
+  // Why store the unconfirmed posts in a separate state?
+  // With a live query, we'd see duplicates between the latest post from
+  // getUnconfirmedPosts and latest post from the main useChannelPosts query.
+  // (This *shouldn't* be the case - we should be deduplicating - but I think
+  // there's a timing issue here that is taking too long to debug.)
+  const [unconfirmedPosts, setUnconfirmedPosts] = useState<db.Post[] | null>(
+    null
+  );
+  useEffect(() => {
+    db.getUnconfirmedPosts({ channelId: options.channelId }).then(
+      setUnconfirmedPosts
     );
-    // Deduping is necessary because the query data may not have been updated
-    // at this point and we may have already added the post.
-    // This is most likely to happen in bad network conditions or when the
-    // ship is under heavy load.
-    // This seems to be caused by an async issue where clearMatchedPendingPosts
-    // is called before the new post is added to the query data.
-    // TODO: Figure out why this is happening.
-    const dedupedQueryPosts =
-      queryPosts?.filter(
-        (p) => !newerPosts.some((newer) => newer.sentAt === p.sentAt)
-      ) ?? [];
-    return newestQueryPostId ? [...newerPosts, ...dedupedQueryPosts] : newPosts;
-  }, [query.data, query.hasPreviousPage, newPosts]);
+  }, [options.channelId]);
+  const rawPosts = useMemo<db.Post[] | null>(() => {
+    const rawPostsWithoutUnconfirmeds = (() => {
+      const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
+      if (!newPosts.length || query.hasPreviousPage) {
+        return queryPosts;
+      }
+      const newestQueryPostId = queryPosts?.[0]?.id;
+      const newerPosts = newPosts.filter(
+        (p) => !newestQueryPostId || p.id > newestQueryPostId
+      );
+      // Deduping is necessary because the query data may not have been updated
+      // at this point and we may have already added the post.
+      // This is most likely to happen in bad network conditions or when the
+      // ship is under heavy load.
+      // This seems to be caused by an async issue where clearMatchedPendingPosts
+      // is called before the new post is added to the query data.
+      // TODO: Figure out why this is happening.
+      const dedupedQueryPosts =
+        queryPosts?.filter(
+          (p) => !newerPosts.some((newer) => newer.sentAt === p.sentAt)
+        ) ?? [];
+      return newestQueryPostId
+        ? [...newerPosts, ...dedupedQueryPosts]
+        : newPosts;
+    })();
+
+    if (unconfirmedPosts == null) {
+      return rawPostsWithoutUnconfirmeds;
+    }
+
+    // Then, add "unconfirmed" posts (which we have received through e.g. push
+    // notifications but haven't confirmed via sync). Skip if we already have a
+    // confirmed version of the post.
+    //
+    // Why not dedupe these alongside `newPosts`? We hold off on showing
+    // `newPosts` until we've fully backfilled the channel
+    // (`!query.hasPreviousPage`) - but we want to show unconfirmeds ASAP.
+    const out = rawPostsWithoutUnconfirmeds ?? [];
+    // bubble-insert unconfirmed posts
+    for (const p of unconfirmedPosts ?? []) {
+      // skip if we already have this post
+      if (out.some((qp) => qp.id === p.id)) {
+        continue;
+      }
+
+      const insertIdx = out.findIndex((x) => x.sentAt <= p.sentAt);
+      if (insertIdx === -1) {
+        out.push(p);
+      } else {
+        out.splice(insertIdx, 0, p);
+      }
+    }
+
+    return out;
+  }, [query.data, query.hasPreviousPage, newPosts, unconfirmedPosts]);
 
   const posts = useOptimizedQueryResults(rawPosts);
 
@@ -192,11 +246,48 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
 
   const { loadOlder, loadNewer } = useLoadActionsWithPendingHandlers(query);
 
+  useTrackReady(posts, query, options.channelId);
+
   return useMemo(
     () => ({ posts, query, loadOlder, loadNewer, isLoading }),
     [posts, query, loadOlder, loadNewer, isLoading]
   );
 };
+
+/**
+ * Send a posthog event once we either have ~enough posts to fill the screen, or
+ * we've loaded all posts.
+ */
+function useTrackReady(
+  posts: db.Post[] | null,
+  query: UseInfiniteQueryResult<InfiniteData<PostQueryPage, unknown>, Error>,
+  channelId: string
+) {
+  const startTimeRef = useRef(Date.now());
+  const loadTracked = useRef(false);
+  const alreadyTracked = loadTracked.current;
+  const postsLength = posts?.length ?? 0;
+  const hasEnoughPosts = postsLength > 30;
+  const isLoading = query.isLoading || query.isPending;
+  const canLoadMore = query.hasNextPage || query.hasPreviousPage;
+
+  useEffect(() => {
+    if (!alreadyTracked && (hasEnoughPosts || (!isLoading && !canLoadMore))) {
+      loadTracked.current = true;
+      postsLogger.trackEvent(AnalyticsEvent.ChannelLoadComplete, {
+        channelType: getChannelIdType(channelId),
+        duration: Date.now() - startTimeRef.current,
+      });
+    }
+  }, [
+    alreadyTracked,
+    canLoadMore,
+    channelId,
+    hasEnoughPosts,
+    isLoading,
+    postsLength,
+  ]);
+}
 
 /**
  * Insert a post into our working posts array, merging + resorting if necessary.
@@ -244,8 +335,9 @@ function useRefreshPosts(channelId: string, posts: db.Post[] | null) {
     const toSync =
       posts?.filter(
         (post) =>
-          session &&
-          post.syncedAt < (session?.startTime ?? 0) &&
+          // consider unconfirmed posts as stale
+          (post.syncedAt == null ||
+            (session && post.syncedAt < (session?.startTime ?? 0))) &&
           !pendingStalePosts.current.has(post.id)
       ) || [];
 
