@@ -91,6 +91,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
       if (otpMethod === 'phone') {
         await phoneForm.handleSubmit(async ({ phoneNumber }) => {
           await hostingApi.requestLoginOtp({ phoneNumber, recaptchaToken });
+          logger.trackEvent('Initiated login', { type: 'phone', phoneNumber });
           navigation.navigate('CheckOTP', {
             mode: 'login',
             otpMethod: 'phone',
@@ -100,6 +101,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
       } else {
         await emailForm.handleSubmit(async ({ email }) => {
           await hostingApi.requestLoginOtp({ email, recaptchaToken });
+          logger.trackEvent('Initiated login', { type: 'email', email });
           navigation.navigate('CheckOTP', {
             mode: 'login',
             otpMethod: 'email',

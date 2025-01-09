@@ -1,5 +1,4 @@
-import { createDevLogger } from '@tloncorp/shared';
-import * as logic from '@tloncorp/shared/logic';
+import { AnalyticsEvent, createDevLogger, withRetry } from '@tloncorp/shared';
 import { Buffer } from 'buffer';
 import { Platform } from 'react-native';
 
@@ -251,7 +250,7 @@ export const requestSignupOtp = async ({
     );
 
     if (hostingError.shouldTrack) {
-      logger.trackError(logic.AnalyticsEvent.FailedSignupOTP, {
+      logger.trackError(AnalyticsEvent.FailedSignupOTP, {
         status: response.status,
       });
     }
@@ -298,7 +297,7 @@ export const requestLoginOtp = async ({
     );
 
     if (hostingError.shouldTrack) {
-      logger.trackError(logic.AnalyticsEvent.FailedLoginOTP, {
+      logger.trackError(AnalyticsEvent.FailedLoginOTP, {
         status: response.status,
       });
     }
@@ -431,7 +430,7 @@ export const checkIfAccountDeleted = async (): Promise<boolean> => {
   const hostingUserId = await getHostingUserId();
   if (hostingUserId) {
     try {
-      const user = await logic.withRetry(() => getHostingUser(hostingUserId), {
+      const user = await withRetry(() => getHostingUser(hostingUserId), {
         startingDelay: 500,
         numOfAttempts: 5,
       });
