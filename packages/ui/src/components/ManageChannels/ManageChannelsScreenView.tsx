@@ -1,3 +1,4 @@
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { omit } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -12,6 +13,8 @@ import Pressable from '../Pressable';
 import { ScreenHeader } from '../ScreenHeader';
 import { CreateChannelSheet } from './CreateChannelSheet';
 import { EditSectionNameSheet } from './EditSectionNameSheet';
+
+const logger = createDevLogger('ManageChannelsScreenView', false);
 
 export type Section = {
   id: string;
@@ -62,7 +65,7 @@ function ChannelItem({
   const handleMoveUp = useCallback(() => {
     if (isFirst) {
       if (isFirstSection) {
-        console.error(
+        logger.error(
           `Channel "${channel.title}" is already at the top of the first section`
         );
         return;
@@ -85,7 +88,7 @@ function ChannelItem({
   const handleMoveDown = useCallback(() => {
     if (isLast) {
       if (isLastSection) {
-        console.error(
+        logger.error(
           `Channel "${channel.title}" is already at the bottom of the last section`
         );
         return;
@@ -343,7 +346,7 @@ export function ManageChannelsScreenView({
       );
 
       if (!navSection) {
-        console.error(`Section not found: ${sectionId} (for update operation)`);
+        logger.error(`Section not found: ${sectionId} (for update operation)`);
         return;
       }
 
@@ -363,7 +366,7 @@ export function ManageChannelsScreenView({
       } catch (e) {
         // Restore original state on error
         setSections(originalSections);
-        console.error('Failed to update section:', e);
+        logger.error('Failed to update section:', e);
       }
     },
     [groupNavSectionsWithChannels, updateNavSection, sections]
@@ -376,7 +379,7 @@ export function ManageChannelsScreenView({
       );
 
       if (!navSection) {
-        console.error(`Section not found: ${sectionId} (for deletion)`);
+        logger.error(`Section not found: ${sectionId} (for deletion)`);
         return;
       }
 
@@ -393,7 +396,7 @@ export function ManageChannelsScreenView({
       } catch (e) {
         // Restore original state on error
         setSections(originalSections);
-        console.error('Failed to delete section:', e);
+        logger.error('Failed to delete section:', e);
       }
     },
     [deleteNavSection, groupNavSectionsWithChannels, sections]
@@ -403,7 +406,7 @@ export function ManageChannelsScreenView({
     async (sectionId: string) => {
       const index = sections.findIndex((s) => s.id === sectionId);
       if (index === 0) {
-        console.error(
+        logger.error(
           `Section "${sections[index].title}" is already at the top`
         );
         return;
@@ -425,7 +428,7 @@ export function ManageChannelsScreenView({
       } catch (e) {
         // Restore original state on error
         setSections(originalSections);
-        console.error('Failed to move section up:', e);
+        logger.error('Failed to move section up:', e);
       }
     },
     [sections, moveNavSection]
@@ -435,7 +438,7 @@ export function ManageChannelsScreenView({
     async (sectionId: string) => {
       const index = sections.findIndex((s) => s.id === sectionId);
       if (index === sections.length - 1) {
-        console.error(
+        logger.error(
           `Section "${sections[index].title}" is already at the bottom`
         );
         return;
@@ -457,7 +460,7 @@ export function ManageChannelsScreenView({
       } catch (e) {
         // Restore original state on error
         setSections(originalSections);
-        console.error('Failed to move section down:', e);
+        logger.error('Failed to move section down:', e);
       }
     },
     [sections, moveNavSection]
@@ -467,7 +470,7 @@ export function ManageChannelsScreenView({
     async (channelId: string, sectionId: string, newIndex: number) => {
       const sectionIndex = sections.findIndex((s) => s.id === sectionId);
       if (sectionIndex === -1) {
-        console.error('Invalid section ID:', sectionId);
+        logger.error('Invalid section ID:', sectionId);
         return;
       }
 
@@ -475,7 +478,7 @@ export function ManageChannelsScreenView({
         (c) => c.id === channelId
       );
       if (channelIndex === -1) {
-        console.error(
+        logger.error(
           `Channel not found: ${channelId} (expected in section ${sectionId})`
         );
         return;
@@ -483,7 +486,7 @@ export function ManageChannelsScreenView({
 
       // Validate newIndex is within bounds
       if (newIndex < 0 || newIndex >= sections[sectionIndex].channels.length) {
-        console.error(
+        logger.error(
           'Invalid new index:',
           newIndex,
           'for section with',
@@ -514,7 +517,7 @@ export function ManageChannelsScreenView({
       } catch (e) {
         // Restore original state on error
         setSections(originalSections);
-        console.error('Failed to move channel within section:', e);
+        logger.error('Failed to move channel within section:', e);
       }
     },
     [sections, moveChannelWithinNavSection]
@@ -531,13 +534,13 @@ export function ManageChannelsScreenView({
       );
 
       if (previousSectionIndex === -1) {
-        console.error('Invalid previous section ID:', previousSectionId);
+        logger.error('Invalid previous section ID:', previousSectionId);
         return;
       }
 
       // Prevent moving to the same section
       if (newSectionId === previousSectionId) {
-        console.error(
+        logger.error(
           `Cannot move channel to section "${sections[previousSectionIndex].title}" as it is already there`
         );
         return;
@@ -548,7 +551,7 @@ export function ManageChannelsScreenView({
       );
 
       if (!channel) {
-        console.error(
+        logger.error(
           `Channel not found: ${channelId} (expected in section ${previousSectionId})`
         );
         return;
@@ -556,7 +559,7 @@ export function ManageChannelsScreenView({
 
       const sectionIndex = sections.findIndex((s) => s.id === newSectionId);
       if (sectionIndex === -1) {
-        console.error('Invalid new section ID:', newSectionId);
+        logger.error('Invalid new section ID:', newSectionId);
         return;
       }
 
@@ -599,7 +602,7 @@ export function ManageChannelsScreenView({
       } catch (e) {
         // Restore original state on error
         setSections(originalSections);
-        console.error('Failed to move channel to new section:', e);
+        logger.error('Failed to move channel to new section:', e);
       }
     },
     [sections, moveChannelToNavSection]
@@ -706,7 +709,7 @@ export function ManageChannelsScreenView({
               title,
             });
           } catch (e) {
-            console.error('Failed to create section:', e);
+            logger.error('Failed to create section:', e);
             // Note: We don't need state rollback here since the section
             // hasn't been added to local state yet - the UI will update
             // via the useEffect when groupNavSectionsWithChannels changes
