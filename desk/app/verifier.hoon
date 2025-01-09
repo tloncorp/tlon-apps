@@ -64,7 +64,7 @@
   [%give %fact ~[/records/(scot %p for)] %verifier-update !>(upd)]
 ::
 ++  give-status
-  |=  [for=@p id=identifier status=?(%gone status)]
+  |=  [for=@p id=identifier status=$%([%gone why=@t] status)]
   ^-  card
   (give-update for %status id status)
 ::
@@ -286,7 +286,7 @@
       =/  rec  (~(got by records) id.cmd)
       ?>  =(src.bowl for.rec)
       ::TODO  de-dupe with the host command?
-      :-  [(give-status src.bowl id.cmd %gone)]~
+      :-  [(give-status src.bowl id.cmd [%gone 'revoked'])]~
       =?  owners    ?=(%done -.status.rec)
         (~(del ju owners) for.rec id.cmd)
       =?  attested  ?=(%done -.status.rec)
@@ -345,7 +345,7 @@
         %.  sig.full-sign.status.rec
         %~  del  by
         (~(del by attested) sig.half-sign.status.rec)
-      :-  [(give-status for.rec id %gone)]~
+      :-  [(give-status for.rec id [%gone 'revoked'])]~
       this(records (~(del by records) id))
     ::
         %dummy
@@ -497,7 +497,7 @@
     ~?  ?=(%wait -.status.u.rec)  [dap.bowl %dropped-the-ball -.id]
     ::  registration attempt took too long, abort it
     ::
-    :-  [(give-status for.u.rec id %gone)]~
+    :-  [(give-status for.u.rec id [%gone 'registration timed out'])]~
     this(records (~(del by records) id))
   ::
       [%id %phone @ ?(%status %verify %submit) ~]
@@ -516,7 +516,7 @@
     ?>  =(%wait -.status.u.rec)  ::NOTE  avoid tmi
     =*  abort
       ::TODO  and log
-      :-  [(give-status for.u.rec id %gone)]~
+      :-  [(give-status for.u.rec id [%gone 'service error'])]~
       this(records (~(del by records) id))
     ::TODO  handle %cancel. retry! or for %submit, set status to %want again?
     ::TODO  what about %progress?

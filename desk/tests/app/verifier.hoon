@@ -212,7 +212,7 @@
     ;<  cas=(list card)  bind:m
       (host-does %dummy +.id %reject)
     ;<  ~  bind:m
-      (ex-cards cas (ex-verifier-update ~nec %status id %gone) ~)
+      (ex-cards cas (ex-verifier-update ~nec %status id %gone 'revoked') ~)
     ::TODO  check that you can make another attempt?
     (pure:m ~)
   --
@@ -323,7 +323,7 @@
           %+  do-phone-api-res  (snoc wir %status)
           [200 `'"bad json"']
       ==
-    rejected  ::TODO  and log report sent
+    errored  ::TODO  and log report sent
   ::
   ++  status-verified
     %+  (merge (list card))
@@ -378,7 +378,7 @@
       ;<  caz=(list card)  bind:m
         %+  do-phone-api-res  (snoc wir %verify)
         [400 `'{"message":,"Forbidden"}']
-      (rejected caz)
+      (errored caz)
     ::
     ++  verify-ok
       ;<  caz=(list card)  bind:m
@@ -415,11 +415,11 @@
       --
     --
   ::
-  ++  rejected
+  ++  errored
     |=  caz=(list card)
     ;<  ~  bind:m
       %+  ex-cards  caz
-      [(ex-verifier-update ~nec %status id %gone)]~
+      [(ex-verifier-update ~nec %status id %gone 'service error')]~
     ::TODO  test via scries instead?
     ;<  =state:v  bind:m  get-state
     %-  branch
@@ -502,7 +502,7 @@
   ;<  cas=(list card)  bind:m  (user-does ~nec %revoke id)
   ;<  ~  bind:m
     %+  ex-cards  cas
-    [(ex-verifier-update ~nec %status id %gone)]~
+    [(ex-verifier-update ~nec %status id %gone 'revoked')]~
   ;<  ~  bind:m
     ::TODO  test via scries instead?
     ;<  =state:v  bind:m  get-state
@@ -523,7 +523,7 @@
     (do-arvo /expire/[-.id]/(scot %t +.id)/(scot %da ~2000.1.2) %behn %wake ~)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    [(ex-verifier-update ~nec %status id %gone)]~
+    [(ex-verifier-update ~nec %status id %gone 'registration timed out')]~
   ;<  ~  bind:m
     ::TODO  test via scries instead?
     ;<  =state:v  bind:m  get-state

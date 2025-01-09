@@ -347,12 +347,12 @@
         =*  key  [src.bowl id.upd]
         =.  records
           =+  rec=(~(gut by records) key *id-state)
-          ?:  ?=(%gone status.upd)  (~(del by records) key)
+          ?:  ?=(%gone -.status.upd)  (~(del by records) key)
           (~(put by records) key rec(status status.upd))
         :_  this
         :-  =/  upd=update:l  upd(id key)
             [%give %fact ~[/ /records] %lanyard-update !>(upd)]
-        ?.  ?=(?(%gone [%done *]) status.upd)  ~
+        ?.  ?=(?(%gone %done) -.status.upd)  ~
         (drop (inflate-contacts-profile [our now]:bowl records ledgers))
       ::
           %endpoint

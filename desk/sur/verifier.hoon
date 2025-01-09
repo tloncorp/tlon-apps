@@ -104,7 +104,7 @@
 ::
 +$  update
   $%  [%full all=(map identifier id-state)]
-      [%status id=identifier status=?(%gone status)]  ::TODO  %gone w/ msg
+      [%status id=identifier status=$%([%gone why=@t] status)]
       [%config id=identifier =config]
       [%endpoint base=(unit @t)]
   ==
@@ -152,7 +152,7 @@
     ==
   +$  update
     $%  [%query nonce=@ result]  ::TODO  different?
-        [%status [host=@p id=identifier] status=?(%gone status)]
+        [%status [host=@p id=identifier] status=$%([%gone why=@t] status)]
         [%config [host=@p id=identifier] =config]
         [%full all=(map [host=@p id=identifier] id-state)]
     ==
