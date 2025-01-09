@@ -1,7 +1,7 @@
 // sort-imports-ignore
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { Popover, View, isWeb } from 'tamagui';
+import { View, isWeb } from 'tamagui';
 
 import { useGroupTitle } from '../../utils';
 import { Badge } from '../Badge';
@@ -11,7 +11,6 @@ import { Icon } from '../Icon';
 import Pressable from '../Pressable';
 import { ListItem, ListItemProps } from './ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
-import ActionList from '../ActionList';
 
 export const GroupListItem = ({
   model,
@@ -98,32 +97,18 @@ export const GroupListItem = ({
         </ListItem>
       </Pressable>
       {isWeb && !isPending && (
-        // <Button
-        //   position="absolute"
-        //   right="$-2xs"
-        //   top={22}
-        //   zIndex={1}
-        //   borderWidth="unset"
-        //   paddingHorizontal={0}
-        //   marginHorizontal="$-m"
-        //   minimal
-        // >
-        //   <Icon type="Overflow" />
-        // </Button>
-        <Popover.Trigger asChild>
-          <Button
-            position="absolute"
-            right="$-2xs"
-            top={22}
-            zIndex={1}
-            borderWidth="unset"
-            paddingHorizontal={0}
-            marginHorizontal="$-m"
-            minimal
-          >
-            <Icon type="Overflow" />
-          </Button>
-        </Popover.Trigger>
+        <Button
+          position="absolute"
+          right="$-2xs"
+          top={22}
+          zIndex={1}
+          borderWidth="unset"
+          paddingHorizontal={0}
+          marginHorizontal="$-m"
+          minimal
+        >
+          <Icon type="Overflow" />
+        </Button>
       )}
     </View>
   );
