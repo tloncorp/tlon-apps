@@ -97,18 +97,16 @@ export const GroupListItem = ({
         </ListItem>
       </Pressable>
       {isWeb && !isPending && (
-        <Button
-          position="absolute"
-          right="$-2xs"
-          top={22}
-          zIndex={1}
-          borderWidth="unset"
-          paddingHorizontal={0}
-          marginHorizontal="$-m"
-          minimal
-        >
-          <Icon type="Overflow" />
-        </Button>
+        <View position="absolute" right="$-2xs" top="$2xl" zIndex={1}>
+          <Button
+            borderWidth="unset"
+            paddingHorizontal={0}
+            marginHorizontal="$-m"
+            minimal
+          >
+            <Icon type="Overflow" />
+          </Button>
+        </View>
       )}
     </View>
   );
