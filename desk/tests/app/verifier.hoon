@@ -309,10 +309,18 @@
     ==
   ::
   |^  %-  branch
-      :~  'status bad'^status-bad
+      :~  'status request canceled'^status-cancel
+          'status bad'^status-bad
           'status verified'^status-verified
           'status unverified'^status-unverified
       ==
+  ++  status-cancel
+    ;<  caz=(list card)  bind:m
+      (do-arvo (snoc wir %status) %iris %http-response %cancel ~)
+    %+  ex-cards  caz  :_  ~
+    %+  ex-phone-api-req  (snoc wir %status)
+    [%'POST' '/status' `'{"phoneNumber":"+123456789","ship":"~nec"}']
+  ::
   ++  status-bad
     %+  (merge (list card))
       :~  :-  '400 response'
@@ -373,7 +381,18 @@
       %+  ex-phone-api-req  (snoc wir %verify)
       [%'POST' '/verify' `'{"phoneNumber":"+123456789"}']
     ::
-    |^  (branch 'start verify fail'^verify-fail 'start verify ok'^verify-ok ~)
+    |^  %-  branch
+        :~  'start verify request canceled'^verify-cancel
+            'start verify fail'^verify-fail
+            'start verify ok'^verify-ok
+        ==
+    ++  verify-cancel
+      ;<  caz=(list card)  bind:m
+        (do-arvo (snoc wir %verify) %iris %http-response %cancel ~)
+      %+  ex-cards  caz  :_  ~
+      %+  ex-phone-api-req  (snoc wir %verify)
+      [%'POST' '/verify' `'{"phoneNumber":"+123456789"}']
+    ::
     ++  verify-fail
       ;<  caz=(list card)  bind:m
         %+  do-phone-api-res  (snoc wir %verify)
@@ -397,7 +416,17 @@
             [%'PATCH' '/verify' `'{"otp":"333777","phoneNumber":"+123456789"}']
         ==
       ::
-      |^  (branch 'otp bad'^otp-bad 'otp good'^otp-good ~)
+      |^  %-  branch
+          :~  'otp request canceled'^otp-cancel
+              'otp bad'^otp-bad
+              'otp good'^otp-good
+          ==
+      ++  otp-cancel
+        ;<  caz=(list card)  bind:m
+          (do-arvo (snoc wir %submit) %iris %http-response %cancel ~)
+        %+  ex-cards  caz  :_  ~
+        (ex-verifier-update ~nec %status id %want %phone %otp)
+      ::
       ++  otp-bad
         ::  if the otp code is wrong, should update status to ask for a retry
         ::

@@ -520,8 +520,35 @@
       ::TODO  and log
       :-  [(give-status for.u.rec id [%gone 'service error'])]~
       this(records (~(del by records) id))
-    ::TODO  handle %cancel. retry! or for %submit, set status to %want again?
-    ::TODO  what about %progress?
+    =*  want-otp
+      =.  status.u.rec  [%want %phone %otp]
+      :_  this(records (~(put by records) id u.rec))
+      [(give-status for.u.rec id status.u.rec)]~
+    ::  %progress responses are unexpected, the runtime doesn't support them
+    ::  right now. if they occur, just treat them as cancels and retry.
+    ::
+    =?  res  ?=(%progress -.res)
+      ~&  [dap.bowl %strange-iris-progress-response]  ::TODO  log properly
+      [%cancel ~]
+    ::  we might get a %cancel if the runtime was restarted during our
+    ::  request. try to pick up where we left off.
+    ::
+    ?:  ?=(%cancel -.res)
+      ?-  i.t.t.t.wire
+          %status
+        :_  this
+        [(req-phone-api phone-api nr %status for.u.rec)]~
+      ::
+          %verify
+        :_  this
+        [(req-phone-api phone-api nr %verify ~)]~
+      ::
+          %submit
+        ::  we don't store the otp from the user command, so can't retry.
+        ::  treat this as failure, make the user re-submit.
+        ::
+        want-otp
+      ==
     ?>  ?=(%finished -.res)
     =*  cod  status-code.response-header.res
     =/  jon=json
@@ -562,9 +589,7 @@
         abort
       ::  otp text got sent, ask the user to submit the code
       ::
-      =.  status.u.rec  [%want %phone %otp]
-      :_  this(records (~(put by records) id u.rec))
-      [(give-status for.u.rec id status.u.rec)]~
+      want-otp
     ::
         %submit
       ?:  =(200 cod)
@@ -573,9 +598,7 @@
       ::  otp code wasn't correct, but user may retry
       ::TODO  limit attempts?
       ::
-      =.  status.u.rec  [%want %phone %otp]
-      :_  this(records (~(put by records) id u.rec))
-      [(give-status for.u.rec id status.u.rec)]~
+      want-otp
     ==
   ==
 ::
