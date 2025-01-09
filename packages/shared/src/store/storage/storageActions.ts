@@ -58,8 +58,8 @@ export const performUpload = async (
 ) => {
   logger.log('performing upload', params.uri, 'isWeb', isWeb);
   const [config, credentials] = await Promise.all([
-    db.getStorageConfiguration(),
-    db.getStorageCredentials(),
+    db.storageConfiguration.getValue(),
+    db.storageCredentials.getValue(),
   ]);
 
   if (!credentials || !config) {

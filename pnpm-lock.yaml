@@ -240,6 +240,9 @@ importers:
       expo-localization:
         specifier: ~14.8.3
         version: 14.8.3(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13))
+      expo-media-library:
+        specifier: ~15.9.2
+        version: 15.9.2(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13))
       expo-modules-core:
         specifier: ~1.11.8
         version: 1.11.8
@@ -1581,6 +1584,9 @@ importers:
       expo-image-picker:
         specifier: ~14.7.1
         version: 14.7.1(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13))
+      expo-media-library:
+        specifier: ~15.9.2
+        version: 15.9.2(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13))
       fuse.js:
         specifier: ^7.0.0
         version: 7.0.0
@@ -8852,6 +8858,11 @@ packages:
     peerDependencies:
       expo: '*'
 
+  expo-media-library@15.9.2:
+    resolution: {integrity: sha512-ExRcCxNO768aWPQr9axuBDQLcFnRTSiqvWZ1XvnopCfZEic04wJ/CPAE1hLqTp7AyYrd6jHpqxa/aNKBAAFVeA==}
+    peerDependencies:
+      expo: '*'
+
   expo-modules-autolinking@1.10.3:
     resolution: {integrity: sha512-pn4n2Dl4iRh/zUeiChjRIe1C7EqOw1qhccr85viQV7W6l5vgRpY0osE51ij5LKg/kJmGRcJfs12+PwbdTplbKw==}
     hasBin: true
@@ -12893,12 +12904,15 @@ packages:
 
   sudo-prompt@8.2.5:
     resolution: {integrity: sha512-rlBo3HU/1zAJUrkY6jNxDOC9eVYliG6nS4JA8u8KAshITd07tafMc/Br7xQwCSseXwJ2iCcHCE8SNWX3q8Z+kw==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   sudo-prompt@9.1.1:
     resolution: {integrity: sha512-es33J1g2HjMpyAhz8lOR+ICmXXAqTuKbuXuUWLhOLew20oN9oUCgCJx615U/v7aioZg7IX5lIh9x34vwneu4pA==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   sudo-prompt@9.2.1:
     resolution: {integrity: sha512-Mu7R0g4ig9TUuGSxJavny5Rv0egCEtpZRNMrZaYS1vxkiIxGiGUwoezU3LazIQ+KE04hTrTfNPgxU5gzi7F5Pw==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   superjson@1.12.2:
     resolution: {integrity: sha512-ugvUo9/WmvWOjstornQhsN/sR9mnGtWGYeTxFuqLb4AiT4QdUavjGFRALCPKWWnAiUJ4HTpytj5e0t5HoMRkXg==}
@@ -25242,6 +25256,14 @@ snapshots:
       expo-json-utils: 0.12.3
     transitivePeerDependencies:
       - supports-color
+
+  expo-media-library@15.9.2(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)):
+    dependencies:
+      expo: 50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)
+
+  expo-media-library@15.9.2(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13)):
+    dependencies:
+      expo: 50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13)
 
   expo-modules-autolinking@1.10.3:
     dependencies:
