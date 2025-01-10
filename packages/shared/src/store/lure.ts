@@ -433,12 +433,13 @@ export function useLureLinkStatus({
     if (status === 'error') {
       lureLogger.trackEvent(AnalyticsEvent.InviteError, {
         context: 'useLureLinkStatus has error status',
+        inviteStatus: status,
         inviteInfo,
       });
     } else {
       lureLogger.trackEvent(AnalyticsEvent.InviteDebug, {
         context: 'useLureLinkStatus log',
-        status,
+        inviteStatus: status,
         inviteInfo,
       });
     }
