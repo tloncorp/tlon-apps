@@ -1,17 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import produce from 'immer';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import create from 'zustand';
 
 import { getCurrentUserId, poke, scry, subscribeOnce } from '../api/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../logic';
 import { DeepLinkMetadata, createDeepLink } from '../logic/branch';
 import { asyncWithDefault, getFlagParts, withRetry } from '../logic/utils';
 import { stringToTa } from '../urbit';
 import { GroupMeta } from '../urbit/groups';
-
-const logger = createDevLogger('lure', true);
 
 interface LureMetadata {
   tag: string;
@@ -73,29 +72,37 @@ export const useLureState = create<LureState>((set, get) => ({
       });
     }
 
-    await poke({
-      app: 'reel',
-      mark: 'reel-describe',
-      json: {
-        token: flag,
-        metadata: groupsDescribe({
-          // legacy keys
-          title: group?.title ?? '',
-          description: group?.description ?? '',
-          cover: group?.coverImage ?? '',
-          image: group?.iconImage ?? '',
+    try {
+      await poke({
+        app: 'reel',
+        mark: 'reel-describe',
+        json: {
+          token: flag,
+          metadata: groupsDescribe({
+            // legacy keys
+            title: group?.title ?? '',
+            description: group?.description ?? '',
+            cover: group?.coverImage ?? '',
+            image: group?.iconImage ?? '',
 
-          // new-style metadata keys
-          inviterUserId: currentUserId,
-          inviterNickname: user?.nickname ?? '',
-          inviterAvatarImage: user?.avatarImage ?? '',
-          invitedGroupId: flag,
-          invitedGroupTitle: group?.title ?? '',
-          invitedGroupDescription: group?.description ?? '',
-          invitedGroupIconImageUrl: group?.iconImage ?? '',
-        }),
-      },
-    });
+            // new-style metadata keys
+            inviterUserId: currentUserId,
+            inviterNickname: user?.nickname ?? '',
+            inviterAvatarImage: user?.avatarImage ?? '',
+            invitedGroupId: flag,
+            invitedGroupTitle: group?.title ?? '',
+            invitedGroupDescription: group?.description ?? '',
+            invitedGroupIconImageUrl: group?.iconImage ?? '',
+          }),
+        },
+      });
+    } catch (e) {
+      lureLogger.trackError(AnalyticsEvent.InviteError, {
+        context: 'reel describe failed',
+        errorMessage: e.message,
+        errorStack: e.stack,
+      });
+    }
   },
   toggle: async (flag) => {
     const { name } = getFlagParts(flag);
@@ -130,16 +137,24 @@ export const useLureState = create<LureState>((set, get) => ({
     });
   },
   start: async () => {
-    const bait = await scry<Bait>({
-      app: 'reel',
-      path: '/bait',
-    });
+    try {
+      const bait = await scry<Bait>({
+        app: 'reel',
+        path: '/bait',
+      });
 
-    set(
-      produce((draft: LureState) => {
-        draft.bait = bait;
-      })
-    );
+      set(
+        produce((draft: LureState) => {
+          draft.bait = bait;
+        })
+      );
+    } catch (e) {
+      lureLogger.trackEvent(AnalyticsEvent.InviteError, {
+        context: 'failed to get bait on start',
+        errorMessage: e.message,
+        errorStack: e.stack,
+      });
+    }
   },
   fetchLure: async (flag, inviteServiceEndpoint, inviteServiceIsDev) => {
     const { name } = getFlagParts(flag);
@@ -162,7 +177,11 @@ export const useLureState = create<LureState>((set, get) => ({
             return en;
           })
           .catch((e) => {
-            lureLogger.error(`group-enabled failed`, e);
+            lureLogger.trackEvent(AnalyticsEvent.InviteError, {
+              context: `group-enabled failed`,
+              errorMessage: e.message,
+              errorStack: e.stack,
+            });
             return prevLure?.enabled;
           });
       }, prevLure?.enabled),
@@ -178,7 +197,11 @@ export const useLureState = create<LureState>((set, get) => ({
             return u;
           })
           .catch((e) => {
-            lureLogger.error(`id-link failed`, e);
+            lureLogger.trackError(AnalyticsEvent.InviteDebug, {
+              context: `id-link failed`,
+              errorMessage: e.message,
+              errorStack: e.stack,
+            });
             return prevLure?.url;
           });
       }, prevLure?.url),
@@ -226,6 +249,14 @@ export const useLureState = create<LureState>((set, get) => ({
       });
       lureLogger.crumb('deepLinkUrl created', deepLinkUrl);
     }
+
+    lureLogger.trackEvent(AnalyticsEvent.InviteDebug, {
+      context: 'fetchLure result',
+      flag,
+      enabled,
+      url,
+      deepLinkUrl,
+    });
 
     set(
       produce((draft: LureState) => {
@@ -343,6 +374,7 @@ export function useLureLinkStatus({
   inviteServiceEndpoint: string;
   inviteServiceIsDev: boolean;
 }) {
+  const [lastLoggedStatus, setLastLoggedStatus] = useState('');
   const { supported, fetched, enabled, url, deepLinkUrl, toggle, describe } =
     useLure({
       flag,
@@ -351,16 +383,21 @@ export function useLureLinkStatus({
     });
   const { good, checked } = useLureLinkChecked(url, !!enabled);
 
-  lureLogger.crumb('useLureLinkStatus', {
-    flag,
-    supported,
-    fetched,
-    enabled,
-    checked,
-    good,
-    url,
-    deepLinkUrl,
-  });
+  const inviteInfo = useMemo(
+    () => ({
+      flag,
+      supported,
+      fetched,
+      enabled,
+      checked,
+      good,
+      url,
+      deepLinkUrl,
+    }),
+    [flag, supported, fetched, enabled, checked, good, url, deepLinkUrl]
+  );
+
+  lureLogger.crumb('useLureLinkStatus', inviteInfo);
 
   const status = useMemo(() => {
     if (!supported) {
@@ -381,21 +418,33 @@ export function useLureLinkStatus({
     }
 
     if (checked && !good) {
-      lureLogger.trackError('useLureLinkStatus has error status', {
-        flag,
-        enabled,
-        checked,
-        good,
-        url,
-        deepLinkUrl,
-      });
       return 'error';
     }
 
     return 'ready';
   }, [supported, fetched, enabled, url, checked, deepLinkUrl, good, flag]);
 
-  lureLogger.crumb('url', url, 'deepLinkUrl', deepLinkUrl, 'status', status);
+  // prevent over zealous logging
+  const statusKey = useMemo(() => {
+    return `${status}-${fetched}-${checked}`;
+  }, [status, fetched, checked]);
+
+  if (statusKey !== lastLoggedStatus) {
+    if (status === 'error') {
+      lureLogger.trackEvent(AnalyticsEvent.InviteError, {
+        context: 'useLureLinkStatus has error status',
+        inviteStatus: status,
+        inviteInfo,
+      });
+    } else {
+      lureLogger.trackEvent(AnalyticsEvent.InviteDebug, {
+        context: 'useLureLinkStatus log',
+        inviteStatus: status,
+        inviteInfo,
+      });
+    }
+    setLastLoggedStatus(statusKey);
+  }
 
   return { status, shareUrl: deepLinkUrl, toggle, describe };
 }

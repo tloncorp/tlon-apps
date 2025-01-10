@@ -30,6 +30,10 @@ export function InviteFriendsToTlonButton({
   const title = useGroupTitle(group);
   const { doCopy } = useCopy(shareUrl || '');
 
+  useEffect(() => {
+    logger.trackEvent('Invite Button Shown', { group: group?.id });
+  }, []);
+
   const handleInviteButtonPress = useCallback(async () => {
     if (shareUrl && status === 'ready' && group) {
       if (isWeb) {
@@ -74,9 +78,17 @@ export function InviteFriendsToTlonButton({
       await toggle();
     };
     if (status === 'disabled' && isGroupAdmin) {
+      logger.trackEvent(AnalyticsEvent.InviteDebug, {
+        group: group?.id,
+        context: 'invite button: disabled and isAdmin, toggling',
+      });
       toggleLink();
     }
     if (status === 'stale') {
+      logger.trackEvent(AnalyticsEvent.InviteDebug, {
+        group: group?.id,
+        context: 'invite button: stale, describing',
+      });
       describe();
     }
   }, [group, toggle, status, isGroupAdmin, describe]);
