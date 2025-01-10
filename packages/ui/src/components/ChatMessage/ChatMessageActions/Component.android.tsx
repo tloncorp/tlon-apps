@@ -21,13 +21,14 @@ export function ChatMessageActions({
 }: {
   post: db.Post;
   postActionIds: ChannelAction.Id[];
-  postRef: RefObject<RNView>;
+  postRef?: RefObject<RNView>;
   onDismiss: () => void;
   onReply?: (post: db.Post) => void;
   onViewReactions?: (post: db.Post) => void;
   onEdit?: () => void;
-  // this prop is here just so we match the Component.tsx prop
+  // these props are here just so we match the Component.tsx prop
   onShowEmojiPicker?: () => void;
+  trigger?: React.ReactNode;
 }) {
   const [topOffset, setTopOffset] = useState(0);
   const insets = useSafeAreaInsets();
