@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useDebugStore } from '@tloncorp/shared';
-import * as store from '@tloncorp/shared/store';
+import * as db from '@tloncorp/shared/db';
 import {
   AppSetting,
   Button,
@@ -52,7 +52,7 @@ ${JSON.stringify(appInfo)}
 }
 
 export function AppInfoScreen(props: Props) {
-  const { data: appInfo } = store.useAppInfo();
+  const appInfo = db.appInfo.useValue();
   const {
     enabled,
     logs,

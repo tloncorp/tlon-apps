@@ -1,9 +1,8 @@
 import { BlurView } from 'expo-blur';
 import { ComponentProps, PropsWithChildren } from 'react';
-import { YStack, styled } from 'tamagui';
+import { XStack, YStack, styled } from 'tamagui';
 
 import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
-import { ListItemFrame } from '../ListItem';
 
 const ListFrame = styled(YStack, {
   overflow: 'hidden',
@@ -12,7 +11,7 @@ const ListFrame = styled(YStack, {
 
 const ListFrameComponent = (
   props: PropsWithChildren<
-    ComponentProps<typeof ListItemFrame> & ComponentProps<typeof BlurView>
+    ComponentProps<typeof XStack> & ComponentProps<typeof BlurView>
   >
 ) => {
   const { children, intensity, tint, ...rest } = props;

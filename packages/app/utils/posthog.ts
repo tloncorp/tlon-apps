@@ -63,7 +63,7 @@ export const trackError = (
 ) => capture(event, { message, properties });
 
 export const identifyTlonEmployee = () => {
-  db.setIsTlonEmployee(true);
+  db.isTlonEmployee.setValue(true);
   if (!posthog) {
     console.debug('Identifying as Tlon employee before PostHog is initialized');
     return;

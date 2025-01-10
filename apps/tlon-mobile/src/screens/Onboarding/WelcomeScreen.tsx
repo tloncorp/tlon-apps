@@ -2,9 +2,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { setDidShowBenefitsSheet } from '@tloncorp/shared/db';
+import * as db from '@tloncorp/shared/db';
 import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
-import { useDidShowBenefitsSheet } from '@tloncorp/shared/store';
 import {
   ActionSheet,
   Button,
@@ -34,7 +33,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   const lureMeta = useLureMetadata();
   const { bottom, top } = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
-  const { data: didShowBenefitsSheet } = useDidShowBenefitsSheet();
+  const didShowBenefitsSheet = db.benefitsSheetDismissed.useValue();
   const signupContext = useSignupContext();
   const { isAuthenticated } = useShip();
   const finishingSelfHostedLogin = selfHostedLoginStatus.useValue();
@@ -44,7 +43,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   const handleBenefitsSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
       setTimeout(() => {
-        setDidShowBenefitsSheet(true);
+        db.benefitsSheetDismissed.setValue(true);
       }, 1000);
     }
     setOpen(open);

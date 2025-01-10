@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useIsTlonEmployee } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import { FeatureFlagScreenView } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
@@ -23,7 +23,7 @@ export function FeatureFlagScreen({ navigation }: Props) {
     [setEnabled]
   );
 
-  const isTlonEmployee = useIsTlonEmployee();
+  const isTlonEmployee = db.isTlonEmployee.useValue();
   const features = useMemo(
     () =>
       Object.entries(featureFlags.featureMeta)

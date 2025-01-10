@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack, getVariableValue, useTheme } from 'tamagui';
 

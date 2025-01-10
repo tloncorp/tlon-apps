@@ -18,9 +18,18 @@ export default function ChannelNavSection({
   const sectionChannels = useMemo(
     () =>
       section.channels
-        ? section.channels.filter(
-            (item) => !!channels.find((c) => c.id === item.channelId)
-          )
+        ? section.channels
+            .filter((item) => !!channels.find((c) => c.id === item.channelId))
+            .sort((a, b) => {
+              const aChannelIndex =
+                section.channels?.find((c) => c.channelId === a.channelId)
+                  ?.channelIndex ?? 0;
+              const bChannelIndex =
+                section.channels?.find((c) => c.channelId === b.channelId)
+                  ?.channelIndex ?? 0;
+
+              return aChannelIndex - bChannelIndex;
+            })
         : [],
     [section, channels]
   );

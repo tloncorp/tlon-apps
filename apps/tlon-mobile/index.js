@@ -26,7 +26,7 @@ setStorage(AsyncStorage);
 function Main(props) {
   useEffect(() => {
     async function init() {
-      const appInfo = await db.getAppInfoSettings();
+      const appInfo = await db.appInfo.getValue();
       useDebugStore.getState().initializeDebugInfo(PlatformState, appInfo);
     }
 
