@@ -395,7 +395,6 @@ export default function BareChatInput({
       }
 
       try {
-        setControlledText('');
         bareChatInputLogger.log('clearing attachments');
         clearAttachments();
         bareChatInputLogger.log('resetting input height');
@@ -423,8 +422,9 @@ export default function BareChatInput({
         bareChatInputLogger.log('sent message', story);
         setMentions([]);
         bareChatInputLogger.log('clearing draft');
-        clearDraft();
+        await clearDraft();
         bareChatInputLogger.log('setting initial content');
+        setControlledText('');
         setHasSetInitialContent(false);
       }
     },
@@ -704,7 +704,7 @@ export default function BareChatInput({
             paddingTop: getTokenValue('$l', 'space'),
             paddingBottom: getTokenValue('$l', 'space'),
             fontSize: getFontSize('$m'),
-            textAlignVertical: 'center',
+            verticalAlign: 'middle',
             letterSpacing: -0.032,
             color: getVariableValue(useTheme().primaryText),
             ...(isWeb ? placeholderTextColor : {}),
@@ -719,7 +719,7 @@ export default function BareChatInput({
             />
           )}
         </TextInput>
-        {isWeb && controlledText && mentions.length > 0 && (
+        {isWeb && !!controlledText && mentions.length > 0 && (
           <View height={inputHeight} position="absolute" pointerEvents="none">
             <RawText
               paddingHorizontal="$l"

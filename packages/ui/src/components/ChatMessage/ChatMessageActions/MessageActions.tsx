@@ -87,6 +87,9 @@ function ConnectedAction({
         // 2. the message isn't a reply
         // 3. an existing thread for that message doesn't already exist
         return !post.deliveryStatus && !post.parentId && post.replyCount === 0;
+      case 'muteThread':
+        // only show mute for threads
+        return post.parentId;
       case 'edit':
         // only show edit for current user's posts OR admins of notebook posts
         return (

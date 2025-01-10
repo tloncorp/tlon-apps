@@ -27,7 +27,7 @@ export interface DraftInputHandle {
  */
 export interface DraftInputContext {
   channel: db.Channel;
-  clearDraft: (draftType?: GalleryDraftType) => void;
+  clearDraft: (draftType?: GalleryDraftType) => Promise<void>;
   draftInputRef?: React.Ref<DraftInputHandle>;
   editPost: (post: db.Post, content: Story) => Promise<void>;
   editingPost?: db.Post;
@@ -53,5 +53,8 @@ export interface DraftInputContext {
   setEditingPost?: (update: db.Post | undefined) => void;
   setShouldBlur: Dispatch<SetStateAction<boolean>>;
   shouldBlur: boolean;
-  storeDraft: (content: JSONContent, draftType?: GalleryDraftType) => void;
+  storeDraft: (
+    content: JSONContent,
+    draftType?: GalleryDraftType
+  ) => Promise<void>;
 }
