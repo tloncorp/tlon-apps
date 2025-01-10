@@ -58,4 +58,4 @@ See the on-ship developer documentation for more details.
 ## Use of Landscape agents
 
 At the moment, Groups and Talk make use of `%settings`, `%storage`, `%hark`,
-and `%contacts` agents in the `%landscape` desk.
+and `%contacts` agents in the `%landscape` desk
