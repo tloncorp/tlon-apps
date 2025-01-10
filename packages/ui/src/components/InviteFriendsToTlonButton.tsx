@@ -74,9 +74,17 @@ export function InviteFriendsToTlonButton({
       await toggle();
     };
     if (status === 'disabled' && isGroupAdmin) {
+      logger.trackEvent(AnalyticsEvent.InviteDebug, {
+        group: group?.id,
+        context: 'invite button: disabled and isAdmin, toggling',
+      });
       toggleLink();
     }
     if (status === 'stale') {
+      logger.trackEvent(AnalyticsEvent.InviteDebug, {
+        group: group?.id,
+        context: 'invite button: stale, describing',
+      });
       describe();
     }
   }, [group, toggle, status, isGroupAdmin, describe]);
@@ -97,6 +105,10 @@ export function InviteFriendsToTlonButton({
   const linkIsDisabled = status === 'disabled';
   const linkFailed =
     linkIsDisabled || status === 'error' || status === 'unsupported';
+
+  useEffect(() => {
+    logger.trackEvent('Invite Button Shown', { group: group?.id });
+  }, []);
 
   return (
     <Button
