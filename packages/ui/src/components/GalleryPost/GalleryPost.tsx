@@ -3,6 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import { truncate } from 'lodash';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { PropsWithChildren } from 'react';
+import { StyleSheet } from 'react-native';
 import { View, XStack, styled } from 'tamagui';
 
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
@@ -101,7 +102,7 @@ export function GalleryPost({
     <Pressable
       onPress={disableHandlePress ? undefined : handlePress}
       onLongPress={handleLongPress}
-      flex={1}
+      style={StyleSheet.absoluteFill}
     >
       <GalleryPostFrame {...props}>
         <GalleryContentRenderer
