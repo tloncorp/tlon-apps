@@ -30,6 +30,10 @@ export function InviteFriendsToTlonButton({
   const title = useGroupTitle(group);
   const { doCopy } = useCopy(shareUrl || '');
 
+  useEffect(() => {
+    logger.trackEvent('Invite Button Shown', { group: group?.id });
+  }, []);
+
   const handleInviteButtonPress = useCallback(async () => {
     if (shareUrl && status === 'ready' && group) {
       if (isWeb) {
@@ -105,11 +109,6 @@ export function InviteFriendsToTlonButton({
   const linkIsDisabled = status === 'disabled';
   const linkFailed =
     linkIsDisabled || status === 'error' || status === 'unsupported';
-
-  useEffect(() => {
-    // eslint-disable-next-line
-    logger.trackEvent('Invite Button Shown', { group: group?.id });
-  }, []);
 
   return (
     <Button
