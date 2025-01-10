@@ -1,4 +1,4 @@
-import { DB } from '@op-engineering/op-sqlite';
+import { OPSQLiteConnection } from '@op-engineering/op-sqlite';
 import { migrations } from '@tloncorp/shared/db/migrations';
 import { Schema } from '@tloncorp/shared/db/types';
 import { DrizzleConfig } from 'drizzle-orm';
@@ -11,7 +11,7 @@ import { SQLiteConnection } from './sqliteConnection';
 export class OPSQLite$SQLiteConnection
   implements SQLiteConnection<OPSQLiteDatabase<Schema>>
 {
-  constructor(private connection: DB) {}
+  constructor(private connection: OPSQLiteConnection) {}
 
   execute(query: string): void {
     this.connection.execute(query);
