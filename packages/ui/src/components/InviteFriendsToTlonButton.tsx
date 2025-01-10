@@ -107,6 +107,7 @@ export function InviteFriendsToTlonButton({
     linkIsDisabled || status === 'error' || status === 'unsupported';
 
   useEffect(() => {
+    // eslint-disable-next-line
     logger.trackEvent('Invite Button Shown', { group: group?.id });
   }, []);
 

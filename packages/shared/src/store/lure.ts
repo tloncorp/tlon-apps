@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import produce from 'immer';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import create from 'zustand';
 
 import { getCurrentUserId, poke, scry, subscribeOnce } from '../api/urbit';
@@ -374,6 +374,7 @@ export function useLureLinkStatus({
   inviteServiceEndpoint: string;
   inviteServiceIsDev: boolean;
 }) {
+  const [lastLoggedStatus, setLastLoggedStatus] = useState('');
   const { supported, fetched, enabled, url, deepLinkUrl, toggle, describe } =
     useLure({
       flag,
@@ -423,17 +424,25 @@ export function useLureLinkStatus({
     return 'ready';
   }, [supported, fetched, enabled, url, checked, deepLinkUrl, good, flag]);
 
-  if (status === 'error') {
-    lureLogger.trackEvent(AnalyticsEvent.InviteError, {
-      context: 'useLureLinkStatus has error status',
-      inviteInfo,
-    });
-  } else {
-    lureLogger.trackEvent(AnalyticsEvent.InviteDebug, {
-      context: 'useLureLinkStatus log',
-      status,
-      inviteInfo,
-    });
+  // prevent over zealous logging
+  const statusKey = useMemo(() => {
+    return `${status}-${fetched}-${checked}`;
+  }, [status, fetched, checked]);
+
+  if (statusKey !== lastLoggedStatus) {
+    if (status === 'error') {
+      lureLogger.trackEvent(AnalyticsEvent.InviteError, {
+        context: 'useLureLinkStatus has error status',
+        inviteInfo,
+      });
+    } else {
+      lureLogger.trackEvent(AnalyticsEvent.InviteDebug, {
+        context: 'useLureLinkStatus log',
+        status,
+        inviteInfo,
+      });
+    }
+    setLastLoggedStatus(statusKey);
   }
 
   return { status, shareUrl: deepLinkUrl, toggle, describe };
