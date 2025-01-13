@@ -72,11 +72,6 @@ const App = () => {
     const blockedOnSignup = currentlyOnboarding;
     const blockedOnLoginHosted =
       haveHostedLogin && (!hostedAccountInitialized || !hostedNodeRunning);
-    console.log(`blocked on login hosted`, {
-      haveHostedLogin,
-      hostedAccountInitialized,
-      hostedNodeRunning,
-    });
     const blockedOnLoginSelfHosted = finishingSelfHostedLogin;
     return (
       isAuthenticated &&
