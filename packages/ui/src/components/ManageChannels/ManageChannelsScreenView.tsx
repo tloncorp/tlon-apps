@@ -330,9 +330,40 @@ export function ManageChannelsScreenView({
         type: c.type,
       })),
     }));
+    const currentTotalChannels = sections.reduce(
+      (acc, section) => acc + section.channels.length,
+      0
+    );
+    const newTotalChannels = newNavSections.reduce(
+      (acc, section) => acc + section.channels.length,
+      0
+    );
 
-    // Only update if the total number of sections have changed
+    // Only update local state if the total number of sections have changed
+    // OR if a newly created channel has been added to the default section
+    // OR if a channel has been deleted
     if (newNavSections.length === sections.length) {
+      if (newTotalChannels !== currentTotalChannels) {
+        // Check if a new channel has been added to the default section
+        if (
+          newNavSections.some(
+            (s) =>
+              s.id === 'default' &&
+              s.channels.length >
+                sections.find((s) => s.id === 'default')!.channels.length
+          )
+        ) {
+          setSections(newNavSections);
+        }
+        // Check if a channel has been deleted
+        if (newTotalChannels < currentTotalChannels) {
+          console.log('Channel deleted');
+          setSections(newNavSections);
+        }
+      }
+
+      // No changes to the number of sections or channels. No-op because
+      // we don't want to re-render the UI unnecessarily
       return;
     }
 
