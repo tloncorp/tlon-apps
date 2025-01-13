@@ -17,6 +17,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { OTPInput } from '../../components/OnboardingInputs';
+import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { useOnboardingContext } from '../../lib/OnboardingContext';
 import { useSignupContext } from '../../lib/signupContext';
@@ -30,14 +31,13 @@ const PHONE_CODE_LENGTH = 6;
 const logger = createDevLogger('CheckOTP', true);
 
 export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
-  const store = useStore();
   const [otp, setOtp] = useState<string[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { hostingApi } = useOnboardingContext();
   const signupContext = useSignupContext();
   const signupParams = useSignupParams();
-  const { setShip } = useShip();
+  const { handleLogin } = useOnboardingHelpers();
   const { otpMethod, mode } = params;
   const recaptcha = useRecaptcha();
   const codeLength =
@@ -107,114 +107,132 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
     ]
   );
 
-  const handleLogin = useCallback(
-    async (otp: string) => {
-      console.log(`bl: checking otp code: ${otp}`);
+  // const handleLogin = useCallback(
+  //   async (otp: string) => {
+  //     const eulaAgreed = await storage.eulaAgreed.getValue();
+  //     if (!eulaAgreed) {
+  //       throw new Error(
+  //         'Please agree to the End User License Agreement to continue.'
+  //       );
+  //     }
 
-      const maybeAccountIssue = await store.logInHostedUser({
-        otp,
-        ...accountCreds,
-      });
-      if (maybeAccountIssue) {
-        switch (maybeAccountIssue) {
-          // If the account has no assigned ship, treat it as a signup
-          case store.HostingAccountIssue.NoAssignedShip:
-            signupContext.setOnboardingValues(accountCreds);
-            navigation.navigate('ReserveShip');
-            break;
-          case store.HostingAccountIssue.RequiresVerification:
-            // TODO: redirect to verification
-            break;
-        }
-      }
+  //     // Step 1: Attempt login and handle account issues
+  //     const maybeAccountIssue = await store.logInHostedUser({
+  //       otp,
+  //       ...accountCreds,
+  //     });
+  //     if (maybeAccountIssue) {
+  //       switch (maybeAccountIssue) {
+  //         // If the account has no assigned ship, treat it as a signup
+  //         case store.HostingAccountIssue.NoAssignedShip:
+  //           signupContext.setOnboardingValues(accountCreds);
+  //           navigation.navigate('ReserveShip');
+  //           break;
+  //         case store.HostingAccountIssue.RequiresVerification:
+  //           // TODO: redirect to verification
+  //           break;
+  //       }
+  //     }
 
-      const nodeStatus = await store.checkHostingNodeStatus();
-      if (nodeStatus !== HostedNodeStatus.Running) {
-        navigation.navigate('GettingNodeReadyScreen', {
-          waitType: nodeStatus,
-        });
-      }
+  //     // Step 2: Verify node status
+  //     const nodeStatus = await store.checkHostingNodeStatus();
+  //     if (nodeStatus !== HostedNodeStatus.Running) {
+  //       navigation.navigate('GettingNodeReadyScreen', {
+  //         waitType: nodeStatus,
+  //       });
+  //     }
 
-      ///////////////////////
+  //     // Step 3: Authenticate with node
+  //     const shipInfo = await store.authenticateWithReadyNode();
+  //     if (!shipInfo) {
+  //       logger.trackError(AnalyticsEvent.LoginAnomaly, {
+  //         context: 'Failed to authenticate.',
+  //       });
+  //       throw new Error(
+  //         'Could not authenticate with your P2P node, please try again.'
+  //       );
+  //     }
 
-      const user = await hostingApi.logInHostingUser({
-        otp,
-        ...accountCreds,
-      });
+  //     ///////////////////////
 
-      logger.trackEvent('Authenticated with hosting', accountCreds);
-      db.haveHostedLogin.setValue(true);
+  //     const user = await hostingApi.logInHostingUser({
+  //       otp,
+  //       ...accountCreds,
+  //     });
 
-      console.log(`bl: got user`, user);
-      if (user.ships.length > 0) {
-        db.hostedAccountIsInitialized.setValue(true);
-        const nodeId = user.ships[0];
-        db.hostedUserNodeId.setValue(nodeId);
+  //     logger.trackEvent('Authenticated with hosting', accountCreds);
+  //     db.haveHostedLogin.setValue(true);
 
-        const shipsWithStatus = await hostingApi.getShipsWithStatus([nodeId]);
-        if (shipsWithStatus) {
-          const { status, shipId } = shipsWithStatus;
-          if (status === 'Ready') {
-            const { code: accessCode } =
-              await hostingApi.getShipAccessCode(shipId);
-            const shipUrl = getShipUrl(shipId);
-            const authCookie = await getLandscapeAuthCookie(
-              shipUrl,
-              accessCode
-            );
-            if (authCookie) {
-              if (await storage.eulaAgreed.getValue()) {
-                setShip({
-                  ship: shipId,
-                  shipUrl,
-                  authCookie,
-                  authType: 'hosted',
-                });
+  //     console.log(`bl: got user`, user);
+  //     if (user.ships.length > 0) {
+  //       db.hostedAccountIsInitialized.setValue(true);
+  //       const nodeId = user.ships[0];
+  //       db.hostedUserNodeId.setValue(nodeId);
 
-                const hasSignedUp = await storage.didSignUp.getValue();
-                if (!hasSignedUp) {
-                  logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
-                }
-              } else {
-                throw new Error(
-                  'Please agree to the End User License Agreement to continue.'
-                );
-              }
-            } else {
-              throw new Error(
-                `Sorry, we couldn't log you into your Tlon account.`
-              );
-            }
-          } else {
-            logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
-              context: 'User logged in, but node is not running',
-              ...accountCreds,
-            });
-            navigation.navigate('GettingNodeReadyScreen', {
-              waitType: 'Paused',
-            });
-          }
-        } else {
-          throw new Error(
-            "Sorry, we couldn't find an active Tlon ship for your account."
-          );
-        }
-      } else {
-        logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
-          context: 'User has no assigned node',
-          ...accountCreds,
-        });
-        signupContext.setOnboardingValues({
-          phoneNumber:
-            otpMethod === 'phone' ? signupContext.phoneNumber! : undefined,
-          email: otpMethod === 'email' ? signupContext.email! : undefined,
-          // hostingUser: user,
-        });
-        navigation.navigate('ReserveShip');
-      }
-    },
-    [accountCreds, hostingApi, navigation, otpMethod, setShip, signupContext]
-  );
+  //       const shipsWithStatus = await hostingApi.getShipsWithStatus([nodeId]);
+  //       if (shipsWithStatus) {
+  //         const { status, shipId } = shipsWithStatus;
+  //         if (status === 'Ready') {
+  //           const { code: accessCode } =
+  //             await hostingApi.getShipAccessCode(shipId);
+  //           const shipUrl = getShipUrl(shipId);
+  //           const authCookie = await getLandscapeAuthCookie(
+  //             shipUrl,
+  //             accessCode
+  //           );
+  //           if (authCookie) {
+  //             if (await storage.eulaAgreed.getValue()) {
+  //               setShip({
+  //                 ship: shipId,
+  //                 shipUrl,
+  //                 authCookie,
+  //                 authType: 'hosted',
+  //               });
+
+  //               const hasSignedUp = await storage.didSignUp.getValue();
+  //               if (!hasSignedUp) {
+  //                 logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
+  //               }
+  //             } else {
+  //               throw new Error(
+  //                 'Please agree to the End User License Agreement to continue.'
+  //               );
+  //             }
+  //           } else {
+  //             throw new Error(
+  //               `Sorry, we couldn't log you into your Tlon account.`
+  //             );
+  //           }
+  //         } else {
+  //           logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+  //             context: 'User logged in, but node is not running',
+  //             ...accountCreds,
+  //           });
+  //           navigation.navigate('GettingNodeReadyScreen', {
+  //             waitType: 'Paused',
+  //           });
+  //         }
+  //       } else {
+  //         throw new Error(
+  //           "Sorry, we couldn't find an active Tlon ship for your account."
+  //         );
+  //       }
+  //     } else {
+  //       logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+  //         context: 'User has no assigned node',
+  //         ...accountCreds,
+  //       });
+  //       signupContext.setOnboardingValues({
+  //         phoneNumber:
+  //           otpMethod === 'phone' ? signupContext.phoneNumber! : undefined,
+  //         email: otpMethod === 'email' ? signupContext.email! : undefined,
+  //         // hostingUser: user,
+  //       });
+  //       navigation.navigate('ReserveShip');
+  //     }
+  //   },
+  //   [accountCreds, hostingApi, navigation, otpMethod, setShip, signupContext]
+  // );
 
   const handleSubmit = useCallback(
     async (code: string) => {
@@ -222,16 +240,15 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
       await storage.eulaAgreed.setValue(true);
       try {
         if (mode === 'signup') {
-          const user = await handleSignup(code);
-          // signupContext.setOnboardingValues({ hostingUser: user });
+          await handleSignup(code);
           signupContext.kickOffBootSequence();
-          navigation.navigate('SetNickname', { user });
+          navigation.navigate('SetNickname');
         } else {
-          await handleLogin(code);
+          await handleLogin({ otp: code, ...accountCreds });
         }
       } catch (e) {
         setError(e.message);
-        logger.trackError(`Error submitting OTP during ${mode}`, {
+        logger.trackError(`Error Logging In`, {
           errorMessage: e.message,
           errorStack: e.stack,
         });
@@ -239,7 +256,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         setIsSubmitting(false);
       }
     },
-    [handleLogin, handleSignup, mode, navigation, signupContext]
+    [accountCreds, handleLogin, handleSignup, mode, navigation, signupContext]
   );
 
   const handleCodeChanged = useCallback(
@@ -281,6 +298,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
     } catch (err) {
       if (err instanceof HostingError) {
         if (err.details.status === 429) {
+          logger.trackEvent('OTP re-request rate limited');
           setError('Must wait before requesting another code.');
         }
       } else {

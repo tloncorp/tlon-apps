@@ -10,6 +10,7 @@ import {
   OnboardingTextBlock,
   ScreenHeader,
   View,
+  useStore,
 } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
@@ -27,6 +28,7 @@ export function GettingNodeReadyScreen({
   route: { params },
 }: Props) {
   const isFocused = useIsFocused();
+  const store = useStore();
   const { setShip } = useShip();
 
   useEffect(() => {
@@ -42,15 +44,11 @@ export function GettingNodeReadyScreen({
         const bootedAtTime = Date.now();
         await withRetry(
           async () => {
-            const nodeId = await db.hostedUserNodeId.getValue();
-            const auth = await BootHelpers.authenticateNode(nodeId!);
-            const ship = getShipFromCookie(auth.authCookie);
-            setShip({
-              ship,
-              shipUrl: auth.nodeUrl,
-              authCookie: auth.authCookie,
-              authType: 'hosted',
-            });
+            const shipInfo = await store.authenticateWithReadyNode();
+            if (!shipInfo) {
+              throw new Error('Failed to authenticate with node');
+            }
+            setShip(shipInfo);
           },
           { numOfAttempts: 20 }
         );

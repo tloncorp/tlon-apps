@@ -14,6 +14,7 @@ export enum AnalyticsEvent {
   ChannelTemplateSetup = 'Channel Created from Template',
   ChannelLoadComplete = 'Channel Load Complete',
   SessionInitialized = 'Session Initialized',
+  LoginDebug = 'Login Debug',
   LoginAnomaly = 'Login Anomaly',
   UnexpectedHostingResponse = 'Unexpected Hosting API Response',
   NodeWaitReport = 'Node Wait Report',

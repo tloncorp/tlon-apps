@@ -14,11 +14,13 @@ export enum HostingAccountIssue {
 }
 
 export async function logInHostedUser({
-  otp,
   email,
   phoneNumber,
+  otp,
+  password,
 }: {
-  otp: string;
+  otp?: string;
+  password?: string;
   email?: string;
   phoneNumber?: string;
 }): Promise<HostingAccountIssue | undefined> {
@@ -26,9 +28,10 @@ export async function logInHostedUser({
     throw new Error('Either email or password must be provided');
   }
 
-  logger.log('logging in hosted user', { email, phoneNumber });
+  logger.log('logging in hosted user', { email, phoneNumber, otp, password });
   const user = await api.logInHostingUser({
     otp,
+    password,
     email,
     phoneNumber,
   });
@@ -70,6 +73,14 @@ export async function checkHostingNodeStatus(): Promise<domain.HostedNodeStatus>
     const nodeStatus = await withRetry(() => api.getNodeStatus(nodeId), {
       numOfAttempts: 5,
     });
+    if (nodeStatus === domain.HostedNodeStatus.Running) {
+      await db.hostedNodeIsRunning.setValue(true);
+    }
+    logger.trackEvent(AnalyticsEvent.LoginDebug, {
+      context: 'Checked node status',
+      nodeId,
+      nodeStatus,
+    });
     return nodeStatus;
   } catch (e) {
     logger.trackError(AnalyticsEvent.LoginAnomaly, {
@@ -92,11 +103,13 @@ export async function authenticateWithReadyNode(): Promise<db.ShipInfo | null> {
 
   let accessCode = null;
   try {
-    const result = await api.getShipAccessCode(nodeId);
+    const result = await withRetry(() => api.getShipAccessCode(nodeId), {
+      numOfAttempts: 5,
+    });
     accessCode = result.code;
   } catch (e) {
     logger.trackError(AnalyticsEvent.LoginAnomaly, {
-      context: 'Failed to get access code',
+      context: 'Failed to get access code after 5 attempts',
       errorMessage: e.message,
       errorStack: e.stack,
     });
@@ -106,16 +119,24 @@ export async function authenticateWithReadyNode(): Promise<db.ShipInfo | null> {
   const nodeUrl = logic.getShipUrl(nodeId);
   let authCookie = null;
   try {
-    authCookie = await api.getLandscapeAuthCookie(nodeUrl, accessCode);
+    authCookie = await withRetry(
+      () => api.getLandscapeAuthCookie(nodeUrl, accessCode),
+      { numOfAttempts: 5 }
+    );
   } catch (e) {
-    logger.trackError(AnalyticsEvent.LoginAnomaly, {
-      context: 'Failed to get Landscape auth cookie',
+    logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+      context: 'Failed to get Landscape auth cookie after 5 attempts',
       errorMessage: e.message,
       errorStack: e.stack,
     });
   }
 
   if (authCookie) {
+    logger.trackEvent(AnalyticsEvent.LoginDebug, {
+      context: 'Authenticated with node',
+      nodeId,
+      nodeUrl,
+    });
     return {
       ship: nodeId,
       shipUrl: nodeUrl,
@@ -124,5 +145,8 @@ export async function authenticateWithReadyNode(): Promise<db.ShipInfo | null> {
     };
   }
 
+  logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+    context: 'Failed to authenticate with ready node',
+  });
   return null;
 }

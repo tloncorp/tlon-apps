@@ -17,7 +17,7 @@ import { withRetry } from '../logic';
 const logger = createDevLogger('hostingApi', true);
 
 interface HostingResponseErrorDetails {
-  status: number;
+  status: number | null;
   method: string;
   path: string;
 }
@@ -72,7 +72,27 @@ const hostingFetch = async <T extends object>(
   path: string,
   init?: RequestInit
 ): Promise<T> => {
-  const response = await hostingFetchResponse(path, init);
+  let response = null;
+  try {
+    response = await hostingFetchResponse(path, init);
+  } catch (e) {
+    const hostingErr = new HostingError(
+      e.name && e.name === 'AbortError'
+        ? 'Request timed out'
+        : 'Unknown error occurred',
+      {
+        method: init?.method ?? 'GET',
+        path,
+        status: null,
+      }
+    );
+    logger.trackEvent(AnalyticsEvent.UnexpectedHostingResponse, {
+      details: hostingErr.details,
+      errorMessage: hostingErr.message,
+      errorStack: hostingErr.stack,
+    });
+    throw hostingErr;
+  }
   const responseText = await response.text();
 
   if (__DEV__) {
@@ -183,6 +203,8 @@ export const signUpHostingUser = async (params: {
       'Content-Type': 'application/json',
     },
   });
+
+  // TODO: we should write the cookie and userId to kv here like we do in login
 };
 
 export const logInHostingUser = async (params: {

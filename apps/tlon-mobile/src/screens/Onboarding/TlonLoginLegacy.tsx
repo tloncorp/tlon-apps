@@ -29,7 +29,7 @@ import {
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
-import { useSignupContext } from '../../lib/signupContext';
+import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'TlonLogin'>;
@@ -45,7 +45,6 @@ const logger = createDevLogger('TlonLoginScreen', true);
 export const TlonLoginLegacy = ({ navigation }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
-  const signupContext = useSignupContext();
   const {
     control,
     setFocus,
@@ -61,7 +60,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
     },
     mode: 'onChange',
   });
-  const { setShip } = useShip();
+  const { handleLogin } = useOnboardingHelpers();
 
   const [passwordVisible, setPasswordVisible] = useState(false);
 
@@ -76,91 +75,20 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
 
   const onSubmit = handleSubmit(async (params) => {
     setIsSubmitting(true);
-
     await storage.eulaAgreed.setValue(true);
 
     try {
-      const user = await logInHostingUser(params);
-      if (user.verified) {
-        if (user.ships.length > 0) {
-          const shipsWithStatus = await getShipsWithStatus(user.ships);
-          if (shipsWithStatus) {
-            const { status, shipId } = shipsWithStatus;
-            if (status === 'Ready') {
-              const { code: accessCode } = await getShipAccessCode(shipId);
-              const shipUrl = getShipUrl(shipId);
-              const authCookie = await getLandscapeAuthCookie(
-                shipUrl,
-                accessCode
-              );
-              if (authCookie) {
-                if (await storage.eulaAgreed.getValue()) {
-                  setShip({
-                    ship: shipId,
-                    shipUrl,
-                    authCookie,
-                    authType: 'hosted',
-                  });
-
-                  const hasSignedUp = await storage.didSignUp.getValue();
-                  if (!hasSignedUp) {
-                    logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
-                  }
-                } else {
-                  setRemoteError(
-                    'Please agree to the End User License Agreement to continue.'
-                  );
-                }
-              } else {
-                setRemoteError(
-                  "Sorry, we couldn't log you into your Tlon account."
-                );
-              }
-            } else {
-              navigation.navigate('ReserveShip', { user });
-            }
-          } else {
-            setRemoteError(
-              "Sorry, we couldn't find an active Tlon ship for your account."
-            );
-          }
-        } else {
-          signupContext.setOnboardingValues({
-            email: params.email,
-            password: params.password,
-          });
-          navigation.navigate('ReserveShip', { user });
-        }
-      } else if (user.requirePhoneNumberVerification && !user.phoneNumber) {
-        signupContext.setOnboardingValues({
-          email: params.email,
-          password: params.password,
-        });
-        navigation.navigate('RequestPhoneVerify', { user });
-      } else {
-        if (user.requirePhoneNumberVerification) {
-          await requestPhoneVerify(user.id, user.phoneNumber ?? '');
-        }
-
-        signupContext.setOnboardingValues({
-          email: params.email,
-          password: params.password,
-        });
-        navigation.navigate('CheckVerify', {
-          user,
-        });
-      }
-    } catch (err: any) {
-      if ('name' in err && err.name === 'AbortError') {
-        setRemoteError(
-          'Sorry, we could not connect to the server. Please try again later.'
-        );
-      } else {
-        setRemoteError((err as Error).message);
-      }
+      await handleLogin(params);
+    } catch (err) {
+      logger.trackError(AnalyticsEvent.LoginAnomaly, {
+        context: 'Failed legacy login',
+        errorMessage: err.message,
+        errorStack: err.stack,
+      });
+      setRemoteError(err.message);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
   });
 
   return (

@@ -26,12 +26,7 @@ type FormData = {
   notificationToken?: string | undefined;
 };
 
-export const SetNicknameScreen = ({
-  navigation,
-  route: {
-    params: { user },
-  },
-}: Props) => {
+export const SetNicknameScreen = ({ navigation }: Props) => {
   const theme = useTheme();
 
   const facesImage = theme.dark
@@ -59,9 +54,7 @@ export const SetNicknameScreen = ({
       userWasReadyAt: Date.now(),
     });
 
-    navigation.push('ReserveShip', {
-      user,
-    });
+    navigation.push('ReserveShip');
   });
 
   // Disable back button

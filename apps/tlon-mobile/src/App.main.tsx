@@ -72,6 +72,11 @@ const App = () => {
     const blockedOnSignup = currentlyOnboarding;
     const blockedOnLoginHosted =
       haveHostedLogin && (!hostedAccountInitialized || !hostedNodeRunning);
+    console.log(`blocked on login hosted`, {
+      haveHostedLogin,
+      hostedAccountInitialized,
+      hostedNodeRunning,
+    });
     const blockedOnLoginSelfHosted = finishingSelfHostedLogin;
     return (
       isAuthenticated &&
@@ -79,7 +84,14 @@ const App = () => {
       !blockedOnLoginHosted &&
       !blockedOnLoginSelfHosted
     );
-  }, [isAuthenticated, currentlyOnboarding, finishingSelfHostedLogin]);
+  }, [
+    currentlyOnboarding,
+    haveHostedLogin,
+    hostedAccountInitialized,
+    hostedNodeRunning,
+    finishingSelfHostedLogin,
+    isAuthenticated,
+  ]);
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
