@@ -15,6 +15,7 @@ export enum AnalyticsEvent {
   ChannelLoadComplete = 'Channel Load Complete',
   SessionInitialized = 'Session Initialized',
   LoginAnomaly = 'Login Anomaly',
+  UnexpectedHostingResponse = 'Unexpected Hosting API Response',
   NodeWaitReport = 'Node Wait Report',
   InviteError = 'Invite Error',
   InviteDebug = 'Invite Debug',

@@ -56,8 +56,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     resetValue: resetValues,
   } = signupData.useStorageItem();
   const [reviveCheckComplete, setReviveCheckComplete] = useState(false);
-  const { bootPhase, bootReport, kickOffBootSequence } =
-    useBootSequence(values);
+  const { bootPhase, bootReport, kickOffBootSequence } = useBootSequence();
   const postHog = usePostHog();
 
   const setOnboardingValues = useCallback(

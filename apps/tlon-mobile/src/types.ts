@@ -13,14 +13,16 @@ export type OnboardingStackParamList = {
   JoinWaitList: { email?: string };
   RequestPhoneVerify: { user: User };
   CheckVerify: { user: User };
-  ReserveShip: { user: User };
+  ReserveShip: undefined;
   SetNickname: { user: User };
   SetTelemetry: undefined;
   TlonLogin: { initialLoginMethod?: 'email' | 'phone' } | undefined;
   TlonLoginLegacy: undefined;
   ShipLogin: undefined;
   ResetPassword: { email?: string };
-  GettingNodeReadyScreen: { waitType?: 'paused' | 'suspended' | 'unknown' };
+  GettingNodeReadyScreen: {
+    waitType?: 'Paused' | 'Suspended' | 'Unknown';
+  };
 };
 
 export type User = {

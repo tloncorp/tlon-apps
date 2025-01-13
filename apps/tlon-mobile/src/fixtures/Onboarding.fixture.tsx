@@ -1,7 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
+import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
 import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
 import { group } from '@tloncorp/app/fixtures/fakeData';
-import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
 import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { Theme } from '@tloncorp/ui';
 import { PropsWithChildren, useState } from 'react';
@@ -185,7 +185,6 @@ export default {
     <SingleScreenFixture
       routeName="ReserveShip"
       Component={ReserveShipScreen}
-      params={{ user: sampleUser }}
     />
   ),
   SetNickname: (

@@ -30,3 +30,10 @@ export type BootPhase =
 export type HostedShipStatus = {
   phase: BootPhase;
 };
+
+export enum HostedNodeStatus {
+  Running = 'Running',
+  Paused = 'Paused',
+  Suspended = 'Suspended',
+  Unknown = 'Unknown',
+}

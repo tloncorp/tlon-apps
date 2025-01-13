@@ -7,3 +7,4 @@ export * from './activity';
 export * from './branch';
 export * from './deeplinks';
 export * from './tiptap';
+export * from './hosting';

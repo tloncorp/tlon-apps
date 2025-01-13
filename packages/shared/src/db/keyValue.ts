@@ -109,7 +109,6 @@ export const benefitsSheetDismissed = createStorageItem<boolean>({
 export const signupData = createStorageItem<SignupParams>({
   key: 'signupData',
   defaultValue: {
-    hostingUser: null,
     reservedNodeId: null,
     bootPhase: NodeBootPhase.IDLE,
   },

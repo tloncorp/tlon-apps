@@ -18,4 +18,5 @@ export * from './contactActions';
 export * from './clientActions';
 export * from './lure';
 export * from './inviteActions';
+export * from './hostingActions';
 export { useChannelContext } from './useChannelContext';

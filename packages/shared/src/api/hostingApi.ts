@@ -1,7 +1,8 @@
-import { createDevLogger, withRetry } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
 import { Buffer } from 'buffer';
 
+import * as db from '../db';
+import { createDevLogger } from '../debug';
+import * as domain from '../domain';
 import {
   AnalyticsEvent,
   BootPhase,
@@ -11,17 +12,27 @@ import {
   User,
   getConstants,
 } from '../domain';
+import { withRetry } from '../logic';
 
 const logger = createDevLogger('hostingApi', true);
 
+interface HostingResponseErrorDetails {
+  status: number;
+  method: string;
+  path: string;
+}
 export class HostingError extends Error {
-  code: number;
+  details: HostingResponseErrorDetails;
   shouldTrack: boolean;
 
-  constructor(message: string, code: number, shouldTrack: boolean = true) {
+  constructor(
+    message: string,
+    details: HostingResponseErrorDetails,
+    shouldTrack: boolean = true
+  ) {
     super(message);
     this.name = 'HostingError';
-    this.code = code;
+    this.details = details;
     this.shouldTrack = shouldTrack;
   }
 }
@@ -72,9 +83,20 @@ const hostingFetch = async <T extends object>(
     ? { message: 'Empty response' }
     : (JSON.parse(responseText) as { message: string } | T);
   if (!response.ok) {
-    throw new Error(
-      'message' in result ? result.message : 'An unknown error has occurred.'
+    const err = new HostingError(
+      'message' in result ? result.message : 'An unknown error has occurred.',
+      {
+        method: init?.method ?? 'GET',
+        path,
+        status: response.status,
+      }
     );
+    logger.trackEvent(AnalyticsEvent.UnexpectedHostingResponse, {
+      details: err.details,
+      errorMessage: err.message,
+      errorStack: err.stack,
+    });
+    throw err;
   }
 
   return result as T;
@@ -241,7 +263,7 @@ export const requestSignupOtp = async ({
     const WAIT_TO_RESEND = 429;
     const hostingError = new HostingError(
       'Failed to send signup OTP',
-      response.status,
+      { status: response.status, method: 'POST', path: '/v1/request-otp' },
       [ALREADY_IN_USE, WAIT_TO_RESEND].includes(response.status)
     );
 
@@ -290,7 +312,7 @@ export const requestLoginOtp = async ({
     const WAIT_TO_RESEND = 429;
     const hostingError = new HostingError(
       'Failed to send login OTP',
-      response.status,
+      { status: response.status, method: 'POST', path: '/v1/request-otp' },
       [WAIT_TO_RESEND].includes(response.status)
     );
 
@@ -377,6 +399,7 @@ export const getShipsWithStatus = async (
   | undefined
 > => {
   const shipResults = await Promise.allSettled(ships.map(getShip));
+  console.log(`bl: ship results`, shipResults);
   const shipStatuses = shipResults.map((result) =>
     result.status === 'fulfilled'
       ? result.value.status?.phase ?? 'Unknown'
@@ -393,7 +416,7 @@ export const getShipsWithStatus = async (
     };
   }
 
-  // If user has a booted ship, resume it
+  // If user has a paused ship, resume it
   const suspendedIndex = shipStatuses.indexOf('Suspended');
   if (suspendedIndex >= 0) {
     const shipId = ships[suspendedIndex];
@@ -401,7 +424,7 @@ export const getShipsWithStatus = async (
     return { status: 'Suspended', shipId };
   }
 
-  // If user has a halted ship, boot it
+  // If user has a suspended ship, boot it
   const unknownIndex = shipStatuses.indexOf('Unknown');
   if (unknownIndex >= 0) {
     const shipId = ships[unknownIndex];
@@ -410,6 +433,39 @@ export const getShipsWithStatus = async (
   }
 
   return undefined;
+};
+
+export const getNodeStatus = async (
+  nodeId: string
+): Promise<domain.HostedNodeStatus> => {
+  let result = null;
+  try {
+    result = await getShip(nodeId);
+    console.log(`bl: ship status result`, result);
+  } catch (e) {
+    throw new Error('Hosting API call failed');
+  }
+
+  const shipStatus = result.status?.phase ?? 'Unknown';
+
+  // If user has a ready ship, let's use it
+  if (shipStatus === 'Ready') {
+    return domain.HostedNodeStatus.Running;
+  }
+
+  // If user has a paused ship, resume it
+  if (shipStatus === 'Suspended') {
+    await resumeShip(nodeId);
+    return domain.HostedNodeStatus.Paused;
+  }
+
+  // If user has a suspended ship, boot it
+  if (shipStatus === 'Unknown') {
+    await bootShip(nodeId);
+    return domain.HostedNodeStatus.Suspended;
+  }
+
+  return domain.HostedNodeStatus.Unknown;
 };
 
 export const inviteShipWithLure = async (params: {

@@ -51,7 +51,8 @@ export const CheckVerifyScreen = ({
           actionName: 'Verification Submitted',
         });
 
-        signupContext.setOnboardingValues({ hostingUser: user });
+        // TODO: !!!! make sure this gets written to kv earlier
+        // signupContext.setOnboardingValues({ hostingUser: user });
         signupContext.kickOffBootSequence();
         navigation.navigate('SetNickname', { user });
       } catch (err) {

@@ -3,12 +3,16 @@ import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import { HostingError } from '@tloncorp/shared/api';
+import {
+  AnalyticsEvent,
+  HostedNodeStatus,
+  createDevLogger,
+} from '@tloncorp/shared';
+import { HostingError, logInHostingUser } from '@tloncorp/shared/api';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
-import { ScreenHeader, TlonText, View, YStack } from '@tloncorp/ui';
+import { ScreenHeader, TlonText, View, YStack, useStore } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
@@ -26,6 +30,7 @@ const PHONE_CODE_LENGTH = 6;
 const logger = createDevLogger('CheckOTP', true);
 
 export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
+  const store = useStore();
   const [otp, setOtp] = useState<string[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -94,23 +99,46 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
       }
     },
     [
+      accountCreds,
       hostingApi,
-      otpMethod,
-      params.email,
-      params.phoneNumber,
       recaptcha,
-      signupContext.email,
-      signupContext.phoneNumber,
       signupParams.lureId,
       signupParams.priorityToken,
     ]
   );
 
   const handleLogin = useCallback(
-    async (otpCode: string) => {
-      console.log(`bl: checking otp code: ${otpCode}`);
+    async (otp: string) => {
+      console.log(`bl: checking otp code: ${otp}`);
+
+      const maybeAccountIssue = await store.logInHostedUser({
+        otp,
+        ...accountCreds,
+      });
+      if (maybeAccountIssue) {
+        switch (maybeAccountIssue) {
+          // If the account has no assigned ship, treat it as a signup
+          case store.HostingAccountIssue.NoAssignedShip:
+            signupContext.setOnboardingValues(accountCreds);
+            navigation.navigate('ReserveShip');
+            break;
+          case store.HostingAccountIssue.RequiresVerification:
+            // TODO: redirect to verification
+            break;
+        }
+      }
+
+      const nodeStatus = await store.checkHostingNodeStatus();
+      if (nodeStatus !== HostedNodeStatus.Running) {
+        navigation.navigate('GettingNodeReadyScreen', {
+          waitType: nodeStatus,
+        });
+      }
+
+      ///////////////////////
+
       const user = await hostingApi.logInHostingUser({
-        otp: otpCode,
+        otp,
         ...accountCreds,
       });
 
@@ -163,7 +191,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
               ...accountCreds,
             });
             navigation.navigate('GettingNodeReadyScreen', {
-              waitType: 'paused',
+              waitType: 'Paused',
             });
           }
         } else {
@@ -180,20 +208,12 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
           phoneNumber:
             otpMethod === 'phone' ? signupContext.phoneNumber! : undefined,
           email: otpMethod === 'email' ? signupContext.email! : undefined,
-          hostingUser: user,
+          // hostingUser: user,
         });
-        navigation.navigate('ReserveShip', { user });
+        navigation.navigate('ReserveShip');
       }
     },
-    [
-      hostingApi,
-      navigation,
-      otpMethod,
-      params.email,
-      params.phoneNumber,
-      setShip,
-      signupContext,
-    ]
+    [accountCreds, hostingApi, navigation, otpMethod, setShip, signupContext]
   );
 
   const handleSubmit = useCallback(
@@ -203,7 +223,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
       try {
         if (mode === 'signup') {
           const user = await handleSignup(code);
-          signupContext.setOnboardingValues({ hostingUser: user });
+          // signupContext.setOnboardingValues({ hostingUser: user });
           signupContext.kickOffBootSequence();
           navigation.navigate('SetNickname', { user });
         } else {
@@ -260,7 +280,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
       }
     } catch (err) {
       if (err instanceof HostingError) {
-        if (err.code === 429) {
+        if (err.details.status === 429) {
           setError('Must wait before requesting another code.');
         }
       } else {

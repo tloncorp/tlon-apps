@@ -35,11 +35,7 @@ interface BootSequenceReport {
   seconds if we're stuck processing invites, but the node is otherwise ready. Exposes the current boot 
   phase to the caller.
 */
-export function useBootSequence({
-  hostingUser,
-}: {
-  hostingUser: { id: string } | null;
-}) {
+export function useBootSequence() {
   const telemetry = usePosthog();
   const { setShip } = useShip();
   const connectionStatus = store.useConnectionStatus();
@@ -62,7 +58,8 @@ export function useBootSequence({
   }, [bootPhase]);
 
   const runBootPhase = useCallback(async (): Promise<NodeBootPhase> => {
-    if (!hostingUser) {
+    const hostingUserId = await db.hostingUserId.getValue();
+    if (!hostingUserId) {
       logger.crumb('no hosting user found, skipping');
       return bootPhase;
     }
@@ -71,7 +68,7 @@ export function useBootSequence({
     // RESERVING: reserve a node for the hosting account, or get one if it already exists
     //
     if (bootPhase === NodeBootPhase.RESERVING) {
-      const reservedNodeId = await BootHelpers.reserveNode(hostingUser.id);
+      const reservedNodeId = await BootHelpers.reserveNode(hostingUserId);
       setReservedNodeId(reservedNodeId);
       logger.crumb(`reserved node`, reservedNodeId);
       db.hostedAccountIsInitialized.setValue(true);
@@ -248,7 +245,6 @@ export function useBootSequence({
     bootPhase,
     configureUrbitClient,
     connectionStatus,
-    hostingUser,
     lureMeta,
     reservedNodeId,
     setShip,
