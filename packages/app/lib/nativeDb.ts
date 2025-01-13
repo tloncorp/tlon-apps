@@ -68,6 +68,11 @@ export class NativeDb extends BaseDb {
   }
 
   async runMigrations() {
+    if (!this.client || !this.connection) {
+      logger.warn('runMigrations called before setupDb, ignoring');
+      return;
+    }
+
     try {
       await this.connection?.migrateClient(this.client!);
       this.connection?.execute(TRIGGER_SETUP);
