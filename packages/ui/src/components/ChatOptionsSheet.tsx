@@ -549,7 +549,7 @@ function ChatOptionsSheetContent({
         {icon}
         <ActionSheet.MainContent>
           <ListItem.Title>{title}</ListItem.Title>
-          <ListItem.Subtitle $gtSm={{ maxWidth: 100 }}>
+          <ListItem.Subtitle $gtSm={{ maxWidth: '100%' }}>
             {subtitle}
           </ListItem.Subtitle>
         </ActionSheet.MainContent>

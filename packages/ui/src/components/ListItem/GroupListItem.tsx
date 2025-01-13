@@ -1,3 +1,4 @@
+// sort-imports-ignore
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { View, isWeb } from 'tamagui';
@@ -8,8 +9,7 @@ import { Button } from '../Button';
 import { ContactName } from '../ContactNameV2';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
-import type { ListItemProps } from './ListItem';
-import { ListItem } from './ListItem';
+import { ListItem, ListItemProps } from './ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
 
 export const GroupListItem = ({
@@ -99,7 +99,6 @@ export const GroupListItem = ({
       {isWeb && !isPending && (
         <View position="absolute" right="$-2xs" top="$2xl" zIndex={1}>
           <Button
-            onPress={handleLongPress}
             borderWidth="unset"
             paddingHorizontal={0}
             marginHorizontal="$-m"

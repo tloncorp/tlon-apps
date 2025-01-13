@@ -1,10 +1,12 @@
-import { AppInvite } from '@tloncorp/shared';
+import { AnalyticsEvent, AppInvite, createDevLogger } from '@tloncorp/shared';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import * as hostingApi from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 
 import { trackOnboardingAction } from '../utils/posthog';
 import { getShipFromCookie, getShipUrl } from '../utils/ship';
+
+const logger = createDevLogger('bootHelpers', true);
 
 export enum NodeBootPhase {
   IDLE = 1,
@@ -133,9 +135,13 @@ async function getInvitedGroupAndDm(lureMeta: AppInvite | null): Promise<{
   const tlonTeam = `~wittyr-witbes`;
   const isPersonalInvite = inviteType === 'user';
   if (!inviterUserId || (!isPersonalInvite && !invitedGroupId)) {
-    throw new Error(
-      `invalid invite metadata: group[${invitedGroupId}] inviter[${inviterUserId}]`
-    );
+    logger.trackEvent(AnalyticsEvent.InviteError, {
+      message: 'invite is missing metadata',
+      context:
+        'this will prevent the group from being auto-joined, but an invite should still be delivered',
+      invite: lureMeta,
+    });
+    throw new Error('invite is missing metadata');
   }
   // use api client to see if you have pending DM and group invite
   const invitedDm = await db.getChannel({ id: inviterUserId });

@@ -16,4 +16,7 @@ export enum AnalyticsEvent {
   SessionInitialized = 'Session Initialized',
   LoginAnomaly = 'Login Anomaly',
   NodeWaitReport = 'Node Wait Report',
+  InviteError = 'Invite Error',
+  InviteDebug = 'Invite Debug',
+  InviteButtonShown = 'Invite Button Shown',
 }
