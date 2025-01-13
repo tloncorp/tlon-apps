@@ -111,6 +111,9 @@ export function NotebookPost({
       onLongPress={handleLongPress}
       pressStyle={{ backgroundColor: '$secondaryBackground' }}
       borderRadius="$l"
+      maxWidth={600}
+      width={'100%'}
+      marginHorizontal="auto"
     >
       <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
         {post.hidden ? (
