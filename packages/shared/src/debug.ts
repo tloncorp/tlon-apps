@@ -94,34 +94,46 @@ export const useDebugStore = create<DebugStore>(
       uploadLogs: async () => {
         const { logs, errorLogger, platform, appInfo, debugBreadcrumbs } =
           get();
+
         const platformInfo = await platform?.getDebugInfo();
         const debugInfo = {
           ...appInfo,
           ...platformInfo,
         };
-        const infoSize = roughMeasure(debugInfo);
-        const crumbSize = roughMeasure(debugBreadcrumbs);
-        const mappedLogs = logs.map((log) => log.message);
-        const runSize = MAX_POSTHOG_EVENT_SIZE - crumbSize - infoSize;
-        const runs = splitLogs(mappedLogs, runSize);
-        const logId = uuidv4();
 
-        for (let i = 0; i < runs.length; i++) {
-          errorLogger?.capture('debug_logs', {
+        try {
+          const infoSize = roughMeasure(debugInfo);
+          const crumbSize = roughMeasure(debugBreadcrumbs);
+          const mappedLogs = logs.map((log) => log.message);
+          const runSize = MAX_POSTHOG_EVENT_SIZE - crumbSize - infoSize;
+          const runs = splitLogs(mappedLogs, runSize);
+          const logId = uuidv4();
+
+          for (let i = 0; i < runs.length; i++) {
+            errorLogger?.capture('debug_logs', {
+              logId,
+              page: `Page ${i + 1} of ${runs.length}`,
+              logs: runs[i],
+              breadcrumbs: debugBreadcrumbs,
+              debugInfo,
+            });
+          }
+
+          set(() => ({
+            logs: [],
             logId,
-            page: `Page ${i + 1} of ${runs.length}`,
-            logs: runs[i],
-            breadcrumbs: debugBreadcrumbs,
+          }));
+
+          return logId;
+        } catch (error) {
+          errorLogger?.capture('app_error', {
             debugInfo,
+            message: 'message' in error ? error.message : JSON.stringify(error),
+            breadcrumbs: useDebugStore.getState().getBreadcrumbs(),
           });
         }
 
-        set(() => ({
-          logs: [],
-          logId,
-        }));
-
-        return logId;
+        return '';
       },
       addBreadcrumb: (crumb: Breadcrumb) => {
         set((state) => {
