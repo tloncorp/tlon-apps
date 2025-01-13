@@ -39,7 +39,9 @@ export async function sendPost({
   }
   // optimistic update
   // TODO: make author available more efficiently
+  logger.crumb('get author');
   const author = await db.getContact({ id: authorId });
+  logger.crumb('build pending post');
   const cachePost = db.buildPendingPost({
     authorId,
     author,
@@ -47,7 +49,9 @@ export async function sendPost({
     content,
     metadata,
   });
+  logger.crumb('insert channel posts');
   sync.handleAddPost(cachePost);
+  logger.crumb('done optimistic update');
   try {
     logger.crumb('sending post to backend');
     await api.sendPost({
@@ -57,7 +61,9 @@ export async function sendPost({
       metadata: metadata,
       sentAt: cachePost.sentAt,
     });
-    await sync.syncChannelMessageDelivery({ channelId: channel.id });
+    logger.crumb('sent post to backend, syncing channel message delivery');
+    sync.syncChannelMessageDelivery({ channelId: channel.id });
+    logger.crumb('done sending post');
   } catch (e) {
     logger.crumb('failed to send post');
     console.error('Failed to send post', e);
