@@ -4,6 +4,7 @@ import create from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import { getStorageMethods } from './db/getStorageMethods';
+import { AnalyticsEvent } from './logic';
 import { useLiveRef } from './logic/utilHooks';
 import { useCurrentSession } from './store/session';
 
@@ -95,28 +96,38 @@ export const useDebugStore = create<DebugStore>(
         const { logs, errorLogger, platform, appInfo, debugBreadcrumbs } =
           get();
 
+        console.log('getting debug info');
         const platformInfo = await platform?.getDebugInfo();
+        console.log('got debug info', platformInfo, appInfo);
         const debugInfo = {
           ...appInfo,
           ...platformInfo,
         };
 
         try {
+          console.log('measuring sizes');
           const infoSize = roughMeasure(debugInfo);
+          console.log('info size', infoSize);
           const crumbSize = roughMeasure(debugBreadcrumbs);
+          console.log('crumb size', crumbSize);
           const mappedLogs = logs.map((log) => log.message);
+          console.log('mapped logs', mappedLogs);
           const runSize = MAX_POSTHOG_EVENT_SIZE - crumbSize - infoSize;
+          console.log('run size', runSize);
           const runs = splitLogs(mappedLogs, runSize);
+          console.log('split logs', runs);
           const logId = uuidv4();
 
           for (let i = 0; i < runs.length; i++) {
-            errorLogger?.capture('debug_logs', {
+            console.log('capturing logs', i);
+            errorLogger?.capture(AnalyticsEvent.DebugLogs, {
               logId,
               page: `Page ${i + 1} of ${runs.length}`,
               logs: runs[i],
               breadcrumbs: debugBreadcrumbs,
               debugInfo,
             });
+            console.log('captured log', i);
           }
 
           set(() => ({
@@ -126,7 +137,7 @@ export const useDebugStore = create<DebugStore>(
 
           return logId;
         } catch (error) {
-          errorLogger?.capture('app_error', {
+          errorLogger?.capture(AnalyticsEvent.AppError, {
             debugInfo,
             message: 'message' in error ? error.message : JSON.stringify(error),
             breadcrumbs: useDebugStore.getState().getBreadcrumbs(),
@@ -475,6 +486,7 @@ function splitLogs(logs: string[], maxSize: number): string[][] {
 
   for (const log of logs) {
     const logSize = log.length;
+    console.log('log size', logSize, currentSize + logSize, maxSize);
     if (currentSize + logSize > maxSize) {
       splits.push(currentSplit);
       currentSplit = [log];
@@ -485,5 +497,5 @@ function splitLogs(logs: string[], maxSize: number): string[][] {
     currentSize += logSize;
   }
 
-  return splits;
+  return [...splits, currentSplit];
 }
