@@ -1,9 +1,8 @@
 import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import BootHelpers from '@tloncorp/app/lib/bootHelpers';
-import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { AnalyticsEvent, createDevLogger, withRetry } from '@tloncorp/shared';
+import { HostedNodeStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   ArvosDiscussing,
@@ -12,7 +11,7 @@ import {
   View,
   useStore,
 } from '@tloncorp/ui';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 
 import { OnboardingStackParamList } from '../../types';
 
@@ -22,6 +21,7 @@ type Props = NativeStackScreenProps<
 >;
 
 const logger = createDevLogger('GettingNodeReadyScreen', true);
+const RE_CHECK_INTERVAL = 10 * 1000;
 
 export function GettingNodeReadyScreen({
   navigation,
@@ -30,6 +30,29 @@ export function GettingNodeReadyScreen({
   const isFocused = useIsFocused();
   const store = useStore();
   const { setShip } = useShip();
+
+  const isNodeRunning = useCallback(async () => {
+    const nodeId = await db.hostedUserNodeId.getValue();
+    if (!nodeId) {
+      logger.trackError('Login: Missing node ID while checking if running');
+      return false;
+    }
+
+    try {
+      const status = await store.checkHostingNodeStatus();
+      if (status === HostedNodeStatus.UnderMaintenance) {
+        navigation.navigate('UnderMaintenance');
+      }
+      return status === HostedNodeStatus.Running;
+    } catch (e) {
+      logger.trackError('Login: Check node booted request failed', {
+        nodeId,
+        errorMessage: e.message,
+        errorStack: e.stack,
+      });
+      return false;
+    }
+  }, [navigation, store]);
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
@@ -62,7 +85,7 @@ export function GettingNodeReadyScreen({
           unit: 'seconds',
         });
       } else {
-        timeoutId = setTimeout(checkNode, 3000);
+        timeoutId = setTimeout(checkNode, RE_CHECK_INTERVAL);
       }
     }
 
@@ -83,31 +106,11 @@ export function GettingNodeReadyScreen({
       <ScreenHeader
         title="Getting Your Peer-to-peer Node Ready"
         backAction={() => navigation.goBack()}
+        showSessionStatus={false}
       />
       <OnboardingTextBlock marginTop="$5xl" gap="$5xl">
         <ArvosDiscussing width="100%" height={200} />
       </OnboardingTextBlock>
     </View>
   );
-}
-
-async function isNodeRunning(): Promise<boolean> {
-  const nodeId = await db.hostedUserNodeId.getValue();
-  if (!nodeId) {
-    logger.trackError('Login: Missing node ID while checking if running');
-    return false;
-  }
-
-  try {
-    const isBooted = await BootHelpers.checkNodeBooted(nodeId);
-    logger.log(`checked node booted`, { nodeId, isBooted });
-    return isBooted;
-  } catch (e) {
-    logger.trackError('Login: Check node booted request failed', {
-      nodeId,
-      errorMessage: e.message,
-      errorStack: e.stack,
-    });
-    return false;
-  }
 }

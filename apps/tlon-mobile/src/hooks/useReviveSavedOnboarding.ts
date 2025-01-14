@@ -29,6 +29,7 @@ export function useReviveSavedOnboarding() {
         { name: 'Signup' },
       ];
 
+      // TODO: fix
       const user = savedSignup.hostingUser;
       if (!user || !user.verified) {
         logger.log('needs OTP check');

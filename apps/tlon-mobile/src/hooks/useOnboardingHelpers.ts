@@ -48,19 +48,25 @@ export function useOnboardingHelpers() {
             navigation.navigate('ReserveShip');
             return;
           case store.HostingAccountIssue.RequiresVerification:
-            // TODO: redirect to verification
+            navigation.navigate('RequestPhoneVerify');
             return;
         }
       }
+
+      console.log('proceeding to step 2', maybeAccountIssue);
 
       // Step 2: Verify node status
       const nodeId = await db.hostedUserNodeId.getValue();
       console.log('checking node status', nodeId);
       const nodeStatus = await store.checkHostingNodeStatus();
       if (nodeStatus !== HostedNodeStatus.Running) {
-        navigation.navigate('GettingNodeReadyScreen', {
-          waitType: nodeStatus,
-        });
+        if (nodeStatus === HostedNodeStatus.UnderMaintenance) {
+          navigation.navigate('UnderMaintenance');
+        } else {
+          navigation.navigate('GettingNodeReadyScreen', {
+            waitType: nodeStatus,
+          });
+        }
       }
 
       // Step 3: Authenticate with node
@@ -71,7 +77,7 @@ export function useOnboardingHelpers() {
           context: 'Failed to authenticate.',
         });
         throw new Error(
-          'Could not authenticate with your P2P node, please try again.'
+          'Could not authenticate with your Peer-to-peer Node, please try again.'
         );
       }
       logger.log('authenticated with node', shipInfo);

@@ -18,6 +18,7 @@ import { ShipLoginScreen } from './screens/Onboarding/ShipLoginScreen';
 import { SignupScreen } from './screens/Onboarding/SignupScreen';
 import { TlonLoginScreen } from './screens/Onboarding/TlonLogin';
 import { TlonLoginLegacy } from './screens/Onboarding/TlonLoginLegacy';
+import { UnderMaintenanceScreen } from './screens/Onboarding/UnderMaintenance';
 import { WelcomeScreen } from './screens/Onboarding/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
 
@@ -101,6 +102,10 @@ export function OnboardingStack() {
       <OnboardingStackNavigator.Screen
         name="GettingNodeReadyScreen"
         component={GettingNodeReadyScreen}
+      />
+      <OnboardingStackNavigator.Screen
+        name="UnderMaintenance"
+        component={UnderMaintenanceScreen}
       />
     </OnboardingStackNavigator.Navigator>
   );

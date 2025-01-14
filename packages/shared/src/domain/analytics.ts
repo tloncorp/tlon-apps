@@ -14,6 +14,8 @@ export enum AnalyticsEvent {
   ChannelTemplateSetup = 'Channel Created from Template',
   ChannelLoadComplete = 'Channel Load Complete',
   SessionInitialized = 'Session Initialized',
+  NodeNotRunning = 'Node Not Running',
+  NodeUnderMaintenance = 'Node Under Maintenance',
   LoginDebug = 'Login Debug',
   LoginAnomaly = 'Login Anomaly',
   ExpectedHostingError = 'Expected Hosting API Error',

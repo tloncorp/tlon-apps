@@ -81,11 +81,6 @@ function OnboardingFixture({
                 ]),
               getShipAccessCode: async () => Promise.resolve({ code: 'xyz' }),
               allocateReservedShip: async () => Promise.resolve({}),
-              getShipsWithStatus: async () =>
-                Promise.resolve({
-                  shipId: '~solfer-magfed',
-                  status: 'Ready',
-                }),
               reserveShip: async () =>
                 Promise.resolve({
                   id: '~solfer-magfed',
@@ -156,7 +151,6 @@ export default {
   Nickname: (
     <SingleScreenFixture
       routeName="SetNickname"
-      params={{ user: sampleUser }}
       Component={SetNicknameScreen}
     />
   ),
@@ -171,14 +165,12 @@ export default {
     <SingleScreenFixture
       routeName="RequestPhoneVerify"
       Component={RequestPhoneVerifyScreen}
-      params={{ user: sampleUser }}
     />
   ),
   CheckVerify: (
     <SingleScreenFixture
       routeName="CheckVerify"
       Component={CheckVerifyScreen}
-      params={{ user: sampleUser }}
     />
   ),
   ReserveShip: (
@@ -191,7 +183,6 @@ export default {
     <SingleScreenFixture
       routeName="SetNickname"
       Component={SetNicknameScreen}
-      params={{ user: sampleUser }}
     />
   ),
   SetTelemetry: (

@@ -27,13 +27,25 @@ export type BootPhase =
   | 'ExportRunning'
   | 'Unknown';
 
+export type HostedShipInfo = {
+  booting: boolean;
+  manualUpdateNeeded?: boolean;
+  id: string;
+};
+
 export type HostedShipStatus = {
   phase: BootPhase;
+};
+
+export type HostedShipResponse = {
+  ship: HostedShipInfo;
+  status: HostedShipStatus;
 };
 
 export enum HostedNodeStatus {
   Running = 'Running',
   Paused = 'Paused',
   Suspended = 'Suspended',
+  UnderMaintenance = 'UnderMaintenance',
   Unknown = 'Unknown',
 }

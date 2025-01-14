@@ -9,7 +9,6 @@ import { getShipUrl } from '@tloncorp/app/utils/ship';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import {
   getShipAccessCode,
-  getShipsWithStatus,
   logInHostingUser,
   requestPhoneVerify,
 } from '@tloncorp/shared/api';

@@ -91,11 +91,17 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
 
       if (otpMethod === 'phone') {
         await phoneForm.handleSubmit(async ({ phoneNumber }) => {
-          await hostingApi.requestLoginOtp({
-            phoneNumber,
-            recaptchaToken,
-            platform: Platform.OS,
-          });
+          try {
+            await hostingApi.requestLoginOtp({
+              phoneNumber,
+              recaptchaToken,
+              platform: Platform.OS,
+            });
+          } catch (err) {
+            if (err instanceof HostingError && err.details.status === 429) {
+              // Rate limited, must have received one recently so proceed
+            }
+          }
           logger.trackEvent('Initiated login', { type: 'phone', phoneNumber });
           navigation.navigate('CheckOTP', {
             mode: 'login',
@@ -105,11 +111,17 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
         })();
       } else {
         await emailForm.handleSubmit(async ({ email }) => {
-          await hostingApi.requestLoginOtp({
-            email,
-            recaptchaToken,
-            platform: Platform.OS,
-          });
+          try {
+            await hostingApi.requestLoginOtp({
+              email,
+              recaptchaToken,
+              platform: Platform.OS,
+            });
+          } catch (err) {
+            if (err instanceof HostingError && err.details.status === 429) {
+              // Rate limited, must have received one recently so proceed
+            }
+          }
           logger.trackEvent('Initiated login', { type: 'email', email });
           navigation.navigate('CheckOTP', {
             mode: 'login',
@@ -120,7 +132,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
       }
     } catch (err) {
       if (err instanceof HostingError) {
-        if (err.code === 404) {
+        if (err.details.status === 404) {
           setRemoteError(
             `Cannot log in. Are you sure you signed up with this ${otpMethod === 'phone' ? 'phone number' : 'email'}?`
           );

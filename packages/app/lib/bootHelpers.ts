@@ -1,7 +1,9 @@
 import { AnalyticsEvent, AppInvite, createDevLogger } from '@tloncorp/shared';
+import { HostedNodeStatus } from '@tloncorp/shared';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import * as hostingApi from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 
 import { trackOnboardingAction } from '../utils/posthog';
 import { getShipFromCookie, getShipUrl } from '../utils/ship';
@@ -85,22 +87,30 @@ export async function reserveNode(
     ship: ship.id,
   });
 
+  await db.hostedUserNodeId.setValue(ship.id);
+
   return ship.id;
 }
 
-export async function checkNodeBooted(nodeId: string): Promise<boolean> {
-  const shipsWithStatus = await hostingApi.getShipsWithStatus([nodeId]);
-  if (!shipsWithStatus) {
+export async function checkNodeBooted(): Promise<boolean> {
+  try {
+    const nodeStatus = await store.checkHostingNodeStatus();
+    return nodeStatus === HostedNodeStatus.Running;
+  } catch (e) {
     return false;
   }
+  // const shipsWithStatus = await hostingApi.getShipsWithStatus([nodeId]);
+  // if (!shipsWithStatus) {
+  //   return false;
+  // }
 
-  const { status: shipStatus } = shipsWithStatus;
+  // const { status: shipStatus } = shipsWithStatus;
 
-  if (shipStatus !== 'Ready') {
-    return false;
-  }
+  // if (shipStatus !== 'Ready') {
+  //   return false;
+  // }
 
-  return true;
+  // return true;
 }
 
 async function authenticateNode(

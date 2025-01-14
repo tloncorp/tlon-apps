@@ -104,6 +104,7 @@ export const appInfo = createStorageItem<AppInfo | null>({
 export const benefitsSheetDismissed = createStorageItem<boolean>({
   key: 'didShowBenefitsSheet',
   defaultValue: false,
+  persistAfterLogout: true,
 });
 
 export const signupData = createStorageItem<SignupParams>({

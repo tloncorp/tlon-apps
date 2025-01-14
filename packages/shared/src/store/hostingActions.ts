@@ -12,6 +12,7 @@ export enum HostingAccountIssue {
   RequiresVerification = 'RequiresVerification',
   NoAssignedShip = 'NoAssignedShip',
   NoInventory = 'NoInventory',
+  ManualUpdateRequired = 'ManualUpdateRequired',
 }
 
 export async function signUpHostedUser(params: {
@@ -94,7 +95,12 @@ export async function logInHostedUser({
     logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
   }
 
-  // TODO: check if needs verification
+  if (user.requirePhoneNumberVerification) {
+    logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+      context: 'Account requires phone verification',
+    });
+    return HostingAccountIssue.RequiresVerification;
+  }
 
   if (user.ships.length === 0) {
     logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
@@ -123,14 +129,30 @@ export async function checkHostingNodeStatus(): Promise<domain.HostedNodeStatus>
     const nodeStatus = await withRetry(() => api.getNodeStatus(nodeId), {
       numOfAttempts: 5,
     });
+    logger.log('fecthed node status', nodeStatus);
     if (nodeStatus === domain.HostedNodeStatus.Running) {
       await db.hostedNodeIsRunning.setValue(true);
     }
-    logger.trackEvent(AnalyticsEvent.LoginDebug, {
-      context: 'Checked node status',
-      nodeId,
-      nodeStatus,
-    });
+
+    switch (nodeStatus) {
+      case domain.HostedNodeStatus.Paused:
+      case domain.HostedNodeStatus.Suspended:
+        logger.trackEvent(AnalyticsEvent.NodeNotRunning, {
+          phase: nodeStatus,
+          nodeId,
+        });
+        break;
+      case domain.HostedNodeStatus.UnderMaintenance:
+        logger.trackEvent(AnalyticsEvent.NodeUnderMaintenance, { nodeId });
+        break;
+      default:
+        logger.trackEvent(AnalyticsEvent.LoginDebug, {
+          context: 'Checked node status',
+          nodeId,
+          nodeStatus,
+        });
+    }
+
     return nodeStatus;
   } catch (e) {
     logger.trackError(AnalyticsEvent.LoginAnomaly, {

@@ -6,6 +6,7 @@ import * as domain from '../domain';
 import {
   AnalyticsEvent,
   BootPhase,
+  HostedShipResponse,
   HostedShipStatus,
   ReservableShip,
   ReservedShip,
@@ -38,8 +39,11 @@ export class HostingError extends Error {
 }
 
 const ALREADY_IN_USE = 409;
+const CANNOT_BOOT = 409;
 const RATE_LIMITED = 429;
-const EXPECTED_ERRORS = [ALREADY_IN_USE, RATE_LIMITED];
+const EXPECTED_ERRORS = [ALREADY_IN_USE, CANNOT_BOOT, RATE_LIMITED];
+
+const MANUAL_UPDATE_REQUIRED_MESSAGE = 'manual update has been requested';
 
 const hostingFetchResponse = async (
   path: string,
@@ -427,7 +431,7 @@ export const requestPasswordReset = async (email: string) =>
   });
 
 export const getShip = async (shipId: string) =>
-  hostingFetch<{ status?: HostedShipStatus }>(`/v1/ships/${shipId}`);
+  hostingFetch<HostedShipResponse>(`/v1/ships/${shipId}`);
 
 export const getShipAccessCode = async (shipId: string) =>
   hostingFetch<{ code: string }>(`/v1/ships/${shipId}/network`);
@@ -446,51 +450,51 @@ export const bootShip = async (shipId: string) =>
     },
   });
 
-export const getShipsWithStatus = async (
-  ships: string[]
-): Promise<
-  | {
-      status: BootPhase;
-      shipId: string;
-    }
-  | undefined
-> => {
-  const shipResults = await Promise.allSettled(ships.map(getShip));
-  console.log(`bl: ship results`, shipResults);
-  const shipStatuses = shipResults.map((result) =>
-    result.status === 'fulfilled'
-      ? result.value.status?.phase ?? 'Unknown'
-      : 'Unknown'
-  );
+// export const getShipsWithStatus = async (
+//   ships: string[]
+// ): Promise<
+//   | {
+//       status: BootPhase;
+//       shipId: string;
+//     }
+//   | undefined
+// > => {
+//   const shipResults = await Promise.allSettled(ships.map(getShip));
+//   console.log(`bl: ship results`, shipResults);
+//   const shipStatuses = shipResults.map((result) =>
+//     result.status === 'fulfilled'
+//       ? result.value.status?.phase ?? 'Unknown'
+//       : 'Unknown'
+//   );
 
-  // If user has a ready ship, let's use it
-  const readyIndex = shipStatuses.indexOf('Ready');
-  if (readyIndex >= 0) {
-    const shipId = ships[readyIndex];
-    return {
-      status: 'Ready',
-      shipId,
-    };
-  }
+//   // If user has a ready ship, let's use it
+//   const readyIndex = shipStatuses.indexOf('Ready');
+//   if (readyIndex >= 0) {
+//     const shipId = ships[readyIndex];
+//     return {
+//       status: 'Ready',
+//       shipId,
+//     };
+//   }
 
-  // If user has a paused ship, resume it
-  const suspendedIndex = shipStatuses.indexOf('Suspended');
-  if (suspendedIndex >= 0) {
-    const shipId = ships[suspendedIndex];
-    await resumeShip(shipId);
-    return { status: 'Suspended', shipId };
-  }
+//   // If user has a paused ship, resume it
+//   const suspendedIndex = shipStatuses.indexOf('Suspended');
+//   if (suspendedIndex >= 0) {
+//     const shipId = ships[suspendedIndex];
+//     await resumeShip(shipId);
+//     return { status: 'Suspended', shipId };
+//   }
 
-  // If user has a suspended ship, boot it
-  const unknownIndex = shipStatuses.indexOf('Unknown');
-  if (unknownIndex >= 0) {
-    const shipId = ships[unknownIndex];
-    await bootShip(shipId);
-    return { status: 'Unknown', shipId };
-  }
+//   // If user has a suspended ship, boot it
+//   const unknownIndex = shipStatuses.indexOf('Unknown');
+//   if (unknownIndex >= 0) {
+//     const shipId = ships[unknownIndex];
+//     await bootShip(shipId);
+//     return { status: 'Unknown', shipId };
+//   }
 
-  return undefined;
-};
+//   return undefined;
+// };
 
 export const getNodeStatus = async (
   nodeId: string
@@ -502,22 +506,44 @@ export const getNodeStatus = async (
     throw new Error('Hosting API call failed');
   }
 
-  const shipStatus = result.status?.phase ?? 'Unknown';
+  const nodeStatus = result.status ? result.status.phase ?? 'Unknown' : null;
+  const isBooting = result.ship.booting;
+  const manualUpdateNeeded = result.ship.manualUpdateNeeded;
 
   // If user has a ready ship, let's use it
-  if (shipStatus === 'Ready') {
+  if (nodeStatus === 'Ready') {
     return domain.HostedNodeStatus.Running;
   }
 
   // If user has a paused ship, resume it
-  if (shipStatus === 'Suspended') {
-    await resumeShip(nodeId);
+  if (nodeStatus === 'Suspended') {
+    if (!isBooting) {
+      await resumeShip(nodeId);
+    }
     return domain.HostedNodeStatus.Paused;
   }
 
+  if (nodeStatus === 'UnderMaintenance' || manualUpdateNeeded) {
+    return domain.HostedNodeStatus.UnderMaintenance;
+  }
+
   // If user has a suspended ship, boot it
-  if (shipStatus === 'Unknown') {
-    await bootShip(nodeId);
+  if (nodeStatus === null) {
+    if (!isBooting) {
+      // missing status means the ship is stopped but isn't gauranteed
+      // to be bootable
+      try {
+        await bootShip(nodeId);
+      } catch (err) {
+        if (
+          err.message &&
+          err.message.includes(MANUAL_UPDATE_REQUIRED_MESSAGE)
+        ) {
+          return domain.HostedNodeStatus.UnderMaintenance;
+        }
+        throw err;
+      }
+    }
     return domain.HostedNodeStatus.Suspended;
   }
 
