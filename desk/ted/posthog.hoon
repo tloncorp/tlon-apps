@@ -21,6 +21,10 @@
 =*  log-item  q.u.arg
 ;<  =bowl:strand  bind:m  get-bowl:io
 =/  log-event-json=$>(%o json)  (log-event:enjs:l event.log-item)
+::  retrieve desk hash
+::
+;<  hash=@uv  bind:m  (scry:io @uv %cz q.byk.bowl ~)
+::
 =/  props=json
   :-  %o
   %-  ~(uni by p.log-event-json)
@@ -28,6 +32,7 @@
   %-  my
   :~  'distinct_id'^s+(scot %p our.bowl)
       'origin'^s+(spat origin)
+      'hash'^s+(crip ((v-co:co 5) (end [0 25] hash)))
   ==
 =/  event=json
   %-  pairs:enjs:format

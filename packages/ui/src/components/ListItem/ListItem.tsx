@@ -45,6 +45,7 @@ export const ListItemFrame = styled(XStack, {
   justifyContent: 'space-between',
   alignItems: 'stretch',
   backgroundColor: '$transparent',
+  userSelect: 'none',
   height: '$6xl',
 });
 
@@ -256,6 +257,9 @@ const ListItemEndContent = styled(YStack, {
   gap: '$2xs',
   justifyContent: 'center',
   alignItems: 'flex-end',
+  $gtSm: {
+    paddingTop: 0,
+  },
 });
 
 export type ListItem = typeof ListItemFrame;

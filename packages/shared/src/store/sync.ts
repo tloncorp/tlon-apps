@@ -7,11 +7,13 @@ import { GetChangedPostsOptions } from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger, runIfDev } from '../debug';
+import { AnalyticsEvent } from '../logic';
 import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
+import { addChannelToNavSection, moveChannel } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { useLureState } from './lure';
 import { getSyncing, updateIsSyncing, updateSession } from './session';
@@ -184,7 +186,7 @@ export const syncSettings = async (ctx?: SyncCtx) => {
 
 export const syncAppInfo = async (ctx?: SyncCtx) => {
   const appInfo = await syncQueue.add('appInfo', ctx, () => api.getAppInfo());
-  return db.setAppInfoSettings(appInfo);
+  return db.appInfo.setValue(appInfo);
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -262,7 +264,27 @@ export const syncChannelThreadUnreads = async (
   const unreads = await syncQueue.add('thread unreads', ctx, () =>
     api.getThreadUnreadsByChannel(channel)
   );
-  await db.insertThreadUnreads(unreads);
+  const existingUnreads = await db.getThreadUnreadsByChannel({ channelId });
+
+  // filter out any unreads that we already have in the db so we can avoid
+  // invalidating queries that don't need to be invalidated
+  const newUnreads = unreads.filter((unread) => {
+    const existing = existingUnreads.find(
+      (u) => u.threadId === unread.threadId
+    );
+
+    if (!existing) {
+      return true;
+    }
+
+    return !_.isEqual(unread, existing);
+  });
+
+  if (newUnreads.length === 0) {
+    return;
+  }
+
+  await db.insertThreadUnreads(newUnreads);
 };
 
 export async function syncPostReference(options: {
@@ -342,10 +364,10 @@ export const syncStorageSettings = (ctx?: SyncCtx) => {
   return Promise.all([
     syncQueue
       .add('storageSettings', ctx, () => api.getStorageConfiguration())
-      .then((config) => db.setStorageConfiguration(config)),
+      .then((config) => db.storageConfiguration.setValue(config)),
     syncQueue
       .add('storageCredentials', ctx, () => api.getStorageCredentials())
-      .then((creds) => db.setStorageCredentials(creds)),
+      .then((creds) => db.storageCredentials.setValue(creds)),
   ]);
 };
 
@@ -395,7 +417,7 @@ export const syncPushNotificationsSetting = async (ctx?: SyncCtx) => {
   const setting = await syncQueue.add('getPushNotificationSettings', ctx, () =>
     api.getPushNotificationsSetting()
   );
-  await db.setPushNotificationsSetting(setting);
+  await db.pushNotificationSettings.setValue(setting);
 };
 
 async function handleGroupUpdate(update: api.GroupUpdate) {
@@ -599,18 +621,20 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       break;
     case 'moveChannel':
       logger.log('moving channel', update);
-      await db.addChannelToNavSection({
+      await moveChannel({
         channelId: update.channelId,
-        groupNavSectionId: update.navSectionId,
+        groupId: update.groupId,
+        navSectionId: update.sectionId,
         index: update.index,
       });
       break;
     case 'addChannelToNavSection':
       logger.log('adding channel to nav section', update);
-      await db.addChannelToNavSection({
+
+      await addChannelToNavSection({
         channelId: update.channelId,
-        groupNavSectionId: update.navSectionId,
-        index: 0,
+        groupId: update.groupId,
+        navSectionId: update.sectionId,
       });
       break;
     case 'setUnjoinedGroups':
@@ -692,7 +716,7 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
         queue.activityEvents.push(...event.events);
         break;
       case 'updatePushNotificationsSetting':
-        db.setPushNotificationsSetting(event.value);
+        db.pushNotificationSettings.setValue(event.value);
         break;
     }
     processQueue();
@@ -719,11 +743,11 @@ export const handleContactUpdate = async (update: api.ContactsUpdate) => {
 export const handleStorageUpdate = async (update: api.StorageUpdate) => {
   switch (update.type) {
     case 'storageCredentialsChanged': {
-      await db.setStorageCredentials(update.credentials);
+      await db.storageCredentials.setValue(update.credentials);
       break;
     }
     case 'storageCongfigurationChanged': {
-      await db.setStorageConfiguration(update.configuration);
+      await db.storageConfiguration.setValue(update.configuration);
       break;
     }
     case 'storageAccessKeyIdChanged': {
@@ -1096,6 +1120,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     // we probably don't want multiple sync starts
     return;
   }
+  const startTime = Date.now();
 
   updateIsSyncing(true);
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
@@ -1138,6 +1163,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     logger.crumb('finished initializing high priority subs');
 
     logger.crumb(`finished high priority init sync`);
+    logger.trackEvent(AnalyticsEvent.SessionInitialized, {
+      duration: Date.now() - startTime,
+    });
     updateSession({ startTime: Date.now() });
   });
 

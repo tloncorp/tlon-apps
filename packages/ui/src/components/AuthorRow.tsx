@@ -83,8 +83,8 @@ export function DetailViewAuthorRow({
   const shouldTruncate = showEditedIndicator || deliveryFailed;
 
   return (
-    <Pressable onPress={openProfile}>
-      <XStack gap="$l" alignItems="center" {...props}>
+    <Pressable onPress={deliveryFailed ? undefined : openProfile}>
+      <XStack gap="$l" alignItems="center" userSelect="none" {...props}>
         <ContactAvatar size="$2xl" contactId={authorId} />
         <Text
           size="$label/l"
@@ -134,38 +134,37 @@ export function ChatAuthorRow({
   const shouldTruncate = showEditedIndicator || firstRole || deliveryFailed;
 
   return (
-    <Pressable onPress={openProfile}>
-      <XStack gap="$l" alignItems="center" {...props}>
-        <ContactAvatar size="$2xl" contactId={authorId} />
-        <XStack gap="$l" alignItems="flex-end">
-          <Text
-            size="$label/2xl"
-            numberOfLines={1}
-            maxWidth={shouldTruncate ? '55%' : '100%'}
-          >
-            <ContactName contactId={authorId} />
+    <XStack gap="$l" alignItems="center" userSelect="none" {...props}>
+      <ContactAvatar size="$2xl" contactId={authorId} />
+      <XStack gap="$l" alignItems="flex-end">
+        <Text
+          size="$label/2xl"
+          numberOfLines={1}
+          maxWidth={shouldTruncate ? '55%' : '100%'}
+          onPress={deliveryFailed ? undefined : openProfile}
+        >
+          <ContactName contactId={authorId} />
+        </Text>
+        {timeDisplay && (
+          <Text color="$secondaryText" size="$label/m">
+            {timeDisplay}
           </Text>
-          {timeDisplay && (
-            <Text color="$secondaryText" size="$label/m">
-              {timeDisplay}
-            </Text>
-          )}
-          {showEditedIndicator && (
-            <Text size="$label/m" color="$secondaryText">
-              Edited
-            </Text>
-          )}
-          {firstRole && <RoleBadge role={firstRole} />}
-          {deliveryFailed ? (
-            <Text size="$label/m" color="$negativeActionText">
-              Tap to retry
-            </Text>
-          ) : null}
-        </XStack>
-        {!!deliveryStatus && deliveryStatus !== 'failed' ? (
-          <ChatMessageDeliveryStatus status={deliveryStatus} />
+        )}
+        {showEditedIndicator && (
+          <Text size="$label/m" color="$secondaryText">
+            Edited
+          </Text>
+        )}
+        {firstRole && <RoleBadge role={firstRole} />}
+        {deliveryFailed ? (
+          <Text size="$label/m" color="$negativeActionText">
+            Tap to retry
+          </Text>
         ) : null}
       </XStack>
-    </Pressable>
+      {!!deliveryStatus && deliveryStatus !== 'failed' ? (
+        <ChatMessageDeliveryStatus status={deliveryStatus} />
+      ) : null}
+    </XStack>
   );
 }

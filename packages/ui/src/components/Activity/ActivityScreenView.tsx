@@ -30,7 +30,7 @@ export function ActivityScreenView({
   bucketFetchers: store.BucketFetchers;
   refresh: () => Promise<void>;
 }) {
-  const { data: activitySeenMarker } = store.useActivitySeenMarker();
+  const activitySeenMarker = db.activitySeenMarker.useValue();
   const [activeTab, setActiveTab] = useState<db.ActivityBucket>('all');
   const currentFetcher = bucketFetchers[activeTab];
 

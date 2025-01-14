@@ -1,50 +1,22 @@
 import { usePostHog as useWebPosthog } from 'posthog-js/react';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
+
+import { PosthogClient } from './usePosthog.base';
 
 export function usePosthog() {
   const posthog = useWebPosthog();
-
-  const optedOut = useMemo(() => {
-    return posthog?.has_opted_in_capturing() ?? false;
+  return useMemo((): PosthogClient => {
+    return {
+      optedOut: posthog?.has_opted_out_capturing() ?? false,
+      optIn: () => posthog?.opt_in_capturing(),
+      optOut: () => posthog?.opt_out_capturing(),
+      identify: (userId, properties) => posthog?.identify(userId, properties),
+      capture: (eventName, properties) =>
+        posthog?.capture(eventName, properties),
+      flush: async () => {
+        // TODO: how to send await all pending events sent?
+      },
+      reset: () => posthog?.reset(),
+    };
   }, [posthog]);
-
-  const optIn = useCallback(() => {
-    return posthog?.opt_in_capturing();
-  }, [posthog]);
-
-  const optOut = useCallback(() => {
-    return posthog?.opt_out_capturing();
-  }, [posthog]);
-
-  const identify = useCallback(
-    (userId: string, properties?: Record<string, any>) => {
-      return posthog?.identify(userId, properties);
-    },
-    [posthog]
-  );
-
-  const capture = useCallback(
-    (eventName: string, properties?: Record<string, any>) => {
-      return posthog?.capture(eventName, properties);
-    },
-    [posthog]
-  );
-
-  const flush = useCallback(async () => {
-    // TODO: how to send await all pending events sent?
-  }, []);
-
-  const reset = useCallback(() => {
-    return posthog?.reset();
-  }, [posthog]);
-
-  return {
-    optedOut,
-    optIn,
-    optOut,
-    identify,
-    capture,
-    flush,
-    reset,
-  };
 }

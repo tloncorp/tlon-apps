@@ -11,4 +11,10 @@ export enum AnalyticsEvent {
   ContactEdited = 'Contact Edited',
   InvitedUserFailedInventoryCheck = 'Invited User Failed Inventory Check',
   PersonalInvitePressed = 'Personal Invite Shown',
+  ChannelTemplateSetup = 'Channel Created from Template',
+  ChannelLoadComplete = 'Channel Load Complete',
+  SessionInitialized = 'Session Initialized',
+  InviteError = 'Invite Error',
+  InviteDebug = 'Invite Debug',
+  InviteButtonShown = 'Invite Button Shown',
 }

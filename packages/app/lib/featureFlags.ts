@@ -1,7 +1,6 @@
+import { storage } from '@tloncorp/shared/db';
 import { mapValues } from 'lodash';
 import create from 'zustand';
-
-import storage from './storage';
 
 // Add new feature flags here:
 export const featureMeta = {
@@ -60,11 +59,10 @@ export function useFeatureFlag(
   return [enabled, setEnabled];
 }
 
-const storageKey = 'featureFlags';
 async function loadInitialState() {
   let state: FeatureState | null = null;
   try {
-    state = await storage.load({ key: storageKey });
+    state = await storage.featureFlags.getValue();
   } catch (e) {
     // ignore
   }
@@ -84,7 +82,7 @@ async function setup() {
 
   // Write to local storage on changes, but only after initial load
   useFeatureFlagStore.subscribe(async (state) => {
-    await storage.save({ key: storageKey, data: state.flags });
+    await storage.featureFlags.setValue(state.flags);
   });
 }
 setup();

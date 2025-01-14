@@ -304,40 +304,41 @@ interface TextInputWithIconAndButtonProps
 }
 
 export const TextInputWithIconAndButton = React.memo(
-  function TextInputWithIconAndButtonRaw({
-    icon,
-    buttonText,
-    onButtonPress,
-    ...textInputProps
-  }: TextInputWithIconAndButtonProps) {
-    return (
-      <XStack
-        borderWidth={1}
-        borderColor="$border"
-        borderRadius="$l"
-        paddingHorizontal="$xl"
-        alignItems="center"
-        gap="$l"
-      >
-        <Icon type={icon} customSize={['$2xl', '$2xl']} />
-        <TextInput
-          paddingLeft={0}
-          borderWidth={0}
-          borderRadius={0}
-          flex={1}
-          {...textInputProps}
-        />
-        <Button
-          padding="$l"
-          onPress={onButtonPress}
-          backgroundColor="$secondaryBackground"
-          marginLeft="$-2xl"
+  React.forwardRef<RNTextInput, TextInputWithIconAndButtonProps>(
+    function TextInputWithIconAndButtonRaw(
+      { icon, buttonText, onButtonPress, ...textInputProps },
+      ref
+    ) {
+      return (
+        <XStack
+          borderWidth={1}
+          borderColor="$border"
+          borderRadius="$l"
+          paddingHorizontal="$xl"
+          alignItems="center"
+          gap="$l"
         >
-          <Button.Text size="$label/m">{buttonText}</Button.Text>
-        </Button>
-      </XStack>
-    );
-  }
+          <Icon type={icon} customSize={['$2xl', '$2xl']} />
+          <TextInput
+            paddingLeft={0}
+            borderWidth={0}
+            borderRadius={0}
+            flex={1}
+            ref={ref}
+            {...textInputProps}
+          />
+          <Button
+            padding="$l"
+            onPress={onButtonPress}
+            backgroundColor="$secondaryBackground"
+            marginLeft="$-2xl"
+          >
+            <Button.Text size="$label/m">{buttonText}</Button.Text>
+          </Button>
+        </XStack>
+      );
+    }
+  )
 );
 
 // Toggle group

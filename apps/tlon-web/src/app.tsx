@@ -1,4 +1,5 @@
 // Copyright 2022, Tlon Corporation
+import * as Toast from '@radix-ui/react-toast';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
@@ -98,6 +99,7 @@ import ThreadVolumeDialog from './channels/ThreadVolumeDialog';
 import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
 import DevLog from './components/DevLog/DevLog';
 import DevLogsView from './components/DevLog/DevLogView';
+import MobileAppToast from './components/MobileAppToast';
 import ReportContent from './components/ReportContent';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
@@ -639,6 +641,7 @@ const App = React.memo(function AppComponent() {
   return (
     <div className="flex h-full w-full flex-col">
       <DisconnectNotice />
+      <MobileAppToast />
       <Firehose />
       <LeapProvider>
         <ChatInputFocusProvider>

@@ -72,7 +72,7 @@ export function PostScreenView({
     parentId?: string,
     metadata?: db.PostMetadata
   ) => Promise<void>;
-  onPressRetry: (post: db.Post) => void;
+  onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
   onPressRef: (channel: db.Channel, post: db.Post) => void;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;

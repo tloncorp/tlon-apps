@@ -141,15 +141,16 @@ export default function PostScreen(props: Props) {
     [props.navigation]
   );
 
-  const { navigateToChannel } = useRootNavigation();
+  const { navigateBackFromPost } = useRootNavigation();
   const handleGoBack = useCallback(() => {
     if (!channel) {
       props.navigation.goBack();
       return;
     }
-    // This allows us to navigate to and highlight the message in the scroller
-    navigateToChannel(channel, postId);
-  }, [channel, navigateToChannel, postId, props.navigation]);
+    // This allows us to navigate to the channel and highlight the message in the scroller
+    // OR navigate back to Activity if we came from there
+    navigateBackFromPost(channel!, postId);
+  }, [channel, postId, props.navigation, navigateBackFromPost]);
 
   const chatOptionsNavProps = useChatSettingsNavigation();
 

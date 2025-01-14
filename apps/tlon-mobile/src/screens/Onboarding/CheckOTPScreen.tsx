@@ -2,12 +2,11 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { HostingError } from '@tloncorp/app/lib/hostingApi';
-import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
-import { didSignUp } from '@tloncorp/shared/db';
+import { storage } from '@tloncorp/shared/db';
 import { ScreenHeader, TlonText, View, YStack } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
@@ -140,7 +139,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
               accessCode
             );
             if (authCookie) {
-              if (await isEulaAgreed()) {
+              if (await storage.eulaAgreed.getValue()) {
                 setShip({
                   ship: shipId,
                   shipUrl,
@@ -148,7 +147,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
                   authType: 'hosted',
                 });
 
-                const hasSignedUp = await didSignUp.getValue();
+                const hasSignedUp = await storage.didSignUp.getValue();
                 if (!hasSignedUp) {
                   logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
                 }
@@ -194,7 +193,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
   const handleSubmit = useCallback(
     async (code: string) => {
       setIsSubmitting(true);
-      await setEulaAgreed();
+      await storage.eulaAgreed.setValue(true);
       try {
         if (mode === 'signup') {
           const user = await handleSignup(code);

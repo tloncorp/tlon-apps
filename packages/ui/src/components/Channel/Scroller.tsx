@@ -31,7 +31,7 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, getTokenValue, styled, useStyle, useTheme } from 'tamagui';
+import { View, styled, useStyle, useTheme } from 'tamagui';
 
 import { RenderItemType } from '../../contexts/componentsKits';
 import { useLivePost } from '../../contexts/requests';
@@ -117,7 +117,7 @@ const Scroller = forwardRef(
       showReplies?: boolean;
       editingPost?: db.Post;
       setEditingPost?: (post: db.Post | undefined) => void;
-      onPressRetry: (post: db.Post) => void;
+      onPressRetry?: (post: db.Post) => Promise<void>;
       onPressDelete: (post: db.Post) => void;
       hasNewerPosts?: boolean;
       activeMessage: db.Post | null;
@@ -586,7 +586,7 @@ const BaseScrollerItem = ({
   setViewReactionsPost?: (post: db.Post) => void;
   onPressPost?: (post: db.Post) => void;
   onLongPressPost: (post: db.Post) => void;
-  onPressRetry: (post: db.Post) => void;
+  onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
   activeMessage?: db.Post | null;
   messageRef: RefObject<RNView>;
@@ -755,7 +755,7 @@ function useAnchorScrollLock({
       return;
     }
     if (userHasScrolled) {
-      logger.log('bail: !userHasScrolled');
+      logger.log('bail: userHasScrolled');
       return;
     }
     if (anchorIndex === -1) {
