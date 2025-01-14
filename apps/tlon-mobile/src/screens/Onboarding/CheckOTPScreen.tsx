@@ -31,6 +31,7 @@ const PHONE_CODE_LENGTH = 6;
 const logger = createDevLogger('CheckOTP', true);
 
 export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
+  const store = useStore();
   const [otp, setOtp] = useState<string[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,21 +65,26 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
   );
 
   const handleSignup = useCallback(
-    async (otpCode: string) => {
+    async (otp: string) => {
       try {
-        const recaptchaToken = await recaptcha.getToken();
-        if (!recaptchaToken) {
+        const token = await recaptcha.getToken();
+        if (!token) {
           setError(`We're having trouble confirming you're human. (reCAPTCHA)`);
           throw new Error('reCAPTCHA token not available');
         }
+        const recaptchaInfo = {
+          token,
+          platform: Platform.OS,
+        };
 
-        const user = await hostingApi.signUpHostingUser({
-          otp: otpCode,
-          lure: signupParams.lureId,
+        const maybeAccountIssue = await store.signUpHostedUser({
+          otp,
+          inviteId: signupParams.lureId,
           priorityToken: signupParams.priorityToken,
-          recaptchaToken,
+          recaptcha: recaptchaInfo,
           ...accountCreds,
         });
+
         trackOnboardingAction({
           actionName: 'Verification Submitted',
           ...accountCreds,
@@ -88,7 +94,8 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
           lure: signupParams.lureId,
           ...accountCreds,
         });
-        return user;
+
+        return maybeAccountIssue;
       } catch (err) {
         logger.trackError('Error signing up user', {
           errorMessage: err.message,
@@ -100,10 +107,10 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
     },
     [
       accountCreds,
-      hostingApi,
       recaptcha,
       signupParams.lureId,
       signupParams.priorityToken,
+      store,
     ]
   );
 
@@ -113,7 +120,13 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
       await storage.eulaAgreed.setValue(true);
       try {
         if (mode === 'signup') {
-          await handleSignup(code);
+          const maybeAccountIssue = await handleSignup(code);
+          if (
+            maybeAccountIssue === store.HostingAccountIssue.RequiresVerification
+          ) {
+            navigation.navigate('RequestPhoneVerify');
+            return;
+          }
           signupContext.kickOffBootSequence();
           navigation.navigate('SetNickname');
         } else {
@@ -121,15 +134,26 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         }
       } catch (e) {
         setError(e.message);
-        logger.trackError(`Error Logging In`, {
-          errorMessage: e.message,
-          errorStack: e.stack,
-        });
+        logger.trackError(
+          `Error ${mode === 'signup' ? 'Signing Up' : 'Logging In'}`,
+          {
+            errorMessage: e.message,
+            errorStack: e.stack,
+          }
+        );
       } finally {
         setIsSubmitting(false);
       }
     },
-    [accountCreds, handleLogin, handleSignup, mode, navigation, signupContext]
+    [
+      accountCreds,
+      handleLogin,
+      handleSignup,
+      mode,
+      navigation,
+      signupContext,
+      store.HostingAccountIssue.RequiresVerification,
+    ]
   );
 
   const handleCodeChanged = useCallback(

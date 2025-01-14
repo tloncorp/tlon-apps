@@ -78,6 +78,7 @@ export const SignupScreen = ({ navigation }: Props) => {
   }, [navigation]);
 
   const handleSuccess = useCallback(() => {
+    console.log('handling success');
     trackOnboardingAction({
       actionName: 'Phone or Email Submitted',
       phoneNumber: phoneForm.getValues().phoneNumber,
@@ -104,6 +105,7 @@ export const SignupScreen = ({ navigation }: Props) => {
   }, [emailForm, phoneForm]);
 
   const onSubmit = useCallback(async () => {
+    console.log('bl: on submit');
     setIsSubmitting(true);
     try {
       const { enabled } = await hostingApi.getHostingAvailability({
@@ -125,14 +127,20 @@ export const SignupScreen = ({ navigation }: Props) => {
 
       if (otpMethod === 'phone') {
         await phoneForm.handleSubmit(async ({ phoneNumber }) => {
-          await hostingApi.requestSignupOtp({
-            phoneNumber,
-            recaptchaToken,
-            platform: Platform.OS,
-          });
+          try {
+            await hostingApi.requestSignupOtp({
+              phoneNumber,
+              recaptchaToken,
+              platform: Platform.OS,
+            });
+          } catch (e) {
+            console.log('bl: bad?');
+          }
         })();
       } else {
+        console.log('submitting form');
         await emailForm.handleSubmit(async ({ email }) => {
+          console.log('requesting otp');
           await hostingApi.requestSignupOtp({
             email,
             recaptchaToken,
@@ -141,16 +149,17 @@ export const SignupScreen = ({ navigation }: Props) => {
         })();
       }
 
+      console.log('got here?');
       handleSuccess();
     } catch (err) {
       if (err instanceof HostingError) {
-        if (err.code === 409) {
+        if (err.details.status === 409) {
           setRemoteError(
             `This ${otpMethod === 'email' ? 'email' : 'phone number'} is ineligible for signup.`
           );
         }
 
-        if (err.code === 429) {
+        if (err.details.status === 429) {
           // hosting timed out on sending OTP's. This means they already received one, so
           // we should just move them along to the next screen
           handleSuccess();

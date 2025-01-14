@@ -37,6 +37,10 @@ export class HostingError extends Error {
   }
 }
 
+const ALREADY_IN_USE = 409;
+const RATE_LIMITED = 429;
+const EXPECTED_ERRORS = [ALREADY_IN_USE, RATE_LIMITED];
+
 const hostingFetchResponse = async (
   path: string,
   init?: RequestInit
@@ -86,7 +90,7 @@ const hostingFetch = async <T extends object>(
         status: null,
       }
     );
-    logger.trackEvent(AnalyticsEvent.UnexpectedHostingResponse, {
+    logger.trackEvent(AnalyticsEvent.UnexpectedHostingError, {
       details: hostingErr.details,
       errorMessage: hostingErr.message,
       errorStack: hostingErr.stack,
@@ -111,7 +115,10 @@ const hostingFetch = async <T extends object>(
         status: response.status,
       }
     );
-    logger.trackEvent(AnalyticsEvent.UnexpectedHostingResponse, {
+    const eventId = EXPECTED_ERRORS.includes(err.details.status ?? 0)
+      ? AnalyticsEvent.ExpectedHostingError
+      : AnalyticsEvent.UnexpectedHostingError;
+    logger.trackEvent(eventId, {
       details: err.details,
       errorMessage: err.message,
       errorStack: err.stack,
@@ -183,9 +190,7 @@ export const signUpHostingUser = async (params: {
   recaptchaToken?: string;
   platform?: 'ios' | 'android' | 'web' | 'macos' | 'windows';
 }) => {
-  // TODO: we should eventually catch 409 here which in this context
-  // indicates no available inventory
-  return hostingFetch<User>('/v1/sign-up', {
+  const response = await hostingFetchResponse('/v1/sign-up', {
     method: 'POST',
     body: JSON.stringify({
       phoneNumber: params.phoneNumber,
@@ -204,7 +209,33 @@ export const signUpHostingUser = async (params: {
     },
   });
 
-  // TODO: we should write the cookie and userId to kv here like we do in login
+  if (!response.ok) {
+    const message = await response.text();
+    const hostingErr = new HostingError(message, {
+      status: response.status,
+      method: 'POST',
+      path: '/v1/sign-up',
+    });
+    logger.trackEvent(AnalyticsEvent.UnexpectedHostingError, {
+      details: hostingErr.details,
+      context: hostingErr.message,
+    });
+    throw hostingErr;
+  }
+
+  const result = (await response.json()) as HostingError | User;
+
+  const setCookie = response.headers.get('Set-Cookie');
+  if (setCookie) {
+    db.hostingAuthToken.setValue(setCookie);
+  }
+
+  const userId = 'id' in result && (result as User).id;
+  if (userId) {
+    db.hostingUserId.setValue(userId);
+  }
+
+  return result as User;
 };
 
 export const logInHostingUser = async (params: {
@@ -264,38 +295,42 @@ export const requestSignupOtp = async ({
   recaptchaToken?: string;
   platform?: 'ios' | 'android' | 'web' | 'macos' | 'windows';
 }) => {
-  const response = await rawHostingFetch('/v1/request-otp', {
-    method: 'POST',
-    body: JSON.stringify({
-      email,
-      phoneNumber,
-      otpMode: 'SignupOTP',
-      recaptcha: {
-        recaptchaToken: { token: recaptchaToken || '' },
-        recaptchaPlatform: platform,
+  try {
+    await hostingFetch('/v1/request-otp', {
+      method: 'POST',
+      body: JSON.stringify({
+        email,
+        phoneNumber,
+        otpMode: 'SignupOTP',
+        recaptcha: {
+          recaptchaToken: { token: recaptchaToken || '' },
+          recaptchaPlatform: platform,
+        },
+      }),
+      headers: {
+        'Content-Type': 'application/json',
       },
-    }),
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    const ALREADY_IN_USE = 409;
-    const WAIT_TO_RESEND = 429;
-    const hostingError = new HostingError(
-      'Failed to send signup OTP',
-      { status: response.status, method: 'POST', path: '/v1/request-otp' },
-      [ALREADY_IN_USE, WAIT_TO_RESEND].includes(response.status)
-    );
-
-    if (hostingError.shouldTrack) {
-      logger.trackError(AnalyticsEvent.FailedSignupOTP, {
-        status: response.status,
-      });
+    });
+  } catch (err) {
+    if (err instanceof HostingError) {
+      const status = err.details.status;
+      if (status === ALREADY_IN_USE) {
+        logger.trackEvent('Signup Creds Already In Use', {
+          email,
+          phoneNumber,
+        });
+      } else if (status === RATE_LIMITED) {
+        logger.trackEvent('Signup OTP Rate Limited', { email, phoneNumber });
+      } else {
+        logger.trackEvent(AnalyticsEvent.FailedSignupOTP, {
+          details: err.details,
+          errorMessage: err.message,
+          email,
+          phoneNumber,
+        });
+      }
     }
-
-    throw hostingError;
+    throw err;
   }
 };
 
@@ -463,7 +498,6 @@ export const getNodeStatus = async (
   let result = null;
   try {
     result = await getShip(nodeId);
-    console.log(`bl: ship status result`, result);
   } catch (e) {
     throw new Error('Hosting API call failed');
   }

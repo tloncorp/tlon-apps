@@ -11,6 +11,56 @@ const logger = createDevLogger('hostingActions', true);
 export enum HostingAccountIssue {
   RequiresVerification = 'RequiresVerification',
   NoAssignedShip = 'NoAssignedShip',
+  NoInventory = 'NoInventory',
+}
+
+export async function signUpHostedUser(params: {
+  otp: string;
+  email?: string;
+  phoneNumber?: string;
+  inviteId: string;
+  priorityToken: string;
+  recaptcha: {
+    token: string;
+    platform: 'ios' | 'android' | 'web' | 'macos' | 'windows';
+  };
+}): Promise<HostingAccountIssue | undefined> {
+  try {
+    const user = await api.signUpHostingUser({
+      ...params,
+      recaptchaToken: params.recaptcha.token,
+      platform: params.recaptcha.platform,
+    });
+
+    if (user.requirePhoneNumberVerification) {
+      return HostingAccountIssue.RequiresVerification;
+    }
+  } catch (err) {
+    if (err instanceof api.HostingError) {
+      if (err.details.status === 409) {
+        // we don't gracefully handle no inventory this far in the flow,
+        // but we should track it
+        logger.trackEvent('No Available Inventory for Signup', {
+          email: params.email,
+          phoneNumber: params.phoneNumber,
+        });
+        return HostingAccountIssue.NoInventory;
+      }
+    }
+    throw err;
+  }
+}
+
+export async function requestPhoneVerify(phoneNumber: string): Promise<void> {
+  const userId = await db.hostingUserId.getValue();
+  if (!userId) {
+    logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+      context: 'Tried to request phone verify without user ID',
+    });
+    throw new Error('Cannot request phone verify, no user ID found');
+  }
+
+  await api.requestPhoneVerify(userId, phoneNumber);
 }
 
 export async function logInHostedUser({
