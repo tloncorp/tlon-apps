@@ -1,8 +1,8 @@
 import { debounce } from 'lodash';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
-import { Circle, View, XStack } from 'tamagui';
+import { Circle, View } from 'tamagui';
 
-import { TextInput, TextInputWithIcon } from './Form';
+import { TextInput } from './Form';
 import { Icon } from './Icon';
 import { Input } from './Input';
 import Pressable from './Pressable';
@@ -54,7 +54,7 @@ export function SearchBar({
       alignItems="center"
       {...rest}
     >
-      <TextInputWithIcon
+      <TextInput
         icon="Search"
         value={value}
         onChangeText={onTextChange}
