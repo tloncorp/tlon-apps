@@ -33,6 +33,7 @@ export const HomeNavigator = () => {
         drawerStyle: {
           width: 340,
           backgroundColor: getVariableValue(useTheme().background),
+          borderRightColor: getVariableValue(useTheme().border)
         },
       }}
     >
