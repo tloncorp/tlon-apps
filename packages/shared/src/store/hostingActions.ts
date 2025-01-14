@@ -64,6 +64,46 @@ export async function requestPhoneVerify(phoneNumber: string): Promise<void> {
   await api.requestPhoneVerify(userId, phoneNumber);
 }
 
+export async function checkPhoneVerify(code: string) {
+  const userId = await db.hostingUserId.getValue();
+  if (!userId) {
+    logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+      context: 'Tried to check phone verify without user ID',
+    });
+    throw new Error('Cannot check phone verify, no user ID found');
+  }
+
+  await api.checkPhoneVerify(userId, code);
+}
+
+export async function checkAccountStatus(): Promise<HostingAccountIssue | null> {
+  const userId = await db.hostingUserId.getValue();
+  if (!userId) {
+    logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+      context: 'Tried to account status without user ID',
+    });
+    throw new Error('Cannot check account status, no user ID found');
+  }
+
+  const user = await api.getHostingUser(userId);
+
+  if (user.requirePhoneNumberVerification) {
+    logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+      context: 'Account requires phone verification',
+    });
+    return HostingAccountIssue.RequiresVerification;
+  }
+
+  if (user.ships.length === 0) {
+    logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+      context: 'User has no assigned node',
+    });
+    return HostingAccountIssue.NoAssignedShip;
+  }
+
+  return null;
+}
+
 export async function logInHostedUser({
   email,
   phoneNumber,

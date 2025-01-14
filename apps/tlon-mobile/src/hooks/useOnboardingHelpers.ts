@@ -7,7 +7,7 @@ import {
 } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { useStore } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import { useSignupContext } from '../lib/signupContext';
@@ -16,9 +16,29 @@ import { OnboardingStackParamList } from '../types';
 const logger = createDevLogger('useOnboardingHelpers', true);
 
 export function useOnboardingHelpers() {
+  const store = useStore();
   const navigation = useNavigation<NavigationProp<OnboardingStackParamList>>();
   const signupContext = useSignupContext();
   const { setShip } = useShip();
+
+  const checkAccountStatusAndNavigate = useCallback(async () => {
+    const accountStatus = await store.checkAccountStatus();
+
+    if (accountStatus === store.HostingAccountIssue.NoAssignedShip) {
+      navigation.navigate('ReserveShip');
+      return;
+    }
+
+    if (accountStatus === store.HostingAccountIssue.RequiresVerification) {
+      navigation.navigate('RequestPhoneVerify', { mode: 'login' });
+      return;
+    }
+
+    if (!accountStatus) {
+      // no issue, just boot the node
+      navigation.navigate('GettingNodeReadyScreen', { waitType: 'Unknown' });
+    }
+  }, [navigation, store]);
 
   const handleLogin = useCallback(
     async (params: {
@@ -48,7 +68,7 @@ export function useOnboardingHelpers() {
             navigation.navigate('ReserveShip');
             return;
           case store.HostingAccountIssue.RequiresVerification:
-            navigation.navigate('RequestPhoneVerify');
+            navigation.navigate('RequestPhoneVerify', { mode: 'login' });
             return;
         }
       }
@@ -83,10 +103,11 @@ export function useOnboardingHelpers() {
       logger.log('authenticated with node', shipInfo);
       setShip(shipInfo);
     },
-    [navigation, setShip, signupContext]
+    [navigation, setShip, signupContext, store]
   );
 
   return {
     handleLogin,
+    checkAccountStatusAndNavigate,
   };
 }

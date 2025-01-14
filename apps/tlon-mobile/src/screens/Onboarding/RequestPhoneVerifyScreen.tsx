@@ -27,7 +27,10 @@ type FormData = {
   phoneNumber: string;
 };
 
-export const RequestPhoneVerifyScreen = ({ navigation }: Props) => {
+export const RequestPhoneVerifyScreen = ({
+  navigation,
+  route: { params },
+}: Props) => {
   const store = useStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
@@ -48,10 +51,10 @@ export const RequestPhoneVerifyScreen = ({ navigation }: Props) => {
     setIsSubmitting(true);
     try {
       await store.requestPhoneVerify(phoneNumber);
-      trackOnboardingAction({
-        actionName: 'Phone Verification Requested',
-      });
-      navigation.navigate('CheckVerify');
+      // trackOnboardingAction({
+      //   actionName: 'Phone Verification Requested',
+      // });
+      navigation.navigate('CheckVerify', { phoneNumber, mode: params.mode });
     } catch (err) {
       console.error('Error verifiying phone number:', err);
       if (err instanceof SyntaxError) {

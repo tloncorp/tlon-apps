@@ -8,32 +8,28 @@ import {
   View,
   XStack,
   YStack,
+  useStore,
 } from '@tloncorp/ui';
 import { createRef, useCallback, useMemo, useState } from 'react';
 import type { TextInputKeyPressEventData } from 'react-native';
 import { TextInput as RNTextInput } from 'react-native';
 
-import { useOnboardingContext } from '../../lib/OnboardingContext';
+import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
 import type { OnboardingStackParamList } from '../../types';
 import { useSignupContext } from '.././../lib/signupContext';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'CheckVerify'>;
 
-const EMAIL_CODE_LENGTH = 4;
 const PHONE_CODE_LENGTH = 6;
 
-export const CheckVerifyScreen = ({
-  navigation,
-  route: {
-    params: { user },
-  },
-}: Props) => {
-  const isEmail = !user.requirePhoneNumberVerification;
-  const codeLength = isEmail ? EMAIL_CODE_LENGTH : PHONE_CODE_LENGTH;
+export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
+  // const isEmail = !user.requirePhoneNumberVerification;
+  // const codeLength = isEmail ? EMAIL_CODE_LENGTH : PHONE_CODE_LENGTH;
+  const store = useStore();
   const [code, setCode] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
-  const { hostingApi } = useOnboardingContext();
+  const { checkAccountStatusAndNavigate } = useOnboardingHelpers();
   const signupContext = useSignupContext();
 
   const handleSubmit = useCallback(
@@ -41,20 +37,21 @@ export const CheckVerifyScreen = ({
       setIsSubmitting(true);
 
       try {
-        if (isEmail) {
-          await hostingApi.verifyEmailDigits(user.email, code);
-        } else {
-          await hostingApi.checkPhoneVerify(user.id, code);
-        }
+        await store.checkPhoneVerify(code);
 
         trackOnboardingAction({
           actionName: 'Verification Submitted',
         });
 
-        // TODO: !!!! make sure this gets written to kv earlier
+        // TODO: !!!! make sure this gets written to kv earlier: it does
         // signupContext.setOnboardingValues({ hostingUser: user });
-        signupContext.kickOffBootSequence();
-        navigation.navigate('SetNickname');
+        if (params.mode === 'signup') {
+          signupContext.kickOffBootSequence();
+          navigation.navigate('SetNickname');
+        } else {
+          // TODO
+          checkAccountStatusAndNavigate();
+        }
       } catch (err) {
         console.error('Error submitting verification:', err);
         if (err instanceof Error) {
@@ -65,26 +62,28 @@ export const CheckVerifyScreen = ({
 
       setIsSubmitting(false);
     },
-    [hostingApi, isEmail, navigation, signupContext, user]
+    [
+      checkAccountStatusAndNavigate,
+      navigation,
+      params.mode,
+      signupContext,
+      store,
+    ]
   );
 
   const handleCodeChanged = useCallback(
     (nextCode: string[]) => {
       setCode(nextCode);
-      if (nextCode.length === codeLength && nextCode.every(Boolean)) {
+      if (nextCode.length === PHONE_CODE_LENGTH && nextCode.every(Boolean)) {
         handleSubmit(nextCode.join(''));
       }
     },
-    [codeLength, handleSubmit]
+    [handleSubmit]
   );
 
   const handleResend = async () => {
     try {
-      if (isEmail) {
-        await hostingApi.resendEmailVerification(user.id);
-      } else {
-        await hostingApi.requestPhoneVerify(user.id, user.phoneNumber ?? '');
-      }
+      await store.requestPhoneVerify(params.phoneNumber);
     } catch (err) {
       console.error('Error resending verification code:', err);
       if (err instanceof Error) {
@@ -104,9 +103,9 @@ export const CheckVerifyScreen = ({
       <YStack padding="$2xl" gap="$6xl">
         <CodeInput
           value={code}
-          length={codeLength}
+          length={PHONE_CODE_LENGTH}
           onChange={handleCodeChanged}
-          isEmail={isEmail}
+          isEmail={false}
           error={error}
         />
         <TlonText.Text

@@ -125,7 +125,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
           if (
             maybeAccountIssue === store.HostingAccountIssue.RequiresVerification
           ) {
-            navigation.navigate('RequestPhoneVerify');
+            navigation.navigate('RequestPhoneVerify', { mode: params.mode });
             return;
           }
           signupContext.kickOffBootSequence();
@@ -152,6 +152,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
       handleSignup,
       mode,
       navigation,
+      params.mode,
       signupContext,
       store.HostingAccountIssue.RequiresVerification,
     ]

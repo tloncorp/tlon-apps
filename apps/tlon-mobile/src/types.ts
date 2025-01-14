@@ -12,8 +12,8 @@ export type OnboardingStackParamList = {
   EULA: undefined;
   JoinWaitList: { email?: string };
   UnderMaintenance: undefined;
-  RequestPhoneVerify: undefined;
-  CheckVerify: undefined;
+  RequestPhoneVerify: { mode: 'signup' | 'login' };
+  CheckVerify: { phoneNumber: string; mode: 'signup' | 'login' };
   ReserveShip: undefined;
   SetNickname: undefined;
   SetTelemetry: undefined;
