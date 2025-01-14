@@ -25,7 +25,7 @@ export interface PostCollectionContextValue {
   setEditingPost?: (post: db.Post | undefined) => void;
 
   /**
-   * perfectly fine to use - just has more props than it needs
+   * Perfectly fine to use - you'll just need to pass more props than `PostView`.
    */
   LegacyPostView: RenderItemType;
 
