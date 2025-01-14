@@ -120,6 +120,9 @@ const TextInputComponent = RawTextInput.styleable<{
     return (
       <InputFrame
         accent={accent ?? fieldContext.accent}
+        {...(props.numberOfLines && props.numberOfLines !== 1
+          ? { height: 'unset' }
+          : {})}
         backgroundType={backgroundType ?? fieldContext.backgroundType}
       >
         {icon ? <Icon type={icon} size="$m" /> : null}

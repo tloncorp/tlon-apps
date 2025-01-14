@@ -16,6 +16,7 @@ const FormFixture = () => {
       number: 'one',
       listItem: 'chat',
       image: undefined,
+      textarea: undefined,
     },
   });
 
@@ -95,6 +96,23 @@ const FormFixture = () => {
           name="listItem"
           label="List input"
           control={control}
+        />
+
+        <Form.ControlledTextareaField
+          name="textarea"
+          label="Textarea"
+          control={control}
+          inputProps={{
+            placeholder: 'Put some text here',
+            numberOfLines: 5,
+            multiline: true,
+          }}
+          rules={{
+            maxLength: {
+              value: 300,
+              message: 'Bug report notes are limited to 300 characters',
+            },
+          }}
         />
 
         <Form.Field label="Toggle group">
