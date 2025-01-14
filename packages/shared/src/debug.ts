@@ -4,7 +4,6 @@ import create from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import { getStorageMethods } from './db/getStorageMethods';
-import { AnalyticsEvent } from './logic';
 import { useLiveRef } from './logic/utilHooks';
 import { useCurrentSession } from './store/session';
 
@@ -120,7 +119,7 @@ export const useDebugStore = create<DebugStore>(
 
           for (let i = 0; i < runs.length; i++) {
             console.log('capturing logs', i);
-            errorLogger?.capture(AnalyticsEvent.DebugLogs, {
+            errorLogger?.capture('Debug Logs', {
               logId,
               page: `Page ${i + 1} of ${runs.length}`,
               logs: runs[i],
@@ -137,7 +136,7 @@ export const useDebugStore = create<DebugStore>(
 
           return logId;
         } catch (error) {
-          errorLogger?.capture(AnalyticsEvent.AppError, {
+          errorLogger?.capture('App Error', {
             debugInfo,
             message: 'message' in error ? error.message : JSON.stringify(error),
             breadcrumbs: useDebugStore.getState().getBreadcrumbs(),
