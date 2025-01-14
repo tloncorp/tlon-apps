@@ -1,10 +1,24 @@
 import React, { useContext } from 'react';
 import { YStack, styled } from 'tamagui';
+import { createStyledContext } from 'tamagui';
 
 import { VariantsFromStyledContext } from '../../types';
 import { Text } from '../TextV2';
-import { FieldContext } from './FieldContext';
 import { FormContext } from './Form';
+import { Accent, BackgroundType } from './formUtils';
+
+// Single field
+type FieldContextValue = {
+  accent: Accent;
+  disabled: boolean;
+  backgroundType: BackgroundType;
+};
+
+export const FieldContext = createStyledContext<FieldContextValue>({
+  accent: 'neutral',
+  disabled: false,
+  backgroundType: 'primary',
+});
 
 export const FieldFrame = styled(YStack, {
   context: FieldContext,

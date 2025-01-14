@@ -34,7 +34,7 @@ import { useBoundHandler } from '../ListItem/listItemUtils';
 import Pressable from '../Pressable';
 import { Text } from '../TextV2';
 import { typeStyles } from '../TextV2/Text';
-import { FieldContext } from './FieldContext';
+import { FieldContext } from './Field';
 import {
   Accent,
   getBorderVariantStyle as getBackgroundTypeVariantStyle,
