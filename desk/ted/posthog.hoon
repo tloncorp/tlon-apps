@@ -32,7 +32,7 @@
   %-  my
   :~  'distinct_id'^s+(scot %p our.bowl)
       'origin'^s+(spat origin)
-      'hash'^s+(crip ((v-co:co 5) (end [0 25] hash)))
+      'hash'^s+(scot %uv hash)
   ==
 =/  event=json
   %-  pairs:enjs:format
