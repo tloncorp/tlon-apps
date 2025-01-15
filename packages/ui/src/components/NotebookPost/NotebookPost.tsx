@@ -312,6 +312,7 @@ export const NotebookPostHeroImage = styled(Image, {
   width: '100%',
   height: IMAGE_HEIGHT,
   borderRadius: '$s',
+  objectFit: 'cover',
   variants: {
     size: {
       $s: {
