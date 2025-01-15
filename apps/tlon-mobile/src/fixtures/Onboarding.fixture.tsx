@@ -12,6 +12,7 @@ import { OnboardingProvider } from '../lib/OnboardingContext';
 import { CheckOTPScreen } from '../screens/Onboarding/CheckOTPScreen';
 import { CheckVerifyScreen } from '../screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from '../screens/Onboarding/EULAScreen';
+import { GettingNodeReadyScreen } from '../screens/Onboarding/GettingNodeReadyScreen';
 import { InventoryCheckScreen } from '../screens/Onboarding/InventoryCheckScreen';
 import { JoinWaitListScreen } from '../screens/Onboarding/JoinWaitListScreen';
 import { PasteInviteLinkScreen } from '../screens/Onboarding/PasteInviteLinkScreen';
@@ -228,5 +229,12 @@ export default {
   ),
   ShipLogin: (
     <SingleScreenFixture routeName={'ShipLogin'} Component={ShipLoginScreen} />
+  ),
+  GettingNodeReady: (
+    <SingleScreenFixture
+      routeName={'GettingNodeReadyScreen'}
+      Component={GettingNodeReadyScreen}
+      params={{ waitType: 'Paused', wasLoggedIn: true }}
+    />
   ),
 };

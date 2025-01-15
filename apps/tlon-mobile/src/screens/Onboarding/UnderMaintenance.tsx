@@ -3,6 +3,7 @@ import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { createDevLogger } from '@tloncorp/shared';
 import { HostedNodeStatus } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import {
   Button,
@@ -49,6 +50,7 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
 
   const onLogout = useCallback(async () => {
     setLoggingOut(true);
+    await db.nodeStoppedWhileLoggedIn.setValue(false);
     await handleLogout();
     navigation.navigate('Welcome');
   }, [handleLogout, navigation]);

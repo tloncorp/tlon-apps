@@ -10,6 +10,7 @@ import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import { PortalProvider, ZStack } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { AppStateStatus } from 'react-native';
@@ -43,6 +44,11 @@ function AuthenticatedApp() {
   );
 
   useAppStatusChange(handleAppStatusChange);
+
+  useEffect(() => {
+    // reset this anytime we get back into the authenticated app
+    db.nodeStoppedWhileLoggedIn.setValue(false);
+  }, []);
 
   return (
     <ZStack flex={1}>

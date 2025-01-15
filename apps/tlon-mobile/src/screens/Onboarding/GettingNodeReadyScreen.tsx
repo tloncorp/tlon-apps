@@ -3,15 +3,21 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
-import { AnalyticsEvent, createDevLogger, withRetry } from '@tloncorp/shared';
-import { HostedNodeStatus } from '@tloncorp/shared';
+import {
+  NodeResumeState,
+  useStoppedNodeSequence,
+} from '@tloncorp/app/hooks/useStoppedNodeSequence';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   ArvosDiscussing,
+  ListItem,
+  LoadingSpinner,
   OnboardingTextBlock,
   ScreenHeader,
+  TlonText,
   View,
-  useStore,
+  YStack,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -23,104 +29,46 @@ type Props = NativeStackScreenProps<
 >;
 
 const logger = createDevLogger('GettingNodeReadyScreen', true);
-const RE_CHECK_INTERVAL = 10 * 1000;
 
 export function GettingNodeReadyScreen({
   navigation,
   route: { params },
 }: Props) {
   const isFocused = useIsFocused();
-  const store = useStore();
   const { setShip } = useShip();
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const isNodeRunning = useCallback(async () => {
-    const nodeId = await db.hostedUserNodeId.getValue();
-    if (!nodeId) {
-      logger.trackError('Login: Missing node ID while checking if running');
-      return false;
+  const { phase, shipInfo } = useStoppedNodeSequence({
+    waitType: params.waitType,
+    enabled: isFocused,
+  });
+  useEffect(() => {
+    if (phase === NodeResumeState.UnderMaintenance) {
+      navigation.navigate('UnderMaintenance');
     }
 
-    try {
-      const status = await store.checkHostingNodeStatus();
-      if (status === HostedNodeStatus.UnderMaintenance) {
-        navigation.navigate('UnderMaintenance');
-      }
-      return status === HostedNodeStatus.Running;
-    } catch (e) {
-      logger.trackError('Login: Check node booted request failed', {
-        nodeId,
-        errorMessage: e.message,
-        errorStack: e.stack,
-      });
-      return false;
+    if (phase === NodeResumeState.Ready && shipInfo) {
+      setTimeout(() => {
+        setShip(shipInfo);
+      }, 1000);
     }
-  }, [navigation, store]);
+  }, [navigation, phase, setShip, shipInfo]);
 
   const onLogout = useCallback(async () => {
     setLoggingOut(true);
+    await db.nodeStoppedWhileLoggedIn.setValue(false);
     await handleLogout();
     navigation.navigate('Welcome');
   }, [handleLogout, navigation]);
-
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-    let isMounted = true;
-    const startTime = Date.now();
-
-    async function checkNode() {
-      const isRunning = await isNodeRunning();
-      if (!isMounted || !isFocused) return;
-      if (isRunning) {
-        db.hostedNodeIsRunning.setValue(true);
-        const bootedAtTime = Date.now();
-        await withRetry(
-          async () => {
-            const shipInfo = await store.authenticateWithReadyNode();
-            if (!shipInfo) {
-              throw new Error('Failed to authenticate with node');
-            }
-            setShip(shipInfo);
-          },
-          { numOfAttempts: 20 }
-        );
-        const authedAtTime = Date.now();
-        logger.trackEvent(AnalyticsEvent.NodeWaitReport, {
-          intialNodeState: params.waitType ?? 'unknown',
-          appLifecyle: 'login',
-          timeToBoot: Math.floor((bootedAtTime - startTime) / 1000),
-          timeToAuth: Math.floor((authedAtTime - bootedAtTime) / 1000),
-          totalWaitTime: Math.floor((authedAtTime - startTime) / 1000),
-          unit: 'seconds',
-        });
-      } else {
-        timeoutId = setTimeout(checkNode, RE_CHECK_INTERVAL);
-      }
-    }
-
-    if (isFocused) {
-      checkNode();
-    }
-
-    return () => {
-      isMounted = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, []);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         title={
-          params.wasLoggedIn
-            ? 'Computer not Running'
-            : 'Getting Your Peer-to-peer Node Ready'
+          params.wasLoggedIn ? 'Node Stopped' : 'Getting Your Computer Ready'
         }
-        backAction={!params.wasLoggedIn ? () => navigation.goBack() : undefined}
         leftControls={
           params.wasLoggedIn ? (
             <ScreenHeader.TextButton onPress={onLogout} disabled={loggingOut}>
@@ -130,9 +78,47 @@ export function GettingNodeReadyScreen({
         }
         showSessionStatus={false}
       />
-      <OnboardingTextBlock marginTop="$5xl" gap="$5xl">
+      <OnboardingTextBlock marginTop="$3xl" gap="$5xl">
         <ArvosDiscussing width="100%" height={200} />
       </OnboardingTextBlock>
+      <OnboardingTextBlock>
+        <TlonText.Text textAlign="center" size="$label/l">
+          Your Peer-to-peer Node hadn't been used in a while and we need to
+          start it up again. This usually takes{' '}
+          {params.waitType === 'Paused' ? 'just a minute' : 'a few minutes'}.
+        </TlonText.Text>
+      </OnboardingTextBlock>
+
+      <YStack padding="$m" marginTop="$3xl">
+        <ListItem backgroundColor="unset">
+          <ListItem.SystemIcon color="$primaryText" icon="Bang" />
+          <ListItem.MainContent>
+            <ListItem.Title>Waiting for node to start</ListItem.Title>
+          </ListItem.MainContent>
+          <ListItem.EndContent width="$3xl" alignItems="center">
+            {phase === NodeResumeState.WaitingForRunning && (
+              <LoadingSpinner size="small" />
+            )}
+            {phase !== NodeResumeState.WaitingForRunning && (
+              <ListItem.SystemIcon icon="Checkmark" />
+            )}
+          </ListItem.EndContent>
+        </ListItem>
+        <ListItem backgroundColor="unset">
+          <ListItem.SystemIcon color="$primaryText" icon="Link" />
+          <ListItem.MainContent>
+            <ListItem.Title>Establishing a connection</ListItem.Title>
+          </ListItem.MainContent>
+          <ListItem.EndContent width="$3xl" alignItems="center">
+            {phase === NodeResumeState.Authenticating && (
+              <LoadingSpinner size="small" />
+            )}
+            {phase === NodeResumeState.Ready && (
+              <ListItem.SystemIcon icon="Checkmark" />
+            )}
+          </ListItem.EndContent>
+        </ListItem>
+      </YStack>
     </View>
   );
 }
