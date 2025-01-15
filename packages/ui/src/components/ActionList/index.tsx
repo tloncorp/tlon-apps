@@ -1,16 +1,16 @@
 import { ComponentProps, PropsWithChildren } from 'react';
 import { styled, withStaticProperties } from 'tamagui';
 
-import { ListItem, ListItemFrame } from '../ListItem';
+import { ListItem } from '../ListItem';
 import ListFrame from './ListFrame';
 
-const ActionFrame = styled(ListItemFrame, {
+const ActionFrame = styled(ListItem, {
   borderRadius: 'unset',
   borderBottomWidth: 0.5,
-  borderBottomColor: '$secondaryBorder',
+  borderBottomColor: '$border',
   backgroundColor: 'transparent',
   pressStyle: {
-    backgroundColor: '$secondaryBorder',
+    backgroundColor: '$border',
   },
   variants: {
     last: {

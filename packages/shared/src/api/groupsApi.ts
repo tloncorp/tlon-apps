@@ -743,6 +743,7 @@ export type GroupChannelDelete = {
 export type GroupChannelNavSectionAdd = {
   type: 'addChannelToNavSection';
   channelId: string;
+  groupId: string;
   navSectionId: string;
   sectionId: string;
 };
@@ -778,6 +779,7 @@ export type GroupnavSectionMoveChannel = {
   type: 'moveChannel';
   navSectionId: string;
   sectionId: string;
+  groupId: string;
   channelId: string;
   index: number;
 };
@@ -1205,6 +1207,7 @@ export const toGroupUpdate = (
         type: 'moveChannel',
         navSectionId,
         sectionId,
+        groupId,
         channelId: zoneDelta['mov-nest'].nest,
         index: zoneDelta['mov-nest'].idx,
       };
@@ -1262,6 +1265,7 @@ export const toGroupUpdate = (
       return {
         type: 'addChannelToNavSection',
         channelId,
+        groupId,
         navSectionId: `${groupId}-${zoneId}`,
         sectionId: zoneId,
       };

@@ -119,23 +119,23 @@ export async function unmuteThread({
 export async function setDefaultNotificationLevel(
   level: ub.PushNotificationsSetting
 ) {
-  const currentSetting = await db.getPushNotificationsSetting();
+  const currentSetting = await db.pushNotificationSettings.getValue();
 
   // optimistic update
-  await db.setPushNotificationsSetting(level);
+  await db.pushNotificationSettings.setValue(level);
 
   try {
     await api.setPushNotificationsSetting(level);
   } catch (e) {
     logger.log(`failed to set default notification level`, e);
-    await db.setPushNotificationsSetting(currentSetting);
+    await db.pushNotificationSettings.setValue(currentSetting);
   }
 }
 
 export async function advanceActivitySeenMarker(timestamp: number) {
-  const existingMarker = await db.getActivitySeenMarker();
+  const existingMarker = await db.activitySeenMarker.getValue();
   if (timestamp > existingMarker) {
-    db.storeActivitySeenMarker(timestamp);
+    db.activitySeenMarker.setValue(timestamp);
   }
 }
 

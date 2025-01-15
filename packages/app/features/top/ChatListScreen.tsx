@@ -263,7 +263,7 @@ export function ChatListScreenView({
       usePostReference={store.usePostReference}
       useChannel={store.useChannelPreview}
       usePost={store.usePostWithRelations}
-      useApp={store.useAppInfo}
+      useApp={db.appInfo.useValue}
       useGroup={store.useGroupPreview}
     >
       <ChatOptionsProvider

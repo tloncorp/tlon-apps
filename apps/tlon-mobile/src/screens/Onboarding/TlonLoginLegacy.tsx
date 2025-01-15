@@ -21,7 +21,6 @@ import {
   OnboardingTextBlock,
   ScreenHeader,
   TextInput,
-  TextInputWithButton,
   TlonText,
   View,
   YStack,
@@ -229,7 +228,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
               }}
               render={({ field: { onChange, onBlur, value } }) => (
                 <Field label="Password" error={errors.password?.message}>
-                  <TextInputWithButton
+                  <TextInput
                     placeholder="Password"
                     onBlur={() => {
                       onBlur();
@@ -243,8 +242,12 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
                     autoCorrect={false}
                     returnKeyType="send"
                     enablesReturnKeyAutomatically
-                    buttonText={passwordVisible ? 'Hide' : 'Show'}
-                    onButtonPress={() => setPasswordVisible(!passwordVisible)}
+                    rightControls={
+                      <TextInput.InnerButton
+                        label={passwordVisible ? 'Hide' : 'Show'}
+                        onPress={() => setPasswordVisible(!passwordVisible)}
+                      />
+                    }
                   />
                 </Field>
               )}
