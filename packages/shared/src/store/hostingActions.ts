@@ -29,6 +29,7 @@ export async function signUpHostedUser(params: {
   try {
     const user = await api.signUpHostingUser({
       ...params,
+      lure: params.inviteId,
       recaptchaToken: params.recaptcha.token,
       platform: params.recaptcha.platform,
     });
@@ -171,7 +172,6 @@ export async function checkHostingNodeStatus(): Promise<domain.HostedNodeStatus>
 
   try {
     const nodeStatus = await api.getNodeStatus(nodeId);
-    logger.log('fecthed node status', nodeStatus);
     if (nodeStatus === domain.HostedNodeStatus.Running) {
       await db.hostedNodeIsRunning.setValue(true);
     }
