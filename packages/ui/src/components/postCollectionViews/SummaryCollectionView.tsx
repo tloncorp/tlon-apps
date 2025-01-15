@@ -5,7 +5,7 @@ import { FlatList } from 'react-native';
 import { View, getTokenValue } from 'tamagui';
 
 import { useLivePost } from '../../contexts';
-import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
+import { usePostCollectionContext } from '../../contexts/postCollection';
 import { ForwardingProps } from '../../utils/react';
 import { ListItem } from '../ListItem';
 import Pressable from '../Pressable';
@@ -100,7 +100,7 @@ export function BasePostSummaryCollectionView({
   'items'
 >) {
   const { posts, hasNewerPosts, onScrollStartReached } =
-    usePostCollectionContextUnsafelyUnwrapped();
+    usePostCollectionContext();
 
   const navigation = useNavigation();
 

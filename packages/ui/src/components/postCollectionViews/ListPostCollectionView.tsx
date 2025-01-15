@@ -15,14 +15,14 @@ import {
 import { FlatList } from 'react-native';
 
 import { useCurrentUserId } from '../../contexts';
-import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
+import { usePostCollectionContext } from '../../contexts/postCollection';
 import { EmptyChannelNotice } from '../Channel/EmptyChannelNotice';
 import Scroller, { ScrollAnchor } from '../Channel/Scroller';
 import { IPostCollectionView } from './shared';
 
 export const ListPostCollection: IPostCollectionView = forwardRef(
   function ListPostCollection(_props, forwardedRef) {
-    const ctx = usePostCollectionContextUnsafelyUnwrapped();
+    const ctx = usePostCollectionContext();
     const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
     const currentUserId = useCurrentUserId();
     const flatListRef = useRef<FlatList>(null);

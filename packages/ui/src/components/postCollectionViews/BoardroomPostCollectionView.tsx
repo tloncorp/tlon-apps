@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { FlatList } from 'react-native';
 
-import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
+import { usePostCollectionContext } from '../../contexts/postCollection';
 import { IPostCollectionView } from './shared';
 import { useLoadPostsInWindow } from './useLoadPostsInWindow';
 
@@ -28,7 +28,7 @@ function _BoardroomPostCollectionView({
    */
   isPostInsideWindow: (post: db.Post) => boolean;
 }) {
-  const { posts, PostView } = usePostCollectionContextUnsafelyUnwrapped();
+  const { posts, PostView } = usePostCollectionContext();
   const comparator = useMemo(() => randomStableLexiSort(), []);
 
   const [authorToMostRecentPost, setAuthorToMostRecentPost] = useState<

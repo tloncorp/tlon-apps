@@ -8,7 +8,7 @@ import {
 import { Alert } from 'react-native';
 import { Text, View } from 'tamagui';
 
-import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
+import { usePostCollectionContext } from '../../contexts/postCollection';
 import { Button } from '../Button';
 import { IPostCollectionView } from './shared';
 
@@ -24,7 +24,7 @@ function BaseCardsPostCollection({
     onScrollStartReached,
     posts,
     PostView,
-  } = usePostCollectionContextUnsafelyUnwrapped();
+  } = usePostCollectionContext();
   const [displayedIndex, setDisplayedIndex] = useState<number | null>(null);
 
   useEffect(() => {

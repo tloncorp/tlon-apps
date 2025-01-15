@@ -11,7 +11,7 @@ import { FlatList } from 'react-native';
 import { YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts';
-import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
+import { usePostCollectionContext } from '../../contexts/postCollection';
 import { ForwardingProps } from '../../utils/react';
 import { ChannelHeader } from '../Channel/ChannelHeader';
 import { DraftInputView } from '../Channel/DraftInputView';
@@ -31,7 +31,7 @@ export function DetailPostView({
   { post: db.Post; navigateBack?: () => void },
   'backgroundColor'
 >) {
-  const { PostView, channel } = usePostCollectionContextUnsafelyUnwrapped();
+  const { PostView, channel } = usePostCollectionContext();
   const channelCtx = useChannelContext({
     channelId: channel.id,
     draftKey: post.id,

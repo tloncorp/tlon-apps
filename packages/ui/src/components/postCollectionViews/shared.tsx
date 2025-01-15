@@ -5,7 +5,7 @@ import { ComponentPropsWithoutRef, useCallback, useMemo } from 'react';
 
 import { useLivePost } from '../../contexts';
 import { RenderItemType } from '../../contexts/componentsKits';
-import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
+import { usePostCollectionContext } from '../../contexts/postCollection';
 import { PostView } from '../Channel/PostView';
 
 export interface PostCollectionHandle {
@@ -20,7 +20,7 @@ export function ConnectedPostView({
   post,
   ...overrides
 }: { post: db.Post } & Partial<ComponentPropsWithoutRef<typeof PostView>>) {
-  const ctx = usePostCollectionContextUnsafelyUnwrapped();
+  const ctx = usePostCollectionContext();
 
   // this code is duplicated in packages/ui/src/components/Channel/PostView.tsx
   const standardConfig = useMemo(() => {

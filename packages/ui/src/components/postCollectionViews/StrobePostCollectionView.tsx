@@ -12,7 +12,7 @@ import {
 } from 'react';
 import { View } from 'tamagui';
 
-import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
+import { usePostCollectionContext } from '../../contexts/postCollection';
 import { IPostCollectionView } from './shared';
 import { useLoadPostsInWindow } from './useLoadPostsInWindow';
 
@@ -23,7 +23,7 @@ function _StrobePostCollectionView({
   strobeDurationMs?: number;
   isPostInsideWindow?: (post: db.Post) => boolean;
 }) {
-  const { posts, PostView } = usePostCollectionContextUnsafelyUnwrapped();
+  const { posts, PostView } = usePostCollectionContext();
 
   useLoadPostsInWindow(isPostInsideWindow);
 
@@ -93,7 +93,7 @@ export const StrobePostCollectionView: IPostCollectionView = forwardRef(
     }));
 
     const { collectionConfiguration } =
-      usePostCollectionContextUnsafelyUnwrapped();
+      usePostCollectionContext();
 
     const strobeDurationMs = useMemo(() => {
       try {

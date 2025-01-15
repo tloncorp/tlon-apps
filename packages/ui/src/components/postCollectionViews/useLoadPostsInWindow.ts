@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import { useEffect } from 'react';
 
-import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
+import { usePostCollectionContext } from '../../contexts/postCollection';
 
 // window must stretch from now until some time in the past
 export function useLoadPostsInWindow(
@@ -13,7 +13,7 @@ export function useLoadPostsInWindow(
     onScrollEndReached,
     onScrollStartReached,
     posts,
-  } = usePostCollectionContextUnsafelyUnwrapped();
+  } = usePostCollectionContext();
 
   useEffect(() => {
     if (hasNewerPosts && onScrollStartReached) {

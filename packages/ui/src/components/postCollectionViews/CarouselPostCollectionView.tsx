@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Theme, View, XStack, YStack } from 'tamagui';
 import { LinearGradient } from 'tamagui/linear-gradient';
 
-import { usePostCollectionContextUnsafelyUnwrapped } from '../../contexts/postCollection';
+import { usePostCollectionContext } from '../../contexts/postCollection';
 import AuthorRow from '../AuthorRow';
 import { Carousel, CarouselRef } from '../Carousel';
 import { Icon } from '../Icon';
@@ -26,7 +26,7 @@ function BaseCarouselPostCollection() {
     posts,
     collectionConfiguration,
     PostView,
-  } = usePostCollectionContextUnsafelyUnwrapped();
+  } = usePostCollectionContext();
 
   const carouselRef = useRef<CarouselRef>(null);
   const handleIndexChange = useCallback(

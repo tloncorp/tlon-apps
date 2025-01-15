@@ -36,9 +36,9 @@ export const PostCollectionContext =
   createContext<PostCollectionContextValue | null>(null);
 
 export function usePostCollectionContext() {
-  return useContext(PostCollectionContext);
-}
-
-export function usePostCollectionContextUnsafelyUnwrapped() {
-  return useContext(PostCollectionContext)!;
+  const ctx = useContext(PostCollectionContext);
+  if (ctx == null) {
+    throw new Error('Missing PostCollectionContext');
+  }
+  return ctx;
 }
