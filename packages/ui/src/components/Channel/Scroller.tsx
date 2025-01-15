@@ -28,10 +28,11 @@ import {
   View as RNView,
   StyleProp,
   ViewStyle,
+  useWindowDimensions,
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, styled, useStyle, useTheme } from 'tamagui';
+import { View, getTokens, styled, useStyle, useTheme } from 'tamagui';
 
 import { RenderItemType } from '../../contexts/componentsKits';
 import { useLivePost } from '../../contexts/requests';
@@ -139,6 +140,22 @@ const Scroller = forwardRef(
       () => configurationFromChannel(channel),
       [channel]
     );
+    const { width } = useWindowDimensions();
+    const availableSpace = useMemo(() => {
+      return Math.floor(width - 388 - 2 * getTokens().space.m.val);
+    }, [width]);
+
+    const columns = useMemo(() => {
+      const gap = getTokens().space.l.val;
+      return collectionLayout.columnCount === 1
+        ? 1
+        : Math.max(2, Math.floor((availableSpace + gap) / (250 + gap)));
+    }, [availableSpace, collectionLayout.columnCount]);
+
+    const itemWidth = useMemo(() => {
+      const totalGap = (columns - 1) * getTokens().space.l.val;
+      return Math.floor((availableSpace - totalGap) / columns);
+    }, [availableSpace, columns]);
 
     const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
     const [viewReactionsPost, setViewReactionsPost] = useState<null | db.Post>(
@@ -267,7 +284,8 @@ const Scroller = forwardRef(
             messageRef={activeMessageRefs.current[post.id]}
             dividersEnabled={collectionLayout.dividersEnabled}
             itemAspectRatio={collectionLayout.itemAspectRatio ?? undefined}
-            columnCount={collectionLayout.columnCount}
+            itemWidth={itemWidth}
+            columnCount={columns}
             {...anchorScrollLockScrollerItemProps}
           />
         );
@@ -290,7 +308,8 @@ const Scroller = forwardRef(
         showDividers,
         collectionLayout.dividersEnabled,
         collectionLayout.itemAspectRatio,
-        collectionLayout.columnCount,
+        columns,
+        itemWidth,
       ]
     );
 
@@ -336,9 +355,6 @@ const Scroller = forwardRef(
         : {
             gap: '$l',
             width: '100%',
-            // Necessary to prevent content from flowing off the right side of the
-            // screen when the scroller is in two-column mode.
-            paddingRight: '$l',
           }
     ) as StyleProp<ViewStyle>;
 
@@ -445,7 +461,7 @@ const Scroller = forwardRef(
             ref={flatListRef as React.RefObject<Animated.FlatList<db.Post>>}
             // This is needed so that we can force a refresh of the list when
             // we need to switch from 1 to 2 columns or vice versa.
-            key={channel.type}
+            key={columns}
             data={postsWithNeighbors}
             // Disabled to prevent the user from accidentally blurring the edit
             // input while they're typing.
@@ -472,7 +488,7 @@ const Scroller = forwardRef(
             initialNumToRender={INITIAL_POSTS_PER_PAGE}
             maxToRenderPerBatch={8}
             windowSize={8}
-            numColumns={collectionLayout.columnCount}
+            numColumns={columns}
             style={style}
             onEndReached={handleEndReached}
             onEndReachedThreshold={1}
@@ -570,6 +586,7 @@ const BaseScrollerItem = ({
   isLastPostOfBlock,
   dividersEnabled,
   itemAspectRatio,
+  itemWidth,
   columnCount,
 }: {
   showUnreadDivider: boolean;
@@ -594,6 +611,7 @@ const BaseScrollerItem = ({
   isLastPostOfBlock: boolean;
   dividersEnabled: boolean;
   itemAspectRatio?: number;
+  itemWidth?: number;
   columnCount: number;
 }) => {
   const post = useLivePost(item);
@@ -646,7 +664,7 @@ const BaseScrollerItem = ({
   return (
     <View
       onLayout={handleLayout}
-      width={columnCount === 2 ? '50%' : '100%'}
+      width={columnCount === 1 ? '100%' : itemWidth}
       aspectRatio={itemAspectRatio}
     >
       {divider}
@@ -690,7 +708,8 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.onPressImage === next.onPressImage &&
     prev.onPressPost === next.onPressPost &&
     prev.onLongPressPost === next.onLongPressPost &&
-    prev.activeMessage === next.activeMessage;
+    prev.activeMessage === next.activeMessage &&
+    prev.itemWidth === next.itemWidth;
 
   return isItemEqual && areOtherPropsEqual && isIndexEqual;
 });
