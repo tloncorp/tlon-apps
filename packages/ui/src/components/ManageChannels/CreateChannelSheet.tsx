@@ -2,10 +2,7 @@ import { JSONValue, useGroup, useUpdateChannel } from '@tloncorp/shared';
 import { createChannel } from '@tloncorp/shared';
 import {
   ChannelContentConfiguration,
-  CollectionRendererId,
   ComponentSpec,
-  DraftInputId,
-  PostContentRendererId,
   allCollectionRenderers,
   allContentRenderers,
   allDraftInputs,
@@ -14,13 +11,9 @@ import * as db from '@tloncorp/shared/db';
 import { objectEntries } from '@tloncorp/shared/utils';
 import {
   ComponentProps,
-  ElementRef,
   SetStateAction,
-  forwardRef,
   useCallback,
-  useImperativeHandle,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import { useForm } from 'react-hook-form';
@@ -43,7 +36,7 @@ export function applySetStateAction<T>(prev: T, action: SetStateAction<T>): T {
   }
 }
 
-export type ChannelTypeName = 'chat' | 'notebook' | 'gallery' | 'custom';
+export type ChannelTypeName = 'chat' | 'notebook' | 'gallery';
 
 const channelTypes: Form.ListItemInputOption<ChannelTypeName>[] = [
   {
@@ -64,26 +57,16 @@ const channelTypes: Form.ListItemInputOption<ChannelTypeName>[] = [
     value: 'gallery',
     icon: 'ChannelGalleries',
   },
-  {
-    title: 'Custom',
-    subtitle: 'go crazzy',
-    value: 'custom',
-    icon: 'ChannelGalleries',
-  },
 ];
 
 export function CreateChannelSheet({
   onOpenChange,
   group,
-  enableCustomChannels = false,
 }: {
   onOpenChange: (open: boolean) => void;
   group: db.Group;
-  enableCustomChannels?: boolean;
 }) {
-  const customChannelConfigRef =
-    useRef<ElementRef<typeof CustomChannelConfigurationForm>>(null);
-  const { control, handleSubmit, watch } = useForm<{
+  const { control, handleSubmit } = useForm<{
     title: string;
     channelType: ChannelTypeName;
   }>({
@@ -99,42 +82,14 @@ export function CreateChannelSheet({
         groupId: group.id,
         title: data.title,
         channelType: data.channelType,
-        contentConfiguration:
-          data.channelType === 'custom'
-            ? customChannelConfigRef.current?.getFormValue()
-            : undefined,
       });
       onOpenChange(false);
     },
     [group.id, onOpenChange]
   );
 
-  const availableChannelTypes = useMemo(
-    () =>
-      enableCustomChannels
-        ? channelTypes
-        : channelTypes.filter((t) => t.value !== 'custom'),
-    [enableCustomChannels]
-  );
-
   return (
-    <ActionSheet
-      moveOnKeyboardChange
-      open
-      onOpenChange={onOpenChange}
-      {
-        // With the taller sheet content from custom channel form, the sheet is too
-        // tall and scrolling doesn't work.
-        // When that happens, change snap points from `fit` (i.e. defined by
-        // content) to a fixed percent height.
-        ...(enableCustomChannels
-          ? {
-              snapPoints: [85],
-              snapPointsMode: 'percent',
-            }
-          : null)
-      }
-    >
+    <ActionSheet moveOnKeyboardChange open onOpenChange={onOpenChange}>
       <ActionSheet.SimpleHeader title="Create a new channel" />
       <ActionSheet.ScrollableContent>
         <ActionSheet.FormBlock>
@@ -149,14 +104,11 @@ export function CreateChannelSheet({
         <ActionSheet.FormBlock>
           <Form.ControlledListItemField
             label="Channel type"
-            options={availableChannelTypes}
+            options={channelTypes}
             control={control}
             name={'channelType'}
           />
         </ActionSheet.FormBlock>
-        {watch('channelType') === 'custom' && (
-          <CustomChannelConfigurationForm ref={customChannelConfigRef} />
-        )}
         <ActionSheet.FormBlock>
           <Button onPress={handleSubmit(handlePressSave)} hero>
             <Button.Text>Create channel</Button.Text>
@@ -183,55 +135,6 @@ const options = {
     })
   ),
 };
-
-const CustomChannelConfigurationForm = forwardRef<
-  {
-    getFormValue: () => ChannelContentConfiguration;
-  },
-  {
-    initialValue?: ChannelContentConfiguration;
-  }
->(function CustomChannelConfigurationForm({ initialValue }, ref) {
-  const { control, getValues } = useForm<ChannelContentConfiguration>({
-    defaultValues: initialValue ?? {
-      draftInput: { id: DraftInputId.chat },
-      defaultPostContentRenderer: { id: PostContentRendererId.chat },
-      defaultPostCollectionRenderer: { id: CollectionRendererId.chat },
-    },
-  });
-  useImperativeHandle(ref, () => ({
-    getFormValue: () => getValues(),
-  }));
-
-  return (
-    <>
-      <ActionSheet.FormBlock>
-        <Form.ControlledRadioField
-          name="defaultPostCollectionRenderer.id"
-          label="Collection renderer"
-          control={control}
-          options={options.collection}
-        />
-      </ActionSheet.FormBlock>
-      <ActionSheet.FormBlock>
-        <Form.ControlledRadioField
-          name="defaultPostContentRenderer.id"
-          label="Post renderer"
-          control={control}
-          options={options.content}
-        />
-      </ActionSheet.FormBlock>
-      <ActionSheet.FormBlock>
-        <Form.ControlledRadioField
-          name="draftInput.id"
-          label="Draft input"
-          control={control}
-          options={options.inputs}
-        />
-      </ActionSheet.FormBlock>
-    </>
-  );
-});
 
 export function ChannelConfigurationBar({
   channel,
