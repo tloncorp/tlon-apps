@@ -170,9 +170,7 @@ export async function checkHostingNodeStatus(): Promise<domain.HostedNodeStatus>
   }
 
   try {
-    const nodeStatus = await withRetry(() => api.getNodeStatus(nodeId), {
-      numOfAttempts: 5,
-    });
+    const nodeStatus = await api.getNodeStatus(nodeId);
     logger.log('fecthed node status', nodeStatus);
     if (nodeStatus === domain.HostedNodeStatus.Running) {
       await db.hostedNodeIsRunning.setValue(true);
@@ -199,7 +197,7 @@ export async function checkHostingNodeStatus(): Promise<domain.HostedNodeStatus>
 
     return nodeStatus;
   } catch (e) {
-    logger.trackError(AnalyticsEvent.LoginAnomaly, {
+    logger.trackError(AnalyticsEvent.LoginDebug, {
       context: 'Failed to get node status',
       errorMessage: e.message,
       errorStack: e.stack,
@@ -219,13 +217,11 @@ export async function authenticateWithReadyNode(): Promise<db.ShipInfo | null> {
 
   let accessCode = null;
   try {
-    const result = await withRetry(() => api.getShipAccessCode(nodeId), {
-      numOfAttempts: 5,
-    });
+    const result = await api.getShipAccessCode(nodeId);
     accessCode = result.code;
   } catch (e) {
-    logger.trackError(AnalyticsEvent.LoginAnomaly, {
-      context: 'Failed to get access code after 5 attempts',
+    logger.trackError(AnalyticsEvent.LoginDebug, {
+      context: 'Failed to get access code',
       errorMessage: e.message,
       errorStack: e.stack,
     });
@@ -240,29 +236,30 @@ export async function authenticateWithReadyNode(): Promise<db.ShipInfo | null> {
       { numOfAttempts: 5 }
     );
   } catch (e) {
-    logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
-      context: 'Failed to get Landscape auth cookie after 5 attempts',
+    logger.trackEvent(AnalyticsEvent.LoginDebug, {
+      context: 'Failed to get Landscape auth cookie',
       errorMessage: e.message,
       errorStack: e.stack,
     });
+    return null;
   }
 
-  if (authCookie) {
+  if (!authCookie) {
     logger.trackEvent(AnalyticsEvent.LoginDebug, {
-      context: 'Authenticated with node',
-      nodeId,
-      nodeUrl,
+      context: 'Failed to authenticate with ready node',
     });
-    return {
-      ship: nodeId,
-      shipUrl: nodeUrl,
-      authCookie,
-      authType: 'hosted',
-    };
+    return null;
   }
 
-  logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
-    context: 'Failed to authenticate with ready node',
+  logger.trackEvent(AnalyticsEvent.LoginDebug, {
+    context: 'Authenticated with node',
+    nodeId,
+    nodeUrl,
   });
-  return null;
+  return {
+    ship: nodeId,
+    shipUrl: nodeUrl,
+    authCookie,
+    authType: 'hosted',
+  };
 }

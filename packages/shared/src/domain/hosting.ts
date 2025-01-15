@@ -40,7 +40,7 @@ export type HostedShipStatus = {
 
 export type HostedShipResponse = {
   ship: HostedShipInfo;
-  status: HostedShipStatus;
+  status?: HostedShipStatus;
 };
 
 export enum HostedNodeStatus {

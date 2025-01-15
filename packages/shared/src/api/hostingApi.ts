@@ -461,8 +461,8 @@ export const getNodeStatus = async (
   }
 
   const nodeStatus = result.status ? result.status.phase ?? 'Unknown' : null;
-  const isBooting = result.ship.booting;
-  const manualUpdateNeeded = result.ship.manualUpdateNeeded;
+  const isBooting = result.ship?.booting;
+  const manualUpdateNeeded = result.ship?.manualUpdateNeeded;
 
   // If user has a ready ship, let's use it
   if (nodeStatus === 'Ready') {

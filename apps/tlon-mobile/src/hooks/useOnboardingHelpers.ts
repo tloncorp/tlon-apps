@@ -95,8 +95,6 @@ export function useOnboardingHelpers() {
         }
       }
 
-      console.log('proceeding to step 2', maybeAccountIssue);
-
       // Step 2: Verify node status
       const nodeId = await db.hostedUserNodeId.getValue();
       console.log('checking node status', nodeId);
