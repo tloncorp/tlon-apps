@@ -32,11 +32,13 @@ type ContentRendererProps = ContentContextProps &
 type PostContentRendererProps = ContentRendererProps & {
   post: Post;
   renderReferences?: boolean;
+  blockSettings?: Partial<DefaultRendererProps>;
 };
 
 export function PostContentRenderer({
   post,
   renderReferences = true,
+  blockSettings,
   ...props
 }: PostContentRendererProps) {
   const content = useMemo(() => {
@@ -52,7 +54,7 @@ export function PostContentRenderer({
   }, [post.content, renderReferences]);
 
   return (
-    <BlockRendererProvider>
+    <BlockRendererProvider settings={blockSettings}>
       <InlineRendererProvider value={undefined}>
         <ContentRenderer content={content} {...props} />
       </InlineRendererProvider>

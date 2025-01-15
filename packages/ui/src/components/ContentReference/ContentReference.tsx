@@ -203,7 +203,22 @@ function ChatReferenceContent({ post }: { post: db.Post }) {
           {post.textContent}
         </Text>
       ) : (
-        <PostContentRenderer renderReferences={false} post={post} />
+        <PostContentRenderer 
+          renderReferences={false} 
+          post={post}
+          blockSettings={{
+            image: {
+              alignItems: 'flex-start',
+              imageProps: {
+                maxWidth: 400,
+                maxHeight: 400,
+                width: 'auto',
+                height: 'auto',
+                objectFit: 'contain',
+              },
+            },
+          }}
+        />
       )}
     </Reference.Body>
   );
