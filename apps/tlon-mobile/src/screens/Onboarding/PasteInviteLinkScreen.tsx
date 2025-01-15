@@ -40,7 +40,6 @@ type FormData = {
 };
 
 export const PasteInviteLinkScreen = ({ navigation }: Props) => {
-  console.log(`env domain`, BRANCH_DOMAIN);
   const lureMeta = useLureMetadata();
   const { setLure } = useBranch();
 

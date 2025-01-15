@@ -5,7 +5,7 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import { SignupParams, signupData } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 
 import { useSignupContext } from '../lib/signupContext';
 import { OnboardingStackParamList } from '../types';
@@ -13,7 +13,6 @@ import { OnboardingStackParamList } from '../types';
 const logger = createDevLogger('OnboardingRevive', true);
 
 export function useReviveSavedOnboarding() {
-  const [reviveAttemptComplete, setReviveAttemptComplete] = useState(false);
   const inviteMeta = useLureMetadata();
   const navigation = useNavigation<NavigationProp<OnboardingStackParamList>>();
   const { isAuthenticated } = useShip();
@@ -112,19 +111,6 @@ export function useReviveSavedOnboarding() {
     navigation,
     signupContext,
   ]);
-
-  // useEffect(() => {
-  //   try {
-  //     execute();
-  //   } catch (e) {
-  //     logger.trackError('Error reviving onboarding', {
-  //       errorMessage: e.message,
-  //       errorStack: e.stack,
-  //     });
-  //   } finally {
-  //     setTimeout(() => signupContext.markReviveCheckComplete(), 100);
-  //   }
-  // }, []);
 
   return executeRevive;
 }

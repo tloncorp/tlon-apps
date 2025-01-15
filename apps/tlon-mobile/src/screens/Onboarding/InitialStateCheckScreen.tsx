@@ -42,7 +42,6 @@ export function InitialStateCheckScreen({ navigation }: Props) {
         const hasPotentialLoggedInSession = !!hostingUserId;
 
         if (nodeStoppedWhileLoggedIn) {
-          // TODO: check auth not expired
           logger.log('node stopped while logged in');
           navigation.reset({
             index: 1,

@@ -51,9 +51,9 @@ export const RequestPhoneVerifyScreen = ({
     setIsSubmitting(true);
     try {
       await store.requestPhoneVerify(phoneNumber);
-      // trackOnboardingAction({
-      //   actionName: 'Phone Verification Requested',
-      // });
+      trackOnboardingAction({
+        actionName: 'Phone Verification Requested',
+      });
       navigation.navigate('CheckVerify', { phoneNumber, mode: params.mode });
     } catch (err) {
       console.error('Error verifiying phone number:', err);

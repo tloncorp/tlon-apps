@@ -9,15 +9,6 @@ export interface SignupParams {
   notificationToken?: string;
   telemetry?: boolean;
   didCompleteOnboarding?: boolean;
-  // hostingUser: {
-  //   id: string;
-  //   email: string;
-  //   phoneNumber?: string;
-  //   admin: boolean;
-  //   ships: string[];
-  //   requirePhoneNumberVerification: boolean;
-  //   verified: boolean;
-  // } | null;
   reservedNodeId: string | null;
   bootPhase: NodeBootPhase;
   userWasReadyAt?: number;
