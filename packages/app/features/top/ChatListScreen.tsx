@@ -291,10 +291,17 @@ export function ChatListScreenView({
                     type="Search"
                     onPress={handleSearchInputToggled}
                   />
-                  <ScreenHeader.IconButton
-                    type="Add"
-                    onPress={handlePressAddChat}
-                  />
+                  {isWindowNarrow ? (
+                    <ScreenHeader.IconButton
+                      type="Add"
+                      onPress={handlePressAddChat}
+                    />
+                  ) : (
+                    <CreateChatSheet
+                      ref={createChatSheetRef}
+                      trigger={<ScreenHeader.IconButton type="Add" />}
+                    />
+                  )}
                 </>
               }
             />
@@ -347,7 +354,9 @@ export function ChatListScreenView({
         />
       </ChatOptionsProvider>
 
-      <CreateChatSheet ref={createChatSheetRef} />
+      {isWindowNarrow && (
+        <CreateChatSheet ref={createChatSheetRef} />
+      )}
       <PersonalInviteSheet
         open={personalInviteOpen}
         onOpenChange={() => setPersonalInviteOpen(false)}
