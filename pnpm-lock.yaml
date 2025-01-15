@@ -1572,6 +1572,9 @@ importers:
       color2k:
         specifier: ^2.0.0
         version: 2.0.3
+      expo-av:
+        specifier: ~13.10.5
+        version: 13.10.6(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13))
       expo-blur:
         specifier: ^12.9.2
         version: 12.9.2(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13))
@@ -25105,6 +25108,10 @@ snapshots:
   expo-av@13.10.6(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)):
     dependencies:
       expo: 50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)
+
+  expo-av@13.10.6(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13)):
+    dependencies:
+      expo: 50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13)
 
   expo-battery@7.7.2(expo@50.0.6(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)):
     dependencies:
