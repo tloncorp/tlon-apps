@@ -106,7 +106,7 @@ export default function ChannelScreen(props: Props) {
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
   const [inviteSheetGroup, setInviteSheetGroup] =
-    React.useState<db.Group | null>();
+    React.useState<string | null>();
 
   // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
   // time
@@ -336,7 +336,10 @@ export default function ChannelScreen(props: Props) {
 
   const handleMarkRead = useCallback(async () => {
     if (channel && !channel.isPendingChannel) {
-      store.markChannelRead(channel);
+      store.markChannelRead({
+        id: channel.id,
+        groupId: channel.groupId ?? undefined,
+      });
     }
   }, [channel]);
 
@@ -430,7 +433,7 @@ export default function ChannelScreen(props: Props) {
             open={inviteSheetGroup !== null}
             onOpenChange={handleInviteSheetOpenChange}
             onInviteComplete={() => setInviteSheetGroup(null)}
-            group={inviteSheetGroup ?? undefined}
+            groupId={inviteSheetGroup ?? undefined}
           />
         </>
       )}

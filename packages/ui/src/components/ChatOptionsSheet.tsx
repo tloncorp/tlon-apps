@@ -53,7 +53,6 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   // Handle open state changes
   const handleOpenChange = useCallback(
     (open: boolean) => {
-      console.log('ChatOptionsSheet handleOpenChange', open);
       if (open && chat) {
         // Set chat state for both popovers and sheets
         context.open(chat.id, chat.type);
