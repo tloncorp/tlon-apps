@@ -105,7 +105,6 @@ export const SignupScreen = ({ navigation }: Props) => {
   }, [emailForm, phoneForm]);
 
   const onSubmit = useCallback(async () => {
-    console.log('bl: on submit');
     setIsSubmitting(true);
     try {
       const { enabled } = await hostingApi.getHostingAvailability({
@@ -127,15 +126,11 @@ export const SignupScreen = ({ navigation }: Props) => {
 
       if (otpMethod === 'phone') {
         await phoneForm.handleSubmit(async ({ phoneNumber }) => {
-          try {
-            await hostingApi.requestSignupOtp({
-              phoneNumber,
-              recaptchaToken,
-              platform: Platform.OS,
-            });
-          } catch (e) {
-            console.log('bl: bad?');
-          }
+          await hostingApi.requestSignupOtp({
+            phoneNumber,
+            recaptchaToken,
+            platform: Platform.OS,
+          });
         })();
       } else {
         console.log('submitting form');

@@ -116,7 +116,6 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
 
   const handleSubmit = useCallback(
     async (code: string) => {
-      console.log('bl: handling otp submit');
       setIsSubmitting(true);
       await storage.eulaAgreed.setValue(true);
       try {

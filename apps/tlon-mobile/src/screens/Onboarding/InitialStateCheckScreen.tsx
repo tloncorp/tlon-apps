@@ -31,8 +31,6 @@ export function InitialStateCheckScreen({ navigation }: Props) {
   const reviveSignupSession = useReviveSavedOnboarding();
   const { reviveLoggedInSession } = useOnboardingHelpers();
 
-  console.log('bl: initial state check render');
-
   useEffect(() => {
     async function checkInitialState() {
       try {

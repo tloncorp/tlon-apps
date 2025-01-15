@@ -450,52 +450,6 @@ export const bootShip = async (shipId: string) =>
     },
   });
 
-// export const getShipsWithStatus = async (
-//   ships: string[]
-// ): Promise<
-//   | {
-//       status: BootPhase;
-//       shipId: string;
-//     }
-//   | undefined
-// > => {
-//   const shipResults = await Promise.allSettled(ships.map(getShip));
-//   console.log(`bl: ship results`, shipResults);
-//   const shipStatuses = shipResults.map((result) =>
-//     result.status === 'fulfilled'
-//       ? result.value.status?.phase ?? 'Unknown'
-//       : 'Unknown'
-//   );
-
-//   // If user has a ready ship, let's use it
-//   const readyIndex = shipStatuses.indexOf('Ready');
-//   if (readyIndex >= 0) {
-//     const shipId = ships[readyIndex];
-//     return {
-//       status: 'Ready',
-//       shipId,
-//     };
-//   }
-
-//   // If user has a paused ship, resume it
-//   const suspendedIndex = shipStatuses.indexOf('Suspended');
-//   if (suspendedIndex >= 0) {
-//     const shipId = ships[suspendedIndex];
-//     await resumeShip(shipId);
-//     return { status: 'Suspended', shipId };
-//   }
-
-//   // If user has a suspended ship, boot it
-//   const unknownIndex = shipStatuses.indexOf('Unknown');
-//   if (unknownIndex >= 0) {
-//     const shipId = ships[unknownIndex];
-//     await bootShip(shipId);
-//     return { status: 'Unknown', shipId };
-//   }
-
-//   return undefined;
-// };
-
 export const getNodeStatus = async (
   nodeId: string
 ): Promise<domain.HostedNodeStatus> => {
