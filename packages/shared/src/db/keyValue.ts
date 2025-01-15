@@ -265,3 +265,8 @@ export const hostingUserId = createStorageItem<string>({
   defaultValue: '',
   isSecure: true,
 });
+
+export const nodeStoppedWhileLoggedIn = createStorageItem<boolean>({
+  key: 'nodeStoppedWhileLoggedIn',
+  defaultValue: false,
+});

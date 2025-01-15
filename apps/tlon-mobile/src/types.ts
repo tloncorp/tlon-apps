@@ -1,4 +1,5 @@
 export type OnboardingStackParamList = {
+  InitialStateCheck: undefined;
   Welcome: undefined;
   InventoryCheck: undefined;
   PasteInviteLink: undefined;
@@ -23,6 +24,7 @@ export type OnboardingStackParamList = {
   ResetPassword: { email?: string };
   GettingNodeReadyScreen: {
     waitType?: 'Paused' | 'Suspended' | 'Unknown';
+    wasLoggedIn?: boolean;
   };
 };
 

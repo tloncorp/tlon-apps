@@ -88,6 +88,8 @@ const App = () => {
     isAuthenticated,
   ]);
 
+  console.log('bl: main render', showAuthenticatedApp, isLoading);
+
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
       {connected ? (

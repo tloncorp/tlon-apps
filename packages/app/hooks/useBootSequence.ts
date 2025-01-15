@@ -86,7 +86,7 @@ export function useBootSequence() {
     // BOOTING: confirm the node has finished booting on hosting
     //
     if (bootPhase === NodeBootPhase.BOOTING) {
-      const isReady = await BootHelpers.checkNodeBooted(reservedNodeId);
+      const isReady = await BootHelpers.checkNodeBooted();
       if (isReady) {
         logger.crumb('checked hosting, node is ready');
         return NodeBootPhase.AUTHENTICATING;

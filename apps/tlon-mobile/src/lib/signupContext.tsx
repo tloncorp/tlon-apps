@@ -21,14 +21,11 @@ const logger = createDevLogger('signup', true);
 
 type SignupValues = Omit<SignupParams, 'bootPhase'>;
 const defaultValues: SignupValues = {
-  hostingUser: null,
   reservedNodeId: null,
 };
 
 interface SignupContext extends SignupParams {
-  reviveCheckComplete: boolean;
   setOnboardingValues: (newValues: Partial<SignupValues>) => void;
-  markReviveCheckComplete: () => void;
   kickOffBootSequence: () => void;
   handlePostSignup: () => void;
   clear: () => void;
@@ -38,7 +35,6 @@ const defaultMethods = {
   setOnboardingValues: () => {},
   handlePostSignup: () => {},
   kickOffBootSequence: () => {},
-  markReviveCheckComplete: () => {},
   clear: () => {},
 };
 
@@ -46,7 +42,6 @@ const SignupContext = createContext<SignupContext>({
   ...defaultValues,
   ...defaultMethods,
   bootPhase: NodeBootPhase.IDLE,
-  reviveCheckComplete: false,
 });
 
 export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
@@ -55,7 +50,6 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     setValue: setValues,
     resetValue: resetValues,
   } = signupData.useStorageItem();
-  const [reviveCheckComplete, setReviveCheckComplete] = useState(false);
   const { bootPhase, bootReport, kickOffBootSequence } = useBootSequence();
   const postHog = usePostHog();
 
@@ -123,8 +117,6 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         ...values,
         bootPhase,
-        reviveCheckComplete,
-        markReviveCheckComplete: () => setReviveCheckComplete(true),
         setOnboardingValues,
         handlePostSignup,
         kickOffBootSequence,

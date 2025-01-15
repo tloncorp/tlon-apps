@@ -1,6 +1,8 @@
 import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useShip } from '@tloncorp/app/contexts/ship';
+import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
+import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { AnalyticsEvent, createDevLogger, withRetry } from '@tloncorp/shared';
 import { HostedNodeStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -11,7 +13,7 @@ import {
   View,
   useStore,
 } from '@tloncorp/ui';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { OnboardingStackParamList } from '../../types';
 
@@ -30,6 +32,9 @@ export function GettingNodeReadyScreen({
   const isFocused = useIsFocused();
   const store = useStore();
   const { setShip } = useShip();
+  const resetDb = useResetDb();
+  const handleLogout = useHandleLogout({ resetDb });
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const isNodeRunning = useCallback(async () => {
     const nodeId = await db.hostedUserNodeId.getValue();
@@ -53,6 +58,12 @@ export function GettingNodeReadyScreen({
       return false;
     }
   }, [navigation, store]);
+
+  const onLogout = useCallback(async () => {
+    setLoggingOut(true);
+    await handleLogout();
+    navigation.navigate('Welcome');
+  }, [handleLogout, navigation]);
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
@@ -104,8 +115,19 @@ export function GettingNodeReadyScreen({
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
-        title="Getting Your Peer-to-peer Node Ready"
-        backAction={() => navigation.goBack()}
+        title={
+          params.wasLoggedIn
+            ? 'Computer not Running'
+            : 'Getting Your Peer-to-peer Node Ready'
+        }
+        backAction={!params.wasLoggedIn ? () => navigation.goBack() : undefined}
+        leftControls={
+          params.wasLoggedIn ? (
+            <ScreenHeader.TextButton onPress={onLogout} disabled={loggingOut}>
+              Log out
+            </ScreenHeader.TextButton>
+          ) : undefined
+        }
         showSessionStatus={false}
       />
       <OnboardingTextBlock marginTop="$5xl" gap="$5xl">

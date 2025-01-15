@@ -5,6 +5,7 @@ import {
   HostedNodeStatus,
   createDevLogger,
 } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
 import { useStore } from '@tloncorp/ui';
@@ -26,17 +27,39 @@ export function useOnboardingHelpers() {
 
     if (accountIssue === store.HostingAccountIssue.NoAssignedShip) {
       navigation.navigate('ReserveShip');
-      return;
+      return true;
     }
 
     if (accountIssue === store.HostingAccountIssue.RequiresVerification) {
       navigation.navigate('RequestPhoneVerify', { mode: 'login' });
-      return;
+      return true;
     }
 
     if (!accountIssue) {
       navigation.navigate('GettingNodeReadyScreen', { waitType: 'Unknown' });
     }
+  }, [navigation, store]);
+
+  const reviveLoggedInSession = useCallback(async () => {
+    const hostingUserId = await db.hostingUserId.getValue();
+    if (!hostingUserId) {
+      return false;
+    }
+
+    // make sure hosting session is still valid
+    const result = await api.getHostingHeartBeat();
+    if (result === 'expired') {
+      return false;
+    }
+
+    // if the account has an issue,
+    const hasAccountIssue = await store.checkAccountStatus();
+    if (hasAccountIssue) {
+      return false;
+    }
+
+    navigation.navigate('GettingNodeReadyScreen', { waitType: 'Unknown' });
+    return true;
   }, [navigation, store]);
 
   const handleLogin = useCallback(
@@ -108,5 +131,6 @@ export function useOnboardingHelpers() {
   return {
     handleLogin,
     checkAccountStatusAndNavigate,
+    reviveLoggedInSession,
   };
 }
