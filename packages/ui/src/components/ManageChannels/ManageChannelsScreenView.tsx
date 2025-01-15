@@ -302,7 +302,6 @@ export function ManageChannelsScreenView({
   createNavSection,
   deleteNavSection,
   updateNavSection,
-  enableCustomChannels = false,
 }: ManageChannelsScreenViewProps) {
   const [sections, setSections] = useState<Section[]>(() => {
     return groupNavSectionsWithChannels.map((s) => ({
@@ -727,7 +726,6 @@ export function ManageChannelsScreenView({
         <CreateChannelSheet
           group={group}
           onOpenChange={(open) => setShowCreateChannel(open)}
-          enableCustomChannels={enableCustomChannels}
         />
       )}
       <EditSectionNameSheet

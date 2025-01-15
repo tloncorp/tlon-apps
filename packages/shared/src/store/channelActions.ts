@@ -160,6 +160,13 @@ export async function updateChannel({
 
   await db.updateChannel(updatedChannel);
 
+  // If we have a `contentConfiguration`, we need to merge these fields to make
+  // a `StructuredChannelDescriptionPayload`, and use that as the `description`
+  const structuredDescription = StructuredChannelDescriptionPayload.encode({
+    description: channel.description ?? undefined,
+    channelContentConfiguration: channel.contentConfiguration ?? undefined,
+  });
+
   const groupChannel: GroupChannel = {
     added: channel.addedToGroupAt ?? 0,
     readers,
@@ -168,7 +175,7 @@ export async function updateChannel({
     join,
     meta: {
       title: channel.title ?? '',
-      description: channel.description ?? '',
+      description: structuredDescription ?? '',
       image: channel.coverImage ?? '',
       cover: channel.coverImage ?? '',
     },

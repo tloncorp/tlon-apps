@@ -1,12 +1,5 @@
-import { ChannelAction } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
-import React, { RefObject, useEffect, useState } from 'react';
-import {
-  DimensionValue,
-  Dimensions,
-  LayoutChangeEvent,
-  View as RNView,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Dimensions, LayoutChangeEvent } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -21,6 +14,7 @@ import { triggerHaptic } from '../../../utils';
 import { EmojiToolbar } from './EmojiToolbar';
 import MessageActions from './MessageActions';
 import { MessageContainer } from './MessageContainer';
+import { ChatMessageActionsProps } from './types';
 
 interface LayoutStruct {
   x: number;
@@ -41,19 +35,7 @@ export function ChatMessageActions({
   onViewReactions,
   onShowEmojiPicker,
   trigger,
-}: {
-  post: db.Post;
-  postActionIds: ChannelAction.Id[];
-  postRef?: RefObject<RNView>;
-  onDismiss: () => void;
-  width?: DimensionValue;
-  height?: DimensionValue;
-  onReply?: (post: db.Post) => void;
-  onEdit?: () => void;
-  onViewReactions?: (post: db.Post) => void;
-  onShowEmojiPicker?: () => void;
-  trigger?: React.ReactNode;
-}) {
+}: ChatMessageActionsProps) {
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
 
@@ -143,7 +125,7 @@ export function ChatMessageActions({
       ],
       opacity: opacity.value,
     }),
-    [translateX, translateY, scale]
+    [translateX, translateY, scale, opacity.value]
   );
 
   if (!isWindowNarrow) {

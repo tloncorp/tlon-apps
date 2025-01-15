@@ -21,7 +21,6 @@ type GroupChannelsScreenViewProps = {
   onChannelPressed: (channel: db.Channel) => void;
   onJoinChannel: (channel: db.Channel) => void;
   onBackPressed: () => void;
-  enableCustomChannels?: boolean;
 };
 
 export function GroupChannelsScreenView({
@@ -30,7 +29,6 @@ export function GroupChannelsScreenView({
   onChannelPressed,
   onJoinChannel,
   onBackPressed,
-  enableCustomChannels = false,
 }: GroupChannelsScreenViewProps) {
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [openChatOptions, setOpenChatOptions] = useState(false);
@@ -158,7 +156,6 @@ export function GroupChannelsScreenView({
         <CreateChannelSheet
           onOpenChange={(open) => setShowCreateChannel(open)}
           group={group}
-          enableCustomChannels={enableCustomChannels}
         />
       )}
     </View>
