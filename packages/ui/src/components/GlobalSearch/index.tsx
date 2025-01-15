@@ -143,6 +143,8 @@ export function GlobalSearch({
             model={item}
             onPress={onPressItem}
             onLayout={handleItemLayout}
+            // We're rendering the ChatListItem outside of the ChatOptionsProvider, so we need to disable the options
+            disableOptions
             backgroundColor={
               listItems[selectedIndex] === item
                 ? '$secondaryBackground'

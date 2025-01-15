@@ -9,10 +9,12 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { Popover, isWeb } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { useChatOptions } from '../contexts/chatOptions';
+import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
 import * as utils from '../utils';
 import { useIsAdmin } from '../utils';
 import {
@@ -25,41 +27,99 @@ import { IconButton } from './IconButton';
 import { ListItem } from './ListItem';
 
 type ChatOptionsSheetProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  // Make open/onOpenChange optional since we can use context
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   chat?: {
     type: 'group' | 'channel';
     id: string;
   } | null;
+  trigger?: React.ReactNode;
 };
 
 export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   chat,
-  ...props
+  open: propOpen,
+  onOpenChange: propOnOpenChange,
+  trigger,
 }: ChatOptionsSheetProps) {
-  const { group } = useChatOptions();
+  const context = useChatOptions();
+  const { group } = context;
 
-  if (!chat || !props.open) {
+  // Use props for explicit control (popovers)
+  // For sheets, this will be false and context.open will handle state
+  const isOpen = propOpen ?? false;
+
+  // Handle open state changes
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      console.log('ChatOptionsSheet handleOpenChange', open);
+      if (open && chat) {
+        // Set chat state for both popovers and sheets
+        context.open(chat.id, chat.type);
+      } else if (!open) {
+        // Close both popover and sheet states
+        if (propOnOpenChange) {
+          propOnOpenChange(false);
+        }
+        // Clear chat state after a short delay to allow handlers to complete
+        setTimeout(() => {
+          context.setChat(null);
+        }, 100);
+      }
+
+      // Call provided handler for popovers
+      if (propOnOpenChange) {
+        propOnOpenChange(open);
+      }
+    },
+    [chat, context.open, context.setChat, propOnOpenChange]
+  );
+
+  if (!chat || (!isOpen && !trigger)) {
     return null;
   }
 
   if (chat.type === 'group') {
-    return <GroupOptionsSheetLoader groupId={chat.id} {...props} />;
+    return (
+      <GroupOptionsSheetLoader
+        groupId={chat.id}
+        open={isOpen}
+        onOpenChange={handleOpenChange}
+        trigger={trigger}
+      />
+    );
   } else if (group?.id && group?.channels?.length === 1) {
-    return <GroupOptionsSheetLoader groupId={group?.id} {...props} />;
+    return (
+      <GroupOptionsSheetLoader
+        groupId={group.id}
+        open={isOpen}
+        onOpenChange={handleOpenChange}
+        trigger={trigger}
+      />
+    );
   }
 
-  return <ChannelOptionsSheetLoader channelId={chat.id} {...props} />;
+  return (
+    <ChannelOptionsSheetLoader
+      channelId={chat.id}
+      open={isOpen}
+      onOpenChange={handleOpenChange}
+      trigger={trigger}
+    />
+  );
 });
 
 export function GroupOptionsSheetLoader({
   groupId,
   open,
   onOpenChange,
+  trigger,
 }: {
   groupId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  trigger?: React.ReactNode;
 }) {
   const [pane, setPane] = useState<
     'initial' | 'notifications' | 'sort' | 'edit'
@@ -87,12 +147,75 @@ export function GroupOptionsSheetLoader({
   const currentUserIsAdmin = useIsAdmin(groupId, currentUserId);
   const { data: groupUnread, isFetched: groupUnreadIsFetched } =
     store.useGroupUnread({ groupId });
-  return group && groupUnreadIsFetched ? (
+  const { data: groupData } = store.useGroup({ id: groupId });
+  const isWindowNarrow = useIsWindowNarrow();
+
+  if ((!group && !groupData) || !groupUnreadIsFetched) {
+    return null;
+  }
+
+  if (isWeb && !isWindowNarrow) {
+    return (
+      <Popover
+        open={open}
+        onOpenChange={onOpenChange}
+        placement="top-end"
+        allowFlip
+        offset={-12}
+      >
+        <Popover.Trigger asChild>{trigger}</Popover.Trigger>
+        <Popover.Content
+          elevate
+          animation="quick"
+          zIndex={1000000}
+          position="relative"
+          borderColor="$border"
+          borderWidth={1}
+          padding={1}
+        >
+          {pane === 'notifications' ? (
+            <NotificationsSheetContent
+              chatTitle={title}
+              onPressBack={resetPane}
+            />
+          ) : pane === 'edit' ? (
+            <EditGroupSheetContent
+              chatTitle={title}
+              onPressBack={resetPane}
+              onOpenChange={onOpenChange}
+            />
+          ) : pane === 'sort' ? (
+            <SortChannelsSheetContent
+              chatTitle={title}
+              onPressBack={resetPane}
+            />
+          ) : (
+            <GroupOptionsSheetContent
+              currentUserIsAdmin={currentUserIsAdmin}
+              groupUnread={groupUnread ?? null}
+              onPressNotifications={handlePressNotifications}
+              onPressSort={handlePressSort}
+              onPressEditGroup={handlePressEdit}
+              chatTitle={title}
+              group={group || groupData!}
+              onOpenChange={onOpenChange}
+            />
+          )}
+        </Popover.Content>
+      </Popover>
+    );
+  }
+
+  return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       {pane === 'notifications' ? (
         <NotificationsSheetContent chatTitle={title} onPressBack={resetPane} />
       ) : pane === 'edit' ? (
-        <EditGroupSheetContent chatTitle={title} onPressBack={resetPane} />
+        <EditGroupSheetContent
+          chatTitle={title}
+          onPressBack={resetPane}
+          onOpenChange={onOpenChange}
+        />
       ) : pane === 'sort' ? (
         <SortChannelsSheetContent chatTitle={title} onPressBack={resetPane} />
       ) : (
@@ -103,11 +226,12 @@ export function GroupOptionsSheetLoader({
           onPressSort={handlePressSort}
           onPressEditGroup={handlePressEdit}
           chatTitle={title}
-          group={group}
+          group={group || groupData!}
+          onOpenChange={onOpenChange}
         />
       )}
     </ActionSheet>
-  ) : null;
+  );
 }
 
 function GroupOptionsSheetContent({
@@ -118,6 +242,7 @@ function GroupOptionsSheetContent({
   onPressNotifications,
   onPressSort,
   onPressEditGroup,
+  onOpenChange,
 }: {
   group: db.Group;
   groupUnread: db.GroupUnread | null;
@@ -126,6 +251,7 @@ function GroupOptionsSheetContent({
   onPressNotifications: () => void;
   onPressSort: () => void;
   onPressEditGroup: () => void;
+  onOpenChange: (open: boolean) => void;
 }) {
   const {
     markGroupRead,
@@ -141,6 +267,14 @@ function GroupOptionsSheetContent({
   const canLeave = !group.currentUserIsHost;
   const isPinned = group?.pin;
 
+  const wrappedAction = useCallback(
+    (action: () => void) => {
+      action();
+      onOpenChange(false);
+    },
+    [onOpenChange]
+  );
+
   const actionGroups = useMemo(
     () =>
       createActionGroups(
@@ -153,12 +287,12 @@ function GroupOptionsSheetContent({
           },
           canMarkRead && {
             title: 'Mark all as read',
-            action: markGroupRead,
+            action: wrappedAction.bind(null, markGroupRead),
           },
           {
             title: isPinned ? 'Unpin' : 'Pin',
             endIcon: 'Pin',
-            action: togglePinned,
+            action: wrappedAction.bind(null, togglePinned),
           },
           {
             title: 'Copy group reference',
@@ -170,7 +304,7 @@ function GroupOptionsSheetContent({
           canSortChannels && {
             title: 'Sort channels',
             endIcon: 'ChevronRight',
-            action: onPressSort,
+            action: wrappedAction.bind(null, onPressSort),
           },
         ],
         [
@@ -183,12 +317,12 @@ function GroupOptionsSheetContent({
           {
             title: 'Members',
             endIcon: 'ChevronRight',
-            action: onPressGroupMembers,
+            action: wrappedAction.bind(null, onPressGroupMembers),
           },
           canInvite
             ? {
                 title: 'Invite people',
-                action: onPressInvite,
+                action: wrappedAction.bind(null, onPressInvite),
                 endIcon: 'ChevronRight',
               }
             : {
@@ -202,7 +336,7 @@ function GroupOptionsSheetContent({
           {
             title: 'Leave group',
             endIcon: 'LogOut',
-            action: leaveGroup,
+            action: wrappedAction.bind(null, leaveGroup),
           },
         ]
       ),
@@ -222,6 +356,7 @@ function GroupOptionsSheetContent({
       onPressNotifications,
       onPressSort,
       togglePinned,
+      wrappedAction,
     ]
   );
 
@@ -232,8 +367,6 @@ function GroupOptionsSheetContent({
   const subtitle = memberCount
     ? `${privacy} group with ${memberCount} member${group.members?.length === 1 ? '' : 's'}`
     : '';
-
-  console.log(chatTitle, subtitle, actionGroups);
 
   return (
     <ChatOptionsSheetContent
@@ -283,12 +416,24 @@ function SortChannelsSheetContent({
 function EditGroupSheetContent({
   chatTitle,
   onPressBack,
+  onOpenChange,
 }: {
   chatTitle: string;
   onPressBack: () => void;
+  onOpenChange: (open: boolean) => void;
 }) {
+  const isWindowNarrow = useIsWindowNarrow();
   const { onPressGroupMeta, onPressManageChannels, onPressGroupPrivacy } =
     useChatOptions();
+
+  const wrappedAction = useCallback(
+    (action: () => void) => {
+      action();
+      onOpenChange(false);
+    },
+    [onOpenChange]
+  );
+
   const editActions = useMemo(
     () =>
       createActionGroups([
@@ -296,23 +441,35 @@ function EditGroupSheetContent({
         {
           title: 'Edit group info',
           description: 'Change name, description, and image',
-          action: onPressGroupMeta,
+          action: wrappedAction.bind(null, onPressGroupMeta),
           endIcon: 'ChevronRight',
         },
         {
           title: 'Manage channels',
           description: 'Add or remove channels in this group',
-          action: onPressManageChannels,
+          action: wrappedAction.bind(null, onPressManageChannels),
           endIcon: 'ChevronRight',
         },
         {
           title: 'Privacy',
           description: 'Change who can find or join this group',
-          action: onPressGroupPrivacy,
+          action: wrappedAction.bind(null, onPressGroupPrivacy),
           endIcon: 'ChevronRight',
         },
+        !isWindowNarrow && {
+          title: 'Back',
+          action: onPressBack,
+          startIcon: 'ChevronLeft',
+        },
       ]),
-    [onPressGroupMeta, onPressGroupPrivacy, onPressManageChannels]
+    [
+      onPressGroupMeta,
+      onPressGroupPrivacy,
+      onPressManageChannels,
+      onPressBack,
+      isWindowNarrow,
+      wrappedAction,
+    ]
   );
 
   return (
@@ -331,10 +488,12 @@ export function ChannelOptionsSheetLoader({
   channelId,
   open,
   onOpenChange,
+  trigger,
 }: {
   channelId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  trigger?: React.ReactNode;
 }) {
   const [pane, setPane] = useState<ChannelPanes>('initial');
   const channelQuery = store.useChannel({
@@ -348,6 +507,7 @@ export function ChannelOptionsSheetLoader({
     utils.useChannelTitle(channelQuery.data ?? null) ?? 'channel';
   const isSingleChannelGroup = group?.channels.length === 1;
   const chatTitle = isSingleChannelGroup ? groupTitle : channelTitle;
+  const isWindowNarrow = useIsWindowNarrow();
 
   const handlePressNotifications = useCallback(() => {
     setPane('notifications');
@@ -363,7 +523,48 @@ export function ChannelOptionsSheetLoader({
     }
   }, [open, resetPane]);
 
-  return channelQuery.data ? (
+  if (!channelQuery.data) {
+    return null;
+  }
+
+  if (isWeb && !isWindowNarrow) {
+    return (
+      <Popover
+        open={open}
+        onOpenChange={onOpenChange}
+        placement="top-end"
+        allowFlip
+        offset={-12}
+      >
+        <Popover.Trigger asChild>{trigger}</Popover.Trigger>
+        <Popover.Content
+          elevate
+          animation="quick"
+          zIndex={1000000}
+          position="relative"
+          borderColor="$border"
+          borderWidth={1}
+          padding={1}
+        >
+          {pane === 'notifications' ? (
+            <NotificationsSheetContent
+              chatTitle={chatTitle}
+              onPressBack={resetPane}
+            />
+          ) : (
+            <ChannelOptionsSheetContent
+              chatTitle={chatTitle}
+              channel={channelQuery.data}
+              onPressNotifications={handlePressNotifications}
+              onOpenChange={onOpenChange}
+            />
+          )}
+        </Popover.Content>
+      </Popover>
+    );
+  }
+
+  return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       {pane === 'notifications' ? (
         <NotificationsSheetContent
@@ -375,20 +576,23 @@ export function ChannelOptionsSheetLoader({
           chatTitle={chatTitle}
           channel={channelQuery.data}
           onPressNotifications={handlePressNotifications}
+          onOpenChange={onOpenChange}
         />
       )}
     </ActionSheet>
-  ) : null;
+  );
 }
 
 function ChannelOptionsSheetContent({
   chatTitle,
   channel,
   onPressNotifications,
+  onOpenChange,
 }: {
   chatTitle: string;
   channel: db.Channel;
   onPressNotifications: () => void;
+  onOpenChange: (open: boolean) => void;
 }) {
   const {
     group,
@@ -413,6 +617,14 @@ function ChannelOptionsSheetContent({
   const canInvite = invitationsEnabled && currentUserIsAdmin;
   const canMarkRead = !(channel.unread?.count === 0);
 
+  const wrappedAction = useCallback(
+    (action: () => void) => {
+      action();
+      onOpenChange(false);
+    },
+    [onOpenChange]
+  );
+
   const actionGroups: ActionGroup[] = useMemo(
     () =>
       createActionGroups(
@@ -426,11 +638,11 @@ function ChannelOptionsSheetContent({
           {
             title: channel?.pin ? 'Unpin' : 'Pin',
             endIcon: 'Pin',
-            action: togglePinned,
+            action: wrappedAction.bind(null, togglePinned),
           },
           canMarkRead && {
             title: 'Mark as read',
-            action: markChannelRead,
+            action: wrappedAction.bind(null, markChannelRead),
           },
         ],
         channel.type === 'groupDm' && [
@@ -438,12 +650,12 @@ function ChannelOptionsSheetContent({
           {
             title: 'Edit group info',
             endIcon: 'ChevronRight',
-            action: onPressChannelMeta,
+            action: wrappedAction.bind(null, onPressChannelMeta),
           },
           {
             title: 'Members',
             endIcon: 'ChevronRight',
-            action: onPressChannelMembers,
+            action: wrappedAction.bind(null, onPressChannelMembers),
           },
         ],
         group && [
@@ -451,12 +663,12 @@ function ChannelOptionsSheetContent({
           currentUserIsAdmin && {
             title: 'Manage channels',
             endIcon: 'ChevronRight',
-            action: onPressManageChannels,
+            action: wrappedAction.bind(null, onPressManageChannels),
           },
           canInvite
             ? {
                 title: 'Invite people',
-                action: onPressInvite,
+                action: wrappedAction.bind(null, onPressInvite),
                 endIcon: 'ChevronRight',
               }
             : {
@@ -471,7 +683,7 @@ function ChannelOptionsSheetContent({
             title: 'Use channel as template',
             description: 'Create a new channel based on this one',
             endIcon: 'Copy',
-            action: onPressChannelTemplate,
+            action: wrappedAction.bind(null, onPressChannelTemplate),
           },
         ],
         !currentUserIsHost && [
@@ -479,7 +691,7 @@ function ChannelOptionsSheetContent({
           {
             title: `Leave`,
             endIcon: 'LogOut',
-            action: leaveChannel,
+            action: wrappedAction.bind(null, leaveChannel),
           },
         ]
       ),
@@ -495,10 +707,13 @@ function ChannelOptionsSheetContent({
       group,
       currentUserIsAdmin,
       onPressManageChannels,
+      onPressChannelTemplate,
       canInvite,
       onPressInvite,
       currentUserIsHost,
       leaveChannel,
+      wrappedAction,
+      hooksPreview,
     ]
   );
 
@@ -543,18 +758,21 @@ function ChatOptionsSheetContent({
   subtitle: string;
   icon?: ReactElement;
 }) {
+  const isWindowNarrow = useIsWindowNarrow();
   return (
     <>
-      <ActionSheet.Header>
-        {icon}
-        <ActionSheet.MainContent>
-          <ListItem.Title>{title}</ListItem.Title>
-          <ListItem.Subtitle $gtSm={{ maxWidth: '100%' }}>
-            {subtitle}
-          </ListItem.Subtitle>
-        </ActionSheet.MainContent>
-      </ActionSheet.Header>
-      <ActionSheet.ScrollableContent>
+      {isWindowNarrow && (
+        <ActionSheet.Header>
+          {icon}
+          <ActionSheet.MainContent>
+            <ListItem.Title>{title}</ListItem.Title>
+            <ListItem.Subtitle $gtSm={{ maxWidth: '100%' }}>
+              {subtitle}
+            </ListItem.Subtitle>
+          </ActionSheet.MainContent>
+        </ActionSheet.Header>
+      )}
+      <ActionSheet.ScrollableContent width={isWindowNarrow ? '100%' : 240}>
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
       </ActionSheet.ScrollableContent>
     </>
@@ -587,6 +805,7 @@ function NotificationsSheetContent({
   chatTitle?: string | null;
   onPressBack: () => void;
 }) {
+  const isWindowNarrow = useIsWindowNarrow();
   const { updateVolume, group, channel } = useChatOptions();
   const { data: currentChannelVolume } = store.useChannelVolumeLevel(
     channel?.id ?? ''
@@ -610,8 +829,13 @@ function NotificationsSheetContent({
             endIcon: currentVolumeLevel === value ? 'Checkmark' : undefined,
           })
         ),
+        !isWindowNarrow && {
+          title: 'Back',
+          action: onPressBack,
+          startIcon: 'ChevronLeft',
+        },
       ]),
-    [currentVolumeLevel, updateVolume]
+    [currentVolumeLevel, updateVolume, isWindowNarrow, onPressBack]
   );
   return (
     <ChatOptionsSheetContent

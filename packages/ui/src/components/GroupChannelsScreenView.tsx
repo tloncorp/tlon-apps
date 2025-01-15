@@ -4,9 +4,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack, getVariableValue, useTheme } from 'tamagui';
 
 import { useChatOptions, useCurrentUserId } from '../contexts';
+import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
 import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
 import { Badge } from './Badge';
 import ChannelNavSections from './ChannelNavSections';
+import { ChatOptionsSheet } from './ChatOptionsSheet';
 import { ChannelListItem } from './ListItem/ChannelListItem';
 import { LoadingSpinner } from './LoadingSpinner';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
@@ -31,6 +33,7 @@ export function GroupChannelsScreenView({
   enableCustomChannels = false,
 }: GroupChannelsScreenViewProps) {
   const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [openChatOptions, setOpenChatOptions] = useState(false);
   const sortBy = db.channelSortPreference.useValue();
   const insets = useSafeAreaInsets();
   const userId = useCurrentUserId();
@@ -63,6 +66,7 @@ export function GroupChannelsScreenView({
   }, [isGroupAdmin]);
 
   const listSectionTitleColor = getVariableValue(useTheme().secondaryText);
+  const isWindowNarrow = useIsWindowNarrow();
 
   return (
     <View flex={1}>
@@ -84,10 +88,19 @@ export function GroupChannelsScreenView({
                 onPress={() => setShowCreateChannel(true)}
               />
             )}
-            <ScreenHeader.IconButton
-              type="Overflow"
-              onPress={handlePressOverflowButton}
-            />
+            {!isWindowNarrow && group ? (
+              <ChatOptionsSheet
+                open={openChatOptions}
+                onOpenChange={setOpenChatOptions}
+                chat={{ type: 'group', id: group.id }}
+                trigger={<ScreenHeader.IconButton type="Overflow" />}
+              />
+            ) : (
+              <ScreenHeader.IconButton
+                type="Overflow"
+                onPress={handlePressOverflowButton}
+              />
+            )}
           </>
         }
       />

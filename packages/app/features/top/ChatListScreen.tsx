@@ -54,7 +54,7 @@ export function ChatListScreenView({
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
-  const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
   const personalInvite = db.personalInviteLink.useValue();
   const viewedPersonalInvite = db.hasViewedPersonalInvite.useValue();
   const { isOpen, setIsOpen } = useGlobalSearch();
@@ -328,7 +328,7 @@ export function ChatListScreenView({
               open={inviteSheetGroup !== null}
               onOpenChange={handleInviteSheetOpenChange}
               onInviteComplete={() => setInviteSheetGroup(null)}
-              group={inviteSheetGroup ?? undefined}
+              groupId={inviteSheetGroup ?? undefined}
             />
           </View>
         </NavigationProvider>
