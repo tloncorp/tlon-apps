@@ -87,7 +87,6 @@ export * from './components/PersonalInviteSheet';
 export * as Form from './components/Form';
 export * from './contexts';
 export { PostCollectionContext } from './contexts/postCollection';
-export { ComponentsKitContextProvider } from './contexts/componentsKits';
 export { GlobalSearchProvider } from './contexts/globalSearch';
 export * from './tamagui.config';
 export * from './types';

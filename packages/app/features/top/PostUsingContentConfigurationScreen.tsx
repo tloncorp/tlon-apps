@@ -4,7 +4,6 @@ import { ChannelContentConfiguration } from '@tloncorp/shared';
 import {
   ChannelProvider,
   ChatOptionsProvider,
-  ComponentsKitContextProvider,
   ConnectedPostView,
   DetailPostUsingContentConfiguration,
   PostCollectionContext,
@@ -46,44 +45,42 @@ export function PostUsingContentConfigurationScreen({
       onPressChannelMeta={noop}
       onPressRoles={noop}
     >
-      <ComponentsKitContextProvider>
-        <ChannelProvider value={{ channel }}>
-          <PostCollectionContext.Provider
-            value={{
-              channel,
-              collectionConfiguration:
-                channel.contentConfiguration == null
-                  ? undefined
-                  : ChannelContentConfiguration.defaultPostCollectionRenderer(
-                      channel.contentConfiguration
-                    ).configuration,
-              editingPost: undefined,
-              goToImageViewer: noop,
-              goToPost: noop,
-              hasNewerPosts: false,
-              hasOlderPosts: false,
-              headerMode: 'default',
-              initialChannelUnread: undefined,
-              isLoadingPosts: false,
-              onPressDelete: noop,
-              onPressRetry: asyncNoop,
-              onScrollEndReached: noop,
-              onScrollStartReached: noop,
-              posts: undefined,
-              selectedPostId: undefined,
-              setEditingPost: noop,
-              LegacyPostView: PostView,
-              PostView: ConnectedPostView,
-            }}
-          >
-            <DetailPostUsingContentConfiguration
-              post={post}
-              navigateBack={() => navigation.goBack()}
-              flex={1}
-            />
-          </PostCollectionContext.Provider>
-        </ChannelProvider>
-      </ComponentsKitContextProvider>
+      <ChannelProvider value={{ channel }}>
+        <PostCollectionContext.Provider
+          value={{
+            channel,
+            collectionConfiguration:
+              channel.contentConfiguration == null
+                ? undefined
+                : ChannelContentConfiguration.defaultPostCollectionRenderer(
+                    channel.contentConfiguration
+                  ).configuration,
+            editingPost: undefined,
+            goToImageViewer: noop,
+            goToPost: noop,
+            hasNewerPosts: false,
+            hasOlderPosts: false,
+            headerMode: 'default',
+            initialChannelUnread: undefined,
+            isLoadingPosts: false,
+            onPressDelete: noop,
+            onPressRetry: asyncNoop,
+            onScrollEndReached: noop,
+            onScrollStartReached: noop,
+            posts: undefined,
+            selectedPostId: undefined,
+            setEditingPost: noop,
+            LegacyPostView: PostView,
+            PostView: ConnectedPostView,
+          }}
+        >
+          <DetailPostUsingContentConfiguration
+            post={post}
+            navigateBack={() => navigation.goBack()}
+            flex={1}
+          />
+        </PostCollectionContext.Provider>
+      </ChannelProvider>
     </ChatOptionsProvider>
   );
 }

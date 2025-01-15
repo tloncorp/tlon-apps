@@ -96,19 +96,6 @@ interface ComponentsKitContextValue {
   >;
 }
 
-const _globalContextValue: ComponentsKitContextValue = {
-  collectionRenderers: {},
-  inputs: {},
-  renderers: {},
-};
-
-const ComponentsKitContext =
-  createContext<ComponentsKitContextValue>(_globalContextValue);
-
-export function useComponentsKitContext() {
-  return useContext(ComponentsKitContext);
-}
-
 const BUILTIN_CONTENT_RENDERERS: { [id: string]: RenderItemType } = {
   [PostContentRendererId.chat]: ChatMessage,
   [PostContentRendererId.gallery]: GalleryPost,
@@ -167,23 +154,15 @@ const BUILTIN_COLLECTION_RENDERERS: {
   [CollectionRendererId.summaries]: PostSummaryCollectionView,
 };
 
-export function ComponentsKitContextProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const value = useMemo(
-    () => ({
-      collectionRenderers: BUILTIN_COLLECTION_RENDERERS,
-      inputs: BUILTIN_DRAFT_INPUTS,
-      renderers: BUILTIN_CONTENT_RENDERERS,
-    }),
-    []
-  );
+const _globalContextValue: ComponentsKitContextValue = {
+  collectionRenderers: BUILTIN_COLLECTION_RENDERERS,
+  inputs: BUILTIN_DRAFT_INPUTS,
+  renderers: BUILTIN_CONTENT_RENDERERS,
+};
 
-  return (
-    <ComponentsKitContext.Provider value={value}>
-      {children}
-    </ComponentsKitContext.Provider>
-  );
+const ComponentsKitContext =
+  createContext<ComponentsKitContextValue>(_globalContextValue);
+
+export function useComponentsKitContext() {
+  return useContext(ComponentsKitContext);
 }
