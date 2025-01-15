@@ -5,6 +5,7 @@ export type User = {
   admin: boolean;
   ships: string[];
   requirePhoneNumberVerification: boolean;
+  phoneNumberVerifiedAt?: string;
   verified: boolean;
 };
 

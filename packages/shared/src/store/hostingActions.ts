@@ -33,7 +33,7 @@ export async function signUpHostedUser(params: {
       platform: params.recaptcha.platform,
     });
 
-    if (user.requirePhoneNumberVerification) {
+    if (user.requirePhoneNumberVerification && !user.phoneNumberVerifiedAt) {
       return HostingAccountIssue.RequiresVerification;
     }
   } catch (err) {
@@ -87,7 +87,7 @@ export async function checkAccountStatus(): Promise<HostingAccountIssue | null> 
 
   const user = await api.getHostingUser(userId);
 
-  if (user.requirePhoneNumberVerification) {
+  if (user.requirePhoneNumberVerification && !user.phoneNumberVerifiedAt) {
     logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
       context: 'Account requires phone verification',
     });
@@ -100,6 +100,10 @@ export async function checkAccountStatus(): Promise<HostingAccountIssue | null> 
     });
     return HostingAccountIssue.NoAssignedShip;
   }
+
+  const nodeId = user.ships[0];
+  await db.hostedUserNodeId.setValue(nodeId);
+  await db.hostedAccountIsInitialized.setValue(true);
 
   return null;
 }
@@ -135,7 +139,7 @@ export async function logInHostedUser({
     logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
   }
 
-  if (user.requirePhoneNumberVerification) {
+  if (user.requirePhoneNumberVerification && !user.phoneNumberVerifiedAt) {
     logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
       context: 'Account requires phone verification',
     });

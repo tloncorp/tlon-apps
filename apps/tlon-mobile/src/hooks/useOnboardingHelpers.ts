@@ -22,20 +22,19 @@ export function useOnboardingHelpers() {
   const { setShip } = useShip();
 
   const checkAccountStatusAndNavigate = useCallback(async () => {
-    const accountStatus = await store.checkAccountStatus();
+    const accountIssue = await store.checkAccountStatus();
 
-    if (accountStatus === store.HostingAccountIssue.NoAssignedShip) {
+    if (accountIssue === store.HostingAccountIssue.NoAssignedShip) {
       navigation.navigate('ReserveShip');
       return;
     }
 
-    if (accountStatus === store.HostingAccountIssue.RequiresVerification) {
+    if (accountIssue === store.HostingAccountIssue.RequiresVerification) {
       navigation.navigate('RequestPhoneVerify', { mode: 'login' });
       return;
     }
 
-    if (!accountStatus) {
-      // no issue, just boot the node
+    if (!accountIssue) {
       navigation.navigate('GettingNodeReadyScreen', { waitType: 'Unknown' });
     }
   }, [navigation, store]);
