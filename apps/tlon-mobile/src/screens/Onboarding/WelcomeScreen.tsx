@@ -189,10 +189,10 @@ export const WelcomeScreen = ({ navigation }: Props) => {
         Open modals during navigation will cause a crash so we need to be careful not to pop this
         until after checking for onboarding revive (which may auto navigate) 
       */}
-      <OnboardingBenefitsSheet
+      {/* <OnboardingBenefitsSheet
         open={!didShowBenefitsSheet}
         onOpenChange={handleBenefitsSheetOpenChange}
-      />
+      /> */}
     </View>
   );
 };
