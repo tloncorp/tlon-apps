@@ -8,7 +8,8 @@ import {
   SectionListHeader,
   TabName,
   Text,
-  TextInputWithIconAndButton,
+  TextInput,
+  TextInputRef,
   View,
   XStack,
   YStack,
@@ -21,7 +22,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   LayoutChangeEvent,
   NativeSyntheticEvent,
-  TextInput,
   TextInputKeyPressEventData,
 } from 'react-native';
 import { getTokenValue } from 'tamagui';
@@ -40,7 +40,7 @@ export function GlobalSearch({
   const { isOpen, setIsOpen } = useGlobalSearch();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputRef>(null);
   const listRef = useRef<FlashList<ChatListItemData>>(null);
   const groupsQuery = store.useGroups({});
   const contactsQuery = store.useContacts();
@@ -300,7 +300,7 @@ export function GlobalSearch({
         maxWidth={600}
         gap="$l"
       >
-        <TextInputWithIconAndButton
+        <TextInput
           ref={inputRef}
           placeholder={`Navigate to groups or DMs (${
             navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'
@@ -309,8 +309,12 @@ export function GlobalSearch({
           value={searchQuery}
           onChangeText={setSearchQuery}
           onKeyPress={handleKeyPress}
-          onButtonPress={() => setIsOpen(false)}
-          buttonText="Close"
+          rightControls={
+            <TextInput.InnerButton
+              label="Close"
+              onPress={() => setIsOpen(false)}
+            />
+          }
           spellCheck={false}
           autoCorrect={false}
           autoCapitalize="none"

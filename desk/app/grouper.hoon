@@ -1,8 +1,7 @@
 /-  reel, groups, c=chat, ch=channels
-/+  gj=groups-json, default-agent, verb, dbug
+/+  gj=groups-json, default-agent, verb, logs, dbug
 ::
 |%
-++  dev-mode  |
 ++  enabled-groups  (set cord)
 ++  outstanding-pokes  (set (pair ship cord))
 ++  bite-subscribe
@@ -27,6 +26,7 @@
 |_  =bowl:gall
 +*  this  .
     def   ~(. (default-agent this %.n) bowl)
+    log   ~(. logs [our.bowl /logs])
 ::
 ++  on-init
   :_  this
@@ -138,7 +138,7 @@
     :_  this
     =;  caz=(list card)
       ?~  inviter=(~(get by fields.metadata.bite) 'inviter')
-        ~&("no inviter field for token: {<token.bite>}" ~)
+        ~[(tell:log `token.bite %crit 'inviter field missing' ~)]
       ?.  =((slav %p u.inviter) our.bowl)  ~
       =/  wir=^wire  /dm/(scot %p joiner.bite)
       =/  =dock  [our.bowl %chat]
@@ -149,43 +149,45 @@
         :-  joiner.bite
         [id %add memo [%notice ~] ~]
       =/  =cage  chat-dm-action+!>(`action:dm:c`action)
-      (snoc caz [%pass wir %agent dock %poke cage])
+      =*  dez  %^  tell:log  `token.bite  %info
+               ~[leaf+"{<joiner.bite>} invited to DM"]
+      (snoc [dez caz] [%pass wir %agent dock %poke cage])
     ?~  group=(~(get by fields.metadata.bite) 'group')
-      ~&("no group field for token: {<token.bite>}" ~)
+      ~[(tell:log `token.bite %warn 'group field missing' ~)]
     =/  =flag:groups  (flag:dejs:gj s+u.group)
-    ~?  dev-mode  [bite (~(has in enabled-groups) q.flag)]
     ?.  (~(has in enabled-groups) q.flag)
-      ~&("group lure not enabled: {<flag>}" ~)
-    ~?  dev-mode  'inviting'
+      ~[(tell:log `token.bite %warn 'group {<p.flag>}/{<q.flag>} lure disabled' ~)]
     =/  =invite:groups  [flag joiner.bite]
     =/  prefix  /(scot %p our.bowl)/groups/(scot %da now.bowl)
     ?.  .^(? %gu (weld prefix /$))
-      ~?(dev-mode "groups not running" ~)
+      ~[(tell:log `token.bite %warn '%groups not running' ~)]
     =/  gnat=path  /(scot %p p.flag)/[q.flag]/noun
     ?.  .^(? %gx :(weld prefix /exists gnat))
-      ~?(dev-mode "group doesn't exist" ~)
+      ~[(tell:log `token.bite %warn 'group {<p.flag>}/{<q.flag>} not found' ~)]
     =+  .^(=group:groups %gx :(weld prefix /groups gnat))
-    ~?  dev-mode  cordon.group
     ?+  -.cordon.group  ~
         %open
-      ~?  dev-mode  ['inviting to public' joiner.bite]
+      :-  %^  tell:log  `token.bite  %info
+          ~[leaf+"{<joiner.bite>} invited to public group {<p.flag>}/{<q.flag>}"]
       ~[[%pass /invite %agent [our.bowl %groups] %poke %group-invite !>(invite)]]
     ::
         %shut
-      ~?  dev-mode  ['inviting to private/secret' joiner.bite]
       =/  =action:groups
         :-  flag
         :-  now.bowl
         :-  %cordon
         [%shut [%add-ships %pending (~(gas in *(set ship)) ~[joiner.bite])]]
-      :_  ~
-      [%pass /invite %agent [our.bowl %groups] %poke act:mar:groups !>(action)]
+      :-  %^  tell:log  `token.bite  %info
+          ~[leaf+"{<joiner.bite>} invited to restricted group {<p.flag>}/{<q.flag>}"]
+      ~[[%pass /invite %agent [our.bowl %groups] %poke act:mar:groups !>(action)]]
     ==
   ==
 ::
 ++  on-fail
   |=  [=term =tang]
-  (mean ':sub +on-fail' term tang)
+  ^-  (quip card _this)
+  :_  this
+  [(fail:log (fail-event:logs term tang))]~
 ::
 ++  on-leave
   |=  =path

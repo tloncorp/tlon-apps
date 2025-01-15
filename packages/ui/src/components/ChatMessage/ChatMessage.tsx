@@ -268,6 +268,16 @@ const ChatContentRenderer = createContentRenderer({
     reference: {
       contentSize: '$l',
     },
+    image: {
+      alignItems: 'flex-start',
+      imageProps: {
+        maxWidth: 600,
+        maxHeight: 600,
+        height: 'auto',
+        width: 'auto',
+        objectFit: 'contain',
+      },
+    },
   },
 });
 

@@ -14,4 +14,9 @@ export enum AnalyticsEvent {
   ChannelTemplateSetup = 'Channel Created from Template',
   ChannelLoadComplete = 'Channel Load Complete',
   SessionInitialized = 'Session Initialized',
+  InviteError = 'Invite Error',
+  InviteDebug = 'Invite Debug',
+  InviteButtonShown = 'Invite Button Shown',
+  DebugLogs = 'Debug Logs',
+  AppError = 'App Error',
 }

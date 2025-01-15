@@ -44,7 +44,7 @@
     "@dev-plugins/react-query": "^0.0.6",
     "@google-cloud/recaptcha-enterprise-react-native": "^18.3.0",
     "@gorhom/bottom-sheet": "^4.5.1",
-    "@op-engineering/op-sqlite": "11.2.4",
+    "@op-engineering/op-sqlite": "5.0.5",
     "@react-native-async-storage/async-storage": "1.21.0",
     "@react-native-clipboard/clipboard": "^1.14.0",
     "@react-native-community/netinfo": "11.1.0",
