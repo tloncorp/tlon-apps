@@ -211,7 +211,7 @@ export function ChatListScreenView({
     }
   }, [activeTab]);
 
-  const [splashVisible, setSplashVisible] = useState(true);
+  const [splashVisible, setSplashVisible] = useState(false);
 
   useEffect(() => {
     const checkSplashDismissed = async () => {
