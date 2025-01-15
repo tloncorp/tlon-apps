@@ -14,6 +14,7 @@ import {
   ScrollView,
   Spinner,
   View,
+  ViewStyle,
   XStack,
   YStack,
   styled,
@@ -114,8 +115,9 @@ const TextInputComponent = RawTextInput.styleable<{
   accent?: Accent;
   backgroundType?: 'primary' | 'secondary';
   rightControls?: ReactNode;
+  frameStyle?: ViewStyle;
 }>(
-  ({ icon, accent, backgroundType, ...props }, ref) => {
+  ({ icon, accent, backgroundType, frameStyle, ...props }, ref) => {
     const fieldContext = useContext(FieldContext);
     return (
       <InputFrame
@@ -124,6 +126,7 @@ const TextInputComponent = RawTextInput.styleable<{
           ? { height: 'unset' }
           : {})}
         backgroundType={backgroundType ?? fieldContext.backgroundType}
+        {...frameStyle}
       >
         {icon ? <Icon type={icon} size="$m" /> : null}
         <RawTextInput flex={1} ref={ref} {...props} />
