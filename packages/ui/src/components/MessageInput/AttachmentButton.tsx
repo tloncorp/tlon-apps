@@ -25,8 +25,6 @@ export default function AttachmentButton({
       <Button
         backgroundColor="unset"
         borderColor="transparent"
-        marginBottom={2}
-        padding={0}
         onPress={() => setShowInputSelector(true)}
       >
         <Icon type="Add" />

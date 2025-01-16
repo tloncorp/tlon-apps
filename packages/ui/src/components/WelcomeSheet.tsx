@@ -1,11 +1,10 @@
 import React, { useCallback } from 'react';
-import { Image, Modal } from 'react-native';
+import { Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Dialog, View, XStack, YStack, isWeb, VisuallyHidden } from 'tamagui';
-import { Text } from './TextV2';
+import { Text, View, XStack, YStack, isWeb } from 'tamagui';
+
 import { Icon } from './Icon';
 import { Sheet } from './Sheet';
-import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
 
 function WelcomeSheetComponent({
   open,
@@ -19,138 +18,99 @@ function WelcomeSheetComponent({
   }, [onOpenChange]);
 
   const inset = useSafeAreaInsets();
-  const isWindowNarrow = useIsWindowNarrow();
-
-  const content = (
-    <YStack gap="$2xl">
-      <View borderRadius="$xl" overflow="hidden">
-        <Image
-          style={{ width: '100%', height: 188 }}
-          resizeMode={'cover'}
-          source={
-            isWeb
-              ? './welcome_flowers.jpg'
-              : require('../assets/raster/welcome_flowers.jpg')
-          }
-        />
-      </View>
-      <YStack gap="$l">
-        <Text fontSize="$xl">Welcome to TM</Text>
-        <Text fontSize="$m" color="$tertiaryText">
-          A messenger you can finally trust.
-        </Text>
-      </YStack>
-      <XStack gap="$l">
-        <View>
-          <View
-            backgroundColor={'$secondaryBackground'}
-            borderRadius={'$3xl'}
-            padding="$m"
-          >
-            <Icon type="ChannelTalk" />
-          </View>
-        </View>
-        <YStack gap="$xs" flex={1}>
-          <Text fontWeight="$xl">Control every bit</Text>
-          <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
-            Whatever you do, say, and make on Tlon is yours to keep
-          </Text>
-        </YStack>
-      </XStack>
-      <XStack gap="$l">
-        <View>
-          <View
-            backgroundColor={'$secondaryBackground'}
-            borderRadius={'$3xl'}
-            padding="$m"
-          >
-            <Icon type="Clock" />
-          </View>
-        </View>
-        <YStack gap="$xs" flex={1}>
-          <Text fontWeight="$xl">From now until forever</Text>
-          <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
-            With Tlon you can always take your data with you and continue
-            using it elsewhere
-          </Text>
-        </YStack>
-      </XStack>
-      <XStack gap="$l">
-        <View>
-          <View
-            backgroundColor={'$secondaryBackground'}
-            borderRadius={'$3xl'}
-            padding="$m"
-          >
-            <Icon type="Muted" />
-          </View>
-        </View>
-        <YStack gap="$xs" flex={1}>
-          <Text fontWeight="$xl">Connect with calm</Text>
-          <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
-            Tlon is designed to maximize genuine connection, not addictive
-            engagement
-          </Text>
-        </YStack>
-      </XStack>
-    </YStack>
-  );
-
-  if (!isWindowNarrow) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <Dialog.Portal>
-          <VisuallyHidden>
-            <Dialog.Title>Welcome to TM</Dialog.Title>
-          </VisuallyHidden>
-          <Dialog.Overlay
-            backgroundColor="$overlayBackground"
-            key="overlay"
-            opacity={0.4}
-          />
-          <Dialog.Content
-            borderWidth={1}
-            borderColor="$border"
-            padding="$2xl"
-            width="90%"
-            maxWidth={500}
-            key="content"
-          >
-            {content}
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog>
-    );
-  }
 
   return (
-    <Modal
-      visible={open}
-      onRequestClose={handleDismiss}
-      transparent
-      animationType="none"
+    <Sheet
+      open={open}
+      onOpenChange={handleDismiss}
+      snapPointsMode="fit"
+      modal
+      dismissOnSnapToBottom
+      animation="quick"
     >
-      <Sheet
-        open={open}
-        onOpenChange={handleDismiss}
-        snapPointsMode="fit"
-        modal
-        dismissOnSnapToBottom
-        animation="quick"
+      <Sheet.Overlay />
+      <Sheet.LazyFrame
+        paddingTop="$s"
+        paddingBottom={inset.bottom}
+        paddingHorizontal="$2xl"
       >
-        <Sheet.Overlay />
-        <Sheet.LazyFrame
-          paddingTop="$s"
-          paddingBottom={inset.bottom}
-          paddingHorizontal="$2xl"
-        >
-          <Sheet.Handle marginBottom="$l" />
-          <View paddingHorizontal="$2xl" paddingBottom="$2xl">
-            {content}
-          </View>
-        </Sheet.LazyFrame>
-      </Sheet>
-    </Modal>
+        <Sheet.Handle marginBottom="$l" />
+        <View paddingHorizontal="$2xl" paddingBottom="$2xl">
+          <YStack gap="$2xl">
+            <View borderRadius="$xl" overflow="hidden">
+              <Image
+                style={{ width: '100%', height: 188 }}
+                resizeMode={'cover'}
+                source={
+                  isWeb
+                    ? './welcome_flowers.jpg'
+                    : require('../assets/raster/welcome_flowers.jpg')
+                }
+              />
+            </View>
+            <YStack gap="$xs">
+              <Text fontSize="$l2">Welcome to TM</Text>
+              <Text fontSize="$l" color="$tertiaryText">
+                A messenger you can finally trust.
+              </Text>
+            </YStack>
+            <XStack gap="$l">
+              <View>
+                <View
+                  backgroundColor={'$secondaryBackground'}
+                  borderRadius={'$3xl'}
+                  padding="$m"
+                >
+                  <Icon type="ChannelTalk" />
+                </View>
+              </View>
+              <YStack gap="$xs" flex={1}>
+                <Text fontWeight="$xl">Control every bit</Text>
+                <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
+                  Whatever you do, say, and make on Tlon is yours to keep
+                </Text>
+              </YStack>
+            </XStack>
+            <XStack gap="$l">
+              <View>
+                <View
+                  backgroundColor={'$secondaryBackground'}
+                  borderRadius={'$3xl'}
+                  padding="$m"
+                >
+                  <Icon type="Clock" />
+                </View>
+              </View>
+              <YStack gap="$xs" flex={1}>
+                <Text fontWeight="$xl">From now until forever</Text>
+                <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
+                  With Tlon you can always take your data with you and continue
+                  using it elsewhere
+                </Text>
+              </YStack>
+            </XStack>
+            <XStack gap="$l">
+              <View>
+                <View
+                  backgroundColor={'$secondaryBackground'}
+                  borderRadius={'$3xl'}
+                  padding="$m"
+                >
+                  <Icon type="Muted" />
+                </View>
+              </View>
+              <YStack gap="$xs" flex={1}>
+                <Text fontWeight="$xl">Connect with calm</Text>
+                <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
+                  Tlon is designed to maximize genuine connection, not addictive
+                  engagement
+                </Text>
+              </YStack>
+            </XStack>
+          </YStack>
+        </View>
+      </Sheet.LazyFrame>
+    </Sheet>
   );
 }
 
