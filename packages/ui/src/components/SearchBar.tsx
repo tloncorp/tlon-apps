@@ -16,7 +16,7 @@ export function SearchBar({
   placeholder?: string;
   onChangeQuery: (query: string) => void;
   debounceTime?: number;
-  onPressCancel: () => void;
+  onPressCancel?: () => void;
   inputProps?: ComponentProps<typeof TextInput>;
 } & ComponentProps<typeof Input>) {
   const [value, setValue] = useState('');
@@ -55,9 +55,11 @@ export function SearchBar({
         placeholder={placeholder}
         rightControls={
           <TextInput.InnerButton
-            label={value === '' ? 'Cancel' : 'Clear'}
+            label={value === '' && !!onPressCancel ? 'Cancel' : 'Clear'}
             onPress={() =>
-              value === '' ? onPressCancel?.() : onTextChange('')
+              value === '' && !!onPressCancel
+                ? onPressCancel()
+                : onTextChange('')
             }
           />
         }
