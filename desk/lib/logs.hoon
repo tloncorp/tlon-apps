@@ -3,23 +3,23 @@
   |_  [our=ship =wire]
   ::
   ++  fail
-    |=  [desc=term trace=tang]
+    |=  [desc=term trace=tang =log-data]
     ^-  card:agent:gall
     =/  event=$>(%fail log-event)
       [%fail desc trace]
-    (pass event)
+    (pass event log-data)
   ::
   ++  tell
-    |=  [id=(unit @ta) vol=volume =echo]
+    |=  [vol=volume =echo =log-data]
     ^-  card:agent:gall
     =/  event=$>(%tell log-event)
-      [%tell id vol echo]
-    (pass event)
+      [%tell vol echo]
+    (pass event log-data)
   ::
   ++  pass
-    |=  event=log-event
+    |=  [event=log-event data=log-data]
     ^-  card:agent:gall
-    [%pass wire %agent [our %logs] %poke log-action+!>([%log event])]
+    [%pass wire %agent [our %logs] %poke log-action+!>([%log event data])]
   --
 |%
 ::
@@ -29,9 +29,9 @@
   [%fail term tang]
 ::
 ++  tell-event
-  |=  [id=(unit @ta) vol=volume =echo]
+  |=  [vol=volume =echo]
   ^-  $>(%tell log-event)
-  [%tell id vol echo]
+  [%tell vol echo]
 ::
 ++  enjs
   =,  format
@@ -62,10 +62,6 @@
         %tell
       =-  ?>(?=(%o -.-) -)
       %-  pairs:enjs
-      ::
-      ::  insert tell id if present
-      =-  ?~  id.e  -
-          [id/s+u.id.e -]
       :~  type/s+event-type
           message/(tang echo.e)
           volume/s+vol.e
