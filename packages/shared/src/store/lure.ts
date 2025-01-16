@@ -96,6 +96,10 @@ export const useLureState = create<LureState>((set, get) => ({
           }),
         },
       });
+      lureLogger.trackEvent(AnalyticsEvent.InitializedNewInvite, {
+        flag,
+        inviterUserId: currentUserId,
+      });
     } catch (e) {
       lureLogger.trackError(AnalyticsEvent.InviteError, {
         context: 'reel describe failed',
@@ -422,7 +426,7 @@ export function useLureLinkStatus({
     }
 
     return 'ready';
-  }, [supported, fetched, enabled, url, checked, deepLinkUrl, good, flag]);
+  }, [supported, fetched, enabled, url, checked, deepLinkUrl, good]);
 
   // prevent over zealous logging
   const statusKey = useMemo(() => {

@@ -8,13 +8,7 @@ import * as api from '@tloncorp/shared/api';
 import { SignupParams, didSignUp, signupData } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import PostHog, { usePostHog } from 'posthog-react-native';
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect } from 'react';
 import branch from 'react-native-branch';
 
 const logger = createDevLogger('signup', true);

@@ -24,4 +24,5 @@ export enum AnalyticsEvent {
   InviteError = 'Invite Error',
   InviteDebug = 'Invite Debug',
   InviteButtonShown = 'Invite Button Shown',
+  InitializedNewInvite = 'Initialized New Invite',
 }
