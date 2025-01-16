@@ -335,7 +335,7 @@ export default function ChannelScreen(props: Props) {
     if (channel && !channel.isPendingChannel) {
       store.markChannelRead(channel);
     }
-  }, [channel]);
+  }, [channel?.type, channel?.id, channel?.groupId]);
 
   const canUpload = useCanUpload();
 
