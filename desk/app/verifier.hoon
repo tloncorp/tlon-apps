@@ -35,9 +35,10 @@
   |=  id=identifier
   ^-  wire
   ?-  -.id
-    %dummy  /dummy/(scot %t +.id)
-    %urbit  /urbit/(scot %p +.id)
-    %phone  /phone/(scot %t +.id)
+    %dummy    /dummy/(scot %t +.id)
+    %urbit    /urbit/(scot %p +.id)
+    %phone    /phone/(scot %t +.id)
+    %twitter  /twitter/(scot %t +.id)
   ==
 ::
 ++  wire-id
@@ -45,9 +46,10 @@
   ^-  (unit identifier)
   ?.  ?=([id-kind @ *] wire)  ~
   ?-  i.wire
-    %dummy  (bind (slaw %t i.t.wire) (lead %dummy))
-    %urbit  (bind (slaw %p i.t.wire) (lead %urbit))
-    %phone  (bind (slaw %t i.t.wire) (lead %phone))
+    %dummy    (bind (slaw %t i.t.wire) (lead %dummy))
+    %urbit    (bind (slaw %p i.t.wire) (lead %urbit))
+    %phone    (bind (slaw %t i.t.wire) (lead %phone))
+    %twitter  (bind (slaw %t i.t.wire) (lead %twitter))
   ==
 ::
 ++  give-endpoint
@@ -108,6 +110,93 @@
     :^  %'PATCH'  (cat 3 base '/verify')  heads
     (make-body 'phoneNumber'^s+nr 'otp'^s+otp.req ~)
   ==
+::
+++  req-twitter-post
+  |=  [bearer=@t handle=@t tweet=@t]
+  ^-  card
+  =;  =request:http
+    :+  %pass  /id/twitter/(scot %t handle)/post/(scot %t tweet)
+    [%arvo %i %request request %*(. *outbound-config:iris retries 0)]
+  =/  heads=header-list:http
+    ['authorization' (cat 3 'Bearer ' bearer)]~
+  =-  [%'GET' - heads ~]
+  ::TODO  query params could be tighter if we're only looking at plaintext body,
+  ::      don't need entities
+  %+  rap  3
+  :~  'https://api.x.com/2/tweets/'
+      tweet
+      '?user.fields=username,id'
+      '&tweet.fields=author_id,entities'
+      '&expansions=author_id'
+  ==
+::
+++  parse-twitter-post
+  |=  $:  =bowl:gall
+          [handle=@t nonce=@ux]
+          [hed=response-header:http bod=(unit mime-data:iris)]
+      ==
+  ^-  ?(%good %rate-limited %unauthorized %not-found %protected %bad-tweet %bad-nonce %bad-sign %bad)
+  ?+  status-code.hed  %bad
+    %400  %bad
+    %401  %unauthorized
+    %404  %not-found
+    %429  %rate-limited
+  ::
+      %200
+    ?~  bod  %bad
+    ?~  jon=(de:json:html q.data.u.bod)  %bad
+    =,  dejs-soft:format
+    =/  [[text=@t uid=@t] usr=(map @t @t)]
+      =-  (fall - ['' ''] ~)
+      %.  u.jon
+      %-  ot
+      :~  'data'^(ot 'text'^so 'author_id'^so ~)
+        ::
+          =;  u  'includes'^(ot 'users'^u ~)
+          (cu ~(gas by *(map @t @t)) (ar (ot 'id'^so 'username'^so ~)))
+      ==
+    ?~  nom=(~(get by usr) uid)
+      =;  nauth  ?:(nauth %protected %bad)
+      ::TODO  do better
+      ?=(^ (find "not-authorized-for-resource" (trip q.data.u.bod)))
+    ?:  !=(u.nom handle)  %bad
+    =/  pull
+      ::NOTE  the twitter api returns newlines as backslash-n, so newlines
+      ::      directly preceding the blob will be included in its result.
+      ::      however, for any valid jam, appending arbitrary bytes does not
+      ::      change the result of cueing it: cue simply does not read into the
+      ::      extraneous bytes. so we only need to worry about content directly
+      ::      _after_ the blob, and there newlines will properly demarcate the
+      ::      end of the blob (as will spaces and other non-siw:ab characters),
+      ::      because they start with a backslash.
+      |^  wrap
+      ++  wrap  %+  knee  *@  |.  ~+
+                ;~(pose ;~(sfix blob (star next)) ;~(pfix next wrap))
+      ::NOTE  bare signature is ~84 chars. the jam always larger, but never
+      ::      larger than a tweet (280 chars).
+      ++  blob  (bass 64 (stun [84 280] siw:ab))
+      --
+    =/  pay=(unit payload:twitter)
+      ?~  jaw=(rush text pull)  ~
+      (biff (mole |.((cue u.jaw))) (soft payload:twitter))
+    ?~  pay  %bad-tweet
+    ?.  =(nonce.dat.u.pay nonce)  %bad-nonce
+    ?:((validate-signature bowl u.pay) %good %bad-sign)
+  ==
+::
+++  validate-signature
+  |=  [=bowl:gall sign=(urbit-signature)]
+  ^-  ?
+  ::  if we don't know the current life of the signer,
+  ::  or the life used to sign is beyond what we know,
+  ::  we can't validate locally.
+  ::
+  =+  .^(lyf=(unit life) %j /(scot %p our.bowl)/lyfe/(scot %da now.bowl)/(scot %p who.sign))
+  ?~  |(?=(~ lyf) (gth lyf.sign u.lyf))  |
+  ::  jael should have the pubkey. get it and validate.
+  ::
+  =+  .^([life =pass *] %j /(scot %p our.bowl)/deed/(scot %da now.bowl)/(scot %p who.sign)/(scot %ud lyf.sign))
+  (safe:as:(com:nu:crub:crypto pass) sig.sign (jam dat.sign))
 ::
 ++  register
   |=  $:  [[%0 state] =bowl:gall]
@@ -194,15 +283,17 @@
     ::
       ?.  full
         ?-  kind.dat.half-sign.tat
-          %dummy  'a dummy identifier'
-          %urbit  'another urbit'
-          %phone  'a phone number'
+          %dummy    'a dummy identifier'
+          %urbit    'another urbit'
+          %phone    'a phone number'
+          %twitter  'an x.com account'
         ==
       =*  id  id.dat.full-sign.tat
       ?-  -.id.dat.full-sign.tat
-        %dummy  (cat 3 'dummy id ' +.id)
-        %urbit  (cat 3 'control over ' (scot %p +.id))
-        %phone  (cat 3 'phone nr ' +.id)
+        %dummy    (cat 3 'dummy id ' +.id)
+        %urbit    (cat 3 'control over ' (scot %p +.id))
+        %phone    (cat 3 'phone nr ' +.id)
+        %twitter  (cat 3 'x.com account @' +.id)
       ==
     ::
       ' on '
@@ -242,6 +333,10 @@
       ?>  =(our src):bowl
       [~ this(phone-api !<([@t @t (unit [@t @t])] (slot 3 vase)))]
     ::
+        [%set-twitter-api *]
+      ?>  =(our src):bowl
+      [~ this(twitter-api !<(@t (slot 3 vase)))]
+    ::
         [%set-domain base=(unit @t)]
       ?>  =(our src):bowl
       ?:  =(base.q.vase domain)  [~ this]
@@ -253,12 +348,18 @@
     =+  !<(cmd=user-command vase)
     ?-  -.cmd
         %start
+      ::TODO  careful with moons for ids that require signing, we can't know
+      ::      their keys ahead of time...
+      ::REVIEW  or is that not a problem, considering the moon will need to
+      ::        talk to us before we try verifying?
       ?<  (~(has by records) id.cmd)
       =/  =status
         ?-  -.id.cmd
-          %dummy  [%wait ~]
-          %urbit  [%want %urbit (~(rad og eny.bowl) 1.000.000)]
-          %phone  [%wait ~]
+          %dummy    [%wait ~]
+          %urbit    [%want %urbit (~(rad og eny.bowl) 1.000.000)]
+          %phone    [%wait ~]
+          %twitter  ?>  =(+.id.cmd (crip (cass (trip +.id.cmd))))
+                    [%want %twitter %post (end 5 (shas %twitter eny.bowl))]
         ==
       =.  records
         %+  ~(put by records)  id.cmd
@@ -327,6 +428,17 @@
         :_  this(records (~(put by records) id rec))
         :~  (give-status src.bowl id status.rec)
             (req-phone-api phone-api +.id %submit otp.work.cmd)
+        ==
+      ::
+          %twitter
+        ?>  ?=(%twitter -.id)
+        =/  rec  (~(got by records) id)
+        ?>  =(src.bowl for.rec)
+        ?>  |(?=([%want %twitter %post *] status.rec))  ::NOTE  tmi hack
+        =.  status.rec  [%wait `status.rec]
+        :_  this(records (~(put by records) id rec))
+        :~  (give-status src.bowl id status.rec)
+            (req-twitter-post twitter-api +.id id.work.cmd)
         ==
       ==
     ==
@@ -599,6 +711,66 @@
       ::TODO  limit attempts?
       ::
       want-otp
+    ==
+  ::
+      [%id %twitter @ %post @ ~]
+    ~|  [- +<]:sign
+    ?>  ?=([%iris %http-response *] sign)
+    =*  res  client-response.sign
+    =/  handle  (slav %t i.t.t.wire)
+    =/  id      [%twitter handle]
+    =/  tweet   (slav %t i.t.t.t.t.wire)
+    ::  if the id was removed (cancelled or revoked by the user), no-op
+    ::
+    ?~  rec=(~(get by records) id)
+      [~ this]
+    ::  we should've put the id into a waiting state with retained work details,
+    ::  for which we'll now handle our continuation
+    ::
+    =/  status  status.u.rec  ::NOTE  to avoid tmi
+    ?>  ?=([%wait ~ %want %twitter %post @] status)
+    ::  %progress responses are unexpected, the runtime doesn't support them
+    ::  right now. if they occur, just treat them as cancels and retry.
+    ::
+    =?  res  ?=(%progress -.res)
+      ~&  [dap.bowl %strange-iris-progress-response]  ::TODO  log properly
+      [%cancel ~]
+    ::  we might get a %cancel if the runtime was restarted during our
+    ::  request. try to pick up where we left off.
+    ::
+    ?:  ?=(%cancel -.res)
+      :_  this
+      [(req-twitter-post twitter-api handle tweet)]~
+    ?>  ?=(%finished -.res)
+    =/  result
+      (parse-twitter-post bowl [handle nonce.u.pre.status] +.res)
+    ::TODO  log all non-good results?
+    =*  abort
+      ::TODO  and log
+      :-  [(give-status for.u.rec id [%gone 'service error'])]~
+      this(records (~(del by records) id))
+    =*  hold
+      ::TODO  include msg in the status?
+      =.  status.u.rec  u.pre.status
+      :-  [(give-status for.u.rec id status.u.rec)]~
+      this(records (~(put by records) id u.rec))
+    ::TODO  auto-retry when rate-limited? response contains x-rate-limit-reset
+    ::      header which has a unix timestamp, so we could get tight here.
+    ::      but we probably don't want to squeeze ourselves, instead prevent
+    ::      getting into overage in the first place.
+    ?-  result
+      %rate-limited  hold
+      %unauthorized  abort
+      %not-found     hold
+      %protected     hold
+      %bad-tweet     hold
+      %bad-nonce     hold
+      %bad-sign      hold
+      %bad           abort
+    ::
+        %good
+      =^  caz  state  (register [state bowl] [id u.rec] `[%tweet tweet])
+      [caz this]
     ==
   ==
 ::

@@ -10,15 +10,17 @@
     ::
       ::NOTE  basic auth only for staging
       phone-api=[base=@t key=@t basic=(unit [user=@t pass=@t])]
+      twitter-api=[bearer=@t]
       domain=(unit @t)  ::  as 'https://example.org:123'
   ==
 ::
 +$  identifier
   $%  [%dummy @t]
       [%urbit @p]
-      [%phone @t]  ::  normalized phone nr, a la +31612345678
+      [%phone @t]    ::  normalized phone nr, a la +31612345678
+      [%twitter @t]  ::  lowercased handle
   ==
-+$  id-kind  ?(%dummy %urbit %phone)
++$  id-kind  ?(%dummy %urbit %phone %twitter)
 ::
 +$  record
   $:  for=@p  ::TODO  or tmp id
@@ -38,9 +40,9 @@
   ==
 ::
 +$  status
-  $%  [%done attestation]  ::  verified
-      [%wait ~]            ::  service at work
-      [%want user-task]    ::  waiting on user action
+  $%  [%done attestation]        ::  verified
+      [%wait pre=(unit status)]  ::  service at work
+      [%want user-task]          ::  waiting on user action
   ==
 ::
 +$  attestation
@@ -52,6 +54,7 @@
 ::
 +$  proof
   $%  [%link @t]
+      [%tweet id=@t]
   ==
 ::
 ++  urbit-signature
@@ -65,6 +68,12 @@
   [%0 %verified when=@da for=@p kind=id-kind]
 +$  full-sign-data-0
   [%0 %verified when=@da for=@p id=identifier proof=(unit proof)]
+::
+++  twitter
+  |%
+  +$  payload      (urbit-signature sign-data-0)
+  +$  sign-data-0  [%twitter %0 handle=@t nonce=@ux]
+  --
 ::
 +$  allowance         ::  remaining "request token" balance
   $:  since=@da       ::  time of last request
@@ -84,12 +93,14 @@
 ::
 ::
 +$  user-task
-  $%  [%urbit pin=@]   ::  awaiting confirmation from other side
-      [%phone %otp]    ::  awaiting otp code from user
+  $%  [%urbit pin=@]              ::  awaiting confirmation from other side
+      [%phone %otp]               ::  awaiting otp code from user
+      [%twitter %post nonce=@ux]  ::  post tweet containing signed dat
   ==
 +$  user-work
   $%  [%urbit pin=@]
       [%phone otp=@t]
+      [%twitter %post id=@t]
   ==
 ::
 ::

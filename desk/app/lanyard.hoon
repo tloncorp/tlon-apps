@@ -34,6 +34,15 @@
       [%pass /verifier/endpoint %agent [host %verifier] %watch /endpoint]
   ==
 ::
+++  sign
+  |*  [[our=@p now=@da] dat=*]
+  ^-  (urbit-signature _dat)
+  =+  =>  [our=our now=now ..lull]  ~+
+      ;;(=seed:jael (cue .^(@ %j /(scot %p our)/vile/(scot %da now))))
+  ?>  =(who.seed our)
+  =/  sig=@ux  (sigh:as:(nol:nu:crub:crypto key.seed) (jam dat))
+  [our lyf.seed dat sig]
+::
 ++  inflate-contacts-profile
   |=  $:  [our=@p now=@da]
           records=(map [h=@p id=identifier] id-state)
@@ -71,9 +80,10 @@
       ::TODO  for duplicates, don't overwrite versions that are clickable,
       ::      with unclickable versions
       ?-  -.id
-        %dummy  nop
-        %urbit  [(~(put by urbits) +.id h full-sign.status) phone]
-        %phone  [urbits `[h half-sign.status]]
+        %dummy    nop
+        %urbit    [(~(put by urbits) +.id h full-sign.status) phone]
+        %phone    [urbits `[h half-sign.status]]
+        %twitter  nop  ::TODO
       ==
   =/  make-url
     |=  [h=@p sig=@]
@@ -141,7 +151,7 @@
       $(mark %lanyard-command, vase !>(-))
     %.  !<(jon=json vase)
     =,  dejs:format
-    =/  pid   'id'^(of %dummy^so %urbit^(se %p) %phone^so ~)
+    =/  pid   'id'^(of %dummy^so %urbit^(se %p) %phone^so %twitter^so ~)
     =/  pork  'work'^(of %urbit^(ot 'pin'^ni ~) %phone^(ot 'otp'^so ~) ~)
     %-  ot
     :~  'host'^(mu (se %p))
@@ -152,6 +162,13 @@
     =+  !<(cmd=command:l vase)
     =/  host=@p
       ?~(host.cmd default u.host.cmd)
+    ::  normalize the identifier and construct the global key
+    ::
+    =.  cmd
+      ?+  cmd  cmd
+        [* @ %twitter @]      cmd(+.id (crip (cass (trip +.id.cmd))))
+        [* @ [%twitter @] *]  cmd(+.id (crip (cass (trip +.id.cmd))))
+      ==
     =/  key
       :-  host
       ?-(+<.cmd ?(%start %revoke) id.cmd, ?(%config %work) id.cmd)
@@ -345,6 +362,11 @@
       ::
           %status
         =*  key  [src.bowl id.upd]
+        ::TODO  get the jam to the client somehow. scry endpoint?
+        ~?  &(?=(%twitter -.id.upd) ?=([%want %twitter %post @] status.upd))
+          :-  'please tweet'
+          %-  (w-co:co 1)  %-  jam
+          (^sign [our now]:bowl [%twitter %0 +.id.upd nonce.status.upd])
         =.  records
           =+  rec=(~(gut by records) key *id-state)
           ?:  ?=(%gone -.status.upd)  (~(del by records) key)
@@ -423,9 +445,10 @@
     :~  :-  'identifier'
         %+  frond  -.id
         ?-  -.id
-          %dummy  [%s +.id]
-          %urbit  [%s (scot %p +.id)]
-          %phone  [%s +.id]
+          %dummy    [%s +.id]
+          %urbit    [%s (scot %p +.id)]
+          %phone    [%s +.id]
+          %twitter  [%s +.id]
         ==
       ::
         :-  'record'
@@ -441,9 +464,10 @@
     :-  ?:(?=([@ @ ~] t.path) default (slav %p i.t.path))
     =/  dip  ?:(?=([@ @ ~] t.path) t.path t.t.path)
     ?+  dip  !!
-      [%dummy @ ~]  [-.dip (slav %t +<.dip)]
-      [%urbit @ ~]  [-.dip (slav %p +<.dip)]
-      [%phone @ ~]  [-.dip (slav %t +<.dip)]
+      [%dummy @ ~]    [-.dip (slav %t +<.dip)]
+      [%urbit @ ~]    [-.dip (slav %p +<.dip)]
+      [%phone @ ~]    [-.dip (slav %t +<.dip)]
+      [%twitter @ ~]  [-.dip (slav %t +<.dip)]
     ==
   ::
     [%queries ~]    ``noun+!>(queries)

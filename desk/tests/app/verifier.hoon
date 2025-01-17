@@ -13,9 +13,10 @@
 ++  dap  %verifier
 +$  card  card:agent:gall
 ::
-++  phone-api-base   'https://phone.api/base'
-++  phone-api-key    'api-key'
-++  attempt-timeout  ~h1
+++  phone-api-base      'https://phone.api/base'
+++  phone-api-key       'api-key'
+++  twitter-api-bearer  'someBearerToken'
+++  attempt-timeout     ~h1
 ::
 ++  ex-verifier-update
   =/  initial=?  |
@@ -114,6 +115,11 @@
   ^-  seed:jael
   [for faux-life sec:ex:(pit:nu:crub:crypto 8 for) ~]
 ::
+++  faux-deed
+  |=  for=@p
+  ^-  [=life =pass sig=(unit @)]
+  [faux-life pub:ex:(pit:nu:crub:crypto 8 for) ~]
+::
 ++  faux-sign
   |*  [host=@p dat=*]
   ^-  (urbit-signature:v _dat)
@@ -125,7 +131,9 @@
   ^-  (unit vase)
   ?+  path
       ~&([%faux-scry-miss path] ~)
-    [%j @ %vile @ ~]  `!>((jam (faux-seed (slav %p i.t.path))))
+    [%j @ %vile @ ~]      `!>((jam (faux-seed (slav %p i.t.path))))
+    [%j @ %lyfe @ @ ~]    `!>((some faux-life))
+    [%j @ %deed @ @ @ ~]  `!>((faux-deed (slav %p i.t.t.t.t.path)))  ::NOTE  static life
   ==
 ::
 ++  make-attestation
@@ -133,7 +141,7 @@
   =/  m  (mare ,attestation:v)
   ;<  bowl:gall  bind:m  get-bowl
   %-  pure:m
-  :+  now  ~
+  :+  now  proof
   :-  (faux-sign our `half-sign-data-0:v`[%0 %verified now for -.id])
   (faux-sign our `full-sign-data-0:v`[%0 %verified now for id proof])
 ::
@@ -473,6 +481,246 @@
     ==
   --
 ::
+++  test-twitter-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  do-setup
+  ;<  ~  bind:m  (wait ~d1)
+  ::
+  ;<  ~  bind:m
+    %-  ex-fail
+    %-  (do-as ~nec)
+    (do-poke %noun !>([%set-twitter-api twitter-api-bearer]))
+  ;<  caz=(list card)  bind:m
+    (do-poke %noun !>([%set-twitter-api twitter-api-bearer]))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ::
+  =/  handle=@t         'tloncorporation'
+  =/  id=identifier:v   [%twitter handle]
+  =/  wir=wire          /id/twitter/(scot %t handle)
+  ::  user requests a twitter handle, is given a nonce to sign a message with,
+  ::  submits a tweet id whose post contains the signature jam
+  ::
+  =/  nonce=@ux
+    0x9fd7.fbc0
+  =/  want-status=status:v
+    [%want %twitter %post nonce]
+  ;<  caz=(list card)  bind:m
+    (user-does ~nec %start id)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-verifier-update ~nec %status id want-status)
+      ::
+        %+  ex-arvo  /expire/twitter/(scot %t handle)/(scot %da ~2000.1.2)
+        [%b %wait (add ~2000.1.2 attempt-timeout)]
+    ==
+  ::
+  =/  pid=@t         '112233445566778899'
+  =/  req-wire=wire  (weld wir /post/(scot %t pid))
+  ;<  caz=(list card)  bind:m
+    (user-does ~nec %work id %twitter %post pid)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-verifier-update ~nec %status id %wait ~ want-status)
+      ::
+        %+  ex-http-request  req-wire
+        :+  %'GET'
+          %+  rap  3
+          :~  'https://api.x.com/2/tweets/'
+              pid
+              '?user.fields=username,id'
+              '&tweet.fields=author_id,entities'
+              '&expansions=author_id'
+          ==
+        :_  ~
+        ['authorization' (cat 3 'Bearer ' twitter-api-bearer)]~
+    ==
+  ::
+  =/  good-blob=@t
+    %-  crip  %-  (w-co:co 1)  %-  jam
+    ^-  payload:twitter:v
+    %+  faux-sign  ~nec
+    [%twitter %0 handle nonce]
+  ::TODO  want to unit-test +parse-twitter-post instead?
+  |^  %-  branch
+      :~  'api unauthorized'^api-unauthorized
+          'api rate-limited'^api-rate-limited
+          'tweet not found'^tweet-not-found
+          'tweet protected'^tweet-protected
+          'bad response'^bad-response
+          'bad tweet'^bad-tweet
+          ::TODO  good sig but incorrect author
+          'good'^good
+      ==
+  ::
+  ++  do-twitter-api-res
+    |=  [code=@ud jot=@t]
+    %+  do-http-response  req-wire
+    :-  [code ~]  ::NOTE  real response has many headers, that we don't look at
+    `['application/json; charset=utf-8' (as-octs:mimes:html jot)]
+  ::
+  ++  api-unauthorized
+    ;<  caz=(list card)  bind:m
+      (do-twitter-api-res 401 'whatever')
+    (errored caz)
+  ::
+  ++  api-rate-limited
+    ;<  caz=(list card)  bind:m
+      (do-twitter-api-res 429 'whatever')
+    (held caz)
+  ::
+  ++  tweet-not-found
+    ;<  caz=(list card)  bind:m
+      (do-twitter-api-res 404 'whatever')
+    (held caz)
+  ::
+  ++  tweet-protected
+    ;<  caz=(list card)  bind:m
+      %+  do-twitter-api-res  200
+      '''
+      { "errors": [ {
+        "resource_id": "1879974887965749623",
+        "parameter": "id",
+        "resource_type": "tweet",
+        "section": "data",
+        "title": "Authorization Error",
+        "value": "1879974887965749623",
+        "detail": "Sorry, you are not authorized to see the Tweet with id: [1879974887965749623].",
+        "type": "https://api.twitter.com/2/problems/not-authorized-for-resource"
+      } ] }
+      '''
+    (held caz)
+  ::
+  ++  bad-response
+    %+  (merge (list card))
+      :~  :-  'malformed response body'
+          (do-twitter-api-res 200 'whatever')
+        ::
+          :-  'author mismatch'
+          (do-twitter-api-res 200 (make-tweet-json(handle 'miss') good-blob))
+      ==
+    errored
+  ::
+  ++  bad-tweet
+    %+  (merge (list card))
+      =-  %+  turn  -
+          |=  [l=@t t=@t]
+          [l (do-twitter-api-res 200 (make-tweet-json t))]
+      :~  :-  'no recognizable jam'
+          'Some tweet without a giant base64-encoded jam inside of it.'
+        ::
+          :-  'jam of malformed noun'
+          'Some tweet with a strange jam inside of it: T90NUtJXZPn4LOOCSLFc4LZCt~f5rg6Qb68ENinuw~E0w1D-7yR6CANHrdc3H0113-c0sjYJVJ-6s~DKGxS1u1DpfDe2RHWIy4K7DPigDTe8MoY~TpCPrqSnaX-A6wdUP-f0201VcHIOKz2Qe~U1'
+        ::
+          :-  'jam containing invalid signature'
+          'Some tweet with a poorly-signed jam inside of it: 1V~uNyQNNIYok850~oo77-S177wZJ5eL~y~FyxzmAUrd0S~rL6thrzjpOHJudFxLOKlYSQg0INhflFfGwDic3h~U0j-LZU083sTJbEMKjuUejuNJPuSeCY0pVcHEWdbKWnw5NN'
+        ::
+          :-  'jam packed too tight with other text'
+          (cat 3 good-blob 'conjoining')
+        ::
+          :-  'jam signed with the wrong nonce'
+          %-  crip  %-  (w-co:co 1)  %-  jam
+          ^-  payload:twitter:v
+          %+  faux-sign  ~nec
+          [%twitter %0 handle 0xdead.dead]
+      ==
+    held
+  ::
+  ++  good
+    %+  (merge (list card))
+      =-  %+  turn  -
+          |=  [l=@t t=@t]
+          [l (do-twitter-api-res 200 (make-tweet-json t))]
+      :~  :-  'plain'
+          good-blob
+        ::
+          :-  'pad left'
+          (cat 3 'Here is your blob: ' good-blob)
+        ::
+          :-  'pad left tight'
+          %+  rap  3
+          :~  'this-works-because-tail-bytes-dont-count'
+              good-blob
+              '\\nAnd this should parse as separate.'
+          ==
+        ::
+          :-  'pad right'
+          (cat 3 good-blob ' should be it.')
+        ::
+          :-  'pad both'
+          (rap 3 'Some tweet containing very tasty ' good-blob ' jam.' ~)
+      ==
+    registered
+  ::
+  ++  make-tweet-json
+    |=  text=@t
+    %+  rap  3
+    :~  '''
+        {
+          "data": {
+            "author_id": "998877665544332211",
+            "id": "112233445566778899",
+            "text": "
+        '''
+        text
+        '''
+        "
+          },
+          "includes": {
+            "users": [
+              {
+                "id": "998877665544332211",
+                "name": "Tlon Corporation",
+                "username": "
+        '''
+        handle
+        '''
+        "
+              }
+            ]
+          }
+        }
+        '''
+    ==
+  ::
+  ++  held
+    |=  caz=(list card)
+    ;<  ~  bind:m
+      %+  ex-cards  caz
+      [(ex-verifier-update ~nec %status id want-status)]~
+    ;<  =state:v  bind:m  get-state
+    (ex-equal !>((~(has by records.state) id)) !>(&))
+  ::
+  ++  errored
+    |=  caz=(list card)
+    ;<  ~  bind:m
+      %+  ex-cards  caz
+      [(ex-verifier-update ~nec %status id %gone 'service error')]~
+    ::TODO  test via scries instead?
+    ;<  =state:v  bind:m  get-state
+    %-  branch
+    :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(~))
+        'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>(~))
+    ==
+  ::
+  ++  registered
+    |=  caz=(list card)
+    ;<  at=attestation:v  bind:m  (make-attestation ~nec id `[%tweet pid])
+    ;<  ~  bind:m
+      ::TODO  don't test signature value, test whether it matches pubkey
+      %+  ex-cards  caz
+      [(ex-verifier-update ~nec %status id %done at)]~
+    ::TODO  test via scries instead?
+    ::TODO  proof lookup added into
+    ;<  =state:v  bind:m  get-state
+    %-  branch
+    :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec ~2000.1.2 *config:v %done at]))
+        'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
+        'ath'^(ex-equal !>((~(get by attested.state) sig.half-sign.at)) !>(`id))
+        'atf'^(ex-equal !>((~(get by attested.state) sig.full-sign.at)) !>(`id))
+    ==
+  --
+::
 ++  do-setup-with-id
   =/  =status:v  [%done *attestation:v]
   |=  id=identifier:v
@@ -484,6 +732,7 @@
         attested=(my [*@ux id] ~)
         limits=~
         phone-api=['https://phone.api/base' 'api-key' ~]
+        twitter-api=[bearer=twitter-api-bearer]
         domain=`'http://sampel.net'
     ==
   ;<  *  bind:m  (do-load agent `!>([%0 state]))
@@ -631,7 +880,7 @@
   |=  records=(map identifier:v record:v)
   ^-  state:v
   :-  records
-  =<  [owners attested ~ ['' '' ~] ~]
+  =<  [owners attested ~ ['' '' ~] '' ~]
   %+  roll  ~(tap by records)
   |=  $:  [id=identifier:v record:v]
           [owners=(jug ship identifier:v) attested=(map @ux identifier:v)]
