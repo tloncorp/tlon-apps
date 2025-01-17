@@ -161,7 +161,9 @@ export async function logInHostedUser({
   await db.hostedAccountIsInitialized.setValue(true);
 }
 
-export async function checkHostingNodeStatus(): Promise<domain.HostedNodeStatus> {
+export async function checkHostingNodeStatus(
+  supressStatusLog?: boolean
+): Promise<domain.HostedNodeStatus> {
   const nodeId = await db.hostedUserNodeId.getValue();
   if (!nodeId) {
     logger.trackError(AnalyticsEvent.LoginAnomaly, {
@@ -176,23 +178,25 @@ export async function checkHostingNodeStatus(): Promise<domain.HostedNodeStatus>
       await db.hostedNodeIsRunning.setValue(true);
     }
 
-    switch (nodeStatus) {
-      case domain.HostedNodeStatus.Paused:
-      case domain.HostedNodeStatus.Suspended:
-        logger.trackEvent(AnalyticsEvent.NodeNotRunning, {
-          phase: nodeStatus,
-          nodeId,
-        });
-        break;
-      case domain.HostedNodeStatus.UnderMaintenance:
-        logger.trackEvent(AnalyticsEvent.NodeUnderMaintenance, { nodeId });
-        break;
-      default:
-        logger.trackEvent(AnalyticsEvent.LoginDebug, {
-          context: 'Checked node status',
-          nodeId,
-          nodeStatus,
-        });
+    if (!supressStatusLog) {
+      switch (nodeStatus) {
+        case domain.HostedNodeStatus.Paused:
+        case domain.HostedNodeStatus.Suspended:
+          logger.trackEvent(AnalyticsEvent.NodeNotRunning, {
+            phase: nodeStatus,
+            nodeId,
+          });
+          break;
+        case domain.HostedNodeStatus.UnderMaintenance:
+          logger.trackEvent(AnalyticsEvent.NodeUnderMaintenance, { nodeId });
+          break;
+        default:
+          logger.trackEvent(AnalyticsEvent.LoginDebug, {
+            context: 'Checked node status',
+            nodeId,
+            nodeStatus,
+          });
+      }
     }
 
     return nodeStatus;

@@ -104,11 +104,22 @@ export function useOnboardingHelpers() {
       const nodeStatus = await store.checkHostingNodeStatus();
       if (nodeStatus !== HostedNodeStatus.Running) {
         if (nodeStatus === HostedNodeStatus.UnderMaintenance) {
+          logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+            context: 'User node was under maintenance at login',
+            nodeId,
+          });
           navigation.navigate('UnderMaintenance');
+          return;
         } else {
+          logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+            context: 'User node was not running at login',
+            nodeStatus,
+            nodeId,
+          });
           navigation.navigate('GettingNodeReadyScreen', {
             waitType: nodeStatus,
           });
+          return;
         }
       }
 
@@ -116,12 +127,8 @@ export function useOnboardingHelpers() {
       console.log('authenticating with node', nodeId);
       const shipInfo = await store.authenticateWithReadyNode();
       if (!shipInfo) {
-        logger.trackError(AnalyticsEvent.LoginAnomaly, {
-          context: 'Failed to authenticate.',
-        });
-        throw new Error(
-          'Could not authenticate with your Peer-to-peer Node, please try again.'
-        );
+        navigation.navigate('GettingNodeReadyScreen', { waitType: 'Unknown' });
+        return;
       }
       logger.log('authenticated with node', shipInfo);
       setShip(shipInfo);

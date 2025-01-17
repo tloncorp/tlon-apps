@@ -22,6 +22,7 @@ export function useStoppedNodeSequence(params: {
 }) {
   const store = useStore();
   const [bootedAt, setBootedAt] = useState<number>(0);
+  const [bootStepCounter, setBootCounter] = useState(0);
 
   const [phase, setPhase] = useState(NodeResumeState.WaitingForRunning);
   const [shipInfo, setShipInfo] = useState<db.ShipInfo | null>(null);
@@ -33,7 +34,10 @@ export function useStoppedNodeSequence(params: {
 
   const checkNodeRunning = useCallback(async () => {
     try {
-      const status = await store.checkHostingNodeStatus();
+      // don't be too noisy with logging
+      const supressStatusLog = bootStepCounter % 5 !== 0;
+
+      const status = await store.checkHostingNodeStatus(supressStatusLog);
       if (status === HostedNodeStatus.UnderMaintenance) {
         return NodeResumeState.UnderMaintenance;
       }
@@ -98,7 +102,6 @@ export function useStoppedNodeSequence(params: {
     [checkNodeRunning, authenticateWithNode]
   );
 
-  const [bootStepCounter, setBootCounter] = useState(0);
   useEffect(() => {
     async function runSequence() {
       if (!params.enabled) {
