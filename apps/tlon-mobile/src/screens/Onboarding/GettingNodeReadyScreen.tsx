@@ -66,15 +66,11 @@ export function GettingNodeReadyScreen({
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
-        title={
-          params.wasLoggedIn ? 'Node Stopped' : 'Getting Your Computer Ready'
-        }
+        title={params.wasLoggedIn ? 'Node Stopped' : 'Starting Your Node'}
         leftControls={
-          params.wasLoggedIn ? (
-            <ScreenHeader.TextButton onPress={onLogout} disabled={loggingOut}>
-              Log out
-            </ScreenHeader.TextButton>
-          ) : undefined
+          <ScreenHeader.TextButton onPress={onLogout} disabled={loggingOut}>
+            Log out
+          </ScreenHeader.TextButton>
         }
         showSessionStatus={false}
       />
