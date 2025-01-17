@@ -1,3 +1,4 @@
+import { featureFlags } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -6,6 +7,7 @@ import React, {
   ReactElement,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
@@ -27,6 +29,7 @@ import { ListItem } from './ListItem';
 type ChatOptionsSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onPressConfigureChannel?: () => void;
   chat?: {
     type: 'group' | 'channel';
     id: string;
@@ -331,15 +334,18 @@ export function ChannelOptionsSheetLoader({
   channelId,
   open,
   onOpenChange,
+  onPressConfigureChannel,
 }: {
   channelId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onPressConfigureChannel?: () => void;
 }) {
   const [pane, setPane] = useState<ChannelPanes>('initial');
   const channelQuery = store.useChannel({
     id: channelId,
   });
+
   const { data: group } = store.useGroup({
     id: channelQuery.data?.groupId ?? undefined,
   });
@@ -375,6 +381,7 @@ export function ChannelOptionsSheetLoader({
           chatTitle={chatTitle}
           channel={channelQuery.data}
           onPressNotifications={handlePressNotifications}
+          onPressConfigureChannel={onPressConfigureChannel}
         />
       )}
     </ActionSheet>
@@ -384,10 +391,12 @@ export function ChannelOptionsSheetLoader({
 function ChannelOptionsSheetContent({
   chatTitle,
   channel,
+  onPressConfigureChannel,
   onPressNotifications,
 }: {
   chatTitle: string;
   channel: db.Channel;
+  onPressConfigureChannel?: () => void;
   onPressNotifications: () => void;
 }) {
   const {
@@ -412,6 +421,7 @@ function ChannelOptionsSheetContent({
     group?.privacy === 'private' || group?.privacy === 'secret';
   const canInvite = invitationsEnabled && currentUserIsAdmin;
   const canMarkRead = !(channel.unread?.count === 0);
+  const enableCustomChannels = useCustomChannelsEnabled();
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
@@ -453,6 +463,12 @@ function ChannelOptionsSheetContent({
             endIcon: 'ChevronRight',
             action: onPressManageChannels,
           },
+          currentUserIsAdmin &&
+            enableCustomChannels && {
+              title: 'Configure view',
+              action: onPressConfigureChannel,
+              endIcon: 'ChevronRight',
+            },
           canInvite
             ? {
                 title: 'Invite people',
@@ -484,6 +500,8 @@ function ChannelOptionsSheetContent({
         ]
       ),
     [
+      enableCustomChannels,
+      onPressConfigureChannel,
       onPressNotifications,
       channel?.pin,
       channel.type,
@@ -629,4 +647,20 @@ function SheetBackButton({ onPress }: { onPress: () => void }) {
       <ChevronLeft />
     </IconButton>
   );
+}
+
+function useCustomChannelsEnabled() {
+  const [enableCustomChannels, setEnableCustomChannels] = useState(false);
+  // why useLayoutEffect?
+  // to try to get the synchronous read to avoid flicker on mount
+  useLayoutEffect(() => {
+    return featureFlags.subscribeToFeatureFlag(
+      'customChannelCreation',
+      (flag) => {
+        setEnableCustomChannels(flag);
+      }
+    );
+  }, []);
+
+  return enableCustomChannels;
 }

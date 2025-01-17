@@ -250,7 +250,6 @@ export function ImageBlock({
 
   return (
     <Pressable
-      borderRadius="$s"
       overflow="hidden"
       onPress={handlePress}
       onLongPress={onLongPress}
@@ -265,6 +264,7 @@ export function ImageBlock({
             ? { aspectRatio: dimensions.aspect || undefined }
             : {}),
         }}
+        borderRadius="$s"
         alt={block.alt}
         onLoad={handleImageLoaded}
         {...imageProps}

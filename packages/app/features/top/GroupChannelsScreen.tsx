@@ -13,7 +13,6 @@ import { useCallback, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
-import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 
@@ -60,8 +59,6 @@ export function GroupChannelsScreenContent({
     }
   }, [navigation, isWindowNarrow]);
 
-  const [enableCustomChannels] = useFeatureFlag('customChannelCreation');
-
   const handleJoinChannel = useCallback(
     async (channel: db.Channel) => {
       try {
@@ -90,7 +87,6 @@ export function GroupChannelsScreenContent({
           onJoinChannel={handleJoinChannel}
           group={group}
           unjoinedChannels={unjoinedChannels}
-          enableCustomChannels={enableCustomChannels}
         />
       </NavigationProvider>
       <InviteUsersSheet

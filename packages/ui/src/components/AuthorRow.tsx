@@ -44,6 +44,7 @@ type AuthorRowProps = ComponentProps<typeof XStack> & {
   type?: db.PostType;
   detailView?: boolean;
   showEditedIndicator?: boolean;
+  showSentAt?: boolean;
 };
 
 export function useNavigateToProfile(userId: string) {
@@ -112,6 +113,7 @@ export function ChatAuthorRow({
   deliveryStatus,
   editStatus,
   deleteStatus,
+  showSentAt = true,
   ...props
 }: AuthorRowProps) {
   const openProfile = useNavigateToProfile(authorId);
@@ -145,7 +147,7 @@ export function ChatAuthorRow({
         >
           <ContactName contactId={authorId} />
         </Text>
-        {timeDisplay && (
+        {showSentAt && timeDisplay && (
           <Text color="$secondaryText" size="$label/m">
             {timeDisplay}
           </Text>

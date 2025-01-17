@@ -1,10 +1,12 @@
-import { makePrettyShortDate } from '@tloncorp/shared';
+import { JSONValue, makePrettyShortDate } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { truncate } from 'lodash';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { PropsWithChildren } from 'react';
+import { StyleSheet } from 'react-native';
 import { View, XStack, styled } from 'tamagui';
 
+import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ContactAvatar } from '../Avatar';
 import { Icon } from '../Icon';
@@ -26,7 +28,7 @@ const GalleryPostFrame = styled(View, {
   name: 'GalleryPostFrame',
   maxHeight: '100%',
   overflow: 'hidden',
-  aspectRatio: 1,
+  flex: 1,
 });
 
 export function GalleryPost({
@@ -37,18 +39,22 @@ export function GalleryPost({
   onPressDelete,
   showAuthor = true,
   hideOverflowMenu,
+  contentRendererConfiguration,
   ...props
-}: {
-  post: db.Post;
-  onPress?: (post: db.Post) => void;
-  onLongPress?: (post: db.Post) => void;
-  onPressRetry?: (post: db.Post) => Promise<void>;
-  onPressDelete?: (post: db.Post) => void;
-  showAuthor?: boolean;
-  isHighlighted?: boolean;
-  hideOverflowMenu?: boolean;
-} & Omit<ComponentProps<typeof GalleryPostFrame>, 'onPress' | 'onLongPress'>) {
+}: MinimalRenderItemProps &
+  Omit<ComponentProps<typeof GalleryPostFrame>, 'onPress' | 'onLongPress'> & {
+    hideOverflowMenu?: boolean;
+  }) {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
+  const embedded = useMemo(
+    () => JSONValue.asBoolean(contentRendererConfiguration?.embedded, false),
+    [contentRendererConfiguration]
+  );
+
+  const size = useMemo(
+    () => JSONValue.asString(contentRendererConfiguration?.contentSize, '$s'),
+    [contentRendererConfiguration]
+  ) as '$s' | '$l';
   const [disableHandlePress, setDisableHandlePress] = useState(false);
 
   const handleRetryPressed = useCallback(() => {
@@ -96,9 +102,15 @@ export function GalleryPost({
     <Pressable
       onPress={disableHandlePress ? undefined : handlePress}
       onLongPress={handleLongPress}
+      style={StyleSheet.absoluteFill}
     >
       <GalleryPostFrame {...props}>
-        <GalleryContentRenderer post={post} pointerEvents="none" size="$s" />
+        <GalleryContentRenderer
+          post={post}
+          pointerEvents="none"
+          size={size}
+          embedded={embedded}
+        />
         {showAuthor && !post.hidden && !post.isDeleted && (
           <View
             position="absolute"
@@ -364,6 +376,7 @@ const SmallContentRenderer = createContentRenderer({
       size: '$label/s',
     },
     image: {
+      borderRadius: 0,
       height: '100%',
       imageProps: { aspectRatio: 'unset', height: '100%', contentFit: 'cover' },
       ...noWrapperPadding,

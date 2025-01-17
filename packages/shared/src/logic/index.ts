@@ -6,5 +6,6 @@ export * from './types';
 export * from './activity';
 export * from './branch';
 export * from './deeplinks';
+export * as featureFlags from './featureFlags';
 export * from './tiptap';
 export * from './hosting';
