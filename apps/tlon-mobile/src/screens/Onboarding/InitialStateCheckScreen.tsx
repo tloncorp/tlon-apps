@@ -32,6 +32,7 @@ export function InitialStateCheckScreen({ navigation }: Props) {
 
         if (nodeStoppedWhileLoggedIn) {
           logger.log('node stopped while logged in');
+          logger.trackEvent('Running Stopped Node Recovery');
           navigation.reset({
             index: 1,
             routes: [

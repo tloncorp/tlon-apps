@@ -1,3 +1,4 @@
+import CookieManager from '@react-native-cookies/cookies';
 import { createDevLogger } from '@tloncorp/shared';
 import { getHostingHeartBeat } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
@@ -44,4 +45,15 @@ export async function refreshHostingAuth() {
 function wasMoreThanDayAgo(timestamp: number): boolean {
   if (!timestamp) return true;
   return Date.now() - timestamp > 24 * 60 * 60 * 1000;
+}
+
+export async function clearHostingNativeCookie() {
+  console.log(`clearing hosting native cookie`);
+  try {
+    await CookieManager.clearByName('http://tlon.network', 'SolarisSession');
+    await CookieManager.clearByName('https://tlon.network', 'SolarisSession');
+    console.log('cleared hosting native cookie');
+  } catch (e) {
+    console.error('error clearing hosting native cookie:', e);
+  }
 }

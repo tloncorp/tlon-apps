@@ -20,6 +20,7 @@ import { OTPInput } from '../../components/OnboardingInputs';
 import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { useOnboardingContext } from '../../lib/OnboardingContext';
+import { clearHostingNativeCookie } from '../../lib/hostingAuth';
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
 
@@ -84,6 +85,9 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
           recaptcha: recaptchaInfo,
           ...accountCreds,
         });
+
+        // clear hosting cookie since we manage manually
+        await clearHostingNativeCookie();
 
         trackOnboardingAction({
           actionName: 'Verification Submitted',

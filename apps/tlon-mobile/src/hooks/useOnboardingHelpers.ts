@@ -11,6 +11,7 @@ import * as db from '@tloncorp/shared/db';
 import { useStore } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
+import { clearHostingNativeCookie } from '../lib/hostingAuth';
 import { useSignupContext } from '../lib/signupContext';
 import { OnboardingStackParamList } from '../types';
 
@@ -82,6 +83,10 @@ export function useOnboardingHelpers() {
       // Step 1: Attempt login and handle account issues
       logger.log('attempting to log in', params);
       const maybeAccountIssue = await store.logInHostedUser(params);
+
+      // clear native managed cookie since we set manually
+      await clearHostingNativeCookie();
+
       if (maybeAccountIssue) {
         switch (maybeAccountIssue) {
           // If the account has no assigned ship, treat it as a signup
