@@ -495,6 +495,9 @@
     (do-poke %noun !>([%set-twitter-api twitter-api-bearer]))
   ;<  ~  bind:m  (ex-cards caz ~)
   ::
+  ;<  caz=(list card)  bind:m
+    (ex-fail (user-does ~nec %start %twitter 'CapitalsHandle'))
+  ::
   =/  handle=@t         'tloncorporation'
   =/  id=identifier:v   [%twitter handle]
   =/  wir=wire          /id/twitter/(scot %t handle)
