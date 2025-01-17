@@ -241,6 +241,7 @@
   =/  d    (sub now since.u.lim)
   :*  now
       (calc-new phone.u.lim phone.max d phone:rates)
+      (calc-new tweet.u.lim tweet.max d tweet:rates)
       (calc-new queries.u.lim queries.max d queries:rates)
       (calc-new batch.u.lim batch.max d batch:rates)
       last-batch.u.lim
@@ -435,6 +436,12 @@
         =/  rec  (~(got by records) id)
         ?>  =(src.bowl for.rec)
         ?>  |(?=([%want %twitter %post *] status.rec))  ::NOTE  tmi hack
+        =.  limits
+          =/  lim  (get-allowance limits [src now]:bowl)
+          =.  tweet.lim
+            ~|  %would-exceed-rate-limit
+            (dec tweet.lim)
+          (~(put by limits) src.bowl lim)
         =.  status.rec  [%wait `status.rec]
         :_  this(records (~(put by records) id rec))
         :~  (give-status src.bowl id status.rec)

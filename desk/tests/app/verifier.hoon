@@ -1166,6 +1166,28 @@
   ::
   (pure:m ~)
 ::
+++  test-tweet-rate-limits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  do-setup
+  ::  check the submitted tweet until we hit the expected limit
+  ::
+  =/  n=@ud  tweet:*allowance:v
+  |-  =*  loop  $
+  ?.  =(0 n)
+    ;<  *  bind:m  (user-does ~nec %start %twitter 'blah')
+    ;<  *  bind:m  (user-does ~nec %work [%twitter 'blah'] %twitter %post '112233445566778899')
+    ;<  *  bind:m  (user-does ~nec %revoke %twitter 'blah')
+    loop(n (dec n))
+  ;<  *  bind:m  (user-does ~nec %start %twitter 'blah')
+  ;<  ~  bind:m  (ex-fail (user-does ~nec %work [%twitter 'blah'] %twitter %post '112233445566778899'))
+  ::  if we wait, we may continue new attempts
+  ::
+  ;<  ~  bind:m  (wait p:tweet:rates:v)
+  ;<  *  bind:m  (user-does ~nec %work [%twitter 'blah'] %twitter %post '112233445566778899')
+  ::
+  (pure:m ~)
+::
 ::TODO  test lanyard:
 ::TODO  test resubscribe on poke nack
 ::TODO  test %full handling

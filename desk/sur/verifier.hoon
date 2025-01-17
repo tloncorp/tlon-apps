@@ -78,13 +78,15 @@
 +$  allowance         ::  remaining "request token" balance
   $:  since=@da       ::  time of last request
       phone=_5        ::  remaining text msgs
+      tweet=_3        ::  remaining tweet verification attempts
       queries=_100    ::  remaining queries
-      batch=_1.000    ::  remaining new %whose-bulk entries  ::TODO  use .queries?
+      batch=_1.000    ::  remaining new %whose-bulk entries
       last-batch=@ux  ::  previous batch set salted hash
   ==
 ++  rates  ::REVIEW
   |%
-  ++  phone    [n=1 p=~d1]  ::NOTE  hosting allows 1/min, up to 5/hour
+  ++  phone    [n=1 p=~d1]   ::NOTE  hosting allows 1/min, up to 5/hour
+  ++  tweet    [n=1 p=~m15]  ::NOTE  twitter api @ 15/15m in total
   ++  queries  [n=1 p=~m5]
   ++  batch    [n=10 p=~d1]
   ::
@@ -95,7 +97,7 @@
 +$  user-task
   $%  [%urbit pin=@]              ::  awaiting confirmation from other side
       [%phone %otp]               ::  awaiting otp code from user
-      [%twitter %post nonce=@ux]  ::  post tweet containing signed dat
+      [%twitter %post nonce=@ux]  ::  post tweet containing $payload:twitter
   ==
 +$  user-work
   $%  [%urbit pin=@]
