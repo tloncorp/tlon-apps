@@ -5,9 +5,7 @@ import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import {
   AnalyticsEvent,
-  BootPhase,
   HostedShipResponse,
-  HostedShipStatus,
   ReservableShip,
   ReservedShip,
   User,
@@ -66,11 +64,16 @@ const hostingFetchResponse = async (
     console.debug('Request:', path);
   }
 
+  const hostingCookie = await db.hostingAuthToken.getValue();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15_000);
   const response = await fetch(`${env.API_URL}${path}`, {
     ...fetchInit,
     signal: controller.signal,
+    headers: {
+      ...fetchInit.headers,
+      Cookie: hostingCookie,
+    },
   });
   clearTimeout(timeoutId);
   return response;

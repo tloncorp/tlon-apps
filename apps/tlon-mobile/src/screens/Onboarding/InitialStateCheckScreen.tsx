@@ -1,22 +1,11 @@
-import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useShip } from '@tloncorp/app/contexts/ship';
-import { AnalyticsEvent, createDevLogger, withRetry } from '@tloncorp/shared';
-import { HostedNodeStatus } from '@tloncorp/shared';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import {
-  ArvosDiscussing,
-  LoadingSpinner,
-  OnboardingTextBlock,
-  ScreenHeader,
-  View,
-  useStore,
-} from '@tloncorp/ui';
-import { useCallback, useEffect } from 'react';
+import { LoadingSpinner, View } from '@tloncorp/ui';
+import { useEffect } from 'react';
 
 import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
 import { useReviveSavedOnboarding } from '../../hooks/useReviveSavedOnboarding';
-import { useSignupContext } from '../../lib/signupContext';
 import { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<
@@ -27,18 +16,16 @@ type Props = NativeStackScreenProps<
 const logger = createDevLogger('InitialStateCheckScreen', true);
 
 export function InitialStateCheckScreen({ navigation }: Props) {
-  const signupContext = useSignupContext();
   const reviveSignupSession = useReviveSavedOnboarding();
   const { reviveLoggedInSession } = useOnboardingHelpers();
 
   useEffect(() => {
     async function checkInitialState() {
       try {
+        const signupData = await db.signupData.getValue();
         const nodeStoppedWhileLoggedIn =
           await db.nodeStoppedWhileLoggedIn.getValue();
         const hostingUserId = await db.hostingUserId.getValue();
-        const hasPotentialSignupSession =
-          !!signupContext.email || !!signupContext.phoneNumber;
         const hasPotentialLoggedInSession = !!hostingUserId;
 
         if (nodeStoppedWhileLoggedIn) {
@@ -55,7 +42,7 @@ export function InitialStateCheckScreen({ navigation }: Props) {
           return;
         }
 
-        if (hasPotentialSignupSession) {
+        if (signupData) {
           const didNavigate = await reviveSignupSession();
           if (didNavigate) {
             return;
@@ -66,9 +53,6 @@ export function InitialStateCheckScreen({ navigation }: Props) {
             return;
           }
         }
-
-        // if we didn't return, try to any lingering state
-        await db.clearSessionStorageItems();
       } catch (e) {
         logger.trackEvent('Error reviving onboarding session', {
           errorMessage: e.message,
@@ -87,7 +71,7 @@ export function InitialStateCheckScreen({ navigation }: Props) {
 
     console.log('checking initial onboarding state');
     checkInitialState();
-  });
+  }, []);
 
   return (
     <View
