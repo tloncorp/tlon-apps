@@ -199,14 +199,14 @@
   (safe:as:(com:nu:crub:crypto pass) sig.sign (jam dat.sign))
 ::
 ++  register
-  |=  $:  [[%0 state] =bowl:gall]
+  |=  $:  [state =bowl:gall]
           [id=identifier rec=record]
           proof=(unit proof)
       ==
   =*  state  +<-<
   ^-  (quip card _state)
   =/  tat=attestation
-    (attest our.bowl now.bowl for.rec id proof)
+    (attest [our now]:bowl for.rec id proof)
   =.  status.rec  [%done tat]
   :-  [(give-status for.rec id status.rec)]~
   %_  state
@@ -216,7 +216,7 @@
   ==
 ::
 ++  sign
-  |*  [our=@p now=@da dat=*]
+  |*  [[our=@p now=@da] dat=*]
   ^-  (urbit-signature _dat)
   =+  =>  [our=our now=now ..lull]  ~+
       ;;(=seed:jael (cue .^(@ %j /(scot %p our)/vile/(scot %da now))))
@@ -225,11 +225,11 @@
   [our lyf.seed dat sig]
 ::
 ++  attest
-  |=  [our=@p now=@da for=@p id=identifier proof=(unit proof)]
+  |=  [[our=@p now=@da] for=@p id=identifier proof=(unit proof)]
   ^-  attestation
   :+  now  proof
-  :-  (sign our now `half-sign-data-0`[%0 %verified now for -.id])
-  (sign our now `full-sign-data-0`[%0 %verified now for id proof])
+  :-  (sign [our now] `half-sign-data-0`[%0 %verified now for -.id])
+  (sign [our now] `full-sign-data-0`[%0 %verified now for id proof])
 ::
 ++  get-allowance
   ::TODO  don't give comets allowance? or just much more stingy?
@@ -416,7 +416,7 @@
         ::
         ::TODO  should the urbit provide a proof saying "x controls me"?
         ::      wouldn't that be better than a pin anyway?
-        =^  caz  state  (register [state bowl] [id rec] ~)
+        =^  caz  +.state  (register [+.state bowl] [id rec] ~)
         [caz this]
       ::
           %phone
@@ -472,7 +472,7 @@
       =/  rec  (~(got by records) id)
       ?:  ?=(%reject do.cmd)
         $(cmd [%revoke id])
-      =^  caz  state  (register [state bowl] [id rec] ~)
+      =^  caz  +.state  (register [+.state bowl] [id rec] ~)
       [caz this]
     ==
   ::
@@ -696,7 +696,7 @@
       ::  register it, short-circuit to success
       ::
       ?:  &(verified (fall matching |))
-        =^  caz  state  (register [state bowl] [id u.rec] ~)
+        =^  caz  +.state  (register [+.state bowl] [id u.rec] ~)
         [caz this]
       ::  otherwise, start verification process
       ::
@@ -712,7 +712,7 @@
     ::
         %submit
       ?:  =(200 cod)
-        =^  caz  state  (register [state bowl] [id u.rec] ~)
+        =^  caz  +.state  (register [+.state bowl] [id u.rec] ~)
         [caz this]
       ::  otp code wasn't correct, but user may retry
       ::TODO  limit attempts?
@@ -776,7 +776,7 @@
       %bad           abort
     ::
         %good
-      =^  caz  state  (register [state bowl] [id u.rec] `[%tweet tweet])
+      =^  caz  +.state  (register [+.state bowl] [id u.rec] `[%tweet tweet])
       [caz this]
     ==
   ==
