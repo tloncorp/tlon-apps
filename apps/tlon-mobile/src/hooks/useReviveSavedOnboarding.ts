@@ -83,34 +83,28 @@ export function useReviveSavedOnboarding() {
       return false;
     }
 
-    if (inviteMeta) {
-      logger.crumb(`attempting to revive onboarding session`, {
-        email: savedSignup.email,
-        phoneNumber: savedSignup.phoneNumber,
-      });
-      const routeStack = await getOnboardingRouteStack(savedSignup);
-      logger.crumb(`computed onboarding route stack`, routeStack);
+    // if (inviteMeta) {
+    //   logger.crumb(`attempting to revive onboarding session`, {
+    //     email: savedSignup.email,
+    //     phoneNumber: savedSignup.phoneNumber,
+    //   });
+    //   const routeStack = await getOnboardingRouteStack(savedSignup);
+    //   logger.crumb(`computed onboarding route stack`, routeStack);
 
-      if (routeStack) {
-        logger.trackEvent(AnalyticsEvent.OnboardingSessionRevived, {
-          route: routeStack[routeStack.length - 1],
-        });
-        navigation.reset({
-          index: 1,
-          routes: routeStack,
-        });
-        return true;
-      }
-    }
+    //   if (routeStack) {
+    //     logger.trackEvent(AnalyticsEvent.OnboardingSessionRevived, {
+    //       route: routeStack[routeStack.length - 1],
+    //     });
+    //     navigation.reset({
+    //       index: 1,
+    //       routes: routeStack,
+    //     });
+    //     return true;
+    //   }
+    // }
 
     return false;
-  }, [
-    getOnboardingRouteStack,
-    inviteMeta,
-    isAuthenticated,
-    navigation,
-    signupContext,
-  ]);
+  }, [isAuthenticated, signupContext]);
 
   return executeRevive;
 }
