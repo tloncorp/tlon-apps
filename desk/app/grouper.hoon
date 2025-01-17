@@ -149,13 +149,14 @@
       --
     :_  this
     =;  caz=(list card)
+      =*  dm-event  'DM Invite Fail'
       ?~  inviter=(~(get by fields.metadata.bite) 'inviter')
         :_  ~
-        %^  lure-log  %crit  'Inviter Missing'
+        %^  lure-log  %crit  dm-event
         ~['inviter field missing in lure bite']
       ?.  =((slav %p u.inviter) our.bowl)
         :_  ~
-        %^  lure-log  %crit  'Foreign Inviter'
+        %^  lure-log  %crit  dm-event
         ~[leaf+"inviter {<u.inviter>} is foreign"]
       =/  wir=^wire  /dm/(scot %p joiner.bite)
       =/  =dock  [our.bowl %chat]
@@ -169,30 +170,32 @@
       =*  dez  %^  lure-log  %info  'DM Invite Sent'
                ~[leaf+"{<joiner.bite>} invited to DM"]
       (snoc [dez caz] [%pass wir %agent dock %poke cage])
+    ::
+    =*  group-event  'Group Invite Fail'
     ?~  group=(~(get by fields.metadata.bite) 'group')
       :_  ~
-      %^  lure-log  %warn  'Group Field Missing'
+      %^  lure-log  %warn  group-event
       ~['group field missing']
     =/  =flag:groups  (flag:dejs:gj s+u.group)
     ?.  (~(has in enabled-groups) q.flag)
       :_  ~
-      %^  lure-log  %warn  'Group Invite Forbidden'
+      %^  lure-log  %warn  group-event
       ~[leaf+"invites for group {<p.flag>}/{(trip q.flag)} not enabled"]
     =/  =invite:groups  [flag joiner.bite]
     =/  prefix  /(scot %p our.bowl)/groups/(scot %da now.bowl)
     ?.  .^(? %gu (weld prefix /$))
       :_  ~
-      %^  lure-log  %warn  'Groups Agent Missing'
+      %^  lure-log  %warn  group-event
       ~['%groups not running']
     =/  gnat=path  /(scot %p p.flag)/[q.flag]/noun
     ?.  .^(? %gx :(weld prefix /exists gnat))
       :_  ~
-      %^  lure-log  %warn  'Group Missing'
+      %^  lure-log  %warn  group-event
       ~[leaf+"group {<p.flag>}/{(trip q.flag)} missing"]
     =+  .^(=group:groups %gx :(weld prefix /groups gnat))
     ?+  -.cordon.group  ~
         %open
-      :-  %^  lure-log  %info  'Group Invite Sent'
+      :-  %^  lure-log  %info  group-event
           ~[leaf+"{<joiner.bite>} invited to public group {<p.flag>}/{(trip q.flag)}"]
       ~[[%pass /invite %agent [our.bowl %groups] %poke %group-invite !>(invite)]]
     ::
