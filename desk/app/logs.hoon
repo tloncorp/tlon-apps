@@ -45,10 +45,10 @@
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ::
 ++  send-posthog-event
-  |=  [origin=path =time =log-event:l]
+  |=  [origin=path =time =log-event:l =log-data:l]
   ^+  cor
   =/  fard=(fyrd:khan cage)
-    [q.byk.bowl %posthog noun+!>(`[origin time log-event])]
+    [q.byk.bowl %posthog noun+!>(`[origin [time log-event] log-data])]
   ::
   (emit %pass /posthog [%arvo %k %fard fard])
 ::

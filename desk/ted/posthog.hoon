@@ -1,9 +1,9 @@
-::  posthog: submit an log event to PostHog
+::  posthog: submit an log event to Posthog
 ::
 /-  spider
 /+  io=strandio, l=logs
 ::
-=+  posthog-key='phc_GyI5iD7kM6RRbb1hIU0fiGmTCh4ha44hthJYJ7a89td'
+=+  posthog-key='phx_5Cee2IQzFw5XapO8xiXZj9VvQEAcJY2NRaEGly9ZKXbb9sf'
 =+  posthog-url='https://eu.i.posthog.com/capture/'
 =+  posthog-retry=3
 =+  posthog-retry-delay=~s5
@@ -15,30 +15,39 @@
 |=  arg=vase
 =/  m  (strand ,vase)
 ^-  form:m
-=+  !<(arg=(unit (pair path log-item:l)) arg)
+=+  !<(arg=(unit (trel path log-item:l log-data:l)) arg)
 ?>  ?=(^ arg)
 =*  origin  p.u.arg
 =*  log-item  q.u.arg
+=*  log-data  r.u.arg
 ;<  =bowl:strand  bind:m  get-bowl:io
 =/  log-event-json=$>(%o json)  (log-event:enjs:l event.log-item)
 ::  retrieve desk hash
 ::
 ;<  hash=@uv  bind:m  (scry:io @uv %cz q.byk.bowl ~)
 ::
-=/  props=json
+=/  props=$>(%o json)
   :-  %o
   %-  ~(uni by p.log-event-json)
   ^-  (map @t json)
   %-  my
+  %+  weld  log-data
+  ^-  log-data:l
   :~  'distinct_id'^s+(scot %p our.bowl)
       'origin'^s+(spat origin)
-      'hash'^s+(crip ((v-co:co 5) (end [0 25] hash)))
+      'hash'^s+(scot %uv hash)
   ==
+::  find event label
+::
+=/  label=$>(%s json)
+  =+  event=(~(get by p.props) 'event')
+  ?~  event  s+'Backend Log'
+  ?>(?=(%s -.u.event) u.event)
 =/  event=json
   %-  pairs:enjs:format
   :~  'api_key'^s+posthog-key
-      timestamp/(time:enjs:format time.log-item)
-      event/s+'Backend Log'
+      timestamp+(time:enjs:format time.log-item)
+      event+label
       properties+props
   ==
 ::
