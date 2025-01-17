@@ -44,21 +44,21 @@ export function useOnboardingHelpers() {
   const reviveLoggedInSession = useCallback(async () => {
     const hostingUserId = await db.hostingUserId.getValue();
     if (!hostingUserId) {
-      console.log('no hosting user ID found, not reviving');
+      logger.log('no hosting user ID found, not reviving');
       return false;
     }
 
     // make sure hosting session is still valid
     const result = await api.getHostingHeartBeat();
     if (result === 'expired') {
-      console.log('hosting auth expired, not reviving');
+      logger.log('hosting auth expired, not reviving');
       return false;
     }
 
     // if the account has an issue,
     const hasAccountIssue = await store.checkAccountStatus();
     if (hasAccountIssue) {
-      console.log('hosting account has issues, not reviving');
+      logger.log('hosting account has issues, not reviving');
       return false;
     }
 

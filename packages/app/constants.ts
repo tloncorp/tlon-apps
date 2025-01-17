@@ -14,8 +14,6 @@ const extra = (Constants.expoConfig?.extra ?? {}) as Record<
   string | undefined
 >;
 
-console.log(`extra`, extra);
-
 export const NOTIFY_PROVIDER = extra.notifyProvider ?? 'rivfur-livmet';
 export const NOTIFY_SERVICE = extra.notifyService ?? 'groups-native';
 export const POST_HOG_API_KEY = extra.postHogApiKey ?? '';

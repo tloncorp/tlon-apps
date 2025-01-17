@@ -99,18 +99,6 @@ export async function checkNodeBooted(): Promise<boolean> {
   } catch (e) {
     return false;
   }
-  // const shipsWithStatus = await hostingApi.getShipsWithStatus([nodeId]);
-  // if (!shipsWithStatus) {
-  //   return false;
-  // }
-
-  // const { status: shipStatus } = shipsWithStatus;
-
-  // if (shipStatus !== 'Ready') {
-  //   return false;
-  // }
-
-  // return true;
 }
 
 async function authenticateNode(
@@ -122,9 +110,6 @@ async function authenticateNode(
   if (!authCookie) {
     throw new Error("Couldn't log you into your ship.");
   }
-
-  // TODO: shouldn't this be the same?
-  const ship = getShipFromCookie(authCookie);
 
   return {
     nodeId,

@@ -23,8 +23,6 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'CheckVerify'>;
 const PHONE_CODE_LENGTH = 6;
 
 export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
-  // const isEmail = !user.requirePhoneNumberVerification;
-  // const codeLength = isEmail ? EMAIL_CODE_LENGTH : PHONE_CODE_LENGTH;
   const store = useStore();
   const [code, setCode] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,13 +41,10 @@ export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
           actionName: 'Verification Submitted',
         });
 
-        // TODO: !!!! make sure this gets written to kv earlier: it does
-        // signupContext.setOnboardingValues({ hostingUser: user });
         if (params.mode === 'signup') {
           signupContext.kickOffBootSequence();
           navigation.navigate('SetNickname');
         } else {
-          // TODO
           checkAccountStatusAndNavigate();
         }
       } catch (err) {

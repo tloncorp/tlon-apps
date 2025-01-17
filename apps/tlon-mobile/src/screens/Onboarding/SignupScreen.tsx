@@ -78,7 +78,6 @@ export const SignupScreen = ({ navigation }: Props) => {
   }, [navigation]);
 
   const handleSuccess = useCallback(() => {
-    console.log('handling success');
     trackOnboardingAction({
       actionName: 'Phone or Email Submitted',
       phoneNumber: phoneForm.getValues().phoneNumber,
@@ -133,9 +132,7 @@ export const SignupScreen = ({ navigation }: Props) => {
           });
         })();
       } else {
-        console.log('submitting form');
         await emailForm.handleSubmit(async ({ email }) => {
-          console.log('requesting otp');
           await hostingApi.requestSignupOtp({
             email,
             recaptchaToken,
@@ -144,7 +141,6 @@ export const SignupScreen = ({ navigation }: Props) => {
         })();
       }
 
-      console.log('got here?');
       handleSuccess();
     } catch (err) {
       if (err instanceof HostingError) {
