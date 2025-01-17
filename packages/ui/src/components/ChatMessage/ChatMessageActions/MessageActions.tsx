@@ -209,7 +209,13 @@ export async function handleAction({
       onViewReactions?.(post);
       break;
     case 'quote':
-      addAttachment({ type: 'reference', reference, path });
+      if (channel.type === 'dm' && post.textContent) {
+        // For DMs, insert text as markdown quote
+        addAttachment({ type: 'text', text: `> ${post.textContent}\n` });
+      } else {
+        // For other channel types, use reference attachment
+        addAttachment({ type: 'reference', reference, path });
+      }
       break;
     case 'edit':
       onEdit?.();
@@ -286,7 +292,7 @@ export function useDisplaySpecForChannelActionId(
         return { label: isMuted ? 'Unmute thread' : 'Mute thread' };
 
       case 'quote':
-        return { label: 'Quote' };
+        return { label: 'Reply' };
 
       case 'report':
         return {
