@@ -7,11 +7,7 @@ import {
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import {
-  getShipAccessCode,
-  logInHostingUser,
-  requestPhoneVerify,
-} from '@tloncorp/shared/api';
+import { getShipAccessCode, requestPhoneVerify } from '@tloncorp/shared/api';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
 import {

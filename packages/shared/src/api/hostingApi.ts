@@ -65,14 +65,16 @@ const hostingFetchResponse = async (
   }
 
   const hostingCookie = await db.hostingAuthToken.getValue();
+  const modifiedCookie = hostingCookie.replace(' HttpOnly;', '');
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15_000);
   const response = await fetch(`${env.API_URL}${path}`, {
     ...fetchInit,
+    credentials: 'include',
     signal: controller.signal,
     headers: {
       ...fetchInit.headers,
-      Cookie: hostingCookie,
+      Cookie: modifiedCookie,
     },
   });
   clearTimeout(timeoutId);

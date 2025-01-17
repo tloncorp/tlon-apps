@@ -26,6 +26,8 @@ export function InitialStateCheckScreen({ navigation }: Props) {
         const nodeStoppedWhileLoggedIn =
           await db.nodeStoppedWhileLoggedIn.getValue();
         const hostingUserId = await db.hostingUserId.getValue();
+        const hasPotentialSignupSession =
+          signupData.email || signupData.phoneNumber;
         const hasPotentialLoggedInSession = !!hostingUserId;
 
         if (nodeStoppedWhileLoggedIn) {
@@ -42,7 +44,7 @@ export function InitialStateCheckScreen({ navigation }: Props) {
           return;
         }
 
-        if (signupData) {
+        if (hasPotentialSignupSession) {
           const didNavigate = await reviveSignupSession();
           if (didNavigate) {
             return;

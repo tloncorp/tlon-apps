@@ -28,7 +28,10 @@ export async function refreshHostingAuth() {
       const result = await getHostingHeartBeat();
       if (result === 'expired') {
         logger.crumb('hosting auth has newly expired');
+        logger.trackEvent('Hosting Auth Expired');
         db.hostingAuthExpired.setValue(true);
+      } else {
+        logger.trackEvent('Hosting Auth Still Valid');
       }
     } catch (e) {
       logger.error('error checking hosting auth:', e);

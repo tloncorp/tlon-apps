@@ -8,7 +8,7 @@ import {
   HostedNodeStatus,
   createDevLogger,
 } from '@tloncorp/shared';
-import { HostingError, logInHostingUser } from '@tloncorp/shared/api';
+import { HostingError } from '@tloncorp/shared/api';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
