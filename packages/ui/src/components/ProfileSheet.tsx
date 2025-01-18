@@ -115,7 +115,7 @@ export function ProfileSheet({
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       <ActionSheet.ScrollableContent>
         <ActionSheet.ContentBlock>
-          <ProfileBlock contactId={contactId} />
+          <ProfileBlock height={200} contactId={contactId} />
         </ActionSheet.ContentBlock>
         <ActionSheet.SimpleActionGroupList actionGroups={actions} />
       </ActionSheet.ScrollableContent>
