@@ -1160,6 +1160,8 @@ PODS:
     - React-Core
   - react-native-context-menu-view (1.15.0):
     - React
+  - react-native-cookies (6.2.1):
+    - React-Core
   - react-native-get-random-values (1.11.0):
     - React-Core
   - react-native-netinfo (11.1.0):
@@ -1468,6 +1470,7 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../../../node_modules/react-native/ReactCommon`)
   - react-native-branch (from `../../../node_modules/react-native-branch`)
   - react-native-context-menu-view (from `../../../node_modules/react-native-context-menu-view`)
+  - "react-native-cookies (from `../../../node_modules/@react-native-cookies/cookies`)"
   - react-native-get-random-values (from `../../../node_modules/react-native-get-random-values`)
   - "react-native-netinfo (from `../../../node_modules/@react-native-community/netinfo`)"
   - react-native-safe-area-context (from `../../../node_modules/react-native-safe-area-context`)
@@ -1674,6 +1677,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native-branch"
   react-native-context-menu-view:
     :path: "../../../node_modules/react-native-context-menu-view"
+  react-native-cookies:
+    :path: "../../../node_modules/@react-native-cookies/cookies"
   react-native-get-random-values:
     :path: "../../../node_modules/react-native-get-random-values"
   react-native-netinfo:

@@ -104,12 +104,12 @@ export const appInfo = createStorageItem<AppInfo | null>({
 export const benefitsSheetDismissed = createStorageItem<boolean>({
   key: 'didShowBenefitsSheet',
   defaultValue: false,
+  persistAfterLogout: true,
 });
 
 export const signupData = createStorageItem<SignupParams>({
   key: 'signupData',
   defaultValue: {
-    hostingUser: null,
     reservedNodeId: null,
     bootPhase: NodeBootPhase.IDLE,
   },
@@ -221,5 +221,52 @@ export const eulaAgreed = createStorageItem<boolean>({
 
 export const splashDismissed = createStorageItem<boolean>({
   key: 'splash',
+  defaultValue: false,
+});
+
+export const haveHostedLogin = createStorageItem<boolean>({
+  key: 'haveHostedLogin',
+  defaultValue: false,
+});
+
+export const hostedUserNodeId = createStorageItem<string | null>({
+  key: 'hostedUserNodeId',
+  defaultValue: null,
+});
+
+export const hostedAccountIsInitialized = createStorageItem<boolean>({
+  key: 'hostedAccountIsInitialized',
+  defaultValue: false,
+});
+
+export const hostedNodeIsRunning = createStorageItem<boolean>({
+  key: 'hostedNodeIsRunning',
+  defaultValue: false,
+});
+
+export const hostingAuthExpired = createStorageItem<boolean>({
+  key: 'hosting:hostingAuthExpired',
+  defaultValue: false,
+});
+
+export const hostingLastAuthCheck = createStorageItem<number>({
+  key: 'hosting:lastAuthCheck',
+  defaultValue: 0,
+});
+
+export const hostingAuthToken = createStorageItem<string>({
+  key: 'hostingToken',
+  defaultValue: '',
+  isSecure: true,
+});
+
+export const hostingUserId = createStorageItem<string>({
+  key: 'hostingUserId',
+  defaultValue: '',
+  isSecure: true,
+});
+
+export const nodeStoppedWhileLoggedIn = createStorageItem<boolean>({
+  key: 'nodeStoppedWhileLoggedIn',
   defaultValue: false,
 });
