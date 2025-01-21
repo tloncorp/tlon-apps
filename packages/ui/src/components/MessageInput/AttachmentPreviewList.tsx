@@ -22,15 +22,17 @@ export const AttachmentPreviewList = () => {
       overScrollMode="always"
       horizontal={true}
     >
-      {attachments.map((attachment, i) => {
-        return (
-          <AttachmentPreview
-            key={i}
-            attachment={attachment}
-            uploading={false}
-          />
-        );
-      })}
+      {attachments
+        .filter((a) => a.type !== 'text')
+        .map((attachment, i) => {
+          return (
+            <AttachmentPreview
+              key={i}
+              attachment={attachment}
+              uploading={false}
+            />
+          );
+        })}
     </ScrollView>
   ) : null;
 };
@@ -62,7 +64,7 @@ export function AttachmentPreview({
             uri: attachment.file.uri,
           }}
         />
-      ) : (
+      ) : attachment.type === 'reference' ? (
         <ContentReferenceLoader
           position="absolute"
           contentSize="$s"
@@ -73,7 +75,7 @@ export function AttachmentPreview({
           reference={attachment.reference}
           actionIcon={null}
         />
-      )}
+      ) : null}
 
       <RemoveAttachmentButton attachment={attachment} />
 

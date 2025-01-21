@@ -86,8 +86,11 @@ interface ChannelProps {
   usePostReference: typeof usePostReferenceHook;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   useChannel: typeof useChannelPreview;
-  storeDraft: (draft: JSONContent, draftType?: GalleryDraftType) => void;
-  clearDraft: (draftType?: GalleryDraftType) => void;
+  storeDraft: (
+    draft: JSONContent,
+    draftType?: GalleryDraftType
+  ) => Promise<void>;
+  clearDraft: (draftType?: GalleryDraftType) => Promise<void>;
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;

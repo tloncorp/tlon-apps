@@ -30,7 +30,7 @@ export function GroupChannelsScreenContent({
   focusedChannelId?: string;
 }) {
   const isFocused = useIsFocused();
-  const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>(
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(
     null
   );
   const { group } = useGroupContext({ groupId: id, isFocused });
@@ -75,8 +75,8 @@ export function GroupChannelsScreenContent({
 
   return (
     <ChatOptionsProvider
-      onPressInvite={(group) => {
-        setInviteSheetGroup(group);
+      onPressInvite={(groupId) => {
+        setInviteSheetGroup(groupId);
       }}
       {...useChatSettingsNavigation()}
     >
@@ -96,7 +96,7 @@ export function GroupChannelsScreenContent({
             setInviteSheetGroup(null);
           }
         }}
-        group={inviteSheetGroup ?? undefined}
+        groupId={inviteSheetGroup ?? undefined}
         onInviteComplete={() => setInviteSheetGroup(null)}
       />
     </ChatOptionsProvider>

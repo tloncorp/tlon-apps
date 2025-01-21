@@ -265,6 +265,15 @@ const Scroller = forwardRef(
             onPressReplies={onPressReplies}
             onPressPost={onPressPost}
             onLongPressPost={handlePostLongPressed}
+            onShowEmojiPicker={() => {
+              setActiveMessage(post);
+              setEmojiPickerOpen(true);
+            }}
+            onPressEdit={() => {
+              setEditingPost?.(post);
+
+              setActiveMessage(null);
+            }}
             activeMessage={activeMessage}
             messageRef={activeMessageRefs.current[post.id]}
             dividersEnabled={collectionLayout.dividersEnabled}
@@ -293,6 +302,8 @@ const Scroller = forwardRef(
         collectionLayout.dividersEnabled,
         collectionLayout.itemAspectRatio,
         collectionLayout.columnCount,
+        setActiveMessage,
+        setEditingPost,
       ]
     );
 
@@ -566,6 +577,8 @@ const BaseScrollerItem = ({
   onLongPressPost,
   onPressRetry,
   onPressDelete,
+  onShowEmojiPicker,
+  onPressEdit,
   activeMessage,
   messageRef,
   isSelected,
@@ -590,6 +603,8 @@ const BaseScrollerItem = ({
   onLongPressPost: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
+  onShowEmojiPicker: () => void;
+  onPressEdit?: () => void;
   activeMessage?: db.Post | null;
   messageRef: RefObject<RNView>;
   isSelected: boolean;
@@ -678,6 +693,8 @@ const BaseScrollerItem = ({
           onPress={post.isDeleted ? undefined : onPressPost}
           onPressRetry={onPressRetry}
           onPressDelete={onPressDelete}
+          onShowEmojiPicker={onShowEmojiPicker}
+          onPressEdit={onPressEdit}
         />
       </PressableMessage>
       {isLastPostOfBlock && <PostBlockSeparator />}
