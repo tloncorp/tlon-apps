@@ -8,6 +8,8 @@ import {
 } from 'react';
 
 import { useChatOptions } from '../../contexts';
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
+import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import Pressable from '../Pressable';
 import { ScreenHeader } from '../ScreenHeader';
 import { BaubleHeader } from './BaubleHeader';
@@ -100,12 +102,14 @@ export function ChannelHeader({
   post?: db.Post;
 }) {
   const chatOptions = useChatOptions();
+  const [openChatOptions, setOpenChatOptions] = useState(false);
 
   const handlePressOverflowMenu = useCallback(() => {
     chatOptions.open(channel.id, 'channel');
   }, [channel.id, chatOptions]);
 
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
+  const isWindowNarrow = useIsWindowNarrow();
 
   if (mode === 'next') {
     return <BaubleHeader channel={channel} group={group} />;
@@ -141,12 +145,25 @@ export function ChannelHeader({
               <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
             )}
             {contextItems}
-            {showMenuButton && (
-              <ScreenHeader.IconButton
-                type="Overflow"
-                onPress={handlePressOverflowMenu}
-              />
-            )}
+            {showMenuButton ? (
+              isWindowNarrow ? (
+                <ScreenHeader.IconButton
+                  type="Overflow"
+                  onPress={handlePressOverflowMenu}
+                />
+              ) : (
+                <ChatOptionsSheet
+                  open={openChatOptions}
+                  onOpenChange={setOpenChatOptions}
+                  chat={{ type: 'channel', id: channel.id }}
+                  trigger={
+                    <ScreenHeader.IconButton
+                      type="Overflow"
+                    />
+                  }
+                />
+              )
+            ) : null}
             {showEditButton && (
               <ScreenHeader.TextButton onPress={goToEdit}>
                 Edit

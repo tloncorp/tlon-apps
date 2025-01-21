@@ -90,9 +90,11 @@ export function OTPInput({
             onChangeText={(text) => handleChangeText(i, text)}
             value={value.length > i ? value[i] : ''}
             keyboardType="numeric"
-            paddingHorizontal="$xl"
-            paddingVertical="$xl"
-            width="$4xl"
+            frameStyle={{
+              width: '$4xl',
+              paddingLeft: 0,
+              paddingRight: 0,
+            }}
             textContentType="oneTimeCode"
             autoComplete="one-time-code"
           />

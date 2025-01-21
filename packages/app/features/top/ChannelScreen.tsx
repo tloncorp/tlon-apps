@@ -20,7 +20,7 @@ import {
   InviteUsersSheet,
   useCurrentUserId,
 } from '@tloncorp/ui';
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -103,7 +103,7 @@ export default function ChannelScreen(props: Props) {
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
   const [inviteSheetGroup, setInviteSheetGroup] =
-    React.useState<db.Group | null>();
+    React.useState<string | null>();
 
   // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
   // time
@@ -333,9 +333,12 @@ export default function ChannelScreen(props: Props) {
 
   const handleMarkRead = useCallback(async () => {
     if (channel && !channel.isPendingChannel) {
-      store.markChannelRead(channel);
+      store.markChannelRead({
+        id: channel.id,
+        groupId: channel.groupId ?? undefined,
+      });
     }
-  }, [channel]);
+  }, [channel?.type, channel?.id, channel?.groupId]);
 
   const canUpload = useCanUpload();
 
@@ -354,6 +357,8 @@ export default function ChannelScreen(props: Props) {
     }
   }, []);
 
+  const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
+
   if (!channel) {
     return null;
   }
@@ -368,11 +373,13 @@ export default function ChannelScreen(props: Props) {
       onPressInvite={(group) => {
         setInviteSheetGroup(group);
       }}
+      onPressConfigureChannel={channelRef.current?.openChannelConfigurationBar}
       {...chatOptionsNavProps}
     >
       <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
         <Channel
           key={currentChannelId}
+          ref={channelRef}
           headerMode={headerMode}
           channel={channel}
           initialChannelUnread={
@@ -427,7 +434,7 @@ export default function ChannelScreen(props: Props) {
             open={inviteSheetGroup !== null}
             onOpenChange={handleInviteSheetOpenChange}
             onInviteComplete={() => setInviteSheetGroup(null)}
-            group={inviteSheetGroup ?? undefined}
+            groupId={inviteSheetGroup ?? undefined}
           />
         </>
       )}

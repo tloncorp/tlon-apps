@@ -1,4 +1,4 @@
-import { CollectionRendererId } from '../api';
+import { ChannelContentConfiguration, CollectionRendererId } from '../api';
 import * as db from '../db';
 import * as ChannelAction from './ChannelActions';
 
@@ -22,10 +22,13 @@ export function layoutTypeFromChannel(
 export function layoutTypeFromChannel(
   channel: db.Channel | null
 ): PostCollectionLayoutType | null {
-  const configCollectionRendererId =
-    channel?.contentConfiguration?.defaultPostCollectionRenderer;
-  if (configCollectionRendererId != null) {
-    switch (configCollectionRendererId) {
+  const config = channel?.contentConfiguration;
+  const configCollectionRenderer =
+    config == null
+      ? null
+      : ChannelContentConfiguration.defaultPostCollectionRenderer(config);
+  if (configCollectionRenderer != null) {
+    switch (configCollectionRenderer.id) {
       case CollectionRendererId.notebook:
         return 'comfy-list-top-to-bottom';
 

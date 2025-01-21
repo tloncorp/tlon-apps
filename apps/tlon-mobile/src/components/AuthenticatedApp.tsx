@@ -10,16 +10,19 @@ import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import { PortalProvider, ZStack } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { AppStateStatus } from 'react-native';
 
 import { useCheckAppUpdated } from '../hooks/analytics';
+import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 
 function AuthenticatedApp() {
   const telemetry = useTelemetry();
+  const checkNodeStopped = useCheckNodeStopped();
   useNotificationListener();
   useUpdatePresentedNotifications();
   useDeepLinkListener();
@@ -34,12 +37,18 @@ function AuthenticatedApp() {
         sync.syncUnreads({ priority: sync.SyncPriority.High });
         sync.syncPinnedItems({ priority: sync.SyncPriority.High });
         telemetry.captureAppActive();
+        checkNodeStopped();
       }
     },
-    [telemetry]
+    [checkNodeStopped, telemetry]
   );
 
   useAppStatusChange(handleAppStatusChange);
+
+  useEffect(() => {
+    // reset this anytime we get back into the authenticated app
+    db.nodeStoppedWhileLoggedIn.setValue(false);
+  }, []);
 
   return (
     <ZStack flex={1}>

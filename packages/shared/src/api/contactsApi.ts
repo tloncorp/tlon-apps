@@ -1,6 +1,7 @@
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { AnalyticsEvent, normalizeUrbitColor } from '../logic';
+import { AnalyticsEvent } from '../domain';
+import { normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 

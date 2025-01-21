@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { EMAIL_REGEX } from '@tloncorp/app/constants';
-import { addUserToWaitlist } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { addUserToWaitlist } from '@tloncorp/shared/api';
 import {
   Field,
   ScreenHeader,
