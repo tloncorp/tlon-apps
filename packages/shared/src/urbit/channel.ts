@@ -350,6 +350,7 @@ export interface PostCollectionRenderer {
 
 export interface ContentRenderer {
   rendererId: string;
+  configuration?: Record<string, JSONValue>;
 }
 
 export interface ChannelMetadataSchemaV1 {
