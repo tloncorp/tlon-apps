@@ -15,6 +15,7 @@ import {
   View,
   XStack,
   YStack,
+  isWeb,
   styled,
   useTheme,
   useWindowDimensions,
@@ -22,6 +23,7 @@ import {
 
 import { useContact, useCurrentUserId, useNavigation } from '../contexts';
 import { useCopy } from '../hooks/useCopy';
+import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
 import { triggerHaptic, useGroupTitle } from '../utils';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { Button } from './Button';
@@ -138,11 +140,12 @@ function StatusBlock({
   label: string;
 }) {
   const windowDimensions = useWindowDimensions();
+  const isWindowNarrow = useIsWindowNarrow();
 
   return (
     <PaddedBlock
       padding="$2xl"
-      width={(windowDimensions.width - 36) / 2}
+      width={isWindowNarrow ? (windowDimensions.width - 36) / 2 : '100%'}
       gap="$2xl"
     >
       <XStack width="100%" justifyContent="space-between">
@@ -216,7 +219,7 @@ export function BioDisplay({
   ...rest
 }: { bio: string } & ComponentProps<typeof WidgetPane>) {
   return bio.length ? (
-    <WidgetPane borderRadius={'$2xl'} padding="$2xl" width="100%" {...rest}>
+    <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%" {...rest}>
       <WidgetPane.Title>About</WidgetPane.Title>
       <Text size="$body" trimmed={false}>
         {bio}
@@ -230,9 +233,11 @@ export function StatusDisplay({
   ...rest
 }: { status: string } & ComponentProps<typeof WidgetPane>) {
   return (
-    <WidgetPane borderRadius={'$2xl'} padding="$2xl" width="100%" {...rest}>
+    <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%" {...rest}>
       <WidgetPane.Title>Status</WidgetPane.Title>
-      <Text size="$body">{status}</Text>
+      <Text size="$body" trimmed={false}>
+        {status}
+      </Text>
     </WidgetPane>
   );
 }
@@ -464,7 +469,7 @@ function ProfileButton(props: {
       flexGrow={1}
       flexBasis={1}
       borderWidth={0}
-      paddingVertical={'$xl'}
+      paddingVertical="$xl"
       paddingHorizontal="$2xl"
       borderRadius="$2xl"
       onPress={handlePress}
@@ -474,6 +479,8 @@ function ProfileButton(props: {
       <Text
         size="$label/xl"
         color={props.hero ? '$background' : '$primaryText'}
+        paddingHorizontal={isWeb ? '$m' : undefined}
+        textWrap="nowrap"
       >
         {props.title}
       </Text>
