@@ -138,6 +138,7 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
 
   const clearShip = useCallback(() => {
     setShipInfo(emptyShip);
+    storage.shipInfo.resetValue();
   }, []);
 
   return (

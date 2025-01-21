@@ -23,7 +23,6 @@ const GroupMetaScreenFixture = () => {
           route={{
             key: 'SetNickname',
             name: 'SetNickname',
-            params: { user: {} as User },
           }}
         />
       </FixtureWrapper>

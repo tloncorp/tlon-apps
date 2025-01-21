@@ -13,4 +13,3 @@
   },
   "include": ["./src", "./src/test/*.json"]
 }
-

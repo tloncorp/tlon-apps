@@ -6,7 +6,7 @@ import create from 'zustand';
 import { getCurrentUserId, poke, scry, subscribeOnce } from '../api/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { AnalyticsEvent } from '../logic';
+import { AnalyticsEvent } from '../domain';
 import { DeepLinkMetadata, createDeepLink } from '../logic/branch';
 import { asyncWithDefault } from '../logic/utils';
 import { GroupMeta } from '../urbit/groups';

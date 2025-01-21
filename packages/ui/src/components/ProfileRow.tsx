@@ -24,13 +24,7 @@ export default function ProfileRow({
       backgroundColor={dark ? '$secondaryBackground' : undefined}
       borderRadius={dark ? '$xl' : undefined}
     >
-      <ContactAvatar
-        size="custom"
-        width={100}
-        height={100}
-        borderRadius={'$xl'}
-        contactId={contactId}
-      />
+      <ContactAvatar size="$5xl" borderRadius={'$xl'} contactId={contactId} />
       <YStack flex={1} gap="$l" justifyContent="center">
         {contact?.nickname ? (
           <>
