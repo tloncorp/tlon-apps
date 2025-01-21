@@ -53,6 +53,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
     // Check to handle migration from a previous storage library
     // that prefixed all keys
     if (
+      deserializedValue &&
       typeof deserializedValue === 'object' &&
       'rawData' in deserializedValue
     ) {

@@ -8,6 +8,7 @@ import { useChannelContext } from '../../contexts';
 import AuthorRow from '../AuthorRow';
 import { Button } from '../Button';
 import { Icon } from '../Icon';
+import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
@@ -260,6 +261,17 @@ const ChatMessage = ({
   );
 };
 
+const WebChatImageRenderer: DefaultRendererProps['image'] = {
+  alignItems: 'flex-start',
+  imageProps: {
+    maxWidth: 600,
+    maxHeight: 600,
+    height: 'auto',
+    width: 'auto',
+    objectFit: 'contain',
+  },
+};
+
 const ChatContentRenderer = createContentRenderer({
   blockSettings: {
     blockWrapper: {
@@ -268,16 +280,7 @@ const ChatContentRenderer = createContentRenderer({
     reference: {
       contentSize: '$l',
     },
-    image: {
-      alignItems: 'flex-start',
-      imageProps: {
-        maxWidth: 600,
-        maxHeight: 600,
-        height: 'auto',
-        width: 'auto',
-        objectFit: 'contain',
-      },
-    },
+    image: isWeb ? WebChatImageRenderer : undefined,
   },
 });
 

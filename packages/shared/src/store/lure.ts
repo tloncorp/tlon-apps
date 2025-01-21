@@ -6,7 +6,7 @@ import create from 'zustand';
 import { getCurrentUserId, poke, scry, subscribeOnce } from '../api/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { AnalyticsEvent } from '../logic';
+import { AnalyticsEvent } from '../domain';
 import { DeepLinkMetadata, createDeepLink } from '../logic/branch';
 import { asyncWithDefault, getFlagParts, withRetry } from '../logic/utils';
 import { stringToTa } from '../urbit';
@@ -95,6 +95,10 @@ export const useLureState = create<LureState>((set, get) => ({
             invitedGroupIconImageUrl: group?.iconImage ?? '',
           }),
         },
+      });
+      lureLogger.trackEvent(AnalyticsEvent.InitializedNewInvite, {
+        flag,
+        inviterUserId: currentUserId,
       });
     } catch (e) {
       lureLogger.trackError(AnalyticsEvent.InviteError, {
@@ -422,7 +426,7 @@ export function useLureLinkStatus({
     }
 
     return 'ready';
-  }, [supported, fetched, enabled, url, checked, deepLinkUrl, good, flag]);
+  }, [supported, fetched, enabled, url, checked, deepLinkUrl, good]);
 
   // prevent over zealous logging
   const statusKey = useMemo(() => {

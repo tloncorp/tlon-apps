@@ -338,7 +338,7 @@ export default function ChannelScreen(props: Props) {
         groupId: channel.groupId ?? undefined,
       });
     }
-  }, [channel]);
+  }, [channel?.type, channel?.id, channel?.groupId]);
 
   const canUpload = useCanUpload();
 
