@@ -8,10 +8,7 @@ import {
   getCanonicalPostId,
   toClientMeta,
 } from './apiUtils';
-import {
-  ChannelContentConfiguration,
-  StructuredChannelDescriptionPayload,
-} from './channelContentConfig';
+import { StructuredChannelDescriptionPayload } from './channelContentConfig';
 import { toPostData, toPostReplyData, toReplyMeta } from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe, trackedPoke } from './urbit';
 
