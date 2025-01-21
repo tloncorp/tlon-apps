@@ -51,6 +51,8 @@ type RenderItemProps = {
   editPost?: (post: db.Post, content: Story) => Promise<void>;
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
+  onShowEmojiPicker?: () => void;
+  onPressEdit?: () => void;
   isHighlighted?: boolean;
   contentRendererConfiguration?: Record<string, unknown>;
 };

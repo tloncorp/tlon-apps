@@ -1,22 +1,22 @@
 import { debounce } from 'lodash';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
-import { Circle, View } from 'tamagui';
+import { YStack } from 'tamagui';
 
 import { TextInput } from './Form';
-import { Icon } from './Icon';
 import { Input } from './Input';
-import Pressable from './Pressable';
 
 export function SearchBar({
   placeholder,
   onChangeQuery,
   debounceTime = 300,
+  onPressCancel,
   inputProps,
   ...rest
 }: {
   placeholder?: string;
   onChangeQuery: (query: string) => void;
   debounceTime?: number;
+  onPressCancel?: () => void;
   inputProps?: ComponentProps<typeof TextInput>;
 } & ComponentProps<typeof Input>) {
   const [value, setValue] = useState('');
@@ -47,40 +47,24 @@ export function SearchBar({
   );
 
   return (
-    <View
-      flexGrow={1}
-      flexDirection="column"
-      justifyContent="center"
-      alignItems="center"
-      {...rest}
-    >
+    <YStack flexGrow={1} justifyContent="center" alignItems="center" {...rest}>
       <TextInput
         icon="Search"
         value={value}
         onChangeText={onTextChange}
         placeholder={placeholder}
+        rightControls={
+          <TextInput.InnerButton
+            label={value === '' && !!onPressCancel ? 'Cancel' : 'Clear'}
+            onPress={() =>
+              value === '' && !!onPressCancel
+                ? onPressCancel()
+                : onTextChange('')
+            }
+          />
+        }
         {...inputProps}
       />
-      <Pressable
-        onPress={() => onTextChange('')}
-        alignItems="center"
-        position="absolute"
-        right={'$3xl'}
-        top={18}
-        pressStyle={{ backgroundColor: 'unset' }}
-        height="100%"
-        disabled={value === ''}
-        opacity={value === '' ? 0 : undefined}
-      >
-        <Circle
-          justifyContent="center"
-          alignItems="center"
-          size="$xl"
-          backgroundColor="$secondaryText"
-        >
-          <Icon size="$s" type="Close" color="$secondaryBackground" />
-        </Circle>
-      </Pressable>
-    </View>
+    </YStack>
   );
 }

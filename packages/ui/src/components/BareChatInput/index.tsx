@@ -33,6 +33,7 @@ import { View } from 'tamagui';
 
 import {
   Attachment,
+  TextAttachment,
   UploadedImageAttachment,
   useAttachmentContext,
 } from '../../contexts';
@@ -211,6 +212,7 @@ export default function BareChatInput({
     addAttachment,
     clearAttachments,
     resetAttachments,
+    removeAttachment,
     waitForAttachmentUploads,
   } = useAttachmentContext();
   const [controlledText, setControlledText] = useState('');
@@ -267,44 +269,47 @@ export default function BareChatInput({
 
   const lastProcessedRef = useRef('');
 
-  const handleTextChange = (newText: string) => {
-    const oldText = controlledText;
+  const handleTextChange = useCallback(
+    (newText: string) => {
+      const oldText = controlledText;
 
-    bareChatInputLogger.log('text change', newText);
+      bareChatInputLogger.log('text change', newText);
 
-    // Only process references if the text contains a reference and hasn't been processed before.
-    // This check prevents infinite loops on native platforms where we manually update
-    // the input's text value using setNativeProps after processing references.
-    // Without this guard, each manual text update would trigger another onChangeText,
-    // creating an endless cycle.
-    if (REF_REGEX.test(newText) && lastProcessedRef.current !== newText) {
-      lastProcessedRef.current = newText;
-      const textWithoutRefs = processReferences(newText);
-      setControlledText(textWithoutRefs);
-      handleMention(oldText, textWithoutRefs);
+      // Only process references if the text contains a reference and hasn't been processed before.
+      // This check prevents infinite loops on native platforms where we manually update
+      // the input's text value using setNativeProps after processing references.
+      // Without this guard, each manual text update would trigger another onChangeText,
+      // creating an endless cycle.
+      if (REF_REGEX.test(newText) && lastProcessedRef.current !== newText) {
+        lastProcessedRef.current = newText;
+        const textWithoutRefs = processReferences(newText);
+        setControlledText(textWithoutRefs);
+        handleMention(oldText, textWithoutRefs);
 
-      const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
-      bareChatInputLogger.log('setting draft', jsonContent);
-      storeDraft(jsonContent);
+        const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
+        bareChatInputLogger.log('setting draft', jsonContent);
+        storeDraft(jsonContent);
 
-      // force update the native input's text.
-      // we must set the text to an empty string because sending any text via
-      // setNativeProps is actually *additive* to the existing text and not a replacement.
-      // calling setNativeProps is still necessary because it forces the input to update
-      // and display the new text value.
-      if (!isWeb) {
-        inputRef.current?.setNativeProps({ text: '' });
+        // force update the native input's text.
+        // we must set the text to an empty string because sending any text via
+        // setNativeProps is actually *additive* to the existing text and not a replacement.
+        // calling setNativeProps is still necessary because it forces the input to update
+        // and display the new text value.
+        if (!isWeb) {
+          inputRef.current?.setNativeProps({ text: '' });
+        }
+      } else if (!REF_REGEX.test(newText)) {
+        // if there's no reference to process, just update normally
+        setControlledText(newText);
+        handleMention(oldText, newText);
+
+        const jsonContent = textAndMentionsToContent(newText, mentions);
+        bareChatInputLogger.log('setting draft', jsonContent);
+        storeDraft(jsonContent);
       }
-    } else if (!REF_REGEX.test(newText)) {
-      // if there's no reference to process, just update normally
-      setControlledText(newText);
-      handleMention(oldText, newText);
-
-      const jsonContent = textAndMentionsToContent(newText, mentions);
-      bareChatInputLogger.log('setting draft', jsonContent);
-      storeDraft(jsonContent);
-    }
-  };
+    },
+    [controlledText, processReferences, storeDraft, handleMention, mentions]
+  );
 
   const onMentionSelect = useCallback(
     (contact: db.Contact) => {
@@ -322,6 +327,22 @@ export default function BareChatInput({
     [handleSelectMention, controlledText]
   );
 
+  // Handle text attachments by inserting them into the input
+  useEffect(() => {
+    const textAttachment = attachments.find(
+      (a): a is TextAttachment => a.type === 'text'
+    );
+    if (textAttachment) {
+      if (controlledText === '') {
+        handleTextChange(`${textAttachment.text}`);
+      } else {
+        handleTextChange(`${textAttachment.text}${controlledText}`);
+      }
+      // Remove the text attachment since we've handled it
+      removeAttachment(textAttachment);
+    }
+  }, [attachments, handleTextChange, removeAttachment, controlledText]);
+
   const sendMessage = useCallback(
     async (isEdit?: boolean) => {
       const jsonContent = textAndMentionsToContent(controlledText, mentions);
@@ -330,48 +351,50 @@ export default function BareChatInput({
 
       const finalAttachments = await waitForAttachmentUploads();
 
-      const blocks = finalAttachments.flatMap((attachment): Block[] => {
-        if (attachment.type === 'reference') {
-          const cite = pathToCite(attachment.path);
-          return cite ? [{ cite }] : [];
-        }
-        if (
-          attachment.type === 'image' &&
-          (!image || attachment.file.uri !== image?.uri)
-        ) {
-          return [
-            {
-              image: {
-                src: attachment.uploadState.remoteUri,
-                height: attachment.file.height,
-                width: attachment.file.width,
-                alt: 'image',
+      const blocks = finalAttachments
+        .filter((attachment) => attachment.type !== 'text')
+        .flatMap((attachment): Block[] => {
+          if (attachment.type === 'reference') {
+            const cite = pathToCite(attachment.path);
+            return cite ? [{ cite }] : [];
+          }
+          if (
+            attachment.type === 'image' &&
+            (!image || attachment.file.uri !== image?.uri)
+          ) {
+            return [
+              {
+                image: {
+                  src: attachment.uploadState.remoteUri,
+                  height: attachment.file.height,
+                  width: attachment.file.width,
+                  alt: 'image',
+                },
               },
-            },
-          ];
-        }
+            ];
+          }
 
-        if (
-          image &&
-          attachment.type === 'image' &&
-          attachment.file.uri === image?.uri &&
-          isEdit &&
-          channelType === 'gallery'
-        ) {
-          return [
-            {
-              image: {
-                src: image.uri,
-                height: image.height,
-                width: image.width,
-                alt: 'image',
+          if (
+            image &&
+            attachment.type === 'image' &&
+            attachment.file.uri === image?.uri &&
+            isEdit &&
+            channelType === 'gallery'
+          ) {
+            return [
+              {
+                image: {
+                  src: image.uri,
+                  height: image.height,
+                  width: image.width,
+                  alt: 'image',
+                },
               },
-            },
-          ];
-        }
+            ];
+          }
 
-        return [];
-      });
+          return [];
+        });
 
       if (blocks && blocks.length > 0) {
         if (channelType === 'chat') {
@@ -395,7 +418,6 @@ export default function BareChatInput({
       }
 
       try {
-        setControlledText('');
         bareChatInputLogger.log('clearing attachments');
         clearAttachments();
         bareChatInputLogger.log('resetting input height');
@@ -423,8 +445,9 @@ export default function BareChatInput({
         bareChatInputLogger.log('sent message', story);
         setMentions([]);
         bareChatInputLogger.log('clearing draft');
-        clearDraft();
+        await clearDraft();
         bareChatInputLogger.log('setting initial content');
+        setControlledText('');
         setHasSetInitialContent(false);
       }
     },
@@ -704,7 +727,7 @@ export default function BareChatInput({
             paddingTop: getTokenValue('$l', 'space'),
             paddingBottom: getTokenValue('$l', 'space'),
             fontSize: getFontSize('$m'),
-            textAlignVertical: 'center',
+            verticalAlign: 'middle',
             letterSpacing: -0.032,
             color: getVariableValue(useTheme().primaryText),
             ...(isWeb ? placeholderTextColor : {}),
@@ -719,7 +742,7 @@ export default function BareChatInput({
             />
           )}
         </TextInput>
-        {isWeb && controlledText && mentions.length > 0 && (
+        {isWeb && !!controlledText && mentions.length > 0 && (
           <View height={inputHeight} position="absolute" pointerEvents="none">
             <RawText
               paddingHorizontal="$l"
