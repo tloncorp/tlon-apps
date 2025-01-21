@@ -2,7 +2,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChannel, useChannelSearch, useGroup } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import {
-  Button,
   SearchBar,
   SearchResults,
   XStack,
@@ -58,16 +57,14 @@ export default function ChannelSearchScreen(props: Props) {
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-      <YStack flex={1} paddingHorizontal="$l">
-        <XStack gap="$l">
+      <YStack flex={1} gap="$l" padding="$l" backgroundColor="$background">
+        <XStack>
           <SearchBar
             onChangeQuery={setQuery}
             placeholder={`Search ${title ?? ''}`}
             inputProps={{ autoFocus: true }}
+            onPressCancel={() => props.navigation.pop()}
           />
-          <Button minimal onPress={() => props.navigation.pop()}>
-            <Button.Text>Cancel</Button.Text>
-          </Button>
         </XStack>
 
         <SearchResults
