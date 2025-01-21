@@ -79,6 +79,15 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
   let isItalicizing = false;
   let isCoding = false;
   let isEndOfFormatting = false;
+
+  if (line.startsWith('> ')) {
+    const quotedContent = processLine(line.slice(2), mentions);
+    return {
+      type: 'blockquote',
+      content: [quotedContent]
+    };
+  }
+
   line.split(' ').forEach((word) => {
     const marks = [];
     const mention = mentions.find((mention) => mention.display === word);
@@ -382,6 +391,24 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
       text.push('```\n');
       text.push(node.content[0].text);
       text.push('\n```\n');
+    } else if (node.type === 'blockquote') {
+      if (!node.content) {
+        return;
+      }
+      text.push('> ');
+      node.content.forEach((child, index) => {
+        if (child.type === 'paragraph' && child.content) {
+          child.content.forEach(content => {
+            if (content.type === 'text' && content.text) {
+              text.push(content.text);
+            }
+          });
+          if (index < node.content!.length - 1) {
+            text.push('\n> ');
+          }
+        }
+      });
+      text.push('\n');
     }
   });
 
