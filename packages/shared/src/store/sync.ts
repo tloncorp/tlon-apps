@@ -688,11 +688,11 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
         });
       }
 
-      // check for any newly joined groups and channels
-      checkForNewlyJoined({
-        groupUnreads: activitySnapshot.groupUnreads,
-        channelUnreads: activitySnapshot.channelUnreads,
-      });
+      // // check for any newly joined groups and channels
+      // checkForNewlyJoined({
+      //   groupUnreads: activitySnapshot.groupUnreads,
+      //   channelUnreads: activitySnapshot.channelUnreads,
+      // });
     },
     queueDebounce,
     { leading: true, trailing: true }
