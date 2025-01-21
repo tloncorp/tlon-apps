@@ -1,12 +1,13 @@
 import * as api from '../api';
-import {
-  ChannelContentConfiguration,
-  StructuredChannelDescriptionPayload,
-} from '../api/channelContentConfig';
+import { ChannelContentConfiguration } from '../api/channelContentConfig';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { getRandomId } from '../logic';
-import { GroupChannel, getChannelKindFromType } from '../urbit';
+import {
+  ChannelMetadata,
+  GroupChannel,
+  getChannelKindFromType,
+} from '../urbit';
 
 const logger = createDevLogger('ChannelActions', false);
 
@@ -147,13 +148,6 @@ export async function updateChannel({
 
   await db.updateChannel(updatedChannel);
 
-  // If we have a `contentConfiguration`, we need to merge these fields to make
-  // a `StructuredChannelDescriptionPayload`, and use that as the `description`
-  const structuredDescription = StructuredChannelDescriptionPayload.encode({
-    description: channel.description ?? undefined,
-    channelContentConfiguration: channel.contentConfiguration ?? undefined,
-  });
-
   const groupChannel: GroupChannel = {
     added: channel.addedToGroupAt ?? 0,
     readers,
@@ -162,7 +156,7 @@ export async function updateChannel({
     join,
     meta: {
       title: channel.title ?? '',
-      description: structuredDescription ?? '',
+      description: channel.description ?? '',
       image: channel.coverImage ?? '',
       cover: channel.coverImage ?? '',
     },
@@ -174,6 +168,15 @@ export async function updateChannel({
       channelId: channel.id,
       channel: groupChannel,
     });
+
+    const meta: ChannelMetadata | null =
+      channel.contentConfiguration == null
+        ? null
+        : ChannelContentConfiguration.toApiMeta(channel.contentConfiguration);
+    await api.updateChannelMeta(
+      channel.id,
+      meta == null ? null : JSON.stringify(meta)
+    );
   } catch (e) {
     console.error('Failed to update channel', e);
     await db.updateChannel(channel);
