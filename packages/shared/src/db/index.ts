@@ -4,6 +4,7 @@ export * from './types';
 export * from './fallback';
 export * from './modelBuilders';
 export * from './keyValue';
+export * from './storageItem';
 export * as storage from './keyValue';
 export { setClient } from './client';
 export type { AnySqliteDatabase } from './client';

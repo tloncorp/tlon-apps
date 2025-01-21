@@ -90,7 +90,7 @@ export const typeStyles = {
     letterSpacing: -0.374,
     fontWeight: '400',
   },
-};
+} as const satisfies Record<string, TextStyle>;
 
 export type FontStyle = keyof typeof trimAndroid;
 export type TextSize = keyof typeof typeStyles;

@@ -8,27 +8,18 @@ import * as api from '@tloncorp/shared/api';
 import { SignupParams, didSignUp, signupData } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import PostHog, { usePostHog } from 'posthog-react-native';
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect } from 'react';
 import branch from 'react-native-branch';
 
 const logger = createDevLogger('signup', true);
 
 type SignupValues = Omit<SignupParams, 'bootPhase'>;
 const defaultValues: SignupValues = {
-  hostingUser: null,
   reservedNodeId: null,
 };
 
 interface SignupContext extends SignupParams {
-  reviveCheckComplete: boolean;
   setOnboardingValues: (newValues: Partial<SignupValues>) => void;
-  markReviveCheckComplete: () => void;
   kickOffBootSequence: () => void;
   handlePostSignup: () => void;
   clear: () => void;
@@ -38,7 +29,6 @@ const defaultMethods = {
   setOnboardingValues: () => {},
   handlePostSignup: () => {},
   kickOffBootSequence: () => {},
-  markReviveCheckComplete: () => {},
   clear: () => {},
 };
 
@@ -46,7 +36,6 @@ const SignupContext = createContext<SignupContext>({
   ...defaultValues,
   ...defaultMethods,
   bootPhase: NodeBootPhase.IDLE,
-  reviveCheckComplete: false,
 });
 
 export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
@@ -55,9 +44,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     setValue: setValues,
     resetValue: resetValues,
   } = signupData.useStorageItem();
-  const [reviveCheckComplete, setReviveCheckComplete] = useState(false);
-  const { bootPhase, bootReport, kickOffBootSequence } =
-    useBootSequence(values);
+  const { bootPhase, bootReport, kickOffBootSequence } = useBootSequence();
   const postHog = usePostHog();
 
   const setOnboardingValues = useCallback(
@@ -124,8 +111,6 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         ...values,
         bootPhase,
-        reviveCheckComplete,
-        markReviveCheckComplete: () => setReviveCheckComplete(true),
         setOnboardingValues,
         handlePostSignup,
         kickOffBootSequence,

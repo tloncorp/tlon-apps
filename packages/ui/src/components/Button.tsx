@@ -83,6 +83,10 @@ export const ButtonFrame = styled(Stack, {
         // placeholder constant -- need to resolve ochre implementation
         height: 56,
         borderWidth: 0,
+        pressStyle: {
+          backgroundColor: '$primaryText',
+          opacity: 0.5,
+        },
         disabledStyle: {
           backgroundColor: '$tertiaryText',
         },

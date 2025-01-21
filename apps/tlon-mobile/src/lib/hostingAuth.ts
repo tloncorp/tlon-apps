@@ -1,11 +1,7 @@
-import { getHostingHeartBeat } from '@tloncorp/app/lib/hostingApi';
-import {
-  getHostingAuthExpired,
-  getLastHostingAuthCheck,
-  setHostingAuthExpired,
-  setLastHostingAuthCheck,
-} from '@tloncorp/app/utils/hosting';
+import CookieManager from '@react-native-cookies/cookies';
 import { createDevLogger } from '@tloncorp/shared';
+import { getHostingHeartBeat } from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
 
 const logger = createDevLogger('refreshHostingAuth', false);
 
@@ -19,8 +15,8 @@ export async function refreshHostingAuth() {
     logger.log('development mode, skipping');
   }
 
-  const expired = await getHostingAuthExpired();
-  const lastCheck = await getLastHostingAuthCheck();
+  const expired = await db.hostingAuthExpired.getValue();
+  const lastCheck = await db.hostingLastAuthCheck.getValue();
 
   if (expired) {
     logger.log('hosting auth is already expired');
@@ -33,12 +29,15 @@ export async function refreshHostingAuth() {
       const result = await getHostingHeartBeat();
       if (result === 'expired') {
         logger.crumb('hosting auth has newly expired');
-        setHostingAuthExpired(true);
+        logger.trackEvent('Hosting Auth Expired');
+        db.hostingAuthExpired.setValue(true);
+      } else {
+        logger.trackEvent('Hosting Auth Still Valid');
       }
     } catch (e) {
       logger.error('error checking hosting auth:', e);
     } finally {
-      setLastHostingAuthCheck(Date.now());
+      db.hostingLastAuthCheck.setValue(Date.now());
     }
   }
 }
@@ -46,4 +45,15 @@ export async function refreshHostingAuth() {
 function wasMoreThanDayAgo(timestamp: number): boolean {
   if (!timestamp) return true;
   return Date.now() - timestamp > 24 * 60 * 60 * 1000;
+}
+
+export async function clearHostingNativeCookie() {
+  console.log(`clearing hosting native cookie`);
+  try {
+    await CookieManager.clearByName('http://tlon.network', 'SolarisSession');
+    await CookieManager.clearByName('https://tlon.network', 'SolarisSession');
+    console.log('cleared hosting native cookie');
+  } catch (e) {
+    console.error('error clearing hosting native cookie:', e);
+  }
 }

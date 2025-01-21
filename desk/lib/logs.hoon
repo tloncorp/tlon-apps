@@ -1,4 +1,26 @@
 /-  *logs
+=<
+  |_  [our=ship =wire]
+  ::
+  ++  fail
+    |=  [desc=term trace=tang =log-data]
+    ^-  card:agent:gall
+    =/  event=$>(%fail log-event)
+      [%fail desc trace]
+    (pass event log-data)
+  ::
+  ++  tell
+    |=  [vol=volume =echo =log-data]
+    ^-  card:agent:gall
+    =/  event=$>(%tell log-event)
+      [%tell vol echo]
+    (pass event log-data)
+  ::
+  ++  pass
+    |=  [event=log-event data=log-data]
+    ^-  card:agent:gall
+    [%pass wire %agent [our %logs] %poke log-action+!>([%log event data])]
+  --
 |%
 ::
 ++  fail-event
@@ -6,10 +28,10 @@
   ^-  $>(%fail log-event)
   [%fail term tang]
 ::
-++  log-fail
-  |=  [=wire our=ship event=$>(%fail log-event)]
-  ^-  card:agent:gall
-  [%pass wire %agent [our %logs] %poke log-action+!>([%log event])]
+++  tell-event
+  |=  [vol=volume =echo]
+  ^-  $>(%tell log-event)
+  [%tell vol echo]
 ::
 ++  enjs
   =,  format
@@ -34,7 +56,15 @@
       %-  pairs:enjs
       :~  type/s+event-type
           description/s+desc.e
-          stacktrace/(tang crash.e)
+          stacktrace/(tang trace.e)
+      ==
+    ::
+        %tell
+      =-  ?>(?=(%o -.-) -)
+      %-  pairs:enjs
+      :~  type/s+event-type
+          message/(tang echo.e)
+          volume/s+vol.e
       ==
     ==
   --

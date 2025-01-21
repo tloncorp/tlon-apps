@@ -12,6 +12,7 @@ import { Modal, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Dialog,
+  ScrollView,
   SheetProps,
   View,
   VisuallyHidden,
@@ -121,8 +122,10 @@ const ActionSheetComponent = ({
             maxWidth={800}
             minWidth={400}
             key="content"
+            maxHeight="100%"
+            marginVertical="$2xl"
           >
-            {children}
+            <ScrollView>{children}</ScrollView>
           </Dialog.Content>
         </Dialog.Portal>
 
@@ -228,8 +231,11 @@ const ActionSheetScrollableContent = ({
 
 const useContentStyle = () => {
   const insets = useSafeAreaInsets();
+  const isWindowNarrow = useIsWindowNarrow();
   return {
-    paddingBottom: insets.bottom + getTokenValue('$2xl', 'size'),
+    paddingBottom: isWindowNarrow
+      ? insets.bottom + getTokenValue('$2xl', 'size')
+      : 0,
   };
 };
 
@@ -355,6 +361,7 @@ const ActionSheetActionFrame = styled(ListItem, {
   borderRadius: 0,
   paddingHorizontal: '$2xl',
   paddingVertical: '$l',
+  alignItems: 'center',
   $gtSm: {
     paddingHorizontal: '$l',
     paddingVertical: '$m',
@@ -362,6 +369,7 @@ const ActionSheetActionFrame = styled(ListItem, {
   pressStyle: {
     backgroundColor: '$secondaryBackground',
   },
+  cursor: 'pointer',
   variants: {
     type: {
       positive: {
@@ -404,7 +412,7 @@ const ActionSheetActionDescription = styled(ListItem.Subtitle, {
   context: ActionSheetActionGroupContext,
   maxWidth: '100%',
   $gtSm: {
-    maxWidth: 200,
+    maxWidth: '100%',
   },
   variants: {
     accent: {
@@ -428,12 +436,14 @@ const ActionSheetMainContent = styled(YStack, {
 
 function ActionSheetAction({ action }: { action: Action }) {
   const accent = useContext(ActionSheetActionGroupContext).accent;
+  const isWindowNarrow = useIsWindowNarrow();
   return action.render ? (
     action.render({ action })
   ) : (
     <ActionSheetActionFrame
       type={action.accent ?? (accent as Accent)}
       onPress={accent !== 'disabled' ? action.action : undefined}
+      height={isWindowNarrow ? undefined : '$4xl'}
     >
       {action.startIcon &&
         resolveIcon(action.startIcon, action.accent ?? accent)}
