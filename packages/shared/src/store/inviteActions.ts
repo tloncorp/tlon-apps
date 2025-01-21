@@ -7,8 +7,8 @@ import {
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import {
-  AnalyticsEvent,
   checkInviteServiceLinkExists,
   createDeepLink,
   extractNormalizedInviteLink,
