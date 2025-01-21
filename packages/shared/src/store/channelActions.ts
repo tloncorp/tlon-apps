@@ -37,6 +37,10 @@ export async function createChannel({
   };
   await db.insertChannels([newChannel]);
 
+  const cfg = ChannelContentConfiguration.toApiMeta(
+    channelContentConfigurationForChannelType(channelType)
+  );
+
   try {
     await api.createChannel({
       id: channelId,
@@ -47,7 +51,7 @@ export async function createChannel({
       description: description ?? '',
       readers: [],
       writers: [],
-      meta: null,
+      meta: cfg == null ? null : JSON.stringify(cfg),
     });
     return newChannel;
   } catch (e) {

@@ -1,4 +1,5 @@
 import type { JSONValue } from '../types/JSONValue';
+import { ChannelMetadata } from '../urbit';
 import { ValuesOf } from '../utils';
 
 interface BaseParameterSpec {
@@ -283,6 +284,29 @@ export namespace ChannelContentConfiguration {
     configuration: ChannelContentConfiguration
   ): ParameterizedId<CollectionRendererId> {
     return ParameterizedId.coerce(configuration.defaultPostCollectionRenderer);
+  }
+
+  export function toApiMeta(cfg: ChannelContentConfiguration): ChannelMetadata {
+    return {
+      version: 1,
+
+      postInput: ((x) => ({
+        postType: x.id,
+
+        type: x.id,
+        configuration: x.configuration,
+      }))(ChannelContentConfiguration.draftInput(cfg)),
+
+      postCollectionRenderer: ((x) => ({
+        id: x.id,
+        configuration: x.configuration,
+      }))(ChannelContentConfiguration.defaultPostCollectionRenderer(cfg)),
+
+      defaultContentRenderer: ((x) => ({
+        rendererId: x.id,
+        configuration: x.configuration,
+      }))(ChannelContentConfiguration.defaultPostContentRenderer(cfg)),
+    };
   }
 }
 
