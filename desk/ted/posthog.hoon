@@ -3,7 +3,7 @@
 /-  spider
 /+  io=strandio, l=logs
 ::
-=+  posthog-key='phx_5Cee2IQzFw5XapO8xiXZj9VvQEAcJY2NRaEGly9ZKXbb9sf'
+=+  posthog-key='phc_GyI5iD7kM6RRbb1hIU0fiGmTCh4ha44hthJYJ7a89td'
 =+  posthog-url='https://eu.i.posthog.com/capture/'
 =+  posthog-retry=3
 =+  posthog-retry-delay=~s5
