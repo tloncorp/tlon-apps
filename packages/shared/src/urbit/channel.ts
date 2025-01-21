@@ -353,7 +353,7 @@ export interface ContentRenderer {
   configuration?: Record<string, JSONValue>;
 }
 
-export interface ChannelMetadataSchemaV1 {
+interface ChannelMetadataSchemaV1 {
   version: 1;
   postInput: PostInput;
   postCollectionRenderer: PostCollectionRenderer;

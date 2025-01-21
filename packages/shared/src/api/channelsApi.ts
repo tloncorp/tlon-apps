@@ -74,7 +74,7 @@ export type MarkChannelReadUpdate = {
 
 export type MetaUpdate = {
   type: 'channelMetaUpdate';
-  meta: Stringified<ub.ChannelMetadataSchemaV1> | null;
+  meta: Stringified<ub.ChannelMetadata> | null;
 };
 
 export type ChannelsUpdate =
@@ -130,7 +130,7 @@ export const setupChannelFromTemplate = async (
 
 export async function updateChannelMeta(
   channelId: string,
-  metaPayload: Stringified<ub.ChannelMetadataSchemaV1> | null
+  metaPayload: Stringified<ub.ChannelMetadata> | null
 ) {
   return trackedPoke<ub.ChannelsResponse>(
     {
