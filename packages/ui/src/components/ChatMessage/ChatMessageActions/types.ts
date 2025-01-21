@@ -1,5 +1,6 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import React from 'react';
 import { RefObject } from 'react';
 import { DimensionValue, View as RNView } from 'react-native';
 
@@ -14,4 +15,5 @@ export type ChatMessageActionsProps = {
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
   onShowEmojiPicker?: () => void;
+  trigger?: React.ReactNode;
 };

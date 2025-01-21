@@ -231,8 +231,11 @@ const ActionSheetScrollableContent = ({
 
 const useContentStyle = () => {
   const insets = useSafeAreaInsets();
+  const isWindowNarrow = useIsWindowNarrow();
   return {
-    paddingBottom: insets.bottom + getTokenValue('$2xl', 'size'),
+    paddingBottom: isWindowNarrow
+      ? insets.bottom + getTokenValue('$2xl', 'size')
+      : 0,
   };
 };
 
@@ -366,6 +369,7 @@ const ActionSheetActionFrame = styled(ListItem, {
   pressStyle: {
     backgroundColor: '$secondaryBackground',
   },
+  cursor: 'pointer',
   variants: {
     type: {
       positive: {
@@ -432,12 +436,14 @@ const ActionSheetMainContent = styled(YStack, {
 
 function ActionSheetAction({ action }: { action: Action }) {
   const accent = useContext(ActionSheetActionGroupContext).accent;
+  const isWindowNarrow = useIsWindowNarrow();
   return action.render ? (
     action.render({ action })
   ) : (
     <ActionSheetActionFrame
       type={action.accent ?? (accent as Accent)}
       onPress={accent !== 'disabled' ? action.action : undefined}
+      height={isWindowNarrow ? undefined : '$4xl'}
     >
       {action.startIcon &&
         resolveIcon(action.startIcon, action.accent ?? accent)}
