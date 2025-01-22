@@ -5,6 +5,8 @@
   $:  records=(map identifier record)
       owners=(jug ship identifier)
       attested=(map @ux identifier)
+      lookups=(map @ identifier)
+      reverse=(jug identifier @)
     ::
       limits=(map @p allowance)
     ::

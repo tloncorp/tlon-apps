@@ -733,6 +733,8 @@
     :*  records=(my [id ~nec ~2000.1.2 *config:v status] ~)
         owners=?:(?=(%done -.status) (my [~nec (sy id ~)] ~) ~)
         attested=(my [*@ux id] ~)
+        lookups=~
+        reverse=~
         limits=~
         phone-api=['https://phone.api/base' 'api-key' ~]
         twitter-api=[bearer=twitter-api-bearer]
@@ -883,7 +885,7 @@
   |=  records=(map identifier:v record:v)
   ^-  state:v
   :-  records
-  =<  [owners attested ~ ['' '' ~] '' ~]
+  =<  [owners attested ~ ~ ~ ['' '' ~] '' ~]
   %+  roll  ~(tap by records)
   |=  $:  [id=identifier:v record:v]
           [owners=(jug ship identifier:v) attested=(map @ux identifier:v)]

@@ -135,7 +135,7 @@
           [handle=@t nonce=@ux]
           [hed=response-header:http bod=(unit mime-data:iris)]
       ==
-  ^-  ?(%good %rate-limited %unauthorized %not-found %protected %bad-tweet %bad-nonce %bad-sign %bad)
+  ^-  ?([%good sig=@ux] %rate-limited %unauthorized %not-found %protected %bad-tweet %bad-nonce %bad-sign %bad)
   ?+  status-code.hed  %bad
     %400  %bad
     %401  %unauthorized
@@ -181,7 +181,7 @@
       (biff (mole |.((cue u.jaw))) (soft payload:twitter))
     ?~  pay  %bad-tweet
     ?.  =(nonce.dat.u.pay nonce)  %bad-nonce
-    ?:((validate-signature bowl u.pay) %good %bad-sign)
+    ?:((validate-signature bowl u.pay) [%good sig.u.pay] %bad-sign)
   ==
 ::
 ++  validate-signature
@@ -395,7 +395,12 @@
         %.  sig.full-sign.status.rec
         %~  del  by
         (~(del by attested) sig.half-sign.status.rec)
-      this(records (~(del by records) id.cmd))
+      %_  this
+        records  (~(del by records) id.cmd)
+        lookups  %+  roll  ~(tap in (~(get ju reverse) id.cmd))
+                 |=([l=@ =_lookups] (~(del by lookups) l))
+        reverse  (~(del by reverse) id.cmd)
+      ==
     ::
         %work
       =*  id  id.cmd
@@ -581,6 +586,14 @@
       ::
       ~&  [dap.bowl %no-such-sig sig=`@uw`u.sig in=u.aid]
       fof
+    ::
+        [%lookup @ ~]
+      ::TODO  any atom format?
+      ?~  num=(slaw %uw i.t.t.site.qer)  fof
+      ?~  aid=(~(get by lookups) u.num)  fof
+      ?~  rec=(~(get by records) u.aid)  fof
+      ?.  ?=(%done -.status.u.rec)       fof
+      (spout:hu id [200 ~] `(display & +.status.u.rec))
     ==
   ==
 ::
@@ -775,8 +788,10 @@
       %bad-sign      hold
       %bad           abort
     ::
-        %good
+        [%good @]
       =^  caz  +.state  (register [+.state bowl] [id u.rec] `[%tweet tweet])
+      =.  lookups  (~(put by lookups) sig.result id)
+      =.  reverse  (~(put ju reverse) id sig.result)
       [caz this]
     ==
   ==
