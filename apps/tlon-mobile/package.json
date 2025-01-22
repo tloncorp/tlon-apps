@@ -92,6 +92,7 @@
     "expo-task-manager": "~11.7.2",
     "expo-updates": "~0.24.10",
     "immer": "^9.0.12",
+    "libphonenumber-js": "^1.11.18",
     "lodash": "^4.17.21",
     "posthog-react-native": "^2.7.1",
     "react": "^18.2.0",
