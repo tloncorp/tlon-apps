@@ -362,11 +362,6 @@
       ::
           %status
         =*  key  [src.bowl id.upd]
-        ::TODO  get the jam to the client somehow. scry endpoint?
-        ~?  &(?=(%twitter -.id.upd) ?=([%want %twitter %post @] status.upd))
-          :-  'please tweet'
-          %-  (w-co:co 1)  %-  jam
-          (^sign [our now]:bowl [%twitter %0 +.id.upd nonce.status.upd])
         =.  records
           =+  rec=(~(gut by records) key *id-state)
           ?:  ?=(%gone -.status.upd)  (~(del by records) key)
@@ -472,6 +467,36 @@
   ::
     [%queries ~]    ``noun+!>(queries)
     [%queries @ ~]  ``noun+!>((~(got by queries) (slav %uv i.t.path)))
+  ::
+      [%proof %twitter ?(%jam %url %full) ?([@ ~] [@ @ ~])]
+    =/  key=[@p $>(%twitter identifier)]
+      =*  k  t.t.t.path
+      :+  ?:(?=([@ ~] k) default (slav %p i.t.path))
+        %twitter
+      (slav %t ?:(?=([@ ~] k) i.k i.t.k))
+    ?~  rec=(~(get by records) key)  ~
+    ?.  ?=([%want %twitter %post *] status.u.rec)  ~
+    :^  ~  ~  %tape
+    !>  %-  trip
+    =/  pay=payload:twitter
+      (sign [our now]:bowl [%twitter %0 +>.key nonce.status.u.rec])
+    =*  jam  (crip ((w-co:co 1) (^jam pay)))
+    =*  url  %+  rap  3
+             :~  (fall (~(gut by ledgers) -.key ~) '')
+                 '/lookup/'
+                 (scot %uw sig.pay)
+             ==
+    ?-  i.t.t.path
+      %jam  jam
+      %url  url
+    ::
+        %full
+      %+  rap  3
+      :~  'Verifying myself: I am '  (scot %p our.bowl)  ' on Urbit.\0a\0a'
+          jam  '\0a'
+          url
+      ==
+    ==
   ==
 ::
 ++  on-leave  |=(* `this)
