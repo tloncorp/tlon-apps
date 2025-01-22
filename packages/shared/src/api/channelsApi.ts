@@ -75,6 +75,7 @@ export type MarkChannelReadUpdate = {
 export type MetaUpdate = {
   type: 'channelMetaUpdate';
   meta: Stringified<ub.ChannelMetadata> | null;
+  channelId: string;
 };
 
 export type ChannelsUpdate =
@@ -223,6 +224,7 @@ export const toChannelsUpdate = (
       return {
         type: 'channelMetaUpdate',
         meta: channelEvent.response.meta,
+        channelId,
       };
     }
 
