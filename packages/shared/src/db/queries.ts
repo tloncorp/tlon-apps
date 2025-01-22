@@ -1604,7 +1604,7 @@ export const addNavSectionToGroup = createWriteQuery(
         set: conflictUpdateSetAll($groupNavSections),
       });
   },
-  ['groups','groupNavSections', 'groupNavSectionChannels']
+  ['groups', 'groupNavSections', 'groupNavSectionChannels']
 );
 
 export const updateNavSectionChannel = createWriteQuery(
@@ -2792,7 +2792,7 @@ export const getGroup = createReadQuery(
     'channels',
     'groupJoinRequests',
     'groupMemberBans',
-    'groupNavSectionChannels'
+    'groupNavSectionChannels',
   ]
 );
 
@@ -3258,6 +3258,8 @@ export const insertActivityEvents = createWriteQuery(
     const currentUserId = getCurrentUserId();
     if (events.length === 0) return;
 
+    const activityEventChannels = events.flatMap((e) => e.channelId || []);
+
     const activityEventGroups = events.flatMap(
       (contact) => contact.contactUpdateGroups || []
     );
@@ -3295,9 +3297,20 @@ export const insertActivityEvents = createWriteQuery(
           .values(activityEventGroups)
           .onConflictDoNothing();
       }
+
+      if (activityEventChannels.length) {
+        await Promise.all(
+          activityEventChannels.map((channelId) => {
+            return txCtx.db
+              .update($channels)
+              .set({ currentUserIsMember: true })
+              .where(eq($channels.id, channelId));
+          })
+        );
+      }
     });
   },
-  ['activityEvents']
+  ['activityEvents'] // should this have 'channels' as well?
 );
 
 export const clearActivityEvents = createWriteQuery(
