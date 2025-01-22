@@ -308,6 +308,25 @@ export namespace ChannelContentConfiguration {
       }))(ChannelContentConfiguration.defaultPostContentRenderer(cfg)),
     };
   }
+
+  export function fromApiMeta(
+    meta: ChannelMetadata
+  ): ChannelContentConfiguration {
+    return {
+      draftInput: {
+        id: meta.postInput.type as DraftInputId,
+        configuration: meta.postInput.configuration,
+      },
+      defaultPostContentRenderer: {
+        id: meta.defaultContentRenderer.rendererId as PostContentRendererId,
+        configuration: meta.defaultContentRenderer.configuration,
+      },
+      defaultPostCollectionRenderer: {
+        id: meta.postCollectionRenderer.id as CollectionRendererId,
+        configuration: meta.postCollectionRenderer.configuration,
+      },
+    };
+  }
 }
 
 /**

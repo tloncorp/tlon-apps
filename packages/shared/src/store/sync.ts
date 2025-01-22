@@ -851,7 +851,16 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
     case 'unknown':
       logger.log('unknown channels update', update);
       break;
-    default:
+    case 'channelMetaUpdate':
+      await db.updateChannel({
+        id: update.channelId,
+        contentConfiguration:
+          update.meta == null
+            ? null
+            : api.ChannelContentConfiguration.fromApiMeta(
+                JSON.parse(update.meta)
+              ),
+      });
       break;
   }
 };
