@@ -1,15 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import produce from 'immer';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import create from 'zustand';
 
-import { getCurrentUserId, poke, scry, subscribeOnce } from '../api/urbit';
+import { getCurrentUserId, scry, subscribeOnce } from '../api/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { DeepLinkMetadata, createDeepLink } from '../logic/branch';
 import { asyncWithDefault } from '../logic/utils';
-import { GroupMeta } from '../urbit/groups';
 import { createGroupInviteLink } from './inviteActions';
 
 interface LureMetadata {
@@ -85,7 +84,7 @@ export const useLureState = create<LureState>((set, get) => ({
         return u;
       })
       .catch((e) => {
-        lureLogger.trackError(AnalyticsEvent.InviteDebug, {
+        lureLogger.trackEvent(AnalyticsEvent.InviteDebug, {
           context: `id-link failed`,
           errorMessage: e.message,
           errorStack: e.stack,
@@ -109,7 +108,7 @@ export const useLureState = create<LureState>((set, get) => ({
             return u;
           })
           .catch((e) => {
-            lureLogger.trackError(AnalyticsEvent.InviteDebug, {
+            lureLogger.trackEvent(AnalyticsEvent.InviteDebug, {
               context: `id-link failed`,
               errorMessage: e.message,
               errorStack: e.stack,

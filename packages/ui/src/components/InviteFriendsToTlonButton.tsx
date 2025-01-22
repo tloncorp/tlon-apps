@@ -84,7 +84,7 @@ export function InviteFriendsToTlonButton({
 
     logger.trackEvent(AnalyticsEvent.InviteDebug, {
       group: group?.id,
-      context: 'invite button: disabled and isAdmin, toggling',
+      context: 'invite button: disabled and isAdmin, enabling',
     });
     enableLinks();
   }, [group]);
