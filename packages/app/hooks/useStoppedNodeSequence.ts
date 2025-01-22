@@ -56,7 +56,7 @@ export function useStoppedNodeSequence(params: {
       });
       return NodeResumeState.WaitingForRunning;
     }
-  }, [store]);
+  }, [bootStepCounter, store]);
 
   const authenticateWithNode = useCallback(async () => {
     try {
@@ -101,6 +101,13 @@ export function useStoppedNodeSequence(params: {
     },
     [checkNodeRunning, authenticateWithNode]
   );
+
+  const resetSequence = useCallback(() => {
+    setPhase(NodeResumeState.WaitingForRunning);
+    setShipInfo(null);
+    sequenceStartTimeRef.current = 0;
+    setBootedAt(0);
+  }, []);
 
   useEffect(() => {
     async function runSequence() {
@@ -156,5 +163,6 @@ export function useStoppedNodeSequence(params: {
   return {
     phase,
     shipInfo,
+    resetSequence,
   };
 }
