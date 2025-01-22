@@ -1824,7 +1824,7 @@ SPEC CHECKSUMS:
   op-sqlite: b0c2f06e0660235bc3dca10714b0498fdbb811bb
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   PromisesSwift: 9d77319bbe72ebf6d872900551f7eeba9bce2851
-  RCT-Folly: 7169b2b1c44399c76a47b5deaaba715eeeb476c0
+  RCT-Folly: cd21f1661364f975ae76b3308167ad66b09f53f5
   RCTRequired: d362a61864a64315aee00faea8dee6cf5b3f4aad
   RCTTypeSafety: 09baf60faeab02492dc8bf04ce5af1dda645b86d
   ReachabilitySwift: 7f151ff156cea1481a8411701195ac6a984f4979
@@ -1848,6 +1848,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: 30deaceab523707646f5f35efad961133e4e1f25
   react-native-branch: 5d4ecda7bae040542f6c9f651a05d3df23d8b35a
   react-native-context-menu-view: c7477ad2a9b5005eb45dd168c2dcdd64526dba77
+  react-native-cookies: d648ab7025833b977c0b19e142503034f5f29411
   react-native-get-random-values: d16467cf726c618e9c7a8c3c39c31faa2244bbba
   react-native-netinfo: 5364263f903da576bdef9c84a76fe243ab06812c
   react-native-safe-area-context: 435f4c13ac75ceed6135382ee77d57d1a5b5b2d6
