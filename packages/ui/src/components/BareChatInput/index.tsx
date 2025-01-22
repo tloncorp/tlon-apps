@@ -418,6 +418,7 @@ export default function BareChatInput({
       }
 
       try {
+        setControlledText('');
         bareChatInputLogger.log('clearing attachments');
         clearAttachments();
         bareChatInputLogger.log('resetting input height');
@@ -447,7 +448,6 @@ export default function BareChatInput({
         bareChatInputLogger.log('clearing draft');
         await clearDraft();
         bareChatInputLogger.log('setting initial content');
-        setControlledText('');
         setHasSetInitialContent(false);
       }
     },
