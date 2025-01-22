@@ -26,7 +26,8 @@
     "./urbit/negotiation": "./src/urbit/negotiation.ts",
     "./urbit/sigil": "./src/urbit/sigil.ts",
     "./urbit/ui": "./src/urbit/ui.ts",
-    "./urbit/volume": "./src/urbit/volume.ts"
+    "./urbit/volume": "./src/urbit/volume.ts",
+    "./utils": "./src/utils/index.ts"
   },
   "scripts": {
     "preinstall": "rm -f ./tsconfig.tsbuildinfo",

@@ -42,7 +42,7 @@ export function NotebookPost({
   onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
-  onPressRetry?: (post: db.Post) => void;
+  onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete?: (post: db.Post) => void;
   detailView?: boolean;
   showReplies?: boolean;
@@ -312,6 +312,7 @@ export const NotebookPostHeroImage = styled(Image, {
   width: '100%',
   height: IMAGE_HEIGHT,
   borderRadius: '$s',
+  objectFit: 'cover',
   variants: {
     size: {
       $s: {

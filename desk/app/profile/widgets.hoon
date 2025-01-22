@@ -9,15 +9,15 @@
     ==
 ::NOTE  can't quite make a nice helper for this, wetness not wet enough...
 =/  nickname=(unit @t)  =+  a=(~(gut by contact) %nickname %text '')
-                        ?:(&(?=(%text -.a) !=('' +.a)) `+.a ~)
+                        ?:(&(?=([%text *] a) !=('' +.a)) `+.a ~)
 =/  bio=(unit @t)       =+  a=(~(gut by contact) %bio %text '')
-                        ?:(&(?=(%text -.a) !=('' +.a)) `+.a ~)
+                        ?:(&(?=([%text *] a) !=('' +.a)) `+.a ~)
 =/  color=@ux           =+  a=(~(gut by contact) %color %tint 0x0)
-                        ?:(?=(%tint -.a) +.a 0x0)
+                        ?:(?=([%tint *] a) +.a 0x0)
 =/  avatar=(unit @ta)   =+  a=(~(gut by contact) %avatar %look '')
-                        ?:(&(?=(%look -.a) !=('' +.a)) `+.a ~)
+                        ?:(&(?=([%look *] a) !=('' +.a)) `+.a ~)
 =/  cover=(unit @ta)    =+  a=(~(gut by contact) %cover %look '')
-                        ?:(&(?=(%look -.a) !=('' +.a)) `+.a ~)
+                        ?:(&(?=([%look *] a) !=('' +.a)) `+.a ~)
 =/  phone=(unit @da)    =+  a=(~(gut by contact) %lanyard-tmp-phone-since %date *@da)
                         ?:(&(?=(%date -.a) !=(*@da +.a)) `+.a ~)
 =/  phurl=(unit @t)     =+  a=(~(gut by contact) %lanyard-tmp-phone-url %text *@t)
@@ -173,6 +173,7 @@
           ;*  =*  name  (cite:title our.bowl)
             =*  plain  ;h1.profile-headline-nickname(title "{(scow %p our.bowl)}"):"{name}"
             ?~  nickname  [plain]~
+<<<<<<< HEAD
             :+  ;h1.profile-headline-nickname:"{(trip u.nickname)}"
               ;p.profile-headline-username(title "{(scow %p our.bowl)}"):"{name}"
             ?~  phone  ~
@@ -182,6 +183,10 @@
             ;a.verified/"{(trip (need phurl))}"
               =title  "verified since {(scow %da since)}"
               ; ✅
+=======
+            :~  ;h1.profile-headline-nickname:"{(trip u.nickname)}"
+                ;p.profile-headline-username(title "{(scow %p our.bowl)}"):"{name}"
+>>>>>>> develop
             ==
         ==
       ==

@@ -29,6 +29,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
+      log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
     ^-  (quip card _this)
@@ -64,7 +65,7 @@
     |=  [=term =tang]
     ^-  (quip card _this)
     :_  this
-    [(log-fail:logs /logs our.bowl (fail-event:logs term tang))]~
+    [(fail:log term tang ~)]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
@@ -344,6 +345,11 @@
                 cor(pimp `|+egg-any)
     ==
   ::
+      %hook-setup-template
+    ?>  =(src our):bowl
+    =+  !<([=nest:c =template:h] vase)
+    (setup-hook-template nest template)
+  ::
       %hook-action-0
     =+  !<(=action:h vase)
     ?>  =(our src):bowl
@@ -424,6 +430,18 @@
   ::
       [%v0 %hooks %full ~]
     =.  cor  (give %fact ~ hook-full+!>(hooks))
+    (give %kick ~ ~)
+  ::
+      [%v0 %hooks %preview =kind:c name=@ ~]
+    =/  cp=channel-preview:h
+      (get-channel-hooks-preview kind.pole our.bowl name.pole)
+    =.  cor  (give %fact ~ hook-channel-preview+!>(cp))
+    (give %kick ~ ~)
+  ::
+      [%v0 %hooks %template =kind:c name=@ ~]
+    =/  =template:h
+      (get-hook-template kind.pole our.bowl name.pole)
+    =.  cor  (give %fact ~ hook-template+!>(template))
     (give %kick ~ ~)
   ::
       [=kind:c name=@ %create ~]
@@ -1138,15 +1156,13 @@
 ++  run-hooks
   |=  [=event:h =nest:c default=cord]
   ^-  [(each event:h tang) _cor]
-  =;  [result=(each event:h tang) effects=(list effect:h)]
-    [result (run-hook-effects effects nest)]
   =|  effects=(list effect:h)
   =/  order  (~(gut by order.hooks) nest ~)
   =/  channel  `[nest (~(got by v-channels) nest)]
   =/  =bowl:h  (get-hook-bowl channel *config:h)
   |-
   ?~  order
-    [&+event effects]
+    [&+event (run-hook-effects effects nest)]
   =*  next  $(order t.order)
   =/  hook  (~(got by hooks.hooks) i.order)
   =.  bowl  bowl(hook hook, config (~(gut by config.hook) nest ~))
@@ -1157,7 +1173,7 @@
   =.  effects  (weld effects effects.u.return)
   =.  hooks.hooks  (~(put by hooks.hooks) i.order hook(state new-state.u.return))
   ?:  ?=(%denied -.result)
-    [|+~[(fall msg.result default)] effects]
+    [|+~[(fall msg.result default)] (run-hook-effects effects nest)]
   =.  event  event.result
   next
 ++  wake-hook
@@ -1269,4 +1285,73 @@
       (~(put by waiting.hooks) id.effect [origin +.effect])
     (schedule-waiting +.effect)
   ==
+++  get-hook-template
+  |=  =nest:c
+  ^-  template:h
+  =/  order=(list id-hook:h)  (~(got by order.hooks) nest)
+  =/  crons=(list [id-hook:h job:h])
+    %+  murn  ~(tap by crons.hooks)
+    |=  [=id-hook:h =cron:h]
+    ?~  job=(~(get by cron) nest)  ~
+    `[id-hook u.job]
+  =/  ids=(list id-hook:h)  (welp order (turn crons head))
+  =/  hooks=(map id-hook:h hook:h)
+    %-  ~(gas by *(map id-hook:h hook:h))
+    ^-  (list [id-hook:h hook:h])
+    %+  turn  ids
+    |=  =id-hook:h
+    ^-  [id-hook:h hook:h]
+    =/  hook  (~(got by hooks.hooks) id-hook)
+    =/  config  (~(gut by config.hook) nest ~)
+    =/  config-map  (~(put by *(map nest:c config:h)) nest config)
+    :-  id-hook
+    hook(compiled ~, state !>(~), config config-map)
+  :*  nest
+      hooks
+      order
+      crons
+  ==
+++  setup-hook-template
+  |=  [=nest:c =template:h]
+  ^+  cor
+  =.  order.hooks
+    (~(put by order.hooks) nest order.template)
+  =.  crons.hooks
+    %-  ~(gas by crons.hooks)
+    %+  turn  crons.template
+    |=  [=id-hook:h =job:h]
+    :-  id-hook
+    (~(put by *cron:h) nest job)
+  =.  hooks.hooks
+    %-  ~(gas by hooks.hooks)
+    %+  turn
+      ~(tap by hooks.template)
+    |=  [=id-hook:h =hook:h]
+    =/  result=(each vase tang)
+      (compile:utils src.hook)
+    =/  compiled
+      ?:  ?=(%| -.result)
+        ((slog 'compilation result:' p.result) ~)
+      `p.result
+    ?~  old-config=(~(get by config.hook) from.template)
+      [id-hook hook(config ~, compiled compiled)]
+    [id-hook hook(config (my [nest u.old-config] ~), compiled compiled)]
+  =/  crons  crons.template
+  |-
+  ?~  crons  cor
+  =*  cron  +.i.crons
+  =/  fires-at
+    ?:  (gth next.schedule.cron now.bowl)
+      next.schedule.cron
+    (add now.bowl repeat.schedule.cron)
+  =.  cor  (schedule-cron nest cron(next.schedule fires-at))
+  $(crons t.crons)
+++  get-channel-hooks-preview
+  |=  =nest:c
+  ^-  channel-preview:h
+  =/  =template:h  (get-hook-template nest)
+  %+  turn
+    ~(tap by hooks.template)
+  |=  [=id-hook:h =hook:h]
+  [name.hook meta.hook]
 --

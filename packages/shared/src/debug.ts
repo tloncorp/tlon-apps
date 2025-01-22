@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import create from 'zustand';
+import { persist } from 'zustand/middleware';
 
+import { getStorageMethods } from './db/getStorageMethods';
 import { useLiveRef } from './logic/utilHooks';
 import { useCurrentSession } from './store/session';
 
@@ -68,92 +70,126 @@ interface DebugStore {
   initializeErrorLogger: (errorLoggerInput: ErrorLoggerStub) => void;
 }
 
-export const useDebugStore = create<DebugStore>((set, get) => ({
-  enabled: false,
-  customLoggers: new Set<string>(),
-  errorLogger: null,
-  debugBreadcrumbs: [],
-  logs: [],
-  logId: null,
-  platform: null,
-  appInfo: null,
-  toggle: (enabled) => {
-    set(() => ({
-      enabled,
-    }));
-  },
-  appendLog: (log: Log) => {
-    set((state) => ({
-      logs: [...state.logs, log],
-    }));
-  },
-  uploadLogs: async () => {
-    const { logs, errorLogger, platform, appInfo, debugBreadcrumbs } = get();
-    const platformInfo = await platform?.getDebugInfo();
-    const debugInfo = {
-      ...appInfo,
-      ...platformInfo,
-    };
-    const infoSize = roughMeasure(debugInfo);
-    const crumbSize = roughMeasure(debugBreadcrumbs);
-    const mappedLogs = logs.map((log) => log.message);
-    const runSize = MAX_POSTHOG_EVENT_SIZE - crumbSize - infoSize;
-    const runs = splitLogs(mappedLogs, runSize);
-    const logId = uuidv4();
-
-    for (let i = 0; i < runs.length; i++) {
-      errorLogger?.capture('debug_logs', {
-        logId,
-        page: `Page ${i + 1} of ${runs.length}`,
-        logs: runs[i],
-        breadcrumbs: debugBreadcrumbs,
-        debugInfo,
-      });
-    }
-
-    set(() => ({
+export const useDebugStore = create<DebugStore>(
+  persist(
+    (set, get) => ({
+      enabled: false,
+      customLoggers: new Set<string>(),
+      errorLogger: null,
+      debugBreadcrumbs: [],
       logs: [],
-      logId,
-    }));
+      logId: null,
+      platform: null,
+      appInfo: null,
+      toggle: (enabled) => {
+        set({
+          enabled,
+        });
+      },
+      appendLog: (log: Log) => {
+        set((state) => ({
+          logs: [...state.logs, log],
+        }));
+      },
+      uploadLogs: async () => {
+        const { logs, errorLogger, platform, appInfo, debugBreadcrumbs } =
+          get();
 
-    return logId;
-  },
-  addBreadcrumb: (crumb: Breadcrumb) => {
-    set((state) => {
-      const debugBreadcrumbs = state.debugBreadcrumbs.slice();
-      debugBreadcrumbs.push(crumb);
+        console.log('getting debug info');
+        const platformInfo = await platform?.getDebugInfo();
+        console.log('got debug info', platformInfo, appInfo);
+        const debugInfo = {
+          ...appInfo,
+          ...platformInfo,
+        };
 
-      if (debugBreadcrumbs.length >= BREADCRUMB_LIMIT) {
-        debugBreadcrumbs.shift();
-      }
+        try {
+          console.log('measuring sizes');
+          const infoSize = roughMeasure(debugInfo);
+          console.log('info size', infoSize);
+          const crumbSize = roughMeasure(debugBreadcrumbs);
+          console.log('crumb size', crumbSize);
+          const mappedLogs = logs.map((log) => log.message);
+          console.log('mapped logs', mappedLogs);
+          const runSize = MAX_POSTHOG_EVENT_SIZE - crumbSize - infoSize;
+          console.log('run size', runSize);
+          const runs = splitLogs(mappedLogs, runSize);
+          console.log('split logs', runs);
+          const logId = uuidv4();
 
-      return state;
-    });
-  },
-  getBreadcrumbs: () => {
-    const { debugBreadcrumbs } = get();
-    const includeSensitiveContext = true; // TODO: handle accordingly
-    return debugBreadcrumbs.map((crumb) => {
-      return `[${crumb.tag}] ${crumb.message ?? ''}${includeSensitiveContext && crumb.sensitive ? crumb.sensitive : ''}`;
-    });
-  },
-  addCustomEnabledLoggers: (loggers) => {
-    set((state) => {
-      loggers.forEach((logger) => state.customLoggers.add(logger));
-      return state;
-    });
-  },
-  initializeDebugInfo: (platform, appInfo) => {
-    set(() => ({
-      platform,
-    }));
-  },
-  initializeErrorLogger: (errorLoggerInput) => {
-    set(() => ({
-      errorLogger: errorLoggerInput,
-    }));
-  },
-}));
+          for (let i = 0; i < runs.length; i++) {
+            console.log('capturing logs', i);
+            errorLogger?.capture('Debug Logs', {
+              logId,
+              page: `Page ${i + 1} of ${runs.length}`,
+              logs: runs[i],
+              breadcrumbs: debugBreadcrumbs,
+              debugInfo,
+            });
+            console.log('captured log', i);
+          }
+
+          set(() => ({
+            logs: [],
+            logId,
+          }));
+
+          return logId;
+        } catch (error) {
+          errorLogger?.capture('App Error', {
+            debugInfo,
+            message: 'message' in error ? error.message : JSON.stringify(error),
+            breadcrumbs: useDebugStore.getState().getBreadcrumbs(),
+          });
+        }
+
+        return '';
+      },
+      addBreadcrumb: (crumb: Breadcrumb) => {
+        set((state) => {
+          const debugBreadcrumbs = state.debugBreadcrumbs.slice();
+          debugBreadcrumbs.push(crumb);
+
+          if (debugBreadcrumbs.length >= BREADCRUMB_LIMIT) {
+            debugBreadcrumbs.shift();
+          }
+
+          return state;
+        });
+      },
+      getBreadcrumbs: () => {
+        const { debugBreadcrumbs } = get();
+        const includeSensitiveContext = true; // TODO: handle accordingly
+        return debugBreadcrumbs.map((crumb) => {
+          return `[${crumb.tag}] ${crumb.message ?? ''}${includeSensitiveContext && crumb.sensitive ? crumb.sensitive : ''}`;
+        });
+      },
+      addCustomEnabledLoggers: (loggers) => {
+        set((state) => {
+          loggers.forEach((logger) => state.customLoggers.add(logger));
+          return state;
+        });
+      },
+      initializeDebugInfo: (platform, appInfo) => {
+        set(() => ({
+          platform,
+        }));
+      },
+      initializeErrorLogger: (errorLoggerInput) => {
+        set(() => ({
+          errorLogger: errorLoggerInput,
+        }));
+      },
+    }),
+    {
+      name: 'debug-store',
+      getStorage: () => getStorageMethods(false),
+      partialize: (state) => {
+        return { enabled: state.enabled };
+      },
+    }
+  )
+);
 
 export function addCustomEnabledLoggers(loggers: string[]) {
   return useDebugStore.getState().addCustomEnabledLoggers(loggers);
@@ -449,6 +485,7 @@ function splitLogs(logs: string[], maxSize: number): string[][] {
 
   for (const log of logs) {
     const logSize = log.length;
+    console.log('log size', logSize, currentSize + logSize, maxSize);
     if (currentSize + logSize > maxSize) {
       splits.push(currentSplit);
       currentSplit = [log];
@@ -459,5 +496,5 @@ function splitLogs(logs: string[], maxSize: number): string[][] {
     currentSize += logSize;
   }
 
-  return splits;
+  return [...splits, currentSplit];
 }

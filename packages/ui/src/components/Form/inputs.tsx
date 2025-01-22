@@ -1,19 +1,31 @@
 import { ImagePickerAsset } from 'expo-image-picker';
-import React, {
+import {
   ComponentProps,
   ReactElement,
+  ReactNode,
   useCallback,
+  useContext,
   useEffect,
   useState,
 } from 'react';
+import React from 'react';
 import { Alert, TextInput as RNTextInput } from 'react-native';
-import { ScrollView, Spinner, View, XStack, YStack, styled } from 'tamagui';
-import { isWeb } from 'tamagui';
+import {
+  ScrollView,
+  Spinner,
+  View,
+  ViewStyle,
+  XStack,
+  YStack,
+  styled,
+  withStaticProperties,
+} from 'tamagui';
 
 import {
   useAttachmentContext,
   useMappedImageAttachments,
 } from '../../contexts';
+import { VariantsFromValues } from '../../types';
 import AttachmentSheet from '../AttachmentSheet';
 import { Button } from '../Button';
 import { Icon, IconType } from '../Icon';
@@ -22,11 +34,38 @@ import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import Pressable from '../Pressable';
 import { Text } from '../TextV2';
-import { FieldContext } from './Form';
+import { typeStyles } from '../TextV2/Text';
+import { FieldContext } from './Field';
+import {
+  Accent,
+  getBorderVariantStyle as getBackgroundTypeVariantStyle,
+} from './formUtils';
 
-const StyledTextInput = styled(
+export const RawTextInput = styled(
   RNTextInput,
-  {},
+  {
+    name: 'RawTextInput',
+    ...typeStyles['$label/xl'],
+    lineHeight: 'unset',
+    context: FieldContext,
+    color: '$primaryText',
+    placeholderTextColor: '$tertiaryText',
+    fontFamily: '$body',
+    textAlignVertical: 'top',
+    paddingVertical: '$l',
+    numberOfLines: 1,
+    '$platform-web': { outlineStyle: 'none' },
+    variants: {
+      accent: {
+        negative: {
+          color: '$negativeActionText',
+        },
+        positive: {
+          color: '$positiveActionText',
+        },
+      },
+    } as const,
+  },
   {
     isInput: true,
     accept: {
@@ -38,118 +77,100 @@ const StyledTextInput = styled(
 
 // Text input
 
-export const BaseTextInput = styled(StyledTextInput, {
+export const InputFrame = styled(XStack, {
+  name: 'InputFrame',
   context: FieldContext,
-  color: '$primaryText',
-  borderRadius: '$l',
+  paddingLeft: '$xl',
+  paddingRight: '$l',
+  gap: '$m',
   borderWidth: 1,
-  borderColor: '$border',
+  borderRadius: '$l',
   backgroundColor: '$background',
-  placeholderTextColor: '$tertiaryText',
-  fontSize: '$l',
-  padding: '$xl',
-  fontFamily: '$body',
-  textAlignVertical: 'top',
+  borderColor: '$border',
+  overflow: 'hidden',
+  alignItems: 'center',
+  height: 56,
   variants: {
     accent: {
       negative: {
         backgroundColor: '$negativeBackground',
-        color: '$negativeActionText',
         borderColor: '$negativeBorder',
       },
+      positive: {
+        backgroundColor: '$positiveBackground',
+        borderColor: '$positiveBorder',
+      },
     },
-  },
-  ...(isWeb ? { outlineStyle: 'none' } : {}),
+    backgroundType: getBackgroundTypeVariantStyle,
+  } as VariantsFromValues<{
+    accent: Accent;
+    backgroundType: 'primary' | 'secondary';
+  }>,
 });
 
-export const TextInput = React.memo(BaseTextInput);
+export type TextInputRef = RNTextInput;
 
-export const TextInputWithIcon = React.memo(
-  BaseTextInput.styleable<{ icon: IconType }>(({ icon, ...props }, ref) => {
+const TextInputComponent = RawTextInput.styleable<{
+  icon?: IconType;
+  accent?: Accent;
+  backgroundType?: 'primary' | 'secondary';
+  rightControls?: ReactNode;
+  frameStyle?: ViewStyle;
+}>(
+  ({ icon, accent, backgroundType, frameStyle, ...props }, ref) => {
+    const fieldContext = useContext(FieldContext);
     return (
-      <XStack
-        borderRadius="$l"
-        borderWidth={1}
-        borderColor="$border"
-        alignItems="center"
-        paddingLeft="$xl"
-        gap="$l"
+      <InputFrame
+        accent={accent ?? fieldContext.accent}
+        {...(props.numberOfLines && props.numberOfLines !== 1
+          ? { height: 'unset' }
+          : {})}
+        backgroundType={backgroundType ?? fieldContext.backgroundType}
+        {...frameStyle}
       >
-        <Icon type={icon} customSize={['$2xl', '$2xl']} />
-        <BaseTextInput
-          paddingLeft={0}
-          borderWidth={0}
-          borderRadius={0}
-          flex={1}
-          ref={ref}
-          {...props}
-        />
-      </XStack>
+        {icon ? <Icon type={icon} size="$m" /> : null}
+        <RawTextInput flex={1} ref={ref} {...props} />
+        {props.rightControls}
+      </InputFrame>
     );
-  })
+  },
+  { staticConfig: { memo: true } }
 );
 
-interface TextInputWithButtonProps extends ComponentProps<typeof TextInput> {
-  buttonText: string;
-  onButtonPress: () => void;
-}
-
-const TextInputWithButtonFrame = styled(XStack, {
-  context: FieldContext,
-  borderWidth: 1,
-  borderColor: '$border',
-  borderRadius: '$l',
-  backgroundColor: '$background',
-  variants: {
-    accent: {
-      negative: {
-        backgroundColor: '$negativeBackground',
-        color: '$negativeActionText',
-        borderColor: '$negativeBorder',
-      },
-    },
-  } as const,
-});
+const InnerButton = ({
+  label: buttonText,
+  onPress: onPress,
+  ...props
+}: { label: string; onPress?: () => void } & ComponentProps<typeof View>) => {
+  return (
+    <View padding="$l" flexShrink={0} paddingRight={0} {...props}>
+      <TextInputButton onPress={onPress}>
+        <TextInputButtonText>{buttonText}</TextInputButtonText>
+      </TextInputButton>
+    </View>
+  );
+};
 
 const TextInputButton = styled(Button, {
   context: FieldContext,
   backgroundColor: '$secondaryBackground',
-  padding: '$l',
   borderRadius: '$m',
+  height: '$3xl',
+  paddingHorizontal: '$l',
   variants: {
     accent: {
       negative: {
         backgroundColor: '$negativeBackground',
-        color: '$negativeActionText',
         borderColor: '$negativeBorder',
       },
+      positive: {
+        backgroundColor: '$positiveBackground',
+        color: '$positiveActionText',
+      },
     },
+    backgroundType: getBackgroundTypeVariantStyle,
   } as const,
 });
-
-// Needs polish, I know we just talked about Ochre conformance plz forgive
-export const TextInputWithButton: React.FC<TextInputWithButtonProps> =
-  React.memo(function TextInputWithButtonRaw({
-    buttonText,
-    onButtonPress,
-    ...textInputProps
-  }) {
-    return (
-      <TextInputWithButtonFrame>
-        <TextInput
-          flex={1}
-          borderWidth={0}
-          textAlignVertical="unset"
-          {...textInputProps}
-        />
-        <View padding="$l">
-          <TextInputButton onPress={onButtonPress}>
-            <Button.Text>{buttonText}</Button.Text>
-          </TextInputButton>
-        </View>
-      </TextInputWithButtonFrame>
-    );
-  });
 
 export const ImageInput = XStack.styleable<{
   buttonLabel?: string;
@@ -236,27 +257,12 @@ export const ImageInput = XStack.styleable<{
   );
 });
 
-const ImageInputButtonFrame = styled(XStack, {
+const ImageInputButtonFrame = styled(InputFrame, {
   context: FieldContext,
-  borderRadius: '$l',
-  overflow: 'hidden',
   justifyContent: 'center',
-  borderWidth: 1,
-  borderColor: '$border',
-  backgroundColor: '$background',
   padding: '$xl',
   flex: 1,
   pressStyle: { backgroundColor: '$border' },
-  variants: {
-    empty: {},
-    accent: {
-      negative: {
-        backgroundColor: '$negativeBackground',
-        color: '$negativeActionText',
-        borderColor: '$negativeBorder',
-      },
-    },
-  },
 });
 
 const ImageInputButtonText = styled(Text, {
@@ -268,7 +274,7 @@ const ImageInputButtonText = styled(Text, {
 });
 
 const ImageInputPreviewFrame = styled(View, {
-  borderRadius: '$m',
+  borderRadius: '$l',
   aspectRatio: 1,
   overflow: 'hidden',
   backgroundColor: '$border',
@@ -296,52 +302,6 @@ const ImageInputPreviewLoadingFrame = styled(View, {
   justifyContent: 'center',
 });
 
-interface TextInputWithIconAndButtonProps
-  extends ComponentProps<typeof TextInput> {
-  icon: IconType;
-  buttonText: string;
-  onButtonPress: () => void;
-}
-
-export const TextInputWithIconAndButton = React.memo(
-  function TextInputWithIconAndButtonRaw({
-    icon,
-    buttonText,
-    onButtonPress,
-    ...textInputProps
-  }: TextInputWithIconAndButtonProps) {
-    return (
-      <XStack
-        borderWidth={1}
-        borderColor="$border"
-        borderRadius="$l"
-        paddingHorizontal="$xl"
-        alignItems="center"
-        gap="$l"
-      >
-        <Icon type={icon} customSize={['$2xl', '$2xl']} />
-        <TextInput
-          paddingLeft={0}
-          borderWidth={0}
-          borderRadius={0}
-          flex={1}
-          {...textInputProps}
-        />
-        <Button
-          padding="$l"
-          onPress={onButtonPress}
-          backgroundColor="$secondaryBackground"
-          marginLeft="$-2xl"
-        >
-          <Button.Text size="$label/m">{buttonText}</Button.Text>
-        </Button>
-      </XStack>
-    );
-  }
-);
-
-// Toggle group
-
 export const ToggleGroupInput = ({
   options,
   value,
@@ -351,47 +311,60 @@ export const ToggleGroupInput = ({
   value: string;
   onChange: (value: string) => void;
 }) => {
+  const { backgroundType } = useContext(FieldContext);
+  const [defaultColor, selectedColor] =
+    backgroundType === 'primary'
+      ? ['$background', '$secondaryBackground']
+      : ['$secondaryBackground', '$background'];
+
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      borderWidth={1}
-      borderColor="$border"
-      borderRadius="$l"
-      contentContainerStyle={{
-        flexGrow: 1,
-      }}
-    >
-      <XStack minWidth="100%">
-        {options.map((tab, index) => (
-          <Button
-            flex={1}
-            minWidth={75}
-            key={tab.value}
-            onPress={() => onChange(tab.value)}
-            padding="$xl"
-            borderWidth={0}
-            borderRadius={0}
-            borderRightWidth={index !== options.length - 1 ? 1 : 0}
-            backgroundColor={
-              value === tab.value ? '$secondaryBackground' : 'unset'
-            }
-          >
-            {typeof tab.label === 'string' ? (
-              <Button.Text size="$l">{tab.label}</Button.Text>
-            ) : (
-              tab.label
-            )}
-          </Button>
-        ))}
-      </XStack>
-    </ScrollView>
+    <InputFrame>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          flexGrow: 1,
+        }}
+      >
+        <XStack minWidth="100%">
+          {options.map((tab, index) => (
+            <Button
+              flex={1}
+              minWidth={75}
+              key={tab.value}
+              onPress={() => onChange(tab.value)}
+              padding="$xl"
+              borderWidth={0}
+              borderRadius={0}
+              borderRightWidth={index !== options.length - 1 ? 1 : 0}
+              backgroundColor={
+                value === tab.value ? selectedColor : defaultColor
+              }
+            >
+              {typeof tab.label === 'string' ? (
+                <Button.Text size="$l">{tab.label}</Button.Text>
+              ) : (
+                tab.label
+              )}
+            </Button>
+          ))}
+        </XStack>
+      </ScrollView>
+    </InputFrame>
   );
 };
 
+const TextInputButtonText = styled(Text, {
+  size: '$label/m',
+});
+
+export const TextInput = withStaticProperties(TextInputComponent, {
+  InnerButton,
+});
+
 // Shared control style between radio and checkbox
 
-const ControlFrame = styled(View, {
+const ControlFrame = styled(InputFrame, {
   width: '$3xl',
   height: '$3xl',
   borderWidth: 1,
@@ -407,16 +380,14 @@ const ControlFrame = styled(View, {
     },
     disabled: {
       true: {
-        backgroundColor: '$shadow',
+        backgroundColor: '$border',
       },
     },
-    variant: {
-      radio: {
-        borderRadius: 100,
-      },
-      checkbox: {
-        borderRadius: '$s',
-      },
+    radio: {
+      borderRadius: 150,
+    },
+    checkbox: {
+      borderRadius: '$s',
     },
   } as const,
 });

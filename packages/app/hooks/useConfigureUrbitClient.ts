@@ -1,11 +1,11 @@
 import { createDevLogger, sync } from '@tloncorp/shared';
 import { ClientParams } from '@tloncorp/shared/api';
+import { getShipAccessCode } from '@tloncorp/shared/api';
 import { configureClient } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { ENABLED_LOGGERS } from '../constants';
 import { useShip } from '../contexts/ship';
-import { getShipAccessCode } from '../lib/hostingApi';
 // We need to import resetDb this way because we have both a resetDb.ts and a
 // resetDb.native.ts file. We need to import the right one based on the
 // platform.
@@ -54,11 +54,12 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
 export function useConfigureUrbitClient() {
   const shipInfo = useShip();
   const { ship, shipUrl, authType } = shipInfo;
+  const runResetDb = useCallback(() => {
+    clientLogger.log('Resetting db on logout');
+    resetDb();
+  }, []);
   const logout = useHandleLogout({
-    resetDb: () => {
-      clientLogger.log('Resetting db on logout');
-      resetDb();
-    },
+    resetDb: runResetDb,
   });
 
   return useCallback(

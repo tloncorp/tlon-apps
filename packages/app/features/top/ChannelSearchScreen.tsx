@@ -1,12 +1,19 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useChannel, useChannelSearch } from '@tloncorp/shared';
+import { useChannel, useChannelSearch, useGroup } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import { Button, SearchBar, SearchResults, XStack, YStack } from '@tloncorp/ui';
+import {
+  SearchBar,
+  SearchResults,
+  XStack,
+  YStack,
+  useChannelTitle,
+  useGroupTitle,
+} from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { RootStackParamList } from '../../navigation/types';
-import { useResetToChannel } from '../../navigation/utils';
+import { useRootNavigation } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChannelSearch'>;
 
@@ -16,12 +23,19 @@ export default function ChannelSearchScreen(props: Props) {
   const channelQuery = useChannel({
     id: channelId,
   });
+  const groupQuery = useGroup({
+    id: groupId,
+  });
+  const isSingleChannelGroup = groupQuery.data?.channels.length === 1;
+  const groupTitle = useGroupTitle(groupQuery.data);
+  const channelTitle = useChannelTitle(channelQuery.data ?? null);
+  const title = isSingleChannelGroup ? groupTitle : channelTitle;
 
   const [query, setQuery] = useState('');
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
     useChannelSearch(channelId, query);
 
-  const resetToChannel = useResetToChannel();
+  const { resetToChannel } = useRootNavigation();
 
   const navigateToPost = useCallback(
     (post: db.Post) => {
@@ -43,16 +57,14 @@ export default function ChannelSearchScreen(props: Props) {
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-      <YStack flex={1} paddingHorizontal="$l">
-        <XStack gap="$l">
+      <YStack flex={1} gap="$l" padding="$l" backgroundColor="$background">
+        <XStack>
           <SearchBar
             onChangeQuery={setQuery}
-            placeholder={`Search ${channelQuery?.data?.title ?? ''}`}
+            placeholder={`Search ${title ?? ''}`}
             inputProps={{ autoFocus: true }}
+            onPressCancel={() => props.navigation.pop()}
           />
-          <Button minimal onPress={() => props.navigation.pop()}>
-            <Button.Text>Cancel</Button.Text>
-          </Button>
         </XStack>
 
         <SearchResults

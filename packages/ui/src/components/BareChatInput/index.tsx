@@ -33,9 +33,11 @@ import { View } from 'tamagui';
 
 import {
   Attachment,
+  TextAttachment,
   UploadedImageAttachment,
   useAttachmentContext,
 } from '../../contexts';
+import { useGlobalSearch } from '../../contexts/globalSearch';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
 import {
@@ -47,6 +49,132 @@ import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import { useMentions } from './useMentions';
 
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
+
+const DEFAULT_KEYBOARD_HEIGHT = 300;
+
+function useKeyboardHeight(maxInputHeightBasic: number) {
+  const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
+
+  useEffect(() => {
+    const handleKeyboardShow = () => {
+      const keyboardHeight =
+        Keyboard.metrics()?.height || DEFAULT_KEYBOARD_HEIGHT;
+      setMaxInputHeight(maxInputHeightBasic - keyboardHeight);
+    };
+
+    const handleKeyboardHide = () => {
+      setMaxInputHeight(maxInputHeightBasic);
+    };
+
+    const showSubscription = Keyboard.addListener(
+      'keyboardDidShow',
+      handleKeyboardShow
+    );
+    const hideSubscription = Keyboard.addListener(
+      'keyboardDidHide',
+      handleKeyboardHide
+    );
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, [maxInputHeightBasic]);
+
+  return maxInputHeight;
+}
+
+function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
+  // For now, we only check to make sure we're on web,
+  // we don't check if the input is focused. This allows users to paste
+  // images before they select the input. We may want to change this behavior
+  // if this feels weird, but it feels like a nice quality of life improvement.
+  // We can do this because there is only ever one input on the screen at a time,
+  // unlike the old app where you could have both the main chat input and the
+  // thread input on screen at the same time.
+  useEffect(() => {
+    if (!isWeb) return;
+
+    const handlePaste = async (e: ClipboardEvent) => {
+      const items = Array.from(e.clipboardData?.items || []);
+      const image = items.find((item) => item.type.includes('image'));
+
+      if (!image) return;
+
+      const file = image.getAsFile();
+      if (!file) return;
+
+      const uri = URL.createObjectURL(file);
+      const img = new Image();
+
+      img.onload = () => {
+        addAttachment({
+          type: 'image',
+          file: {
+            uri,
+            height: img.height,
+            width: img.width,
+          },
+        });
+      };
+
+      img.src = uri;
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [addAttachment]);
+}
+
+interface TextWithMentionsProps {
+  text: string;
+  mentions: Array<{ start: number; end: number; display: string; id: string }>;
+  textColor: string;
+}
+
+function TextWithMentions({
+  text,
+  mentions,
+  textColor,
+}: TextWithMentionsProps) {
+  if (!text || mentions.length === 0) {
+    return <RawText color={textColor}>{text}</RawText>;
+  }
+
+  const sortedMentions = [...mentions].sort((a, b) => a.start - b.start);
+  const textParts: JSX.Element[] = [];
+
+  if (sortedMentions[0].start > 0) {
+    textParts.push(
+      <RawText key="text-start" color={textColor}>
+        {text.slice(0, sortedMentions[0].start)}
+      </RawText>
+    );
+  }
+
+  sortedMentions.forEach((mention, index) => {
+    textParts.push(
+      <Text
+        key={`mention-${mention.id}-${index}`}
+        color="$positiveActionText"
+        backgroundColor="$positiveBackground"
+      >
+        {mention.display}
+      </Text>
+    );
+
+    const nextStart = sortedMentions[index + 1]?.start ?? text.length;
+    if (mention.end < nextStart) {
+      textParts.push(
+        <RawText key={`text-${index}`} color={textColor}>
+          {text.slice(mention.end, nextStart)}
+        </RawText>
+      );
+    }
+  });
+
+  return <>{textParts}</>;
+}
 
 export default function BareChatInput({
   shouldBlur,
@@ -84,6 +212,7 @@ export default function BareChatInput({
     addAttachment,
     clearAttachments,
     resetAttachments,
+    removeAttachment,
     waitForAttachmentUploads,
   } = useAttachmentContext();
   const [controlledText, setControlledText] = useState('');
@@ -101,8 +230,10 @@ export default function BareChatInput({
     setMentions,
     showMentionPopup,
   } = useMentions();
-  const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
+  const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
+
+  usePasteHandler(addAttachment);
 
   const processReferences = useCallback(
     (text: string): string => {
@@ -138,44 +269,47 @@ export default function BareChatInput({
 
   const lastProcessedRef = useRef('');
 
-  const handleTextChange = (newText: string) => {
-    const oldText = controlledText;
+  const handleTextChange = useCallback(
+    (newText: string) => {
+      const oldText = controlledText;
 
-    bareChatInputLogger.log('text change', newText);
+      bareChatInputLogger.log('text change', newText);
 
-    // Only process references if the text contains a reference and hasn't been processed before.
-    // This check prevents infinite loops on native platforms where we manually update
-    // the input's text value using setNativeProps after processing references.
-    // Without this guard, each manual text update would trigger another onChangeText,
-    // creating an endless cycle.
-    if (REF_REGEX.test(newText) && lastProcessedRef.current !== newText) {
-      lastProcessedRef.current = newText;
-      const textWithoutRefs = processReferences(newText);
-      setControlledText(textWithoutRefs);
-      handleMention(oldText, textWithoutRefs);
+      // Only process references if the text contains a reference and hasn't been processed before.
+      // This check prevents infinite loops on native platforms where we manually update
+      // the input's text value using setNativeProps after processing references.
+      // Without this guard, each manual text update would trigger another onChangeText,
+      // creating an endless cycle.
+      if (REF_REGEX.test(newText) && lastProcessedRef.current !== newText) {
+        lastProcessedRef.current = newText;
+        const textWithoutRefs = processReferences(newText);
+        setControlledText(textWithoutRefs);
+        handleMention(oldText, textWithoutRefs);
 
-      const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
-      bareChatInputLogger.log('setting draft', jsonContent);
-      storeDraft(jsonContent);
+        const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
+        bareChatInputLogger.log('setting draft', jsonContent);
+        storeDraft(jsonContent);
 
-      // force update the native input's text.
-      // we must set the text to an empty string because sending any text via
-      // setNativeProps is actually *additive* to the existing text and not a replacement.
-      // calling setNativeProps is still necessary because it forces the input to update
-      // and display the new text value.
-      if (!isWeb) {
-        inputRef.current?.setNativeProps({ text: '' });
+        // force update the native input's text.
+        // we must set the text to an empty string because sending any text via
+        // setNativeProps is actually *additive* to the existing text and not a replacement.
+        // calling setNativeProps is still necessary because it forces the input to update
+        // and display the new text value.
+        if (!isWeb) {
+          inputRef.current?.setNativeProps({ text: '' });
+        }
+      } else if (!REF_REGEX.test(newText)) {
+        // if there's no reference to process, just update normally
+        setControlledText(newText);
+        handleMention(oldText, newText);
+
+        const jsonContent = textAndMentionsToContent(newText, mentions);
+        bareChatInputLogger.log('setting draft', jsonContent);
+        storeDraft(jsonContent);
       }
-    } else if (!REF_REGEX.test(newText)) {
-      // if there's no reference to process, just update normally
-      setControlledText(newText);
-      handleMention(oldText, newText);
-
-      const jsonContent = textAndMentionsToContent(newText, mentions);
-      bareChatInputLogger.log('setting draft', jsonContent);
-      storeDraft(jsonContent);
-    }
-  };
+    },
+    [controlledText, processReferences, storeDraft, handleMention, mentions]
+  );
 
   const onMentionSelect = useCallback(
     (contact: db.Contact) => {
@@ -193,93 +327,21 @@ export default function BareChatInput({
     [handleSelectMention, controlledText]
   );
 
-  const renderTextWithMentionsWeb = useMemo(() => {
-    if (!controlledText || mentions.length === 0) {
-      return null;
-    }
-
-    const sortedMentions = [...mentions].sort((a, b) => a.start - b.start);
-    const textParts: JSX.Element[] = [];
-
-    // Handle text before first mention
-    if (sortedMentions[0].start > 0) {
-      textParts.push(
-        <RawText key="text-start" color="transparent">
-          {controlledText.slice(0, sortedMentions[0].start)}
-        </RawText>
-      );
-    }
-
-    // Handle mentions and text between them
-    sortedMentions.forEach((mention, index) => {
-      textParts.push(
-        <Text
-          key={`mention-${mention.id}-${index}`}
-          color="$positiveActionText"
-          backgroundColor="$positiveBackground"
-        >
-          {mention.display}
-        </Text>
-      );
-
-      // Add text between this mention and the next one (or end of text)
-      const nextStart =
-        sortedMentions[index + 1]?.start ?? controlledText.length;
-      if (mention.end < nextStart) {
-        textParts.push(
-          <RawText key={`text-${index}`} color="transparent">
-            {controlledText.slice(mention.end, nextStart)}
-          </RawText>
-        );
+  // Handle text attachments by inserting them into the input
+  useEffect(() => {
+    const textAttachment = attachments.find(
+      (a): a is TextAttachment => a.type === 'text'
+    );
+    if (textAttachment) {
+      if (controlledText === '') {
+        handleTextChange(`${textAttachment.text}`);
+      } else {
+        handleTextChange(`${textAttachment.text}${controlledText}`);
       }
-    });
-
-    return textParts;
-  }, [mentions, controlledText]);
-
-  const renderTextWithMentions = useMemo(() => {
-    if (!controlledText || mentions.length === 0) {
-      return <RawText color="$primaryText">{controlledText}</RawText>;
+      // Remove the text attachment since we've handled it
+      removeAttachment(textAttachment);
     }
-
-    const sortedMentions = [...mentions].sort((a, b) => a.start - b.start);
-    const textParts: JSX.Element[] = [];
-
-    // Handle text before first mention
-    if (sortedMentions[0].start > 0) {
-      textParts.push(
-        <RawText key="text-start" color="$primaryText">
-          {controlledText.slice(0, sortedMentions[0].start)}
-        </RawText>
-      );
-    }
-
-    // Handle mentions and text between them
-    sortedMentions.forEach((mention, index) => {
-      textParts.push(
-        <Text
-          key={`mention-${mention.id}-${index}`}
-          color="$positiveActionText"
-          backgroundColor="$positiveBackground"
-        >
-          {mention.display}
-        </Text>
-      );
-
-      // Add text between this mention and the next one (or end of text)
-      const nextStart =
-        sortedMentions[index + 1]?.start ?? controlledText.length;
-      if (mention.end < nextStart) {
-        textParts.push(
-          <RawText key={`text-${index}`} color="$primaryText">
-            {controlledText.slice(mention.end, nextStart)}
-          </RawText>
-        );
-      }
-    });
-
-    return textParts;
-  }, [mentions, controlledText]);
+  }, [attachments, handleTextChange, removeAttachment, controlledText]);
 
   const sendMessage = useCallback(
     async (isEdit?: boolean) => {
@@ -289,48 +351,50 @@ export default function BareChatInput({
 
       const finalAttachments = await waitForAttachmentUploads();
 
-      const blocks = finalAttachments.flatMap((attachment): Block[] => {
-        if (attachment.type === 'reference') {
-          const cite = pathToCite(attachment.path);
-          return cite ? [{ cite }] : [];
-        }
-        if (
-          attachment.type === 'image' &&
-          (!image || attachment.file.uri !== image?.uri)
-        ) {
-          return [
-            {
-              image: {
-                src: attachment.uploadState.remoteUri,
-                height: attachment.file.height,
-                width: attachment.file.width,
-                alt: 'image',
+      const blocks = finalAttachments
+        .filter((attachment) => attachment.type !== 'text')
+        .flatMap((attachment): Block[] => {
+          if (attachment.type === 'reference') {
+            const cite = pathToCite(attachment.path);
+            return cite ? [{ cite }] : [];
+          }
+          if (
+            attachment.type === 'image' &&
+            (!image || attachment.file.uri !== image?.uri)
+          ) {
+            return [
+              {
+                image: {
+                  src: attachment.uploadState.remoteUri,
+                  height: attachment.file.height,
+                  width: attachment.file.width,
+                  alt: 'image',
+                },
               },
-            },
-          ];
-        }
+            ];
+          }
 
-        if (
-          image &&
-          attachment.type === 'image' &&
-          attachment.file.uri === image?.uri &&
-          isEdit &&
-          channelType === 'gallery'
-        ) {
-          return [
-            {
-              image: {
-                src: image.uri,
-                height: image.height,
-                width: image.width,
-                alt: 'image',
+          if (
+            image &&
+            attachment.type === 'image' &&
+            attachment.file.uri === image?.uri &&
+            isEdit &&
+            channelType === 'gallery'
+          ) {
+            return [
+              {
+                image: {
+                  src: image.uri,
+                  height: image.height,
+                  width: image.width,
+                  alt: 'image',
+                },
               },
-            },
-          ];
-        }
+            ];
+          }
 
-        return [];
-      });
+          return [];
+        });
 
       if (blocks && blocks.length > 0) {
         if (channelType === 'chat') {
@@ -353,25 +417,39 @@ export default function BareChatInput({
         metadata['image'] = attachment.uploadState.remoteUri;
       }
 
-      if (isEdit && editingPost) {
-        if (editingPost.parentId) {
-          await editPost?.(editingPost, story, editingPost.parentId, metadata);
-        }
-        await editPost?.(editingPost, story, undefined, metadata);
-        setEditingPost?.(undefined);
-      } else {
-        // not awaiting since we don't want to wait for the send to complete
-        // before clearing the draft and the editor content
-        send(story, channelId, metadata);
-      }
+      try {
+        bareChatInputLogger.log('clearing attachments');
+        clearAttachments();
+        bareChatInputLogger.log('resetting input height');
+        setInputHeight(initialHeight);
 
-      onSend?.();
-      setControlledText('');
-      setMentions([]);
-      clearAttachments();
-      clearDraft();
-      setHasSetInitialContent(false);
-      setInputHeight(initialHeight);
+        if (isEdit && editingPost) {
+          if (editingPost.parentId) {
+            await editPost?.(
+              editingPost,
+              story,
+              editingPost.parentId,
+              metadata
+            );
+          }
+          await editPost?.(editingPost, story, undefined, metadata);
+          setEditingPost?.(undefined);
+        } else {
+          await send(story, channelId, metadata);
+        }
+      } catch (e) {
+        bareChatInputLogger.error('Error sending message', e);
+        setSendError(true);
+      } finally {
+        onSend?.();
+        bareChatInputLogger.log('sent message', story);
+        setMentions([]);
+        bareChatInputLogger.log('clearing draft');
+        await clearDraft();
+        bareChatInputLogger.log('setting initial content');
+        setControlledText('');
+        setHasSetInitialContent(false);
+      }
     },
     [
       onSend,
@@ -418,18 +496,6 @@ export default function BareChatInput({
     }
     runSendMessage(true);
   }, [runSendMessage, editingPost]);
-
-  // Make sure the user can still see some of the scroller when the keyboard is up
-  useEffect(() => {
-    Keyboard.addListener('keyboardDidShow', () => {
-      const keyboardHeight = Keyboard.metrics()?.height || 300;
-      setMaxInputHeight(maxInputHeightBasic - keyboardHeight);
-    });
-
-    Keyboard.addListener('keyboardDidHide', () => {
-      setMaxInputHeight(maxInputHeightBasic);
-    });
-  }, [maxInputHeightBasic]);
 
   // Handle autofocus
   useEffect(() => {
@@ -554,51 +620,6 @@ export default function BareChatInput({
     setMentions,
   ]);
 
-  // Handle pastes on web
-  useEffect(() => {
-    // For now, we only check to make sure we're on web,
-    // we don't check if the input is focused. This allows users to paste
-    // images before they select the input. We may want to change this behavior
-    // if this feels weird, but it feels like a nice quality of life improvement.
-    // We can do this because there is only ever one input on the screen at a time,
-    // unlike the old app where you could have both the main chat input and the
-    // thread input on screen at the same time.
-    if (!isWeb) return;
-
-    const handlePaste = async (e: ClipboardEvent) => {
-      const items = Array.from(e.clipboardData?.items || []);
-      const image = items.find((item) => item.type.includes('image'));
-
-      if (!image) return;
-
-      const file = image.getAsFile();
-      if (!file) return;
-
-      const uri = URL.createObjectURL(file);
-
-      const img = new Image();
-
-      img.onload = () => {
-        addAttachment({
-          type: 'image',
-          file: {
-            uri,
-            height: img.height,
-            width: img.width,
-          },
-        });
-      };
-
-      img.src = uri;
-    };
-
-    document.addEventListener('paste', handlePaste);
-
-    return () => {
-      document.removeEventListener('paste', handlePaste);
-    };
-  }, [addAttachment]);
-
   const handleCancelEditing = useCallback(() => {
     setEditingPost?.(undefined);
     setHasSetInitialContent(false);
@@ -628,9 +649,34 @@ export default function BareChatInput({
     }
   };
 
+  const { setIsOpen } = useGlobalSearch();
+
   const handleBlur = useCallback(() => {
     setShouldBlur(true);
   }, [setShouldBlur]);
+
+  const handleKeyPress = useCallback(
+    (e: any) => {
+      const keyEvent = e.nativeEvent as unknown as KeyboardEvent;
+      if (!isWeb) return;
+
+      if (
+        (keyEvent.metaKey || keyEvent.ctrlKey) &&
+        keyEvent.key.toLowerCase() === 'k'
+      ) {
+        e.preventDefault();
+        inputRef.current?.blur();
+        setIsOpen(true);
+        return;
+      }
+
+      if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    },
+    [setIsOpen, handleSend]
+  );
 
   return (
     <MessageInputContainer
@@ -668,15 +714,7 @@ export default function BareChatInput({
           onChange={isWeb ? adjustTextInputSize : undefined}
           onLayout={isWeb ? adjustTextInputSize : undefined}
           onBlur={handleBlur}
-          onKeyPress={(e) => {
-            if (isWeb && e.nativeEvent.key === 'Enter') {
-              const keyEvent = e.nativeEvent as unknown as KeyboardEvent;
-              if (!keyEvent.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }
-          }}
+          onKeyPress={handleKeyPress}
           multiline
           placeholder={placeholder}
           {...(!isWeb ? placeholderTextColor : {})}
@@ -689,16 +727,22 @@ export default function BareChatInput({
             paddingTop: getTokenValue('$l', 'space'),
             paddingBottom: getTokenValue('$l', 'space'),
             fontSize: getFontSize('$m'),
-            textAlignVertical: 'center',
+            verticalAlign: 'middle',
             letterSpacing: -0.032,
             color: getVariableValue(useTheme().primaryText),
             ...(isWeb ? placeholderTextColor : {}),
             ...(isWeb ? { outlineStyle: 'none' } : {}),
           }}
         >
-          {isWeb ? undefined : renderTextWithMentions}
+          {isWeb ? undefined : (
+            <TextWithMentions
+              text={controlledText}
+              mentions={mentions}
+              textColor="$primaryText"
+            />
+          )}
         </TextInput>
-        {isWeb && mentions.length > 0 && (
+        {isWeb && !!controlledText && mentions.length > 0 && (
           <View height={inputHeight} position="absolute" pointerEvents="none">
             <RawText
               paddingHorizontal="$l"
@@ -708,7 +752,11 @@ export default function BareChatInput({
               letterSpacing={-0.032}
               color="$primaryText"
             >
-              {renderTextWithMentionsWeb}
+              <TextWithMentions
+                text={controlledText}
+                mentions={mentions}
+                textColor="transparent"
+              />
             </RawText>
           </View>
         )}

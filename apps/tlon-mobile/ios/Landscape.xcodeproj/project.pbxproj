@@ -86,6 +86,11 @@
 		638753092CC7036C003942F5 /* ShortcutsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 638753072CC7036C003942F5 /* ShortcutsManager.swift */; };
 		63A5A04E2CD05CB900928EED /* ChannelEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63A5A04D2CD05CB600928EED /* ChannelEntity.swift */; };
 		63A5A04F2CD05CB900928EED /* ChannelEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63A5A04D2CD05CB600928EED /* ChannelEntity.swift */; };
+		63CF1DB92D07665B00C0F34E /* ActivityEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63CF1DB82D07665700C0F34E /* ActivityEvent.swift */; };
+		63CF1DBA2D07665B00C0F34E /* ActivityEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63CF1DB82D07665700C0F34E /* ActivityEvent.swift */; };
+		63CF1DBB2D07665B00C0F34E /* ActivityEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63CF1DB82D07665700C0F34E /* ActivityEvent.swift */; };
+		63CF1DBC2D07665B00C0F34E /* ActivityEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63CF1DB82D07665700C0F34E /* ActivityEvent.swift */; };
+		63CF1DBD2D07665B00C0F34E /* ActivityEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63CF1DB82D07665700C0F34E /* ActivityEvent.swift */; };
 		63E27E0B2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */; };
 		63E27E0C2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */; };
 		63E27E0D2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */; };
@@ -254,6 +259,7 @@
 		6374ACFC2C4ACD7500E637C0 /* Login.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Login.swift; sourceTree = "<group>"; };
 		638753072CC7036C003942F5 /* ShortcutsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsManager.swift; sourceTree = "<group>"; };
 		63A5A04D2CD05CB600928EED /* ChannelEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelEntity.swift; sourceTree = "<group>"; };
+		63CF1DB82D07665700C0F34E /* ActivityEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityEvent.swift; sourceTree = "<group>"; };
 		63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Alamofire+sessionWithSharedCookieStorage.swift"; sourceTree = "<group>"; };
 		63E27E122C5AF5B8008ACB45 /* HTTPCookieStorage+forwardChanges.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = "HTTPCookieStorage+forwardChanges.swift"; path = "Landscape/HTTPCookieStorage+forwardChanges.swift"; sourceTree = "<group>"; };
 		63EC5CBF2CD049540098C343 /* SQLiteDB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteDB.swift; sourceTree = "<group>"; };
@@ -449,6 +455,7 @@
 		63E7040D2C540FD6006CF214 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				63CF1DB82D07665700C0F34E /* ActivityEvent.swift */,
 				709FC0EC2AC1E25D00B0644D /* Club.swift */,
 				700B635C2A71DFE90017F40F /* Contact.swift */,
 				70D3866A2A60A38400AFB46E /* Group.swift */,
@@ -962,6 +969,7 @@
 			inputPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Landscape-preview/Pods-Landscape-preview-resources.sh",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/EXConstants.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/EXMediaLibrary/ExpoMediaLibrary_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXUpdates/EXUpdates.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoFileSystem/ExpoFileSystem_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/FirebaseABTesting/FirebaseABTesting_Privacy.bundle",
@@ -984,6 +992,7 @@
 			name = "[CP] Copy Pods Resources";
 			outputPaths = (
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXConstants.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoMediaLibrary_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXUpdates.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoFileSystem_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/FirebaseABTesting_Privacy.bundle",
@@ -1070,6 +1079,7 @@
 			inputPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Landscape/Pods-Landscape-resources.sh",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/EXConstants.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/EXMediaLibrary/ExpoMediaLibrary_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXUpdates/EXUpdates.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoFileSystem/ExpoFileSystem_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/FirebaseABTesting/FirebaseABTesting_Privacy.bundle",
@@ -1092,6 +1102,7 @@
 			name = "[CP] Copy Pods Resources";
 			outputPaths = (
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXConstants.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoMediaLibrary_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXUpdates.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoFileSystem_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/FirebaseABTesting_Privacy.bundle",
@@ -1217,6 +1228,7 @@
 				70D3865B2A609BFC00AFB46E /* PocketAPI.swift in Sources */,
 				70D386582A609BFC00AFB46E /* PushNotificationManager.swift in Sources */,
 				63E27E0B2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
+				63CF1DBC2D07665B00C0F34E /* ActivityEvent.swift in Sources */,
 				700B635D2A71DFE90017F40F /* Contact.swift in Sources */,
 				70EAEAB92A57CE2A00FE96E4 /* UrbitModule.m in Sources */,
 				70D386672A60A37000AFB46E /* INPerson+Extension.swift in Sources */,
@@ -1258,6 +1270,7 @@
 				630DE0CB2C51A8780053603B /* Error+isAFTimeout.swift in Sources */,
 				630DE0CC2C51A8780053603B /* PushNotificationManager.swift in Sources */,
 				630DE0CD2C51A8780053603B /* Yarn.swift in Sources */,
+				63CF1DBA2D07665B00C0F34E /* ActivityEvent.swift in Sources */,
 				630DE0CE2C51A8780053603B /* GroupChannelStore.swift in Sources */,
 				63E27E0E2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				630DE0CF2C51A8780053603B /* PocketUserAPI.swift in Sources */,
@@ -1290,6 +1303,7 @@
 				630DE0B72C51A0F80053603B /* Error+isAFTimeout.swift in Sources */,
 				632793B62C4ADE9800F942B1 /* PushNotificationManager.swift in Sources */,
 				632793C22C4AE4FA00F942B1 /* Yarn.swift in Sources */,
+				63CF1DBD2D07665B00C0F34E /* ActivityEvent.swift in Sources */,
 				632793C92C4AE7C900F942B1 /* GroupChannelStore.swift in Sources */,
 				63E27E0D2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				632793C62C4AE56F00F942B1 /* PocketUserAPI.swift in Sources */,
@@ -1324,6 +1338,7 @@
 				70DBBFF02B7C60B50021EA96 /* PushNotificationManager.swift in Sources */,
 				63E27E0C2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				70DBBFF12B7C60B50021EA96 /* Contact.swift in Sources */,
+				63CF1DB92D07665B00C0F34E /* ActivityEvent.swift in Sources */,
 				70DBBFF22B7C60B50021EA96 /* UrbitModule.m in Sources */,
 				70DBBFF32B7C60B50021EA96 /* INPerson+Extension.swift in Sources */,
 				70DBBFF42B7C60B50021EA96 /* Error+logWithDomain.swift in Sources */,
@@ -1365,6 +1380,7 @@
 				70F99A9B2B2D336500D77256 /* INPerson+Extension.swift in Sources */,
 				70F99AAB2B2D337600D77256 /* UserDefaultsStore.swift in Sources */,
 				70F99A982B2D2B6E00D77256 /* YarnTests.swift in Sources */,
+				63CF1DBB2D07665B00C0F34E /* ActivityEvent.swift in Sources */,
 				632793C02C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */,
 				70F99AA92B2D337600D77256 /* GroupChannelStore.swift in Sources */,
 				70F99A9F2B2D336800D77256 /* Group.swift in Sources */,
@@ -1427,7 +1443,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.0.0;
+				MARKETING_VERSION = 5.0.4;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1465,7 +1481,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.0.0;
+				MARKETING_VERSION = 5.0.4;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1689,7 +1705,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.0.0;
+				MARKETING_VERSION = 5.0.4;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1732,7 +1748,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.0.0;
+				MARKETING_VERSION = 5.0.4;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",

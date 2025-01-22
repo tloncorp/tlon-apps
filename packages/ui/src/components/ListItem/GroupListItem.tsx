@@ -1,25 +1,33 @@
+// sort-imports-ignore
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { View, isWeb } from 'tamagui';
 
+import { useGroupTitle } from '../../utils';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
+import { ContactName } from '../ContactNameV2';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
-import type { ListItemProps } from './ListItem';
-import { ListItem } from './ListItem';
+import { ListItem, ListItemProps } from './ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
+import { ChatOptionsSheet } from '../ChatOptionsSheet';
+import { useState } from 'react';
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 
 export const GroupListItem = ({
   model,
   onPress,
   onLongPress,
   customSubtitle,
+  disableOptions = false,
   ...props
 }: { customSubtitle?: string } & ListItemProps<db.Group>) => {
+  const [open, setOpen] = useState(false);
   const unreadCount = model.unread?.count ?? 0;
-  const title = model.title ?? model.id;
+  const title = useGroupTitle(model);
   const { isPending, label: statusLabel, isErrored } = getGroupStatus(model);
+  const isWindowNarrow = useIsWindowNarrow();
 
   const handlePress = logic.useMutableCallback(() => {
     onPress?.(model);
@@ -28,6 +36,8 @@ export const GroupListItem = ({
   const handleLongPress = logic.useMutableCallback(() => {
     onLongPress?.(model);
   });
+
+  const isSingleChannel = model.channels?.length === 1;
 
   return (
     <View>
@@ -40,18 +50,34 @@ export const GroupListItem = ({
           <ListItem.GroupIcon model={model} />
           <ListItem.MainContent>
             <ListItem.Title>{title}</ListItem.Title>
-            {customSubtitle && (
+            {customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
-            )}
-            {model.lastPost && model.channels?.length && !customSubtitle && (
+            ) : isSingleChannel ? (
+              <ListItem.SubtitleWithIcon icon="ChannelMultiDM">
+                Group
+              </ListItem.SubtitleWithIcon>
+            ) : model.lastPost ? (
               <ListItem.SubtitleWithIcon
                 icon={getPostTypeIcon(model.lastPost.type)}
               >
-                {model.channels[0].title}
+                {(model.channels?.length ?? 0) > 1
+                  ? model.channels?.[0]?.title
+                  : 'Group'}
               </ListItem.SubtitleWithIcon>
-            )}
-            {!isPending && model.lastPost ? (
+            ) : isPending && model.hostUserId ? (
+              <>
+                <ListItem.SubtitleWithIcon icon="Mail">
+                  Group invitation
+                </ListItem.SubtitleWithIcon>
+                <ListItem.Subtitle>
+                  Hosted by <ContactName contactId={model.hostUserId} />
+                </ListItem.Subtitle>
+              </>
+            ) : null}
+            {model.lastPost ? (
               <ListItem.PostPreview post={model.lastPost} />
+            ) : !isPending ? (
+              <ListItem.Subtitle>No posts yet</ListItem.Subtitle>
             ) : null}
           </ListItem.MainContent>
 
@@ -76,17 +102,36 @@ export const GroupListItem = ({
           )}
         </ListItem>
       </Pressable>
-      {isWeb && !isPending && (
+      {isWeb && !isPending && !disableOptions && (
         <View position="absolute" right="$-2xs" top="$2xl" zIndex={1}>
-          <Button
-            onPress={handleLongPress}
-            borderWidth="unset"
-            paddingHorizontal={0}
-            marginHorizontal="$-m"
-            minimal
-          >
-            <Icon type="Overflow" />
-          </Button>
+          {isWindowNarrow ? (
+            <Button
+              onPress={handleLongPress}
+              borderWidth="unset"
+              paddingHorizontal={0}
+              marginHorizontal="$-m"
+              minimal
+            >
+              <Icon type="Overflow" />
+            </Button>
+          ) : (
+              <ChatOptionsSheet
+                open={open}
+                onOpenChange={setOpen}
+                chat={{ type: 'group', id: model.id }}
+                trigger={
+                  <Button
+                    backgroundColor="transparent"
+                    borderWidth="unset"
+                    paddingHorizontal={0}
+                    marginHorizontal="$-m"
+                    minimal
+                  >
+                    <Icon type="Overflow" />
+                  </Button>
+                }
+              />
+          )}
         </View>
       )}
     </View>

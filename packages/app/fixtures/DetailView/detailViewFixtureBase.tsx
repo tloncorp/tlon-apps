@@ -42,7 +42,7 @@ export const DetailViewFixture = ({
             isLoadingPosts={false}
             channel={channel}
             sendReply={async () => {}}
-            onPressRetry={() => {}}
+            onPressRetry={async () => {}}
             onPressDelete={() => {}}
             groupMembers={[]}
             negotiationMatch={true}

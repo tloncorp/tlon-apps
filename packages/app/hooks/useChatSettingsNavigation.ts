@@ -1,25 +1,41 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import type { RootStackParamList } from '../navigation/types';
 import { GroupSettingsStackParamList } from '../navigation/types';
+import { useRootNavigation } from '../navigation/utils';
 
 export const useChatSettingsNavigation = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
+  const { navigateToGroup } = useRootNavigation();
+  const isWindowNarrow = useIsWindowNarrow();
+
   const navigateToGroupSettings = useCallback(
-    <T extends keyof GroupSettingsStackParamList>(
+    async <T extends keyof GroupSettingsStackParamList>(
       screen: T,
       params: GroupSettingsStackParamList[T]
     ) => {
-      navigation.navigate('GroupSettings', {
-        screen,
-        params,
-      } as any);
+      if (!isWindowNarrow) {
+        // We need to navigate to the group first to ensure that the group is loaded
+        await navigateToGroup(params.groupId);
+        setTimeout(() => {
+          navigation.navigate('GroupSettings', {
+            screen,
+            params,
+          } as any);
+        }, 100);
+      } else {
+        navigation.navigate('GroupSettings', {
+          screen,
+          params,
+        } as any);
+      }
     },
-    [navigation]
+    [navigation, navigateToGroup, isWindowNarrow]
   );
 
   const onPressGroupMeta = useCallback(
@@ -71,16 +87,21 @@ export const useChatSettingsNavigation = () => {
     [navigation]
   );
 
-  const navigateOnLeave = useCallback(
-    () => {
-      navigation.navigate('ChatList');
+  const onPressChannelTemplate = useCallback(
+    (channelId: string) => {
+      navigation.navigate('ChannelTemplate', { channelId });
     },
     [navigation]
   );
 
+  const navigateOnLeave = useCallback(() => {
+    navigation.navigate('ChatList');
+  }, [navigation]);
+
   return {
     onPressChannelMembers,
     onPressChannelMeta,
+    onPressChannelTemplate,
     onPressGroupMeta,
     onPressGroupMembers,
     onPressManageChannels,

@@ -1,53 +1,73 @@
+import isEqual from 'lodash/isEqual';
+
 import * as api from '../api';
 import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
+import { getRandomId } from '../logic';
 import { createSectionId } from '../urbit';
-import * as sync from './sync';
+import { createChannel } from './channelActions';
 
 const logger = createDevLogger('groupActions', false);
 
-export async function createGroup({
-  title,
-  shortCode,
-}: {
-  title: string;
-  shortCode: string;
-}): Promise<{ group: db.Group; channel: db.Channel }> {
-  logger.log(`${shortCode}: creating group`);
+interface CreateGroupParams {
+  title?: string;
+  memberIds?: string[];
+}
+
+export async function createGroup(
+  params: CreateGroupParams
+): Promise<db.Group> {
   const currentUserId = api.getCurrentUserId();
+  const groupSlug = getRandomId();
+  const groupId = `${currentUserId}/${groupSlug}`;
+
   try {
+    logger.log('creating group', groupId);
+
     await api.createGroup({
-      title,
-      shortCode,
+      title: params.title ?? '',
+      placeholderTitle: await getPlaceholderTitle(params),
+      slug: groupSlug,
+      privacy: 'secret',
+      memberIds: params.memberIds,
     });
 
-    const groupId = `${currentUserId}/${shortCode}`;
+    logger.log(`created group ${groupId}, adding default channel`);
 
-    await api.createNewGroupDefaultChannel({
-      groupId,
-      currentUserId,
+    await createChannel({
+      groupId: groupId,
+      title: 'General',
+      channelType: 'chat',
     });
-    logger.log(`created group ${groupId}`);
 
-    await sync.syncGroup(groupId);
-    await sync.syncUnreads(); // ensure current user gets registered as a member of the channel
+    logger.log(`created default channel for ${groupId}, syncing now`);
+
     const group = await db.getGroup({ id: groupId });
-
-    if (group && group.channels.length) {
-      const channel = group.channels[0];
-
-      await db.updateChannel({ id: channel.id, isDefaultWelcomeChannel: true });
-
-      return { group, channel };
+    if (!group || !group.channels.length) {
+      throw new Error('Something went wrong');
     }
 
-    // TODO: should we have a UserFacingError type?
-    throw new Error('Something went wrong');
+    return group;
   } catch (e) {
-    console.error(`${shortCode}: failed to create group`, e);
+    console.error(`${groupSlug}: failed to create group`, e);
     throw new Error('Something went wrong');
   }
+}
+
+async function getPlaceholderTitle({ memberIds, title }: CreateGroupParams) {
+  // No need to set a placeholder title if the user has already set a title
+  if (title) {
+    return;
+  }
+  const currentUserId = api.getCurrentUserId();
+  const contactIds = [...(memberIds ?? []), currentUserId];
+  const memberContacts = await Promise.all(
+    contactIds.map(
+      async (id): Promise<db.Contact> => (await db.getContact({ id })) ?? { id }
+    )
+  );
+  return memberContacts.map((c) => c?.nickname ?? c?.id).join(', ');
 }
 
 export async function acceptGroupInvitation(group: db.Group) {
@@ -180,9 +200,9 @@ export async function markGroupNew(group: db.Group) {
   await db.updateGroup({ id: group.id, isNew: true });
 }
 
-export async function markGroupVisited(group: db.Group) {
-  logger.log('marking new group as visited', group.id);
-  await db.updateGroup({ id: group.id, isNew: false });
+export async function markGroupVisited(groupId: string) {
+  logger.log('marking new group as visited', groupId);
+  await db.updateGroup({ id: groupId, isNew: false });
 }
 
 export async function updateGroupPrivacy(
@@ -239,10 +259,9 @@ export async function updateGroupMeta(group: db.Group) {
   } catch (e) {
     console.error('Failed to update group', e);
     // rollback optimistic update
-    await db.updateGroup({
-      id: group.id,
-      ...existingGroup,
-    });
+    if (existingGroup) {
+      await db.updateGroup(existingGroup);
+    }
   }
 }
 
@@ -299,12 +318,10 @@ export async function addNavSection(
   } catch (e) {
     console.error('Failed to add nav section', e);
     // rollback optimistic update
-    await db.updateGroup({
-      id: group.id,
-      ...existingGroup,
-    });
-
-    await db.deleteNavSection(groupNavSectionId);
+    if (existingGroup) {
+      await db.updateGroup(existingGroup);
+      await db.deleteNavSection(groupNavSectionId);
+    }
   }
 }
 
@@ -332,10 +349,9 @@ export async function updateNavSectionMeta(
   } catch (e) {
     console.error('Failed to update nav section', e);
     // rollback optimistic update
-    await db.updateGroup({
-      id: group.id,
-      ...existingGroup,
-    });
+    if (existingGroup) {
+      await db.updateGroup(existingGroup);
+    }
   }
 }
 
@@ -393,7 +409,7 @@ export async function moveNavSection(
 
   // optimistic update
   await db.updateGroup({
-    ...group,
+    id: group.id,
     navSections: newNavSections,
   });
 
@@ -413,39 +429,37 @@ export async function moveNavSection(
   } catch (e) {
     console.error('Failed to move nav section', e);
     // rollback optimistic update
-    await db.updateGroup({
-      id: group.id,
-      ...existingGroup,
-    });
-
-    navSections.forEach(async (section, index) => {
-      await db.updateNavSection({
-        ...section,
-        sectionIndex: index,
+    if (existingGroup) {
+      await db.updateGroup(existingGroup);
+      navSections.forEach(async (section, index) => {
+        await db.updateNavSection({
+          ...section,
+          sectionIndex: index,
+        });
       });
-    });
+    }
   }
 }
 
 export async function addChannelToNavSection({
-  group,
+  groupId,
   channelId,
   navSectionId,
 }: {
-  group: db.Group;
+  groupId: string;
   channelId: string;
   navSectionId: string;
 }) {
-  logger.log(
-    'adding channel to nav section',
-    group.id,
-    channelId,
-    navSectionId
-  );
+  logger.log('adding channel to nav section', groupId, channelId, navSectionId);
 
-  const existingGroup = await db.getGroup({ id: group.id });
+  const existingGroup = await db.getGroup({ id: groupId });
 
-  const navSections = group.navSections ?? [];
+  if (!existingGroup) {
+    logger.error('Group not found', groupId);
+    return;
+  }
+
+  const navSections = existingGroup.navSections ?? [];
   const navSection = navSections.find(
     (section) => section.sectionId === navSectionId
   );
@@ -454,25 +468,6 @@ export async function addChannelToNavSection({
     console.error('Nav section not found', navSectionId);
     return;
   }
-
-  const newNavSections = navSections.map((section) => {
-    if (section.sectionId !== navSectionId) {
-      return section;
-    }
-
-    return {
-      ...section,
-      channels: [
-        ...(section.channels ?? []),
-        {
-          channelId,
-          index: (section.channels?.length ?? 0) + 1,
-        },
-      ],
-    };
-  });
-
-  logger.log('newNavSections', newNavSections);
 
   const previousNavSection = navSections.find(
     (section) =>
@@ -480,22 +475,31 @@ export async function addChannelToNavSection({
       undefined
   );
 
-  await db.addChannelToNavSection({
-    channelId,
-    groupNavSectionId: navSectionId,
-    index: (navSection?.channels?.length ?? 0) + 1,
-  });
-
   if (previousNavSection) {
+    // First make sure this channel isn't already in the section
+    if (previousNavSection.sectionId === navSectionId) {
+      logger.log('Channel already in section', channelId, navSectionId);
+      return;
+    }
+
+    // Then remove from previous section if it exists
     await db.deleteChannelFromNavSection({
       channelId,
       groupNavSectionId: previousNavSection.id,
     });
   }
 
+  // Then add to new section
+  await db.addChannelToNavSection({
+    channelId,
+    groupNavSectionId: `${groupId}-${navSectionId}`,
+    // The %groups agent only supports adding new channels to the start of a section.
+    index: 0,
+  });
+
   try {
     await api.addChannelToNavSection({
-      groupId: group.id,
+      groupId: groupId,
       channelId,
       navSectionId,
     });
@@ -503,86 +507,164 @@ export async function addChannelToNavSection({
   } catch (e) {
     logger.log('failed to add channel to nav section', e);
     console.error('Failed to add channel', e);
-    // rollback optimistic update
+
+    // rollback optimistic update - first remove from new section
     await db.deleteChannelFromNavSection({
       channelId,
       groupNavSectionId: navSectionId,
     });
 
+    // then add back to previous section if it existed
     if (previousNavSection) {
+      const prevIndex =
+        previousNavSection.channels?.findIndex(
+          (c) => c.channelId === channelId
+        ) ?? 0;
       await db.addChannelToNavSection({
         channelId,
         groupNavSectionId: previousNavSection.sectionId,
-        index: (previousNavSection.channels?.length ?? 0) + 1,
+        index: prevIndex,
       });
     }
   }
 }
 
 export async function moveChannel({
-  group,
+  groupId,
   channelId,
   navSectionId,
   index,
 }: {
-  group: db.Group;
+  groupId: string;
   channelId: string;
   navSectionId: string;
   index: number;
-}) {
-  logger.log('moving channel', group.id, channelId, navSectionId, index);
+}): Promise<void> {
+  logger.log('moving channel', groupId, channelId, navSectionId, index);
 
-  const existingGroup = await db.getGroup({ id: group.id });
+  const existingGroup = await db.getGroup({ id: groupId });
+  if (!existingGroup) {
+    logger.error('Group not found');
+    return;
+  }
 
-  const navSections = group.navSections ?? [];
+  const navSections = existingGroup.navSections ?? [];
   const navSection = navSections.find(
     (section) => section.sectionId === navSectionId
   );
 
   if (!navSection && navSectionId !== 'default') {
-    console.error('Nav section not found', navSectionId);
+    logger.error('Nav section not found');
+    return;
+  }
+
+  // Verify channel exists in this section
+  const sectionChannels = navSection?.channels ?? [];
+  const channelIndex =
+    sectionChannels.find((c) => c.channelId === channelId)?.channelIndex ?? -1;
+
+  if (channelIndex === -1) {
+    logger.error('Channel not found in this section');
+    return;
+  }
+
+  // Validate index bounds
+  if (index < 0 || index > sectionChannels.length) {
+    logger.error('Invalid index');
     return;
   }
 
   const newNavSections = navSections.map((section) => {
     if (section.sectionId !== navSectionId) {
+      logger.log('section', section.sectionId, 'not updated');
       return section;
     }
 
-    const newChannels =
-      section.channels?.filter((channel) => channel.channelId !== channelId) ??
-      [];
-    const [channel] =
-      section.channels?.filter((channel) => channel.channelId === channelId) ??
-      [];
-    newChannels.splice(index, 0, channel);
+    logger.log(
+      'section',
+      section.sectionId,
+      'updated',
+      'channels',
+      section.channels
+    );
+
+    const channels = [
+      ...(section.channels?.sort((a, b) => {
+        const aIndex = a.channelIndex ?? 0;
+        const bIndex = b.channelIndex ?? 0;
+        return aIndex - bIndex;
+      }) ?? []),
+    ];
+    const [channel] = channels.splice(channelIndex, 1);
+    channels.splice(index, 0, channel);
+
+    // Update indices
+    const updatedChannels = channels.map((c, idx) => ({
+      ...c,
+      channelIndex: idx,
+    }));
 
     return {
       ...section,
-      channels: newChannels,
+      channels: updatedChannels,
     };
   });
 
+  if (isEqual(newNavSections, navSections)) {
+    logger.log('No change in channel order');
+    return;
+  }
+
   // optimistic update
   await db.updateGroup({
-    ...group,
+    id: groupId,
     navSections: newNavSections,
   });
 
+  // Update the channel indices in the groupNavSectionChannels table
+  const updatedSection = newNavSections.find(
+    (section) => section.sectionId === navSectionId
+  );
+
+  if (updatedSection && updatedSection.channels) {
+    for (const channel of updatedSection.channels) {
+      if (!channel.channelId) continue;
+      logger.log(
+        'updating channel index',
+        channel.channelId,
+        channel.channelIndex
+      );
+      await db.updateNavSectionChannel({
+        channelId: channel.channelId,
+        groupNavSectionId: updatedSection.id,
+        channelIndex: channel.channelIndex ?? 0,
+      });
+    }
+  }
+
   try {
     await api.moveChannel({
-      groupId: group.id,
+      groupId: groupId,
       channelId,
       navSectionId,
       index,
     });
   } catch (e) {
-    console.error('Failed to move channel', e);
+    logger.error('Failed to move channel', e);
     // rollback optimistic update
-    await db.updateGroup({
-      id: group.id,
-      ...existingGroup,
-    });
+    if (existingGroup) {
+      await db.updateGroup(existingGroup);
+
+      // Rollback channel indices
+      for (const channel of sectionChannels) {
+        if (!channel.channelId) continue;
+        await db.updateNavSectionChannel({
+          channelId: channel.channelId,
+          groupNavSectionId: navSectionId,
+          channelIndex: channel.channelIndex ?? 0,
+        });
+      }
+    }
   }
 }
 
@@ -629,14 +711,12 @@ export async function updateNavSection({
   } catch (e) {
     console.error('Failed to update nav section', e);
     // rollback optimistic update
-    await db.updateGroup({
-      id: group.id,
-      ...existingGroup,
-    });
-
-    await db.updateNavSection({
-      ...existingNavSection,
-    });
+    if (existingGroup) {
+      await db.updateGroup(existingGroup);
+      await db.updateNavSection({
+        ...existingNavSection,
+      });
+    }
   }
 }
 
@@ -984,7 +1064,12 @@ export async function leaveGroup(groupId: string) {
   }
 }
 
-export async function markGroupRead(group: db.Group, deep: boolean = false) {
+export async function markGroupRead(groupId: string, deep: boolean = false) {
+  const group = await db.getGroup({ id: groupId });
+  if (!group) {
+    logger.error('Group not found', groupId);
+    return;
+  }
   // optimistic update
   const existingUnread = await db.getGroupUnread({ groupId: group.id });
   if (existingUnread) {

@@ -629,7 +629,12 @@ export class Urbit {
    *
    * @returns The first fact on the subcription
    */
-  async subscribeOnce<T = any>(app: string, path: string, timeout?: number) {
+  async subscribeOnce<T = any>(
+    app: string,
+    path: string,
+    ship?: string,
+    timeout?: number
+  ) {
     return new Promise<T>((resolve, reject) => {
       let done = false;
       const quit = () => {
@@ -646,6 +651,7 @@ export class Urbit {
       const request = {
         app,
         path,
+        ship,
         resubOnQuit: false,
         event,
         err: reject,
@@ -752,9 +758,9 @@ export class Urbit {
       err: () => {},
       event: () => {},
       quit: () => {},
-      ship: desig(this.nodeId ?? ''),
       resubOnQuit: true,
       ...params,
+      ship: desig(params.ship ?? this.nodeId ?? ''),
     };
 
     if (this.lastEventId === 0) {
@@ -921,7 +927,7 @@ export class Urbit {
       throw new Error('Must supply desk to run thread from');
     }
     const res = await this.fetchFn(
-      `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}.json`,
+      `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
       {
         ...this.fetchOptions,
         method: 'POST',
