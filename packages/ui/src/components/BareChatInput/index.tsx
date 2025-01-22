@@ -672,10 +672,14 @@ export default function BareChatInput({
 
       if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
         e.preventDefault();
-        handleSend();
+        if (editingPost) {
+          handleEdit();
+        } else {
+          handleSend();
+        }
       }
     },
-    [setIsOpen, handleSend]
+    [setIsOpen, handleSend, handleEdit, editingPost]
   );
 
   return (
