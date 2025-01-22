@@ -93,7 +93,7 @@ export const useLureState = create<LureState>((set, get) => ({
       });
 
     let url = localUrl;
-    if (!url) {
+    if (!url || checkOldLureToken(url)) {
       // start the process of creating the lure
       createGroupInviteLink(flag);
       // listen for the result
