@@ -225,10 +225,6 @@ export const signUpHostingUser = async (params: {
       method: 'POST',
       path: '/v1/sign-up',
     });
-    logger.trackEvent(AnalyticsEvent.UnexpectedHostingError, {
-      details: hostingErr.details,
-      context: hostingErr.message,
-    });
     throw hostingErr;
   }
 
@@ -263,8 +259,9 @@ export const logInHostingUser = async (params: {
 
   const result = (await response.json()) as HostingError | User;
   if (!response.ok) {
-    throw new Error(
-      'message' in result ? result.message : 'An unknown error has occurred.'
+    throw new HostingError(
+      'message' in result ? result.message : 'An unknown error has occurred.',
+      { status: response.status, method: 'POST', path: '/v1/login' }
     );
   }
 
