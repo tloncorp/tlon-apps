@@ -312,6 +312,17 @@ export function useBootSequence() {
     }
   }, [runBootPhase, setBootPhase, bootPhase, bootStepCounter, lureMeta?.id]);
 
+  const resetBootSequence = useCallback(() => {
+    setBootPhase(NodeBootPhase.IDLE);
+    setReport(null);
+    setReservedNodeId(null);
+    isRunningRef.current = false;
+    lastRunPhaseRef.current = NodeBootPhase.IDLE;
+    lastRunErrored.current = false;
+
+    sequenceStartTimeRef.current = 0;
+  }, []);
+
   // once finished, set the report
   useEffect(() => {
     if (bootPhase === NodeBootPhase.READY && report === null) {
@@ -325,6 +336,7 @@ export function useBootSequence() {
   return {
     bootPhase,
     kickOffBootSequence,
+    resetBootSequence,
     bootReport: report,
   };
 }
