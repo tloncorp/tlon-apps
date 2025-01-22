@@ -80,6 +80,7 @@
 +$  allowance         ::  remaining "request token" balance
   $:  since=@da       ::  time of last request
       phone=_5        ::  remaining text msgs
+      photp=_5        ::  remaining otp submission attempts
       tweet=_3        ::  remaining tweet verification attempts
       queries=_100    ::  remaining queries
       batch=_1.000    ::  remaining new %whose-bulk entries
@@ -88,6 +89,7 @@
 ++  rates  ::REVIEW
   |%
   ++  phone    [n=1 p=~d1]   ::NOTE  hosting allows 1/min, up to 5/hour
+  ++  photp    [n=1 p=~m1]   ::NOTE  code rotates every 10 minutes
   ++  tweet    [n=1 p=~m15]  ::NOTE  twitter api @ 15/15m in total
   ++  queries  [n=1 p=~m5]
   ++  batch    [n=10 p=~d1]

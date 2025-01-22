@@ -241,6 +241,7 @@
   =/  d    (sub now since.u.lim)
   :*  now
       (calc-new phone.u.lim phone.max d phone:rates)
+      (calc-new photp.u.lim photp.max d photp:rates)
       (calc-new tweet.u.lim tweet.max d tweet:rates)
       (calc-new queries.u.lim queries.max d queries:rates)
       (calc-new batch.u.lim batch.max d batch:rates)
@@ -429,7 +430,12 @@
         =/  rec  (~(got by records) id)
         ?>  =(src.bowl for.rec)
         ?>  =([%want %phone %otp] status.rec)  ::NOTE  tmi
-        ::TODO  rate-limit attempts?
+        =.  limits
+          =/  lim  (get-allowance limits [src now]:bowl)
+          =.  photp.lim
+            ~|  %would-exceed-rate-limit
+            (dec photp.lim)
+          (~(put by limits) src.bowl lim)
         =.  status.rec  [%wait ~]
         :_  this(records (~(put by records) id rec))
         :~  (give-status src.bowl id status.rec)
