@@ -23,7 +23,7 @@ export function VerifyPhoneNumberSheet(props: {
 
   //
   const handleSubmitPhoneNumber = useCallback(() => {
-    api.initiatePhoneVerify('+12623881275');
+    api.initiatePhoneVerify();
   }, []);
 
   return (
