@@ -622,7 +622,8 @@ function ChannelOptionsSheetContent({
   const isSingleChannelGroup = group?.channels?.length === 1;
   const invitationsEnabled =
     group?.privacy === 'private' || group?.privacy === 'secret';
-  const canInvite = invitationsEnabled && currentUserIsAdmin;
+  const canInvite =
+    (invitationsEnabled && currentUserIsAdmin) || group?.privacy === 'public';
   const canMarkRead = !(channel.unread?.count === 0);
   const enableCustomChannels = useCustomChannelsEnabled();
 
