@@ -19,7 +19,9 @@ import { UserBugReportScreen } from '../features/settings/UserBugReportScreen';
 import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChannelSearchScreen from '../features/top/ChannelSearchScreen';
+import { ChatDetailsScreen } from '../features/top/ChatDetailsScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
+import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
 import ImageViewerScreen from '../features/top/ImageViewerScreen';
@@ -94,7 +96,8 @@ export function RootStack() {
         component={ImageViewerScreen}
         options={{ animation: 'fade' }}
       />
-
+      <Root.Screen name="ChatDetails" component={ChatDetailsScreen} />
+      <Root.Screen name="ChatVolume" component={ChatVolumeScreen} />
       <Root.Screen
         name="ManageAccount"
         component={ManageAccountScreen}

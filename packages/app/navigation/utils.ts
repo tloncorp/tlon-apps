@@ -230,6 +230,20 @@ export function useRootNavigation() {
     [navigationRef, isWindowNarrow]
   );
 
+  const navigateToChatDetails = useCallback(
+    (chat: { type: 'group' | 'channel'; id: string }) => {
+      navigationRef.current.navigate('ChatDetails', {
+        chatId: chat.id,
+        chatType: chat.type,
+      });
+    },
+    [navigationRef]
+  );
+
+  const navigateBack = useCallback(() => {
+    navigationRef.current.goBack();
+  }, [navigationRef]);
+
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();
   const navigateBackFromPost = useNavigateBackFromPost();
@@ -244,19 +258,23 @@ export function useRootNavigation() {
       navigateToChannel,
       navigateBackFromPost,
       navigateToPost,
+      navigateToChatDetails,
       resetToGroup,
       resetToChannel,
       resetToDm,
+      navigateBack,
     }),
     [
       navigation,
       navigateToChannel,
+      navigateToChatDetails,
       navigateBackFromPost,
       navigateToGroup,
       navigateToPost,
       resetToGroup,
       resetToChannel,
       resetToDm,
+      navigateBack,
     ]
   );
 }
