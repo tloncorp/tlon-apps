@@ -311,6 +311,7 @@ export const groups = sqliteTable('groups', {
   joinStatus: text('join_status').$type<GroupJoinStatus>(),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
+  lastVisitedChannelId: text('last_visited_channel_id'),
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
@@ -751,11 +752,6 @@ export const channels = sqliteTable(
      */
     lastViewedAt: timestamp('last_viewed_at'),
 
-    /**
-     * True if this channel was autocreated during new group creation (on this client)
-     */
-    isDefaultWelcomeChannel: boolean('is_default_welcome_channel'),
-
     contentConfiguration: text('content_configuration', {
       mode: 'json',
     }).$type<ChannelContentConfiguration>(),
@@ -834,7 +830,10 @@ export const posts = sqliteTable(
     lastEditContent: text('last_edit_content', { mode: 'json' }),
     lastEditTitle: text('last_edit_title'),
     lastEditImage: text('last_edit_image'),
-    syncedAt: timestamp('synced_at').notNull(),
+    /**
+     * If `syncedAt` is null, it indicates that the post is unconfirmed by sync.
+     */
+    syncedAt: timestamp('synced_at'),
     // backendTime translates to an unfortunate alternative timestamp that is used
     // in some places by the backend agents as part of a composite key for identifying a post.
     // You should not be accessing this field except in very particular contexts.

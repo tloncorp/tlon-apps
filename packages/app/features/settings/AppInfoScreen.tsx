@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useDebugStore } from '@tloncorp/shared';
-import * as store from '@tloncorp/shared/store';
+import * as db from '@tloncorp/shared/db';
 import {
   AppSetting,
   Button,
@@ -24,7 +24,6 @@ import { ScrollView } from 'react-native-gesture-handler';
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useTelemetry } from '../../hooks/useTelemetry';
-import { setDebug } from '../../lib/debug';
 import { getEasUpdateDisplay } from '../../lib/platformHelpers';
 import { RootStackParamList } from '../../navigation/types';
 
@@ -53,8 +52,14 @@ ${JSON.stringify(appInfo)}
 }
 
 export function AppInfoScreen(props: Props) {
-  const { data: appInfo } = store.useAppInfo();
-  const { enabled, logs, logId, uploadLogs } = useDebugStore();
+  const appInfo = db.appInfo.useValue();
+  const {
+    enabled,
+    logs,
+    logId,
+    uploadLogs,
+    toggle: setDebugEnabled,
+  } = useDebugStore();
   const easUpdateDisplay = useMemo(() => getEasUpdateDisplay(Updates), []);
   const [hasClients, setHasClients] = useState(true);
   const telemetry = useTelemetry();
@@ -82,7 +87,7 @@ export function AppInfoScreen(props: Props) {
   }, []);
 
   const toggleDebugFlag = useCallback((enabled: boolean) => {
-    setDebug(enabled);
+    setDebugEnabled(enabled);
     if (!enabled) {
       return;
     }

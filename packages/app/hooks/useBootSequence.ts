@@ -1,4 +1,5 @@
 import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { preSig } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -34,11 +35,7 @@ interface BootSequenceReport {
   seconds if we're stuck processing invites, but the node is otherwise ready. Exposes the current boot 
   phase to the caller.
 */
-export function useBootSequence({
-  hostingUser,
-}: {
-  hostingUser: { id: string } | null;
-}) {
+export function useBootSequence() {
   const telemetry = usePosthog();
   const { setShip } = useShip();
   const connectionStatus = store.useConnectionStatus();
@@ -61,7 +58,8 @@ export function useBootSequence({
   }, [bootPhase]);
 
   const runBootPhase = useCallback(async (): Promise<NodeBootPhase> => {
-    if (!hostingUser) {
+    const hostingUserId = await db.hostingUserId.getValue();
+    if (!hostingUserId) {
       logger.crumb('no hosting user found, skipping');
       return bootPhase;
     }
@@ -70,9 +68,10 @@ export function useBootSequence({
     // RESERVING: reserve a node for the hosting account, or get one if it already exists
     //
     if (bootPhase === NodeBootPhase.RESERVING) {
-      const reservedNodeId = await BootHelpers.reserveNode(hostingUser.id);
+      const reservedNodeId = await BootHelpers.reserveNode(hostingUserId);
       setReservedNodeId(reservedNodeId);
       logger.crumb(`reserved node`, reservedNodeId);
+      db.hostedAccountIsInitialized.setValue(true);
       return NodeBootPhase.BOOTING;
     }
 
@@ -87,7 +86,7 @@ export function useBootSequence({
     // BOOTING: confirm the node has finished booting on hosting
     //
     if (bootPhase === NodeBootPhase.BOOTING) {
-      const isReady = await BootHelpers.checkNodeBooted(reservedNodeId);
+      const isReady = await BootHelpers.checkNodeBooted();
       if (isReady) {
         logger.crumb('checked hosting, node is ready');
         return NodeBootPhase.AUTHENTICATING;
@@ -150,7 +149,10 @@ export function useBootSequence({
       const { invitedDm, invitedGroup } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
 
-      if (invitedDm && invitedGroup) {
+      const requiredInvites =
+        lureMeta?.inviteType === 'user' ? invitedDm : invitedGroup && invitedDm;
+
+      if (requiredInvites) {
         logger.crumb('confirmed node has the invites');
         return NodeBootPhase.ACCEPTING_INVITES;
       }
@@ -218,7 +220,10 @@ export function useBootSequence({
         updatedGroup.channels &&
         updatedGroup.channels.length > 0;
 
-      if (dmIsGood && groupIsGood) {
+      const hadSuccess =
+        lureMeta?.inviteType === 'user' ? dmIsGood : groupIsGood && dmIsGood;
+
+      if (hadSuccess) {
         logger.crumb('successfully accepted invites');
         if (updatedTlonTeamDm) {
           store.pinChannel(updatedTlonTeamDm);
@@ -240,10 +245,10 @@ export function useBootSequence({
     bootPhase,
     configureUrbitClient,
     connectionStatus,
-    hostingUser,
     lureMeta,
     reservedNodeId,
     setShip,
+    telemetry,
   ]);
 
   // we increment a counter to ensure the effect executes after every run, even if
@@ -307,6 +312,17 @@ export function useBootSequence({
     }
   }, [runBootPhase, setBootPhase, bootPhase, bootStepCounter, lureMeta?.id]);
 
+  const resetBootSequence = useCallback(() => {
+    setBootPhase(NodeBootPhase.IDLE);
+    setReport(null);
+    setReservedNodeId(null);
+    isRunningRef.current = false;
+    lastRunPhaseRef.current = NodeBootPhase.IDLE;
+    lastRunErrored.current = false;
+
+    sequenceStartTimeRef.current = 0;
+  }, []);
+
   // once finished, set the report
   useEffect(() => {
     if (bootPhase === NodeBootPhase.READY && report === null) {
@@ -320,6 +336,7 @@ export function useBootSequence({
   return {
     bootPhase,
     kickOffBootSequence,
+    resetBootSequence,
     bootReport: report,
   };
 }

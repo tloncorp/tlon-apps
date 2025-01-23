@@ -2,20 +2,24 @@ import { isChatChannel as getIsChatChannel } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import * as urbit from '@tloncorp/shared/urbit';
 import { Story } from '@tloncorp/shared/urbit';
-import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
-import { NavigationProvider, useCurrentUserId } from '../contexts';
-import { AttachmentProvider } from '../contexts/attachment';
+import {
+  ChannelProvider,
+  NavigationProvider,
+  useAttachmentContext,
+  useCurrentUserId,
+} from '../contexts';
 import * as utils from '../utils';
 import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
 import { ChannelFooter } from './Channel/ChannelFooter';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import { DetailView } from './DetailView';
+import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { TlonEditorBridge } from './MessageInput/toolbarActions.native';
@@ -30,7 +34,6 @@ export function PostScreenView({
   markRead,
   goBack,
   groupMembers,
-  uploadAsset,
   handleGoToImage,
   handleGoToUserProfile,
   storeDraft,
@@ -46,7 +49,6 @@ export function PostScreenView({
   goToDm,
   negotiationMatch,
   headerMode,
-  canUpload,
 }: {
   channel: db.Channel;
   initialThreadUnread?: db.ThreadUnreadState | null;
@@ -60,9 +62,8 @@ export function PostScreenView({
   groupMembers: db.ChatMember[];
   handleGoToImage?: (post: db.Post, uri?: string) => void;
   handleGoToUserProfile: (userId: string) => void;
-  uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
-  storeDraft: (draft: urbit.JSONContent) => void;
-  clearDraft: () => void;
+  storeDraft: (draft: urbit.JSONContent) => Promise<void>;
+  clearDraft: () => Promise<void>;
   getDraft: () => Promise<urbit.JSONContent | null>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
@@ -72,14 +73,13 @@ export function PostScreenView({
     parentId?: string,
     metadata?: db.PostMetadata
   ) => Promise<void>;
-  onPressRetry: (post: db.Post) => void;
+  onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
   onPressRef: (channel: db.Channel, post: db.Post) => void;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
   negotiationMatch: boolean;
   headerMode: 'default' | 'next';
-  canUpload: boolean;
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
@@ -132,6 +132,17 @@ export function PostScreenView({
     : parentPost?.title && parentPost.title !== ''
       ? parentPost.title
       : 'Post';
+
+  const isChat = channel.type !== 'notebook' && channel.type !== 'gallery';
+  const containingProperties: any = useMemo(() => {
+    return isChat
+      ? {}
+      : {
+          width: '100%',
+          marginHorizontal: 'auto',
+          maxWidth: 600,
+        };
+  }, [isChat]);
 
   const hasLoaded = !!(posts && channel && parentPost);
   useEffect(() => {
@@ -200,8 +211,8 @@ export function PostScreenView({
     if (channel.type === 'notebook') {
       return {
         getDraft: async () => null,
-        storeDraft: () => {},
-        clearDraft: () => {},
+        storeDraft: async () => {},
+        clearDraft: async () => {},
       };
     }
     return {
@@ -211,15 +222,22 @@ export function PostScreenView({
     };
   }, [channel.type, getDraft, storeDraft, clearDraft]);
 
+  const { attachAssets } = useAttachmentContext();
+
   return (
-    <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
-      <NavigationProvider
-        onGoToUserProfile={handleGoToUserProfile}
-        onPressRef={handleRefPress}
-        onPressGroupRef={onPressGroupRef}
-        onPressGoToDm={goToDm}
-      >
-        <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
+    <NavigationProvider
+      onGoToUserProfile={handleGoToUserProfile}
+      onPressRef={handleRefPress}
+      onPressGroupRef={onPressGroupRef}
+      onPressGoToDm={goToDm}
+    >
+      <ChannelProvider value={{ channel }}>
+        <FileDrop
+          paddingBottom={bottom}
+          backgroundColor="$background"
+          flex={1}
+          onAssetsDropped={attachAssets}
+        >
           <YStack flex={1} backgroundColor={'$background'}>
             <ChannelHeader
               channel={channel}
@@ -258,26 +276,28 @@ export function PostScreenView({
                 channel &&
                 canWrite &&
                 !(isEditingParent && channel.type === 'notebook') && (
-                  <BareChatInput
-                    placeholder="Reply"
-                    shouldBlur={inputShouldBlur}
-                    setShouldBlur={setInputShouldBlur}
-                    send={sendReply}
-                    channelId={channel.id}
-                    groupMembers={groupMembers}
-                    {...bareInputDraftProps}
-                    editingPost={editingPost}
-                    setEditingPost={setEditingPost}
-                    editPost={editPost}
-                    channelType="chat"
-                    showAttachmentButton={channel.type === 'chat'}
-                    showInlineAttachments={channel.type === 'chat'}
-                    shouldAutoFocus={
-                      (channel.type === 'chat' &&
-                        parentPost?.replyCount === 0) ||
-                      !!editingPost
-                    }
-                  />
+                  <View id="reply-container" {...containingProperties}>
+                    <BareChatInput
+                      placeholder="Reply"
+                      shouldBlur={inputShouldBlur}
+                      setShouldBlur={setInputShouldBlur}
+                      send={sendReply}
+                      channelId={channel.id}
+                      groupMembers={groupMembers}
+                      {...bareInputDraftProps}
+                      editingPost={editingPost}
+                      setEditingPost={setEditingPost}
+                      editPost={editPost}
+                      channelType="chat"
+                      showAttachmentButton={channel.type === 'chat'}
+                      showInlineAttachments={channel.type === 'chat'}
+                      shouldAutoFocus={
+                        (channel.type === 'chat' &&
+                          parentPost?.replyCount === 0) ||
+                        !!editingPost
+                      }
+                    />
+                  </View>
                 )}
               {!negotiationMatch && channel && canWrite && (
                 <View
@@ -330,8 +350,8 @@ export function PostScreenView({
               onActionComplete={handleGroupAction}
             />
           </YStack>
-        </View>
-      </NavigationProvider>
-    </AttachmentProvider>
+        </FileDrop>
+      </ChannelProvider>
+    </NavigationProvider>
   );
 }

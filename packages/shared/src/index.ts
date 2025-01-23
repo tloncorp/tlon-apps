@@ -1,5 +1,6 @@
 export * as ChannelAction from './types/ChannelActions';
 export type { GroupMeta } from './types/groups';
+export { JSONValue } from './types/JSONValue';
 export type {
   NativeWebViewOptions,
   NativeCommand,
@@ -19,15 +20,19 @@ export {
   layoutForType,
   layoutTypeFromChannel,
 } from './types/PostCollectionConfiguration';
-export type { ChannelContentConfiguration } from './api/channelContentConfig';
 export {
   CollectionRendererId,
+  ChannelContentConfiguration,
   DraftInputId,
   PostContentRendererId,
+  allCollectionRenderers,
+  allDraftInputs,
+  allContentRenderers,
 } from './api/channelContentConfig';
 export { parseActiveTab, trimFullPath } from './logic/navigation';
 export * from './logic';
 export * from './store';
+export * from './domain';
 export * as sync from './store/sync';
 export * as utils from './logic/utils';
 export * as tiptap from './logic/tiptap';

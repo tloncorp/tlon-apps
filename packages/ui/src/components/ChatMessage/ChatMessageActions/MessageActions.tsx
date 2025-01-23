@@ -87,6 +87,9 @@ function ConnectedAction({
         // 2. the message isn't a reply
         // 3. an existing thread for that message doesn't already exist
         return !post.deliveryStatus && !post.parentId && post.replyCount === 0;
+      case 'muteThread':
+        // only show mute for threads
+        return post.parentId;
       case 'edit':
         // only show edit for current user's posts OR admins of notebook posts
         return (
@@ -120,6 +123,7 @@ function ConnectedAction({
   return (
     <ActionList.Action
       disabled={action.isNetworkDependent && connectionStatus !== 'Connected'}
+      height="auto"
       onPress={() =>
         handleAction({
           id: actionId,
@@ -151,7 +155,7 @@ function CopyJsonAction({ post }: { post: db.Post }) {
   }, [post.content]);
   const { doCopy, didCopy } = useCopy(jsonString);
   return (
-    <ActionList.Action onPress={doCopy} last>
+    <ActionList.Action height="auto" onPress={doCopy} last>
       {!didCopy ? 'Copy post JSON' : 'Copied'}
     </ActionList.Action>
   );
@@ -208,7 +212,13 @@ export async function handleAction({
       onViewReactions?.(post);
       break;
     case 'quote':
-      addAttachment({ type: 'reference', reference, path });
+      if (channel.type === 'dm' && post.textContent) {
+        // For DMs, insert text as markdown quote
+        addAttachment({ type: 'text', text: `> ${post.textContent}\n` });
+      } else {
+        // For other channel types, use reference attachment
+        addAttachment({ type: 'reference', reference, path });
+      }
       break;
     case 'edit':
       onEdit?.();
@@ -285,7 +295,7 @@ export function useDisplaySpecForChannelActionId(
         return { label: isMuted ? 'Unmute thread' : 'Mute thread' };
 
       case 'quote':
-        return { label: 'Quote' };
+        return { label: 'Reply' };
 
       case 'report':
         return {

@@ -12,6 +12,7 @@ import {
 } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
+import { useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import type { RootStackParamList } from '../../navigation/types';
@@ -19,6 +20,7 @@ import type { RootStackParamList } from '../../navigation/types';
 type Props = NativeStackScreenProps<RootStackParamList, 'Contacts'>;
 
 export default function ContactsScreen(props: Props) {
+  const theme = useTheme();
   const {
     navigation: { navigate },
   } = props;
@@ -63,43 +65,45 @@ export default function ContactsScreen(props: Props) {
 
   return (
     <AppDataContextProvider contacts={contacts} currentUserId={currentUser}>
-      <View backgroundColor="$background" flex={1}>
-        <ScreenHeader
-          title="Contacts"
-          leftControls={
-            <ScreenHeader.IconButton
-              type="Add"
-              onPress={() => navigate('AddContacts')}
-            />
-          }
-          rightControls={
-            <ScreenHeader.IconButton
-              type="Settings"
-              onPress={() => {
-                navigate('Profile');
-              }}
-            />
-          }
-        />
-        <ContactsScreenView
-          contacts={userContacts ?? []}
-          suggestions={suggestions ?? []}
-          onContactPress={onContactPress}
-          onContactLongPress={onContactLongPress}
-        />
-        <NavBarView
-          navigateToContacts={() => {
-            navigate('Contacts');
-          }}
-          navigateToHome={() => {
-            navigate('ChatList');
-          }}
-          navigateToNotifications={() => {
-            navigate('Activity');
-          }}
-          currentRoute="Contacts"
-          currentUserId={currentUser}
-        />
+      <View backgroundColor={theme?.background?.val} flex={1} height="100%">
+        <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
+          <ScreenHeader
+            title="Contacts"
+            leftControls={
+              <ScreenHeader.IconButton
+                type="Add"
+                onPress={() => navigate('AddContacts')}
+              />
+            }
+            rightControls={
+              <ScreenHeader.IconButton
+                type="Settings"
+                onPress={() => {
+                  navigate('Profile');
+                }}
+              />
+            }
+          />
+          <ContactsScreenView
+            contacts={userContacts ?? []}
+            suggestions={suggestions ?? []}
+            onContactPress={onContactPress}
+            onContactLongPress={onContactLongPress}
+          />
+          <NavBarView
+            navigateToContacts={() => {
+              navigate('Contacts');
+            }}
+            navigateToHome={() => {
+              navigate('ChatList');
+            }}
+            navigateToNotifications={() => {
+              navigate('Activity');
+            }}
+            currentRoute="Contacts"
+            currentUserId={currentUser}
+          />
+        </View>
       </View>
     </AppDataContextProvider>
   );

@@ -5,24 +5,21 @@ import {
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import {
-  getShipAccessCode,
-  getShipsWithStatus,
-  logInHostingUser,
-  requestPhoneVerify,
-} from '@tloncorp/app/lib/hostingApi';
-import { isEulaAgreed, setEulaAgreed } from '@tloncorp/app/utils/eula';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import {
+  HostingError,
+  getShipAccessCode,
+  requestPhoneVerify,
+} from '@tloncorp/shared/api';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
-import { didSignUp } from '@tloncorp/shared/db';
+import { storage } from '@tloncorp/shared/db';
 import {
   Field,
   KeyboardAvoidingView,
   OnboardingTextBlock,
   ScreenHeader,
   TextInput,
-  TextInputWithButton,
   TlonText,
   View,
   YStack,
@@ -30,7 +27,7 @@ import {
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
-import { useSignupContext } from '../../lib/signupContext';
+import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'TlonLogin'>;
@@ -46,7 +43,6 @@ const logger = createDevLogger('TlonLoginScreen', true);
 export const TlonLoginLegacy = ({ navigation }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
-  const signupContext = useSignupContext();
   const {
     control,
     setFocus,
@@ -62,7 +58,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
     },
     mode: 'onChange',
   });
-  const { setShip } = useShip();
+  const { handleLogin } = useOnboardingHelpers();
 
   const [passwordVisible, setPasswordVisible] = useState(false);
 
@@ -77,91 +73,29 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
 
   const onSubmit = handleSubmit(async (params) => {
     setIsSubmitting(true);
-
-    await setEulaAgreed();
+    await storage.eulaAgreed.setValue(true);
 
     try {
-      const user = await logInHostingUser(params);
-      if (user.verified) {
-        if (user.ships.length > 0) {
-          const shipsWithStatus = await getShipsWithStatus(user.ships);
-          if (shipsWithStatus) {
-            const { status, shipId } = shipsWithStatus;
-            if (status === 'Ready') {
-              const { code: accessCode } = await getShipAccessCode(shipId);
-              const shipUrl = getShipUrl(shipId);
-              const authCookie = await getLandscapeAuthCookie(
-                shipUrl,
-                accessCode
-              );
-              if (authCookie) {
-                if (await isEulaAgreed()) {
-                  setShip({
-                    ship: shipId,
-                    shipUrl,
-                    authCookie,
-                    authType: 'hosted',
-                  });
-
-                  const hasSignedUp = await didSignUp.getValue();
-                  if (!hasSignedUp) {
-                    logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
-                  }
-                } else {
-                  setRemoteError(
-                    'Please agree to the End User License Agreement to continue.'
-                  );
-                }
-              } else {
-                setRemoteError(
-                  "Sorry, we couldn't log you into your Tlon account."
-                );
-              }
-            } else {
-              navigation.navigate('ReserveShip', { user });
-            }
-          } else {
-            setRemoteError(
-              "Sorry, we couldn't find an active Tlon ship for your account."
-            );
-          }
-        } else {
-          signupContext.setOnboardingValues({
-            email: params.email,
-            password: params.password,
-          });
-          navigation.navigate('ReserveShip', { user });
-        }
-      } else if (user.requirePhoneNumberVerification && !user.phoneNumber) {
-        signupContext.setOnboardingValues({
-          email: params.email,
-          password: params.password,
-        });
-        navigation.navigate('RequestPhoneVerify', { user });
+      await handleLogin(params);
+    } catch (err) {
+      logger.trackError(AnalyticsEvent.LoginAnomaly, {
+        context: 'Failed legacy login',
+        errorMessage: err.message,
+        errorStack: err.stack,
+      });
+      if (err instanceof HostingError && err.details.status === 401) {
+        setRemoteError('Incorrect email or password.');
       } else {
-        if (user.requirePhoneNumberVerification) {
-          await requestPhoneVerify(user.id, user.phoneNumber ?? '');
-        }
-
-        signupContext.setOnboardingValues({
-          email: params.email,
-          password: params.password,
+        logger.trackError(`Error Logging In`, {
+          errorMessage: err.message,
+          errorStack: err.stack,
+          details: err.details,
         });
-        navigation.navigate('CheckVerify', {
-          user,
-        });
+        setRemoteError(err.message);
       }
-    } catch (err: any) {
-      if ('name' in err && err.name === 'AbortError') {
-        setRemoteError(
-          'Sorry, we could not connect to the server. Please try again later.'
-        );
-      } else {
-        setRemoteError((err as Error).message);
-      }
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
   });
 
   return (
@@ -230,7 +164,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
               }}
               render={({ field: { onChange, onBlur, value } }) => (
                 <Field label="Password" error={errors.password?.message}>
-                  <TextInputWithButton
+                  <TextInput
                     placeholder="Password"
                     onBlur={() => {
                       onBlur();
@@ -244,8 +178,12 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
                     autoCorrect={false}
                     returnKeyType="send"
                     enablesReturnKeyAutomatically
-                    buttonText={passwordVisible ? 'Hide' : 'Show'}
-                    onButtonPress={() => setPasswordVisible(!passwordVisible)}
+                    rightControls={
+                      <TextInput.InnerButton
+                        label={passwordVisible ? 'Hide' : 'Show'}
+                        onPress={() => setPasswordVisible(!passwordVisible)}
+                      />
+                    }
                   />
                 </Field>
               )}

@@ -8,10 +8,11 @@ import {
   useMemo,
   useRef,
 } from 'react';
-import { Modal } from 'react-native';
+import { Modal, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Dialog,
+  ScrollView,
   SheetProps,
   View,
   VisuallyHidden,
@@ -28,7 +29,7 @@ import { Icon, IconType } from './Icon';
 import { ListItem } from './ListItem';
 import { Sheet } from './Sheet';
 
-export type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
+type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
 
 export type Action = {
   title: string;
@@ -117,10 +118,14 @@ const ActionSheetComponent = ({
             borderWidth={1}
             borderColor="$border"
             padding={0}
-            minWidth={300}
+            width="50%"
+            maxWidth={800}
+            minWidth={400}
             key="content"
+            maxHeight="100%"
+            marginVertical="$2xl"
           >
-            {children}
+            <ScrollView>{children}</ScrollView>
           </Dialog.Content>
         </Dialog.Portal>
 
@@ -190,7 +195,18 @@ const ActionSheetHeader = ActionSheetHeaderFrame.styleable(
 
 const ActionSheetContent = YStack.styleable((props, ref) => {
   const contentStyle = useContentStyle();
-  return <YStack {...contentStyle} {...props} ref={ref} />;
+  const { bottom } = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const maxHeight = height - bottom - getTokenValue('$2xl');
+  return (
+    <YStack
+      // prevent the modal from going off screen
+      maxHeight={maxHeight}
+      {...contentStyle}
+      {...props}
+      ref={ref}
+    />
+  );
 });
 
 const ActionSheetScrollableContent = ({
@@ -215,8 +231,11 @@ const ActionSheetScrollableContent = ({
 
 const useContentStyle = () => {
   const insets = useSafeAreaInsets();
+  const isWindowNarrow = useIsWindowNarrow();
   return {
-    paddingBottom: insets.bottom + getTokenValue('$2xl', 'size'),
+    paddingBottom: isWindowNarrow
+      ? insets.bottom + getTokenValue('$2xl', 'size')
+      : 0,
   };
 };
 
@@ -342,6 +361,7 @@ const ActionSheetActionFrame = styled(ListItem, {
   borderRadius: 0,
   paddingHorizontal: '$2xl',
   paddingVertical: '$l',
+  alignItems: 'center',
   $gtSm: {
     paddingHorizontal: '$l',
     paddingVertical: '$m',
@@ -349,6 +369,7 @@ const ActionSheetActionFrame = styled(ListItem, {
   pressStyle: {
     backgroundColor: '$secondaryBackground',
   },
+  cursor: 'pointer',
   variants: {
     type: {
       positive: {
@@ -391,7 +412,7 @@ const ActionSheetActionDescription = styled(ListItem.Subtitle, {
   context: ActionSheetActionGroupContext,
   maxWidth: '100%',
   $gtSm: {
-    maxWidth: 200,
+    maxWidth: '100%',
   },
   variants: {
     accent: {
@@ -415,12 +436,14 @@ const ActionSheetMainContent = styled(YStack, {
 
 function ActionSheetAction({ action }: { action: Action }) {
   const accent = useContext(ActionSheetActionGroupContext).accent;
+  const isWindowNarrow = useIsWindowNarrow();
   return action.render ? (
     action.render({ action })
   ) : (
     <ActionSheetActionFrame
       type={action.accent ?? (accent as Accent)}
       onPress={accent !== 'disabled' ? action.action : undefined}
+      height={isWindowNarrow ? undefined : '$4xl'}
     >
       {action.startIcon &&
         resolveIcon(action.startIcon, action.accent ?? accent)}
@@ -476,7 +499,7 @@ export const SimpleActionSheetHeader = ({
   subtitle,
   icon,
 }: {
-  title?: string;
+  title?: string | null;
   subtitle?: string;
   icon?: ReactElement;
 }) => {

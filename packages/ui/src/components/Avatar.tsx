@@ -76,21 +76,25 @@ export type AvatarProps = ComponentProps<typeof AvatarFrame> & {
 
 export const ContactAvatar = React.memo(function ContactAvatComponent({
   contactId,
+  contactOverride,
   overrideUrl,
   innerSigilSize,
   ...props
 }: {
   contactId: string;
+  contactOverride?: db.Contact;
   overrideUrl?: string;
   innerSigilSize?: number;
 } & AvatarProps) {
-  const contact = useContact(contactId);
+  const dbContact = useContact(contactId);
+  const contact = contactOverride ?? dbContact;
   return (
     <ImageAvatar
       imageUrl={overrideUrl ?? contact?.avatarImage ?? undefined}
       fallback={
         <SigilAvatar
           contactId={contactId}
+          contactOverride={contactOverride}
           innerSigilSize={innerSigilSize}
           {...props}
         />
@@ -110,9 +114,15 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
   model,
   ...props
 }: { model: db.Group | GroupImageShim } & AvatarProps) {
+  const { disableNicknames } = useCalm();
+  const fallbackTitle = useMemo(() => {
+    return isGroupImageShim(model)
+      ? model.title
+      : utils.getGroupTitle(model, disableNicknames);
+  }, [disableNicknames, model]);
   const fallback = (
     <TextAvatar
-      text={model.title ?? model.id.replace('~', '')}
+      text={fallbackTitle ?? 'G'}
       backgroundColor={model.iconImageColor ?? undefined}
       {...props}
     />
@@ -125,6 +135,12 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
     />
   );
 });
+
+function isGroupImageShim(
+  group: db.Group | GroupImageShim
+): group is GroupImageShim {
+  return !('description' in group);
+}
 
 export const ChannelAvatar = React.memo(function ChannelAvatarComponent({
   model,
@@ -229,6 +245,7 @@ export const ImageAvatar = function ImageAvatarComponent({
   const isSVG = imageUrl?.endsWith('.svg');
 
   return imageUrl &&
+    imageUrl !== '' &&
     !isSVG &&
     (props.ignoreCalm || !calmSettings.disableAvatars) &&
     !loadFailed ? (
@@ -293,11 +310,17 @@ export const TextAvatar = React.memo(function TextAvatarComponent({
 
 export const SigilAvatar = React.memo(function SigilAvatarComponent({
   contactId,
+  contactOverride,
   innerSigilSize,
   size = '$4xl',
   ...props
-}: { contactId: string; innerSigilSize?: number } & AvatarProps) {
-  const contact = useContact(contactId);
+}: {
+  contactId: string;
+  contactOverride?: db.Contact;
+  innerSigilSize?: number;
+} & AvatarProps) {
+  const dbContact = useContact(contactId);
+  const contact = contactOverride ?? dbContact;
   const colors = useSigilColors(contact?.color);
   const styles = useStyle(props, { resolveValues: 'value' });
   const sigilSize = useMemo(() => {

@@ -29,6 +29,8 @@ export interface BaseListItemProps<T> {
   onPress?: (model: T) => void;
   onLongPress?: (model: T) => void;
   unreadCount?: number;
+  isFocused?: boolean;
+  disableOptions?: boolean;
 }
 
 export type ListItemProps<T> = BaseListItemProps<T> &
@@ -44,6 +46,8 @@ export const ListItemFrame = styled(XStack, {
   justifyContent: 'space-between',
   alignItems: 'stretch',
   backgroundColor: '$transparent',
+  userSelect: 'none',
+  height: '$6xl',
 });
 
 const ListItemIconContainer = styled(View, {
@@ -215,7 +219,7 @@ export const ListItemPostPreview = ({
   post,
   showAuthor = true,
 }: {
-  post: db.Post;
+  post: Pick<db.Post, 'authorId' | 'textContent' | 'hidden'>;
   showAuthor?: boolean;
 }) => {
   return (
@@ -254,6 +258,9 @@ const ListItemEndContent = styled(YStack, {
   gap: '$2xs',
   justifyContent: 'center',
   alignItems: 'flex-end',
+  $gtSm: {
+    paddingTop: 0,
+  },
 });
 
 export type ListItem = typeof ListItemFrame;

@@ -22,7 +22,7 @@ export default (
       handleGoToUserProfile={() => {}}
       isLoadingPosts={false}
       editPost={async () => {}}
-      onPressRetry={() => {}}
+      onPressRetry={async () => {}}
       onPressDelete={() => {}}
       editingPost={undefined}
       negotiationMatch={true}

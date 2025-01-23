@@ -44,6 +44,7 @@ type AuthorRowProps = ComponentProps<typeof XStack> & {
   type?: db.PostType;
   detailView?: boolean;
   showEditedIndicator?: boolean;
+  showSentAt?: boolean;
 };
 
 export function useNavigateToProfile(userId: string) {
@@ -83,16 +84,17 @@ export function DetailViewAuthorRow({
   const shouldTruncate = showEditedIndicator || deliveryFailed;
 
   return (
-    <Pressable onPress={openProfile}>
-      <XStack gap="$l" alignItems="center" {...props}>
+    <Pressable onPress={deliveryFailed ? undefined : openProfile}>
+      <XStack gap="$l" alignItems="center" userSelect="none" {...props}>
         <ContactAvatar size="$2xl" contactId={authorId} />
-        <ContactName
-          contactId={authorId}
+        <Text
           size="$label/l"
           numberOfLines={1}
           maxWidth={shouldTruncate ? '55%' : '100%'}
           color={color ?? '$secondaryText'}
-        />
+        >
+          <ContactName contactId={authorId} />
+        </Text>
         {deliveryFailed ? (
           <Text size="$label/m" color="$negativeActionText">
             Tap to retry
@@ -111,6 +113,7 @@ export function ChatAuthorRow({
   deliveryStatus,
   editStatus,
   deleteStatus,
+  showSentAt = true,
   ...props
 }: AuthorRowProps) {
   const openProfile = useNavigateToProfile(authorId);
@@ -133,37 +136,37 @@ export function ChatAuthorRow({
   const shouldTruncate = showEditedIndicator || firstRole || deliveryFailed;
 
   return (
-    <Pressable onPress={openProfile}>
-      <XStack gap="$l" alignItems="center" {...props}>
-        <ContactAvatar size="$2xl" contactId={authorId} />
-        <XStack gap="$l" alignItems="flex-end">
-          <ContactName
-            size="$label/2xl"
-            contactId={authorId}
-            numberOfLines={1}
-            maxWidth={shouldTruncate ? '55%' : '100%'}
-          />
-          {timeDisplay && (
-            <Text color="$secondaryText" size="$label/m">
-              {timeDisplay}
-            </Text>
-          )}
-          {showEditedIndicator && (
-            <Text size="$label/m" color="$secondaryText">
-              Edited
-            </Text>
-          )}
-          {firstRole && <RoleBadge role={firstRole} />}
-          {deliveryFailed ? (
-            <Text size="$label/m" color="$negativeActionText">
-              Tap to retry
-            </Text>
-          ) : null}
-        </XStack>
-        {!!deliveryStatus && deliveryStatus !== 'failed' ? (
-          <ChatMessageDeliveryStatus status={deliveryStatus} />
+    <XStack gap="$l" alignItems="center" userSelect="none" {...props}>
+      <ContactAvatar size="$2xl" contactId={authorId} />
+      <XStack gap="$l" alignItems="flex-end">
+        <Text
+          size="$label/2xl"
+          numberOfLines={1}
+          maxWidth={shouldTruncate ? '55%' : '100%'}
+          onPress={deliveryFailed ? undefined : openProfile}
+        >
+          <ContactName contactId={authorId} />
+        </Text>
+        {showSentAt && timeDisplay && (
+          <Text color="$secondaryText" size="$label/m">
+            {timeDisplay}
+          </Text>
+        )}
+        {showEditedIndicator && (
+          <Text size="$label/m" color="$secondaryText">
+            Edited
+          </Text>
+        )}
+        {firstRole && <RoleBadge role={firstRole} />}
+        {deliveryFailed ? (
+          <Text size="$label/m" color="$negativeActionText">
+            Tap to retry
+          </Text>
         ) : null}
       </XStack>
-    </Pressable>
+      {!!deliveryStatus && deliveryStatus !== 'failed' ? (
+        <ChatMessageDeliveryStatus status={deliveryStatus} />
+      ) : null}
+    </XStack>
   );
 }

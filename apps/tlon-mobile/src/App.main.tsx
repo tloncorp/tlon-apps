@@ -2,7 +2,6 @@ import { useAsyncStorageDevTools } from '@dev-plugins/async-storage';
 import { useReactNavigationDevTools } from '@dev-plugins/react-navigation';
 import { useReactQueryDevTools } from '@dev-plugins/react-query';
 import NetInfo from '@react-native-community/netinfo';
-import crashlytics from '@react-native-firebase/crashlytics';
 import {
   DarkTheme,
   DefaultTheme,
@@ -15,15 +14,15 @@ import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
-import { PlatformState } from '@tloncorp/app/lib/platformHelpers';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
-import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
+import * as db from '@tloncorp/shared/db';
 import {
   LoadingSpinner,
   PortalProvider,
+  StoreProvider,
   Text,
   View,
   usePreloadedEmojis,
@@ -45,7 +44,11 @@ const App = () => {
   const { isLoading, isAuthenticated } = useShip();
   const [connected, setConnected] = useState(true);
   const signupContext = useSignupContext();
-  const finishingSelfHostedLogin = selfHostedLoginStatus.useValue();
+
+  const finishingSelfHostedLogin = db.finishingSelfHostedLogin.useValue();
+  const haveHostedLogin = db.haveHostedLogin.useValue();
+  const hostedAccountInitialized = db.hostedAccountIsInitialized.useValue();
+  const hostedNodeRunning = db.hostedNodeIsRunning.useValue();
 
   const currentlyOnboarding = useMemo(() => {
     return signupContext.email || signupContext.phoneNumber;
@@ -66,10 +69,24 @@ const App = () => {
   }, []);
 
   const showAuthenticatedApp = useMemo(() => {
+    const blockedOnSignup = currentlyOnboarding;
+    const blockedOnLoginHosted =
+      haveHostedLogin && (!hostedAccountInitialized || !hostedNodeRunning);
+    const blockedOnLoginSelfHosted = finishingSelfHostedLogin;
     return (
-      isAuthenticated && !(currentlyOnboarding || finishingSelfHostedLogin)
+      isAuthenticated &&
+      !blockedOnSignup &&
+      !blockedOnLoginHosted &&
+      !blockedOnLoginSelfHosted
     );
-  }, [isAuthenticated, currentlyOnboarding, finishingSelfHostedLogin]);
+  }, [
+    currentlyOnboarding,
+    haveHostedLogin,
+    hostedAccountInitialized,
+    hostedNodeRunning,
+    finishingSelfHostedLogin,
+    isAuthenticated,
+  ]);
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
@@ -127,39 +144,43 @@ export default function ConnectedApp() {
               theme={isDarkMode ? DarkTheme : DefaultTheme}
               ref={navigationContainerRef}
             >
-              <BranchProvider>
-                <PostHogProvider
-                  client={posthogAsync}
-                  autocapture={{
-                    captureTouches: false,
-                  }}
-                  options={{
-                    enable:
-                      process.env.NODE_ENV !== 'test' ||
-                      !!process.env.POST_HOG_IN_DEV,
-                  }}
-                >
-                  <GestureHandlerRootView style={{ flex: 1 }}>
-                    <SafeAreaProvider>
-                      <MigrationCheck>
-                        <QueryClientProvider client={queryClient}>
-                          <SignupProvider>
-                            <PortalProvider>
-                              <App />
-                            </PortalProvider>
+              <StoreProvider>
+                <BranchProvider>
+                  <PostHogProvider
+                    client={posthogAsync}
+                    autocapture={{
+                      captureTouches: false,
+                    }}
+                    options={{
+                      enable:
+                        process.env.NODE_ENV !== 'test' ||
+                        !!process.env.POST_HOG_IN_DEV,
+                    }}
+                  >
+                    <GestureHandlerRootView style={{ flex: 1 }}>
+                      <SafeAreaProvider>
+                        <MigrationCheck>
+                          <QueryClientProvider client={queryClient}>
+                            <SignupProvider>
+                              <PortalProvider>
+                                <App />
+                              </PortalProvider>
 
-                            {__DEV__ && (
-                              <DevTools
-                                navigationContainerRef={navigationContainerRef}
-                              />
-                            )}
-                          </SignupProvider>
-                        </QueryClientProvider>
-                      </MigrationCheck>
-                    </SafeAreaProvider>
-                  </GestureHandlerRootView>
-                </PostHogProvider>
-              </BranchProvider>
+                              {__DEV__ && (
+                                <DevTools
+                                  navigationContainerRef={
+                                    navigationContainerRef
+                                  }
+                                />
+                              )}
+                            </SignupProvider>
+                          </QueryClientProvider>
+                        </MigrationCheck>
+                      </SafeAreaProvider>
+                    </GestureHandlerRootView>
+                  </PostHogProvider>
+                </BranchProvider>
+              </StoreProvider>
             </NavigationContainer>
           </ShipProvider>
         </TamaguiProvider>

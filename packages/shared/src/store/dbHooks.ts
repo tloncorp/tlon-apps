@@ -83,49 +83,14 @@ export const useCalmSettings = (options: { userId: string }) => {
   });
 };
 
-export const useAppInfo = () => {
-  return useQuery({
-    queryKey: db.APP_INFO_QUERY_KEY,
-    queryFn: db.getAppInfoSettings,
-  });
-};
-
-export const useDidShowBenefitsSheet = () => {
-  return useQuery({
-    queryKey: db.SHOW_BENEFITS_SHEET_QUERY_KEY,
-    queryFn: db.getDidShowBenefitsSheet,
-  });
-};
-
-export const useActivitySeenMarker = () => {
-  return useQuery({
-    queryKey: db.ACTIVITY_SEEN_MARKER_QUERY_KEY,
-    queryFn: () => db.getActivitySeenMarker(),
-  });
-};
-
-export const usePushNotificationsSetting = () => {
-  return useQuery({
-    queryKey: db.PUSH_NOTIFICATIONS_SETTING_QUERY_KEY,
-    queryFn: db.getPushNotificationsSetting,
-  });
-};
-
-export const useIsTlonEmployee = () => {
-  return useQuery({
-    queryKey: db.IS_TLON_EMPLOYEE_QUERY_KEY,
-    queryFn: db.getIsTlonEmployee,
-  }).data;
-};
-
 export const useCanUpload = () => {
   return (
     useQuery({
       queryKey: db.STORAGE_SETTINGS_QUERY_KEY,
       queryFn: async () => {
         const [config, credentials] = await Promise.all([
-          db.getStorageConfiguration(),
-          db.getStorageCredentials(),
+          db.storageConfiguration.getValue(),
+          db.storageCredentials.getValue(),
         ]);
         return (
           !config ||
@@ -212,7 +177,7 @@ export const useBaseVolumeLevel = (): ub.NotificationLevel => {
 
 export const useHaveUnreadUnseenActivity = () => {
   const depsKey = useKeyFromQueryDeps(db.getUnreadUnseenActivityEvents);
-  const { data: seenMarker } = useActivitySeenMarker();
+  const seenMarker = db.activitySeenMarker.useValue();
   const { data: meaningfulUnseenActivity } = useQuery({
     queryKey: ['unseenUnreadActivity', depsKey, seenMarker],
     queryFn: () =>
@@ -322,6 +287,24 @@ export const useGroup = ({ id }: { id?: string }) => {
       }
       return db.getGroup({ id });
     },
+  });
+};
+
+export const useGroupUnread = ({ groupId }: { groupId: string }) => {
+  return useQuery({
+    queryKey: [
+      ['groupUnread', { groupId: groupId }],
+      useKeyFromQueryDeps(db.getGroupUnread, { groupId: groupId }),
+    ],
+    queryFn: async () => db.getGroupUnread({ groupId: groupId }),
+  });
+};
+
+export const useJoinedGroupsCount = () => {
+  const deps = useKeyFromQueryDeps(db.getJoinedGroupsCount);
+  return useQuery({
+    queryKey: ['joinedGroupsCount', deps],
+    queryFn: () => db.getJoinedGroupsCount(),
   });
 };
 

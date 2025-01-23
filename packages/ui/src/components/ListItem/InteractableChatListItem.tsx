@@ -29,6 +29,7 @@ function BaseInteractableChatRow({
   model,
   onPress,
   onLongPress,
+  ...props
 }: ListItemProps<db.Chat>) {
   const swipeableRef = useRef<SwipeableMethods>(null);
   const [currentSwipeDirection, setCurrentSwipeDirection] = useState<
@@ -61,9 +62,12 @@ function BaseInteractableChatRow({
           break;
         case 'markRead':
           if (model.type === 'group') {
-            store.markGroupRead(model.group, true);
+            store.markGroupRead(model.id, true);
           } else {
-            store.markChannelRead(model.channel);
+            store.markChannelRead({
+              id: model.id,
+              groupId: model.channel.groupId ?? undefined,
+            });
           }
           break;
         default:
@@ -136,12 +140,18 @@ function BaseInteractableChatRow({
           model={model}
           onPress={onPress}
           onLongPress={onLongPress}
+          {...props}
         />
       </Swipeable>
     );
   } else {
     return (
-      <ChatListItem model={model} onPress={onPress} onLongPress={onLongPress} />
+      <ChatListItem
+        model={model}
+        onPress={onPress}
+        onLongPress={onLongPress}
+        {...props}
+      />
     );
   }
 }

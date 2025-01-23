@@ -126,6 +126,8 @@ export const LineText = styled(Text, {
   color: '$primaryText',
   size: '$body',
   context: cn.ContentContext,
+  userSelect: 'text',
+  cursor: 'text',
   variants: {
     isNotice: {
       true: {
@@ -248,7 +250,6 @@ export function ImageBlock({
 
   return (
     <Pressable
-      borderRadius="$s"
       overflow="hidden"
       onPress={handlePress}
       onLongPress={onLongPress}
@@ -263,6 +264,7 @@ export function ImageBlock({
             ? { aspectRatio: dimensions.aspect || undefined }
             : {}),
         }}
+        borderRadius="$s"
         alt={block.alt}
         onLoad={handleImageLoaded}
         {...imageProps}

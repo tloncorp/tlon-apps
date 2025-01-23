@@ -1,12 +1,15 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { View, isWeb } from 'tamagui';
 
+import { useNavigation } from '../../contexts';
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
+import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
 import { ListItem, type ListItemProps } from './ListItem';
@@ -19,16 +22,19 @@ export function ChannelListItem({
   onLongPress,
   EndContent,
   dimmed,
+  disableOptions = false,
   ...props
 }: {
   useTypeIcon?: boolean;
   customSubtitle?: string;
   dimmed?: boolean;
 } & ListItemProps<db.Channel>) {
+  const [open, setOpen] = useState(false);
   const unreadCount = model.unread?.count ?? 0;
   const title = utils.useChannelTitle(model);
   const firstMemberId = model.members?.[0]?.contactId ?? '';
   const memberCount = model.members?.length ?? 0;
+  const isWindowNarrow = useIsWindowNarrow();
 
   const handlePress = logic.useMutableCallback(() => {
     onPress?.(model);
@@ -42,7 +48,7 @@ export function ChannelListItem({
     if (model.type === 'dm' || model.type === 'groupDm') {
       return {
         subtitle: [
-          firstMemberId,
+          utils.formatUserId(firstMemberId)?.display,
           memberCount > 2 && `and ${memberCount - 1} others`,
         ]
           .filter((v) => !!v)
@@ -57,12 +63,15 @@ export function ChannelListItem({
     }
   }, [model, firstMemberId, memberCount]);
 
+  const isFocused = useNavigation().focusedChannelId === model.id;
+
   return (
     <View>
       <Pressable
         borderRadius="$xl"
         onPress={handlePress}
-        onLongPress={handleLongPress}
+        onLongPress={isWeb ? undefined : handleLongPress}
+        backgroundColor={isFocused ? '$secondaryBackground' : undefined}
       >
         <ListItem {...props}>
           <ListItem.ChannelIcon
@@ -74,11 +83,12 @@ export function ChannelListItem({
             <ListItem.Title dimmed={dimmed}>{title}</ListItem.Title>
             {customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
-            ) : (
+            ) : (model.type === 'dm' || model.type === 'groupDm') &&
+              utils.hasNickname(model.members?.[0]?.contact) ? (
               <ListItem.SubtitleWithIcon icon={subtitleIcon}>
                 {subtitle}
               </ListItem.SubtitleWithIcon>
-            )}
+            ) : null}
             {model.lastPost && !model.isDmInvite && (
               <ListItem.PostPreview
                 post={model.lastPost}
@@ -106,17 +116,36 @@ export function ChannelListItem({
           )}
         </ListItem>
       </Pressable>
-      {isWeb && (
+      {isWeb && !disableOptions && (
         <View position="absolute" right="$-2xs" top="$2xl" zIndex={1}>
-          <Button
-            onPress={handleLongPress}
-            borderWidth="unset"
-            paddingHorizontal={0}
-            marginHorizontal="$-m"
-            minimal
-          >
-            <Icon type="Overflow" />
-          </Button>
+          {isWindowNarrow ? (
+            <Button
+              onPress={handleLongPress}
+              borderWidth="unset"
+              paddingHorizontal={0}
+              marginHorizontal="$-m"
+              minimal
+            >
+              <Icon type="Overflow" />
+            </Button>
+          ) : (
+            <ChatOptionsSheet
+              open={open}
+              onOpenChange={setOpen}
+              chat={{ type: 'channel', id: model.id }}
+              trigger={
+                <Button
+                  backgroundColor="transparent"
+                  borderWidth="unset"
+                  paddingHorizontal={0}
+                  marginHorizontal="$-m"
+                  minimal
+                >
+                  <Icon type="Overflow" />
+                </Button>
+              }
+            />
+          )}
         </View>
       )}
     </View>

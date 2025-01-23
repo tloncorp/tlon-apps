@@ -6,7 +6,7 @@
 =/  m  (strand ,vase)
 ^-  form:m
 |^
-=+  !<([~ =id:h =origin:h =action] arg)
+=+  !<([~ id=id-hook:h =origin:h =action] arg)
 ;<  our=@p  bind:m  get-our:s
 ;<  ~  bind:m  (watch:s /responses [our %channels-server] /v0/hooks)
 =/  =cage

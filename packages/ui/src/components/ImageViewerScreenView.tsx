@@ -1,6 +1,6 @@
 import { ImageZoom, Zoomable } from '@likashefqet/react-native-image-zoom';
 import { ElementRef, useRef, useState } from 'react';
-import { Dimensions, TouchableOpacity } from 'react-native';
+import { Dimensions, TouchableOpacity, Alert } from 'react-native';
 import {
   Directions,
   Gesture,
@@ -9,6 +9,8 @@ import {
 import { runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 
 import { triggerHaptic } from '../utils';
 import { Icon } from './Icon';
@@ -63,6 +65,39 @@ export function ImageViewerScreenView(props: {
       }
     });
 
+  const handleDownloadImage = async () => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please grant Tlon permission to save images');
+        return;
+      }
+
+      const filename = props.uri?.split('/').pop() || 'downloaded-image.jpg';
+      const localUri = `${FileSystem.documentDirectory}${filename}`;
+      const downloadResult = await FileSystem.downloadAsync(
+        props.uri!,
+        localUri
+      );
+
+      if (downloadResult.status === 200) {
+        await MediaLibrary.saveToLibraryAsync(localUri);
+        await FileSystem.deleteAsync(localUri);
+        
+        Alert.alert(
+          'Success',
+          'Image saved to your photos!'
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        'Failed to save image'
+      );
+      console.error('Download error:', error);
+    }
+  };
+
   return (
     <GestureDetector gesture={dismissGesture}>
       <ZStack flex={1} backgroundColor="$black" paddingTop={top}>
@@ -111,7 +146,22 @@ export function ImageViewerScreenView(props: {
         {/* overlay */}
         {showOverlay ? (
           <YStack padding="$xl" paddingTop={top}>
-            <XStack justifyContent="flex-end">
+            <XStack justifyContent={isWeb ? "flex-end" : "space-between"} gap="$m">
+              {!isWeb && (
+                <TouchableOpacity
+                  onPress={handleDownloadImage}
+                  activeOpacity={0.8}
+              >
+                <Stack
+                  padding="$m"
+                  backgroundColor="$darkOverlay"
+                  borderRadius="$l"
+                >
+                    <Icon type="ArrowDown" size="$l" color="$white" />
+                  </Stack>
+                </TouchableOpacity>
+              )}
+              
               <TouchableOpacity
                 onPress={() => props.goBack()}
                 activeOpacity={0.8}

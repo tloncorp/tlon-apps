@@ -1,6 +1,7 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
+import { useAppStatusChange } from '@tloncorp/app/hooks/useAppStatusChange';
 import { useFeatureFlag } from '@tloncorp/app/lib/featureFlags';
 import { connectNotifications } from '@tloncorp/app/lib/notifications';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
@@ -10,17 +11,21 @@ import {
   screenNameFromChannelId,
 } from '@tloncorp/app/navigation/utils';
 import * as posthog from '@tloncorp/app/utils/posthog';
-import { syncDms, syncGroups } from '@tloncorp/shared';
-import { markChatRead } from '@tloncorp/shared/api';
+import { createDevLogger, syncDms, syncGroups } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
+import { markChatRead } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import * as ub from '@tloncorp/shared/urbit';
 import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/urbit';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   Notification,
   addNotificationResponseReceivedListener,
+  getPresentedNotificationsAsync,
 } from 'expo-notifications';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+
+const logger = createDevLogger('useNotificationListener', false);
 
 type RouteStack = {
   name: keyof RootStackParamList;
@@ -35,6 +40,7 @@ interface WerNotificationData extends BaseNotificationData {
   channelId: string;
   postInfo: { id: string; authorId: string; isDm: boolean } | null;
   wer: string;
+  post?: db.Post;
 }
 interface UnrecognizedNotificationData extends BaseNotificationData {
   type: 'unrecognized';
@@ -65,12 +71,25 @@ function payloadFromNotification(
 
   // welcome to my validation library ;)
   if (payload.wer != null && payload.channelId != null) {
+    const postInfo = api.getPostInfoFromWer(payload.wer);
+    const handoffPost: db.Post | undefined = (() => {
+      const dmPost = payload.dmPost as ub.DmPostEvent['dm-post'] | undefined;
+      if (dmPost != null) {
+        return db.postFromDmPostActivityEvent(dmPost);
+      }
+      const post = payload.post as ub.PostEvent['post'] | undefined;
+      if (post != null) {
+        return db.postFromPostActivityEvent(post);
+      }
+      return undefined;
+    })();
     return {
       ...baseNotificationData,
       type: 'wer',
       channelId: payload.channelId,
-      postInfo: api.getPostInfoFromWer(payload.wer),
+      postInfo,
       wer: payload.wer,
+      post: handoffPost,
     };
   }
   return {
@@ -81,11 +100,13 @@ function payloadFromNotification(
 
 export default function useNotificationListener() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const isTlonEmployee = store.useIsTlonEmployee();
+  const isTlonEmployee = db.isTlonEmployee.useValue();
   const [channelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   const [notifToProcess, setNotifToProcess] =
     useState<WerNotificationData | null>(null);
+
+  const handoffDataFrom = useHandoffNotificationData();
 
   // Start notifications prompt
   useEffect(() => {
@@ -97,6 +118,8 @@ export default function useNotificationListener() {
     // This only seems to get triggered on iOS. Android handles the tap and other intents in native code.
     const notificationTapListener = addNotificationResponseReceivedListener(
       (response) => {
+        handoffDataFrom([response.notification]);
+
         const data = payloadFromNotification(response.notification);
 
         // If the NSE caught an error, it puts it in a list under
@@ -142,7 +165,9 @@ export default function useNotificationListener() {
       // Clean up listeners
       notificationTapListener.remove();
     };
-  }, [navigation, isTlonEmployee]);
+  }, [navigation, isTlonEmployee, handoffDataFrom]);
+
+  const isDesktop = useIsWindowNarrow();
 
   // If notification tapped, push channel on stack
   useEffect(() => {
@@ -156,7 +181,11 @@ export default function useNotificationListener() {
 
         const routeStack: RouteStack = [{ name: 'ChatList' }];
         if (channel.groupId) {
-          const mainGroupRoute = await getMainGroupRoute(channel.groupId);
+          const mainGroupRoute = await getMainGroupRoute(
+            channel.groupId,
+            isDesktop
+          );
+          // @ts-expect-error - we know we're on mobile and we can't get a "Home" route
           routeStack.push(mainGroupRoute);
         }
         // Only push the channel if it wasn't already handled by the main group stack
@@ -232,4 +261,46 @@ export default function useNotificationListener() {
       })();
     }
   }, [notifToProcess, navigation, isTlonEmployee, channelSwitcherEnabled]);
+}
+
+function useHandoffNotificationData() {
+  const handoffDataFrom = useCallback(async (notifications: Notification[]) => {
+    const handoffPosts = notifications.flatMap((notification) => {
+      const data = payloadFromNotification(notification);
+      if (data == null || data.type === 'unrecognized' || data.post == null) {
+        return [];
+      }
+      return [data.post];
+    });
+
+    if (handoffPosts.length > 0) {
+      await db.insertUnconfirmedPosts({ posts: handoffPosts });
+    }
+  }, []);
+
+  // take data from presented notifications
+  const handoffFromPresentedNotifications = useCallback(async () => {
+    handoffDataFrom(await getPresentedNotificationsAsync());
+  }, [handoffDataFrom]);
+
+  // take data on launch
+  useEffect(() => {
+    handoffFromPresentedNotifications().catch((e) => {
+      logger.error('Failed to slurp handoffs:', e);
+    });
+  }, [handoffFromPresentedNotifications]);
+
+  // take data on each app resume
+  useAppStatusChange(
+    useCallback(
+      async (status) => {
+        if (status === 'active') {
+          await handoffFromPresentedNotifications();
+        }
+      },
+      [handoffFromPresentedNotifications]
+    )
+  );
+
+  return handoffDataFrom;
 }
