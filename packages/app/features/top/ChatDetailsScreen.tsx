@@ -282,7 +282,7 @@ function GroupSettings({ group }: { group: db.Group }) {
   }, [group.id, onPressManageChannels]);
 
   const handlePressNotificationSettings = useCallback(() => {
-    onPressChatVolume('group', group.id);
+    onPressChatVolume({ type: 'group', id: group.id });
   }, [group.id, onPressChatVolume]);
 
   return (

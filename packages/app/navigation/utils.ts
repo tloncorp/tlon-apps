@@ -230,15 +230,53 @@ export function useRootNavigation() {
     [navigationRef, isWindowNarrow]
   );
 
-  const navigateToChatDetails = useCallback(
-    (chat: { type: 'group' | 'channel'; id: string }) => {
-      navigationRef.current.navigate('ChatDetails', {
-        chatId: chat.id,
-        chatType: chat.type,
-      });
-    },
-    [navigationRef]
-  );
+  const useNavigateToChatDetails = () => {
+    const isWindowNarrow = useIsWindowNarrow();
+
+    return useCallback(
+      (chat: { type: 'group' | 'channel'; id: string }) => {
+        if (isWindowNarrow) {
+          navigationRef.current.navigate('ChatDetails', {
+            chatId: chat.id,
+            chatType: chat.type,
+          });
+        } else {
+          navigationRef.current.navigate('Home', {
+            screen: 'ChatDetails',
+            params: {
+              chatId: chat.id,
+              chatType: chat.type,
+            },
+          });
+        }
+      },
+      [isWindowNarrow]
+    );
+  };
+
+  const useNavigateToChatVolume = () => {
+    const isWindowNarrow = useIsWindowNarrow();
+
+    return useCallback(
+      (chat: { type: 'group' | 'channel'; id: string }) => {
+        if (isWindowNarrow) {
+          navigationRef.current.navigate('ChatVolume', {
+            chatId: chat.id,
+            chatType: chat.type,
+          });
+        } else {
+          navigationRef.current.navigate('Home', {
+            screen: 'ChatVolume',
+            params: {
+              chatId: chat.id,
+              chatType: chat.type,
+            },
+          });
+        }
+      },
+      [isWindowNarrow]
+    );
+  };
 
   const navigateBack = useCallback(() => {
     navigationRef.current.goBack();
@@ -246,6 +284,8 @@ export function useRootNavigation() {
 
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();
+  const navigateToChatDetails = useNavigateToChatDetails();
+  const navigateToChatVolume = useNavigateToChatVolume();
   const navigateBackFromPost = useNavigateBackFromPost();
   const navigateToPost = useNavigateToPost();
   const resetToGroup = useResetToGroup();
@@ -259,6 +299,7 @@ export function useRootNavigation() {
       navigateBackFromPost,
       navigateToPost,
       navigateToChatDetails,
+      navigateToChatVolume,
       resetToGroup,
       resetToChannel,
       resetToDm,
@@ -268,6 +309,7 @@ export function useRootNavigation() {
       navigation,
       navigateToChannel,
       navigateToChatDetails,
+      navigateToChatVolume,
       navigateBackFromPost,
       navigateToGroup,
       navigateToPost,

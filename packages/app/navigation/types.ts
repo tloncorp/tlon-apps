@@ -106,6 +106,8 @@ export type HomeDrawerParamList = Pick<
   GroupDM:
     | NavigatorScreenParams<ChannelStackParamList>
     | RootStackParamList['GroupDM'];
+  ChatDetails: RootStackParamList['ChatDetails'];
+  ChatVolume: RootStackParamList['ChatVolume'];
 };
 
 export type ChannelStackParamList = {

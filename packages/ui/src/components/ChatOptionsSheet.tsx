@@ -285,7 +285,7 @@ function GroupOptionsSheetContent({
           'neutral',
           {
             title: 'Group info & settings',
-            action: handlePressChatDetails,
+            action: wrappedAction.bind(null, handlePressChatDetails),
             endIcon: 'ChevronRight',
           },
         ]
@@ -619,7 +619,7 @@ function ChannelOptionsSheetContent({
           'neutral',
           {
             title: 'Group info & settings',
-            action: handlePressChatDetails,
+            action: wrappedAction.bind(null, handlePressChatDetails),
             endIcon: 'ChevronRight',
           },
           currentUserIsAdmin &&

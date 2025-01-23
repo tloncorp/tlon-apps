@@ -15,7 +15,7 @@ export const useChatSettingsNavigation = () => {
 
   const { navigateToChatDetails } = useRootNavigation();
 
-  const { navigateToGroup } = useRootNavigation();
+  const { navigateToGroup, navigateToChatVolume } = useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
 
   const navigateToGroupSettings = useCallback(
@@ -47,13 +47,6 @@ export const useChatSettingsNavigation = () => {
       navigateToGroupSettings('GroupMeta', { groupId });
     },
     [navigateToGroupSettings]
-  );
-
-  const navigateToChatVolume = useCallback(
-    (chatType: 'group' | 'channel', chatId: string) => {
-      navigationRef.current.navigate('ChatVolume', { chatType, chatId });
-    },
-    [navigationRef]
   );
 
   const onPressGroupMembers = useCallback(
