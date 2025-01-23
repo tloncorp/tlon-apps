@@ -148,7 +148,13 @@
 ++  on-save  !>(state)
 ++  on-init
   ^-  (quip card _this)
-  :_  this
+  ::  ahead-of-time subscribe to the default service provider,
+  ::  (for easier post-nuke (or post-breach) restoration,)
+  ::  and make sure our contacts profile is "clean", matching our empty state.
+  ::
+  :_  this(ledgers (~(put by ledgers) default ~))
+  %+  weld
+    (join-service our.bowl default)
   (drop (inflate-contacts-profile [our now]:bowl records ledgers))
 ::
 ++  on-load
