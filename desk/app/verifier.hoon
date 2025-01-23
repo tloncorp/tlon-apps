@@ -15,8 +15,9 @@
 ::    so that we can easily rate-limit queries. if we don't, brute-forcing
 ::    discovery of someone's identifiers becomes possible.
 ::
-/-  *verifier
+/-  verifier
 /+  hu=http-utils, dbug, verb, negotiate
+=,  (verifier id-type:verifier)
 ::
 %-  %-  agent:negotiate
     [notify=| expose=[~.verifier^%0 ~ ~] expect=~]
@@ -841,6 +842,20 @@
       [?(%x %u) %attestations sig=@ ~]
     =/  sig=@ux  (slav %ux i.t.t.path)
     ``loob+!>((~(has by attested) sig))
+  ::
+      [%x %dbug %state ~]
+    =;  typ
+      ``noun+!>(;;([%0 typ] state))
+    ::  get the state type with lightly obfuscated identifiers,
+    ::  to avoid leaking those details to well-intentioned operators
+    ::
+    =<  state
+    %-  verifier
+    $%  [%dummy @uw]
+        [%urbit @uw]
+        [%phone @uw]
+        [%twitter @uw]
+    ==
   ==
 ::
 ++  on-fail

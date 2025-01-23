@@ -1,6 +1,15 @@
 ::  verifier: identity verification service types
 ::
+=/  id-type
+  $%  [%dummy @t]
+      [%urbit @p]
+      [%phone @t]    ::  normalized phone nr, a la +31612345678
+      [%twitter @t]  ::  lowercased handle
+  ==
+|*  identifier=mold  ::NOTE  parameterized for dbug purposes
+^?
 |%
++$  identifier  ^identifier
 +$  state
   $:  records=(map identifier record)
       owners=(jug ship identifier)
@@ -16,12 +25,6 @@
       domain=(unit @t)  ::  as 'https://example.org:123'
   ==
 ::
-+$  identifier
-  $%  [%dummy @t]
-      [%urbit @p]
-      [%phone @t]    ::  normalized phone nr, a la +31612345678
-      [%twitter @t]  ::  lowercased handle
-  ==
 +$  id-kind  ?(%dummy %urbit %phone %twitter)
 ::
 +$  record
