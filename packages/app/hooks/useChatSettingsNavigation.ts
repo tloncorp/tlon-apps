@@ -58,7 +58,6 @@ export const useChatSettingsNavigation = () => {
 
   const onPressManageChannels = useCallback(
     (groupId: string) => {
-      console.log('navigate to manage channels', groupId);
       navigateToGroupSettings('ManageChannels', { groupId });
     },
     [navigateToGroupSettings]
