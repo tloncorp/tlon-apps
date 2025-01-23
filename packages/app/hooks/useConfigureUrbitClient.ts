@@ -69,9 +69,11 @@ export function useConfigureUrbitClient() {
         onQuitOrReset: sync.handleDiscontinuity,
         onChannelStatusChange: sync.handleChannelStatusChange,
         getCode: async () => {
+          clientLogger.log('Cliet getting access code');
           // use stored access code to reauth if we have it
           const accessCode = await db.nodeAccessCode.getValue();
           if (accessCode) {
+            clientLogger.trackEvent('Recovered Auth Code from Storage');
             return accessCode;
           }
 
@@ -101,10 +103,13 @@ export function useConfigureUrbitClient() {
               context: message,
             });
             throw new Error(message);
+          } else {
+            clientLogger.trackEvent('Recovered Auth Code from Hosting');
           }
           return code;
         },
         handleAuthFailure: async () => {
+          clientLogger.log('Cliet handling auth failure');
           if (authType === 'self') {
             // there's nothing we can do to recover, must log out
             clientLogger.trackEvent(AnalyticsEvent.AuthForcedLogout, {
