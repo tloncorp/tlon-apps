@@ -98,13 +98,21 @@
       =*  nop  [urbits phone]
       ?.  ?=(%done -.status)  nop
       ::TODO  check privacy control? if we do, make %config facts call this too.
-      ::TODO  for duplicates, don't overwrite versions that are clickable,
-      ::      with unclickable versions
       ?-  -.id
         %dummy    nop
-        %urbit    [(~(put by urbits) +.id h full-sign.status) phone]
-        %phone    [urbits `[h half-sign.status]]
         %twitter  nop  ::TODO
+        %urbit    [(~(put by urbits) +.id h full-sign.status) phone]
+      ::
+          %phone
+        :-  urbits
+        =-  (hunt - phone `[h half-sign.status])
+        ::  prefer those whose service is publicly accessible,
+        ::  and prefer the default service over others
+        ::
+        |=  [[a=@p *] [b=@p *]]
+        =+  ha=(~(has by ledgers) a)
+        ?.  =(ha (~(has by ledgers) b))  ha
+        =(default a)
       ==
   =/  make-url
     |=  [h=@p sig=@]
