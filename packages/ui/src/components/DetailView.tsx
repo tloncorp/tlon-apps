@@ -57,9 +57,24 @@ export const DetailView = ({
     }
   }, [editorIsFocused, flatListRef]);
 
+  const containingProperties: any = useMemo(() => {
+    return isChat
+      ? {}
+      : {
+          width: '100%',
+          marginHorizontal: 'auto',
+          maxWidth: 600,
+        };
+  }, [isChat]);
+
   const scroller = useMemo(() => {
     return (
-      <View paddingTop="$l" paddingHorizontal="$m" flex={1}>
+      <View
+        {...containingProperties}
+        paddingTop="$l"
+        paddingHorizontal="$m"
+        flex={1}
+      >
         <Scroller
           inverted
           renderItem={ChatMessage}
@@ -110,7 +125,7 @@ export const DetailView = ({
       renderItem={({ item }) => {
         if (item === 'header') {
           return (
-            <View>
+            <View width="100%" marginHorizontal="auto" maxWidth={600}>
               {channelType === 'gallery' ? (
                 <GalleryPostDetailView post={post} />
               ) : channelType == 'notebook' ? (

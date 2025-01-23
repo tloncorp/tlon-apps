@@ -133,6 +133,17 @@ export function PostScreenView({
       ? parentPost.title
       : 'Post';
 
+  const isChat = channel.type !== 'notebook' && channel.type !== 'gallery';
+  const containingProperties: any = useMemo(() => {
+    return isChat
+      ? {}
+      : {
+          width: '100%',
+          marginHorizontal: 'auto',
+          maxWidth: 600,
+        };
+  }, [isChat]);
+
   const hasLoaded = !!(posts && channel && parentPost);
   useEffect(() => {
     if (hasLoaded) {
@@ -265,26 +276,28 @@ export function PostScreenView({
                 channel &&
                 canWrite &&
                 !(isEditingParent && channel.type === 'notebook') && (
-                  <BareChatInput
-                    placeholder="Reply"
-                    shouldBlur={inputShouldBlur}
-                    setShouldBlur={setInputShouldBlur}
-                    send={sendReply}
-                    channelId={channel.id}
-                    groupMembers={groupMembers}
-                    {...bareInputDraftProps}
-                    editingPost={editingPost}
-                    setEditingPost={setEditingPost}
-                    editPost={editPost}
-                    channelType="chat"
-                    showAttachmentButton={channel.type === 'chat'}
-                    showInlineAttachments={channel.type === 'chat'}
-                    shouldAutoFocus={
-                      (channel.type === 'chat' &&
-                        parentPost?.replyCount === 0) ||
-                      !!editingPost
-                    }
-                  />
+                  <View id="reply-container" {...containingProperties}>
+                    <BareChatInput
+                      placeholder="Reply"
+                      shouldBlur={inputShouldBlur}
+                      setShouldBlur={setInputShouldBlur}
+                      send={sendReply}
+                      channelId={channel.id}
+                      groupMembers={groupMembers}
+                      {...bareInputDraftProps}
+                      editingPost={editingPost}
+                      setEditingPost={setEditingPost}
+                      editPost={editPost}
+                      channelType="chat"
+                      showAttachmentButton={channel.type === 'chat'}
+                      showInlineAttachments={channel.type === 'chat'}
+                      shouldAutoFocus={
+                        (channel.type === 'chat' &&
+                          parentPost?.replyCount === 0) ||
+                        !!editingPost
+                      }
+                    />
+                  </View>
                 )}
               {!negotiationMatch && channel && canWrite && (
                 <View
