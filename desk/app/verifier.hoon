@@ -17,7 +17,7 @@
 ::
 /-  verifier
 /+  hu=http-utils, dbug, verb, negotiate
-=,  (verifier id-type:verifier)
+=,  (verifier)
 ::
 %-  %-  agent:negotiate
     [notify=| expose=[~.verifier^%0 ~ ~] expect=~]

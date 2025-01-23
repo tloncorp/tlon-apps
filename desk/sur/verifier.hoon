@@ -6,7 +6,7 @@
       [%phone @t]    ::  normalized phone nr, a la +31612345678
       [%twitter @t]  ::  lowercased handle
   ==
-|*  identifier=mold  ::NOTE  parameterized for dbug purposes
+|*  identifier=_id-type  ::NOTE  parameterized for dbug purposes
 ^?
 |%
 +$  identifier  ^identifier

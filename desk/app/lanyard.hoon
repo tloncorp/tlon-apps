@@ -9,7 +9,7 @@
 ::
 /-  verifier, c=contacts
 /+  dbug, verb, negotiate
-=,  (verifier id-type:verifier)
+=,  (verifier)
 ::
 %-  %-  agent:negotiate
     [notify=| expose=[~.lanyard^%0 ~ ~] expect=[%verifier^[~.verifier^%0 ~ ~] ~ ~]]
