@@ -836,6 +836,13 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
+      [%x %whey ~]
+    :^  ~  ~  %mass
+    !>  ^-  (list mass)
+    :~  'records'^&+records
+        'indices'^&+[owners attested lookups reverse]
+    ==
+  ::
       [?(%x %u) %records user=@ *]
     !!
   ::
