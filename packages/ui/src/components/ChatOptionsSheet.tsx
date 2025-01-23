@@ -616,7 +616,7 @@ function ChannelOptionsSheetContent({
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
 
   const currentUser = useCurrentUserId();
-  const currentUserIsHost = group?.currentUserIsHost ?? false;
+  const currentUserIsHost = channel?.currentUserIsHost ?? false;
   const currentUserIsAdmin = useIsAdmin(channel.groupId ?? '', currentUser);
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;

@@ -268,6 +268,7 @@ export function buildChannel(
     coverImage: null,
     coverImageColor: null,
     currentUserIsMember: null,
+    currentUserIsHost: null,
     description: null,
     firstUnreadPostId: null,
     groupId: null,
