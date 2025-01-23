@@ -7,10 +7,13 @@ import ListFrame from './ListFrame';
 const ActionFrame = styled(ListItem, {
   borderRadius: 'unset',
   borderBottomWidth: 0.5,
-  borderBottomColor: '$secondaryBorder',
+  borderBottomColor: '$border',
   backgroundColor: 'transparent',
+  hoverStyle: {
+    backgroundColor: '$secondaryBackground',
+  },
   pressStyle: {
-    backgroundColor: '$secondaryBorder',
+    backgroundColor: '$border',
   },
   variants: {
     last: {
@@ -36,7 +39,7 @@ function Action(
       : undefined;
 
   return (
-    <ActionFrame {...rest}>
+    <ActionFrame cursor="pointer" userSelect="none" {...rest}>
       <ListItem.Title color={textColor}>{children}</ListItem.Title>
     </ActionFrame>
   );

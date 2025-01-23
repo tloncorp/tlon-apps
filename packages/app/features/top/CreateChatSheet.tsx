@@ -6,6 +6,8 @@ import {
   ContactBook,
   LoadingSpinner,
   SimpleActionSheet,
+  capitalize,
+  useIsWindowNarrow,
 } from '@tloncorp/ui';
 import {
   forwardRef,
@@ -17,10 +19,13 @@ import {
 } from 'react';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, YStack } from 'tamagui';
+import { Popover, View, YStack } from 'tamagui';
 
 import { useRootNavigation } from '../../navigation/utils';
 import { trackError } from '../../utils/posthog';
+
+type ChatType = 'dm' | 'group';
+type Step = 'initial' | 'selectType' | `create${Capitalize<ChatType>}`;
 
 export type CreateChatParams =
   | { type: 'dm'; contactId: string }
@@ -31,11 +36,119 @@ export type CreateChatSheetMethods = {
   close: () => void;
 };
 
+function createTypeActions(onSelectType: (type: ChatType) => void): Action[] {
+  return [
+    {
+      title: CHAT_TYPE_CONFIG.dm.actionTitle,
+      description: CHAT_TYPE_CONFIG.dm.actionDescription,
+      action: () => onSelectType('dm'),
+    },
+    {
+      title: CHAT_TYPE_CONFIG.group.actionTitle,
+      description: CHAT_TYPE_CONFIG.group.actionDescription,
+      action: () => onSelectType('group'),
+    },
+  ];
+}
+
+const CHAT_TYPE_CONFIG = {
+  dm: {
+    title: 'New chat',
+    subtitle: 'Select a contact to chat with',
+    actionTitle: 'New direct message',
+    actionDescription: 'Create a new chat with one other person.',
+  },
+  group: {
+    title: 'New group',
+    subtitle: 'Select contacts to invite',
+    actionTitle: 'New group',
+    actionDescription: 'Create customizable group chat',
+  },
+} as const;
+
+interface ActionButtonsProps {
+  actions: Action[];
+  paddingBottom?: number;
+}
+
+interface CreateChatFormContentProps {
+  chatType: ChatType;
+  isCreating: boolean;
+  onSelectDmContact: (contactId: string) => void;
+  onSelectedChange: (contactIds: string[]) => void;
+  onCreateGroup: () => void;
+  onScrollChange?: (scrolling: boolean) => void;
+}
+
+const ActionButtons = ({ actions, paddingBottom }: ActionButtonsProps) => (
+  <YStack gap="$s" paddingBottom={paddingBottom}>
+    {actions.map((action, i) => (
+      <Button
+        key={i}
+        onPress={action.action}
+        width="100%"
+        justifyContent="flex-start"
+      >
+        <YStack>
+          <Button.Text size="$s">{action.title}</Button.Text>
+          {action.description && (
+            <Button.Text color="$secondaryText" size="$s">
+              {action.description}
+            </Button.Text>
+          )}
+        </YStack>
+      </Button>
+    ))}
+  </YStack>
+);
+
+const CreateChatFormContent = ({
+  chatType,
+  isCreating,
+  onSelectDmContact,
+  onSelectedChange,
+  onCreateGroup,
+  onScrollChange,
+}: CreateChatFormContentProps) => {
+  const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
+  const { bottom } = useSafeAreaInsets();
+
+  return (
+    <YStack flex={1} gap="$l" paddingBottom={bottom}>
+      <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
+      <ContactBook
+        searchable
+        multiSelect={chatType === 'group'}
+        searchPlaceholder="Filter by nickname or id"
+        onSelect={onSelectDmContact}
+        onSelectedChange={onSelectedChange}
+        onScrollChange={(scrolling) => {
+          onScrollChange?.(scrolling);
+        }}
+        height={400}
+      />
+      {chatType === 'group' && (
+        <Button marginTop="$l" hero onPress={onCreateGroup}>
+          {!isCreating ? (
+            <Button.Text>Create group</Button.Text>
+          ) : (
+            <View width={30} paddingHorizontal="$2xl">
+              <LoadingSpinner color="$background" />
+            </View>
+          )}
+        </Button>
+      )}
+    </YStack>
+  );
+};
+
 export const CreateChatSheet = forwardRef(function CreateChatSheet(
   {
     defaultOpen,
+    trigger,
   }: {
     defaultOpen?: boolean;
+    trigger?: React.ReactNode;
   },
   ref: React.Ref<CreateChatSheetMethods>
 ) {
@@ -50,16 +163,23 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     }
   }, [createChatError]);
 
-  const [step, setStep] = useState<
-    'initial' | 'selectType' | 'createGroup' | 'createDm'
-  >(defaultOpen ? 'selectType' : 'initial');
+  const [step, setStep] = useState<Step>(
+    defaultOpen ? 'selectType' : 'initial'
+  );
 
-  const handleSelectTypeOpenChange = useCallback((open: boolean) => {
-    setStep(open ? 'selectType' : 'initial');
-  }, []);
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setStep('initial');
+      } else if (step === 'initial') {
+        setStep('selectType');
+      }
+    },
+    [step]
+  );
 
-  const handleTypeSelected = useCallback((type: 'group' | 'dm') => {
-    setStep(type === 'group' ? 'createGroup' : 'createDm');
+  const handleTypeSelected = useCallback((type: ChatType) => {
+    setStep(`create${capitalize(type)}` as Step);
   }, []);
 
   const handleSubmit = useCallback(
@@ -84,16 +204,69 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     []
   );
 
-  return (
+  const isWindowNarrow = useIsWindowNarrow();
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+
+  const handleSelectDmContact = useCallback(
+    (contactId: string) => {
+      handleSubmit({ type: 'dm', contactId });
+    },
+    [handleSubmit]
+  );
+
+  const handlePressCreateGroup = useCallback(async () => {
+    handleSubmit({ type: 'group', contactIds: selectedContactIds });
+  }, [handleSubmit, selectedContactIds]);
+
+  const insets = useSafeAreaInsets();
+
+  const chatType = step === 'createDm' ? 'dm' : 'group';
+  const actions = useMemo(
+    () => createTypeActions(handleTypeSelected),
+    [handleTypeSelected]
+  );
+
+  return !isWindowNarrow ? (
+    <Popover
+      open={step !== 'initial'}
+      onOpenChange={handleOpenChange}
+      placement="top-end"
+      allowFlip
+      offset={-12}
+    >
+      <Popover.Trigger asChild>{trigger}</Popover.Trigger>
+      <Popover.Content
+        elevate
+        animation="quick"
+        zIndex={1000000}
+        position="relative"
+        borderColor="$border"
+        borderWidth={1}
+        padding="$m"
+      >
+        {step === 'selectType' ? (
+          <ActionButtons actions={actions} paddingBottom={insets.bottom} />
+        ) : (
+          <CreateChatFormContent
+            chatType={chatType}
+            isCreating={isCreatingChat}
+            onSelectDmContact={handleSelectDmContact}
+            onSelectedChange={setSelectedContactIds}
+            onCreateGroup={handlePressCreateGroup}
+          />
+        )}
+      </Popover.Content>
+    </Popover>
+  ) : (
     <>
       <CreateChatTypeSheet
         open={step === 'selectType'}
-        onOpenChange={handleSelectTypeOpenChange}
+        onOpenChange={handleOpenChange}
         onSelectType={handleTypeSelected}
       />
       <CreateChatInviteSheet
         open={step === 'createDm' || step === 'createGroup'}
-        onOpenChange={handleSelectTypeOpenChange}
+        onOpenChange={handleOpenChange}
         onSubmit={handleSubmit}
         chatType={step === 'createDm' ? 'dm' : 'group'}
         isCreating={isCreatingChat}
@@ -111,19 +284,8 @@ export function CreateChatTypeSheet({
   onOpenChange: (open: boolean) => void;
   onSelectType: (type: 'dm' | 'group') => void;
 }) {
-  const actions: Action[] = useMemo(
-    (): Action[] => [
-      {
-        title: 'New direct message',
-        description: 'Create a new chat with one other person.',
-        action: () => onSelectType('dm'),
-      },
-      {
-        title: 'New group',
-        description: 'Create customizable group chat',
-        action: () => onSelectType('group'),
-      },
-    ],
+  const actions = useMemo(
+    () => createTypeActions(onSelectType),
     [onSelectType]
   );
   return (
@@ -149,6 +311,7 @@ export function CreateChatInviteSheet({
   isCreating: boolean;
 }) {
   const [screenScrolling, setScreenScrolling] = useState(false);
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
 
   const handleSelectDmContact = useCallback(
     (contactId: string) => {
@@ -157,21 +320,9 @@ export function CreateChatInviteSheet({
     [onSubmit]
   );
 
-  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
-
   const handlePressCreateGroup = useCallback(async () => {
     onSubmit({ type: 'group', contactIds: selectedContactIds });
   }, [onSubmit, selectedContactIds]);
-
-  const insets = useSafeAreaInsets();
-
-  const { title, subtitle } = {
-    dm: { title: 'New chat', subtitle: 'Select a contact to chat with' },
-    group: {
-      title: 'New group',
-      subtitle: 'Select contacts to invite',
-    },
-  }[chatType];
 
   return (
     <ActionSheet
@@ -182,37 +333,15 @@ export function CreateChatInviteSheet({
       snapPoints={[90]}
       snapPointsMode="percent"
     >
-      <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
       <YStack flex={1} paddingHorizontal="$2xl">
-        <ContactBook
-          searchable
-          multiSelect={chatType === 'group'}
-          searchPlaceholder="Filter by nickname or id"
-          onSelect={handleSelectDmContact}
+        <CreateChatFormContent
+          chatType={chatType}
+          isCreating={isCreating}
+          onSelectDmContact={handleSelectDmContact}
           onSelectedChange={setSelectedContactIds}
+          onCreateGroup={handlePressCreateGroup}
           onScrollChange={setScreenScrolling}
-          height={400}
         />
-        {chatType === 'group' && (
-          <Button
-            position="absolute"
-            bottom={insets.bottom}
-            marginBottom={'$2xl'}
-            left={'$xl'}
-            right={'$xl'}
-            hero
-            shadow
-            onPress={handlePressCreateGroup}
-          >
-            {!isCreating ? (
-              <Button.Text>Create group</Button.Text>
-            ) : (
-              <View width={30} paddingHorizontal="$2xl">
-                <LoadingSpinner color="$background" />
-              </View>
-            )}
-          </Button>
-        )}
       </YStack>
     </ActionSheet>
   );

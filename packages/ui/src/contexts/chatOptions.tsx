@@ -14,6 +14,7 @@ import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { ChatOptionsSheet } from '../components/ChatOptionsSheet';
+import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
 import { useChannelTitle } from '../utils';
 
 export type ChatOptionsContextValue = {
@@ -37,6 +38,7 @@ export type ChatOptionsContextValue = {
   updateVolume: (level: ub.NotificationLevel | null) => void;
   setChannelSortPreference?: (sortBy: 'recency' | 'arranged') => void;
   open: (chatId: string, chatType: 'group' | 'channel') => void;
+  setChat: (chat: { id: string; type: 'group' | 'channel' } | null) => void;
 } | null;
 
 const ChatOptionsContext = createContext<ChatOptionsContextValue>(null);
@@ -56,7 +58,7 @@ type ChatOptionsProviderProps = {
   onPressGroupMeta: (groupId: string) => void;
   onPressGroupMembers: (groupId: string) => void;
   onPressManageChannels: (groupId: string) => void;
-  onPressInvite?: (group: db.Group) => void;
+  onPressInvite?: (groupId: string) => void;
   onPressGroupPrivacy: (groupId: string) => void;
   onPressChannelMembers: (channelId: string) => void;
   onPressChannelMeta: (channelId: string) => void;
@@ -64,6 +66,7 @@ type ChatOptionsProviderProps = {
   onPressRoles: (groupId: string) => void;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
   onLeaveGroup?: () => void;
+  onPressConfigureChannel?: () => void;
   initialChat?: {
     id: string;
     type: 'group' | 'channel';
@@ -85,12 +88,14 @@ export const ChatOptionsProvider = ({
   onPressChannelTemplate,
   onPressRoles,
   onLeaveGroup: navigateOnLeave,
+  onPressConfigureChannel,
 }: ChatOptionsProviderProps) => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [chat, setChat] = useState<{
     id: string;
     type: 'group' | 'channel';
   } | null>(initialChat ?? null);
+  const isWindowNarrow = useIsWindowNarrow();
 
   const openSheet = useCallback(
     (chatId: string, chatType: 'group' | 'channel') => {
@@ -105,7 +110,19 @@ export const ChatOptionsProvider = ({
 
   const closeSheet = useCallback(() => {
     setSheetOpen(false);
+    // Delay clearing chat state to allow handlers to complete
+    setTimeout(() => {
+      setChat(null);
+    }, 100);
+    return true;
   }, []);
+
+  const updateChat = useCallback(
+    (newChat: { id: string; type: 'group' | 'channel' } | null) => {
+      setChat(newChat);
+    },
+    []
+  );
 
   const isChannel = chat?.type === 'channel';
   const isGroup = chat?.type === 'group';
@@ -115,15 +132,26 @@ export const ChatOptionsProvider = ({
   });
   const channelTitle = useChannelTitle(channel ?? null);
   const groupId = isGroup ? chat.id : channel?.groupId ?? undefined;
+  const channelId = isChannel ? chat.id : undefined;
   const { data: group } = useGroup({
     id: groupId,
   });
 
   useEffect(() => {
-    if (groupId) {
-      store.syncGroup(groupId, { priority: store.SyncPriority.Medium });
+    async function syncGroup() {
+      if (!groupId) return;
+
+      try {
+        await store.syncGroup(groupId, {
+          priority: store.SyncPriority.Low,
+        });
+      } catch (error) {
+        console.error('sync failed for', groupId, error);
+      }
     }
-  }, [groupId]);
+
+    syncGroup();
+  }, [groupId, group]);
 
   const togglePinned = useCallback(() => {
     if (group && group.channels?.[0]) {
@@ -143,12 +171,12 @@ export const ChatOptionsProvider = ({
   );
 
   const leaveGroup = useCallback(async () => {
-    if (group) {
-      await store.leaveGroup(group.id);
+    if (groupId) {
+      await store.leaveGroup(groupId);
     }
     navigateOnLeave?.();
     closeSheet();
-  }, [closeSheet, group, navigateOnLeave]);
+  }, [closeSheet, groupId, navigateOnLeave]);
 
   const onLeaveChannelConfirmed = useCallback(() => {
     if (!channel) {
@@ -188,17 +216,17 @@ export const ChatOptionsProvider = ({
   }, [channelTitle, onLeaveChannelConfirmed]);
 
   const markGroupRead = useCallback(() => {
-    if (group) {
-      store.markGroupRead(group, true);
+    if (groupId) {
+      store.markGroupRead(groupId, true);
     }
     closeSheet();
-  }, [closeSheet, group]);
+  }, [closeSheet, groupId]);
 
   const markChannelRead = useCallback(() => {
-    if (channel && !channel.isPendingChannel) {
-      store.markChannelRead(channel);
+    if (channelId) {
+      store.markChannelRead({ id: channelId, groupId: groupId });
     }
-  }, [channel]);
+  }, [channelId, groupId]);
 
   const setChannelSortPreference = useCallback(
     (sortBy: 'recency' | 'arranged') => {
@@ -209,66 +237,66 @@ export const ChatOptionsProvider = ({
   );
 
   const handlePressInvite = useCallback(() => {
-    if (group) {
-      onPressInvite?.(group);
+    if (groupId) {
+      onPressInvite?.(groupId);
       closeSheet();
     }
-  }, [closeSheet, group, onPressInvite]);
+  }, [closeSheet, groupId, onPressInvite]);
 
   const handlePressChannelMeta = useCallback(() => {
-    if (channel) {
-      onPressChannelMeta?.(channel?.id);
+    if (channelId) {
+      onPressChannelMeta?.(channelId);
       closeSheet();
     }
-  }, [channel, closeSheet, onPressChannelMeta]);
+  }, [channelId, closeSheet, onPressChannelMeta]);
 
   const handlePressGroupMeta = useCallback(() => {
-    if (group) {
-      onPressGroupMeta?.(group.id);
+    if (groupId) {
+      onPressGroupMeta?.(groupId);
       closeSheet();
     }
-  }, [closeSheet, group, onPressGroupMeta]);
+  }, [closeSheet, groupId, onPressGroupMeta]);
 
   const handlePressManageChannels = useCallback(() => {
-    if (group) {
-      onPressManageChannels?.(group.id);
+    if (groupId) {
+      onPressManageChannels?.(groupId);
       closeSheet();
     }
-  }, [group, onPressManageChannels, closeSheet]);
+  }, [groupId, onPressManageChannels, closeSheet]);
 
   const handlePressChannelMembers = useCallback(() => {
-    if (channel) {
-      onPressChannelMembers?.(channel.id);
+    if (channelId) {
+      onPressChannelMembers?.(channelId);
       closeSheet();
     }
-  }, [channel, closeSheet, onPressChannelMembers]);
+  }, [channelId, closeSheet, onPressChannelMembers]);
 
   const handlePressGroupMembers = useCallback(() => {
-    if (group) {
-      onPressGroupMembers?.(group.id);
+    if (groupId) {
+      onPressGroupMembers(groupId);
       closeSheet();
     }
-  }, [closeSheet, group, onPressGroupMembers]);
+  }, [closeSheet, groupId, onPressGroupMembers]);
 
   const handlePressGroupPrivacy = useCallback(() => {
-    if (group) {
-      onPressGroupPrivacy?.(group.id);
+    if (groupId) {
+      onPressGroupPrivacy?.(groupId);
       closeSheet();
     }
-  }, [closeSheet, group, onPressGroupPrivacy]);
+  }, [closeSheet, groupId, onPressGroupPrivacy]);
 
   const handlePressGroupRoles = useCallback(() => {
-    if (group) {
-      onPressRoles?.(group.id);
+    if (groupId) {
+      onPressRoles?.(groupId);
     }
-  }, [group, onPressRoles]);
+  }, [groupId, onPressRoles]);
 
   const handlePressChannelTemplate = useCallback(() => {
-    if (channel) {
-      onPressChannelTemplate(channel.id);
+    if (channelId) {
+      onPressChannelTemplate(channelId);
       closeSheet();
     }
-  }, [channel, onPressChannelTemplate]);
+  }, [channelId, onPressChannelTemplate, closeSheet]);
 
   const contextValue: ChatOptionsContextValue = useMemo(
     () => ({
@@ -292,6 +320,7 @@ export const ChatOptionsProvider = ({
       onPressChannelMembers: handlePressChannelMembers,
       onPressChannelMeta: handlePressChannelMeta,
       setChannelSortPreference,
+      setChat: updateChat,
     }),
     [
       useGroup,
@@ -305,7 +334,7 @@ export const ChatOptionsProvider = ({
       handlePressInvite,
       handlePressGroupPrivacy,
       handlePressGroupRoles,
-      onPressChannelTemplate,
+      handlePressChannelTemplate,
       leaveGroup,
       leaveChannel,
       togglePinned,
@@ -314,17 +343,28 @@ export const ChatOptionsProvider = ({
       handlePressChannelMembers,
       handlePressChannelMeta,
       setChannelSortPreference,
+      updateChat,
     ]
   );
 
   return (
     <ChatOptionsContext.Provider value={contextValue}>
       {children}
-      <ChatOptionsSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        chat={chat}
-      />
+      {isWindowNarrow && (
+        <ChatOptionsSheet
+          open={sheetOpen && (chat?.type === 'channel' ? !!channel : !!group)}
+          onOpenChange={setSheetOpen}
+          chat={chat}
+          onPressConfigureChannel={
+            onPressConfigureChannel == null
+              ? undefined
+              : () => {
+                  onPressConfigureChannel();
+                  setSheetOpen(false);
+                }
+          }
+        />
+      )}
     </ChatOptionsContext.Provider>
   );
 };

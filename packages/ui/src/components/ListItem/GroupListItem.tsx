@@ -11,17 +11,23 @@ import { Icon } from '../Icon';
 import Pressable from '../Pressable';
 import { ListItem, ListItemProps } from './ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
+import { ChatOptionsSheet } from '../ChatOptionsSheet';
+import { useState } from 'react';
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 
 export const GroupListItem = ({
   model,
   onPress,
   onLongPress,
   customSubtitle,
+  disableOptions = false,
   ...props
 }: { customSubtitle?: string } & ListItemProps<db.Group>) => {
+  const [open, setOpen] = useState(false);
   const unreadCount = model.unread?.count ?? 0;
   const title = useGroupTitle(model);
   const { isPending, label: statusLabel, isErrored } = getGroupStatus(model);
+  const isWindowNarrow = useIsWindowNarrow();
 
   const handlePress = logic.useMutableCallback(() => {
     onPress?.(model);
@@ -96,16 +102,36 @@ export const GroupListItem = ({
           )}
         </ListItem>
       </Pressable>
-      {isWeb && !isPending && (
+      {isWeb && !isPending && !disableOptions && (
         <View position="absolute" right="$-2xs" top="$2xl" zIndex={1}>
-          <Button
-            borderWidth="unset"
-            paddingHorizontal={0}
-            marginHorizontal="$-m"
-            minimal
-          >
-            <Icon type="Overflow" />
-          </Button>
+          {isWindowNarrow ? (
+            <Button
+              onPress={handleLongPress}
+              borderWidth="unset"
+              paddingHorizontal={0}
+              marginHorizontal="$-m"
+              minimal
+            >
+              <Icon type="Overflow" />
+            </Button>
+          ) : (
+              <ChatOptionsSheet
+                open={open}
+                onOpenChange={setOpen}
+                chat={{ type: 'group', id: model.id }}
+                trigger={
+                  <Button
+                    backgroundColor="transparent"
+                    borderWidth="unset"
+                    paddingHorizontal={0}
+                    marginHorizontal="$-m"
+                    minimal
+                  >
+                    <Icon type="Overflow" />
+                  </Button>
+                }
+              />
+          )}
         </View>
       )}
     </View>

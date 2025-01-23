@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
 import {
+  ChannelProvider,
   NavigationProvider,
   useAttachmentContext,
   useCurrentUserId,
@@ -61,8 +62,8 @@ export function PostScreenView({
   groupMembers: db.ChatMember[];
   handleGoToImage?: (post: db.Post, uri?: string) => void;
   handleGoToUserProfile: (userId: string) => void;
-  storeDraft: (draft: urbit.JSONContent) => void;
-  clearDraft: () => void;
+  storeDraft: (draft: urbit.JSONContent) => Promise<void>;
+  clearDraft: () => Promise<void>;
   getDraft: () => Promise<urbit.JSONContent | null>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
@@ -210,8 +211,8 @@ export function PostScreenView({
     if (channel.type === 'notebook') {
       return {
         getDraft: async () => null,
-        storeDraft: () => {},
-        clearDraft: () => {},
+        storeDraft: async () => {},
+        clearDraft: async () => {},
       };
     }
     return {
@@ -230,125 +231,127 @@ export function PostScreenView({
       onPressGroupRef={onPressGroupRef}
       onPressGoToDm={goToDm}
     >
-      <FileDrop
-        paddingBottom={bottom}
-        backgroundColor="$background"
-        flex={1}
-        onAssetsDropped={attachAssets}
-      >
-        <YStack flex={1} backgroundColor={'$background'}>
-          <ChannelHeader
-            channel={channel}
-            group={channel.group}
-            title={headerTitle}
-            goBack={handleGoBack}
-            showSearchButton={false}
-            showSpinner={isLoadingPosts}
-            post={parentPost ?? undefined}
-            mode={headerMode}
-            showEditButton={showEdit}
-            goToEdit={handleEditPress}
-          />
-          <KeyboardAvoidingView enabled={!activeMessage}>
-            {parentPost ? (
-              <DetailView
-                post={parentPost}
-                channel={channel}
-                initialPostUnread={initialThreadUnread}
-                onPressImage={handleGoToImage}
-                editingPost={editingPost}
-                setEditingPost={setEditingPost}
-                onPressRetry={onPressRetry}
-                onPressDelete={onPressDelete}
-                posts={postsWithoutParent}
-                goBack={goBack}
-                activeMessage={activeMessage}
-                setActiveMessage={setActiveMessage}
-                headerMode={headerMode}
-                editorIsFocused={editorIsFocused}
-                flatListRef={flatListRef}
-              />
-            ) : null}
+      <ChannelProvider value={{ channel }}>
+        <FileDrop
+          paddingBottom={bottom}
+          backgroundColor="$background"
+          flex={1}
+          onAssetsDropped={attachAssets}
+        >
+          <YStack flex={1} backgroundColor={'$background'}>
+            <ChannelHeader
+              channel={channel}
+              group={channel.group}
+              title={headerTitle}
+              goBack={handleGoBack}
+              showSearchButton={false}
+              showSpinner={isLoadingPosts}
+              post={parentPost ?? undefined}
+              mode={headerMode}
+              showEditButton={showEdit}
+              goToEdit={handleEditPress}
+            />
+            <KeyboardAvoidingView enabled={!activeMessage}>
+              {parentPost ? (
+                <DetailView
+                  post={parentPost}
+                  channel={channel}
+                  initialPostUnread={initialThreadUnread}
+                  onPressImage={handleGoToImage}
+                  editingPost={editingPost}
+                  setEditingPost={setEditingPost}
+                  onPressRetry={onPressRetry}
+                  onPressDelete={onPressDelete}
+                  posts={postsWithoutParent}
+                  goBack={goBack}
+                  activeMessage={activeMessage}
+                  setActiveMessage={setActiveMessage}
+                  headerMode={headerMode}
+                  editorIsFocused={editorIsFocused}
+                  flatListRef={flatListRef}
+                />
+              ) : null}
 
-            {negotiationMatch &&
-              channel &&
-              canWrite &&
-              !(isEditingParent && channel.type === 'notebook') && (
-                <View id="reply-container" {...containingProperties}>
-                  <BareChatInput
-                    placeholder="Reply"
-                    shouldBlur={inputShouldBlur}
-                    setShouldBlur={setInputShouldBlur}
-                    send={sendReply}
-                    channelId={channel.id}
-                    groupMembers={groupMembers}
-                    {...bareInputDraftProps}
-                    editingPost={editingPost}
-                    setEditingPost={setEditingPost}
-                    editPost={editPost}
-                    channelType="chat"
-                    showAttachmentButton={channel.type === 'chat'}
-                    showInlineAttachments={channel.type === 'chat'}
-                    shouldAutoFocus={
-                      (channel.type === 'chat' &&
-                        parentPost?.replyCount === 0) ||
-                      !!editingPost
-                    }
-                  />
+              {negotiationMatch &&
+                channel &&
+                canWrite &&
+                !(isEditingParent && channel.type === 'notebook') && (
+                  <View id="reply-container" {...containingProperties}>
+                    <BareChatInput
+                      placeholder="Reply"
+                      shouldBlur={inputShouldBlur}
+                      setShouldBlur={setInputShouldBlur}
+                      send={sendReply}
+                      channelId={channel.id}
+                      groupMembers={groupMembers}
+                      {...bareInputDraftProps}
+                      editingPost={editingPost}
+                      setEditingPost={setEditingPost}
+                      editPost={editPost}
+                      channelType="chat"
+                      showAttachmentButton={channel.type === 'chat'}
+                      showInlineAttachments={channel.type === 'chat'}
+                      shouldAutoFocus={
+                        (channel.type === 'chat' &&
+                          parentPost?.replyCount === 0) ||
+                        !!editingPost
+                      }
+                    />
+                  </View>
+                )}
+              {!negotiationMatch && channel && canWrite && (
+                <View
+                  position={isChatChannel ? undefined : 'absolute'}
+                  bottom={0}
+                  width="90%"
+                  alignItems="center"
+                  justifyContent="center"
+                  backgroundColor="$secondaryBackground"
+                  borderRadius="$xl"
+                  padding="$l"
+                >
+                  <Text>
+                    Your ship&apos;s version of the Tlon app doesn&apos;t match
+                    the channel host.
+                  </Text>
                 </View>
               )}
-            {!negotiationMatch && channel && canWrite && (
-              <View
-                position={isChatChannel ? undefined : 'absolute'}
-                bottom={0}
-                width="90%"
-                alignItems="center"
-                justifyContent="center"
-                backgroundColor="$secondaryBackground"
-                borderRadius="$xl"
-                padding="$l"
-              >
-                <Text>
-                  Your ship&apos;s version of the Tlon app doesn&apos;t match
-                  the channel host.
-                </Text>
-              </View>
-            )}
 
-            {parentPost &&
-            isEditingParent &&
-            (channel.type === 'notebook' || channel.type === 'gallery') ? (
-              <BigInput
-                channelType={urbit.getChannelType(parentPost.channelId)}
-                channelId={parentPost?.channelId}
-                editingPost={editingPost}
-                setEditingPost={setEditingPost}
-                editPost={editPost}
-                shouldBlur={inputShouldBlur}
-                setShouldBlur={setInputShouldBlur}
-                send={async () => {}}
-                getDraft={getDraft}
-                storeDraft={storeDraft}
-                clearDraft={clearDraft}
-                groupMembers={groupMembers}
-              />
-            ) : null}
-            {headerMode === 'next' && (
-              <ChannelFooter
-                showSearchButton={false}
-                title={'Thread: ' + channel.title}
-                goBack={goBack}
-              />
-            )}
-          </KeyboardAvoidingView>
-          <GroupPreviewSheet
-            group={groupPreview ?? undefined}
-            open={!!groupPreview}
-            onOpenChange={() => setGroupPreview(null)}
-            onActionComplete={handleGroupAction}
-          />
-        </YStack>
-      </FileDrop>
+              {parentPost &&
+              isEditingParent &&
+              (channel.type === 'notebook' || channel.type === 'gallery') ? (
+                <BigInput
+                  channelType={urbit.getChannelType(parentPost.channelId)}
+                  channelId={parentPost?.channelId}
+                  editingPost={editingPost}
+                  setEditingPost={setEditingPost}
+                  editPost={editPost}
+                  shouldBlur={inputShouldBlur}
+                  setShouldBlur={setInputShouldBlur}
+                  send={async () => {}}
+                  getDraft={getDraft}
+                  storeDraft={storeDraft}
+                  clearDraft={clearDraft}
+                  groupMembers={groupMembers}
+                />
+              ) : null}
+              {headerMode === 'next' && (
+                <ChannelFooter
+                  showSearchButton={false}
+                  title={'Thread: ' + channel.title}
+                  goBack={goBack}
+                />
+              )}
+            </KeyboardAvoidingView>
+            <GroupPreviewSheet
+              group={groupPreview ?? undefined}
+              open={!!groupPreview}
+              onOpenChange={() => setGroupPreview(null)}
+              onActionComplete={handleGroupAction}
+            />
+          </YStack>
+        </FileDrop>
+      </ChannelProvider>
     </NavigationProvider>
   );
 }

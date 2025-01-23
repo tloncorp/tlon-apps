@@ -113,7 +113,7 @@
     |=  [=term =tang]
     ^-  (quip card _this)
     :_  this
-    [(fail:log term tang)]~
+    [(fail:log term tang ~)]~
   --
 |_  [=bowl:gall cards=(list card)]
 ++  abet  [(flop cards) state]

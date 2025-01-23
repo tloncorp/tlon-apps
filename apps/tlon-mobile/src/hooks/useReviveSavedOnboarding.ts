@@ -2,8 +2,10 @@ import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import { SignupParams, signupData } from '@tloncorp/shared/db';
-import { useCallback, useEffect, useState } from 'react';
+import * as db from '@tloncorp/shared/db';
+import { useCallback } from 'react';
 
 import { useSignupContext } from '../lib/signupContext';
 import { OnboardingStackParamList } from '../types';
@@ -11,7 +13,6 @@ import { OnboardingStackParamList } from '../types';
 const logger = createDevLogger('OnboardingRevive', true);
 
 export function useReviveSavedOnboarding() {
-  const [reviveAttemptComplete, setReviveAttemptComplete] = useState(false);
   const inviteMeta = useLureMetadata();
   const navigation = useNavigation<NavigationProp<OnboardingStackParamList>>();
   const { isAuthenticated } = useShip();
@@ -24,20 +25,31 @@ export function useReviveSavedOnboarding() {
         return null;
       }
 
+      const hostingUserId = await db.hostingUserId.getValue();
+      if (!hostingUserId) {
+        logger.log('no hosting user ID found');
+        return null;
+      }
+
+      const user = await api.getHostingUser(hostingUserId);
+      if (!user) {
+        logger.log('could not fetch hosting user', { hostingUserId });
+        return null;
+      }
+
       const stack: { name: keyof OnboardingStackParamList; params?: any }[] = [
         { name: 'Welcome' },
         { name: 'Signup' },
       ];
 
-      const user = savedSignup.hostingUser;
-      if (!user || !user.verified) {
+      if (!user.verified) {
         logger.log('needs OTP check');
         const otpMethod = savedSignup.phoneNumber ? 'phone' : 'email';
         stack.push({ name: 'CheckOTP', params: { mode: 'signup', otpMethod } });
         return stack;
       }
 
-      if (user.requirePhoneNumberVerification) {
+      if (user.requirePhoneNumberVerification && !user.phoneNumberVerifiedAt) {
         logger.log(`needs phone verify`);
         stack.push({ name: 'RequestPhoneVerify', params: { user } });
         return stack;
@@ -56,11 +68,11 @@ export function useReviveSavedOnboarding() {
     []
   );
 
-  const execute = useCallback(async () => {
+  const executeRevive = useCallback(async () => {
     const savedSignup = await signupData.getValue();
     if (!savedSignup.email && !savedSignup.phoneNumber) {
       logger.log('no saved onboarding session found');
-      return;
+      return false;
     }
 
     if (isAuthenticated) {
@@ -68,7 +80,7 @@ export function useReviveSavedOnboarding() {
         'found saved session, but already authenticated. Running post signup logic'
       );
       signupContext.handlePostSignup();
-      return;
+      return false;
     }
 
     if (inviteMeta) {
@@ -87,8 +99,11 @@ export function useReviveSavedOnboarding() {
           index: 1,
           routes: routeStack,
         });
+        return true;
       }
     }
+
+    return false;
   }, [
     getOnboardingRouteStack,
     inviteMeta,
@@ -97,18 +112,5 @@ export function useReviveSavedOnboarding() {
     signupContext,
   ]);
 
-  useEffect(() => {
-    try {
-      execute();
-    } catch (e) {
-      logger.trackError('Error reviving onboarding', {
-        errorMessage: e.message,
-        errorStack: e.stack,
-      });
-    } finally {
-      setTimeout(() => signupContext.markReviveCheckComplete(), 100);
-    }
-  }, []);
-
-  return reviveAttemptComplete;
+  return executeRevive;
 }

@@ -56,7 +56,7 @@ export function ActivityScreen(props: Props) {
 
   const handleGoToGroup = useCallback(
     (group: db.Group) => {
-      store.markGroupRead(group);
+      store.markGroupRead(group.id);
       props.navigation.navigate('GroupSettings', {
         screen: 'GroupMembers',
         params: { groupId: group.id },

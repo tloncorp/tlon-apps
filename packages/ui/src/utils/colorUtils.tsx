@@ -5,7 +5,7 @@ import { ThemeName, useThemeName } from 'tamagui';
 export const useSigilColors = (accentColor: string | null = '#000000') => {
   const theme = useThemeName();
   const backgroundColor = useMemo(
-    () => adjustColorContrastForTheme(accentColor ?? '#000000', theme),
+    () => adjustColorContrastForTheme(accentColor || '#000000', theme),
     [accentColor, theme]
   );
   const foregroundColor = useMemo(

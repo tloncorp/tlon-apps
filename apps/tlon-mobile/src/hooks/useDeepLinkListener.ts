@@ -26,7 +26,24 @@ export const useDeepLinkListener = () => {
           if (lure.shouldAutoJoin) {
             // no-op for now, hosting will handle
           } else {
-            // otherwise, treat it as a deeplink and navigate to the group
+            // otherwise, treat it as a deeplink and navigate
+            if (lure.inviteType === 'user') {
+              const inviter = lure.inviterUserId;
+              if (inviter) {
+                logger.log(`handling deep link to user`, inviter);
+                reset([
+                  {
+                    name: 'Contacts',
+                  },
+                  {
+                    name: 'UserProfile',
+                    params: { userId: inviter },
+                  },
+                ]);
+              }
+              return;
+            }
+
             if (lure.invitedGroupId) {
               logger.log(
                 `handling deep link to invited group`,

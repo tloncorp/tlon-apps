@@ -595,7 +595,9 @@ export const readGroup = async (group: db.Group, deep: boolean = false) => {
   });
 };
 
-export const readChannel = async (channel: db.Channel) => {
+export const readChannel = async (
+  channel: Pick<db.Channel, 'id' | 'groupId' | 'type'>
+) => {
   let source: ub.Source;
   if (channel.type === 'dm') {
     source = { dm: { ship: channel.id } };

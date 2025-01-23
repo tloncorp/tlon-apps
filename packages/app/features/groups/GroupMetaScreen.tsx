@@ -33,21 +33,14 @@ export function GroupMetaScreen(props: Props) {
   });
   const canUpload = useCanUpload();
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
-  const { enabled, describe } = store.useLure({
-    flag: groupId,
-    inviteServiceEndpoint: INVITE_SERVICE_ENDPOINT,
-    inviteServiceIsDev: INVITE_SERVICE_IS_DEV,
-  });
 
   const handleSubmit = useCallback(
     (data: db.ClientMeta) => {
       setGroupMetadata(data);
       props.navigation.goBack();
-      if (enabled) {
-        describe();
-      }
+      store.createGroupInviteLink(groupId);
     },
-    [setGroupMetadata, props.navigation, enabled, describe]
+    [setGroupMetadata, props.navigation, groupId]
   );
 
   const handlePressDelete = useCallback(() => {

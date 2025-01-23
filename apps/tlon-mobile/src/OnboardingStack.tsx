@@ -1,10 +1,11 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useScreenOptions } from '@tloncorp/app/hooks/useScreenOptions';
 
-import { useReviveSavedOnboarding } from './hooks/useReviveSavedOnboarding';
 import { CheckOTPScreen } from './screens/Onboarding/CheckOTPScreen';
 import { CheckVerifyScreen } from './screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from './screens/Onboarding/EULAScreen';
+import { GettingNodeReadyScreen } from './screens/Onboarding/GettingNodeReadyScreen';
+import { InitialStateCheckScreen } from './screens/Onboarding/InitialStateCheckScreen';
 import { InventoryCheckScreen } from './screens/Onboarding/InventoryCheckScreen';
 import { JoinWaitListScreen } from './screens/Onboarding/JoinWaitListScreen';
 import { PasteInviteLinkScreen } from './screens/Onboarding/PasteInviteLinkScreen';
@@ -17,6 +18,7 @@ import { ShipLoginScreen } from './screens/Onboarding/ShipLoginScreen';
 import { SignupScreen } from './screens/Onboarding/SignupScreen';
 import { TlonLoginScreen } from './screens/Onboarding/TlonLogin';
 import { TlonLoginLegacy } from './screens/Onboarding/TlonLoginLegacy';
+import { UnderMaintenanceScreen } from './screens/Onboarding/UnderMaintenance';
 import { WelcomeScreen } from './screens/Onboarding/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
 
@@ -31,16 +33,19 @@ export function OnboardingStack() {
     headerShown: false,
   };
 
-  useReviveSavedOnboarding();
-
   return (
     <OnboardingStackNavigator.Navigator
-      initialRouteName="Welcome"
+      initialRouteName="InitialStateCheck"
       screenOptions={onboardingScreenOptions}
     >
       <OnboardingStackNavigator.Screen
+        name="InitialStateCheck"
+        component={InitialStateCheckScreen}
+      />
+      <OnboardingStackNavigator.Screen
         name="Welcome"
         component={WelcomeScreen}
+        options={{ animation: 'none', gestureEnabled: false }}
       />
       <OnboardingStackNavigator.Screen name="Signup" component={SignupScreen} />
       <OnboardingStackNavigator.Screen
@@ -96,6 +101,14 @@ export function OnboardingStack() {
       <OnboardingStackNavigator.Screen
         name="ResetPassword"
         component={ResetPasswordScreen}
+      />
+      <OnboardingStackNavigator.Screen
+        name="GettingNodeReadyScreen"
+        component={GettingNodeReadyScreen}
+      />
+      <OnboardingStackNavigator.Screen
+        name="UnderMaintenance"
+        component={UnderMaintenanceScreen}
       />
     </OnboardingStackNavigator.Navigator>
   );
