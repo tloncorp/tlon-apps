@@ -44,6 +44,27 @@
   =/  sig=@ux  (sigh:as:(nol:nu:crub:crypto key.seed) (jam dat))
   [our lyf.seed dat sig]
 ::
+++  valid-jam
+  |=  [[our=@p now=@da] dat=@]
+  ^-  [valid=(unit ?) sig=(unit @ux)]
+  =/  sign=(unit (urbit-signature))
+    %+  biff
+      (mole |.((cue dat)))
+    (soft (urbit-signature ?(half-sign-data-0 full-sign-data-0)))
+  ?~  sign  [`| ~]
+  :_  `sig.u.sign
+  ::  if we don't know the current life of the signer,
+  ::  or the life used to sign is beyond what we know,
+  ::  we can't validate locally.
+  ::
+  =+  .^(lyf=(unit life) %j /(scot %p our)/lyfe/(scot %da now)/(scot %p who.u.sign))
+  ?~  |(?=(~ lyf) (gth lyf.u.sign u.lyf))
+    ~
+  ::  jael should have the pubkey. get it and validate.
+  ::
+  =+  .^([life =pass (unit @ux)] %j /(scot %p our)/deed/(scot %da now)/(scot %p who.u.sign)/(scot %ud lyf.u.sign))
+  `(safe:as:(com:nu:crub:crypto pass) sig.u.sign (jam dat.u.sign))
+::
 ++  inflate-contacts-profile
   |=  $:  [our=@p now=@da]
           records=(map [h=@p id=identifier] id-state)
@@ -230,23 +251,7 @@
     ::  sig:   the signature being validated. if ~, valid is always |.
     ::
     =/  [valid=(unit ?) sig=(unit @ux)]
-      =/  sign=(unit (urbit-signature))
-        %+  biff
-          (mole |.((cue +.query.qer)))
-        (soft (urbit-signature ?(half-sign-data-0 full-sign-data-0)))
-      ?~  sign  [`| ~]
-      :_  `sig.u.sign
-      ::  if we don't know the current life of the signer,
-      ::  or the life used to sign is beyond what we know,
-      ::  we can't validate locally.
-      ::
-      =+  .^(lyf=(unit life) %j /(scot %p our.bowl)/lyfe/(scot %da now.bowl)/(scot %p who.u.sign))
-      ?~  |(?=(~ lyf) (gth lyf.u.sign u.lyf))
-        ~
-      ::  jael should have the pubkey. get it and validate.
-      ::
-      =+  .^([life =pass (unit @ux)] %j /(scot %p our.bowl)/deed/(scot %da now.bowl)/(scot %p who.u.sign)/(scot %ud lyf.u.sign))
-      `(safe:as:(com:nu:crub:crypto pass) sig.u.sign (jam dat.u.sign))
+      (valid-jam [our now]:bowl +.query.qer)
     =.  queries
       %+  ~(put by queries)  nonce
       ?~  valid  [%| query.qer]
@@ -498,6 +503,11 @@
           url
       ==
     ==
+  ::
+      [%valid-jam @ ~]
+    =/  dat=@  (slav %uw i.t.path)
+    =+  (valid-jam [our now]:bowl dat)
+    ``noun+!>(valid)
   ==
 ::
 ++  on-leave  |=(* `this)
