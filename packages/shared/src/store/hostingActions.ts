@@ -260,6 +260,9 @@ export async function authenticateWithReadyNode(): Promise<db.ShipInfo | null> {
     nodeId,
     nodeUrl,
   });
+
+  await db.nodeAccessCode.setValue(accessCode);
+
   return {
     ship: nodeId,
     shipUrl: nodeUrl,

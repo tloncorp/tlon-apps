@@ -1,6 +1,8 @@
-import { createDevLogger, sync } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, sync } from '@tloncorp/shared';
 import { ClientParams } from '@tloncorp/shared/api';
 import { getShipAccessCode } from '@tloncorp/shared/api';
+import * as api from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
 import { configureClient } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
@@ -66,33 +68,62 @@ export function useConfigureUrbitClient() {
         fetchFn: apiFetch,
         onQuitOrReset: sync.handleDiscontinuity,
         onChannelStatusChange: sync.handleChannelStatusChange,
-        getCode:
-          authType === 'self'
-            ? undefined
-            : async () => {
-                clientLogger.log('Getting ship access code', {
-                  ship,
-                  authType,
-                });
-                clientLogger.trackError(
-                  'Hosted ship logged out of urbit, getting ship access code'
-                );
-                if (!ship) {
-                  throw new Error('Trying to retrieve +code, no ship set');
-                }
+        getCode: async () => {
+          // use stored access code to reauth if we have it
+          const accessCode = await db.nodeAccessCode.getValue();
+          if (accessCode) {
+            return accessCode;
+          }
 
-                const { code } = await getShipAccessCode(ship);
-                return code;
-              },
+          // if missing and they're hosted, try to fetch it
+          if (authType === 'self') {
+            const message = 'Self hosted user has no stored access code';
+            clientLogger.trackEvent(AnalyticsEvent.AuthFailedToGetCode, {
+              authType,
+              context: message,
+            });
+            throw new Error(message);
+          }
+
+          if (!ship) {
+            const message = 'Cannot get access code, no ship set';
+            clientLogger.trackEvent(AnalyticsEvent.AuthFailedToGetCode, {
+              authType,
+              context: message,
+            });
+            throw new Error(message);
+          }
+          const { code } = await getShipAccessCode(ship);
+          if (!code) {
+            const message = 'Failed to fetch access code';
+            clientLogger.trackEvent(AnalyticsEvent.AuthFailedToGetCode, {
+              authType,
+              context: message,
+            });
+            throw new Error(message);
+          }
+          return code;
+        },
         handleAuthFailure: async () => {
-          clientLogger.error(
-            'Failed to authenticate with ship, redirecting to login'
-          );
-          clientLogger.trackError(
-            'Failed to authenticate with ship, redirecting to login'
-          );
-          await logout();
-          // TODO: route them to hosted sign in vs log in?
+          if (authType === 'self') {
+            // there's nothing we can do to recover, must log out
+            clientLogger.trackEvent(AnalyticsEvent.AuthForcedLogout, {
+              authType,
+            });
+            await logout();
+          } else {
+            // we can recover if hosting auth is still valid, only logout if we
+            // know for sure it's expired. Notably, this will never trigger if you're
+            // offline.
+            const hostingAuthStatus = await api.getHostingHeartBeat();
+            if (hostingAuthStatus === 'expired') {
+              clientLogger.trackEvent(AnalyticsEvent.AuthForcedLogout, {
+                authType,
+                context: 'Hosting auth was expired',
+              });
+              await logout();
+            }
+          }
         },
       });
     },

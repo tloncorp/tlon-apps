@@ -27,4 +27,6 @@ export enum AnalyticsEvent {
   InitializedNewInvite = 'Initialized New Invite',
   DebugLogs = 'Debug Logs',
   AppError = 'App Error',
+  AuthFailedToGetCode = 'Failed to get access code',
+  AuthForcedLogout = 'Auth Forced Logout',
 }
