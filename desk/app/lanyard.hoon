@@ -22,7 +22,6 @@
 +$  state-0
   $:  %0
       records=(map [h=@p id=identifier] id-state)  ::  ours
-      provers=(map identifier @p)                  ::  from  ::TODO  unused
       ledgers=(map @p (unit @t))                   ::  services w/ base urls
       queries=(map @uv (each [q=question:l a=result:l] question:l))  ::  asked
   ==
