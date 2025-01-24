@@ -7,26 +7,32 @@ appId: io.tlon.groups
     timeout: 5000
 - tapOn: 'Have an account? Log in'
 - tapOn: 'Or configure self hosted'
-# Open EULA
-- tapOn:
-    point: '73%,55%'
-- waitForAnimationToEnd:
-    timeout: 5000
-- assertVisible: 'EULA'
-- tapOn:
-    point: '9%,7%'
-- waitForAnimationToEnd:
-    timeout: 5000
 # Log in
-- tapOn:
+- longPressOn:
     id: 'textInput shipUrl'
+- runFlow:
+    when:
+      visible: 'Select All'
+    commands:
+      - tapOn: 'Select All'
+- eraseText
 - inputText: ${URL}
-- tapOn:
+- longPressOn:
     id: 'textInput accessCode'
+- runFlow:
+    when:
+      visible: 'Select All'
+    commands:
+      - tapOn: 'Select All'
+- eraseText
 - inputText: ${CODE}
 - tapOn: 'Connect'
 # Dismiss password save prompt
-- tapOn: 'Not now'
+- runFlow:
+    when:
+      visible: 'Not now'
+    commands:
+      - tapOn: 'Not now'
 - tapOn: 'Next'
 - assertVisible: 'Welcome to TM'
 - swipe:

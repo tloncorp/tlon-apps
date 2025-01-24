@@ -3,26 +3,22 @@ appId: io.tlon.groups
 # Open Fashion group and confirm the 'S/S 2025' channel is visible;
 # navigate back to home tab
 - scrollUntilVisible:
-    element: 'Fashion'
+    element: 'Tlon Local'
     direction: 'DOWN'
     speed: 75
 - waitForAnimationToEnd:
     timeout: 5000
-- tapOn: 'Fashion'
-- assertVisible: 'S/S 2025'
+- tapOn: 'Tlon Local'
+- assertVisible: 'Internet Cafe'
 - tapOn:
-    point: '9%,7%'
-- scrollUntilVisible:
-    element: 'Pinned'
-    direction: 'UP'
-    speed: 100
+    id: 'Top Back Button'
 # Tap on each filtering tab and confirm the correct groups/DMs are visible
 - tapOn: 'All'
 - assertVisible: 'Tlon Local'
 - tapOn: 'Groups'
 - assertVisible: 'Tlon Local'
 - tapOn: 'Messages'
-- assertVisible: 'galen'
+- assertVisible: 'hunter'
 - tapOn: 'All'
 # Open the filtering input and look for Tlon Local in each tab
 - tapOn:
@@ -40,11 +36,11 @@ appId: io.tlon.groups
 - tapOn:
     point: '79%,7%'
 - tapOn: 'Find by name'
-- inputText: 'gal'
-- assertVisible: 'galen'
+- inputText: 'hun'
+- assertVisible: 'hunter'
 - tapOn: 'Groups'
-- assertNotVisible: 'galen'
+- assertNotVisible: 'hunter'
 - tapOn: 'All'
-- assertVisible: 'galen'
+- assertVisible: 'hunter'
 - tapOn: 'Clear'
 - tapOn: 'Close'
