@@ -142,7 +142,6 @@
   =/  m  (mare ,attestation:v)
   ;<  bowl:gall  bind:m  get-bowl
   %-  pure:m
-  :+  now  proof
   :-  (faux-sign our `half-sign-data-0:v`[%0 %verified now for -.id])
   (faux-sign our `full-sign-data-0:v`[%0 %verified now for id proof])
 ::

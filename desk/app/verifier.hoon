@@ -246,7 +246,6 @@
 ++  attest
   |=  [[our=@p now=@da] for=@p id=identifier proof=(unit proof)]
   ^-  attestation
-  :+  now  proof
   :-  (sign [our now] `half-sign-data-0`[%0 %verified now for -.id])
   (sign [our now] `full-sign-data-0`[%0 %verified now for id proof])
 ::
@@ -318,7 +317,8 @@
       ==
     ::
       ' on '
-      (scot %da (sub when.tat (mod when.tat ~d1)))
+      =*  when  when.dat.half-sign.tat
+      (scot %da (sub when (mod when ~d1)))
   ==
 --
 ::

@@ -52,9 +52,7 @@
   ==
 ::
 +$  attestation
-  $:  when=@da  ::TODO  redundant with signs?
-      proof=(unit proof)  ::TODO  set?  ::TODO  redundant with full-sign?
-      half-sign=(urbit-signature half-sign-data-0)
+  $:  half-sign=(urbit-signature half-sign-data-0)
       full-sign=(urbit-signature full-sign-data-0)
   ==
 ::
@@ -73,7 +71,7 @@
 +$  half-sign-data-0
   [%0 %verified when=@da for=@p kind=id-kind]
 +$  full-sign-data-0
-  [%0 %verified when=@da for=@p id=identifier proof=(unit proof)]
+  [%0 %verified when=@da for=@p id=identifier proof=(unit proof)]  ::TODO  (set proof)?
 ::
 ++  twitter
   |%
