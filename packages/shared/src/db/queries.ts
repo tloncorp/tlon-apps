@@ -2229,7 +2229,16 @@ export const insertUnconfirmedPosts = createWriteQuery(
   ['posts']
 );
 
+const insertPostsBatchSize = 300;
+
 async function insertPosts(posts: Post[], ctx: QueryCtx) {
+  for (let i = 0; i < posts.length; i += insertPostsBatchSize) {
+    const batch = posts.slice(i, i + insertPostsBatchSize);
+    await insertPostsBatch(batch, ctx);
+  }
+}
+
+async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
   // HACK: I can't get onConflictDoUpdate to work - manually manage conflicts.
   // Likely https://github.com/drizzle-team/drizzle-orm/issues/2276
   await (async () => {
