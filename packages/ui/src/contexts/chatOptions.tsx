@@ -114,10 +114,6 @@ export const ChatOptionsProvider = ({
 
   const closeSheet = useCallback(() => {
     setSheetOpen(false);
-    // Delay clearing chat state to allow handlers to complete
-    setTimeout(() => {
-      setChat(null);
-    }, 100);
     return true;
   }, []);
 
