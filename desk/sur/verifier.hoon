@@ -52,8 +52,8 @@
   ==
 ::
 +$  attestation
-  $:  half-sign=(urbit-signature half-sign-data-0)
-      full-sign=(urbit-signature full-sign-data-0)
+  $:  half=(signed half-sign-data)
+      full=(signed full-sign-data)
   ==
 ::
 +$  proof
@@ -61,22 +61,22 @@
       [%tweet id=@t]
   ==
 ::
-++  urbit-signature
+++  signed
   |$  dat
   $:  who=@p
       lyf=life
       dat=dat
       sig=@ux
   ==
-+$  half-sign-data-0
++$  half-sign-data
   [%0 %verified when=@da for=@p kind=id-kind]
-+$  full-sign-data-0
++$  full-sign-data
   [%0 %verified when=@da for=@p id=identifier proof=(unit proof)]  ::TODO  (set proof)?
 ::
 ++  twitter
   |%
-  +$  payload      (urbit-signature sign-data-0)
-  +$  sign-data-0  [%twitter %0 handle=@t nonce=@ux]
+  +$  payload    (signed sign-data)
+  +$  sign-data  [%twitter %0 handle=@t nonce=@ux]
   --
 ::
 +$  allowance         ::  remaining "request token" balance
@@ -163,7 +163,7 @@
   +$  command  [host=(unit @p) user-command]
   +$  query    [host=(unit @p) nonce=(unit @) query=question]
   +$  question
-    $%  [%valid-jam @uw]  ::  jammed $urbit-signature
+    $%  [%valid-jam @uw]  ::  jammed $signed
         query:user-query
     ==
   +$  result

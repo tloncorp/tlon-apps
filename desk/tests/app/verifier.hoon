@@ -123,7 +123,7 @@
 ::
 ++  faux-sign
   |*  [host=@p dat=*]
-  ^-  (urbit-signature:v _dat)
+  ^-  (signed:v _dat)
   =/  sig=@ux  (sigh:as:(nol:nu:crub:crypto key:(faux-seed host)) (jam dat))
   [host faux-life dat sig]
 ::
@@ -142,8 +142,8 @@
   =/  m  (mare ,attestation:v)
   ;<  bowl:gall  bind:m  get-bowl
   %-  pure:m
-  :-  (faux-sign our `half-sign-data-0:v`[%0 %verified now for -.id])
-  (faux-sign our `full-sign-data-0:v`[%0 %verified now for id proof])
+  :-  (faux-sign our `half-sign-data:v`[%0 %verified now for -.id])
+  (faux-sign our `full-sign-data:v`[%0 %verified now for id proof])
 ::
 ++  get-state
   =/  m  (mare state:v)
@@ -203,7 +203,7 @@
   ++  host-approves
     ;<  at=attestation:v  bind:m  (make-attestation ~nec id ~)
     ;<  ~  bind:m
-      (ex-scry-result /u/attestations/(scot %ux sig.full-sign.at) !>(|))
+      (ex-scry-result /u/attestations/(scot %ux sig.full.at) !>(|))
     ;<  cas=(list card)  bind:m
       (host-does %dummy +.id %grant)
     ;<  ~  bind:m
@@ -212,7 +212,7 @@
     ::TODO  check scry (not state, that's too direct for tests. should test api)
     ::      (right??)
     ;<  ~  bind:m
-      (ex-scry-result /u/attestations/(scot %ux sig.full-sign.at) !>(&))
+      (ex-scry-result /u/attestations/(scot %ux sig.full.at) !>(&))
     (pure:m ~)
   ::  host rejects the request, id gets freed up again
   ::
@@ -262,15 +262,15 @@
       ::TODO  don't test signature value, test whether it matches pubkey
       %+  ex-cards  cas
       [(ex-verifier-update ~nec %status id %done at)]~
-    ;<  ~  bind:m  (ex-scry-result /u/attestations/(scot %ux sig.full-sign.at) !>(&))
+    ;<  ~  bind:m  (ex-scry-result /u/attestations/(scot %ux sig.full.at) !>(&))
     ;<  ~  bind:m
       ::TODO  test via scries instead?
       ;<  =state:v  bind:m  get-state
       %-  branch
       :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec ~2000.1.2 *config:v %done at]))
           'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
-          'ath'^(ex-equal !>((~(get by attested.state) sig.half-sign.at)) !>(`id))
-          'atf'^(ex-equal !>((~(get by attested.state) sig.full-sign.at)) !>(`id))
+          'ath'^(ex-equal !>((~(get by attested.state) sig.half.at)) !>(`id))
+          'atf'^(ex-equal !>((~(get by attested.state) sig.full.at)) !>(`id))
       ==
     (pure:m ~)
   ::
@@ -476,8 +476,8 @@
     %-  branch
     :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec ~2000.1.2 *config:v %done at]))
         'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
-        'ath'^(ex-equal !>((~(get by attested.state) sig.half-sign.at)) !>(`id))
-        'atf'^(ex-equal !>((~(get by attested.state) sig.full-sign.at)) !>(`id))
+        'ath'^(ex-equal !>((~(get by attested.state) sig.half.at)) !>(`id))
+        'atf'^(ex-equal !>((~(get by attested.state) sig.full.at)) !>(`id))
     ==
   --
 ::
@@ -719,8 +719,8 @@
       %-  branch
       :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec ~2000.1.2 *config:v %done at]))
           'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
-          'ath'^(ex-equal !>((~(get by attested.state) sig.half-sign.at)) !>(`id))
-          'atf'^(ex-equal !>((~(get by attested.state) sig.full-sign.at)) !>(`id))
+          'ath'^(ex-equal !>((~(get by attested.state) sig.half.at)) !>(`id))
+          'atf'^(ex-equal !>((~(get by attested.state) sig.full.at)) !>(`id))
           'lup'^(ex-equal !>((~(get by lookups.state) sig.good-pay)) !>(`id))
           'rev'^(ex-equal !>((~(get ju reverse.state) id)) !>([sig.good-pay ~ ~]))
       ==
@@ -731,8 +731,8 @@
     %-  branch
     :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(~))
         'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>(~))
-        'ath'^(ex-equal !>((~(get by attested.state) sig.half-sign.at)) !>(~))
-        'atf'^(ex-equal !>((~(get by attested.state) sig.full-sign.at)) !>(~))
+        'ath'^(ex-equal !>((~(get by attested.state) sig.half.at)) !>(~))
+        'atf'^(ex-equal !>((~(get by attested.state) sig.full.at)) !>(~))
         'lup'^(ex-equal !>((~(get by lookups.state) sig.good-pay)) !>(~))
         'rev'^(ex-equal !>((~(get ju reverse.state) id)) !>(~))
     ==
@@ -906,7 +906,7 @@
       ==
   ?.  ?=(%done -.status)  [owners attested]
   :-  (~(put ju owners) for id)
-  (~(gas by attested) sig.half-sign.status^id sig.full-sign.status^id ~)
+  (~(gas by attested) sig.half.status^id sig.full.status^id ~)
 ::
 ++  do-query-setup
   |=  $@  entries=_1
@@ -970,7 +970,7 @@
     %^  expect-query-response  ~fed
       :+  [%some-dude %my-nonce]
         %valid
-      sig:(faux-sign ~zod `full-sign-data-0:v`[%0 %verified ~2222.2.2 ~nec [%dummy 'test-id'] ~])
+      sig:(faux-sign ~zod `full-sign-data:v`[%0 %verified ~2222.2.2 ~nec [%dummy 'test-id'] ~])
     [%valid &]
   ;<  ~  bind:m
     %^  expect-query-response  ~fed

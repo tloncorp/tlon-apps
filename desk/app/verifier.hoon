@@ -186,7 +186,7 @@
   ==
 ::
 ++  validate-signature
-  |=  [=bowl:gall sign=(urbit-signature)]
+  |=  [=bowl:gall sign=(signed)]
   ^-  ?
   ::  if we don't know the current life of the signer,
   ::  or the life used to sign is beyond what we know,
@@ -207,9 +207,9 @@
   ?~  rec  [~ state]
   :-  [(give-status for.u.rec id %gone why)]~
   =?  attested  ?=(%done -.status.u.rec)
-    %.  sig.full-sign.status.u.rec
+    %.  sig.full.status.u.rec
     %~  del  by
-    (~(del by attested) sig.half-sign.status.u.rec)
+    (~(del by attested) sig.half.status.u.rec)
   %_  state
     records  (~(del by records) id)
     owners   (~(del ju owners) for.u.rec id)
@@ -231,12 +231,12 @@
   :-  [(give-status for.rec id status.rec)]~
   %_  state
     records   (~(put by records) id rec)
-    attested  (~(gas by attested) sig.half-sign.tat^id sig.full-sign.tat^id ~)
+    attested  (~(gas by attested) sig.half.tat^id sig.full.tat^id ~)
   ==
 ::
 ++  sign
   |*  [[our=@p now=@da] dat=*]
-  ^-  (urbit-signature _dat)
+  ^-  (signed _dat)
   =+  =>  [our=our now=now ..lull]  ~+
       ;;(=seed:jael (cue .^(@ %j /(scot %p our)/vile/(scot %da now))))
   ?>  =(who.seed our)
@@ -246,8 +246,8 @@
 ++  attest
   |=  [[our=@p now=@da] for=@p id=identifier proof=(unit proof)]
   ^-  attestation
-  :-  (sign [our now] `half-sign-data-0`[%0 %verified now for -.id])
-  (sign [our now] `full-sign-data-0`[%0 %verified now for id proof])
+  :-  (sign [our now] `half-sign-data`[%0 %verified now for -.id])
+  (sign [our now] `full-sign-data`[%0 %verified now for id proof])
 ::
 ++  get-allowance
   ::TODO  don't give comets allowance? or just much more stingy?
@@ -298,18 +298,18 @@
   %-  as-octs:mimes:html
   %+  rap  3
   :~  'verified that '
-      (scot %p for.dat.half-sign.tat)
+      (scot %p for.dat.half.tat)
       ' has '
     ::
       ?.  full
-        ?-  kind.dat.half-sign.tat
+        ?-  kind.dat.half.tat
           %dummy    'a dummy identifier'
           %urbit    'another urbit'
           %phone    'a phone number'
           %twitter  'an x.com account'
         ==
-      =*  id  id.dat.full-sign.tat
-      ?-  -.id.dat.full-sign.tat
+      =*  id  id.dat.full.tat
+      ?-  -.id.dat.full.tat
         %dummy    (cat 3 'dummy id ' +.id)
         %urbit    (cat 3 'control over ' (scot %p +.id))
         %phone    (cat 3 'phone nr ' +.id)
@@ -317,7 +317,7 @@
       ==
     ::
       ' on '
-      =*  when  when.dat.half-sign.tat
+      =*  when  when.dat.half.tat
       (scot %da (sub when (mod when ~d1)))
   ==
 --
@@ -591,9 +591,9 @@
       ?~  aid=(~(get by attested) u.sig)  fof
       ?~  rec=(~(get by records) u.aid)   fof
       ?.  ?=(%done -.status.u.rec)        fof
-      ?:  =(sig.half-sign.status.u.rec u.sig)
+      ?:  =(sig.half.status.u.rec u.sig)
         (spout:hu id [200 ~] `(display | +.status.u.rec))
-      ?:  =(sig.full-sign.status.u.rec u.sig)
+      ?:  =(sig.full.status.u.rec u.sig)
         (spout:hu id [200 ~] `(display & +.status.u.rec))
       ::  if we make it into this branch our bookkeeping is bad
       ::

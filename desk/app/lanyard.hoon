@@ -36,7 +36,7 @@
 ::
 ++  sign
   |*  [[our=@p now=@da] dat=*]
-  ^-  (urbit-signature _dat)
+  ^-  (signed _dat)
   =+  =>  [our=our now=now ..lull]  ~+
       ;;(=seed:jael (cue .^(@ %j /(scot %p our)/vile/(scot %da now))))
   ?>  =(who.seed our)
@@ -46,10 +46,10 @@
 ++  valid-jam
   |=  [[our=@p now=@da] dat=@]
   ^-  [valid=(unit ?) sig=(unit @ux)]
-  =/  sign=(unit (urbit-signature))
+  =/  sign=(unit (signed))
     %+  biff
       (mole |.((cue dat)))
-    (soft (urbit-signature ?(half-sign-data-0 full-sign-data-0)))
+    (soft (signed ?(half-sign-data full-sign-data)))
   ?~  sign  [`| ~]
   :_  `sig.u.sign
   ::  if we don't know the current life of the signer,
@@ -92,8 +92,8 @@
   ::
   =+  %+  roll  ~(tap by records)
       |=  $:  [[h=@p id=identifier] id-state]
-              urbits=(map @p [h=@p (urbit-signature full-sign-data-0)])
-              phone=(unit [h=@p (urbit-signature half-sign-data-0)])
+              urbits=(map @p [h=@p (signed full-sign-data)])
+              phone=(unit [h=@p (signed half-sign-data)])
           ==
       =*  nop  [urbits phone]
       ?.  ?=(%done -.status)  nop
@@ -101,11 +101,11 @@
       ?-  -.id
         %dummy    nop
         %twitter  nop  ::TODO
-        %urbit    [(~(put by urbits) +.id h full-sign.status) phone]
+        %urbit    [(~(put by urbits) +.id h full.status) phone]
       ::
           %phone
         :-  urbits
-        =-  (hunt - phone `[h half-sign.status])
+        =-  (hunt - phone `[h half.status])
         ::  prefer those whose service is publicly accessible,
         ::  and prefer the default service over others
         ::
@@ -136,7 +136,7 @@
   :-  [%lanyard-tmp-urbits %set (~(run in ~(key by urbits)) (lead %ship))]
   %-  zing
   %+  turn  ~(tap by urbits)
-  |=  [who=@p h=@p sign=(urbit-signature full-sign-data-0)]
+  |=  [who=@p h=@p sign=(signed full-sign-data)]
   ^-  (list [term value:c])
   :-  :_  [%text (scot %uw (jam sign))]
       (rap 3 %lanyard-tmp-urbit- (rsh 3^1 (scot %p who)) '-sign' ~)
