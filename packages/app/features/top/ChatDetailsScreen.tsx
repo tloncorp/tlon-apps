@@ -56,6 +56,7 @@ export function ChatDetailsScreen(props: Props) {
 
   return (
     <ChatOptionsProvider
+      key={`${chatType}-${chatId}`}
       initialChat={{
         type: chatType,
         id: chatId,
