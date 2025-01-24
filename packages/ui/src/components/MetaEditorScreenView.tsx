@@ -62,7 +62,7 @@ export function MetaEditorScreenView({
   const insets = useSafeAreaInsets();
 
   return (
-    <View flex={1} backgroundColor={'$background'}>
+    <View flex={1} backgroundColor={'$secondaryBackground'}>
       <ScreenHeader
         title={title}
         leftControls={
@@ -88,7 +88,7 @@ export function MetaEditorScreenView({
             paddingBottom: insets.bottom,
           }}
         >
-          <FormFrame paddingBottom={'$2xl'} flex={1}>
+          <FormFrame paddingBottom={'$2xl'} flex={1} backgroundType="secondary">
             <ControlledTextField
               name="title"
               label="Name"

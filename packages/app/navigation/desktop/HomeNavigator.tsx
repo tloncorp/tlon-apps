@@ -12,7 +12,9 @@ import { ChannelMetaScreen } from '../../features/channels/ChannelMetaScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import ChannelScreen from '../../features/top/ChannelScreen';
 import ChannelSearchScreen from '../../features/top/ChannelSearchScreen';
+import { ChatDetailsScreen } from '../../features/top/ChatDetailsScreen';
 import { ChatListScreenView } from '../../features/top/ChatListScreen';
+import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
 import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScreen';
 import ImageViewerScreen from '../../features/top/ImageViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
@@ -33,7 +35,7 @@ export const HomeNavigator = () => {
         drawerStyle: {
           width: 340,
           backgroundColor: getVariableValue(useTheme().background),
-          borderRightColor: getVariableValue(useTheme().border)
+          borderRightColor: getVariableValue(useTheme().border),
         },
       }}
     >
@@ -42,6 +44,8 @@ export const HomeNavigator = () => {
       <HomeDrawer.Screen name="Channel" component={ChannelStack} />
       <HomeDrawer.Screen name="DM" component={ChannelStack} />
       <HomeDrawer.Screen name="GroupDM" component={ChannelStack} />
+      <HomeDrawer.Screen name="ChatVolume" component={ChatVolumeScreen} />
+      <HomeDrawer.Screen name="ChatDetails" component={ChatDetailsScreen} />
     </HomeDrawer.Navigator>
   );
 };

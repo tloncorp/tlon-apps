@@ -1,6 +1,5 @@
 import { featureFlags } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
 import React, {
@@ -14,11 +13,10 @@ import React, {
 import { Popover, isWeb } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
-import { useCurrentUserId } from '../contexts/appDataContext';
+import { useCurrentUserId } from '../contexts';
 import { useChatOptions } from '../contexts/chatOptions';
 import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
 import * as utils from '../utils';
-import { useIsAdmin } from '../utils';
 import {
   Action,
   ActionGroup,
@@ -75,7 +73,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
         propOnOpenChange(open);
       }
     },
-    [chat, context.open, context.setChat, propOnOpenChange]
+    [chat, context, propOnOpenChange]
   );
 
   if (!chat || (!isOpen && !trigger)) {
@@ -136,17 +134,11 @@ export function GroupOptionsSheetLoader({
     setPane('sort');
   }, [setPane]);
 
-  const handlePressEdit = useCallback(() => {
-    setPane('edit');
-  }, [setPane]);
-
   const resetPane = useCallback(() => {
     setPane('initial');
   }, [setPane]);
 
   const title = utils.useGroupTitle(group) ?? 'Loading...';
-  const currentUserId = useCurrentUserId();
-  const currentUserIsAdmin = useIsAdmin(groupId, currentUserId);
   const { data: groupUnread, isFetched: groupUnreadIsFetched } =
     store.useGroupUnread({ groupId });
   const { data: groupData } = store.useGroup({ id: groupId });
@@ -193,11 +185,9 @@ export function GroupOptionsSheetLoader({
             />
           ) : (
             <GroupOptionsSheetContent
-              currentUserIsAdmin={currentUserIsAdmin}
               groupUnread={groupUnread ?? null}
               onPressNotifications={handlePressNotifications}
               onPressSort={handlePressSort}
-              onPressEditGroup={handlePressEdit}
               chatTitle={title}
               group={group || groupData!}
               onOpenChange={onOpenChange}
@@ -222,11 +212,9 @@ export function GroupOptionsSheetLoader({
         <SortChannelsSheetContent chatTitle={title} onPressBack={resetPane} />
       ) : (
         <GroupOptionsSheetContent
-          currentUserIsAdmin={currentUserIsAdmin}
           groupUnread={groupUnread ?? null}
           onPressNotifications={handlePressNotifications}
           onPressSort={handlePressSort}
-          onPressEditGroup={handlePressEdit}
           chatTitle={title}
           group={group || groupData!}
           onOpenChange={onOpenChange}
@@ -240,33 +228,20 @@ function GroupOptionsSheetContent({
   chatTitle,
   group,
   groupUnread,
-  currentUserIsAdmin,
   onPressNotifications,
   onPressSort,
-  onPressEditGroup,
   onOpenChange,
 }: {
   group: db.Group;
   groupUnread: db.GroupUnread | null;
-  currentUserIsAdmin: boolean;
   chatTitle: string;
   onPressNotifications: () => void;
   onPressSort: () => void;
-  onPressEditGroup: () => void;
   onOpenChange: (open: boolean) => void;
 }) {
-  const {
-    markGroupRead,
-    onPressGroupMembers,
-    onPressInvite,
-    togglePinned,
-    leaveGroup,
-  } = useChatOptions();
-  const groupRef = logic.getGroupReferencePath(group.id);
+  const { markGroupRead, onPressChatDetails, togglePinned } = useChatOptions();
   const canMarkRead = !(group.unread?.count === 0 || groupUnread?.count === 0);
   const canSortChannels = (group.channels?.length ?? 0) > 1;
-  const canInvite = currentUserIsAdmin || group.privacy === 'public';
-  const canLeave = !group.currentUserIsHost;
   const isPinned = group?.pin;
 
   const wrappedAction = useCallback(
@@ -276,6 +251,10 @@ function GroupOptionsSheetContent({
     },
     [onOpenChange]
   );
+
+  const handlePressChatDetails = useCallback(() => {
+    onPressChatDetails({ type: 'group', id: group.id });
+  }, [group.id, onPressChatDetails]);
 
   const actionGroups = useMemo(
     () =>
@@ -296,13 +275,6 @@ function GroupOptionsSheetContent({
             endIcon: 'Pin',
             action: wrappedAction.bind(null, togglePinned),
           },
-          {
-            title: 'Copy group reference',
-            description: groupRef,
-            render: (props) => (
-              <ActionSheet.CopyAction {...props} copyText={groupRef} />
-            ),
-          },
           canSortChannels && {
             title: 'Sort channels',
             endIcon: 'ChevronRight',
@@ -311,50 +283,19 @@ function GroupOptionsSheetContent({
         ],
         [
           'neutral',
-          currentUserIsAdmin && {
-            title: 'Edit group',
-            action: onPressEditGroup,
-            endIcon: 'ChevronRight',
-          },
           {
-            title: 'Members',
+            title: 'Group info & settings',
+            action: wrappedAction.bind(null, handlePressChatDetails),
             endIcon: 'ChevronRight',
-            action: wrappedAction.bind(null, onPressGroupMembers),
-          },
-          canInvite
-            ? {
-                title: 'Invite people',
-                action: wrappedAction.bind(null, onPressInvite),
-                endIcon: 'ChevronRight',
-              }
-            : {
-                accent: 'disabled',
-                title: 'Invites disabled',
-                description: 'Only admins may invite people to this group.',
-              },
-        ],
-        canLeave && [
-          'negative',
-          {
-            title: 'Leave group',
-            endIcon: 'LogOut',
-            action: wrappedAction.bind(null, leaveGroup),
           },
         ]
       ),
     [
-      canInvite,
-      canLeave,
       canMarkRead,
       canSortChannels,
-      currentUserIsAdmin,
-      groupRef,
+      handlePressChatDetails,
       isPinned,
-      leaveGroup,
       markGroupRead,
-      onPressEditGroup,
-      onPressGroupMembers,
-      onPressInvite,
       onPressNotifications,
       onPressSort,
       togglePinned,
@@ -604,28 +545,34 @@ function ChannelOptionsSheetContent({
 }) {
   const {
     group,
+    onPressChatDetails,
     onPressChannelMembers,
     onPressChannelMeta,
     onPressChannelTemplate,
-    onPressManageChannels,
-    onPressInvite,
     togglePinned,
     leaveChannel,
     markChannelRead,
   } = useChatOptions();
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
 
-  const currentUser = useCurrentUserId();
-  const currentUserIsHost = channel?.currentUserIsHost ?? false;
-  const currentUserIsAdmin = useIsAdmin(channel.groupId ?? '', currentUser);
+  const currentUserId = useCurrentUserId();
+  const currentUserIsAdmin = utils.useIsAdmin(
+    channel.groupId ?? '',
+    currentUserId
+  );
+  const currentUserIsHost = group?.currentUserIsHost ?? false;
+
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;
-  const invitationsEnabled =
-    group?.privacy === 'private' || group?.privacy === 'secret';
-  const canInvite =
-    (invitationsEnabled && currentUserIsAdmin) || group?.privacy === 'public';
   const canMarkRead = !(channel.unread?.count === 0);
   const enableCustomChannels = useCustomChannelsEnabled();
+
+  const handlePressChatDetails = useCallback(() => {
+    if (!group) {
+      throw new Error("Channel doesn't have a group");
+    }
+    onPressChatDetails({ type: 'group', id: group.id });
+  }, [group, onPressChatDetails]);
 
   const wrappedAction = useCallback(
     (action: () => void) => {
@@ -670,10 +617,10 @@ function ChannelOptionsSheetContent({
         ],
         group && [
           'neutral',
-          currentUserIsAdmin && {
-            title: 'Manage channels',
+          {
+            title: 'Group info & settings',
+            action: wrappedAction.bind(null, handlePressChatDetails),
             endIcon: 'ChevronRight',
-            action: wrappedAction.bind(null, onPressManageChannels),
           },
           currentUserIsAdmin &&
             enableCustomChannels && {
@@ -681,18 +628,8 @@ function ChannelOptionsSheetContent({
               action: onPressConfigureChannel,
               endIcon: 'ChevronRight',
             },
-          canInvite
-            ? {
-                title: 'Invite people',
-                action: wrappedAction.bind(null, onPressInvite),
-                endIcon: 'ChevronRight',
-              }
-            : {
-                title: 'Invites disabled',
-                accent: 'disabled',
-                description: 'Only admins may invite people to this group.',
-              },
         ],
+
         hooksPreview && [
           'neutral',
           {
@@ -705,33 +642,31 @@ function ChannelOptionsSheetContent({
         !currentUserIsHost && [
           'negative',
           {
-            title: `Leave`,
+            title: group ? `Leave channel` : 'Leave chat',
             endIcon: 'LogOut',
             action: wrappedAction.bind(null, leaveChannel),
           },
         ]
       ),
     [
-      enableCustomChannels,
-      onPressConfigureChannel,
       onPressNotifications,
       channel?.pin,
       channel.type,
+      wrappedAction,
       togglePinned,
       canMarkRead,
       markChannelRead,
       onPressChannelMeta,
       onPressChannelMembers,
       group,
+      handlePressChatDetails,
       currentUserIsAdmin,
-      onPressManageChannels,
+      enableCustomChannels,
+      onPressConfigureChannel,
+      hooksPreview,
       onPressChannelTemplate,
-      canInvite,
-      onPressInvite,
       currentUserIsHost,
       leaveChannel,
-      wrappedAction,
-      hooksPreview,
     ]
   );
 
@@ -797,7 +732,10 @@ function ChatOptionsSheetContent({
   );
 }
 
-const notificationOptions: { title: string; value: ub.NotificationLevel }[] = [
+export const notificationOptions: {
+  title: string;
+  value: ub.NotificationLevel;
+}[] = [
   {
     title: 'All activity',
     value: 'loud',
@@ -807,7 +745,7 @@ const notificationOptions: { title: string; value: ub.NotificationLevel }[] = [
     value: 'medium',
   },
   {
-    title: 'Only mentions and replies',
+    title: 'Mentions and replies',
     value: 'soft',
   },
   {
