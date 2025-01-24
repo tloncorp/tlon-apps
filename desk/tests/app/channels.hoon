@@ -82,6 +82,6 @@
   ::  join channel
   ;<  *  bind:m  (do-init dap channels-agent)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
-  ;<  *  bind:m  (do-poke %channel-action-2 !>([%channel the-nest %join the-group]))
+  ;<  *  bind:m  (do-poke %channel-action-1 !>([%channel the-nest %join the-group]))
   (do-agent chk-wire the-dock %watch-ack ~)
 --

@@ -488,10 +488,13 @@
   |^  ,[global local]
   +$  global
     $:  =posts
+        ::  .count: number of posts, for sequence nr generation
+        count=@ud
         order=arranged-posts
         =view
         =sort
         =perm
+        meta=(unit @t)
     ==
   ::
   +$  local
@@ -580,6 +583,15 @@
           [%pin pins=(list nest)]
           [%channel =nest =a-channel]
           [%toggle-post toggle=post-toggle]
+      ==
+    +$  create-channel
+      $:  =kind
+          name=term
+          group=flag:g
+          title=cord
+          description=cord
+          readers=(set sect:g)
+          writers=(set sect:g)
       ==
     +$  a-channel
       $%  [%join group=flag:g]

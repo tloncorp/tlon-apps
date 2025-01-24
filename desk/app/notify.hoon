@@ -391,7 +391,7 @@
       =/  new-timer  (add now daily-stats-interval)
       =.  last-timer  new-timer
       :_  state
-      :~  [(poke:pass [our.bowl %channels] %channel-action-2 !>(channel-action))]
+      :~  [(poke:pass [our.bowl %channels] %channel-action-1 !>(channel-action))]
           [(~(wait pass:io /daily-timer) new-timer)]
       ==
     --
