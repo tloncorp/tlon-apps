@@ -136,7 +136,7 @@ export async function updateChannelMeta(
   return trackedPoke<ub.ChannelsResponse>(
     {
       app: 'channels',
-      mark: 'channel-action',
+      mark: 'channel-action-1',
       json: {
         channel: {
           nest: channelId,
