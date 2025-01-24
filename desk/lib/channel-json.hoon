@@ -176,10 +176,12 @@
     |=  channel=channel:c
     %-  pairs
     :~  posts+(posts posts.channel)
+        count+(numb count.channel)
         order+(order order.channel)
         view+s+view.channel
         sort+s+sort.channel
         perms+(perm perm.channel)
+        meta+?~(meta.channel ~ s+u.meta.channel)
     ==
   ::
   ++  posts
@@ -1163,6 +1165,17 @@
           pin+(ar nest)
           channel+(ot nest+nest action+a-channel ~)
           toggle-post+post-toggle
+      ==
+    ++  create-channel
+      ^-  $-(json create-channel:v7:old:c)
+      %-  ot
+      :~  kind+kind
+          name+(se %tas)
+          group+flag
+          title+so
+          description+so
+          readers+(as (se %tas))
+          writers+(as (se %tas))
       ==
     ++  a-channel
       ^-  $-(json a-channel:v7:old:c)

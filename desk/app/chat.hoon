@@ -1159,7 +1159,7 @@
       `[%reply u.parent-time %edit time -.u.edit]
     ?~  command  ~
     =/  =cage
-      :-  %channel-action-2
+      :-  %channel-action-1
       !>(`a-channels:d`[%channel [%chat flag] %post u.command])
     `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::

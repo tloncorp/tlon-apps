@@ -503,9 +503,22 @@
       ?.  ?=(%channel-action mark)
         !<(a-channels:c vase)
       =+  !<(old-a-channels=a-channels:v7:old:c vase)
+      ::  upconvert old %create action
+      ?:  ?=([%create *] old-a-channels)
+        :-  %create
+        =>  create-channel.old-a-channels
+        :*  kind
+            name
+            group
+            title
+            description
+            ~  ::  meta
+            readers
+            writers
+        ==
       ?.  ?=([%channel *] old-a-channels)
         old-a-channels
-      ::  upconvert emoji
+      ::  upconvert old %channel action
       ::
       ?+    a-channel.old-a-channels  old-a-channels
         ::
