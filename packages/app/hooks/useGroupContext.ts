@@ -1,4 +1,4 @@
-import { sync } from '@tloncorp/shared';
+import { sync, useUpdateChannel } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -119,26 +119,15 @@ export const useGroupContext = ({
     [group]
   );
 
+  const _updateChannel = useUpdateChannel();
   const updateChannel = useCallback(
     async (channel: db.Channel) => {
-      const navSection = groupNavSections.find((section) =>
-        section.channels.map((c) => c.channelId).includes(channel.id)
-      );
-
-      if (!navSection || !group) {
-        return;
+      if (group == null) {
+        throw new Error('Group is null');
       }
-
-      await store.updateChannel({
-        groupId: group.id,
-        channel,
-        sectionId: navSection.sectionId,
-        readers: channel.readerRoles?.map((r) => r.roleId) ?? [],
-        writers: channel.writerRoles?.map((r) => r.roleId) ?? [],
-        join: true,
-      });
+      return _updateChannel({ channel, group });
     },
-    [group, groupNavSections]
+    [group, _updateChannel]
   );
 
   const createNavSection = useCallback(

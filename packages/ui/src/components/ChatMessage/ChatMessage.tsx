@@ -1,11 +1,14 @@
+import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
+import { useChannelContext } from '../../contexts';
 import AuthorRow from '../AuthorRow';
+import { Button } from '../Button';
 import { Icon } from '../Icon';
-import { OverflowMenuButton } from '../OverflowMenuButton';
+import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
@@ -14,6 +17,7 @@ import {
 import Pressable from '../Pressable';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { Text } from '../TextV2';
+import { ChatMessageActions } from './ChatMessageActions/Component';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
@@ -28,6 +32,8 @@ const ChatMessage = ({
   onLongPress,
   onPressRetry,
   onPressDelete,
+  onShowEmojiPicker,
+  onPressEdit,
   showReplies,
   setViewReactionsPost,
   isHighlighted,
@@ -44,12 +50,20 @@ const ChatMessage = ({
   onLongPress?: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete?: (post: db.Post) => void;
+  onShowEmojiPicker?: () => void;
+  onPressEdit?: () => void;
   setViewReactionsPost?: (post: db.Post) => void;
   isHighlighted?: boolean;
   hideOverflowMenu?: boolean;
 }) => {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [showOverflowOnHover, setShowOverflowOnHover] = useState(false);
+  const channel = useChannelContext();
+  const postActionIds = useMemo(
+    () => ChannelAction.channelActionIdsFor({ channel }),
+    [channel]
+  );
+
   const isNotice = post.type === 'notice';
 
   if (isNotice) {
@@ -222,15 +236,40 @@ const ChatMessage = ({
         />
       </YStack>
       {!hideOverflowMenu && showOverflowOnHover && (
-        <OverflowMenuButton
-          onPress={handleLongPress}
-          top={0}
-          right={12}
-          width={0}
-        />
+        <View position="absolute" top={0} right={12}>
+          <ChatMessageActions
+            post={post}
+            postActionIds={postActionIds}
+            onDismiss={() => setShowOverflowOnHover(false)}
+            onReply={handleRepliesPressed}
+            onEdit={onPressEdit}
+            onViewReactions={setViewReactionsPost}
+            onShowEmojiPicker={onShowEmojiPicker}
+            trigger={
+              <Button
+                backgroundColor="transparent"
+                borderWidth="unset"
+                size="$l"
+              >
+                <Icon type="Overflow" />
+              </Button>
+            }
+          />
+        </View>
       )}
     </Pressable>
   );
+};
+
+const WebChatImageRenderer: DefaultRendererProps['image'] = {
+  alignItems: 'flex-start',
+  imageProps: {
+    maxWidth: 600,
+    maxHeight: 600,
+    height: 'auto',
+    width: 'auto',
+    objectFit: 'contain',
+  },
 };
 
 const ChatContentRenderer = createContentRenderer({
@@ -241,6 +280,7 @@ const ChatContentRenderer = createContentRenderer({
     reference: {
       contentSize: '$l',
     },
+    image: isWeb ? WebChatImageRenderer : undefined,
   },
 });
 

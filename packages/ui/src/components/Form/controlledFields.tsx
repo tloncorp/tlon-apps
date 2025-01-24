@@ -8,7 +8,7 @@ import {
   useController,
 } from 'react-hook-form';
 
-import { Field } from './Form';
+import { Field } from './Field';
 import {
   ImageInput,
   ListItemInput,

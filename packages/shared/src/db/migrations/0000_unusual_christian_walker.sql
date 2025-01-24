@@ -64,6 +64,7 @@ CREATE TABLE `channels` (
 	`contact_id` text,
 	`added_to_group_at` integer,
 	`current_user_is_member` integer,
+	`current_user_is_host` integer,
 	`post_count` integer,
 	`unread_count` integer,
 	`first_unread_post_id` text,
@@ -74,7 +75,6 @@ CREATE TABLE `channels` (
 	`synced_at` integer,
 	`remote_updated_at` integer,
 	`last_viewed_at` integer,
-	`is_default_welcome_channel` integer,
 	`content_configuration` text,
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );

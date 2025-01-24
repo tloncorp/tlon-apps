@@ -1,6 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { requestPhoneVerify } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Field,
@@ -9,8 +8,10 @@ import {
   TlonText,
   View,
   YStack,
+  useStore,
   useTheme,
 } from '@tloncorp/ui';
+import { isValidPhoneNumber } from 'libphonenumber-js';
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { CountryPicker } from 'react-native-country-codes-picker';
@@ -29,10 +30,9 @@ type FormData = {
 
 export const RequestPhoneVerifyScreen = ({
   navigation,
-  route: {
-    params: { user },
-  },
+  route: { params },
 }: Props) => {
+  const store = useStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
 
@@ -51,16 +51,11 @@ export const RequestPhoneVerifyScreen = ({
   const onSubmit = handleSubmit(async ({ phoneNumber }) => {
     setIsSubmitting(true);
     try {
-      await requestPhoneVerify(user.id, phoneNumber);
+      await store.requestPhoneVerify(phoneNumber);
       trackOnboardingAction({
         actionName: 'Phone Verification Requested',
       });
-      navigation.navigate('CheckVerify', {
-        user: {
-          ...user,
-          phoneNumber,
-        },
-      });
+      navigation.navigate('CheckVerify', { phoneNumber, mode: params.mode });
     } catch (err) {
       console.error('Error verifiying phone number:', err);
       if (err instanceof SyntaxError) {
@@ -114,6 +109,7 @@ export const RequestPhoneVerifyScreen = ({
             control={control}
             rules={{
               required: 'Please enter a valid phone number.',
+              validate: (value) => isValidPhoneNumber(value),
             }}
             render={({ field: { onChange } }) => (
               <Field

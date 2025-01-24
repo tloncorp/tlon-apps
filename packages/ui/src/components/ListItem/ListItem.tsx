@@ -30,6 +30,7 @@ export interface BaseListItemProps<T> {
   onLongPress?: (model: T) => void;
   unreadCount?: number;
   isFocused?: boolean;
+  disableOptions?: boolean;
 }
 
 export type ListItemProps<T> = BaseListItemProps<T> &
@@ -218,7 +219,7 @@ export const ListItemPostPreview = ({
   post,
   showAuthor = true,
 }: {
-  post: db.Post;
+  post: Pick<db.Post, 'authorId' | 'textContent' | 'hidden'>;
   showAuthor?: boolean;
 }) => {
   return (

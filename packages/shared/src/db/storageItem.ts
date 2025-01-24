@@ -43,7 +43,23 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
 
   const getValue = async (): Promise<T> => {
     const value = await storage.getItem(key);
-    return value ? deserialize(value) : defaultValue;
+
+    if (!value) {
+      return defaultValue;
+    }
+
+    const deserializedValue = deserialize(value);
+
+    // Check to handle migration from a previous storage library
+    // that prefixed all keys
+    if (
+      deserializedValue &&
+      typeof deserializedValue === 'object' &&
+      'rawData' in deserializedValue
+    ) {
+      return deserializedValue.rawData;
+    }
+    return deserializedValue;
   };
 
   const resetValue = async (): Promise<T> => {

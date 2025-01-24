@@ -40,7 +40,7 @@ export const OnboardingInviteBlock = React.memo(function OnboardingInviteBlock({
     id: inviterUserId!,
     nickname: inviterNickname,
     avatarImage: inviterAvatarImage,
-    color: inviterColor,
+    color: inviterColor || undefined,
   } as db.Contact;
 
   const groupShim = {

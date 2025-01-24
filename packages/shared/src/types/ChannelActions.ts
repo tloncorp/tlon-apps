@@ -52,6 +52,7 @@ export function channelActionIdsFor({
     case 'dm':
     case 'groupDm':
       return [
+        'quote',
         'startThread',
         'muteThread',
         'viewReactions',
