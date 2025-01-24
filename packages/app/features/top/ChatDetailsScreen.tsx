@@ -203,6 +203,7 @@ function ChatDetailsScreenContent({
             chatType={chatType}
             members={members}
             canInvite={canInviteToGroup}
+            canManage={currentUserIsAdmin}
           />
         ) : null}
 
@@ -382,10 +383,12 @@ function ChatMembersList({
   chatType,
   members,
   canInvite,
+  canManage,
 }: {
   chatType: 'group' | 'channel';
   members?: db.ChatMember[] | null;
   canInvite: boolean;
+  canManage: boolean;
 }) {
   const memberCount = members?.length ?? 0;
   const { onPressGroupMembers, onPressChannelMembers, onPressInvite } =
@@ -444,7 +447,7 @@ function ChatMembersList({
               $group-press={{ backgroundColor: '$secondaryBackground' }}
             >
               <TlonText.Text size="$label/l">
-                {canInvite ? 'Manage members' : 'See all '}
+                {canManage ? 'Manage members' : 'See all '}
               </TlonText.Text>
               <Icon type="ChevronRight" color="$tertiaryText" />
             </XStack>
