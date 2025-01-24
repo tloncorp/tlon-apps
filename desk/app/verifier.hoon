@@ -199,6 +199,25 @@
   =+  .^([life =pass *] %j /(scot %p our.bowl)/deed/(scot %da now.bowl)/(scot %p who.sign)/(scot %ud lyf.sign))
   (safe:as:(com:nu:crub:crypto pass) sig.sign (jam dat.sign))
 ::
+++  revoke
+  |=  [state id=identifier rec=(unit record) why=@t]
+  =*  state  +<-
+  ^-  (quip card _state)
+  =.  rec  ?^(rec rec (~(get by records) id))
+  ?~  rec  [~ state]
+  :-  [(give-status for.u.rec id %gone why)]~
+  =?  attested  ?=(%done -.status.u.rec)
+    %.  sig.full-sign.status.u.rec
+    %~  del  by
+    (~(del by attested) sig.half-sign.status.u.rec)
+  %_  state
+    records  (~(del by records) id)
+    owners   (~(del ju owners) for.u.rec id)
+    lookups  %+  roll  ~(tap in (~(get ju reverse) id))
+             |=([l=@ =_lookups] (~(del by lookups) l))
+    reverse  (~(del by reverse) id)
+  ==
+::
 ++  register
   |=  $:  [state =bowl:gall]
           [id=identifier rec=record]
@@ -212,7 +231,6 @@
   :-  [(give-status for.rec id status.rec)]~
   %_  state
     records   (~(put by records) id rec)
-    owners    (~(put ju owners) for.rec id)
     attested  (~(gas by attested) sig.half-sign.tat^id sig.full-sign.tat^id ~)
   ==
 ::
@@ -367,6 +385,8 @@
       =.  records
         %+  ~(put by records)  id.cmd
         [src.bowl now.bowl *config status]
+      =.  owners
+        (~(put ju owners) src.bowl id.cmd)
       =?  limits  ?=(%phone -.id.cmd)
         =/  lim  (get-allowance limits src.bowl now.bowl)
         =.  phone.lim
@@ -389,20 +409,8 @@
         %revoke
       =/  rec  (~(got by records) id.cmd)
       ?>  =(src.bowl for.rec)
-      ::TODO  de-dupe with the host command?
-      :-  [(give-status src.bowl id.cmd [%gone 'revoked'])]~
-      =?  owners    ?=(%done -.status.rec)
-        (~(del ju owners) for.rec id.cmd)
-      =?  attested  ?=(%done -.status.rec)
-        %.  sig.full-sign.status.rec
-        %~  del  by
-        (~(del by attested) sig.half-sign.status.rec)
-      %_  this
-        records  (~(del by records) id.cmd)
-        lookups  %+  roll  ~(tap in (~(get ju reverse) id.cmd))
-                 |=([l=@ =_lookups] (~(del by lookups) l))
-        reverse  (~(del by reverse) id.cmd)
-      ==
+      =^  caz  +.state  (revoke +.state id.cmd `rec 'revoked')
+      [caz this]
     ::
         %work
       =*  id  id.cmd
@@ -470,14 +478,8 @@
         %revoke
       =*  id  id.cmd
       =/  rec  (~(got by records) id)
-      =?  owners    ?=(%done -.status.rec)
-        (~(del ju owners) for.rec id)
-      =?  attested  ?=(%done -.status.rec)
-        %.  sig.full-sign.status.rec
-        %~  del  by
-        (~(del by attested) sig.half-sign.status.rec)
-      :-  [(give-status for.rec id [%gone 'revoked'])]~
-      this(records (~(del by records) id))
+      =^  caz  +.state  (revoke +.state id.cmd `rec 'revoked')
+      [caz this]
     ::
         %dummy
       =/  id=identifier  [%dummy id.cmd]
@@ -507,7 +509,11 @@
           %has-any
         :-  %has-any
         %+  lien  ~(tap in (~(get ju owners) who.qer))
-        |=(id=identifier =(-.id kind.qer))
+        |=  id=identifier
+        ::TODO  should not be %hidden ?
+        ?&  =(-.id kind.qer)
+            ?=(%done =<(-.status (~(gut by records) id *record)))
+        ==
       ::
           %valid
         [%valid (~(has by attested) sig.qer)]
@@ -638,8 +644,8 @@
     ~?  ?=(%wait -.status.u.rec)  [dap.bowl %dropped-the-ball -.id]
     ::  registration attempt took too long, abort it
     ::
-    :-  [(give-status for.u.rec id [%gone 'registration timed out'])]~
-    this(records (~(del by records) id))
+    =^  caz  +.state  (revoke +.state id rec 'registration timed out')
+    [caz this]
   ::
       [%id %phone @ ?(%status %verify %submit) ~]
     ~|  [- +<]:sign
@@ -657,8 +663,8 @@
     ?>  =(%wait -.status.u.rec)  ::NOTE  avoid tmi
     =*  abort
       ::TODO  and log
-      :-  [(give-status for.u.rec id [%gone 'service error'])]~
-      this(records (~(del by records) id))
+      =^  caz  +.state  (revoke +.state id rec 'service error')
+      [caz this]
     =*  want-otp
       =.  status.u.rec  [%want %phone %otp]
       :_  this(records (~(put by records) id u.rec))
@@ -774,8 +780,8 @@
     ::TODO  log all non-good results?
     =*  abort
       ::TODO  and log
-      :-  [(give-status for.u.rec id [%gone 'service error'])]~
-      this(records (~(del by records) id))
+      =^  caz  +.state  (revoke +.state id rec 'service error')
+      [caz this]
     =*  hold
       ::TODO  include msg in the status?
       =.  status.u.rec  u.pre.status
@@ -817,16 +823,9 @@
   ?>  ?=([%records @ ~] path)
   =+  who=(slav %p i.t.path)
   ?>  =(src.bowl who)
-  ::TODO  but looking at owners here means we miss ids in pending states...
-  ::      can we just change owners to mean "owners of flows" instead of
-  ::      "owners of verifieds"?
-  :: =+  %-  ~(rep in (~(get ju owners) who))
-  ::     |=  [id=identifier all=(map identifier id-state)]
-  ::     (~(put by all) id +>:(~(got by records) id))
-  =+  %-  ~(rep by records)
-      |=  [[id=identifier =record] all=(map identifier id-state)]
-      ?.  =(src.bowl for.record)  all
-      (~(put by all) id +>.record)
+  =+  %-  ~(rep in (~(get ju owners) who))
+      |=  [id=identifier all=(map identifier id-state)]
+      (~(put by all) id +>:(~(got by records) id))
   =/  upd=update  [%full all]
   [%give %fact ~ %verifier-update !>(upd)]~
 ::

@@ -45,6 +45,7 @@
   ==
 ::
 +$  status
+  $~  [%wait ~]
   $%  [%done attestation]        ::  verified
       [%wait pre=(unit status)]  ::  service at work
       [%want user-task]          ::  waiting on user action

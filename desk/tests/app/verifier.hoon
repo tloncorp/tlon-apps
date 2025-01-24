@@ -4,12 +4,13 @@
 ::    ~zod is the host,
 ::    ~nec is the primary user
 ::
-/-  v=verifier
+/-  verifier
 /+  *test-agent
 ::
 /=  agent  /app/verifier
 ::
 |%
+++  v  (verifier)
 ++  dap  %verifier
 +$  card  card:agent:gall
 ::
@@ -539,11 +540,11 @@
         ['authorization' (cat 3 'Bearer ' twitter-api-bearer)]~
     ==
   ::
-  =/  good-blob=@t
-    %-  crip  %-  (w-co:co 1)  %-  jam
-    ^-  payload:twitter:v
+  =/  good-pay=payload:twitter:v
     %+  faux-sign  ~nec
     [%twitter %0 handle nonce]
+  =/  good-blob=@t
+    (crip ((w-co:co 1) (jam good-pay)))
   ::TODO  want to unit-test +parse-twitter-post instead?
   |^  %-  branch
       :~  'api unauthorized'^api-unauthorized
@@ -714,13 +715,27 @@
       %+  ex-cards  caz
       [(ex-verifier-update ~nec %status id %done at)]~
     ::TODO  test via scries instead?
-    ::TODO  proof lookup added into
+    ;<  =state:v  bind:m  get-state
+    ;<  ~  bind:m
+      %-  branch
+      :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec ~2000.1.2 *config:v %done at]))
+          'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
+          'ath'^(ex-equal !>((~(get by attested.state) sig.half-sign.at)) !>(`id))
+          'atf'^(ex-equal !>((~(get by attested.state) sig.full-sign.at)) !>(`id))
+          'lup'^(ex-equal !>((~(get by lookups.state) sig.good-pay)) !>(`id))
+          'rev'^(ex-equal !>((~(get ju reverse.state) id)) !>([sig.good-pay ~ ~]))
+      ==
+    ::  revocation cleans out that state
+    ::
+    ;<  *  bind:m  (user-does ~nec %revoke id)
     ;<  =state:v  bind:m  get-state
     %-  branch
-    :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec ~2000.1.2 *config:v %done at]))
-        'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
-        'ath'^(ex-equal !>((~(get by attested.state) sig.half-sign.at)) !>(`id))
-        'atf'^(ex-equal !>((~(get by attested.state) sig.full-sign.at)) !>(`id))
+    :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(~))
+        'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>(~))
+        'ath'^(ex-equal !>((~(get by attested.state) sig.half-sign.at)) !>(~))
+        'atf'^(ex-equal !>((~(get by attested.state) sig.full-sign.at)) !>(~))
+        'lup'^(ex-equal !>((~(get by lookups.state) sig.good-pay)) !>(~))
+        'rev'^(ex-equal !>((~(get ju reverse.state) id)) !>(~))
     ==
   --
 ::
@@ -939,6 +954,9 @@
     %^  expect-query-response  ~fed
       [[%some-dude %my-nonce] %has-any ~nec %dummy]
     [%has-any &]
+  ::  started but incomplete registrations don't count
+  ::
+  ;<  *  bind:m  (user-does ~nec %start %urbit ~fun)
   ;<  ~  bind:m
     %^  expect-query-response  ~fed
       [[%my-dude %some-nonce] %has-any ~nec %urbit]
