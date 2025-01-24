@@ -26,9 +26,9 @@ export interface InitData {
 }
 
 export const getInitData = async () => {
-  const response = await scry<ub.GroupsInit4>({
+  const response = await scry<ub.GroupsInit5>({
     app: 'groups-ui',
-    path: '/v4/init',
+    path: '/v5/init',
   });
 
   const pins = toClientPinnedItems(response.pins);

@@ -25,6 +25,8 @@ export interface GroupsInit4 {
   chat: DMInit2;
 }
 
+export type GroupsInit5 = GroupsInit4;
+
 export interface CombinedHeads {
   dms: ChatHeadsResponse;
   channels: ChannelHeadsResponse;
