@@ -499,7 +499,7 @@
     ==
   ::
     :: TODO: add transfer/import channels
-      ?(%channel-action %channel-action-2)
+      ?(%channel-action %channel-action-1)
     =/  =a-channels:c
       ?.  ?=(%channel-action mark)
         !<(a-channels:c vase)
