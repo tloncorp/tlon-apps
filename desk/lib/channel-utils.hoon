@@ -59,6 +59,8 @@
   ^-  channel:c
   =/  base
     %*  .  *channel:c
+      count    count.channel
+      meta     +.meta.channel
       perm     +.perm.channel
       view     +.view.channel
       sort     +.sort.channel
@@ -1153,7 +1155,7 @@
   ^-  said:c
   %=  said  q
     ?-    -.q.said
-        %post  
+        %post
       ^-  [%post simple-post:c]
       =/  replies=simple-replies:c
         %+  run:on-simple-replies:v7:old:c
