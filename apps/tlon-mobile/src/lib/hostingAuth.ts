@@ -4,7 +4,7 @@ import { createDevLogger } from '@tloncorp/shared';
 import { getHostingHeartBeat } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 
-const logger = createDevLogger('refreshHostingAuth', true);
+const logger = createDevLogger('refreshHostingAuth', false);
 
 // Authentication for hosting uses a token that can last up to a year, but
 // expires after 30 days of without use. We don't regularly interact with hosting after login,
