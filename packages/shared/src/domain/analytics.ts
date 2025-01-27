@@ -29,4 +29,9 @@ export enum AnalyticsEvent {
   AppError = 'App Error',
   Scry = 'Scry',
   TrackedPoke = 'TrackedPoke',
+  InitDataFetched = 'Init Data Fetched',
+  InitDataWritten = 'Init Data Written',
+  LatestPostsFetched = 'Latest Posts Fetched',
+  LatestPostsWritten = 'Latest Posts Written',
+  SubscriptionsEstablished = 'Subscriptions Established',
 }

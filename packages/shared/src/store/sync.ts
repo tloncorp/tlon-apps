@@ -1144,16 +1144,30 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
           priority: SyncPriority.High - 1,
         }).then(() => logger.crumb('subscribed high priority'));
 
+    const trackStep = (function () {
+      let last = Date.now();
+      return (event: AnalyticsEvent) => {
+        const now = Date.now();
+        logger.trackEvent(event, { duration: now - last });
+        last = now;
+      };
+    })();
+
     // then enforce the ordering of writes to avoid race conditions
     const initWriter = await syncInitPromise;
+    trackStep(AnalyticsEvent.InitDataFetched);
     await initWriter();
+    trackStep(AnalyticsEvent.InitDataWritten);
     logger.crumb('finished writing init data');
 
     const latestPostsWriter = await syncLatestPostsPromise;
+    trackStep(AnalyticsEvent.LatestPostsFetched);
     await latestPostsWriter();
+    trackStep(AnalyticsEvent.LatestPostsWritten);
     logger.crumb('finished writing latest posts');
 
     await subsPromise;
+    trackStep(AnalyticsEvent.SubscriptionsEstablished);
     logger.crumb('finished initializing high priority subs');
 
     logger.crumb(`finished high priority init sync`);
