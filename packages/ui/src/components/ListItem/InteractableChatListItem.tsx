@@ -62,9 +62,12 @@ function BaseInteractableChatRow({
           break;
         case 'markRead':
           if (model.type === 'group') {
-            store.markGroupRead(model.group, true);
+            store.markGroupRead(model.id, true);
           } else {
-            store.markChannelRead(model.channel);
+            store.markChannelRead({
+              id: model.id,
+              groupId: model.channel.groupId ?? undefined,
+            });
           }
           break;
         default:

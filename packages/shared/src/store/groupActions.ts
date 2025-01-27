@@ -1,3 +1,5 @@
+import isEqual from 'lodash/isEqual';
+
 import * as api from '../api';
 import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
@@ -5,7 +7,6 @@ import { createDevLogger } from '../debug';
 import { getRandomId } from '../logic';
 import { createSectionId } from '../urbit';
 import { createChannel } from './channelActions';
-import isEqual from 'lodash/isEqual';
 
 const logger = createDevLogger('groupActions', false);
 
@@ -449,12 +450,7 @@ export async function addChannelToNavSection({
   channelId: string;
   navSectionId: string;
 }) {
-  logger.log(
-    'adding channel to nav section',
-    groupId,
-    channelId,
-    navSectionId
-  );
+  logger.log('adding channel to nav section', groupId, channelId, navSectionId);
 
   const existingGroup = await db.getGroup({ id: groupId });
 
@@ -1068,7 +1064,12 @@ export async function leaveGroup(groupId: string) {
   }
 }
 
-export async function markGroupRead(group: db.Group, deep: boolean = false) {
+export async function markGroupRead(groupId: string, deep: boolean = false) {
+  const group = await db.getGroup({ id: groupId });
+  if (!group) {
+    logger.error('Group not found', groupId);
+    return;
+  }
   // optimistic update
   const existingUnread = await db.getGroupUnread({ groupId: group.id });
   if (existingUnread) {

@@ -1,4 +1,5 @@
 export type OnboardingStackParamList = {
+  InitialStateCheck: undefined;
   Welcome: undefined;
   InventoryCheck: undefined;
   PasteInviteLink: undefined;
@@ -11,15 +12,20 @@ export type OnboardingStackParamList = {
   };
   EULA: undefined;
   JoinWaitList: { email?: string };
-  RequestPhoneVerify: { user: User };
-  CheckVerify: { user: User };
-  ReserveShip: { user: User };
-  SetNickname: { user: User };
+  UnderMaintenance: undefined;
+  RequestPhoneVerify: { mode: 'signup' | 'login' };
+  CheckVerify: { phoneNumber: string; mode: 'signup' | 'login' };
+  ReserveShip: undefined;
+  SetNickname: undefined;
   SetTelemetry: undefined;
   TlonLogin: { initialLoginMethod?: 'email' | 'phone' } | undefined;
   TlonLoginLegacy: undefined;
   ShipLogin: undefined;
   ResetPassword: { email?: string };
+  GettingNodeReadyScreen: {
+    waitType?: 'Paused' | 'Suspended' | 'Unknown';
+    wasLoggedIn?: boolean;
+  };
 };
 
 export type User = {

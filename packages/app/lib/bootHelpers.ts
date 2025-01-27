@@ -1,8 +1,10 @@
 import { AnalyticsEvent, AppInvite, createDevLogger } from '@tloncorp/shared';
+import { HostedNodeStatus } from '@tloncorp/shared';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
+import * as hostingApi from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 
-import * as hostingApi from '../lib/hostingApi';
 import { trackOnboardingAction } from '../utils/posthog';
 import { getShipFromCookie, getShipUrl } from '../utils/ship';
 
@@ -61,6 +63,7 @@ export async function reserveNode(
 
   // if the hosting user already has a ship tied to their account, use that
   if (user.ships?.length) {
+    await db.hostedUserNodeId.setValue(user.ships[0]);
     return user.ships[0];
   }
 
@@ -85,22 +88,18 @@ export async function reserveNode(
     ship: ship.id,
   });
 
+  await db.hostedUserNodeId.setValue(ship.id);
+
   return ship.id;
 }
 
-async function checkNodeBooted(nodeId: string): Promise<boolean> {
-  const shipsWithStatus = await hostingApi.getShipsWithStatus([nodeId]);
-  if (!shipsWithStatus) {
+export async function checkNodeBooted(): Promise<boolean> {
+  try {
+    const nodeStatus = await store.checkHostingNodeStatus();
+    return nodeStatus === HostedNodeStatus.Running;
+  } catch (e) {
     return false;
   }
-
-  const { status: shipStatus } = shipsWithStatus;
-
-  if (shipStatus !== 'Ready') {
-    return false;
-  }
-
-  return true;
 }
 
 async function authenticateNode(
@@ -112,9 +111,6 @@ async function authenticateNode(
   if (!authCookie) {
     throw new Error("Couldn't log you into your ship.");
   }
-
-  // TODO: shouldn't this be the same?
-  const ship = getShipFromCookie(authCookie);
 
   return {
     nodeId,

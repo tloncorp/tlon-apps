@@ -15,6 +15,7 @@ import {
   View,
   XStack,
   YStack,
+  isWeb,
   styled,
   useTheme,
   useWindowDimensions,
@@ -22,6 +23,7 @@ import {
 
 import { useContact, useCurrentUserId, useNavigation } from '../contexts';
 import { useCopy } from '../hooks/useCopy';
+import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
 import { triggerHaptic, useGroupTitle } from '../utils';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { Button } from './Button';
@@ -138,11 +140,12 @@ function StatusBlock({
   label: string;
 }) {
   const windowDimensions = useWindowDimensions();
+  const isWindowNarrow = useIsWindowNarrow();
 
   return (
     <PaddedBlock
       padding="$2xl"
-      width={(windowDimensions.width - 36) / 2}
+      width={isWindowNarrow ? (windowDimensions.width - 36) / 2 : '100%'}
       gap="$2xl"
     >
       <XStack width="100%" justifyContent="space-between">
@@ -203,7 +206,7 @@ function StatusIndicator({
   );
 }
 
-const PaddedBlock = styled(YStack, {
+export const PaddedBlock = styled(YStack, {
   borderRadius: '$2xl',
   padding: '$2xl',
   gap: '$l',
@@ -216,7 +219,7 @@ export function BioDisplay({
   ...rest
 }: { bio: string } & ComponentProps<typeof WidgetPane>) {
   return bio.length ? (
-    <WidgetPane borderRadius={'$2xl'} padding="$2xl" width="100%" {...rest}>
+    <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%" {...rest}>
       <WidgetPane.Title>About</WidgetPane.Title>
       <Text size="$body" trimmed={false}>
         {bio}
@@ -230,9 +233,11 @@ export function StatusDisplay({
   ...rest
 }: { status: string } & ComponentProps<typeof WidgetPane>) {
   return (
-    <WidgetPane borderRadius={'$2xl'} padding="$2xl" width="100%" {...rest}>
+    <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%" {...rest}>
       <WidgetPane.Title>Status</WidgetPane.Title>
-      <Text size="$body">{status}</Text>
+      <Text size="$body" trimmed={false}>
+        {status}
+      </Text>
     </WidgetPane>
   );
 }
@@ -449,33 +454,41 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   );
 }
 
-function ProfileButton(props: {
+export function ProfileButton({
+  title,
+  onPress,
+  hero,
+  ...props
+}: {
   title: string;
-  onPress: () => void;
+  onPress?: () => void;
   hero?: boolean;
-}) {
+} & ComponentProps<typeof Button>) {
   const handlePress = useCallback(() => {
-    props.onPress();
+    onPress?.();
     triggerHaptic('baseButtonClick');
-  }, [props]);
+  }, [onPress]);
 
   return (
     <Button
       flexGrow={1}
       flexBasis={1}
       borderWidth={0}
-      paddingVertical={'$xl'}
+      paddingVertical="$xl"
       paddingHorizontal="$2xl"
       borderRadius="$2xl"
       onPress={handlePress}
-      hero={props.hero}
+      hero={hero}
       marginHorizontal="$xs"
+      {...props}
     >
       <Text
         size="$label/xl"
-        color={props.hero ? '$background' : '$primaryText'}
+        color={hero ? '$background' : '$primaryText'}
+        paddingHorizontal={isWeb ? '$m' : undefined}
+        textWrap="nowrap"
       >
-        {props.title}
+        {title}
       </Text>
     </Button>
   );

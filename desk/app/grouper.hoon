@@ -135,11 +135,29 @@
       %fact
     =+  !<(=bite:reel q.cage.sign)
     ?>  ?=([%bite-2 *] bite)
+    =>
+      |%
+      ++  lure-log
+        |=  [=volume:logs event=@t =echo:logs]
+        %^  tell:log  volume
+          echo
+        :~  'event'^s+event
+            'flow'^s+'lure'
+            'lure-id'^s+token.bite
+            'lure-joiner'^s+(scot %p joiner.bite)
+        ==
+      --
     :_  this
     =;  caz=(list card)
+      =*  dm-event  'DM Invite Fail'
       ?~  inviter=(~(get by fields.metadata.bite) 'inviter')
-        ~[(tell:log `token.bite %crit 'inviter field missing' ~)]
-      ?.  =((slav %p u.inviter) our.bowl)  ~
+        :_  ~
+        %^  lure-log  %crit  dm-event
+        ~['inviter field missing in lure bite']
+      ?.  =((slav %p u.inviter) our.bowl)
+        :_  ~
+        %^  lure-log  %crit  dm-event
+        ~[leaf+"inviter {<u.inviter>} is foreign"]
       =/  wir=^wire  /dm/(scot %p joiner.bite)
       =/  =dock  [our.bowl %chat]
       =/  =id:c  [our now]:bowl
@@ -149,26 +167,41 @@
         :-  joiner.bite
         [id %add memo [%notice ~] ~]
       =/  =cage  chat-dm-action+!>(`action:dm:c`action)
-      =*  dez  %^  tell:log  `token.bite  %info
+      =*  dez  %^  lure-log  %info  'DM Invite Sent'
                ~[leaf+"{<joiner.bite>} invited to DM"]
       (snoc [dez caz] [%pass wir %agent dock %poke cage])
+    ::
+    =+  invite-type=(~(get by fields.metadata.bite) 'inviteType')
+    ::
+    ::  don't send group invite if this is a personal bite
+    ?:  &(?=(^ invite-type) =('user' u.invite-type))  ~
+    ::
+    =*  group-event  'Group Invite Fail'
     ?~  group=(~(get by fields.metadata.bite) 'group')
-      ~[(tell:log `token.bite %warn 'group field missing' ~)]
+      :_  ~
+      %^  lure-log  %warn  group-event
+      ~['group field missing']
     =/  =flag:groups  (flag:dejs:gj s+u.group)
     ?.  (~(has in enabled-groups) q.flag)
-      ~[(tell:log `token.bite %warn 'group {<p.flag>}/{<q.flag>} lure disabled' ~)]
+      :_  ~
+      %^  lure-log  %warn  group-event
+      ~[leaf+"invites for group {<p.flag>}/{(trip q.flag)} not enabled"]
     =/  =invite:groups  [flag joiner.bite]
     =/  prefix  /(scot %p our.bowl)/groups/(scot %da now.bowl)
     ?.  .^(? %gu (weld prefix /$))
-      ~[(tell:log `token.bite %warn '%groups not running' ~)]
+      :_  ~
+      %^  lure-log  %warn  group-event
+      ~['%groups not running']
     =/  gnat=path  /(scot %p p.flag)/[q.flag]/noun
     ?.  .^(? %gx :(weld prefix /exists gnat))
-      ~[(tell:log `token.bite %warn 'group {<p.flag>}/{<q.flag>} not found' ~)]
+      :_  ~
+      %^  lure-log  %warn  group-event
+      ~[leaf+"group {<p.flag>}/{(trip q.flag)} missing"]
     =+  .^(=group:groups %gx :(weld prefix /groups gnat))
     ?+  -.cordon.group  ~
         %open
-      :-  %^  tell:log  `token.bite  %info
-          ~[leaf+"{<joiner.bite>} invited to public group {<p.flag>}/{<q.flag>}"]
+      :-  %^  lure-log  %info  group-event
+          ~[leaf+"{<joiner.bite>} invited to public group {<p.flag>}/{(trip q.flag)}"]
       ~[[%pass /invite %agent [our.bowl %groups] %poke %group-invite !>(invite)]]
     ::
         %shut
@@ -177,8 +210,8 @@
         :-  now.bowl
         :-  %cordon
         [%shut [%add-ships %pending (~(gas in *(set ship)) ~[joiner.bite])]]
-      :-  %^  tell:log  `token.bite  %info
-          ~[leaf+"{<joiner.bite>} invited to restricted group {<p.flag>}/{<q.flag>}"]
+      :-  %^  lure-log  %info  'Group Invite Sent'
+          ~[leaf+"{<joiner.bite>} invited to restricted group {<p.flag>}/{(trip q.flag)}"]
       ~[[%pass /invite %agent [our.bowl %groups] %poke act:mar:groups !>(action)]]
     ==
   ==
@@ -187,7 +220,7 @@
   |=  [=term =tang]
   ^-  (quip card _this)
   :_  this
-  [(fail:log (fail-event:logs term tang))]~
+  [(fail:log term tang ~)]~
 ::
 ++  on-leave
   |=  =path

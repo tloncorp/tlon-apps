@@ -73,6 +73,24 @@ export function createActionGroup(
   return { accent, actions: actions.filter((a): a is Action => !!a) };
 }
 
+export function createCopyAction({
+  title,
+  description,
+  copyText,
+}: {
+  title: string;
+  description?: string;
+  copyText: string;
+}): Action {
+  return {
+    title,
+    description: description ?? copyText,
+    render: (props) => (
+      <ActionSheet.CopyAction {...props} copyText={copyText} />
+    ),
+  };
+}
+
 type ActionSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -231,8 +249,11 @@ const ActionSheetScrollableContent = ({
 
 const useContentStyle = () => {
   const insets = useSafeAreaInsets();
+  const isWindowNarrow = useIsWindowNarrow();
   return {
-    paddingBottom: insets.bottom + getTokenValue('$2xl', 'size'),
+    paddingBottom: isWindowNarrow
+      ? insets.bottom + getTokenValue('$2xl', 'size')
+      : 0,
   };
 };
 
@@ -269,8 +290,10 @@ const ActionSheetFormBlock = styled(ActionSheetContentBlock, {
  * We use this context to pass the accent type down to the child components.
  */
 const ActionSheetActionGroupContext = createStyledContext<{
+  borderless: boolean;
   accent: Accent;
 }>({
+  borderless: false,
   accent: 'neutral',
 });
 
@@ -289,7 +312,7 @@ const ActionSheetActionGroupFrame = styled(ActionSheetContentBlock, {
         borderColor: '$border',
       },
       disabled: {
-        borderColor: '$secondaryBorder',
+        borderColor: '$border',
       },
     },
   } as const,
@@ -298,30 +321,30 @@ const ActionSheetActionGroupFrame = styled(ActionSheetContentBlock, {
 /**
  * Render children, adding separator lines between them.
  */
-const ActionSheetActionGroup = ActionSheetActionGroupFrame.styleable(
-  (props, ref) => {
-    const actions = Children.toArray(props.children);
-    return (
-      <ActionSheetActionGroupFrame {...props} ref={ref}>
-        <ActionSheetActionGroupContent>
-          {actions.map((c, index) => (
-            <Fragment key={index}>
-              {c}
-              {index < actions.length - 1 && (
-                <ActionSheetActionGroupSeparator key={'separator-' + index} />
-              )}
-            </Fragment>
-          ))}
-        </ActionSheetActionGroupContent>
-      </ActionSheetActionGroupFrame>
-    );
-  }
-);
+const ActionSheetActionGroup = ActionSheetActionGroupFrame.styleable<{
+  contentProps?: ComponentProps<typeof ActionSheetActionGroupContent>;
+}>(({ contentProps, ...props }, ref) => {
+  const actions = Children.toArray(props.children);
+  return (
+    <ActionSheetActionGroupFrame {...props} ref={ref}>
+      <ActionSheetActionGroupContent {...contentProps}>
+        {actions.map((c, index) => (
+          <Fragment key={index}>
+            {c}
+            {index < actions.length - 1 && (
+              <ActionSheetActionGroupSeparator key={'separator-' + index} />
+            )}
+          </Fragment>
+        ))}
+      </ActionSheetActionGroupContent>
+    </ActionSheetActionGroupFrame>
+  );
+});
 
 const ActionSheetActionGroupSeparator = styled(View, {
   name: 'ActionSheetActionGroupSeparator',
   height: 1,
-  backgroundColor: '$border',
+  backgroundColor: '$secondaryBorder',
   width: '100%',
 });
 
@@ -366,6 +389,7 @@ const ActionSheetActionFrame = styled(ListItem, {
   pressStyle: {
     backgroundColor: '$secondaryBackground',
   },
+  cursor: 'pointer',
   variants: {
     type: {
       positive: {
@@ -431,13 +455,15 @@ const ActionSheetMainContent = styled(YStack, {
 });
 
 function ActionSheetAction({ action }: { action: Action }) {
-  const accent = useContext(ActionSheetActionGroupContext).accent;
+  const isWindowNarrow = useIsWindowNarrow();
+  const accent: Accent = useContext(ActionSheetActionGroupContext).accent;
   return action.render ? (
     action.render({ action })
   ) : (
     <ActionSheetActionFrame
-      type={action.accent ?? (accent as Accent)}
+      type={action.disabled ? 'disabled' : action.accent ?? accent}
       onPress={accent !== 'disabled' ? action.action : undefined}
+      height={isWindowNarrow ? undefined : '$4xl'}
     >
       {action.startIcon &&
         resolveIcon(action.startIcon, action.accent ?? accent)}
@@ -591,6 +617,7 @@ export const ActionSheet = withStaticProperties(ActionSheetComponent, {
   Action: ActionSheetAction,
   MainContent: ActionSheetMainContent,
   ActionFrame: ActionSheetActionFrame,
+  ActionIcon: ActionSheetActionIcon,
   ActionGroupContent: ActionSheetActionGroupContent,
   ActionGroupFrame: ActionSheetActionGroupFrame,
   ActionTitle: ActionSheetActionTitle,

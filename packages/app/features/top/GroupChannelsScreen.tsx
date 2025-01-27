@@ -13,7 +13,6 @@ import { useCallback, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
-import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 
@@ -31,7 +30,7 @@ export function GroupChannelsScreenContent({
   focusedChannelId?: string;
 }) {
   const isFocused = useIsFocused();
-  const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>(
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(
     null
   );
   const { group } = useGroupContext({ groupId: id, isFocused });
@@ -60,8 +59,6 @@ export function GroupChannelsScreenContent({
     }
   }, [navigation, isWindowNarrow]);
 
-  const [enableCustomChannels] = useFeatureFlag('customChannelCreation');
-
   const handleJoinChannel = useCallback(
     async (channel: db.Channel) => {
       try {
@@ -78,8 +75,8 @@ export function GroupChannelsScreenContent({
 
   return (
     <ChatOptionsProvider
-      onPressInvite={(group) => {
-        setInviteSheetGroup(group);
+      onPressInvite={(groupId) => {
+        setInviteSheetGroup(groupId);
       }}
       {...useChatSettingsNavigation()}
     >
@@ -90,7 +87,6 @@ export function GroupChannelsScreenContent({
           onJoinChannel={handleJoinChannel}
           group={group}
           unjoinedChannels={unjoinedChannels}
-          enableCustomChannels={enableCustomChannels}
         />
       </NavigationProvider>
       <InviteUsersSheet
@@ -100,7 +96,7 @@ export function GroupChannelsScreenContent({
             setInviteSheetGroup(null);
           }
         }}
-        group={inviteSheetGroup ?? undefined}
+        groupId={inviteSheetGroup ?? undefined}
         onInviteComplete={() => setInviteSheetGroup(null)}
       />
     </ChatOptionsProvider>

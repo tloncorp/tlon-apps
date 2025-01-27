@@ -24,6 +24,7 @@ import {
   useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Keyboard } from 'react-native';
 import { ColorTokens, useTheme } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
@@ -54,7 +55,7 @@ export function ChatListScreenView({
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
-  const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
   const personalInvite = db.personalInviteLink.useValue();
   const viewedPersonalInvite = db.hasViewedPersonalInvite.useValue();
   const { isOpen, setIsOpen } = useGlobalSearch();
@@ -237,6 +238,7 @@ export function ChatListScreenView({
     if (isWindowNarrow) {
       if (showSearchInput) {
         setSearchQuery('');
+        Keyboard.dismiss();
       }
       setShowSearchInput(!showSearchInput);
     } else {
@@ -291,10 +293,17 @@ export function ChatListScreenView({
                     type="Search"
                     onPress={handleSearchInputToggled}
                   />
-                  <ScreenHeader.IconButton
-                    type="Add"
-                    onPress={handlePressAddChat}
-                  />
+                  {isWindowNarrow ? (
+                    <ScreenHeader.IconButton
+                      type="Add"
+                      onPress={handlePressAddChat}
+                    />
+                  ) : (
+                    <CreateChatSheet
+                      ref={createChatSheetRef}
+                      trigger={<ScreenHeader.IconButton type="Add" />}
+                    />
+                  )}
                 </>
               }
             />
@@ -328,7 +337,7 @@ export function ChatListScreenView({
               open={inviteSheetGroup !== null}
               onOpenChange={handleInviteSheetOpenChange}
               onInviteComplete={() => setInviteSheetGroup(null)}
-              group={inviteSheetGroup ?? undefined}
+              groupId={inviteSheetGroup ?? undefined}
             />
           </View>
         </NavigationProvider>
@@ -347,7 +356,7 @@ export function ChatListScreenView({
         />
       </ChatOptionsProvider>
 
-      <CreateChatSheet ref={createChatSheetRef} />
+      {isWindowNarrow && <CreateChatSheet ref={createChatSheetRef} />}
       <PersonalInviteSheet
         open={personalInviteOpen}
         onOpenChange={() => setPersonalInviteOpen(false)}

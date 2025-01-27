@@ -22,7 +22,7 @@ import { Text, View, YStack, getTokenValue, useTheme } from 'tamagui';
 import { useCalm, useChatOptions } from '../contexts';
 import { getChannelTitle, getGroupTitle } from '../utils';
 import { interactionWithTiming } from '../utils/animation';
-import { TextInputWithIconAndButton } from './Form';
+import { TextInput } from './Form';
 import { ChatListItem, InteractableChatListItem } from './ListItem';
 import Pressable from './Pressable';
 import { SectionListHeader } from './SectionList';
@@ -292,7 +292,7 @@ const ChatListSearch = React.memo(function ChatListSearchComponent({
         right={0}
       >
         <View paddingHorizontal="$l" paddingTop="$xl">
-          <TextInputWithIconAndButton
+          <TextInput
             icon="Search"
             placeholder="Find by name"
             value={query}
@@ -300,8 +300,12 @@ const ChatListSearch = React.memo(function ChatListSearchComponent({
             spellCheck={false}
             autoCorrect={false}
             autoCapitalize="none"
-            buttonText={query !== '' ? 'Clear' : 'Close'}
-            onButtonPress={query !== '' ? onPressClear : onPressClose}
+            rightControls={
+              <TextInput.InnerButton
+                label={query !== '' ? 'Clear' : 'Close'}
+                onPress={query !== '' ? onPressClear : onPressClose}
+              />
+            }
           />
         </View>
       </YStack>

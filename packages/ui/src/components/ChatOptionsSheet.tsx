@@ -1,20 +1,22 @@
+import { featureFlags } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
 import React, {
   ReactElement,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
+import { Popover, isWeb } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
-import { useCurrentUserId } from '../contexts/appDataContext';
+import { useCurrentUserId } from '../contexts';
 import { useChatOptions } from '../contexts/chatOptions';
+import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
 import * as utils from '../utils';
-import { useIsAdmin } from '../utils';
 import {
   Action,
   ActionGroup,
@@ -25,41 +27,99 @@ import { IconButton } from './IconButton';
 import { ListItem } from './ListItem';
 
 type ChatOptionsSheetProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  // Make open/onOpenChange optional since we can use context
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onPressConfigureChannel?: () => void;
   chat?: {
     type: 'group' | 'channel';
     id: string;
   } | null;
+  trigger?: React.ReactNode;
 };
 
 export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   chat,
-  ...props
+  open: propOpen,
+  onOpenChange: propOnOpenChange,
+  trigger,
 }: ChatOptionsSheetProps) {
-  const { group } = useChatOptions();
+  const context = useChatOptions();
+  const { group } = context;
 
-  if (!chat || !props.open) {
+  // Use props for explicit control (popovers)
+  // For sheets, this will be false and context.open will handle state
+  const isOpen = propOpen ?? false;
+
+  // Handle open state changes
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (open && chat) {
+        // Set chat state for both popovers and sheets
+        context.open(chat.id, chat.type);
+      } else if (!open) {
+        // Close both popover and sheet states
+        if (propOnOpenChange) {
+          propOnOpenChange(false);
+        }
+        // Clear chat state after a short delay to allow handlers to complete
+        setTimeout(() => {
+          context.setChat(null);
+        }, 100);
+      }
+
+      // Call provided handler for popovers
+      if (propOnOpenChange) {
+        propOnOpenChange(open);
+      }
+    },
+    [chat, context, propOnOpenChange]
+  );
+
+  if (!chat || (!isOpen && !trigger)) {
     return null;
   }
 
   if (chat.type === 'group') {
-    return <GroupOptionsSheetLoader groupId={chat.id} {...props} />;
+    return (
+      <GroupOptionsSheetLoader
+        groupId={chat.id}
+        open={isOpen}
+        onOpenChange={handleOpenChange}
+        trigger={trigger}
+      />
+    );
   } else if (group?.id && group?.channels?.length === 1) {
-    return <GroupOptionsSheetLoader groupId={group?.id} {...props} />;
+    return (
+      <GroupOptionsSheetLoader
+        groupId={group.id}
+        open={isOpen}
+        onOpenChange={handleOpenChange}
+        trigger={trigger}
+      />
+    );
   }
 
-  return <ChannelOptionsSheetLoader channelId={chat.id} {...props} />;
+  return (
+    <ChannelOptionsSheetLoader
+      channelId={chat.id}
+      open={isOpen}
+      onOpenChange={handleOpenChange}
+      trigger={trigger}
+    />
+  );
 });
 
 export function GroupOptionsSheetLoader({
   groupId,
   open,
   onOpenChange,
+  trigger,
 }: {
   groupId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  trigger?: React.ReactNode;
 }) {
   const [pane, setPane] = useState<
     'initial' | 'notifications' | 'sort' | 'edit'
@@ -74,72 +134,127 @@ export function GroupOptionsSheetLoader({
     setPane('sort');
   }, [setPane]);
 
-  const handlePressEdit = useCallback(() => {
-    setPane('edit');
-  }, [setPane]);
-
   const resetPane = useCallback(() => {
     setPane('initial');
   }, [setPane]);
 
   const title = utils.useGroupTitle(group) ?? 'Loading...';
-  const currentUserId = useCurrentUserId();
-  const currentUserIsAdmin = useIsAdmin(groupId, currentUserId);
   const { data: groupUnread, isFetched: groupUnreadIsFetched } =
     store.useGroupUnread({ groupId });
-  return group && groupUnreadIsFetched ? (
+  const { data: groupData } = store.useGroup({ id: groupId });
+  const isWindowNarrow = useIsWindowNarrow();
+
+  if ((!group && !groupData) || !groupUnreadIsFetched) {
+    return null;
+  }
+
+  if (isWeb && !isWindowNarrow) {
+    return (
+      <Popover
+        open={open}
+        onOpenChange={onOpenChange}
+        placement="top-end"
+        allowFlip
+        offset={-12}
+      >
+        <Popover.Trigger asChild>{trigger}</Popover.Trigger>
+        <Popover.Content
+          elevate
+          animation="quick"
+          zIndex={1000000}
+          position="relative"
+          borderColor="$border"
+          borderWidth={1}
+          padding={1}
+        >
+          {pane === 'notifications' ? (
+            <NotificationsSheetContent
+              chatTitle={title}
+              onPressBack={resetPane}
+            />
+          ) : pane === 'edit' ? (
+            <EditGroupSheetContent
+              chatTitle={title}
+              onPressBack={resetPane}
+              onOpenChange={onOpenChange}
+            />
+          ) : pane === 'sort' ? (
+            <SortChannelsSheetContent
+              chatTitle={title}
+              onPressBack={resetPane}
+            />
+          ) : (
+            <GroupOptionsSheetContent
+              groupUnread={groupUnread ?? null}
+              onPressNotifications={handlePressNotifications}
+              onPressSort={handlePressSort}
+              chatTitle={title}
+              group={group || groupData!}
+              onOpenChange={onOpenChange}
+            />
+          )}
+        </Popover.Content>
+      </Popover>
+    );
+  }
+
+  return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       {pane === 'notifications' ? (
         <NotificationsSheetContent chatTitle={title} onPressBack={resetPane} />
       ) : pane === 'edit' ? (
-        <EditGroupSheetContent chatTitle={title} onPressBack={resetPane} />
+        <EditGroupSheetContent
+          chatTitle={title}
+          onPressBack={resetPane}
+          onOpenChange={onOpenChange}
+        />
       ) : pane === 'sort' ? (
         <SortChannelsSheetContent chatTitle={title} onPressBack={resetPane} />
       ) : (
         <GroupOptionsSheetContent
-          currentUserIsAdmin={currentUserIsAdmin}
           groupUnread={groupUnread ?? null}
           onPressNotifications={handlePressNotifications}
           onPressSort={handlePressSort}
-          onPressEditGroup={handlePressEdit}
           chatTitle={title}
-          group={group}
+          group={group || groupData!}
+          onOpenChange={onOpenChange}
         />
       )}
     </ActionSheet>
-  ) : null;
+  );
 }
 
 function GroupOptionsSheetContent({
   chatTitle,
   group,
   groupUnread,
-  currentUserIsAdmin,
   onPressNotifications,
   onPressSort,
-  onPressEditGroup,
+  onOpenChange,
 }: {
   group: db.Group;
   groupUnread: db.GroupUnread | null;
-  currentUserIsAdmin: boolean;
   chatTitle: string;
   onPressNotifications: () => void;
   onPressSort: () => void;
-  onPressEditGroup: () => void;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const {
-    markGroupRead,
-    onPressGroupMembers,
-    onPressInvite,
-    togglePinned,
-    leaveGroup,
-  } = useChatOptions();
-  const groupRef = logic.getGroupReferencePath(group.id);
+  const { markGroupRead, onPressChatDetails, togglePinned } = useChatOptions();
   const canMarkRead = !(group.unread?.count === 0 || groupUnread?.count === 0);
   const canSortChannels = (group.channels?.length ?? 0) > 1;
-  const canInvite = currentUserIsAdmin || group.privacy === 'public';
-  const canLeave = !group.currentUserIsHost;
   const isPinned = group?.pin;
+
+  const wrappedAction = useCallback(
+    (action: () => void) => {
+      action();
+      onOpenChange(false);
+    },
+    [onOpenChange]
+  );
+
+  const handlePressChatDetails = useCallback(() => {
+    onPressChatDetails({ type: 'group', id: group.id });
+  }, [group.id, onPressChatDetails]);
 
   const actionGroups = useMemo(
     () =>
@@ -153,75 +268,38 @@ function GroupOptionsSheetContent({
           },
           canMarkRead && {
             title: 'Mark all as read',
-            action: markGroupRead,
+            action: wrappedAction.bind(null, markGroupRead),
           },
           {
             title: isPinned ? 'Unpin' : 'Pin',
             endIcon: 'Pin',
-            action: togglePinned,
-          },
-          {
-            title: 'Copy group reference',
-            description: groupRef,
-            render: (props) => (
-              <ActionSheet.CopyAction {...props} copyText={groupRef} />
-            ),
+            action: wrappedAction.bind(null, togglePinned),
           },
           canSortChannels && {
             title: 'Sort channels',
             endIcon: 'ChevronRight',
-            action: onPressSort,
+            action: wrappedAction.bind(null, onPressSort),
           },
         ],
         [
           'neutral',
-          currentUserIsAdmin && {
-            title: 'Edit group',
-            action: onPressEditGroup,
-            endIcon: 'ChevronRight',
-          },
           {
-            title: 'Members',
+            title: 'Group info & settings',
+            action: wrappedAction.bind(null, handlePressChatDetails),
             endIcon: 'ChevronRight',
-            action: onPressGroupMembers,
-          },
-          canInvite
-            ? {
-                title: 'Invite people',
-                action: onPressInvite,
-                endIcon: 'ChevronRight',
-              }
-            : {
-                accent: 'disabled',
-                title: 'Invites disabled',
-                description: 'Only admins may invite people to this group.',
-              },
-        ],
-        canLeave && [
-          'negative',
-          {
-            title: 'Leave group',
-            endIcon: 'LogOut',
-            action: leaveGroup,
           },
         ]
       ),
     [
-      canInvite,
-      canLeave,
       canMarkRead,
       canSortChannels,
-      currentUserIsAdmin,
-      groupRef,
+      handlePressChatDetails,
       isPinned,
-      leaveGroup,
       markGroupRead,
-      onPressEditGroup,
-      onPressGroupMembers,
-      onPressInvite,
       onPressNotifications,
       onPressSort,
       togglePinned,
+      wrappedAction,
     ]
   );
 
@@ -232,8 +310,6 @@ function GroupOptionsSheetContent({
   const subtitle = memberCount
     ? `${privacy} group with ${memberCount} member${group.members?.length === 1 ? '' : 's'}`
     : '';
-
-  console.log(chatTitle, subtitle, actionGroups);
 
   return (
     <ChatOptionsSheetContent
@@ -283,12 +359,24 @@ function SortChannelsSheetContent({
 function EditGroupSheetContent({
   chatTitle,
   onPressBack,
+  onOpenChange,
 }: {
   chatTitle: string;
   onPressBack: () => void;
+  onOpenChange: (open: boolean) => void;
 }) {
+  const isWindowNarrow = useIsWindowNarrow();
   const { onPressGroupMeta, onPressManageChannels, onPressGroupPrivacy } =
     useChatOptions();
+
+  const wrappedAction = useCallback(
+    (action: () => void) => {
+      action();
+      onOpenChange(false);
+    },
+    [onOpenChange]
+  );
+
   const editActions = useMemo(
     () =>
       createActionGroups([
@@ -296,23 +384,35 @@ function EditGroupSheetContent({
         {
           title: 'Edit group info',
           description: 'Change name, description, and image',
-          action: onPressGroupMeta,
+          action: wrappedAction.bind(null, onPressGroupMeta),
           endIcon: 'ChevronRight',
         },
         {
           title: 'Manage channels',
           description: 'Add or remove channels in this group',
-          action: onPressManageChannels,
+          action: wrappedAction.bind(null, onPressManageChannels),
           endIcon: 'ChevronRight',
         },
         {
           title: 'Privacy',
           description: 'Change who can find or join this group',
-          action: onPressGroupPrivacy,
+          action: wrappedAction.bind(null, onPressGroupPrivacy),
           endIcon: 'ChevronRight',
         },
+        !isWindowNarrow && {
+          title: 'Back',
+          action: onPressBack,
+          startIcon: 'ChevronLeft',
+        },
       ]),
-    [onPressGroupMeta, onPressGroupPrivacy, onPressManageChannels]
+    [
+      onPressGroupMeta,
+      onPressGroupPrivacy,
+      onPressManageChannels,
+      onPressBack,
+      isWindowNarrow,
+      wrappedAction,
+    ]
   );
 
   return (
@@ -331,15 +431,20 @@ export function ChannelOptionsSheetLoader({
   channelId,
   open,
   onOpenChange,
+  trigger,
+  onPressConfigureChannel,
 }: {
   channelId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  trigger?: React.ReactNode;
+  onPressConfigureChannel?: () => void;
 }) {
   const [pane, setPane] = useState<ChannelPanes>('initial');
   const channelQuery = store.useChannel({
     id: channelId,
   });
+
   const { data: group } = store.useGroup({
     id: channelQuery.data?.groupId ?? undefined,
   });
@@ -348,6 +453,7 @@ export function ChannelOptionsSheetLoader({
     utils.useChannelTitle(channelQuery.data ?? null) ?? 'channel';
   const isSingleChannelGroup = group?.channels.length === 1;
   const chatTitle = isSingleChannelGroup ? groupTitle : channelTitle;
+  const isWindowNarrow = useIsWindowNarrow();
 
   const handlePressNotifications = useCallback(() => {
     setPane('notifications');
@@ -363,7 +469,48 @@ export function ChannelOptionsSheetLoader({
     }
   }, [open, resetPane]);
 
-  return channelQuery.data ? (
+  if (!channelQuery.data) {
+    return null;
+  }
+
+  if (isWeb && !isWindowNarrow) {
+    return (
+      <Popover
+        open={open}
+        onOpenChange={onOpenChange}
+        placement="top-end"
+        allowFlip
+        offset={-12}
+      >
+        <Popover.Trigger asChild>{trigger}</Popover.Trigger>
+        <Popover.Content
+          elevate
+          animation="quick"
+          zIndex={1000000}
+          position="relative"
+          borderColor="$border"
+          borderWidth={1}
+          padding={1}
+        >
+          {pane === 'notifications' ? (
+            <NotificationsSheetContent
+              chatTitle={chatTitle}
+              onPressBack={resetPane}
+            />
+          ) : (
+            <ChannelOptionsSheetContent
+              chatTitle={chatTitle}
+              channel={channelQuery.data}
+              onPressNotifications={handlePressNotifications}
+              onOpenChange={onOpenChange}
+            />
+          )}
+        </Popover.Content>
+      </Popover>
+    );
+  }
+
+  return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       {pane === 'notifications' ? (
         <NotificationsSheetContent
@@ -375,43 +522,65 @@ export function ChannelOptionsSheetLoader({
           chatTitle={chatTitle}
           channel={channelQuery.data}
           onPressNotifications={handlePressNotifications}
+          onOpenChange={onOpenChange}
+          onPressConfigureChannel={onPressConfigureChannel}
         />
       )}
     </ActionSheet>
-  ) : null;
+  );
 }
 
 function ChannelOptionsSheetContent({
   chatTitle,
   channel,
+  onPressConfigureChannel,
   onPressNotifications,
+  onOpenChange,
 }: {
   chatTitle: string;
   channel: db.Channel;
+  onPressConfigureChannel?: () => void;
   onPressNotifications: () => void;
+  onOpenChange: (open: boolean) => void;
 }) {
   const {
     group,
+    onPressChatDetails,
     onPressChannelMembers,
     onPressChannelMeta,
     onPressChannelTemplate,
-    onPressManageChannels,
-    onPressInvite,
     togglePinned,
     leaveChannel,
     markChannelRead,
   } = useChatOptions();
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
 
-  const currentUser = useCurrentUserId();
+  const currentUserId = useCurrentUserId();
+  const currentUserIsAdmin = utils.useIsAdmin(
+    channel.groupId ?? '',
+    currentUserId
+  );
   const currentUserIsHost = group?.currentUserIsHost ?? false;
-  const currentUserIsAdmin = useIsAdmin(channel.groupId ?? '', currentUser);
+
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;
-  const invitationsEnabled =
-    group?.privacy === 'private' || group?.privacy === 'secret';
-  const canInvite = invitationsEnabled && currentUserIsAdmin;
   const canMarkRead = !(channel.unread?.count === 0);
+  const enableCustomChannels = useCustomChannelsEnabled();
+
+  const handlePressChatDetails = useCallback(() => {
+    if (!group) {
+      throw new Error("Channel doesn't have a group");
+    }
+    onPressChatDetails({ type: 'group', id: group.id });
+  }, [group, onPressChatDetails]);
+
+  const wrappedAction = useCallback(
+    (action: () => void) => {
+      action();
+      onOpenChange(false);
+    },
+    [onOpenChange]
+  );
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
@@ -426,11 +595,11 @@ function ChannelOptionsSheetContent({
           {
             title: channel?.pin ? 'Unpin' : 'Pin',
             endIcon: 'Pin',
-            action: togglePinned,
+            action: wrappedAction.bind(null, togglePinned),
           },
           canMarkRead && {
             title: 'Mark as read',
-            action: markChannelRead,
+            action: wrappedAction.bind(null, markChannelRead),
           },
         ],
         channel.type === 'groupDm' && [
@@ -438,48 +607,44 @@ function ChannelOptionsSheetContent({
           {
             title: 'Edit group info',
             endIcon: 'ChevronRight',
-            action: onPressChannelMeta,
+            action: wrappedAction.bind(null, onPressChannelMeta),
           },
           {
             title: 'Members',
             endIcon: 'ChevronRight',
-            action: onPressChannelMembers,
+            action: wrappedAction.bind(null, onPressChannelMembers),
           },
         ],
         group && [
           'neutral',
-          currentUserIsAdmin && {
-            title: 'Manage channels',
+          {
+            title: 'Group info & settings',
+            action: wrappedAction.bind(null, handlePressChatDetails),
             endIcon: 'ChevronRight',
-            action: onPressManageChannels,
           },
-          canInvite
-            ? {
-                title: 'Invite people',
-                action: onPressInvite,
-                endIcon: 'ChevronRight',
-              }
-            : {
-                title: 'Invites disabled',
-                accent: 'disabled',
-                description: 'Only admins may invite people to this group.',
-              },
+          currentUserIsAdmin &&
+            enableCustomChannels && {
+              title: 'Configure view',
+              action: onPressConfigureChannel,
+              endIcon: 'ChevronRight',
+            },
         ],
+
         hooksPreview && [
           'neutral',
           {
             title: 'Use channel as template',
             description: 'Create a new channel based on this one',
             endIcon: 'Copy',
-            action: onPressChannelTemplate,
+            action: wrappedAction.bind(null, onPressChannelTemplate),
           },
         ],
         !currentUserIsHost && [
           'negative',
           {
-            title: `Leave`,
+            title: group ? `Leave channel` : 'Leave chat',
             endIcon: 'LogOut',
-            action: leaveChannel,
+            action: wrappedAction.bind(null, leaveChannel),
           },
         ]
       ),
@@ -487,16 +652,19 @@ function ChannelOptionsSheetContent({
       onPressNotifications,
       channel?.pin,
       channel.type,
+      wrappedAction,
       togglePinned,
       canMarkRead,
       markChannelRead,
       onPressChannelMeta,
       onPressChannelMembers,
       group,
+      handlePressChatDetails,
       currentUserIsAdmin,
-      onPressManageChannels,
-      canInvite,
-      onPressInvite,
+      enableCustomChannels,
+      onPressConfigureChannel,
+      hooksPreview,
+      onPressChannelTemplate,
       currentUserIsHost,
       leaveChannel,
     ]
@@ -543,25 +711,31 @@ function ChatOptionsSheetContent({
   subtitle: string;
   icon?: ReactElement;
 }) {
+  const isWindowNarrow = useIsWindowNarrow();
   return (
     <>
-      <ActionSheet.Header>
-        {icon}
-        <ActionSheet.MainContent>
-          <ListItem.Title>{title}</ListItem.Title>
-          <ListItem.Subtitle $gtSm={{ maxWidth: '100%' }}>
-            {subtitle}
-          </ListItem.Subtitle>
-        </ActionSheet.MainContent>
-      </ActionSheet.Header>
-      <ActionSheet.ScrollableContent>
+      {isWindowNarrow && (
+        <ActionSheet.Header>
+          {icon}
+          <ActionSheet.MainContent>
+            <ListItem.Title>{title}</ListItem.Title>
+            <ListItem.Subtitle $gtSm={{ maxWidth: '100%' }}>
+              {subtitle}
+            </ListItem.Subtitle>
+          </ActionSheet.MainContent>
+        </ActionSheet.Header>
+      )}
+      <ActionSheet.ScrollableContent width={isWindowNarrow ? '100%' : 240}>
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
       </ActionSheet.ScrollableContent>
     </>
   );
 }
 
-const notificationOptions: { title: string; value: ub.NotificationLevel }[] = [
+export const notificationOptions: {
+  title: string;
+  value: ub.NotificationLevel;
+}[] = [
   {
     title: 'All activity',
     value: 'loud',
@@ -571,7 +745,7 @@ const notificationOptions: { title: string; value: ub.NotificationLevel }[] = [
     value: 'medium',
   },
   {
-    title: 'Only mentions and replies',
+    title: 'Mentions and replies',
     value: 'soft',
   },
   {
@@ -587,6 +761,7 @@ function NotificationsSheetContent({
   chatTitle?: string | null;
   onPressBack: () => void;
 }) {
+  const isWindowNarrow = useIsWindowNarrow();
   const { updateVolume, group, channel } = useChatOptions();
   const { data: currentChannelVolume } = store.useChannelVolumeLevel(
     channel?.id ?? ''
@@ -610,8 +785,13 @@ function NotificationsSheetContent({
             endIcon: currentVolumeLevel === value ? 'Checkmark' : undefined,
           })
         ),
+        !isWindowNarrow && {
+          title: 'Back',
+          action: onPressBack,
+          startIcon: 'ChevronLeft',
+        },
       ]),
-    [currentVolumeLevel, updateVolume]
+    [currentVolumeLevel, updateVolume, isWindowNarrow, onPressBack]
   );
   return (
     <ChatOptionsSheetContent
@@ -629,4 +809,20 @@ function SheetBackButton({ onPress }: { onPress: () => void }) {
       <ChevronLeft />
     </IconButton>
   );
+}
+
+function useCustomChannelsEnabled() {
+  const [enableCustomChannels, setEnableCustomChannels] = useState(false);
+  // why useLayoutEffect?
+  // to try to get the synchronous read to avoid flicker on mount
+  useLayoutEffect(() => {
+    return featureFlags.subscribeToFeatureFlag(
+      'customChannelCreation',
+      (flag) => {
+        setEnableCustomChannels(flag);
+      }
+    );
+  }, []);
+
+  return enableCustomChannels;
 }

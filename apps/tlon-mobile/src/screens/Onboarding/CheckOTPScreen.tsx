@@ -1,18 +1,26 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { HostingError } from '@tloncorp/app/lib/hostingApi';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  HostedNodeStatus,
+  createDevLogger,
+} from '@tloncorp/shared';
+import { HostingError } from '@tloncorp/shared/api';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
-import { ScreenHeader, TlonText, View, YStack } from '@tloncorp/ui';
-import { useCallback, useState } from 'react';
+import * as db from '@tloncorp/shared/db';
+import { ScreenHeader, TlonText, View, YStack, useStore } from '@tloncorp/ui';
+import { useCallback, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { OTPInput } from '../../components/OnboardingInputs';
+import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { useOnboardingContext } from '../../lib/OnboardingContext';
+import { clearHostingNativeCookie } from '../../lib/hostingAuth';
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
 
@@ -24,169 +32,89 @@ const PHONE_CODE_LENGTH = 6;
 const logger = createDevLogger('CheckOTP', true);
 
 export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
+  const store = useStore();
   const [otp, setOtp] = useState<string[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { hostingApi } = useOnboardingContext();
   const signupContext = useSignupContext();
   const signupParams = useSignupParams();
-  const { setShip } = useShip();
+  const { handleLogin } = useOnboardingHelpers();
   const { otpMethod, mode } = params;
   const recaptcha = useRecaptcha();
   const codeLength =
     otpMethod === 'email' ? EMAIL_CODE_LENGTH : PHONE_CODE_LENGTH;
 
+  const accountCreds = useMemo(
+    () => ({
+      phoneNumber:
+        otpMethod === 'phone'
+          ? params.phoneNumber ?? signupContext.phoneNumber!
+          : undefined,
+      email:
+        otpMethod === 'email'
+          ? params.email ?? signupContext.email!
+          : undefined,
+    }),
+    [
+      otpMethod,
+      params.email,
+      params.phoneNumber,
+      signupContext.email,
+      signupContext.phoneNumber,
+    ]
+  );
+
   const handleSignup = useCallback(
-    async (otpCode: string) => {
+    async (otp: string) => {
       try {
-        const recaptchaToken = await recaptcha.getToken();
-        if (!recaptchaToken) {
+        const token = await recaptcha.getToken();
+        if (!token) {
           setError(`We're having trouble confirming you're human. (reCAPTCHA)`);
           throw new Error('reCAPTCHA token not available');
         }
+        const recaptchaInfo = {
+          token,
+          platform: Platform.OS,
+        };
 
-        const user = await hostingApi.signUpHostingUser({
-          otp: otpCode,
-          phoneNumber:
-            otpMethod === 'phone'
-              ? params.phoneNumber ?? signupContext.phoneNumber!
-              : undefined,
-          email:
-            otpMethod === 'email'
-              ? params.email ?? signupContext.email!
-              : undefined,
-          lure: signupParams.lureId,
+        const maybeAccountIssue = await store.signUpHostedUser({
+          otp,
+          inviteId: signupParams.lureId,
           priorityToken: signupParams.priorityToken,
-          recaptchaToken,
+          recaptcha: recaptchaInfo,
+          ...accountCreds,
         });
+
+        // clear hosting cookie since we manage manually
+        await clearHostingNativeCookie();
+
         trackOnboardingAction({
           actionName: 'Verification Submitted',
-          phoneNumber:
-            otpMethod === 'phone'
-              ? params.phoneNumber ?? signupContext.phoneNumber!
-              : undefined,
-          email:
-            otpMethod === 'email'
-              ? params.email ?? signupContext.email!
-              : undefined,
+          ...accountCreds,
         });
         trackOnboardingAction({
           actionName: 'Account Created',
-          phoneNumber:
-            otpMethod === 'phone'
-              ? params.phoneNumber ?? signupContext.phoneNumber!
-              : undefined,
-          email:
-            otpMethod === 'email'
-              ? params.email ?? signupContext.email!
-              : undefined,
           lure: signupParams.lureId,
+          ...accountCreds,
         });
-        return user;
+
+        return maybeAccountIssue;
       } catch (err) {
         logger.trackError('Error signing up user', {
           errorMessage: err.message,
           errorStack: err.stack,
-          phoneNumber:
-            otpMethod === 'phone'
-              ? params.phoneNumber ?? signupContext.phoneNumber!
-              : undefined,
-          email:
-            otpMethod === 'email'
-              ? params.email ?? signupContext.email!
-              : undefined,
+          ...accountCreds,
         });
         throw err;
       }
     },
     [
-      hostingApi,
-      otpMethod,
-      params.email,
-      params.phoneNumber,
+      accountCreds,
       recaptcha,
-      signupContext.email,
-      signupContext.phoneNumber,
       signupParams.lureId,
       signupParams.priorityToken,
-    ]
-  );
-
-  const handleLogin = useCallback(
-    async (otpCode: string) => {
-      const user = await hostingApi.logInHostingUser({
-        otp: otpCode,
-        phoneNumber:
-          otpMethod === 'phone'
-            ? params.phoneNumber ?? signupContext.phoneNumber!
-            : undefined,
-        email:
-          otpMethod === 'email'
-            ? params.email ?? signupContext.email!
-            : undefined,
-      });
-
-      if (user.ships.length > 0) {
-        const shipsWithStatus = await hostingApi.getShipsWithStatus(user.ships);
-        if (shipsWithStatus) {
-          const { status, shipId } = shipsWithStatus;
-          if (status === 'Ready') {
-            const { code: accessCode } =
-              await hostingApi.getShipAccessCode(shipId);
-            const shipUrl = getShipUrl(shipId);
-            const authCookie = await getLandscapeAuthCookie(
-              shipUrl,
-              accessCode
-            );
-            if (authCookie) {
-              if (await storage.eulaAgreed.getValue()) {
-                setShip({
-                  ship: shipId,
-                  shipUrl,
-                  authCookie,
-                  authType: 'hosted',
-                });
-
-                const hasSignedUp = await storage.didSignUp.getValue();
-                if (!hasSignedUp) {
-                  logger.trackEvent(AnalyticsEvent.LoggedInBeforeSignup);
-                }
-              } else {
-                throw new Error(
-                  'Please agree to the End User License Agreement to continue.'
-                );
-              }
-            } else {
-              throw new Error(
-                `Sorry, we couldn't log you into your Tlon account.`
-              );
-            }
-          } else {
-            navigation.navigate('ReserveShip', { user });
-          }
-        } else {
-          throw new Error(
-            "Sorry, we couldn't find an active Tlon ship for your account."
-          );
-        }
-      } else {
-        signupContext.setOnboardingValues({
-          phoneNumber:
-            otpMethod === 'phone' ? signupContext.phoneNumber! : undefined,
-          email: otpMethod === 'email' ? signupContext.email! : undefined,
-          hostingUser: user,
-        });
-        navigation.navigate('ReserveShip', { user });
-      }
-    },
-    [
-      hostingApi,
-      navigation,
-      otpMethod,
-      params.email,
-      params.phoneNumber,
-      setShip,
-      signupContext,
+      store,
     ]
   );
 
@@ -196,24 +124,53 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
       await storage.eulaAgreed.setValue(true);
       try {
         if (mode === 'signup') {
-          const user = await handleSignup(code);
-          signupContext.setOnboardingValues({ hostingUser: user });
+          const maybeAccountIssue = await handleSignup(code);
+          if (
+            maybeAccountIssue === store.HostingAccountIssue.RequiresVerification
+          ) {
+            navigation.navigate('RequestPhoneVerify', { mode: params.mode });
+            return;
+          }
           signupContext.kickOffBootSequence();
-          navigation.navigate('SetNickname', { user });
+          navigation.navigate('SetNickname');
         } else {
-          await handleLogin(code);
+          await handleLogin({ otp: code, ...accountCreds });
         }
       } catch (e) {
-        setError(e.message);
-        logger.trackError(`Error submitting OTP during ${mode}`, {
-          errorMessage: e.message,
-          errorStack: e.stack,
-        });
+        const SIGNUP_OTP_INCORRECT_STATUS = 400;
+        const LOGIN_OTP_INCORRECT_STATUS = 401;
+        if (
+          e instanceof HostingError &&
+          [SIGNUP_OTP_INCORRECT_STATUS, LOGIN_OTP_INCORRECT_STATUS].includes(
+            e.details.status ?? 0
+          )
+        ) {
+          setError('Confirmation code is incorrect or expired.');
+        } else {
+          setError(e.message);
+          logger.trackError(
+            `Error ${mode === 'signup' ? 'Signing Up' : 'Logging In'}`,
+            {
+              errorMessage: e.message,
+              errorStack: e.stack,
+              details: e.details,
+            }
+          );
+        }
       } finally {
         setIsSubmitting(false);
       }
     },
-    [handleLogin, handleSignup, mode, navigation, signupContext]
+    [
+      accountCreds,
+      handleLogin,
+      handleSignup,
+      mode,
+      navigation,
+      params.mode,
+      signupContext,
+      store.HostingAccountIssue.RequiresVerification,
+    ]
   );
 
   const handleCodeChanged = useCallback(
@@ -243,16 +200,19 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         await apiCall({
           email: params.email ?? signupContext.email!,
           recaptchaToken,
+          platform: Platform.OS,
         });
       } else {
         await apiCall({
           phoneNumber: params.phoneNumber ?? signupContext.phoneNumber!,
           recaptchaToken,
+          platform: Platform.OS,
         });
       }
     } catch (err) {
       if (err instanceof HostingError) {
-        if (err.code === 429) {
+        if (err.details.status === 429) {
+          logger.trackEvent('OTP re-request rate limited');
           setError('Must wait before requesting another code.');
         }
       } else {

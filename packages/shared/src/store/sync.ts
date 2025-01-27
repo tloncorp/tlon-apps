@@ -7,7 +7,7 @@ import { GetChangedPostsOptions } from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger, runIfDev } from '../debug';
-import { AnalyticsEvent } from '../logic';
+import { AnalyticsEvent } from '../domain';
 import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
@@ -687,12 +687,6 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
           refetchType: 'active',
         });
       }
-
-      // check for any newly joined groups and channels
-      checkForNewlyJoined({
-        groupUnreads: activitySnapshot.groupUnreads,
-        channelUnreads: activitySnapshot.channelUnreads,
-      });
     },
     queueDebounce,
     { leading: true, trailing: true }

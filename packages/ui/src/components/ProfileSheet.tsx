@@ -4,26 +4,7 @@ import { useCallback } from 'react';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
-import { Button } from './Button';
 import { ProfileBlock } from './ProfileBlock';
-
-export function ProfileButton({
-  label,
-  onPress,
-  hero,
-  secondary,
-}: {
-  label: string;
-  onPress: () => void;
-  hero?: boolean;
-  secondary?: boolean;
-}) {
-  return (
-    <Button hero={hero} secondary={secondary} onPress={onPress}>
-      <Button.Text>{label}</Button.Text>
-    </Button>
-  );
-}
 
 export function ProfileSheet({
   contact,
@@ -115,7 +96,7 @@ export function ProfileSheet({
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       <ActionSheet.ScrollableContent>
         <ActionSheet.ContentBlock>
-          <ProfileBlock contactId={contactId} />
+          <ProfileBlock height={200} contactId={contactId} />
         </ActionSheet.ContentBlock>
         <ActionSheet.SimpleActionGroupList actionGroups={actions} />
       </ActionSheet.ScrollableContent>

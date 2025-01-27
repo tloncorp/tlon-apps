@@ -160,6 +160,13 @@ export async function updateChannel({
 
   await db.updateChannel(updatedChannel);
 
+  // If we have a `contentConfiguration`, we need to merge these fields to make
+  // a `StructuredChannelDescriptionPayload`, and use that as the `description`
+  const structuredDescription = StructuredChannelDescriptionPayload.encode({
+    description: channel.description ?? undefined,
+    channelContentConfiguration: channel.contentConfiguration ?? undefined,
+  });
+
   const groupChannel: GroupChannel = {
     added: channel.addedToGroupAt ?? 0,
     readers,
@@ -168,7 +175,7 @@ export async function updateChannel({
     join,
     meta: {
       title: channel.title ?? '',
-      description: channel.description ?? '',
+      description: structuredDescription ?? '',
       image: channel.coverImage ?? '',
       cover: channel.coverImage ?? '',
     },
@@ -232,29 +239,43 @@ export async function markChannelVisited(channelId: string) {
   await db.updateChannel({ id: channelId, lastViewedAt: Date.now() });
 }
 
-export type MarkChannelReadParams = Pick<db.Channel, 'id' | 'groupId' | 'type'>;
-
-export async function markChannelRead(params: MarkChannelReadParams) {
-  logger.log(`marking channel as read`, params.id);
+export async function markChannelRead({
+  id,
+  groupId,
+}: {
+  id: string;
+  groupId?: string;
+}) {
+  logger.log(`marking channel as read`, id);
   // optimistic update
-  const existingUnread = await db.getChannelUnread({ channelId: params.id });
+  const existingUnread = await db.getChannelUnread({ channelId: id });
   if (existingUnread) {
-    await db.clearChannelUnread(params.id);
+    await db.clearChannelUnread(id);
   }
 
   const existingCount = existingUnread?.count ?? 0;
-  if (params.groupId && existingCount > 0) {
+  if (groupId && existingCount > 0) {
     // optimitically update group unread count
     await db.updateGroupUnreadCount({
-      groupId: params.groupId,
+      groupId,
       decrement: existingCount,
     });
   }
 
+  const existingChannel = await db.getChannel({ id });
+
+  if (!existingChannel) {
+    throw new Error('Channel not found');
+  }
+
+  if (existingChannel.isPendingChannel) {
+    return;
+  }
+
   try {
-    await api.readChannel(params);
+    await api.readChannel(existingChannel);
   } catch (e) {
-    console.error('Failed to read channel', params, e);
+    console.error('Failed to read channel', {id, groupId}, e);
     // rollback optimistic update
     if (existingUnread) {
       await db.insertChannelUnreads([existingUnread]);
