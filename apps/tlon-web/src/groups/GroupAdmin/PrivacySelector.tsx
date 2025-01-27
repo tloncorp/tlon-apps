@@ -155,7 +155,6 @@ export function PrivacySelectorForm() {
       privacy,
     },
   });
-  const { enabled, describe } = useLure(groupFlag);
   const { mutate: editMutation, status: editStatus } = useEditGroupMutation({
     onSuccess: () => {
       form.reset({
@@ -172,10 +171,6 @@ export function PrivacySelectorForm() {
       ...values
     }: GroupMeta & { privacy: PrivacyType }) => {
       try {
-        if (enabled) {
-          describe(values);
-        }
-
         const oldPrivacy = privacy;
         if (newPrivacy === oldPrivacy) {
           return;
@@ -223,8 +218,6 @@ export function PrivacySelectorForm() {
     [
       groupFlag,
       privacy,
-      enabled,
-      describe,
       // editMutation,
       swapCordonMutation,
       setSecretMutation,

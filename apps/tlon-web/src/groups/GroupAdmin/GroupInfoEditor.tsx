@@ -21,7 +21,6 @@ import {
   useGroupSwapCordonMutation,
   useRouteGroup,
 } from '@/state/groups';
-import { useLure } from '@/state/lure/lure';
 
 import GroupInfoFields from './GroupInfoFields';
 
@@ -46,7 +45,6 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     },
     mode: 'onChange',
   });
-  const { enabled, describe } = useLure(groupFlag);
   const { mutate: editMutation, status: editStatus } = useEditGroupMutation({
     onSuccess: () => {
       form.reset({
@@ -64,10 +62,6 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     }: GroupMeta & { privacy: PrivacyType }) => {
       try {
         editMutation({ flag: groupFlag, metadata: values });
-
-        if (enabled) {
-          describe(values);
-        }
 
         const privacyChanged = newPrivacy !== privacy;
         if (privacyChanged) {
