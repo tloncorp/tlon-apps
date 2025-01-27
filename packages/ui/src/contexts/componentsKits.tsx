@@ -103,7 +103,7 @@ const BUILTIN_CONTENT_RENDERERS: { [id: string]: RenderItemType } = {
   [PostContentRendererId.audio]: AudioPost,
   [PostContentRendererId.color]: ColorPost,
   [PostContentRendererId.raw]: ({ post, contentRendererConfiguration }) => {
-    const contactName = useContactName(post.author!.id);
+    const contactName = useContactName(post.author?.id ?? null);
     return (
       <Text
         style={{
