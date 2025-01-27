@@ -27,4 +27,6 @@ export enum AnalyticsEvent {
   InitializedNewInvite = 'Initialized New Invite',
   DebugLogs = 'Debug Logs',
   AppError = 'App Error',
+  Scry = 'Scry',
+  TrackedPoke = 'TrackedPoke',
 }

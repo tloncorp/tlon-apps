@@ -1,6 +1,7 @@
 import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import { AuthError, ChannelStatus, PokeInterface, Urbit } from '../http-api';
 import { preSig } from '../urbit';
 import { getLandscapeAuthCookie } from './landscapeApi';
@@ -335,12 +336,25 @@ export async function trackedPoke<T, R = T>(
   if (config.pendingAuth) {
     await config.pendingAuth;
   }
+  const startTime = Date.now();
   try {
     const tracking = track(endpoint, predicate);
     const poking = poke(params);
     await Promise.all([tracking, poking]);
+    logger.trackEvent(AnalyticsEvent.TrackedPoke, {
+      app: params.app,
+      mark: params.mark,
+      status: 'success',
+      time: Date.now() - startTime,
+    });
   } catch (e) {
     logger.error(`tracked poke failed`, e);
+    logger.trackEvent(AnalyticsEvent.TrackedPoke, {
+      app: params.app,
+      mark: params.mark,
+      status: 'error',
+      time: Date.now() - startTime,
+    });
     throw e;
   }
 }
@@ -371,15 +385,37 @@ export async function scry<T>({ app, path }: { app: string; path: string }) {
     await config.pendingAuth;
   }
   logger.log('scry', app, path);
+  const startTime = Date.now();
   try {
-    return await config.client.scry<T>({ app, path });
+    const result = await config.client.scry<T>({ app, path });
+    logger.trackEvent(AnalyticsEvent.Scry, {
+      app,
+      path,
+      status: 'success',
+      time: Date.now() - startTime,
+    });
+    return result;
   } catch (res) {
     logger.log('bad scry', app, path, res.status);
     if (res.status === 403) {
       logger.log('scry failed with 403, authing to try again');
       await reauth();
-      return config.client.scry<T>({ app, path });
+      const result = await config.client.scry<T>({ app, path });
+      logger.trackEvent(AnalyticsEvent.Scry, {
+        app,
+        path,
+        status: 'success',
+        reauthed: true,
+        time: Date.now() - startTime,
+      });
+      return result;
     }
+    logger.trackEvent(AnalyticsEvent.Scry, {
+      app,
+      path,
+      status: 'error',
+      time: Date.now() - startTime,
+    });
     const body = await res.text();
     throw new BadResponseError(res.status, body);
   }
