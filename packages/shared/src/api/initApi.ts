@@ -1,5 +1,6 @@
 import * as db from '../db';
 import type * as ub from '../urbit';
+import { nullIfError } from '../utils';
 import { ActivityInit, toClientUnreads } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
@@ -34,7 +35,15 @@ export const getInitData = async () => {
   const pins = toClientPinnedItems(response.pins);
   const channelReaders = extractChannelReaders(response.groups);
   const channelsInit = toClientChannelsInit(
-    response.channel.channels,
+    Object.entries(response.channel.channels).reduce((acc, [key, value]) => {
+      acc[key] = {
+        ...value,
+        meta: nullIfError(() =>
+          value.meta == null ? null : JSON.parse(value.meta)
+        ),
+      };
+      return acc;
+    }, {} as ub.Channels),
     channelReaders
   );
 

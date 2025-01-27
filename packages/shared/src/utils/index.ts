@@ -4,3 +4,4 @@
  */
 export * from './object';
 export type * from './utilityTypes';
+export * from './errors';

@@ -1,5 +1,5 @@
 import { Activity } from './activity';
-import { ChannelHeadsResponse, Channels } from './channel';
+import { ChannelFromServer, ChannelHeadsResponse, Channels } from './channel';
 import { ChatHeadsResponse, DMInit, DMInit2 } from './dms';
 import { Gangs, Groups } from './groups';
 
@@ -17,7 +17,7 @@ export interface GroupsInit4 {
   groups: Groups;
   gangs: Gangs;
   channel: {
-    channels: Channels;
+    channels: { [key: string]: ChannelFromServer };
     'hidden-posts': string[];
   };
   activity: Activity;
