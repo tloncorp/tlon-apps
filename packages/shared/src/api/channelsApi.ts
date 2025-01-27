@@ -177,6 +177,7 @@ export type ChannelInit = {
   channelId: string;
   writers: string[];
   readers: string[];
+  meta: ub.ChannelMetadata | null;
 };
 
 export function toClientChannelInit(
@@ -184,7 +185,12 @@ export function toClientChannelInit(
   channel: ub.Channel,
   readers: string[]
 ): ChannelInit {
-  return { channelId: id, writers: channel.perms.writers ?? [], readers };
+  return {
+    channelId: id,
+    writers: channel.perms.writers ?? [],
+    readers,
+    meta: channel.meta,
+  };
 }
 
 export const toChannelsUpdate = (

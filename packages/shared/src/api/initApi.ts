@@ -19,7 +19,7 @@ export interface InitData {
   unjoinedGroups: db.Group[];
   activity: ActivityInit;
   channels: db.Channel[];
-  channelPerms: ChannelInit[];
+  channelsInit: ChannelInit[];
   joinedGroups: string[];
   joinedChannels: string[];
   hiddenPostIds: string[];
@@ -73,7 +73,7 @@ export const getInitData = async () => {
     unjoinedGroups,
     unreads,
     channels: [...dmChannels, ...groupDmChannels, ...invitedDms],
-    channelPerms: channelsInit,
+    channelsInit,
     joinedGroups,
     joinedChannels,
     hiddenPostIds,

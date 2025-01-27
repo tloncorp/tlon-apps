@@ -85,8 +85,19 @@ export const syncInitData = async (
       .then(() => logger.crumb('inserted blocked users'));
 
     await db
-      .insertChannelPerms(initData.channelPerms, queryCtx)
+      .insertChannelPerms(initData.channelsInit, queryCtx)
       .then(() => logger.crumb('inserted channel perms'));
+    await Promise.all(
+      initData.channelsInit
+        .map((c) => ({
+          id: c.channelId,
+          contentConfiguration:
+            c.meta == null
+              ? null
+              : api.ChannelContentConfiguration.fromApiMeta(c.meta),
+        }))
+        .map((c) => db.updateChannel(c))
+    ).then(() => logger.crumb('inserted channel meta'));
     await db
       .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, queryCtx)
       .then(() => logger.crumb('set left groups'));
