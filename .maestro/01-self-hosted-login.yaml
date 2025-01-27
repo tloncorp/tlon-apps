@@ -1,9 +1,9 @@
-appId: io.tlon.groups
+appId: io.tlon.groups.preview
 ---
 - clearState:
-    appId: io.tlon.groups
+    appId: io.tlon.groups.preview
 - launchApp:
-    appId: io.tlon.groups
+    appId: io.tlon.groups.preview
 - runFlow:
     when:
       visible: 'Welcome to TM'

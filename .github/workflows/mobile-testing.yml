@@ -1,0 +1,52 @@
+name: Build Tlon Mobile
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Test mobile builds
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Set up Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build for selected platforms
+        working-directory: ./apps/tlon-mobile
+        run: |
+          eas build --profile local-testing --platform ${{
+          inputs.platform || 'all' }} --non-interactive
+          echo "url=${{ eas build:list --json --limit=1 --platform=ios --non-interactive | jq '.[0].artifacts.buildUrl' }}" >> $GITHUB_OUTPUT
+        env:
+          EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
+          EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
+          NOTIFY_PROVIDER:
+            "${{ steps.vars.outputs.profile == 'preview' &&
+            'binnec-dozzod-marnus' || 'rivfur-livmet' }}"
+          NOTIFY_SERVICE:
+            "${{ steps.vars.outputs.profile == 'preview' &&
+            'tlon-preview-release' || 'groups-native' }}"
+      - name: Download and extract build
+        working-directory: ./apps/tlon-mobile
+        run: |
+          echo "Downloading build from ${{ steps.vars.outputs.url }}"
+          curl -L ${{ steps.vars.outputs.url }} -o build.tar.gz
+          tar -xzf build.tar.gz
+          rm build.tar.gz
+      - name: Run tests
+        uses: mobile-dev-inc/action-maestro-cloud@v1
+        with:
+          api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
+          project-id: ${{ secrets.ROBIN_PROJECT_ID }}
+          app-file: Landscape-preview.app
