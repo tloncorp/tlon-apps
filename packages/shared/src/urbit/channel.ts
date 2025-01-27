@@ -368,7 +368,7 @@ export interface Channel {
   order: string[];
   sort: SortMode;
   pending: PendingMessages;
-  meta: ChannelMetadata;
+  meta: ChannelMetadata | null;
 }
 
 export interface ChannelFromServer {
