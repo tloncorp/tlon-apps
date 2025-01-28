@@ -1,7 +1,5 @@
 name: Build Tlon Mobile
-on:
-  pull_request:
-  workflow_dispatch:
+on: pull_request
 jobs:
   deploy:
     runs-on: ubuntu-latest
