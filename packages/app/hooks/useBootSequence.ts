@@ -100,24 +100,28 @@ export function useBootSequence() {
     // AUTHENTICATING: authenticate with the node itself
     //
     if (bootPhase === NodeBootPhase.AUTHENTICATING) {
-      const auth = await BootHelpers.authenticateNode(reservedNodeId);
-      const ship = getShipFromCookie(auth.authCookie);
+      try {
+        const shipInfo = await store.authenticateWithReadyNode();
+        if (!shipInfo) {
+          throw new Error('Could not authenticate with node');
+        }
+        setShip(shipInfo);
+        telemetry?.identify(preSig(shipInfo.ship!), { isHostedUser: true });
 
-      setShip({
-        ship,
-        shipUrl: auth.nodeUrl,
-        authCookie: auth.authCookie,
-        authType: 'hosted',
-      });
-      telemetry?.identify(preSig(auth.nodeId), { isHostedUser: true });
+        await wait(2000);
 
-      await wait(2000);
+        configureUrbitClient({
+          shipName: shipInfo.ship,
+          shipUrl: shipInfo.shipUrl,
+        });
+        store.syncStart();
 
-      configureUrbitClient({ shipName: auth.nodeId, shipUrl: auth.nodeUrl });
-      store.syncStart();
-
-      logger.crumb(`authenticated with node`);
-      return NodeBootPhase.CONNECTING;
+        logger.crumb(`authenticated with node`);
+        return NodeBootPhase.CONNECTING;
+      } catch (err) {
+        logger.crumb('failed to authenticate with node', err);
+        return NodeBootPhase.AUTHENTICATING;
+      }
     }
 
     //
