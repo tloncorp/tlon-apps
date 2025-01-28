@@ -1,12 +1,10 @@
 import { AnalyticsEvent, AppInvite, createDevLogger } from '@tloncorp/shared';
 import { HostedNodeStatus } from '@tloncorp/shared';
-import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import * as hostingApi from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 
 import { trackOnboardingAction } from '../utils/posthog';
-import { getShipFromCookie, getShipUrl } from '../utils/ship';
 
 const logger = createDevLogger('bootHelpers', true);
 
@@ -51,7 +49,6 @@ export default {
   NodeBootPhase,
   reserveNode,
   checkNodeBooted,
-  authenticateNode,
   getInvitedGroupAndDm,
 };
 
@@ -100,23 +97,6 @@ export async function checkNodeBooted(): Promise<boolean> {
   } catch (e) {
     return false;
   }
-}
-
-async function authenticateNode(
-  nodeId: string
-): Promise<{ nodeId: string; nodeUrl: string; authCookie: string }> {
-  const { code: accessCode } = await hostingApi.getShipAccessCode(nodeId);
-  const nodeUrl = getShipUrl(nodeId);
-  const authCookie = await getLandscapeAuthCookie(nodeUrl, accessCode);
-  if (!authCookie) {
-    throw new Error("Couldn't log you into your ship.");
-  }
-
-  return {
-    nodeId,
-    nodeUrl,
-    authCookie,
-  };
 }
 
 async function getInvitedGroupAndDm(lureMeta: AppInvite | null): Promise<{

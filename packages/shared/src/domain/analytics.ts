@@ -34,4 +34,6 @@ export enum AnalyticsEvent {
   LatestPostsFetched = 'Latest Posts Fetched',
   LatestPostsWritten = 'Latest Posts Written',
   SubscriptionsEstablished = 'Subscriptions Established',
+  AuthFailedToGetCode = 'Failed to get access code',
+  AuthForcedLogout = 'Auth Forced Logout',
 }
