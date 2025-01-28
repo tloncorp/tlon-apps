@@ -30,12 +30,15 @@ export function VerifierStubScreen({ navigation }: Props) {
   return (
     <View flex={1}>
       <ScreenHeader backAction={handleGoBackPressed} title="Verifier Stub" />
-      <YStack>
+      <YStack gap="$m">
         <Button hero onPress={() => store.syncVerifications()}>
           <Button.Text>Fetch Verifications</Button.Text>
         </Button>
+        <Button hero onPress={() => api.initiatePhoneVerify()}>
+          <Button.Text>Initiate Phone Verification</Button.Text>
+        </Button>
       </YStack>
-      <YStack>
+      <YStack marginTop="$l">
         <TlonText.RawText>Verifications</TlonText.RawText>
         {verifications?.map((verification) => (
           <ListItem key={verification.value}>

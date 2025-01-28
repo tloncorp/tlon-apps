@@ -413,6 +413,7 @@ export type VerificationStatus = 'waiting' | 'pending' | 'verified';
 export const verifications = sqliteTable(
   'verifications',
   {
+    provider: text('provider').notNull(),
     type: text('type').$type<VerificationType>().notNull(),
     value: text('value').notNull(),
     initiatedAt: timestamp('initiated_at'),
@@ -421,7 +422,7 @@ export const verifications = sqliteTable(
   },
   (table) => {
     return {
-      pk: primaryKey({ columns: [table.type, table.value] }),
+      pk: primaryKey({ columns: [table.provider, table.type, table.value] }),
     };
   }
 );

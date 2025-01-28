@@ -393,6 +393,8 @@ export class Urbit {
           if (event.data && JSON.parse(event.data)) {
             const data: any = JSON.parse(event.data);
 
+            console.log(`received data`, data);
+
             if (
               data.response === 'poke' &&
               this.outstandingPokes.has(data.id)

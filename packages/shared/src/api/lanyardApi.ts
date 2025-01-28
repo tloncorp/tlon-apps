@@ -62,6 +62,7 @@ export async function fetchVerifications(): Promise<db.Verification[]> {
     return id;
   })(result as Noun);
   console.log(`whole tree`, tree);
+  return tree as db.Verification[];
 }
 
 // step 1, send %start command
@@ -69,7 +70,7 @@ export async function fetchVerifications(): Promise<db.Verification[]> {
 // step 3: if good to go, show shiny green check
 // step 3b: if bad, prompt for otp
 
-export function initiatePhoneVerify() {
+export async function initiatePhoneVerify() {
   const phoneNumber = '+13375812665';
   const currentUserId = getCurrentUserId();
   console.log(`getting azimut point`, currentUserId);
@@ -80,10 +81,7 @@ export function initiatePhoneVerify() {
   console.log(`hand point`, 2825991040267835342n);
 
   // TAKE 1
-  const payload = [
-    [null, azimuthPoint],
-    ['start', ['phone', phoneNumber]],
-  ];
+  const payload = [null, ['start', ['phone', phoneNumber]]];
 
   // TAKE 2
   // const sig = new Atom(BigInt(0));
@@ -99,7 +97,9 @@ export function initiatePhoneVerify() {
   console.log(`got the noun`, noun);
   console.log(`got the noun string`, noun.toString());
 
-  return pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
+  await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
+  console.log('poke done');
+  return;
 }
 
 export function confirmPhoneVerify(phoneNumber: string, otp: string) {
