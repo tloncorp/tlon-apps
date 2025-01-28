@@ -1,10 +1,11 @@
 import { patp, patp2bn } from '@urbit/aura';
 import { Atom, Cell, Noun, dwim, enjs } from '@urbit/nockjs';
 
+import * as db from '../db';
 import { unpackJamBytes } from '../http-api/utils';
 import { getCurrentUserId, pokeNoun, scryNoun } from './urbit';
 
-export async function getSelfVerificationStatus() {
+export async function fetchVerifications(): Promise<db.Verification[]> {
   const result = await scryNoun({
     app: 'lanyard',
     path: '/records',

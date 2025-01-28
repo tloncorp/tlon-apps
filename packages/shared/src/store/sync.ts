@@ -216,6 +216,14 @@ export const syncContacts = async (ctx?: SyncCtx) => {
   }
 };
 
+export const syncVerifications = async (ctx?: SyncCtx) => {
+  logger.log('syncing verifications');
+  const verifications = await syncQueue.add('verifications', ctx, () =>
+    api.fetchVerifications()
+  );
+  await db.insertVerifications({ verifications });
+};
+
 export const syncPinnedItems = async (ctx?: SyncCtx) => {
   logger.log('syncing pinned items');
   const pinnedItems = await syncQueue.add('pinnedItems', ctx, () =>

@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useVerifications } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import {
   Button,
@@ -9,6 +10,7 @@ import {
   TlonText,
   View,
   YStack,
+  useStore,
 } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
@@ -18,6 +20,7 @@ import type { RootStackParamList } from '../../navigation/types';
 type Props = NativeStackScreenProps<RootStackParamList, 'VerifierStub'>;
 
 export function VerifierStubScreen({ navigation }: Props) {
+  const store = useStore();
   const handleGoBackPressed = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
@@ -28,7 +31,7 @@ export function VerifierStubScreen({ navigation }: Props) {
     <View flex={1}>
       <ScreenHeader backAction={handleGoBackPressed} title="Verifier Stub" />
       <YStack>
-        <Button>
+        <Button hero onPress={() => store.syncVerifications()}>
           <Button.Text>Fetch Verifications</Button.Text>
         </Button>
       </YStack>
