@@ -118,7 +118,10 @@ export function internalConfigureClient({
 
   // the below event handlers will only fire if verbose is set to true
   config.client.on('status-update', (event) => {
-    logger.log('status-update', event);
+    logger.trackEvent(AnalyticsEvent.NodeConnectionDebug, {
+      context: 'status update',
+      connectionStatus: event.status,
+    });
     onChannelStatusChange?.(event.status);
   });
 
@@ -131,14 +134,23 @@ export function internalConfigureClient({
 
   config.client.on('seamless-reset', () => {
     logger.log('client seamless-reset');
+    logger.trackEvent(AnalyticsEvent.NodeConnectionDebug, {
+      context: 'seamless-reset',
+    });
     config.onQuitOrReset?.();
   });
 
   config.client.on('error', (error) => {
+    logger.trackError(AnalyticsEvent.NodeConnectionError, {
+      errorMessage: error.msg,
+    });
     logger.log('client error', error);
   });
 
   config.client.on('channel-reaped', () => {
+    logger.trackEvent(AnalyticsEvent.NodeConnectionDebug, {
+      context: 'client channel reaped',
+    });
     logger.log('client channel-reaped');
   });
 }

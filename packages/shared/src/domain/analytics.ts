@@ -37,4 +37,7 @@ export enum AnalyticsEvent {
   SubscriptionsEstablished = 'Subscriptions Established',
   AuthFailedToGetCode = 'Failed to get access code',
   AuthForcedLogout = 'Auth Forced Logout',
+  NodeConnectionDebug = 'Node Connection Debug',
+  NodeConnectionError = 'Node Connection Error',
+  SyncDiscontinuity = 'Sync Discontinuity',
 }

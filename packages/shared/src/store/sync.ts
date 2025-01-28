@@ -1089,6 +1089,7 @@ export const clearSyncQueue = () => {
   concerns and punts on full correctness.
 */
 export const handleDiscontinuity = async () => {
+  logger.trackEvent(AnalyticsEvent.SyncDiscontinuity);
   if (getSyncing()) {
     // we probably don't want to do this while we're already syncing
     return;
