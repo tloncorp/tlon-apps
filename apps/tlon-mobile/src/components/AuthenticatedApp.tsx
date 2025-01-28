@@ -1,7 +1,5 @@
-import { useShip } from '@tloncorp/app/contexts/ship';
 import { useAppStatusChange } from '@tloncorp/app/hooks/useAppStatusChange';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
-import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
@@ -19,6 +17,7 @@ import { useCheckAppUpdated } from '../hooks/analytics';
 import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
+import { refreshHostingAuth } from '../lib/hostingAuth';
 
 function AuthenticatedApp() {
   const telemetry = useTelemetry();
@@ -38,6 +37,7 @@ function AuthenticatedApp() {
         sync.syncPinnedItems({ priority: sync.SyncPriority.High });
         telemetry.captureAppActive();
         checkNodeStopped();
+        refreshHostingAuth();
       }
     },
     [checkNodeStopped, telemetry]

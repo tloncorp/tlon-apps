@@ -19,7 +19,8 @@ export function useCheckNodeStopped() {
     }
 
     try {
-      const nodeStatus = await store.checkHostingNodeStatus();
+      const supressLog = true;
+      const nodeStatus = await store.checkHostingNodeStatus(supressLog);
       if (
         [
           HostedNodeStatus.Paused,
