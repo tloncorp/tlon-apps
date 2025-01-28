@@ -28,7 +28,7 @@ jobs:
         working-directory: ./apps/tlon-mobile
         run: |
           eas build --profile local-testing --platform ${{ inputs.platform || 'all' }} --non-interactive
-          echo "url=${{ eas build:list --json --limit=1 --platform=ios --non-interactive | jq '.[0].artifacts.buildUrl' }}" >> $GITHUB_OUTPUT
+          echo "url=$(eas build:list --json --limit=1 --platform=ios --non-interactive | jq '.[0].artifacts.buildUrl')" >> $GITHUB_OUTPUT
         env:
           EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
           EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
