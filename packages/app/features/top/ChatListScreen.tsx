@@ -296,7 +296,8 @@ export function ChatListScreenView({
                     <ScreenHeader.IconButton
                       type="Add"
                       // onPress={handlePressAddChat}
-                      onPress={() => api.getSelfVerificationStatus()}
+                      onPress={() => navigation.navigate('VerifierStub')}
+                      // onPress={() => api.getSelfVerificationStatus()}
                     />
                   ) : (
                     <CreateChatSheet

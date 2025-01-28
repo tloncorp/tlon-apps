@@ -338,6 +338,15 @@ CREATE TABLE `thread_unreads` (
 	PRIMARY KEY(`channel_id`, `thread_id`)
 );
 --> statement-breakpoint
+CREATE TABLE `verifications` (
+	`type` text NOT NULL,
+	`value` text NOT NULL,
+	`initiated_at` integer,
+	`visibility` text NOT NULL,
+	`status` text NOT NULL,
+	PRIMARY KEY(`type`, `value`)
+);
+--> statement-breakpoint
 CREATE TABLE `volume_settings` (
 	`item_id` text PRIMARY KEY NOT NULL,
 	`item_type` text NOT NULL,
