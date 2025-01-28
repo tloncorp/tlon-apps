@@ -294,6 +294,10 @@ export async function unsubscribe(id: number) {
 
 export async function poke({ app, mark, json }: PokeParams) {
   logger.log('poke', app, mark, json);
+  const trackDuration = createDurationTracker(AnalyticsEvent.Poke, {
+    app,
+    mark,
+  });
   const doPoke = async (params?: Partial<PokeInterface<any>>) => {
     if (!config.client) {
       throw new Error('Client not initialized');
@@ -314,6 +318,7 @@ export async function poke({ app, mark, json }: PokeParams) {
       body: json,
     });
     if (!(err instanceof AuthError)) {
+      trackDuration('error');
       throw err;
     }
 
@@ -322,9 +327,13 @@ export async function poke({ app, mark, json }: PokeParams) {
   };
 
   try {
-    return doPoke({ onError: retry });
+    const result = await doPoke({ onError: retry });
+    trackDuration('success');
+    return result;
   } catch (err) {
-    retry(err);
+    const result = await retry(err);
+    trackDuration('success');
+    return result;
   }
 }
 
@@ -336,25 +345,18 @@ export async function trackedPoke<T, R = T>(
   if (config.pendingAuth) {
     await config.pendingAuth;
   }
-  const startTime = Date.now();
+  const trackDuration = createDurationTracker(AnalyticsEvent.TrackedPoke, {
+    app: params.app,
+    mark: params.mark,
+  });
   try {
     const tracking = track(endpoint, predicate);
     const poking = poke(params);
     await Promise.all([tracking, poking]);
-    logger.trackEvent(AnalyticsEvent.TrackedPoke, {
-      app: params.app,
-      mark: params.mark,
-      status: 'success',
-      time: Date.now() - startTime,
-    });
+    trackDuration('success');
   } catch (e) {
     logger.error(`tracked poke failed`, e);
-    logger.trackEvent(AnalyticsEvent.TrackedPoke, {
-      app: params.app,
-      mark: params.mark,
-      status: 'error',
-      time: Date.now() - startTime,
-    });
+    trackDuration('error');
     throw e;
   }
 }
@@ -385,15 +387,13 @@ export async function scry<T>({ app, path }: { app: string; path: string }) {
     await config.pendingAuth;
   }
   logger.log('scry', app, path);
-  const startTime = Date.now();
+  const trackDuration = createDurationTracker(AnalyticsEvent.Scry, {
+    app,
+    path,
+  });
   try {
     const result = await config.client.scry<T>({ app, path });
-    logger.trackEvent(AnalyticsEvent.Scry, {
-      app,
-      path,
-      status: 'success',
-      time: Date.now() - startTime,
-    });
+    trackDuration('success');
     return result;
   } catch (res) {
     logger.log('bad scry', app, path, res.status);
@@ -401,21 +401,10 @@ export async function scry<T>({ app, path }: { app: string; path: string }) {
       logger.log('scry failed with 403, authing to try again');
       await reauth();
       const result = await config.client.scry<T>({ app, path });
-      logger.trackEvent(AnalyticsEvent.Scry, {
-        app,
-        path,
-        status: 'success',
-        reauthed: true,
-        time: Date.now() - startTime,
-      });
+      trackDuration('success');
       return result;
     }
-    logger.trackEvent(AnalyticsEvent.Scry, {
-      app,
-      path,
-      status: 'error',
-      time: Date.now() - startTime,
-    });
+    trackDuration('error');
     const body = await res.text();
     throw new BadResponseError(res.status, body);
   }
@@ -482,4 +471,18 @@ async function reauth() {
 
     throw e;
   }
+}
+
+function createDurationTracker<T extends Record<string, any>>(
+  event: AnalyticsEvent,
+  data: T
+) {
+  const startTime = Date.now();
+  return (status: 'success' | 'error') => {
+    logger.trackEvent(event, {
+      ...data,
+      status,
+      duration: Date.now() - startTime,
+    });
+  };
 }

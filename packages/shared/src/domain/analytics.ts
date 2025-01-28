@@ -28,6 +28,7 @@ export enum AnalyticsEvent {
   DebugLogs = 'Debug Logs',
   AppError = 'App Error',
   Scry = 'Scry',
+  Poke = 'Poke',
   TrackedPoke = 'TrackedPoke',
   InitDataFetched = 'Init Data Fetched',
   InitDataWritten = 'Init Data Written',
