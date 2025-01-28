@@ -29,6 +29,10 @@ export const getMobileLinkingConfig = (
           ChannelSearch: { path: 'channel/:channelId/search' },
           Post: postScreenConfig(mode),
           ImageViewer: 'image-viewer/:postId',
+          ChatDetails: {
+            path: 'chat-details/:chatType/:chatId',
+            parse: parsePathParams('chatType', 'chatId'),
+          },
           GroupSettings: {
             screens: {
               EditChannel: {
@@ -99,6 +103,10 @@ export const getDesktopLinkingConfig = (
                 screens: {
                   ChannelRoot: '',
                 },
+              },
+              ChatDetails: {
+                path: 'chat-details/:chatType/:chatId',
+                parse: parsePathParams('chatType', 'chatId'),
               },
               Channel: {
                 initialRouteName: 'ChannelRoot',
