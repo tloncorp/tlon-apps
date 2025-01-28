@@ -1,4 +1,5 @@
-/-  *verifier
+/-  verifier
+=,  (verifier)
 |_  cmd=command:l
 ++  grad  %noun
 ++  grow
