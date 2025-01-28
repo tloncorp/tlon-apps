@@ -1,4 +1,5 @@
-/-  *verifier
+/-  verifier
+=,  (verifier)
 |_  qer=query-result
 ++  grad  %noun
 ++  grow
