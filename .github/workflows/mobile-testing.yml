@@ -27,11 +27,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build for selected platforms
-        working-directory: ./apps/tlon-mobile
+        working-directory:
+          ./apps/tlon-mobile
+          # eas build --profile local-testing --platform ios --non-interactive
         run: |
-          eas build --profile local-testing --platform ios --non-interactive
+          eas build:list --json --limit=1 --platform=ios --non-interactive | jq '.[0].artifacts.buildUrl'
           URL=$(eas build:list --json --limit=1 --platform=ios --non-interactive | jq '.[0].artifacts.buildUrl')
-          echo $URL
+          echo "url=$URL"
           echo "url=$URL" >> $GITHUB_OUTPUT
         env:
           EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
