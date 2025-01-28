@@ -49,7 +49,11 @@ appId: io.tlon.groups.preview
 - inputText: ${PASSWORD}
 - tapOn: 'Submit'
 # Dismiss password save prompt
-- tapOn: 'Not now'
+- runFlow:
+    when:
+      visible: 'Not now'
+    commands:
+      - tapOn: 'Not now'
 - assertVisible: 'Welcome to TM'
 - swipe:
     direction: 'DOWN'
