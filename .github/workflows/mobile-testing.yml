@@ -27,6 +27,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build for selected platforms
+        id: build
         working-directory:
           ./apps/tlon-mobile
           # eas build --profile local-testing --platform ios --non-interactive
@@ -47,8 +48,8 @@ jobs:
       - name: Download and extract build
         working-directory: ./apps/tlon-mobile
         run: |
-          echo "Downloading build from ${{ steps.vars.outputs.url }}"
-          curl -L ${{ steps.vars.outputs.url }} -o build.tar.gz
+          echo "Downloading build from ${{ steps.build.outputs.url }}"
+          curl -L ${{ steps.build.outputs.url }} -o build.tar.gz
           tar -xzf build.tar.gz
           rm build.tar.gz
       - name: Run tests
