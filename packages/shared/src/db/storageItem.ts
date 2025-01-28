@@ -48,18 +48,23 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
       return defaultValue;
     }
 
-    const deserializedValue = deserialize(value);
+    try {
+      const deserializedValue = deserialize(value);
 
-    // Check to handle migration from a previous storage library
-    // that prefixed all keys
-    if (
-      deserializedValue &&
-      typeof deserializedValue === 'object' &&
-      'rawData' in deserializedValue
-    ) {
-      return deserializedValue.rawData;
+      // Check to handle migration from a previous storage library
+      // that prefixed all keys
+      if (
+        deserializedValue &&
+        typeof deserializedValue === 'object' &&
+        'rawData' in deserializedValue
+      ) {
+        return deserializedValue.rawData;
+      }
+      return deserializedValue;
+    } catch (e) {
+      logger.trackEvent('Failed to deserialize KeyValueStore item', { key });
+      throw e;
     }
-    return deserializedValue;
   };
 
   const resetValue = async (): Promise<T> => {
