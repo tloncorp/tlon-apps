@@ -22,6 +22,8 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
       - name: Setup PNPM
         uses: pnpm/action-setup@v3
+      - name: "Setup jq"
+        uses: dcarbone/install-jq-action@v3
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build for selected platforms
