@@ -101,8 +101,6 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     [
       groupFlag,
       privacy,
-      enabled,
-      describe,
       editMutation,
       swapCordonMutation,
       setSecretMutation,
