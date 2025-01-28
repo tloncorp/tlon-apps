@@ -63,9 +63,6 @@ export function GroupMetaScreen(props: Props) {
         onSubmit={handleSubmit}
       >
         <YStack flex={1} justifyContent="flex-end">
-          <Button heroDestructive onPress={handlePressDelete}>
-            <Button.Text>Delete group for everyone</Button.Text>
-          </Button>
           <DeleteSheet
             title={title ?? 'This group'}
             itemTypeDescription="group"

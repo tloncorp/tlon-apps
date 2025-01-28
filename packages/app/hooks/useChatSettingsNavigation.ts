@@ -1,5 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useMutableRef } from '@tloncorp/shared';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
@@ -10,8 +11,11 @@ import { useRootNavigation } from '../navigation/utils';
 export const useChatSettingsNavigation = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigationRef = useMutableRef(navigation);
 
-  const { navigateToGroup } = useRootNavigation();
+  const { navigateToChatDetails } = useRootNavigation();
+
+  const { navigateToGroup, navigateToChatVolume } = useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
 
   const navigateToGroupSettings = useCallback(
@@ -75,28 +79,28 @@ export const useChatSettingsNavigation = () => {
 
   const onPressChannelMembers = useCallback(
     (channelId: string) => {
-      navigation.navigate('ChannelMembers', { channelId });
+      navigationRef.current.navigate('ChannelMembers', { channelId });
     },
-    [navigation]
+    [navigationRef]
   );
 
   const onPressChannelMeta = useCallback(
     (channelId: string) => {
-      navigation.navigate('ChannelMeta', { channelId });
+      navigationRef.current.navigate('ChannelMeta', { channelId });
     },
-    [navigation]
+    [navigationRef]
   );
 
   const onPressChannelTemplate = useCallback(
     (channelId: string) => {
-      navigation.navigate('ChannelTemplate', { channelId });
+      navigationRef.current.navigate('ChannelTemplate', { channelId });
     },
-    [navigation]
+    [navigationRef]
   );
 
   const navigateOnLeave = useCallback(() => {
-    navigation.navigate('ChatList');
-  }, [navigation]);
+    navigationRef.current.navigate('ChatList');
+  }, [navigationRef]);
 
   return {
     onPressChannelMembers,
@@ -106,6 +110,8 @@ export const useChatSettingsNavigation = () => {
     onPressGroupMembers,
     onPressManageChannels,
     onPressGroupPrivacy,
+    onPressChatDetails: navigateToChatDetails,
+    onPressChatVolume: navigateToChatVolume,
     onPressRoles,
     navigateOnLeave,
   };

@@ -230,8 +230,62 @@ export function useRootNavigation() {
     [navigationRef, isWindowNarrow]
   );
 
+  const useNavigateToChatDetails = () => {
+    const isWindowNarrow = useIsWindowNarrow();
+
+    return useCallback(
+      (chat: { type: 'group' | 'channel'; id: string }) => {
+        if (isWindowNarrow) {
+          navigationRef.current.navigate('ChatDetails', {
+            chatId: chat.id,
+            chatType: chat.type,
+          });
+        } else {
+          navigationRef.current.navigate('Home', {
+            screen: 'ChatDetails',
+            params: {
+              chatId: chat.id,
+              chatType: chat.type,
+            },
+          });
+        }
+      },
+      [isWindowNarrow]
+    );
+  };
+
+  const useNavigateToChatVolume = () => {
+    const isWindowNarrow = useIsWindowNarrow();
+
+    return useCallback(
+      (chat: { type: 'group' | 'channel'; id: string }) => {
+        if (isWindowNarrow) {
+          navigationRef.current.navigate('ChatVolume', {
+            chatId: chat.id,
+            chatType: chat.type,
+          });
+        } else {
+          navigationRef.current.navigate('Home', {
+            screen: 'ChatVolume',
+            params: {
+              chatId: chat.id,
+              chatType: chat.type,
+            },
+          });
+        }
+      },
+      [isWindowNarrow]
+    );
+  };
+
+  const navigateBack = useCallback(() => {
+    navigationRef.current.goBack();
+  }, [navigationRef]);
+
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();
+  const navigateToChatDetails = useNavigateToChatDetails();
+  const navigateToChatVolume = useNavigateToChatVolume();
   const navigateBackFromPost = useNavigateBackFromPost();
   const navigateToPost = useNavigateToPost();
   const resetToGroup = useResetToGroup();
@@ -244,19 +298,25 @@ export function useRootNavigation() {
       navigateToChannel,
       navigateBackFromPost,
       navigateToPost,
+      navigateToChatDetails,
+      navigateToChatVolume,
       resetToGroup,
       resetToChannel,
       resetToDm,
+      navigateBack,
     }),
     [
       navigation,
       navigateToChannel,
+      navigateToChatDetails,
+      navigateToChatVolume,
       navigateBackFromPost,
       navigateToGroup,
       navigateToPost,
       resetToGroup,
       resetToChannel,
       resetToDm,
+      navigateBack,
     ]
   );
 }

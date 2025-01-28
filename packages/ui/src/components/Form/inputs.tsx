@@ -383,18 +383,20 @@ const ControlFrame = styled(InputFrame, {
         backgroundColor: '$border',
       },
     },
-    radio: {
-      borderRadius: 150,
-    },
-    checkbox: {
-      borderRadius: '$s',
+    type: {
+      radio: {
+        borderRadius: 150,
+      },
+      checkbox: {
+        borderRadius: '$s',
+      },
     },
   } as const,
 });
 
 export const Control = ControlFrame.styleable<{
   checked?: boolean;
-  variant: 'radio' | 'checkbox';
+  type: 'radio' | 'checkbox';
 }>((props, ref) => {
   return (
     <ControlFrame {...props} ref={ref}>
@@ -502,8 +504,8 @@ export function RadioInputRow<T>({
  * The actual little checkmark button
  */
 export const RadioControl = (
-  props: Omit<ComponentProps<typeof Control>, 'variant'>
-) => <Control {...props} variant="radio" />;
+  props: Omit<ComponentProps<typeof Control>, 'type'>
+) => <Control {...props} type="radio" />;
 
 // List item input
 
@@ -642,5 +644,5 @@ export function CheckboxInputRow<T>({
 }
 
 export const CheckboxControl = (
-  props: Omit<ComponentProps<typeof Control>, 'variant'>
-) => <Control {...props} variant="checkbox" />;
+  props: Omit<ComponentProps<typeof Control>, 'type'>
+) => <Control {...props} type="checkbox" />;

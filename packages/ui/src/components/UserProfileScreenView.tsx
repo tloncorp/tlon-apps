@@ -206,7 +206,7 @@ function StatusIndicator({
   );
 }
 
-const PaddedBlock = styled(YStack, {
+export const PaddedBlock = styled(YStack, {
   borderRadius: '$2xl',
   padding: '$2xl',
   gap: '$l',
@@ -454,15 +454,20 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   );
 }
 
-function ProfileButton(props: {
+export function ProfileButton({
+  title,
+  onPress,
+  hero,
+  ...props
+}: {
   title: string;
-  onPress: () => void;
+  onPress?: () => void;
   hero?: boolean;
-}) {
+} & ComponentProps<typeof Button>) {
   const handlePress = useCallback(() => {
-    props.onPress();
+    onPress?.();
     triggerHaptic('baseButtonClick');
-  }, [props]);
+  }, [onPress]);
 
   return (
     <Button
@@ -473,16 +478,17 @@ function ProfileButton(props: {
       paddingHorizontal="$2xl"
       borderRadius="$2xl"
       onPress={handlePress}
-      hero={props.hero}
+      hero={hero}
       marginHorizontal="$xs"
+      {...props}
     >
       <Text
         size="$label/xl"
-        color={props.hero ? '$background' : '$primaryText'}
+        color={hero ? '$background' : '$primaryText'}
         paddingHorizontal={isWeb ? '$m' : undefined}
         textWrap="nowrap"
       >
-        {props.title}
+        {title}
       </Text>
     </Button>
   );

@@ -12,7 +12,7 @@ import {
   getChannelType,
   getJoinStatusFromGang,
 } from '../urbit';
-import { parseGroupId, toClientMeta } from './apiUtils';
+import { parseGroupChannelId, parseGroupId, toClientMeta } from './apiUtils';
 import { StructuredChannelDescriptionPayload } from './channelContentConfig';
 import {
   getCurrentUserId,
@@ -1539,6 +1539,9 @@ function toClientChannel({
     roleId,
   }));
 
+  const currentUserId = getCurrentUserId();
+  const { host: hostUserId } = parseGroupChannelId(id);
+
   return {
     id,
     groupId,
@@ -1548,6 +1551,7 @@ function toClientChannel({
     coverImage: omitEmpty(channel.meta.cover),
     description,
     contentConfiguration: channelContentConfiguration,
+    currentUserIsHost: hostUserId === currentUserId,
     readerRoles,
     writerRoles,
   };
