@@ -64,11 +64,6 @@ export default function ChannelScreen(props: Props) {
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
     useCallback(() => {
-      if (!channelIsPending) {
-        store.syncChannelThreadUnreads(channelId, {
-          priority: store.SyncPriority.High,
-        });
-      }
       // Mark the channel as visited when we unfocus/leave this screen
       () => {
         if (!channelIsPending) {
@@ -101,9 +96,17 @@ export default function ChannelScreen(props: Props) {
     }, [groupId, channelId])
   );
 
+  useEffect(() => {
+    if (!channelIsPending) {
+      store.syncChannelThreadUnreads(channelId, {
+        priority: store.SyncPriority.High,
+      });
+    }
+  }, [channelIsPending, channelId]);
+
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
   const [inviteSheetGroup, setInviteSheetGroup] =
-    React.useState<db.Group | null>();
+    React.useState<string | null>();
 
   // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
   // time
@@ -333,7 +336,10 @@ export default function ChannelScreen(props: Props) {
 
   const handleMarkRead = useCallback(async () => {
     if (channel && !channel.isPendingChannel) {
-      store.markChannelRead(channel);
+      store.markChannelRead({
+        id: channel.id,
+        groupId: channel.groupId ?? undefined,
+      });
     }
   }, [channel?.type, channel?.id, channel?.groupId]);
 
@@ -431,7 +437,7 @@ export default function ChannelScreen(props: Props) {
             open={inviteSheetGroup !== null}
             onOpenChange={handleInviteSheetOpenChange}
             onInviteComplete={() => setInviteSheetGroup(null)}
-            group={inviteSheetGroup ?? undefined}
+            groupId={inviteSheetGroup ?? undefined}
           />
         </>
       )}

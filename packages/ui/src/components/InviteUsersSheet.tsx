@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import React, { useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,16 +8,17 @@ import { InviteUsersWidget } from './InviteUsersWidget';
 const InviteUsersSheetComponent = ({
   open,
   onOpenChange,
-  group,
+  groupId,
   onInviteComplete,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  group?: db.Group;
+  groupId?: string;
   onInviteComplete: () => void;
 }) => {
   const { bottom } = useSafeAreaInsets();
   const hasOpened = useRef(open);
+  const { data: group } = store.useGroup({ id: groupId });
 
   if (!hasOpened.current && open) {
     hasOpened.current = true;

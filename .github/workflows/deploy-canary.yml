@@ -33,7 +33,7 @@ jobs:
         run: pnpm build:all
       - working-directory: ./apps/tlon-web
         run: pnpm build
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: "ui-dist"
           path: apps/tlon-web/dist
@@ -57,7 +57,7 @@ jobs:
         run: pnpm build:all
       - working-directory: ./apps/tlon-web-new
         run: pnpm build:alpha
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: "ui-dist-new"
           path: apps/tlon-web-new/dist
@@ -70,7 +70,7 @@ jobs:
         with:
           ref: ${{ env.tag }}
           ssh-key: ${{ secrets.DEPLOY_KEY }}
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: "ui-dist"
           path: apps/tlon-web/dist
@@ -104,7 +104,7 @@ jobs:
         with:
           ref: ${{ env.tag }}
           ssh-key: ${{ secrets.DEPLOY_KEY }}
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: "ui-dist-new"
           path: apps/tlon-web-new/dist

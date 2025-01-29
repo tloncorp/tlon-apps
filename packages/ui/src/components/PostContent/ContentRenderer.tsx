@@ -62,17 +62,20 @@ export function PostContentRenderer({
 
 function ContentRenderer({
   content,
-  ...props
+  onPressImage,
+  onLongPress,
+  isNotice,
+  ...rest
 }: ContentRendererProps & {
   content: PostContent;
 }) {
   return (
     <ContentContext.Provider
-      onPressImage={props.onPressImage}
-      onLongPress={props.onLongPress}
-      isNotice={props.isNotice}
+      onPressImage={onPressImage}
+      onLongPress={onLongPress}
+      isNotice={isNotice}
     >
-      <ContentRendererFrame {...props}>
+      <ContentRendererFrame {...rest}>
         {content.map((block, k) => {
           return <BlockRenderer key={k} block={block} />;
         })}

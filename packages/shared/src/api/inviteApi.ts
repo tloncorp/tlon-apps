@@ -10,11 +10,33 @@ const ID_LINK_TIMEOUT = 3 * 1000;
 // 2. Must be flag shaped for %grouper not to crash
 const SELF_INVITE_KEY = '~zod/personal-invite-link';
 
-function groupsDescribe(meta: GroupMeta & InviteLinkMetadata) {
+export function groupsDescribe(meta: GroupMeta & InviteLinkMetadata) {
   return {
     tag: 'groups-0',
     fields: { ...meta }, // makes typescript happy
   };
+}
+
+export async function createInviteLink(
+  token: string,
+  metadata: { tag: string; fields: Record<string, string | undefined> }
+) {
+  return poke({
+    app: 'reel',
+    mark: 'reel-describe',
+    json: {
+      token,
+      metadata,
+    },
+  });
+}
+
+export async function enableGroup(name: string) {
+  return await poke({
+    app: 'grouper',
+    mark: 'grouper-enable',
+    json: name,
+  });
 }
 
 export async function checkExistingUserInviteLink(): Promise<string | null> {
@@ -50,28 +72,24 @@ export async function createPersonalInviteLink(
   });
 
   // then create the invite link entry on the providers
-  await poke({
-    app: 'reel',
-    mark: 'reel-describe',
-    json: {
-      token: SELF_INVITE_KEY,
-      metadata: groupsDescribe({
-        // legacy keys
-        title: 'Personal Invite',
-        description: '',
-        cover: '',
-        image: '',
+  await createInviteLink(
+    SELF_INVITE_KEY,
+    groupsDescribe({
+      // legacy keys
+      title: 'Personal Invite',
+      description: '',
+      cover: '',
+      image: '',
 
-        // new-style metadata keys
-        inviterUserId: currentUserId,
-        inviterNickname: currentUser?.nickname ?? '',
-        inviterAvatarImage: currentUser?.avatarImage ?? '',
-        inviterColor: currentUser?.color ?? '',
-        inviteType: 'user',
-        invitedGroupId: '',
-      }),
-    },
-  });
+      // new-style metadata keys
+      inviterUserId: currentUserId,
+      inviterNickname: currentUser?.nickname ?? '',
+      inviterAvatarImage: currentUser?.avatarImage ?? '',
+      inviterColor: currentUser?.color ?? '',
+      inviteType: 'user',
+      invitedGroupId: '',
+    })
+  );
 
   const tlonNetworkUrl = await checkExistingUserInviteLink();
   if (!tlonNetworkUrl) {

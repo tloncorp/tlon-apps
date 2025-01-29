@@ -4,11 +4,8 @@ import {
   DEFAULT_TLON_LOGIN_PASSWORD,
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
-import { useShip } from '@tloncorp/app/contexts/ship';
-import { getShipUrl } from '@tloncorp/app/utils/ship';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import { getShipAccessCode, requestPhoneVerify } from '@tloncorp/shared/api';
-import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
+import { HostingError } from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
 import {
   Field,
@@ -79,7 +76,16 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
         errorMessage: err.message,
         errorStack: err.stack,
       });
-      setRemoteError(err.message);
+      if (err instanceof HostingError && err.details.status === 401) {
+        setRemoteError('Incorrect email or password.');
+      } else {
+        logger.trackError(`Error Logging In`, {
+          errorMessage: err.message,
+          errorStack: err.stack,
+          details: err.details,
+        });
+        setRemoteError(err.message);
+      }
     } finally {
       setIsSubmitting(false);
     }

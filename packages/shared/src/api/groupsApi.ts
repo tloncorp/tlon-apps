@@ -12,7 +12,7 @@ import {
   getChannelType,
   getJoinStatusFromGang,
 } from '../urbit';
-import { parseGroupId, toClientMeta } from './apiUtils';
+import { parseGroupChannelId, parseGroupId, toClientMeta } from './apiUtils';
 import {
   getCurrentUserId,
   poke,
@@ -1535,6 +1535,9 @@ function toClientChannel({
     roleId,
   }));
 
+  const currentUserId = getCurrentUserId();
+  const { host: hostUserId } = parseGroupChannelId(id);
+
   return {
     id,
     groupId,
@@ -1543,6 +1546,7 @@ function toClientChannel({
     title: omitEmpty(channel.meta.title),
     coverImage: omitEmpty(channel.meta.cover),
     description: omitEmpty(channel.meta.description),
+    currentUserIsHost: hostUserId === currentUserId,
     readerRoles,
     writerRoles,
   };

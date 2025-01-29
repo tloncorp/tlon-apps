@@ -1610,7 +1610,7 @@ export const addNavSectionToGroup = createWriteQuery(
         set: conflictUpdateSetAll($groupNavSections),
       });
   },
-  ['groups','groupNavSections', 'groupNavSectionChannels']
+  ['groups', 'groupNavSections', 'groupNavSectionChannels']
 );
 
 export const updateNavSectionChannel = createWriteQuery(
@@ -2235,7 +2235,16 @@ export const insertUnconfirmedPosts = createWriteQuery(
   ['posts']
 );
 
+const insertPostsBatchSize = 300;
+
 async function insertPosts(posts: Post[], ctx: QueryCtx) {
+  for (let i = 0; i < posts.length; i += insertPostsBatchSize) {
+    const batch = posts.slice(i, i + insertPostsBatchSize);
+    await insertPostsBatch(batch, ctx);
+  }
+}
+
+async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
   // HACK: I can't get onConflictDoUpdate to work - manually manage conflicts.
   // Likely https://github.com/drizzle-team/drizzle-orm/issues/2276
   await (async () => {
@@ -2798,7 +2807,7 @@ export const getGroup = createReadQuery(
     'channels',
     'groupJoinRequests',
     'groupMemberBans',
-    'groupNavSectionChannels'
+    'groupNavSectionChannels',
   ]
 );
 
@@ -3264,6 +3273,8 @@ export const insertActivityEvents = createWriteQuery(
     const currentUserId = getCurrentUserId();
     if (events.length === 0) return;
 
+    const activityEventChannels = events.flatMap((e) => e.channelId || []);
+
     const activityEventGroups = events.flatMap(
       (contact) => contact.contactUpdateGroups || []
     );
@@ -3301,9 +3312,20 @@ export const insertActivityEvents = createWriteQuery(
           .values(activityEventGroups)
           .onConflictDoNothing();
       }
+
+      if (activityEventChannels.length) {
+        await Promise.all(
+          activityEventChannels.map((channelId) => {
+            return txCtx.db
+              .update($channels)
+              .set({ currentUserIsMember: true })
+              .where(eq($channels.id, channelId));
+          })
+        );
+      }
     });
   },
-  ['activityEvents']
+  ['activityEvents'] // should this have 'channels' as well?
 );
 
 export const clearActivityEvents = createWriteQuery(

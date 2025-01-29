@@ -188,6 +188,11 @@ function CodeInput({
             paddingVertical="$xl"
             width="$4xl"
             textContentType={!isEmail ? 'oneTimeCode' : undefined}
+            frameStyle={{
+              width: '$4xl',
+              paddingLeft: 0,
+              paddingRight: 0,
+            }}
           />
         ))}
       </XStack>
