@@ -8,7 +8,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     name: Test mobile builds
-    working-directory: ./apps/tlon-mobile
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -28,8 +27,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build for selected platforms
-        id:
-          build
+        id: build
+        working-directory:
+          ./apps/tlon-mobile
           # eas build --profile local-testing --platform ios --non-interactive
         run: |
           eas build:list --json --limit=1 --platform=ios --non-interactive | jq '.[0].artifacts.buildUrl'
@@ -51,6 +51,7 @@ jobs:
           curl -L ${{ steps.build.outputs.url }} -o build.tar.gz
           tar -xzf build.tar.gz
           rm build.tar.gz
+          ls
       - name: Run tests
         uses: mobile-dev-inc/action-maestro-cloud@v1
         with:
