@@ -1251,7 +1251,7 @@
     ?~  post  ~
     =/  key=message-key:a
       :_  time
-      [author.u.post time]
+      [(get-author-ship:ch-utils author.u.post) time]
     =/  mention
       (was-mentioned:ch-utils content.u.post our.bowl)
     `[time %post key nest group content.u.post mention]
@@ -1273,10 +1273,10 @@
     %-  some
     =/  key=message-key:a
       :_  time
-      [author.u.reply time]
+      [(get-author-ship:ch-utils author.u.reply) time]
     =/  parent=message-key:a
       :_  id-post
-      [author.u.u.post id-post]
+      [(get-author-ship:ch-utils author.u.u.post) id-post]
     =/  mention
       (was-mentioned:ch-utils content.u.reply our.bowl)
     [time %reply key parent nest group content.u.reply mention]

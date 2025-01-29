@@ -491,8 +491,14 @@ export const insertGroups = createWriteQuery(
                 $channels.description,
                 $channels.addedToGroupAt,
                 $channels.type,
-                $channels.isPendingChannel,
-                $channels.contentConfiguration
+                $channels.isPendingChannel
+
+                // > Why not update `contentConfiguration` here?
+                // Because this codepath is coming from %groups, which does not
+                // know about a channel's `meta` - so we never want to
+                // overwrite the config with the missing config from %groups.
+                //
+                // $channels.contentConfiguration
               ),
             });
 

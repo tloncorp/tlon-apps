@@ -1,59 +1,46 @@
 import * as api from '../api';
-import {
-  ChannelContentConfiguration,
-  StructuredChannelDescriptionPayload,
-} from '../api/channelContentConfig';
+import { ChannelContentConfiguration } from '../api/channelContentConfig';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { getRandomId } from '../logic';
-import { GroupChannel, getChannelKindFromType } from '../urbit';
+import {
+  ChannelMetadata,
+  GroupChannel,
+  getChannelKindFromType,
+} from '../urbit';
 
 const logger = createDevLogger('ChannelActions', false);
 
 export async function createChannel({
   groupId,
   title,
-  // Alias to `rawDescription`, since we might need to synthesize a new
-  // `description` API value by merging with `contentConfiguration` below.
-  description: rawDescription,
-  channelType: rawChannelType,
-  contentConfiguration,
+  description,
+  channelType,
 }: {
   groupId: string;
   title: string;
   description?: string;
-  channelType: Omit<db.ChannelType, 'dm' | 'groupDm'> | 'custom';
+  channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
   contentConfiguration?: ChannelContentConfiguration;
 }) {
   const currentUserId = api.getCurrentUserId();
-  const channelType = rawChannelType === 'custom' ? 'chat' : rawChannelType;
   const channelSlug = getRandomId();
   const channelId = `${getChannelKindFromType(channelType)}/${currentUserId}/${channelSlug}`;
   // optimistic update
   const newChannel: db.Channel = {
     id: channelId,
     title,
-    description: rawDescription,
+    description,
     type: channelType as db.ChannelType,
     groupId,
     addedToGroupAt: Date.now(),
     currentUserIsMember: true,
-    contentConfiguration:
-      contentConfiguration ??
-      channelContentConfigurationForChannelType(channelType),
   };
   await db.insertChannels([newChannel]);
 
-  // If we have a `contentConfiguration`, we need to merge these fields to make
-  // a `StructuredChannelDescriptionPayload`, and use that as the `description`
-  // on the API.
-  const encodedDescription =
-    contentConfiguration == null
-      ? rawDescription
-      : StructuredChannelDescriptionPayload.encode({
-          description: rawDescription,
-          channelContentConfiguration: contentConfiguration,
-        });
+  const cfg = ChannelContentConfiguration.toApiMeta(
+    channelContentConfigurationForChannelType(channelType)
+  );
 
   try {
     await api.createChannel({
@@ -62,9 +49,10 @@ export async function createChannel({
       group: groupId,
       name: channelSlug,
       title,
-      description: encodedDescription ?? '',
+      description: description ?? '',
       readers: [],
       writers: [],
+      meta: cfg == null ? null : JSON.stringify(cfg),
     });
     return newChannel;
   } catch (e) {
@@ -160,13 +148,6 @@ export async function updateChannel({
 
   await db.updateChannel(updatedChannel);
 
-  // If we have a `contentConfiguration`, we need to merge these fields to make
-  // a `StructuredChannelDescriptionPayload`, and use that as the `description`
-  const structuredDescription = StructuredChannelDescriptionPayload.encode({
-    description: channel.description ?? undefined,
-    channelContentConfiguration: channel.contentConfiguration ?? undefined,
-  });
-
   const groupChannel: GroupChannel = {
     added: channel.addedToGroupAt ?? 0,
     readers,
@@ -175,7 +156,7 @@ export async function updateChannel({
     join,
     meta: {
       title: channel.title ?? '',
-      description: structuredDescription ?? '',
+      description: channel.description ?? '',
       image: channel.coverImage ?? '',
       cover: channel.coverImage ?? '',
     },
@@ -187,6 +168,15 @@ export async function updateChannel({
       channelId: channel.id,
       channel: groupChannel,
     });
+
+    const meta: ChannelMetadata | null =
+      channel.contentConfiguration == null
+        ? null
+        : ChannelContentConfiguration.toApiMeta(channel.contentConfiguration);
+    await api.updateChannelMeta(
+      channel.id,
+      meta == null ? null : JSON.stringify(meta)
+    );
   } catch (e) {
     console.error('Failed to update channel', e);
     await db.updateChannel(channel);

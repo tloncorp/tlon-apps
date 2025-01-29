@@ -1,5 +1,6 @@
 import * as db from '../db';
 import type * as ub from '../urbit';
+import { nullIfError } from '../utils';
 import { ActivityInit, toClientUnreads } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
@@ -18,7 +19,7 @@ export interface InitData {
   unjoinedGroups: db.Group[];
   activity: ActivityInit;
   channels: db.Channel[];
-  channelPerms: ChannelInit[];
+  channelsInit: ChannelInit[];
   joinedGroups: string[];
   joinedChannels: string[];
   hiddenPostIds: string[];
@@ -26,15 +27,23 @@ export interface InitData {
 }
 
 export const getInitData = async () => {
-  const response = await scry<ub.GroupsInit4>({
+  const response = await scry<ub.GroupsInit5>({
     app: 'groups-ui',
-    path: '/v4/init',
+    path: '/v5/init',
   });
 
   const pins = toClientPinnedItems(response.pins);
   const channelReaders = extractChannelReaders(response.groups);
   const channelsInit = toClientChannelsInit(
-    response.channel.channels,
+    Object.entries(response.channel.channels).reduce((acc, [key, value]) => {
+      acc[key] = {
+        ...value,
+        meta: nullIfError(() =>
+          value.meta == null ? null : JSON.parse(value.meta)
+        ),
+      };
+      return acc;
+    }, {} as ub.Channels),
     channelReaders
   );
 
@@ -64,7 +73,7 @@ export const getInitData = async () => {
     unjoinedGroups,
     unreads,
     channels: [...dmChannels, ...groupDmChannels, ...invitedDms],
-    channelPerms: channelsInit,
+    channelsInit,
     joinedGroups,
     joinedChannels,
     hiddenPostIds,

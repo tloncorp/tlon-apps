@@ -9,7 +9,7 @@
     =,  enjs:format
     ^-  ^json
     %-  pairs
-    :~  channels/(channel-heads:enjs:dj chan.mixed-heads)
+    :~  channels/(channel-heads:v7:enjs:dj chan.mixed-heads)
         dms/(chat-heads:enjs:cj chat.mixed-heads)
     ==
   --

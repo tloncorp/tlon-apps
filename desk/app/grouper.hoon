@@ -165,7 +165,7 @@
         [~[[%inline ~[[%ship joiner.bite] ' has joined the network']]] id]
       =/  =action:dm:c
         :-  joiner.bite
-        [id %add memo [%notice ~] ~]
+        [id %add %*(. *essay:ch - memo, kind [%chat %notice ~]) ~]
       =/  =cage  chat-dm-action+!>(`action:dm:c`action)
       =*  dez  %^  lure-log  %info  'DM Invite Sent'
                ~[leaf+"{<joiner.bite>} invited to DM"]
