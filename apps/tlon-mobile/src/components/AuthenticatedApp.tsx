@@ -1,4 +1,7 @@
-import { useAppStatusChange } from '@tloncorp/app/hooks/useAppStatusChange';
+import {
+  AppStatus,
+  useAppStatusChange,
+} from '@tloncorp/app/hooks/useAppStatusChange';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
@@ -11,7 +14,6 @@ import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { PortalProvider, ZStack } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
-import { AppStateStatus } from 'react-native';
 
 import { useCheckAppUpdated } from '../hooks/analytics';
 import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
@@ -31,10 +33,15 @@ function AuthenticatedApp() {
   useFindSuggestedContacts();
 
   const handleAppStatusChange = useCallback(
-    (status: AppStateStatus) => {
+    (status: AppStatus) => {
+      // app returned from background
       if (status === 'active') {
         sync.syncUnreads({ priority: sync.SyncPriority.High });
         sync.syncPinnedItems({ priority: sync.SyncPriority.High });
+      }
+
+      // app opened or returned from background
+      if (status === 'opened' || status === 'active') {
         telemetry.captureAppActive();
         checkNodeStopped();
         refreshHostingAuth();
