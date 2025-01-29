@@ -28,10 +28,9 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build for selected platforms
         id: build
-        working-directory:
-          ./apps/tlon-mobile
-          # eas build --profile local-testing --platform ios --non-interactive
+        working-directory: ./apps/tlon-mobile
         run: |
+          eas build --profile local-testing --platform ios --non-interactive
           eas build:list --json --limit=1 --platform=ios --non-interactive | jq '.[0].artifacts.buildUrl'
           URL=$(eas build:list --json --limit=1 --platform=ios --non-interactive | jq '.[0].artifacts.buildUrl')
           echo "url=$URL"
