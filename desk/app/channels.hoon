@@ -1419,17 +1419,20 @@
   ::
   ++  ca-apply-checkpoint
     |=  [chk=u-checkpoint:c send=?]
-    =^  changed  sort.channel  (apply-rev:c sort.channel sort.chk)
-    =?  ca-core  &(changed send)  (ca-response %sort sort.sort.channel)
-    =^  changed  view.channel  (apply-rev:c view.channel view.chk)
-    =?  ca-core  &(changed send)  (ca-response %view view.view.channel)
-    =^  changed  perm.channel  (apply-rev:c perm.channel perm.chk)
-    =?  ca-core  &(changed send)  (ca-response %perm perm.perm.channel)
     =^  changed  order.channel  (apply-rev:c order.channel order.chk)
     =?  ca-core  &(changed send)  (ca-response %order order.order.channel)
+    =^  changed  view.channel  (apply-rev:c view.channel view.chk)
+    =?  ca-core  &(changed send)  (ca-response %view view.view.channel)
+    =^  changed  sort.channel  (apply-rev:c sort.channel sort.chk)
+    =?  ca-core  &(changed send)  (ca-response %sort sort.sort.channel)
+    =^  changed  perm.channel  (apply-rev:c perm.channel perm.chk)
+    =?  ca-core  &(changed send)  (ca-response %perm perm.perm.channel)
+    =^  changed  meta.channel  (apply-rev:c meta.channel meta.chk)
+    =?  ca-core  &(changed send)  (ca-response %meta meta.meta.channel)
     =/  old  posts.channel
     =.  posts.channel
       ((uno:mo-v-posts:c posts.channel posts.chk) ca-apply-unit-post)
+    =.  count.channel  ~(wyt by posts.channel)
     =?  ca-core  &(send !=(old posts.channel))
       %+  ca-response  %posts
       %+  gas:on-posts:c  *posts:c
@@ -1546,6 +1549,8 @@
           ::TODO  what about the "mention was added during edit" case?
           (on-post:ca-hark id-post u.post.u-post)
         =.  posts.channel  (put:on-v-posts:c posts.channel id-post post.u-post)
+        =?  count.channel  ?=(^ post.u-post)
+          +(count.channel)
         =?  pending.channel  ?=(^ post.u-post)
           =/  client-id  [author sent]:u.post.u-post
           pending.channel(posts (~(del by posts.pending.channel) client-id))
