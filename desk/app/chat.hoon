@@ -2239,7 +2239,7 @@
       |=  =diff:dm:c
       ::NOTE  static wire important for ordering guarantees and preventing flow
       ::      proliferation, see also +di-proxy
-      (poke-them /proxy/diff chat-dm-diff+!>(diff))
+      (poke-them /proxy/diff chat-dm-diff-1+!>(diff))
     --
   --
 --
