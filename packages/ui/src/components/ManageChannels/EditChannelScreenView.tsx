@@ -12,6 +12,7 @@ import { Button } from '../Button';
 import { DeleteSheet } from '../DeleteSheet';
 import { RadioInput } from '../Form';
 import { FormInput } from '../FormInput';
+import Pressable from '../Pressable';
 import { ResponsiveSheet } from '../ResponsiveSheet';
 import { ScreenHeader } from '../ScreenHeader';
 import { Text } from '../TextV2';
@@ -335,6 +336,7 @@ export function ChannelRoleSelector({
   roles: RoleOption[];
   setRoles: (roles: RoleOption[]) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const trigger = (
     <XStack gap="$s">
       {roles.map((role) => (
@@ -354,43 +356,50 @@ export function ChannelRoleSelector({
   return (
     <YStack gap="$m">
       <Text>{label}</Text>
-      <XStack
-        gap="$s"
-        backgroundColor="$secondaryBackground"
-        borderWidth={1}
-        borderRadius="$m"
-        borderColor="$border"
-        padding="$s"
-      >
-        <ResponsiveSheet trigger={trigger} title={label}>
-          <ActionSheet.ActionGroup padding={1}>
-            {options.map((option) => (
-              <ActionSheet.Action
-                key={option.value}
-                action={{
-                  title: option.label,
-                  action: () => {
-                    const newRoles = () => {
-                      if (roles.some((r) => r.value === option.value)) {
-                        return roles.filter((r) => r.value !== option.value);
-                      }
-                      return roles.concat({
-                        value: option.value,
-                        label: option.label,
-                      });
-                    };
+      <Pressable onPress={() => setOpen(true)}>
+        <XStack
+          gap="$s"
+          backgroundColor="$secondaryBackground"
+          borderWidth={1}
+          borderRadius="$m"
+          borderColor="$border"
+          padding="$s"
+        >
+          <ResponsiveSheet
+            trigger={trigger}
+            title={label}
+            open={open}
+            onOpenChange={setOpen}
+          >
+            <ActionSheet.ActionGroup padding={1}>
+              {options.map((option) => (
+                <ActionSheet.Action
+                  key={option.value}
+                  action={{
+                    title: option.label,
+                    action: () => {
+                      const newRoles = () => {
+                        if (roles.some((r) => r.value === option.value)) {
+                          return roles.filter((r) => r.value !== option.value);
+                        }
+                        return roles.concat({
+                          value: option.value,
+                          label: option.label,
+                        });
+                      };
 
-                    setRoles(newRoles());
-                  },
-                  endIcon: roles.map((r) => r.value).includes(option.value)
-                    ? 'Checkmark'
-                    : undefined,
-                }}
-              />
-            ))}
-          </ActionSheet.ActionGroup>
-        </ResponsiveSheet>
-      </XStack>
+                      setRoles(newRoles());
+                    },
+                    endIcon: roles.map((r) => r.value).includes(option.value)
+                      ? 'Checkmark'
+                      : undefined,
+                  }}
+                />
+              ))}
+            </ActionSheet.ActionGroup>
+          </ResponsiveSheet>
+        </XStack>
+      </Pressable>
     </YStack>
   );
 }
