@@ -16,7 +16,8 @@
 ::    discovery of someone's identifiers becomes possible.
 ::
 /-  verifier
-/+  hu=http-utils, dbug, verb, negotiate
+/+  hu=http-utils, logs,
+    dbug, verb, negotiate
 =,  (verifier)
 ::
 %-  %-  agent:negotiate
@@ -75,6 +76,22 @@
   |=  [for=@p id=identifier =config]
   ^-  card
   (give-update for %config id config)
+::
+++  log-fail
+  |=  [our=@p desc=term trace=tang deets=(list [?(%registrant %id-kind) @t])]
+  %^    ~(fail logs our /logs)
+      desc
+    trace
+  :-  'flow'^s+'verifier'
+  (turn deets |*([a=@t b=@t] [a s+b]))
+::
+++  log-tell
+  |=  [our=@p =volume:logs =echo:logs deets=(list [?(%registrant %id-kind) @t])]
+  %^    ~(tell logs our /logs)
+      volume
+    echo
+  :-  'flow'^s+'verifier'
+  (turn deets |*([a=@t b=@t] [a s+b]))
 ::
 ++  req-phone-api
   |=  $:  [base=@t key=@t basic=(unit [user=@t pass=@t])]
@@ -200,12 +217,22 @@
   (safe:as:(com:nu:crub:crypto pass) sig.sign (jam dat.sign))
 ::
 ++  revoke
-  |=  [state id=identifier rec=(unit record) why=@t]
-  =*  state  +<-
+  |=  $:  [state =bowl:gall]
+          [id=identifier rec=(unit record)]
+          why=@t
+      ==
+  =*  state  +<-<
   ^-  (quip card _state)
   =.  rec  ?^(rec rec (~(get by records) id))
   ?~  rec  [~ state]
-  :-  [(give-status for.u.rec id %gone why)]~
+  :-  :-  (give-status for.u.rec id %gone why)
+      =/  =echo:logs
+        ['registration revoked']~
+      =/  deets
+        :~  %id-kind^-.id
+            %registrant^(scot %p for.u.rec)
+        ==
+      [(log-tell our.bowl %info echo deets)]~
   =?  attested  ?=(%done -.status.u.rec)
     %.  sig.full.status.u.rec
     %~  del  by
@@ -228,11 +255,18 @@
   =/  tat=attestation
     (attest [our now]:bowl for.rec id proof)
   =.  status.rec  [%done tat]
-  :-  [(give-status for.rec id status.rec)]~
-  %_  state
-    records   (~(put by records) id rec)
-    attested  (~(gas by attested) sig.half.tat^id sig.full.tat^id ~)
-  ==
+  :_  %_  state
+        records   (~(put by records) id rec)
+        attested  (~(gas by attested) sig.half.tat^id sig.full.tat^id ~)
+      ==
+  :-  (give-status for.rec id status.rec)
+  =/  =echo:logs
+    ['registration completed']~
+  =/  deets
+    :~  %id-kind^-.id
+        %registrant^(scot %p for.rec)
+    ==
+  [(log-tell our.bowl %info echo deets)]~
 ::
 ++  sign
   |*  [[our=@p now=@da] dat=*]
@@ -328,6 +362,7 @@
 ^-  agent:gall
 |_  =bowl:gall
 +*  this  .
+    logs  ~(. ^logs our.bowl /logs)
 ::
 ++  on-save  !>(state)
 ++  on-init
@@ -409,7 +444,7 @@
         %revoke
       =/  rec  (~(got by records) id.cmd)
       ?>  =(src.bowl for.rec)
-      =^  caz  +.state  (revoke +.state id.cmd `rec 'revoked')
+      =^  caz  +.state  (revoke [+.state bowl] [id.cmd `rec] 'revoked')
       [caz this]
     ::
         %work
@@ -478,7 +513,7 @@
         %revoke
       =*  id  id.cmd
       =/  rec  (~(got by records) id)
-      =^  caz  +.state  (revoke +.state id.cmd `rec 'revoked')
+      =^  caz  +.state  (revoke [+.state bowl] [id.cmd `rec] 'revoked')
       [caz this]
     ::
         %dummy
@@ -613,6 +648,8 @@
 ++  on-agent
   |=  [=wire =sign:agent:gall]
   ^-  (quip card _this)
+  ?:  =(/logs wire)
+    [~ this]
   ?:  =(/query/result wire)
     ::  we don't care whether they ack the query response poke or not,
     ::  we did what we had to, everything else is up to them.
@@ -625,6 +662,8 @@
 ++  on-arvo
   |=  [=wire sign=sign-arvo]
   ^-  (quip card _this)
+  ::NOTE  including this ~| means that, when logging traces, we might send
+  ::      full identifiers over the wire...
   ~|  wire=wire
   ?+  wire  ~|(%strange-wire !!)
       [%eyre ~]
@@ -633,18 +672,25 @@
       [%expire id-kind @ @ ~]
     ?>  ?=([%behn %wake *] sign)
     ?^  error.sign
-      ::TODO  log
-      %.  [~ this]
-      (slog dap.bowl 'wake failed' u.error.sign)
+      %-  (slog dap.bowl 'wake failed' u.error.sign)
+      :_  this
+      :_  ~
+      %+  log-fail  our.bowl
+      :+  %wake
+        ['verifier wake failed' u.error.sign]
+      [%id-kind i.t.wire]~
     =/  id=identifier  (need (wire-id t.wire))
     =/  start=@da      (slav %da i.t.t.t.wire)
     ?~  rec=(~(get by records) id)  [~ this]
     ?.  =(start start.u.rec)        [~ this]
     ?:  ?=(%done -.status.u.rec)    [~ this]
-    ~?  ?=(%wait -.status.u.rec)  [dap.bowl %dropped-the-ball -.id]
+    =/  dropped  ?=(%wait -.status.u.rec)
     ::  registration attempt took too long, abort it
     ::
-    =^  caz  +.state  (revoke +.state id rec 'registration timed out')
+    =^  caz  +.state  (revoke [+.state bowl] [id rec] 'registration timed out')
+    =?  caz  dropped
+      :_  caz
+      (log-tell our.bowl %warn ['verifier dropped the ball']~ [%id-kind i.t.wire]~)
     [caz this]
   ::
       [%id %phone @ ?(%status %verify %submit) ~]
@@ -661,14 +707,27 @@
     ::  for which we'll now handle our continuation
     ::
     ?>  =(%wait -.status.u.rec)  ::NOTE  avoid tmi
+    =/  err-msg  'something went wrong'
+    =*  deets
+      :~  %id-kind^'phone'
+          %registrant^(scot %p for.u.rec)
+      ==
     =*  abort
-      ::TODO  and log
-      =^  caz  +.state  (revoke +.state id rec 'service error')
-      [caz this]
+      =^  caz  +.state  (revoke [+.state bowl] [id rec] 'service error')
+      =-  [[- caz] this]
+      =/  =echo:logs
+        :~  'internal phone api error:'
+            (cat 3 'during %' i.t.t.t.wire)
+            err-msg
+        ==
+      (log-tell our.bowl %warn echo deets)
+    =/  failed-otp=?  |
     =*  want-otp
       =.  status.u.rec  [%want %phone %otp]
       :_  this(records (~(put by records) id u.rec))
-      [(give-status for.u.rec id status.u.rec)]~
+      :-  (give-status for.u.rec id status.u.rec)
+      ?.  failed-otp  ~
+      [(log-tell our.bowl %info ['phone otp rejected']~ deets)]~
     ::  %progress responses are unexpected, the runtime doesn't support them
     ::  right now. if they occur, just treat them as cancels and retry.
     ::
@@ -679,6 +738,12 @@
     ::  request. try to pick up where we left off.
     ::
     ?:  ?=(%cancel -.res)
+      =;  res
+        =^  caz  this  res
+        =-  [[- caz] this]
+        =/  =echo:logs
+          [(cat 3 'retrying cancelled phone api request %' i.t.t.t.wire)]~
+        (log-tell our.bowl %info echo deets)
       ?-  i.t.t.t.wire
           %status
         :_  this
@@ -705,6 +770,7 @@
       ::
       ?.  =(200 cod)
         ~&  [dap.bowl %bad-status cod]
+        =.  err-msg  (cat 3 'bad status code ' (scot %ud cod))
         abort
       =/  sat=(unit [known=? verified=? matching=(unit ?)])
         ?.  ?=([%o *] jon)  ~
@@ -716,6 +782,9 @@
         `[u.k u.v m]
       ?~  sat
         ~&  [dap.bowl %bad-status-json jon]
+        =.  err-msg
+          %^  cat  3  'bad status json: '
+          ?~(full-file.res '[missing]' q.data.u.full-file.res)
         abort
       =,  u.sat
       ::  if phone nr has previously been verified by the ship trying to
@@ -731,6 +800,7 @@
         %verify
       ?.  =(200 cod)
         ~&  [dap.bowl %bad-verify cod]
+        =.  err-msg  (cat 3 'bad status code ' (scot %ud cod))
         abort
       ::  otp text got sent, ask the user to submit the code
       ::
@@ -743,6 +813,7 @@
       ::  otp code wasn't correct, but user may retry
       ::TODO  limit attempts?
       ::
+      =.  failed-otp  &
       want-otp
     ==
   ::
@@ -757,6 +828,10 @@
     ::
     ?~  rec=(~(get by records) id)
       [~ this]
+    =*  deets
+      :~  %id-kind^'twitter'
+          %registrant^(scot %p for.u.rec)
+      ==
     ::  we should've put the id into a waiting state with retained work details,
     ::  for which we'll now handle our continuation
     ::
@@ -766,27 +841,34 @@
     ::  right now. if they occur, just treat them as cancels and retry.
     ::
     =?  res  ?=(%progress -.res)
-      ~&  [dap.bowl %strange-iris-progress-response]  ::TODO  log properly
+      ~&  [dap.bowl %strange-iris-progress-response]
       [%cancel ~]
     ::  we might get a %cancel if the runtime was restarted during our
     ::  request. try to pick up where we left off.
     ::
     ?:  ?=(%cancel -.res)
       :_  this
-      [(req-twitter-post twitter-api handle tweet)]~
+      :-  (req-twitter-post twitter-api handle tweet)
+      =/  =echo:logs
+        ['retrying cancelled twitter api request']~
+      [(log-tell our.bowl %info echo deets)]~
     ?>  ?=(%finished -.res)
     =/  result
       (parse-twitter-post bowl [handle nonce.u.pre.status] +.res)
-    ::TODO  log all non-good results?
     =*  abort
-      ::TODO  and log
-      =^  caz  +.state  (revoke +.state id rec 'service error')
-      [caz this]
+      =^  caz  +.state  (revoke [+.state bowl] [id rec] 'service error')
+      =-  [[- caz] this]
+      =/  =echo:logs
+        [(cat 3 'twitter verification aborted with result %' result)]~
+      (log-tell our.bowl %warn echo deets)
     =*  hold
       ::TODO  include msg in the status?
       =.  status.u.rec  u.pre.status
-      :-  [(give-status for.u.rec id status.u.rec)]~
-      this(records (~(put by records) id u.rec))
+      :_  this(records (~(put by records) id u.rec))
+      :-  (give-status for.u.rec id status.u.rec)
+      =/  =echo:logs
+        [(cat 3 'twitter verification rejected with result %' result)]~
+      [(log-tell our.bowl %info echo deets)]~
     ::TODO  auto-retry when rate-limited? response contains x-rate-limit-reset
     ::      header which has a unix timestamp, so we could get tight here.
     ::      but we probably don't want to squeeze ourselves, instead prevent
@@ -867,6 +949,7 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %.  [~ this]
-  (slog (rap 3 dap.bowl ' +on-fail: ' term ~) tang)
+  =+  pre=(rap 3 dap.bowl ' +on-fail: %' term ~)
+  %.  [[(fail:logs term [pre tang] ~)]~ this]
+  (slog pre tang)
 --

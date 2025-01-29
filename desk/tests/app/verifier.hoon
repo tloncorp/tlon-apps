@@ -19,6 +19,13 @@
 ++  twitter-api-bearer  'someBearerToken'
 ++  attempt-timeout     ~h1
 ::
+++  ex-cards  ::NOTE  custom version that ignores logging-related cards
+  |=  [caz=(list card) exes=(list $-(card tang))]
+  =-  (^ex-cards - exes)
+  %+  skip  caz
+  |=  c=card
+  ?=([%pass [%logs ~] *] c)
+::
 ++  ex-verifier-update
   =/  initial=?  |
   |=  [for=@p upd=update:v]
