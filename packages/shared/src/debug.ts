@@ -275,6 +275,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
             errorLogger?.capture(args[0], {
               ...customProps,
               message: `[${tag}] ${args[0]}`,
+              logger: tag,
             });
           }
           resolvedProp = 'log';
