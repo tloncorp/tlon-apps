@@ -43,6 +43,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
 
   const getValue = async (): Promise<T> => {
     const value = await storage.getItem(key);
+    console.log(`getValue ${key}`, value);
 
     if (!value) {
       return defaultValue;
@@ -62,8 +63,25 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
       }
       return deserializedValue;
     } catch (e) {
-      logger.trackEvent('Failed to deserialize KeyValueStore item', { key });
-      throw e;
+      // Handle migration from previous secure storage implementation which
+      // didn't serialize values on write
+      if (
+        config.isSecure &&
+        typeof config.defaultValue === 'string' &&
+        value.length > 0
+      ) {
+        logger.trackEvent('Recovering Legacy StorageItem', { key });
+        await storage.setItem(key, serialize(value));
+        queryClient.invalidateQueries({
+          queryKey: config.queryKey ? config.queryKey : [key],
+        });
+        logger.log(`set value ${key}`, value);
+        return value as unknown as T;
+      } else {
+        // In other cases of deserialization failure, don't interfere with the throw
+        logger.trackEvent('Failed to deserialize StorageItem', { key });
+        throw e;
+      }
     }
   };
 
