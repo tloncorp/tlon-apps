@@ -43,7 +43,6 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
 
   const getValue = async (): Promise<T> => {
     const value = await storage.getItem(key);
-    console.log(`getValue ${key}`, value);
 
     if (!value) {
       return defaultValue;
@@ -70,12 +69,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
         typeof config.defaultValue === 'string' &&
         value.length > 0
       ) {
-        logger.trackEvent('Recovering Legacy StorageItem', { key });
-        await storage.setItem(key, serialize(value));
-        queryClient.invalidateQueries({
-          queryKey: config.queryKey ? config.queryKey : [key],
-        });
-        logger.log(`set value ${key}`, value);
+        await setValue(value as unknown as T);
         return value as unknown as T;
       } else {
         // In other cases of deserialization failure, don't interfere with the throw
