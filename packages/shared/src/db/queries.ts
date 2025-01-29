@@ -828,7 +828,7 @@ export const getThreadUnreadState = createReadQuery(
   ['posts']
 );
 
-export const getGroupRoles = createReadQuery(
+export const getAllGroupRoles = createReadQuery(
   'getGroupRoles',
   async (ctx: QueryCtx) => {
     return ctx.db.query.groupRoles.findMany();
@@ -1426,7 +1426,11 @@ export const getThreadActivity = createReadQuery(
 export const getChannel = createReadQuery(
   'getChannel',
   async (
-    { id, includeMembers }: { id: string; includeMembers?: boolean },
+    {
+      id,
+      includeMembers,
+      includeWriters,
+    }: { id: string; includeMembers?: boolean; includeWriters?: boolean },
     ctx: QueryCtx
   ) => {
     return ctx.db.query.channels
@@ -1434,6 +1438,7 @@ export const getChannel = createReadQuery(
         where: eq($channels.id, id),
         with: {
           ...(includeMembers ? { members: { with: { contact: true } } } : {}),
+          ...(includeWriters ? { writerRoles: true } : {}),
         },
       })
       .then(returnNullIfUndefined);
@@ -2802,6 +2807,7 @@ export const getGroup = createReadQuery(
     'groupJoinRequests',
     'groupMemberBans',
     'groupNavSectionChannels',
+    'groupRoles',
   ]
 );
 
@@ -3735,6 +3741,122 @@ export const getPinnedItems = createReadQuery(
     return ctx.db.query.pins.findMany({});
   },
   ['pins']
+);
+
+export const getGroupRole = createReadQuery(
+  'getGroupRole',
+  async (
+    { groupId, roleId }: { groupId: string; roleId: string },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.groupRoles.findFirst({
+      where: and(eq($groupRoles.groupId, groupId), eq($groupRoles.id, roleId)),
+    });
+  },
+  ['groupRoles']
+);
+
+export const getGroupRoles = createReadQuery(
+  'getGroupRoles',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    return ctx.db.query.groupRoles.findMany({
+      where: eq($groupRoles.groupId, groupId),
+    });
+  },
+  ['groupRoles']
+);
+
+export const addGroupRole = createWriteQuery(
+  'addGroupRole',
+  async (
+    {
+      groupId,
+      roleId,
+      meta,
+    }: { groupId: string; roleId: string; meta?: ClientMeta },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .insert($groupRoles)
+      .values({ groupId, id: roleId, ...meta })
+      .onConflictDoNothing();
+  },
+  ['groupRoles']
+);
+
+export const deleteGroupRole = createWriteQuery(
+  'deleteGroupRole',
+  async ({ groupId, roleId }: { groupId: string; roleId: string }, ctx) => {
+    return ctx.db
+      .delete($groupRoles)
+      .where(and(eq($groupRoles.groupId, groupId), eq($groupRoles.id, roleId)));
+  },
+  ['groupRoles']
+);
+
+export const updateGroupRole = createWriteQuery(
+  'updateGroupRole',
+  async (
+    {
+      groupId,
+      roleId,
+      meta,
+    }: { groupId: string; roleId: string; meta: ClientMeta },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($groupRoles)
+      .set(meta)
+      .where(and(eq($groupRoles.groupId, groupId), eq($groupRoles.id, roleId)));
+  },
+  ['groupRoles']
+);
+
+export const addMembersToRole = createWriteQuery(
+  'addMembersToRole',
+  async (
+    {
+      groupId,
+      roleId,
+      contactIds,
+    }: { groupId: string; roleId: string; contactIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .insert($chatMemberGroupRoles)
+      .values(
+        contactIds.map((contactId) => ({
+          groupId,
+          roleId,
+          contactId,
+        }))
+      )
+      .onConflictDoNothing();
+  },
+  ['chatMemberGroupRoles', 'groupRoles']
+);
+
+export const removeMembersFromRole = createWriteQuery(
+  'removeMembersFromRole',
+  async (
+    {
+      groupId,
+      roleId,
+      contactIds,
+    }: { groupId: string; roleId: string; contactIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .delete($chatMemberGroupRoles)
+      .where(
+        and(
+          eq($chatMemberGroupRoles.groupId, groupId),
+          eq($chatMemberGroupRoles.roleId, roleId),
+          inArray($chatMemberGroupRoles.contactId, contactIds)
+        )
+      );
+  },
+  ['chatMemberGroupRoles', 'groupRoles']
 );
 
 // Helpers

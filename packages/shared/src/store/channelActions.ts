@@ -146,6 +146,22 @@ export async function updateChannel({
   join: boolean;
   channel: db.Channel;
 }) {
+  logger.log('updating channel', channel.id, { readers, writers });
+  const currentChannel = await db.getChannel({
+    id: channel.id,
+    includeWriters: true,
+  });
+  const currentChannelWriterIds = currentChannel?.writerRoles?.map(
+    (role) => role.roleId
+  );
+  logger.log('currentChannelWriterIds', currentChannelWriterIds);
+  const writersToAdd = writers.filter(
+    (roleId) => !currentChannelWriterIds?.includes(roleId)
+  );
+  const writersToRemove =
+    currentChannelWriterIds?.filter((roleId) => !writers.includes(roleId)) ??
+    [];
+
   const updatedChannel: db.Channel = {
     ...channel,
     readerRoles: readers.map((roleId) => ({
@@ -158,7 +174,24 @@ export async function updateChannel({
     })),
   };
 
+  logger.log('updated channel', updatedChannel);
+
   await db.updateChannel(updatedChannel);
+
+  if (writersToAdd.length > 0) {
+    logger.log('adding writers', writersToAdd);
+    await addChannelWriters({ channelId: channel.id, writers: writersToAdd });
+    logger.log('added writers');
+  }
+
+  if (writersToRemove.length > 0) {
+    logger.log('removing writers', writersToRemove);
+    await removeChannelWriters({
+      channelId: channel.id,
+      writers: writersToRemove,
+    });
+    logger.log('removed writers');
+  }
 
   // If we have a `contentConfiguration`, we need to merge these fields to make
   // a `StructuredChannelDescriptionPayload`, and use that as the `description`
@@ -181,12 +214,15 @@ export async function updateChannel({
     },
   };
 
+  logger.log('group channel', groupChannel);
+
   try {
     await api.updateChannel({
       groupId,
       channelId: channel.id,
       channel: groupChannel,
     });
+    logger.log('updated channel on server');
   } catch (e) {
     console.error('Failed to update channel', e);
     await db.updateChannel(channel);
@@ -275,7 +311,7 @@ export async function markChannelRead({
   try {
     await api.readChannel(existingChannel);
   } catch (e) {
-    console.error('Failed to read channel', {id, groupId}, e);
+    logger.error('Failed to read channel', { id, groupId }, e);
     // rollback optimistic update
     if (existingUnread) {
       await db.insertChannelUnreads([existingUnread]);
@@ -432,5 +468,85 @@ export async function joinGroupChannel({
       id: channelId,
       currentUserIsMember: false,
     });
+  }
+}
+
+export async function addChannelWriters({
+  channelId,
+  writers,
+}: {
+  channelId: string;
+  writers: string[];
+}) {
+  logger.log('adding writers', writers);
+  const channel = await db.getChannel({ id: channelId, includeWriters: true });
+  if (!channel) {
+    throw new Error('Channel not found');
+  }
+  const currentWriters = channel.writerRoles.map((role) => role.roleId);
+  const newWriters = writers.filter(
+    (roleId) => !currentWriters.includes(roleId)
+  );
+  const writerRoles = [
+    ...channel.writerRoles,
+    ...newWriters.map((roleId) => ({
+      channelId: channel.id,
+      roleId,
+    })),
+  ];
+
+  logger.log('new writer roles', writerRoles);
+
+  // optimistic update
+  const updatedChannel = {
+    ...channel,
+    writerRoles,
+  };
+  await db.updateChannel(updatedChannel);
+  logger.log('updated channel', updatedChannel);
+
+  try {
+    await api.addChannelWriters({ channelId, writers });
+    logger.log('added writers');
+  } catch (e) {
+    logger.error('Failed to add channel writers', e);
+    // rollback optimistic update
+    await db.updateChannel(channel);
+  }
+}
+
+export async function removeChannelWriters({
+  channelId,
+  writers,
+}: {
+  channelId: string;
+  writers: string[];
+}) {
+  logger.log('removing writers', writers);
+  const channel = await db.getChannel({ id: channelId, includeWriters: true });
+  if (!channel) {
+    throw new Error('Channel not found');
+  }
+  const writerRoles = channel.writerRoles.filter(
+    (role) => !writers.includes(role.roleId)
+  );
+
+  logger.log('new writer roles', writerRoles);
+
+  // optimistic update
+  const updatedChannel = {
+    ...channel,
+    writerRoles,
+  };
+  await db.updateChannel(updatedChannel);
+  logger.log('updated channel', updatedChannel);
+
+  try {
+    await api.removeChannelWriters({ channelId, writers });
+    logger.log('removed writers');
+  } catch (e) {
+    logger.error('Failed to remove channel writers', e);
+    // rollback optimistic update
+    await db.updateChannel(channel);
   }
 }

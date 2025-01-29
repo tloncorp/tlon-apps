@@ -121,11 +121,12 @@ export const useGroupContext = ({
 
   const _updateChannel = useUpdateChannel();
   const updateChannel = useCallback(
-    async (channel: db.Channel) => {
+    async (channel: db.Channel, readers?: string[], writers?: string[]) => {
       if (group == null) {
         throw new Error('Group is null');
       }
-      return _updateChannel({ channel, group });
+      console.log('updateChannel useGroupContext', channel, readers, writers);
+      return _updateChannel({ channel, group, readers, writers });
     },
     [group, _updateChannel]
   );
@@ -217,7 +218,18 @@ export const useGroupContext = ({
   const createGroupRole = useCallback(
     async (role: db.GroupRole) => {
       if (group) {
-        // await store.createRole(group.id, role);
+        if (!role.id) {
+          console.error('Role ID is required');
+          return;
+        }
+        store.addGroupRole({
+          groupId: group.id,
+          roleId: role.id,
+          meta: {
+            title: role.title,
+            description: role.description,
+          },
+        });
       }
     },
     [group]
@@ -226,7 +238,18 @@ export const useGroupContext = ({
   const updateGroupRole = useCallback(
     async (role: db.GroupRole) => {
       if (group) {
-        // await store.updateRole(group.id, role);
+        if (!role.id) {
+          console.error('Role ID is required');
+          return;
+        }
+        store.updateGroupRole({
+          groupId: group.id,
+          roleId: role.id,
+          meta: {
+            title: role.title,
+            description: role.description,
+          },
+        });
       }
     },
     [group]
@@ -235,7 +258,36 @@ export const useGroupContext = ({
   const deleteGroupRole = useCallback(
     async (roleId: string) => {
       if (group) {
-        // await store.deleteRole(group.id, roleId);
+        store.deleteGroupRole({
+          groupId: group.id,
+          roleId,
+        });
+      }
+    },
+    [group]
+  );
+
+  const addUserToRole = useCallback(
+    async (contactId: string, roleId: string) => {
+      if (group) {
+        await store.addMembersToRole({
+          groupId: group.id,
+          roleId,
+          contactIds: [contactId],
+        });
+      }
+    },
+    [group]
+  );
+
+  const removeUserFromRole = useCallback(
+    async (contactId: string, roleId: string) => {
+      if (group) {
+        await store.removeMembersFromRole({
+          groupId: group.id,
+          roleId,
+          contactIds: [contactId],
+        });
       }
     },
     [group]
@@ -370,5 +422,7 @@ export const useGroupContext = ({
     joinRequests,
     leaveGroup,
     groupPrivacyType,
+    addUserToRole,
+    removeUserFromRole,
   };
 };

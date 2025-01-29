@@ -26,14 +26,24 @@ export function EditChannelScreen(props: Props) {
   }, [data, deleteChannel, props.navigation, groupId]);
 
   const handleSubmit = useCallback(
-    (title: string, description?: string) => {
+    async (
+      title: string,
+      readers: string[],
+      writers: string[],
+      description?: string
+    ) => {
+      console.log('handleSubmit', title, readers, writers, description);
       const prevChannel = data;
       if (prevChannel) {
-        updateChannel({
-          ...prevChannel,
-          title,
-          description,
-        });
+        updateChannel(
+          {
+            ...prevChannel,
+            title,
+            description,
+          },
+          readers,
+          writers
+        );
         props.navigation.goBack();
       }
     },

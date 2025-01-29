@@ -5,7 +5,18 @@ import { updateChannel } from '../store/channelActions';
 
 export function useUpdateChannel() {
   return useCallback(
-    async ({ group, channel }: { group: db.Group; channel: db.Channel }) => {
+    async ({
+      group,
+      channel,
+      readers,
+      writers,
+    }: {
+      group: db.Group;
+      channel: db.Channel;
+      readers?: string[];
+      writers?: string[];
+    }) => {
+      console.log('useUpdateChannel', group, channel, readers, writers);
       const groupNavSections = group?.navSections ?? [];
       const navSection = groupNavSections.find((section) =>
         section.channels?.map((c) => c.channelId).includes(channel.id)
@@ -19,8 +30,8 @@ export function useUpdateChannel() {
         groupId: group.id,
         channel,
         sectionId: navSection.sectionId,
-        readers: channel.readerRoles?.map((r) => r.roleId) ?? [],
-        writers: channel.writerRoles?.map((r) => r.roleId) ?? [],
+        readers: readers ?? channel.readerRoles?.map((r) => r.roleId) ?? [],
+        writers: writers ?? channel.writerRoles?.map((r) => r.roleId) ?? [],
         join: true,
       });
     },

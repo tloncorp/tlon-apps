@@ -1086,3 +1086,151 @@ export async function markGroupRead(groupId: string, deep: boolean = false) {
     }
   }
 }
+
+export async function addGroupRole({
+  groupId,
+  roleId,
+  meta,
+}: {
+  groupId: string;
+  roleId: string;
+  meta: db.ClientMeta;
+}) {
+  logger.log('adding group role', groupId, roleId);
+
+  // optimistic update
+  await db.addGroupRole({ groupId, roleId, meta });
+
+  try {
+    await api.addGroupRole({ groupId, roleId, meta });
+  } catch (e) {
+    console.error('Failed to add group role', e);
+    // rollback optimistic update
+    await db.deleteGroupRole({ groupId, roleId: roleId });
+  }
+}
+
+export async function updateGroupRole({
+  groupId,
+  roleId,
+  meta,
+}: {
+  groupId: string;
+  roleId: string;
+  meta: db.ClientMeta;
+}) {
+  logger.log('updating group role', groupId, roleId);
+
+  const existingRole = await db.getGroupRole({ groupId, roleId });
+
+  if (!existingRole) {
+    console.error('Role not found', groupId, roleId);
+    return;
+  }
+
+  // optimistic update
+  await db.updateGroupRole({ groupId, roleId, meta });
+
+  try {
+    await api.updateGroupRole({ groupId, roleId, meta });
+  } catch (e) {
+    console.error('Failed to update group role', e);
+    // rollback optimistic update
+    await db.updateGroupRole({
+      groupId,
+      roleId,
+      meta: {
+        title: existingRole.title,
+        description: existingRole.description,
+      },
+    });
+  }
+}
+
+export async function deleteGroupRole({
+  groupId,
+  roleId,
+}: {
+  groupId: string;
+  roleId: string;
+}) {
+  logger.log('deleting group role', groupId, roleId);
+
+  const existingRole = await db.getGroupRole({ groupId, roleId });
+
+  if (!existingRole) {
+    console.error('Role not found', groupId, roleId);
+    return;
+  }
+
+  // optimistic update
+  await db.deleteGroupRole({ groupId, roleId });
+
+  try {
+    await api.deleteGroupRole({ groupId, roleId });
+  } catch (e) {
+    console.error('Failed to delete group role', e);
+    // rollback optimistic update
+    await db.addGroupRole({ groupId, roleId, meta: existingRole });
+  }
+}
+
+export async function addMembersToRole({
+  groupId,
+  roleId,
+  contactIds,
+}: {
+  groupId: string;
+  roleId: string;
+  contactIds: string[];
+}) {
+  logger.log('adding members to role', groupId, roleId, contactIds);
+
+  const existingRole = await db.getGroupRole({ groupId, roleId });
+
+  if (!existingRole) {
+    console.error('Role not found', groupId, roleId);
+    return;
+  }
+
+  // optimistic update
+  await db.addMembersToRole({ groupId, roleId, contactIds });
+
+  try {
+    await api.addMembersToRole({ groupId, roleId, ships: contactIds });
+  } catch (e) {
+    console.error('Failed to add members to role', e);
+    // rollback optimistic update
+    await db.removeMembersFromRole({ groupId, roleId, contactIds });
+  }
+}
+
+export async function removeMembersFromRole({
+  groupId,
+  roleId,
+  contactIds,
+}: {
+  groupId: string;
+  roleId: string;
+  contactIds: string[];
+}) {
+  logger.log('removing members from role', groupId, roleId, contactIds);
+
+  const existingRole = await db.getGroupRole({ groupId, roleId });
+
+  if (!existingRole) {
+    console.error('Role not found', groupId, roleId);
+    return;
+  }
+
+  // optimistic update
+  await db.removeMembersFromRole({ groupId, roleId, contactIds });
+
+  try {
+    await api.removeMembersFromRole({ groupId, roleId, ships: contactIds });
+  } catch (e) {
+    console.error('Failed to remove members from role', e);
+    // rollback optimistic update
+    await db.addMembersToRole({ groupId, roleId, contactIds });
+  }
+}

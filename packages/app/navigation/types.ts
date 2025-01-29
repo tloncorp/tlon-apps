@@ -86,6 +86,10 @@ export type RootStackRouteProp<T extends keyof RootStackParamList> = RouteProp<
   T
 >;
 
+export type GroupSettingsStackRouteProp<
+  T extends keyof GroupSettingsStackParamList,
+> = RouteProp<GroupSettingsStackParamList, T>;
+
 export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
 
 export type RootDrawerParamList = {
