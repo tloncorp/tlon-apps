@@ -417,8 +417,10 @@
         ?-  -.id.cmd
           %dummy    [%wait ~]
           %urbit    [%want %urbit (~(rad og eny.bowl) 1.000.000)]
-          %phone    [%wait ~]
-          %twitter  ?>  =(+.id.cmd (crip (cass (trip +.id.cmd))))
+          %phone    ?<  =(['' '' ~] phone-api)
+                    [%wait ~]
+          %twitter  ?<  =('' twitter-api)
+                    ?>  =(+.id.cmd (crip (cass (trip +.id.cmd))))
                     [%want %twitter %post (end 5 (shas %twitter eny.bowl))]
         ==
       =.  records
