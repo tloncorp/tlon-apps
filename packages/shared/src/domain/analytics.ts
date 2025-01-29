@@ -41,4 +41,5 @@ export enum AnalyticsEvent {
   NodeConnectionDebug = 'Node Connection Debug',
   NodeConnectionError = 'Node Connection Error',
   SyncDiscontinuity = 'Sync Discontinuity',
+  OnNetworkInvite = 'Sent On Network Group Invite',
 }

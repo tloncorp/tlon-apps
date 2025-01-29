@@ -105,8 +105,9 @@ export default function ChannelScreen(props: Props) {
   }, [channelIsPending, channelId]);
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
-  const [inviteSheetGroup, setInviteSheetGroup] =
-    React.useState<string | null>();
+  const [inviteSheetGroup, setInviteSheetGroup] = React.useState<
+    string | null
+  >();
 
   // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
   // time
@@ -316,8 +317,15 @@ export default function ChannelScreen(props: Props) {
   );
 
   const handleChannelNavButtonPressed = useCallback(() => {
-    setChannelNavOpen(true);
-  }, []);
+    if ((group?.channels?.length ?? 1) > 1) {
+      setChannelNavOpen(true);
+    } else {
+      props.navigation.navigate('ChatDetails', {
+        chatType: 'group',
+        chatId: group!.id,
+      });
+    }
+  }, [group, props.navigation]);
 
   const handleChannelSelected = useCallback((channel: db.Channel) => {
     setCurrentChannelId(channel.id);

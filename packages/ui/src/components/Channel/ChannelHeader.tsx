@@ -4,11 +4,13 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 
 import { useChatOptions } from '../../contexts';
 import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
+import { useGroupTitle } from '../../utils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import Pressable from '../Pressable';
 import { ScreenHeader } from '../ScreenHeader';
@@ -156,11 +158,7 @@ export function ChannelHeader({
                   open={openChatOptions}
                   onOpenChange={setOpenChatOptions}
                   chat={{ type: 'channel', id: channel.id }}
-                  trigger={
-                    <ScreenHeader.IconButton
-                      type="Overflow"
-                    />
-                  }
+                  trigger={<ScreenHeader.IconButton type="Overflow" />}
                 />
               )
             ) : null}
