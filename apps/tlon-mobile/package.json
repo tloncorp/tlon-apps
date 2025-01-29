@@ -74,7 +74,7 @@
     "expo-battery": "^7.7.2",
     "expo-clipboard": "~5.0.1",
     "expo-constants": "~15.4.5",
-    "expo-dev-client": "^3.3.9",
+    "expo-dev-client": "~3.3.12",
     "expo-device": "~5.9.3",
     "expo-file-system": "~16.0.9",
     "expo-haptics": "~12.8.1",

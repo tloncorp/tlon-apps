@@ -71,8 +71,6 @@ function ContactUpdateContentRenderer({ summary }: ActivitySourceContentProps) {
         ?.map((ug) => ug.group)
         .filter((g) => g) as db.Group[]) ?? [];
 
-    console.log('con update groups renderer', groups);
-
     if (!groups.length) {
       return null;
     }
