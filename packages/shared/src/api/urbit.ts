@@ -401,7 +401,7 @@ export async function scry<T>({ app, path }: { app: string; path: string }) {
   logger.log('scry', app, path);
   const trackDuration = createDurationTracker(AnalyticsEvent.Scry, {
     app,
-    path,
+    path: redactPath(path),
   });
   try {
     const result = await config.client.scry<T>({ app, path });
@@ -420,6 +420,14 @@ export async function scry<T>({ app, path }: { app: string; path: string }) {
     const body = await res.text();
     throw new BadResponseError(res.status, body);
   }
+}
+
+// Remove any identifiable information from path
+// ~solfer-magfed/my-group => [id]/my-group
+// chat/~solfer-magfed/my-channel/ => chat/[id]/
+// ~solfer-magfed/ => [id]/
+function redactPath(path: string) {
+  return path.replace(/~.+?(?:\/.+?)[/$]/g, '[id]/');
 }
 
 async function reauth() {
