@@ -400,6 +400,23 @@
       ?:  =(base.q.vase domain)  [~ this]
       :-  [(give-endpoint base.q.vase)]~
       this(domain base.q.vase)
+    ::
+        [%stats ~]
+      %.  [~ this]
+      %-  slog
+      =+  %-  ~(rep by records)
+          |=  [[id=identifier record] sum=@ud suz=(map id-kind [done=@ud pend=@ud])]
+          :-  +(sum)
+          %+  ~(put by suz)  -.id
+          =+  (~(gut by suz) -.id [done=0 pend=0])
+          ?:  ?=(%done -.status)
+            [+(done) pend]
+          [done +(pend)]
+      =+  tac=(cork a-co:co crip)
+      :-  (cat 3 (tac sum) ' registrations total')
+      %+  turn  ~(tap by suz)
+      |=  [k=id-kind done=@ud pend=@ud]
+      (rap 3 '%' k ': ' (tac done) ?:(=(0 pend) ~ [' (+' (tac pend) ' pending)' ~]))
     ==
   ::
       %verifier-user-command
