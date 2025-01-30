@@ -940,7 +940,7 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  =+  pre=(rap 3 dap.bowl ' +on-fail: %' term ~)
-  %.  [[(fail:logs term [pre tang] ~)]~ this]
-  (slog pre tang)
+  %-  (fail:l term tang)
+  %-  (slog (rap 3 dap.bowl ' +on-fail: %' term ~) tang)
+  [~ this]
 --
