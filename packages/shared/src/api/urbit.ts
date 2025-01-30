@@ -427,7 +427,7 @@ export async function scry<T>({ app, path }: { app: string; path: string }) {
 // chat/~solfer-magfed/my-channel/ => chat/[id]/
 // ~solfer-magfed/ => [id]/
 function redactPath(path: string) {
-  return path.replace(/~.+?(?:\/.+?)[/$]/g, '[id]/');
+  return path.replace(/~.+?(?:\/.+?)(\/|$)/g, '[id]/');
 }
 
 async function reauth() {
