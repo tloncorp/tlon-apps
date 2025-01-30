@@ -4,6 +4,7 @@ import {
   Fragment,
   PropsWithChildren,
   ReactElement,
+  ReactNode,
   useContext,
   useMemo,
   useRef,
@@ -12,6 +13,7 @@ import { Modal, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Dialog,
+  Popover,
   ScrollView,
   SheetProps,
   View,
@@ -91,15 +93,26 @@ export function createCopyAction({
   };
 }
 
+type AdaptiveMode = 'sheet' | 'dialog' | 'popover';
+
 type ActionSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title?: string;
+  trigger?: ReactNode;
+  mode?: AdaptiveMode;
 };
 
-const useAdaptiveMode = () => {
+const useAdaptiveMode = (mode?: AdaptiveMode) => {
   const isWindowNarrow = useIsWindowNarrow();
-  return isWindowNarrow ? 'sheet' : 'dialog';
+
+  // On mobile, always use sheet regardless of specified mode
+  if (isWindowNarrow) {
+    return 'sheet';
+  }
+
+  // On desktop, use specified mode or default to dialog
+  return mode ?? 'dialog';
 };
 
 // Main component
@@ -108,17 +121,37 @@ const ActionSheetComponent = ({
   open,
   onOpenChange,
   title,
+  trigger,
+  mode: forcedMode,
   children,
   ...props
 }: PropsWithChildren<ActionSheetProps & SheetProps>) => {
-  const mode = useAdaptiveMode();
+  const mode = useAdaptiveMode(forcedMode);
   const hasOpened = useRef(open);
   if (!hasOpened.current && open) {
     hasOpened.current = true;
   }
 
-  // Sheets are heavy; we don't want to render until we need to
-  if (!hasOpened.current) return null;
+  if (mode === 'popover') {
+    return (
+      <Popover
+        open={open}
+        onOpenChange={onOpenChange}
+        allowFlip
+        placement="bottom-end"
+      >
+        <Popover.Trigger>{trigger}</Popover.Trigger>
+        <Popover.Content padding={1} borderColor="$border" borderWidth={1}>
+          {children}
+        </Popover.Content>
+      </Popover>
+    );
+  }
+
+  // Sheets/dialogs are heavy; we don't want to render until we need to
+  if (!hasOpened.current && open) {
+    hasOpened.current = true;
+  }
 
   if (mode === 'dialog') {
     return (
@@ -163,32 +196,41 @@ const ActionSheetComponent = ({
   }
 
   return (
-    <Modal
-      visible={open}
-      onRequestClose={() => onOpenChange(false)}
-      transparent
-      animationType="none"
-    >
-      <Sheet
-        open={open}
-        onOpenChange={onOpenChange}
-        dismissOnSnapToBottom
-        snapPointsMode="fit"
-        animation="quick"
-        handleDisableScroll
-        {...props}
+    <>
+      {trigger}
+      <Modal
+        visible={open}
+        onRequestClose={() => onOpenChange(false)}
+        transparent
+        animationType="none"
       >
-        <Sheet.Overlay animation="quick" />
-        {/*
+        <Sheet
+          open={open}
+          onOpenChange={onOpenChange}
+          dismissOnSnapToBottom
+          snapPointsMode="fit"
+          animation="quick"
+          handleDisableScroll
+          {...props}
+        >
+          <Sheet.Overlay animation="quick" />
+          {/*
           press style is set here to ensure touch responders are added and drag gestures
           bubble up accordingly (unclear why needed after adding modal wrapper)
         */}
-        <Sheet.Frame pressStyle={{}}>
-          <Sheet.Handle />
-          {children}
-        </Sheet.Frame>
-      </Sheet>
-    </Modal>
+          <Sheet.Frame pressStyle={{}}>
+            <Sheet.Handle />
+            {forcedMode === 'popover' ? (
+              <ActionSheet.ScrollableContent>
+                <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+              </ActionSheet.ScrollableContent>
+            ) : (
+              children
+            )}
+          </Sheet.Frame>
+        </Sheet>
+      </Modal>
+    </>
   );
 };
 

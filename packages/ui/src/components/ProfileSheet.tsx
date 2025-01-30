@@ -5,7 +5,6 @@ import { useCallback, useState } from 'react';
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ProfileBlock } from './ProfileBlock';
-import { ResponsiveSheet } from './ResponsiveSheet';
 
 function RoleAssignmentSheet({
   onAssignRole,
@@ -54,9 +53,10 @@ function RoleAssignmentSheet({
   );
 
   return (
-    <ResponsiveSheet
+    <ActionSheet
       open={open}
       onOpenChange={setOpen}
+      mode="popover"
       trigger={
         <ActionSheet.Action
           {...actionProps}
@@ -65,7 +65,7 @@ function RoleAssignmentSheet({
       }
     >
       {roleActions}
-    </ResponsiveSheet>
+    </ActionSheet>
   );
 }
 

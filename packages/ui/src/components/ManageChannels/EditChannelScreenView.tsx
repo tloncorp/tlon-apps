@@ -13,7 +13,6 @@ import { DeleteSheet } from '../DeleteSheet';
 import { RadioInput } from '../Form';
 import { FormInput } from '../FormInput';
 import Pressable from '../Pressable';
-import { ResponsiveSheet } from '../ResponsiveSheet';
 import { ScreenHeader } from '../ScreenHeader';
 import { Text } from '../TextV2';
 
@@ -380,11 +379,12 @@ export function ChannelRoleSelector({
           borderColor="$border"
           padding="$s"
         >
-          <ResponsiveSheet
+          <ActionSheet
             trigger={trigger}
             title={label}
             open={open}
             onOpenChange={setOpen}
+            mode="popover"
           >
             <ActionSheet.ActionGroup padding={1}>
               {options.map((option) => (
@@ -412,7 +412,7 @@ export function ChannelRoleSelector({
                 />
               ))}
             </ActionSheet.ActionGroup>
-          </ResponsiveSheet>
+          </ActionSheet>
         </XStack>
       </Pressable>
     </YStack>
