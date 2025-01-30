@@ -37,7 +37,7 @@ export const OnboardingInviteBlock = React.memo(function OnboardingInviteBlock({
   }
 
   const inviter = {
-    id: inviterUserId!,
+    id: inviterUserId,
     nickname: inviterNickname,
     avatarImage: inviterAvatarImage,
     color: inviterColor || undefined,
@@ -107,10 +107,10 @@ function GroupInvite({
         />
         <ListItem.MainContent>
           <ListItem.Title>
-            Join {groupShim.title ?? groupShim.id}
+            {groupShim.title ? `Join ${groupShim.title}` : `Join a Groupchat`}
           </ListItem.Title>
           <ListItem.Subtitle>
-            Invited by {inviter.nickname ?? inviter.id}
+            Invited by {getDisplayName(inviter)}
           </ListItem.Subtitle>
         </ListItem.MainContent>
       </ListItem>

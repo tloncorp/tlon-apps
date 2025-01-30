@@ -41,4 +41,6 @@ export enum AnalyticsEvent {
   NodeConnectionDebug = 'Node Connection Debug',
   NodeConnectionError = 'Node Connection Error',
   SyncDiscontinuity = 'Sync Discontinuity',
+  UserLoggedIn = 'User Logged In',
+  NodeAuthSaved = 'Node Auth Saved',
 }
