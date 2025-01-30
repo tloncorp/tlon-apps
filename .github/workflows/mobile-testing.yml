@@ -29,8 +29,8 @@ jobs:
       - name: Build for selected platforms
         id: build
         working-directory: ./apps/tlon-mobile
-        # eas build --profile local-testing --platform ios --non-interactive
         run: |
+          eas build --profile local-testing --platform ios --non-interactive
           URL=$(eas build:list --json --limit=1 --platform=ios --non-interactive | jq '.[0].artifacts.buildUrl')
           echo "url=$URL"
           echo "url=$URL" >> $GITHUB_OUTPUT
@@ -91,14 +91,23 @@ jobs:
       - name: Build for selected platforms
         id: build
         working-directory: ./apps/tlon-mobile
-        run:
+        run: |
           eas build --profile local-testing --platform android --non-interactive
-          --local --output build.apk
+          URL=$(eas build:list --json --limit=1 --platform=android --non-interactive | jq '.[0].artifacts.buildUrl')
+          echo "url=$URL"
+          echo "url=$URL" >> $GITHUB_OUTPUT
         env:
           EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
           EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
           NOTIFY_PROVIDER: binnec-dozzod-marnus
           NOTIFY_SERVICE: tlon-preview-release
+      - name: Download and extract build
+        run: |
+          echo "Downloading build from ${{ steps.build.outputs.url }}"
+          curl -L ${{ steps.build.outputs.url }} -o build.tar.gz
+          tar -xzf build.tar.gz
+          rm build.tar.gz
+          ls
       - name: Run tests
         uses: mobile-dev-inc/action-maestro-cloud@v1
         with:
