@@ -402,8 +402,10 @@
       this(domain base.q.vase)
     ::
         [%stats ~]
-      %.  [~ this]
-      %-  slog
+      =;  =tang
+        %-  (tell:l %info tang)
+        %-  (slog tang)
+        [~ this]
       =+  %-  ~(rep by records)
           |=  [[id=identifier record] sum=@ud suz=(map id-kind [done=@ud pend=@ud])]
           :-  +(sum)
