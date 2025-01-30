@@ -79,6 +79,7 @@ export interface DeepLinkMetadata {
   invitedGroupIconImageUrl?: string;
   invitedGroupiconImageColor?: string;
   inviteType?: 'user' | 'group';
+  group?: string; // legacy identifier for invitedGroupId
 }
 
 export interface AppInvite extends DeepLinkMetadata {

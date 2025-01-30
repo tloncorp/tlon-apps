@@ -161,7 +161,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       console.debug('[branch] Unsubscribing from Branch listener');
       unsubscribe();
     };
-  }, [isAuthenticated]);
+  }, [goToChannel, isAuthenticated]);
 
   const setLure = useCallback(
     (invite: AppInvite) => {
