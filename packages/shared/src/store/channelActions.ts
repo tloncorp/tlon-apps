@@ -178,21 +178,6 @@ export async function updateChannel({
 
   await db.updateChannel(updatedChannel);
 
-  if (writersToAdd.length > 0) {
-    logger.log('adding writers', writersToAdd);
-    await addChannelWriters({ channelId: channel.id, writers: writersToAdd });
-    logger.log('added writers');
-  }
-
-  if (writersToRemove.length > 0) {
-    logger.log('removing writers', writersToRemove);
-    await removeChannelWriters({
-      channelId: channel.id,
-      writers: writersToRemove,
-    });
-    logger.log('removed writers');
-  }
-
   // If we have a `contentConfiguration`, we need to merge these fields to make
   // a `StructuredChannelDescriptionPayload`, and use that as the `description`
   const structuredDescription = StructuredChannelDescriptionPayload.encode({
@@ -222,6 +207,23 @@ export async function updateChannel({
       channelId: channel.id,
       channel: groupChannel,
     });
+    if (writersToAdd.length > 0) {
+      logger.log('adding writers', writersToAdd);
+      await api.addChannelWriters({
+        channelId: channel.id,
+        writers: writersToAdd,
+      });
+      logger.log('added writers');
+    }
+
+    if (writersToRemove.length > 0) {
+      logger.log('removing writers', writersToRemove);
+      await api.removeChannelWriters({
+        channelId: channel.id,
+        writers: writersToRemove,
+      });
+      logger.log('removed writers');
+    }
     logger.log('updated channel on server');
   } catch (e) {
     console.error('Failed to update channel', e);
