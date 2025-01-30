@@ -154,7 +154,7 @@ export function EditChannelScreenView({
             flex={1}
           >
             {isLoading || !channel ? null : (
-              <YStack width="50%" gap="$2xl">
+              <YStack width="100%" gap="$2xl">
                 <FormInput
                   control={control}
                   errors={errors}
@@ -267,7 +267,7 @@ export function ChannelPermissionsSelector({
 
       const newWriterValues = roles.map((r) => r.value);
       setValue('writers', newWriterValues, { shouldDirty: true });
-      
+
       // If readers is empty, keep it empty (meaning everyone has read access)
       // Otherwise ensure readers include all writers
       if (readers.length > 0) {
