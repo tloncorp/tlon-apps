@@ -104,9 +104,6 @@ export function ProfileSheet({
 }) {
   const currentUserId = useCurrentUserId();
 
-  console.log('roles', roles);
-  console.log('selectedUserRoles', selectedUserRoles);
-
   const handleBlock = useCallback(() => {
     if (contact && contact.isBlocked) {
       store.unblockUser(contactId);
@@ -117,8 +114,6 @@ export function ProfileSheet({
   }, [contact, contactId, onOpenChange]);
 
   const isAdminnable = currentUserIsAdmin && currentUserId !== contactId;
-
-  console.log('isAdminnable', isAdminnable);
 
   const actions: ActionGroup[] = createActionGroups(
     [

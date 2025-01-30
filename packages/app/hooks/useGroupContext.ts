@@ -125,7 +125,6 @@ export const useGroupContext = ({
       if (group == null) {
         throw new Error('Group is null');
       }
-      console.log('updateChannel useGroupContext', channel, readers, writers);
       return _updateChannel({ channel, group, readers, writers });
     },
     [group, _updateChannel]

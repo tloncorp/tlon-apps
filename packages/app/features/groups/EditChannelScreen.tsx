@@ -32,7 +32,6 @@ export function EditChannelScreen(props: Props) {
       writers: string[],
       description?: string
     ) => {
-      console.log('handleSubmit', title, readers, writers, description);
       const prevChannel = data;
       if (prevChannel) {
         updateChannel(

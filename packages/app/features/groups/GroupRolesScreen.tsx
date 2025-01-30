@@ -229,7 +229,7 @@ function EditRoleSheet({
     <ActionSheet
       open={open}
       onOpenChange={onOpenChange}
-      snapPoints={[45]}
+      snapPoints={[55]}
       snapPointsMode="percent"
     >
       <ActionSheet.Content flex={1} paddingBottom={bottom}>

@@ -16,7 +16,6 @@ export function useUpdateChannel() {
       readers?: string[];
       writers?: string[];
     }) => {
-      console.log('useUpdateChannel', group, channel, readers, writers);
       const groupNavSections = group?.navSections ?? [];
       const navSection = groupNavSections.find((section) =>
         section.channels?.map((c) => c.channelId).includes(channel.id)
