@@ -360,6 +360,7 @@ export function ChannelRoleSelector({
           minimal
           backgroundColor="$background"
           borderRadius="$s"
+          onPress={() => setOpen(true)}
         >
           <Button.Text fontSize="$xs">{role.label}</Button.Text>
         </Button>
