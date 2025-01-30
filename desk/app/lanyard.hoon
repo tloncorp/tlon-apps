@@ -8,7 +8,8 @@
 ::    xx api
 ::
 /-  verifier, c=contacts
-/+  dbug, verb, negotiate
+/+  logs,
+    dbug, verb, negotiate
 =,  (verifier)
 ::
 %-  %-  agent:negotiate
@@ -144,14 +145,45 @@
   :_  ~
   :_  [%text u.url]
   (rap 3 %lanyard-tmp-urbit- (rsh 3^1 (scot %p who)) '-url' ~)
+::
+++  lo
+  |_  [our=@p host=(unit @p) kind=(unit @t)]
+  ++  fail
+    ::TODO  maybe always slog the trace?
+    |=  [desc=term trace=tang]
+    %-  link
+    (~(fail logs our /logs) desc trace deez)
+  ::
+  ++  tell
+    |=  [=volume:logs =echo:logs]
+    %-  link
+    (~(tell logs our /logs) volume echo deez)
+  ::
+  ++  deez
+    ^-  (list [@t json])
+    :-  %flow^s+'verifier'
+    =;  l=(list (unit [@t json]))
+      (murn l same)
+    :~  ?~(host ~ `[%service s+(scot %p u.host)])
+        ?~(kind ~ `[%id-kind s+u.kind])
+    ==
+  ::
+  ++  link
+    |=  cad=card
+    |*  [caz=(list card) etc=*]
+    [[cad caz] etc]
+  --
 --
 ::
 =|  state-0
 =*  state  -
 ::
+=+  log=lo
+::
 ^-  agent:gall
 |_  =bowl:gall
 +*  this  .
+    lo    log(our our.bowl)
 ::
 ++  on-save  !>(state)
 ++  on-init
@@ -306,11 +338,13 @@
   ~|  wire=wire
   ?+  wire  !!
       [%verifier ?(~ [%endpoint ~])]
+    =.  host.log  `src.bowl
     ?.  (~(has by ledgers) src.bowl)
       ::  we don't care for this ledger anymore, should've cleaned up,
       ::  make doubly-sure here.
       ::
       ~&  [dap.bowl %uninterested src.bowl -.sign]
+      %-  (tell:lo %warn (cat 3 'uninterested in %' -.sign) ~)
       :_  this
       ?.  ?=(%fact -.sign)  ~
       [%pass wire %agent [src.bowl %verifier] %leave ~]~
@@ -326,6 +360,8 @@
       ::  (we should have checked for sanity based on local state beforehand.)
       ::  resubscribe to get the full state again.
       ::TODO  and bubble action failure up to the client
+      %-  (slog 'lanyard: poke-nacked' u.p.sign)
+      %-  (tell:lo %warn 'poke-nacked' u.p.sign)
       ::
       :_  this
       =/  =dock  [src.bowl %verifier]
@@ -335,10 +371,11 @@
     ::
         %watch-ack
       ?~  p.sign  [~ this]
-      %.  [~ this]
       ::TODO  track verifier connection status?
       ::      or say "should never happen" because of version negotiation?
-      (slog 'failed verifier sub' >src.bowl< u.p.sign)
+      %-  (tell:lo %warn 'verifier subscription nacked' u.p.sign)
+      %-  (slog 'failed verifier sub' >src.bowl< u.p.sign)
+      [~ this]
     ::
         %kick
       :_  this
@@ -351,6 +388,7 @@
     ::
         %fact
       ?.  =(%verifier-update p.cage.sign)
+        %-  (tell:lo %warn (cat 3 'unexpected fact from verifier: %' p.cage.sign) ~)
         ~&  [dap.bowl %unexpected-verifier-fact p.cage.sign]
         [~ this]
       =+  !<(upd=update q.cage.sign)
@@ -406,6 +444,7 @@
     ::
     =/  nonce=@  (slav %uv i.t.wire)
     ?~  qer=(~(get by queries) nonce)
+      %-  (tell:lo %warn 'strange disappeared query' ~)
       ~&  [dap.bowl %strange-disappeared-query nonce]
       [~ this]
     =/  qes
@@ -529,6 +568,8 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %.  [~ this]
-  (slog (rap 3 dap.bowl ' +on-fail: ' term ~) tang)
+  %-  (fail:lo term tang)
+  %-  (slog (rap 3 dap.bowl ' +on-fail: %' term ~) tang)
+  [~ this]
+
 --
