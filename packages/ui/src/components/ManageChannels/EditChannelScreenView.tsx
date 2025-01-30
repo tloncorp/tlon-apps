@@ -218,13 +218,19 @@ export function ChannelPermissionsSelector({
       value: 'members',
     });
 
-  const readerRoles = options.filter(
-    (o) => readers?.includes(o.value) || o.value === 'admin'
-  );
+  const readerRoles =
+    readers?.length === 0
+      ? options
+      : options.filter(
+          (o) => readers?.includes(o.value) || o.value === 'admin'
+        );
 
-  const writerRoles = options.filter(
-    (o) => writers?.includes(o.value) || o.value === 'admin'
-  );
+  const writerRoles =
+    writers?.length === 0
+      ? options
+      : options.filter(
+          (o) => writers?.includes(o.value) || o.value === 'admin'
+        );
 
   const handleSelectPrivacyType = useCallback(
     (type: ChannelPrivacyType) => {
@@ -260,18 +266,27 @@ export function ChannelPermissionsSelector({
         return;
       }
 
-      // Ensure readers include all writers
       const newWriterValues = roles.map((r) => r.value);
       setValue('writers', newWriterValues, { shouldDirty: true });
-      setValue('readers', _.uniq([...readers, ...newWriterValues]), {
-        shouldDirty: true,
-      });
+      
+      // If readers is empty, keep it empty (meaning everyone has read access)
+      // Otherwise ensure readers include all writers
+      if (readers.length > 0) {
+        setValue('readers', _.uniq([...readers, ...newWriterValues]), {
+          shouldDirty: true,
+        });
+      }
     },
     [setValue, readers]
   );
 
   const setReaders = useCallback(
     (roles: RoleOption[]) => {
+      if (roles.some((r) => r.value === 'members')) {
+        setValue('readers', [], { shouldDirty: true });
+        return;
+      }
+
       const newReaderValues = roles.map((r) => r.value);
       setValue('readers', newReaderValues, { shouldDirty: true });
 
