@@ -9,11 +9,12 @@ import {
   Pressable,
   ScreenHeader,
   ScrollView,
+  Text,
   TextInput,
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -40,10 +41,23 @@ function GroupRolesScreenView() {
   const { navigateBack } = useRootNavigation();
   const insets = useSafeAreaInsets();
 
-  const { groupRoles, updateGroupRole, deleteGroupRole, createGroupRole } =
-    useGroupContext({
-      groupId,
+  const {
+    groupRoles,
+    groupMembers,
+    updateGroupRole,
+    deleteGroupRole,
+    createGroupRole,
+  } = useGroupContext({
+    groupId,
+  });
+
+  const rolesWithMembers = useMemo(() => {
+    return groupRoles.filter((role) => {
+      return groupMembers.some((member) =>
+        member.roles.map((r) => r.roleId).includes(role.id!)
+      );
     });
+  }, [groupRoles, groupMembers]);
 
   const handleSetEditRole = useCallback((role: db.GroupRole) => {
     setEditRole(role);
@@ -146,6 +160,7 @@ function GroupRolesScreenView() {
       {!!editRole && (
         <EditRoleSheet
           role={editRole}
+          rolesWithMembers={rolesWithMembers}
           onEdit={handleEditRole}
           onDelete={handleDeleteRole}
           open={editRole !== null}
@@ -176,12 +191,14 @@ function EditRoleSheet({
   onDelete,
   open,
   onOpenChange,
+  rolesWithMembers,
 }: {
   role: db.GroupRole;
   onEdit: (role: db.GroupRole) => void;
   onDelete: (roleId: string) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  rolesWithMembers: db.GroupRole[];
 }) {
   const {
     reset,
@@ -213,6 +230,10 @@ function EditRoleSheet({
     },
     [onEdit, role, onOpenChange, reset]
   );
+
+  const disableDelete = useMemo(() => {
+    return !!role.id && rolesWithMembers.some((r) => r.id === role.id);
+  }, [role.id, rolesWithMembers]);
 
   const handleDelete = useCallback(() => {
     if (!role.id) {
@@ -273,9 +294,20 @@ function EditRoleSheet({
             <Button.Text>Save</Button.Text>
           </Button>
           {role.title === 'Admin' ? null : (
-            <Button heroDestructive onPress={handleDelete}>
-              <Button.Text>Delete role</Button.Text>
-            </Button>
+            <YStack gap="$l">
+              <Button
+                heroDestructive
+                disabled={disableDelete}
+                onPress={handleDelete}
+              >
+                <Button.Text>Delete role</Button.Text>
+              </Button>
+              {disableDelete && (
+                <Text textAlign="center" fontSize="$s" color="$destructiveText">
+                  This role cannot be deleted, it is still in use.
+                </Text>
+              )}
+            </YStack>
           )}
         </YStack>
       </ActionSheet.Content>
