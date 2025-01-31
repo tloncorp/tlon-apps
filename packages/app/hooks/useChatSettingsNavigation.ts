@@ -98,7 +98,7 @@ export const useChatSettingsNavigation = () => {
     [navigationRef]
   );
 
-  const navigateOnLeave = useCallback(() => {
+  const onLeaveGroup = useCallback(() => {
     navigationRef.current.navigate('ChatList');
   }, [navigationRef]);
 
@@ -113,6 +113,6 @@ export const useChatSettingsNavigation = () => {
     onPressChatDetails: navigateToChatDetails,
     onPressChatVolume: navigateToChatVolume,
     onPressRoles,
-    navigateOnLeave,
+    onLeaveGroup,
   };
 };

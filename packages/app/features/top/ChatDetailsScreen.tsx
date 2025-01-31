@@ -215,7 +215,7 @@ function ChatDetailsScreenContent({
 }
 
 function GroupLeaveActions({ group }: { group: db.Group }) {
-  const { navigateOnLeave } = useChatSettingsNavigation();
+  const { onLeaveGroup } = useChatSettingsNavigation();
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
   const canLeave = !group.currentUserIsHost;
   const canDelete = group.currentUserIsHost;
@@ -241,8 +241,8 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
 
   const handleDeleteGroup = useCallback(() => {
     deleteGroup();
-    navigateOnLeave();
-  }, [deleteGroup, navigateOnLeave]);
+    onLeaveGroup();
+  }, [deleteGroup, onLeaveGroup]);
 
   return (
     <>
@@ -453,14 +453,20 @@ function ChatMembersList({
               <View
                 width="$3xl"
                 height="$3xl"
-                backgroundColor={'$secondaryBackground'}
+                backgroundColor={'$blueSoft'}
                 borderRadius="$xs"
                 alignItems="center"
                 justifyContent="center"
               >
-                <Icon type="Add" customSize={[20, 20]} />
+                <Icon
+                  type="Add"
+                  color="$positiveActionText"
+                  customSize={[20, 20]}
+                />
               </View>
-              <TlonText.Text size="$label/l">Add members</TlonText.Text>
+              <TlonText.Text size="$label/l" color="$positiveActionText">
+                Invite People
+              </TlonText.Text>
             </XStack>
           </Pressable>
         ) : null}
@@ -521,7 +527,7 @@ function GroupQuickActions({ group }: { group: db.Group }) {
           action: togglePinned,
         },
         {
-          title: didCopyLink ? 'Copied' : 'Copy link',
+          title: didCopyLink ? 'Copied' : 'Reference',
           action: didCopyLink ? undefined : copyLink,
         }
       ),

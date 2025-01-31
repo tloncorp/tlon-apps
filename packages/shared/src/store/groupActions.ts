@@ -4,6 +4,7 @@ import * as api from '../api';
 import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import { getRandomId } from '../logic';
 import { createSectionId } from '../urbit';
 import { createChannel } from './channelActions';
@@ -143,6 +144,13 @@ export async function inviteGroupMembers({
     chatId: groupId,
     type: 'group',
     contactIds,
+  });
+
+  const groupType =
+    existingGroup.channels?.length > 1 ? 'multi-channel group' : 'groupchat';
+  logger.trackEvent(AnalyticsEvent.OnNetworkInvite, {
+    groupType,
+    numInvitesSent: contactIds.length,
   });
 
   try {

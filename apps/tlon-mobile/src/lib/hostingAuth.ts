@@ -1,3 +1,4 @@
+import NetInfo from '@react-native-community/netinfo';
 import CookieManager from '@react-native-cookies/cookies';
 import { createDevLogger } from '@tloncorp/shared';
 import { getHostingHeartBeat } from '@tloncorp/shared/api';
@@ -24,20 +25,23 @@ export async function refreshHostingAuth() {
   }
 
   if (wasMoreThanDayAgo(lastCheck)) {
-    logger.log('more than a day since last check, refreshing');
-    try {
-      const result = await getHostingHeartBeat();
-      if (result === 'expired') {
-        logger.crumb('hosting auth has newly expired');
-        logger.trackEvent('Hosting Auth Expired');
-        db.hostingAuthExpired.setValue(true);
-      } else {
-        logger.trackEvent('Hosting Auth Still Valid');
+    const isOnline = await deviceIsOnline();
+    if (isOnline) {
+      logger.log('online and more than a day since last check, refreshing');
+      try {
+        const result = await getHostingHeartBeat();
+        if (result === 'expired') {
+          logger.crumb('hosting auth has newly expired');
+          logger.trackEvent('Hosting Auth Expired');
+          db.hostingAuthExpired.setValue(true);
+        } else {
+          logger.trackEvent('Hosting Auth Still Valid');
+        }
+      } catch (e) {
+        logger.error('error checking hosting auth:', e);
+      } finally {
+        db.hostingLastAuthCheck.setValue(Date.now());
       }
-    } catch (e) {
-      logger.error('error checking hosting auth:', e);
-    } finally {
-      db.hostingLastAuthCheck.setValue(Date.now());
     }
   }
 }
@@ -56,4 +60,18 @@ export async function clearHostingNativeCookie() {
   } catch (e) {
     console.error('error clearing hosting native cookie:', e);
   }
+}
+
+async function deviceIsOnline(): Promise<boolean> {
+  let isOnline = false;
+  try {
+    const netInfo = await NetInfo.fetch();
+    isOnline = (netInfo.isConnected && netInfo.isInternetReachable) ?? false;
+  } catch (e) {
+    logger.trackEvent('Failed to check Network Status', {
+      errorMessage: e.message,
+    });
+  }
+
+  return isOnline;
 }

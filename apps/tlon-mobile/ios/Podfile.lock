@@ -28,15 +28,15 @@ PODS:
     - ExpoModulesCore
   - Expo (50.0.6):
     - ExpoModulesCore
-  - expo-dev-client (3.3.9):
+  - expo-dev-client (3.3.12):
     - EXManifests
     - expo-dev-launcher
     - expo-dev-menu
     - expo-dev-menu-interface
     - EXUpdatesInterface
-  - expo-dev-launcher (3.6.7):
+  - expo-dev-launcher (3.6.10):
     - EXManifests
-    - expo-dev-launcher/Main (= 3.6.7)
+    - expo-dev-launcher/Main (= 3.6.10)
     - expo-dev-menu
     - expo-dev-menu-interface
     - ExpoModulesCore
@@ -45,7 +45,7 @@ PODS:
     - RCT-Folly (= 2022.05.16.00)
     - React-Core
     - React-RCTAppDelegate
-  - expo-dev-launcher/Main (3.6.7):
+  - expo-dev-launcher/Main (3.6.10):
     - EXManifests
     - expo-dev-launcher/Unsafe
     - expo-dev-menu
@@ -56,7 +56,7 @@ PODS:
     - RCT-Folly (= 2022.05.16.00)
     - React-Core
     - React-RCTAppDelegate
-  - expo-dev-launcher/Unsafe (3.6.7):
+  - expo-dev-launcher/Unsafe (3.6.10):
     - EXManifests
     - expo-dev-menu
     - expo-dev-menu-interface
@@ -66,14 +66,14 @@ PODS:
     - RCT-Folly (= 2022.05.16.00)
     - React-Core
     - React-RCTAppDelegate
-  - expo-dev-menu (4.5.6):
-    - expo-dev-menu/Main (= 4.5.6)
-    - expo-dev-menu/ReactNativeCompatibles (= 4.5.6)
+  - expo-dev-menu (4.5.8):
+    - expo-dev-menu/Main (= 4.5.8)
+    - expo-dev-menu/ReactNativeCompatibles (= 4.5.8)
     - glog
     - RCT-Folly (= 2022.05.16.00)
     - React-Core
   - expo-dev-menu-interface (1.7.2)
-  - expo-dev-menu/Main (4.5.6):
+  - expo-dev-menu/Main (4.5.8):
     - EXManifests
     - expo-dev-menu-interface
     - expo-dev-menu/Vendored
@@ -81,16 +81,16 @@ PODS:
     - glog
     - RCT-Folly (= 2022.05.16.00)
     - React-Core
-  - expo-dev-menu/ReactNativeCompatibles (4.5.6):
+  - expo-dev-menu/ReactNativeCompatibles (4.5.8):
     - glog
     - RCT-Folly (= 2022.05.16.00)
     - React-Core
-  - expo-dev-menu/SafeAreaView (4.5.6):
+  - expo-dev-menu/SafeAreaView (4.5.8):
     - ExpoModulesCore
     - glog
     - RCT-Folly (= 2022.05.16.00)
     - React-Core
-  - expo-dev-menu/Vendored (4.5.6):
+  - expo-dev-menu/Vendored (4.5.8):
     - expo-dev-menu/SafeAreaView
     - glog
     - RCT-Folly (= 2022.05.16.00)
@@ -1761,7 +1761,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   boost: d3f49c53809116a5d38da093a8aa78bf551aed09
   BranchSDK: cb046c2714b03e573484ce9e349e2ddbad7016e8
-  DoubleConversion: fea03f2699887d960129cc54bba7e52542b6f953
+  DoubleConversion: 76ab83afb40bddeeee456813d9c04f67f78771b5
   EASClient: a42ee8bf36c93b3128352faf2ae49405ab4f80bd
   EXApplication: 137189a3f149b4e8e546884629392c3efc94cbd3
   EXAV: e4f6137431ddc4cb025895046bfefa9612025c35
@@ -1773,9 +1773,9 @@ SPEC CHECKSUMS:
   EXMediaLibrary: 70cf1fb7028fda2d682090c9fe57568674e4abab
   EXNotifications: e11f0e9a5b657c064a481a5d522f3bc5a07bf7cd
   Expo: fb745b3074989670b6641f9f20463e8ee56a69ca
-  expo-dev-client: dbc8e8a81d17a9d92e083a2856d056ba9a58984d
-  expo-dev-launcher: 346abfe8bd102bdcf6605dee01380a97635b63dc
-  expo-dev-menu: 166fc9c7b82641cdead1dc26d958d20a127ee97b
+  expo-dev-client: f22fdebdb8760bc22f660b7c0cb1dd58d80005c0
+  expo-dev-launcher: 11c184a2dca65f9bd6dc575a73a554b7be589d1d
+  expo-dev-menu: 68ea53d923996e27b20ce02b51cc820fc2327a83
   expo-dev-menu-interface: 7ba029c9d1a82ac22b9b584c00514860b060553e
   ExpoBattery: 60bf880aea8f769fe39f709a920442542c1bfd62
   ExpoBlur: e832d874bd94afc0645daddbd3162ec1ce172080
@@ -1811,7 +1811,7 @@ SPEC CHECKSUMS:
   FirebaseSessions: dbd14adac65ce996228652c1fc3a3f576bdf3ecc
   FirebaseSharedSwift: 20530f495084b8d840f78a100d8c5ee613375f6e
   fmt: ff9d55029c625d3757ed641535fd4a75fedc7ce9
-  glog: c5d68082e772fa1c511173d6b30a9de2c05a69a2
+  glog: fdfdfe5479092de0c4bdbebedd9056951f092c4f
   GoogleDataTransport: 6c09b596d841063d76d4288cc2d2f42cc36e1e2a
   GoogleUtilities: ea963c370a38a8069cc5f7ba4ca849a60b6d7d15
   hermes-engine: ed62e0dcd013bf4a3b487f164feec1c4e705b5b5
