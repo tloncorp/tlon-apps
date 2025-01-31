@@ -42,4 +42,6 @@ export enum AnalyticsEvent {
   NodeConnectionError = 'Node Connection Error',
   SyncDiscontinuity = 'Sync Discontinuity',
   OnNetworkInvite = 'Sent On Network Group Invite',
+  UserLoggedIn = 'User Logged In',
+  NodeAuthSaved = 'Node Auth Saved',
 }

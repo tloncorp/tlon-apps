@@ -79,6 +79,9 @@ export interface DeepLinkMetadata {
   invitedGroupIconImageUrl?: string;
   invitedGroupiconImageColor?: string;
   inviteType?: 'user' | 'group';
+  group?: string; // legacy identifier for invitedGroupId
+  inviter?: string; // legacy identifier for inviterUserId
+  image?: string; // legacy identifier for invitedGroupIconImageUrl
 }
 
 export interface AppInvite extends DeepLinkMetadata {
@@ -103,18 +106,39 @@ export function extractLureMetadata(branchParams: any) {
     return {};
   }
 
-  return {
-    inviterUserId: branchParams.inviterUserId,
+  const extracted = {
+    inviterUserId: branchParams.inviterUserId || branchParams.inviter,
     inviterNickname: branchParams.inviterNickname,
     inviterAvatarImage: branchParams.inviterAvatarImage,
     inviterColor: branchParams.inviterColor,
-    invitedGroupId: branchParams.invitedGroupId,
-    invitedGroupTitle: branchParams.invitedGroupTitle,
+    invitedGroupId: branchParams.invitedGroupId ?? branchParams.group, // only fallback to key if invitedGroupId missing, not empty
+    invitedGroupTitle: branchParams.invitedGroupTitle || branchParams.title,
     invitedGroupDescription: branchParams.invitedGroupDescription,
-    invitedGroupIconImageUrl: branchParams.invitedGroupIconImageUrl,
+    invitedGroupIconImageUrl:
+      branchParams.invitedGroupIconImageUrl || branchParams.image,
     invitedGroupiconImageColor: branchParams.invitedGroupiconImageColor,
     inviteType: branchParams.inviteType,
   };
+
+  if (
+    !extracted.inviterUserId &&
+    !extracted.invitedGroupId &&
+    branchParams.lure &&
+    branchParams.lure.includes('/')
+  ) {
+    // fall back to v1 style lures where the id is a flag
+    const [ship, _] = branchParams.lure.split('/');
+    if (isValidPatp(ship)) {
+      extracted.inviterUserId = ship;
+      extracted.invitedGroupId = branchParams.lure;
+    }
+  }
+
+  if (!extracted.inviterUserId && !extracted.invitedGroupId) {
+    throw new Error('Failed to extract valid lure metadata');
+  }
+
+  return extracted;
 }
 
 export function isLureMeta(input: unknown): input is DeepLinkMetadata {
