@@ -179,6 +179,8 @@
   =/  m  (mare ,~)
   ;<  ~  bind:m  (set-scry-gate faux-scry)
   ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (do-poke %noun !>([%set-phone-api 'xx' 'xx' ~]))
+  ;<  *  bind:m  (do-poke %noun !>([%set-twitter-api 'xx']))
   (pure:m ~)
 ::
 ::  action tests
