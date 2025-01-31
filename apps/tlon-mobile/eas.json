@@ -68,6 +68,7 @@
         "APP_VARIANT": "preview"
       },
       "android": {
+        "resourceClass": "large",
         "gradleCommand": ":app:assemblePreviewRelease",
         "buildType": "apk"
       },
