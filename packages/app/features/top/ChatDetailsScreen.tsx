@@ -215,7 +215,7 @@ function ChatDetailsScreenContent({
 }
 
 function GroupLeaveActions({ group }: { group: db.Group }) {
-  const { navigateOnLeave } = useChatSettingsNavigation();
+  const { onLeaveGroup } = useChatSettingsNavigation();
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
   const canLeave = !group.currentUserIsHost;
   const canDelete = group.currentUserIsHost;
@@ -241,8 +241,8 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
 
   const handleDeleteGroup = useCallback(() => {
     deleteGroup();
-    navigateOnLeave();
-  }, [deleteGroup, navigateOnLeave]);
+    onLeaveGroup();
+  }, [deleteGroup, onLeaveGroup]);
 
   return (
     <>
