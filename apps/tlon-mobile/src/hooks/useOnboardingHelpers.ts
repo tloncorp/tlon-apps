@@ -87,6 +87,12 @@ export function useOnboardingHelpers() {
       // clear native managed cookie since we set manually
       await clearHostingNativeCookie();
 
+      logger.trackEvent(AnalyticsEvent.UserLoggedIn, {
+        email: params.email,
+        phoneNumber: params.phoneNumber,
+        client: 'tlon-mobile',
+      });
+
       if (maybeAccountIssue) {
         switch (maybeAccountIssue) {
           // If the account has no assigned ship, treat it as a signup

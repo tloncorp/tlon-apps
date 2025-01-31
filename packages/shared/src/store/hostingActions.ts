@@ -5,6 +5,7 @@ import * as domain from '../domain';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { withRetry } from '../logic';
+import { syncGroupPreviews } from './sync';
 
 const logger = createDevLogger('hostingActions', true);
 
@@ -260,10 +261,63 @@ export async function authenticateWithReadyNode(): Promise<db.ShipInfo | null> {
     nodeId,
     nodeUrl,
   });
+
+  await db.nodeAccessCode.setValue(accessCode);
+
   return {
     ship: nodeId,
     shipUrl: nodeUrl,
     authCookie,
     authType: 'hosted',
   };
+}
+
+export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
+  const currentUserId = api.getCurrentUserId();
+  if (invite.inviteType && invite.inviteType === 'user') {
+    return;
+  }
+
+  const groupId = invite.invitedGroupId || invite.group;
+  if (!groupId) {
+    logger.trackEvent(AnalyticsEvent.InviteError, {
+      context: 'Invite missing group identifier',
+      inviteId: invite.id,
+    });
+    return;
+  }
+
+  const group = await db.getGroup({ id: groupId });
+
+  if (!group) {
+    syncGroupPreviews([groupId]);
+  }
+
+  const isJoined = group && group.currentUserIsMember;
+  const haveInvite = group && group.haveInvite;
+  const shouldRedeem = !isJoined && !haveInvite;
+
+  if (shouldRedeem) {
+    try {
+      await api.inviteShipWithLure({ ship: currentUserId, lure: invite.id });
+      logger.trackEvent(AnalyticsEvent.InviteDebug, {
+        context: 'Success, bit invite deeplink lure while logged in',
+        lure: invite.id,
+      });
+    } catch (err) {
+      logger.trackEvent(AnalyticsEvent.InviteError, {
+        context: 'Failed to bite lure on invite deeplink while logged in',
+        lure: invite.id,
+        errorMessage: err.message,
+      });
+    }
+  } else {
+    logger.trackEvent(AnalyticsEvent.InviteDebug, {
+      context: 'Invite redemption not needed, skipping',
+      inviteId: invite.id,
+      isJoined,
+      haveInvite,
+      shouldRedeem,
+    });
+  }
 }

@@ -1,8 +1,14 @@
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { HostedNodeStatus } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  HostedNodeStatus,
+  createDevLogger,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useStore } from '@tloncorp/ui';
 import { useCallback } from 'react';
+
+const logger = createDevLogger('stopped node checker', true);
 
 export function useCheckNodeStopped() {
   const store = useStore();
@@ -19,7 +25,8 @@ export function useCheckNodeStopped() {
     }
 
     try {
-      const nodeStatus = await store.checkHostingNodeStatus();
+      const supressLog = true;
+      const nodeStatus = await store.checkHostingNodeStatus(supressLog);
       if (
         [
           HostedNodeStatus.Paused,
@@ -27,6 +34,8 @@ export function useCheckNodeStopped() {
           HostedNodeStatus.UnderMaintenance,
         ].includes(nodeStatus)
       ) {
+        logger.trackEvent(AnalyticsEvent.AuthenticatedNodeStopped);
+
         // track that the node was stopped while logged in
         await db.nodeStoppedWhileLoggedIn.setValue(true);
 
@@ -34,6 +43,9 @@ export function useCheckNodeStopped() {
         clearShip();
       }
     } catch (e) {
+      logger.trackError('Failed to confirm logged in node is running', {
+        errorMessage: e.message,
+      });
       // fall through
     }
   }, [clearShip, store]);

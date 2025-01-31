@@ -47,7 +47,6 @@ export * from './components/GalleryPost';
 export * from './components/GroupChannelsScreenView';
 export * from './components/GroupMembersScreenView';
 export * from './components/GroupPreviewSheet';
-export * from './components/GroupPrivacySelector';
 export * from './components/Icon';
 export * from './components/MetaEditorScreenView';
 export * from './components/IconButton';
@@ -93,6 +92,7 @@ export * from './types';
 export * from './utils';
 export * as TlonText from './components/TextV2';
 export { default as useIsWindowNarrow } from './hooks/useIsWindowNarrow';
+export { useCopy } from './hooks/useCopy';
 
 export {
   Circle,

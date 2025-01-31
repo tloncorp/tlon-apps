@@ -224,18 +224,6 @@ const ChannelFixtureWithImage = () => {
         {...baseProps}
         channel={switcher.activeChannel}
         goToChannels={switcher.open}
-        initialAttachments={[
-          {
-            type: 'reference',
-            path: '/1/chan/~nibset-napwyn/intros/msg/~solfer-magfed-3mct56',
-            reference: {
-              type: 'reference',
-              referenceType: 'channel',
-              channelId: posts[0].channelId,
-              postId: posts[0].id,
-            },
-          },
-        ]}
       />
       <SwitcherFixture switcher={switcher} />
     </ChannelFixtureWrapper>

@@ -73,24 +73,26 @@ export function ActivityScreen(props: Props) {
   );
   return (
     <View backgroundColor={theme.background?.val} flex={1}>
-      <ActivityScreenView
-        bucketFetchers={bucketedActivity}
-        isFocused={isFocused}
-        goToChannel={handleGoToChannel}
-        goToThread={handleGoToThread}
-        goToGroup={handleGoToGroup}
-        goToUserProfile={handleGoToUserProfile}
-        refresh={handleRefreshActivity}
-        onGroupAction={performGroupAction}
-      />
-      <NavBarView
-        navigateToContacts={() => props.navigation.navigate('Contacts')}
-        navigateToHome={() => props.navigation.navigate('ChatList')}
-        navigateToNotifications={() => props.navigation.navigate('Activity')}
-        currentRoute="Activity"
-        currentUserId={currentUserId}
-        showContactsTab={contactsTabEnabled}
-      />
+      <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
+        <ActivityScreenView
+          bucketFetchers={bucketedActivity}
+          isFocused={isFocused}
+          goToChannel={handleGoToChannel}
+          goToThread={handleGoToThread}
+          goToGroup={handleGoToGroup}
+          goToUserProfile={handleGoToUserProfile}
+          refresh={handleRefreshActivity}
+          onGroupAction={performGroupAction}
+        />
+        <NavBarView
+          navigateToContacts={() => props.navigation.navigate('Contacts')}
+          navigateToHome={() => props.navigation.navigate('ChatList')}
+          navigateToNotifications={() => props.navigation.navigate('Activity')}
+          currentRoute="Activity"
+          currentUserId={currentUserId}
+          showContactsTab={contactsTabEnabled}
+        />
+      </View>
     </View>
   );
 }

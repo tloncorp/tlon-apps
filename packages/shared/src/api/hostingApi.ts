@@ -19,6 +19,7 @@ interface HostingResponseErrorDetails {
   status: number | null;
   method: string;
   path: string;
+  responseText?: string;
 }
 export class HostingError extends Error {
   details: HostingResponseErrorDetails;
@@ -106,15 +107,30 @@ const hostingFetch = async <T extends object>(
     });
     throw hostingErr;
   }
-  const responseText = await response.text();
 
+  const responseText = await response.text();
   if (__DEV__) {
     console.debug('Response:', response.status, responseText);
   }
 
-  const result = !responseText
-    ? { message: 'Empty response' }
-    : (JSON.parse(responseText) as { message: string } | T);
+  let result: { message: string } | T = { message: 'Empty response' };
+  try {
+    result = JSON.parse(responseText) as { message: string } | T;
+  } catch (e) {
+    const hostingErr = new HostingError('Failed to parse response', {
+      method: init?.method ?? 'GET',
+      path,
+      status: response.status,
+      responseText,
+    });
+    logger.trackEvent(AnalyticsEvent.UnexpectedHostingError, {
+      details: hostingErr.details,
+      errorMessage: hostingErr.message,
+      errorStack: hostingErr.stack,
+    });
+    throw hostingErr;
+  }
+
   if (!response.ok) {
     const err = new HostingError(
       'message' in result ? result.message : 'An unknown error has occurred.',
@@ -148,7 +164,7 @@ export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
   const userId = await db.hostingUserId.getValue();
   const response = await rawHostingFetch(`/v1/users/${userId}`);
 
-  // 401 indicates that the authentication token is expired
+  // 401 indicates that the authentication token is expired.
   if (response.status === 401) {
     return 'expired';
   }
@@ -225,10 +241,6 @@ export const signUpHostingUser = async (params: {
       method: 'POST',
       path: '/v1/sign-up',
     });
-    logger.trackEvent(AnalyticsEvent.UnexpectedHostingError, {
-      details: hostingErr.details,
-      context: hostingErr.message,
-    });
     throw hostingErr;
   }
 
@@ -263,8 +275,9 @@ export const logInHostingUser = async (params: {
 
   const result = (await response.json()) as HostingError | User;
   if (!response.ok) {
-    throw new Error(
-      'message' in result ? result.message : 'An unknown error has occurred.'
+    throw new HostingError(
+      'message' in result ? result.message : 'An unknown error has occurred.',
+      { status: response.status, method: 'POST', path: '/v1/login' }
     );
   }
 

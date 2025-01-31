@@ -111,34 +111,33 @@ const CreateChatFormContent = ({
   onScrollChange,
 }: CreateChatFormContentProps) => {
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
+  const { bottom } = useSafeAreaInsets();
 
   return (
-    <YStack flex={1} gap="$l">
-      <YStack>
-        <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
-        <ContactBook
-          searchable
-          multiSelect={chatType === 'group'}
-          searchPlaceholder="Filter by nickname or id"
-          onSelect={onSelectDmContact}
-          onSelectedChange={onSelectedChange}
-          onScrollChange={(scrolling) => {
-            onScrollChange?.(scrolling);
-          }}
-          height={400}
-        />
-        {chatType === 'group' && (
-          <Button marginTop="$l" hero onPress={onCreateGroup}>
-            {!isCreating ? (
-              <Button.Text>Create group</Button.Text>
-            ) : (
-              <View width={30} paddingHorizontal="$2xl">
-                <LoadingSpinner color="$background" />
-              </View>
-            )}
-          </Button>
-        )}
-      </YStack>
+    <YStack flex={1} gap="$l" paddingBottom={bottom}>
+      <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
+      <ContactBook
+        searchable
+        multiSelect={chatType === 'group'}
+        searchPlaceholder="Filter by nickname or id"
+        onSelect={onSelectDmContact}
+        onSelectedChange={onSelectedChange}
+        onScrollChange={(scrolling) => {
+          onScrollChange?.(scrolling);
+        }}
+        height={400}
+      />
+      {chatType === 'group' && (
+        <Button marginTop="$l" hero onPress={onCreateGroup}>
+          {!isCreating ? (
+            <Button.Text>Create group</Button.Text>
+          ) : (
+            <View width={30} paddingHorizontal="$2xl">
+              <LoadingSpinner color="$background" />
+            </View>
+          )}
+        </Button>
+      )}
     </YStack>
   );
 };
