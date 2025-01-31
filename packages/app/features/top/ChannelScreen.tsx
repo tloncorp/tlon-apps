@@ -327,6 +327,15 @@ export default function ChannelScreen(props: Props) {
     }
   }, [group, props.navigation]);
 
+  const handleChatDetailsPressed = useCallback(() => {
+    if (group) {
+      props.navigation.navigate('ChatDetails', {
+        chatType: 'group',
+        chatId: group.id,
+      });
+    }
+  }, [group, props.navigation]);
+
   const handleChannelSelected = useCallback((channel: db.Channel) => {
     setCurrentChannelId(channel.id);
     setChannelNavOpen(false);
@@ -407,6 +416,7 @@ export default function ChannelScreen(props: Props) {
           goToPost={navigateToPost}
           goToImageViewer={navigateToImage}
           goToChannels={handleChannelNavButtonPressed}
+          goToChatDetails={handleChatDetailsPressed}
           goToSearch={navigateToSearch}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}

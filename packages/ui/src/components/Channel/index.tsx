@@ -70,6 +70,7 @@ interface ChannelProps {
   group: db.Group | null;
   goBack: () => void;
   goToChannels: () => void;
+  goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
@@ -119,6 +120,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       headerMode,
       goBack,
       goToChannels,
+      goToChatDetails,
       goToSearch,
       goToImageViewer,
       goToPost,
@@ -319,6 +321,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           showSearchButton={isChatChannel}
                           goToSearch={goToSearch}
                           goToChannels={goToChannels}
+                          goToChatDetails={goToChatDetails}
                           showSpinner={isLoadingPosts}
                           showMenuButton={true}
                         />

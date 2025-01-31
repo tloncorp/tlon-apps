@@ -83,7 +83,7 @@ export function ChannelHeader({
   goBack,
   goToSearch,
   goToEdit,
-  goToChannels,
+  goToChatDetails,
   showSpinner,
   showSearchButton = true,
   showMenuButton = false,
@@ -96,7 +96,8 @@ export function ChannelHeader({
   goBack?: () => void;
   goToSearch?: () => void;
   goToEdit?: () => void;
-  goToChannels?: () => void;
+  goToChannels?: () => void; // remove once we're confident we don't wanna open that as a pattern
+  goToChatDetails?: () => void;
   showSpinner?: boolean;
   showSearchButton?: boolean;
   showMenuButton?: boolean;
@@ -133,7 +134,7 @@ export function ChannelHeader({
     <>
       <ScreenHeader
         title={
-          <Pressable onPress={goToChannels}>
+          <Pressable onPress={goToChatDetails}>
             <ScreenHeader.Title>{title}</ScreenHeader.Title>
           </Pressable>
         }
