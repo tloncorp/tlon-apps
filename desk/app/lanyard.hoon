@@ -337,6 +337,8 @@
   ^-  (quip card _this)
   ~|  wire=wire
   ?+  wire  !!
+    [%logs ~]  [~ this]
+  ::
       [%verifier ?(~ [%endpoint ~])]
     =.  host.log  `src.bowl
     ?.  (~(has by ledgers) src.bowl)
