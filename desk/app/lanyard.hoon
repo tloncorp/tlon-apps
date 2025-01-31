@@ -429,8 +429,44 @@
         :_  this
         :-  =/  upd=update:l  upd(id key)
             [%give %fact ~[/ /records] %lanyard-update !>(upd)]
-        ?.  ?=(?(%gone %done) -.status.upd)  ~
-        (drop (inflate-contacts-profile [our now]:bowl records ledgers))
+        %-  zing
+        ^-  (list (list card))
+        :~  ::  update the contacts profile if needed
+            ::
+            ?.  ?=(?(%gone %done) -.status.upd)  ~
+            (drop (inflate-contacts-profile [our now]:bowl records ledgers))
+          ::
+            ::  if the update says we need to verify our domain,
+            ::  and we know this ship is serving on that domain,
+            ::  put the challenge in the cache, and prompt the
+            ::  service to check it.
+            ::NOTE  we don't care about clearing this cache entry even when
+            ::      registration completes. the part of the .well-known
+            ::      namespace we bind to is "ours", and gets recycled for
+            ::      the next relevant registration anyway.
+            ::
+            ?.  ?&  ?=(%website -.id.upd)
+                    ?=([%want %website %sign *] status.upd)
+                  ::
+                    =+  bas=(cat 3 'https://' (en-turf:html +.id.upd))
+                    =-  =(bas (end 3^(met 3 bas) (fall - '')))
+                    .^((unit @t) %ex /(scot %p our.bowl)//(scot %da now.bowl)/eauth/url)
+                ==
+              ~
+            :~  :+  %pass  /id/(scot %p -.key)/website/(scot %t (en-turf:html +.id.upd))
+                ::TODO  constant string into lib file
+                =;  entry=cache-entry:eyre
+                  [%arvo %e %set-response '/.well-known/urbit/tlon/verify' `entry]
+                =;  pay=payload:website
+                  [| %payload [200 ~] `(as-octs:mimes:html (jam pay))]
+                (^sign [our now]:bowl %website %0 [+.id nonce.status]:upd)
+              ::
+                =/  =cage
+                  :-  %verifier-user-command
+                  !>(`user-command`[%work id.upd %website %sign])
+                [%pass /verifier %agent [src.bowl %verifier] %poke cage]
+            ==
+        ==
       ::
           %endpoint
         ?:  =(base.upd (~(got by ledgers) src.bowl))  [~ this]
