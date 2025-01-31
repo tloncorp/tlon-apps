@@ -155,7 +155,7 @@
     (~(gut by volume-settings.state) [%base ~] *volume-map:a)
   =.  volume-settings.state
     %+  ~(put by volume-settings.state)  [%base ~]
-    (~(uni by base-volume) *volume-map:a)
+    (~(uni by *volume-map:a) base-volume)
   =.  allowed  %all
   (emit %pass /fix-init-unreads %agent [our.bowl dap.bowl] %poke noun+!>(%fix-init-unreads))
   +$  versioned-state

@@ -1,4 +1,4 @@
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import { AppInvite, Lure, extractLureMetadata } from '@tloncorp/shared/logic';
 import {
@@ -111,26 +111,36 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
 
         // Handle Branch link click
         if (params?.['+clicked_branch_link']) {
-          logger.log('detected Branch link click');
+          logger.trackEvent('Detected Branch Link Click', {
+            inviteId: params.lure,
+          });
 
           if (params.lure) {
             // Link had a lure field embedded
             logger.log('detected lure link:', params.lure);
-            const nextLure: Lure = {
-              lure: {
-                ...extractLureMetadata(params),
-                id: params.lure as string,
-                // if not already authenticated, we should run Lure's invite auto-join capability after signing in
-                shouldAutoJoin: !isAuthenticated,
-              },
-              priorityToken: params.token as string | undefined,
-            };
-            console.log(`setting deeplink lure`, nextLure);
-            setState({
-              ...nextLure,
-              deepLinkPath: undefined,
-            });
-            storage.invitation.setValue(nextLure);
+            try {
+              const nextLure: Lure = {
+                lure: {
+                  ...extractLureMetadata(params),
+                  id: params.lure as string,
+                  // if not already authenticated, we should run Lure's invite auto-join capability after signing in
+                  shouldAutoJoin: !isAuthenticated,
+                },
+                priorityToken: params.token as string | undefined,
+              };
+              console.log(`setting deeplink lure`, nextLure);
+              setState({
+                ...nextLure,
+                deepLinkPath: undefined,
+              });
+              storage.invitation.setValue(nextLure);
+            } catch (e) {
+              logger.trackError(AnalyticsEvent.InviteError, {
+                context: 'Failed to extract lure metadata',
+                inviteId: params.lure,
+                errorMessage: e?.message,
+              });
+            }
           } else if (params.wer) {
             // Link had a wer (deep link) field embedded
             const deepLinkPath = getPathFromWer(params.wer as string);
@@ -161,7 +171,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       console.debug('[branch] Unsubscribing from Branch listener');
       unsubscribe();
     };
-  }, [isAuthenticated]);
+  }, [goToChannel, isAuthenticated]);
 
   const setLure = useCallback(
     (invite: AppInvite) => {

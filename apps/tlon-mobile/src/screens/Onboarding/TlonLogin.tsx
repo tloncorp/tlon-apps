@@ -98,10 +98,19 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
               platform: Platform.OS,
             });
           } catch (err) {
-            if (err instanceof HostingError && err.details.status === 429) {
-              // Rate limited, must have received one recently so proceed
+            if (err instanceof HostingError) {
+              if (err.details.status === 429) {
+                // Rate limited, must have received one recently so proceed
+              }
+              if (err.details.status === 404) {
+                setRemoteError('This phone number is ineligible for login.');
+                return;
+              }
             }
+            setRemoteError('Something went wrong. Please try again.');
+            return;
           }
+
           logger.trackEvent('Initiated login', { type: 'phone', phoneNumber });
           navigation.navigate('CheckOTP', {
             mode: 'login',
@@ -118,9 +127,17 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
               platform: Platform.OS,
             });
           } catch (err) {
-            if (err instanceof HostingError && err.details.status === 429) {
-              // Rate limited, must have received one recently so proceed
+            if (err instanceof HostingError) {
+              if (err.details.status === 429) {
+                // Rate limited, must have received one recently so proceed
+              }
+              if (err.details.status === 404) {
+                setRemoteError('This email number is ineligible for login.');
+                return;
+              }
             }
+            setRemoteError('Something went wrong. Please try again.');
+            return;
           }
           logger.trackEvent('Initiated login', { type: 'email', email });
           navigation.navigate('CheckOTP', {

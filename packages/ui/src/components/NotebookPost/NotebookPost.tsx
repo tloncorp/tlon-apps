@@ -111,6 +111,9 @@ export function NotebookPost({
       onLongPress={handleLongPress}
       pressStyle={{ backgroundColor: '$secondaryBackground' }}
       borderRadius="$l"
+      maxWidth={600}
+      width={'100%'}
+      marginHorizontal="auto"
     >
       <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
         {post.hidden ? (
@@ -242,6 +245,9 @@ export function NotebookPostDetailView({ post }: { post: db.Post }) {
       embedded
       paddingHorizontal={0}
       paddingTop={post.image ? '$xl' : '$2xl'}
+      width="100%"
+      marginHorizontal="auto"
+      maxWidth={600}
     >
       <NotebookPostHeader
         post={post}

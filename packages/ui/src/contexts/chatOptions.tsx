@@ -32,6 +32,7 @@ export type ChatOptionsContextValue = {
   onPressChannelMembers: () => void;
   onPressChannelMeta: () => void;
   onPressChannelTemplate: () => void;
+  onPressChatDetails: (chat: { type: 'group' | 'channel'; id: string }) => void;
   togglePinned: () => void;
   leaveGroup: () => Promise<void>;
   leaveChannel: () => void;
@@ -64,9 +65,11 @@ type ChatOptionsProviderProps = {
   onPressChannelMeta: (channelId: string) => void;
   onPressChannelTemplate: (channelId: string) => void;
   onPressRoles: (groupId: string) => void;
+  onPressChatDetails: (chat: { type: 'group' | 'channel'; id: string }) => void;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
   onLeaveGroup?: () => void;
   onPressConfigureChannel?: () => void;
+  onPressDeleteGroup?: () => void;
   initialChat?: {
     id: string;
     type: 'group' | 'channel';
@@ -87,6 +90,7 @@ export const ChatOptionsProvider = ({
   onPressChannelMeta,
   onPressChannelTemplate,
   onPressRoles,
+  onPressChatDetails,
   onLeaveGroup: navigateOnLeave,
   onPressConfigureChannel,
 }: ChatOptionsProviderProps) => {
@@ -110,10 +114,6 @@ export const ChatOptionsProvider = ({
 
   const closeSheet = useCallback(() => {
     setSheetOpen(false);
-    // Delay clearing chat state to allow handlers to complete
-    setTimeout(() => {
-      setChat(null);
-    }, 100);
     return true;
   }, []);
 
@@ -296,7 +296,15 @@ export const ChatOptionsProvider = ({
       onPressChannelTemplate(channelId);
       closeSheet();
     }
-  }, [channelId, onPressChannelTemplate, closeSheet]);
+  }, [channelId, closeSheet, onPressChannelTemplate]);
+
+  const handlePressChatDetails = useCallback(
+    (params: { type: 'group' | 'channel'; id: string }) => {
+      onPressChatDetails(params);
+      closeSheet();
+    },
+    [closeSheet, onPressChatDetails]
+  );
 
   const contextValue: ChatOptionsContextValue = useMemo(
     () => ({
@@ -312,6 +320,7 @@ export const ChatOptionsProvider = ({
       onPressInvite: handlePressInvite,
       onPressGroupPrivacy: handlePressGroupPrivacy,
       onPressRoles: handlePressGroupRoles,
+      onPressChatDetails: handlePressChatDetails,
       leaveGroup,
       leaveChannel,
       togglePinned,
@@ -329,12 +338,13 @@ export const ChatOptionsProvider = ({
       markGroupRead,
       markChannelRead,
       handlePressGroupMeta,
+      handlePressChannelTemplate,
       handlePressGroupMembers,
       handlePressManageChannels,
       handlePressInvite,
       handlePressGroupPrivacy,
       handlePressGroupRoles,
-      handlePressChannelTemplate,
+      handlePressChatDetails,
       leaveGroup,
       leaveChannel,
       togglePinned,
