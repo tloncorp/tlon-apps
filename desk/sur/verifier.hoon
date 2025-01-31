@@ -3,8 +3,9 @@
 =/  id-type
   $%  [%dummy @t]
       [%urbit @p]
-      [%phone @t]    ::  normalized phone nr, a la +31612345678
-      [%twitter @t]  ::  lowercased handle
+      [%phone @t]      ::  normalized phone nr, a la +31612345678
+      [%twitter @t]    ::  lowercased handle
+      [%website turf]  ::  domain, tld first
   ==
 |*  identifier=_id-type  ::NOTE  parameterized for dbug purposes
 ^?
@@ -25,7 +26,7 @@
       domain=(unit @t)  ::  as 'https://example.org:123'
   ==
 ::
-+$  id-kind  ?(%dummy %urbit %phone %twitter)
++$  id-kind  ?(%dummy %urbit %phone %twitter %website)
 ::
 +$  record
   $:  for=@p  ::TODO  or tmp id
@@ -79,11 +80,18 @@
   +$  sign-data  [%twitter %0 handle=@t nonce=@ux]
   --
 ::
+++  website
+  |%
+  +$  payload    (signed sign-data)
+  +$  sign-data  [%website %0 =turf nonce=@ux]
+  --
+::
 +$  allowance         ::  remaining "request token" balance
   $:  since=@da       ::  time of last request
       phone=_5        ::  remaining text msgs
       photp=_5        ::  remaining otp submission attempts
       tweet=_3        ::  remaining tweet verification attempts
+      fetch=_5        ::  remaining website challenge fetches
       queries=_100    ::  remaining queries
       batch=_1.000    ::  remaining new %whose-bulk entries
       last-batch=@ux  ::  previous batch set salted hash
@@ -93,6 +101,7 @@
   ++  phone    [n=1 p=~d1]   ::NOTE  hosting allows 1/min, up to 5/hour
   ++  photp    [n=1 p=~m1]   ::NOTE  code rotates every 10 minutes
   ++  tweet    [n=1 p=~m15]  ::NOTE  twitter api @ 15/15m in total
+  ++  fetch    [n=1 p=~m1]
   ++  queries  [n=1 p=~m5]
   ++  batch    [n=10 p=~d1]
   ::
@@ -104,11 +113,13 @@
   $%  [%urbit pin=@]              ::  awaiting confirmation from other side
       [%phone %otp]               ::  awaiting otp code from user
       [%twitter %post nonce=@ux]  ::  post tweet containing $payload:twitter
+      [%website %sign nonce=@ux]  ::  serve a /.well-known/urbit/tlon/verify
   ==
 +$  user-work
   $%  [%urbit pin=@]
       [%phone otp=@t]
       [%twitter %post id=@t]
+      [%website %sign]
   ==
 ::
 ::

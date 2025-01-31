@@ -102,6 +102,7 @@
       ?-  -.id
         %dummy    nop
         %twitter  nop  ::TODO
+        %website  nop  ::TODO
         %urbit    [(~(put by urbits) +.id h full.status) phone]
       ::
           %phone
@@ -504,6 +505,7 @@
           %urbit    [%s (scot %p +.id)]
           %phone    [%s +.id]
           %twitter  [%s +.id]
+          %website  [%s (en-turf:html +.id)]
         ==
       ::
         :-  'record'
@@ -523,37 +525,53 @@
       [%urbit @ ~]    [-.dip (slav %p +<.dip)]
       [%phone @ ~]    [-.dip (slav %t +<.dip)]
       [%twitter @ ~]  [-.dip (slav %t +<.dip)]
+      [%website @ ~]  [-.dip (need (de-turf:html (slav %t +<.dip)))]
     ==
   ::
     [%queries ~]    ``noun+!>(queries)
     [%queries @ ~]  ``noun+!>((~(got by queries) (slav %uv i.t.path)))
   ::
-      [%proof %twitter ?(%jam %url %full) ?([@ ~] [@ @ ~])]
-    =/  key=[@p $>(%twitter identifier)]
+      [%proof ?(%twitter %website) ?(%jam %url %text) ?([@ ~] [@ @ ~])]
+    =/  key=[@p $>(?(%twitter %website) identifier)]
       =*  k  t.t.t.path
-      :+  ?:(?=([@ ~] k) default (slav %p i.t.path))
-        %twitter
-      (slav %t ?:(?=([@ ~] k) i.k i.t.k))
-    ?~  rec=(~(get by records) key)  ~
-    ?.  ?=([%want %twitter %post *] status.u.rec)  ~
-    :^  ~  ~  %tape
-    !>  %-  trip
-    =/  pay=payload:twitter
-      (sign [our now]:bowl [%twitter %0 +>.key nonce.status.u.rec])
-    =*  jam  (crip ((w-co:co 1) (^jam pay)))
+      =*  i  ?:(?=([@ ~] k) i.k i.t.k)
+      :-  ?:(?=([@ ~] k) default (slav %p i.k))
+      ::TODO  use +wire-id and friends?
+      ?-  i.t.path
+        %twitter  [%twitter (slav %t i)]
+        %website  ~&  ah=(de-turf:html (slav %t i))
+                  [%website (need (de-turf:html (slav %t i)))]
+      ==
+    ?~  rec=(~(get by records) key)  ~&  [%buster-rec key]  ~
+    =/  pay=(unit (signed))
+      ?+  status.u.rec  ~&  [%busted-status status.u.rec]  ~
+          [%want %twitter %post *]
+        ^-  (unit payload:twitter)
+        ?>  ?=(%twitter +<.key)
+        `(sign [our now]:bowl [%twitter %0 +>.key nonce.status.u.rec])
+      ::
+          [%want %website %sign *]
+        ^-  (unit payload:website)
+        ?>  ?=(%website +<.key)
+        `(sign [our now]:bowl [%website %0 +>.key nonce.status.u.rec])
+      ==
+    ?~  pay  ~&  %busted-pay  ~
+    =*  jam  (^jam u.pay)
     =*  url  %+  rap  3
              :~  (fall (~(gut by ledgers) -.key ~) '')
                  '/lookup/'
-                 (scot %uw sig.pay)
+                 (scot %uw sig.u.pay)
              ==
     ?-  i.t.t.path
-      %jam  jam
-      %url  url
+      %jam  ``jam+!>(jam)
+      %url  ``tape+!>((trip url))
     ::
-        %full
+        %text
+      :^  ~  ~  %tape
+      !>  %-  trip
       %+  rap  3
       :~  'Verifying myself: I am '  (scot %p our.bowl)  ' on Urbit.\0a\0a'
-          jam  '\0a'
+          (crip ((w-co:co 1) jam))  '\0a'
           url
       ==
     ==

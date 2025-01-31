@@ -41,6 +41,7 @@
     %urbit    /urbit/(scot %p +.id)
     %phone    /phone/(scot %t +.id)
     %twitter  /twitter/(scot %t +.id)
+    %website  /website/(scot %t (en-turf:html +.id))
   ==
 ::
 ++  wire-id
@@ -52,6 +53,7 @@
     %urbit    (bind (slaw %p i.t.wire) (lead %urbit))
     %phone    (bind (slaw %t i.t.wire) (lead %phone))
     %twitter  (bind (slaw %t i.t.wire) (lead %twitter))
+    %website  (bind (biff (slaw %t i.t.wire) de-turf:html) (lead %website))
   ==
 ::
 ++  give-endpoint
@@ -214,9 +216,28 @@
     ?:((validate-signature bowl u.pay) [%good sig.u.pay] %bad-sign)
   ==
 ::
+++  make-challenge-link
+  |=  =turf
+  %+  rap  3
+  :~  'https://'  ::NOTE  secure verification only
+      (en-turf:html turf)
+      '/.well-known/urbit/tlon/verify'
+  ==
+::
+++  req-challenge
+  |=  =turf
+  ^-  card
+  =;  =request:http
+    :+  %pass
+      ::TODO  use +id-wire
+      /id/website/(scot %t (en-turf:html turf))/challenge
+    [%arvo %i %request request *outbound-config:iris]
+  [%'GET' (make-challenge-link turf) ~ ~]
+::
 ++  validate-signature
   |=  [=bowl:gall sign=(signed)]
   ^-  ?
+  ::TODO  only count as legit if signature is with latest known life?
   ::  if we don't know the current life of the signer,
   ::  or the life used to sign is beyond what we know,
   ::  we can't validate locally.
@@ -295,6 +316,7 @@
       (calc-new phone.u.lim phone.max d phone:rates)
       (calc-new photp.u.lim photp.max d photp:rates)
       (calc-new tweet.u.lim tweet.max d tweet:rates)
+      (calc-new fetch.u.lim fetch.max d fetch:rates)
       (calc-new queries.u.lim queries.max d queries:rates)
       (calc-new batch.u.lim batch.max d batch:rates)
       last-batch.u.lim
@@ -341,6 +363,7 @@
           %urbit    'another urbit'
           %phone    'a phone number'
           %twitter  'an x.com account'
+          %website  'a website'
         ==
       =*  id  id.dat.full.tat
       ?-  -.id.dat.full.tat
@@ -348,6 +371,7 @@
         %urbit    (cat 3 'control over ' (scot %p +.id))
         %phone    (cat 3 'phone nr ' +.id)
         %twitter  (cat 3 'x.com account @' +.id)
+        %website  (cat 3 'control over ' (en-turf:html +.id))
       ==
     ::
       ' on '
@@ -441,6 +465,8 @@
           %twitter  ?<  =('' twitter-api)
                     ?>  =(+.id.cmd (crip (cass (trip +.id.cmd))))
                     [%want %twitter %post (end 5 (shas %twitter eny.bowl))]
+          %website  ?>  ?=([@ @ *] +.id.cmd)  ::NOTE  at least second-level
+                    [%want %website %sign (end 5 (shas %website eny.bowl))]
         ==
       =.  records
         %+  ~(put by records)  id.cmd
@@ -527,6 +553,23 @@
         :_  this(records (~(put by records) id rec))
         :~  (give-status src.bowl id status.rec)
             (req-twitter-post twitter-api +.id id.work.cmd)
+        ==
+      ::
+          %website
+        ?>  ?=(%website -.id)
+        =/  rec  (~(got by records) id)
+        ?>  =(src.bowl for.rec)
+        ?>  |(?=([%want %website %sign *] status.rec))  ::NOTE  tmi hack
+        =.  limits
+          =/  lim  (get-allowance limits [src now]:bowl)
+          =.  fetch.lim
+            ~|  %would-exceed-rate-limit
+            (dec fetch.lim)
+          (~(put by limits) src.bowl lim)
+        =.  status.rec  [%wait `status.rec]
+        :_  this(records (~(put by records) id rec))
+        :~  (give-status src.bowl id status.rec)
+            (req-challenge +.id)
         ==
       ==
     ==
@@ -899,6 +942,64 @@
       =.  reverse  (~(put ju reverse) id sig.result)
       [caz this]
     ==
+  ::
+      [%id %website @ %challenge ~]
+    =.  kind.log  `%website
+    ~|  [- +<]:sign
+    ?>  ?=([%iris %http-response *] sign)
+    =*  res  client-response.sign
+    =/  =turf  (need (de-turf:html (slav %t i.t.t.wire)))
+    =/  id     [%website turf]
+    ::  if the id was removed (cancelled or revoked by the user), no-op
+    ::
+    ?~  rec=(~(get by records) id)
+      [~ this]
+    =.  for.log  `for.u.rec
+    ::  we should be awaiting this response to the challenge
+    ::
+    =/  status  status.u.rec  ::NOTE  to avoid tmi
+    ?>  ?=([%wait ~ %want %website %sign @] status)
+    ::  %progress responses are unexpected, the runtime doesn't support them
+    ::  right now. if they occur, just treat them as cancels and retry.
+    ::
+    =?  res  ?=(%progress -.res)
+      ~&  [dap.bowl %strange-iris-progress-response]
+      [%cancel ~]
+    ::  we might get a %cancel if the runtime was restarted during our
+    ::  request. try to pick up where we left off.
+    ::
+    ?:  ?=(%cancel -.res)
+      %-  (tell:l %info 'retrying cancelled website challenge request' ~)
+      [[(req-challenge turf)]~ this]
+    ?>  ?=(%finished -.res)
+    ::
+    =/  result=?(%good %bad-res %bad-nonce %bad-sign)
+      ?~  full-file.res  %bad-res
+      =/  =coin
+        %+  fall
+          (rush q.data.u.full-file.res ;~(sfix nuck:so gay))
+        [%$ %$ q.data.u.full-file.res]
+      =/  pay=(unit payload:website)
+        =-  (biff (mole -) (soft payload:website))
+        |.
+        ?-  -.coin
+          %$     (cue q.p.coin)
+          %blob  p.coin
+          %many  ~
+        ==
+      ?~  pay  %bad-res
+      ?.  =(nonce.dat.u.pay nonce.u.pre.status)  %bad-nonce
+      ?:((validate-signature bowl u.pay) %good %bad-sign)
+    ::
+    ?.  ?=(%good result)
+      %-  (tell:l %info (cat 3 'website verification rejected with result %' result) ~)
+      =.  status.u.rec  u.pre.status
+      :-  [(give-status for.u.rec id status.u.rec)]~
+      this(records (~(put by records) id u.rec))
+    ::
+    =/  link=@t  (make-challenge-link turf)
+    =^  caz  +.state  (register [+.state bowl] [id u.rec] `[%link link])
+    [caz this]
   ==
 ::
 ++  on-watch

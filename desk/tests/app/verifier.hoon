@@ -824,6 +824,7 @@
   ::  should delete state if the registration never finished
   ::
   ;<  caz=(list card)  bind:m
+    ?>  ?=(%phone -.id)
     (do-arvo /expire/[-.id]/(scot %t +.id)/(scot %da ~2000.1.2) %behn %wake ~)
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -845,6 +846,7 @@
   ::  should delete state if the registration never finished
   ::
   ;<  caz=(list card)  bind:m
+    ?>  ?=(%phone -.id)
     (do-arvo /expire/phone/(scot %t +.id)/(scot %da ~2000.1.1) %behn %wake ~)
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  ~  bind:m
