@@ -317,15 +317,8 @@ export default function ChannelScreen(props: Props) {
   );
 
   const handleChannelNavButtonPressed = useCallback(() => {
-    if ((group?.channels?.length ?? 1) > 1) {
-      setChannelNavOpen(true);
-    } else {
-      props.navigation.navigate('ChatDetails', {
-        chatType: 'group',
-        chatId: group!.id,
-      });
-    }
-  }, [group, props.navigation]);
+    setChannelNavOpen(true);
+  }, []);
 
   const handleChatDetailsPressed = useCallback(() => {
     if (group) {
