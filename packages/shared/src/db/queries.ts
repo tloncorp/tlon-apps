@@ -2829,6 +2829,8 @@ export const getGroup = createReadQuery(
               lastPost: true,
               unread: true,
               volumeSettings: true,
+              writerRoles: true,
+              readerRoles: true,
             },
           },
           roles: true,

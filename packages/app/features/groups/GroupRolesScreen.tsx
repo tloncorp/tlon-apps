@@ -43,6 +43,7 @@ function GroupRolesScreenView() {
 
   const {
     groupRoles,
+    groupChannels,
     groupMembers,
     updateGroupRole,
     deleteGroupRole,
@@ -58,6 +59,35 @@ function GroupRolesScreenView() {
       );
     });
   }, [groupRoles, groupMembers]);
+
+  const rolesByChannel: {
+    [channelId: string]: db.GroupRole[];
+  } = useMemo(() => {
+    return groupChannels.reduce(
+      (acc, channel) => {
+        const roles = groupRoles.filter((role) => {
+          const writers = channel.writerRoles.map((r) => r.roleId);
+          const readers = channel.readerRoles.map((r) => r.roleId);
+          return writers.includes(role.id!) || readers.includes(role.id!);
+        });
+        return {
+          ...acc,
+          [channel.id]: roles,
+        };
+      },
+      {} as Record<string, db.GroupRole[]>
+    );
+  }, [groupChannels, groupRoles]);
+
+  const getChannelsForRole = useCallback(
+    (role: db.GroupRole) => {
+      return Object.entries(rolesByChannel)
+        .filter(([channelId, roles]) => roles.includes(role))
+        .map(([channelId]) => groupChannels.find((c) => c.id === channelId)!)
+        .filter((c) => c !== undefined) as db.Channel[];
+    },
+    [rolesByChannel, groupChannels]
+  );
 
   const handleSetEditRole = useCallback((role: db.GroupRole) => {
     setEditRole(role);
@@ -161,6 +191,7 @@ function GroupRolesScreenView() {
         <EditRoleSheet
           role={editRole}
           rolesWithMembers={rolesWithMembers}
+          channelsCurrentlyInUse={getChannelsForRole(editRole)}
           onEdit={handleEditRole}
           onDelete={handleDeleteRole}
           open={editRole !== null}
@@ -192,6 +223,7 @@ function EditRoleSheet({
   open,
   onOpenChange,
   rolesWithMembers,
+  channelsCurrentlyInUse,
 }: {
   role: db.GroupRole;
   onEdit: (role: db.GroupRole) => void;
@@ -199,6 +231,7 @@ function EditRoleSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   rolesWithMembers: db.GroupRole[];
+  channelsCurrentlyInUse: db.Channel[];
 }) {
   const {
     reset,
@@ -232,8 +265,11 @@ function EditRoleSheet({
   );
 
   const disableDelete = useMemo(() => {
-    return !!role.id && rolesWithMembers.some((r) => r.id === role.id);
-  }, [role.id, rolesWithMembers]);
+    return (
+      (!!role.id && rolesWithMembers.some((r) => r.id === role.id)) ||
+      channelsCurrentlyInUse.length > 0
+    );
+  }, [role.id, rolesWithMembers, channelsCurrentlyInUse]);
 
   const handleDelete = useCallback(() => {
     if (!role.id) {
@@ -250,12 +286,31 @@ function EditRoleSheet({
     <ActionSheet
       open={open}
       onOpenChange={onOpenChange}
-      snapPoints={[55]}
+      snapPoints={[70]}
       snapPointsMode="percent"
     >
       <ActionSheet.Content flex={1} paddingBottom={bottom}>
         <ActionSheet.SimpleHeader title="Edit role" />
         <YStack gap="$l" paddingHorizontal="$2xl" paddingBottom="$2xl">
+          {channelsCurrentlyInUse.length > 0 && (
+            <>
+              <Text fontSize="$s" color="$tertiaryText">
+                This role is currently used in the following channels:
+              </Text>
+              <YStack gap="$s" paddingHorizontal="$2xl">
+                {channelsCurrentlyInUse.map((channel) => (
+                  <Text key={channel.id} fontSize="$s">
+                    • {channel.title}
+                  </Text>
+                ))}
+              </YStack>
+              <View
+                borderBottomColor="$border"
+                borderBottomWidth={1}
+                marginVertical="$l"
+              />
+            </>
+          )}
           <Controller
             control={control}
             name="title"
@@ -304,7 +359,8 @@ function EditRoleSheet({
               </Button>
               {disableDelete && (
                 <Text textAlign="center" fontSize="$s" color="$destructiveText">
-                  This role cannot be deleted, it is still in use.
+                  This role cannot be deleted, it is still in use for some users
+                  or channels.
                 </Text>
               )}
             </YStack>
