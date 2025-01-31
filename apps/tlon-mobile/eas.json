@@ -62,6 +62,7 @@
       }
     },
     "local-testing": {
+      "extends": "base",
       "channel": "local",
       "env": {
         "APP_VARIANT": "preview"
