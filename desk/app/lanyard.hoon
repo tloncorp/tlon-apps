@@ -454,9 +454,8 @@
                 ==
               ~
             :~  :+  %pass  /id/(scot %p -.key)/website/(scot %t (en-turf:html +.id.upd))
-                ::TODO  constant string into lib file
                 =;  entry=cache-entry:eyre
-                  [%arvo %e %set-response '/.well-known/urbit/tlon/verify' `entry]
+                  [%arvo %e %set-response well-known:website `entry]
                 =;  pay=payload:website
                   [| %payload [200 ~] `(as-octs:mimes:html (jam pay))]
                 (^sign [our now]:bowl %website %0 [+.id nonce.status]:upd)

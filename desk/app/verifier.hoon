@@ -221,7 +221,7 @@
   %+  rap  3
   :~  'https://'  ::NOTE  secure verification only
       (en-turf:html turf)
-      '/.well-known/urbit/tlon/verify'
+      well-known:website
   ==
 ::
 ++  req-challenge
