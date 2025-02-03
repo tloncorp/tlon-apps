@@ -341,16 +341,17 @@
     [%logs ~]  [~ this]
   ::
       [%verifier ?(~ [%endpoint ~])]
-    =.  host.log  `src.bowl
-    ?.  (~(has by ledgers) src.bowl)
+    =*  host  src.bowl
+    =.  host.log  `host
+    ?.  (~(has by ledgers) host)
       ::  we don't care for this ledger anymore, should've cleaned up,
       ::  make doubly-sure here.
       ::
-      ~&  [dap.bowl %uninterested src.bowl -.sign]
+      ~&  [dap.bowl %uninterested host -.sign]
       %-  (tell:lo %warn (cat 3 'uninterested in %' -.sign) ~)
       :_  this
       ?.  ?=(%fact -.sign)  ~
-      [%pass wire %agent [src.bowl %verifier] %leave ~]~
+      [%pass wire %agent [host %verifier] %leave ~]~
     ?-  -.sign
         %poke-ack
       ?>  ?=(~ t.wire)  ::NOTE  no pokes on /endpoint
@@ -367,7 +368,7 @@
       %-  (tell:lo %warn 'poke-nacked' u.p.sign)
       ::
       :_  this
-      =/  =dock  [src.bowl %verifier]
+      =/  =dock  [host %verifier]
       :~  [%pass /verifier %agent dock %leave ~]
           [%pass /verifier %agent dock %watch /records/(scot %p our.bowl)]
       ==
@@ -377,7 +378,7 @@
       ::TODO  track verifier connection status?
       ::      or say "should never happen" because of version negotiation?
       %-  (tell:lo %warn 'verifier subscription nacked' u.p.sign)
-      %-  (slog 'failed verifier sub' >src.bowl< u.p.sign)
+      %-  (slog 'failed verifier sub' >host< u.p.sign)
       [~ this]
     ::
         %kick
@@ -401,10 +402,10 @@
         ::  making sure to drop removed entries for this host
         ::
         =.  records
-          (my (skip ~(tap by records) |*(* =(+<-< src.bowl))))
+          (my (skip ~(tap by records) |*(* =(+<-< host))))
         =/  new=_records
           %-  malt  ::NOTE  +my doesn't work lol
-          (turn ~(tap by all.upd) |*(* +<(- [src.bowl +<-])))
+          (turn ~(tap by all.upd) |*(* +<(- [host +<-])))
         =.  records  (~(uni by records) new)
         :_  this
         :_  (drop (inflate-contacts-profile [our now]:bowl records ledgers))
@@ -412,7 +413,7 @@
         [%give %fact ~[/ /records] %lanyard-update !>(upd)]
       ::
           %config
-        =*  key  [src.bowl id.upd]
+        =*  key  [host id.upd]
         =.  records
           =+  rec=(~(got by records) key)
           (~(put by records) key rec(config config.upd))
@@ -421,7 +422,7 @@
         [%give %fact ~[/ /records] %lanyard-update !>(upd)]~
       ::
           %status
-        =*  key  [src.bowl id.upd]
+        =*  key  [host id.upd]
         =.  records
           =+  rec=(~(gut by records) key *id-state)
           ?:  ?=(%gone -.status.upd)  (~(del by records) key)
@@ -463,13 +464,13 @@
                 =/  =cage
                   :-  %verifier-user-command
                   !>(`user-command`[%work id.upd %website %sign])
-                [%pass /verifier %agent [src.bowl %verifier] %poke cage]
+                [%pass /verifier %agent [host %verifier] %poke cage]
             ==
         ==
       ::
           %endpoint
-        ?:  =(base.upd (~(got by ledgers) src.bowl))  [~ this]
-        =.  ledgers  (~(put by ledgers) src.bowl base.upd)
+        ?:  =(base.upd (~(got by ledgers) host))  [~ this]
+        =.  ledgers  (~(put by ledgers) host base.upd)
         :_  this
         (drop (inflate-contacts-profile [our now]:bowl records ledgers))
       ==
