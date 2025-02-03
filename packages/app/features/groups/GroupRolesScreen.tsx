@@ -288,6 +288,7 @@ function EditRoleSheet({
       onOpenChange={onOpenChange}
       snapPoints={[70]}
       snapPointsMode="percent"
+      moveOnKeyboardChange
     >
       <ActionSheet.Content flex={1} paddingBottom={bottom}>
         <ActionSheet.SimpleHeader title="Edit role" />
@@ -413,6 +414,7 @@ function AddRoleSheet({
       onOpenChange={onOpenChange}
       snapPoints={[45]}
       snapPointsMode="percent"
+      moveOnKeyboardChange
     >
       <ActionSheet.Content flex={1} paddingBottom={bottom}>
         <ActionSheet.SimpleHeader title="Add role" />
