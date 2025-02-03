@@ -19,7 +19,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { OnboardingStackParamList } from '../../types';
 
@@ -35,12 +35,13 @@ export function GettingNodeReadyScreen({
   route: { params },
 }: Props) {
   const isFocused = useIsFocused();
+  const lastWasFocused = useRef(true);
   const { setShip } = useShip();
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const { phase, shipInfo } = useStoppedNodeSequence({
+  const { phase, shipInfo, resetSequence } = useStoppedNodeSequence({
     waitType: params.waitType,
     enabled: isFocused,
   });
@@ -55,6 +56,14 @@ export function GettingNodeReadyScreen({
       }, 1000);
     }
   }, [navigation, phase, setShip, shipInfo]);
+
+  useEffect(() => {
+    if (isFocused && !lastWasFocused.current) {
+      // if we came back to this screen, make sure the sequence starts over
+      resetSequence();
+    }
+    lastWasFocused.current = isFocused;
+  }, [isFocused, resetSequence]);
 
   const onLogout = useCallback(async () => {
     setLoggingOut(true);

@@ -137,14 +137,26 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
           await handleLogin({ otp: code, ...accountCreds });
         }
       } catch (e) {
-        setError(e.message);
-        logger.trackError(
-          `Error ${mode === 'signup' ? 'Signing Up' : 'Logging In'}`,
-          {
-            errorMessage: e.message,
-            errorStack: e.stack,
-          }
-        );
+        const SIGNUP_OTP_INCORRECT_STATUS = 400;
+        const LOGIN_OTP_INCORRECT_STATUS = 401;
+        if (
+          e instanceof HostingError &&
+          [SIGNUP_OTP_INCORRECT_STATUS, LOGIN_OTP_INCORRECT_STATUS].includes(
+            e.details.status ?? 0
+          )
+        ) {
+          setError('Confirmation code is incorrect or expired.');
+        } else {
+          setError(e.message);
+          logger.trackError(
+            `Error ${mode === 'signup' ? 'Signing Up' : 'Logging In'}`,
+            {
+              errorMessage: e.message,
+              errorStack: e.stack,
+              details: e.details,
+            }
+          );
+        }
       } finally {
         setIsSubmitting(false);
       }

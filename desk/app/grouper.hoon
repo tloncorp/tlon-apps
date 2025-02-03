@@ -171,6 +171,11 @@
                ~[leaf+"{<joiner.bite>} invited to DM"]
       (snoc [dez caz] [%pass wir %agent dock %poke cage])
     ::
+    =+  invite-type=(~(get by fields.metadata.bite) 'inviteType')
+    ::
+    ::  don't send group invite if this is a personal bite
+    ?:  &(?=(^ invite-type) =('user' u.invite-type))  ~
+    ::
     =*  group-event  'Group Invite Fail'
     ?~  group=(~(get by fields.metadata.bite) 'group')
       :_  ~

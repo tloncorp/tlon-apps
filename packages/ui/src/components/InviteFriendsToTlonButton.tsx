@@ -1,4 +1,8 @@
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  createDevLogger,
+  enableGroupLinks,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { ComponentProps, useCallback, useEffect } from 'react';
@@ -22,7 +26,7 @@ export function InviteFriendsToTlonButton({
   const userId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
   const inviteService = useInviteService();
-  const { status, shareUrl, toggle, describe } = store.useLureLinkStatus({
+  const { status, shareUrl } = store.useLure({
     flag: group?.id ?? '',
     inviteServiceEndpoint: inviteService.endpoint,
     inviteServiceIsDev: inviteService.isDev,
@@ -73,25 +77,17 @@ export function InviteFriendsToTlonButton({
   }, [shareUrl, status, group, doCopy, title]);
 
   useEffect(() => {
-    const toggleLink = async () => {
+    const enableLinks = async () => {
       if (!group) return;
-      await toggle();
+      await enableGroupLinks(group.id);
     };
-    if (status === 'disabled' && isGroupAdmin) {
-      logger.trackEvent(AnalyticsEvent.InviteDebug, {
-        group: group?.id,
-        context: 'invite button: disabled and isAdmin, toggling',
-      });
-      toggleLink();
-    }
-    if (status === 'stale') {
-      logger.trackEvent(AnalyticsEvent.InviteDebug, {
-        group: group?.id,
-        context: 'invite button: stale, describing',
-      });
-      describe();
-    }
-  }, [group, toggle, status, isGroupAdmin, describe]);
+
+    logger.trackEvent(AnalyticsEvent.InviteDebug, {
+      group: group?.id,
+      context: 'invite button: disabled and isAdmin, enabling',
+    });
+    enableLinks();
+  }, [group]);
 
   if (
     (group?.privacy === 'private' || group?.privacy === 'secret') &&

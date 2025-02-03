@@ -44,6 +44,7 @@ export function PostUsingContentConfigurationScreen({
       onPressChannelMembers={noop}
       onPressChannelMeta={noop}
       onPressRoles={noop}
+      onPressChatDetails={noop}
     >
       <ChannelProvider value={{ channel }}>
         <PostCollectionContext.Provider
