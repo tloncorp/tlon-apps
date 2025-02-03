@@ -74,16 +74,17 @@
 +$  full-sign-data
   [%0 %verified when=@da for=@p id=identifier proof=(unit proof)]  ::TODO  (set proof)?
 ::
-++  twitter
+++  twitter  ^?
   |%
   +$  payload    (signed sign-data)
   +$  sign-data  [%twitter %0 handle=@t nonce=@ux]
   --
 ::
-++  website
+++  website  ^?
   |%
-  +$  payload    (signed sign-data)
-  +$  sign-data  [%website %0 =turf nonce=@ux]
+  +$  payload     (signed sign-data)
+  +$  sign-data   [%website %0 =turf nonce=@ux]
+  ++  well-known  '/.well-known/urbit/tlon/verify'
   --
 ::
 +$  allowance         ::  remaining "request token" balance

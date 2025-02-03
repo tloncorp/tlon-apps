@@ -107,132 +107,141 @@
     [[cad caz] etc]
   --
 ::
-++  req-phone-api
-  |=  $:  [base=@t key=@t basic=(unit [user=@t pass=@t])]
-          nr=@t
-          $=  req
-          $%  [%status who=@p]
-              [%verify ~]
-              [%submit otp=@t]
-      ==  ==
-  ^-  card
-  :+  %pass  /id/phone/(scot %t nr)/[-.req]
-  :+  %arvo  %i
-  =;  =request:http
-    [%request request %*(. *outbound-config:iris retries 0)]
-  =/  heads=header-list:http
-    :+  'content-type'^'application/json'
-      'x-vnd-apikey'^key
-    ?~  basic  ~
-    =/  bas
-      =,  mimes:html
-      (en:base64 (as-octs (rap 3 [user ':' pass ~]:u.basic)))
-    ['authorization'^(cat 3 'Basic ' bas)]~
-  =*  make-body  :(cork pairs:enjs:format en:json:html as-octs:mimes:html some)
-  ?-  -.req
-      %status
-    :^  %'POST'  (cat 3 base '/status')  heads
-    (make-body 'phoneNumber'^s+nr 'ship'^s+(scot %p who.req) ~)
+++  phone
+  |_  [base=@t key=@t basic=(unit [user=@t pass=@t])]
+  ++  req-api
+    |=  $:  nr=@t
+            $=  req
+            $%  [%status who=@p]
+                [%verify ~]
+                [%submit otp=@t]
+        ==  ==
+    ^-  card
+    :+  %pass  /id/phone/(scot %t nr)/[-.req]
+    :+  %arvo  %i
+    =;  =request:http
+      [%request request %*(. *outbound-config:iris retries 0)]
+    =/  heads=header-list:http
+      :+  'content-type'^'application/json'
+        'x-vnd-apikey'^key
+      ?~  basic  ~
+      =/  bas
+        =,  mimes:html
+        (en:base64 (as-octs (rap 3 [user ':' pass ~]:u.basic)))
+      ['authorization'^(cat 3 'Basic ' bas)]~
+    =*  make-body  :(cork pairs:enjs:format en:json:html as-octs:mimes:html some)
+    ?-  -.req
+        %status
+      :^  %'POST'  (cat 3 base '/status')  heads
+      (make-body 'phoneNumber'^s+nr 'ship'^s+(scot %p who.req) ~)
+    ::
+        %verify
+      :^  %'POST'  (cat 3 base '/verify')  heads
+      (make-body 'phoneNumber'^s+nr ~)
+    ::
+        %submit
+      :^  %'PATCH'  (cat 3 base '/verify')  heads
+      (make-body 'phoneNumber'^s+nr 'otp'^s+otp.req ~)
+    ==
+  --
+::
+++  twitter
+  =>  [^twitter .]
+  |_  [=bowl:gall bearer=@t]
+  ++  req-post
+    |=  [handle=@t tweet=@t]
+    ^-  card
+    =;  =request:http
+      :+  %pass  /id/twitter/(scot %t handle)/post/(scot %t tweet)
+      [%arvo %i %request request %*(. *outbound-config:iris retries 0)]
+    =/  heads=header-list:http
+      ['authorization' (cat 3 'Bearer ' bearer)]~
+    =-  [%'GET' - heads ~]
+    ::TODO  query params could be tighter if we're only looking at plaintext body,
+    ::      don't need entities
+    %+  rap  3
+    :~  'https://api.x.com/2/tweets/'
+        tweet
+        '?user.fields=username,id'
+        '&tweet.fields=author_id,entities'
+        '&expansions=author_id'
+    ==
   ::
-      %verify
-    :^  %'POST'  (cat 3 base '/verify')  heads
-    (make-body 'phoneNumber'^s+nr ~)
+  ++  parse-post
+    |=  $:  [handle=@t nonce=@ux]
+            [hed=response-header:http bod=(unit mime-data:iris)]
+        ==
+    ^-  ?([%good sig=@ux] %rate-limited %unauthorized %not-found %protected %bad-tweet %bad-nonce %bad-sign %bad)
+    ?+  status-code.hed  %bad
+      %400  %bad
+      %401  %unauthorized
+      %404  %not-found
+      %429  %rate-limited
+    ::
+        %200
+      ?~  bod  %bad
+      ?~  jon=(de:json:html q.data.u.bod)  %bad
+      =,  dejs-soft:format
+      =/  [[text=@t uid=@t] usr=(map @t @t)]
+        =-  (fall - ['' ''] ~)
+        %.  u.jon
+        %-  ot
+        :~  'data'^(ot 'text'^so 'author_id'^so ~)
+          ::
+            =;  u  'includes'^(ot 'users'^u ~)
+            (cu ~(gas by *(map @t @t)) (ar (ot 'id'^so 'username'^so ~)))
+        ==
+      ?~  nom=(~(get by usr) uid)
+        =;  nauth  ?:(nauth %protected %bad)
+        ::TODO  do better
+        ?=(^ (find "not-authorized-for-resource" (trip q.data.u.bod)))
+      ?:  !=(u.nom handle)  %bad
+      =/  pull
+        ::NOTE  the twitter api returns newlines as backslash-n, so newlines
+        ::      directly preceding the blob will be included in its result.
+        ::      however, for any valid jam, appending arbitrary bytes does not
+        ::      change the result of cueing it: cue simply does not read into the
+        ::      extraneous bytes. so we only need to worry about content directly
+        ::      _after_ the blob, and there newlines will properly demarcate the
+        ::      end of the blob (as will spaces and other non-siw:ab characters),
+        ::      because they start with a backslash.
+        |^  wrap
+        ++  wrap  %+  knee  *@  |.  ~+
+                  ;~(pose ;~(sfix blob (star next)) ;~(pfix next wrap))
+        ::NOTE  bare signature is ~84 chars. the jam always larger, but never
+        ::      larger than a tweet (280 chars).
+        ++  blob  (bass 64 (stun [84 280] siw:ab))
+        --
+      =/  pay=(unit payload)
+        ?~  jaw=(rush text pull)  ~
+        (biff (mole |.((cue u.jaw))) (soft payload))
+      ?~  pay  %bad-tweet
+      ?.  =(nonce.dat.u.pay nonce)  %bad-nonce
+      ?:((validate-signature bowl u.pay) [%good sig.u.pay] %bad-sign)
+    ==
+  --
+::
+++  website
+  =>  [^website .]
+  |%
+  ++  make-link
+    |=  =turf
+    %+  rap  3
+    :~  'https://'  ::NOTE  secure verification only
+        (en-turf:html turf)
+        well-known:website
+    ==
   ::
-      %submit
-    :^  %'PATCH'  (cat 3 base '/verify')  heads
-    (make-body 'phoneNumber'^s+nr 'otp'^s+otp.req ~)
-  ==
-::
-++  req-twitter-post
-  |=  [bearer=@t handle=@t tweet=@t]
-  ^-  card
-  =;  =request:http
-    :+  %pass  /id/twitter/(scot %t handle)/post/(scot %t tweet)
-    [%arvo %i %request request %*(. *outbound-config:iris retries 0)]
-  =/  heads=header-list:http
-    ['authorization' (cat 3 'Bearer ' bearer)]~
-  =-  [%'GET' - heads ~]
-  ::TODO  query params could be tighter if we're only looking at plaintext body,
-  ::      don't need entities
-  %+  rap  3
-  :~  'https://api.x.com/2/tweets/'
-      tweet
-      '?user.fields=username,id'
-      '&tweet.fields=author_id,entities'
-      '&expansions=author_id'
-  ==
-::
-++  parse-twitter-post
-  |=  $:  =bowl:gall
-          [handle=@t nonce=@ux]
-          [hed=response-header:http bod=(unit mime-data:iris)]
-      ==
-  ^-  ?([%good sig=@ux] %rate-limited %unauthorized %not-found %protected %bad-tweet %bad-nonce %bad-sign %bad)
-  ?+  status-code.hed  %bad
-    %400  %bad
-    %401  %unauthorized
-    %404  %not-found
-    %429  %rate-limited
-  ::
-      %200
-    ?~  bod  %bad
-    ?~  jon=(de:json:html q.data.u.bod)  %bad
-    =,  dejs-soft:format
-    =/  [[text=@t uid=@t] usr=(map @t @t)]
-      =-  (fall - ['' ''] ~)
-      %.  u.jon
-      %-  ot
-      :~  'data'^(ot 'text'^so 'author_id'^so ~)
-        ::
-          =;  u  'includes'^(ot 'users'^u ~)
-          (cu ~(gas by *(map @t @t)) (ar (ot 'id'^so 'username'^so ~)))
-      ==
-    ?~  nom=(~(get by usr) uid)
-      =;  nauth  ?:(nauth %protected %bad)
-      ::TODO  do better
-      ?=(^ (find "not-authorized-for-resource" (trip q.data.u.bod)))
-    ?:  !=(u.nom handle)  %bad
-    =/  pull
-      ::NOTE  the twitter api returns newlines as backslash-n, so newlines
-      ::      directly preceding the blob will be included in its result.
-      ::      however, for any valid jam, appending arbitrary bytes does not
-      ::      change the result of cueing it: cue simply does not read into the
-      ::      extraneous bytes. so we only need to worry about content directly
-      ::      _after_ the blob, and there newlines will properly demarcate the
-      ::      end of the blob (as will spaces and other non-siw:ab characters),
-      ::      because they start with a backslash.
-      |^  wrap
-      ++  wrap  %+  knee  *@  |.  ~+
-                ;~(pose ;~(sfix blob (star next)) ;~(pfix next wrap))
-      ::NOTE  bare signature is ~84 chars. the jam always larger, but never
-      ::      larger than a tweet (280 chars).
-      ++  blob  (bass 64 (stun [84 280] siw:ab))
-      --
-    =/  pay=(unit payload:twitter)
-      ?~  jaw=(rush text pull)  ~
-      (biff (mole |.((cue u.jaw))) (soft payload:twitter))
-    ?~  pay  %bad-tweet
-    ?.  =(nonce.dat.u.pay nonce)  %bad-nonce
-    ?:((validate-signature bowl u.pay) [%good sig.u.pay] %bad-sign)
-  ==
-::
-++  make-challenge-link
-  |=  =turf
-  %+  rap  3
-  :~  'https://'  ::NOTE  secure verification only
-      (en-turf:html turf)
-      well-known:website
-  ==
-::
-++  req-challenge
-  |=  =turf
-  ^-  card
-  =;  =request:http
-    :+  %pass
-      ::TODO  use +id-wire
-      /id/website/(scot %t (en-turf:html turf))/challenge
-    [%arvo %i %request request *outbound-config:iris]
-  [%'GET' (make-challenge-link turf) ~ ~]
+  ++  req-challenge
+    |=  =turf
+    ^-  card
+    =;  =request:http
+      :+  %pass
+        ::TODO  use +id-wire
+        /id/website/(scot %t (en-turf:html turf))/challenge
+      [%arvo %i %request request *outbound-config:iris]
+    [%'GET' (make-link turf) ~ ~]
+  --
 ::
 ++  validate-signature
   |=  [=bowl:gall sign=(signed)]
@@ -387,8 +396,10 @@
 ::
 ^-  agent:gall
 |_  =bowl:gall
-+*  this  .
-    l     log(our our.bowl)
++*  this     .
+    l        log(our our.bowl)
+    phone    ~(. ^phone phone-api)
+    twitter  ~(. ^twitter bowl twitter-api)
 ::
 ++  on-save  !>(state)
 ++  on-init
@@ -485,7 +496,7 @@
         :+  %pass  [%expire (snoc (id-wire id.cmd) (scot %da now.bowl))]
         [%arvo %b %wait (add now.bowl attempt-timeout)]
       ?.  ?=(%phone -.id.cmd)  ~
-      [(req-phone-api phone-api +.id.cmd %status src.bowl)]~
+      [(req-api:phone +.id.cmd %status src.bowl)]~
     ::
         %config
       =/  rec  (~(got by records) id.cmd)
@@ -535,7 +546,7 @@
         =.  status.rec  [%wait ~]
         :_  this(records (~(put by records) id rec))
         :~  (give-status src.bowl id status.rec)
-            (req-phone-api phone-api +.id %submit otp.work.cmd)
+            (req-api:phone +.id %submit otp.work.cmd)
         ==
       ::
           %twitter
@@ -552,7 +563,7 @@
         =.  status.rec  [%wait `status.rec]
         :_  this(records (~(put by records) id rec))
         :~  (give-status src.bowl id status.rec)
-            (req-twitter-post twitter-api +.id id.work.cmd)
+            (req-post:twitter +.id id.work.cmd)
         ==
       ::
           %website
@@ -569,7 +580,7 @@
         =.  status.rec  [%wait `status.rec]
         :_  this(records (~(put by records) id rec))
         :~  (give-status src.bowl id status.rec)
-            (req-challenge +.id)
+            (req-challenge:website +.id)
         ==
       ==
     ==
@@ -805,11 +816,11 @@
       ?-  i.t.t.t.wire
           %status
         :_  this
-        [(req-phone-api phone-api nr %status for.u.rec)]~
+        [(req-api:phone nr %status for.u.rec)]~
       ::
           %verify
         :_  this
-        [(req-phone-api phone-api nr %verify ~)]~
+        [(req-api:phone nr %verify ~)]~
       ::
           %submit
         ::  we don't store the otp from the user command, so can't retry.
@@ -853,7 +864,7 @@
         [caz this]
       ::  otherwise, start verification process
       ::
-      [[(req-phone-api phone-api nr %verify ~)]~ this]
+      [[(req-api:phone nr %verify ~)]~ this]
     ::
         %verify
       ?.  =(200 cod)
@@ -908,10 +919,10 @@
     ::
     ?:  ?=(%cancel -.res)
       %-  (tell:l %info 'retrying cancelled twitter api request' ~)
-      [[(req-twitter-post twitter-api handle tweet)]~ this]
+      [[(req-post:twitter handle tweet)]~ this]
     ?>  ?=(%finished -.res)
     =/  result
-      (parse-twitter-post bowl [handle nonce.u.pre.status] +.res)
+      (parse-post:twitter [handle nonce.u.pre.status] +.res)
     =*  abort
       %-  (tell:l %warn (cat 3 'twitter verification aborted with result %' result) ~)
       =^  caz  +.state  (revoke [+.state bowl] [id rec] 'service error')
@@ -970,7 +981,7 @@
     ::
     ?:  ?=(%cancel -.res)
       %-  (tell:l %info 'retrying cancelled website challenge request' ~)
-      [[(req-challenge turf)]~ this]
+      [[(req-challenge:website turf)]~ this]
     ?>  ?=(%finished -.res)
     ::
     =/  result=?(%good %bad-res %bad-nonce %bad-sign)
@@ -997,7 +1008,7 @@
       :-  [(give-status for.u.rec id status.u.rec)]~
       this(records (~(put by records) id u.rec))
     ::
-    =/  link=@t  (make-challenge-link turf)
+    =/  link=@t  (make-link:website turf)
     =^  caz  +.state  (register [+.state bowl] [id u.rec] `[%link link])
     [caz this]
   ==
