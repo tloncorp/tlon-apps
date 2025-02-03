@@ -58,6 +58,7 @@ export class NativeDb extends BaseDb {
     await this.processChanges();
     this.isProcessingChanges = false;
     if (this.changesPending) {
+      this.changesPending = false;
       this.handleUpdate();
     }
   }
