@@ -62,7 +62,8 @@ public class TalkNotificationManager {
         final TalkApi api = new TalkApi(context);
         final int id = UvParser.getIntCompatibleFromUv(uid);
         Log.d("TalkNotificationManager", "fetching yarn: " + uid + " " + id);
-        api.fetchYarn(uid, new TalkObjectCallback() {
+
+        TalkObjectCallback fetchYarnCallback = new TalkObjectCallback() {
             @Override
             public void onComplete(JSONObject response) {
                 final Yarn yarn;
@@ -77,38 +78,13 @@ public class TalkNotificationManager {
 
                 // Skip if not a valid push notification
                 if (!yarn.isValidNotification) {
-                  Log.d("TalkNotificationManager", "Invalid notification, skipping");
+                    Log.d("TalkNotificationManager", "Invalid notification, skipping");
                     return;
                 }
 
                 Log.d("TalkNotificationManager", "fetching contact: " + yarn.senderId);
-                api.fetchContact(yarn.senderId, new TalkObjectCallback() {
-                    @Override
-                    public void onComplete(JSONObject response) {
-                        final Contact contact = new Contact(yarn.senderId, response);
-                        final String channelId = yarn.channelId.orElse("");
-                        Log.d("TalkNotificationManager", "handleNotification, contact: " + contact.toString());
-                        createNotificationTitle(api, yarn, contact, title -> {
-                            Bundle data = new Bundle();
-                            data.putString("wer", yarn.wer);
-                            data.putString("channelId", channelId);
-                            data.putInt("notificationId", id);
-                            sendNotification(
-                                    context,
-                                    id,
-                                    contact.person,
-                                    title,
-                                    yarn.contentText,
-                                    yarn.isGroup || yarn.isClub,
-                                    data);
-                        });
-                    }
-
-                    @Override
-                    public void onError(VolleyError error) {
-                        ReactNativeFirebaseCrashlyticsNativeHelper.recordNativeException(new Exception("notifications_fetch_contacts", error));
-                    }
-                });
+                TalkObjectCallback fetchContactCallback = createFetchContactCallback(context, id, yarn);
+                api.fetchContact(yarn.senderId, fetchContactCallback);
             }
 
             @Override
@@ -118,7 +94,41 @@ public class TalkNotificationManager {
                     sendFallbackNotification(context);
                 }
             }
-        });
+        };
+
+        api.fetchYarn(uid, fetchYarnCallback);
+    }
+
+    private static TalkObjectCallback createFetchContactCallback(Context context, int id, Yarn yarn) {
+        final TalkApi api = new TalkApi(context);
+
+        return new TalkObjectCallback() {
+            @Override
+            public void onComplete(JSONObject response) {
+                final Contact contact = new Contact(yarn.senderId, response);
+                final String channelId = yarn.channelId.orElse("");
+                Log.d("TalkNotificationManager", "handleNotification, contact: " + contact.toString());
+                createNotificationTitle(api, yarn, contact, title -> {
+                    Bundle data = new Bundle();
+                    data.putString("wer", yarn.wer);
+                    data.putString("channelId", channelId);
+                    data.putInt("notificationId", id);
+                    sendNotification(
+                            context,
+                            id,
+                            contact.person,
+                            title,
+                            yarn.contentText,
+                            yarn.isGroup || yarn.isClub,
+                            data);
+                });
+            }
+
+            @Override
+            public void onError(VolleyError error) {
+                ReactNativeFirebaseCrashlyticsNativeHelper.recordNativeException(new Exception("notifications_fetch_contacts", error));
+            }
+        };
     }
 
     private static void createNotificationTitle(TalkApi api, Yarn yarn, Contact contact, TalkNotificationContentCallback callback) {
