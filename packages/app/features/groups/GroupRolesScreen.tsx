@@ -151,7 +151,9 @@ function GroupRolesScreenView() {
                   <ActionSheet.ActionTitle>
                     {role.title}
                   </ActionSheet.ActionTitle>
-                  <ListItem.Subtitle>{role.description}</ListItem.Subtitle>
+                  {role.description && (
+                    <ListItem.Subtitle>{role.description}</ListItem.Subtitle>
+                  )}
                 </ActionSheet.MainContent>
 
                 <ListItem.EndContent
