@@ -168,7 +168,7 @@ export const ButtonText = styled(Text, {
     },
     heroDestructive: {
       true: {
-        color: '$negativeActionText',
+        color: '$tertiaryText',
         width: '100%',
         textAlign: 'center',
         fontWeight: '500',
