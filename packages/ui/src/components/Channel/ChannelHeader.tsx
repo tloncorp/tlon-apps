@@ -114,8 +114,6 @@ export function ChannelHeader({
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
   const isWindowNarrow = useIsWindowNarrow();
 
-  console.log('mode', mode);
-
   if (mode === 'next') {
     return <BaubleHeader channel={channel} group={group} />;
   }
