@@ -75,6 +75,7 @@ export function ProfileSheet({
   onOpenChange,
   open,
   currentUserIsAdmin,
+  currentUserIsHost,
   groupIsOpen,
   userIsBanned,
   onPressBan,
@@ -91,6 +92,7 @@ export function ProfileSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentUserIsAdmin?: boolean;
+  currentUserIsHost?: boolean;
   groupIsOpen?: boolean;
   userIsBanned?: boolean;
   onPressKick?: () => void;
@@ -113,7 +115,7 @@ export function ProfileSheet({
     onOpenChange(false);
   }, [contact, contactId, onOpenChange]);
 
-  const isAdminnable = currentUserIsAdmin && currentUserId !== contactId;
+  const isAdminnable = currentUserIsAdmin;
 
   const actions: ActionGroup[] = createActionGroups(
     [
@@ -147,6 +149,9 @@ export function ProfileSheet({
                 onOpenChange(false);
               }}
               onRemoveRole={(roleId: string) => {
+                if (currentUserIsHost && roleId === 'admin') {
+                  return;
+                }
                 onPressRemoveRole?.(roleId);
                 onOpenChange(false);
               }}
@@ -154,14 +159,14 @@ export function ProfileSheet({
             />
           ),
         },
-        {
+        currentUserId !== contactId && {
           title: 'Kick User',
           action: () => {
             onPressKick?.();
             onOpenChange(false);
           },
         },
-        groupIsOpen
+        groupIsOpen && currentUserId !== contactId
           ? userIsBanned
             ? {
                 title: 'Unban User',

@@ -22,6 +22,7 @@ export function GroupMembersScreenView({
   joinRequests,
   groupPrivacyType,
   currentUserId,
+  currentUserIsHost,
   onPressKick,
   onPressBan,
   onPressUnban,
@@ -35,6 +36,7 @@ export function GroupMembersScreenView({
   members: db.ChatMember[];
   roles: db.GroupRole[];
   currentUserId: string;
+  currentUserIsHost: boolean;
   groupId: string;
   bannedUsers: db.GroupMemberBan[];
   joinRequests: db.GroupJoinRequest[];
@@ -201,6 +203,7 @@ export function GroupMembersScreenView({
         <ProfileSheet
           open={true}
           currentUserIsAdmin={currentUserIsAdmin}
+          currentUserIsHost={currentUserIsHost}
           userIsBanned={bannedUsers.some(
             (b) => b.contactId === selectedContact
           )}
