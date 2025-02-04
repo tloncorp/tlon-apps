@@ -104,12 +104,6 @@ jobs:
         run: |
           echo "Downloading build from ${{ steps.build.outputs.url }}"
           curl -L ${{ steps.build.outputs.url }} -o build.apk
-          ls
-      - name: Debug paths
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "Files in current directory: $(ls)"
-          echo "Files in apps/tlon-mobile: $(ls apps/tlon-mobile)"
       - name: Run tests
         uses: mobile-dev-inc/action-maestro-cloud@v1
         with:
