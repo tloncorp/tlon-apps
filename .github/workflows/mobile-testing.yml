@@ -115,7 +115,7 @@ jobs:
         with:
           api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
           project-id: ${{ secrets.ROBIN_PROJECT_ID }}
-          app-file: ./apps/tlon-mobile/build.apk
+          app-file: ./build.apk
           env: |
             URL=${{ secrets.MAESTRO_URL }}
             CODE=${{ secrets.MAESTRO_CODE }}
