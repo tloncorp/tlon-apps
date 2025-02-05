@@ -164,6 +164,7 @@ const ChatMessage = ({
       onLongPress={handleLongPress}
       onHoverIn={handleHoverIn}
       onHoverOut={handleHoverOut}
+      pressStyle="unset"
     >
       <YStack
         backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
