@@ -173,7 +173,6 @@
           ;*  =*  name  (cite:title our.bowl)
             =*  plain  ;h1.profile-headline-nickname(title "{(scow %p our.bowl)}"):"{name}"
             ?~  nickname  [plain]~
-<<<<<<< HEAD
             :+  ;h1.profile-headline-nickname:"{(trip u.nickname)}"
               ;p.profile-headline-username(title "{(scow %p our.bowl)}"):"{name}"
             ?~  phone  ~
@@ -183,10 +182,6 @@
             ;a.verified/"{(trip (need phurl))}"
               =title  "verified since {(scow %da since)}"
               ; ✅
-=======
-            :~  ;h1.profile-headline-nickname:"{(trip u.nickname)}"
-                ;p.profile-headline-username(title "{(scow %p our.bowl)}"):"{name}"
->>>>>>> develop
             ==
         ==
       ==
