@@ -97,6 +97,8 @@ PODS:
     - React-Core
   - ExpoBattery (7.7.2):
     - ExpoModulesCore
+  - ExpoBlur (12.9.2):
+    - ExpoModulesCore
   - ExpoClipboard (5.0.1):
     - ExpoModulesCore
   - ExpoDevice (5.9.4):
@@ -1419,6 +1421,7 @@ DEPENDENCIES:
   - expo-dev-menu (from `../../../node_modules/expo-dev-menu`)
   - expo-dev-menu-interface (from `../../../node_modules/expo-dev-menu-interface/ios`)
   - ExpoBattery (from `../../../node_modules/expo-battery/ios`)
+  - ExpoBlur (from `../../../node_modules/expo-blur/ios`)
   - ExpoClipboard (from `../../../node_modules/expo-clipboard/ios`)
   - ExpoDevice (from `../../../node_modules/expo-device/ios`)
   - ExpoFileSystem (from `../../../node_modules/expo-file-system/ios`)
@@ -1581,6 +1584,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-dev-menu-interface/ios"
   ExpoBattery:
     :path: "../../../node_modules/expo-battery/ios"
+  ExpoBlur:
+    :path: "../../../node_modules/expo-blur/ios"
   ExpoClipboard:
     :path: "../../../node_modules/expo-clipboard/ios"
   ExpoDevice:
@@ -1773,6 +1778,7 @@ SPEC CHECKSUMS:
   expo-dev-menu: 2b4ce6108396233849b71805906129de15aadfbc
   expo-dev-menu-interface: 44e69ddff62bbc6c5418c200e657635720b5a480
   ExpoBattery: 6cdcb673b99f53b3e9955b03268fd571cff68f51
+  ExpoBlur: 3a9548a738624968836926f4aa1e18fa22155640
   ExpoClipboard: 24cc2b881ab6ca2e5b431b1f6d9d4a302adbf9d0
   ExpoDevice: fc21b9193d704f3759c1ede1b383fcdb0370b46a
   ExpoFileSystem: df58e1eb2a4d6f1006a1ca70bddfbbf63e52fa4f

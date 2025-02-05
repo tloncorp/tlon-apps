@@ -449,6 +449,7 @@ const RadioInputRowFrame = styled(XStack, {
   paddingVertical: '$l',
   alignItems: 'center',
   borderRadius: '$l',
+  cursor: 'pointer',
   variants: {
     disabled: {
       false: {

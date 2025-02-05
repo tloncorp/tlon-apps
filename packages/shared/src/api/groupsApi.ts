@@ -698,6 +698,119 @@ export const moveChannel = async ({
   );
 };
 
+export const addGroupRole = async ({
+  groupId,
+  roleId,
+  meta,
+}: {
+  groupId: string;
+  roleId: string;
+  meta: db.ClientMeta;
+}) => {
+  return await poke(
+    groupAction(groupId, {
+      cabal: {
+        sect: roleId,
+        diff: {
+          add: {
+            title: meta.title ?? '',
+            description: meta.description ?? '',
+            image: '',
+            cover: '',
+          },
+        },
+      },
+    })
+  );
+};
+
+export const deleteGroupRole = async ({
+  groupId,
+  roleId,
+}: {
+  groupId: string;
+  roleId: string;
+}) => {
+  return await poke(
+    groupAction(groupId, {
+      cabal: {
+        sect: roleId,
+        diff: {
+          del: null,
+        },
+      },
+    })
+  );
+};
+
+export const updateGroupRole = async ({
+  groupId,
+  roleId,
+  meta,
+}: {
+  groupId: string;
+  roleId: string;
+  meta: db.ClientMeta;
+}) => {
+  return await poke(
+    groupAction(groupId, {
+      cabal: {
+        sect: roleId,
+        diff: {
+          edit: {
+            title: meta.title ?? '',
+            description: meta.description ?? '',
+            image: '',
+            cover: '',
+          },
+        },
+      },
+    })
+  );
+};
+
+export const addMembersToRole = async ({
+  groupId,
+  roleId,
+  ships,
+}: {
+  groupId: string;
+  roleId: string;
+  ships: string[];
+}) => {
+  return await poke(
+    groupAction(groupId, {
+      fleet: {
+        ships,
+        diff: {
+          'add-sects': [roleId],
+        },
+      },
+    })
+  );
+};
+
+export const removeMembersFromRole = async ({
+  groupId,
+  roleId,
+  ships,
+}: {
+  groupId: string;
+  roleId: string;
+  ships: string[];
+}) => {
+  return await poke(
+    groupAction(groupId, {
+      fleet: {
+        ships,
+        diff: {
+          'del-sects': [roleId],
+        },
+      },
+    })
+  );
+};
+
 export type GroupDelete = {
   type: 'deleteGroup';
   groupId: string;

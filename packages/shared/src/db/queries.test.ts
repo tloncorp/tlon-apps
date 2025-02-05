@@ -24,7 +24,7 @@ setupDatabaseTestSuite();
 test('inserts a group', async () => {
   const groupData = groupsData[3];
   await queries.insertGroups({ groups: [groupData] });
-  const roles = await queries.getGroupRoles();
+  const roles = await queries.getAllGroupRoles();
   expect(roles.length).toEqual(groupData.roles?.length);
   const result = await queries.getGroup({ id: groupData.id });
   expect(result?.id).toBe(groupData.id);
