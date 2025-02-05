@@ -22,17 +22,21 @@ export function GroupMembersScreenView({
   joinRequests,
   groupPrivacyType,
   currentUserId,
+  currentUserIsHost,
   onPressKick,
   onPressBan,
   onPressUnban,
   onPressAcceptJoinRequest,
   onPressRejectJoinRequest,
   onPressGoToDm,
+  onPressAssignRole,
+  onPressRemoveRole,
 }: {
   goBack: () => void;
   members: db.ChatMember[];
   roles: db.GroupRole[];
   currentUserId: string;
+  currentUserIsHost: boolean;
   groupId: string;
   bannedUsers: db.GroupMemberBan[];
   joinRequests: db.GroupJoinRequest[];
@@ -43,6 +47,8 @@ export function GroupMembersScreenView({
   onPressAcceptJoinRequest: (contactId: string) => void;
   onPressRejectJoinRequest: (contactId: string) => void;
   onPressGoToDm: (contactId: string) => void;
+  onPressAssignRole: (contactId: string, roleId: string) => void;
+  onPressRemoveRole: (contactId: string, roleId: string) => void;
 }) {
   const { bottom } = useSafeAreaInsets();
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
@@ -166,6 +172,14 @@ export function GroupMembersScreenView({
 
   const currentUserIsAdmin = useIsAdmin(groupId, currentUserId);
 
+  const selectedUserRoles = useMemo(
+    () =>
+      members
+        .find((m) => m.contactId === selectedContact)
+        ?.roles?.map((r) => r.roleId),
+    [members, selectedContact]
+  );
+
   return (
     <>
       <View backgroundColor="$background" flex={1}>
@@ -189,6 +203,7 @@ export function GroupMembersScreenView({
         <ProfileSheet
           open={true}
           currentUserIsAdmin={currentUserIsAdmin}
+          currentUserIsHost={currentUserIsHost}
           userIsBanned={bannedUsers.some(
             (b) => b.contactId === selectedContact
           )}
@@ -204,6 +219,14 @@ export function GroupMembersScreenView({
           onPressBan={() => onPressBan(selectedContact)}
           onPressUnban={() => onPressUnban(selectedContact)}
           onPressGoToDm={() => onPressGoToDm(selectedContact)}
+          onPressAsignRole={(roleId: string) =>
+            onPressAssignRole(selectedContact, roleId)
+          }
+          onPressRemoveRole={(roleId: string) =>
+            onPressRemoveRole(selectedContact, roleId)
+          }
+          roles={roles}
+          selectedUserRoles={selectedUserRoles}
         />
       )}
       {selectedContact !== null && selectedIsRequest && (
