@@ -132,6 +132,11 @@ const ActionSheetComponent = ({
     hasOpened.current = true;
   }
 
+  // Sheets/dialogs are heavy; we don't want to render until we need to
+  if (!hasOpened.current && trigger === undefined) {
+    return null;
+  }
+
   if (mode === 'popover') {
     return (
       <Popover
@@ -146,11 +151,6 @@ const ActionSheetComponent = ({
         </Popover.Content>
       </Popover>
     );
-  }
-
-  // Sheets/dialogs are heavy; we don't want to render until we need to
-  if (!hasOpened.current && open) {
-    hasOpened.current = true;
   }
 
   if (mode === 'dialog') {
