@@ -35,8 +35,8 @@ function Action(
   const textColor = disabled
     ? '$secondaryText'
     : actionType === 'destructive'
-      ? '$red'
-      : undefined;
+      ? '$negativeActionText'
+      : '$primaryText';
 
   return (
     <ActionFrame cursor="pointer" userSelect="none" {...rest}>

@@ -212,7 +212,10 @@ export async function handleAction({
       onViewReactions?.(post);
       break;
     case 'quote':
-      if (channel.type === 'dm' && post.textContent) {
+      if (
+        (channel.type === 'dm' || channel.type === 'groupDm') &&
+        post.textContent
+      ) {
         // For DMs, insert text as markdown quote
         addAttachment({ type: 'text', text: `> ${post.textContent}\n` });
       } else {
