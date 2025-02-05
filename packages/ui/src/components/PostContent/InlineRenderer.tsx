@@ -2,6 +2,7 @@ import React, { PropsWithChildren, useCallback, useContext } from 'react';
 import { Linking } from 'react-native';
 import { ColorTokens, styled } from 'tamagui';
 
+import { useNavigation } from '../../contexts';
 import { useContactName } from '../ContactNameV2';
 import { RawText, Text } from '../TextV2';
 import {
@@ -41,6 +42,7 @@ export const MentionText = styled(Text, {
   name: 'MentionText',
   color: '$positiveActionText',
   backgroundColor: '$positiveBackground',
+  cursor: 'pointer',
 });
 
 export function InlineMention({
@@ -49,7 +51,16 @@ export function InlineMention({
   inline: MentionInlineData;
 }>) {
   const contactName = useContactName(inline.contactId);
-  return <MentionText color={'$positiveActionText'}>{contactName}</MentionText>;
+  const { onGoToUserProfile } = useNavigation();
+  const handlePress = useCallback(() => {
+    console.log('Mention pressed');
+    onGoToUserProfile?.(inline.contactId);
+  }, [onGoToUserProfile, inline.contactId]);
+  return (
+    <MentionText onPress={handlePress} color={'$positiveActionText'}>
+      {contactName}
+    </MentionText>
+  );
 }
 
 export function InlineLineBreak() {
