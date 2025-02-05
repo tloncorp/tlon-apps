@@ -137,7 +137,7 @@ export function ChatAuthorRow({
 
   return (
     <XStack gap="$l" alignItems="center" userSelect="none" {...props}>
-      <ContactAvatar size="$2xl" contactId={authorId} />
+      <ContactAvatar onPress={openProfile} size="$2xl" contactId={authorId} />
       <XStack gap="$l" alignItems="flex-end">
         <Text
           size="$label/2xl"
