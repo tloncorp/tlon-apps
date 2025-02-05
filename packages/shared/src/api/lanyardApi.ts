@@ -3,7 +3,53 @@ import { Atom, Cell, Noun, dwim, enjs } from '@urbit/nockjs';
 
 import * as db from '../db';
 import { unpackJamBytes } from '../http-api/utils';
+import { getPatp } from '../logic';
 import { getCurrentUserId, pokeNoun, scryNoun } from './urbit';
+
+function getRecords(noun: Noun): db.Verification[] {
+  return enjs.tree((n: Noun) => {
+    if (!(n instanceof Cell)) {
+      throw new Error('malformed map');
+    }
+
+    if (!(n.head instanceof Cell)) {
+      throw new Error('malformed record key');
+    }
+
+    const provider = getPatp(n.head.head) as string;
+
+    if (!(n.head.tail instanceof Cell)) {
+      throw new Error('malformed record key identifier');
+    }
+
+    const type = enjs.cord(n.head.tail.head);
+    const value = enjs.frond([
+      { tag: 'dummy', get: enjs.cord },
+      { tag: 'phone', get: enjs.cord },
+      { tag: 'urbit', get: getPatp },
+    ])(n.head.tail) as string;
+
+    if (!(n.tail instanceof Cell)) {
+      throw new Error('malformed record value');
+    }
+
+    const config = enjs.cord(n.tail.head) as db.VerificationVisibility;
+    const status = enjs.frond([
+      { tag: 'want', get: () => 'pending' },
+      { tag: 'wait', get: () => 'waiting' },
+      { tag: 'done', get: () => 'verified' },
+    ]) as unknown as db.VerificationStatus;
+
+    return {
+      provider,
+      type,
+      value,
+      initiatedAt: null,
+      visibility: config,
+      status,
+    };
+  })(noun) as unknown as db.Verification[];
+}
 
 export async function fetchVerifications(): Promise<db.Verification[]> {
   const result = await scryNoun({
@@ -11,6 +57,8 @@ export async function fetchVerifications(): Promise<db.Verification[]> {
     path: '/records',
   });
   console.log(`bl: scry result`, result);
+  const records = getRecords(result);
+  console.log(`bl: records`, records);
 
   // const tada =
   //   'FaB3vs7sBn+/OQM8cGhvbmWA3kqMjI3MDA5OjMxNHeBDSyMjK3MH/LswN3rjU+C90cFT';

@@ -874,7 +874,7 @@ export class Urbit {
   }
 
   // TODO: fix scry type
-  async scryNoun(params: Scry): Promise<Noun | ReadableStream<Uint8Array>> {
+  async scryNoun(params: Scry): Promise<Noun> {
     const { app, path } = params;
 
     console.log(`client scrying noun`, `${this.url}/~/scry/${app}${path}.noun`);
