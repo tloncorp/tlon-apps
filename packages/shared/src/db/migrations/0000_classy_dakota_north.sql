@@ -64,6 +64,7 @@ CREATE TABLE `channels` (
 	`contact_id` text,
 	`added_to_group_at` integer,
 	`current_user_is_member` integer,
+	`current_user_is_host` integer,
 	`post_count` integer,
 	`unread_count` integer,
 	`first_unread_post_id` text,
@@ -339,12 +340,13 @@ CREATE TABLE `thread_unreads` (
 );
 --> statement-breakpoint
 CREATE TABLE `verifications` (
+	`provider` text NOT NULL,
 	`type` text NOT NULL,
 	`value` text NOT NULL,
 	`initiated_at` integer,
 	`visibility` text NOT NULL,
 	`status` text NOT NULL,
-	PRIMARY KEY(`type`, `value`)
+	PRIMARY KEY(`provider`, `type`, `value`)
 );
 --> statement-breakpoint
 CREATE TABLE `volume_settings` (

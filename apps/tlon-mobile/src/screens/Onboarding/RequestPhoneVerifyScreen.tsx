@@ -11,6 +11,7 @@ import {
   useStore,
   useTheme,
 } from '@tloncorp/ui';
+import { isValidPhoneNumber } from 'libphonenumber-js';
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { CountryPicker } from 'react-native-country-codes-picker';
@@ -108,6 +109,7 @@ export const RequestPhoneVerifyScreen = ({
             control={control}
             rules={{
               required: 'Please enter a valid phone number.',
+              validate: (value) => isValidPhoneNumber(value),
             }}
             render={({ field: { onChange } }) => (
               <Field

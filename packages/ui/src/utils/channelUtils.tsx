@@ -49,18 +49,14 @@ export function getChannelTitle({
 }
 
 export function useChatTitle(
-  channel: db.Channel | null,
+  channel?: db.Channel | null,
   group?: db.Group | null
 ) {
   const { disableNicknames } = useCalm();
 
-  if (!channel || (channel.groupId && !group)) {
-    return null;
-  }
-
-  if (group?.channels?.length === 1) {
+  if (group && (!channel || group?.channels?.length === 1)) {
     return getGroupTitle(group, disableNicknames);
-  } else {
+  } else if (channel) {
     return getChannelTitle({
       ...configurationFromChannel(channel),
       channelTitle: channel.title,
@@ -68,6 +64,8 @@ export function useChatTitle(
       disableNicknames,
     });
   }
+
+  return null;
 }
 
 export function useChannelTitle(channel: db.Channel | null) {

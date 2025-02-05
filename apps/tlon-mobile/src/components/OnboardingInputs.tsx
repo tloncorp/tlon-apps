@@ -1,5 +1,6 @@
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { Field, TextInput, XStack, useTheme } from '@tloncorp/ui';
+import { isValidPhoneNumber } from 'libphonenumber-js';
 import {
   createRef,
   useCallback,
@@ -131,6 +132,7 @@ export function PhoneNumberInput({
         control={form.control}
         rules={{
           required: 'Please enter a valid phone number.',
+          validate: (value) => isValidPhoneNumber(value),
         }}
         render={({ field: { onChange } }) => (
           <Field

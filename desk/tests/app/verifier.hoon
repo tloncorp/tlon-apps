@@ -4,18 +4,27 @@
 ::    ~zod is the host,
 ::    ~nec is the primary user
 ::
-/-  v=verifier
+/-  verifier
 /+  *test-agent
 ::
 /=  agent  /app/verifier
 ::
 |%
+++  v  (verifier)
 ++  dap  %verifier
 +$  card  card:agent:gall
 ::
-++  phone-api-base   'https://phone.api/base'
-++  phone-api-key    'api-key'
-++  attempt-timeout  ~h1
+++  phone-api-base      'https://phone.api/base'
+++  phone-api-key       'api-key'
+++  twitter-api-bearer  'someBearerToken'
+++  attempt-timeout     ~h1
+::
+++  ex-cards  ::NOTE  custom version that ignores logging-related cards
+  |=  [caz=(list card) exes=(list $-(card tang))]
+  =-  (^ex-cards - exes)
+  %+  skip  caz
+  |=  c=card
+  ?=([%pass [%logs ~] *] c)
 ::
 ++  ex-verifier-update
   =/  initial=?  |
@@ -114,9 +123,14 @@
   ^-  seed:jael
   [for faux-life sec:ex:(pit:nu:crub:crypto 8 for) ~]
 ::
+++  faux-deed
+  |=  for=@p
+  ^-  [=life =pass sig=(unit @)]
+  [faux-life pub:ex:(pit:nu:crub:crypto 8 for) ~]
+::
 ++  faux-sign
   |*  [host=@p dat=*]
-  ^-  (urbit-signature:v _dat)
+  ^-  (signed:v _dat)
   =/  sig=@ux  (sigh:as:(nol:nu:crub:crypto key:(faux-seed host)) (jam dat))
   [host faux-life dat sig]
 ::
@@ -125,7 +139,9 @@
   ^-  (unit vase)
   ?+  path
       ~&([%faux-scry-miss path] ~)
-    [%j @ %vile @ ~]  `!>((jam (faux-seed (slav %p i.t.path))))
+    [%j @ %vile @ ~]      `!>((jam (faux-seed (slav %p i.t.path))))
+    [%j @ %lyfe @ @ ~]    `!>((some faux-life))
+    [%j @ %deed @ @ @ ~]  `!>((faux-deed (slav %p i.t.t.t.t.path)))  ::NOTE  static life
   ==
 ::
 ++  make-attestation
@@ -133,9 +149,8 @@
   =/  m  (mare ,attestation:v)
   ;<  bowl:gall  bind:m  get-bowl
   %-  pure:m
-  :+  now  ~
-  :-  (faux-sign our `half-sign-data-0:v`[%0 %verified now for -.id])
-  (faux-sign our `full-sign-data-0:v`[%0 %verified now for id proof])
+  :-  (faux-sign our `half-sign-data:v`[%0 %verified now for -.id])
+  (faux-sign our `full-sign-data:v`[%0 %verified now for id proof])
 ::
 ++  get-state
   =/  m  (mare state:v)
@@ -164,6 +179,8 @@
   =/  m  (mare ,~)
   ;<  ~  bind:m  (set-scry-gate faux-scry)
   ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (do-poke %noun !>([%set-phone-api 'xx' 'xx' ~]))
+  ;<  *  bind:m  (do-poke %noun !>([%set-twitter-api 'xx']))
   (pure:m ~)
 ::
 ::  action tests
@@ -195,7 +212,7 @@
   ++  host-approves
     ;<  at=attestation:v  bind:m  (make-attestation ~nec id ~)
     ;<  ~  bind:m
-      (ex-scry-result /u/attestations/(scot %ux sig.full-sign.at) !>(|))
+      (ex-scry-result /u/attestations/(scot %ux sig.full.at) !>(|))
     ;<  cas=(list card)  bind:m
       (host-does %dummy +.id %grant)
     ;<  ~  bind:m
@@ -204,7 +221,7 @@
     ::TODO  check scry (not state, that's too direct for tests. should test api)
     ::      (right??)
     ;<  ~  bind:m
-      (ex-scry-result /u/attestations/(scot %ux sig.full-sign.at) !>(&))
+      (ex-scry-result /u/attestations/(scot %ux sig.full.at) !>(&))
     (pure:m ~)
   ::  host rejects the request, id gets freed up again
   ::
@@ -212,7 +229,7 @@
     ;<  cas=(list card)  bind:m
       (host-does %dummy +.id %reject)
     ;<  ~  bind:m
-      (ex-cards cas (ex-verifier-update ~nec %status id %gone) ~)
+      (ex-cards cas (ex-verifier-update ~nec %status id %gone 'revoked') ~)
     ::TODO  check that you can make another attempt?
     (pure:m ~)
   --
@@ -254,15 +271,15 @@
       ::TODO  don't test signature value, test whether it matches pubkey
       %+  ex-cards  cas
       [(ex-verifier-update ~nec %status id %done at)]~
-    ;<  ~  bind:m  (ex-scry-result /u/attestations/(scot %ux sig.full-sign.at) !>(&))
+    ;<  ~  bind:m  (ex-scry-result /u/attestations/(scot %ux sig.full.at) !>(&))
     ;<  ~  bind:m
       ::TODO  test via scries instead?
       ;<  =state:v  bind:m  get-state
       %-  branch
       :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec ~2000.1.2 *config:v %done at]))
           'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
-          'ath'^(ex-equal !>((~(get by attested.state) sig.half-sign.at)) !>(`id))
-          'atf'^(ex-equal !>((~(get by attested.state) sig.full-sign.at)) !>(`id))
+          'ath'^(ex-equal !>((~(get by attested.state) sig.half.at)) !>(`id))
+          'atf'^(ex-equal !>((~(get by attested.state) sig.full.at)) !>(`id))
       ==
     (pure:m ~)
   ::
@@ -309,10 +326,18 @@
     ==
   ::
   |^  %-  branch
-      :~  'status bad'^status-bad
+      :~  'status request canceled'^status-cancel
+          'status bad'^status-bad
           'status verified'^status-verified
           'status unverified'^status-unverified
       ==
+  ++  status-cancel
+    ;<  caz=(list card)  bind:m
+      (do-arvo (snoc wir %status) %iris %http-response %cancel ~)
+    %+  ex-cards  caz  :_  ~
+    %+  ex-phone-api-req  (snoc wir %status)
+    [%'POST' '/status' `'{"phoneNumber":"+123456789","ship":"~nec"}']
+  ::
   ++  status-bad
     %+  (merge (list card))
       :~  :-  '400 response'
@@ -323,7 +348,7 @@
           %+  do-phone-api-res  (snoc wir %status)
           [200 `'"bad json"']
       ==
-    rejected  ::TODO  and log report sent
+    errored  ::TODO  and log report sent
   ::
   ++  status-verified
     %+  (merge (list card))
@@ -373,12 +398,23 @@
       %+  ex-phone-api-req  (snoc wir %verify)
       [%'POST' '/verify' `'{"phoneNumber":"+123456789"}']
     ::
-    |^  (branch 'start verify fail'^verify-fail 'start verify ok'^verify-ok ~)
+    |^  %-  branch
+        :~  'start verify request canceled'^verify-cancel
+            'start verify fail'^verify-fail
+            'start verify ok'^verify-ok
+        ==
+    ++  verify-cancel
+      ;<  caz=(list card)  bind:m
+        (do-arvo (snoc wir %verify) %iris %http-response %cancel ~)
+      %+  ex-cards  caz  :_  ~
+      %+  ex-phone-api-req  (snoc wir %verify)
+      [%'POST' '/verify' `'{"phoneNumber":"+123456789"}']
+    ::
     ++  verify-fail
       ;<  caz=(list card)  bind:m
         %+  do-phone-api-res  (snoc wir %verify)
         [400 `'{"message":,"Forbidden"}']
-      (rejected caz)
+      (errored caz)
     ::
     ++  verify-ok
       ;<  caz=(list card)  bind:m
@@ -397,7 +433,17 @@
             [%'PATCH' '/verify' `'{"otp":"333777","phoneNumber":"+123456789"}']
         ==
       ::
-      |^  (branch 'otp bad'^otp-bad 'otp good'^otp-good ~)
+      |^  %-  branch
+          :~  'otp request canceled'^otp-cancel
+              'otp bad'^otp-bad
+              'otp good'^otp-good
+          ==
+      ++  otp-cancel
+        ;<  caz=(list card)  bind:m
+          (do-arvo (snoc wir %submit) %iris %http-response %cancel ~)
+        %+  ex-cards  caz  :_  ~
+        (ex-verifier-update ~nec %status id %want %phone %otp)
+      ::
       ++  otp-bad
         ::  if the otp code is wrong, should update status to ask for a retry
         ::
@@ -415,11 +461,11 @@
       --
     --
   ::
-  ++  rejected
+  ++  errored
     |=  caz=(list card)
     ;<  ~  bind:m
       %+  ex-cards  caz
-      [(ex-verifier-update ~nec %status id %gone)]~
+      [(ex-verifier-update ~nec %status id %gone 'service error')]~
     ::TODO  test via scries instead?
     ;<  =state:v  bind:m  get-state
     %-  branch
@@ -439,8 +485,265 @@
     %-  branch
     :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec ~2000.1.2 *config:v %done at]))
         'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
-        'ath'^(ex-equal !>((~(get by attested.state) sig.half-sign.at)) !>(`id))
-        'atf'^(ex-equal !>((~(get by attested.state) sig.full-sign.at)) !>(`id))
+        'ath'^(ex-equal !>((~(get by attested.state) sig.half.at)) !>(`id))
+        'atf'^(ex-equal !>((~(get by attested.state) sig.full.at)) !>(`id))
+    ==
+  --
+::
+++  test-twitter-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  do-setup
+  ;<  ~  bind:m  (wait ~d1)
+  ::
+  ;<  ~  bind:m
+    %-  ex-fail
+    %-  (do-as ~nec)
+    (do-poke %noun !>([%set-twitter-api twitter-api-bearer]))
+  ;<  caz=(list card)  bind:m
+    (do-poke %noun !>([%set-twitter-api twitter-api-bearer]))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ::
+  ;<  caz=(list card)  bind:m
+    (ex-fail (user-does ~nec %start %twitter 'CapitalsHandle'))
+  ::
+  =/  handle=@t         'tloncorporation'
+  =/  id=identifier:v   [%twitter handle]
+  =/  wir=wire          /id/twitter/(scot %t handle)
+  ::  user requests a twitter handle, is given a nonce to sign a message with,
+  ::  submits a tweet id whose post contains the signature jam
+  ::
+  =/  nonce=@ux
+    0x9fd7.fbc0
+  =/  want-status=status:v
+    [%want %twitter %post nonce]
+  ;<  caz=(list card)  bind:m
+    (user-does ~nec %start id)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-verifier-update ~nec %status id want-status)
+      ::
+        %+  ex-arvo  /expire/twitter/(scot %t handle)/(scot %da ~2000.1.2)
+        [%b %wait (add ~2000.1.2 attempt-timeout)]
+    ==
+  ::
+  =/  pid=@t         '112233445566778899'
+  =/  req-wire=wire  (weld wir /post/(scot %t pid))
+  ;<  caz=(list card)  bind:m
+    (user-does ~nec %work id %twitter %post pid)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-verifier-update ~nec %status id %wait ~ want-status)
+      ::
+        %+  ex-http-request  req-wire
+        :+  %'GET'
+          %+  rap  3
+          :~  'https://api.x.com/2/tweets/'
+              pid
+              '?user.fields=username,id'
+              '&tweet.fields=author_id,entities'
+              '&expansions=author_id'
+          ==
+        :_  ~
+        ['authorization' (cat 3 'Bearer ' twitter-api-bearer)]~
+    ==
+  ::
+  =/  good-pay=payload:twitter:v
+    %+  faux-sign  ~nec
+    [%twitter %0 handle nonce]
+  =/  good-blob=@t
+    (crip ((w-co:co 1) (jam good-pay)))
+  ::TODO  want to unit-test +parse-twitter-post instead?
+  |^  %-  branch
+      :~  'api unauthorized'^api-unauthorized
+          'api rate-limited'^api-rate-limited
+          'tweet not found'^tweet-not-found
+          'tweet protected'^tweet-protected
+          'bad response'^bad-response
+          'bad tweet'^bad-tweet
+          ::TODO  good sig but incorrect author
+          'good'^good
+      ==
+  ::
+  ++  do-twitter-api-res
+    |=  [code=@ud jot=@t]
+    %+  do-http-response  req-wire
+    :-  [code ~]  ::NOTE  real response has many headers, that we don't look at
+    `['application/json; charset=utf-8' (as-octs:mimes:html jot)]
+  ::
+  ++  api-unauthorized
+    ;<  caz=(list card)  bind:m
+      (do-twitter-api-res 401 'whatever')
+    (errored caz)
+  ::
+  ++  api-rate-limited
+    ;<  caz=(list card)  bind:m
+      (do-twitter-api-res 429 'whatever')
+    (held caz)
+  ::
+  ++  tweet-not-found
+    ;<  caz=(list card)  bind:m
+      (do-twitter-api-res 404 'whatever')
+    (held caz)
+  ::
+  ++  tweet-protected
+    ;<  caz=(list card)  bind:m
+      %+  do-twitter-api-res  200
+      '''
+      { "errors": [ {
+        "resource_id": "1879974887965749623",
+        "parameter": "id",
+        "resource_type": "tweet",
+        "section": "data",
+        "title": "Authorization Error",
+        "value": "1879974887965749623",
+        "detail": "Sorry, you are not authorized to see the Tweet with id: [1879974887965749623].",
+        "type": "https://api.twitter.com/2/problems/not-authorized-for-resource"
+      } ] }
+      '''
+    (held caz)
+  ::
+  ++  bad-response
+    %+  (merge (list card))
+      :~  :-  'malformed response body'
+          (do-twitter-api-res 200 'whatever')
+        ::
+          :-  'author mismatch'
+          (do-twitter-api-res 200 (make-tweet-json(handle 'miss') good-blob))
+      ==
+    errored
+  ::
+  ++  bad-tweet
+    %+  (merge (list card))
+      =-  %+  turn  -
+          |=  [l=@t t=@t]
+          [l (do-twitter-api-res 200 (make-tweet-json t))]
+      :~  :-  'no recognizable jam'
+          'Some tweet without a giant base64-encoded jam inside of it.'
+        ::
+          :-  'jam of malformed noun'
+          'Some tweet with a strange jam inside of it: T90NUtJXZPn4LOOCSLFc4LZCt~f5rg6Qb68ENinuw~E0w1D-7yR6CANHrdc3H0113-c0sjYJVJ-6s~DKGxS1u1DpfDe2RHWIy4K7DPigDTe8MoY~TpCPrqSnaX-A6wdUP-f0201VcHIOKz2Qe~U1'
+        ::
+          :-  'jam containing invalid signature'
+          'Some tweet with a poorly-signed jam inside of it: 1V~uNyQNNIYok850~oo77-S177wZJ5eL~y~FyxzmAUrd0S~rL6thrzjpOHJudFxLOKlYSQg0INhflFfGwDic3h~U0j-LZU083sTJbEMKjuUejuNJPuSeCY0pVcHEWdbKWnw5NN'
+        ::
+          :-  'jam packed too tight with other text'
+          (cat 3 good-blob 'conjoining')
+        ::
+          :-  'jam signed with the wrong nonce'
+          %-  crip  %-  (w-co:co 1)  %-  jam
+          ^-  payload:twitter:v
+          %+  faux-sign  ~nec
+          [%twitter %0 handle 0xdead.dead]
+      ==
+    held
+  ::
+  ++  good
+    %+  (merge (list card))
+      =-  %+  turn  -
+          |=  [l=@t t=@t]
+          [l (do-twitter-api-res 200 (make-tweet-json t))]
+      :~  :-  'plain'
+          good-blob
+        ::
+          :-  'pad left'
+          (cat 3 'Here is your blob: ' good-blob)
+        ::
+          :-  'pad left tight'
+          %+  rap  3
+          :~  'this-works-because-tail-bytes-dont-count'
+              good-blob
+              '\\nAnd this should parse as separate.'
+          ==
+        ::
+          :-  'pad right'
+          (cat 3 good-blob ' should be it.')
+        ::
+          :-  'pad both'
+          (rap 3 'Some tweet containing very tasty ' good-blob ' jam.' ~)
+      ==
+    registered
+  ::
+  ++  make-tweet-json
+    |=  text=@t
+    %+  rap  3
+    :~  '''
+        {
+          "data": {
+            "author_id": "998877665544332211",
+            "id": "112233445566778899",
+            "text": "
+        '''
+        text
+        '''
+        "
+          },
+          "includes": {
+            "users": [
+              {
+                "id": "998877665544332211",
+                "name": "Tlon Corporation",
+                "username": "
+        '''
+        handle
+        '''
+        "
+              }
+            ]
+          }
+        }
+        '''
+    ==
+  ::
+  ++  held
+    |=  caz=(list card)
+    ;<  ~  bind:m
+      %+  ex-cards  caz
+      [(ex-verifier-update ~nec %status id want-status)]~
+    ;<  =state:v  bind:m  get-state
+    (ex-equal !>((~(has by records.state) id)) !>(&))
+  ::
+  ++  errored
+    |=  caz=(list card)
+    ;<  ~  bind:m
+      %+  ex-cards  caz
+      [(ex-verifier-update ~nec %status id %gone 'service error')]~
+    ::TODO  test via scries instead?
+    ;<  =state:v  bind:m  get-state
+    %-  branch
+    :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(~))
+        'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>(~))
+    ==
+  ::
+  ++  registered
+    |=  caz=(list card)
+    ;<  at=attestation:v  bind:m  (make-attestation ~nec id `[%tweet pid])
+    ;<  ~  bind:m
+      ::TODO  don't test signature value, test whether it matches pubkey
+      %+  ex-cards  caz
+      [(ex-verifier-update ~nec %status id %done at)]~
+    ::TODO  test via scries instead?
+    ;<  =state:v  bind:m  get-state
+    ;<  ~  bind:m
+      %-  branch
+      :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(`[~nec ~2000.1.2 *config:v %done at]))
+          'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>([id ~ ~]))
+          'ath'^(ex-equal !>((~(get by attested.state) sig.half.at)) !>(`id))
+          'atf'^(ex-equal !>((~(get by attested.state) sig.full.at)) !>(`id))
+          'lup'^(ex-equal !>((~(get by lookups.state) sig.good-pay)) !>(`id))
+          'rev'^(ex-equal !>((~(get ju reverse.state) id)) !>([sig.good-pay ~ ~]))
+      ==
+    ::  revocation cleans out that state
+    ::
+    ;<  *  bind:m  (user-does ~nec %revoke id)
+    ;<  =state:v  bind:m  get-state
+    %-  branch
+    :~  'rec'^(ex-equal !>((~(get by records.state) id)) !>(~))
+        'own'^(ex-equal !>((~(get ju owners.state) ~nec)) !>(~))
+        'ath'^(ex-equal !>((~(get by attested.state) sig.half.at)) !>(~))
+        'atf'^(ex-equal !>((~(get by attested.state) sig.full.at)) !>(~))
+        'lup'^(ex-equal !>((~(get by lookups.state) sig.good-pay)) !>(~))
+        'rev'^(ex-equal !>((~(get ju reverse.state) id)) !>(~))
     ==
   --
 ::
@@ -453,7 +756,11 @@
     :*  records=(my [id ~nec ~2000.1.2 *config:v status] ~)
         owners=?:(?=(%done -.status) (my [~nec (sy id ~)] ~) ~)
         attested=(my [*@ux id] ~)
+        lookups=~
+        reverse=~
+        limits=~
         phone-api=['https://phone.api/base' 'api-key' ~]
+        twitter-api=[bearer=twitter-api-bearer]
         domain=`'http://sampel.net'
     ==
   ;<  *  bind:m  (do-load agent `!>([%0 state]))
@@ -501,7 +808,7 @@
   ;<  cas=(list card)  bind:m  (user-does ~nec %revoke id)
   ;<  ~  bind:m
     %+  ex-cards  cas
-    [(ex-verifier-update ~nec %status id %gone)]~
+    [(ex-verifier-update ~nec %status id %gone 'revoked')]~
   ;<  ~  bind:m
     ::TODO  test via scries instead?
     ;<  =state:v  bind:m  get-state
@@ -519,10 +826,11 @@
   ::  should delete state if the registration never finished
   ::
   ;<  caz=(list card)  bind:m
+    ?>  ?=(%phone -.id)
     (do-arvo /expire/[-.id]/(scot %t +.id)/(scot %da ~2000.1.2) %behn %wake ~)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    [(ex-verifier-update ~nec %status id %gone)]~
+    [(ex-verifier-update ~nec %status id %gone 'registration timed out')]~
   ;<  ~  bind:m
     ::TODO  test via scries instead?
     ;<  =state:v  bind:m  get-state
@@ -540,6 +848,7 @@
   ::  should delete state if the registration never finished
   ::
   ;<  caz=(list card)  bind:m
+    ?>  ?=(%phone -.id)
     (do-arvo /expire/phone/(scot %t +.id)/(scot %da ~2000.1.1) %behn %wake ~)
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  ~  bind:m
@@ -601,28 +910,42 @@
   |=  records=(map identifier:v record:v)
   ^-  state:v
   :-  records
-  =<  [owners attested ['' '' ~] ~]
+  =<  [owners attested ~ ~ ~ ['' '' ~] '' ~]
   %+  roll  ~(tap by records)
   |=  $:  [id=identifier:v record:v]
           [owners=(jug ship identifier:v) attested=(map @ux identifier:v)]
       ==
   ?.  ?=(%done -.status)  [owners attested]
   :-  (~(put ju owners) for id)
-  (~(gas by attested) sig.half-sign.status^id sig.full-sign.status^id ~)
+  (~(gas by attested) sig.half.status^id sig.full.status^id ~)
 ::
 ++  do-query-setup
+  |=  $@  entries=_1
+      [entries=@ud =config:v]
+  =/  [entries=@ud =config:v]
+    ?^(+< +< [+< %hidden])
   =/  m  (mare ,~)
   ;<  ~  bind:m  do-setup
-  =/  id=identifier:v  [%dummy 'test-id']
+  =/  base-id    [%dummy 'test-id']
+  =/  base-ship  ~nec
   =/  wen=@da  ~2222.2.2
   ;<  ~  bind:m  (jab-bowl |=(b=bowl:gall b(now wen)))
-  ;<  at=attestation:v  bind:m  (make-attestation ~nec id ~)
-  =/  =state:v
-    %-  state-from-records
-    %-  ~(gas by *(map identifier:v record:v))
-    :~  [id ~nec wen %hidden %done at]
-    ==
-  ;<  *  bind:m  (do-load agent `!>([%0 state]))
+  =|  records=(map identifier:v record:v)
+  =/  i  0
+  |-  =*  loop  $
+  ?:  (lth i entries)
+    =/  this-id
+      ?:  =(0 i)  base-id
+      base-id(+ (rap 3 +.base-id ' ' (scot %ud i) ~))
+    =/  this-ship
+      (add base-ship i)
+    ;<  at=attestation:v  bind:m
+      (make-attestation this-ship this-id ~)
+    =.  records
+      %+  ~(put by records)  this-id
+      [this-ship wen config %done at]
+    $(i +(i))
+  ;<  *  bind:m  (do-load agent `!>([%0 (state-from-records records)]))
   (pure:m ~)
 ::
 ++  expect-query-response
@@ -636,11 +959,14 @@
 ++  test-query-has-any
   %-  eval-mare
   =/  m  (mare ,~)
-  ;<  ~  bind:m  do-query-setup
+  ;<  ~  bind:m  (do-query-setup)
   ;<  ~  bind:m
     %^  expect-query-response  ~fed
       [[%some-dude %my-nonce] %has-any ~nec %dummy]
     [%has-any &]
+  ::  started but incomplete registrations don't count
+  ::
+  ;<  *  bind:m  (user-does ~nec %start %urbit ~fun)
   ;<  ~  bind:m
     %^  expect-query-response  ~fed
       [[%my-dude %some-nonce] %has-any ~nec %urbit]
@@ -650,12 +976,12 @@
 ++  test-query-valid
   %-  eval-mare
   =/  m  (mare ,~)
-  ;<  ~  bind:m  do-query-setup
+  ;<  ~  bind:m  (do-query-setup)
   ;<  ~  bind:m
     %^  expect-query-response  ~fed
       :+  [%some-dude %my-nonce]
         %valid
-      sig:(faux-sign ~zod `full-sign-data-0:v`[%0 %verified ~2222.2.2 ~nec [%dummy 'test-id'] ~])
+      sig:(faux-sign ~zod `full-sign-data:v`[%0 %verified ~2222.2.2 ~nec [%dummy 'test-id'] ~])
     [%valid &]
   ;<  ~  bind:m
     %^  expect-query-response  ~fed
@@ -666,7 +992,7 @@
 ++  test-query-whose  ::  with respect for different configs
   %-  eval-mare
   =/  m  (mare ,~)
-  ;<  ~  bind:m  do-query-setup
+  ;<  ~  bind:m  (do-query-setup)
   =/  id=identifier:v  [%dummy 'test-id']
   ::  discoverability config %hidden
   ::
@@ -706,9 +1032,197 @@
     [%whose ~]
   (pure:m ~)
 ::
-::TODO  test that timeout timers get set & fire when waiting on user action
+++  test-query-whose-bulk
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (do-query-setup 10 %public)
+  ::
+  ;<  ~  bind:m
+    %^  expect-query-response  ~fed
+      =;  s=(set identifier:v)
+        [[%some-dude %my-nonce] %whose-bulk 0x0 ~ s ~]
+      (sy [%dummy 'test-id'] [%dummy 'test-id 1'] [%dummy 'test-id x'] ~)
+    :+  %whose-bulk
+      0xcfc7.1531.8e8b.0153.9b11.db7f.bbc2.0a6c.
+        1311.c6a7.2292.b906.96c2.6466.f03d.2ddb
+    %-  ~(gas by *(map identifier:v (unit @p)))
+    :~  :-  [%dummy 'test-id']    `~nec
+        :-  [%dummy 'test-id 1']  `~bud
+        :-  [%dummy 'test-id x']  ~
+    ==
+  ::
+  (pure:m ~)
+::
+::  rate-limiting tests
+::
+++  test-query-rate-limits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (do-query-setup)
+  =/  id=identifier:v  [%dummy 'test-id']
+  =*  request
+    %^  expect-query-response  ~fed
+      [[%some-dude %my-nonce] %whose id]
+    [%whose ~]
+  ::  exhaust our allotted requests
+  ::
+  =/  n=@ud  queries:*allowance:v
+  |-  =*  loop  $
+  ?.  =(0 n)
+    ;<  ~  bind:m  request
+    loop(n (dec n))
+  ::  next request should go over the limit
+  ::
+  ;<  ~  bind:m  (ex-fail request)
+  ::  waiting for a little bit should let us make some requests again
+  ::
+  ;<  ~  bind:m  (wait ~m16)
+  =.  n  3
+  |-  =*  loop  $
+  ?.  =(0 n)
+    ;<  ~  bind:m  request
+    loop(n (dec n))
+  (ex-fail request)
+::
+++  test-query-bulk-rate-limits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (do-query-setup)
+  =/  base  batch:*allowance:v
+  =/  query
+    :*  %whose-bulk
+        last-salt=0x0
+        last=*(set identifier:v)
+      ::
+        ^=  add
+        %-  ~(gas in *(set identifier:v))
+        (turn (gulf 1 base) |=(a=@ [%dummy (scot %ud a)]))
+      ::
+        del=*(set identifier:v)
+    ==
+  ::  can keep querying the same large set indefinitely
+  ::
+  =|  eny=@
+  =/  n=@ud  10
+  |-  =*  loop  $
+  ?.  =(0 n)
+    ;<  ~  bind:m  (jab-bowl |=(b=bowl b(eny eny)))
+    =/  expected-salt  (shas %whose-salt eny)
+    ;<  *  bind:m
+      (user-asks ~fed [%some-dude %my-nonce] query)
+    %_  loop
+      n    (dec n)
+      eny  +(eny)
+      last-salt.query  expected-salt
+      last.query       (~(uni in last.query) add.query)
+      add.query        ~
+    ==
+  ::  but can only do additions at limited rate,
+  ::  and breaking set continuity causes the whole set to count again.
+  ::
+  =.  add.query
+    %-  ~(gas in *(set identifier:v))
+    (turn (gulf +(base) (add base 5)) |=(a=@ [%dummy (scot %ud a)]))
+  %-  branch
+  :~  :-  'eager'
+      (ex-fail (user-asks ~fed [%some-dude %my-nonce] query))
+    ::
+      :-  'continuous'
+      ;<  ~  bind:m  (wait ~h12)
+      ;<  *  bind:m  (user-asks ~fed [%some-dude %my-nonce] query)
+      (pure:m ~)
+    ::
+      :-  'discontinuous'
+      ;<  ~  bind:m  (wait ~h12)
+      =.  last-salt.query  0xdead
+      (ex-fail (user-asks ~fed [%some-dude %my-nonce] query))
+  ==
+::
+++  test-query-bulk-max-size
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (do-query-setup)
+  =/  base  0
+  =/  step  batch:*allowance:v
+  =/  query
+    :*  %whose-bulk
+        last-salt=0x0
+        last=*(set identifier:v)
+        add=*(set identifier:v)
+        del=*(set identifier:v)
+    ==
+  ::  keep expanding the set we ask about
+  ::
+  =|  eny=@
+  =/  n=@ud  batch-upper-bound:rates:v
+  |-  =*  loop  $
+  ?.  =(0 n)
+    =.  last.query  (~(uni in last.query) add.query)
+    =/  a  (min n step)
+    =.  add.query
+      %-  ~(gas in *(set identifier:v))
+      (turn (gulf base (add base (dec a))) |=(a=@ [%dummy (scot %ud a)]))
+    =.  n  (sub n a)
+    =.  base  (add base step)
+    ;<  ~  bind:m  (jab-bowl |=(b=bowl b(eny eny)))
+    =/  expected-salt  (shas %whose-salt eny)
+    ;<  *  bind:m
+      (user-asks ~fed [%some-dude %my-nonce] query)
+    ;<  ~  bind:m  (wait ~d365)
+    %_  loop
+      eny  +(eny)
+      last-salt.query  expected-salt
+    ==
+  ::  expect the next one to crash due to too-big bulk request
+  ::
+  =.  last.query  (~(uni in last.query) add.query)
+  =.  add.query   (sy [%dummy (scot %ud base)] ~)
+  (ex-fail (user-asks ~fed [%some-dude %my-nonce] query))
+::
+++  test-phone-otp-rate-limits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  do-setup
+  ::  request verification texts until we hit the expected limit
+  ::
+  =/  n=@ud  phone:*allowance:v
+  |-  =*  loop  $
+  ?.  =(0 n)
+    ;<  *  bind:m  (user-does ~nec %start %phone (scot %ud n))
+    ;<  *  bind:m  (user-does ~nec %revoke %phone (scot %ud n))
+    loop(n (dec n))
+  ;<  ~  bind:m  (ex-fail (user-does ~nec %start %phone '+123456789'))
+  ::  if we wait, we may continue new attempts
+  ::
+  ;<  ~  bind:m  (wait p:phone:rates:v)
+  ;<  *  bind:m  (user-does ~nec %start %phone '+123456789')
+  ::
+  (pure:m ~)
+::
+++  test-tweet-rate-limits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  do-setup
+  ::  check the submitted tweet until we hit the expected limit
+  ::
+  =/  n=@ud  tweet:*allowance:v
+  |-  =*  loop  $
+  ?.  =(0 n)
+    ;<  *  bind:m  (user-does ~nec %start %twitter 'blah')
+    ;<  *  bind:m  (user-does ~nec %work [%twitter 'blah'] %twitter %post '112233445566778899')
+    ;<  *  bind:m  (user-does ~nec %revoke %twitter 'blah')
+    loop(n (dec n))
+  ;<  *  bind:m  (user-does ~nec %start %twitter 'blah')
+  ;<  ~  bind:m  (ex-fail (user-does ~nec %work [%twitter 'blah'] %twitter %post '112233445566778899'))
+  ::  if we wait, we may continue new attempts
+  ::
+  ;<  ~  bind:m  (wait p:tweet:rates:v)
+  ;<  *  bind:m  (user-does ~nec %work [%twitter 'blah'] %twitter %post '112233445566778899')
+  ::
+  (pure:m ~)
 ::
 ::TODO  test lanyard:
 ::TODO  test resubscribe on poke nack
 ::TODO  test %full handling
+::TODO  test %kick handling behavior, regression from 78f1b76b8
 --

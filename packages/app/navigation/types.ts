@@ -1,6 +1,7 @@
 import type {
   NavigationProp,
   NavigatorScreenParams,
+  RouteProp,
 } from '@react-navigation/native';
 
 export type RootStackParamList = {
@@ -71,7 +72,20 @@ export type RootStackParamList = {
   ChannelTemplate: {
     channelId: string;
   };
+  ChatDetails: {
+    chatType: 'group' | 'channel';
+    chatId: string;
+  };
+  ChatVolume: {
+    chatType: 'group' | 'channel';
+    chatId: string;
+  };
 };
+
+export type RootStackRouteProp<T extends keyof RootStackParamList> = RouteProp<
+  RootStackParamList,
+  T
+>;
 
 export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
 
@@ -93,6 +107,8 @@ export type HomeDrawerParamList = Pick<
   GroupDM:
     | NavigatorScreenParams<ChannelStackParamList>
     | RootStackParamList['GroupDM'];
+  ChatDetails: RootStackParamList['ChatDetails'];
+  ChatVolume: RootStackParamList['ChatVolume'];
 };
 
 export type ChannelStackParamList = {

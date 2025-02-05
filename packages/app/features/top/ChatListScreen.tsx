@@ -25,6 +25,7 @@ import {
   useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Keyboard } from 'react-native';
 import { ColorTokens, useTheme } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
@@ -238,6 +239,7 @@ export function ChatListScreenView({
     if (isWindowNarrow) {
       if (showSearchInput) {
         setSearchQuery('');
+        Keyboard.dismiss();
       }
       setShowSearchInput(!showSearchInput);
     } else {

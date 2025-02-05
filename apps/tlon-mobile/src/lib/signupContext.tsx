@@ -44,7 +44,8 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     setValue: setValues,
     resetValue: resetValues,
   } = signupData.useStorageItem();
-  const { bootPhase, bootReport, kickOffBootSequence } = useBootSequence();
+  const { bootPhase, bootReport, kickOffBootSequence, resetBootSequence } =
+    useBootSequence();
   const postHog = usePostHog();
 
   const setOnboardingValues = useCallback(
@@ -88,7 +89,15 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         errorStack: e.stack,
       });
     } finally {
-      setTimeout(() => clear(), 2000);
+      // this is when the UI will transition to authenticated app
+      setTimeout(() => {
+        clear();
+        setTimeout(() => {
+          // delay resetting the boot sequence to avoid race conditions
+          // with displaying the checkmarks before transitioning
+          resetBootSequence();
+        }, 1000);
+      }, 2000);
     }
   }, [
     values.nickname,
@@ -98,6 +107,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     postHog,
     bootReport,
     clear,
+    resetBootSequence,
   ]);
 
   useEffect(() => {

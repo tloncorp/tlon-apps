@@ -19,9 +19,9 @@
 =/  cover=(unit @ta)    =+  a=(~(gut by contact) %cover %look '')
                         ?:(&(?=([%look *] a) !=('' +.a)) `+.a ~)
 =/  phone=(unit @da)    =+  a=(~(gut by contact) %lanyard-tmp-phone-since %date *@da)
-                        ?:(&(?=(%date -.a) !=(*@da +.a)) `+.a ~)
+                        ?:(&(?=([%date *] a) !=(*@da +.a)) `+.a ~)
 =/  phurl=(unit @t)     =+  a=(~(gut by contact) %lanyard-tmp-phone-url %text *@t)
-                        ?:(&(?=(%text -.a) !=(*@t +.a)) `+.a ~)
+                        ?:(&(?=([%text *] a) !=(*@t +.a)) `+.a ~)
 |^  %-  ~(gas by *(map term [%0 @t %marl marl]))
     :~  [%profile %0 'Profile Header' %marl profile-widget]
         [%profile-bio %0 'Profile Bio' %marl profile-bio]
@@ -179,7 +179,7 @@
             :_  ~
             =/  since=@da  (sub u.phone (mod u.phone ~d1))
             ::TODO  link to proof/attestation?
-            ;a.verified/"{(trip (need phurl))}"
+            ;a.verified/"{?~(phurl "#" (trip u.phurl))}"
               =title  "verified since {(scow %da since)}"
               ; ✅
             ==

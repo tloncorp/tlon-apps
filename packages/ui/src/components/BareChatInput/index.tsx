@@ -418,6 +418,7 @@ export default function BareChatInput({
       }
 
       try {
+        setControlledText('');
         bareChatInputLogger.log('clearing attachments');
         clearAttachments();
         bareChatInputLogger.log('resetting input height');
@@ -447,7 +448,6 @@ export default function BareChatInput({
         bareChatInputLogger.log('clearing draft');
         await clearDraft();
         bareChatInputLogger.log('setting initial content');
-        setControlledText('');
         setHasSetInitialContent(false);
       }
     },
@@ -672,10 +672,14 @@ export default function BareChatInput({
 
       if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
         e.preventDefault();
-        handleSend();
+        if (editingPost) {
+          handleEdit();
+        } else {
+          handleSend();
+        }
       }
     },
-    [setIsOpen, handleSend]
+    [setIsOpen, handleSend, handleEdit, editingPost]
   );
 
   return (

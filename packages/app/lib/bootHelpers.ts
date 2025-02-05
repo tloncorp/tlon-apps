@@ -63,6 +63,7 @@ export async function reserveNode(
 
   // if the hosting user already has a ship tied to their account, use that
   if (user.ships?.length) {
+    await db.hostedUserNodeId.setValue(user.ships[0]);
     return user.ships[0];
   }
 
