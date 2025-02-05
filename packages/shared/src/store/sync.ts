@@ -360,19 +360,25 @@ export async function syncGroup(id: string, ctx?: SyncCtx) {
     return;
   }
   groupSyncsInProgress.add(id);
-  const group = await db.getGroup({ id });
-  const session = getSession();
-  if (group && session && (session.startTime ?? 0) < (group.syncedAt ?? 0)) {
-    return;
+  try {
+    const group = await db.getGroup({ id });
+    const session = getSession();
+    if (group && session && (session.startTime ?? 0) < (group.syncedAt ?? 0)) {
+      return;
+    }
+    const response = await syncQueue.add('syncGroup', ctx, () =>
+      api.getGroup(id)
+    );
+    await batchEffects('syncGroup', async (ctx) => {
+      await db.insertGroups({ groups: [response] }, ctx);
+      await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
+    });
+  } catch (e) {
+    logger.trackError('group sync failed', { errorMessage: e.message });
+    throw e;
+  } finally {
+    groupSyncsInProgress.delete(id);
   }
-  const response = await syncQueue.add('syncGroup', ctx, () =>
-    api.getGroup(id)
-  );
-  await batchEffects('syncGroup', async (ctx) => {
-    await db.insertGroups({ groups: [response] }, ctx);
-    await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
-  });
-  groupSyncsInProgress.delete(id);
 }
 
 export const syncStorageSettings = (ctx?: SyncCtx) => {
