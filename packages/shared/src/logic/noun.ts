@@ -58,3 +58,26 @@ export const logNoun =
     console.log(str, noun.toString());
     return fn(noun);
   };
+
+interface frondOpt {
+  tag: string;
+  get: EnjsFunction;
+}
+
+export function getFrondValue(opts: frondOpt[]): EnjsFunction {
+  return (noun: Noun) => {
+    if (!(noun instanceof Cell)) {
+      throw new Error('malformed frond');
+    }
+
+    const tag = enjs.cord(noun.head);
+
+    const opt = opts.find((o) => o.tag === tag);
+
+    if (!opt) {
+      throw new Error('unknown frond tag');
+    }
+
+    return opt.get(noun.tail);
+  };
+}

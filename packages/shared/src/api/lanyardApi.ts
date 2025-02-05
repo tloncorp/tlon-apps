@@ -3,7 +3,7 @@ import { Atom, Cell, Noun, dwim, enjs } from '@urbit/nockjs';
 
 import * as db from '../db';
 import { unpackJamBytes } from '../http-api/utils';
-import { getPatp } from '../logic';
+import { getFrondValue, getPatp } from '../logic';
 import { getCurrentUserId, pokeNoun, scryNoun } from './urbit';
 
 function getRecords(noun: Noun): db.Verification[] {
@@ -23,7 +23,7 @@ function getRecords(noun: Noun): db.Verification[] {
     }
 
     const type = enjs.cord(n.head.tail.head);
-    const value = enjs.frond([
+    const value = getFrondValue([
       { tag: 'dummy', get: enjs.cord },
       { tag: 'phone', get: enjs.cord },
       { tag: 'urbit', get: getPatp },
@@ -34,11 +34,11 @@ function getRecords(noun: Noun): db.Verification[] {
     }
 
     const config = enjs.cord(n.tail.head) as db.VerificationVisibility;
-    const status = enjs.frond([
+    const status = getFrondValue([
       { tag: 'want', get: () => 'pending' },
       { tag: 'wait', get: () => 'waiting' },
       { tag: 'done', get: () => 'verified' },
-    ]) as unknown as db.VerificationStatus;
+    ])(n.tail.tail) as db.VerificationStatus;
 
     return {
       provider,
@@ -60,6 +60,7 @@ export async function fetchVerifications(): Promise<db.Verification[]> {
   const records = getRecords(result);
   console.log(`bl: records`, records);
 
+  return records;
   // const tada =
   //   'FaB3vs7sBn+/OQM8cGhvbmWA3kqMjI3MDA5OjMxNHeBDSyMjK3MH/LswN3rjU+C90cFT';
   // // const myBuffer = base64ToArrayBuffer(tada);
@@ -84,33 +85,33 @@ export async function fetchVerifications(): Promise<db.Verification[]> {
   // console.log(`bl: unpacked`, unpacked);
 
   // minimum viable unpacking
-  const tree = enjs.tree((treeNode: Noun) => {
-    if (!(treeNode instanceof Cell)) {
-      throw new Error('expected a cell');
-    }
+  // const tree = enjs.tree((treeNode: Noun) => {
+  //   if (!(treeNode instanceof Cell)) {
+  //     throw new Error('expected a cell');
+  //   }
 
-    const head = treeNode.head; // pair of ship and identifier
-    if (!(head instanceof Cell)) {
-      throw new Error('expected a cell');
-    }
-    const idNoun = head.tail;
-    const id = enjs.frond([
-      { tag: 'phone', get: (n: Noun) => Atom.cordToString(n as Atom) },
-      { tag: 'urbit', get: (n: Noun) => patp((n as Atom).number) },
-    ])(idNoun);
+  //   const head = treeNode.head; // pair of ship and identifier
+  //   if (!(head instanceof Cell)) {
+  //     throw new Error('expected a cell');
+  //   }
+  //   const idNoun = head.tail;
+  //   const id = enjs.frond([
+  //     { tag: 'phone', get: (n: Noun) => Atom.cordToString(n as Atom) },
+  //     { tag: 'urbit', get: (n: Noun) => patp((n as Atom).number) },
+  //   ])(idNoun);
 
-    console.log(`bl: id json`, id);
+  //   console.log(`bl: id json`, id);
 
-    // if (!(identifier instanceof Cell)) {
-    //   throw new Error('expected a cell');
-    // }
-    // const idType = identifier.head;
-    // const idValue = identifier.tail;
+  //   // if (!(identifier instanceof Cell)) {
+  //   //   throw new Error('expected a cell');
+  //   // }
+  //   // const idType = identifier.head;
+  //   // const idValue = identifier.tail;
 
-    return id;
-  })(result as Noun);
-  console.log(`whole tree`, tree);
-  return tree as db.Verification[];
+  //   return id;
+  // })(result as Noun);
+  // console.log(`whole tree`, tree);
+  // return tree as db.Verification[];
 }
 
 // step 1, send %start command

@@ -330,7 +330,11 @@ export const insertVerifications = createWriteQuery(
       .insert($verifications)
       .values(verifications)
       .onConflictDoUpdate({
-        target: [$verifications.type, $verifications.value],
+        target: [
+          $verifications.type,
+          $verifications.value,
+          $verifications.provider,
+        ],
         set: conflictUpdateSetAll($verifications),
       });
   },

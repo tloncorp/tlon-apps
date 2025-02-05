@@ -221,7 +221,13 @@ export const syncVerifications = async (ctx?: SyncCtx) => {
   const verifications = await syncQueue.add('verifications', ctx, () =>
     api.fetchVerifications()
   );
-  await db.insertVerifications({ verifications });
+  try {
+    await db.insertVerifications({ verifications });
+  } catch (e) {
+    logger.error('error inserting verifications', e);
+  }
+
+  logger.log('inserted verifications from api', verifications);
 };
 
 export const syncPinnedItems = async (ctx?: SyncCtx) => {
