@@ -16,7 +16,7 @@ import {
 import { addChannelToNavSection, moveChannel } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { useLureState } from './lure';
-import { getSyncing, updateIsSyncing, updateSession } from './session';
+import { updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
@@ -1090,7 +1090,7 @@ export const clearSyncQueue = () => {
 */
 export const handleDiscontinuity = async () => {
   logger.trackEvent(AnalyticsEvent.SyncDiscontinuity);
-  if (getSyncing()) {
+  if (isSyncing) {
     // we probably don't want to do this while we're already syncing
     return;
   }
@@ -1110,17 +1110,19 @@ export const handleChannelStatusChange = async (status: ChannelStatus) => {
   updateSession({ channelStatus: status });
 };
 
+let isSyncing = false;
+
 export const syncStart = async (alreadySubscribed?: boolean) => {
-  if (getSyncing()) {
+  if (isSyncing) {
     // we probably don't want multiple sync starts
     return;
   }
-  const startTime = Date.now();
+  isSyncing = true;
 
-  updateIsSyncing(true);
+  const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
-  batchEffects('sync start (high)', async (ctx) => {
+  await batchEffects('sync start (high)', async (ctx) => {
     // this allows us to run the api calls first in parallel but handle
     // writing the data in a specific order
     const yieldWriter = true;
@@ -1215,10 +1217,10 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       logger.trackError(e);
     });
 
-  updateIsSyncing(false);
-
   // post sync initialization work
-  verifyUserInviteLink();
+  await verifyUserInviteLink();
+
+  isSyncing = false;
 };
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
