@@ -96,7 +96,16 @@ const channelIdFromNotification = (notif: Notifications.Notification) => {
  * Imprecise method to sync internal unreads with presented notifications.
  * We should move to a serverside badge + dismiss notification system, and remove this.
  */
-async function updatePresentedNotifications(badgeCount?: number) {
+async function updatePresentedNotifications() {
+  if (store.getSession()?.channelStatus !== 'active') {
+    // If the session is not active, we can't be sure that our "fully-read"
+    // status is up-to-date - e.g. we may have messages that we've received
+    // over notifications, but which are not yet synced, in which case the DB
+    // looks like we're fully-read, but we have message notifications that we
+    // don't want to dismiss.
+    return;
+  }
+
   const presentedNotifs = await Notifications.getPresentedNotificationsAsync();
   const allChannelIds = new Set(
     compact(presentedNotifs.map(channelIdFromNotification))
@@ -131,7 +140,7 @@ async function updatePresentedNotifications(badgeCount?: number) {
 export function useUpdatePresentedNotifications() {
   const { data: unreadCount } = store.useUnreadsCountWithoutMuted();
   useEffect(() => {
-    updatePresentedNotifications(unreadCount).catch((err) => {
+    updatePresentedNotifications().catch((err) => {
       console.error('Failed to update presented notifications:', err);
     });
   }, [unreadCount]);
