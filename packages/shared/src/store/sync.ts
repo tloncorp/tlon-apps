@@ -1180,6 +1180,8 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     updateSession({ startTime: Date.now() });
   });
 
+  updateIsSyncing(false);
+
   const lowPriorityPromises = [
     alreadySubscribed
       ? Promise.resolve()
