@@ -8,7 +8,6 @@ import { ContactAvatar } from './Avatar';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import { ContactName } from './ContactNameV2';
 import { useBoundHandler } from './ListItem/listItemUtils';
-import Pressable from './Pressable';
 import { Text } from './TextV2';
 
 const RoleBadge = View.styleable<{ role: string }>(
@@ -84,24 +83,35 @@ export function DetailViewAuthorRow({
   const shouldTruncate = showEditedIndicator || deliveryFailed;
 
   return (
-    <Pressable onPress={deliveryFailed ? undefined : openProfile}>
-      <XStack gap="$l" alignItems="center" userSelect="none" {...props}>
-        <ContactAvatar size="$2xl" contactId={authorId} />
-        <Text
-          size="$label/l"
-          numberOfLines={1}
-          maxWidth={shouldTruncate ? '55%' : '100%'}
-          color={color ?? '$secondaryText'}
-        >
-          <ContactName contactId={authorId} />
+    <XStack
+      cursor="default"
+      gap="$l"
+      alignItems="center"
+      userSelect="none"
+      {...props}
+    >
+      <ContactAvatar
+        cursor="pointer"
+        size="$2xl"
+        contactId={authorId}
+        onPress={openProfile}
+      />
+      <Text
+        size="$label/l"
+        numberOfLines={1}
+        maxWidth={shouldTruncate ? '55%' : '100%'}
+        color={color ?? '$secondaryText'}
+        cursor="pointer"
+        onPress={deliveryFailed ? undefined : openProfile}
+      >
+        <ContactName contactId={authorId} />
+      </Text>
+      {deliveryFailed ? (
+        <Text size="$label/m" color="$negativeActionText">
+          Tap to retry
         </Text>
-        {deliveryFailed ? (
-          <Text size="$label/m" color="$negativeActionText">
-            Tap to retry
-          </Text>
-        ) : null}
-      </XStack>
-    </Pressable>
+      ) : null}
+    </XStack>
   );
 }
 
@@ -136,14 +146,26 @@ export function ChatAuthorRow({
   const shouldTruncate = showEditedIndicator || firstRole || deliveryFailed;
 
   return (
-    <XStack gap="$l" alignItems="center" userSelect="none" {...props}>
-      <ContactAvatar onPress={openProfile} size="$2xl" contactId={authorId} />
+    <XStack
+      cursor="default"
+      gap="$l"
+      alignItems="center"
+      userSelect="none"
+      {...props}
+    >
+      <ContactAvatar
+        cursor="pointer"
+        onPress={openProfile}
+        size="$2xl"
+        contactId={authorId}
+      />
       <XStack gap="$l" alignItems="flex-end">
         <Text
           size="$label/2xl"
           numberOfLines={1}
           maxWidth={shouldTruncate ? '55%' : '100%'}
           onPress={deliveryFailed ? undefined : openProfile}
+          cursor="pointer"
         >
           <ContactName contactId={authorId} />
         </Text>
