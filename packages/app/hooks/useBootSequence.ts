@@ -150,8 +150,14 @@ export function useBootSequence() {
         store.addContact(lureMeta?.inviterUserId);
       }
 
-      const { invitedDm, invitedGroup } =
+      const { invitedDm, invitedGroup, tlonTeamDM } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
+      logger.trackEvent(AnalyticsEvent.InviteDebug, {
+        context: 'invites to look for',
+        invitedDm,
+        invitedGroup,
+        tlonTeamDM,
+      });
 
       const requiredInvites =
         lureMeta?.inviteType === 'user' ? invitedDm : invitedGroup && invitedDm;
