@@ -76,12 +76,18 @@ export const connectNotifications = async () => {
 };
 
 const channelIdFromNotification = (notif: Notifications.Notification) => {
-  if (notif.request.trigger.type !== 'push') {
-    return null;
+  let out: string | null = null;
+  if (
+    notif.request.trigger?.type === 'push' &&
+    typeof notif.request.trigger.payload?.channelId === 'string'
+  ) {
+    out = notif.request.trigger.payload.channelId;
   }
-  const out = notif.request.trigger.payload?.channelId;
-  if (typeof out !== 'string') {
-    return null;
+  if (
+    out == null &&
+    typeof notif.request.content.data?.channelId === 'string'
+  ) {
+    out = notif.request.content.data.channelId;
   }
   return out;
 };

@@ -57,7 +57,9 @@ function payloadFromNotification(
   // `trigger`.
   // Detect and use whatever payload is available.
   const payload =
-    notification.request.trigger.type === 'push'
+    // `NotificationRequest.trigger` is marked as non-null in
+    // expo-notifications' types, but is null on Android - so we need the `?`
+    notification.request.trigger?.type === 'push'
       ? notification.request.trigger.payload
       : notification.request.content.data;
 
