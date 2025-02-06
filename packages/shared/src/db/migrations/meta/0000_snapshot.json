@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a317605a-b303-4b87-b2e9-0f210564fcce",
+  "id": "a81be202-e2ee-4117-8533-dd20783fad0d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -1524,6 +1524,13 @@
         "last_visited_channel_id": {
           "name": "last_visited_channel_id",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "synced_at": {
+          "name": "synced_at",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
