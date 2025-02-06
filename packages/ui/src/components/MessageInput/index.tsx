@@ -35,7 +35,13 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, YStack, getTokenValue, useWindowDimensions } from 'tamagui';
+import {
+  View,
+  YStack,
+  getTokenValue,
+  useTheme,
+  useWindowDimensions,
+} from 'tamagui';
 
 import {
   Attachment,
@@ -584,6 +590,7 @@ export function MessageInput({
   }, [runSendMessage, editingPost]);
 
   const titleIsEmpty = useMemo(() => !title || title.length === 0, [title]);
+  const primaryTextColor = useTheme().primaryText.val;
 
   return (
     <MessageInputContainer
@@ -615,12 +622,16 @@ export function MessageInput({
         borderRadius="$xl"
       >
         {showInlineAttachments && <AttachmentPreviewList />}
-        <View height={bigInput ? bigInputHeightBasic : initialHeight} width="80%">
+        <View
+          height={bigInput ? bigInputHeightBasic : initialHeight}
+          width="80%"
+        >
           <EditorContent
             style={{
               width: '100%',
               height: '100%',
               padding: 12,
+              color: primaryTextColor,
             }}
             editor={editor}
           />

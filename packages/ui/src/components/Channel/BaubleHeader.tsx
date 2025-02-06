@@ -1,5 +1,6 @@
 import { LinearGradient } from '@tamagui/linear-gradient';
 import * as db from '@tloncorp/shared/db';
+import { BlurView } from 'expo-blur';
 import { useCallback } from 'react';
 import { OpaqueColorValue } from 'react-native';
 import Animated, {
@@ -102,75 +103,81 @@ export function BaubleHeader({
             overflow="hidden"
             onPress={handlePress}
           >
-            {showSpinner ? (
-              <Animated.View
-                entering={FadeIn.duration(128)}
-                exiting={FadeOut.duration(128)}
-              >
-                <Spinner margin={'$l'} />
-              </Animated.View>
-            ) : null}
-            {channel.members && channel.type === 'dm' && !showSpinner && (
-              <Animated.View
-                entering={FadeIn.duration(128)}
-                exiting={FadeOut.duration(128)}
-              >
-                <View margin="$s">
-                  <ContactAvatar
-                    contactId={channel.members?.[0].contactId}
-                    borderRadius="$xs"
-                    size="$3xl"
-                  />
-                </View>
-              </Animated.View>
-            )}
-            {channel.type === 'groupDm' && !showSpinner && (
-              <Animated.View
-                entering={FadeIn.duration(128)}
-                exiting={FadeOut.duration(128)}
-              >
-                <Icon type={'ChannelTalk'} color="$secondaryText" margin="$s" />
-              </Animated.View>
-            )}
-            {(channel.type === 'chat' ||
-              channel.type === 'gallery' ||
-              channel.type === 'notebook') &&
-              group?.iconImage &&
-              !showSpinner && (
+            <BlurView intensity={32}>
+              {showSpinner ? (
                 <Animated.View
                   entering={FadeIn.duration(128)}
                   exiting={FadeOut.duration(128)}
                 >
-                  <Image
+                  <Spinner margin={'$l'} />
+                </Animated.View>
+              ) : null}
+              {channel.members && channel.type === 'dm' && !showSpinner && (
+                <Animated.View
+                  entering={FadeIn.duration(128)}
+                  exiting={FadeOut.duration(128)}
+                >
+                  <View margin="$s">
+                    <ContactAvatar
+                      contactId={channel.members?.[0].contactId}
+                      borderRadius="$xs"
+                      size="$3xl"
+                    />
+                  </View>
+                </Animated.View>
+              )}
+              {channel.type === 'groupDm' && !showSpinner && (
+                <Animated.View
+                  entering={FadeIn.duration(128)}
+                  exiting={FadeOut.duration(128)}
+                >
+                  <Icon
+                    type={'ChannelTalk'}
+                    color="$secondaryText"
                     margin="$s"
-                    width={'$3xl'}
-                    height={'$3xl'}
-                    borderRadius="$xs"
-                    contentFit="cover"
-                    source={{
-                      uri: group.iconImage,
-                    }}
                   />
                 </Animated.View>
               )}
-            {(channel.type === 'chat' ||
-              channel.type === 'gallery' ||
-              channel.type === 'notebook') &&
-              !group?.iconImage &&
-              group?.iconImageColor &&
-              !showSpinner && (
-                <Animated.View
-                  entering={FadeIn.duration(128)}
-                  exiting={FadeOut.duration(128)}
-                >
-                  <ListItemTextIcon
-                    fallbackText={groupTitle ?? ''}
-                    backgroundColor={
-                      group?.iconImageColor as unknown as OpaqueColorValue
-                    }
-                  />
-                </Animated.View>
-              )}
+              {(channel.type === 'chat' ||
+                channel.type === 'gallery' ||
+                channel.type === 'notebook') &&
+                group?.iconImage &&
+                !showSpinner && (
+                  <Animated.View
+                    entering={FadeIn.duration(128)}
+                    exiting={FadeOut.duration(128)}
+                  >
+                    <Image
+                      margin="$s"
+                      width={'$3xl'}
+                      height={'$3xl'}
+                      borderRadius="$xs"
+                      contentFit="cover"
+                      source={{
+                        uri: group.iconImage,
+                      }}
+                    />
+                  </Animated.View>
+                )}
+              {(channel.type === 'chat' ||
+                channel.type === 'gallery' ||
+                channel.type === 'notebook') &&
+                !group?.iconImage &&
+                group?.iconImageColor &&
+                !showSpinner && (
+                  <Animated.View
+                    entering={FadeIn.duration(128)}
+                    exiting={FadeOut.duration(128)}
+                  >
+                    <ListItemTextIcon
+                      fallbackText={groupTitle ?? ''}
+                      backgroundColor={
+                        group?.iconImageColor as unknown as OpaqueColorValue
+                      }
+                    />
+                  </Animated.View>
+                )}
+            </BlurView>
           </Pressable>
         </Animated.View>
       )}

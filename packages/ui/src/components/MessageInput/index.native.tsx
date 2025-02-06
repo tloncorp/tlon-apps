@@ -46,10 +46,10 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Keyboard } from 'react-native';
+import { Keyboard, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebViewMessageEvent } from 'react-native-webview';
-import { YStack, getTokenValue, useWindowDimensions } from 'tamagui';
+import { YStack, getTokenValue, useTheme, useWindowDimensions } from 'tamagui';
 import { XStack } from 'tamagui';
 
 import { useBranchDomain, useBranchKey } from '../../contexts';
@@ -928,6 +928,13 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       clearAttachments();
     }, [setEditingPost, editor, clearDraft, clearAttachments, draftType]);
 
+    const primaryTextColor = useTheme().primaryText.val;
+    const backgroundColorValue = useTheme().background.val;
+    const injectThemeColors = `
+      document.body.style.backgroundColor = '${backgroundColorValue}';
+      document.body.style.color = '${primaryTextColor}';
+    `;
+
     return (
       <MessageInputContainer
         setShouldBlur={setShouldBlur}
@@ -995,6 +1002,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               renderLoading={() => <></>}
               injectedJavaScript={`
               ${tentapInjectedJs}
+              ${injectThemeColors}
 
               window.onerror = function(message, source, lineno, colno, error) {
                 window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'content-error', payload: message }));

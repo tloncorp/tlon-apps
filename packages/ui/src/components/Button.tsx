@@ -95,6 +95,8 @@ export const ButtonFrame = styled(Stack, {
     heroDestructive: {
       true: {
         backgroundColor: '$background',
+        // placeholder constant -- need to resolve ochre implementation
+        height: 56,
         padding: '$xl',
         borderWidth: 1,
         pressStyle: {
@@ -166,7 +168,7 @@ export const ButtonText = styled(Text, {
     },
     heroDestructive: {
       true: {
-        color: '$negativeActionText',
+        color: '$tertiaryText',
         width: '100%',
         textAlign: 'center',
         fontWeight: '500',

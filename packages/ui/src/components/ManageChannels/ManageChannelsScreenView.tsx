@@ -341,7 +341,26 @@ export function ManageChannelsScreenView({
     // Only update local state if the total number of sections have changed
     // OR if a newly created channel has been added to the default section
     // OR if a channel has been deleted
+    // OR if a channel name has changed
     if (newNavSections.length === sections.length) {
+      // Check if any channel names have changed
+      const hasChannelNameChanged = newNavSections.some((newSection) => {
+        const currentSection = sections.find((s) => s.id === newSection.id);
+        if (!currentSection) return false;
+
+        return newSection.channels.some((newChannel) => {
+          const currentChannel = currentSection.channels.find(
+            (c) => c.id === newChannel.id
+          );
+          return currentChannel && currentChannel.title !== newChannel.title;
+        });
+      });
+
+      if (hasChannelNameChanged) {
+        setSections(newNavSections);
+        return;
+      }
+
       if (newTotalChannels !== currentTotalChannels) {
         // Check if a new channel has been added to the default section
         if (
@@ -353,11 +372,12 @@ export function ManageChannelsScreenView({
           )
         ) {
           setSections(newNavSections);
+          return;
         }
         // Check if a channel has been deleted
         if (newTotalChannels < currentTotalChannels) {
-          console.log('Channel deleted');
           setSections(newNavSections);
+          return;
         }
       }
 
