@@ -55,7 +55,7 @@ interface PostWithNeighbors {
   older: db.Post | null;
 }
 
-const logger = createDevLogger('scroller', false);
+const logger = createDevLogger('scroller', true);
 
 export const INITIAL_POSTS_PER_PAGE = 30;
 
@@ -133,6 +133,12 @@ const Scroller = forwardRef(
     },
     ref
   ) => {
+    useEffect(() => {
+      if (anchor) {
+        logger.log('scroller anchor prop', anchor);
+      }
+    }, [anchor]);
+
     const collectionLayout = useMemo(
       () => layoutForType(collectionLayoutType),
       [collectionLayoutType]

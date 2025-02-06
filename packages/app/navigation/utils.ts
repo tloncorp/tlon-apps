@@ -193,14 +193,19 @@ export function useNavigateBackFromPost() {
 
   return useCallback(
     (channel: db.Channel, postId: string) => {
+      console.log(`using navigate back from post`, postId);
       if (lastScreenWasActivity) {
         navigation.navigate('Activity');
         return;
       }
       if (isWindowNarrow) {
         const screenName = screenNameFromChannelId(channel.id);
+        const isChatShaped = ['chat', 'dm', 'groupDM'].includes(channel.type);
         navigation.navigate(screenName, {
           channelId: channel.id,
+          // we don't want to highlight the selected post we're returning from
+          // if we aren't in a chat
+          // selectedPostId: isChatShaped ? postId : undefined,
           selectedPostId: postId,
           ...(channel.groupId ? { groupId: channel.groupId } : {}),
         });

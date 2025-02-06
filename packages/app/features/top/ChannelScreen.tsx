@@ -372,6 +372,12 @@ export default function ChannelScreen(props: Props) {
 
   const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
 
+  useEffect(() => {
+    if (selectedPostId) {
+      console.log(`channel has selectedPostId`, selectedPostId);
+    }
+  }, [selectedPostId]);
+
   if (!channel) {
     return null;
   }

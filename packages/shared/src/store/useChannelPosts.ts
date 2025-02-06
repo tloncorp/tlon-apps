@@ -19,7 +19,7 @@ import { useCurrentSession } from './session';
 import * as sync from './sync';
 import { SyncPriority } from './syncQueue';
 
-const postsLogger = createDevLogger('useChannelPosts', false);
+const postsLogger = createDevLogger('useChannelPosts', true);
 
 type PostQueryPage = {
   posts: db.Post[];
