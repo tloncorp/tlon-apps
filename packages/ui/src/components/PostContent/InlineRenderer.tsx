@@ -104,7 +104,7 @@ export function InlineLink({ inline: node }: { inline: LinkInlineData }) {
     Linking.openURL(node.href);
   }, [node.href]);
   return (
-    <Text textDecorationLine="underline" onPress={handlePress}>
+    <Text cursor="pointer" textDecorationLine="underline" onPress={handlePress}>
       {node.text || node.href}
     </Text>
   );
