@@ -1120,7 +1120,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   updateIsSyncing(true);
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
-  batchEffects('sync start (high)', async (ctx) => {
+  await batchEffects('sync start (high)', async (ctx) => {
     // this allows us to run the api calls first in parallel but handle
     // writing the data in a specific order
     const yieldWriter = true;
@@ -1178,6 +1178,8 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     updateSession({ startTime: Date.now() });
   });
 
+  updateIsSyncing(false);
+
   const lowPriorityPromises = [
     alreadySubscribed
       ? Promise.resolve()
@@ -1214,8 +1216,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     .catch((e) => {
       logger.trackError(e);
     });
-
-  updateIsSyncing(false);
 
   // post sync initialization work
   verifyUserInviteLink();
