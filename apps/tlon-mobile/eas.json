@@ -64,16 +64,13 @@
     "local-testing": {
       "extends": "base",
       "channel": "local",
-      "env": {
-        "APP_VARIANT": "preview"
-      },
       "android": {
         "resourceClass": "large",
-        "gradleCommand": ":app:assemblePreviewRelease",
+        "gradleCommand": ":app:assembleProductionRelease",
         "buildType": "apk"
       },
       "ios": {
-        "scheme": "Landscape-preview",
+        "scheme": "Landscape",
         "simulator": true
       }
     },
