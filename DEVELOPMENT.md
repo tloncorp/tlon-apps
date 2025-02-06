@@ -134,10 +134,10 @@ To test locally you need:
 
 1. Install [openjdk21](https://formulae.brew.sh/formula/openjdk@21) if you don't have it on your system already.
 2. Install [Maestro](https://maestro.mobile.dev/getting-started/installing-maestro).
-3. Open an iPhone SE (3rd generation) simulator running iOS 18.1.
-4. Run npm run ios:release from /apps/tlon-mobile.
+3. Make sure your repo is up to date with `pnpm i` and `pod install` from `/apps/tlon-mobile/ios`
+4. Run `pnpm ios:release` from `/apps/tlon-mobile`.
 5. Wait until the app has booted in the simulator.
-6. Run maestro tests from the root of the repository with the following arguments: `maestro test -e URL={URL} -e CODE={CODE} -e EMAIL={EMAIL} -e PASSWORD={PASSWORD} 00-start.yaml`
+6. Run maestro tests from the root of the repository with the following arguments: `maestro test -e URL={URL} -e CODE={CODE} -e EMAIL={EMAIL} -e PASSWORD={PASSWORD} .maestro/00-start.yaml`
     1. {URL} should be a self-hosted ship's URL
     2. {CODE} should be the code that goes with that ship
     3. {EMAIL} should be the email of a Tlon hosted account
@@ -149,9 +149,7 @@ To write tests run:
 maestro studio
 ```
 
-You can use this to inspect whatever view you have loaded in the simulator. Clicking on elements will suggest selectors/commands to use in your tests.
-
-https://maestro.mobile.dev/api-reference/commands
+You can use this to inspect whatever view you have loaded in the simulator. Clicking on elements will suggest selectors/commands to use in your tests. Full set of commands are here: https://maestro.mobile.dev/api-reference/commands
 
 ## Cosmos
 
