@@ -19,10 +19,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.Date;
-import java.util.Iterator;
 
 import io.invertase.firebase.crashlytics.ReactNativeFirebaseCrashlyticsNativeHelper;
-import io.tlon.landscape.AppLifecycleManager;
 import io.tlon.landscape.MainActivity;
 import io.tlon.landscape.R;
 import io.tlon.landscape.api.TalkApi;
@@ -83,7 +81,7 @@ public class TalkNotificationManager {
                 }
 
                 Log.d("TalkNotificationManager", "fetching contact: " + yarn.senderId);
-                TalkObjectCallback fetchContactCallback = createFetchContactCallback(context, id, yarn);
+                TalkObjectCallback fetchContactCallback = createFetchContactCallback(context, id, yarn, uid);
                 api.fetchContact(yarn.senderId, fetchContactCallback);
             }
 
@@ -99,7 +97,7 @@ public class TalkNotificationManager {
         api.fetchYarn(uid, fetchYarnCallback);
     }
 
-    private static TalkObjectCallback createFetchContactCallback(Context context, int id, Yarn yarn) {
+    private static TalkObjectCallback createFetchContactCallback(Context context, int id, Yarn yarn, String uid) {
         final TalkApi api = new TalkApi(context);
 
         return new TalkObjectCallback() {
@@ -109,24 +107,84 @@ public class TalkNotificationManager {
                 final String channelId = yarn.channelId.orElse("");
                 Log.d("TalkNotificationManager", "handleNotification, contact: " + contact.toString());
                 createNotificationTitle(api, yarn, contact, title -> {
-                    Bundle data = new Bundle();
-                    data.putString("wer", yarn.wer);
-                    data.putString("channelId", channelId);
-                    data.putInt("notificationId", id);
-                    sendNotification(
+                    api.fetchActivityEvent(uid, createFetchActivityEventCallback(
                             context,
-                            id,
-                            contact.person,
                             title,
-                            yarn.contentText,
-                            yarn.isGroup || yarn.isClub,
-                            data);
+                            id,
+                            yarn,
+                            contact
+                    ));
                 });
             }
 
             @Override
             public void onError(VolleyError error) {
                 ReactNativeFirebaseCrashlyticsNativeHelper.recordNativeException(new Exception("notifications_fetch_contacts", error));
+            }
+        };
+    }
+
+    private static TalkObjectCallback createFetchActivityEventCallback(
+            Context context,
+            String notificationTitle,
+            int id,
+            Yarn yarn,
+            Contact sender
+    ) {
+        return new TalkObjectCallback() {
+            @Override
+            public void onComplete(JSONObject response) {
+                Log.d("TalkNotificationManager", "activity event recv" + response.toString());
+
+                Bundle data = new Bundle();
+                data.putString("wer", yarn.wer);
+                final String channelId = yarn.channelId.orElse("");
+                data.putString("channelId", channelId);
+                data.putInt("notificationId", id);
+
+                JSONObject jsonEvent = response.optJSONObject("event");
+                if (jsonEvent != null) {
+                    JSONObject jsonPost = jsonEvent.optJSONObject("post");
+                    if (jsonPost != null) {
+                        // Why use a JSON string instead of putting the JSON object into the
+                        // notification data?
+                        // - We need to access this notification data in JS via expo-notifications,
+                        //   which doesn't expect us to manipulate notifications in this way.
+                        // - expo-notifications uses this code to convert the `extras` `Bundle` into a JS-compatible payload:
+                        //   https://github.com/expo/expo/blob/24be063c1d4a091a7ef081e282ff788b2c94e674/packages/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt#L207
+                        //   which relies on `JSONObject.wrap()` to convert the `Bundle` entry into
+                        //   a JSON-compatible value; if that returns null (i.e. fails),
+                        //   expo-notifications omits the value from the payload.
+                        // - We are limited in how we can represent a JSON object in a `Bundle` and
+                        //   decode that object correctly through the expo-notifications code
+                        // - I don't think `Bundle` can hold a `JSONObject` as a value
+                        // - `Bundle` can hold a `Serializable` `Map`, which is handled well by
+                        //   `JSONObject.wrap()` - but somewhere in deeper expo-notifications JS
+                        //   conversion, a null value inside a `Map` causes a crash; and we have
+                        //   nulls in our post content schema.
+                        data.putString("postJsonString", jsonPost.toString());
+                    }
+                    JSONObject jsonDm = jsonEvent.optJSONObject("dm-post");
+                    if (jsonDm != null) {
+                        data.putString("dmPostJsonString", jsonDm.toString());
+                    }
+                }
+
+                sendNotification(
+                        context,
+                        id,
+                        sender.person,
+                        notificationTitle,
+                        yarn.contentText,
+                        yarn.isGroup || yarn.isClub,
+                        data);
+            }
+
+            @Override
+            public void onError(VolleyError error) {
+                ReactNativeFirebaseCrashlyticsNativeHelper.recordNativeException(
+                        new Exception("notifications_fetch_activity_event", error)
+                );
             }
         };
     }
@@ -224,6 +282,7 @@ public class TalkNotificationManager {
                 .setSmallIcon(R.drawable.notification_icon)
                 .setContentTitle(title)
                 .setContentText(text)
+                .addExtras(data)
                 .setStyle(new NotificationCompat.MessagingStyle(user)
                         .setGroupConversation(isGroupConversation)
                         .setConversationTitle(isGroupConversation ? title : null)
