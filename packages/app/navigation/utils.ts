@@ -193,7 +193,6 @@ export function useNavigateBackFromPost() {
 
   return useCallback(
     (channel: db.Channel, postId: string) => {
-      console.log(`using navigate back from post`, postId);
       if (lastScreenWasActivity) {
         navigation.navigate('Activity');
         return;

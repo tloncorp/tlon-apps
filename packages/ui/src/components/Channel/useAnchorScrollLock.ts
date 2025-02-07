@@ -12,7 +12,7 @@ import { FlatList } from 'react-native';
 
 import { ScrollAnchor } from './Scroller';
 
-const logger = createDevLogger('useAnchorScrollLock', true);
+const logger = createDevLogger('useAnchorScrollLock', false);
 
 /**
  * Hook to manage scroll position and anchor post visibility during post loading

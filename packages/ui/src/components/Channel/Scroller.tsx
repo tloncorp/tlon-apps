@@ -133,12 +133,6 @@ const Scroller = forwardRef(
     },
     ref
   ) => {
-    useEffect(() => {
-      if (anchor) {
-        logger.log('scroller anchor prop', anchor);
-      }
-    }, [anchor]);
-
     const collectionLayout = useMemo(
       () => layoutForType(collectionLayoutType),
       [collectionLayoutType]
