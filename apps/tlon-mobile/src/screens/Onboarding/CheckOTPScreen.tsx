@@ -1,5 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useSignupParams } from '@tloncorp/app/contexts/branch';
+import {
+  useLureMetadata,
+  useSignupParams,
+} from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
@@ -44,6 +47,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
   const recaptcha = useRecaptcha();
   const codeLength =
     otpMethod === 'email' ? EMAIL_CODE_LENGTH : PHONE_CODE_LENGTH;
+  const inviteMetadata = useLureMetadata();
 
   const accountCreds = useMemo(
     () => ({
@@ -96,6 +100,11 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         trackOnboardingAction({
           actionName: 'Account Created',
           lure: signupParams.lureId,
+          inviteType: inviteMetadata?.inviteType,
+          invitedGroupId: inviteMetadata?.invitedGroupId,
+          invitedGroupTitle: inviteMetadata?.invitedGroupTitle,
+          inviterNickname: inviteMetadata?.inviterNickname,
+          inviterUserId: inviteMetadata?.inviterUserId,
           ...accountCreds,
         });
 
@@ -111,6 +120,11 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
     },
     [
       accountCreds,
+      inviteMetadata?.inviteType,
+      inviteMetadata?.invitedGroupId,
+      inviteMetadata?.invitedGroupTitle,
+      inviteMetadata?.inviterNickname,
+      inviteMetadata?.inviterUserId,
       recaptcha,
       signupParams.lureId,
       signupParams.priorityToken,
