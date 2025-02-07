@@ -16,6 +16,7 @@ import {
 } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
@@ -285,13 +286,7 @@ function EditRoleSheet({
   }, [onDelete, role.id, role.title, onOpenChange]);
 
   return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      snapPoints={[70]}
-      snapPointsMode="percent"
-      moveOnKeyboardChange
-    >
+    <ActionSheet open={open} onOpenChange={onOpenChange} moveOnKeyboardChange>
       <ActionSheet.Content flex={1} paddingBottom={bottom}>
         <ActionSheet.SimpleHeader title="Edit role" />
         <YStack gap="$l" paddingHorizontal="$2xl" paddingBottom="$2xl">
@@ -326,6 +321,7 @@ function EditRoleSheet({
                   onBlur={() => {
                     onBlur();
                     trigger('title');
+                    Keyboard.dismiss();
                   }}
                   value={value}
                   editable={role.title !== 'Admin'}
@@ -341,7 +337,10 @@ function EditRoleSheet({
                 <TextInput
                   placeholder="Role description"
                   onChangeText={onChange}
-                  onBlur={onBlur}
+                  onBlur={() => {
+                    onBlur();
+                    Keyboard.dismiss();
+                  }}
                   value={value}
                   editable={role.title !== 'Admin'}
                 />
@@ -411,13 +410,7 @@ function AddRoleSheet({
   );
 
   return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      snapPoints={[45]}
-      snapPointsMode="percent"
-      moveOnKeyboardChange
-    >
+    <ActionSheet open={open} onOpenChange={onOpenChange} moveOnKeyboardChange>
       <ActionSheet.Content flex={1} paddingBottom={bottom}>
         <ActionSheet.SimpleHeader title="Add role" />
         <YStack gap="$l" paddingHorizontal="$2xl" paddingBottom="$2xl">
@@ -433,6 +426,7 @@ function AddRoleSheet({
                   onBlur={() => {
                     onBlur();
                     trigger('title');
+                    Keyboard.dismiss();
                   }}
                   value={value}
                 />
@@ -447,7 +441,10 @@ function AddRoleSheet({
                 <TextInput
                   placeholder="Role description"
                   onChangeText={onChange}
-                  onBlur={onBlur}
+                  onBlur={() => {
+                    onBlur();
+                    Keyboard.dismiss();
+                  }}
                   value={value}
                 />
               </Field>
