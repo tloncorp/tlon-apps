@@ -1,3 +1,4 @@
+import { parseGroupId } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo, useState } from 'react';
 import { SectionList } from 'react-native';
@@ -22,7 +23,6 @@ export function GroupMembersScreenView({
   joinRequests,
   groupPrivacyType,
   currentUserId,
-  currentUserIsHost,
   onPressKick,
   onPressBan,
   onPressUnban,
@@ -36,7 +36,6 @@ export function GroupMembersScreenView({
   members: db.ChatMember[];
   roles: db.GroupRole[];
   currentUserId: string;
-  currentUserIsHost: boolean;
   groupId: string;
   bannedUsers: db.GroupMemberBan[];
   joinRequests: db.GroupJoinRequest[];
@@ -180,6 +179,8 @@ export function GroupMembersScreenView({
     [members, selectedContact]
   );
 
+  const { host: groupHostId } = parseGroupId(groupId);
+
   return (
     <>
       <View backgroundColor="$background" flex={1}>
@@ -203,7 +204,7 @@ export function GroupMembersScreenView({
         <ProfileSheet
           open={true}
           currentUserIsAdmin={currentUserIsAdmin}
-          currentUserIsHost={currentUserIsHost}
+          groupHostId={groupHostId}
           userIsBanned={bannedUsers.some(
             (b) => b.contactId === selectedContact
           )}
