@@ -100,6 +100,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         trackOnboardingAction({
           actionName: 'Account Created',
           lure: signupParams.lureId,
+          inviteId: inviteMetadata?.id,
           inviteType: inviteMetadata?.inviteType,
           invitedGroupId: inviteMetadata?.invitedGroupId,
           invitedGroupTitle: inviteMetadata?.invitedGroupTitle,
@@ -120,11 +121,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
     },
     [
       accountCreds,
-      inviteMetadata?.inviteType,
-      inviteMetadata?.invitedGroupId,
-      inviteMetadata?.invitedGroupTitle,
-      inviteMetadata?.inviterNickname,
-      inviteMetadata?.inviterUserId,
+      inviteMetadata,
       recaptcha,
       signupParams.lureId,
       signupParams.priorityToken,
