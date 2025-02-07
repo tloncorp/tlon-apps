@@ -146,7 +146,7 @@ export const SignupScreen = ({ navigation }: Props) => {
       if (err instanceof HostingError) {
         if (err.details.status === 409) {
           setRemoteError(
-            `This ${otpMethod === 'email' ? 'email' : 'phone number'} is ineligible for signup.`
+            `An account with this ${otpMethod === 'email' ? 'email' : 'phone number'} already exists.`
           );
         }
 

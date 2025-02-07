@@ -9,6 +9,7 @@
     "bundler": "expo start",
     "clearcache": "expo start -c",
     "ios": "expo run:ios",
+    "ios:release:preview": "pnpm exec expo run:ios --scheme=Landscape-preview --configuration Release",
     "ios:release": "pnpm exec expo run:ios --configuration Release",
     "ios:preview": "expo run:ios --scheme=Landscape-preview",
     "generate": "pnpm generate:tailwind && pnpm run generate:ios",

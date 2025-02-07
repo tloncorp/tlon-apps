@@ -104,7 +104,9 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                 // Rate limited, must have received one recently so proceed
               }
               if (err.details.status === 404) {
-                setRemoteError('This phone number is ineligible for login.');
+                setRemoteError(
+                  `There's no phone number associated with this account.`
+                );
                 return;
               }
             }
@@ -133,7 +135,9 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                 // Rate limited, must have received one recently so proceed
               }
               if (err.details.status === 404) {
-                setRemoteError('This email number is ineligible for login.');
+                setRemoteError(
+                  'There is no account associated with this email.'
+                );
                 return;
               }
             }
