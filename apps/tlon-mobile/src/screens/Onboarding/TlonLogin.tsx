@@ -133,7 +133,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                 // Rate limited, must have received one recently so proceed
               }
               if (err.details.status === 404) {
-                setRemoteError('This email number is ineligible for login.');
+                setRemoteError('This email is ineligible for login.');
                 return;
               }
             }
