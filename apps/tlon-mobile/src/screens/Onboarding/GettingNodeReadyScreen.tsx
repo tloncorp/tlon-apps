@@ -7,6 +7,7 @@ import {
   NodeResumeState,
   useStoppedNodeSequence,
 } from '@tloncorp/app/hooks/useStoppedNodeSequence';
+import { scheduleNodeResumeNudge } from '@tloncorp/app/lib/notifications';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
@@ -71,6 +72,15 @@ export function GettingNodeReadyScreen({
     await handleLogout();
     navigation.navigate('Welcome');
   }, [handleLogout, navigation]);
+
+  const hostedUserNodeId = db.hostedUserNodeId.useValue();
+  useEffect(() => {
+    if (hostedUserNodeId) {
+      scheduleNodeResumeNudge(hostedUserNodeId).catch((err) => {
+        console.error('Error scheduling node resume nudge', err);
+      });
+    }
+  }, [hostedUserNodeId]);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">

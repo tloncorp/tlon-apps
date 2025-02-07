@@ -130,3 +130,39 @@ export function useUpdatePresentedNotifications() {
     });
   }, [unreadCount]);
 }
+
+// Internal ID for this notification. We use a static ID so we can (1) check
+// for existing nudges, and (2) ensure we always overwrite an existing nudge if
+// one was not canceled: we don't want two concurrent nudges scheduled.
+const NODE_RESUME_NUDGE_ID = 'node-resume-nudge';
+
+const NUDGE_DELAY_SECONDS = 10 * 60; // 10 minutes
+
+export async function scheduleNodeResumeNudge(ship: string) {
+  // We don't want to reset the timer if it's already scheduled - check for
+  // an existing nudge for this ship and bail if one exists.
+  const scheduledNotifications =
+    await Notifications.getAllScheduledNotificationsAsync();
+  const isAlreadyScheduled = scheduledNotifications.some(
+    (n) =>
+      n.identifier === NODE_RESUME_NUDGE_ID && n.content.data?.ship === ship
+  );
+  if (isAlreadyScheduled) {
+    return;
+  }
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: NODE_RESUME_NUDGE_ID,
+    content: {
+      title: "We're ready for you now",
+      body: 'Tap here to log in to your ship',
+      data: { ship },
+    },
+    trigger: {
+      seconds: NUDGE_DELAY_SECONDS,
+    },
+  });
+}
+export async function cancelNodeResumeNudge() {
+  await Notifications.cancelScheduledNotificationAsync(NODE_RESUME_NUDGE_ID);
+}
