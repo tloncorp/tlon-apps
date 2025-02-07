@@ -19,3 +19,4 @@ export * from './storageApi';
 export * from './vitalsApi';
 export * from './inviteApi';
 export * from './hostingApi';
+export * from './apiUtils';
