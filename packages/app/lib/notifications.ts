@@ -11,7 +11,7 @@ import { connectNotifyProvider } from './notificationsApi';
 
 const logger = createDevLogger('notifications', true);
 
-/** Returns true if permission was granted, false otherwise */
+/** Returns true if notification permission is thought to be granted, false otherwise */
 async function requestNotificationPermissionsIfNeeded(): Promise<boolean> {
   // Fetch current permissions
   const { status, canAskAgain } = await Notifications.getPermissionsAsync();
@@ -152,7 +152,10 @@ const NODE_RESUME_NUDGE_ID = 'node-resume-nudge';
 const NUDGE_DELAY_SECONDS = 10 * 60; // 10 minutes
 
 export async function scheduleNodeResumeNudge(ship: string) {
-  await requestNotificationPermissionsIfNeeded();
+  const hasPermission = await requestNotificationPermissionsIfNeeded();
+  if (!hasPermission) {
+    return;
+  }
 
   // We don't want to reset the timer if it's already scheduled - check for
   // an existing nudge for this ship and bail if one exists.
