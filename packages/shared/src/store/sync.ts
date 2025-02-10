@@ -445,6 +445,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
   logger.log('received group update', update.type);
 
   let channelNavSection: db.GroupNavSectionChannel | null | undefined;
+  let group: db.Group | null | undefined;
 
   switch (update.type) {
     case 'addGroup':
@@ -518,17 +519,25 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
         },
       ]);
       break;
-    case 'setGroupAsPublic':
+    case 'setGroupAsOpen':
       await db.updateGroup({ id: update.groupId, privacy: 'public' });
       break;
-    case 'setGroupAsPrivate':
-      await db.updateGroup({ id: update.groupId, privacy: 'private' });
+    case 'setGroupAsShut':
+      group = await db.getGroup({ id: update.groupId });
+
+      if (group?.privacy !== 'secret') {
+        await db.updateGroup({ id: update.groupId, privacy: 'private' });
+      }
       break;
     case 'setGroupAsSecret':
       await db.updateGroup({ id: update.groupId, privacy: 'secret' });
       break;
     case 'setGroupAsNotSecret':
-      await db.updateGroup({ id: update.groupId, privacy: 'private' });
+      group = await db.getGroup({ id: update.groupId });
+      await db.updateGroup({
+        id: update.groupId,
+        privacy: group?.privacy === 'public' ? 'public' : 'private',
+      });
       break;
     case 'addGroupMembers':
       await db.addChatMembers({
