@@ -16,7 +16,6 @@ import ProfileScreen from '../features/settings/ProfileScreen';
 import { PushNotificationSettingsScreen } from '../features/settings/PushNotificationSettingsScreen';
 import { ThemeScreen } from '../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../features/settings/UserBugReportScreen';
-import { VerifierStubScreen } from '../features/settings/VerifierStubScreen';
 import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChannelSearchScreen from '../features/top/ChannelSearchScreen';
@@ -82,8 +81,6 @@ export function RootStack() {
           gestureEnabled: false,
         }}
       />
-
-      <Root.Screen name="VerifierStub" component={VerifierStubScreen} />
 
       {/* individual screens */}
       <Root.Screen name="AddContacts" component={AddContactsScreen} />

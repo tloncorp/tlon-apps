@@ -382,9 +382,6 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
                 lineHeight={24}
                 contactId={props.userId}
               />
-              {/* {props.isVerified && (
-                <Icon type="Label" size="$s" color="$blue" />
-              )} */}
             </XStack>
           )}
         </YStack>

@@ -5,7 +5,6 @@ import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack } from 'tamagui';
 
-import { Button } from '../components/Button';
 import { useContact, useCurrentUserId, useStore } from '../contexts';
 import { SigilAvatar } from './Avatar';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
@@ -18,9 +17,7 @@ import {
 } from './Form';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { ScreenHeader } from './ScreenHeader';
-import { Text } from './TextV2';
 import { BioDisplay, PinnedGroupsDisplay } from './UserProfileScreenView';
-import { VerifyPhoneNumberSheet } from './VerifyPhoneNumberSheet';
 
 interface Props {
   userId: string;
@@ -28,7 +25,6 @@ interface Props {
 }
 
 export function EditProfileScreenView(props: Props) {
-  const [verifyPhoneOpen, setVerifyPhoneOpen] = useState(false);
   const store = useStore();
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
@@ -266,12 +262,6 @@ export function EditProfileScreenView(props: Props) {
                     onUpdate={handleUpdatePinnedGroups}
                   />
                 </Field>
-
-                <Field label="Verified Phone Number">
-                  <Button hero onPress={() => setVerifyPhoneOpen(true)}>
-                    <Button.Text>Verify a phone number</Button.Text>
-                  </Button>
-                </Field>
               </>
             ) : (
               <>
@@ -289,10 +279,6 @@ export function EditProfileScreenView(props: Props) {
           </FormFrame>
         </ScrollView>
       </KeyboardAvoidingView>
-      <VerifyPhoneNumberSheet
-        open={verifyPhoneOpen}
-        onOpenChange={() => setVerifyPhoneOpen(false)}
-      />
     </View>
   );
 }

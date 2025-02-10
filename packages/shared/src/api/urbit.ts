@@ -318,7 +318,6 @@ export async function unsubscribe(id: number) {
 }
 
 export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
-  logger.log('noun poke');
   const doPoke = async (params?: Partial<NounPokeInterface>) => {
     if (!config.client) {
       throw new Error('Client not initialized');
@@ -326,7 +325,7 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
     if (config.pendingAuth) {
       await config.pendingAuth;
     }
-    console.log(`doing the poke...`);
+    logger.log('noun poke', { app, mark });
     return config.client.pokeNoun({
       ...params,
       app,
@@ -485,7 +484,7 @@ export async function scryNoun({ app, path }: { app: string; path: string }) {
   if (config.pendingAuth) {
     await config.pendingAuth;
   }
-  logger.log('scry', app, path);
+  logger.log('scry noun', app, path);
   try {
     return await config.client.scryNoun({ app, path });
   } catch (res) {

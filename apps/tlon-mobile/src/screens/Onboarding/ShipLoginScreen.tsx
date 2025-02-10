@@ -62,7 +62,6 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
   const [codevisible, setCodeVisible] = useState(false);
 
   const isValidUrl = useCallback((url: string) => {
-    return true;
     const urlPattern =
       /^(https?:\/\/)?(localhost|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|[\w.-]+\.([a-z]{2,}))(:\d+)?$/i;
     const hostedPattern = /tlon\.network/i;

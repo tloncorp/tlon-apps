@@ -31,7 +31,6 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
   }
 
   const headers: any = { ...init.headers };
-  console.log(`bl: resolved headers`, headers);
   // The urbit client is inconsistent about sending cookies, sometimes causing
   // the server to send back a new, anonymous, cookie, which is sent on all
   // subsequent requests and screws everything up. This ensures that explicit
@@ -47,7 +46,6 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
     signal: abortController.signal,
   };
   const containsEventStream = headers['accept'] === 'text/event-stream';
-  console.log(`new init 2`, newInit, containsEventStream);
   return containsEventStream
     ? platformFetch(input, newInit)
     : fetch(input, newInit);

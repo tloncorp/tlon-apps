@@ -557,16 +557,7 @@ export class Urbit {
   //      should result in a noun nesting inside of the xx $eyre-command type
   private async sendNounsToChannel(...args: (Noun | any)[]): Promise<void> {
     const options = this.fetchOptionsNoun('PUT', 'noun');
-    console.log(`put options`, options);
-    console.log(`processing noun`, dejs.list(args));
     const body = formatUw(jam(dejs.list(args)).number.toString());
-    console.log(body, options);
-    const finalThing = {
-      ...options,
-      method: 'PUT',
-      body,
-    };
-    console.log(`sending`, finalThing);
     const response = await this.fetchFn(this.channelUrl, {
       ...options,
       method: 'PUT',
@@ -583,10 +574,6 @@ export class Urbit {
       await Promise.all([this.getOurName(), this.getShipName()]);
 
       if (this.our !== this.nodeId) {
-        console.log('our name does not match ship name');
-        console.log('our:', this.our);
-        console.log('ship:', this.nodeId);
-        console.log('args:', args);
         throw new AuthError('invalid session');
       }
 
@@ -690,18 +677,9 @@ export class Urbit {
     this.outstandingPokes.set(eventId, params);
 
     if (isNoun(noun)) {
-      // const shipAtom = Atom.fromString(patp2dec(ship as string), 10);
-      // ^ that's what was there, but seemed to fail?
-      const shipNum = patp2bn(`~${ship}`);
-      console.log(`patp2bn output`, shipNum);
-      console.log(`typeof thing`, typeof shipNum);
-      console.log(`typeof literal`, typeof 0n);
-      const shipAtom = new Atom(BigInt(shipNum.toString()));
-      // [%poke request-id=@ud ship=@p app=term mark=@tas =noun]
+      const shipAtom = new Atom(BigInt(patp2bn(`~${ship}`).toString()));
       const non = ['poke', eventId, shipAtom, app, mark, noun];
-      console.log(`sending noun to channel`, non.toString());
       await this.sendNounsToChannel(non);
-      console.log(`finnished sending noun to channel`);
     } else {
       throw new Error('pokeNoun requires a noun');
     }
@@ -873,11 +851,8 @@ export class Urbit {
     return await response.json();
   }
 
-  // TODO: fix scry type
   async scryNoun(params: Scry): Promise<Noun> {
     const { app, path } = params;
-
-    console.log(`client scrying noun`, `${this.url}/~/scry/${app}${path}.noun`);
 
     try {
       const response = await this.fetchFn(
@@ -885,17 +860,14 @@ export class Urbit {
         this.fetchOptionsNoun('GET', 'noun')
       );
       const responseBlob = await response.blob();
-      console.log('responseBlob', responseBlob);
       const buffer: ArrayBuffer = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as ArrayBuffer);
         reader.readAsArrayBuffer(responseBlob);
       });
-      console.log(`response buffer`, buffer);
 
       try {
         const unpacked = await unpackJamBytes(buffer);
-        console.log(`unpacked`, unpacked);
         return unpacked;
       } catch (e) {
         console.error('Unpack failed', e);
