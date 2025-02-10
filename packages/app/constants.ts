@@ -10,7 +10,8 @@ export const IS_IOS = Platform.OS === 'ios';
 export const IS_ANDROID = Platform.OS === 'android';
 
 function formatWebEnv() {
-  // @ts-expect-error — TS doesn't like accessing import like that from a non-module file?
+  // eslint-disable-next-line
+  // @ts-ignore – only valid on web
   const env = import.meta.env;
   return {
     notifyProvider: env.VITE_NOTIFY_PROVIDER,
