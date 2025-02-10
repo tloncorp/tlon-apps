@@ -53,7 +53,6 @@ export function InlineMention({
   const contactName = useContactName(inline.contactId);
   const { onGoToUserProfile } = useNavigation();
   const handlePress = useCallback(() => {
-    console.log('Mention pressed');
     onGoToUserProfile?.(inline.contactId);
   }, [onGoToUserProfile, inline.contactId]);
   return (
