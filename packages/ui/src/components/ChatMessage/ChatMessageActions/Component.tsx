@@ -35,6 +35,7 @@ export function ChatMessageActions({
   onViewReactions,
   onShowEmojiPicker,
   trigger,
+  onOpenChange
 }: ChatMessageActionsProps) {
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
@@ -131,7 +132,13 @@ export function ChatMessageActions({
   if (!isWindowNarrow) {
     return (
       <Popover
-        onOpenChange={(open) => !open && onDismiss()}
+        onOpenChange={(open) => {
+          // Only dismiss when explicitly closed (e.g. clicking outside or trigger button)
+          if (!open) {
+            onDismiss();
+          }
+          onOpenChange?.(open);
+        }}
         placement="top-end"
         allowFlip
         offset={-12}
