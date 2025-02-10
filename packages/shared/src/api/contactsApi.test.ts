@@ -17,6 +17,9 @@ const inputContact: [string, any] = [
       '~nibset-napwyn/tlon',
       '~ravmel-ropdyl/crate',
     ],
+    verifiedPhoneAt: null,
+    verifiedPhoneSignature: null,
+    hasVerifiedPhone: false,
   },
 ];
 
@@ -36,6 +39,9 @@ const outputContact = {
   ],
   isContact: false,
   isContactSuggestion: undefined,
+  verifiedPhoneAt: null,
+  verifiedPhoneSignature: null,
+  hasVerifiedPhone: false,
 };
 
 test('converts a contact from server to client format', () => {
