@@ -84,7 +84,8 @@ export const TLON_EMPLOYEE_GROUP = envVars.TlonEmployeeGroup ?? '';
 export const BRANCH_KEY = envVars.branchKey ?? '';
 export const BRANCH_DOMAIN = envVars.branchDomain ?? '';
 export const INVITE_SERVICE_ENDPOINT = envVars.inviteServiceEndpoint ?? '';
-export const INVITE_SERVICE_IS_DEV = envVars.inviteServiceIsDev === 'true';
+export const INVITE_SERVICE_IS_DEV =
+  envVars.inviteServiceIsDev === 'true' ? true : undefined;
 
 export const ENV_VARS = {
   NOTIFY_PROVIDER,
