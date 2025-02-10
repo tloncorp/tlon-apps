@@ -138,7 +138,6 @@ export function GroupOptionsSheetLoader({
     setPane('initial');
   }, [setPane]);
 
-  console.log('current pane', pane);
   const title = utils.useGroupTitle(group) ?? 'Loading...';
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(groupId, currentUserId);
