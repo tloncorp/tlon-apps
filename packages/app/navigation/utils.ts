@@ -197,18 +197,21 @@ export function useNavigateBackFromPost() {
         navigation.navigate('Activity');
         return;
       }
+      const isChatShaped = ['chat', 'dm', 'groupDM'].includes(channel.type);
       if (isWindowNarrow) {
         const screenName = screenNameFromChannelId(channel.id);
         navigation.navigate(screenName, {
           channelId: channel.id,
-          selectedPostId: postId,
+          // we don't want to highlight the selected post we're returning from
+          // if we aren't in a chat
+          selectedPostId: isChatShaped ? postId : undefined,
           ...(channel.groupId ? { groupId: channel.groupId } : {}),
         });
       } else {
         // @ts-expect-error - ChannelRoot is fine here.
         navigation.navigate('ChannelRoot', {
           channelId: channel.id,
-          selectedPostId: postId,
+          selectedPostId: isChatShaped ? postId : undefined,
           groupId: channel.groupId ?? undefined,
         });
       }

@@ -75,7 +75,7 @@ export function ProfileSheet({
   onOpenChange,
   open,
   currentUserIsAdmin,
-  currentUserIsHost,
+  groupHostId,
   groupIsOpen,
   userIsBanned,
   onPressBan,
@@ -92,7 +92,7 @@ export function ProfileSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentUserIsAdmin?: boolean;
-  currentUserIsHost?: boolean;
+  groupHostId?: string;
   groupIsOpen?: boolean;
   userIsBanned?: boolean;
   onPressKick?: () => void;
@@ -105,6 +105,7 @@ export function ProfileSheet({
   selectedUserRoles?: string[];
 }) {
   const currentUserId = useCurrentUserId();
+  const contactIsHost = groupHostId === contactId;
 
   const handleBlock = useCallback(() => {
     if (contact && contact.isBlocked) {
@@ -149,7 +150,7 @@ export function ProfileSheet({
                 onOpenChange(false);
               }}
               onRemoveRole={(roleId: string) => {
-                if (currentUserIsHost && roleId === 'admin') {
+                if (contactIsHost && roleId === 'admin') {
                   return;
                 }
                 onPressRemoveRole?.(roleId);

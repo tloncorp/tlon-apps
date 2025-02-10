@@ -91,6 +91,8 @@ export function useAnchorScrollLock({
             viewPosition: anchor.type === 'unread' ? 1 : 0.5,
             animated: shouldAnimateScroll,
           });
+        } catch (e) {
+          logger.error('error scrolling to anchor post', e);
         } finally {
           isScrollAttemptActiveRef.current = false;
         }

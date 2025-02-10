@@ -15,7 +15,6 @@ type Props = NativeStackScreenProps<
 export function GroupMembersScreen({ route, navigation }: Props) {
   const { groupId } = route.params;
   const {
-    group,
     groupMembers,
     groupRoles,
     banUser,
@@ -33,7 +32,6 @@ export function GroupMembersScreen({ route, navigation }: Props) {
   });
 
   const currentUserId = useCurrentUserId();
-  const currentUserIsHost = group?.currentUserIsHost ?? false;
 
   const { resetToDm } = useRootNavigation();
 
@@ -52,7 +50,6 @@ export function GroupMembersScreen({ route, navigation }: Props) {
       roles={groupRoles}
       groupId={groupId}
       currentUserId={currentUserId}
-      currentUserIsHost={currentUserIsHost}
       onPressBan={banUser}
       onPressUnban={unbanUser}
       onPressAcceptJoinRequest={acceptUserJoin}

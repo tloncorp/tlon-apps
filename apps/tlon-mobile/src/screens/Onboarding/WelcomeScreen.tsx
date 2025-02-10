@@ -58,7 +58,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
         lure: lureMeta.id,
         inviteType:
           lureMeta.inviteType && lureMeta.inviteType === 'user'
-            ? 'personal'
+            ? 'user'
             : 'group',
       });
     }
