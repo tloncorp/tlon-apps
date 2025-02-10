@@ -4,15 +4,8 @@ import {
   DEFAULT_TLON_LOGIN_PASSWORD,
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
-import { useShip } from '@tloncorp/app/contexts/ship';
-import { getShipUrl } from '@tloncorp/app/utils/ship';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import {
-  HostingError,
-  getShipAccessCode,
-  requestPhoneVerify,
-} from '@tloncorp/shared/api';
-import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
+import { HostingError } from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
 import {
   Field,
@@ -139,6 +132,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
                   paddingTop="$m"
                 >
                   <TextInput
+                    testID="email-input"
                     placeholder="Email Address"
                     onBlur={() => {
                       onBlur();
@@ -165,6 +159,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
               render={({ field: { onChange, onBlur, value } }) => (
                 <Field label="Password" error={errors.password?.message}>
                   <TextInput
+                    testID="password-input"
                     placeholder="Password"
                     onBlur={() => {
                       onBlur();

@@ -9,6 +9,7 @@ export type ChatMessageActionsProps = {
   postActionIds: ChannelAction.Id[];
   postRef?: RefObject<RNView>;
   onDismiss: () => void;
+  onOpenChange?: (open: boolean) => void;
   width?: DimensionValue;
   height?: DimensionValue;
   onReply?: (post: db.Post) => void;

@@ -25,6 +25,8 @@ export function GroupMembersScreen({ route, navigation }: Props) {
     rejectUserJoin,
     joinRequests,
     groupPrivacyType,
+    addUserToRole,
+    removeUserFromRole,
   } = useGroupContext({
     groupId,
   });
@@ -52,6 +54,8 @@ export function GroupMembersScreen({ route, navigation }: Props) {
       onPressUnban={unbanUser}
       onPressAcceptJoinRequest={acceptUserJoin}
       onPressRejectJoinRequest={rejectUserJoin}
+      onPressAssignRole={addUserToRole}
+      onPressRemoveRole={removeUserFromRole}
       onPressKick={kickUser}
       bannedUsers={bannedUsers}
       joinRequests={joinRequests}

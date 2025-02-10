@@ -16,7 +16,7 @@ import {
 import { addChannelToNavSection, moveChannel } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { useLureState } from './lure';
-import { getSyncing, updateIsSyncing, updateSession } from './session';
+import { getSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
@@ -367,11 +367,32 @@ export async function syncThreadPosts(
   });
 }
 
+const groupSyncsInProgress = new Set<string>();
+
 export async function syncGroup(id: string, ctx?: SyncCtx) {
-  const response = await syncQueue.add('syncGroup', ctx, () =>
-    api.getGroup(id)
-  );
-  await db.insertGroups({ groups: [response] });
+  if (groupSyncsInProgress.has(id)) {
+    return;
+  }
+  groupSyncsInProgress.add(id);
+  try {
+    const group = await db.getGroup({ id });
+    const session = getSession();
+    if (group && session && (session.startTime ?? 0) < (group.syncedAt ?? 0)) {
+      return;
+    }
+    const response = await syncQueue.add('syncGroup', ctx, () =>
+      api.getGroup(id)
+    );
+    await batchEffects('syncGroup', async (ctx) => {
+      await db.insertGroups({ groups: [response] }, ctx);
+      await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
+    });
+  } catch (e) {
+    logger.trackError('group sync failed', { errorMessage: e.message });
+    throw e;
+  } finally {
+    groupSyncsInProgress.delete(id);
+  }
 }
 
 export const syncStorageSettings = (ctx?: SyncCtx) => {
@@ -438,6 +459,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
   logger.log('received group update', update.type);
 
   let channelNavSection: db.GroupNavSectionChannel | null | undefined;
+  let group: db.Group | null | undefined;
 
   switch (update.type) {
     case 'addGroup':
@@ -511,17 +533,25 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
         },
       ]);
       break;
-    case 'setGroupAsPublic':
+    case 'setGroupAsOpen':
       await db.updateGroup({ id: update.groupId, privacy: 'public' });
       break;
-    case 'setGroupAsPrivate':
-      await db.updateGroup({ id: update.groupId, privacy: 'private' });
+    case 'setGroupAsShut':
+      group = await db.getGroup({ id: update.groupId });
+
+      if (group?.privacy !== 'secret') {
+        await db.updateGroup({ id: update.groupId, privacy: 'private' });
+      }
       break;
     case 'setGroupAsSecret':
       await db.updateGroup({ id: update.groupId, privacy: 'secret' });
       break;
     case 'setGroupAsNotSecret':
-      await db.updateGroup({ id: update.groupId, privacy: 'private' });
+      group = await db.getGroup({ id: update.groupId });
+      await db.updateGroup({
+        id: update.groupId,
+        privacy: group?.privacy === 'public' ? 'public' : 'private',
+      });
       break;
     case 'addGroupMembers':
       await db.addChatMembers({
@@ -1103,7 +1133,8 @@ export const clearSyncQueue = () => {
   concerns and punts on full correctness.
 */
 export const handleDiscontinuity = async () => {
-  if (getSyncing()) {
+  logger.trackEvent(AnalyticsEvent.SyncDiscontinuity);
+  if (isSyncing) {
     // we probably don't want to do this while we're already syncing
     return;
   }
@@ -1123,17 +1154,19 @@ export const handleChannelStatusChange = async (status: ChannelStatus) => {
   updateSession({ channelStatus: status });
 };
 
+let isSyncing = false;
+
 export const syncStart = async (alreadySubscribed?: boolean) => {
-  if (getSyncing()) {
+  if (isSyncing) {
     // we probably don't want multiple sync starts
     return;
   }
-  const startTime = Date.now();
+  isSyncing = true;
 
-  updateIsSyncing(true);
+  const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
-  batchEffects('sync start (high)', async (ctx) => {
+  await batchEffects('sync start (high)', async (ctx) => {
     // this allows us to run the api calls first in parallel but handle
     // writing the data in a specific order
     const yieldWriter = true;
@@ -1158,16 +1191,30 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
           priority: SyncPriority.High - 1,
         }).then(() => logger.crumb('subscribed high priority'));
 
+    const trackStep = (function () {
+      let last = Date.now();
+      return (event: AnalyticsEvent) => {
+        const now = Date.now();
+        logger.trackEvent(event, { duration: now - last });
+        last = now;
+      };
+    })();
+
     // then enforce the ordering of writes to avoid race conditions
     const initWriter = await syncInitPromise;
+    trackStep(AnalyticsEvent.InitDataFetched);
     await initWriter();
+    trackStep(AnalyticsEvent.InitDataWritten);
     logger.crumb('finished writing init data');
 
     const latestPostsWriter = await syncLatestPostsPromise;
+    trackStep(AnalyticsEvent.LatestPostsFetched);
     await latestPostsWriter();
+    trackStep(AnalyticsEvent.LatestPostsWritten);
     logger.crumb('finished writing latest posts');
 
     await subsPromise;
+    trackStep(AnalyticsEvent.SubscriptionsEstablished);
     logger.crumb('finished initializing high priority subs');
 
     logger.crumb(`finished high priority init sync`);
@@ -1214,10 +1261,10 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       logger.trackError(e);
     });
 
-  updateIsSyncing(false);
-
   // post sync initialization work
-  verifyUserInviteLink();
+  await verifyUserInviteLink();
+
+  isSyncing = false;
 };
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {

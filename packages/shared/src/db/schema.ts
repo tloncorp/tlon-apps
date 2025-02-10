@@ -315,6 +315,7 @@ export const groups = sqliteTable('groups', {
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
   lastVisitedChannelId: text('last_visited_channel_id'),
+  syncedAt: timestamp('synced_at'),
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({

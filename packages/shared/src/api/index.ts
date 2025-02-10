@@ -20,3 +20,4 @@ export * from './vitalsApi';
 export * from './lanyardApi';
 export * from './inviteApi';
 export * from './hostingApi';
+export * from './apiUtils';

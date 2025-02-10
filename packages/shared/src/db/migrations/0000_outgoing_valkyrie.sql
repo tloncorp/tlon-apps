@@ -230,7 +230,8 @@ CREATE TABLE `groups` (
 	`join_status` text,
 	`last_post_id` text,
 	`last_post_at` integer,
-	`last_visited_channel_id` text
+	`last_visited_channel_id` text,
+	`synced_at` integer
 );
 --> statement-breakpoint
 CREATE TABLE `pins` (

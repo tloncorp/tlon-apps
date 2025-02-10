@@ -101,7 +101,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
         lure: lureMeta.id,
         inviteType:
           lureMeta.inviteType && lureMeta.inviteType === 'user'
-            ? 'personal'
+            ? 'user'
             : 'group',
       });
 
