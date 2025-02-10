@@ -1,0 +1,48 @@
+appId: io.tlon.groups
+---
+- clearState:
+    appId: io.tlon.groups
+- launchApp:
+    appId: io.tlon.groups
+- runFlow: subflows/tlon-login.yaml
+- assertVisible: 'Home'
+- tapOn:
+    id: "AvatarNavIcon"
+- assertVisible: "Contacts"
+- tapOn:
+    id: "ContactsSettingsButton"
+- assertVisible: "Settings"
+- tapOn: "Notification settings"
+- assertVisible: "Push Notifications"
+- tapOn: "All group activity"
+- tapOn:
+    id: "HeaderBackButton"
+- tapOn: "Blocked users"
+- assertVisible: "Blocked users"
+- tapOn:
+    id: "HeaderBackButton"
+- tapOn: "Theme"
+- assertVisible: "Theme"
+- tapOn:
+    id: "HeaderBackButton"
+- tapOn: "App info"
+- assertVisible: "App info"
+- tapOn:
+    id: "HeaderBackButton"
+- tapOn: "Report a bug"
+- assertVisible: "Report a bug"
+- tapOn: "What went wrong?"
+- "inputRandomText"
+- "hideKeyboard"
+- tapOn: "Send Report"
+- assertVisible: "Bug report sent"
+- tapOn: "OK"
+- assertVisible: "Settings"
+- tapOn: "Experimental features"
+- assertVisible: "Feature Previews"
+- tapOn:
+    id: "HeaderBackButton"  
+- tapOn: "Log out"
+- assertVisible: "Are you sure you want to log out?"
+- tapOn: "Log out now"
+- assertVisible: "Have an account? Log in"

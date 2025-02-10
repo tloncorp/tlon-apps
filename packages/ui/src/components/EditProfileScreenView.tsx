@@ -196,7 +196,7 @@ export function EditProfileScreenView(props: Props) {
                         }
                       : undefined
                   }
-                  inputProps={{ placeholder: nicknamePlaceholder }}
+                  inputProps={{ placeholder: nicknamePlaceholder, testID: 'ProfileNicknameInput' }}
                   rules={{
                     maxLength: {
                       value: 30,

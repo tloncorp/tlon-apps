@@ -78,6 +78,7 @@ export default function ContactsScreen(props: Props) {
             rightControls={
               <ScreenHeader.IconButton
                 type="Settings"
+                testID="ContactsSettingsButton"
                 onPress={() => {
                   navigate('Profile');
                 }}
