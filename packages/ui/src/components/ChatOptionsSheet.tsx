@@ -131,6 +131,7 @@ export function GroupOptionsSheetLoader({
   }, [setPane]);
 
   const handlePressSort = useCallback(() => {
+    console.log('setting pane to sort');
     setPane('sort');
   }, [setPane]);
 
@@ -138,6 +139,7 @@ export function GroupOptionsSheetLoader({
     setPane('initial');
   }, [setPane]);
 
+  console.log('current pane', pane);
   const title = utils.useGroupTitle(group) ?? 'Loading...';
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(groupId, currentUserId);
@@ -286,7 +288,7 @@ function GroupOptionsSheetContent({
           canSortChannels && {
             title: 'Sort channels',
             endIcon: 'ChevronRight',
-            action: wrappedAction.bind(null, onPressSort),
+            action: onPressSort,
           },
         ],
         [
