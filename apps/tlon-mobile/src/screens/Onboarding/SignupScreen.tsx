@@ -8,9 +8,9 @@ import {
   useLureMetadata,
   useSignupParams,
 } from '@tloncorp/app/contexts/branch';
-import { HostingError } from '@tloncorp/app/lib/hostingApi';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { HostingError } from '@tloncorp/shared/api';
 import {
   Field,
   KeyboardAvoidingView,
@@ -25,6 +25,7 @@ import {
 } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { Platform } from 'react-native';
 
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
@@ -124,24 +125,32 @@ export const SignupScreen = ({ navigation }: Props) => {
 
       if (otpMethod === 'phone') {
         await phoneForm.handleSubmit(async ({ phoneNumber }) => {
-          await hostingApi.requestSignupOtp({ phoneNumber, recaptchaToken });
+          await hostingApi.requestSignupOtp({
+            phoneNumber,
+            recaptchaToken,
+            platform: Platform.OS,
+          });
         })();
       } else {
         await emailForm.handleSubmit(async ({ email }) => {
-          await hostingApi.requestSignupOtp({ email, recaptchaToken });
+          await hostingApi.requestSignupOtp({
+            email,
+            recaptchaToken,
+            platform: Platform.OS,
+          });
         })();
       }
 
       handleSuccess();
     } catch (err) {
       if (err instanceof HostingError) {
-        if (err.code === 409) {
+        if (err.details.status === 409) {
           setRemoteError(
-            `This ${otpMethod === 'email' ? 'email' : 'phone number'} is ineligible for signup.`
+            `An account with this ${otpMethod === 'email' ? 'email' : 'phone number'} already exists.`
           );
         }
 
-        if (err.code === 429) {
+        if (err.details.status === 429) {
           // hosting timed out on sending OTP's. This means they already received one, so
           // we should just move them along to the next screen
           handleSuccess();

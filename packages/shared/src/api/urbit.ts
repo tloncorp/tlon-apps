@@ -1,8 +1,9 @@
 import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import { AuthError, ChannelStatus, PokeInterface, Urbit } from '../http-api';
-import { desig, preSig } from '../urbit';
+import { preSig } from '../urbit';
 import { getLandscapeAuthCookie } from './landscapeApi';
 
 const logger = createDevLogger('urbit', false);
@@ -73,7 +74,7 @@ export const client = new Proxy(
   {
     get: function (target, prop, receiver) {
       if (!config.client) {
-        throw new Error('Database not set.');
+        throw new Error('Urbit client not set.');
       }
       return Reflect.get(config.client, prop, receiver);
     },
@@ -117,7 +118,10 @@ export function internalConfigureClient({
 
   // the below event handlers will only fire if verbose is set to true
   config.client.on('status-update', (event) => {
-    logger.log('status-update', event);
+    logger.trackEvent(AnalyticsEvent.NodeConnectionDebug, {
+      context: 'status update',
+      connectionStatus: event.status,
+    });
     onChannelStatusChange?.(event.status);
   });
 
@@ -130,14 +134,23 @@ export function internalConfigureClient({
 
   config.client.on('seamless-reset', () => {
     logger.log('client seamless-reset');
+    logger.trackEvent(AnalyticsEvent.NodeConnectionDebug, {
+      context: 'seamless-reset',
+    });
     config.onQuitOrReset?.();
   });
 
   config.client.on('error', (error) => {
+    logger.trackError(AnalyticsEvent.NodeConnectionError, {
+      errorMessage: error.msg,
+    });
     logger.log('client error', error);
   });
 
   config.client.on('channel-reaped', () => {
+    logger.trackEvent(AnalyticsEvent.NodeConnectionDebug, {
+      context: 'client channel reaped',
+    });
     logger.log('client channel-reaped');
   });
 }
@@ -231,7 +244,8 @@ export async function subscribe<T>(
 
 export async function subscribeOnce<T>(
   endpoint: UrbitEndpoint,
-  timeout?: number
+  timeout?: number,
+  ship?: string
 ) {
   if (!config.client) {
     throw new Error('Client not initialized');
@@ -241,7 +255,12 @@ export async function subscribeOnce<T>(
   }
   logger.log('subscribing once to', printEndpoint(endpoint));
   try {
-    return config.client.subscribeOnce<T>(endpoint.app, endpoint.path, timeout);
+    return config.client.subscribeOnce<T>(
+      endpoint.app,
+      endpoint.path,
+      ship,
+      timeout
+    );
   } catch (err) {
     if (err !== 'timeout' && err !== 'quit') {
       logger.trackError(`bad subscribeOnce ${printEndpoint(endpoint)}`, {
@@ -258,7 +277,12 @@ export async function subscribeOnce<T>(
     }
 
     await reauth();
-    return config.client.subscribeOnce<T>(endpoint.app, endpoint.path, timeout);
+    return config.client.subscribeOnce<T>(
+      endpoint.app,
+      endpoint.path,
+      ship,
+      timeout
+    );
   }
 }
 
@@ -282,6 +306,10 @@ export async function unsubscribe(id: number) {
 
 export async function poke({ app, mark, json }: PokeParams) {
   logger.log('poke', app, mark, json);
+  const trackDuration = createDurationTracker(AnalyticsEvent.Poke, {
+    app,
+    mark,
+  });
   const doPoke = async (params?: Partial<PokeInterface<any>>) => {
     if (!config.client) {
       throw new Error('Client not initialized');
@@ -302,6 +330,7 @@ export async function poke({ app, mark, json }: PokeParams) {
       body: json,
     });
     if (!(err instanceof AuthError)) {
+      trackDuration('error');
       throw err;
     }
 
@@ -310,9 +339,13 @@ export async function poke({ app, mark, json }: PokeParams) {
   };
 
   try {
-    return doPoke({ onError: retry });
+    const result = await doPoke({ onError: retry });
+    trackDuration('success');
+    return result;
   } catch (err) {
-    retry(err);
+    const result = await retry(err);
+    trackDuration('success');
+    return result;
   }
 }
 
@@ -324,12 +357,18 @@ export async function trackedPoke<T, R = T>(
   if (config.pendingAuth) {
     await config.pendingAuth;
   }
+  const trackDuration = createDurationTracker(AnalyticsEvent.TrackedPoke, {
+    app: params.app,
+    mark: params.mark,
+  });
   try {
     const tracking = track(endpoint, predicate);
     const poking = poke(params);
     await Promise.all([tracking, poking]);
+    trackDuration('success');
   } catch (e) {
     logger.error(`tracked poke failed`, e);
+    trackDuration('error');
     throw e;
   }
 }
@@ -360,18 +399,35 @@ export async function scry<T>({ app, path }: { app: string; path: string }) {
     await config.pendingAuth;
   }
   logger.log('scry', app, path);
+  const trackDuration = createDurationTracker(AnalyticsEvent.Scry, {
+    app,
+    path: redactPath(path),
+  });
   try {
-    return await config.client.scry<T>({ app, path });
+    const result = await config.client.scry<T>({ app, path });
+    trackDuration('success');
+    return result;
   } catch (res) {
     logger.log('bad scry', app, path, res.status);
     if (res.status === 403) {
       logger.log('scry failed with 403, authing to try again');
       await reauth();
-      return config.client.scry<T>({ app, path });
+      const result = await config.client.scry<T>({ app, path });
+      trackDuration('success');
+      return result;
     }
+    trackDuration('error');
     const body = await res.text();
     throw new BadResponseError(res.status, body);
   }
+}
+
+// Remove any identifiable information from path
+// ~solfer-magfed/my-group => [id]/my-group
+// chat/~solfer-magfed/my-channel/ => chat/[id]/
+// ~solfer-magfed/ => [id]/
+function redactPath(path: string) {
+  return path.replace(/~.+?(?:\/.+?)(\/|$)/g, '[id]/');
 }
 
 async function reauth() {
@@ -435,4 +491,18 @@ async function reauth() {
 
     throw e;
   }
+}
+
+function createDurationTracker<T extends Record<string, any>>(
+  event: AnalyticsEvent,
+  data: T
+) {
+  const startTime = Date.now();
+  return (status: 'success' | 'error') => {
+    logger.trackEvent(event, {
+      ...data,
+      status,
+      duration: Date.now() - startTime,
+    });
+  };
 }

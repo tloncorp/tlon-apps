@@ -5,12 +5,13 @@ import {
   DEFAULT_TLON_LOGIN_PASSWORD,
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
-import { HostingError } from '@tloncorp/app/lib/hostingApi';
 import { createDevLogger } from '@tloncorp/shared';
+import { HostingError } from '@tloncorp/shared/api';
 import {
   Field,
   KeyboardAvoidingView,
   OnboardingTextBlock,
+  Pressable,
   PrimaryButton,
   ScreenHeader,
   TextInput,
@@ -20,6 +21,7 @@ import {
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { Platform, TouchableOpacity } from 'react-native';
 
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
@@ -90,7 +92,29 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
 
       if (otpMethod === 'phone') {
         await phoneForm.handleSubmit(async ({ phoneNumber }) => {
-          await hostingApi.requestLoginOtp({ phoneNumber, recaptchaToken });
+          try {
+            await hostingApi.requestLoginOtp({
+              phoneNumber,
+              recaptchaToken,
+              platform: Platform.OS,
+            });
+          } catch (err) {
+            if (err instanceof HostingError) {
+              if (err.details.status === 429) {
+                // Rate limited, must have received one recently so proceed
+              }
+              if (err.details.status === 404) {
+                setRemoteError(
+                  `There's no phone number associated with this account.`
+                );
+                return;
+              }
+            }
+            setRemoteError('Something went wrong. Please try again.');
+            return;
+          }
+
+          logger.trackEvent('Initiated login', { type: 'phone', phoneNumber });
           navigation.navigate('CheckOTP', {
             mode: 'login',
             otpMethod: 'phone',
@@ -99,7 +123,28 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
         })();
       } else {
         await emailForm.handleSubmit(async ({ email }) => {
-          await hostingApi.requestLoginOtp({ email, recaptchaToken });
+          try {
+            await hostingApi.requestLoginOtp({
+              email,
+              recaptchaToken,
+              platform: Platform.OS,
+            });
+          } catch (err) {
+            if (err instanceof HostingError) {
+              if (err.details.status === 429) {
+                // Rate limited, must have received one recently so proceed
+              }
+              if (err.details.status === 404) {
+                setRemoteError(
+                  'There is no account associated with this email.'
+                );
+                return;
+              }
+            }
+            setRemoteError('Something went wrong. Please try again.');
+            return;
+          }
+          logger.trackEvent('Initiated login', { type: 'email', email });
           navigation.navigate('CheckOTP', {
             mode: 'login',
             otpMethod: 'email',
@@ -109,7 +154,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
       }
     } catch (err) {
       if (err instanceof HostingError) {
-        if (err.code === 404) {
+        if (err.details.status === 404) {
           setRemoteError(
             `Cannot log in. Are you sure you signed up with this ${otpMethod === 'phone' ? 'phone number' : 'email'}?`
           );
@@ -231,16 +276,22 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                 >
                   We&apos;ll email you a 6-digit code to log in. Otherwise, you
                   can{' '}
-                  <TlonText.RawText
+                  <Pressable
+                    testID="Legacy login"
                     pressStyle={{
                       opacity: 0.5,
                     }}
-                    textDecorationLine="underline"
-                    textDecorationDistance={10}
                     onPress={() => navigation.navigate('TlonLoginLegacy')}
+                    style={{ marginBottom: -3 }}
                   >
-                    log in with a password
-                  </TlonText.RawText>
+                    <TlonText.Text
+                      color="$secondaryText"
+                      textDecorationLine="underline"
+                      textDecorationDistance={10}
+                    >
+                      log in with a password
+                    </TlonText.Text>
+                  </Pressable>
                 </TlonText.Text>
                 <TlonText.Text
                   color="$secondaryText"

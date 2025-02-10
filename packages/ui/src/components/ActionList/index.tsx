@@ -1,16 +1,19 @@
 import { ComponentProps, PropsWithChildren } from 'react';
 import { styled, withStaticProperties } from 'tamagui';
 
-import { ListItem, ListItemFrame } from '../ListItem';
+import { ListItem } from '../ListItem';
 import ListFrame from './ListFrame';
 
-const ActionFrame = styled(ListItemFrame, {
+const ActionFrame = styled(ListItem, {
   borderRadius: 'unset',
   borderBottomWidth: 0.5,
-  borderBottomColor: '$secondaryBorder',
+  borderBottomColor: '$border',
   backgroundColor: 'transparent',
+  hoverStyle: {
+    backgroundColor: '$secondaryBackground',
+  },
   pressStyle: {
-    backgroundColor: '$secondaryBorder',
+    backgroundColor: '$border',
   },
   variants: {
     last: {
@@ -32,11 +35,11 @@ function Action(
   const textColor = disabled
     ? '$secondaryText'
     : actionType === 'destructive'
-      ? '$red'
-      : undefined;
+      ? '$negativeActionText'
+      : '$primaryText';
 
   return (
-    <ActionFrame {...rest}>
+    <ActionFrame cursor="pointer" userSelect="none" {...rest}>
       <ListItem.Title color={textColor}>{children}</ListItem.Title>
     </ActionFrame>
   );

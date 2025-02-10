@@ -1,18 +1,20 @@
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { omit } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LayoutRectangle } from 'react-native';
-import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, View, XStack, YStack } from 'tamagui';
+import { ScrollView, Text, View, XStack, YStack } from 'tamagui';
 
+import { capitalize } from '../../utils';
 import { Button } from '../Button';
-import { DraggableItem } from '../DraggableItem';
 import { Icon } from '../Icon';
+import { ListItem } from '../ListItem';
 import Pressable from '../Pressable';
 import { ScreenHeader } from '../ScreenHeader';
 import { CreateChannelSheet } from './CreateChannelSheet';
 import { EditSectionNameSheet } from './EditSectionNameSheet';
+
+const logger = createDevLogger('ManageChannelsScreenView', false);
 
 export type Section = {
   id: string;
@@ -22,91 +24,138 @@ export type Section = {
 
 type Channel = {
   id: string;
-  title?: string | null;
+  type: db.ChannelType;
+  title: string;
+  index?: number;
 };
 
-type DraggedItem = {
-  type: 'section' | 'channel';
-  channelId?: string;
-  sectionId: string;
-  layout: LayoutRectangle;
-};
-
-function EmptySection({
-  deleteSection,
-  isDefault,
-}: {
-  deleteSection: () => Promise<void>;
-  isDefault: boolean;
-}) {
+function EmptySection() {
   return (
-    <YStack width="100%">
-      <Text padding="$l" fontSize="$m" color="$secondaryText">
-        No channels
+    <YStack alignItems="center" width="100%">
+      <Text padding="$l" fontSize="$s" color="$secondaryText">
+        No channels in this section
       </Text>
-      {!isDefault && (
-        <Button heroDestructive onPress={deleteSection}>
-          <Button.Text>Delete section</Button.Text>
-        </Button>
-      )}
     </YStack>
   );
 }
 
-function DraggableChannel({
+function ChannelItem({
   channel,
   onEdit,
-  onDrag,
-  onDragStart,
-  onDragEnd,
-  isDragging = false,
+  moveChannelWithinNavSection,
+  moveChannelToNavSection,
+  index,
+  sectionIndex,
+  isLast,
+  isFirst,
+  isLastSection,
+  isFirstSection,
 }: {
   channel: Channel;
   onEdit: () => void;
-  onDrag: (translateY: number) => void;
-  onDragStart: (layout: LayoutRectangle) => void;
-  onDragEnd: (translateY: number) => void;
-  isDragging?: boolean;
+  moveChannelWithinNavSection: (newIndex: number) => void;
+  moveChannelToNavSection: (newSectionIndex: number) => void;
+  index: number;
+  sectionIndex: number;
+  isLast: boolean;
+  isFirst: boolean;
+  isLastSection: boolean;
+  isFirstSection: boolean;
 }) {
+  const handleMoveUp = useCallback(() => {
+    if (isFirst) {
+      if (isFirstSection) {
+        logger.error(
+          `Channel "${channel.title}" is already at the top of the first section`
+        );
+        return;
+      } else {
+        moveChannelToNavSection(sectionIndex - 1);
+      }
+      return;
+    }
+    moveChannelWithinNavSection(index - 1);
+  }, [
+    moveChannelWithinNavSection,
+    index,
+    sectionIndex,
+    isFirst,
+    isFirstSection,
+    moveChannelToNavSection,
+    channel.title,
+  ]);
+
+  const handleMoveDown = useCallback(() => {
+    if (isLast) {
+      if (isLastSection) {
+        logger.error(
+          `Channel "${channel.title}" is already at the bottom of the last section`
+        );
+        return;
+      } else {
+        moveChannelToNavSection(sectionIndex + 1);
+      }
+      return;
+    }
+    moveChannelWithinNavSection(index + 1);
+  }, [
+    moveChannelWithinNavSection,
+    index,
+    sectionIndex,
+    isLast,
+    isLastSection,
+    moveChannelToNavSection,
+    channel.title,
+  ]);
+
   return (
-    <DraggableItem
-      onDrag={onDrag}
-      onDragEnd={onDragEnd}
-      onDragStart={onDragStart}
+    <XStack
+      paddingLeft="$l"
+      width="100%"
+      height="$6xl"
+      borderRadius="$xl"
+      alignItems="center"
+      justifyContent="space-between"
+      backgroundColor="$background"
     >
-      <XStack
-        paddingHorizontal="$l"
-        paddingLeft="$l"
-        paddingRight="$2xl"
-        width="100%"
-        borderColor="$border"
-        height="$6xl"
-        gap="$2xl"
-        borderWidth={1}
-        borderRadius="$xl"
-        alignItems="center"
-        justifyContent="space-between"
-        backgroundColor="$background"
-      >
-        {!isDragging && (
-          <>
-            <XStack alignItems="center" gap="$l">
-              <Pressable onPress={() => console.log('edit')}>
-                <Icon color="$secondaryText" type="Dragger" />
-              </Pressable>
-              <Text fontSize="$l" paddingVertical="$s">
-                {channel?.title}
-              </Text>
-            </XStack>
-            <Pressable onPress={onEdit}>
-              <View paddingVertical="$xs">
-                <Icon color="$secondaryText" type="Overflow" size="$m" />
-              </View>
-            </Pressable>
-          </>
-        )}
+      <XStack alignItems="center" gap="$l">
+        <ListItem.ChannelIcon
+          // @ts-expect-error - we don't need the whole channel object
+          model={{ type: channel.type }}
+          useTypeIcon
+        />
+        <YStack gap="$2xs">
+          <Text fontSize="$l" paddingVertical="$s">
+            {channel?.title}
+          </Text>
+          <Text fontSize="$s" color="$secondaryText">
+            {capitalize(channel.type)}
+          </Text>
+        </YStack>
       </XStack>
-    </DraggableItem>
+
+      <XStack gap="$2xs">
+        <Pressable onPress={handleMoveUp} disabled={isFirst && isFirstSection}>
+          <Icon
+            color={
+              isFirst && isFirstSection ? '$secondaryText' : '$primaryText'
+            }
+            type="ChevronUp"
+          />
+        </Pressable>
+        <Pressable onPress={handleMoveDown} disabled={isLast && isLastSection}>
+          <Icon
+            color={isLast && isLastSection ? '$secondaryText' : '$primaryText'}
+            type="ChevronDown"
+          />
+        </Pressable>
+        <Pressable onPress={onEdit}>
+          <View paddingVertical="$xs">
+            <Icon color="$secondaryText" type="Overflow" size="$m" />
+          </View>
+        </Pressable>
+      </XStack>
+    </XStack>
   );
 }
 
@@ -117,6 +166,11 @@ function NavSection({
   onMoveUp,
   onMoveDown,
   editSection,
+  deleteSection,
+  setShowCreateChannel,
+  setShowAddSection,
+  isEmpty,
+  isDefault,
   children,
 }: {
   section: Section;
@@ -125,45 +179,87 @@ function NavSection({
   onMoveUp: (sectionId: string) => void;
   onMoveDown: (sectionId: string) => void;
   editSection: (section: Section) => void;
+  deleteSection: (sectionId: string) => void;
+  setShowCreateChannel: (show: boolean) => void;
+  setShowAddSection: (show: boolean) => void;
+  isEmpty: boolean;
+  isDefault: boolean;
   children: React.ReactNode;
 }) {
-  console.log('section, index', section.title, index);
+  const borderTopWidth = useMemo(() => (index === 0 ? 'unset' : 1), [index]);
+  const borderColor = useMemo(
+    () => (index === 0 ? 'transparent' : '$border'),
+    [index]
+  );
+  const paddingTop = useMemo(() => (index === 0 ? '$l' : '$xl'), [index]);
+
   return (
     <YStack
-      padding="$xl"
-      borderWidth={1}
-      borderRadius="$xl"
-      borderColor="$border"
       width="100%"
       gap="$2xl"
       backgroundColor="$background"
+      borderTopWidth={borderTopWidth}
+      borderColor={borderColor}
+      paddingTop={paddingTop}
+      paddingHorizontal="$l"
     >
-      <XStack
-        width="100%"
-        justifyContent="space-between"
-        alignItems="center"
-        gap="$l"
-      >
-        <XStack paddingLeft="$s" alignItems="center" gap="$l">
-          <Text fontSize="$l">{section.title}</Text>
+      <XStack width="100%" justifyContent="space-between" alignItems="center">
+        <Text paddingLeft="$l" fontSize="$s" color="$secondaryText">
+          {section.title}
+        </Text>
+        <XStack gap="$s">
+          {!isDefault ? (
+            <>
+              <Button minimal size="$s" onPress={() => editSection(section)}>
+                <Button.Text size="$s" color="$positiveActionText">
+                  Edit
+                </Button.Text>
+              </Button>
+              {isEmpty && (
+                <Button
+                  minimal
+                  size="$s"
+                  onPress={() => deleteSection(section.id)}
+                >
+                  <Button.Text size="$s" color="$negativeActionText">
+                    Delete
+                  </Button.Text>
+                </Button>
+              )}
+            </>
+          ) : (
+            <>
+              <Button
+                minimal
+                size="$s"
+                onPress={() => setShowCreateChannel(true)}
+              >
+                <Button.Text size="$s" color="$positiveActionText">
+                  New Channel
+                </Button.Text>
+              </Button>
+              <Button minimal size="$s" onPress={() => setShowAddSection(true)}>
+                <Button.Text size="$s" color="$positiveActionText">
+                  New Section
+                </Button.Text>
+              </Button>
+            </>
+          )}
         </XStack>
-        <XStack alignItems="center" gap="$s">
+        {/* TODO: Implement these actions after we get design feedback
+        <XStack alignItems="center" gap="$xs">
           {index !== 0 && (
             <Pressable onPress={() => onMoveUp(section.id)}>
-              <Icon color="$primaryText" type="ArrowUp" size="$m" />
+              <Icon color="$primaryText" type="ChevronUp" size="$m" />
             </Pressable>
           )}
           {index !== totalSections - 1 && (
             <Pressable onPress={() => onMoveDown(section.id)}>
-              <Icon color="$primaryText" type="ArrowDown" size="$m" />
-            </Pressable>
-          )}
-          {section.id !== 'default' && (
-            <Pressable onPress={() => editSection(section)}>
-              <Icon color="$primaryText" type="Draw" size="$m" />
+              <Icon color="$primaryText" type="ChevronDown" size="$m" />
             </Pressable>
           )}
         </XStack>
+        */}
       </XStack>
       {children}
     </YStack>
@@ -206,163 +302,92 @@ export function ManageChannelsScreenView({
   createNavSection,
   deleteNavSection,
   updateNavSection,
-  enableCustomChannels = false,
 }: ManageChannelsScreenViewProps) {
   const [sections, setSections] = useState<Section[]>(() => {
-    console.log('componentDidMount', groupNavSectionsWithChannels);
     return groupNavSectionsWithChannels.map((s) => ({
       id: s.sectionId,
       title: s.title ?? 'Untitled Section',
       channels: s.channels.map((c) => ({
         id: c.id,
         title: c.title ?? 'Untitled Channel',
+        type: c.type,
       })),
     }));
   });
-
-  useEffect(() => {
-    console.log('componentDidUpdate', groupNavSectionsWithChannels);
-    setSections(
-      groupNavSectionsWithChannels.map((s) => ({
-        id: s.sectionId,
-        title: s.title ?? 'Untitled Section',
-        channels: s.channels.map((c) => ({
-          id: c.id,
-          title: c.title ?? 'Untitled Channel',
-        })),
-      }))
-    );
-  }, [groupNavSectionsWithChannels]);
 
   const [editSection, setEditSection] = useState<Section | null>(null);
   const [showAddSection, setShowAddSection] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
 
-  const [draggedItem, setDraggedItem] = useState<DraggedItem | null>(null);
-  const draggedItemY = useSharedValue(0);
+  useEffect(() => {
+    const newNavSections = groupNavSectionsWithChannels.map((s) => ({
+      id: s.sectionId,
+      title: s.title ?? 'Untitled Section',
+      channels: s.channels.map((c) => ({
+        id: c.id,
+        title: c.title ?? 'Untitled Channel',
+        type: c.type,
+      })),
+    }));
+    const currentTotalChannels = sections.reduce(
+      (acc, section) => acc + section.channels.length,
+      0
+    );
+    const newTotalChannels = newNavSections.reduce(
+      (acc, section) => acc + section.channels.length,
+      0
+    );
 
-  // const handleSectionDragEnd = useCallback(
-  // async (index: number, translateY: number) => {
-  // const newIndex = Math.min(
-  // Math.max(0, Math.round(index + translateY / 40)),
-  // sections.length - 1
-  // );
+    // Only update local state if the total number of sections have changed
+    // OR if a newly created channel has been added to the default section
+    // OR if a channel has been deleted
+    // OR if a channel name has changed
+    if (newNavSections.length === sections.length) {
+      // Check if any channel names have changed
+      const hasChannelNameChanged = newNavSections.some((newSection) => {
+        const currentSection = sections.find((s) => s.id === newSection.id);
+        if (!currentSection) return false;
 
-  // setSections((prevSections) => {
-  // const newSections = [...prevSections];
-  // const [movedSection] = newSections.splice(index, 1);
-  // newSections.splice(newIndex, 0, movedSection);
-
-  // return newSections;
-  // });
-  // setDraggedItem(null);
-  // draggedItemY.value = 0;
-  // await moveNavSection(sections[index].id, newIndex);
-  // },
-  // [draggedItemY, moveNavSection, sections]
-  // );
-
-  const handleChannelDragEnd = useCallback(
-    async (sectionId: string, channelIndex: number, translateY: number) => {
-      let newSections: Section[] = [];
-      let newChannelIndex;
-      let targetSectionIndex;
-      setSections((prevSections) => {
-        newSections = [...prevSections];
-        const currentSectionIndex = newSections.findIndex(
-          (s) => s.id === sectionId
-        );
-        const currentSection = newSections[currentSectionIndex];
-        const [movedChannel] = currentSection.channels.splice(channelIndex, 1);
-
-        // Calculate the target section index
-        targetSectionIndex = currentSectionIndex;
-        const sectionHeight = 150; // Approximate height of a section
-        const direction = Math.sign(translateY);
-        const sectionsMoved = Math.floor(Math.abs(translateY) / sectionHeight);
-
-        if (direction > 0) {
-          // Moving down
-          targetSectionIndex = Math.min(
-            currentSectionIndex + sectionsMoved,
-            newSections.length - 1
+        return newSection.channels.some((newChannel) => {
+          const currentChannel = currentSection.channels.find(
+            (c) => c.id === newChannel.id
           );
-        } else if (direction < 0) {
-          // Moving up
-          targetSectionIndex = Math.max(currentSectionIndex - sectionsMoved, 0);
-        }
-
-        // Calculate new index within the target section
-        const targetSection = newSections[targetSectionIndex];
-        const channelHeight = 72; // Approximate height of a channel
-        if (targetSectionIndex === currentSectionIndex) {
-          newChannelIndex = Math.min(
-            Math.max(0, Math.round(channelIndex + translateY / channelHeight)),
-            targetSection.channels.length
-          );
-        } else {
-          newChannelIndex = direction > 0 ? 0 : targetSection.channels.length;
-        }
-
-        // Insert the channel at its new position
-        targetSection.channels.splice(newChannelIndex, 0, movedChannel);
-
-        return newSections;
+          return currentChannel && currentChannel.title !== newChannel.title;
+        });
       });
 
-      setDraggedItem(null);
-      draggedItemY.value = 0;
-
-      if (
-        newChannelIndex !== undefined &&
-        targetSectionIndex !== undefined &&
-        newSections.length > 0
-      ) {
-        if (sections[targetSectionIndex].id !== sectionId) {
-          await moveChannelToNavSection(
-            newSections[targetSectionIndex].channels[newChannelIndex].id,
-            newSections[targetSectionIndex].id
-          );
-        } else {
-          await moveChannelWithinNavSection(
-            newSections[targetSectionIndex].channels[newChannelIndex].id,
-            newSections[targetSectionIndex].id,
-            newChannelIndex
-          );
-        }
-      }
-    },
-    [
-      draggedItemY,
-      moveChannelWithinNavSection,
-      sections,
-      moveChannelToNavSection,
-    ]
-  );
-
-  const handleDragStart = useCallback(
-    (
-      type: 'section' | 'channel',
-      layout: LayoutRectangle,
-      sectionId: string,
-      channelId?: string
-    ) => {
-      draggedItemY.value = layout.y;
-      setDraggedItem({ type, sectionId, channelId, layout });
-    },
-    [draggedItemY]
-  );
-
-  const handleDrag = useCallback(
-    (translateY: number) => {
-      if (!draggedItem) {
+      if (hasChannelNameChanged) {
+        setSections(newNavSections);
         return;
       }
 
-      draggedItemY.value = translateY + draggedItem.layout.y;
-    },
-    [draggedItemY, draggedItem]
-  );
+      if (newTotalChannels !== currentTotalChannels) {
+        // Check if a new channel has been added to the default section
+        if (
+          newNavSections.some(
+            (s) =>
+              s.id === 'default' &&
+              s.channels.length >
+                sections.find((s) => s.id === 'default')!.channels.length
+          )
+        ) {
+          setSections(newNavSections);
+          return;
+        }
+        // Check if a channel has been deleted
+        if (newTotalChannels < currentTotalChannels) {
+          setSections(newNavSections);
+          return;
+        }
+      }
+
+      // No changes to the number of sections or channels. No-op because
+      // we don't want to re-render the UI unnecessarily
+      return;
+    }
+
+    setSections(newNavSections);
+  }, [groupNavSectionsWithChannels, sections]);
 
   const handleUpdateSection = useCallback(
     async (sectionId: string, title: string) => {
@@ -371,19 +396,30 @@ export function ManageChannelsScreenView({
       );
 
       if (!navSection) {
+        logger.error(`Section not found: ${sectionId} (for update operation)`);
         return;
       }
 
-      await updateNavSection({
-        ...omit(navSection, 'channels'),
-        title,
-      });
+      // Store original state for rollback
+      const originalSections = [...sections];
 
+      // Update local state first for optimistic UI
       setSections((prevSections) =>
         prevSections.map((s) => (s.id === sectionId ? { ...s, title } : s))
       );
+
+      try {
+        await updateNavSection({
+          ...omit(navSection, 'channels'),
+          title,
+        });
+      } catch (e) {
+        // Restore original state on error
+        setSections(originalSections);
+        logger.error('Failed to update section:', e);
+      }
     },
-    [groupNavSectionsWithChannels, updateNavSection]
+    [groupNavSectionsWithChannels, updateNavSection, sections]
   );
 
   const handleDeleteSection = useCallback(
@@ -393,129 +429,295 @@ export function ManageChannelsScreenView({
       );
 
       if (!navSection) {
+        logger.error(`Section not found: ${sectionId} (for deletion)`);
         return;
       }
-      await deleteNavSection(navSection.id);
+
+      // Store original state for rollback
+      const originalSections = [...sections];
+
+      // Update local state first for optimistic UI
+      setSections((prevSections) =>
+        prevSections.filter((s) => s.id !== sectionId)
+      );
+
+      try {
+        await deleteNavSection(navSection.id);
+      } catch (e) {
+        // Restore original state on error
+        setSections(originalSections);
+        logger.error('Failed to delete section:', e);
+      }
     },
-    [deleteNavSection, groupNavSectionsWithChannels]
+    [deleteNavSection, groupNavSectionsWithChannels, sections]
   );
 
   const handleMoveSectionUp = useCallback(
     async (sectionId: string) => {
-      console.log('move up', sectionId);
       const index = sections.findIndex((s) => s.id === sectionId);
       if (index === 0) {
+        logger.error(
+          `Section "${sections[index].title}" is already at the top`
+        );
         return;
       }
+
+      // Store original state for rollback
+      const originalSections = [...sections];
+
+      // Update local state first for optimistic UI
       setSections((prevSections) => {
         const newSections = [...prevSections];
         const [movedSection] = newSections.splice(index, 1);
         newSections.splice(index - 1, 0, movedSection);
-
         return newSections;
       });
-      await moveNavSection(sectionId, index - 1);
+
+      try {
+        await moveNavSection(sectionId, index - 1);
+      } catch (e) {
+        // Restore original state on error
+        setSections(originalSections);
+        logger.error('Failed to move section up:', e);
+      }
     },
     [sections, moveNavSection]
   );
 
   const handleMoveSectionDown = useCallback(
     async (sectionId: string) => {
-      console.log('move down', sectionId);
       const index = sections.findIndex((s) => s.id === sectionId);
       if (index === sections.length - 1) {
+        logger.error(
+          `Section "${sections[index].title}" is already at the bottom`
+        );
         return;
       }
+
+      // Store original state for rollback
+      const originalSections = [...sections];
+
+      // Update local state first for optimistic UI
       setSections((prevSections) => {
         const newSections = [...prevSections];
         const [movedSection] = newSections.splice(index, 1);
         newSections.splice(index + 1, 0, movedSection);
+        return newSections;
+      });
+
+      try {
+        await moveNavSection(sectionId, index + 1);
+      } catch (e) {
+        // Restore original state on error
+        setSections(originalSections);
+        logger.error('Failed to move section down:', e);
+      }
+    },
+    [sections, moveNavSection]
+  );
+
+  const handleMoveChannelWithinNavSection = useCallback(
+    async (channelId: string, sectionId: string, newIndex: number) => {
+      const sectionIndex = sections.findIndex((s) => s.id === sectionId);
+      if (sectionIndex === -1) {
+        logger.error('Invalid section ID:', sectionId);
+        return;
+      }
+
+      const channelIndex = sections[sectionIndex].channels.findIndex(
+        (c) => c.id === channelId
+      );
+      if (channelIndex === -1) {
+        logger.error(
+          `Channel not found: ${channelId} (expected in section ${sectionId})`
+        );
+        return;
+      }
+
+      // Validate newIndex is within bounds
+      if (newIndex < 0 || newIndex >= sections[sectionIndex].channels.length) {
+        logger.error(
+          'Invalid new index:',
+          newIndex,
+          'for section with',
+          sections[sectionIndex].channels.length,
+          'channels'
+        );
+        return;
+      }
+
+      // Store the original state for rollback
+      const originalSections = [...sections];
+
+      // Update local state first for optimistic UI
+      setSections((prevSections) => {
+        const newSections = [...prevSections];
+        const newChannels = [...newSections[sectionIndex].channels];
+        const [movedChannel] = newChannels.splice(channelIndex, 1);
+        newChannels.splice(newIndex, 0, movedChannel);
+        newSections[sectionIndex] = {
+          ...newSections[sectionIndex],
+          channels: newChannels,
+        };
+        return newSections;
+      });
+
+      try {
+        await moveChannelWithinNavSection(channelId, sectionId, newIndex);
+      } catch (e) {
+        // Restore original state on error
+        setSections(originalSections);
+        logger.error('Failed to move channel within section:', e);
+      }
+    },
+    [sections, moveChannelWithinNavSection]
+  );
+
+  const handleMoveChannelToNavSection = useCallback(
+    async (
+      channelId: string,
+      newSectionId: string,
+      previousSectionId: string
+    ) => {
+      const previousSectionIndex = sections.findIndex(
+        (s) => s.id === previousSectionId
+      );
+
+      if (previousSectionIndex === -1) {
+        logger.error('Invalid previous section ID:', previousSectionId);
+        return;
+      }
+
+      // Prevent moving to the same section
+      if (newSectionId === previousSectionId) {
+        logger.error(
+          `Cannot move channel to section "${sections[previousSectionIndex].title}" as it is already there`
+        );
+        return;
+      }
+
+      const channel = sections[previousSectionIndex].channels.find(
+        (c) => c.id === channelId
+      );
+
+      if (!channel) {
+        logger.error(
+          `Channel not found: ${channelId} (expected in section ${previousSectionId})`
+        );
+        return;
+      }
+
+      const sectionIndex = sections.findIndex((s) => s.id === newSectionId);
+      if (sectionIndex === -1) {
+        logger.error('Invalid new section ID:', newSectionId);
+        return;
+      }
+
+      // Store the original state for rollback
+      const originalSections = [...sections];
+
+      // Update local state first for optimistic UI
+      setSections((prevSections) => {
+        const newSections = [...prevSections];
+        const newChannels = [...newSections[sectionIndex].channels];
+
+        // The %groups agent only supports adding new channels to the start of a section.
+        newChannels.unshift({
+          id: channelId,
+          title: channel.title,
+          index: 0,
+          type: channel.type,
+        });
+
+        newSections[sectionIndex] = {
+          ...newSections[sectionIndex],
+          channels: newChannels,
+        };
+
+        // Remove from the previous section
+        const newPreviousChannels = newSections[
+          previousSectionIndex
+        ].channels.filter((c) => c.id !== channelId);
+
+        newSections[previousSectionIndex] = {
+          ...newSections[previousSectionIndex],
+          channels: newPreviousChannels,
+        };
 
         return newSections;
       });
-      await moveNavSection(sectionId, index + 1);
+
+      try {
+        await moveChannelToNavSection(channelId, newSectionId);
+      } catch (e) {
+        // Restore original state on error
+        setSections(originalSections);
+        logger.error('Failed to move channel to new section:', e);
+      }
     },
-    [sections, moveNavSection]
+    [sections, moveChannelToNavSection]
   );
 
   const { bottom } = useSafeAreaInsets();
 
   const renderSectionsAndChannels = useMemo(() => {
-    return sections.map((section, index) => (
+    return sections.map((section, sectionIndex) => (
       <NavSection
         key={section.id}
-        index={index}
+        index={sectionIndex}
         totalSections={sections.length}
         section={section}
         onMoveUp={handleMoveSectionUp}
         onMoveDown={handleMoveSectionDown}
         editSection={setEditSection}
+        deleteSection={handleDeleteSection}
+        setShowAddSection={setShowAddSection}
+        setShowCreateChannel={setShowCreateChannel}
+        isEmpty={section.id !== 'default' && section.channels.length === 0}
+        isDefault={section.id === 'default'}
       >
-        {section.channels.length === 0 && (
-          <EmptySection
-            isDefault={section.id === 'default'}
-            deleteSection={() => handleDeleteSection(section.id)}
-          />
-        )}
-        {section.channels.map((channel, index) => (
-          <DraggableChannel
+        {section.channels.length === 0 && <EmptySection />}
+        {section.channels.map((channel, channelIndex) => (
+          <ChannelItem
             key={channel.id}
             channel={channel}
+            moveChannelWithinNavSection={(newIndex) => {
+              handleMoveChannelWithinNavSection(
+                channel.id,
+                section.id,
+                newIndex
+              );
+            }}
+            moveChannelToNavSection={(newSectionIndex) => {
+              handleMoveChannelToNavSection(
+                channel.id,
+                sections[newSectionIndex].id,
+                section.id
+              );
+            }}
+            index={channelIndex}
+            sectionIndex={sectionIndex}
+            isLast={channelIndex === section.channels.length - 1}
+            isFirst={channelIndex === 0}
+            isFirstSection={sectionIndex === 0}
+            isLastSection={sectionIndex === sections.length - 1}
             onEdit={() => goToEditChannel(channel.id)}
-            onDrag={handleDrag}
-            onDragStart={(layout) =>
-              handleDragStart('channel', layout, section.id, channel.id)
-            }
-            onDragEnd={(translateY) =>
-              handleChannelDragEnd(section.id, index, translateY)
-            }
-            isDragging={
-              draggedItem?.type === 'channel' &&
-              draggedItem.channelId === channel.id
-            }
           />
         ))}
       </NavSection>
     ));
   }, [
     sections,
-    draggedItem,
-    handleChannelDragEnd,
-    handleDragStart,
-    handleDrag,
     handleDeleteSection,
     goToEditChannel,
     handleMoveSectionDown,
     handleMoveSectionUp,
+    handleMoveChannelWithinNavSection,
+    handleMoveChannelToNavSection,
   ]);
 
   return (
     <View backgroundColor="$background" flex={1}>
-      {draggedItem && (
-        <Animated.View
-          style={{
-            position: 'absolute',
-            top: draggedItemY ?? draggedItem.layout.y,
-            left: draggedItem.layout.x,
-            width: draggedItem.layout.width,
-            height: draggedItem.layout.height,
-            zIndex: 2000,
-            elevation: 2000,
-          }}
-        >
-          <DraggableChannel
-            channel={
-              sections
-                .find((s) => s.id === draggedItem.sectionId)!
-                .channels.find((c) => c.id === draggedItem.channelId)!
-            }
-            onEdit={() => {}}
-            onDrag={() => {}}
-            onDragStart={() => {}}
-            onDragEnd={() => {}}
-          />
-        </Animated.View>
-      )}
       <YStack
         backgroundColor="$background"
         justifyContent="space-between"
@@ -525,53 +727,43 @@ export function ManageChannelsScreenView({
         <YStack
           backgroundColor="$background"
           gap="$2xl"
-          padding="$xl"
           alignItems="center"
           flex={1}
         >
-          <Animated.ScrollView
-            // 114.7 is the height of the buttons at the bottom
-            contentContainerStyle={{ paddingBottom: bottom + 114.7 }}
-            style={{ zIndex: 1, elevation: 1 }}
+          <ScrollView
+            style={{ zIndex: 1, elevation: 1, width: '100%' }}
+            gap="$2xl"
+            contentContainerStyle={{
+              alignItems: 'center',
+              paddingBottom: bottom,
+            }}
           >
-            <YStack gap="$2xl" alignItems="center">
-              {renderSectionsAndChannels}
-            </YStack>
-          </Animated.ScrollView>
-          <YStack
-            position="absolute"
-            backgroundColor="$background"
-            bottom={bottom}
-            gap="$l"
-            width="100%"
-            alignItems="center"
-            zIndex={5}
-          >
-            <Button hero onPress={() => setShowCreateChannel(true)}>
-              <Button.Text>Create a channel</Button.Text>
-            </Button>
-            <Button secondary onPress={() => setShowAddSection(true)}>
-              <Button.Text>Add a section</Button.Text>
-            </Button>
-          </YStack>
+            {renderSectionsAndChannels}
+          </ScrollView>
         </YStack>
       </YStack>
       {showCreateChannel && group && (
         <CreateChannelSheet
           group={group}
           onOpenChange={(open) => setShowCreateChannel(open)}
-          enableCustomChannels={enableCustomChannels}
         />
       )}
       <EditSectionNameSheet
         open={showAddSection}
         mode="add"
         onOpenChange={(open) => setShowAddSection(open)}
-        onSave={async (title) =>
-          createNavSection({
-            title,
-          })
-        }
+        onSave={async (title) => {
+          try {
+            await createNavSection({
+              title,
+            });
+          } catch (e) {
+            logger.error('Failed to create section:', e);
+            // Note: We don't need state rollback here since the section
+            // hasn't been added to local state yet - the UI will update
+            // via the useEffect when groupNavSectionsWithChannels changes
+          }
+        }}
       />
       <EditSectionNameSheet
         open={!!editSection}

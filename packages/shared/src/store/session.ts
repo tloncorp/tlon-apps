@@ -39,31 +39,6 @@ export function useCurrentSession() {
   return useSyncExternalStore(subscribeToSession, getSession);
 }
 
-// Syncing — whether our initial fetching logic is currently running
-let isSyncing: boolean = false;
-type SyncListener = (syncing: boolean) => void;
-const syncListeners: SyncListener[] = [];
-
-export function getSyncing() {
-  return isSyncing;
-}
-
-export function updateIsSyncing(newValue: boolean) {
-  isSyncing = newValue;
-  syncListeners.forEach((listener) => listener(newValue));
-}
-
-function subscribeToIsSyncing(listener: SyncListener) {
-  syncListeners.push(listener);
-  return () => {
-    syncListeners.splice(syncListeners.indexOf(listener), 1);
-  };
-}
-
-export function useSyncing() {
-  return useSyncExternalStore(subscribeToIsSyncing, getSyncing);
-}
-
 // Initialized Client — whether the client has been initialized
 let initializedClient: boolean = false;
 type InitializedClientListener = (initialized: boolean) => void;
@@ -97,7 +72,6 @@ export function useInitializedClient() {
 
 export function useConnectionStatus() {
   const currentSession = useCurrentSession();
-  const syncing = useSyncing();
   const initializedClient = useInitializedClient();
 
   if (!initializedClient) {
@@ -110,10 +84,6 @@ export function useConnectionStatus() {
 
   if (currentSession.channelStatus === 'reconnecting') {
     return 'Reconnecting';
-  }
-
-  if (syncing) {
-    return 'Syncing';
   }
 
   if (['active', 'reconnected'].includes(currentSession.channelStatus ?? '')) {

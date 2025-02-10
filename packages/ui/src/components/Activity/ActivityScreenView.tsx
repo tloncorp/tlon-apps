@@ -30,7 +30,7 @@ export function ActivityScreenView({
   bucketFetchers: store.BucketFetchers;
   refresh: () => Promise<void>;
 }) {
-  const { data: activitySeenMarker } = store.useActivitySeenMarker();
+  const activitySeenMarker = db.activitySeenMarker.useValue();
   const [activeTab, setActiveTab] = useState<db.ActivityBucket>('all');
   const currentFetcher = bucketFetchers[activeTab];
 
@@ -65,7 +65,11 @@ export function ActivityScreenView({
         case 'flag-post':
         case 'post':
           if (event.channel) {
-            goToChannel(event.channel);
+            if (event.postId) {
+              goToChannel(event.channel, event.postId);
+            } else {
+              goToChannel(event.channel);
+            }
           } else if (event.channelId) {
             const channel = await db.getChannel({ id: event.channelId });
             if (channel) {

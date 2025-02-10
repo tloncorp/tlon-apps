@@ -1,12 +1,5 @@
-import { ChannelAction } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
-import { RefObject, useEffect, useState } from 'react';
-import {
-  DimensionValue,
-  Dimensions,
-  LayoutChangeEvent,
-  View as RNView,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Dimensions, LayoutChangeEvent } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -14,14 +7,14 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, XStack, YStack } from 'tamagui';
+import { Popover, View, XStack, YStack } from 'tamagui';
 
 import useIsWindowNarrow from '../../../hooks/useIsWindowNarrow';
 import { triggerHaptic } from '../../../utils';
-import { ActionSheet } from '../../ActionSheet';
 import { EmojiToolbar } from './EmojiToolbar';
 import MessageActions from './MessageActions';
 import { MessageContainer } from './MessageContainer';
+import { ChatMessageActionsProps } from './types';
 
 interface LayoutStruct {
   x: number;
@@ -41,18 +34,9 @@ export function ChatMessageActions({
   onEdit,
   onViewReactions,
   onShowEmojiPicker,
-}: {
-  post: db.Post;
-  postActionIds: ChannelAction.Id[];
-  postRef: RefObject<RNView>;
-  onDismiss: () => void;
-  width?: DimensionValue;
-  height?: DimensionValue;
-  onReply?: (post: db.Post) => void;
-  onEdit?: () => void;
-  onViewReactions?: (post: db.Post) => void;
-  onShowEmojiPicker?: () => void;
-}) {
+  trigger,
+  onOpenChange
+}: ChatMessageActionsProps) {
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
 
@@ -103,6 +87,9 @@ export function ChatMessageActions({
 
   useEffect(() => {
     // measure the original post
+    if (!postRef || !postRef.current) {
+      return;
+    }
     postRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
       translateX.value = pageX;
       translateY.value = pageY;
@@ -139,35 +126,52 @@ export function ChatMessageActions({
       ],
       opacity: opacity.value,
     }),
-    [translateX, translateY, scale]
+    [translateX, translateY, scale, opacity.value]
   );
 
   if (!isWindowNarrow) {
     return (
-      <ActionSheet
-        // We use an action sheet on web so that it will render within a dialog
-        open
-        onOpenChange={(open: boolean) => (!open ? onDismiss() : undefined)}
+      <Popover
+        onOpenChange={(open) => {
+          // Only dismiss when explicitly closed (e.g. clicking outside or trigger button)
+          if (!open) {
+            onDismiss();
+          }
+          onOpenChange?.(open);
+        }}
+        placement="top-end"
+        allowFlip
+        offset={-12}
       >
-        <YStack gap="$xs">
-          <XStack justifyContent="center">
-            <EmojiToolbar
+        <Popover.Trigger asChild>{trigger}</Popover.Trigger>
+        <Popover.Content
+          elevate
+          animation="quick"
+          zIndex={1000000}
+          position="relative"
+          borderColor="$border"
+          borderWidth={1}
+          padding={1}
+        >
+          <YStack gap="$xs">
+            <XStack justifyContent="center">
+              <EmojiToolbar
+                post={post}
+                onDismiss={onDismiss}
+                openExternalSheet={onShowEmojiPicker}
+              />
+            </XStack>
+            <MessageActions
               post={post}
-              onDismiss={onDismiss}
-              openExternalSheet={onShowEmojiPicker}
+              postActionIds={postActionIds}
+              dismiss={onDismiss}
+              onReply={onReply}
+              onEdit={onEdit}
+              onViewReactions={onViewReactions}
             />
-          </XStack>
-          <MessageContainer post={post} />
-          <MessageActions
-            post={post}
-            postActionIds={postActionIds}
-            dismiss={onDismiss}
-            onReply={onReply}
-            onEdit={onEdit}
-            onViewReactions={onViewReactions}
-          />
-        </YStack>
-      </ActionSheet>
+          </YStack>
+        </Popover.Content>
+      </Popover>
     );
   }
 

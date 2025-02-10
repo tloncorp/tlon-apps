@@ -60,10 +60,10 @@ const WebImage = ({
       src={source.uri}
       alt={alt}
       style={{
-        ...StyleSheet.flatten(style),
         maxWidth: '100%',
         height: props.height ? props.height : '100%',
         objectFit: contentFit ? contentFit : undefined,
+        ...StyleSheet.flatten(style),
       }}
       onLoad={handleLoad}
       onError={handleError}

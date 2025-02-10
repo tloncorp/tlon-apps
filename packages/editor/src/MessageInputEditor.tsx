@@ -22,7 +22,6 @@ import { EditorContent } from '@tiptap/react';
 import { useCallback } from 'react';
 
 import { CodeBlockBridge, MentionsBridge, ShortcutsBridge } from './bridges';
-import { useIsDark } from './useMedia';
 
 export const MessageInputEditor = () => {
   const handlePaste = useCallback(
@@ -77,7 +76,6 @@ export const MessageInputEditor = () => {
         height: 'auto',
         fontSize: 16,
         overflowY: 'auto',
-        color: useIsDark() ? 'white' : 'black',
         fontFamily:
           "System, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', sans-serif",
       }}

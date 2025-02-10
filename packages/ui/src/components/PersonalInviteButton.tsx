@@ -2,13 +2,14 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo } from 'react';
 import { Share } from 'react-native';
-import { Text, View, XStack, isWeb } from 'tamagui';
+import { isWeb } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts';
 import { useCopy } from '../hooks/useCopy';
 import { getDisplayName } from '../utils';
 import { Button } from './Button';
 import { Icon } from './Icon';
+import { Text } from './TextV2';
 
 const logger = createDevLogger('PersonalInviteButton', true);
 
@@ -29,7 +30,7 @@ export function PersonalInviteButton() {
       if (navigator.share !== undefined) {
         logger.trackEvent(AnalyticsEvent.InviteShared, {
           inviteId: inviteLink.split('/').pop() ?? null,
-          inviteType: 'personal',
+          inviteType: 'user',
         });
         await navigator.share({
           title: `${userDisplayName} invited you to TM`,
@@ -44,14 +45,13 @@ export function PersonalInviteButton() {
 
     try {
       const result = await Share.share({
-        message: `${userDisplayName} invited you to TM: ${inviteLink}`,
-        title: `${userDisplayName} invited you to TM`,
+        message: inviteLink,
       });
 
       if (result.action === Share.sharedAction) {
         logger.trackEvent(AnalyticsEvent.InviteShared, {
           inviteId: inviteLink.split('/').pop() ?? null,
-          inviteType: 'personal',
+          inviteType: 'user',
         });
       }
     } catch (error) {
@@ -61,22 +61,13 @@ export function PersonalInviteButton() {
   }, [doCopy, inviteLink, userDisplayName]);
 
   return (
-    <Button
-      hero
-      onPress={handleInviteButtonPress}
-      borderRadius="$xl"
-      width="100%"
-      justifyContent="space-between"
-    >
-      <XStack gap="$xl" paddingHorizontal="$m" alignItems="center">
-        <View>
-          <Icon type="Send" size="$l" color="$background" />
-        </View>
-        <Text flex={1} color="$background" fontSize="$l">
-          Invite Friends to Tlon
-        </Text>
-        <Icon type="ChevronRight" size="$l" color="$background" />
-      </XStack>
+    <Button hero onPress={handleInviteButtonPress}>
+      <Button.Icon>
+        <Icon type="Link" />
+      </Button.Icon>
+      <Text color="$background" size="$label/l">
+        Share Invite Link
+      </Text>
     </Button>
   );
 }

@@ -75,6 +75,7 @@ export const ScreenHeaderComponent = ({
 const HeaderIconButton = styled(Icon, {
   customSize: ['$3xl', '$2xl'],
   borderRadius: '$m',
+  cursor: 'pointer',
   pressStyle: {
     opacity: 0.5,
   },
@@ -96,7 +97,13 @@ const HeaderTextButton = styled(Text, {
 });
 
 const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
-  return <HeaderIconButton type="ChevronLeft" onPress={onPress} />;
+  return (
+    <HeaderIconButton
+      testID="Top Back Button"
+      type="ChevronLeft"
+      onPress={onPress}
+    />
+  );
 };
 
 const HeaderTitleText = styled(Text, {

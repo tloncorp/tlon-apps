@@ -4,6 +4,7 @@ import {
   Fragment,
   PropsWithChildren,
   ReactElement,
+  ReactNode,
   useContext,
   useMemo,
   useRef,
@@ -12,6 +13,8 @@ import { Modal, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Dialog,
+  Popover,
+  ScrollView,
   SheetProps,
   View,
   VisuallyHidden,
@@ -28,7 +31,7 @@ import { Icon, IconType } from './Icon';
 import { ListItem } from './ListItem';
 import { Sheet } from './Sheet';
 
-export type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
+type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
 
 export type Action = {
   title: string;
@@ -72,15 +75,44 @@ export function createActionGroup(
   return { accent, actions: actions.filter((a): a is Action => !!a) };
 }
 
+export function createCopyAction({
+  title,
+  description,
+  copyText,
+}: {
+  title: string;
+  description?: string;
+  copyText: string;
+}): Action {
+  return {
+    title,
+    description: description ?? copyText,
+    render: (props) => (
+      <ActionSheet.CopyAction {...props} copyText={copyText} />
+    ),
+  };
+}
+
+type AdaptiveMode = 'sheet' | 'dialog' | 'popover';
+
 type ActionSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title?: string;
+  trigger?: ReactNode;
+  mode?: AdaptiveMode;
 };
 
-const useAdaptiveMode = () => {
+const useAdaptiveMode = (mode?: AdaptiveMode) => {
   const isWindowNarrow = useIsWindowNarrow();
-  return isWindowNarrow ? 'sheet' : 'dialog';
+
+  // On mobile, always use sheet regardless of specified mode
+  if (isWindowNarrow) {
+    return 'sheet';
+  }
+
+  // On desktop, use specified mode or default to dialog
+  return mode ?? 'dialog';
 };
 
 // Main component
@@ -89,17 +121,37 @@ const ActionSheetComponent = ({
   open,
   onOpenChange,
   title,
+  trigger,
+  mode: forcedMode,
   children,
   ...props
 }: PropsWithChildren<ActionSheetProps & SheetProps>) => {
-  const mode = useAdaptiveMode();
+  const mode = useAdaptiveMode(forcedMode);
   const hasOpened = useRef(open);
   if (!hasOpened.current && open) {
     hasOpened.current = true;
   }
 
-  // Sheets are heavy; we don't want to render until we need to
-  if (!hasOpened.current) return null;
+  // Sheets/dialogs are heavy; we don't want to render until we need to
+  if (!hasOpened.current && trigger === undefined) {
+    return null;
+  }
+
+  if (mode === 'popover') {
+    return (
+      <Popover
+        open={open}
+        onOpenChange={onOpenChange}
+        allowFlip
+        placement="bottom-end"
+      >
+        <Popover.Trigger>{trigger}</Popover.Trigger>
+        <Popover.Content padding={1} borderColor="$border" borderWidth={1}>
+          {children}
+        </Popover.Content>
+      </Popover>
+    );
+  }
 
   if (mode === 'dialog') {
     return (
@@ -121,8 +173,10 @@ const ActionSheetComponent = ({
             maxWidth={800}
             minWidth={400}
             key="content"
+            maxHeight="100%"
+            marginVertical="$2xl"
           >
-            {children}
+            <ScrollView>{children}</ScrollView>
           </Dialog.Content>
         </Dialog.Portal>
 
@@ -142,32 +196,41 @@ const ActionSheetComponent = ({
   }
 
   return (
-    <Modal
-      visible={open}
-      onRequestClose={() => onOpenChange(false)}
-      transparent
-      animationType="none"
-    >
-      <Sheet
-        open={open}
-        onOpenChange={onOpenChange}
-        dismissOnSnapToBottom
-        snapPointsMode="fit"
-        animation="quick"
-        handleDisableScroll
-        {...props}
+    <>
+      {trigger}
+      <Modal
+        visible={open}
+        onRequestClose={() => onOpenChange(false)}
+        transparent
+        animationType="none"
       >
-        <Sheet.Overlay animation="quick" />
-        {/*
+        <Sheet
+          open={open}
+          onOpenChange={onOpenChange}
+          dismissOnSnapToBottom
+          snapPointsMode="fit"
+          animation="quick"
+          handleDisableScroll
+          {...props}
+        >
+          <Sheet.Overlay animation="quick" />
+          {/*
           press style is set here to ensure touch responders are added and drag gestures
           bubble up accordingly (unclear why needed after adding modal wrapper)
         */}
-        <Sheet.Frame pressStyle={{}}>
-          <Sheet.Handle />
-          {children}
-        </Sheet.Frame>
-      </Sheet>
-    </Modal>
+          <Sheet.Frame pressStyle={{}}>
+            <Sheet.Handle />
+            {forcedMode === 'popover' ? (
+              <ActionSheet.ScrollableContent>
+                <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+              </ActionSheet.ScrollableContent>
+            ) : (
+              children
+            )}
+          </Sheet.Frame>
+        </Sheet>
+      </Modal>
+    </>
   );
 };
 
@@ -228,8 +291,11 @@ const ActionSheetScrollableContent = ({
 
 const useContentStyle = () => {
   const insets = useSafeAreaInsets();
+  const isWindowNarrow = useIsWindowNarrow();
   return {
-    paddingBottom: insets.bottom + getTokenValue('$2xl', 'size'),
+    paddingBottom: isWindowNarrow
+      ? insets.bottom + getTokenValue('$2xl', 'size')
+      : 0,
   };
 };
 
@@ -266,8 +332,10 @@ const ActionSheetFormBlock = styled(ActionSheetContentBlock, {
  * We use this context to pass the accent type down to the child components.
  */
 const ActionSheetActionGroupContext = createStyledContext<{
+  borderless: boolean;
   accent: Accent;
 }>({
+  borderless: false,
   accent: 'neutral',
 });
 
@@ -286,7 +354,7 @@ const ActionSheetActionGroupFrame = styled(ActionSheetContentBlock, {
         borderColor: '$border',
       },
       disabled: {
-        borderColor: '$secondaryBorder',
+        borderColor: '$border',
       },
     },
   } as const,
@@ -295,30 +363,30 @@ const ActionSheetActionGroupFrame = styled(ActionSheetContentBlock, {
 /**
  * Render children, adding separator lines between them.
  */
-const ActionSheetActionGroup = ActionSheetActionGroupFrame.styleable(
-  (props, ref) => {
-    const actions = Children.toArray(props.children);
-    return (
-      <ActionSheetActionGroupFrame {...props} ref={ref}>
-        <ActionSheetActionGroupContent>
-          {actions.map((c, index) => (
-            <Fragment key={index}>
-              {c}
-              {index < actions.length - 1 && (
-                <ActionSheetActionGroupSeparator key={'separator-' + index} />
-              )}
-            </Fragment>
-          ))}
-        </ActionSheetActionGroupContent>
-      </ActionSheetActionGroupFrame>
-    );
-  }
-);
+const ActionSheetActionGroup = ActionSheetActionGroupFrame.styleable<{
+  contentProps?: ComponentProps<typeof ActionSheetActionGroupContent>;
+}>(({ contentProps, ...props }, ref) => {
+  const actions = Children.toArray(props.children);
+  return (
+    <ActionSheetActionGroupFrame {...props} ref={ref}>
+      <ActionSheetActionGroupContent {...contentProps}>
+        {actions.map((c, index) => (
+          <Fragment key={index}>
+            {c}
+            {index < actions.length - 1 && (
+              <ActionSheetActionGroupSeparator key={'separator-' + index} />
+            )}
+          </Fragment>
+        ))}
+      </ActionSheetActionGroupContent>
+    </ActionSheetActionGroupFrame>
+  );
+});
 
 const ActionSheetActionGroupSeparator = styled(View, {
   name: 'ActionSheetActionGroupSeparator',
   height: 1,
-  backgroundColor: '$border',
+  backgroundColor: '$secondaryBorder',
   width: '100%',
 });
 
@@ -355,6 +423,7 @@ const ActionSheetActionFrame = styled(ListItem, {
   borderRadius: 0,
   paddingHorizontal: '$2xl',
   paddingVertical: '$l',
+  alignItems: 'center',
   $gtSm: {
     paddingHorizontal: '$l',
     paddingVertical: '$m',
@@ -362,6 +431,7 @@ const ActionSheetActionFrame = styled(ListItem, {
   pressStyle: {
     backgroundColor: '$secondaryBackground',
   },
+  cursor: 'pointer',
   variants: {
     type: {
       positive: {
@@ -404,7 +474,7 @@ const ActionSheetActionDescription = styled(ListItem.Subtitle, {
   context: ActionSheetActionGroupContext,
   maxWidth: '100%',
   $gtSm: {
-    maxWidth: 200,
+    maxWidth: '100%',
   },
   variants: {
     accent: {
@@ -427,13 +497,15 @@ const ActionSheetMainContent = styled(YStack, {
 });
 
 function ActionSheetAction({ action }: { action: Action }) {
-  const accent = useContext(ActionSheetActionGroupContext).accent;
+  const isWindowNarrow = useIsWindowNarrow();
+  const accent: Accent = useContext(ActionSheetActionGroupContext).accent;
   return action.render ? (
     action.render({ action })
   ) : (
     <ActionSheetActionFrame
-      type={action.accent ?? (accent as Accent)}
+      type={action.disabled ? 'disabled' : action.accent ?? accent}
       onPress={accent !== 'disabled' ? action.action : undefined}
+      height={isWindowNarrow ? undefined : '$4xl'}
     >
       {action.startIcon &&
         resolveIcon(action.startIcon, action.accent ?? accent)}
@@ -489,7 +561,7 @@ export const SimpleActionSheetHeader = ({
   subtitle,
   icon,
 }: {
-  title?: string;
+  title?: string | null;
   subtitle?: string;
   icon?: ReactElement;
 }) => {
@@ -587,6 +659,7 @@ export const ActionSheet = withStaticProperties(ActionSheetComponent, {
   Action: ActionSheetAction,
   MainContent: ActionSheetMainContent,
   ActionFrame: ActionSheetActionFrame,
+  ActionIcon: ActionSheetActionIcon,
   ActionGroupContent: ActionSheetActionGroupContent,
   ActionGroupFrame: ActionSheetActionGroupFrame,
   ActionTitle: ActionSheetActionTitle,

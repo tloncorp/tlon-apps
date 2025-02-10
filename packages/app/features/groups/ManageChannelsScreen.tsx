@@ -25,9 +25,7 @@ export function ManageChannelsScreen(props: Props) {
 
   return (
     <ManageChannelsScreenView
-      goBack={() =>
-        props.navigation.getParent()?.navigate('GroupChannels', { groupId })
-      }
+      goBack={() => props.navigation.goBack()}
       goToEditChannel={(channelId) => {
         props.navigation.navigate('EditChannel', { groupId, channelId });
       }}

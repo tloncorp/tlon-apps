@@ -7,14 +7,16 @@ import { GetChangedPostsOptions } from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger, runIfDev } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
+import { addChannelToNavSection, moveChannel } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { useLureState } from './lure';
-import { getSyncing, updateIsSyncing, updateSession } from './session';
+import { getSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
@@ -184,7 +186,7 @@ export const syncSettings = async (ctx?: SyncCtx) => {
 
 export const syncAppInfo = async (ctx?: SyncCtx) => {
   const appInfo = await syncQueue.add('appInfo', ctx, () => api.getAppInfo());
-  return db.setAppInfoSettings(appInfo);
+  return db.appInfo.setValue(appInfo);
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -262,7 +264,27 @@ export const syncChannelThreadUnreads = async (
   const unreads = await syncQueue.add('thread unreads', ctx, () =>
     api.getThreadUnreadsByChannel(channel)
   );
-  await db.insertThreadUnreads(unreads);
+  const existingUnreads = await db.getThreadUnreadsByChannel({ channelId });
+
+  // filter out any unreads that we already have in the db so we can avoid
+  // invalidating queries that don't need to be invalidated
+  const newUnreads = unreads.filter((unread) => {
+    const existing = existingUnreads.find(
+      (u) => u.threadId === unread.threadId
+    );
+
+    if (!existing) {
+      return true;
+    }
+
+    return !_.isEqual(unread, existing);
+  });
+
+  if (newUnreads.length === 0) {
+    return;
+  }
+
+  await db.insertThreadUnreads(newUnreads);
 };
 
 export async function syncPostReference(options: {
@@ -299,6 +321,10 @@ export async function syncUpdatedPosts(
     posts: response.posts,
   });
 
+  await db.deletePosts({
+    ids: response.deletedPosts ?? [],
+  });
+
   return response;
 }
 
@@ -327,21 +353,42 @@ export async function syncThreadPosts(
   });
 }
 
+const groupSyncsInProgress = new Set<string>();
+
 export async function syncGroup(id: string, ctx?: SyncCtx) {
-  const response = await syncQueue.add('syncGroup', ctx, () =>
-    api.getGroup(id)
-  );
-  await db.insertGroups({ groups: [response] });
+  if (groupSyncsInProgress.has(id)) {
+    return;
+  }
+  groupSyncsInProgress.add(id);
+  try {
+    const group = await db.getGroup({ id });
+    const session = getSession();
+    if (group && session && (session.startTime ?? 0) < (group.syncedAt ?? 0)) {
+      return;
+    }
+    const response = await syncQueue.add('syncGroup', ctx, () =>
+      api.getGroup(id)
+    );
+    await batchEffects('syncGroup', async (ctx) => {
+      await db.insertGroups({ groups: [response] }, ctx);
+      await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
+    });
+  } catch (e) {
+    logger.trackError('group sync failed', { errorMessage: e.message });
+    throw e;
+  } finally {
+    groupSyncsInProgress.delete(id);
+  }
 }
 
 export const syncStorageSettings = (ctx?: SyncCtx) => {
   return Promise.all([
     syncQueue
       .add('storageSettings', ctx, () => api.getStorageConfiguration())
-      .then((config) => db.setStorageConfiguration(config)),
+      .then((config) => db.storageConfiguration.setValue(config)),
     syncQueue
       .add('storageCredentials', ctx, () => api.getStorageCredentials())
-      .then((creds) => db.setStorageCredentials(creds)),
+      .then((creds) => db.storageCredentials.setValue(creds)),
   ]);
 };
 
@@ -391,13 +438,14 @@ export const syncPushNotificationsSetting = async (ctx?: SyncCtx) => {
   const setting = await syncQueue.add('getPushNotificationSettings', ctx, () =>
     api.getPushNotificationsSetting()
   );
-  await db.setPushNotificationsSetting(setting);
+  await db.pushNotificationSettings.setValue(setting);
 };
 
 async function handleGroupUpdate(update: api.GroupUpdate) {
   logger.log('received group update', update.type);
 
   let channelNavSection: db.GroupNavSectionChannel | null | undefined;
+  let group: db.Group | null | undefined;
 
   switch (update.type) {
     case 'addGroup':
@@ -471,17 +519,25 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
         },
       ]);
       break;
-    case 'setGroupAsPublic':
+    case 'setGroupAsOpen':
       await db.updateGroup({ id: update.groupId, privacy: 'public' });
       break;
-    case 'setGroupAsPrivate':
-      await db.updateGroup({ id: update.groupId, privacy: 'private' });
+    case 'setGroupAsShut':
+      group = await db.getGroup({ id: update.groupId });
+
+      if (group?.privacy !== 'secret') {
+        await db.updateGroup({ id: update.groupId, privacy: 'private' });
+      }
       break;
     case 'setGroupAsSecret':
       await db.updateGroup({ id: update.groupId, privacy: 'secret' });
       break;
     case 'setGroupAsNotSecret':
-      await db.updateGroup({ id: update.groupId, privacy: 'private' });
+      group = await db.getGroup({ id: update.groupId });
+      await db.updateGroup({
+        id: update.groupId,
+        privacy: group?.privacy === 'public' ? 'public' : 'private',
+      });
       break;
     case 'addGroupMembers':
       await db.addChatMembers({
@@ -595,18 +651,20 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       break;
     case 'moveChannel':
       logger.log('moving channel', update);
-      await db.addChannelToNavSection({
+      await moveChannel({
         channelId: update.channelId,
-        groupNavSectionId: update.navSectionId,
+        groupId: update.groupId,
+        navSectionId: update.sectionId,
         index: update.index,
       });
       break;
     case 'addChannelToNavSection':
       logger.log('adding channel to nav section', update);
-      await db.addChannelToNavSection({
+
+      await addChannelToNavSection({
         channelId: update.channelId,
-        groupNavSectionId: update.navSectionId,
-        index: 0,
+        groupId: update.groupId,
+        navSectionId: update.sectionId,
       });
       break;
     case 'setUnjoinedGroups':
@@ -659,12 +717,6 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
           refetchType: 'active',
         });
       }
-
-      // check for any newly joined groups and channels
-      checkForNewlyJoined({
-        groupUnreads: activitySnapshot.groupUnreads,
-        channelUnreads: activitySnapshot.channelUnreads,
-      });
     },
     queueDebounce,
     { leading: true, trailing: true }
@@ -688,7 +740,7 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
         queue.activityEvents.push(...event.events);
         break;
       case 'updatePushNotificationsSetting':
-        db.setPushNotificationsSetting(event.value);
+        db.pushNotificationSettings.setValue(event.value);
         break;
     }
     processQueue();
@@ -715,11 +767,11 @@ export const handleContactUpdate = async (update: api.ContactsUpdate) => {
 export const handleStorageUpdate = async (update: api.StorageUpdate) => {
   switch (update.type) {
     case 'storageCredentialsChanged': {
-      await db.setStorageCredentials(update.credentials);
+      await db.storageCredentials.setValue(update.credentials);
       break;
     }
     case 'storageCongfigurationChanged': {
-      await db.setStorageConfiguration(update.configuration);
+      await db.storageConfiguration.setValue(update.configuration);
       break;
     }
     case 'storageAccessKeyIdChanged': {
@@ -1067,7 +1119,8 @@ export const clearSyncQueue = () => {
   concerns and punts on full correctness.
 */
 export const handleDiscontinuity = async () => {
-  if (getSyncing()) {
+  logger.trackEvent(AnalyticsEvent.SyncDiscontinuity);
+  if (isSyncing) {
     // we probably don't want to do this while we're already syncing
     return;
   }
@@ -1087,16 +1140,19 @@ export const handleChannelStatusChange = async (status: ChannelStatus) => {
   updateSession({ channelStatus: status });
 };
 
+let isSyncing = false;
+
 export const syncStart = async (alreadySubscribed?: boolean) => {
-  if (getSyncing()) {
+  if (isSyncing) {
     // we probably don't want multiple sync starts
     return;
   }
+  isSyncing = true;
 
-  updateIsSyncing(true);
+  const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
-  batchEffects('sync start (high)', async (ctx) => {
+  await batchEffects('sync start (high)', async (ctx) => {
     // this allows us to run the api calls first in parallel but handle
     // writing the data in a specific order
     const yieldWriter = true;
@@ -1121,19 +1177,36 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
           priority: SyncPriority.High - 1,
         }).then(() => logger.crumb('subscribed high priority'));
 
+    const trackStep = (function () {
+      let last = Date.now();
+      return (event: AnalyticsEvent) => {
+        const now = Date.now();
+        logger.trackEvent(event, { duration: now - last });
+        last = now;
+      };
+    })();
+
     // then enforce the ordering of writes to avoid race conditions
     const initWriter = await syncInitPromise;
+    trackStep(AnalyticsEvent.InitDataFetched);
     await initWriter();
+    trackStep(AnalyticsEvent.InitDataWritten);
     logger.crumb('finished writing init data');
 
     const latestPostsWriter = await syncLatestPostsPromise;
+    trackStep(AnalyticsEvent.LatestPostsFetched);
     await latestPostsWriter();
+    trackStep(AnalyticsEvent.LatestPostsWritten);
     logger.crumb('finished writing latest posts');
 
     await subsPromise;
+    trackStep(AnalyticsEvent.SubscriptionsEstablished);
     logger.crumb('finished initializing high priority subs');
 
     logger.crumb(`finished high priority init sync`);
+    logger.trackEvent(AnalyticsEvent.SessionInitialized, {
+      duration: Date.now() - startTime,
+    });
     updateSession({ startTime: Date.now() });
   });
 
@@ -1174,10 +1247,10 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       logger.trackError(e);
     });
 
-  updateIsSyncing(false);
-
   // post sync initialization work
-  verifyUserInviteLink();
+  await verifyUserInviteLink();
+
+  isSyncing = false;
 };
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {

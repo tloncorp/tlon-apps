@@ -26,15 +26,13 @@ export const getMobileLinkingConfig = (
             path: 'group/:groupId/channel/:channelId/:selectedPostId?',
             parse: parsePathParams('channelId', 'groupId', 'selectedPostId'),
           },
-          FindGroups: 'find-groups',
-          ContactHostedGroups: {
-            path: 'contacts/:contactId/hosted-groups',
-            parse: parsePathParams('channelId', 'postId'),
-          },
-          CreateGroup: 'create-group',
           ChannelSearch: { path: 'channel/:channelId/search' },
           Post: postScreenConfig(mode),
           ImageViewer: 'image-viewer/:postId',
+          ChatDetails: {
+            path: 'chat-details/:chatType/:chatId',
+            parse: parsePathParams('chatType', 'chatId'),
+          },
           GroupSettings: {
             screens: {
               EditChannel: {
@@ -93,12 +91,22 @@ export const getDesktopLinkingConfig = (
               ChatList: '',
               GroupChannels: 'group/:groupId',
               DM: {
-                path: 'dm/:channelId/:selectedPostId?',
-                parse: parsePathParams('channelId', 'selectedPostId'),
+                path: 'dm/:channelId',
+                parse: parsePathParams('channelId'),
+                screens: {
+                  ChannelRoot: '',
+                },
               },
               GroupDM: {
-                path: 'group-dm/:channelId/:selectedPostId?',
-                parse: parsePathParams('channelId', 'selectedPostId'),
+                path: 'group-dm/:channelId/',
+                parse: parsePathParams('channelId'),
+                screens: {
+                  ChannelRoot: '',
+                },
+              },
+              ChatDetails: {
+                path: 'chat-details/:chatType/:chatId',
+                parse: parsePathParams('chatType', 'chatId'),
               },
               Channel: {
                 initialRouteName: 'ChannelRoot',
@@ -143,8 +151,10 @@ export const getDesktopLinkingConfig = (
 });
 
 const postScreenConfig = (mode: string) => ({
-  path: basePathForMode(mode) + '/channel/:channelId/post/:authorId/:postId',
-  parse: parsePathParams('channelId', 'authorId', 'postId'),
+  path:
+    basePathForMode(mode) +
+    '/group/:groupId/channel/:channelId/post/:authorId/:postId',
+  parse: parsePathParams('groupId', 'channelId', 'authorId', 'postId'),
   exact: true,
 });
 

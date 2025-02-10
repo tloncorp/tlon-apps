@@ -12,7 +12,7 @@
 ?.  ?=(%& -.compiled)
   %-  (slog 'compilation error:' p.compiled)
   (pure:m !>(~))
-;<  ctx=context:h  bind:m  (get-context context-option)
+;<  ctx=bowl:h  bind:m  (get-bowl context-option)
 =/  gate  [p.p.compiled .*(q:subject:utils q.p.compiled)]
 =+  !<(=outcome:h (slam gate !>([event ctx])))
 ?:  ?=(%.y -.outcome)
@@ -26,11 +26,11 @@
   ==
 +$  context-option
   $%  [%origin =origin:h state=(unit vase) config=(unit config:h)]
-      [%context =context:h]
+      [%context =bowl:h]
   ==
 ++  get-context
   |=  =context-option
-  =/  m  (strand ,context:h)
+  =/  m  (strand ,bowl:h)
   ^-  form:m
   ?:  ?=(%context -.context-option)  (pure:m context.context-option)
   =/  [=origin:h state=(unit vase) config=(unit config:h)]  +.context-option

@@ -1,6 +1,8 @@
 import { ImageZoom, Zoomable } from '@likashefqet/react-native-image-zoom';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import { ElementRef, useRef, useState } from 'react';
-import { Dimensions, TouchableOpacity } from 'react-native';
+import { Alert, Dimensions, TouchableOpacity } from 'react-native';
 import {
   Directions,
   Gesture,
@@ -63,16 +65,51 @@ export function ImageViewerScreenView(props: {
       }
     });
 
+  const handleDownloadImage = async () => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission needed',
+          'Please grant Tlon permission to save images'
+        );
+        return;
+      }
+
+      const filename = props.uri?.split('/').pop() || 'downloaded-image.jpg';
+      const localUri = `${FileSystem.documentDirectory}${filename}`;
+      const downloadResult = await FileSystem.downloadAsync(
+        props.uri!,
+        localUri
+      );
+
+      if (downloadResult.status === 200) {
+        await MediaLibrary.saveToLibraryAsync(localUri);
+        await FileSystem.deleteAsync(localUri);
+
+        Alert.alert('Success', 'Image saved to your photos!');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save image');
+      console.error('Download error:', error);
+    }
+  };
+
   return (
     <GestureDetector gesture={dismissGesture}>
-      <ZStack flex={1} backgroundColor="$black" paddingTop={top}>
-        <View flex={1} justifyContent="center" alignItems="center">
+      <ZStack
+        flex={1}
+        backgroundColor="$black"
+        paddingTop={top}
+        data-testid="image-viewer"
+      >
+        <View>
           {isWeb ? (
             <Zoomable
               ref={zoomableRef}
+              data-testid="zoomable-image"
               style={{
-                flex: 1,
-                justifyContent: 'center',
+                height: '100%',
                 alignItems: 'center',
               }}
               isDoubleTapEnabled
@@ -85,9 +122,14 @@ export function ImageViewerScreenView(props: {
               maxPanPointers={maxPanPointers}
             >
               <Image
-                source={{ uri: props.uri }}
-                height={Dimensions.get('window').height}
-                width={Dimensions.get('window').width - 20}
+                source={{
+                  uri: props.uri,
+                }}
+                data-testid="image"
+                style={{
+                  maxWidth: Dimensions.get('window').width,
+                  maxHeight: Dimensions.get('window').height - top,
+                }}
               />
             </Zoomable>
           ) : (
@@ -110,8 +152,24 @@ export function ImageViewerScreenView(props: {
 
         {/* overlay */}
         {showOverlay ? (
-          <YStack padding="$xl" paddingTop={top}>
-            <XStack justifyContent="flex-end">
+          <YStack padding="$xl" paddingTop={isWeb ? 16 : top}>
+            <XStack
+              justifyContent={isWeb ? 'flex-end' : 'space-between'}
+              gap="$m"
+            >
+              <TouchableOpacity
+                onPress={handleDownloadImage}
+                activeOpacity={0.8}
+              >
+                <Stack
+                  padding="$m"
+                  backgroundColor="$darkOverlay"
+                  borderRadius="$l"
+                >
+                  <Icon type="ArrowDown" size="$l" color="$white" />
+                </Stack>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 onPress={() => props.goBack()}
                 activeOpacity={0.8}

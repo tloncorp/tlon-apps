@@ -5,7 +5,7 @@ import { useCallback } from 'react';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
-import { useResetToDm } from '../../navigation/utils';
+import { useRootNavigation } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<
   GroupSettingsStackParamList,
@@ -25,13 +25,15 @@ export function GroupMembersScreen({ route, navigation }: Props) {
     rejectUserJoin,
     joinRequests,
     groupPrivacyType,
+    addUserToRole,
+    removeUserFromRole,
   } = useGroupContext({
     groupId,
   });
 
   const currentUserId = useCurrentUserId();
 
-  const resetToDm = useResetToDm();
+  const { resetToDm } = useRootNavigation();
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
@@ -52,6 +54,8 @@ export function GroupMembersScreen({ route, navigation }: Props) {
       onPressUnban={unbanUser}
       onPressAcceptJoinRequest={acceptUserJoin}
       onPressRejectJoinRequest={rejectUserJoin}
+      onPressAssignRole={addUserToRole}
+      onPressRemoveRole={removeUserFromRole}
       onPressKick={kickUser}
       bannedUsers={bannedUsers}
       joinRequests={joinRequests}

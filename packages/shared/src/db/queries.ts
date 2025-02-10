@@ -110,6 +110,13 @@ const GROUP_META_COLUMNS = {
   coverImageColor: true,
 };
 
+const POST_RELATIONS_DEFAULT = {
+  author: true,
+  reactions: true,
+  threadUnread: true,
+  volumeSettings: true,
+} as const;
+
 export interface GetGroupsOptions {
   includeUnjoined?: boolean;
   includeUnreads?: boolean;
@@ -666,7 +673,7 @@ export const updateGroup = createWriteQuery(
   async (group: Partial<Group> & { id: string }, ctx: QueryCtx) => {
     return ctx.db.update($groups).set(group).where(eq($groups.id, group.id));
   },
-  ['groups']
+  ['groups', 'channels', 'groupNavSections', 'groupNavSectionChannels']
 );
 
 export const deleteGroup = createWriteQuery(
@@ -821,7 +828,7 @@ export const getThreadUnreadState = createReadQuery(
   ['posts']
 );
 
-export const getGroupRoles = createReadQuery(
+export const getAllGroupRoles = createReadQuery(
   'getGroupRoles',
   async (ctx: QueryCtx) => {
     return ctx.db.query.groupRoles.findMany();
@@ -1419,7 +1426,11 @@ export const getThreadActivity = createReadQuery(
 export const getChannel = createReadQuery(
   'getChannel',
   async (
-    { id, includeMembers }: { id: string; includeMembers?: boolean },
+    {
+      id,
+      includeMembers,
+      includeWriters,
+    }: { id: string; includeMembers?: boolean; includeWriters?: boolean },
     ctx: QueryCtx
   ) => {
     return ctx.db.query.channels
@@ -1427,6 +1438,7 @@ export const getChannel = createReadQuery(
         where: eq($channels.id, id),
         with: {
           ...(includeMembers ? { members: { with: { contact: true } } } : {}),
+          ...(includeWriters ? { writerRoles: true } : {}),
         },
       })
       .then(returnNullIfUndefined);
@@ -1491,32 +1503,16 @@ export const getChannelWithRelations = createReadQuery(
     });
     return returnNullIfUndefined(result);
   },
-  ['channels', 'volumeSettings', 'pins', 'groups', 'contacts', 'channelUnreads']
-);
-
-export const getStaleChannels = createReadQuery(
-  'getStaleChannels',
-  async (ctx: QueryCtx) => {
-    return ctx.db
-      .select({
-        ...getTableColumns($channels),
-        unread: getTableColumns($channelUnreads),
-      })
-      .from($channels)
-      .innerJoin($channelUnreads, eq($channelUnreads.channelId, $channels.id))
-      .where(
-        or(
-          isNull($channels.lastPostAt),
-          lt($channels.remoteUpdatedAt, $channelUnreads.updatedAt)
-        )
-      )
-      .leftJoin(
-        $pins,
-        or(eq($pins.itemId, $channels.id), eq($pins.itemId, $channels.groupId))
-      )
-      .orderBy(ascNullsLast($pins.index), desc($channelUnreads.updatedAt));
-  },
-  ['channels']
+  [
+    'channels',
+    'volumeSettings',
+    'pins',
+    'groups',
+    'contacts',
+    'channelUnreads',
+    'channelWriters',
+    'channelReaders',
+  ]
 );
 
 export const insertChannels = createWriteQuery(
@@ -1564,14 +1560,56 @@ export const insertChannels = createWriteQuery(
 
 export const updateChannel = createWriteQuery(
   'updateChannel',
-  (update: Partial<Channel> & { id: string }, ctx: QueryCtx) => {
+  async (update: Partial<Channel> & { id: string }, ctx: QueryCtx) => {
     logger.log('updateChannel', update.id, update);
-    return ctx.db
-      .update($channels)
-      .set(update)
-      .where(eq($channels.id, update.id));
+
+    return withTransactionCtx(ctx, async (txCtx) => {
+      if (update.writerRoles && update.writerRoles.length > 0) {
+        logger.log('updateChannel writerRoles', update.writerRoles);
+        // delete all existing writer roles
+        await txCtx.db
+          .delete($channelWriters)
+          .where(eq($channelWriters.channelId, update.id));
+        logger.log('updateChannel writerRoles deleted existing writer roles');
+
+        const writerValues = update.writerRoles.map((role) => ({
+          channelId: update.id,
+          roleId: role.roleId as string, // Ensure roleId is treated as string
+        }));
+        logger.log(
+          'updateChannel writerRoles inserting new writer roles',
+          writerValues
+        );
+        await txCtx.db.insert($channelWriters).values(writerValues);
+        logger.log('updateChannel writerRoles inserted new writer roles');
+      }
+
+      if (update.readerRoles && update.readerRoles.length > 0) {
+        // delete all existing reader roles
+        await txCtx.db
+          .delete($channelReaders)
+          .where(eq($channelReaders.channelId, update.id));
+        logger.log('updateChannel readerRoles deleted existing reader roles');
+
+        const readerValues = update.readerRoles.map((role) => ({
+          channelId: update.id,
+          roleId: role.roleId as string, // Ensure roleId is treated as string
+        }));
+        logger.log(
+          'updateChannel readerRoles inserting new reader roles',
+          readerValues
+        );
+        await txCtx.db.insert($channelReaders).values(readerValues);
+        logger.log('updateChannel readerRoles inserted new reader roles');
+      }
+
+      return txCtx.db
+        .update($channels)
+        .set(update)
+        .where(eq($channels.id, update.id));
+    });
   },
-  ['channels']
+  ['channels', 'channelWriters', 'channelReaders']
 );
 
 export const deleteChannel = createWriteQuery(
@@ -1622,7 +1660,34 @@ export const addNavSectionToGroup = createWriteQuery(
         set: conflictUpdateSetAll($groupNavSections),
       });
   },
-  ['groupNavSections']
+  ['groups', 'groupNavSections', 'groupNavSectionChannels']
+);
+
+export const updateNavSectionChannel = createWriteQuery(
+  'updateNavSectionChannel',
+  async (
+    {
+      channelId,
+      groupNavSectionId,
+      channelIndex,
+    }: {
+      channelId: string;
+      groupNavSectionId: string;
+      channelIndex: number;
+    },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($groupNavSectionChannels)
+      .set({ channelIndex })
+      .where(
+        and(
+          eq($groupNavSectionChannels.channelId, channelId),
+          eq($groupNavSectionChannels.groupNavSectionId, groupNavSectionId)
+        )
+      );
+  },
+  ['groupNavSectionChannels']
 );
 
 export const updateNavSection = createWriteQuery(
@@ -1674,7 +1739,7 @@ export const addChannelToNavSection = createWriteQuery(
       })
       .onConflictDoNothing();
   },
-  ['groupNavSectionChannels']
+  ['groupNavSectionChannels', 'groups']
 );
 
 export const deleteChannelFromNavSection = createWriteQuery(
@@ -1867,6 +1932,32 @@ export const setLeftGroups = createWriteQuery(
   ['groups', 'channels']
 );
 
+// Includes latest post as well as unconfirmed posts
+export const getUnconfirmedPosts = createReadQuery(
+  'getUnconfirmedPosts',
+  async ({ channelId }: { channelId: string }, ctx) => {
+    const lastPostResults = await ctx.db
+      .select({ lastPostId: $channels.lastPostId })
+      .from($channels)
+      .where(eq($channels.id, channelId));
+    const lastPostId =
+      lastPostResults.length === 0 ? null : lastPostResults[0].lastPostId;
+    return ctx.db.query.posts.findMany({
+      where: or(
+        and(
+          eq($posts.channelId, channelId),
+          isNull($posts.syncedAt),
+          not(eq($posts.type, 'reply'))
+        ),
+        lastPostId == null ? undefined : eq($posts.id, lastPostId)
+      ),
+      orderBy: asc($posts.id),
+      with: POST_RELATIONS_DEFAULT,
+    });
+  },
+  ['posts', 'channels']
+);
+
 export type GetChannelPostsOptions = {
   channelId: string;
   count?: number;
@@ -1880,6 +1971,34 @@ export const getChannelPosts = createReadQuery(
     { channelId, cursor, mode, count = 50 }: GetChannelPostsOptions,
     ctx: QueryCtx
   ): Promise<Post[]> => {
+    /** We'll only fetch posts in the window containing this post.
+     *
+     * Why not just use `cursor`? Because `cursor` may be an unconfirmed post,
+     * which will not be in an explicit window, and thus we'd only show the
+     * single post until more posts loaded.
+     * In that case, we want to move to the closest confirmed window. */
+    const windowPost = await (async () => {
+      if (cursor == null) {
+        return null;
+      }
+      const cursorPost = await ctx.db.query.posts.findFirst({
+        where: eq($posts.id, cursor),
+      });
+      if (cursorPost == null || cursorPost.syncedAt != null) {
+        return { id: cursor };
+      }
+
+      // `cursorPost` is unconfirmed; its window won't have many (any) more posts.
+      // Use the next less-recent confirmed post instead.
+      return await ctx.db.query.posts.findFirst({
+        where: and(
+          eq($posts.channelId, channelId),
+          lte($posts.id, cursor),
+          isNotNull($posts.syncedAt) // i.e. post is confirmed
+        ),
+      });
+    })();
+
     // Find the window (set of contiguous posts) that this cursor belongs to.
     // These are the posts that we can return safely without gaps and without hitting the api.
     const window = await ctx.db.query.postWindows.findFirst({
@@ -1888,8 +2007,8 @@ export const getChannelPosts = createReadQuery(
         eq($postWindows.channelId, channelId),
         // Depending on mode, either older or newer than cursor. If mode is
         // `newest`, we don't need to filter by cursor.
-        cursor ? gte($postWindows.newestPostId, cursor) : undefined,
-        cursor ? lte($postWindows.oldestPostId, cursor) : undefined
+        windowPost ? gte($postWindows.newestPostId, windowPost.id) : undefined,
+        windowPost ? lte($postWindows.oldestPostId, windowPost.id) : undefined
       ),
       orderBy: [desc($postWindows.newestPostId)],
       columns: {
@@ -1902,12 +2021,7 @@ export const getChannelPosts = createReadQuery(
       return [];
     }
 
-    const relationConfig = {
-      author: true,
-      reactions: true,
-      threadUnread: true,
-      volumeSettings: true,
-    } as const;
+    const isPostConfirmed = isNotNull($posts.syncedAt);
 
     if (mode === 'newer' || mode === 'newest' || mode === 'older') {
       // Simple case: just grab a set of posts from either side of the cursor.
@@ -1923,9 +2037,10 @@ export const getChannelPosts = createReadQuery(
           // Depending on mode, either older or newer than cursor. If mode is
           // `newest`, we don't need to filter by cursor.
           cursor && mode === 'older' ? lt($posts.id, cursor) : undefined,
-          cursor && mode === 'newer' ? gt($posts.id, cursor) : undefined
+          cursor && mode === 'newer' ? gt($posts.id, cursor) : undefined,
+          isPostConfirmed
         ),
-        with: relationConfig,
+        with: POST_RELATIONS_DEFAULT,
         // If newer, we have to ensure that these are the newer posts directly following the cursor
         orderBy: [mode === 'newer' ? asc($posts.id) : desc($posts.id)],
         limit: count,
@@ -1962,7 +2077,8 @@ export const getChannelPosts = createReadQuery(
             eq($posts.channelId, channelId),
             not(eq($posts.type, 'reply')),
             gte($posts.id, window.oldestPostId),
-            lte($posts.id, window.newestPostId)
+            lte($posts.id, window.newestPostId),
+            isPostConfirmed
           )
         )
         .as('posts');
@@ -2002,11 +2118,12 @@ export const getChannelPosts = createReadQuery(
             .where(
               and(
                 gte($windowQuery.rowNumber, startRow),
-                lte($windowQuery.rowNumber, endRow)
+                lte($windowQuery.rowNumber, endRow),
+                isPostConfirmed
               )
             )
         ),
-        with: relationConfig,
+        with: POST_RELATIONS_DEFAULT,
         orderBy: [desc($posts.id)],
         limit: count,
       });
@@ -2151,7 +2268,70 @@ export const insertLatestPosts = createWriteQuery(
   ['posts']
 );
 
+export const insertUnconfirmedPosts = createWriteQuery(
+  'insertUnconfirmedPosts',
+  async ({ posts }: { posts: Post[] }, ctx: QueryCtx) => {
+    if (!posts.length) {
+      return;
+    }
+    if (posts.some((p) => p.syncedAt != null)) {
+      throw new Error('insertUnconfirmedPosts: posts should not have syncedAt');
+    }
+    return withTransactionCtx(ctx, async (txCtx) => {
+      // insertPosts does multiple queries internally, so we need to wrap it in a transaction
+      await insertPosts(posts, txCtx);
+    });
+  },
+  ['posts']
+);
+
+const insertPostsBatchSize = 300;
+
 async function insertPosts(posts: Post[], ctx: QueryCtx) {
+  for (let i = 0; i < posts.length; i += insertPostsBatchSize) {
+    const batch = posts.slice(i, i + insertPostsBatchSize);
+    await insertPostsBatch(batch, ctx);
+  }
+}
+
+async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
+  // HACK: I can't get onConflictDoUpdate to work - manually manage conflicts.
+  // Likely https://github.com/drizzle-team/drizzle-orm/issues/2276
+  await (async () => {
+    const existing = await ctx.db.query.posts.findMany({
+      where: inArray(
+        $posts.id,
+        posts.map((p) => p.id)
+      ),
+    });
+    if (existing.length === 0) {
+      return;
+    }
+    const replace: typeof posts = [];
+    for (const x of existing) {
+      // Skip insert if we already have a confirmed post and the insert is unconfirmed
+      // (iow: we want to update unconfirmed posts with confirmed or
+      // unconfirmed updates; we want to update confirmed posts only with
+      // confirmed updates)
+      if (x.syncedAt != null) {
+        const toInsertIdx = posts.findIndex((p) => p.id === x.id);
+        if (toInsertIdx !== -1 && posts[toInsertIdx].syncedAt == null) {
+          posts.splice(toInsertIdx, 1);
+        }
+      } else {
+        replace.push(x);
+      }
+    }
+
+    // Manually delete existing posts that we'll replace.
+    await ctx.db.delete($posts).where(
+      inArray(
+        $posts.id,
+        replace.map((p) => p.id)
+      )
+    );
+  })();
+
   await ctx.db
     .insert($posts)
     .values(
@@ -2628,7 +2808,13 @@ export const getPostWithRelations = createReadQuery(
 
 export const getGroup = createReadQuery(
   'getGroup',
-  async ({ id }: { id: string }, ctx: QueryCtx) => {
+  async (
+    {
+      id,
+      includeUnjoinedChannels = false,
+    }: { id: string; includeUnjoinedChannels?: boolean },
+    ctx: QueryCtx
+  ) => {
     return ctx.db.query.groups
       .findFirst({
         where: (groups, { eq }) => eq(groups.id, id),
@@ -2636,11 +2822,15 @@ export const getGroup = createReadQuery(
           unread: true,
           pin: true,
           channels: {
-            where: (channels, { eq }) => eq(channels.currentUserIsMember, true),
+            where: includeUnjoinedChannels
+              ? undefined
+              : (channels, { eq }) => eq(channels.currentUserIsMember, true),
             with: {
               lastPost: true,
               unread: true,
               volumeSettings: true,
+              writerRoles: true,
+              readerRoles: true,
             },
           },
           roles: true,
@@ -2669,6 +2859,8 @@ export const getGroup = createReadQuery(
     'channels',
     'groupJoinRequests',
     'groupMemberBans',
+    'groupNavSectionChannels',
+    'groupRoles',
   ]
 );
 
@@ -3099,6 +3291,16 @@ export const insertThreadUnreads = createWriteQuery(
   ['threadUnreads', 'channelUnreads']
 );
 
+export const getThreadUnreadsByChannel = createReadQuery(
+  'getThreadUnreadsByChannel',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    return ctx.db.query.threadUnreads.findMany({
+      where: eq($threadUnreads.channelId, channelId),
+    });
+  },
+  ['threadUnreads']
+);
+
 export const clearThreadUnread = createWriteQuery(
   'clearThreadUnread',
   async (
@@ -3123,6 +3325,8 @@ export const insertActivityEvents = createWriteQuery(
   async (events: ActivityEvent[], ctx: QueryCtx) => {
     const currentUserId = getCurrentUserId();
     if (events.length === 0) return;
+
+    const activityEventChannels = events.flatMap((e) => e.channelId || []);
 
     const activityEventGroups = events.flatMap(
       (contact) => contact.contactUpdateGroups || []
@@ -3161,9 +3365,20 @@ export const insertActivityEvents = createWriteQuery(
           .values(activityEventGroups)
           .onConflictDoNothing();
       }
+
+      if (activityEventChannels.length) {
+        await Promise.all(
+          activityEventChannels.map((channelId) => {
+            return txCtx.db
+              .update($channels)
+              .set({ currentUserIsMember: true })
+              .where(eq($channels.id, channelId));
+          })
+        );
+      }
     });
   },
-  ['activityEvents']
+  ['activityEvents'] // should this have 'channels' as well?
 );
 
 export const clearActivityEvents = createWriteQuery(
@@ -3579,6 +3794,122 @@ export const getPinnedItems = createReadQuery(
     return ctx.db.query.pins.findMany({});
   },
   ['pins']
+);
+
+export const getGroupRole = createReadQuery(
+  'getGroupRole',
+  async (
+    { groupId, roleId }: { groupId: string; roleId: string },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.groupRoles.findFirst({
+      where: and(eq($groupRoles.groupId, groupId), eq($groupRoles.id, roleId)),
+    });
+  },
+  ['groupRoles']
+);
+
+export const getGroupRoles = createReadQuery(
+  'getGroupRoles',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    return ctx.db.query.groupRoles.findMany({
+      where: eq($groupRoles.groupId, groupId),
+    });
+  },
+  ['groupRoles']
+);
+
+export const addGroupRole = createWriteQuery(
+  'addGroupRole',
+  async (
+    {
+      groupId,
+      roleId,
+      meta,
+    }: { groupId: string; roleId: string; meta?: ClientMeta },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .insert($groupRoles)
+      .values({ groupId, id: roleId, ...meta })
+      .onConflictDoNothing();
+  },
+  ['groupRoles']
+);
+
+export const deleteGroupRole = createWriteQuery(
+  'deleteGroupRole',
+  async ({ groupId, roleId }: { groupId: string; roleId: string }, ctx) => {
+    return ctx.db
+      .delete($groupRoles)
+      .where(and(eq($groupRoles.groupId, groupId), eq($groupRoles.id, roleId)));
+  },
+  ['groupRoles']
+);
+
+export const updateGroupRole = createWriteQuery(
+  'updateGroupRole',
+  async (
+    {
+      groupId,
+      roleId,
+      meta,
+    }: { groupId: string; roleId: string; meta: ClientMeta },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($groupRoles)
+      .set(meta)
+      .where(and(eq($groupRoles.groupId, groupId), eq($groupRoles.id, roleId)));
+  },
+  ['groupRoles']
+);
+
+export const addMembersToRole = createWriteQuery(
+  'addMembersToRole',
+  async (
+    {
+      groupId,
+      roleId,
+      contactIds,
+    }: { groupId: string; roleId: string; contactIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .insert($chatMemberGroupRoles)
+      .values(
+        contactIds.map((contactId) => ({
+          groupId,
+          roleId,
+          contactId,
+        }))
+      )
+      .onConflictDoNothing();
+  },
+  ['chatMemberGroupRoles', 'groupRoles']
+);
+
+export const removeMembersFromRole = createWriteQuery(
+  'removeMembersFromRole',
+  async (
+    {
+      groupId,
+      roleId,
+      contactIds,
+    }: { groupId: string; roleId: string; contactIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .delete($chatMemberGroupRoles)
+      .where(
+        and(
+          eq($chatMemberGroupRoles.groupId, groupId),
+          eq($chatMemberGroupRoles.roleId, roleId),
+          inArray($chatMemberGroupRoles.contactId, contactIds)
+        )
+      );
+  },
+  ['chatMemberGroupRoles', 'groupRoles']
 );
 
 // Helpers

@@ -91,7 +91,6 @@ const channelIdFromNotification = (notif: Notifications.Notification) => {
  * We should move to a serverside badge + dismiss notification system, and remove this.
  */
 async function updatePresentedNotifications(badgeCount?: number) {
-  console.log('updatePresentedNotifications');
   const presentedNotifs = await Notifications.getPresentedNotificationsAsync();
   const allChannelIds = new Set(
     compact(presentedNotifs.map(channelIdFromNotification))

@@ -12,10 +12,9 @@ import { ChannelMetaScreen } from '../../features/channels/ChannelMetaScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import ChannelScreen from '../../features/top/ChannelScreen';
 import ChannelSearchScreen from '../../features/top/ChannelSearchScreen';
+import { ChatDetailsScreen } from '../../features/top/ChatDetailsScreen';
 import { ChatListScreenView } from '../../features/top/ChatListScreen';
-import { ContactHostedGroupsScreen } from '../../features/top/ContactHostedGroupsScreen';
-import { CreateGroupScreen } from '../../features/top/CreateGroupScreen';
-import { FindGroupsScreen } from '../../features/top/FindGroupsScreen';
+import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
 import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScreen';
 import ImageViewerScreen from '../../features/top/ImageViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
@@ -26,17 +25,29 @@ import { HomeDrawerParamList } from '../types';
 const HomeDrawer = createDrawerNavigator();
 
 export const HomeNavigator = () => {
+  const theme = useTheme();
+  const backgroundColor = getVariableValue(theme.background);
+  const borderColor = getVariableValue(theme.border);
+
   return (
     <HomeDrawer.Navigator
       drawerContent={DrawerContent}
       initialRouteName="ChatList"
-      screenOptions={{
-        drawerType: 'permanent',
-        headerShown: false,
-        drawerStyle: {
-          width: 340,
-          backgroundColor: getVariableValue(useTheme().background),
-        },
+      screenOptions={({ navigation }) => {
+        const state = navigation.getState();
+        const routes = state.routes[state.index].state?.routes;
+        const currentScreen = routes?.[routes.length - 1];
+        const isImageViewer = currentScreen?.name === 'ImageViewer';
+
+        return {
+          drawerType: 'permanent',
+          headerShown: false,
+          drawerStyle: {
+            width: isImageViewer ? 0 : 340,
+            backgroundColor,
+            borderRightColor: borderColor,
+          },
+        };
       }}
     >
       <HomeDrawer.Screen name="ChatList" component={MainStack} />
@@ -44,6 +55,8 @@ export const HomeNavigator = () => {
       <HomeDrawer.Screen name="Channel" component={ChannelStack} />
       <HomeDrawer.Screen name="DM" component={ChannelStack} />
       <HomeDrawer.Screen name="GroupDM" component={ChannelStack} />
+      <HomeDrawer.Screen name="ChatVolume" component={ChatVolumeScreen} />
+      <HomeDrawer.Screen name="ChatDetails" component={ChatDetailsScreen} />
     </HomeDrawer.Navigator>
   );
 };
@@ -85,18 +98,6 @@ function MainStack() {
       initialRouteName="Home"
     >
       <MainStackNavigator.Screen name="Home" component={Empty} />
-      <MainStackNavigator.Screen
-        name="CreateGroup"
-        component={CreateGroupScreen}
-      />
-      <MainStackNavigator.Screen
-        name="FindGroups"
-        component={FindGroupsScreen}
-      />
-      <MainStackNavigator.Screen
-        name="ContactHostedGroups"
-        component={ContactHostedGroupsScreen}
-      />
     </MainStackNavigator.Navigator>
   );
 }
@@ -106,15 +107,25 @@ const ChannelStackNavigator = createNativeStackNavigator();
 function ChannelStack(
   props: NativeStackScreenProps<HomeDrawerParamList, 'Channel'>
 ) {
+  const navKey = () => {
+    if ('channelId' in props.route.params) {
+      return props.route.params.channelId;
+    }
+    if (props.route.params.params && 'channelId' in props.route.params.params) {
+      return props.route.params.params.channelId;
+    }
+
+    return 'none';
+  };
+
   return (
     <ChannelStackNavigator.Navigator
       screenOptions={{
         headerShown: false,
       }}
+      initialRouteName="ChannelRoot"
     >
-      <ChannelStackNavigator.Group
-        navigationKey={props.route.params.channelId ?? 'none'}
-      >
+      <ChannelStackNavigator.Group navigationKey={navKey()}>
         <ChannelStackNavigator.Screen
           name="ChannelRoot"
           component={ChannelScreen}
@@ -128,7 +139,11 @@ function ChannelStack(
           name="ChannelSearch"
           component={ChannelSearchScreen}
         />
-        <ChannelStackNavigator.Screen name="Post" component={PostScreen} />
+        <ChannelStackNavigator.Screen
+          name="Post"
+          component={PostScreen}
+          initialParams={props.route.params}
+        />
         <ChannelStackNavigator.Screen
           name="ImageViewer"
           component={ImageViewerScreen}
