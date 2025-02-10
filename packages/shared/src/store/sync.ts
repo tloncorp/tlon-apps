@@ -159,14 +159,18 @@ export const syncLatestPosts = async (
   queryCtx?: QueryCtx,
   yieldWriter?: boolean
 ): Promise<() => Promise<void>> => {
+  const syncedAt = await db.headsSyncedAt.getValue();
   const result = await syncQueue.add('latestPosts', ctx, () =>
-    api.getLatestPosts({})
+    api.getLatestPosts({
+      afterCursor: new Date(syncedAt),
+    })
   );
   logger.crumb('got latest posts from api');
   const allPosts = result.map((p) => p.latestPost);
   const writer = async (): Promise<void> => {
     allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
     await db.insertLatestPosts(allPosts, queryCtx);
+    await db.headsSyncedAt.setValue(Date.now());
   };
 
   if (yieldWriter) {
