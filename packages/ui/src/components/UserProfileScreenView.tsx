@@ -109,7 +109,6 @@ export function UserProfileScreenView(props: Props) {
         <UserInfoRow
           userId={props.userId}
           hasNickname={!!userContact?.nickname?.length}
-          // isVerified={!!userContact?.hasVerifiedPhone}
         />
         {userContact?.status && <View width="100%"></View>}
 
@@ -376,13 +375,11 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
               </XStack>
             </>
           ) : (
-            <XStack>
-              <ContactName
-                fontSize={24}
-                lineHeight={24}
-                contactId={props.userId}
-              />
-            </XStack>
+            <ContactName
+              fontSize={24}
+              lineHeight={24}
+              contactId={props.userId}
+            />
           )}
         </YStack>
       </XStack>
