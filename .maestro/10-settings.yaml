@@ -27,6 +27,8 @@ appId: io.tlon.groups
     id: "HeaderBackButton"
 - tapOn: "App info"
 - assertVisible: "App info"
+- tapOn: "OTA Update"
+- assertTrue: ${maestro.copiedText = "embedded"}
 - tapOn:
     id: "HeaderBackButton"
 - tapOn: "Report a bug"
