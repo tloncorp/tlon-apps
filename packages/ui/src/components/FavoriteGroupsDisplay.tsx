@@ -74,6 +74,7 @@ export function FavoriteGroupsDisplay(props: {
               <Pressable onPress={() => handleFavoriteGroupsChange(group)}>
                 <ListItem.SystemIcon
                   icon="Close"
+                  testID='ProfilePinnedGroupRemove'
                   onPress={() => handleFavoriteGroupsChange(group)}
                   backgroundColor={'transparent'}
                   color={'$tertiaryText'}

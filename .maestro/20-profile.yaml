@@ -36,12 +36,22 @@ appId: io.tlon.groups
 - "eraseText"
 - inputText: "Testing bio"
 - "hideKeyboard"
+# Set favorite group
+- tapOn: "Add a group"
+- scrollUntilVisible:
+    element: "Tlon Studio"
+- tapOn: "Tlon Studio"
+- swipe:
+    direction: 'DOWN'
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn: "Done"
 # Assert profile details are visible on self-view
 - assertVisible: "Profile"
 - assertVisible: "Testing nickname"
 - assertVisible: "Testing status"
 - assertVisible: "Testing bio"
+- assertVisible: "Tlon Studio"
 - tapOn:
     id: "HeaderBackButton"
 # Assert profile details are visible on Contacts list
@@ -71,4 +81,6 @@ appId: io.tlon.groups
           direction: 'DOWN'
       - waitForAnimationToEnd:
           timeout: 5000
+- tapOn:
+    id: "ProfilePinnedGroupRemove"
 - tapOn: "Done"
