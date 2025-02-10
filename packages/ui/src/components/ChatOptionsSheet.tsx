@@ -131,7 +131,6 @@ export function GroupOptionsSheetLoader({
   }, [setPane]);
 
   const handlePressSort = useCallback(() => {
-    console.log('setting pane to sort');
     setPane('sort');
   }, [setPane]);
 
