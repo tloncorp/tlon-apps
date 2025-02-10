@@ -133,8 +133,7 @@ function NotebookOrGalleryContentRenderer({
     <ScrollView
       marginVertical="$m"
       horizontal
-      height={128}
-      contentContainerStyle={{ gap: '$m' }}
+      contentContainerStyle={{ gap: '$m', width: 128, height: 128 }}
       alwaysBounceHorizontal={false}
       showsHorizontalScrollIndicator={false}
     >
