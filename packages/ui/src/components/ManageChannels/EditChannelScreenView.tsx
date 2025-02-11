@@ -266,6 +266,13 @@ export function ChannelPermissionsSelector({
       }
 
       const newWriterValues = roles.map((r) => r.value);
+
+      // check if newWriterValues includes admin
+      if (!newWriterValues.includes('admin')) {
+        // add admin to newWriterValues if it's not already there
+        newWriterValues.push('admin');
+      }
+
       setValue('writers', newWriterValues, { shouldDirty: true });
 
       // If readers is empty, keep it empty (meaning everyone has read access)
@@ -287,6 +294,13 @@ export function ChannelPermissionsSelector({
       }
 
       const newReaderValues = roles.map((r) => r.value);
+
+      // check if newReaderValues includes admin
+      if (!newReaderValues.includes('admin')) {
+        // add admin to newReaderValues if it's not already there
+        newReaderValues.push('admin');
+      }
+
       setValue('readers', newReaderValues, { shouldDirty: true });
 
       // Remove writers that are no longer readers
