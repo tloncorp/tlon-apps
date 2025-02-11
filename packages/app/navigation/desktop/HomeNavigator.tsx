@@ -108,10 +108,14 @@ function ChannelStack(
   props: NativeStackScreenProps<HomeDrawerParamList, 'Channel'>
 ) {
   const navKey = () => {
-    if ('channelId' in props.route.params) {
+    if (props.route.params && 'channelId' in props.route.params) {
       return props.route.params.channelId;
     }
-    if (props.route.params.params && 'channelId' in props.route.params.params) {
+    if (
+      props.route.params &&
+      props.route.params.params &&
+      'channelId' in props.route.params.params
+    ) {
       return props.route.params.params.channelId;
     }
 

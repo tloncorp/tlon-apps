@@ -99,7 +99,7 @@ const HeaderTextButton = styled(Text, {
 const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
   return (
     <HeaderIconButton
-      testID="Top Back Button"
+      testID="HeaderBackButton"
       type="ChevronLeft"
       onPress={onPress}
     />

@@ -1,0 +1,86 @@
+appId: io.tlon.groups
+---
+- clearState:
+    appId: io.tlon.groups
+- launchApp:
+    appId: io.tlon.groups
+- runFlow: subflows/tlon-login.yaml
+- assertVisible: 'Home'
+# Set basic profile details
+- tapOn:
+    id: "AvatarNavIcon"
+- assertVisible: "Contacts"
+- tapOn: "You"
+- assertVisible: "Profile"
+- tapOn: "Edit"
+- assertVisible: "Edit Profile"
+- tapOn:
+    id: "ProfileNicknameInput"
+- "eraseText"
+- inputText: "Testing nickname"
+- "hideKeyboard"
+- runFlow:
+    when:
+      platform: ios
+    commands:
+      - tapOn: "Change avatar image"
+      - tapOn: "Photo Library"
+      - tapOn:
+          id: "PXGGridLayout-Info"
+          index: 0
+- tapOn: "Hanging out..."
+- "eraseText"
+- inputText: "Testing status"
+- "hideKeyboard"
+- tapOn: "About yourself"
+- "eraseText"
+- inputText: "Testing bio"
+- "hideKeyboard"
+# Set favorite group
+- tapOn: "Add a group"
+- scrollUntilVisible:
+    element: "Tlon Studio"
+- tapOn: "Tlon Studio"
+- swipe:
+    direction: 'DOWN'
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn: "Done"
+# Assert profile details are visible on self-view
+- assertVisible: "Profile"
+- assertVisible: "Testing nickname"
+- assertVisible: "Testing status"
+- assertVisible: "Testing bio"
+- assertVisible: "Tlon Studio"
+- tapOn:
+    id: "HeaderBackButton"
+# Assert profile details are visible on Contacts list
+- assertVisible: "Testing nickname"
+- assertVisible: "Testing status"
+# Clear out profile details
+- tapOn: "You"
+- assertVisible: "Profile"
+- tapOn: "Edit"
+- assertVisible: "Edit Profile"
+- tapOn: "Testing nickname"
+- "eraseText"
+- "hideKeyboard"
+- tapOn: "Testing status"
+- "eraseText"
+- "hideKeyboard"
+- tapOn: "Testing bio"
+- "eraseText"
+- "hideKeyboard"
+- runFlow:
+    when:
+      platform: ios
+    commands:
+      - tapOn: "Change avatar image"
+      - tapOn: "Clear"
+      - swipe:
+          direction: 'DOWN'
+      - waitForAnimationToEnd:
+          timeout: 5000
+- tapOn:
+    id: "ProfilePinnedGroupRemove"
+- tapOn: "Done"

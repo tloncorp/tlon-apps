@@ -19,6 +19,7 @@ export function AvatarNavIcon({
 }) {
   return (
     <Pressable
+      testID="AvatarNavIcon"
       flex={1}
       onPress={onPress}
       onLongPress={onLongPress}
