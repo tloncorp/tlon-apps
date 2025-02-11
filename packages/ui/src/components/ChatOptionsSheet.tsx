@@ -286,7 +286,7 @@ function GroupOptionsSheetContent({
           canSortChannels && {
             title: 'Sort channels',
             endIcon: 'ChevronRight',
-            action: wrappedAction.bind(null, onPressSort),
+            action: onPressSort,
           },
         ],
         [

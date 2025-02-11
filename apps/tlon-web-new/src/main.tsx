@@ -9,6 +9,7 @@
 // This was most likely caused by a recent dependency change.
 import regeneratorRuntime from '@babel/runtime/regenerator';
 import { EditorView } from '@tiptap/pm/view';
+import { loadConstants } from '@tloncorp/app/lib/constants';
 import { setupDb } from '@tloncorp/app/lib/webDb';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
 import { PostHogProvider } from 'posthog-js/react';
@@ -17,6 +18,8 @@ import { createRoot } from 'react-dom/client';
 import App from './app';
 import { analyticsClient, captureError } from './logic/analytics';
 import './styles/index.css';
+
+loadConstants();
 
 window.regeneratorRuntime = regeneratorRuntime;
 
