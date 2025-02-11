@@ -78,6 +78,30 @@ function DrawerContent(props: DrawerContentComponentProps) {
       );
     }
     return <GroupChannelsScreenContent groupId={focusedRoute.params.groupId} />;
+  } else if (
+    focusedRoute.params &&
+    // @ts-expect-error - nested params is not in the type
+    focusedRoute.params.params &&
+    // @ts-expect-error - nested params is not in the type
+    'groupId' in focusedRoute.params.params
+  ) {
+    // @ts-expect-error - nested params is not in the type
+    if ('channelId' in focusedRoute.params.params) {
+      return (
+        <GroupChannelsScreenContent
+          // @ts-expect-error - nested params is not in the type
+          groupId={focusedRoute.params.params.groupId}
+          // @ts-expect-error - nested params is not in the type
+          focusedChannelId={focusedRoute.params.params.channelId}
+        />
+      );
+    }
+    return (
+      <GroupChannelsScreenContent
+        // @ts-expect-error - nested params is not in the type
+        groupId={focusedRoute.params.params.groupId}
+      />
+    );
   } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
     return (
       <ChatListScreenView focusedChannelId={focusedRoute.params.channelId} />
