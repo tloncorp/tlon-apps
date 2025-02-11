@@ -153,6 +153,7 @@ function NotebookOrGalleryContentRenderer({
             post={post}
             onPress={pressHandler}
             width={128}
+            showAuthor={false}
           />
         )
       )}
