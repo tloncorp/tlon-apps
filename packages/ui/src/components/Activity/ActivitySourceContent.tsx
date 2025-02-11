@@ -133,7 +133,7 @@ function NotebookOrGalleryContentRenderer({
     <ScrollView
       marginVertical="$m"
       horizontal
-      contentContainerStyle={{ gap: '$m', width: 128, height: 128 }}
+      contentContainerStyle={{ gap: '$m', height: 128 }}
       alwaysBounceHorizontal={false}
       showsHorizontalScrollIndicator={false}
     >
@@ -148,7 +148,12 @@ function NotebookOrGalleryContentRenderer({
             onPress={pressHandler}
           />
         ) : (
-          <GalleryPost key={post.id} post={post} onPress={pressHandler} />
+          <GalleryPost
+            key={post.id}
+            post={post}
+            onPress={pressHandler}
+            width={128}
+          />
         )
       )}
     </ScrollView>

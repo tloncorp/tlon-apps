@@ -102,7 +102,7 @@ export function GalleryPost({
     <Pressable
       onPress={disableHandlePress ? undefined : handlePress}
       onLongPress={handleLongPress}
-      style={StyleSheet.absoluteFill}
+      flex={1}
     >
       <GalleryPostFrame {...props}>
         <GalleryContentRenderer
