@@ -79,7 +79,7 @@ export default function ContactsScreen(props: Props) {
               <ScreenHeader.IconButton
                 type="Settings"
                 onPress={() => {
-                  navigate('Profile');
+                  navigate('Settings');
                 }}
               />
             }

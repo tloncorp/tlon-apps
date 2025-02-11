@@ -19,35 +19,24 @@ import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScre
 import ImageViewerScreen from '../../features/top/ImageViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
-import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
+import { GroupSettingsStack } from '../GroupSettingsStack';
 import { HomeDrawerParamList } from '../types';
 
 const HomeDrawer = createDrawerNavigator();
 
 export const HomeNavigator = () => {
-  const theme = useTheme();
-  const backgroundColor = getVariableValue(theme.background);
-  const borderColor = getVariableValue(theme.border);
-
   return (
     <HomeDrawer.Navigator
       drawerContent={DrawerContent}
       initialRouteName="ChatList"
-      screenOptions={({ navigation }) => {
-        const state = navigation.getState();
-        const routes = state.routes[state.index].state?.routes;
-        const currentScreen = routes?.[routes.length - 1];
-        const isImageViewer = currentScreen?.name === 'ImageViewer';
-
-        return {
-          drawerType: 'permanent',
-          headerShown: false,
-          drawerStyle: {
-            width: isImageViewer ? 0 : 400,
-            backgroundColor,
-            borderRightColor: borderColor,
-          },
-        };
+      screenOptions={{
+        drawerType: 'permanent',
+        headerShown: false,
+        drawerStyle: {
+          width: 400,
+          backgroundColor: getVariableValue(useTheme().background),
+          borderRightColor: getVariableValue(useTheme().border),
+        },
       }}
     >
       <HomeDrawer.Screen name="ChatList" component={MainStack} />
