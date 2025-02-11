@@ -181,10 +181,3 @@ jobs:
           SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}
           URBIT_REPO_TAG: ${{ vars.URBIT_REPO_TAG }}
-          VITE_BRANCH_DOMAIN_PROD: ${{ secrets.VITE_BRANCH_DOMAIN_PROD}}
-          VITE_BRANCH_DOMAIN_TEST: ${{ secrets.VITE_BRANCH_DOMAIN_TEST}}
-          VITE_BRANCH_KEY_PROD: ${{ secrets.VITE_BRANCH_KEY_PROD}}
-          VITE_BRANCH_KEY_TEST: ${{ secrets.VITE_BRANCH_KEY_TEST}}
-          VITE_INVITE_SERVICE_ENDPOINT:
-            ${{ secrets.VITE_INVITE_SERVICE_ENDPOINT}}
-          VITE_POST_HOG_API_KEY: ${{ secrets.VITE_POST_HOG_API_KEY}}
