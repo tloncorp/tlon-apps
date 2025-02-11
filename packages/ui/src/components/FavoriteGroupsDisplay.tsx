@@ -69,6 +69,7 @@ export function FavoriteGroupsDisplay(props: {
           <GroupListItem
             model={group}
             key={group.id}
+            disableOptions
             backgroundColor="unset"
             EndContent={
               <Pressable onPress={() => handleFavoriteGroupsChange(group)}>
