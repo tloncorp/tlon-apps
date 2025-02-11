@@ -1,4 +1,3 @@
-import { POST_HOG_API_KEY } from '@tloncorp/app/constants';
 import { PrivacyType } from '@tloncorp/shared/urbit/groups';
 import posthog, { Properties } from 'posthog-js';
 
@@ -34,7 +33,7 @@ export type GroupsAnalyticsEvent = {
 
 // Configure PostHog with all auto-capturing settings disabled,
 // as we will only be tracking specific interactions.
-posthog.init(POST_HOG_API_KEY, {
+posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
   api_host: 'https://eu.posthog.com',
   autocapture: false,
   capture_pageview: false,
