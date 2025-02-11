@@ -660,7 +660,7 @@ export async function reportPost(
 
   const action = {
     app: 'groups',
-    mark: 'group-action-3',
+    mark: 'group-action-0',
     json: {
       flag: groupId,
       update: {

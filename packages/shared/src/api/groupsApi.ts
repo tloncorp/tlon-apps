@@ -28,7 +28,7 @@ const logger = createDevLogger('groupsApi', false);
 function groupAction(flag: string, diff: ub.GroupDiff): Poke<ub.GroupAction> {
   return {
     app: 'groups',
-    mark: 'group-action-3',
+    mark: 'group-action-0',
     json: {
       flag,
       update: {
