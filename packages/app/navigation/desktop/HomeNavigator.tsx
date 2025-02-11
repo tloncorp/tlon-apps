@@ -64,43 +64,38 @@ export const HomeNavigator = () => {
 function DrawerContent(props: DrawerContentComponentProps) {
   const state = props.state as NavigationState<HomeDrawerParamList>;
   const focusedRoute = state.routes[props.state.index];
+  const focusedRouteParams = focusedRoute.params;
+  // @ts-expect-error - nested params is not in the type
+  const nestedFocusedRouteParams = focusedRouteParams?.params;
   if (
-    focusedRoute.params &&
-    'groupId' in focusedRoute.params &&
-    focusedRoute.params.groupId
+    focusedRouteParams &&
+    'groupId' in focusedRouteParams &&
+    focusedRouteParams.groupId
   ) {
-    if ('channelId' in focusedRoute.params) {
+    if ('channelId' in focusedRouteParams) {
       return (
         <GroupChannelsScreenContent
-          groupId={focusedRoute.params.groupId}
-          focusedChannelId={focusedRoute.params.channelId}
+          groupId={focusedRouteParams.groupId}
+          focusedChannelId={focusedRouteParams.channelId}
         />
       );
     }
-    return <GroupChannelsScreenContent groupId={focusedRoute.params.groupId} />;
+    return <GroupChannelsScreenContent groupId={focusedRouteParams.groupId} />;
   } else if (
-    focusedRoute.params &&
-    // @ts-expect-error - nested params is not in the type
-    focusedRoute.params.params &&
-    // @ts-expect-error - nested params is not in the type
-    'groupId' in focusedRoute.params.params
+    focusedRouteParams &&
+    nestedFocusedRouteParams &&
+    'groupId' in nestedFocusedRouteParams
   ) {
-    // @ts-expect-error - nested params is not in the type
-    if ('channelId' in focusedRoute.params.params) {
+    if ('channelId' in nestedFocusedRouteParams) {
       return (
         <GroupChannelsScreenContent
-          // @ts-expect-error - nested params is not in the type
-          groupId={focusedRoute.params.params.groupId}
-          // @ts-expect-error - nested params is not in the type
-          focusedChannelId={focusedRoute.params.params.channelId}
+          groupId={nestedFocusedRouteParams.groupId}
+          focusedChannelId={nestedFocusedRouteParams.channelId}
         />
       );
     }
     return (
-      <GroupChannelsScreenContent
-        // @ts-expect-error - nested params is not in the type
-        groupId={focusedRoute.params.params.groupId}
-      />
+      <GroupChannelsScreenContent groupId={nestedFocusedRouteParams.groupId} />
     );
   } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
     return (
