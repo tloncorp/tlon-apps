@@ -172,8 +172,8 @@ export async function scheduleNodeResumeNudge(ship: string) {
   await Notifications.scheduleNotificationAsync({
     identifier: NODE_RESUME_NUDGE_ID,
     content: {
-      title: "We're ready for you now",
-      body: 'Tap here to log in to your ship',
+      title: 'Your node is now online',
+      body: 'Tap here to jump back in',
       data: { ship },
     },
     trigger: {
