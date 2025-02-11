@@ -72,6 +72,7 @@ export default function ContactsScreen(props: Props) {
             leftControls={
               <ScreenHeader.IconButton
                 type="Add"
+                testID='ContactsAddButton'
                 onPress={() => navigate('AddContacts')}
               />
             }
