@@ -520,12 +520,10 @@
   =.  path  ::TODO  hack
     ?>  ?=([%x *] path)
     t.path
-  ::TODO  minimum viable records json
-  ::TODO  minimum viable json poke for phone registration
   ?+  path  [~ ~]
-    [%records ~]  ``noun+!>(records)
+    [%v1 %records ~]  ``noun+!>(records)
   ::
-      [%records %json ~]  ::TMP
+      [%v1 %records %json ~]  ::TMP
     :^  ~  ~  %json
     !>  ^-  json
     =,  enjs:format
@@ -551,7 +549,7 @@
         ==
     ==
   ::
-      [%record ?([@ @ ~] [@ @ @ ~])]
+      [%v1 %record ?([@ @ ~] [@ @ @ ~])]
     =;  key=[@p identifier]
       ``noun+!>((~(got by records) key))
     :-  ?:(?=([@ @ ~] t.path) default (slav %p i.t.path))
@@ -564,10 +562,10 @@
       [%website @ ~]  [-.dip (need (de-turf:html (slav %t +<.dip)))]
     ==
   ::
-    [%queries ~]    ``noun+!>(queries)
-    [%queries @ ~]  ``noun+!>((~(got by queries) (slav %uv i.t.path)))
+    [%v1 %queries ~]    ``noun+!>(queries)
+    [%v1 %queries @ ~]  ``noun+!>((~(got by queries) (slav %uv i.t.path)))
   ::
-      [%proof ?(%twitter %website) ?(%jam %url %text) ?([@ ~] [@ @ ~])]
+      [%v1 %proof ?(%twitter %website) ?(%jam %url %text) ?([@ ~] [@ @ ~])]
     =/  key=[@p $>(?(%twitter %website) identifier)]
       =*  k  t.t.t.path
       =*  i  ?:(?=([@ ~] k) i.k i.t.k)
@@ -612,7 +610,7 @@
       ==
     ==
   ::
-      [%valid-jam @ ~]
+      [%v1 %valid-jam @ ~]
     =/  dat=@  (slav %uw i.t.path)
     =+  (valid-jam [our now]:bowl dat)
     ``noun+!>(valid)
