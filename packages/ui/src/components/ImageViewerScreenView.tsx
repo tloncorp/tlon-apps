@@ -103,7 +103,7 @@ export function ImageViewerScreenView(props: {
         paddingTop={top}
         data-testid="image-viewer"
       >
-        <View>
+        <View flex={1}>
           {isWeb ? (
             <Zoomable
               ref={zoomableRef}
