@@ -828,7 +828,7 @@ export const getThreadUnreadState = createReadQuery(
   ['posts']
 );
 
-export const getGroupRoles = createReadQuery(
+export const getAllGroupRoles = createReadQuery(
   'getGroupRoles',
   async (ctx: QueryCtx) => {
     return ctx.db.query.groupRoles.findMany();
@@ -1426,7 +1426,11 @@ export const getThreadActivity = createReadQuery(
 export const getChannel = createReadQuery(
   'getChannel',
   async (
-    { id, includeMembers }: { id: string; includeMembers?: boolean },
+    {
+      id,
+      includeMembers,
+      includeWriters,
+    }: { id: string; includeMembers?: boolean; includeWriters?: boolean },
     ctx: QueryCtx
   ) => {
     return ctx.db.query.channels
@@ -1434,6 +1438,7 @@ export const getChannel = createReadQuery(
         where: eq($channels.id, id),
         with: {
           ...(includeMembers ? { members: { with: { contact: true } } } : {}),
+          ...(includeWriters ? { writerRoles: true } : {}),
         },
       })
       .then(returnNullIfUndefined);
@@ -1498,7 +1503,16 @@ export const getChannelWithRelations = createReadQuery(
     });
     return returnNullIfUndefined(result);
   },
-  ['channels', 'volumeSettings', 'pins', 'groups', 'contacts', 'channelUnreads']
+  [
+    'channels',
+    'volumeSettings',
+    'pins',
+    'groups',
+    'contacts',
+    'channelUnreads',
+    'channelWriters',
+    'channelReaders',
+  ]
 );
 
 export const insertChannels = createWriteQuery(
@@ -1546,14 +1560,56 @@ export const insertChannels = createWriteQuery(
 
 export const updateChannel = createWriteQuery(
   'updateChannel',
-  (update: Partial<Channel> & { id: string }, ctx: QueryCtx) => {
+  async (update: Partial<Channel> & { id: string }, ctx: QueryCtx) => {
     logger.log('updateChannel', update.id, update);
-    return ctx.db
-      .update($channels)
-      .set(update)
-      .where(eq($channels.id, update.id));
+
+    return withTransactionCtx(ctx, async (txCtx) => {
+      if (update.writerRoles && update.writerRoles.length > 0) {
+        logger.log('updateChannel writerRoles', update.writerRoles);
+        // delete all existing writer roles
+        await txCtx.db
+          .delete($channelWriters)
+          .where(eq($channelWriters.channelId, update.id));
+        logger.log('updateChannel writerRoles deleted existing writer roles');
+
+        const writerValues = update.writerRoles.map((role) => ({
+          channelId: update.id,
+          roleId: role.roleId as string, // Ensure roleId is treated as string
+        }));
+        logger.log(
+          'updateChannel writerRoles inserting new writer roles',
+          writerValues
+        );
+        await txCtx.db.insert($channelWriters).values(writerValues);
+        logger.log('updateChannel writerRoles inserted new writer roles');
+      }
+
+      if (update.readerRoles && update.readerRoles.length > 0) {
+        // delete all existing reader roles
+        await txCtx.db
+          .delete($channelReaders)
+          .where(eq($channelReaders.channelId, update.id));
+        logger.log('updateChannel readerRoles deleted existing reader roles');
+
+        const readerValues = update.readerRoles.map((role) => ({
+          channelId: update.id,
+          roleId: role.roleId as string, // Ensure roleId is treated as string
+        }));
+        logger.log(
+          'updateChannel readerRoles inserting new reader roles',
+          readerValues
+        );
+        await txCtx.db.insert($channelReaders).values(readerValues);
+        logger.log('updateChannel readerRoles inserted new reader roles');
+      }
+
+      return txCtx.db
+        .update($channels)
+        .set(update)
+        .where(eq($channels.id, update.id));
+    });
   },
-  ['channels']
+  ['channels', 'channelWriters', 'channelReaders']
 );
 
 export const deleteChannel = createWriteQuery(
@@ -2773,6 +2829,8 @@ export const getGroup = createReadQuery(
               lastPost: true,
               unread: true,
               volumeSettings: true,
+              writerRoles: true,
+              readerRoles: true,
             },
           },
           roles: true,
@@ -2802,6 +2860,7 @@ export const getGroup = createReadQuery(
     'groupJoinRequests',
     'groupMemberBans',
     'groupNavSectionChannels',
+    'groupRoles',
   ]
 );
 
@@ -3735,6 +3794,122 @@ export const getPinnedItems = createReadQuery(
     return ctx.db.query.pins.findMany({});
   },
   ['pins']
+);
+
+export const getGroupRole = createReadQuery(
+  'getGroupRole',
+  async (
+    { groupId, roleId }: { groupId: string; roleId: string },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.groupRoles.findFirst({
+      where: and(eq($groupRoles.groupId, groupId), eq($groupRoles.id, roleId)),
+    });
+  },
+  ['groupRoles']
+);
+
+export const getGroupRoles = createReadQuery(
+  'getGroupRoles',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    return ctx.db.query.groupRoles.findMany({
+      where: eq($groupRoles.groupId, groupId),
+    });
+  },
+  ['groupRoles']
+);
+
+export const addGroupRole = createWriteQuery(
+  'addGroupRole',
+  async (
+    {
+      groupId,
+      roleId,
+      meta,
+    }: { groupId: string; roleId: string; meta?: ClientMeta },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .insert($groupRoles)
+      .values({ groupId, id: roleId, ...meta })
+      .onConflictDoNothing();
+  },
+  ['groupRoles']
+);
+
+export const deleteGroupRole = createWriteQuery(
+  'deleteGroupRole',
+  async ({ groupId, roleId }: { groupId: string; roleId: string }, ctx) => {
+    return ctx.db
+      .delete($groupRoles)
+      .where(and(eq($groupRoles.groupId, groupId), eq($groupRoles.id, roleId)));
+  },
+  ['groupRoles']
+);
+
+export const updateGroupRole = createWriteQuery(
+  'updateGroupRole',
+  async (
+    {
+      groupId,
+      roleId,
+      meta,
+    }: { groupId: string; roleId: string; meta: ClientMeta },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($groupRoles)
+      .set(meta)
+      .where(and(eq($groupRoles.groupId, groupId), eq($groupRoles.id, roleId)));
+  },
+  ['groupRoles']
+);
+
+export const addMembersToRole = createWriteQuery(
+  'addMembersToRole',
+  async (
+    {
+      groupId,
+      roleId,
+      contactIds,
+    }: { groupId: string; roleId: string; contactIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .insert($chatMemberGroupRoles)
+      .values(
+        contactIds.map((contactId) => ({
+          groupId,
+          roleId,
+          contactId,
+        }))
+      )
+      .onConflictDoNothing();
+  },
+  ['chatMemberGroupRoles', 'groupRoles']
+);
+
+export const removeMembersFromRole = createWriteQuery(
+  'removeMembersFromRole',
+  async (
+    {
+      groupId,
+      roleId,
+      contactIds,
+    }: { groupId: string; roleId: string; contactIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .delete($chatMemberGroupRoles)
+      .where(
+        and(
+          eq($chatMemberGroupRoles.groupId, groupId),
+          eq($chatMemberGroupRoles.roleId, roleId),
+          inArray($chatMemberGroupRoles.contactId, contactIds)
+        )
+      );
+  },
+  ['chatMemberGroupRoles', 'groupRoles']
 );
 
 // Helpers

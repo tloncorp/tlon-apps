@@ -261,7 +261,7 @@ export function ImageBlock({
         }}
         style={{
           ...(shouldUseAspectRatio
-            ? { aspectRatio: dimensions.aspect || undefined }
+            ? { aspectRatio: dimensions.aspect || 1 }
             : {}),
         }}
         borderRadius="$s"

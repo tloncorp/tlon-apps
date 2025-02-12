@@ -1,10 +1,11 @@
 import { formatUd, unixToDa } from '@urbit/aura';
+import { Poke } from '@urbit/http-api';
 import bigInt from 'big-integer';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
-import { Posts } from '../urbit';
+import { Action, ChannelsAction, Posts } from '../urbit';
 import { stringToTa } from '../urbit/utils';
 import {
   getCanonicalPostId,
@@ -14,7 +15,7 @@ import {
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
 import {
   client,
-  getCurrentUserId,
+  poke,
   scry,
   subscribe,
   subscribeOnce,
@@ -22,6 +23,22 @@ import {
 } from './urbit';
 
 const logger = createDevLogger('channelsSub', false);
+
+export function channelAction(
+  channelId: string,
+  action: Action
+): Poke<ChannelsAction> {
+  return {
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      channel: {
+        nest: channelId,
+        action,
+      },
+    },
+  };
+}
 
 export type AddPostUpdate = { type: 'addPost'; post: db.Post };
 export type PostReactionsUpdate = {
@@ -448,4 +465,24 @@ export async function getChannelHooksPreview(channelId: string) {
     },
     10_000
   );
+}
+
+export async function addChannelWriters({
+  channelId,
+  writers,
+}: {
+  channelId: string;
+  writers: string[];
+}) {
+  return poke(channelAction(channelId, { 'add-writers': writers }));
+}
+
+export async function removeChannelWriters({
+  channelId,
+  writers,
+}: {
+  channelId: string;
+  writers: string[];
+}) {
+  return poke(channelAction(channelId, { 'del-writers': writers }));
 }

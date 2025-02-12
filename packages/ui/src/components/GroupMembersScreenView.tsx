@@ -1,3 +1,4 @@
+import { parseGroupId } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo, useState } from 'react';
 import { SectionList } from 'react-native';
@@ -28,6 +29,8 @@ export function GroupMembersScreenView({
   onPressAcceptJoinRequest,
   onPressRejectJoinRequest,
   onPressGoToDm,
+  onPressAssignRole,
+  onPressRemoveRole,
 }: {
   goBack: () => void;
   members: db.ChatMember[];
@@ -43,6 +46,8 @@ export function GroupMembersScreenView({
   onPressAcceptJoinRequest: (contactId: string) => void;
   onPressRejectJoinRequest: (contactId: string) => void;
   onPressGoToDm: (contactId: string) => void;
+  onPressAssignRole: (contactId: string, roleId: string) => void;
+  onPressRemoveRole: (contactId: string, roleId: string) => void;
 }) {
   const { bottom } = useSafeAreaInsets();
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
@@ -166,6 +171,16 @@ export function GroupMembersScreenView({
 
   const currentUserIsAdmin = useIsAdmin(groupId, currentUserId);
 
+  const selectedUserRoles = useMemo(
+    () =>
+      members
+        .find((m) => m.contactId === selectedContact)
+        ?.roles?.map((r) => r.roleId),
+    [members, selectedContact]
+  );
+
+  const { host: groupHostId } = parseGroupId(groupId);
+
   return (
     <>
       <View backgroundColor="$background" flex={1}>
@@ -189,6 +204,7 @@ export function GroupMembersScreenView({
         <ProfileSheet
           open={true}
           currentUserIsAdmin={currentUserIsAdmin}
+          groupHostId={groupHostId}
           userIsBanned={bannedUsers.some(
             (b) => b.contactId === selectedContact
           )}
@@ -204,6 +220,14 @@ export function GroupMembersScreenView({
           onPressBan={() => onPressBan(selectedContact)}
           onPressUnban={() => onPressUnban(selectedContact)}
           onPressGoToDm={() => onPressGoToDm(selectedContact)}
+          onPressAsignRole={(roleId: string) =>
+            onPressAssignRole(selectedContact, roleId)
+          }
+          onPressRemoveRole={(roleId: string) =>
+            onPressRemoveRole(selectedContact, roleId)
+          }
+          roles={roles}
+          selectedUserRoles={selectedUserRoles}
         />
       )}
       {selectedContact !== null && selectedIsRequest && (

@@ -1,0 +1,115 @@
+name: Build Tlon Mobile
+on:
+  push:
+    branches: [develop]
+jobs:
+  test-ios:
+    runs-on: ubuntu-latest
+    name: Test iOS build
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Set up Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+      - name: "Setup jq"
+        uses: dcarbone/install-jq-action@v3
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build for selected platforms
+        id: build
+        working-directory: ./apps/tlon-mobile
+        run: |
+          eas build --profile local-testing --platform ios --non-interactive
+          URL=$(eas build:list --json --limit=1 --platform=ios --non-interactive | jq '.[0].artifacts.buildUrl')
+          echo "url=$URL"
+          echo "url=$URL" >> $GITHUB_OUTPUT
+        env:
+          EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
+          EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
+          NOTIFY_PROVIDER: binnec-dozzod-marnus
+          NOTIFY_SERVICE: tlon-preview-release
+      - name: Download and extract build
+        run: |
+          echo "Downloading build from ${{ steps.build.outputs.url }}"
+          curl -L ${{ steps.build.outputs.url }} -o build.tar.gz
+          tar -xzf build.tar.gz
+          rm build.tar.gz
+          ls
+      - name: Run tests
+        uses: mobile-dev-inc/action-maestro-cloud@v1
+        with:
+          api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
+          project-id: ${{ secrets.ROBIN_PROJECT_ID }}
+          app-file: Landscape.app
+          env: |
+            URL=${{ secrets.MAESTRO_URL }}
+            CODE=${{ secrets.MAESTRO_CODE }}
+            EMAIL=${{ secrets.MAESTRO_EMAIL }}
+            PASSWORD=${{ secrets.MAESTRO_PASSWORD }}
+  test-android:
+    runs-on: ubuntu-latest
+    name: Test Android build
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: "17"
+          distribution: "temurin"
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Set Android Home
+        run: export ANDROID_HOME=$RUNNER_WORKSPACE/.android/sdk
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Set up Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+      - name: "Setup jq"
+        uses: dcarbone/install-jq-action@v3
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build for selected platforms
+        id: build
+        working-directory: ./apps/tlon-mobile
+        run: |
+          eas build --profile local-testing --platform android --non-interactive
+          URL=$(eas build:list --json --limit=1 --platform=android --non-interactive | jq '.[0].artifacts.buildUrl')
+          echo "url=$URL"
+          echo "url=$URL" >> $GITHUB_OUTPUT
+        env:
+          EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
+          EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
+          NOTIFY_PROVIDER: binnec-dozzod-marnus
+          NOTIFY_SERVICE: tlon-preview-release
+      - name: Download and extract build
+        run: |
+          echo "Downloading build from ${{ steps.build.outputs.url }}"
+          curl -L ${{ steps.build.outputs.url }} -o build.apk
+      - name: Run tests
+        uses: mobile-dev-inc/action-maestro-cloud@v1
+        with:
+          api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
+          project-id: ${{ secrets.ROBIN_PROJECT_ID }}
+          app-file: ./build.apk
+          env: |
+            URL=${{ secrets.MAESTRO_URL }}
+            CODE=${{ secrets.MAESTRO_CODE }}
+            EMAIL=${{ secrets.MAESTRO_EMAIL }}
+            PASSWORD=${{ secrets.MAESTRO_PASSWORD }}

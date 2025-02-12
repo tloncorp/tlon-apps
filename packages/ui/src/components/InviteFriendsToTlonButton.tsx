@@ -59,8 +59,7 @@ export function InviteFriendsToTlonButton({
 
       try {
         const result = await Share.share({
-          message: `Join ${title} on Tlon: ${shareUrl}`,
-          title: `Join ${title} on Tlon`,
+          message: shareUrl,
         });
 
         if (result.action === Share.sharedAction) {
@@ -122,7 +121,7 @@ export function InviteFriendsToTlonButton({
       ) : null}
       <Button.Text>
         {linkIsReady
-          ? 'Share invite link'
+          ? 'Share Invite Link'
           : linkIsDisabled
             ? 'Public invite links are disabled'
             : linkFailed

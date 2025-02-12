@@ -139,6 +139,8 @@ export function GroupOptionsSheetLoader({
   }, [setPane]);
 
   const title = utils.useGroupTitle(group) ?? 'Loading...';
+  const currentUserId = useCurrentUserId();
+  const currentUserIsAdmin = utils.useIsAdmin(groupId, currentUserId);
   const { data: groupUnread, isFetched: groupUnreadIsFetched } =
     store.useGroupUnread({ groupId });
   const { data: groupData } = store.useGroup({ id: groupId });
@@ -186,6 +188,7 @@ export function GroupOptionsSheetLoader({
           ) : (
             <GroupOptionsSheetContent
               groupUnread={groupUnread ?? null}
+              currentUserIsAdmin={currentUserIsAdmin}
               onPressNotifications={handlePressNotifications}
               onPressSort={handlePressSort}
               chatTitle={title}
@@ -213,6 +216,7 @@ export function GroupOptionsSheetLoader({
       ) : (
         <GroupOptionsSheetContent
           groupUnread={groupUnread ?? null}
+          currentUserIsAdmin={currentUserIsAdmin}
           onPressNotifications={handlePressNotifications}
           onPressSort={handlePressSort}
           chatTitle={title}
@@ -228,6 +232,7 @@ function GroupOptionsSheetContent({
   chatTitle,
   group,
   groupUnread,
+  currentUserIsAdmin,
   onPressNotifications,
   onPressSort,
   onOpenChange,
@@ -235,13 +240,16 @@ function GroupOptionsSheetContent({
   group: db.Group;
   groupUnread: db.GroupUnread | null;
   chatTitle: string;
+  currentUserIsAdmin: boolean;
   onPressNotifications: () => void;
   onPressSort: () => void;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { markGroupRead, onPressChatDetails, togglePinned } = useChatOptions();
+  const { markGroupRead, onPressChatDetails, togglePinned, onPressInvite } =
+    useChatOptions();
   const canMarkRead = !(group.unread?.count === 0 || groupUnread?.count === 0);
   const canSortChannels = (group.channels?.length ?? 0) > 1;
+  const canInvite = currentUserIsAdmin || group.privacy === 'public';
   const isPinned = group?.pin;
 
   const wrappedAction = useCallback(
@@ -278,11 +286,22 @@ function GroupOptionsSheetContent({
           canSortChannels && {
             title: 'Sort channels',
             endIcon: 'ChevronRight',
-            action: wrappedAction.bind(null, onPressSort),
+            action: onPressSort,
           },
         ],
         [
           'neutral',
+          canInvite
+            ? {
+                title: 'Invite people',
+                action: wrappedAction.bind(null, onPressInvite),
+                endIcon: 'ChevronRight',
+              }
+            : {
+                accent: 'disabled',
+                title: 'Invites disabled',
+                description: 'Only admins may invite people to this group.',
+              },
           {
             title: 'Group info & settings',
             action: wrappedAction.bind(null, handlePressChatDetails),
@@ -291,11 +310,13 @@ function GroupOptionsSheetContent({
         ]
       ),
     [
+      canInvite,
       canMarkRead,
       canSortChannels,
       handlePressChatDetails,
       isPinned,
       markGroupRead,
+      onPressInvite,
       onPressNotifications,
       onPressSort,
       togglePinned,

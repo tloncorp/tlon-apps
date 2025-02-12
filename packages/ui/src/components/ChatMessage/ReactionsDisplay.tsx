@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
-import { XStack } from 'tamagui';
+import { Tooltip, XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { triggerHaptic } from '../../utils';
@@ -61,40 +61,58 @@ export function ReactionsDisplay({
             onPress={() => handleModifyYourReaction(reaction.value)}
             onLongPress={() => handleOpenReactions(post)}
           >
-            <XStack
-              key={reaction.value}
-              justifyContent="center"
-              alignItems="center"
-              backgroundColor={
-                reaction.value === reactionDetails.self.value
-                  ? '$positiveBackground'
-                  : '$secondaryBackground'
-              }
-              padding="$xs"
-              paddingHorizontal="$s"
-              height="$3xl"
-              borderRadius="$s"
-              borderColor={
-                reaction.value === reactionDetails.self.value
-                  ? '$positiveBorder'
-                  : '$border'
-              }
-              borderWidth={1}
-              gap={'$s'}
-              disabled={
-                reactionDetails.self.didReact &&
-                reaction.value !== reactionDetails.self.value
-              }
-            >
-              <SizableEmoji
-                key={reaction.value}
-                shortCode={reaction.value}
-                fontSize="$s"
-              />
-              {reaction.count > 0 && (
-                <Text size="$label/m">{reaction.count}</Text>
-              )}
-            </XStack>
+            <Tooltip placement="top" delay={0} restMs={25}>
+              <Tooltip.Trigger>
+                <XStack
+                  key={reaction.value}
+                  justifyContent="center"
+                  alignItems="center"
+                  backgroundColor={
+                    reaction.value === reactionDetails.self.value
+                      ? '$positiveBackground'
+                      : '$secondaryBackground'
+                  }
+                  padding="$xs"
+                  paddingHorizontal="$s"
+                  height="$3xl"
+                  borderRadius="$s"
+                  borderColor={
+                    reaction.value === reactionDetails.self.value
+                      ? '$positiveBorder'
+                      : '$border'
+                  }
+                  borderWidth={1}
+                  gap={'$s'}
+                  disabled={
+                    reactionDetails.self.didReact &&
+                    reaction.value !== reactionDetails.self.value
+                  }
+                >
+                  <SizableEmoji
+                    key={reaction.value}
+                    shortCode={reaction.value}
+                    fontSize="$s"
+                  />
+                  {reaction.count > 0 && (
+                    <Text size="$label/m">{reaction.count}</Text>
+                  )}
+                </XStack>
+              </Tooltip.Trigger>
+              <Tooltip.Content
+                padding="$s"
+                backgroundColor="$secondaryBackground"
+                borderRadius="$s"
+              >
+                <Text size="$label/m">
+                  {reaction.users
+                    ? reaction.users.slice(0, 3).join(', ') +
+                      (reaction.users.length > 3
+                        ? ` +${reaction.users.length - 3} more`
+                        : '')
+                    : ''}
+                </Text>
+              </Tooltip.Content>
+            </Tooltip>
           </Pressable>
         ))}
       </XStack>

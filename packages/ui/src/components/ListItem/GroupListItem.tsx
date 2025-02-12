@@ -115,22 +115,22 @@ export const GroupListItem = ({
               <Icon type="Overflow" />
             </Button>
           ) : (
-              <ChatOptionsSheet
-                open={open}
-                onOpenChange={setOpen}
-                chat={{ type: 'group', id: model.id }}
-                trigger={
-                  <Button
-                    backgroundColor="transparent"
-                    borderWidth="unset"
-                    paddingHorizontal={0}
-                    marginHorizontal="$-m"
-                    minimal
-                  >
-                    <Icon type="Overflow" />
-                  </Button>
-                }
-              />
+            <ChatOptionsSheet
+              open={open}
+              onOpenChange={setOpen}
+              chat={{ type: 'group', id: model.id }}
+              trigger={
+                <Button
+                  backgroundColor="transparent"
+                  borderWidth="unset"
+                  paddingHorizontal={0}
+                  marginHorizontal="$-m"
+                  minimal
+                >
+                  <Icon type="Overflow" />
+                </Button>
+              }
+            />
           )}
         </View>
       )}

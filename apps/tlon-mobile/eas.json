@@ -61,6 +61,19 @@
         "image": "latest"
       }
     },
+    "local-testing": {
+      "extends": "base",
+      "channel": "local",
+      "android": {
+        "resourceClass": "large",
+        "gradleCommand": ":app:assembleProductionRelease",
+        "buildType": "apk"
+      },
+      "ios": {
+        "scheme": "Landscape",
+        "simulator": true
+      }
+    },
     "local": {
       "channel": "local",
       "env": {

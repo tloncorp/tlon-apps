@@ -1,0 +1,57 @@
+appId: io.tlon.groups
+---
+- assertVisible: 'Welcome to TM'
+- swipe:
+    direction: 'DOWN'
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn: 'Have an account? Log in'
+- tapOn: 'Log in with Email'
+- tapOn:
+    id: 'Legacy login'
+- assertVisible:
+    'Enter the email and password associated with your Tlon account.'
+# Enter invalid email
+- tapOn:
+    id: 'email-input'
+- inputText: 'invalid-email'
+- assertVisible: 'Please enter a valid email address.'
+- longPressOn:
+    id: 'email-input'
+- runFlow:
+    when:
+      visible: 'Select All'
+    commands:
+      - tapOn: 'Select All'
+- eraseText
+- inputText: ${EMAIL}
+# Enter invalid password
+- tapOn:
+    id: 'password-input'
+- inputText: 'invalid-password'
+- tapOn: 'Submit'
+- assertVisible: 'Incorrect email or password.'
+- doubleTapOn:
+    id: 'password-input'
+- runFlow:
+    when:
+      visible: 'Select All'
+    commands:
+      - tapOn: 'Select All'
+- eraseText
+# Log in for real
+- tapOn:
+    id: 'password-input'
+- inputText: ${PASSWORD}
+- tapOn: 'Submit'
+# Dismiss password save prompt
+- runFlow:
+    when:
+      visible: 'Not now'
+    commands:
+      - tapOn: 'Not now'
+- assertVisible: 'Welcome to TM'
+- swipe:
+    direction: 'DOWN'
+- waitForAnimationToEnd:
+    timeout: 5000

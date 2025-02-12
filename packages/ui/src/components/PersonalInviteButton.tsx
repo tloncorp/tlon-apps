@@ -30,7 +30,7 @@ export function PersonalInviteButton() {
       if (navigator.share !== undefined) {
         logger.trackEvent(AnalyticsEvent.InviteShared, {
           inviteId: inviteLink.split('/').pop() ?? null,
-          inviteType: 'personal',
+          inviteType: 'user',
         });
         await navigator.share({
           title: `${userDisplayName} invited you to TM`,
@@ -45,14 +45,13 @@ export function PersonalInviteButton() {
 
     try {
       const result = await Share.share({
-        message: `${userDisplayName} invited you to TM: ${inviteLink}`,
-        title: `${userDisplayName} invited you to TM`,
+        message: inviteLink,
       });
 
       if (result.action === Share.sharedAction) {
         logger.trackEvent(AnalyticsEvent.InviteShared, {
           inviteId: inviteLink.split('/').pop() ?? null,
-          inviteType: 'personal',
+          inviteType: 'user',
         });
       }
     } catch (error) {
@@ -67,7 +66,7 @@ export function PersonalInviteButton() {
         <Icon type="Link" />
       </Button.Icon>
       <Text color="$background" size="$label/l">
-        Share invite link
+        Share Invite Link
       </Text>
     </Button>
   );

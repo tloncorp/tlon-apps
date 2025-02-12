@@ -57,7 +57,8 @@ const ChatMessage = ({
   hideOverflowMenu?: boolean;
 }) => {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
-  const [showOverflowOnHover, setShowOverflowOnHover] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const channel = useChannelContext();
   const postActionIds = useMemo(
     () => ChannelAction.channelActionIdsFor({ channel }),
@@ -118,13 +119,13 @@ const ChatMessage = ({
 
   const handleHoverIn = useCallback(() => {
     if (isWeb) {
-      setShowOverflowOnHover(true);
+      setIsHovered(true);
     }
   }, []);
 
   const handleHoverOut = useCallback(() => {
     if (isWeb) {
-      setShowOverflowOnHover(false);
+      setIsHovered(false);
     }
   }, []);
 
@@ -164,6 +165,8 @@ const ChatMessage = ({
       onLongPress={handleLongPress}
       onHoverIn={handleHoverIn}
       onHoverOut={handleHoverOut}
+      pressStyle="unset"
+      cursor="none"
     >
       <YStack
         backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
@@ -235,12 +238,13 @@ const ChatMessage = ({
           onPressDelete={handleDeletePressed}
         />
       </YStack>
-      {!hideOverflowMenu && showOverflowOnHover && (
+      {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
         <View position="absolute" top={0} right={12}>
           <ChatMessageActions
             post={post}
             postActionIds={postActionIds}
-            onDismiss={() => setShowOverflowOnHover(false)}
+            onDismiss={() => setIsPopoverOpen(false)}
+            onOpenChange={setIsPopoverOpen}
             onReply={handleRepliesPressed}
             onEdit={onPressEdit}
             onViewReactions={setViewReactionsPost}
