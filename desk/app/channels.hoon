@@ -694,7 +694,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      ?.  =(act:mar:g p.cage.sign)  cor
+      ?.  ?=(%group-action-0 p.cage.sign)  cor
       (take-groups !<(=action:g q.cage.sign))
     ==
   ::

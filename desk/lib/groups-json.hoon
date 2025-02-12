@@ -413,6 +413,71 @@
   ++  time-id
     |=  =@da
     s+`@t`(rsh 4 (scot %ui da))
+  ::
+  ++  v2
+    =*  v2  v2:ver:g
+    |%
+    ++  action
+      |=  a=action:v2
+      %-  pairs
+      :~  flag/s/(flag p.a)
+          update/(update q.a)
+      ==
+    ::
+    ++  update
+      |=  =update:v2
+      %-  pairs
+      :~  time+s+(scot %ud p.update)
+          diff+(diff q.update)
+    ==
+    ::
+    ++  diff
+      |=  d=diff:v2
+      %+  frond  -.d
+      ?-    -.d
+        %fleet    (pairs ships/a/(turn ~(tap in p.d) ship) diff/(fleet-diff q.d) ~)
+        %channel  (pairs nest/s/(nest p.d) diff/(channel-diff q.d) ~)
+        %cabal    (pairs sect/s/p.d diff/(cabal-diff q.d) ~)
+        %bloc     (bloc-diff p.d)
+        %cordon   (cordon-diff p.d)
+        %create   (group p.d)
+        %zone     (zone-diff p.d)
+        %meta     (meta p.d)
+        %secret   b/p.d
+        %del      ~
+        %flag-content  (flag-content +:d)
+      ==
+    ++  group
+      |=  gr=group:v2
+      %-  pairs
+      :~  fleet/(fleet fleet.gr)
+          cabals/(cabals cabals.gr)
+          zones/(zones zones.gr)
+          zone-ord/a/(turn zone-ord.gr (lead %s))
+          channels/(channels channels.gr)
+          bloc/a/(turn ~(tap in bloc.gr) (lead %s))
+          cordon/(cordon cordon.gr)
+          meta/(meta meta.gr)
+          secret/b/secret.gr
+          flagged-content/(flagged-content flagged-content.gr)
+      ==
+    ::
+    ++  group-ui
+      |=  gr=group-ui:v2
+      %-  pairs
+      :~  fleet/(fleet fleet.gr)
+          cabals/(cabals cabals.gr)
+          zones/(zones zones.gr)
+          zone-ord/a/(turn zone-ord.gr (lead %s))
+          channels/(channels channels.gr)
+          bloc/a/(turn ~(tap in bloc.gr) (lead %s))
+          cordon/(cordon cordon.gr)
+          meta/(meta meta.gr)
+          secret/b/secret.gr
+          saga/?~(saga.gr ~ (saga u.saga.gr))
+          flagged-content/(flagged-content flagged-content.gr)
+      ==
+    --
   --
 ::
 ++  dejs

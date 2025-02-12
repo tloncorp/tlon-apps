@@ -520,7 +520,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      ?.  =(act:mar:g p.cage.sign)  cor
+      ?.  ?=(%group-action-0 p.cage.sign)  cor
       (take-groups !<(=action:g q.cage.sign))
     ==
   ::
@@ -685,7 +685,7 @@
       [group.new now.bowl %channel nest %add channel]
     =/  =dock    [p.group.new %groups]
     =/  =wire    (snoc ca-area %create)
-    (emit %pass wire %agent dock %poke act:mar:g !>(action))
+    (emit %pass wire %agent dock %poke group-action-0+!>(action))
     ::
     ::  +can-nest: does group exist, are we allowed
     ::

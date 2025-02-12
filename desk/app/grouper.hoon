@@ -212,7 +212,7 @@
         [%shut [%add-ships %pending (~(gas in *(set ship)) ~[joiner.bite])]]
       :-  %^  lure-log  %info  'Group Invite Sent'
           ~[leaf+"{<joiner.bite>} invited to restricted group {<p.flag>}/{(trip q.flag)}"]
-      ~[[%pass /invite %agent [our.bowl %groups] %poke act:mar:groups !>(action)]]
+      ~[[%pass /invite %agent [our.bowl %groups] %poke group-action-0+!>(action)]]
     ==
   ==
 ::
