@@ -520,10 +520,12 @@
   =.  path  ::TODO  hack
     ?>  ?=([%x *] path)
     t.path
+  ?.  ?=([%v1 *] path)  [~ ~]
+  =/  path  t.path
   ?+  path  [~ ~]
-    [%v1 %records ~]  ``noun+!>(records)
+    [%records ~]  ``noun+!>(records)
   ::
-      [%v1 %records %json ~]  ::TMP
+      [%records %json ~]  ::TMP
     :^  ~  ~  %json
     !>  ^-  json
     =,  enjs:format
@@ -549,7 +551,7 @@
         ==
     ==
   ::
-      [%v1 %record ?([@ @ ~] [@ @ @ ~])]
+      [%record ?([@ @ ~] [@ @ @ ~])]
     =;  key=[@p identifier]
       ``noun+!>((~(got by records) key))
     :-  ?:(?=([@ @ ~] t.path) default (slav %p i.t.path))
@@ -562,10 +564,10 @@
       [%website @ ~]  [-.dip (need (de-turf:html (slav %t +<.dip)))]
     ==
   ::
-    [%v1 %queries ~]    ``noun+!>(queries)
-    [%v1 %queries @ ~]  ``noun+!>((~(got by queries) (slav %uv i.t.path)))
+    [%queries ~]    ``noun+!>(queries)
+    [%queries @ ~]  ``noun+!>((~(got by queries) (slav %uv i.t.path)))
   ::
-      [%v1 %proof ?(%twitter %website) ?(%jam %url %text) ?([@ ~] [@ @ ~])]
+      [%proof ?(%twitter %website) ?(%jam %url %text) ?([@ ~] [@ @ ~])]
     =/  key=[@p $>(?(%twitter %website) identifier)]
       =*  k  t.t.t.path
       =*  i  ?:(?=([@ ~] k) i.k i.t.k)
@@ -609,7 +611,7 @@
       ==
     ==
   ::
-      [%v1 %valid-jam @ ~]
+      [%valid-jam @ ~]
     =/  dat=@  (slav %uw i.t.path)
     =+  (valid-jam [our now]:bowl dat)
     ``noun+!>(valid)
