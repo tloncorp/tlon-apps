@@ -26,13 +26,13 @@ interface Props {
 export function SettingsScreenView(props: Props) {
   // TODO: Add logout back in when we figure out TLON-2098.
   const handleLogoutPressed = () => {
-    Alert.alert('Log out', 'Are you sure you want to log out?', [
+    Alert.alert('Log out from Tlon', 'Are you sure you want to log out?', [
       {
         text: 'Cancel',
         style: 'cancel',
       },
       {
-        text: 'Log out',
+        text: 'Log out now',
         style: 'destructive',
         onPress: props.onLogoutPressed,
       },

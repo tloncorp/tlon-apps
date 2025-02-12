@@ -717,6 +717,13 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
           refetchType: 'active',
         });
       }
+      // check for any newly joined groups and channels
+      // WARNING -- removing this will break loading of initial channnels on
+      // group join. Shouldn't be the case, but here we are.
+      checkForNewlyJoined({
+        groupUnreads: activitySnapshot.groupUnreads,
+        channelUnreads: activitySnapshot.channelUnreads,
+      });
     },
     queueDebounce,
     { leading: true, trailing: true }
