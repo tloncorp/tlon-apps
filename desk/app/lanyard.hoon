@@ -546,7 +546,7 @@
       ::
         :-  'record'
         %-  pairs
-        :~  'config'^[%s config]
+        :~  'config'^[%o 'discoverable'^s+discoverable.config ~ ~]
             'status'^[%s -.status]
         ==
     ==

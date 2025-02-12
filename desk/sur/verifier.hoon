@@ -38,11 +38,12 @@
       =status
   ==
 ::
-+$  config       ::  owner discoverable through this id?
-  $~  %hidden    ::  default
-  $?  %public    ::  yes
-      %hidden    ::  no
-      %verified  ::  only by other same-kind verified owners
++$  config
+  $=  discoverable  ::  owner discoverable through this id?
+  $~  %hidden       ::  default
+  $?  %public       ::  yes
+      %hidden       ::  no
+      %verified     ::  only by other same-kind verified owners
   ==
 ::
 +$  status

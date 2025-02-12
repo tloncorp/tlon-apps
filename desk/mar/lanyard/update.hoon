@@ -37,7 +37,7 @@
       :~  'provider'^s+(scot %p host.upd)
           'type'^s+-.id.upd
           'value'^s+(value id.upd)
-          'visibility'^s+config.upd
+          'config'^o+['discoverable'^s+config.upd ~ ~]
       ==
     ::
         %full
@@ -49,7 +49,7 @@
           'type'^s+-.id
           'value'^s+(value id)
           'status'^s+(^status status)
-          'visibility'^s+config
+          'config'^o+['discoverable'^s+config ~ ~]
       ==
     ==
   --
