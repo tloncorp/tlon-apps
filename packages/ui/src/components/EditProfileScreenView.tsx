@@ -16,12 +16,18 @@ import {
   FormFrame,
 } from './Form';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
+import { ListItem } from './ListItem';
+import Pressable from './Pressable';
 import { ScreenHeader } from './ScreenHeader';
+import { Text } from './TextV2';
 import { BioDisplay, PinnedGroupsDisplay } from './UserProfileScreenView';
+import { WidgetPane } from './WidgetPane';
 
 interface Props {
   userId: string;
+  showAttestations?: boolean;
   onGoBack: () => void;
+  onGoToAttestation?: (type: 'twitter' | 'phone') => void;
 }
 
 export function EditProfileScreenView(props: Props) {
@@ -262,6 +268,39 @@ export function EditProfileScreenView(props: Props) {
                     onUpdate={handleUpdatePinnedGroups}
                   />
                 </Field>
+
+                {props.showAttestations && (
+                  <Field label="Attestations">
+                    <WidgetPane editor>
+                      <Pressable
+                        onPress={() => props.onGoToAttestation?.('twitter')}
+                      >
+                        <ListItem>
+                          <ListItem.MainContent>
+                            <ListItem.Title>X Account</ListItem.Title>
+                          </ListItem.MainContent>
+                          <ListItem.EndContent>
+                            <ListItem.SystemIcon
+                              backgroundColor="unset"
+                              icon="ChevronRight"
+                            />
+                          </ListItem.EndContent>
+                        </ListItem>
+                      </Pressable>
+                      <ListItem>
+                        <ListItem.MainContent>
+                          <ListItem.Title>Phone</ListItem.Title>
+                        </ListItem.MainContent>
+                        <ListItem.EndContent>
+                          <ListItem.SystemIcon
+                            backgroundColor="unset"
+                            icon="ChevronRight"
+                          />
+                        </ListItem.EndContent>
+                      </ListItem>
+                    </WidgetPane>
+                  </Field>
+                )}
               </>
             ) : (
               <>

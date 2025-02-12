@@ -78,6 +78,7 @@ export * from './components/Sheet';
 export * from './components/TamaguiProvider';
 export * from './components/UrbitSigil';
 export * from './components/UserProfileScreenView';
+export * from './components/AttestationScreenView';
 export * from './components/View';
 export * from './components/WelcomeSheet';
 export * from './components/Image';

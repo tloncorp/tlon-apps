@@ -408,7 +408,7 @@ export const groupFlaggedPosts = sqliteTable(
   }
 );
 
-export type VerificationType = 'phone' | 'node';
+export type VerificationType = 'phone' | 'node' | 'twitter';
 export type VerificationVisibility = 'public' | 'discoverable' | 'hidden';
 export type VerificationStatus = 'waiting' | 'pending' | 'verified';
 export const verifications = sqliteTable(

@@ -221,8 +221,10 @@ export const syncVerifications = async (ctx?: SyncCtx) => {
   const verifications = await syncQueue.add('verifications', ctx, () =>
     api.fetchVerifications()
   );
+  console.log(`bl: got verifications`, verifications);
   try {
     await db.insertVerifications({ verifications });
+    console.log(`bl: wrote verifications`);
   } catch (e) {
     logger.error('error inserting verifications', e);
   }
@@ -454,6 +456,16 @@ export const syncPushNotificationsSetting = async (ctx?: SyncCtx) => {
   );
   await db.pushNotificationSettings.setValue(setting);
 };
+
+async function handleLanyardUpdate(update: api.LanyardUpdate) {
+  logger.log('received lanyard update', update.type);
+  switch (update.type) {
+    // for right now, we'll handle any subscription event as a signal to resync
+    default:
+      logger.log('resyncing verifications');
+      await syncVerifications();
+  }
+}
 
 async function handleGroupUpdate(update: api.GroupUpdate) {
   logger.log('received group update', update.type);
@@ -1283,6 +1295,7 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
       api.subscribeGroups(handleGroupUpdate),
       api.subscribeToContactUpdates(handleContactUpdate),
       api.subscribeToStorageUpdates(handleStorageUpdate),
+      api.subscribeToLanyardUpdates(handleLanyardUpdate),
     ]);
   });
 };
