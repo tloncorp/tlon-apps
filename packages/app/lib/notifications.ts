@@ -1,4 +1,4 @@
-import { useDebouncedValue } from '@tloncorp/shared';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as Device from 'expo-device';
@@ -9,24 +9,26 @@ import { useEffect } from 'react';
 import { trackError } from '../utils/posthog';
 import { connectNotifyProvider } from './notificationsApi';
 
-export const requestNotificationToken = async () => {
-  // Skip if running on emulator
-  if (!Device.isDevice) {
-    return undefined;
-  }
+const logger = createDevLogger('notifications', true);
 
+/** Returns true if notification permission is thought to be granted, false otherwise */
+async function requestNotificationPermissionsIfNeeded(): Promise<boolean> {
   // Fetch current permissions
   const { status, canAskAgain } = await Notifications.getPermissionsAsync();
-  console.debug('Current push notifications status:', status);
-  console.debug(
+  logger.debug('Current push notifications status:', status);
+  logger.debug(
     'Can request push notifications again?',
     canAskAgain ? 'Yes' : 'No'
   );
 
-  // Skip if permission not granted and we can't ask again
   let isGranted = status === 'granted';
+  if (isGranted) {
+    return true;
+  }
+
+  // Skip if permission not granted and we can't ask again
   if (!isGranted && !canAskAgain) {
-    return;
+    return false;
   }
 
   // Request permission if not already granted
@@ -34,8 +36,19 @@ export const requestNotificationToken = async () => {
     const { status: nextStatus } =
       await Notifications.requestPermissionsAsync();
     isGranted = nextStatus === 'granted';
-    console.debug('New push notifications setting:', nextStatus);
+    logger.debug('New push notifications setting:', nextStatus);
   }
+
+  return isGranted;
+}
+
+export const requestNotificationToken = async () => {
+  // Skip if running on emulator
+  if (!Device.isDevice) {
+    return undefined;
+  }
+
+  const isGranted = await requestNotificationPermissionsIfNeeded();
 
   // Skip if permission explicitly not granted
   if (!isGranted) {
@@ -129,4 +142,45 @@ export function useUpdatePresentedNotifications() {
       console.error('Failed to update presented notifications:', err);
     });
   }, [unreadCount]);
+}
+
+// Internal ID for this notification. We use a static ID so we can (1) check
+// for existing nudges, and (2) ensure we always overwrite an existing nudge if
+// one was not canceled: we don't want two concurrent nudges scheduled.
+const NODE_RESUME_NUDGE_ID = 'node-resume-nudge';
+
+const NUDGE_DELAY_SECONDS = 10 * 60; // 10 minutes
+
+export async function scheduleNodeResumeNudge(ship: string) {
+  const hasPermission = await requestNotificationPermissionsIfNeeded();
+  if (!hasPermission) {
+    return;
+  }
+
+  // We don't want to reset the timer if it's already scheduled - check for
+  // an existing nudge for this ship and bail if one exists.
+  const scheduledNotifications =
+    await Notifications.getAllScheduledNotificationsAsync();
+  const isAlreadyScheduled = scheduledNotifications.some(
+    (n) =>
+      n.identifier === NODE_RESUME_NUDGE_ID && n.content.data?.ship === ship
+  );
+  if (isAlreadyScheduled) {
+    return;
+  }
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: NODE_RESUME_NUDGE_ID,
+    content: {
+      title: 'Your node is now online',
+      body: 'Tap here to jump back in',
+      data: { ship },
+    },
+    trigger: {
+      seconds: NUDGE_DELAY_SECONDS,
+    },
+  });
+}
+export async function cancelNodeResumeNudge() {
+  await Notifications.cancelScheduledNotificationAsync(NODE_RESUME_NUDGE_ID);
 }
