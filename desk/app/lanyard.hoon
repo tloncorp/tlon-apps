@@ -567,7 +567,7 @@
     [%queries ~]    ``noun+!>(queries)
     [%queries @ ~]  ``noun+!>((~(got by queries) (slav %uv i.t.path)))
   ::
-      [%proof ?(%twitter %website) ?(%jam %url %text) ?([@ ~] [@ @ ~])]
+      [%proof ?(%twitter %website) ?(%jam %url %text %bundle) ?([@ ~] [@ @ ~])]
     =/  key=[@p $>(?(%twitter %website) identifier)]
       =*  k  t.t.t.path
       =*  i  ?:(?=([@ ~] k) i.k i.t.k)
@@ -609,6 +609,8 @@
           (crip ((w-co:co 1) jam))  '\0a'
           url
       ==
+    ::
+      %bundle  ``noun+!>([(crip ((w-co:co 1) jam)) url])
     ==
   ::
       [%valid-jam @ ~]
