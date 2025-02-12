@@ -573,12 +573,11 @@
       ::TODO  use +wire-id and friends?
       ?-  i.t.path
         %twitter  [%twitter (slav %t i)]
-        %website  ~&  ah=(de-turf:html (slav %t i))
-                  [%website (need (de-turf:html (slav %t i)))]
+        %website  [%website (need (de-turf:html (slav %t i)))]
       ==
-    ?~  rec=(~(get by records) key)  ~&  [%buster-rec key]  ~
+    ?~  rec=(~(get by records) key)  ~
     =/  pay=(unit (signed))
-      ?+  status.u.rec  ~&  [%busted-status status.u.rec]  ~
+      ?+  status.u.rec  ~
           [%want %twitter %post *]
         ^-  (unit payload:twitter)
         ?>  ?=(%twitter +<.key)
@@ -589,7 +588,7 @@
         ?>  ?=(%website +<.key)
         `(sign [our now]:bowl [%website %0 +>.key nonce.status.u.rec])
       ==
-    ?~  pay  ~&  %busted-pay  ~
+    ?~  pay  ~
     =*  jam  (^jam u.pay)
     =*  url  %+  rap  3
              :~  (fall (~(gut by ledgers) -.key ~) '')
