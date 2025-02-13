@@ -173,7 +173,11 @@
 ::        through that and just deliver them the status updates as they happen..
 ++  l  ::  lanyard  ::TODO  separate file
   |%
-  +$  command  [host=(unit @p) user-command]
+  +$  command
+    $:  host=(unit @p)
+    $%  user-command
+        [%profile id=identifier show=?(%full %half %none)]
+    ==  ==
   +$  query    [host=(unit @p) nonce=(unit @) query=question]
   +$  question
     $%  [%valid-jam @uw]  ::  jammed $signed

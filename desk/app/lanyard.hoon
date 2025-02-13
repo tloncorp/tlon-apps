@@ -22,10 +22,12 @@
 ++  default  ~mapryl-bolnub-palfun-foslup  ::TODO
 +$  state-0
   $:  %0
-      records=(map [h=@p id=identifier] id-state)  ::  ours
+      records=(map key id-state)                   ::  ours
+      display=(map key ?(%full %half))             ::  on contacts profile
       ledgers=(map @p (unit @t))                   ::  services w/ base urls
       queries=(map @uv (each [q=question:l a=result:l] question:l))  ::  asked
   ==
++$  key      [h=@p id=identifier]  ::TODO  use more widely
 +$  card     card:agent:gall
 ::
 ++  join-service
@@ -67,7 +69,8 @@
 ::
 ++  inflate-contacts-profile
   |=  $:  [our=@p now=@da]
-          records=(map [h=@p id=identifier] id-state)
+          records=(map key id-state)
+          display=(map key ?(%half %full))
           ledgers=(map @p (unit @t))
       ==
   ^-  (unit card)
@@ -91,61 +94,58 @@
   ^-  (list [term value:c])
   ::  then look at our records and inject as appropriate
   ::
-  =+  %+  roll  ~(tap by records)
-      |=  $:  [[h=@p id=identifier] id-state]
-              urbits=(map @p [h=@p (signed full-sign-data)])
-              phone=(unit [h=@p (signed half-sign-data)])
+  =<  out
+  %-  ~(rep by display)
+  |^  |=  $:  [=key lev=?(%half %full)]
+              counts=(map id-kind @ud)
+              out=(list [term value:c])
           ==
-      =*  nop  [urbits phone]
-      ?.  ?=(%done -.status)  nop
-      ::TODO  check privacy control? if we do, make %config facts call this too.
-      ?-  -.id
-        %dummy    nop
-        %twitter  nop  ::TODO
-        %website  nop  ::TODO
-        %urbit    [(~(put by urbits) +.id h full.status) phone]
+      =+  n=(~(gut by counts) -.id.key 0)
+      :-  (~(put by counts) -.id.key +(n))
+      ?~  rec=(~(get by records) key)  ~&  [%aaaa key]  out
+      (weld out (make-details key n ?=(%full lev)))
+  ::
+  ++  make-details
+    |=  [=key num=@ud ful=?]
+    ^-  (list [term value:c])
+    ?~  rec=(~(get by records) key)  ~
+    ?.  ?=(%done -.status.u.rec)  ~
+    =/  nom  (cury (cury make-name -.id.key) num)
+    =/  dat=(signed ?(half-sign-data full-sign-data))
+      ?:  ful  full.status.u.rec
+      half.status.u.rec
+    =;  dats=(list (unit [term value:c]))
+      (murn dats same)
+    :~  `[(nom %since) [%date when.dat.dat]]
+        `[(nom %sign) [%text (scot %uw (jam dat))]]
       ::
-          %phone
-        :-  urbits
-        =-  (hunt - phone `[h half.status])
-        ::  prefer those whose service is publicly accessible,
-        ::  and prefer the default service over others
-        ::
-        |=  [[a=@p *] [b=@p *]]
-        =+  ha=(~(has by ledgers) a)
-        ?.  =(ha (~(has by ledgers) b))  ha
-        =(default a)
-      ==
-  =/  make-url
+        ?~  url=(make-url h.key sig.dat)  ~
+        `[(nom %url) [%text u.url]]
+      ::
+        ?.  ful  ~
+        =-  `[(nom %value) [%text -]]
+        ?>  ?=(%full +>-.dat.dat)
+        =*  id  id.dat.dat
+        ?-  -.id
+          %dummy    +.id
+          %urbit    (scot %p +.id)
+          %phone    +.id
+          %twitter  +.id
+          %website  (en-turf:html +.id)
+        ==
+    ==
+  ::
+  ++  make-name
+    |=  [kin=id-kind num=@ud etc=term]
+    ^-  term
+    (rap 3 %lanyard- kin '-' (crip (a-co:co num)) '-' etc ~)
+  ::
+  ++  make-url
     |=  [h=@p sig=@]
     %+  bind  (~(gut by ledgers) h ~)
     |=  base=@t
     (rap 3 base '/attestations/' (scot %uw sig) ~)
-  %+  weld
-    ::  for "has verified a phone nr" status
-    ::
-    ^-  (list [term value:c])
-    ?~  phone  ~
-    ~?  !?=(%phone kind.dat.u.phone)  [%lanyard %strange-phone-sign-mismatch kind.dat.u.phone]
-    :+  [%lanyard-tmp-phone-since %date when.dat.u.phone]
-      [%lanyard-tmp-phone-sign %text (scot %uw (jam +.u.phone))]
-    ?~  url=(make-url h.u.phone sig.u.phone)  ~
-    [%lanyard-tmp-phone-url %text u.url]~
-  ::  for "also knows as" display
-  ::
-  ^-  (list [term value:c])
-  ?:  =(~ urbits)  ~
-  :-  [%lanyard-tmp-urbits %set (~(run in ~(key by urbits)) (lead %ship))]
-  %-  zing
-  %+  turn  ~(tap by urbits)
-  |=  [who=@p h=@p sign=(signed full-sign-data)]
-  ^-  (list [term value:c])
-  :-  :_  [%text (scot %uw (jam sign))]
-      (rap 3 %lanyard-tmp-urbit- (rsh 3^1 (scot %p who)) '-sign' ~)
-  ?~  url=(make-url h sig.sign)  ~
-  :_  ~
-  :_  [%text u.url]
-  (rap 3 %lanyard-tmp-urbit- (rsh 3^1 (scot %p who)) '-url' ~)
+  --
 ::
 ++  lo
   |_  [our=@p host=(unit @p) kind=(unit @t)]
@@ -196,14 +196,14 @@
   :_  this(ledgers (~(put by ledgers) default ~))
   %+  weld
     (join-service our.bowl default)
-  (drop (inflate-contacts-profile [our now]:bowl records ledgers))
+  (drop (inflate-contacts-profile [our now]:bowl records display ledgers))
 ::
 ++  on-load
   |=  ole=vase
   ^-  (quip card _this)
   =.  state  !<(state-0 ole)
   :_  this
-  (drop (inflate-contacts-profile [our now]:bowl records ledgers))
+  (drop (inflate-contacts-profile [our now]:bowl records display ledgers))
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -239,7 +239,15 @@
       ==
     =/  key
       :-  host
-      ?-(+<.cmd ?(%start %revoke) id.cmd, ?(%config %work) id.cmd)
+      ?-(+<.cmd ?(%start %revoke) id.cmd, ?(%config %work %profile) id.cmd)
+    ::  handle local commands locally
+    ::
+    ?:  ?=(%profile +<.cmd)
+      =.  display
+        ?:  ?=(%none show.cmd)  (~(del by display) key)
+        (~(put by display) key show.cmd)
+      :_  this
+      (drop (inflate-contacts-profile [our now]:bowl records display ledgers))
     ::  if the target service is unknown, do setup for it
     ::
     =^  caz  this
@@ -408,7 +416,7 @@
           (turn ~(tap by all.upd) |*(* +<(- [host +<-])))
         =.  records  (~(uni by records) new)
         :_  this
-        :_  (drop (inflate-contacts-profile [our now]:bowl records ledgers))
+        :_  (drop (inflate-contacts-profile [our now]:bowl records display ledgers))
         =/  upd=update:l  [%full new]
         [%give %fact ~[/ /records] %lanyard-update !>(upd)]
       ::
@@ -427,6 +435,8 @@
           =+  rec=(~(gut by records) key *id-state)
           ?:  ?=(%gone -.status.upd)  (~(del by records) key)
           (~(put by records) key rec(status status.upd))
+        =?  display  ?=(%gone -.status.upd)
+          (~(del by display) key)
         :_  this
         :-  =/  upd=update:l  upd(id key)
             [%give %fact ~[/ /records] %lanyard-update !>(upd)]
@@ -435,7 +445,7 @@
         :~  ::  update the contacts profile if needed
             ::
             ?.  ?=(?(%gone %done) -.status.upd)  ~
-            (drop (inflate-contacts-profile [our now]:bowl records ledgers))
+            (drop (inflate-contacts-profile [our now]:bowl records display ledgers))
           ::
             ::  if the update says we need to verify our domain,
             ::  and we know this ship is serving on that domain,
@@ -472,7 +482,7 @@
         ?:  =(base.upd (~(got by ledgers) host))  [~ this]
         =.  ledgers  (~(put by ledgers) host base.upd)
         :_  this
-        (drop (inflate-contacts-profile [our now]:bowl records ledgers))
+        (drop (inflate-contacts-profile [our now]:bowl records display ledgers))
       ==
     ==
   ::
@@ -523,6 +533,7 @@
   ?.  ?=([%v1 *] path)  [~ ~]
   =/  path  t.path
   ?+  path  [~ ~]
+    ~             ``noun+!>([records display ledgers queries])
     [%records ~]  ``noun+!>(records)
   ::
       [%records %json ~]  ::TMP
@@ -564,6 +575,7 @@
       [%website @ ~]  [-.dip (need (de-turf:html (slav %t +<.dip)))]
     ==
   ::
+    [%display ~]    ``noun+!>(display)
     [%queries ~]    ``noun+!>(queries)
     [%queries @ ~]  ``noun+!>((~(got by queries) (slav %uv i.t.path)))
   ::
