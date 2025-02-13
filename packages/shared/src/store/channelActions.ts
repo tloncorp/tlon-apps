@@ -5,6 +5,8 @@ import {
 } from '../api/channelContentConfig';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../domain';
+import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { GroupChannel, getChannelKindFromType } from '../urbit';
 
@@ -29,6 +31,15 @@ export async function createChannel({
   const channelType = rawChannelType === 'custom' ? 'chat' : rawChannelType;
   const channelSlug = getRandomId();
   const channelId = `${getChannelKindFromType(channelType)}/${currentUserId}/${channelSlug}`;
+
+  logger.trackEvent(
+    AnalyticsEvent.ActionCreateChannel,
+    logic.getModelAnalytics({
+      channel: { id: channelId, type: channelType as db.ChannelType },
+      group: { id: groupId },
+    })
+  );
+
   // optimistic update
   const newChannel: db.Channel = {
     id: channelId,
@@ -116,6 +127,14 @@ export async function deleteChannel({
   channelId: string;
   groupId: string;
 }) {
+  logger.trackEvent(
+    AnalyticsEvent.ActionDeleteChannel,
+    logic.getModelAnalytics({
+      channel: { id: channelId },
+      group: { id: groupId },
+    })
+  );
+
   // optimistic update
   await db.deleteChannel(channelId);
 
@@ -175,6 +194,14 @@ export async function updateChannel({
   };
 
   logger.log('updated channel', updatedChannel);
+  logger.trackEvent(AnalyticsEvent.ActionUpdatedChannel, {
+    ...logic.getModelAnalytics({
+      channel: updatedChannel,
+      group: { id: groupId },
+    }),
+    hasTitle: !!updatedChannel.title,
+    hasDescription: !!updatedChannel.description,
+  });
 
   await db.updateChannel(updatedChannel);
 
@@ -232,16 +259,19 @@ export async function updateChannel({
 }
 
 export async function pinChat(chat: db.Chat) {
+  logger.trackEvent(AnalyticsEvent.ActionPinChat);
   return chat.type === 'group'
     ? pinGroup(chat.group)
     : pinChannel(chat.channel);
 }
 
 export async function pinGroup(group: db.Group) {
+  logger.trackEvent(AnalyticsEvent.ActionPinChat);
   return savePin({ type: 'group', itemId: group.id });
 }
 
 export async function pinChannel(channel: db.Channel) {
+  logger.trackEvent(AnalyticsEvent.ActionPinChat);
   const type =
     channel.type === 'dm' || channel.type === 'groupDm'
       ? channel.type
@@ -250,6 +280,7 @@ export async function pinChannel(channel: db.Channel) {
 }
 
 async function savePin(pin: { type: db.PinType; itemId: string }) {
+  logger.trackEvent(AnalyticsEvent.ActionPinChat);
   db.insertPinnedItem(pin);
   try {
     await api.pinItem(pin.itemId);
@@ -261,6 +292,7 @@ async function savePin(pin: { type: db.PinType; itemId: string }) {
 }
 
 export async function unpinItem(pin: db.Pin) {
+  logger.trackEvent(AnalyticsEvent.ActionUnpinChat);
   // optimistic update
   db.deletePinnedItem(pin);
 
@@ -274,6 +306,13 @@ export async function unpinItem(pin: db.Pin) {
 }
 
 export async function markChannelVisited(channelId: string) {
+  const channel = await db.getChannel({ id: channelId });
+  if (channel) {
+    logger.trackEvent(
+      AnalyticsEvent.ActionVisitedChannel,
+      logic.getModelAnalytics({ channel })
+    );
+  }
   await db.updateChannel({ id: channelId, lastViewedAt: Date.now() });
 }
 
@@ -455,6 +494,13 @@ export async function joinGroupChannel({
   channelId: string;
   groupId: string;
 }) {
+  logger.trackEvent(
+    AnalyticsEvent.ActionJoinChannel,
+    logic.getModelAnalytics({
+      channel: { id: channelId },
+      group: { id: groupId },
+    })
+  );
   // optimistic update
   await db.updateChannel({
     id: channelId,
@@ -481,6 +527,11 @@ export async function addChannelWriters({
   writers: string[];
 }) {
   logger.log('adding writers', writers);
+  logger.trackEvent(AnalyticsEvent.ActionUpdateChannelWriters, {
+    ...logic.getModelAnalytics({ channel: { id: channelId } }),
+    updateType: 'add',
+    writerCount: writers.length,
+  });
   const channel = await db.getChannel({ id: channelId, includeWriters: true });
   if (!channel) {
     throw new Error('Channel not found');
@@ -525,6 +576,11 @@ export async function removeChannelWriters({
   writers: string[];
 }) {
   logger.log('removing writers', writers);
+  logger.trackEvent(AnalyticsEvent.ActionUpdateChannelWriters, {
+    ...logic.getModelAnalytics({ channel: { id: channelId } }),
+    updateType: 'remove',
+    writerCount: writers.length,
+  });
   const channel = await db.getChannel({ id: channelId, includeWriters: true });
   if (!channel) {
     throw new Error('Channel not found');
