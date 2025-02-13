@@ -1,12 +1,19 @@
+import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '../debug';
 import { AnalyticsEvent } from '../domain';
-import { AuthError, ChannelStatus, PokeInterface, Urbit } from '../http-api';
-import { preSig } from '../urbit';
+import {
+  AuthError,
+  ChannelStatus,
+  NounPokeInterface,
+  PokeInterface,
+  Urbit,
+} from '../http-api';
+import { desig, preSig } from '../urbit';
 import { getLandscapeAuthCookie } from './landscapeApi';
 
-const logger = createDevLogger('urbit', false);
+const logger = createDevLogger('urbit', true);
 
 interface Config
   extends Pick<
@@ -32,6 +39,12 @@ export type PokeParams = {
   app: string;
   mark: string;
   json: any;
+};
+
+export type NounPokeParams = {
+  app: string;
+  mark: string;
+  noun: Noun;
 };
 
 export class BadResponseError extends Error {
@@ -304,6 +317,48 @@ export async function unsubscribe(id: number) {
   }
 }
 
+export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
+  const doPoke = async (params?: Partial<NounPokeInterface>) => {
+    if (!config.client) {
+      throw new Error('Client not initialized');
+    }
+    if (config.pendingAuth) {
+      await config.pendingAuth;
+    }
+    logger.log('noun poke', { app, mark });
+    return config.client.pokeNoun({
+      ...params,
+      app,
+      mark,
+      noun,
+      onSuccess: () => {
+        console.log(`poke success`);
+      },
+      onError: (err) => {
+        console.log(`poke error`, err);
+      },
+    });
+  };
+  const retry = async (err: any) => {
+    logger.trackError(`NOUN POKE: bad poke to ${app} with mark ${mark}`, {
+      stack: err,
+      noun: noun,
+    });
+    if (!(err instanceof AuthError)) {
+      throw err;
+    }
+
+    await reauth();
+    return doPoke();
+  };
+
+  try {
+    return doPoke({ onError: retry });
+  } catch (err) {
+    retry(err);
+  }
+}
+
 export async function poke({ app, mark, json }: PokeParams) {
   logger.log('poke', app, mark, json);
   const trackDuration = createDurationTracker(AnalyticsEvent.Poke, {
@@ -417,6 +472,28 @@ export async function scry<T>({ app, path }: { app: string; path: string }) {
       return result;
     }
     trackDuration('error');
+    const body = await res.text();
+    throw new BadResponseError(res.status, body);
+  }
+}
+
+export async function scryNoun({ app, path }: { app: string; path: string }) {
+  if (!config.client) {
+    throw new Error('Client not initialized');
+  }
+  if (config.pendingAuth) {
+    await config.pendingAuth;
+  }
+  logger.log('scry noun', app, path);
+  try {
+    return await config.client.scryNoun({ app, path });
+  } catch (res) {
+    logger.log('bad scry', app, path, res.status);
+    if (res.status === 403) {
+      logger.log('scry failed with 403, authing to try again');
+      await reauth();
+      return config.client.scryNoun({ app, path });
+    }
     const body = await res.text();
     throw new BadResponseError(res.status, body);
   }
