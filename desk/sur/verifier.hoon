@@ -71,9 +71,9 @@
       sig=@ux
   ==
 +$  half-sign-data
-  [%0 %verified when=@da for=@p kind=id-kind]
+  [%0 %verified %half when=@da for=@p kind=id-kind]
 +$  full-sign-data
-  [%0 %verified when=@da for=@p id=identifier proof=(unit proof)]  ::TODO  (set proof)?
+  [%0 %verified %full when=@da for=@p id=identifier proof=(unit proof)]  ::TODO  (set proof)?
 ::
 ++  twitter  ^?
   |%

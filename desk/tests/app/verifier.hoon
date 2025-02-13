@@ -149,8 +149,8 @@
   =/  m  (mare ,attestation:v)
   ;<  bowl:gall  bind:m  get-bowl
   %-  pure:m
-  :-  (faux-sign our `half-sign-data:v`[%0 %verified now for -.id])
-  (faux-sign our `full-sign-data:v`[%0 %verified now for id proof])
+  :-  (faux-sign our `half-sign-data:v`[%0 %verified %half now for -.id])
+  (faux-sign our `full-sign-data:v`[%0 %verified %full now for id proof])
 ::
 ++  get-state
   =/  m  (mare state:v)
@@ -981,7 +981,7 @@
     %^  expect-query-response  ~fed
       :+  [%some-dude %my-nonce]
         %valid
-      sig:(faux-sign ~zod `full-sign-data:v`[%0 %verified ~2222.2.2 ~nec [%dummy 'test-id'] ~])
+      sig:(faux-sign ~zod `full-sign-data:v`[%0 %verified %full ~2222.2.2 ~nec [%dummy 'test-id'] ~])
     [%valid &]
   ;<  ~  bind:m
     %^  expect-query-response  ~fed

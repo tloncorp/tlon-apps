@@ -310,8 +310,8 @@
 ++  attest
   |=  [[our=@p now=@da] for=@p id=identifier proof=(unit proof)]
   ^-  attestation
-  :-  (sign [our now] `half-sign-data`[%0 %verified now for -.id])
-  (sign [our now] `full-sign-data`[%0 %verified now for id proof])
+  :-  (sign [our now] `half-sign-data`[%0 %verified %half now for -.id])
+  (sign [our now] `full-sign-data`[%0 %verified %full now for id proof])
 ::
 ++  get-allowance
   ::TODO  don't give comets allowance? or just much more stingy?
