@@ -100,10 +100,12 @@ const HeaderButtonText = styled(Text, {
 const HeaderTextButton = ({
   children,
   onPress,
-}: PropsWithChildren<{ onPress?: () => void }>) => {
+  ...props
+}: PropsWithChildren<{ onPress?: () => void }> &
+  ComponentProps<typeof HeaderButtonText>) => {
   return (
     <Pressable onPress={onPress}>
-      <HeaderButtonText>{children}</HeaderButtonText>
+      <HeaderButtonText {...props}>{children}</HeaderButtonText>
     </Pressable>
   );
 };
