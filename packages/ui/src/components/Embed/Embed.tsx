@@ -1,55 +1,71 @@
 import { MotiView } from 'moti';
-import { PropsWithChildren, useState } from 'react';
+import { ComponentProps, PropsWithChildren, useState } from 'react';
 import { DimensionValue, Dimensions, LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { YStackProps, styled, withStaticProperties } from 'tamagui';
-import { Text, View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack, styled, withStaticProperties } from 'tamagui';
 
 import { Icon } from '../Icon';
 import { Modal } from '../Modal';
 import Pressable from '../Pressable';
+import { Text } from '../TextV2';
 
-const EmbedTitle = styled(Text, {
-  fontSize: '$s',
-  color: '$secondaryText',
+const EmbedFrame = styled(YStack, {
+  name: 'EmbedFrame',
+  borderRadius: '$s',
+  padding: 0,
+  borderColor: '$border',
+  borderWidth: 1,
+  justifyContent: 'center',
+  backgroundColor: '$secondaryBackground',
 });
 
-function EmbedPopOutIcon() {
-  return <Icon type="ArrowRef" color="$tertiaryText" size="$m" />;
-}
+const EmbedHeader = styled(XStack, {
+  name: 'EmbedHeader',
+  gap: '$s',
+  alignItems: 'center',
+  paddingLeft: '$l',
+  paddingRight: '$l',
+  paddingVertical: '$s',
+  justifyContent: 'space-between',
+  borderBottomColor: '$border',
+  borderBottomWidth: 1,
+});
 
-function EmbedHeader({
-  children,
-  onPress,
-}: PropsWithChildren<{ onPress: () => void }>) {
-  return (
-    <Pressable onPress={onPress}>
-      <XStack
-        gap="$s"
-        alignItems="center"
-        padding="$l"
-        justifyContent="space-between"
-        borderBottomColor="$border"
-        borderBottomWidth={1}
-      >
-        {children}
-      </XStack>
-    </Pressable>
-  );
-}
+const EmbedPreview = styled(XStack, {
+  name: 'EmbedPreview',
+  gap: '$s',
+  alignItems: 'center',
+  padding: '$l',
+});
 
-function EmbedPreview({
-  children,
-  onPress,
-}: PropsWithChildren<{ onPress: () => void }>) {
-  return (
-    <Pressable onPress={onPress}>
-      <XStack gap="$s" alignItems="center" padding="$l">
-        {children}
-      </XStack>
-    </Pressable>
-  );
-}
+const EmbedTitle = styled(Text, {
+  name: 'EmbedTitle',
+  fontSize: '$s',
+  color: '$tertiaryText',
+});
+
+const EmbedPopOutIcon = styled(Icon, {
+  name: 'EmbedPopOutIcon',
+  color: '$tertiaryText',
+  size: '$s',
+}).styleable(() => {
+  return <Icon type="ArrowRef" color="$tertiaryText" size="$s" />;
+});
+
+const EmbedModalContent = styled(XStack, {
+  name: 'EmbedModalContent',
+  backgroundColor: '$background',
+  gap: '$s',
+  alignItems: 'center',
+  padding: '$l',
+  borderRadius: '$s',
+});
+
+const EmbedModalWrapper = styled(View, {
+  name: 'EmbedModalWrapper',
+  position: 'absolute',
+  paddingHorizontal: '$xl',
+});
 
 function EmbedModal({
   visible,
@@ -109,57 +125,40 @@ function EmbedModal({
         delay={150}
         transition={{ duration: 300 }}
       >
-        <View
-          position="absolute"
+        <EmbedModalWrapper
           top={topOffset}
           left={leftOffset}
           onLayout={handleLayout}
-          // if we need to set a height and width we need
-          // to pass it here so onLayout can calculate the position
           height={height}
           width={width}
-          paddingHorizontal="$xl"
         >
           <Pressable onPress={onPress}>
-            <XStack
-              backgroundColor="$background"
-              gap="$s"
-              alignItems="center"
-              padding="$l"
-              borderRadius="$s"
-              // we need to set height and width here as well
-              // because the parent view for our webviews requires it
-              height={height}
-              width={width}
-            >
+            <EmbedModalContent height={height} width={width}>
               {children}
-            </XStack>
+            </EmbedModalContent>
           </Pressable>
-        </View>
+        </EmbedModalWrapper>
       </MotiView>
     </Modal>
   );
 }
 
-function EmbedFrame({ children, ...props }: PropsWithChildren<YStackProps>) {
-  return (
-    <YStack
-      gap="$s"
-      borderRadius="$s"
-      padding={0}
-      borderColor="$border"
-      borderWidth={1}
-      justifyContent="center"
-      width={200}
-      height={120}
-      {...props}
-    >
-      {children}
-    </YStack>
-  );
-}
+const EmbedComponent = EmbedFrame.styleable<ComponentProps<typeof EmbedFrame>>(
+  ({ children, ...props }, ref) => {
+    return (
+      <EmbedFrame {...props} ref={ref}>
+        {children}
+      </EmbedFrame>
+    );
+  },
+  {
+    staticConfig: {
+      componentName: 'Embed',
+    },
+  }
+);
 
-export const Embed = withStaticProperties(EmbedFrame, {
+export const Embed = withStaticProperties(EmbedComponent, {
   Header: EmbedHeader,
   Preview: EmbedPreview,
   Modal: EmbedModal,

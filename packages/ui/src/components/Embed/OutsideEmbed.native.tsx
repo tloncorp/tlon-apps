@@ -55,9 +55,10 @@ const TwitterEmbed = ({
     tweet.display_text_range[0],
     tweet.display_text_range[1]
   );
+  const truncatedDisplayLength = 240;
   const truncatedDisplayText =
-    tweetDisplayText.length > 128
-      ? `${tweetDisplayText.slice(0, 128)}...`
+    tweetDisplayText.length > truncatedDisplayLength
+      ? `${tweetDisplayText.slice(0, truncatedDisplayLength)}...`
       : tweetDisplayText;
   const tweetPhotos = tweet.mediaDetails?.filter(
     (media: MediaDetails) => media.type === 'photo'
@@ -65,12 +66,14 @@ const TwitterEmbed = ({
   const firstPhoto = tweetPhotos?.[0];
 
   return (
-    <Embed width={250}>
+    <Embed flex={1}>
       <Embed.Header onPress={openLink}>
-        <Embed.Title>Twitter</Embed.Title>
-        <Embed.PopOutIcon />
+        <Embed.Title>
+          {tweet.user.name} (@{tweet.user.screen_name}) - X
+        </Embed.Title>
+        <Embed.PopOutIcon type="ArrowRef" />
       </Embed.Header>
-      <Embed.Preview onPress={() => setShowModal(true)}>
+      <Embed.Preview onPress={openLink}>
         <YStack gap="$s">
           <YStack
             gap="$s"
@@ -78,10 +81,12 @@ const TwitterEmbed = ({
             borderColor="$border"
             paddingLeft="$l"
           >
-            <Text>{truncatedDisplayText}</Text>
+            {firstPhoto && <Text color="$tertiaryText">Photo</Text>}
+            {tweet.video && <Text color="$tertiaryText">Video</Text>}
+            {truncatedDisplayText && <Text>{truncatedDisplayText}</Text>}
           </YStack>
           <Text color="$tertiaryText">
-            {tweet.user.name} (@{tweet.user.screen_name})
+            {tweet.favorite_count} Likes - {tweet.conversation_count} Replies
           </Text>
         </YStack>
       </Embed.Preview>
@@ -136,12 +141,12 @@ const GenericEmbed = ({
 }) => {
   const [showModal, setShowModal] = useState(false);
   return (
-    <Embed>
+    <Embed onPress={openLink}>
       <Embed.Header onPress={openLink}>
         <Embed.Title>{provider}</Embed.Title>
-        <Embed.PopOutIcon />
+        <Embed.PopOutIcon type="ArrowRef" />
       </Embed.Header>
-      <Embed.Preview onPress={() => setShowModal(true)}>
+      <Embed.Preview onPress={openLink}>
         <YStack>
           <Text>{title}</Text>
           {author && <Text>{author}</Text>}
@@ -179,7 +184,7 @@ const GenericEmbedFallback = ({
     <Embed>
       <Embed.Header onPress={openLink}>
         <Embed.Title>{provider}</Embed.Title>
-        <Embed.PopOutIcon />
+        <Embed.PopOutIcon type="ArrowRef" />
       </Embed.Header>
       <Embed.Preview onPress={openLink}>
         <YStack>
@@ -251,6 +256,9 @@ export default function OutsideEmbed({ url }: { url: string }) {
       `;
     }
 
+    console.log('OutsideEmbed', {
+      embedHtmlReturned,
+    });
     if (provider === 'Twitter') {
       return <TwitterEmbed embedHtml={embedHtmlReturned} openLink={openLink} />;
     }

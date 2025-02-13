@@ -3,6 +3,7 @@ import { Linking } from 'react-native';
 import { ColorTokens, styled } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
+import ChatEmbedContent from '../ChatMessage/ChatEmbedContent';
 import { useContactName } from '../ContactNameV2';
 import { RawText, Text } from '../TextV2';
 import {
@@ -99,14 +100,22 @@ export function InlineText({
 }
 
 export function InlineLink({ inline: node }: { inline: LinkInlineData }) {
-  const handlePress = useCallback(() => {
-    Linking.openURL(node.href);
-  }, [node.href]);
   return (
-    <Text cursor="pointer" textDecorationLine="underline" onPress={handlePress}>
-      {node.text || node.href}
-    </Text>
+    <ChatEmbedContent
+      url={node.href}
+      content={node.text || node.href}
+      onPressImage={undefined}
+      onLongPress={undefined}
+    />
   );
+  // const handlePress = useCallback(() => {
+  //   Linking.openURL(node.href);
+  // }, [node.href]);
+  // return (
+  //   <Text cursor="pointer" textDecorationLine="underline" onPress={handlePress}>
+  //     {node.text || node.href}
+  //   </Text>
+  // );
 }
 
 export type InlineRenderer<T extends InlineData> = React.ComponentType<{

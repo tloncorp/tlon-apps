@@ -11,7 +11,7 @@ export default function OutsideEmbed({ url }: { url: string }) {
     <Embed height={100}>
       <Embed.Header onPress={() => ({})}>
         <Embed.Title>Video</Embed.Title>
-        <Embed.PopOutIcon />
+        <Embed.PopOutIcon type="ArrowRef" />
       </Embed.Header>
       <Embed.Preview onPress={() => setShowModal(true)}>
         <Icon type="Play" />

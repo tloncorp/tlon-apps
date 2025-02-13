@@ -1,11 +1,12 @@
 import { useEmbed, utils, validOembedCheck } from '@tloncorp/shared';
 import { Linking, TouchableOpacity } from 'react-native';
-import { SizableText, View } from 'tamagui';
+import { View } from 'tamagui';
 
 import { useCalm } from '../../contexts';
 import { AudioEmbed, OutsideEmbed } from '../Embed';
 import { Icon } from '../Icon';
 import { ImageWithFallback } from '../Image';
+import { Text } from '../TextV2';
 
 const trustedProviders = [
   {
@@ -45,6 +46,15 @@ export default function ChatEmbedContent({
     await Linking.openURL(url);
   };
 
+  console.log('ChatEmbedContent', {
+    url,
+    content,
+    isAudio,
+    isImage,
+    isTrusted,
+    isOembed,
+  });
+
   if (!calm.disableRemoteContent) {
     if (isImage) {
       return (
@@ -62,9 +72,7 @@ export default function ChatEmbedContent({
             fallback={
               <View width={200} alignItems="center" justifyContent="center">
                 <Icon type="Placeholder" color="$tertiaryText" />
-                <SizableText color="$tertiaryText">
-                  Unable to load image
-                </SizableText>
+                <Text color="$tertiaryText">Unable to load image</Text>
               </View>
             }
             backgroundColor={'$secondaryBackground'}
@@ -77,14 +85,14 @@ export default function ChatEmbedContent({
       return <AudioEmbed url={url} />;
     }
 
-    if (isOembed) {
+    if (isTrusted) {
       return <OutsideEmbed url={url} />;
     }
   }
 
   return (
-    <SizableText textDecorationLine="underline" size={'$m'} onPress={openLink}>
+    <Text textDecorationLine="underline" cursor="pointer" onPress={openLink}>
       {content || url}
-    </SizableText>
+    </Text>
   );
 }
