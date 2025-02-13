@@ -1,80 +1,9 @@
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
-
 export const SHIP_COOKIE_REGEX = /(~)[a-z\-]+?(\=)/;
 export const ACCESS_CODE_REGEX = /^((?:[a-z]{6}-){3}(?:[a-z]{6}))$/i;
 export const EMAIL_REGEX =
   /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 export const SHIP_URL_REGEX = /^https?:\/\/([\w-]+\.)+[\w-]+(:\d+)?(?=\/?$)/;
-export const IS_IOS = Platform.OS === 'ios';
-export const IS_ANDROID = Platform.OS === 'android';
+export const IS_IOS = false;
+export const IS_ANDROID = false;
 
-const extra = (Constants.expoConfig?.extra ?? {}) as Record<
-  string,
-  string | undefined
->;
-
-export const NOTIFY_PROVIDER = extra.notifyProvider ?? 'rivfur-livmet';
-export const NOTIFY_SERVICE = extra.notifyService ?? 'groups-native';
-export const POST_HOG_API_KEY = extra.postHogApiKey ?? '';
-export const API_URL = extra.apiUrl ?? 'https://tlon.network';
-export const API_AUTH_USERNAME = extra.apiAuthUsername;
-export const API_AUTH_PASSWORD = extra.apiAuthPassword;
-export const RECAPTCHA_SITE_KEY =
-  (IS_ANDROID ? extra.recaptchaSiteKeyAndroid : extra.recaptchaSiteKeyIOS) ??
-  '';
-export const SHIP_URL_PATTERN =
-  extra.shipUrlPattern ?? 'https://{shipId}.tlon.network';
-export const DEFAULT_LURE = extra.defaultLure ?? '~nibset-napwyn/tlon';
-export const DEFAULT_PRIORITY_TOKEN = extra.defaultPriorityToken ?? 'mobile';
-export const DEFAULT_TLON_LOGIN_EMAIL = extra.defaultTlonLoginEmail ?? '';
-export const DEFAULT_TLON_LOGIN_PASSWORD = extra.defaultTlonLoginPassword ?? '';
-export const DEFAULT_INVITE_LINK_URL = extra.defaultInviteLinkUrl ?? '';
-export const DEFAULT_SHIP_LOGIN_URL = extra.defaultShipLoginUrl ?? '';
-export const DEFAULT_SHIP_LOGIN_ACCESS_CODE =
-  extra.defaultShipLoginAccessCode ?? '';
-export const DEFAULT_ONBOARDING_PASSWORD =
-  extra.defaultOnboardingPassword ?? '';
-export const DEFAULT_ONBOARDING_TLON_EMAIL =
-  extra.defaultOnboardingTlonEmail ?? '';
-export const DEFAULT_ONBOARDING_NICKNAME =
-  extra.defaultOnboardingNickname ?? '';
-export const DEFAULT_ONBOARDING_PHONE_NUMBER =
-  extra.defaultOnboardingPhoneNumber;
-
-export const ENABLED_LOGGERS = extra.enabledLoggers?.split(',') ?? [];
-export const IGNORE_COSMOS = extra.ignoreCosmos === 'true';
-export const TLON_EMPLOYEE_GROUP = extra.TlonEmployeeGroup ?? '';
-export const BRANCH_KEY = extra.branchKey ?? '';
-export const BRANCH_DOMAIN = extra.branchDomain ?? '';
-export const INVITE_SERVICE_ENDPOINT = extra.inviteServiceEndpoint ?? '';
-export const INVITE_SERVICE_IS_DEV = extra.inviteServiceIsDev === 'true';
-
-export const ENV_VARS = {
-  NOTIFY_PROVIDER,
-  NOTIFY_SERVICE,
-  POST_HOG_API_KEY,
-  API_URL,
-  API_AUTH_USERNAME,
-  API_AUTH_PASSWORD,
-  RECAPTCHA_SITE_KEY,
-  SHIP_URL_PATTERN,
-  DEFAULT_LURE,
-  DEFAULT_PRIORITY_TOKEN,
-  DEFAULT_TLON_LOGIN_EMAIL,
-  DEFAULT_TLON_LOGIN_PASSWORD,
-  DEFAULT_INVITE_LINK_URL,
-  DEFAULT_SHIP_LOGIN_URL,
-  DEFAULT_SHIP_LOGIN_ACCESS_CODE,
-  DEFAULT_ONBOARDING_PASSWORD,
-  DEFAULT_ONBOARDING_TLON_EMAIL,
-  DEFAULT_ONBOARDING_NICKNAME,
-  DEFAULT_ONBOARDING_PHONE_NUMBER,
-  ENABLED_LOGGERS,
-  IGNORE_COSMOS,
-  TLON_EMPLOYEE_GROUP,
-  BRANCH_KEY,
-  BRANCH_DOMAIN,
-  INVITE_SERVICE_ENDPOINT,
-  INVITE_SERVICE_IS_DEV,
-};
+export * from './lib/envVars';
