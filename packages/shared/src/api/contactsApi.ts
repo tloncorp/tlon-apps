@@ -81,10 +81,6 @@ export const updateContactMetadata = async (
       : null;
   }
 
-  if (Object.keys(contactUpdate).length !== 0) {
-    logger.trackEvent(AnalyticsEvent.ContactEdited);
-  }
-
   return poke({
     app: 'contacts',
     mark: 'contact-action-1',
@@ -94,7 +90,6 @@ export const updateContactMetadata = async (
 
 export const addContact = async (contactId: string) => {
   removeContactSuggestion(contactId);
-  logger.trackEvent(AnalyticsEvent.ContactAdded);
   return poke({
     app: 'contacts',
     mark: 'contact-action-1',

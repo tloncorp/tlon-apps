@@ -1,5 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import {
   AppDataContextProvider,
@@ -19,6 +21,8 @@ import { useRootNavigation } from '../../navigation/utils';
 import { useConnectionStatus } from './useConnectionStatus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
+
+const logger = createDevLogger('UserProfileScreen', false);
 
 export function UserProfileScreen({ route: { params }, navigation }: Props) {
   const userId = params.userId;
@@ -57,6 +61,14 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
     [performGroupAction]
   );
 
+  const handlePressGroup = useCallback((group: db.Group) => {
+    logger.trackEvent(
+      AnalyticsEvent.ActionViewProfileGroup,
+      logic.getModelAnalytics({ group })
+    );
+    setSelectedGroup(group);
+  }, []);
+
   return (
     <AppDataContextProvider
       currentUserId={currentUserId}
@@ -71,7 +83,7 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
             userId={userId}
             onBack={() => navigation.goBack()}
             connectionStatus={connectionStatus}
-            onPressGroup={setSelectedGroup}
+            onPressGroup={handlePressGroup}
             onPressEdit={handlePressEdit}
           />
           <GroupPreviewSheet

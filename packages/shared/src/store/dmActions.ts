@@ -1,6 +1,8 @@
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../domain';
+import * as logic from '../logic';
 
 const logger = createDevLogger('dmActions', true);
 
@@ -12,6 +14,10 @@ export async function respondToDMInvite({
   accept: boolean;
 }) {
   logger.log(`responding to dm invite`, `accept? ${accept}`, channel.id);
+  logger.trackEvent(AnalyticsEvent.ActionRespondToDMInvite, {
+    obscuredChannelId: logic.simpleHash(channel.id),
+    response: accept ? 'accept' : 'reject',
+  });
   // optimistic update
   if (accept) {
     await db.updateChannel({
@@ -43,6 +49,7 @@ export async function respondToDMInvite({
 
 export async function blockUser(userId: string) {
   logger.log(`blocking user`, userId);
+  logger.trackEvent(AnalyticsEvent.ActionBlockUser);
   // optimistic update
   const existingContact = await db.getContact({ id: userId });
   if (existingContact) {
@@ -62,6 +69,7 @@ export async function blockUser(userId: string) {
 
 export async function unblockUser(userId: string) {
   logger.log(`unblocking user`, userId);
+  logger.trackEvent(AnalyticsEvent.ActionUnblockUser);
   // optimistic update
   const existingContact = await db.getContact({ id: userId });
   if (existingContact) {
@@ -84,6 +92,10 @@ export async function unblockUser(userId: string) {
 
 export async function updateDMMeta(channelId: string, meta: db.ClientMeta) {
   logger.log('updating channel', channelId, meta);
+  logger.trackEvent(AnalyticsEvent.ActionCustomizeDM, {
+    obscuredChannelId: logic.simpleHash(channelId),
+    customized: Object.keys(meta),
+  });
 
   const existingChannel = await db.getChannel({ id: channelId });
 
