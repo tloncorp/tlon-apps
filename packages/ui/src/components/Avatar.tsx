@@ -6,6 +6,7 @@ import {
   Text,
   View,
   getTokenValue,
+  isWeb,
   styled,
   useStyle,
 } from 'tamagui';
@@ -327,9 +328,21 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
     if (size && size !== 'custom') {
       return getTokenValue(size);
     } else {
+      if (isWeb && (props.width || props.height)) {
+        // Sigil size must be a number
+        if (
+          typeof props.width === 'string' ||
+          typeof props.height === 'string'
+        ) {
+          return 20;
+        }
+
+        return props.width ?? props.height ?? 20;
+      }
+
       return styles.width ?? styles.height ?? 20;
     }
-  }, [size, styles.width, styles.height]);
+  }, [size, styles.width, styles.height, props.width, props.height]);
 
   return (
     <AvatarFrame
