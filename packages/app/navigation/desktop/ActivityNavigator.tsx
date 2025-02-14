@@ -1,0 +1,125 @@
+import {
+  DrawerContentComponentProps,
+  createDrawerNavigator,
+} from '@react-navigation/drawer';
+import { useIsFocused } from '@react-navigation/native';
+import { NavigationState } from '@react-navigation/routers';
+import { View, getVariableValue, useTheme } from '@tamagui/core';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
+import { ActivityScreenView, useCurrentUserId } from '@tloncorp/ui';
+import { useCallback, useMemo } from 'react';
+
+import { useGroupActions } from '../../hooks/useGroupActions';
+import { useFeatureFlag } from '../../lib/featureFlags';
+import { useRootNavigation } from '../utils';
+
+const ActivityDrawer = createDrawerNavigator();
+
+function DrawerContent(props: DrawerContentComponentProps) {
+  const state = props.state as NavigationState;
+  const { navigate } = props.navigation;
+  const focusedRoute = state.routes[props.state.index];
+
+  const theme = useTheme();
+  const isFocused = useIsFocused();
+  const currentUserId = useCurrentUserId();
+  const [contactsTabEnabled] = useFeatureFlag('contactsTab');
+  const { performGroupAction } = useGroupActions();
+  const { navigateToChannel, navigateToPost } = useRootNavigation();
+
+  const allFetcher = store.useInfiniteBucketedActivity('all');
+  const mentionsFetcher = store.useInfiniteBucketedActivity('mentions');
+  const repliesFetcher = store.useInfiniteBucketedActivity('replies');
+  const bucketedActivity = useMemo(() => {
+    return {
+      all: allFetcher,
+      replies: repliesFetcher,
+      mentions: mentionsFetcher,
+    };
+  }, [allFetcher, mentionsFetcher, repliesFetcher]);
+
+  const handleRefreshActivity = useCallback(async () => {
+    return store.resetActivity();
+  }, []);
+
+  const handleGoToChannel = useCallback(
+    (channel: db.Channel, selectedPostId?: string) => {
+      navigateToChannel(channel, selectedPostId);
+    },
+    [navigateToChannel]
+  );
+
+  // TODO: if diary or gallery, figure out a way to pop open the comment
+  // sheet
+  const handleGoToThread = useCallback(
+    (post: db.Post) => {
+      // TODO: we have no way to route to specific thread message rn
+      navigateToPost(post);
+    },
+    [navigateToPost]
+  );
+
+  const handleGoToGroup = useCallback(
+    (group: db.Group) => {
+      store.markGroupRead(group.id);
+      props.navigation.navigate('GroupSettings', {
+        screen: 'GroupMembers',
+        params: { groupId: group.id },
+      });
+    },
+    [props.navigation]
+  );
+
+  const handleGoToUserProfile = useCallback(
+    (userId: string) => {
+      props.navigation.navigate('UserProfile', { userId });
+    },
+    [props.navigation]
+  );
+
+  return (
+    <ActivityScreenView
+      bucketFetchers={bucketedActivity}
+      isFocused={isFocused}
+      goToChannel={handleGoToChannel}
+      goToThread={handleGoToThread}
+      goToGroup={handleGoToGroup}
+      goToUserProfile={handleGoToUserProfile}
+      refresh={handleRefreshActivity}
+      onGroupAction={performGroupAction}
+    />
+  );
+}
+
+export const ActivityNavigator = () => {
+  return (
+    <ActivityDrawer.Navigator
+      initialRouteName="UserProfile"
+      drawerContent={DrawerContent}
+      screenOptions={{
+        headerShown: false,
+        drawerType: 'permanent',
+        drawerStyle: {
+          width: 400,
+          backgroundColor: getVariableValue(useTheme().background),
+          borderRightColor: getVariableValue(useTheme().border),
+        },
+      }}
+    >
+      <ActivityDrawer.Screen
+        name="ActivityEmpty"
+        component={EmptyActivityScreen}
+      />
+    </ActivityDrawer.Navigator>
+  );
+};
+
+function EmptyActivityScreen() {
+  return (
+    <View
+      flex={1}
+      backgroundColor={getVariableValue(useTheme().secondaryBackground)}
+    />
+  );
+}

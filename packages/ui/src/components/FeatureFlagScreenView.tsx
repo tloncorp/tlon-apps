@@ -19,6 +19,12 @@ export function FeatureFlagScreenView({
     <View flex={1} backgroundColor="$background">
       <ScreenHeader title={'Feature Previews'} backAction={onBackPressed} />
       <ScrollView
+        style={{
+          flex: 1,
+          width: '100%',
+          maxWidth: 600,
+          marginHorizontal: 'auto',
+        }}
         contentContainerStyle={{
           gap: '$s',
           paddingTop: '$l',

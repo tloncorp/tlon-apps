@@ -1,7 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMutableRef } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { ProfileScreenView, View } from '@tloncorp/ui';
+import { SettingsScreenView, View } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { getVariableValue, useTheme } from 'tamagui';
@@ -10,12 +10,11 @@ import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
-import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
-export default function ProfileScreen(props: Props) {
+export default function SettingsScreen(props: Props) {
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const currentUserId = useCurrentUserId();
@@ -43,10 +42,6 @@ export default function ProfileScreen(props: Props) {
     navigationRef.current.navigate('FeatureFlags');
   }, [navigationRef]);
 
-  const onProfilePressed = useCallback(() => {
-    navigationRef.current.navigate('UserProfile', { userId: currentUserId });
-  }, [currentUserId, navigationRef]);
-
   const onSendBugReportPressed = useCallback(() => {
     navigationRef.current.navigate('WompWomp');
   }, [navigationRef]);
@@ -63,10 +58,9 @@ export default function ProfileScreen(props: Props) {
 
   return (
     <View backgroundColor={backgroundColor} flex={1}>
-      <ProfileScreenView
+      <SettingsScreenView
         hasHostedAuth={hasHostedAuth}
         currentUserId={currentUserId}
-        onProfilePressed={onProfilePressed}
         onLogoutPressed={handleLogout}
         onSendBugReportPressed={onSendBugReportPressed}
         onAppInfoPressed={onAppInfoPressed}

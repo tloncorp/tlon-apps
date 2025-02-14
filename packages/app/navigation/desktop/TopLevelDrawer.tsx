@@ -13,14 +13,15 @@ import {
   useWebAppUpdate,
 } from '@tloncorp/ui';
 import { useCallback, useRef } from 'react';
-import { getVariableValue, useTheme } from 'tamagui';
+import { View, getVariableValue, useTheme } from 'tamagui';
 
-import { ActivityScreen } from '../../features/top/ActivityScreen';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootDrawerParamList } from '../types';
 import { useRootNavigation } from '../utils';
+import { ActivityNavigator } from './ActivityNavigator';
 import { HomeNavigator } from './HomeNavigator';
-import { ProfileScreenNavigator } from './ProfileScreenNavigator';
+import { ProfileNavigator } from './ProfileNavigator';
+import { SettingsNavigator } from './SettingsNavigator';
 
 const Drawer = createDrawerNavigator<RootDrawerParamList>();
 
@@ -64,43 +65,78 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
   }, [props.navigation]);
 
   return (
-    <YStack gap="$l">
-      <NavIcon
-        type="Home"
-        activeType="HomeFilled"
-        isActive={isRouteActive('Home')}
-        // hasUnreads={(unreadCount?.channels ?? 0) > 0}
-        // intentionally leave undotted for now
-        hasUnreads={false}
-        onPress={restoreHomeState}
-      />
-      <NavIcon
-        type="Notifications"
-        activeType="NotificationsFilled"
-        hasUnreads={haveUnreadUnseenActivity}
-        isActive={isRouteActive('Activity')}
-        onPress={() => {
-          saveHomeState();
-          props.navigation.reset({ index: 0, routes: [{ name: 'Activity' }] });
-        }}
-      />
-      <AvatarNavIcon
-        id={userId}
-        focused={isRouteActive('Contacts')}
-        onPress={() => {
-          saveHomeState();
-          props.navigation.reset({ index: 0, routes: [{ name: 'Contacts' }] });
-        }}
-      />
-      {webAppNeedsUpdate && (
+    <YStack flex={1} paddingVertical="$l">
+      <YStack gap="$xl" alignItems="center">
         <NavIcon
-          backgroundColor="$yellow"
-          type="Bang"
-          isActive={true}
-          onPress={triggerWebAppUpdate}
+          type="Home"
+          activeType="HomeFilled"
+          isActive={isRouteActive('Home')}
+          // hasUnreads={(unreadCount?.channels ?? 0) > 0}
+          // intentionally leave undotted for now
           shouldShowUnreads={false}
+          onPress={restoreHomeState}
         />
-      )}
+        {/* <NavIcon
+          type="Messages"
+          activeType="MessagesFilled"
+          isActive={isRouteActive('Messages')}
+          shouldShowUnreads={false}
+          onPress={() => {
+            saveHomeState();
+            props.navigation.reset({
+              index: 0,
+              routes: [{ name: 'Messages' }],
+            });
+          }}
+        /> */}
+        <NavIcon
+          type="Notifications"
+          activeType="NotificationsFilled"
+          hasUnreads={haveUnreadUnseenActivity}
+          isActive={isRouteActive('Activity')}
+          onPress={() => {
+            saveHomeState();
+            props.navigation.reset({
+              index: 0,
+              routes: [{ name: 'Activity' }],
+            });
+          }}
+        />
+        <AvatarNavIcon
+          id={userId}
+          focused={isRouteActive('Contacts')}
+          onPress={() => {
+            saveHomeState();
+            props.navigation.reset({
+              index: 0,
+              routes: [{ name: 'Contacts' }],
+            });
+          }}
+        />
+        {webAppNeedsUpdate && (
+          <NavIcon
+            backgroundColor="$yellow"
+            type="Bang"
+            isActive={true}
+            onPress={triggerWebAppUpdate}
+            shouldShowUnreads={false}
+          />
+        )}
+      </YStack>
+      <YStack gap="$xl" marginTop="auto" alignItems="center">
+        <NavIcon
+          type="Settings"
+          isActive={isRouteActive('Settings')}
+          shouldShowUnreads={false}
+          onPress={() => {
+            saveHomeState();
+            props.navigation.reset({
+              index: 0,
+              routes: [{ name: 'Settings' }],
+            });
+          }}
+        />
+      </YStack>
     </YStack>
   );
 };
@@ -123,15 +159,16 @@ export const TopLevelDrawer = () => {
           drawerType: 'permanent',
           headerShown: false,
           drawerStyle: {
-            width: 48,
+            width: 56,
             backgroundColor: getVariableValue(useTheme().background),
             borderRightColor: getVariableValue(useTheme().border),
           },
         }}
       >
         <Drawer.Screen name="Home" component={HomeNavigator} />
-        <Drawer.Screen name="Activity" component={ActivityScreen} />
-        <Drawer.Screen name="Contacts" component={ProfileScreenNavigator} />
+        <Drawer.Screen name="Activity" component={ActivityNavigator} />
+        <Drawer.Screen name="Contacts" component={ProfileNavigator} />
+        <Drawer.Screen name="Settings" component={SettingsNavigator} />
       </Drawer.Navigator>
     </GlobalSearchProvider>
   );
