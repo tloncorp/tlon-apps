@@ -17,6 +17,7 @@ import * as db from '@tloncorp/shared/db';
 import {
   AppDataContextProvider,
   ArvosDiscussing,
+  IconType,
   ListItem,
   LoadingSpinner,
   OnboardingTextBlock,
@@ -39,6 +40,13 @@ const BOTTOM_WIDGET_TITLES = [
   'Running boot sequence',
   'Establishing a connection',
   'Your node is ready',
+];
+
+const BOTTOM_WIDGET_ICONS: IconType[] = [
+  'ChannelGalleries',
+  'Bang',
+  'Link',
+  'Face',
 ];
 
 type Props = NativeStackScreenProps<
@@ -197,7 +205,7 @@ export function GettingNodeReadyScreen({
           <YStack marginHorizontal="$3xl" gap="$3xl" paddingBottom="$l">
             <ListItem backgroundColor="$background">
               <ListItem.SystemIcon
-                icon="ChannelGalleries"
+                icon={BOTTOM_WIDGET_ICONS[progress]}
                 backgroundColor="unset"
                 color="$primaryText"
               />
