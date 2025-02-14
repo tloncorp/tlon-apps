@@ -11,10 +11,16 @@ import {
   screenNameFromChannelId,
 } from '@tloncorp/app/navigation/utils';
 import * as posthog from '@tloncorp/app/utils/posthog';
-import { createDevLogger, syncDms, syncGroups } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  createDevLogger,
+  syncDms,
+  syncGroups,
+} from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import { markChatRead } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as ub from '@tloncorp/shared/urbit';
 import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
@@ -179,6 +185,11 @@ export default function useNotificationListener() {
           return false;
         }
 
+        logger.trackEvent(
+          AnalyticsEvent.ActionTappedPushNotif,
+          logic.getModelAnalytics({ channel })
+        );
+
         const routeStack: RouteStack = [{ name: 'ChatList' }];
         if (channel.groupId) {
           const mainGroupRoute = await getMainGroupRoute(
@@ -249,6 +260,10 @@ export default function useNotificationListener() {
             if (isTlonEmployee) {
               crashlytics().log(`failed channel ID: ${channelId}`);
               crashlytics().log(`failed post ID: ${postInfo?.id}`);
+              logger.trackEvent(
+                AnalyticsEvent.ErrorPushNotifNavigate,
+                logic.getModelAnalytics({ channel: { id: channelId } })
+              );
             }
             crashlytics().recordError(
               new Error(
@@ -260,7 +275,13 @@ export default function useNotificationListener() {
         }
       })();
     }
-  }, [notifToProcess, navigation, isTlonEmployee, channelSwitcherEnabled]);
+  }, [
+    notifToProcess,
+    navigation,
+    isTlonEmployee,
+    channelSwitcherEnabled,
+    isDesktop,
+  ]);
 }
 
 function useHandoffNotificationData() {

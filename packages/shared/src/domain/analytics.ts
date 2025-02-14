@@ -91,9 +91,11 @@ export enum AnalyticsEvent {
   ActionViewProfileGroup = 'Viewed Pinned Profile Group',
   ActionSelectActivityEvent = 'Tapped Activity Event',
   ActionsNotifPermsChecked = 'Checked Notification Permissions',
+  ActionTappedPushNotif = 'Tapped Push Notification',
   GroupJoinComplete = 'Group Join Complete',
   ErrorSendPost = 'Error Sending Post',
   ErrorSendReply = 'Error Sending Thread Reply',
   ErrorReact = 'Error Reacting to Post',
   ErrorUnreact = 'Error Removing Reaction from Post',
+  ErrorPushNotifNavigate = 'Error Navigating to Push Channel',
 }

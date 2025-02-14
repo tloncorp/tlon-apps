@@ -558,6 +558,7 @@ export function getModelAnalytics({
   if (channel) {
     details.channelId = channel.id ? simpleHash(channel.id) : null;
     details.channelType = channel.type ?? null;
+    details.groupId = channel.groupId ? simpleHash(channel.groupId) : null;
   }
 
   if (group) {
