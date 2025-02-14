@@ -1,126 +1,11 @@
 import { useEmbed, validOembedCheck } from '@tloncorp/shared';
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Linking } from 'react-native';
 import WebView from 'react-native-webview';
-import { MediaDetails, Tweet, getTweet } from 'react-tweet/api';
 import { Text, YStack } from 'tamagui';
 
-import { Image } from '../Image';
 import { Embed } from './Embed';
-
-// this is a basic twitter embed, we could use the react-tweet api
-// to build a richer one.
-// The preview is a truncated version of the tweet text and the author
-// The modal shows the full tweet text and the first photo if there is one
-const TwitterEmbed = ({
-  embedHtml,
-  openLink,
-}: {
-  embedHtml: string;
-  openLink: () => void;
-}) => {
-  const [showModal, setShowModal] = useState(false);
-  const [tweet, setTweet] = useState<Tweet>();
-  // find the tweet url
-  const tweetUrl = embedHtml.match(
-    /https:\/\/twitter.com\/[^/]+\/status\/[^/]+/g
-  )?.[0];
-
-  // extract the tweet id from the url, strip out any query params
-  const tweetIdFromUrl = tweetUrl?.split('/status/')[1].split('?')[0];
-
-  useEffect(() => {
-    const fetchTweet = async () => {
-      const tweetFromApi = await getTweet(tweetIdFromUrl!);
-      if (!tweetFromApi) return;
-      setTweet(tweetFromApi);
-    };
-
-    if (tweetIdFromUrl) {
-      fetchTweet();
-    }
-  }, [tweetIdFromUrl]);
-
-  if (!tweetIdFromUrl || !tweet) {
-    return (
-      <GenericEmbedFallback
-        provider="Twitter"
-        title="Open in Twitter"
-        openLink={openLink}
-      />
-    );
-  }
-
-  const tweetDisplayText = tweet.text.slice(
-    tweet.display_text_range[0],
-    tweet.display_text_range[1]
-  );
-  const truncatedDisplayLength = 240;
-  const truncatedDisplayText =
-    tweetDisplayText.length > truncatedDisplayLength
-      ? `${tweetDisplayText.slice(0, truncatedDisplayLength)}...`
-      : tweetDisplayText;
-  const tweetPhotos = tweet.mediaDetails?.filter(
-    (media: MediaDetails) => media.type === 'photo'
-  );
-  const firstPhoto = tweetPhotos?.[0];
-
-  return (
-    <Embed flex={1}>
-      <Embed.Header onPress={openLink}>
-        <Embed.Title>
-          {tweet.user.name} (@{tweet.user.screen_name}) - X
-        </Embed.Title>
-        <Embed.PopOutIcon type="ArrowRef" />
-      </Embed.Header>
-      <Embed.Preview onPress={openLink}>
-        <YStack gap="$s">
-          <YStack
-            gap="$s"
-            borderLeftWidth={2}
-            borderColor="$border"
-            paddingLeft="$l"
-          >
-            {firstPhoto && <Text color="$tertiaryText">Photo</Text>}
-            {tweet.video && <Text color="$tertiaryText">Video</Text>}
-            {truncatedDisplayText && <Text>{truncatedDisplayText}</Text>}
-          </YStack>
-          <Text color="$tertiaryText">
-            {tweet.favorite_count} Likes - {tweet.conversation_count} Replies
-          </Text>
-        </YStack>
-      </Embed.Preview>
-      <Embed.Modal
-        visible={showModal}
-        onDismiss={() => setShowModal(false)}
-        onPress={openLink}
-        height="auto"
-        width={250}
-      >
-        <YStack gap="$s">
-          <YStack
-            gap="$s"
-            borderLeftWidth={2}
-            borderColor="$border"
-            paddingLeft="$l"
-          >
-            <Text>{tweetDisplayText}</Text>
-            {firstPhoto && (
-              <Image
-                source={{ uri: firstPhoto.media_url_https }}
-                height={100}
-                width={100}
-              />
-            )}
-          </YStack>
-          <Text color="$tertiaryText">
-            {tweet.user.name} (@{tweet.user.screen_name})
-          </Text>
-        </YStack>
-      </Embed.Modal>
-    </Embed>
-  );
-};
+import { SkeletonLoader } from './SkeletonLoader';
 
 const GenericEmbed = ({
   provider,
@@ -198,6 +83,10 @@ const GenericEmbedFallback = ({
 
 export default function OutsideEmbed({ url }: { url: string }) {
   const { embed } = useEmbed(url);
+  const initialWebViewHeight = 300;
+  const [webViewHeight, setWebViewHeight] = useState(initialWebViewHeight);
+  const [isLoading, setIsLoading] = useState(true);
+  const webViewRef = useRef<WebView>(null);
   const isValid = validOembedCheck(embed, url);
   const fallBackProvider = url.split('/')[2].split('.')[1];
   const fallBackProviderName =
@@ -256,11 +145,122 @@ export default function OutsideEmbed({ url }: { url: string }) {
       `;
     }
 
-    console.log('OutsideEmbed', {
-      embedHtmlReturned,
-    });
     if (provider === 'Twitter') {
-      return <TwitterEmbed embedHtml={embedHtmlReturned} openLink={openLink} />;
+      // Get initial height based on estimated tweet content size
+      const wrappedHtml = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+              html, body { 
+                margin: 0; 
+                padding: 0; 
+                background: transparent;
+              }
+              .twitter-tweet { 
+                margin: 0 !important;
+              }
+              iframe {
+                width: 100% !important;
+                margin: 0 !important;
+              }
+            </style>
+            <script>
+              function checkForTwitterWidget() {
+                const tweetFrame = document.querySelector('iframe[id^="twitter-widget"]');
+                if (tweetFrame) {
+                  // Create resize observer to track iframe size changes
+                  const resizeObserver = new ResizeObserver((entries) => {
+                    for (const entry of entries) {
+                      const height = entry.contentRect.height;
+                      window.ReactNativeWebView.postMessage(JSON.stringify({ height }));
+                    }
+                  });
+                  
+                  resizeObserver.observe(tweetFrame);
+                  
+                  // Also send initial height
+                  window.ReactNativeWebView.postMessage(JSON.stringify({ 
+                    height: tweetFrame.offsetHeight 
+                  }));
+                } else {
+                  // Keep checking until Twitter widget appears
+                  setTimeout(checkForTwitterWidget, 100);
+                }
+              }
+              
+              // Start checking once page loads
+              window.addEventListener('load', checkForTwitterWidget);
+            </script>
+          </head>
+          <body>
+            ${embedHtmlReturned}
+          </body>
+        </html>
+      `;
+
+      return (
+        <>
+          {isLoading && (
+            <SkeletonLoader height={initialWebViewHeight} width={300} />
+          )}
+          <WebView
+            style={[
+              {
+                height: webViewHeight,
+                width: 300,
+              },
+              isLoading && {
+                position: 'absolute',
+                opacity: 0,
+                pointerEvents: 'none',
+              }
+            ]}
+          source={{ html: wrappedHtml }}
+          onMessage={(event) => {
+            try {
+              const data = JSON.parse(event.nativeEvent.data);
+              if (data.height) {
+                setWebViewHeight(data.height);
+                // Once we get the real height, we can show the content
+                setIsLoading(false);
+              }
+            } catch (e) {
+              console.warn('Failed to parse WebView message:', e);
+            }
+          }}
+          automaticallyAdjustContentInsets={false}
+          scrollEnabled={false}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          mixedContentMode="always"
+          onError={(syntheticEvent) => {
+            setIsLoading(false);
+            const { nativeEvent } = syntheticEvent;
+            console.warn('WebView error: ', nativeEvent);
+          }}
+          onHttpError={(syntheticEvent) => {
+            const { nativeEvent } = syntheticEvent;
+            console.warn(
+              `WebView received error status code: ${nativeEvent.statusCode}`
+            );
+          }}
+          onNavigationStateChange={(navState) => {
+            // If trying to navigate to a new URL
+            if (navState.url !== 'about:blank') {
+              // Prevent WebView navigation
+              webViewRef.current?.stopLoading();
+              // Open URL externally
+              Linking.openURL(navState.url);
+              return false;
+            }
+            return true;
+          }}
+          ref={webViewRef}
+        />
+        </>
+      );
     }
 
     return (
