@@ -90,6 +90,7 @@ export enum AnalyticsEvent {
   ActionUpdateChannelWriters = 'Updated Channel Writers',
   ActionViewProfileGroup = 'Viewed Pinned Profile Group',
   ActionSelectActivityEvent = 'Tapped Activity Event',
+  ActionsNotifPermsChecked = 'Checked Notification Permissions',
   GroupJoinComplete = 'Group Join Complete',
   ErrorSendPost = 'Error Sending Post',
   ErrorSendReply = 'Error Sending Thread Reply',
