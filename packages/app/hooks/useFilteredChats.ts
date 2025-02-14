@@ -6,7 +6,7 @@ import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 
-export type TabName = 'all' | 'groups' | 'messages';
+export type TabName = 'all' | 'home' | 'groups' | 'messages' | 'talk';
 
 export type SectionedChatData = {
   title: string;
@@ -104,10 +104,32 @@ function useChatSearch({
 }
 
 function filterChats(chats: db.Chat[], activeTab: TabName) {
-  if (activeTab === 'all') return chats;
   return chats.filter((chat) => {
-    const isGroup = chat.type === 'group';
-    return activeTab === 'groups' ? isGroup : !isGroup;
+    if (activeTab === 'groups') {
+      return chat.type === 'group';
+    }
+
+    if (activeTab === 'messages' || activeTab === 'talk') {
+      if (chat.type !== 'channel') {
+        return false;
+      }
+
+      return (
+        (activeTab === 'talk' && chat.channel.type === 'chat') ||
+        chat.channel.type === 'dm' ||
+        chat.channel.type === 'groupDm'
+      );
+    }
+
+    if (activeTab === 'home') {
+      return (
+        chat.type === 'group' ||
+        (chat.type === 'channel' && chat.channel.type === 'dm') ||
+        (chat.type === 'channel' && chat.channel.type === 'groupDm')
+      );
+    }
+
+    return true;
   });
 }
 
