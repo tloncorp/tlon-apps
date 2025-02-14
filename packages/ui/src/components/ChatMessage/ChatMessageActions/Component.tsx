@@ -35,7 +35,7 @@ export function ChatMessageActions({
   onViewReactions,
   onShowEmojiPicker,
   trigger,
-  onOpenChange
+  onOpenChange,
 }: ChatMessageActionsProps) {
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
@@ -154,13 +154,15 @@ export function ChatMessageActions({
           padding={1}
         >
           <YStack gap="$xs">
-            <XStack justifyContent="center">
-              <EmojiToolbar
-                post={post}
-                onDismiss={onDismiss}
-                openExternalSheet={onShowEmojiPicker}
-              />
-            </XStack>
+            {post.type === 'chat' && (
+              <XStack justifyContent="center">
+                <EmojiToolbar
+                  post={post}
+                  onDismiss={onDismiss}
+                  openExternalSheet={onShowEmojiPicker}
+                />
+              </XStack>
+            )}
             <MessageActions
               post={post}
               postActionIds={postActionIds}
