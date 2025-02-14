@@ -1,10 +1,12 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { compact } from 'lodash';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Linking, Platform } from 'react-native';
 
 import { trackError } from '../utils/posthog';
 import { connectNotifyProvider } from './notificationsApi';
@@ -41,6 +43,54 @@ async function requestNotificationPermissionsIfNeeded(): Promise<boolean> {
 
   return isGranted;
 }
+
+export const useNotificationPermissions = (): domain.NotifPerms => {
+  const [hasPermission, setHasPermission] = useState(false);
+  const [canAskPermission, setCanAskPermission] = useState(false);
+
+  const checkPermissions = async () => {
+    const permissionStatus = await Notifications.getPermissionsAsync();
+    setHasPermission(permissionStatus.status === 'granted');
+    setCanAskPermission(
+      permissionStatus.status === 'undetermined' || permissionStatus.canAskAgain
+    );
+  };
+
+  useEffect(() => {
+    checkPermissions();
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      () => {
+        checkPermissions();
+      }
+    );
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  // Function to request permissions
+  const requestPermissions = async () => {
+    await requestNotificationPermissionsIfNeeded();
+    await checkPermissions();
+  };
+
+  // Function to open device settings
+  const openSettings = () => {
+    if (Platform.OS === 'ios') {
+      Linking.openURL('app-settings:');
+    } else {
+      Linking.openSettings();
+    }
+  };
+
+  return {
+    hasPermission,
+    canAskPermission,
+    requestPermissions,
+    openSettings,
+  };
+};
 
 export const requestNotificationToken = async () => {
   // Skip if running on emulator
