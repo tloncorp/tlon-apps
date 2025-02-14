@@ -1,6 +1,4 @@
-import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import { YStack } from 'tamagui';
 
 import { ActionSheet } from './ActionSheet';
 import { SigilAvatar } from './Avatar';
@@ -30,10 +28,9 @@ export function StoppedNodePushSheet({
         >
           <SigilAvatar contactId="~latter-bolden" size="$9xl" renderDetail />
           <Text size="$label/l" paddingHorizontal="$2xl" textAlign="center">
-            Your P2P node is waking up after a deep sleep.
+            Your P2P node is waking up after a deep sleep.{' '}
             {!notifPerms.hasPermission && !notifPerms.canAskPermission ? (
               <>
-                {' '}
                 If you enable push notifications, we can let you know when it's
                 ready.
               </>
