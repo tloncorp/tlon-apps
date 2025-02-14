@@ -1,11 +1,13 @@
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import { syncContacts, syncGroup } from './sync';
 
 const logger = createDevLogger('ContactActions', false);
 
 export async function addContact(contactId: string) {
+  logger.trackEvent(AnalyticsEvent.ActionContactAdded, { count: 1 });
   // Optimistic update
   await db.updateContact({
     id: contactId,
@@ -23,6 +25,9 @@ export async function addContact(contactId: string) {
 }
 
 export async function addContacts(contacts: string[]) {
+  logger.trackEvent(AnalyticsEvent.ActionContactAdded, {
+    count: contacts.length,
+  });
   const optimisticUpdates = contacts.map((contactId) =>
     db.updateContact({
       id: contactId,
@@ -47,6 +52,7 @@ export async function addContacts(contacts: string[]) {
 }
 
 export async function removeContact(contactId: string) {
+  logger.trackEvent(AnalyticsEvent.ActionContactRemoved, { count: 1 });
   // Optimistic update
   await db.updateContact({ id: contactId, isContact: false });
 
@@ -60,6 +66,7 @@ export async function removeContact(contactId: string) {
 }
 
 export async function removeContactSuggestion(contactId: string) {
+  logger.trackEvent(AnalyticsEvent.ActionRemoveContactSuggestion, { count: 1 });
   // Optimistic update
   await db.updateContact({ id: contactId, isContactSuggestion: false });
 
@@ -224,6 +231,10 @@ export async function updateContactMetadata(
     avatarImage?: string | null;
   }
 ) {
+  logger.trackEvent(AnalyticsEvent.ActionContactEdited, {
+    hasCustomNickname: !!metadata.nickname,
+    hasCustomAvatar: !!metadata.avatarImage,
+  });
   const { nickname, avatarImage } = metadata;
 
   const existingContact = await db.getContact({ id: contactId });
@@ -272,6 +283,14 @@ export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
     peerAvatarImage: update.avatarImage,
   };
 
+  logger.trackEvent(AnalyticsEvent.ActionUpdatedProfile, {
+    editedNickname: !!update.nickname,
+    editedStatus: !!update.status,
+    editedBio: !!update.bio,
+    editedAvatarImage: !!update.avatarImage,
+    editedPinnedGroups: false,
+  });
+
   // Optimistic update
   await db.updateContact({ id: currentUserId, ...editedFields });
 
@@ -311,6 +330,11 @@ export async function removePinnedGroupFromProfile(groupId: string) {
 }
 
 export async function updateProfilePinnedGroups(newPinned: db.Group[]) {
+  logger.trackEvent(AnalyticsEvent.ActionUpdatedProfile, {
+    editedPinnedGroups: true,
+    pinnedGroupsCount: newPinned.length,
+  });
+
   const currentUserId = api.getCurrentUserId();
   const existingContact = await db.getContact({ id: currentUserId });
   const existingPinnedIds =
