@@ -312,12 +312,14 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
   contactId,
   contactOverride,
   innerSigilSize,
+  renderDetail,
   size = '$4xl',
   ...props
 }: {
   contactId: string;
   contactOverride?: db.Contact;
   innerSigilSize?: number;
+  renderDetail?: boolean;
 } & AvatarProps) {
   const dbContact = useContact(contactId);
   const contact = contactOverride ?? dbContact;
@@ -344,6 +346,7 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
         colors={colors}
         size={innerSigilSize ?? sigilSize * 0.5}
         contactId={contactId}
+        renderDetail={renderDetail}
       />
     </AvatarFrame>
   );

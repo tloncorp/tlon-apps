@@ -32,7 +32,15 @@ function UrbitSigil({
             background: colors?.backgroundColor,
           })
         : null,
-    [contactId, validId, size, colors?.foregroundColor, colors?.backgroundColor]
+    [
+      validId,
+      contactId,
+      renderDetail,
+      size,
+      padding,
+      colors?.foregroundColor,
+      colors?.backgroundColor,
+    ]
   );
   return sigilXml ? <UrbitSigilSvg xml={sigilXml} /> : null;
 }
