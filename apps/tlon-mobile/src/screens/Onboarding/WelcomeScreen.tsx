@@ -117,15 +117,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
                     navigation.navigate('PasteInviteLink');
                   }}
                 >
-                  <Button.Text>Claim invite</Button.Text>
-                </OnboardingButton>
-                <OnboardingButton
-                  secondary
-                  onPress={() => {
-                    navigation.navigate('JoinWaitList', {});
-                  }}
-                >
-                  <Button.Text>Join waitlist</Button.Text>
+                  <Button.Text>Sign up</Button.Text>
                 </OnboardingButton>
               </>
             )}
