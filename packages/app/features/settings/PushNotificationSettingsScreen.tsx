@@ -5,6 +5,7 @@ import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
 import {
   ChannelListItem,
+  ChatOptionsProvider,
   GroupListItem,
   Icon,
   ListItem,
@@ -15,10 +16,12 @@ import {
   View,
   XStack,
   YStack,
+  useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AppSettings'>;
@@ -26,6 +29,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AppSettings'>;
 export function PushNotificationSettingsScreen({ navigation }: Props) {
   const baseVolumeSetting = store.useBaseVolumeLevel();
   const { data: exceptions } = store.useVolumeExceptions();
+  const isWindowNarrow = useIsWindowNarrow();
 
   const numExceptions = useMemo(
     () => (exceptions?.channels.length ?? 0) + (exceptions?.groups.length ?? 0),
@@ -80,59 +84,67 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
   );
 
   return (
-    <View flex={1} backgroundColor="$background">
-      <ScreenHeader
-        title="Push Notifications"
-        backAction={() => navigation.goBack()}
-      />
-      <View marginTop="$m" marginHorizontal="$2xl" flex={1}>
-        <SizableText marginLeft="$m" marginTop="$xl" size="$m">
-          Configure what kinds of messages will send you notifications.
-        </SizableText>
+    <ChatOptionsProvider {...useChatSettingsNavigation()}>
+      <View flex={1} backgroundColor="$background">
+        <ScreenHeader
+          title="Push Notifications"
+          backAction={() => navigation.goBack()}
+        />
+        <View
+          marginTop="$m"
+          marginHorizontal={isWindowNarrow ? '$2xl' : 'auto'}
+          width="100%"
+          maxWidth={600}
+          flex={1}
+        >
+          <SizableText marginLeft="$m" marginTop="$xl" size="$m">
+            Configure what kinds of messages will send you notifications.
+          </SizableText>
 
-        <YStack marginLeft="$m" marginTop="$3xl">
-          <Pressable onPress={() => setLevel('medium')}>
-            <XStack>
-              <LevelIndicator levels={['loud', 'medium']} />
-              <SizableText marginLeft="$l">All group activity</SizableText>
-            </XStack>
-          </Pressable>
+          <YStack marginLeft="$m" marginTop="$3xl">
+            <Pressable onPress={() => setLevel('medium')}>
+              <XStack>
+                <LevelIndicator levels={['loud', 'medium']} />
+                <SizableText marginLeft="$l">All group activity</SizableText>
+              </XStack>
+            </Pressable>
 
-          <Pressable marginTop="$xl" onPress={() => setLevel('soft')}>
-            <XStack>
-              <LevelIndicator levels={['soft', 'default']} />
-              <YStack marginLeft="$l">
-                <SizableText>Mentions and replies only</SizableText>
-                <SizableText
-                  width="80%"
-                  marginTop="$m"
-                  size="$s"
-                  color="$secondaryText"
-                >
-                  Direct messages will still notify unless you mute them.
-                </SizableText>
-              </YStack>
-            </XStack>
-          </Pressable>
+            <Pressable marginTop="$xl" onPress={() => setLevel('soft')}>
+              <XStack>
+                <LevelIndicator levels={['soft', 'default']} />
+                <YStack marginLeft="$l">
+                  <SizableText>Mentions and replies only</SizableText>
+                  <SizableText
+                    width="80%"
+                    marginTop="$m"
+                    size="$s"
+                    color="$secondaryText"
+                  >
+                    Direct messages will still notify unless you mute them.
+                  </SizableText>
+                </YStack>
+              </XStack>
+            </Pressable>
 
-          <Pressable marginTop="$xl" onPress={() => setLevel('hush')}>
-            <XStack>
-              <LevelIndicator levels={['hush']} />
-              <SizableText marginLeft="$l">Nothing</SizableText>
-            </XStack>
-          </Pressable>
-        </YStack>
+            <Pressable marginTop="$xl" onPress={() => setLevel('hush')}>
+              <XStack>
+                <LevelIndicator levels={['hush']} />
+                <SizableText marginLeft="$l">Nothing</SizableText>
+              </XStack>
+            </Pressable>
+          </YStack>
 
-        {numExceptions > 0 ? (
-          <ExceptionsDisplay
-            marginTop="$2xl"
-            channels={exceptions?.channels ?? []}
-            groups={exceptions?.groups ?? []}
-            removeException={removeException}
-          />
-        ) : null}
+          {numExceptions > 0 ? (
+            <ExceptionsDisplay
+              marginTop="$2xl"
+              channels={exceptions?.channels ?? []}
+              groups={exceptions?.groups ?? []}
+              removeException={removeException}
+            />
+          ) : null}
+        </View>
       </View>
-    </View>
+    </ChatOptionsProvider>
   );
 }
 

@@ -11,7 +11,6 @@ import { TlonLogo } from './TlonLogo';
 interface Props {
   currentUserId: string;
   hasHostedAuth: boolean;
-  onProfilePressed?: () => void;
   onAppInfoPressed?: () => void;
   onNotificationSettingsPressed: () => void;
   onBlockedUsersPressed: () => void;
@@ -24,7 +23,7 @@ interface Props {
   onBackPressed?: () => void;
 }
 
-export function ProfileScreenView(props: Props) {
+export function SettingsScreenView(props: Props) {
   // TODO: Add logout back in when we figure out TLON-2098.
   const handleLogoutPressed = () => {
     Alert.alert('Log out from Tlon', 'Are you sure you want to log out?', [
@@ -45,20 +44,20 @@ export function ProfileScreenView(props: Props) {
       <ScreenHeader title="Settings" backAction={props.onBackPressed} />
       <ScrollView>
         <YStack flex={1} padding="$l" gap="$s">
-          <ProfileAction
+          <SettingsAction
             title="Notification settings"
             leftIcon="Notifications"
             rightIcon={'ChevronRight'}
             onPress={props.onNotificationSettingsPressed}
           />
-          <ProfileAction
+          <SettingsAction
             title="Blocked users"
             leftIcon="Placeholder"
             rightIcon={'ChevronRight'}
             onPress={props.onBlockedUsersPressed}
           />
           {props.hasHostedAuth && (
-            <ProfileAction
+            <SettingsAction
               title="Manage Tlon account"
               rightIcon={'ChevronRight'}
               leftIcon={
@@ -77,31 +76,31 @@ export function ProfileScreenView(props: Props) {
               onPress={props.onManageAccountPressed}
             />
           )}
-          <ProfileAction
+          <SettingsAction
             title="Theme"
             leftIcon="ChannelGalleries"
             rightIcon={'ChevronRight'}
             onPress={props.onThemePressed}
           />
-          <ProfileAction
+          <SettingsAction
             title="App info"
             leftIcon="Info"
             rightIcon={'ChevronRight'}
             onPress={props.onAppInfoPressed}
           />
-          <ProfileAction
+          <SettingsAction
             title="Report a bug"
             leftIcon="Send"
             rightIcon={'ChevronRight'}
             onPress={props.onSendBugReportPressed}
           />
-          <ProfileAction
+          <SettingsAction
             title="Experimental features"
             leftIcon="Bang"
             rightIcon={'ChevronRight'}
             onPress={props.onExperimentalFeaturesPressed}
           />
-          <ProfileAction
+          <SettingsAction
             title="Log out"
             leftIcon="LogOut"
             onPress={handleLogoutPressed}
@@ -112,7 +111,7 @@ export function ProfileScreenView(props: Props) {
   );
 }
 
-function ProfileAction({
+function SettingsAction({
   leftIcon,
   rightIcon,
   title,

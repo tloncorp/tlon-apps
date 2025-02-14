@@ -96,39 +96,43 @@ export function UserProfileScreenView(props: Props) {
           ) : null
         }
       />
-      <ScrollView
-        flex={1}
-        contentContainerStyle={{
-          padding: '$l',
-          gap: '$l',
-          paddingBottom: insets.bottom,
-          flexWrap: 'wrap',
-          flexDirection: 'row',
-        }}
-      >
-        <UserInfoRow
-          userId={props.userId}
-          hasNickname={!!userContact?.nickname?.length}
-        />
-        {userContact?.status && <View width="100%"></View>}
+      <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
+        <ScrollView
+          flex={1}
+          contentContainerStyle={{
+            padding: '$l',
+            gap: '$l',
+            paddingBottom: insets.bottom + 20,
+            flexWrap: 'wrap',
+            flexDirection: 'row',
+          }}
+        >
+          <UserInfoRow
+            userId={props.userId}
+            hasNickname={!!userContact?.nickname?.length}
+          />
+          {userContact?.status && <View width="100%"></View>}
 
-        {currentUserId !== props.userId ? (
-          <ProfileButtons userId={props.userId} contact={userContact} />
-        ) : null}
+          {currentUserId !== props.userId ? (
+            <ProfileButtons userId={props.userId} contact={userContact} />
+          ) : null}
 
-        {userContact?.status && (
-          <StatusDisplay status={userContact?.status ?? ''} />
-        )}
-        <BioDisplay bio={userContact?.bio ?? ''} />
+          {userContact?.status && (
+            <StatusDisplay status={userContact?.status ?? ''} />
+          )}
+          <BioDisplay bio={userContact?.bio ?? ''} />
 
-        <StatusBlock status={nodeStatus} label="Node" />
-        <StatusBlock status={sponsorStatus} label="Sponsor" />
+          <XStack gap="$l" width="100%">
+            <StatusBlock status={nodeStatus} label="Node" />
+            <StatusBlock status={sponsorStatus} label="Sponsor" />
+          </XStack>
 
-        <PinnedGroupsDisplay
-          groups={pinnedGroups}
-          onPressGroup={onPressGroup}
-        />
-      </ScrollView>
+          <PinnedGroupsDisplay
+            groups={pinnedGroups}
+            onPressGroup={onPressGroup}
+          />
+        </ScrollView>
+      </View>
     </View>
   );
 }
@@ -145,6 +149,7 @@ function StatusBlock({
 
   return (
     <PaddedBlock
+      flex={1}
       padding="$2xl"
       width={isWindowNarrow ? (windowDimensions.width - 36) / 2 : '100%'}
       gap="$2xl"

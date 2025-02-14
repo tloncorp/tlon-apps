@@ -48,7 +48,14 @@ export function UserBugReportScreen({ navigation }: Props) {
         title="Report a bug"
         backAction={() => navigation.goBack()}
       />
-      <KeyboardAvoidingView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{
+          flex: 1,
+          width: '100%',
+          maxWidth: 600,
+          marginHorizontal: 'auto',
+        }}
+      >
         <ScrollView flex={1} keyboardDismissMode="on-drag">
           <FormFrame>
             <FormText>

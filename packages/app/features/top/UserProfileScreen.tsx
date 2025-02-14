@@ -1,4 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { View, getVariableValue } from '@tamagui/core';
 import type * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
@@ -8,6 +9,8 @@ import {
   GroupPreviewSheet,
   NavigationProvider,
   UserProfileScreenView,
+  useIsWindowNarrow,
+  useTheme,
 } from '@tloncorp/ui';
 import { useState } from 'react';
 import { useCallback } from 'react';
@@ -20,10 +23,12 @@ import { useConnectionStatus } from './useConnectionStatus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
-export function UserProfileScreen({ route: { params }, navigation }: Props) {
-  const userId = params.userId;
+export function UserProfileScreen({ route, navigation }: Props) {
+  const { params } = route;
+  const isWindowNarrow = useIsWindowNarrow();
   const { performGroupAction } = useGroupActions();
   const currentUserId = useCurrentUserId();
+  const userId = params?.userId || currentUserId;
   const { data: contacts } = store.useContacts();
   const connectionStatus = useConnectionStatus(userId);
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
@@ -44,7 +49,12 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
   );
 
   const handlePressEdit = useCallback(() => {
-    navigation.push('EditProfile', { userId });
+    if (isWindowNarrow) {
+      navigation.push('EditProfile', { userId });
+      return;
+    }
+
+    navigation.navigate('EditProfile', { userId });
   }, [navigation, userId]);
 
   const canUpload = store.useCanUpload();

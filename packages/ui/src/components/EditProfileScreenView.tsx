@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, XStack } from 'tamagui';
+import { ScrollView, View, XStack, useTheme } from 'tamagui';
 
 import { useContact, useCurrentUserId, useStore } from '../contexts';
 import { SigilAvatar } from './Avatar';
@@ -26,6 +26,7 @@ interface Props {
 
 export function EditProfileScreenView(props: Props) {
   const store = useStore();
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
   const userContact = useContact(props.userId);
@@ -150,7 +151,7 @@ export function EditProfileScreenView(props: Props) {
   }, []);
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor={theme.background.val}>
       <ScreenHeader
         title="Edit Profile"
         leftControls={
@@ -170,8 +171,14 @@ export function EditProfileScreenView(props: Props) {
       />
 
       <KeyboardAvoidingView>
-        <ScrollView keyboardDismissMode="on-drag">
-          <FormFrame paddingBottom={insets.bottom}>
+        <ScrollView
+          keyboardDismissMode="on-drag"
+          flex={1}
+          width="100%"
+          maxWidth={600}
+          marginHorizontal="auto"
+        >
+          <FormFrame paddingBottom={insets.bottom + 20}>
             <XStack alignItems="flex-end" gap="$m">
               <View flex={1}>
                 <ControlledTextField
@@ -196,7 +203,10 @@ export function EditProfileScreenView(props: Props) {
                         }
                       : undefined
                   }
-                  inputProps={{ placeholder: nicknamePlaceholder, testID: 'ProfileNicknameInput' }}
+                  inputProps={{
+                    placeholder: nicknamePlaceholder,
+                    testID: 'ProfileNicknameInput',
+                  }}
                   rules={{
                     maxLength: {
                       value: 30,
