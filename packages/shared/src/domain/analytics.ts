@@ -42,6 +42,7 @@ export enum AnalyticsEvent {
   OnNetworkInvite = 'Sent On Network Group Invite',
   UserLoggedIn = 'User Logged In',
   NodeAuthSaved = 'Node Auth Saved',
+  AnalyticsDigest = 'Usage Digest Report',
   ActionContactAdded = 'Contact Added',
   ActionContactRemoved = 'Contact Removed',
   ActionRemoveContactSuggestion = 'Removed Contact Suggestion',
@@ -98,4 +99,17 @@ export enum AnalyticsEvent {
   ErrorReact = 'Error Reacting to Post',
   ErrorUnreact = 'Error Removing Reaction from Post',
   ErrorPushNotifNavigate = 'Error Navigating to Push Channel',
+  ErrorDigestFailed = 'Error Preparing Usage Digest',
+}
+
+export interface AnalyticsDigest {
+  numContacts?: number | null;
+  numGroups?: number | null;
+  numGroupchats?: number | null;
+  numGroupsHosted?: number | null;
+  numChannels?: number | null;
+  numDms?: number | null;
+  numLegacyGroupDms?: number | null;
+  numGalleries?: number | null;
+  numNotebooks?: number | null;
 }

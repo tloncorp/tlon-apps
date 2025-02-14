@@ -15,7 +15,7 @@ import * as db from '@tloncorp/shared/db';
 import { PortalProvider, ZStack } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 
-import { useCheckAppUpdated } from '../hooks/analytics';
+import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';
 import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
@@ -45,6 +45,7 @@ function AuthenticatedApp() {
         telemetry.captureAppActive();
         checkNodeStopped();
         refreshHostingAuth();
+        checkAnalyticsDigest();
       }
     },
     [checkNodeStopped, telemetry]
