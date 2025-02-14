@@ -5,9 +5,10 @@ import * as store from '@tloncorp/shared/store';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { compact } from 'lodash';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Linking, Platform } from 'react-native';
 
+import { AppStatus, useAppStatusChange } from '../hooks/useAppStatusChange';
 import { trackError } from '../utils/posthog';
 import { connectNotifyProvider } from './notificationsApi';
 
@@ -45,6 +46,7 @@ async function requestNotificationPermissionsIfNeeded(): Promise<boolean> {
 }
 
 export const useNotificationPermissions = (): domain.NotifPerms => {
+  const [initialized, setInitialized] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
   const [canAskPermission, setCanAskPermission] = useState(false);
 
@@ -54,6 +56,9 @@ export const useNotificationPermissions = (): domain.NotifPerms => {
     setCanAskPermission(
       permissionStatus.status === 'undetermined' || permissionStatus.canAskAgain
     );
+    if (!initialized) {
+      setInitialized(true);
+    }
   };
 
   useEffect(() => {
@@ -69,13 +74,11 @@ export const useNotificationPermissions = (): domain.NotifPerms => {
     };
   }, []);
 
-  // Function to request permissions
   const requestPermissions = async () => {
     await requestNotificationPermissionsIfNeeded();
     await checkPermissions();
   };
 
-  // Function to open device settings
   const openSettings = () => {
     if (Platform.OS === 'ios') {
       Linking.openURL('app-settings:');
@@ -84,7 +87,16 @@ export const useNotificationPermissions = (): domain.NotifPerms => {
     }
   };
 
+  const handleAppActive = useCallback((status: AppStatus) => {
+    if (status === 'active') {
+      // if we came back from background, recheck permissions
+      checkPermissions();
+    }
+  }, []);
+  useAppStatusChange(handleAppActive);
+
   return {
+    initialized,
     hasPermission,
     canAskPermission,
     requestPermissions,

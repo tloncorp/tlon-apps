@@ -17,16 +17,10 @@ interface Props {
 export function StoppedNodePushSheet({
   open,
   onOpenChange,
-  currentUserId,
   notifPerms,
 }: Props) {
   return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      // snapPointsMode="percent"
-      // snapPoints={[50]}
-    >
+    <ActionSheet open={open} onOpenChange={onOpenChange}>
       <ActionSheet.Content paddingBottom={20}>
         <ActionSheet.ContentBlock
           alignItems="center"
@@ -40,7 +34,7 @@ export function StoppedNodePushSheet({
             {!notifPerms.hasPermission && !notifPerms.canAskPermission ? (
               <>
                 {' '}
-                If you enable notifications, we can let you know when it's
+                If you enable push notifications, we can let you know when it's
                 ready.
               </>
             ) : (
@@ -57,7 +51,7 @@ export function StoppedNodePushSheet({
           >
             <Button.Text>
               {!notifPerms.hasPermission && !notifPerms.canAskPermission
-                ? `Go to notification settings`
+                ? `View notification settings`
                 : `Notify me when it's ready`}
             </Button.Text>
           </Button>

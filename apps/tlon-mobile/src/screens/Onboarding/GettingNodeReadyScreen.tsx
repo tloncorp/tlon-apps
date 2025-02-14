@@ -12,7 +12,7 @@ import {
   scheduleNodeResumeNudge,
   useNotificationPermissions,
 } from '@tloncorp/app/lib/notifications';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   AppDataContextProvider,
@@ -20,6 +20,8 @@ import {
   ListItem,
   LoadingSpinner,
   OnboardingTextBlock,
+  Pressable,
+  ScreenHeader,
   StoppedNodePushSheet,
   TlonText,
   View,
@@ -50,32 +52,59 @@ export function GettingNodeReadyScreen({
   navigation,
   route: { params },
 }: Props) {
-  // const [progress, setProgress] = useState(0);
   const isFocused = useIsFocused();
   const lastWasFocused = useRef(true);
   const { setShip } = useShip();
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const [loggingOut, setLoggingOut] = useState(false);
+  const hostedNodeId = db.hostedUserNodeId.useValue();
+
+  // Handle state for the progress indicaors
   const { progress, updateProgress, resetProgress } = useStagedProgress(
     0,
     params.waitType === 'Paused' ? 'fast' : 'slow'
   );
+
+  // Handle notification permissions and sending the node resume nudge
   const notifPerms = useNotificationPermissions();
   const [permSheetOpen, setPermSheetOpen] = useState(true);
-  const hostedNodeId = db.hostedUserNodeId.useValue();
+  const [permsInitHandled, setPermsInitHandled] = useState(false);
+  useEffect(() => {
+    // handle initialization
+    if (notifPerms.initialized && !permsInitHandled) {
+      const shouldPopPermsSheet = !notifPerms.hasPermission;
+      setPermSheetOpen(shouldPopPermsSheet);
+      setPermsInitHandled(true);
+    }
+  }, [notifPerms, permsInitHandled]);
+
+  useEffect(() => {
+    if (notifPerms.hasPermission && hostedNodeId) {
+      scheduleNodeResumeNudge(hostedNodeId).catch((err) => {
+        logger.trackEvent(AnalyticsEvent.ErrorNodeResumePush, {
+          errorMessage: err.message,
+          context: 'while scheduling from GettingNodeReadyScreen',
+        });
+      });
+    }
+  }, [hostedNodeId, notifPerms.hasPermission]);
+
+  // Handle stopped node sequence
   const { phase, shipInfo, resetSequence } = useStoppedNodeSequence({
     waitType: params.waitType,
     enabled: isFocused,
   });
-
   const lastUpdatedPhase = useRef<null | NodeResumeState>(null);
   useEffect(() => {
     if (lastUpdatedPhase.current !== phase) {
-      console.log('bl: effect running', phase);
       lastUpdatedPhase.current = phase;
       if (phase === NodeResumeState.UnderMaintenance) {
-        navigation.navigate('UnderMaintenance');
+        // Important! Always close the sheet before navigating
+        setPermSheetOpen(false);
+        setTimeout(() => {
+          navigation.navigate('UnderMaintenance');
+        }, 200);
       }
 
       if (phase === NodeResumeState.Authenticating) {
@@ -84,6 +113,7 @@ export function GettingNodeReadyScreen({
 
       if (phase === NodeResumeState.Ready && shipInfo) {
         updateProgress(3);
+        // Important! Always close the sheet before navigating
         setPermSheetOpen(false);
         setTimeout(() => {
           setShip(shipInfo);
@@ -92,9 +122,9 @@ export function GettingNodeReadyScreen({
     }
   }, [navigation, phase, setShip, shipInfo, updateProgress]);
 
+  // If we came back to this screen, make sure we reset
   useEffect(() => {
     if (isFocused && !lastWasFocused.current) {
-      // if we came back to this screen, make sure the sequence starts over
       resetProgress();
       resetSequence();
       lastUpdatedPhase.current = null;
@@ -106,17 +136,12 @@ export function GettingNodeReadyScreen({
     setLoggingOut(true);
     await db.nodeStoppedWhileLoggedIn.setValue(false);
     await handleLogout();
-    navigation.navigate('Welcome');
+    // Important! Always close the sheet before navigating
+    setPermSheetOpen(false);
+    setTimeout(() => {
+      navigation.navigate('Welcome');
+    }, 200);
   }, [handleLogout, navigation]);
-
-  // const hostedUserNodeId = db.hostedUserNodeId.useValue();
-  // useEffect(() => {
-  //   if (hostedUserNodeId) {
-  //     scheduleNodeResumeNudge(hostedUserNodeId).catch((err) => {
-  //       console.error('Error scheduling node resume nudge', err);
-  //     });
-  //   }
-  // }, [hostedUserNodeId]);
 
   useEffect(() => {
     if (notifPerms.hasPermission) {
@@ -133,16 +158,9 @@ export function GettingNodeReadyScreen({
 
   return (
     <AppDataContextProvider>
-      <YStack
-        flex={1}
-        backgroundColor="$secondaryBackground"
-        paddingTop={insets.top}
-        paddingBottom={insets.bottom}
-        justifyContent="space-between"
-      >
-        {/* <ScreenHeader
-          // title={params.wasLoggedIn ? 'Node Stopped' : 'Starting Your Node'}
-          leftControls={
+      <View flex={1} backgroundColor="$secondaryBackground">
+        <ScreenHeader
+          rightControls={
             <ScreenHeader.TextButton
               onPress={onLogout}
               disabled={loggingOut}
@@ -152,87 +170,67 @@ export function GettingNodeReadyScreen({
             </ScreenHeader.TextButton>
           }
           showSessionStatus={false}
-        /> */}
-        <ProgressBar progress={progress} />
-
-        <YStack marginHorizontal="$xl">
-          <OnboardingTextBlock marginTop="$3xl" gap="$5xl">
-            <ArvosDiscussing width="100%" height={200} />
-          </OnboardingTextBlock>
-          <OnboardingTextBlock>
-            <TlonText.Text textAlign="center" size="$label/l">
-              Your P2P node is waking up after a deep sleep. This usually takes{' '}
-              {params.waitType === 'Paused' ? 'just a minute' : 'a few minutes'}
-              .
-            </TlonText.Text>
-          </OnboardingTextBlock>
-        </YStack>
-
-        <YStack marginHorizontal="$3xl" gap="$3xl" paddingBottom="$l">
-          <ListItem backgroundColor="$background">
-            <ListItem.SystemIcon
-              icon="ChannelGalleries"
-              backgroundColor="unset"
-              color="$primaryText"
-            />
-            <ListItem.MainContent>
-              <ListItem.Title>{BOTTOM_WIDGET_TITLES[progress]}</ListItem.Title>
-            </ListItem.MainContent>
-            <ListItem.EndContent width="$3xl" alignItems="center">
-              {progress === 3 ? (
-                <ListItem.SystemIcon
-                  icon="Checkmark"
-                  backgroundColor="unset"
-                  color="$secondaryText"
-                />
-              ) : (
-                <LoadingSpinner size="small" />
-              )}
-            </ListItem.EndContent>
-          </ListItem>
-          <Text size="$label/s" color="$secondaryText" textAlign="center">
-            Feel free to close TM if this takes too long. We’ll send you a
-            notification when your urbit is ready.
-          </Text>
-        </YStack>
-
-        {/* <YStack padding="$m" marginTop="$3xl">
-          <ListItem backgroundColor="unset">
-            <ListItem.SystemIcon color="$primaryText" icon="Bang" />
-            <ListItem.MainContent>
-              <ListItem.Title>Waiting for node to start</ListItem.Title>
-            </ListItem.MainContent>
-            <ListItem.EndContent width="$3xl" alignItems="center">
-              {phase === NodeResumeState.WaitingForRunning && (
-                <LoadingSpinner size="small" />
-              )}
-              {phase !== NodeResumeState.WaitingForRunning && (
-                <ListItem.SystemIcon icon="Checkmark" />
-              )}
-            </ListItem.EndContent>
-          </ListItem>
-          <ListItem backgroundColor="unset">
-            <ListItem.SystemIcon color="$primaryText" icon="Link" />
-            <ListItem.MainContent>
-              <ListItem.Title>Establishing a connection</ListItem.Title>
-            </ListItem.MainContent>
-            <ListItem.EndContent width="$3xl" alignItems="center">
-              {phase === NodeResumeState.Authenticating && (
-                <LoadingSpinner size="small" />
-              )}
-              {phase === NodeResumeState.Ready && (
-                <ListItem.SystemIcon icon="Checkmark" />
-              )}
-            </ListItem.EndContent>
-          </ListItem>
-        </YStack> */}
-        <StoppedNodePushSheet
-          notifPerms={notifPerms}
-          open={permSheetOpen}
-          onOpenChange={() => setPermSheetOpen(false)}
-          currentUserId={hostedNodeId || '~zod'}
         />
-      </YStack>
+        <YStack
+          flex={1}
+          paddingBottom={insets.bottom}
+          justifyContent="space-between"
+        >
+          <ProgressBar progress={progress} />
+
+          <YStack marginHorizontal="$xl">
+            <OnboardingTextBlock marginTop="$3xl" gap="$5xl">
+              <ArvosDiscussing width="100%" height={200} />
+            </OnboardingTextBlock>
+            <OnboardingTextBlock>
+              <TlonText.Text textAlign="center" size="$label/l">
+                Your P2P node is waking up after a deep sleep. This usually
+                takes{' '}
+                {params.waitType === 'Paused'
+                  ? 'just a minute'
+                  : 'a few minutes'}
+                .
+              </TlonText.Text>
+            </OnboardingTextBlock>
+          </YStack>
+
+          <YStack marginHorizontal="$3xl" gap="$3xl" paddingBottom="$l">
+            <ListItem backgroundColor="$background">
+              <ListItem.SystemIcon
+                icon="ChannelGalleries"
+                backgroundColor="unset"
+                color="$primaryText"
+              />
+              <ListItem.MainContent>
+                <ListItem.Title>
+                  {BOTTOM_WIDGET_TITLES[progress]}
+                </ListItem.Title>
+              </ListItem.MainContent>
+              <ListItem.EndContent width="$3xl" alignItems="center">
+                {progress === 3 ? (
+                  <ListItem.SystemIcon
+                    icon="Checkmark"
+                    backgroundColor="unset"
+                    color="$secondaryText"
+                  />
+                ) : (
+                  <LoadingSpinner size="small" />
+                )}
+              </ListItem.EndContent>
+            </ListItem>
+            <Text size="$label/s" color="$secondaryText" textAlign="center">
+              Feel free to close TM if this takes too long. We’ll send you a
+              notification when your node is ready.
+            </Text>
+          </YStack>
+          <StoppedNodePushSheet
+            notifPerms={notifPerms}
+            open={permSheetOpen}
+            onOpenChange={() => setPermSheetOpen(false)}
+            currentUserId={hostedNodeId || '~zod'}
+          />
+        </YStack>
+      </View>
     </AppDataContextProvider>
   );
 }
@@ -243,16 +241,11 @@ function ProgressBar(props: { progress: number; onPressLogout?: () => void }) {
     []
   );
   return (
-    <YStack marginTop="$xl" gap="$xl" marginHorizontal="$xl">
+    <YStack marginTop="$s" gap="$xl" marginHorizontal="$xl">
       <XStack justifyContent="space-between" width="100%">
         <Text size="$label/l" fontWeight="500">
           {PROGRESS_BAR_TITLES[props.progress]}
         </Text>
-        {/* <Pressable onPress={props.onPressLogout}>
-          <Text size="$label/l" fontWeight="500" color="$secondaryText">
-            Logout
-          </Text>
-        </Pressable> */}
       </XStack>
       <XStack width="100%" gap="$s">
         {PROGRESS_BAR_TITLES.map((step, i) => (
@@ -297,7 +290,6 @@ export const useStagedProgress = (
 
     const newTimeouts = stages.map((stage) => {
       return setTimeout(() => {
-        console.log(`timeout running for progress ${stage.time}`);
         setProgress((currentProgress) =>
           // Only update if the staged progress is higher than current
           stage.progress > currentProgress ? stage.progress : currentProgress
@@ -317,7 +309,6 @@ export const useStagedProgress = (
 
   // Initial setup
   useEffect(() => {
-    console.log('scaffold running');
     setupTimeouts();
 
     return () => {
