@@ -358,8 +358,8 @@ export const getChats = createReadQuery(
     });
 
     const channels = await ctx.db.query.channels.findMany({
-      where: isNull($channels.groupId),
       with: {
+        group: true,
         volumeSettings: true,
         unread: true,
         members: {
