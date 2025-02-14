@@ -83,6 +83,7 @@ export * from './components/WelcomeSheet';
 export * from './components/Image';
 export * from './components/ArvosDiscussing';
 export * from './components/PersonalInviteSheet';
+export * from './components/StoppedNodePushSheet';
 export * as Form from './components/Form';
 export * from './contexts';
 export { PostCollectionContext } from './contexts/postCollection';

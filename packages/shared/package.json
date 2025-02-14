@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./api": "./src/api/index.ts",
     "./client": "./src/client/index.ts",
+    "./domain": "./src/domain/index.ts",
     "./db": "./src/db/index.ts",
     "./db/client": "./src/db/client.ts",
     "./db/migrations": "./src/db/migrations/index.ts",

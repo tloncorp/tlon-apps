@@ -54,9 +54,7 @@ export async function fetchVerifications(): Promise<db.Verification[]> {
     app: 'lanyard',
     path: '/records',
   });
-  console.log(`bl: scry result`, result);
   const records = getRecords(result);
-  console.log(`bl: records`, records);
 
   return records;
 }
