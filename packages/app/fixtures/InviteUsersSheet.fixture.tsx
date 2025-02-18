@@ -11,7 +11,7 @@ export default {
           open
           onOpenChange={() => {}}
           onInviteComplete={() => {}}
-          group={group}
+          groupId={group.id}
         />
       </AppDataContextProvider>
     </FixtureWrapper>

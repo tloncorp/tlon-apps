@@ -7,11 +7,7 @@ import { group } from '../fakeData';
 export default (
   <QueryClientProvider client={queryClient}>
     <AppDataContextProvider contacts={[]}>
-      <CreateChannelSheet
-        group={group}
-        onOpenChange={() => {}}
-        enableCustomChannels={false}
-      />
+      <CreateChannelSheet group={group} onOpenChange={() => {}} />
     </AppDataContextProvider>
   </QueryClientProvider>
 );

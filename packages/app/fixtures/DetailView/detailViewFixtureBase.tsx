@@ -47,13 +47,11 @@ export const DetailViewFixture = ({
             groupMembers={[]}
             negotiationMatch={true}
             editPost={async () => {}}
-            uploadAsset={async () => {}}
-            storeDraft={() => {}}
-            clearDraft={() => {}}
+            storeDraft={async () => {}}
+            clearDraft={async () => {}}
             getDraft={async () => ({})}
             goBack={() => {}}
             markRead={() => {}}
-            canUpload={true}
             handleGoToUserProfile={() => {}}
             headerMode="default"
             onPressRef={() => {}}

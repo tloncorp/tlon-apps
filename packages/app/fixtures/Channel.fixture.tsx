@@ -118,8 +118,8 @@ const baseProps: ComponentProps<typeof Channel> = {
   useGroup: useGroupPreview,
   onGroupAction: () => {},
   getDraft: async () => ({}),
-  storeDraft: () => {},
-  clearDraft: () => {},
+  storeDraft: async () => {},
+  clearDraft: async () => {},
   onPressRetry: async () => {},
   onPressDelete: () => {},
 } as const;
