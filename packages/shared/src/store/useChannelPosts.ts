@@ -174,6 +174,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     db.getUnconfirmedPosts({ channelId: options.channelId }).then(
       setUnconfirmedPosts
     );
+    setNewPosts([]);
   }, [options.channelId]);
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const rawPostsWithoutUnconfirmeds = (() => {

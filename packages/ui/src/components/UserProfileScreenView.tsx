@@ -11,6 +11,7 @@ import {
 import { LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  Circle,
   ScrollView,
   View,
   XStack,

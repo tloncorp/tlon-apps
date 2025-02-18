@@ -1,3 +1,5 @@
+import { Atom, Noun, cue, jam } from '@urbit/nockjs';
+
 export function camelize(str: string) {
   return str
     .replace(/\s(.)/g, function ($1: string) {
@@ -15,6 +17,18 @@ export function uncamelize(str: string, separator = '-') {
     return separator + letter.toLowerCase();
   });
   return str.replace(new RegExp('^' + separator), '');
+}
+
+export async function unpackJamBytes(buf: ArrayBuffer): Promise<Noun> {
+  const hex = [...new Uint8Array(buf)]
+    .reverse() //  endianness shenanigans
+    .map((x) => x.toString(16).padStart(2, '0'))
+    .join('');
+  return cue(Atom.fromString(hex, 16));
+}
+
+export function packJamBytes(non: Noun): BodyInit {
+  return new Uint8Array(jam(non).bytes());
 }
 
 /**

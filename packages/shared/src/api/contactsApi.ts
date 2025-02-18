@@ -1,3 +1,5 @@
+import { daToUnix, parseDa } from '@urbit/aura';
+
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
@@ -283,6 +285,21 @@ export const v0PeerToClientProfile = (
     isContactSuggestion: config?.isContactSuggestion && id !== currentUserId,
   };
 };
+
+function contactVerifyToClientForm(
+  contact?: ub.Contact | ub.ContactBookProfile | null
+): Partial<db.Contact> {
+  if (!contact) {
+    return {};
+  }
+  return {
+    hasVerifiedPhone: contact['lanyard-tmp-phone-sign']?.value ? true : false,
+    verifiedPhoneSignature: contact['lanyard-tmp-phone-sign']?.value ?? null,
+    verifiedPhoneAt: contact['lanyard-tmp-phone-since']?.value
+      ? daToUnix(parseDa(contact['lanyard-tmp-phone-since'].value))
+      : null,
+  };
+}
 
 export const v1PeersToClientProfiles = (
   peers: ub.ContactsAllScryResult1,
