@@ -24,3 +24,4 @@ export * from './components/View';
 export * from './contexts/globalSearch';
 export { useCopy } from './hooks/useCopy';
 export { default as useIsWindowNarrow } from './hooks/useIsWindowNarrow';
+export * from './utils/indexPure';
