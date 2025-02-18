@@ -82,9 +82,10 @@ const HeaderIconButton = styled(Icon, {
   },
 });
 
-const HeaderButtonText = styled(Text, {
+const HeaderTextButton = styled(Text, {
   size: '$label/2xl',
   paddingHorizontal: '$s',
+  cursor: 'pointer',
   pressStyle: {
     opacity: 0.5,
   },
@@ -96,19 +97,6 @@ const HeaderButtonText = styled(Text, {
     },
   },
 });
-
-const HeaderTextButton = ({
-  children,
-  onPress,
-  ...props
-}: PropsWithChildren<{ onPress?: () => void }> &
-  ComponentProps<typeof HeaderButtonText>) => {
-  return (
-    <Pressable onPress={onPress}>
-      <HeaderButtonText {...props}>{children}</HeaderButtonText>
-    </Pressable>
-  );
-};
 
 const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
   return (
