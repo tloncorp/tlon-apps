@@ -21,6 +21,14 @@ const trustedProviders = [
     name: 'Spotify',
     regex: /^https:\/\/open\.spotify\.com\//,
   },
+  {
+    name: 'TikTok',
+    regex: /^https:\/\/www\.tiktok\.com\//,
+  },
+  {
+    name: 'Wikipedia',
+    regex: /^https:\/\/(?:en\.)?wikipedia\.org\//,
+  },
 ];
 
 export default function ChatEmbedContent({
@@ -39,21 +47,10 @@ export default function ChatEmbedContent({
   const isTrusted = trustedProviders.some((provider) =>
     provider.regex.test(url)
   );
-  const embed = useEmbed(url);
-  const isOembed = isTrusted && validOembedCheck(embed, url);
   const calm = useCalm();
   const openLink = async () => {
     await Linking.openURL(url);
   };
-
-  console.log('ChatEmbedContent', {
-    url,
-    content,
-    isAudio,
-    isImage,
-    isTrusted,
-    isOembed,
-  });
 
   if (!calm.disableRemoteContent) {
     if (isImage) {

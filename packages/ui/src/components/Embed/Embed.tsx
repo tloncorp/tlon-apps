@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { MotiView } from 'moti';
 import { ComponentProps, PropsWithChildren, useState } from 'react';
 import { DimensionValue, Dimensions, LayoutChangeEvent } from 'react-native';
@@ -158,10 +159,20 @@ const EmbedComponent = EmbedFrame.styleable<ComponentProps<typeof EmbedFrame>>(
   }
 );
 
+const EmbedThumbnail = styled(Image, {
+  name: 'EmbedThumbnail',
+  width: '$xl',
+  height: '$xl',
+  borderRadius: '$s',
+  overflow: 'hidden',
+  backgroundColor: '$tertiaryBackground',
+});
+
 export const Embed = withStaticProperties(EmbedComponent, {
   Header: EmbedHeader,
   Preview: EmbedPreview,
   Modal: EmbedModal,
   Title: EmbedTitle,
   PopOutIcon: EmbedPopOutIcon,
+  Thumbnail: EmbedThumbnail,
 });
