@@ -17,7 +17,7 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/ui';
-import { OnboardingBenefitsSheet } from '@tloncorp/ui/src/components/Onboarding/OnboardingBenefitsSheet';
+import { OnboardingBenefitsSheet } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
