@@ -143,9 +143,10 @@ export function GroupPreviewPane({
             .markGroupNew(nextGroup)
             .finally(() => onActionComplete('joined', nextGroup));
           clearInterval(interval);
-          logger.trackEvent(AnalyticsEvent.GroupJoinComplete, {
-            obscuredGroupId: logic.simpleHash(nextGroup.id),
-          });
+          logger.trackEvent(
+            AnalyticsEvent.GroupJoinComplete,
+            logic.getModelAnalytics({ group: nextGroup })
+          );
         }
       }, 1_000);
 

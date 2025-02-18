@@ -14,10 +14,10 @@ export async function respondToDMInvite({
   accept: boolean;
 }) {
   logger.log(`responding to dm invite`, `accept? ${accept}`, channel.id);
-  logger.trackEvent(AnalyticsEvent.ActionRespondToDMInvite, {
-    obscuredChannelId: logic.simpleHash(channel.id),
-    response: accept ? 'accept' : 'reject',
-  });
+  logger.trackEvent(
+    AnalyticsEvent.ActionRespondToDMInvite,
+    logic.getModelAnalytics({ channel })
+  );
   // optimistic update
   if (accept) {
     await db.updateChannel({
@@ -92,10 +92,10 @@ export async function unblockUser(userId: string) {
 
 export async function updateDMMeta(channelId: string, meta: db.ClientMeta) {
   logger.log('updating channel', channelId, meta);
-  logger.trackEvent(AnalyticsEvent.ActionCustomizeDM, {
-    obscuredChannelId: logic.simpleHash(channelId),
-    customized: Object.keys(meta),
-  });
+  logger.trackEvent(
+    AnalyticsEvent.ActionCustomizeDM,
+    logic.getModelAnalytics({ channel: { id: channelId } })
+  );
 
   const existingChannel = await db.getChannel({ id: channelId });
 

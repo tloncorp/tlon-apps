@@ -209,9 +209,10 @@ export async function cancelGroupJoin(group: db.Group) {
 
 export async function joinGroup(group: db.Group) {
   logger.log('joining group', group.id);
-  logger.trackEvent(AnalyticsEvent.ActionJoinGroup, {
-    obscuredGroupId: logic.simpleHash(group.id),
-  });
+  logger.trackEvent(
+    AnalyticsEvent.ActionJoinGroup,
+    logic.getModelAnalytics({ group })
+  );
   // optimistic update
   await db.updateGroup({ id: group.id, joinStatus: 'joining' });
 
@@ -231,9 +232,10 @@ export async function markGroupNew(group: db.Group) {
 
 export async function markGroupVisited(groupId: string) {
   logger.log('marking new group as visited', groupId);
-  logger.trackEvent(AnalyticsEvent.ActionVisitedGroup, {
-    obscuredGroupId: logic.simpleHash(groupId),
-  });
+  logger.trackEvent(
+    AnalyticsEvent.ActionVisitedGroup,
+    logic.getModelAnalytics({ group: { id: groupId } })
+  );
   await db.updateGroup({ id: groupId, isNew: false });
 }
 

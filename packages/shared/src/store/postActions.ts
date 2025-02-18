@@ -23,10 +23,10 @@ export async function sendPost({
 }) {
   logger.crumb('sending post', `channel type: ${channel.type}`);
   if (channel.isPendingChannel) {
-    logger.trackEvent(AnalyticsEvent.ActionStartedDM, {
-      channelType: channel.type,
-      obscuredChannelId: logic.simpleHash(channel.id),
-    });
+    logger.trackEvent(
+      AnalyticsEvent.ActionStartedDM,
+      logic.getModelAnalytics({ channel })
+    );
     // if first message of a pending group dm, we need to first create
     // it on the backend
     if (channel.type === 'groupDm') {
@@ -56,12 +56,10 @@ export async function sendPost({
     metadata,
   });
 
-  logger.trackEvent(AnalyticsEvent.ActionSendPost, {
-    channelType: channel.type,
-    obscuredPostId: logic.simpleHash(cachePost.sentAt.toString()),
-    obscuredChannelId: logic.simpleHash(channel.id),
-    obscuredGroupId: channel.groupId ? logic.simpleHash(channel.groupId) : null,
-  });
+  logger.trackEvent(
+    AnalyticsEvent.ActionSendPost,
+    logic.getModelAnalytics({ post: cachePost, channel })
+  );
 
   logger.crumb('insert channel posts');
   sync.handleAddPost(cachePost);
@@ -96,12 +94,10 @@ export async function retrySendPost({
   post: db.Post;
 }) {
   logger.log('retrySendPost', { post });
-  logger.trackEvent(AnalyticsEvent.ActionSendPostRetry, {
-    channelType: channel.type,
-    obscuredPostId: logic.simpleHash(post.sentAt.toString()),
-    obscuredChannelId: logic.simpleHash(channel.id),
-    obscuredGroupId: channel.groupId ? logic.simpleHash(channel.groupId) : null,
-  });
+  logger.trackEvent(
+    AnalyticsEvent.ActionSendPostRetry,
+    logic.getModelAnalytics({ post, channel })
+  );
   if (post.deliveryStatus !== 'failed') {
     console.error('Tried to retry send on non-failed post', post);
     return;
@@ -161,10 +157,10 @@ export async function editPost({
   metadata?: db.PostMetadata;
 }) {
   logger.log('editPost', { post, content, parentId, metadata });
-  logger.trackEvent(AnalyticsEvent.ActionStartedDM, {
-    obscuredPostId: logic.simpleHash(post.sentAt.toString()),
-    obscuredChannelId: logic.simpleHash(post.channelId),
-  });
+  logger.trackEvent(
+    AnalyticsEvent.ActionStartedDM,
+    logic.getModelAnalytics({ post })
+  );
   // optimistic update
   const [contentForDb, flags] = toPostContent(content);
   logger.log('editPost optimistic update', { contentForDb, flags });
@@ -226,10 +222,6 @@ export async function sendReply({
   content: urbit.Story;
 }) {
   logger.crumb('sending reply', channel.type);
-  logger.trackEvent(AnalyticsEvent.ActionSendReply, {
-    channelType: channel.type,
-    obscuredChannelId: logic.simpleHash(channel.id),
-  });
   // optimistic update
   // TODO: make author available more efficiently
   const author = await db.getContact({ id: authorId });
@@ -246,6 +238,11 @@ export async function sendReply({
     replyAuthor: cachePost.authorId,
     replyTime: cachePost.sentAt,
   });
+
+  logger.trackEvent(
+    AnalyticsEvent.ActionSendReply,
+    logic.getModelAnalytics({ post: cachePost, channel })
+  );
 
   try {
     logger.crumb('sending reply to backend');
@@ -269,10 +266,10 @@ export async function sendReply({
 }
 
 export async function hidePost({ post }: { post: db.Post }) {
-  logger.trackEvent(AnalyticsEvent.ActionHidePost, {
-    obscuredPostId: logic.simpleHash(post.id),
-    obscuredChannelId: logic.simpleHash(post.channelId),
-  });
+  logger.trackEvent(
+    AnalyticsEvent.ActionHidePost,
+    logic.getModelAnalytics({ post })
+  );
   // optimistic update
   await db.updatePost({ id: post.id, hidden: true });
 
@@ -302,10 +299,10 @@ export async function showPost({ post }: { post: db.Post }) {
 
 export async function deletePost({ post }: { post: db.Post }) {
   logger.crumb('deleting post');
-  logger.trackEvent(AnalyticsEvent.ActionDeletePost, {
-    obscuredPostId: logic.simpleHash(post.id),
-    obscuredChannelId: logic.simpleHash(post.channelId),
-  });
+  logger.trackEvent(
+    AnalyticsEvent.ActionDeletePost,
+    logic.getModelAnalytics({ post })
+  );
   const existingPost = await db.getPost({ postId: post.id });
 
   // optimistic update
@@ -365,10 +362,10 @@ export async function addPostReaction(
   shortCode: string,
   currentUserId: string
 ) {
-  logger.trackEvent(AnalyticsEvent.ActionReact, {
-    obscuredPostId: logic.simpleHash(post.id),
-    obscuredChannelId: logic.simpleHash(post.channelId),
-  });
+  logger.trackEvent(
+    AnalyticsEvent.ActionReact,
+    logic.getModelAnalytics({ post })
+  );
   const formattedShortcode = shortCode.replace(/^(?!:)(.*)$(?<!:)/, ':$1:');
 
   // optimistic update
@@ -397,10 +394,10 @@ export async function addPostReaction(
 }
 
 export async function removePostReaction(post: db.Post, currentUserId: string) {
-  logger.trackEvent(AnalyticsEvent.ActionUnreact, {
-    obscuredPostId: logic.simpleHash(post.id),
-    obscuredChannelId: logic.simpleHash(post.channelId),
-  });
+  logger.trackEvent(
+    AnalyticsEvent.ActionUnreact,
+    logic.getModelAnalytics({ post })
+  );
   const existingReaction = await db.getPostReaction({
     postId: post.id,
     contactId: currentUserId,
