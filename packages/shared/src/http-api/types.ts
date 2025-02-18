@@ -1,3 +1,5 @@
+import { Noun } from '@urbit/nockjs';
+
 /**
  * An urbit style path, rendered as a Javascript string
  * @example
@@ -77,6 +79,29 @@ export interface Poke<Action> {
   json: Action;
 }
 
+export interface NounPoke {
+  /**
+   * Ship to poke. If left empty, the api lib will populate it with the ship that it is connected to.
+   *
+   * @remarks
+   *
+   * This should always be the ship that you are connected to
+   *
+   */
+  ship?: PatpNoSig;
+  /**
+   */
+  app: GallAgent;
+  /**
+   * Mark of the cage to be poked
+   *
+   */
+  mark: Mark;
+
+  noun: Noun;
+  onError?: (e: Noun) => void;
+}
+
 /**
  * Description of a scry request
  */
@@ -128,6 +153,7 @@ export interface PokeHandlers {
 }
 
 export type PokeInterface<T> = PokeHandlers & Poke<T>;
+export type NounPokeInterface = PokeHandlers & NounPoke;
 
 export interface AuthenticationInterface {
   ship: string;

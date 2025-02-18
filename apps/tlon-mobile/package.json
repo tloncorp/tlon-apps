@@ -66,6 +66,7 @@
     "@tloncorp/ui": "workspace:*",
     "@urbit/aura": "^1.0.0",
     "@urbit/http-api": "3.2.0-dev",
+    "@urbit/nockjs": "^1.4.0",
     "classnames": "^2.3.2",
     "dotenv-expand": "^11.0.6",
     "expo": "~50.0.20",

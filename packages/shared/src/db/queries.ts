@@ -73,6 +73,7 @@ import {
   posts as $posts,
   settings as $settings,
   threadUnreads as $threadUnreads,
+  verifications as $verifications,
   volumeSettings as $volumeSettings,
   channels,
 } from './schema';
@@ -97,6 +98,7 @@ import {
   Settings,
   TableName,
   ThreadUnreadState,
+  Verification,
   VolumeSettings,
 } from './types';
 
@@ -351,6 +353,88 @@ export const getAnalyticsDigest = createReadQuery(
     };
   },
   []
+);
+
+export const insertVerifications = createWriteQuery(
+  'insertVerifications',
+  async (
+    { verifications }: { verifications: Verification[] },
+    ctx: QueryCtx
+  ) => {
+    if (verifications.length === 0) {
+      await ctx.db
+        .delete($verifications)
+        .where(isNotNull($verifications.value));
+      return;
+    } else {
+      const values = verifications.map((v) => v.value);
+      await ctx.db
+        .delete($verifications)
+        .where(not(inArray($verifications.value, values)));
+    }
+
+    return ctx.db
+      .insert($verifications)
+      .values(verifications)
+      .onConflictDoUpdate({
+        target: [
+          $verifications.type,
+          $verifications.value,
+          $verifications.provider,
+        ],
+        set: conflictUpdateSetAll($verifications),
+      });
+  },
+  ['verifications']
+);
+
+export const updateVerification = createWriteQuery(
+  'updateVerification',
+  async (
+    {
+      verification,
+    }: {
+      verification: Partial<Verification> & {
+        type: Verification['type'];
+        value: string;
+      };
+    },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($verifications)
+      .set(verification)
+      .where(
+        and(
+          eq($verifications.type, verification.type),
+          eq($verifications.value, verification.value)
+        )
+      );
+  },
+  ['verifications']
+);
+
+export const deleteVerification = createWriteQuery(
+  'deleteVerifications',
+  async (
+    { type, value }: { type: Verification['type']; value: string },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .delete($verifications)
+      .where(
+        and(eq($verifications.type, type), eq($verifications.value, value))
+      );
+  },
+  ['verifications']
+);
+
+export const getVerifications = createReadQuery(
+  'getVerifications',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.verifications.findMany();
+  },
+  ['verifications']
 );
 
 export const getPins = createReadQuery(
