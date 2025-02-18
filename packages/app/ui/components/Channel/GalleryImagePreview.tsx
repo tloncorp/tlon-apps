@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { ImageBackground } from 'react-native';
 import { Spinner, View, XStack } from 'tamagui';
 
-import { Close } from '../../../../ui/src/assets/icons';
+import { Close } from '@tloncorp/ui/assets/icons';
 import {
   ImageAttachment,
   useAttachmentContext,

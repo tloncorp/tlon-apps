@@ -7,7 +7,7 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
-import * as icons from '../../../ui/src/assets/icons';
+import * as icons from '@tloncorp/ui/assets/icons';
 
 export type IconType = keyof typeof icons;
 
