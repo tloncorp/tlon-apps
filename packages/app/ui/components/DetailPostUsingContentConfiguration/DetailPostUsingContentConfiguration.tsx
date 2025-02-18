@@ -12,7 +12,7 @@ import { YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts';
 import { usePostCollectionContext } from '../../contexts/postCollection';
-import { ForwardingProps } from '../../utils/react';
+import { ForwardingProps } from '../../../../ui/src/utils/react';
 import { ChannelHeader } from '../Channel/ChannelHeader';
 import { DraftInputView } from '../Channel/DraftInputView';
 import { DraftInputContext } from '../draftInputs';

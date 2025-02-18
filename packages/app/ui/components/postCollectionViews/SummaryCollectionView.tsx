@@ -6,7 +6,7 @@ import { View, getTokenValue } from 'tamagui';
 
 import { useLivePost } from '../../contexts';
 import { usePostCollectionContext } from '../../contexts/postCollection';
-import { ForwardingProps } from '../../utils/react';
+import { ForwardingProps } from '../../../../ui/src/utils/react';
 import { ListItem } from '../ListItem';
 import Pressable from '../../tmp/components/Pressable';
 import { IPostCollectionView } from './shared';
