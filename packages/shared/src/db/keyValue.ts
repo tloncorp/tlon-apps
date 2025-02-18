@@ -276,3 +276,8 @@ export const nodeStoppedWhileLoggedIn = createStorageItem<boolean>({
   key: 'nodeStoppedWhileLoggedIn',
   defaultValue: false,
 });
+
+export const headsSyncedAt = createStorageItem<number>({
+  key: 'headsSyncedAt',
+  defaultValue: 0,
+});
