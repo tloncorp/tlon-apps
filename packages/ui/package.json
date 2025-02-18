@@ -6,7 +6,7 @@
   "main": "src/index.tsx",
   "module:jsx": "src",
   "exports": {
-    "./": "./src/index.ts",
+    ".": "./src/index.ts",
     "./assets/icons": "./src/assets/icons/index.ts"
   },
   "files": [
