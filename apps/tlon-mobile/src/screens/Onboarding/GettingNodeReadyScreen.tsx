@@ -3,6 +3,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import {
   NodeResumeState,
@@ -172,7 +173,7 @@ export function GettingNodeReadyScreen({
             <ScreenHeader.TextButton
               onPress={onLogout}
               disabled={loggingOut}
-              color="$secondaryText"
+              color="$tertiaryText"
             >
               Log out
             </ScreenHeader.TextButton>
@@ -244,6 +245,7 @@ export function GettingNodeReadyScreen({
 }
 
 function ProgressBar(props: { progress: number; onPressLogout?: () => void }) {
+  const isDark = useIsDarkMode();
   const PROGRESS_BAR_TITLES = useMemo(
     () => ['Warming up...', 'Getting ready...', 'Almost done...', 'Complete'],
     []
@@ -252,14 +254,20 @@ function ProgressBar(props: { progress: number; onPressLogout?: () => void }) {
     <YStack marginTop="$s" gap="$xl" marginHorizontal="$xl">
       <XStack justifyContent="space-between" width="100%">
         <Text size="$label/l" fontWeight="500">
-          {PROGRESS_BAR_TITLES[props.progress]}
+          Step {props.progress + 1} of 4
         </Text>
       </XStack>
       <XStack width="100%" gap="$s">
         {PROGRESS_BAR_TITLES.map((step, i) => (
           <View
             key={i}
-            backgroundColor={i <= props.progress ? '$primaryText' : '$border'}
+            backgroundColor={
+              i <= props.progress
+                ? '$primaryText'
+                : isDark
+                  ? '$activeBorder'
+                  : '$border'
+            }
             height={4}
             flex={1}
             borderRadius="$3xl"
