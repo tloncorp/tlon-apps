@@ -7,7 +7,8 @@
     "lint": "eslint ./",
     "lint:fix": "eslint ./ --fix --quiet",
     "lint:format": "prettier ./ --write",
-    "test": "vitest --watch false"
+    "test": "vitest --watch false",
+    "tsc": "tsc --noEmit"
   },
   "dependencies": {
     "@tloncorp/shared": "workspace:*",
