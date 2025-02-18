@@ -1,5 +1,5 @@
 import { parseUd } from '@urbit/aura';
-import { BigInteger } from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
@@ -196,7 +196,7 @@ export function newWritTupleArray(
     data?.pages
       ?.map((page) => {
         const writPages = Object.entries(page.writs).map(
-          ([k, v]) => [parseUd(k), v] as WritTuple
+          ([k, v]) => [bigInt(parseUd(k)), v] as WritTuple
         );
         return writPages;
       })

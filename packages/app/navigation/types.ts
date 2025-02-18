@@ -5,6 +5,7 @@ import type {
 } from '@react-navigation/native';
 
 export type RootStackParamList = {
+  VerifierStub: undefined;
   Contacts: undefined;
   Empty: undefined;
   ChatList: { previewGroupId: string } | undefined;

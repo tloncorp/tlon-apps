@@ -6,6 +6,7 @@ import { useCallback } from 'react';
 
 import { useBranch } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
+import { cancelNodeResumeNudge } from '../lib/notifications';
 import { useClearTelemetryConfig } from './useTelemetry';
 
 const logger = createDevLogger('logout', true);
@@ -23,6 +24,7 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     clearDeepLink();
     clearTelemetry();
     clearSessionStorageItems();
+    cancelNodeResumeNudge();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');
       return;

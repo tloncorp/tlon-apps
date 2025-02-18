@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a81be202-e2ee-4117-8533-dd20783fad0d",
+  "id": "6dc0c522-044d-4399-9e6d-6c46177eeac3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -815,6 +815,27 @@
         },
         "isContactSuggestion": {
           "name": "isContactSuggestion",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "hasVerifiedPhone": {
+          "name": "hasVerifiedPhone",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "verifiedPhoneSignature": {
+          "name": "verifiedPhoneSignature",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "verifiedPhoneAt": {
+          "name": "verifiedPhoneAt",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -2229,6 +2250,67 @@
             "thread_id"
           ],
           "name": "thread_unreads_channel_id_thread_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "verifications": {
+      "name": "verifications",
+      "columns": {
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "initiated_at": {
+          "name": "initiated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "visibility": {
+          "name": "visibility",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "verifications_provider_type_value_pk": {
+          "columns": [
+            "provider",
+            "type",
+            "value"
+          ],
+          "name": "verifications_provider_type_value_pk"
         }
       },
       "uniqueConstraints": {},
