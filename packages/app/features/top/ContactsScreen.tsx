@@ -81,7 +81,7 @@ export default function ContactsScreen(props: Props) {
                 type="Settings"
                 testID="ContactsSettingsButton"
                 onPress={() => {
-                  navigate('Profile');
+                  navigate('Settings');
                 }}
               />
             }

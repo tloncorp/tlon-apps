@@ -10,6 +10,7 @@ import {
   GroupPreviewSheet,
   NavigationProvider,
   UserProfileScreenView,
+  useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { useState } from 'react';
 import { useCallback } from 'react';
@@ -24,10 +25,12 @@ type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
 const logger = createDevLogger('UserProfileScreen', false);
 
-export function UserProfileScreen({ route: { params }, navigation }: Props) {
-  const userId = params.userId;
+export function UserProfileScreen({ route, navigation }: Props) {
+  const { params } = route;
+  const isWindowNarrow = useIsWindowNarrow();
   const { performGroupAction } = useGroupActions();
   const currentUserId = useCurrentUserId();
+  const userId = params?.userId || currentUserId;
   const { data: contacts } = store.useContacts();
   const connectionStatus = useConnectionStatus(userId);
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
@@ -48,8 +51,13 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
   );
 
   const handlePressEdit = useCallback(() => {
-    navigation.push('EditProfile', { userId });
-  }, [navigation, userId]);
+    if (isWindowNarrow) {
+      navigation.push('EditProfile', { userId });
+      return;
+    }
+
+    navigation.navigate('EditProfile', { userId });
+  }, [isWindowNarrow, navigation, userId]);
 
   const canUpload = store.useCanUpload();
 
