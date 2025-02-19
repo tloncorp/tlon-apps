@@ -277,6 +277,11 @@ export const nodeStoppedWhileLoggedIn = createStorageItem<boolean>({
   defaultValue: false,
 });
 
+export const headsSyncedAt = createStorageItem<number>({
+  key: 'headsSyncedAt',
+  defaultValue: 0,
+});
+
 export const anyalticsDigestUpdatedAt = createStorageItem<number | null>({
   key: 'analyticsDigestUpdatedAt',
   defaultValue: null,

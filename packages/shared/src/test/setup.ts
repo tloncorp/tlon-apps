@@ -25,6 +25,18 @@ vi.mock('@react-native-community/netinfo', () => {
   };
 });
 
+vi.mock('../db/getStorageMethods', () => {
+  return {
+    getStorageMethods() {
+      return {
+        getItem(key: string) {},
+        setItem(key: string, value: any) {},
+        removeItem(key: string, value: any) {},
+      };
+    },
+  };
+});
+
 export function mockUrbit() {
   vi.mock('../api/urbit', async (importOriginal) => {
     const mod = await importOriginal<typeof import('../api/urbit')>();
