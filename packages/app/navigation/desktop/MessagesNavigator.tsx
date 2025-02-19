@@ -19,35 +19,24 @@ import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScre
 import ImageViewerScreen from '../../features/top/ImageViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
-import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
+import { GroupSettingsStack } from '../GroupSettingsStack';
 import { HomeDrawerParamList } from '../types';
 
 const HomeDrawer = createDrawerNavigator();
 
 export const HomeNavigator = () => {
-  const theme = useTheme();
-  const backgroundColor = getVariableValue(theme.background);
-  const borderColor = getVariableValue(theme.border);
-
   return (
     <HomeDrawer.Navigator
       drawerContent={DrawerContent}
       initialRouteName="ChatList"
-      screenOptions={({ navigation }) => {
-        const state = navigation.getState();
-        const routes = state.routes[state.index].state?.routes;
-        const currentScreen = routes?.[routes.length - 1];
-        const isImageViewer = currentScreen?.name === 'ImageViewer';
-
-        return {
-          drawerType: 'permanent',
-          headerShown: false,
-          drawerStyle: {
-            width: isImageViewer ? 0 : 400,
-            backgroundColor,
-            borderRightColor: borderColor,
-          },
-        };
+      screenOptions={{
+        drawerType: 'permanent',
+        headerShown: false,
+        drawerStyle: {
+          width: 400,
+          backgroundColor: getVariableValue(useTheme().background),
+          borderRightColor: getVariableValue(useTheme().border),
+        },
       }}
     >
       <HomeDrawer.Screen name="ChatList" component={MainStack} />
@@ -64,39 +53,20 @@ export const HomeNavigator = () => {
 function DrawerContent(props: DrawerContentComponentProps) {
   const state = props.state as NavigationState<HomeDrawerParamList>;
   const focusedRoute = state.routes[props.state.index];
-  const focusedRouteParams = focusedRoute.params;
-  // @ts-expect-error - nested params is not in the type
-  const nestedFocusedRouteParams = focusedRouteParams?.params;
   if (
-    focusedRouteParams &&
-    'groupId' in focusedRouteParams &&
-    focusedRouteParams.groupId
+    focusedRoute.params &&
+    'groupId' in focusedRoute.params &&
+    focusedRoute.params.groupId
   ) {
-    if ('channelId' in focusedRouteParams) {
+    if ('channelId' in focusedRoute.params) {
       return (
         <GroupChannelsScreenContent
-          groupId={focusedRouteParams.groupId}
-          focusedChannelId={focusedRouteParams.channelId}
+          groupId={focusedRoute.params.groupId}
+          focusedChannelId={focusedRoute.params.channelId}
         />
       );
     }
-    return <GroupChannelsScreenContent groupId={focusedRouteParams.groupId} />;
-  } else if (
-    focusedRouteParams &&
-    nestedFocusedRouteParams &&
-    'groupId' in nestedFocusedRouteParams
-  ) {
-    if ('channelId' in nestedFocusedRouteParams) {
-      return (
-        <GroupChannelsScreenContent
-          groupId={nestedFocusedRouteParams.groupId}
-          focusedChannelId={nestedFocusedRouteParams.channelId}
-        />
-      );
-    }
-    return (
-      <GroupChannelsScreenContent groupId={nestedFocusedRouteParams.groupId} />
-    );
+    return <GroupChannelsScreenContent groupId={focusedRoute.params.groupId} />;
   } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
     return (
       <ChatListScreenView focusedChannelId={focusedRoute.params.channelId} />
@@ -127,14 +97,10 @@ function ChannelStack(
   props: NativeStackScreenProps<HomeDrawerParamList, 'Channel'>
 ) {
   const navKey = () => {
-    if (props.route.params && 'channelId' in props.route.params) {
+    if ('channelId' in props.route.params) {
       return props.route.params.channelId;
     }
-    if (
-      props.route.params &&
-      props.route.params.params &&
-      'channelId' in props.route.params.params
-    ) {
+    if (props.route.params.params && 'channelId' in props.route.params.params) {
       return props.route.params.params.channelId;
     }
 
