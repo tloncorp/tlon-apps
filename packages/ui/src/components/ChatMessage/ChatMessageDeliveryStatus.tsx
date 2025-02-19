@@ -13,7 +13,7 @@ export const ChatMessageDeliveryStatus = XStack.styleable<{
       height={24}
       ref={ref}
       padding={'$l'}
-      backgroundColor={'$shadow'}
+      backgroundColor={'$transparentBackground'}
       borderRadius={'$xs'}
       {...props} 
     >

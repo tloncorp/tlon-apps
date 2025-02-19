@@ -187,13 +187,6 @@ const ChatMessage = ({
             showEditedIndicator={!!post.isEdited}
           />
         ) : null}
-        <View paddingLeft={!isNotice && '$4xl'}>
-          <ChatContentRenderer
-            content={post.editStatus === 'failed' ? lastEditContent : content}
-            isNotice={post.type === 'notice'}
-            onPressImage={handleImagePressed}
-          />
-        </View>
 
         {/** we need to show delivery status even if showAuthor is false
            previously we were only showing delivery status if showAuthor was true
@@ -202,7 +195,7 @@ const ChatMessage = ({
         {!showAuthor &&
         !!post.deliveryStatus &&
         post.deliveryStatus !== 'failed' ? (
-          <View position="absolute" right={12} top={8}>
+          <View pointerEvents="none" position="absolute" right={12} top={8} zIndex={199}>
             <ChatMessageDeliveryStatus status={post.deliveryStatus} />
           </View>
         ) : null}
@@ -214,6 +207,14 @@ const ChatMessage = ({
             </Text>
           </View>
         ) : null}
+
+        <View paddingLeft={!isNotice && '$4xl'}>
+          <ChatContentRenderer
+            content={post.editStatus === 'failed' ? lastEditContent : content}
+            isNotice={post.type === 'notice'}
+            onPressImage={handleImagePressed}
+          />
+        </View>
 
         <ReactionsDisplay
           post={post}
