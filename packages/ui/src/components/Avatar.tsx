@@ -329,7 +329,10 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
       return getTokenValue(size);
     } else {
       if (isWeb && (props.width || props.height)) {
-        // Sigil size must be a number
+        // Sigil size must be a number (because we need to multiply by it). 
+        // On web, `useStyle` will return a string.
+        // We'll use the height or width prop if it's not a string, otherwise
+        // default to 20.
         if (
           typeof props.width === 'string' ||
           typeof props.height === 'string'
