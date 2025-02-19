@@ -93,7 +93,7 @@ export const ProfileNavigator = () => {
         headerShown: false,
         drawerType: 'permanent',
         drawerStyle: {
-          width: 400,
+          width: 500,
           backgroundColor: getVariableValue(useTheme().background),
           borderRightColor: getVariableValue(useTheme().border),
         },

@@ -3,28 +3,19 @@ import {
   createDrawerNavigator,
 } from '@react-navigation/drawer';
 import { useIsFocused } from '@react-navigation/native';
-import { NavigationState } from '@react-navigation/routers';
 import { View, getVariableValue, useTheme } from '@tamagui/core';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { ActivityScreenView, useCurrentUserId } from '@tloncorp/ui';
+import { ActivityScreenView } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
 import { useGroupActions } from '../../hooks/useGroupActions';
-import { useFeatureFlag } from '../../lib/featureFlags';
 import { useRootNavigation } from '../utils';
 
 const ActivityDrawer = createDrawerNavigator();
 
 function DrawerContent(props: DrawerContentComponentProps) {
-  const state = props.state as NavigationState;
-  const { navigate } = props.navigation;
-  const focusedRoute = state.routes[props.state.index];
-
-  const theme = useTheme();
   const isFocused = useIsFocused();
-  const currentUserId = useCurrentUserId();
-  const [contactsTabEnabled] = useFeatureFlag('contactsTab');
   const { performGroupAction } = useGroupActions();
   const { navigateToChannel, navigateToPost } = useRootNavigation();
 
@@ -101,7 +92,7 @@ export const ActivityNavigator = () => {
         headerShown: false,
         drawerType: 'permanent',
         drawerStyle: {
-          width: 400,
+          width: 500,
           backgroundColor: getVariableValue(useTheme().background),
           borderRightColor: getVariableValue(useTheme().border),
         },

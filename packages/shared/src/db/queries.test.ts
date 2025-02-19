@@ -48,13 +48,13 @@ test('uses init data to get chat list', async () => {
   ]);
 
   expect(result.unpinned.map((r) => r.id).slice(0, 7)).toEqual([
+    'chat/~nibset-napwyn/commons',
     '~nibset-napwyn/tlon',
     '~nocsyx-lassul',
+    'chat/~pondus-watbel/new-channel',
     '~pondus-watbel/testing-facility',
+    'chat/~nibset-napwyn/intros',
     '~ravseg-nosduc',
-    '~solfer-magfed',
-    '~hansel-ribbur',
-    '~pondus-watbel',
   ]);
 
   expect(result.pending.map((r) => r.id)).toEqual([

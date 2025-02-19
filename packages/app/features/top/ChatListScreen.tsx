@@ -78,9 +78,7 @@ export function ChatListScreenView({
     ]
   );
 
-  const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
-    'all'
-  );
+  const [activeTab, setActiveTab] = useState<TabName>('home');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
     previewGroupId ?? null
   );
@@ -201,7 +199,7 @@ export function ChatListScreenView({
 
   const handleSectionChange = useCallback(
     (title: string) => {
-      if (activeTab === 'all') {
+      if (activeTab === 'home') {
         setScreenTitle(title);
       }
     },
@@ -209,7 +207,7 @@ export function ChatListScreenView({
   );
 
   useEffect(() => {
-    if (activeTab === 'all') {
+    if (activeTab === 'home') {
       setScreenTitle('Home');
     } else if (activeTab === 'groups') {
       setScreenTitle('Groups');
@@ -267,7 +265,7 @@ export function ChatListScreenView({
   }, []);
 
   const handlePressTryAll = useCallback(() => {
-    setActiveTab('all');
+    setActiveTab('home');
   }, [setActiveTab]);
 
   const handlePressClear = useCallback(() => {
@@ -413,7 +411,7 @@ function SearchResultsEmpty({
       paddingVertical="$m"
     >
       <Text>No results found.</Text>
-      {activeTab !== 'all' && (
+      {activeTab !== 'home' && (
         <Pressable onPress={onPressTryAll}>
           <Text textDecorationLine="underline">Try in All?</Text>
         </Pressable>
