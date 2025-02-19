@@ -1,3 +1,4 @@
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -10,6 +11,8 @@ import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { ActivityHeader } from './ActivityHeader';
 import { ActivityListItem } from './ActivityListItem';
+
+const logger = createDevLogger('ActivityScreenView', false);
 
 export function ActivityScreenView({
   isFocused,
@@ -65,6 +68,10 @@ export function ActivityScreenView({
         case 'flag-post':
         case 'post':
           if (event.channel) {
+            logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+              ...logic.getModelAnalytics({ channel: event.channel }),
+              type: 'channelPost',
+            });
             if (event.postId) {
               goToChannel(event.channel, event.postId);
             } else {
@@ -73,6 +80,10 @@ export function ActivityScreenView({
           } else if (event.channelId) {
             const channel = await db.getChannel({ id: event.channelId });
             if (channel) {
+              logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+                ...logic.getModelAnalytics({ channel }),
+                type: 'channelPost',
+              });
               goToChannel(channel, event.postId!);
             }
           } else {
@@ -81,6 +92,9 @@ export function ActivityScreenView({
           break;
         case 'flag-reply':
         case 'reply':
+          logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+            type: 'channelThread',
+          });
           if (event.parent) {
             goToThread(event.parent);
           } else if (event.parentId) {
@@ -92,6 +106,10 @@ export function ActivityScreenView({
           break;
         case 'group-ask':
           if (event.group) {
+            logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+              ...logic.getModelAnalytics({ group: event.group }),
+              type: 'groupInvite',
+            });
             goToGroup(event.group);
           } else {
             console.warn('No group found for group-ask', event);
@@ -99,6 +117,9 @@ export function ActivityScreenView({
           break;
         case 'contact':
           if (event.contactUserId) {
+            logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+              type: 'profileUpdate',
+            });
             goToUserProfile(event.contactUserId);
           }
           break;

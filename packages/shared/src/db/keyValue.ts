@@ -276,3 +276,13 @@ export const nodeStoppedWhileLoggedIn = createStorageItem<boolean>({
   key: 'nodeStoppedWhileLoggedIn',
   defaultValue: false,
 });
+
+export const anyalticsDigestUpdatedAt = createStorageItem<number | null>({
+  key: 'analyticsDigestUpdatedAt',
+  defaultValue: null,
+});
+
+export const userHasCompletedFirstSync = createStorageItem<boolean>({
+  key: 'userHasCompletedFirstSync',
+  defaultValue: false,
+});
