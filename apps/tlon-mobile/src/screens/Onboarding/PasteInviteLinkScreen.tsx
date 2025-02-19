@@ -206,16 +206,6 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
               </TlonText.Text>
             </Pressable>
           </TlonText.Text>
-          {/* <Button
-            marginTop={200}
-            secondary
-            backgroundColor="$gray400"
-            onPress={() => {
-              navigation.navigate('JoinWaitList', {});
-            }}
-          >
-            <Button.Text>No invite? Join the Waitlist</Button.Text>
-          </Button> */}
         </YStack>
       </Pressable>
     </View>

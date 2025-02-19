@@ -22,7 +22,6 @@ import {
   ListItem,
   LoadingSpinner,
   OnboardingTextBlock,
-  Pressable,
   ScreenHeader,
   StoppedNodePushSheet,
   TlonText,
@@ -30,7 +29,6 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui/src/components/TextV2';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -227,10 +225,14 @@ export function GettingNodeReadyScreen({
                 )}
               </ListItem.EndContent>
             </ListItem>
-            <Text size="$label/s" color="$secondaryText" textAlign="center">
+            <TlonText.Text
+              size="$label/s"
+              color="$secondaryText"
+              textAlign="center"
+            >
               Feel free to close TM if this takes too long. We’ll send you a
               notification when your node is ready.
-            </Text>
+            </TlonText.Text>
           </YStack>
           <StoppedNodePushSheet
             notifPerms={notifPerms}
@@ -253,9 +255,9 @@ function ProgressBar(props: { progress: number; onPressLogout?: () => void }) {
   return (
     <YStack marginTop="$s" gap="$xl" marginHorizontal="$xl">
       <XStack justifyContent="space-between" width="100%">
-        <Text size="$label/l" fontWeight="500">
+        <TlonText.Text size="$label/l" fontWeight="500">
           Step {props.progress + 1} of 4
-        </Text>
+        </TlonText.Text>
       </XStack>
       <XStack width="100%" gap="$s">
         {PROGRESS_BAR_TITLES.map((step, i) => (
