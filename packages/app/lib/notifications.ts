@@ -1,4 +1,4 @@
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
@@ -26,11 +26,21 @@ async function requestNotificationPermissionsIfNeeded(): Promise<boolean> {
 
   let isGranted = status === 'granted';
   if (isGranted) {
+    logger.trackEvent(AnalyticsEvent.ActionsNotifPermsChecked, {
+      isGranted: true,
+      canAskAgain,
+      $set: { pushNotifsGranted: true },
+    });
     return true;
   }
 
   // Skip if permission not granted and we can't ask again
   if (!isGranted && !canAskAgain) {
+    logger.trackEvent(AnalyticsEvent.ActionsNotifPermsChecked, {
+      isGranted: false,
+      canAskAgain: false,
+      $set: { pushNotifsGranted: false },
+    });
     return false;
   }
 
@@ -41,6 +51,12 @@ async function requestNotificationPermissionsIfNeeded(): Promise<boolean> {
     isGranted = nextStatus === 'granted';
     logger.debug('New push notifications setting:', nextStatus);
   }
+
+  logger.trackEvent(AnalyticsEvent.ActionsNotifPermsChecked, {
+    isGranted,
+    canAskAgain,
+    $set: { pushNotifsGranted: isGranted },
+  });
 
   return isGranted;
 }

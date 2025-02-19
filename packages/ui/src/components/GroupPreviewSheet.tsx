@@ -1,4 +1,6 @@
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -12,6 +14,8 @@ import {
 } from './ActionSheet';
 import { ListItem } from './ListItem';
 import { LoadingSpinner } from './LoadingSpinner';
+
+const logger = createDevLogger('GroupPreviewSheet', true);
 
 interface Props {
   open: boolean;
@@ -139,6 +143,10 @@ export function GroupPreviewPane({
             .markGroupNew(nextGroup)
             .finally(() => onActionComplete('joined', nextGroup));
           clearInterval(interval);
+          logger.trackEvent(
+            AnalyticsEvent.GroupJoinComplete,
+            logic.getModelAnalytics({ group: nextGroup })
+          );
         }
       }, 1_000);
 

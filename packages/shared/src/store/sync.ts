@@ -1272,6 +1272,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   await verifyUserInviteLink();
 
   isSyncing = false;
+  db.userHasCompletedFirstSync.setValue(true);
 };
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
