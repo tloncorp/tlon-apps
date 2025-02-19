@@ -1,6 +1,7 @@
-import { makePrettyShortDate } from '@tloncorp/shared';
+import { ChannelAction, makePrettyShortDate } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
+import { useChannelContext } from '../../contexts';
 import {
   View,
   ViewStyle,
@@ -13,7 +14,9 @@ import {
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
 import { Image } from '../Image';
-import { OverflowMenuButton } from '../OverflowMenuButton';
+import { Button } from '../Button';
+import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { Icon } from '../Icon';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
@@ -54,7 +57,14 @@ export function NotebookPost({
   hideOverflowMenu?: boolean;
 }) {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
-  const [disableHandlePress, setDisableHandlePress] = useState(false);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [overFlowIsHovered, setOverFlowIsHovered] = useState(false);
+  const channel = useChannelContext();
+  const postActionIds = useMemo(
+    () => ChannelAction.channelActionIdsFor({ channel }),
+    [channel]
+  );
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -88,16 +98,20 @@ export function NotebookPost({
     onPress?.(post);
   }, [post, onPress, deliveryFailed]);
 
-  const onPressOverflow = useCallback(() => {
-    handleLongPress();
-  }, [handleLongPress]);
-
-  const onHoverIntoOverflow = useCallback(() => {
-    setDisableHandlePress(true);
+  const onHoverIn = useCallback(() => {
+    setIsHovered(true);
   }, []);
 
-  const onHoverOutOfOverflow = useCallback(() => {
-    setDisableHandlePress(false);
+  const onHoverOut = useCallback(() => {
+    setIsHovered(false);
+  }, []);
+
+  const onOverflowHoverIn = useCallback(() => {
+    setOverFlowIsHovered(true);
+  }, []);
+
+  const onOverflowHoverOut = useCallback(() => {
+    setOverFlowIsHovered(false);
   }, []);
 
   if (!post || post.isDeleted) {
@@ -107,7 +121,9 @@ export function NotebookPost({
   const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
   return (
     <Pressable
-      onPress={disableHandlePress ? undefined : handlePress}
+      onPress={overFlowIsHovered ? undefined : handlePress}
+      onHoverIn={onHoverIn}
+      onHoverOut={onHoverOut}
       onLongPress={handleLongPress}
       pressStyle={{ backgroundColor: '$secondaryBackground' }}
       borderRadius="$l"
@@ -164,12 +180,27 @@ export function NotebookPost({
             </Text>
           </XStack>
         ) : null}
-        {!hideOverflowMenu && (
-          <OverflowMenuButton
-            onPress={onPressOverflow}
-            onHoverIn={onHoverIntoOverflow}
-            onHoverOut={onHoverOutOfOverflow}
-          />
+        {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
+          <View position="absolute" top={12} right={12}>
+            <ChatMessageActions
+              post={post}
+              postActionIds={postActionIds}
+              onDismiss={() => setIsPopoverOpen(false)}
+              onOpenChange={setIsPopoverOpen}
+              onReply={handlePress}
+              trigger={
+                <Button
+                  backgroundColor="transparent"
+                  borderWidth="unset"
+                  size="$l"
+                  onHoverIn={onOverflowHoverIn}
+                  onHoverOut={onOverflowHoverOut}
+                >
+                  <Icon type="Overflow" />
+                </Button>
+              }
+            />
+          </View>
         )}
       </NotebookPostFrame>
       <SendPostRetrySheet
