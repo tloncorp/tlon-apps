@@ -5,6 +5,7 @@ import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { useChannelContext } from '../../contexts';
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 import AuthorRow from '../AuthorRow';
 import { Button } from '../Button';
 import { Icon } from '../Icon';
@@ -75,6 +76,8 @@ const ChatMessage = ({
     post.deliveryStatus === 'failed' ||
     post.editStatus === 'failed' ||
     post.deleteStatus === 'failed';
+
+  const isWindowNarrow = useIsWindowNarrow();
 
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
@@ -195,17 +198,33 @@ const ChatMessage = ({
         {!showAuthor &&
         !!post.deliveryStatus &&
         post.deliveryStatus !== 'failed' ? (
-          <View pointerEvents="none" position="absolute" right={12} top={8} zIndex={199}>
+          <View
+            pointerEvents="none"
+            position="absolute"
+            right={12}
+            top={8}
+            zIndex={199}
+          >
             <ChatMessageDeliveryStatus status={post.deliveryStatus} />
           </View>
         ) : null}
 
         {!showAuthor && deliveryFailed ? (
-          <View position="absolute" right={12} top={8}>
+          <Pressable
+            onPress={() => setShowRetrySheet(true)}
+            position="absolute"
+            right={12}
+            top={8}
+            zIndex={199}
+            backgroundColor="$negativeBackground"
+            padding={'$s'}
+            borderRadius={'$xs'}
+          >
             <Text size="$label/m" color="$negativeActionText">
-              Tap to retry
+              {isWindowNarrow ? 'Tap ' : 'Click '}
+              to retry send
             </Text>
-          </View>
+          </Pressable>
         ) : null}
 
         <View paddingLeft={!isNotice && '$4xl'}>
