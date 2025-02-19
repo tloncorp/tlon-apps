@@ -159,14 +159,18 @@ export const syncLatestPosts = async (
   queryCtx?: QueryCtx,
   yieldWriter?: boolean
 ): Promise<() => Promise<void>> => {
+  const syncedAt = await db.headsSyncedAt.getValue();
   const result = await syncQueue.add('latestPosts', ctx, () =>
-    api.getLatestPosts({})
+    api.getLatestPosts({
+      afterCursor: new Date(syncedAt),
+    })
   );
   logger.crumb('got latest posts from api');
   const allPosts = result.map((p) => p.latestPost);
   const writer = async (): Promise<void> => {
     allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
     await db.insertLatestPosts(allPosts, queryCtx);
+    await db.headsSyncedAt.setValue(Date.now());
   };
 
   if (yieldWriter) {
@@ -743,6 +747,13 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
           refetchType: 'active',
         });
       }
+      // check for any newly joined groups and channels
+      // WARNING -- removing this will break loading of initial channnels on
+      // group join. Shouldn't be the case, but here we are.
+      checkForNewlyJoined({
+        groupUnreads: activitySnapshot.groupUnreads,
+        channelUnreads: activitySnapshot.channelUnreads,
+      });
     },
     queueDebounce,
     { leading: true, trailing: true }
@@ -1277,6 +1288,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   await verifyUserInviteLink();
 
   isSyncing = false;
+  db.userHasCompletedFirstSync.setValue(true);
 };
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {

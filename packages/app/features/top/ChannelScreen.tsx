@@ -33,7 +33,11 @@ const logger = createDevLogger('ChannelScreen', false);
 type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: Props) {
-  const { channelId, selectedPostId, startDraft } = props.route.params;
+  const { channelId, selectedPostId, startDraft } = props.route.params ?? {
+    channelId: '',
+    selectedPostId: '',
+    startDraft: false,
+  };
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {

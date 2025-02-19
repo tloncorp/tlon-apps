@@ -117,10 +117,10 @@ export function BasePathNavigator({ isMobile }: { isMobile: boolean }) {
           } else if (isMobile && lastScreen.name === 'Home') {
             reset([{ name: 'ChatList' }]);
           }
-          if (isMobile && lastScreen.name === 'Profile') {
+          if (isMobile && lastScreen.name === 'Settings') {
             // if we're on mobile and the last screen was profile, we want to
             // be able to go back to the contacts screen when we press back
-            reset([{ name: 'Contacts' }, { name: 'Profile' }]);
+            reset([{ name: 'Contacts' }, { name: 'Settings' }]);
           } else {
             reset([lastScreen]);
           }

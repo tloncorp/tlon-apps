@@ -32,7 +32,14 @@ export function AddContactsView(props: {
         backAction={props.goBack}
         showSessionStatus={false}
       />
-      <YStack flex={1} paddingBottom={bottom} paddingHorizontal="$2xl">
+      <YStack
+        flex={1}
+        paddingBottom={bottom + 20}
+        paddingHorizontal="$2xl"
+        marginHorizontal="auto"
+        width="100%"
+        maxWidth={600}
+      >
         <ContactBook
           multiSelect
           searchable

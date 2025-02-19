@@ -112,7 +112,7 @@ export function GroupMembersScreenView({
           data: membersByRole[role],
         }))
         .concat(
-          joinRequestData.length > 0
+          joinRequestData.length > 0 && currentUserIsAdmin
             ? [
                 {
                   title: 'Join Requests',
@@ -122,7 +122,7 @@ export function GroupMembersScreenView({
             : []
         )
         .concat(
-          bannedUserData.length > 0
+          bannedUserData.length > 0 && currentUserIsAdmin
             ? [
                 {
                   title: 'Banned Users',

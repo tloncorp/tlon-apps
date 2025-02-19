@@ -43,7 +43,7 @@ export const HomeNavigator = () => {
           drawerType: 'permanent',
           headerShown: false,
           drawerStyle: {
-            width: isImageViewer ? 0 : 340,
+            width: isImageViewer ? 0 : 400,
             backgroundColor,
             borderRightColor: borderColor,
           },
@@ -64,20 +64,39 @@ export const HomeNavigator = () => {
 function DrawerContent(props: DrawerContentComponentProps) {
   const state = props.state as NavigationState<HomeDrawerParamList>;
   const focusedRoute = state.routes[props.state.index];
+  const focusedRouteParams = focusedRoute.params;
+  // @ts-expect-error - nested params is not in the type
+  const nestedFocusedRouteParams = focusedRouteParams?.params;
   if (
-    focusedRoute.params &&
-    'groupId' in focusedRoute.params &&
-    focusedRoute.params.groupId
+    focusedRouteParams &&
+    'groupId' in focusedRouteParams &&
+    focusedRouteParams.groupId
   ) {
-    if ('channelId' in focusedRoute.params) {
+    if ('channelId' in focusedRouteParams) {
       return (
         <GroupChannelsScreenContent
-          groupId={focusedRoute.params.groupId}
-          focusedChannelId={focusedRoute.params.channelId}
+          groupId={focusedRouteParams.groupId}
+          focusedChannelId={focusedRouteParams.channelId}
         />
       );
     }
-    return <GroupChannelsScreenContent groupId={focusedRoute.params.groupId} />;
+    return <GroupChannelsScreenContent groupId={focusedRouteParams.groupId} />;
+  } else if (
+    focusedRouteParams &&
+    nestedFocusedRouteParams &&
+    'groupId' in nestedFocusedRouteParams
+  ) {
+    if ('channelId' in nestedFocusedRouteParams) {
+      return (
+        <GroupChannelsScreenContent
+          groupId={nestedFocusedRouteParams.groupId}
+          focusedChannelId={nestedFocusedRouteParams.channelId}
+        />
+      );
+    }
+    return (
+      <GroupChannelsScreenContent groupId={nestedFocusedRouteParams.groupId} />
+    );
   } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
     return (
       <ChatListScreenView focusedChannelId={focusedRoute.params.channelId} />
@@ -108,10 +127,14 @@ function ChannelStack(
   props: NativeStackScreenProps<HomeDrawerParamList, 'Channel'>
 ) {
   const navKey = () => {
-    if ('channelId' in props.route.params) {
+    if (props.route.params && 'channelId' in props.route.params) {
       return props.route.params.channelId;
     }
-    if (props.route.params.params && 'channelId' in props.route.params.params) {
+    if (
+      props.route.params &&
+      props.route.params.params &&
+      'channelId' in props.route.params.params
+    ) {
       return props.route.params.params.channelId;
     }
 

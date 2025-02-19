@@ -19,18 +19,22 @@ export function AvatarNavIcon({
 }) {
   return (
     <Pressable
+      testID="AvatarNavIcon"
       flex={1}
       onPress={onPress}
       onLongPress={onLongPress}
       alignItems="center"
-      paddingTop={'$s'}
-      pressStyle={{ backgroundColor: 'unset' }}
+      justifyContent="center"
+      width={isWeb ? '$3xl' : undefined}
+      height={isWeb ? '$3xl' : undefined}
+      pressStyle={{ backgroundColor: '$activeBorder' }}
+      hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+      borderRadius="$s"
     >
       <ContactAvatar
-        size={isWeb ? '$2xl' : 'custom'}
-        width={20}
-        height={20}
-        borderRadius={3}
+        {...(isWeb
+          ? { size: '$2xl' }
+          : { size: 'custom', width: 20, height: 20 })}
         contactId={id}
         opacity={focused ? 1 : 0.6}
       />
@@ -58,18 +62,25 @@ export default function NavIcon({
   const resolvedType = isActive && activeType ? activeType : type;
   return (
     <Pressable
-      backgroundColor={backgroundColor}
       alignItems="center"
       flex={1}
-      pressStyle={{ backgroundColor: 'unset' }}
       onPress={onPress}
+      borderRadius="$s"
+      backgroundColor={backgroundColor}
+      pressStyle={{ backgroundColor: '$activeBorder' }}
+      hoverStyle={{ backgroundColor: '$secondaryBackground' }}
     >
       <Icon
         type={resolvedType}
         color={isActive ? '$primaryText' : '$tertiaryText'}
       />
       {shouldShowUnreads ? (
-        <View justifyContent="center" alignItems="center">
+        <View
+          position="absolute"
+          top="100%"
+          justifyContent="center"
+          alignItems="center"
+        >
           <Circle
             size="$s"
             backgroundColor={hasUnreads ? '$blue' : 'transparent'}

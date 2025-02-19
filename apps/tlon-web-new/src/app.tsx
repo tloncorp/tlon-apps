@@ -8,7 +8,6 @@ import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitCl
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { loadConstants } from '@tloncorp/app/lib/constants';
 import { checkDb, useMigrations } from '@tloncorp/app/lib/webDb';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
 import {
@@ -18,6 +17,7 @@ import {
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { LoadingSpinner, StoreProvider, View } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
@@ -35,8 +35,6 @@ import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
 import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
-
-loadConstants();
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/production').then((d) => ({
@@ -153,6 +151,9 @@ const App = React.memo(function AppComponent() {
       shipUrl: '',
     });
     const syncStart = async () => {
+      // Web doesn't persist database, so headsSyncedAt is misleading
+      await db.headsSyncedAt.resetValue();
+
       await sync.syncStart(startedSync);
       setStartedSync(true);
 

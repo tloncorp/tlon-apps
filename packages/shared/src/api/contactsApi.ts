@@ -83,10 +83,6 @@ export const updateContactMetadata = async (
       : null;
   }
 
-  if (Object.keys(contactUpdate).length !== 0) {
-    logger.trackEvent(AnalyticsEvent.ContactEdited);
-  }
-
   return poke({
     app: 'contacts',
     mark: 'contact-action-1',
@@ -96,7 +92,6 @@ export const updateContactMetadata = async (
 
 export const addContact = async (contactId: string) => {
   removeContactSuggestion(contactId);
-  logger.trackEvent(AnalyticsEvent.ContactAdded);
   return poke({
     app: 'contacts',
     mark: 'contact-action-1',
@@ -267,7 +262,6 @@ export const v0PeerToClientProfile = (
   }
 ): db.Contact => {
   const currentUserId = getCurrentUserId();
-  const phoneVerify = contactVerifyToClientForm(contact);
   return {
     id,
     peerNickname: contact?.nickname ?? null,
@@ -284,7 +278,6 @@ export const v0PeerToClientProfile = (
 
     isContact: false,
     isContactSuggestion: config?.isContactSuggestion && id !== currentUserId,
-    ...phoneVerify,
   };
 };
 
@@ -325,7 +318,6 @@ export const v1PeerToClientProfile = (
   }
 ): db.Contact => {
   const currentUserId = getCurrentUserId();
-  const phoneVerify = contactVerifyToClientForm(contact);
   return {
     id,
     peerNickname: contact.nickname?.value ?? null,
@@ -342,7 +334,6 @@ export const v1PeerToClientProfile = (
     isContact: config?.isContact,
     isContactSuggestion:
       config?.isContactSuggestion && !config?.isContact && id !== currentUserId,
-    ...phoneVerify,
   };
 };
 
@@ -371,7 +362,6 @@ export const contactToClientProfile = (
   }
 ): db.Contact => {
   const [base, overrides] = contact;
-  const phoneVerify = contactVerifyToClientForm(base);
 
   return {
     id: userId,
@@ -390,6 +380,5 @@ export const contactToClientProfile = (
       })) ?? [],
     isContact: true,
     isContactSuggestion: false,
-    ...phoneVerify,
   };
 };

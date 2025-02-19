@@ -10,7 +10,8 @@ export type RootStackParamList = {
   Empty: undefined;
   ChatList: { previewGroupId: string } | undefined;
   Activity: undefined;
-  Profile: undefined;
+  Settings: undefined;
+  Messages: undefined;
   DM: {
     channelId: string;
     selectedPostId?: string | null;
@@ -98,7 +99,7 @@ export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
 
 export type RootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
-} & Pick<RootStackParamList, 'Activity' | 'Contacts'>;
+} & Pick<RootStackParamList, 'Activity' | 'Contacts' | 'Messages' | 'Settings'>;
 
 export type CombinedParamList = RootStackParamList & RootDrawerParamList;
 
@@ -117,6 +118,23 @@ export type HomeDrawerParamList = Pick<
   ChatDetails: RootStackParamList['ChatDetails'];
   ChatVolume: RootStackParamList['ChatVolume'];
 };
+
+export type ProfileDrawerParamList = Pick<
+  RootStackParamList,
+  'Contacts' | 'AddContacts' | 'UserProfile'
+>;
+
+export type SettingsDrawerParamList = Pick<
+  RootStackParamList,
+  | 'AppSettings'
+  | 'Theme'
+  | 'FeatureFlags'
+  | 'ManageAccount'
+  | 'BlockedUsers'
+  | 'AppInfo'
+  | 'PushNotificationSettings'
+  | 'WompWomp'
+>;
 
 export type ChannelStackParamList = {
   ChannelRoot: RootStackParamList['Channel'];

@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, isWeb, styled, withStaticProperties } from 'tamagui';
 
 import { Icon } from './Icon';
+import Pressable from './Pressable';
 import { Text } from './TextV2';
 
 export const ScreenHeaderComponent = ({
@@ -84,6 +85,7 @@ const HeaderIconButton = styled(Icon, {
 const HeaderTextButton = styled(Text, {
   size: '$label/2xl',
   paddingHorizontal: '$s',
+  cursor: 'pointer',
   pressStyle: {
     opacity: 0.5,
   },
@@ -99,7 +101,7 @@ const HeaderTextButton = styled(Text, {
 const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
   return (
     <HeaderIconButton
-      testID="Top Back Button"
+      testID="HeaderBackButton"
       type="ChevronLeft"
       onPress={onPress}
     />
