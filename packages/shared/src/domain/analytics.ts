@@ -42,6 +42,7 @@ export enum AnalyticsEvent {
   OnNetworkInvite = 'Sent On Network Group Invite',
   UserLoggedIn = 'User Logged In',
   NodeAuthSaved = 'Node Auth Saved',
+  ErrorNodeResumePush = 'Node Resume Push Error',
   AnalyticsDigest = 'Usage Digest Report',
   ActionContactAdded = 'Contact Added',
   ActionContactRemoved = 'Contact Removed',
