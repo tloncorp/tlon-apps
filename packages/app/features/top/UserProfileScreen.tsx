@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { View, getVariableValue } from '@tamagui/core';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import {
   AppDataContextProvider,
@@ -10,7 +11,6 @@ import {
   NavigationProvider,
   UserProfileScreenView,
   useIsWindowNarrow,
-  useTheme,
 } from '@tloncorp/ui';
 import { useState } from 'react';
 import { useCallback } from 'react';
@@ -22,6 +22,8 @@ import { useRootNavigation } from '../../navigation/utils';
 import { useConnectionStatus } from './useConnectionStatus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
+
+const logger = createDevLogger('UserProfileScreen', false);
 
 export function UserProfileScreen({ route, navigation }: Props) {
   const { params } = route;
@@ -55,7 +57,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
     }
 
     navigation.navigate('EditProfile', { userId });
-  }, [navigation, userId]);
+  }, [isWindowNarrow, navigation, userId]);
 
   const canUpload = store.useCanUpload();
 
@@ -66,6 +68,14 @@ export function UserProfileScreen({ route, navigation }: Props) {
     },
     [performGroupAction]
   );
+
+  const handlePressGroup = useCallback((group: db.Group) => {
+    logger.trackEvent(
+      AnalyticsEvent.ActionViewProfileGroup,
+      logic.getModelAnalytics({ group })
+    );
+    setSelectedGroup(group);
+  }, []);
 
   return (
     <AppDataContextProvider
@@ -81,7 +91,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
             userId={userId}
             onBack={() => navigation.goBack()}
             connectionStatus={connectionStatus}
-            onPressGroup={setSelectedGroup}
+            onPressGroup={handlePressGroup}
             onPressEdit={handlePressEdit}
           />
           <GroupPreviewSheet

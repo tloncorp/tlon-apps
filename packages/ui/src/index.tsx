@@ -83,6 +83,7 @@ export * from './components/WelcomeSheet';
 export * from './components/Image';
 export * from './components/ArvosDiscussing';
 export * from './components/PersonalInviteSheet';
+export * from './components/StoppedNodePushSheet';
 export * from './components/Tabs';
 export * as Form from './components/Form';
 export * from './contexts';
