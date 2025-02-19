@@ -38,7 +38,7 @@ const AudioEmbed: shared.AudioEmbed = ({ url }: { url: string }) => {
     <Embed height={100}>
       <Embed.Header onPress={() => ({})}>
         <Embed.Title>Audio</Embed.Title>
-        <Embed.PopOutIcon />
+        <Embed.PopOutIcon type='ArrowRef' />
       </Embed.Header>
       <Embed.Preview onPress={() => setShowModal(true)}>
         <Icon type="Play" />

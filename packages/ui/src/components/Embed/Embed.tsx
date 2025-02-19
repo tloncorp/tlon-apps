@@ -32,11 +32,11 @@ const EmbedHeader = styled(XStack, {
   borderBottomWidth: 1,
 });
 
-const EmbedPreview = styled(XStack, {
+const EmbedPreview = styled(YStack, {
   name: 'EmbedPreview',
   gap: '$s',
-  alignItems: 'center',
   padding: '$l',
+  width: '100%',
 });
 
 const EmbedTitle = styled(Text, {

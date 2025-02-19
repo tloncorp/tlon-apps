@@ -113,7 +113,6 @@ export async function fetchEmbed(inputUrl: string, isMobile?: boolean) {
   }
 
   if (isTikTok) {
-    console.log('TikTok URL:', url);
     // noembed doesn't support tiktok
     return jsonFetch(`https://www.tiktok.com/oembed?url=${url}`);
   }
