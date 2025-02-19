@@ -25,10 +25,6 @@ const trustedProviders = [
     name: 'TikTok',
     regex: /^https:\/\/www\.tiktok\.com\//,
   },
-  {
-    name: 'Wikipedia',
-    regex: /^https:\/\/(?:en\.)?wikipedia\.org\//,
-  },
 ];
 
 export default function ChatEmbedContent({
