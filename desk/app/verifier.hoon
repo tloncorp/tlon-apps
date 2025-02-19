@@ -314,12 +314,15 @@
   (sign [our now] `full-sign-data`[%0 %verified %full now for id proof])
 ::
 ++  get-allowance
-  ::TODO  don't give comets allowance? or just much more stingy?
   |=  [lims=(map @p allowance) for=@p now=@da]
   ^-  allowance
+  =/  bunt=allowance
+    ?.  ?=(?(%pawn %earl) (clan:title for))
+      *allowance
+    %*(. *allowance phone 1, tweet 1, fetch 1, queries 10, batch 50)
   ?~  lim=(~(get by lims) for)
-    %*(. *allowance since now)
-  =/  max  *allowance
+    bunt(since now)
+  =/  max  bunt
   =/  d    (sub now since.u.lim)
   :*  now
       (calc-new phone.u.lim phone.max d phone:rates)
