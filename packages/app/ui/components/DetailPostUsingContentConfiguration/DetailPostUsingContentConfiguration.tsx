@@ -6,13 +6,13 @@ import {
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Story } from '@tloncorp/shared/urbit';
+import { ForwardingProps } from '@tloncorp/ui';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
 import { YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts';
 import { usePostCollectionContext } from '../../contexts/postCollection';
-import { ForwardingProps } from '../../../../ui/src/utils/react';
 import { ChannelHeader } from '../Channel/ChannelHeader';
 import { DraftInputView } from '../Channel/DraftInputView';
 import { DraftInputContext } from '../draftInputs';

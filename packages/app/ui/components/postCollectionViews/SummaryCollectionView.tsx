@@ -1,14 +1,14 @@
 import { useNavigation } from '@react-navigation/native';
 import * as db from '@tloncorp/shared/db';
+import { ForwardingProps } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { forwardRef, useEffect, useMemo } from 'react';
 import { FlatList } from 'react-native';
 import { View, getTokenValue } from 'tamagui';
 
 import { useLivePost } from '../../contexts';
 import { usePostCollectionContext } from '../../contexts/postCollection';
-import { ForwardingProps } from '../../../../ui/src/utils/react';
 import { ListItem } from '../ListItem';
-import { Pressable } from '@tloncorp/ui';
 import { IPostCollectionView } from './shared';
 
 export function BaseSummaryCollectionView({
