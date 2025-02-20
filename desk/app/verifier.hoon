@@ -314,35 +314,52 @@
   (sign [our now] `full-sign-data`[%0 %verified %full now for id proof])
 ::
 ++  get-allowance
-  |=  [lims=(map @p allowance) for=@p now=@da]
-  ^-  allowance
-  =/  bunt=allowance
-    ?.  ?=(?(%pawn %earl) (clan:title for))
-      *allowance
-    %*(. *allowance phone 1, tweet 1, fetch 1, queries 10, batch 50)
-  ?~  lim=(~(get by lims) for)
-    bunt(since now)
-  =/  max  bunt
-  =/  d    (sub now since.u.lim)
-  :*  now
-      (calc-new phone.u.lim phone.max d phone:rates)
-      (calc-new photp.u.lim photp.max d photp:rates)
-      (calc-new tweet.u.lim tweet.max d tweet:rates)
-      (calc-new fetch.u.lim fetch.max d fetch:rates)
-      (calc-new queries.u.lim queries.max d queries:rates)
-      (calc-new batch.u.lim batch.max d batch:rates)
-      last-batch.u.lim
-  ==
+  |=  [[solo=(map @p allowance) pool=allowance] for=@p now=@da]
+  |^  ^-  [solo=allowance pool=(unit allowance)]
+      =/  risk=?
+        ?=(?(%pawn %earl) (clan:title for))
+      =/  base=allowance
+        ?.  risk  *allowance
+        %*(. *allowance phone 1, tweet 1, fetch 1, queries 10, batch 50)
+      =/  max  base
+      :-  ?~  lim=(~(get by solo) for)
+            base(since now)
+          (step-allowance u.lim max now (sub now since.u.lim))
+      ?.  risk  ~
+      `(step-allowance pool allowance:pool:rates now (sub now since.pool))
+  ::
+  ++  step-allowance
+    |=  [a=allowance m=allowance now=@da d=@dr]
+    ^+  a
+    :*  now
+        (calc-new phone.a phone.m d phone:rates)
+        (calc-new photp.a photp.m d photp:rates)
+        (calc-new tweet.a tweet.m d tweet:rates)
+        (calc-new fetch.a fetch.m d fetch:rates)
+        (calc-new queries.a queries.m d queries:rates)
+        (calc-new batch.a batch.m d batch:rates)
+        last-batch.a
+    ==
+  ::
+  ++  calc-new
+    |=  [i=@ud m=@ud d=@dr [n=@ud p=@dr]]
+    ^-  @ud
+    (min (add i (calc-gain d n p)) m)
+  ::
+  ++  calc-gain
+    |=  [d=@dr [n=@ud p=@dr]]
+    ^-  @ud
+    (abs:si (need (toi:rd (mul:rd (sun:rd n) (div:rd (sun:rd `@`d) (sun:rd `@`p))))))
+  --
 ::
-++  calc-new
-  |=  [i=@ud m=@ud d=@dr n=@ud p=@dr]
-  ^-  @ud
-  (min (add i (calc-gain d n p)) m)
-::
-++  calc-gain
-  |=  [d=@dr n=@ud p=@dr]
-  ^-  @ud
-  (abs:si (need (toi:rd (mul:rd (sun:rd n) (div:rd (sun:rd `@`d) (sun:rd `@`p))))))
+++  jab-allowance
+  |=  [limits=[solo=(map @p allowance) pool=allowance] for=@p now=@da]
+  |=  f=$-(allowance allowance)
+  ^+  limits
+  =+  (get-allowance limits for now)
+  :-  (~(put by solo.limits) for (f solo))
+  ?^  pool  (f u.pool)
+  pool.limits
 ::
 ++  find-whose
   |=  [id=identifier sat=(unit record) src=(set identifier)]
@@ -488,11 +505,10 @@
       =.  owners
         (~(put ju owners) src.bowl id.cmd)
       =?  limits  ?=(%phone -.id.cmd)
-        =/  lim  (get-allowance limits src.bowl now.bowl)
-        =.  phone.lim
-          ~|  %would-exceed-rate-limit
-          (dec phone.lim)
-        (~(put by limits) src.bowl lim)
+        %-  (jab-allowance limits src.bowl now.bowl)
+        |=  lim=allowance
+        ~|  %would-exceed-rate-limit
+        lim(phone (dec phone.lim))
       %-  (tell:l %info 'started registration' ~)
       :_  this
       :+  (give-status src.bowl id.cmd status)
@@ -541,11 +557,10 @@
         ?>  =(src.bowl for.rec)
         ?>  =([%want %phone %otp] status.rec)  ::NOTE  tmi
         =.  limits
-          =/  lim  (get-allowance limits [src now]:bowl)
-          =.  photp.lim
-            ~|  %would-exceed-rate-limit
-            (dec photp.lim)
-          (~(put by limits) src.bowl lim)
+          %-  (jab-allowance limits [src now]:bowl)
+          |=  lim=allowance
+          ~|  %would-exceed-rate-limit
+          lim(photp (dec photp.lim))
         =.  status.rec  [%wait ~]
         :_  this(records (~(put by records) id rec))
         :~  (give-status src.bowl id status.rec)
@@ -558,11 +573,10 @@
         ?>  =(src.bowl for.rec)
         ?>  |(?=([%want %twitter %post *] status.rec))  ::NOTE  tmi hack
         =.  limits
-          =/  lim  (get-allowance limits [src now]:bowl)
-          =.  tweet.lim
-            ~|  %would-exceed-rate-limit
-            (dec tweet.lim)
-          (~(put by limits) src.bowl lim)
+          %-  (jab-allowance limits [src now]:bowl)
+          |=  lim=allowance
+          ~|  %would-exceed-rate-limit
+          lim(tweet (dec tweet.lim))
         =.  status.rec  [%wait `status.rec]
         :_  this(records (~(put by records) id rec))
         :~  (give-status src.bowl id status.rec)
@@ -575,11 +589,10 @@
         ?>  =(src.bowl for.rec)
         ?>  |(?=([%want %website %sign *] status.rec))  ::NOTE  tmi hack
         =.  limits
-          =/  lim  (get-allowance limits [src now]:bowl)
-          =.  fetch.lim
-            ~|  %would-exceed-rate-limit
-            (dec fetch.lim)
-          (~(put by limits) src.bowl lim)
+          %-  (jab-allowance limits [src now]:bowl)
+          |=  lim=allowance
+          ~|  %would-exceed-rate-limit
+          lim(fetch (dec fetch.lim))
         =.  status.rec  [%wait `status.rec]
         :_  this(records (~(put by records) id rec))
         :~  (give-status src.bowl id status.rec)
@@ -617,12 +630,12 @@
       [%pass /query/result %agent [src.bowl dude.qer] %poke cage]~
     ?-  +<.qer
         ?(%has-any %valid %whose)
-      =/  lims=allowance
-        (get-allowance limits src.bowl now.bowl)
-      =.  queries.lims
+      =.  limits
+        %-  (jab-allowance limits src.bowl now.bowl)
+        |=  lim=allowance
         ~|  %would-exceed-rate-limit
-        (dec queries.lims)
-      :_  state(limits (~(put by limits) src.bowl lims))
+        lim(queries (dec queries.lim))
+      :_  state
       ?-  +<.qer
           %has-any
         :-  %has-any
@@ -645,12 +658,9 @@
       ::  first, rate-limiting logic
       ::REVIEW  sha-256 fine, or do we want sha-512 (or other) for some reason?
       ::
-      ::  lims: rate-limiting allowance pool
       ::  bulk: full set to query on
       ::  cost: .batch.lims allowance cost of resolving .bulk
       ::
-      =/  lims=allowance
-        (get-allowance limits src.bowl now.bowl)
       =/  bulk=(set identifier)
         (~(dif in (~(uni in last.qer) add.qer)) del.qer)
       ?:  (gth ~(wyt in bulk) batch-upper-bound:rates)
@@ -671,18 +681,24 @@
         ::  if the query has continuity with the previous batch from the
         ::  requester, they only "pay" for the new entries
         ::
-        ?:  =(lash last-batch.lims)
+        ?:  =(lash last-batch:(~(gut by solo.limits) src.bowl *allowance))
           ~(wyt in add.qer)
         ::  if there is discontinuity, consider the entirety of the
         ::  request new, and make them "pay" for each entry
         ::
         ~(wyt in bulk)
-      =.  batch.lims
+      =/  salt  (shas %whose-salt eny.bowl)
+      =.  limits
+        %-  (jab-allowance limits src.bowl now.bowl)
+        |=  lim=allowance
         ~|  %would-exceed-rate-limit
-        (sub batch.lims cost)
-      =/  salt             (shas %whose-salt eny.bowl)
-      =.  last-batch.lims  (shas salt (jam bulk))
-      :_  state(limits (~(put by limits) src.bowl lims))
+        ::NOTE  this also writes the last-batch hash to the shared pool,
+        ::      but we don't really care. the value there is never checked.
+        %_  lim
+          batch       (sub batch.lim cost)
+          last-batch  (shas salt (jam bulk))
+        ==
+      :_  state
       ::  assuming the prior didn't crash, we can proceed with the query
       ::
       :+  %whose-bulk  salt

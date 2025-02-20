@@ -18,7 +18,7 @@
       lookups=(map @ identifier)
       reverse=(jug identifier @)
     ::
-      limits=(map @p allowance)
+      limits=[solo=(map @p allowance) pool=_allowance:pool:rates]
     ::
       ::NOTE  basic auth only for staging
       phone-api=[base=@t key=@t basic=(unit [user=@t pass=@t])]
@@ -108,6 +108,28 @@
   ++  batch    [n=10 p=~d1]
   ::
   ++  batch-upper-bound  10.000
+  ::
+  ++  pool
+    |%
+    ++  allowance
+      ^-  ^allowance
+      :*  since=*@da
+          phone=50
+          photp=1.000
+          tweet=10
+          fetch=50
+          queries=100
+          batch=1.000
+          last-batch=*@ux
+      ==
+    ::
+    ++  phone    [n=1 p=~m5]
+    ++  photp    [n=10 p=~m1]
+    ++  tweet    [n=5 p=~m15]
+    ++  fetch    [n=10 p=~m1]
+    ++  queries  [n=10 p=~m5]
+    ++  batch    [n=10 p=~d1]
+    --
   --
 ::
 ::
