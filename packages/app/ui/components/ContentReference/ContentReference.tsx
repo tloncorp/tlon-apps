@@ -12,11 +12,11 @@ import { useGroupTitle } from '../../utils';
 import { ContactAvatar, GroupAvatar } from '../Avatar';
 import { useContactName } from '../ContactNameV2';
 import { GalleryContentRenderer } from '../GalleryPost';
-import { IconType } from '../Icon';
+import { IconType } from '../../tmp/components/Icon';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { PostContentRenderer } from '../PostContent/ContentRenderer';
-import { Text } from '../TextV2';
+import { Text } from '../../tmp/components/TextV2';
 import {
   Reference,
   ReferenceContext,

@@ -23,9 +23,9 @@ import { useCopy } from '../../tmp/hooks/useCopy';
 import { ContentReferenceLoader, Reference } from '../ContentReference';
 import { VideoEmbed } from '../Embed';
 import { HighlightedCode } from '../HighlightedCode';
-import { Image } from '../Image';
-import Pressable from '../Pressable';
-import { Text } from '../TextV2';
+import { Image } from '../../tmp/components/Image';
+import Pressable from '../../tmp/components/Pressable';
+import { Text } from '../../tmp/components/TextV2';
 import { InlineRenderer } from './InlineRenderer';
 import * as cn from './contentUtils';
 

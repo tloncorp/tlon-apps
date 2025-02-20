@@ -6,10 +6,10 @@ import { useCurrentUserId } from '../../../contexts';
 import useIsWindowNarrow from '../../../tmp/hooks/useIsWindowNarrow';
 import useOnEmojiSelect from '../../../hooks/useOnEmojiSelect';
 import { ReactionDetails, useReactionDetails } from '../../../utils/postUtils';
-import { Button } from '../../Button';
+import { Button } from '../../../tmp/components/Button';
 import { EmojiPickerSheet } from '../../Emoji/EmojiPickerSheet';
-import { SizableEmoji } from '../../Emoji/SizableEmoji';
-import { Icon } from '../../Icon';
+import { SizableEmoji } from '../../../tmp/components/Emoji/SizableEmoji';
+import { Icon } from '../../../tmp/components/Icon';
 
 export function EmojiToolbar({
   post,

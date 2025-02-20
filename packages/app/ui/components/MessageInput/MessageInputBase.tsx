@@ -15,9 +15,9 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
-import { Button } from '../Button';
-import { FloatingActionButton } from '../FloatingActionButton';
-import { Icon } from '../Icon';
+import { Button } from '../../tmp/components/Button';
+import { FloatingActionButton } from '../../tmp/components/FloatingActionButton';
+import { Icon } from '../../tmp/components/Icon';
 import { GalleryDraftType } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';

@@ -53,7 +53,7 @@ export * from './components/Onboarding';
 export * from './components/PostScreenView';
 export * from './components/postCollectionViews/SummaryCollectionView';
 export { ConnectedPostView } from './components/postCollectionViews/shared';
-export { default as Pressable } from './components/Pressable';
+export { default as Pressable } from './tmp/components/Pressable';
 export * from './components/SettingsScreenView';
 export * from './components/ProfileSheet';
 export * from './components/ScreenHeader';

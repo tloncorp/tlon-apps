@@ -13,7 +13,7 @@ import {
   createActionGroups,
 } from './ActionSheet';
 import { ListItem } from './ListItem';
-import { LoadingSpinner } from './LoadingSpinner';
+import { LoadingSpinner } from '../tmp/components/LoadingSpinner';
 
 const logger = createDevLogger('GroupPreviewSheet', true);
 

@@ -24,8 +24,8 @@ import {
   ContactAvatar,
   GroupAvatar,
 } from './Avatar';
-import { Icon } from './Icon';
-import { LoadingSpinner } from './LoadingSpinner';
+import { Icon } from '../tmp/components/Icon';
+import { LoadingSpinner } from '../tmp/components/LoadingSpinner';
 
 interface Props {
   contact?: db.Contact | null;

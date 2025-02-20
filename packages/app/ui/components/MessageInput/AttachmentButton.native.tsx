@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Add } from '@tloncorp/ui/assets/icons';
 import { useAttachmentContext } from '../../contexts/attachment';
 import AttachmentSheet from '../AttachmentSheet';
-import { IconButton } from '../IconButton';
+import { IconButton } from '../../tmp/components/IconButton';
 
 export default function AttachmentButton({
   setShouldBlur,

@@ -1,7 +1,7 @@
 import { ComponentProps, PropsWithChildren } from 'react';
 import { View } from 'tamagui';
 
-import { Button } from '../Button';
+import { Button } from '../../tmp/components/Button';
 
 export function OnboardingButton({
   secondary,

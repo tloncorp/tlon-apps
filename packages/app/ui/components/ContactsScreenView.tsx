@@ -8,7 +8,7 @@ import { useSortedContacts } from '../hooks/contactSorters';
 import { SystemIconAvatar } from './Avatar';
 import { Badge } from './Badge';
 import { ContactListItem } from './ListItem';
-import { SectionListHeader } from './SectionList';
+import { SectionListHeader } from '../tmp/components/SectionList';
 
 interface Props {
   contacts: db.Contact[];

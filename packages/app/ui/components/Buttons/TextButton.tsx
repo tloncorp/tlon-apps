@@ -1,4 +1,4 @@
-import { Button, ButtonProps } from '../Button';
+import { Button, ButtonProps } from '../../tmp/components/Button';
 
 export function TextButton({
   onPress,

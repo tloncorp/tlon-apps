@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { ActionSheet } from '../ActionSheet';
-import { Button } from '../Button';
+import { Button } from '../../tmp/components/Button';
 import * as Form from '../Form';
 
 export function EditSectionNameSheet({

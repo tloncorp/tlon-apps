@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Text } from 'tamagui';
 
-import { Icon } from '../Icon';
+import { Icon } from '../../tmp/components/Icon';
 import { Embed } from './Embed';
 
 export default function OutsideEmbed({ url }: { url: string }) {

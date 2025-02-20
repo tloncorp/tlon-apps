@@ -3,7 +3,7 @@ import { isWeb } from 'tamagui';
 
 import { AvatarProps } from '../Avatar';
 import ContactName from '../ContactName';
-import Pressable from '../Pressable';
+import Pressable from '../../tmp/components/Pressable';
 import { ListItem } from './ListItem';
 import { useBoundHandler } from './listItemUtils';
 

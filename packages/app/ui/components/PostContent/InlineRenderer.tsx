@@ -4,7 +4,7 @@ import { ColorTokens, styled } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
 import { useContactName } from '../ContactNameV2';
-import { RawText, Text } from '../TextV2';
+import { RawText, Text } from '../../tmp/components/TextV2';
 import {
   InlineData,
   InlineFromType,

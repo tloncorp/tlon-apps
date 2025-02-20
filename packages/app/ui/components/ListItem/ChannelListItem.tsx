@@ -8,10 +8,10 @@ import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
-import { Button } from '../Button';
+import { Button } from '../../tmp/components/Button';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
-import { Icon } from '../Icon';
-import Pressable from '../Pressable';
+import { Icon } from '../../tmp/components/Icon';
+import Pressable from '../../tmp/components/Pressable';
 import { ListItem, type ListItemProps } from './ListItem';
 
 export function ChannelListItem({

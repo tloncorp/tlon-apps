@@ -22,9 +22,9 @@ import { useChatOptions } from '../../contexts/chatOptions';
 import { useScrollContext } from '../../contexts/scroll';
 import { useGroupTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
-import { Icon } from '../Icon';
-import { Image } from '../Image';
-import Pressable from '../Pressable';
+import { Icon } from '../../tmp/components/Icon';
+import { Image } from '../../tmp/components/Image';
+import Pressable from '../../tmp/components/Pressable';
 
 export function BaubleHeader({
   showSpinner,

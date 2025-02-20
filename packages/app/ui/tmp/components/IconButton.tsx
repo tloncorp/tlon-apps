@@ -7,7 +7,7 @@ import {
   useTheme,
 } from 'tamagui';
 
-import { Button, ButtonProps } from '../components/Button';
+import { Button, ButtonProps } from './Button';
 
 export function IconButton({
   children,

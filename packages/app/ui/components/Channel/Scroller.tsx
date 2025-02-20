@@ -42,10 +42,10 @@ import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { EmojiPickerSheet } from '../Emoji';
-import { FloatingActionButton } from '../FloatingActionButton';
-import { Icon } from '../Icon';
-import { LoadingSpinner } from '../LoadingSpinner';
-import { Modal } from '../Modal';
+import { FloatingActionButton } from '../../tmp/components/FloatingActionButton';
+import { Icon } from '../../tmp/components/Icon';
+import { LoadingSpinner } from '../../tmp/components/LoadingSpinner';
+import { Modal } from '../../tmp/components/Modal';
 import { ChannelDivider } from './ChannelDivider';
 import { useAnchorScrollLock } from './useAnchorScrollLock';
 

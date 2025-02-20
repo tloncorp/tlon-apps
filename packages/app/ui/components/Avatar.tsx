@@ -15,9 +15,9 @@ import { useCalm, useContact } from '../contexts';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
 import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
-import { Icon, IconType } from './Icon';
-import { Image } from './Image';
-import UrbitSigil from './UrbitSigil';
+import { Icon, IconType } from '../tmp/components/Icon';
+import { Image } from '../tmp/components/Image';
+import UrbitSigil from '../tmp/components/UrbitSigil';
 
 const AvatarFrame = styled(View, {
   width: '$4xl',

@@ -22,10 +22,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
 import { Action, ActionSheet, SimpleActionSheet } from '../ActionSheet';
-import { Button } from '../Button';
+import { Button } from '../../tmp/components/Button';
 import * as Form from '../Form';
-import { Icon } from '../Icon';
-import { Text } from '../TextV2';
+import { Icon } from '../../tmp/components/Icon';
+import { Text } from '../../tmp/components/TextV2';
 
 export function applySetStateAction<T>(prev: T, action: SetStateAction<T>): T {
   if (typeof action === 'function') {

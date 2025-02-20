@@ -23,7 +23,7 @@ import {
   ActionSheet,
   createActionGroups,
 } from './ActionSheet';
-import { IconButton } from './IconButton';
+import { IconButton } from '../tmp/components/IconButton';
 import { ListItem } from './ListItem';
 
 type ChatOptionsSheetProps = {

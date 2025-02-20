@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { View } from 'tamagui';
 
-import { Icon } from '../Icon';
+import { Icon } from '../../tmp/components/Icon';
 import { EditLinkBar } from './EditLinkBar';
 import {
   DEFAULT_TOOLBAR_ITEMS,

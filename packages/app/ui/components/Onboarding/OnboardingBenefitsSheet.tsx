@@ -1,6 +1,6 @@
 import { ActionSheet, Icon, Image, View, XStack, YStack } from '../..';
 
-import { Text } from '../TextV2';
+import { Text } from '../../tmp/components/TextV2';
 
 export function OnboardingBenefitsSheet({
   open,

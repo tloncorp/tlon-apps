@@ -44,7 +44,7 @@ import {
   MessageInputContainer,
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
-import { RawText, Text } from '../TextV2/Text';
+import { RawText, Text } from '../../tmp/components/TextV2/Text';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import { useMentions } from './useMentions';
 

@@ -9,7 +9,7 @@ import {
   View,
 } from '../ui';
 import { PostBlockSeparator } from '../ui/components/Channel/Scroller';
-import { Text } from '../ui/components/TextV2';
+import { Text } from '../ui/tmp/components/TextV2';
 import React, { PropsWithChildren } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 

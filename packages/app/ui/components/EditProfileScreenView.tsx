@@ -15,7 +15,7 @@ import {
   Field,
   FormFrame,
 } from './Form';
-import KeyboardAvoidingView from './KeyboardAvoidingView';
+import KeyboardAvoidingView from '../tmp/components/KeyboardAvoidingView';
 import { ScreenHeader } from './ScreenHeader';
 import { BioDisplay, PinnedGroupsDisplay } from './UserProfileScreenView';
 

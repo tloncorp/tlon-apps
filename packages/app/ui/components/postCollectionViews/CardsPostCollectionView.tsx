@@ -9,7 +9,7 @@ import { Alert } from 'react-native';
 import { Text, View } from 'tamagui';
 
 import { usePostCollectionContext } from '../../contexts/postCollection';
-import { Button } from '../Button';
+import { Button } from '../../tmp/components/Button';
 import { IPostCollectionView } from './shared';
 
 function BaseCardsPostCollection({

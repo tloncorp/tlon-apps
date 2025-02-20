@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 
 import { useAttachmentContext } from '../../contexts/attachment';
 import AttachmentSheet from '../AttachmentSheet';
-import { Button } from '../Button';
-import { Icon } from '../Icon';
+import { Button } from '../../tmp/components/Button';
+import { Icon } from '../../tmp/components/Icon';
 
 export default function AttachmentButton({
   setShouldBlur,

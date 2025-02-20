@@ -6,9 +6,9 @@ import {
 import { View } from 'tamagui';
 
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
-import { FloatingActionButton } from '../FloatingActionButton';
-import { Icon } from '../Icon';
-import { ParentAgnosticKeyboardAvoidingView } from '../ParentAgnosticKeyboardAvoidingView';
+import { FloatingActionButton } from '../../tmp/components/FloatingActionButton';
+import { Icon } from '../../tmp/components/Icon';
+import { ParentAgnosticKeyboardAvoidingView } from '../../tmp/components/ParentAgnosticKeyboardAvoidingView';
 import { ScreenHeader } from '../ScreenHeader';
 import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
 import { DraftInputContext } from './shared';

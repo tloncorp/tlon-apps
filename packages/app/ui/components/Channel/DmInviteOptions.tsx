@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YStack } from 'tamagui';
 
-import { Button } from '../Button';
+import { Button } from '../../tmp/components/Button';
 
 export function DmInviteOptions({
   channel,

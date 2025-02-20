@@ -5,7 +5,7 @@ import { styled } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts';
 import { ContactName } from '../ContactNameV2';
-import { Text } from '../TextV2';
+import { Text } from '../../tmp/components/TextV2';
 
 function SummaryMessageRaw({
   summary,

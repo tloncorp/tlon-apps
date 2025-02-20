@@ -8,9 +8,9 @@ import {
 import { Stack, View } from 'tamagui';
 
 import { AlphaSegmentedGroups } from '../hooks/groupsSorters';
-import { Icon } from './Icon';
+import { Icon } from '../tmp/components/Icon';
 import { GroupListItem, ListItem } from './ListItem';
-import { BlockSectionList } from './SectionList';
+import { BlockSectionList } from '../tmp/components/SectionList';
 
 interface Props {
   onSelect?: (group: db.Group) => void;

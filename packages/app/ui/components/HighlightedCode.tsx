@@ -3,7 +3,7 @@ import { StyleSheet, TextStyle } from 'react-native';
 import hoon from 'refractor/lang/hoon';
 import { refractor } from 'refractor/lib/common.js';
 
-import { Text } from './TextV2';
+import { Text } from '../tmp/components/TextV2';
 
 refractor.register(hoon);
 

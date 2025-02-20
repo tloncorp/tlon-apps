@@ -6,10 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, Text, View, XStack, YStack } from 'tamagui';
 
 import { capitalize } from '../../utils';
-import { Button } from '../Button';
-import { Icon } from '../Icon';
+import { Button } from '../../tmp/components/Button';
+import { Icon } from '../../tmp/components/Icon';
 import { ListItem } from '../ListItem';
-import Pressable from '../Pressable';
+import Pressable from '../../tmp/components/Pressable';
 import { ScreenHeader } from '../ScreenHeader';
 import { CreateChannelSheet } from './CreateChannelSheet';
 import { EditSectionNameSheet } from './EditSectionNameSheet';

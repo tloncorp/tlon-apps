@@ -27,9 +27,9 @@ import {
 
 import { useCopy } from '../tmp/hooks/useCopy';
 import useIsWindowNarrow from '../tmp/hooks/useIsWindowNarrow';
-import { Icon, IconType } from './Icon';
+import { Icon, IconType } from '../tmp/components/Icon';
 import { ListItem } from './ListItem';
-import { Sheet } from './Sheet';
+import { Sheet } from '../tmp/components/Sheet';
 
 type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
 

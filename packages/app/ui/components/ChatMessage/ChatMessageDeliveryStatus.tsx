@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import { XStack } from 'tamagui';
 
-import { Icon } from '../Icon';
+import { Icon } from '../../tmp/components/Icon';
 
 export const ChatMessageDeliveryStatus = XStack.styleable<{
   status: db.PostDeliveryStatus;

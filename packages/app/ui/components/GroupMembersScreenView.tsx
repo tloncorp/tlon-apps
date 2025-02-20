@@ -10,7 +10,7 @@ import { ContactList } from './ContactList';
 import { GroupJoinRequestSheet } from './GroupJoinRequestSheet';
 import { ProfileSheet } from './ProfileSheet';
 import { ScreenHeader } from './ScreenHeader';
-import { SectionListHeader } from './SectionList';
+import { SectionListHeader } from '../tmp/components/SectionList';
 
 type GroupPrivacy = db.schema.GroupPrivacy;
 

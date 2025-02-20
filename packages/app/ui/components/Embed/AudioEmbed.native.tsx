@@ -17,8 +17,8 @@ import {
 import { Text, View } from 'tamagui';
 
 import { triggerHaptic } from '../../utils';
-import { Icon } from '../Icon';
-import { LoadingSpinner } from '../LoadingSpinner';
+import { Icon } from '../../tmp/components/Icon';
+import { LoadingSpinner } from '../../tmp/components/LoadingSpinner';
 import * as shared from './AudioEmbedShared';
 import { Embed } from './Embed';
 

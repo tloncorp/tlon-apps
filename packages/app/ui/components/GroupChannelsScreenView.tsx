@@ -10,10 +10,10 @@ import { Badge } from './Badge';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet } from './ChatOptionsSheet';
 import { ChannelListItem } from './ListItem/ChannelListItem';
-import { LoadingSpinner } from './LoadingSpinner';
+import { LoadingSpinner } from '../tmp/components/LoadingSpinner';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
-import { Text } from './TextV2';
+import { Text } from '../tmp/components/TextV2';
 
 type GroupChannelsScreenViewProps = {
   group: db.Group | null;

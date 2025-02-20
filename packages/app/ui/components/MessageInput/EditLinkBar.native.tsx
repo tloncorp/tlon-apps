@@ -4,8 +4,8 @@ import { TouchableOpacity } from 'react-native';
 // TODO: replace with our own input component
 import { Input, View } from 'tamagui';
 
-import { Button } from '../Button';
-import { Image } from '../Image';
+import { Button } from '../../tmp/components/Button';
+import { Image } from '../../tmp/components/Image';
 
 interface EditLinkBarProps {
   theme: EditorTheme;

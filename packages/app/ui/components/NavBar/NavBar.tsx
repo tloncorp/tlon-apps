@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getTokenValue } from 'tamagui';
 import { XStack } from 'tamagui';
 
-import { View } from '../View';
+import { View } from '../../tmp/components/View';
 
 const NavBar = React.memo(function NavBar(props: {
   children: React.ReactNode | React.ReactNode[] | null | undefined;

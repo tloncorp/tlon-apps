@@ -3,7 +3,7 @@ import { isWeb } from 'tamagui';
 
 import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
 import BareChatInput from '../BareChatInput';
-import { ParentAgnosticKeyboardAvoidingView } from '../ParentAgnosticKeyboardAvoidingView';
+import { ParentAgnosticKeyboardAvoidingView } from '../../tmp/components/ParentAgnosticKeyboardAvoidingView';
 import { DraftInputContext } from './shared';
 
 export function ChatInput({

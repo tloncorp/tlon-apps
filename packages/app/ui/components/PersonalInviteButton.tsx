@@ -7,9 +7,9 @@ import { isWeb } from 'tamagui';
 import { useContact, useCurrentUserId } from '../contexts';
 import { useCopy } from '../tmp/hooks/useCopy';
 import { getDisplayName } from '../utils';
-import { Button } from './Button';
-import { Icon } from './Icon';
-import { Text } from './TextV2';
+import { Button } from '../tmp/components/Button';
+import { Icon } from '../tmp/components/Icon';
+import { Text } from '../tmp/components/TextV2';
 
 const logger = createDevLogger('PersonalInviteButton', true);
 

@@ -9,8 +9,8 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
-import { Icon, IconType } from '../Icon';
-import { Text } from '../TextV2';
+import { Icon, IconType } from '../../tmp/components/Icon';
+import { Text } from '../../tmp/components/TextV2';
 
 export type ReferenceProps = ComponentProps<typeof ReferenceComponent> & {
   actionIcon?: IconType | null;

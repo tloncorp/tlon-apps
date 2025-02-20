@@ -1,8 +1,8 @@
 import { ComponentProps } from 'react';
 import { View, isWeb } from 'tamagui';
 
-import { Button } from './Button';
-import { Icon } from './Icon';
+import { Button } from '../tmp/components/Button';
+import { Icon } from '../tmp/components/Icon';
 
 export function OverflowMenuButton({
   onPress,

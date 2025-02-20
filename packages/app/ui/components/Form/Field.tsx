@@ -3,7 +3,7 @@ import { YStack, styled } from 'tamagui';
 import { createStyledContext } from 'tamagui';
 
 import { VariantsFromStyledContext } from '../../types';
-import { Text } from '../TextV2';
+import { Text } from '../../tmp/components/TextV2';
 import { FormContext } from './Form';
 import { Accent, BackgroundType } from './formUtils';
 

@@ -13,9 +13,9 @@ import { useChannelContext } from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ContactAvatar } from '../Avatar';
-import { Button } from '../Button';
+import { Button } from '../../tmp/components/Button';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
-import { Icon } from '../Icon';
+import { Icon } from '../../tmp/components/Icon';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
@@ -25,9 +25,9 @@ import {
   PostContent,
   usePostContent,
 } from '../PostContent/contentUtils';
-import Pressable from '../Pressable';
+import Pressable from '../../tmp/components/Pressable';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
-import { Text } from '../TextV2';
+import { Text } from '../../tmp/components/TextV2';
 
 const GalleryPostFrame = styled(View, {
   name: 'GalleryPostFrame',

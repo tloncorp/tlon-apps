@@ -12,7 +12,7 @@ import { runOnJS } from 'react-native-reanimated';
 import { Edges, SafeAreaView } from 'react-native-safe-area-context';
 import { AnimatePresence, View, withStaticProperties } from 'tamagui';
 
-import { ForwardingProps } from '../utils/react';
+import { ForwardingProps } from '../../utils/react';
 
 const CarouselContext = React.createContext<{
   direction: 'horizontal' | 'vertical';

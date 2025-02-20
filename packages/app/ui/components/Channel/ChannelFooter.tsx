@@ -10,9 +10,9 @@ import { SizableText, Spinner, XStack } from 'tamagui';
 
 import { ChevronLeft, Search } from '@tloncorp/ui/assets/icons';
 import { useScrollContext } from '../../contexts/scroll';
-import { Button } from '../Button';
-import { Icon } from '../Icon';
-import { IconButton } from '../IconButton';
+import { Button } from '../../tmp/components/Button';
+import { Icon } from '../../tmp/components/Icon';
+import { IconButton } from '../../tmp/components/IconButton';
 
 export function ChannelFooter({
   title,

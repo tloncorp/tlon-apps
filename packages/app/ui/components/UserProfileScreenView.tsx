@@ -27,13 +27,13 @@ import { useCopy } from '../tmp/hooks/useCopy';
 import useIsWindowNarrow from '../tmp/hooks/useIsWindowNarrow';
 import { triggerHaptic, useGroupTitle } from '../utils';
 import { ContactAvatar, GroupAvatar } from './Avatar';
-import { Button } from './Button';
+import { Button } from '../tmp/components/Button';
 import { ContactName } from './ContactNameV2';
-import { Icon } from './Icon';
+import { Icon } from '../tmp/components/Icon';
 import { useBoundHandler } from './ListItem/listItemUtils';
-import Pressable from './Pressable';
+import Pressable from '../tmp/components/Pressable';
 import { ScreenHeader } from './ScreenHeader';
-import { Text } from './TextV2';
+import { Text } from '../tmp/components/TextV2';
 import { WidgetPane } from './WidgetPane';
 
 interface Props {

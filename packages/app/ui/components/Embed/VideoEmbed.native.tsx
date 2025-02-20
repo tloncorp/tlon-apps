@@ -6,8 +6,8 @@ import {
 import { ComponentProps, useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'tamagui';
 
-import { Icon } from '../Icon';
-import Pressable from '../Pressable';
+import { Icon } from '../../tmp/components/Icon';
+import Pressable from '../../tmp/components/Pressable';
 
 type VideoEmbedProps = ComponentProps<typeof View> & {
   video: { width: number; height: number; src: string; alt?: string };

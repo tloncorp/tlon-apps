@@ -7,7 +7,7 @@ import {
   ImageAttachment,
   useAttachmentContext,
 } from '../../contexts/attachment';
-import { Button } from '../Button';
+import { Button } from '../../tmp/components/Button';
 
 export default function GalleryImagePreview({
   onReset,

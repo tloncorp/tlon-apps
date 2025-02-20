@@ -5,8 +5,8 @@ import React, { useMemo } from 'react';
 import { ColorTokens, View, XStack, styled } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
-import Pressable from '../Pressable';
-import { Text } from '../TextV2';
+import Pressable from '../../tmp/components/Pressable';
+import { Text } from '../../tmp/components/TextV2';
 import { UnreadDot } from '../UnreadDot';
 
 export const ChatMessageReplySummary = React.memo(

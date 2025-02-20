@@ -7,17 +7,17 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 import { useChannelContext } from '../../contexts';
 import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
 import AuthorRow from '../AuthorRow';
-import { Button } from '../Button';
-import { Icon } from '../Icon';
+import { Button } from '../../tmp/components/Button';
+import { Icon } from '../../tmp/components/Icon';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
-import Pressable from '../Pressable';
+import Pressable from '../../tmp/components/Pressable';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
-import { Text } from '../TextV2';
+import { Text } from '../../tmp/components/TextV2';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';

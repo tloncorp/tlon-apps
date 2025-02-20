@@ -2,7 +2,7 @@ import { makePrettyShortDate } from '@tloncorp/shared/logic';
 import { ColorTokens } from 'tamagui';
 import { SizableText, View, XStack, YStack } from 'tamagui';
 
-import { LoadingSpinner } from '../LoadingSpinner';
+import { LoadingSpinner } from '../../tmp/components/LoadingSpinner';
 import { SearchState } from './types';
 
 export function SearchStatus({

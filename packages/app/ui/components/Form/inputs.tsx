@@ -27,14 +27,14 @@ import {
 } from '../../contexts';
 import { VariantsFromValues } from '../../types';
 import AttachmentSheet from '../AttachmentSheet';
-import { Button } from '../Button';
-import { Icon, IconType } from '../Icon';
-import { Image } from '../Image';
+import { Button } from '../../tmp/components/Button';
+import { Icon, IconType } from '../../tmp/components/Icon';
+import { Image } from '../../tmp/components/Image';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
-import Pressable from '../Pressable';
-import { Text } from '../TextV2';
-import { typeStyles } from '../TextV2/Text';
+import Pressable from '../../tmp/components/Pressable';
+import { Text } from '../../tmp/components/TextV2';
+import { typeStyles } from '../../tmp/components/TextV2/Text';
 import { FieldContext } from './Field';
 import {
   Accent,

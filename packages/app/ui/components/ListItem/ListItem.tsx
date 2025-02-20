@@ -18,8 +18,8 @@ import {
   SystemIconAvatar,
 } from '../Avatar';
 import ContactName from '../ContactName';
-import { Icon, IconType } from '../Icon';
-import { Text } from '../TextV2';
+import { Icon, IconType } from '../../tmp/components/Icon';
+import { Text } from '../../tmp/components/TextV2';
 
 export interface BaseListItemProps<T> {
   model: T;

@@ -8,7 +8,7 @@ import { useLivePost } from '../../contexts';
 import { usePostCollectionContext } from '../../contexts/postCollection';
 import { ForwardingProps } from '../../utils/react';
 import { ListItem } from '../ListItem';
-import Pressable from '../Pressable';
+import Pressable from '../../tmp/components/Pressable';
 import { IPostCollectionView } from './shared';
 
 export function BaseSummaryCollectionView({

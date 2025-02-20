@@ -5,10 +5,10 @@ import { View, isWeb } from 'tamagui';
 
 import { useGroupTitle } from '../../utils';
 import { Badge } from '../Badge';
-import { Button } from '../Button';
+import { Button } from '../../tmp/components/Button';
 import { ContactName } from '../ContactNameV2';
-import { Icon } from '../Icon';
-import Pressable from '../Pressable';
+import { Icon } from '../../tmp/components/Icon';
+import Pressable from '../../tmp/components/Pressable';
 import { ListItem, ListItemProps } from './ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';

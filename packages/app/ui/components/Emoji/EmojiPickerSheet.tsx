@@ -12,12 +12,12 @@ import { Dialog } from 'tamagui';
 import { VisuallyHidden } from 'tamagui';
 
 import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
-import { Button } from '../Button';
-import KeyboardAvoidingView from '../KeyboardAvoidingView';
+import { Button } from '../../tmp/components/Button';
+import KeyboardAvoidingView from '../../tmp/components/KeyboardAvoidingView';
 import { SearchBar } from '../SearchBar';
-import { Sheet } from '../Sheet';
-import { SizableEmoji } from './SizableEmoji';
-import { searchEmojis, usePreloadedEmojis } from './data';
+import { Sheet } from '../../tmp/components/Sheet';
+import { SizableEmoji } from '../../tmp/components/Emoji/SizableEmoji';
+import { searchEmojis, usePreloadedEmojis } from '../../tmp/components/Emoji/data';
 
 const EMOJI_SIZE = 32;
 

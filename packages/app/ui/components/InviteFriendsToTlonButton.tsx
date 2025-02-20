@@ -12,10 +12,10 @@ import { isWeb } from 'tamagui';
 import { useCurrentUserId, useInviteService } from '../contexts';
 import { useCopy } from '../tmp/hooks/useCopy';
 import { useGroupTitle, useIsAdmin } from '../utils';
-import { Button } from './Button';
-import { Icon } from './Icon';
-import { LoadingSpinner } from './LoadingSpinner';
-import { Text } from './TextV2';
+import { Button } from '../tmp/components/Button';
+import { Icon } from '../tmp/components/Icon';
+import { LoadingSpinner } from '../tmp/components/LoadingSpinner';
+import { Text } from '../tmp/components/TextV2';
 
 const logger = createDevLogger('InviteButton', true);
 

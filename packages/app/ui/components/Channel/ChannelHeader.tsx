@@ -12,7 +12,7 @@ import { useChatOptions } from '../../contexts';
 import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
 import { useGroupTitle } from '../../utils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
-import Pressable from '../Pressable';
+import Pressable from '../../tmp/components/Pressable';
 import { ScreenHeader } from '../ScreenHeader';
 import { BaubleHeader } from './BaubleHeader';
 

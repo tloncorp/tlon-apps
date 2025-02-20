@@ -20,7 +20,7 @@ import {
 import useIsWindowNarrow from '../tmp/hooks/useIsWindowNarrow';
 import { ContactRow } from './ContactRow';
 import { SearchBar } from './SearchBar';
-import { BlockSectionList } from './SectionList';
+import { BlockSectionList } from '../tmp/components/SectionList';
 
 export function ContactBook({
   searchable = false,

@@ -8,7 +8,7 @@ import { View, useStyle } from 'tamagui';
 
 import { NavigationProvider } from '../../contexts';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
-import { LoadingSpinner } from '../LoadingSpinner';
+import { LoadingSpinner } from '../../tmp/components/LoadingSpinner';
 import { ActivityHeader } from './ActivityHeader';
 import { ActivityListItem } from './ActivityListItem';
 

@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
-import { Button } from './Button';
+import { Button } from '../tmp/components/Button';
 import { ContactBook } from './ContactBook';
 import { ScreenHeader } from './ScreenHeader';
 

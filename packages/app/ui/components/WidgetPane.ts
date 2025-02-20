@@ -1,6 +1,6 @@
 import { YStack, styled, withStaticProperties } from 'tamagui';
 
-import { Text } from './TextV2';
+import { Text } from '../tmp/components/TextV2';
 
 const WidgetPaneFrame = styled(YStack, {
   backgroundColor: '$background',

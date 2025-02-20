@@ -5,9 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YStackProps, styled, withStaticProperties } from 'tamagui';
 import { Text, View, XStack, YStack } from 'tamagui';
 
-import { Icon } from '../Icon';
-import { Modal } from '../Modal';
-import Pressable from '../Pressable';
+import { Icon } from '../../tmp/components/Icon';
+import { Modal } from '../../tmp/components/Modal';
+import Pressable from '../../tmp/components/Pressable';
 
 const EmbedTitle = styled(Text, {
   fontSize: '$s',

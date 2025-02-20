@@ -5,7 +5,7 @@ import { RenderItemType } from '../contexts/componentsKits';
 import { ChatAuthorRow } from './AuthorRow';
 import { AudioPlayer, AudioPlayerHandle } from './Embed/AudioEmbed';
 import { convertContent } from './PostContent/contentUtils';
-import Pressable from './Pressable';
+import Pressable from '../tmp/components/Pressable';
 
 export const AudioPost: RenderItemType = (props) => {
   const audioUrl = useMemo(() => {

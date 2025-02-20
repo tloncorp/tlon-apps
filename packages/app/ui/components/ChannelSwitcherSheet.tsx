@@ -7,9 +7,9 @@ import { SizableText, Text, XStack } from 'tamagui';
 import { useChatOptions } from '../contexts';
 import { useGroupTitle } from '../utils';
 import ChannelNavSections from './ChannelNavSections';
-import { Icon } from './Icon';
-import Pressable from './Pressable';
-import { Sheet } from './Sheet';
+import { Icon } from '../tmp/components/Icon';
+import Pressable from '../tmp/components/Pressable';
+import { Sheet } from '../tmp/components/Sheet';
 
 interface Props {
   open: boolean;

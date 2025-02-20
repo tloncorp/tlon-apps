@@ -3,8 +3,8 @@ import { Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, XStack, YStack, isWeb } from 'tamagui';
 
-import { Icon } from './Icon';
-import { Sheet } from './Sheet';
+import { Icon } from '../tmp/components/Icon';
+import { Sheet } from '../tmp/components/Sheet';
 
 function WelcomeSheetComponent({
   open,

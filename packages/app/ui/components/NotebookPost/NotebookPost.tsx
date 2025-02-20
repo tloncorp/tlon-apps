@@ -13,18 +13,18 @@ import {
 
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
-import { Image } from '../Image';
-import { Button } from '../Button';
+import { Image } from '../../tmp/components/Image';
+import { Button } from '../../tmp/components/Button';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
-import { Icon } from '../Icon';
+import { Icon } from '../../tmp/components/Icon';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
-import Pressable from '../Pressable';
+import Pressable from '../../tmp/components/Pressable';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
-import { Text } from '../TextV2';
+import { Text } from '../../tmp/components/TextV2';
 
 const IMAGE_HEIGHT = 268;
 
