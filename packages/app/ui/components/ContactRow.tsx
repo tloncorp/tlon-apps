@@ -6,7 +6,7 @@ import { Stack, View, XStack } from 'tamagui';
 import { getDisplayName, triggerHaptic } from '../utils';
 import { Icon } from '@tloncorp/ui';
 import { ListItem } from './ListItem';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 
 function ContactRowItemRaw({
   contact,

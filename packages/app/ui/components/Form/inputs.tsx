@@ -32,7 +32,7 @@ import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { typeStyles } from '@tloncorp/ui';
 import { FieldContext } from './Field';

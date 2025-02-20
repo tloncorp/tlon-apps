@@ -25,7 +25,7 @@ import {
   PostContent,
   usePostContent,
 } from '../PostContent/contentUtils';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { Text } from '@tloncorp/ui';
 

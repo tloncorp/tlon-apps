@@ -11,9 +11,9 @@ import { View } from 'tamagui';
 import { Dialog } from 'tamagui';
 import { VisuallyHidden } from 'tamagui';
 
-import useIsWindowNarrow from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
-import KeyboardAvoidingView from '@tloncorp/ui';
+import { KeyboardAvoidingView } from '@tloncorp/ui';
 import { SearchBar } from '../SearchBar';
 import { Sheet } from '@tloncorp/ui';
 import { SizableEmoji } from '@tloncorp/ui';

@@ -6,7 +6,7 @@ import { Attachment, useAttachmentContext } from '../../contexts/attachment';
 import { ContentReferenceLoader } from '../ContentReference';
 import { Icon } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 
 export const AttachmentPreviewList = () => {
   const { attachments } = useAttachmentContext();

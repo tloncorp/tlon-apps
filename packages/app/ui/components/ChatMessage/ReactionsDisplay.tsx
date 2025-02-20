@@ -7,7 +7,7 @@ import { useCurrentUserId } from '../../contexts/appDataContext';
 import { triggerHaptic } from '../../utils';
 import { useReactionDetails } from '../../utils/postUtils';
 import { SizableEmoji } from '@tloncorp/ui';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 
 export function ReactionsDisplay({

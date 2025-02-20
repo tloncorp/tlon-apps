@@ -17,7 +17,7 @@ import {
   useAlphabeticallySegmentedContacts,
   useSortedContacts,
 } from '../hooks/contactSorters';
-import useIsWindowNarrow from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import { ContactRow } from './ContactRow';
 import { SearchBar } from './SearchBar';
 import { BlockSectionList } from '@tloncorp/ui';

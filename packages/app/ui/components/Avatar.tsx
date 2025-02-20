@@ -17,7 +17,7 @@ import { getChannelTypeIcon } from '../utils';
 import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
-import UrbitSigil from '@tloncorp/ui';
+import { UrbitSigil } from '@tloncorp/ui';
 
 const AvatarFrame = styled(View, {
   width: '$4xl',

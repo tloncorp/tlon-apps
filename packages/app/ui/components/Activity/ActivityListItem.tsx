@@ -8,7 +8,7 @@ import { useCalm } from '../../contexts';
 import { getGroupTitle, useChannelTitle, useGroupTitle } from '../../utils';
 import { ChannelAvatar, ContactAvatar, GroupAvatar } from '../Avatar';
 import { Icon } from '@tloncorp/ui';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { UnreadDot } from '../UnreadDot';
 import { ActivitySourceContent } from './ActivitySourceContent';

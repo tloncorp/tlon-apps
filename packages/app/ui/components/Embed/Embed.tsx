@@ -7,7 +7,7 @@ import { Text, View, XStack, YStack } from 'tamagui';
 
 import { Icon } from '@tloncorp/ui';
 import { Modal } from '@tloncorp/ui';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 
 const EmbedTitle = styled(Text, {
   fontSize: '$s',

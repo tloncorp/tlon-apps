@@ -8,12 +8,12 @@ import { Badge } from '../Badge';
 import { Button } from '@tloncorp/ui';
 import { ContactName } from '../ContactNameV2';
 import { Icon } from '@tloncorp/ui';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { ListItem, ListItemProps } from './ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { useState } from 'react';
-import useIsWindowNarrow from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 
 export const GroupListItem = ({
   model,

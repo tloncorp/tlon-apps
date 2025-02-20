@@ -24,7 +24,7 @@ import { ContentReferenceLoader, Reference } from '../ContentReference';
 import { VideoEmbed } from '../Embed';
 import { HighlightedCode } from '../HighlightedCode';
 import { Image } from '@tloncorp/ui';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { InlineRenderer } from './InlineRenderer';
 import * as cn from './contentUtils';

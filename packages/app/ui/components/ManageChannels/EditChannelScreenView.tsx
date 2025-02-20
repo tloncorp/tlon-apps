@@ -12,7 +12,7 @@ import { Button } from '@tloncorp/ui';
 import { DeleteSheet } from '../DeleteSheet';
 import { RadioInput } from '../Form';
 import { FormInput } from '@tloncorp/ui';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { ScreenHeader } from '../ScreenHeader';
 import { Text } from '@tloncorp/ui';
 

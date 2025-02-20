@@ -24,7 +24,7 @@ import { useGroupTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
 import { Icon } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 
 export function BaubleHeader({
   showSpinner,

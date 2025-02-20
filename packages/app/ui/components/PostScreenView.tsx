@@ -21,7 +21,7 @@ import { ChannelHeader } from './Channel/ChannelHeader';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
-import KeyboardAvoidingView from '@tloncorp/ui';
+import { KeyboardAvoidingView } from '@tloncorp/ui';
 import { TlonEditorBridge } from './MessageInput/toolbarActions.native';
 
 export function PostScreenView({

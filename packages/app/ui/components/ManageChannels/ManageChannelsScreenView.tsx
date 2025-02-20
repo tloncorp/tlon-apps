@@ -9,7 +9,7 @@ import { capitalize } from '../../utils';
 import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { ListItem } from '../ListItem';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { ScreenHeader } from '../ScreenHeader';
 import { CreateChannelSheet } from './CreateChannelSheet';
 import { EditSectionNameSheet } from './EditSectionNameSheet';

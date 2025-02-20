@@ -5,7 +5,7 @@ import React, { useMemo } from 'react';
 import { ColorTokens, View, XStack, styled } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { UnreadDot } from '../UnreadDot';
 

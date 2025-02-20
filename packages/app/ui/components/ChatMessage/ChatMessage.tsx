@@ -5,7 +5,7 @@ import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { useChannelContext } from '../../contexts';
-import useIsWindowNarrow from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import AuthorRow from '../AuthorRow';
 import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
@@ -15,7 +15,7 @@ import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { Text } from '@tloncorp/ui';
 import { ChatMessageActions } from './ChatMessageActions/Component';

@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../contexts';
-import useIsWindowNarrow from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import useOnEmojiSelect from '../../../hooks/useOnEmojiSelect';
 import { ReactionDetails, useReactionDetails } from '../../../utils/postUtils';
 import { Button } from '@tloncorp/ui';

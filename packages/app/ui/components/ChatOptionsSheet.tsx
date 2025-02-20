@@ -15,7 +15,7 @@ import { Popover, isWeb } from 'tamagui';
 import { ChevronLeft } from '@tloncorp/ui/assets/icons';
 import { useCurrentUserId } from '../contexts';
 import { useChatOptions } from '../contexts/chatOptions';
-import useIsWindowNarrow from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import * as utils from '../utils';
 import {
   Action,

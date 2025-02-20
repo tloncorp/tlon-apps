@@ -24,14 +24,14 @@ import {
 
 import { useContact, useCurrentUserId, useNavigation } from '../contexts';
 import { useCopy } from '@tloncorp/ui';
-import useIsWindowNarrow from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import { triggerHaptic, useGroupTitle } from '../utils';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { Button } from '@tloncorp/ui';
 import { ContactName } from './ContactNameV2';
 import { Icon } from '@tloncorp/ui';
 import { useBoundHandler } from './ListItem/listItemUtils';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { ScreenHeader } from './ScreenHeader';
 import { Text } from '@tloncorp/ui';
 import { WidgetPane } from './WidgetPane';

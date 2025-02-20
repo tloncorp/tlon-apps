@@ -8,7 +8,7 @@ import { useLivePost } from '../../contexts';
 import { usePostCollectionContext } from '../../contexts/postCollection';
 import { ForwardingProps } from '../../../../ui/src/utils/react';
 import { ListItem } from '../ListItem';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { IPostCollectionView } from './shared';
 
 export function BaseSummaryCollectionView({

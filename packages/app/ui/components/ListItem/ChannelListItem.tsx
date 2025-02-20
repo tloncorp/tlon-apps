@@ -4,14 +4,14 @@ import { useMemo, useState } from 'react';
 import { View, isWeb } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
-import useIsWindowNarrow from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
 import { Button } from '@tloncorp/ui';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { Icon } from '@tloncorp/ui';
-import Pressable from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { ListItem, type ListItemProps } from './ListItem';
 
 export function ChannelListItem({
