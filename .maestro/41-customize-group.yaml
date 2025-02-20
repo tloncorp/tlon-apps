@@ -28,32 +28,42 @@ appId: io.tlon.groups
       - assertVisible: 'Untitled group'
       - tapOn: 'Untitled group'
       - assertVisible: 'General'
-# Insert some text into the General channel and send it
-- tapOn: 'Message'
-- inputText: 'Hello, world!'
+# Open the Customize group screen from the empty "General" channel
+- tapOn: 'Customize'
+- assertVisible: 'Edit group info'
+# Change the group name and confirm on the Home screen
+- tapOn: 'Group name'
+- inputText: 'My Group'
 - 'hideKeyboard'
-- tapOn:
-    id: 'MessageInputSendButton'
-- runFlow:
-    when:
-      visible: '.*Hello, world!.*'
-    commands:
-      - assertVisible: '.*Hello, world!.*'
-# Navigate back to the Home screen and assert that the message preview is visible
+- tapOn: 'Save'
 - tapOn:
     id: 'HeaderBackButton'
 - runFlow:
     when:
       visible: 'Home'
     commands:
-      - assertVisible: '.*Hello, world!.*'
-# Open the overflow menu from the channel header and delete the group
-- tapOn: 'Untitled group'
+      - assertVisible: 'My Group'
+      - tapOn: 'My Group'
+# Change the group icon/picture (iOS only)
+- runFlow:
+    when:
+      platform: ios
+    commands:
+      - tapOn: 'Customize'
+      - tapOn: 'Change icon image'
+      - tapOn: 'Photo Library'
+      - tapOn: 'Photo, March 30, 2018, 3:14 PM'
+      - tapOn: 'Save'
+# Change the group description
+- tapOn: 'Customize'
+- tapOn: 'About this group'
+- inputText: 'This is a test group'
+- 'hideKeyboard'
+- tapOn: 'Save'
+# Delete the group and clean up
 - tapOn:
     id: 'ChannelHeaderOverflowMenuButton'
-- assertVisible: 'Secret group with 1 member'
 - tapOn: 'Group info & settings'
-- assertVisible: 'Group info'
 - scrollUntilVisible:
     direction: DOWN
     element:
@@ -63,11 +73,10 @@ appId: io.tlon.groups
     when:
       visible: 'This action cannot be undone.'
     commands:
-      - assertVisible: 'This action cannot be undone.'
       - tapOn: 'Delete group'
 - runFlow:
     when:
       visible: 'Home'
     commands:
       - assertVisible: 'Home'
-      - assertNotVisible: 'Untitled group'
+      - assertNotVisible: 'My Group'

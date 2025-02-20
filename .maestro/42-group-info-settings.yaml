@@ -28,32 +28,54 @@ appId: io.tlon.groups
       - assertVisible: 'Untitled group'
       - tapOn: 'Untitled group'
       - assertVisible: 'General'
-# Insert some text into the General channel and send it
-- tapOn: 'Message'
-- inputText: 'Hello, world!'
-- 'hideKeyboard'
+# Open the overflow menu from the channel header
 - tapOn:
-    id: 'MessageInputSendButton'
-- runFlow:
-    when:
-      visible: '.*Hello, world!.*'
-    commands:
-      - assertVisible: '.*Hello, world!.*'
-# Navigate back to the Home screen and assert that the message preview is visible
+    id: 'ChannelHeaderOverflowMenuButton'
+- assertVisible: 'Secret group with 1 member'
+- tapOn: 'Group info & settings'
+- assertVisible: 'Group info'
+# Pin and unpin the group
+- tapOn: 'Pin'
+- assertVisible: 'Unpin'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible: 'General'
 - tapOn:
     id: 'HeaderBackButton'
 - runFlow:
     when:
       visible: 'Home'
     commands:
-      - assertVisible: '.*Hello, world!.*'
-# Open the overflow menu from the channel header and delete the group
+      - assertVisible:
+          text: 'Untitled group'
+          below: '.*Pinned.*'
 - tapOn: 'Untitled group'
 - tapOn:
     id: 'ChannelHeaderOverflowMenuButton'
 - assertVisible: 'Secret group with 1 member'
 - tapOn: 'Group info & settings'
-- assertVisible: 'Group info'
+- tapOn: 'Unpin'
+- assertVisible: 'Pin'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible: 'General'
+- tapOn:
+    id: 'HeaderBackButton'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertNotVisible:
+          text: '.*Pinned.*'
+- tapOn: 'Untitled group'
+- tapOn:
+    id: 'ChannelHeaderOverflowMenuButton'
+- tapOn: 'Group info & settings'
+# Copy group reference
+- tapOn: 'Reference'
+- assertVisible: 'Copied'
+# TODO: Everything else on this screen
+# Delete group and clean up
 - scrollUntilVisible:
     direction: DOWN
     element:
@@ -63,7 +85,6 @@ appId: io.tlon.groups
     when:
       visible: 'This action cannot be undone.'
     commands:
-      - assertVisible: 'This action cannot be undone.'
       - tapOn: 'Delete group'
 - runFlow:
     when:
