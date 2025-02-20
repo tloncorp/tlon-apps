@@ -1,10 +1,9 @@
 import React, { PropsWithChildren, useCallback, useContext } from 'react';
-import { Linking } from 'react-native';
 import { ColorTokens, styled } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
-import ChatEmbedContent from '../ChatMessage/ChatEmbedContent';
 import { useContactName } from '../ContactNameV2';
+import { EmbedContent } from '../Embed';
 import { RawText, Text } from '../TextV2';
 import {
   InlineData,
@@ -101,13 +100,13 @@ export function InlineText({
 
 export function InlineLink({ inline: node }: { inline: LinkInlineData }) {
   return (
-    <ChatEmbedContent
+    <EmbedContent
       url={node.href}
       content={node.text || node.href}
-      onPressImage={undefined}
-      onLongPress={undefined}
     />
   );
+  // For now, we pass all links to the EmbedContent component.
+  // In the future, we'll create a new block type for embed content and we'll render links directly again.
   // const handlePress = useCallback(() => {
   //   Linking.openURL(node.href);
   // }, [node.href]);

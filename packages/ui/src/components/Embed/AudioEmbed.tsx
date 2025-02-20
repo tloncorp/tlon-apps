@@ -1,32 +1,40 @@
-import { forwardRef } from 'react';
+import { ElementRef, useCallback, useRef } from 'react';
+import { useWindowDimensions } from 'tamagui';
 
+import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
 import * as shared from './AudioEmbedShared';
+import { Embed } from './Embed';
+import { AudioPlayer } from './AudioPlayer';
 
 export type { AudioPlayerHandle } from './AudioEmbedShared';
 
 const AudioEmbed: shared.AudioEmbed = ({ url }: { url: string }) => {
-  // TODO: This is a placeholder for web. Implement a better audio player.
+  const playerRef = useRef<ElementRef<typeof AudioPlayer>>(null);
+  const { width } = useWindowDimensions();
+
+  const openLink = () => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const isWindowNarrow = useIsWindowNarrow();
+  const embedWidth = isWindowNarrow ? width - 64 : 400;
 
   return (
-    <audio controls>
-      <source src={url} type="audio/mpeg" />
-      Your browser does not support the audio element.
-    </audio>
+    <Embed height={136} width={embedWidth}>
+      <Embed.Header onPress={openLink}>
+        <Embed.Title>Audio</Embed.Title>
+        <Embed.PopOutIcon type="ArrowRef" />
+      </Embed.Header>
+      <Embed.Preview
+        onPress={useCallback(() => playerRef.current?.togglePlayPause(), [])}
+        width="100%"
+        justifyContent="center"
+        alignItems="center"
+      >
+        <AudioPlayer ref={playerRef} url={url} />
+      </Embed.Preview>
+    </Embed>
   );
 };
-
-export const AudioPlayer: shared.AudioPlayer = forwardRef(function AudioPlayer(
-  { url },
-  _ref
-) {
-  // TODO: This is a placeholder for web. Implement a better audio player.
-
-  return (
-    <audio controls>
-      <source src={url} type="audio/mpeg" />
-      Your browser does not support the audio element.
-    </audio>
-  );
-});
 
 export default AudioEmbed;

@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { View } from 'tamagui';
 
 import { RenderItemType } from '../contexts/componentsKits';
 import { ChatAuthorRow } from './AuthorRow';
-import { AudioPlayer, AudioPlayerHandle } from './Embed/AudioEmbed';
+import { AudioPlayerHandle } from './Embed/AudioEmbedShared';
+import { AudioPlayer } from './Embed/AudioPlayer';
 import { convertContent } from './PostContent/contentUtils';
 import Pressable from './Pressable';
 
