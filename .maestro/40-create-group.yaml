@@ -36,11 +36,19 @@ appId: io.tlon.groups
     id: 'MessageInputSendButton'
 - runFlow:
     when:
-      # iOS inserts a space after punctuation by default
-      visible: 'Hello, world! '
+      visible: '.*Hello, world!.*'
     commands:
-      - assertVisible: 'Hello, world! '
+      - assertVisible: '.*Hello, world!.*'
+# Navigate back to the Home screen and assert that the message preview is visible
+- tapOn:
+    id: 'HeaderBackButton'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible: '.*Hello, world!.*'
 # Open the overflow menu from the channel header and delete the group
+- tapOn: 'Untitled group'
 - tapOn:
     id: 'ChannelHeaderOverflowMenuButton'
 - assertVisible: 'Secret group with 1 member'
