@@ -25,7 +25,7 @@ import {
   useAttachmentContext,
   useMappedImageAttachments,
 } from '../../contexts';
-import { VariantsFromValues } from '../../types';
+import { VariantsFromValues } from '../../tmp/types';
 import AttachmentSheet from '../AttachmentSheet';
 import { Button } from '../../tmp/components/Button';
 import { Icon, IconType } from '../../tmp/components/Icon';
