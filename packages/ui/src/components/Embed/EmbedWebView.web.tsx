@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTheme } from 'tamagui';
 
+import { useIsDarkTheme } from '../../utils';
 import { SkeletonLoader } from './SkeletonLoader';
 import { EmbedProviderConfig } from './providers';
 
@@ -38,6 +39,7 @@ export const EmbedWebView: React.FC<EmbedWebViewProps> = ({
   onError,
 }) => {
   const primaryBackground = useTheme().background.val;
+  const isDark = useIsDarkTheme();
   const [isLoading, setIsLoading] = useState(true);
   const [webViewHeight, setWebViewHeight] = useState(provider.defaultHeight);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -64,7 +66,14 @@ export const EmbedWebView: React.FC<EmbedWebViewProps> = ({
       const renderTweet = () => {
         if (window.twttr && tweetContainerRef.current) {
           // Clear previous content
-          tweetContainerRef.current.innerHTML = embedHtml;
+          // Add dark theme to the blockquote element if in dark mode
+          const themedHtml = isDark
+            ? embedHtml.replace(
+                '<blockquote class="twitter-tweet"',
+                '<blockquote class="twitter-tweet" data-theme="dark"'
+              )
+            : embedHtml;
+          tweetContainerRef.current.innerHTML = themedHtml;
 
           // Bind to tweet render event
           window.twttr.events.bind('rendered', () => {

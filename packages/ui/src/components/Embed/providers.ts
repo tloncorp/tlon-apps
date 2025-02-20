@@ -2,7 +2,7 @@ interface EmbedProviderConfig {
   name: string;
   defaultHeight: number;
   defaultWidth?: number;
-  generateHtml: (url: string, embedHtml?: string) => string;
+  generateHtml: (url: string, embedHtml?: string, isDark?: boolean) => string;
   extractId?: (url: string) => string;
   getCustomStyles?: () => string;
 }
@@ -104,8 +104,13 @@ const twitterConfig: EmbedProviderConfig = {
   name: 'Twitter',
   defaultHeight: 300,
   defaultWidth: 300,
-  generateHtml: (url: string, embedHtml?: string) => {
+  generateHtml: (url: string, embedHtml?: string, isDark?: boolean) => {
     if (!embedHtml) return '';
+    // Add theme attribute to the blockquote element
+    const themedHtml = embedHtml.replace(
+      '<blockquote class="twitter-tweet"',
+      `<blockquote class="twitter-tweet" data-theme="${isDark ? 'dark' : 'light'}"`
+    );
     return `
       <!DOCTYPE html>
       <html>
@@ -150,7 +155,7 @@ const twitterConfig: EmbedProviderConfig = {
           </script>
         </head>
         <body>
-          ${embedHtml}
+          ${themedHtml}
         </body>
       </html>
     `;
