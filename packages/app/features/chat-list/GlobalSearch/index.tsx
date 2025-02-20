@@ -3,20 +3,15 @@ import type * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
   ChatListItem,
-  ChatListItemData,
   LoadingSpinner,
   SectionListHeader,
-  TabName,
   Text,
   TextInput,
   TextInputRef,
   View,
   XStack,
   YStack,
-  getChatKey,
-  getItemType,
-  isSectionHeader,
-  useFilteredChats,
+  useGlobalSearch,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -26,7 +21,13 @@ import {
 } from 'react-native';
 import { getTokenValue } from 'tamagui';
 
-import { useGlobalSearch } from '../../contexts/globalSearch';
+import { TabName, useFilteredChats } from '../../../hooks/useFilteredChats';
+import {
+  ChatListItemData,
+  getChatKey,
+  getItemType,
+  isSectionHeader,
+} from '../ChatList';
 
 export interface GlobalSearchProps {
   navigateToGroup: (id: string) => void;

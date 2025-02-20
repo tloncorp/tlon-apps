@@ -6,7 +6,6 @@ import { DrawerNavigationState } from '@react-navigation/native';
 import * as store from '@tloncorp/shared/store';
 import {
   AvatarNavIcon,
-  GlobalSearch,
   GlobalSearchProvider,
   NavIcon,
   YStack,
@@ -16,6 +15,7 @@ import {
 import { useCallback, useRef } from 'react';
 import { View, getVariableValue, useTheme } from 'tamagui';
 
+import { GlobalSearch } from '../../features/chat-list/GlobalSearch';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootDrawerParamList } from '../types';
 import { useRootNavigation } from '../utils';

@@ -18,7 +18,6 @@ export * from './components/ChannelMembersScreenView';
 export * from './components/ChannelFromTemplateView';
 export * from './components/ChannelSearch';
 export * from './components/ChannelSwitcherSheet';
-export * from '../../app/features/chat-list/ChatList';
 export * from './components/ChatMessage';
 export * from './components/ChatMessage/ChatMessageActions/Component';
 export * from './components/ChatOptionsSheet';
@@ -41,7 +40,6 @@ export * from './components/FeatureFlagScreenView';
 export * from './components/FloatingActionButton';
 export * from './components/FormInput';
 export * from './components/Form';
-export * from './components/GlobalSearch';
 export * from './contexts/globalSearch';
 export * from './components/GalleryPost';
 export * from './components/GroupChannelsScreenView';
@@ -94,7 +92,6 @@ export * from './types';
 export * from './utils';
 export * as TlonText from './components/TextV2';
 export { default as useIsWindowNarrow } from './hooks/useIsWindowNarrow';
-export * from '../../app/hooks/useFilteredChats';
 export { useCopy } from './hooks/useCopy';
 
 export {

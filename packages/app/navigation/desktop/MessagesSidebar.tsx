@@ -3,7 +3,6 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
-  ChatList,
   ChatOptionsProvider,
   GroupPreviewAction,
   GroupPreviewSheet,
@@ -12,18 +11,19 @@ import {
   RequestsProvider,
   ScreenHeader,
   View,
-  useFilteredChats,
   useGlobalSearch,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
+import { ChatList } from '../../features/chat-list/ChatList';
 import {
   CreateChatSheet,
   CreateChatSheetMethods,
 } from '../../features/top/CreateChatSheet';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { useRootNavigation } from '../utils';
