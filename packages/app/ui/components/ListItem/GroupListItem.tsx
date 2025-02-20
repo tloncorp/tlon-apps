@@ -13,7 +13,7 @@ import { ListItem, ListItemProps } from './ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { useState } from 'react';
-import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
 
 export const GroupListItem = ({
   model,

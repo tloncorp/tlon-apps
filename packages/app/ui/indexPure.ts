@@ -22,5 +22,5 @@ export * as TlonText from './components/TextV2';
 export * from './components/UrbitSigil';
 export * from './components/View';
 export * from './tmp/contexts/globalSearch';
-export { useCopy } from './hooks/useCopy';
-export { default as useIsWindowNarrow } from './hooks/useIsWindowNarrow';
+export { useCopy } from './tmp/hooks/useCopy';
+export { default as useIsWindowNarrow } from './tmp/hooks/useIsWindowNarrow';

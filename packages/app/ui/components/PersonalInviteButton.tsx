@@ -5,7 +5,7 @@ import { Share } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts';
-import { useCopy } from '../hooks/useCopy';
+import { useCopy } from '../tmp/hooks/useCopy';
 import { getDisplayName } from '../utils';
 import { Button } from './Button';
 import { Icon } from './Icon';

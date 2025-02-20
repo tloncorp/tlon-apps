@@ -1,7 +1,7 @@
 // tamagui-ignore
 import { Pressable, ScrollView, View, XStack, YStack } from '../ui';
 import { FontStyle, Text } from '../ui/components/TextV2';
-import { useCopy } from '../ui/hooks/useCopy';
+import { useCopy } from '../ui/tmp/hooks/useCopy';
 import { PropsWithChildren, useCallback, useEffect, useState } from 'react';
 import React from 'react';
 import {

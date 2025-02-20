@@ -19,7 +19,7 @@ import {
   styled,
 } from 'tamagui';
 
-import { useCopy } from '../../hooks/useCopy';
+import { useCopy } from '../../tmp/hooks/useCopy';
 import { ContentReferenceLoader, Reference } from '../ContentReference';
 import { VideoEmbed } from '../Embed';
 import { HighlightedCode } from '../HighlightedCode';

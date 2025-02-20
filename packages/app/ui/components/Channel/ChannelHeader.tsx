@@ -9,7 +9,7 @@ import {
 } from 'react';
 
 import { useChatOptions } from '../../contexts';
-import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
 import { useGroupTitle } from '../../utils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import Pressable from '../Pressable';

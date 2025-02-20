@@ -25,8 +25,8 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
-import { useCopy } from '../hooks/useCopy';
-import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
+import { useCopy } from '../tmp/hooks/useCopy';
+import useIsWindowNarrow from '../tmp/hooks/useIsWindowNarrow';
 import { Icon, IconType } from './Icon';
 import { ListItem } from './ListItem';
 import { Sheet } from './Sheet';

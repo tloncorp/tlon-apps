@@ -15,7 +15,7 @@ import { View, YStack } from 'tamagui';
 
 import { useCurrentUserId, useGroups } from '../contexts';
 import { useAlphabeticallySegmentedGroups } from '../hooks/groupsSorters';
-import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '../tmp/hooks/useIsWindowNarrow';
 import { Button } from './Button';
 import * as Form from './Form';
 import { GroupSelector } from './GroupSelector';

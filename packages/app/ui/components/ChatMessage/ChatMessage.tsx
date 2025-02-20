@@ -5,7 +5,7 @@ import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { useChannelContext } from '../../contexts';
-import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
 import AuthorRow from '../AuthorRow';
 import { Button } from '../Button';
 import { Icon } from '../Icon';

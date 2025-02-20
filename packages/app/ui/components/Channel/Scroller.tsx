@@ -37,7 +37,7 @@ import { View, styled, useStyle, useTheme } from 'tamagui';
 import { RenderItemType } from '../../contexts/componentsKits';
 import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
-import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';

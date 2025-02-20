@@ -17,7 +17,7 @@ import {
   useAlphabeticallySegmentedContacts,
   useSortedContacts,
 } from '../hooks/contactSorters';
-import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '../tmp/hooks/useIsWindowNarrow';
 import { ContactRow } from './ContactRow';
 import { SearchBar } from './SearchBar';
 import { BlockSectionList } from './SectionList';

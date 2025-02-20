@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { View, isWeb } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
-import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';

@@ -4,7 +4,7 @@ import { Dimensions } from 'react-native';
 import { ScrollView, View } from 'tamagui';
 
 import { ChatMessage } from '..';
-import useIsWindowNarrow from '../../../hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '../../../tmp/hooks/useIsWindowNarrow';
 import AuthorRow from '../../AuthorRow';
 import { NotebookPost } from '../../NotebookPost';
 

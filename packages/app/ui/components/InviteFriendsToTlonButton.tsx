@@ -10,7 +10,7 @@ import { Share } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useCurrentUserId, useInviteService } from '../contexts';
-import { useCopy } from '../hooks/useCopy';
+import { useCopy } from '../tmp/hooks/useCopy';
 import { useGroupTitle, useIsAdmin } from '../utils';
 import { Button } from './Button';
 import { Icon } from './Icon';

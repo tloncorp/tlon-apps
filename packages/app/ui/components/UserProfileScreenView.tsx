@@ -23,8 +23,8 @@ import {
 } from 'tamagui';
 
 import { useContact, useCurrentUserId, useNavigation } from '../contexts';
-import { useCopy } from '../hooks/useCopy';
-import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
+import { useCopy } from '../tmp/hooks/useCopy';
+import useIsWindowNarrow from '../tmp/hooks/useIsWindowNarrow';
 import { triggerHaptic, useGroupTitle } from '../utils';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { Button } from './Button';

@@ -11,7 +11,7 @@ import { View } from 'tamagui';
 import { Dialog } from 'tamagui';
 import { VisuallyHidden } from 'tamagui';
 
-import useIsWindowNarrow from '../../hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
 import { Button } from '../Button';
 import KeyboardAvoidingView from '../KeyboardAvoidingView';
 import { SearchBar } from '../SearchBar';

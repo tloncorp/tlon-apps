@@ -14,7 +14,7 @@ import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { ChatOptionsSheet } from '../components/ChatOptionsSheet';
-import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '../tmp/hooks/useIsWindowNarrow';
 import { useChannelTitle } from '../utils';
 
 export type ChatOptionsContextValue = {
