@@ -21,6 +21,6 @@ export * from './components/TamaguiProvider';
 export * as TlonText from './components/TextV2';
 export * from './components/UrbitSigil';
 export * from './components/View';
-export * from './contexts/globalSearch';
+export * from './tmp/contexts/globalSearch';
 export { useCopy } from './hooks/useCopy';
 export { default as useIsWindowNarrow } from './hooks/useIsWindowNarrow';

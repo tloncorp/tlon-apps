@@ -67,7 +67,7 @@ export * from './components/Tabs';
 export * as Form from './components/Form';
 export * from './contexts';
 export { PostCollectionContext } from './contexts/postCollection';
-export { GlobalSearchProvider } from './contexts/globalSearch';
+export { GlobalSearchProvider } from './tmp/contexts/globalSearch';
 export * from './tamagui.config';
 export * from './utils';
 

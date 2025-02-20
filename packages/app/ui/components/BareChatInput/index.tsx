@@ -37,7 +37,7 @@ import {
   UploadedImageAttachment,
   useAttachmentContext,
 } from '../../contexts';
-import { useGlobalSearch } from '../../contexts/globalSearch';
+import { useGlobalSearch } from '../../tmp/contexts/globalSearch';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
 import {
