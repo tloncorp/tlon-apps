@@ -8,7 +8,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SizableText, Spinner, XStack } from 'tamagui';
 
-import { ChevronLeft, Search } from '../../assets/icons';
+import { ChevronLeft, Search } from '../../../../ui/src/assets/icons';
 import { useScrollContext } from '../../contexts/scroll';
 import { Button } from '../Button';
 import { Icon } from '../Icon';

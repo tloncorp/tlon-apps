@@ -12,7 +12,7 @@ import React, {
 } from 'react';
 import { Popover, isWeb } from 'tamagui';
 
-import { ChevronLeft } from '../assets/icons';
+import { ChevronLeft } from '../../../ui/src/assets/icons';
 import { useCurrentUserId } from '../contexts';
 import { useChatOptions } from '../contexts/chatOptions';
 import useIsWindowNarrow from '../hooks/useIsWindowNarrow';
