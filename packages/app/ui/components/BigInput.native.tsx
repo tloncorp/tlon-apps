@@ -8,8 +8,8 @@ import { Input, View, YStack, getTokenValue } from 'tamagui';
 
 import { ImageAttachment, useAttachmentContext } from '../contexts/attachment';
 import AttachmentSheet from './AttachmentSheet';
-import { Icon } from '../tmp/components/Icon';
-import { Image } from '../tmp/components/Image';
+import { Icon } from '@tloncorp/ui';
+import { Image } from '@tloncorp/ui';
 import { MessageInput } from './MessageInput';
 import { InputToolbar } from './MessageInput/InputToolbar.native';
 import { MessageInputProps } from './MessageInput/MessageInputBase';

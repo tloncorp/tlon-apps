@@ -37,14 +37,14 @@ import {
   UploadedImageAttachment,
   useAttachmentContext,
 } from '../../contexts';
-import { useGlobalSearch } from '../../tmp/contexts/globalSearch';
+import { useGlobalSearch } from '@tloncorp/ui';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
 import {
   MessageInputContainer,
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
-import { RawText, Text } from '../../tmp/components/TextV2/Text';
+import { RawText, Text } from '@tloncorp/ui';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import { useMentions } from './useMentions';
 

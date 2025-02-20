@@ -1,3 +1,3 @@
-export * from '../../tmp/components/Emoji/data';
+export * from '@tloncorp/ui';
 export * from './EmojiPickerSheet';
-export * from '../../tmp/components/Emoji/SizableEmoji';
+export * from '@tloncorp/ui';

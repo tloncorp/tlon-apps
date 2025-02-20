@@ -1,7 +1,7 @@
 import { View, styled } from 'tamagui';
 import { LinearGradient } from 'tamagui/linear-gradient';
 
-import { Image } from '../tmp/components/Image';
+import { Image } from '@tloncorp/ui';
 
 const ProfileCoverFrame = styled(View, {
   borderRadius: '$2xl',

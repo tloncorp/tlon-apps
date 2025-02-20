@@ -4,9 +4,9 @@ import { ScrollView, Spinner, View } from 'tamagui';
 
 import { Attachment, useAttachmentContext } from '../../contexts/attachment';
 import { ContentReferenceLoader } from '../ContentReference';
-import { Icon } from '../../tmp/components/Icon';
-import { Image } from '../../tmp/components/Image';
-import Pressable from '../../tmp/components/Pressable';
+import { Icon } from '@tloncorp/ui';
+import { Image } from '@tloncorp/ui';
+import Pressable from '@tloncorp/ui';
 
 export const AttachmentPreviewList = () => {
   const { attachments } = useAttachmentContext();

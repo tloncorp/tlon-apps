@@ -5,11 +5,11 @@ import { Share } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts';
-import { useCopy } from '../tmp/hooks/useCopy';
+import { useCopy } from '@tloncorp/ui';
 import { getDisplayName } from '../utils';
-import { Button } from '../tmp/components/Button';
-import { Icon } from '../tmp/components/Icon';
-import { Text } from '../tmp/components/TextV2';
+import { Button } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 
 const logger = createDevLogger('PersonalInviteButton', true);
 

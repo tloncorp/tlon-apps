@@ -9,7 +9,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Popover, View, XStack, YStack } from 'tamagui';
 
-import useIsWindowNarrow from '../../../tmp/hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '@tloncorp/ui';
 import { triggerHaptic } from '../../../utils';
 import { EmojiToolbar } from './EmojiToolbar';
 import MessageActions from './MessageActions';

@@ -9,10 +9,10 @@ import {
 } from 'react';
 
 import { useChatOptions } from '../../contexts';
-import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '@tloncorp/ui';
 import { useGroupTitle } from '../../utils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
-import Pressable from '../../tmp/components/Pressable';
+import Pressable from '@tloncorp/ui';
 import { ScreenHeader } from '../ScreenHeader';
 import { BaubleHeader } from './BaubleHeader';
 

@@ -12,9 +12,9 @@ import { LinearGradient } from 'tamagui/linear-gradient';
 
 import { usePostCollectionContext } from '../../contexts/postCollection';
 import AuthorRow from '../AuthorRow';
-import { Carousel, CarouselRef } from '../../tmp/components/Carousel';
-import { Icon } from '../../tmp/components/Icon';
-import { Text } from '../../tmp/components/TextV2';
+import { Carousel, CarouselRef } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { IPostCollectionView } from './shared';
 
 function BaseCarouselPostCollection() {

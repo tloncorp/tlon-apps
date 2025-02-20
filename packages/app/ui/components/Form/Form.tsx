@@ -1,6 +1,6 @@
 import { YStack, createStyledContext, styled } from 'tamagui';
 
-import { Text } from '../../tmp/components/TextV2';
+import { Text } from '@tloncorp/ui';
 import { BackgroundType } from './formUtils';
 
 export const FormContext = createStyledContext<{

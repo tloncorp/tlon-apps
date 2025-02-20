@@ -8,7 +8,7 @@ import { ContactAvatar } from './Avatar';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import { ContactName } from './ContactNameV2';
 import { useBoundHandler } from './ListItem/listItemUtils';
-import { Text } from '../tmp/components/TextV2';
+import { Text } from '@tloncorp/ui';
 
 const RoleBadge = View.styleable<{ role: string }>(
   ({ role, ...props }, ref) => {

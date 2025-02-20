@@ -10,12 +10,12 @@ import { Share } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useCurrentUserId, useInviteService } from '../contexts';
-import { useCopy } from '../tmp/hooks/useCopy';
+import { useCopy } from '@tloncorp/ui';
 import { useGroupTitle, useIsAdmin } from '../utils';
-import { Button } from '../tmp/components/Button';
-import { Icon } from '../tmp/components/Icon';
-import { LoadingSpinner } from '../tmp/components/LoadingSpinner';
-import { Text } from '../tmp/components/TextV2';
+import { Button } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
+import { LoadingSpinner } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 
 const logger = createDevLogger('InviteButton', true);
 

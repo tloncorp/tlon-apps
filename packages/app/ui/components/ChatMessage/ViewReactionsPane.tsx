@@ -13,7 +13,7 @@ import { ActionSheet } from '../ActionSheet';
 import { getNativeEmoji } from '../Emoji';
 import { ToggleGroupInput } from '../Form';
 import { ContactListItem } from '../ListItem';
-import { Text } from '../../tmp/components/TextV2';
+import { Text } from '@tloncorp/ui';
 
 export function ViewReactionsPane({
   post,

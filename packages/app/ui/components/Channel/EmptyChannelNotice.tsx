@@ -4,10 +4,10 @@ import { YStack, styled } from 'tamagui';
 import { useChatOptions, useGroup } from '../../contexts';
 import { useIsAdmin } from '../../utils';
 import { ArvosDiscussing } from '../ArvosDiscussing';
-import { Button } from '../../tmp/components/Button';
-import { Icon } from '../../tmp/components/Icon';
+import { Button } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
-import { Text } from '../../tmp/components/TextV2';
+import { Text } from '@tloncorp/ui';
 
 export function EmptyChannelNotice({
   channel,

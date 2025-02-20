@@ -1,9 +1,9 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useCallback, useState } from 'react';
 
-import { Icon } from '../tmp/components/Icon';
+import { Icon } from '@tloncorp/ui';
 import { ListItem } from './ListItem';
-import Pressable from '../tmp/components/Pressable';
+import Pressable from '@tloncorp/ui';
 
 interface Props {
   title: string;

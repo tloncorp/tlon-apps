@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import { View as RNView } from 'react-native';
 
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
-import { Modal } from '../../tmp/components/Modal';
+import { Modal } from '@tloncorp/ui';
 
 interface PostContextMenuPresentation {
   anchorRef: RefObject<ElementRef<typeof RNView>>;

@@ -8,13 +8,13 @@ import { Alert } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
-import { Button } from '../../tmp/components/Button';
+import { Button } from '@tloncorp/ui';
 import { DeleteSheet } from '../DeleteSheet';
 import { RadioInput } from '../Form';
-import { FormInput } from '../../tmp/components/FormInput';
-import Pressable from '../../tmp/components/Pressable';
+import { FormInput } from '@tloncorp/ui';
+import Pressable from '@tloncorp/ui';
 import { ScreenHeader } from '../ScreenHeader';
-import { Text } from '../../tmp/components/TextV2';
+import { Text } from '@tloncorp/ui';
 
 interface ChannelPrivacySetting {
   title: string;

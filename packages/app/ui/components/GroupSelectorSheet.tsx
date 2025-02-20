@@ -6,7 +6,7 @@ import { YStack } from 'tamagui';
 import { AlphaSegmentedGroups } from '../hooks/groupsSorters';
 import { triggerHaptic } from '../utils';
 import { GroupSelector } from './GroupSelector';
-import { Sheet } from '../tmp/components/Sheet';
+import { Sheet } from '@tloncorp/ui';
 
 interface SheetProps {
   open: boolean;

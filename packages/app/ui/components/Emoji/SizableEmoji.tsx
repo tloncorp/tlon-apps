@@ -1,7 +1,7 @@
 import { FontSizeTokens, SizableTextProps, getFontSize } from 'tamagui';
 import { SizableText } from 'tamagui';
 
-import { getNativeEmoji } from '../../tmp/components/Emoji/data';
+import { getNativeEmoji } from '@tloncorp/ui';
 
 // unclear what this should be (or how it should be calculated), but seems
 // to work?

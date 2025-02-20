@@ -5,15 +5,15 @@ import { View, isWeb } from 'tamagui';
 
 import { useGroupTitle } from '../../utils';
 import { Badge } from '../Badge';
-import { Button } from '../../tmp/components/Button';
+import { Button } from '@tloncorp/ui';
 import { ContactName } from '../ContactNameV2';
-import { Icon } from '../../tmp/components/Icon';
-import Pressable from '../../tmp/components/Pressable';
+import { Icon } from '@tloncorp/ui';
+import Pressable from '@tloncorp/ui';
 import { ListItem, ListItemProps } from './ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { useState } from 'react';
-import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '@tloncorp/ui';
 
 export const GroupListItem = ({
   model,

@@ -5,7 +5,7 @@ import WebView from 'react-native-webview';
 import { MediaDetails, Tweet, getTweet } from 'react-tweet/api';
 import { Text, YStack } from 'tamagui';
 
-import { Image } from '../../tmp/components/Image';
+import { Image } from '@tloncorp/ui';
 import { Embed } from './Embed';
 
 // this is a basic twitter embed, we could use the react-tweet api

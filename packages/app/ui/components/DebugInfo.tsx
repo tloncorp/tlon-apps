@@ -2,7 +2,7 @@ import * as Application from 'expo-application';
 import { PropsWithChildren, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
-import Pressable from '../tmp/components/Pressable';
+import Pressable from '@tloncorp/ui';
 
 const KONAMI_CLICKS = 5;
 const KONAMI_TIME_WINDOW = 2000;

@@ -1,4 +1,4 @@
-import { Button, ButtonProps } from '../../tmp/components/Button';
+import { Button, ButtonProps } from '@tloncorp/ui';
 
 export function TextButton({
   onPress,

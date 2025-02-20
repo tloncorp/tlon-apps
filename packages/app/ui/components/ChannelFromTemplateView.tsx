@@ -15,8 +15,8 @@ import { View, YStack } from 'tamagui';
 
 import { useCurrentUserId, useGroups } from '../contexts';
 import { useAlphabeticallySegmentedGroups } from '../hooks/groupsSorters';
-import useIsWindowNarrow from '../tmp/hooks/useIsWindowNarrow';
-import { Button } from '../tmp/components/Button';
+import useIsWindowNarrow from '@tloncorp/ui';
+import { Button } from '@tloncorp/ui';
 import * as Form from './Form';
 import { GroupSelector } from './GroupSelector';
 import { ListItem } from './ListItem';

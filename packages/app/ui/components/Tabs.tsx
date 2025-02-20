@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { XStack, styled, withStaticProperties } from 'tamagui';
 
 import { useBoundHandler } from './ListItem/listItemUtils';
-import { Text } from '../tmp/components/TextV2';
+import { Text } from '@tloncorp/ui';
 
 const TabsWrapper = styled(XStack, {
   width: '100%',

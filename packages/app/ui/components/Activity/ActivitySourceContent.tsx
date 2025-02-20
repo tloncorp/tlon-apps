@@ -6,7 +6,7 @@ import { ScrollView, YStack, styled } from 'tamagui';
 import { useContactName } from '../ContactNameV2';
 import { ContentReferenceLoader, PostReference } from '../ContentReference';
 import { GalleryPost } from '../GalleryPost';
-import { Icon } from '../../tmp/components/Icon';
+import { Icon } from '@tloncorp/ui';
 import { createContentRenderer } from '../PostContent';
 import {
   BlockData,
@@ -14,7 +14,7 @@ import {
   prependInline,
   usePostContent,
 } from '../PostContent/contentUtils';
-import { Text } from '../../tmp/components/TextV2';
+import { Text } from '@tloncorp/ui';
 
 type ActivitySourceContentProps = {
   summary: logic.SourceActivityEvents;

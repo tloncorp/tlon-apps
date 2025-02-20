@@ -8,7 +8,7 @@ import Scroller from './Channel/Scroller';
 import { ChatMessage } from './ChatMessage';
 import { GalleryPostDetailView } from './GalleryPost/GalleryPost';
 import { NotebookPostDetailView } from './NotebookPost/NotebookPost';
-import { Text } from '../tmp/components/TextV2';
+import { Text } from '@tloncorp/ui';
 
 export interface DetailViewProps {
   post: db.Post;

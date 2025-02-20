@@ -9,7 +9,7 @@ import { isWeb } from 'tamagui';
 
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
-import { useCopy } from '../../../tmp/hooks/useCopy';
+import { useCopy } from '@tloncorp/ui';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
 

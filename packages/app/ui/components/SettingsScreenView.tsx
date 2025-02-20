@@ -2,9 +2,9 @@ import { ReactElement } from 'react';
 import { Alert } from 'react-native';
 import { ScrollView, View, YStack } from 'tamagui';
 
-import { IconType } from '../tmp/components/Icon';
+import { IconType } from '@tloncorp/ui';
 import { ListItem } from './ListItem';
-import Pressable from '../tmp/components/Pressable';
+import Pressable from '@tloncorp/ui';
 import { ScreenHeader } from './ScreenHeader';
 import { TlonLogo } from './TlonLogo';
 

@@ -5,7 +5,7 @@ import {
 } from '@10play/tentap-editor';
 import { Platform } from 'react-native';
 
-import { IconType } from '../../tmp/components/Icon';
+import { IconType } from '@tloncorp/ui';
 
 export enum ToolbarContext {
   Main,

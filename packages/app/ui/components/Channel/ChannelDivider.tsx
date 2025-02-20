@@ -3,7 +3,7 @@ import { isToday, makePrettyDay } from '@tloncorp/shared/logic';
 import { useMemo } from 'react';
 import { View, XStack } from 'tamagui';
 
-import { Text } from '../../tmp/components/TextV2';
+import { Text } from '@tloncorp/ui';
 
 export function ChannelDivider({
   post,

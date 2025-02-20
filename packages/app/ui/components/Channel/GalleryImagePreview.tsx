@@ -7,7 +7,7 @@ import {
   ImageAttachment,
   useAttachmentContext,
 } from '../../contexts/attachment';
-import { Button } from '../../tmp/components/Button';
+import { Button } from '@tloncorp/ui';
 
 export default function GalleryImagePreview({
   onReset,

@@ -3,13 +3,13 @@ import { useCallback, useState } from 'react';
 import { XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../contexts';
-import useIsWindowNarrow from '../../../tmp/hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '@tloncorp/ui';
 import useOnEmojiSelect from '../../../hooks/useOnEmojiSelect';
 import { ReactionDetails, useReactionDetails } from '../../../utils/postUtils';
-import { Button } from '../../../tmp/components/Button';
+import { Button } from '@tloncorp/ui';
 import { EmojiPickerSheet } from '../../Emoji/EmojiPickerSheet';
-import { SizableEmoji } from '../../../tmp/components/Emoji/SizableEmoji';
-import { Icon } from '../../../tmp/components/Icon';
+import { SizableEmoji } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
 
 export function EmojiToolbar({
   post,

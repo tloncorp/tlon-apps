@@ -2,7 +2,7 @@ import { BlurView } from 'expo-blur';
 import { ComponentProps, PropsWithChildren } from 'react';
 import { XStack, YStack, styled } from 'tamagui';
 
-import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '@tloncorp/ui';
 
 const ListFrame = styled(YStack, {
   overflow: 'hidden',

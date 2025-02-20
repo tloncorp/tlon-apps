@@ -4,4 +4,4 @@ export * from './user';
 export * from './animation';
 
 // WIP: Temporary export to avoid breaking imports.
-export * from '../tmp/utils';
+export * from '@tloncorp/ui';

@@ -17,10 +17,10 @@ import {
   useAlphabeticallySegmentedContacts,
   useSortedContacts,
 } from '../hooks/contactSorters';
-import useIsWindowNarrow from '../tmp/hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '@tloncorp/ui';
 import { ContactRow } from './ContactRow';
 import { SearchBar } from './SearchBar';
-import { BlockSectionList } from '../tmp/components/SectionList';
+import { BlockSectionList } from '@tloncorp/ui';
 
 export function ContactBook({
   searchable = false,

@@ -10,9 +10,9 @@ import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, isWeb, styled, withStaticProperties } from 'tamagui';
 
-import { Icon } from '../tmp/components/Icon';
-import Pressable from '../tmp/components/Pressable';
-import { Text } from '../tmp/components/TextV2';
+import { Icon } from '@tloncorp/ui';
+import Pressable from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 
 export const ScreenHeaderComponent = ({
   children,

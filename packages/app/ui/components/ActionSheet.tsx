@@ -25,11 +25,11 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
-import { useCopy } from '../tmp/hooks/useCopy';
-import useIsWindowNarrow from '../tmp/hooks/useIsWindowNarrow';
-import { Icon, IconType } from '../tmp/components/Icon';
+import { useCopy } from '@tloncorp/ui';
+import useIsWindowNarrow from '@tloncorp/ui';
+import { Icon, IconType } from '@tloncorp/ui';
 import { ListItem } from './ListItem';
-import { Sheet } from '../tmp/components/Sheet';
+import { Sheet } from '@tloncorp/ui';
 
 type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
 

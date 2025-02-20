@@ -5,9 +5,9 @@ import { XStack, YStack } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts';
 import { ActionSheet } from './ActionSheet';
-import { Button } from '../tmp/components/Button';
+import { Button } from '@tloncorp/ui';
 import { ControlledTextField } from './Form';
-import { Icon } from '../tmp/components/Icon';
+import { Icon } from '@tloncorp/ui';
 
 export default function ProfileStatusSheet({
   open,

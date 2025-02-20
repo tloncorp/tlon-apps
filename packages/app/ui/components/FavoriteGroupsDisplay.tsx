@@ -6,7 +6,7 @@ import { useGroups } from '../contexts';
 import { useAlphabeticallySegmentedGroups } from '../hooks/groupsSorters';
 import { GroupSelectorSheet } from './GroupSelectorSheet';
 import { GroupListItem, ListItem } from './ListItem';
-import Pressable from '../tmp/components/Pressable';
+import Pressable from '@tloncorp/ui';
 import { WidgetPane } from './WidgetPane';
 
 export function FavoriteGroupsDisplay(props: {

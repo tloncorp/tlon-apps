@@ -4,7 +4,7 @@ import { View, useTheme } from 'tamagui';
 
 import { ActionSheet } from './ActionSheet';
 import { PersonalInviteButton } from './PersonalInviteButton';
-import { Text } from '../tmp/components/TextV2';
+import { Text } from '@tloncorp/ui';
 
 export function PersonalInviteSheet({
   open,

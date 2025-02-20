@@ -6,7 +6,7 @@ import { runOnJS, useSharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, View, XStack } from 'tamagui';
 
-import { Icon } from '../../tmp/components/Icon';
+import { Icon } from '@tloncorp/ui';
 import { DraftInputContext } from './shared';
 
 export function ColorInput({

@@ -3,7 +3,7 @@ import * as store from '@tloncorp/shared/store';
 import React, { useCallback, useMemo, useState } from 'react';
 
 import { ActionSheet } from './ActionSheet';
-import { Button } from '../tmp/components/Button';
+import { Button } from '@tloncorp/ui';
 import { ContactBook } from './ContactBook';
 import { InviteFriendsToTlonButton } from './InviteFriendsToTlonButton';
 

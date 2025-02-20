@@ -2,8 +2,8 @@ import React, { useContext } from 'react';
 import { YStack, styled } from 'tamagui';
 import { createStyledContext } from 'tamagui';
 
-import { VariantsFromStyledContext } from '../../tmp/types';
-import { Text } from '../../tmp/components/TextV2';
+import { VariantsFromStyledContext } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { FormContext } from './Form';
 import { Accent, BackgroundType } from './formUtils';
 

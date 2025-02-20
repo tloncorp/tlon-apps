@@ -3,7 +3,7 @@ import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { YStack } from 'tamagui';
 
 import { TextInput } from './Form';
-import { Input } from '../tmp/components/Input';
+import { Input } from '@tloncorp/ui';
 
 export function SearchBar({
   placeholder,

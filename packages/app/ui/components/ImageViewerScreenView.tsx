@@ -13,8 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
 
 import { triggerHaptic } from '../utils';
-import { Icon } from '../tmp/components/Icon';
-import { Image } from '../tmp/components/Image';
+import { Icon } from '@tloncorp/ui';
+import { Image } from '@tloncorp/ui';
 
 export function ImageViewerScreenView(props: {
   uri?: string;

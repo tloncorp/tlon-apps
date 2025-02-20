@@ -4,8 +4,8 @@ import { SizableText, View } from 'tamagui';
 
 import { useCalm } from '../../contexts';
 import { AudioEmbed, OutsideEmbed } from '../Embed';
-import { Icon } from '../../tmp/components/Icon';
-import { ImageWithFallback } from '../../tmp/components/Image';
+import { Icon } from '@tloncorp/ui';
+import { ImageWithFallback } from '@tloncorp/ui';
 
 const trustedProviders = [
   {

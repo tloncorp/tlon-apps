@@ -20,7 +20,7 @@ import Animated, {
 import { ColorTokens, Stack, View, getTokenValue, isWeb } from 'tamagui';
 
 import * as utils from '../../utils';
-import { Icon, IconType } from '../../tmp/components/Icon';
+import { Icon, IconType } from '@tloncorp/ui';
 import { ChatListItem } from './ChatListItem';
 import { ListItemProps } from './ListItem';
 import { useBoundHandler } from './listItemUtils';

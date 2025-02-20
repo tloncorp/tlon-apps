@@ -53,7 +53,7 @@ export * from './components/Onboarding';
 export * from './components/PostScreenView';
 export * from './components/postCollectionViews/SummaryCollectionView';
 export { ConnectedPostView } from './components/postCollectionViews/shared';
-export { default as Pressable } from './tmp/components/Pressable';
+export { default as Pressable } from '@tloncorp/ui';
 export * from './components/SettingsScreenView';
 export * from './components/ProfileSheet';
 export * from './components/ScreenHeader';
@@ -67,7 +67,7 @@ export * from './components/Tabs';
 export * as Form from './components/Form';
 export * from './contexts';
 export { PostCollectionContext } from './contexts/postCollection';
-export { GlobalSearchProvider } from './tmp/contexts/globalSearch';
+export { GlobalSearchProvider } from '@tloncorp/ui';
 export * from './tamagui.config';
 export * from './utils';
 

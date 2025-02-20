@@ -10,7 +10,7 @@ import { ContactList } from './ContactList';
 import { GroupJoinRequestSheet } from './GroupJoinRequestSheet';
 import { ProfileSheet } from './ProfileSheet';
 import { ScreenHeader } from './ScreenHeader';
-import { SectionListHeader } from '../tmp/components/SectionList';
+import { SectionListHeader } from '@tloncorp/ui';
 
 type GroupPrivacy = db.schema.GroupPrivacy;
 

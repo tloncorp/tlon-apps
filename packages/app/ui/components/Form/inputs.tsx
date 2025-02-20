@@ -25,16 +25,16 @@ import {
   useAttachmentContext,
   useMappedImageAttachments,
 } from '../../contexts';
-import { VariantsFromValues } from '../../tmp/types';
+import { VariantsFromValues } from '@tloncorp/ui';
 import AttachmentSheet from '../AttachmentSheet';
-import { Button } from '../../tmp/components/Button';
-import { Icon, IconType } from '../../tmp/components/Icon';
-import { Image } from '../../tmp/components/Image';
+import { Button } from '@tloncorp/ui';
+import { Icon, IconType } from '@tloncorp/ui';
+import { Image } from '@tloncorp/ui';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
-import Pressable from '../../tmp/components/Pressable';
-import { Text } from '../../tmp/components/TextV2';
-import { typeStyles } from '../../tmp/components/TextV2/Text';
+import Pressable from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
+import { typeStyles } from '@tloncorp/ui';
 import { FieldContext } from './Field';
 import {
   Accent,

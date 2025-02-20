@@ -11,13 +11,13 @@ import { View } from 'tamagui';
 import { Dialog } from 'tamagui';
 import { VisuallyHidden } from 'tamagui';
 
-import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
-import { Button } from '../../tmp/components/Button';
-import KeyboardAvoidingView from '../../tmp/components/KeyboardAvoidingView';
+import useIsWindowNarrow from '@tloncorp/ui';
+import { Button } from '@tloncorp/ui';
+import KeyboardAvoidingView from '@tloncorp/ui';
 import { SearchBar } from '../SearchBar';
-import { Sheet } from '../../tmp/components/Sheet';
-import { SizableEmoji } from '../../tmp/components/Emoji/SizableEmoji';
-import { searchEmojis, usePreloadedEmojis } from '../../tmp/components/Emoji/data';
+import { Sheet } from '@tloncorp/ui';
+import { SizableEmoji } from '@tloncorp/ui';
+import { searchEmojis, usePreloadedEmojis } from '@tloncorp/ui';
 
 const EMOJI_SIZE = 32;
 

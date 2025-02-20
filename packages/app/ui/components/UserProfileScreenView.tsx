@@ -23,17 +23,17 @@ import {
 } from 'tamagui';
 
 import { useContact, useCurrentUserId, useNavigation } from '../contexts';
-import { useCopy } from '../tmp/hooks/useCopy';
-import useIsWindowNarrow from '../tmp/hooks/useIsWindowNarrow';
+import { useCopy } from '@tloncorp/ui';
+import useIsWindowNarrow from '@tloncorp/ui';
 import { triggerHaptic, useGroupTitle } from '../utils';
 import { ContactAvatar, GroupAvatar } from './Avatar';
-import { Button } from '../tmp/components/Button';
+import { Button } from '@tloncorp/ui';
 import { ContactName } from './ContactNameV2';
-import { Icon } from '../tmp/components/Icon';
+import { Icon } from '@tloncorp/ui';
 import { useBoundHandler } from './ListItem/listItemUtils';
-import Pressable from '../tmp/components/Pressable';
+import Pressable from '@tloncorp/ui';
 import { ScreenHeader } from './ScreenHeader';
-import { Text } from '../tmp/components/TextV2';
+import { Text } from '@tloncorp/ui';
 import { WidgetPane } from './WidgetPane';
 
 interface Props {

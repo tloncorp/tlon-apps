@@ -3,7 +3,7 @@ import type * as db from '@tloncorp/shared/db';
 import { useMemberRoles } from '@tloncorp/shared/store';
 import { useMemo } from 'react';
 
-import type { IconType } from '../tmp/components/Icon';
+import type { IconType } from '@tloncorp/ui';
 import { useCalm } from '../contexts/appDataContext';
 import { formatUserId } from './user';
 

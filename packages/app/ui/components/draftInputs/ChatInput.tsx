@@ -1,9 +1,9 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isWeb } from 'tamagui';
 
-import useIsWindowNarrow from '../../tmp/hooks/useIsWindowNarrow';
+import useIsWindowNarrow from '@tloncorp/ui';
 import BareChatInput from '../BareChatInput';
-import { ParentAgnosticKeyboardAvoidingView } from '../../tmp/components/ParentAgnosticKeyboardAvoidingView';
+import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import { DraftInputContext } from './shared';
 
 export function ChatInput({

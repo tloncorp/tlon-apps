@@ -6,9 +6,9 @@ import { Tooltip, XStack } from 'tamagui';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { triggerHaptic } from '../../utils';
 import { useReactionDetails } from '../../utils/postUtils';
-import { SizableEmoji } from '../../tmp/components/Emoji/SizableEmoji';
-import Pressable from '../../tmp/components/Pressable';
-import { Text } from '../../tmp/components/TextV2';
+import { SizableEmoji } from '@tloncorp/ui';
+import Pressable from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 
 export function ReactionsDisplay({
   post,

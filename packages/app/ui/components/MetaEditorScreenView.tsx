@@ -18,7 +18,7 @@ import {
   ControlledTextareaField,
   FormFrame,
 } from './Form';
-import KeyboardAvoidingView from '../tmp/components/KeyboardAvoidingView';
+import KeyboardAvoidingView from '@tloncorp/ui';
 import { ScreenHeader } from './ScreenHeader';
 
 export function MetaEditorScreenView({

@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import { XStack, YStack } from 'tamagui';
 
 import { ContactAvatar } from './Avatar';
-import { Text } from '../tmp/components/TextV2';
+import { Text } from '@tloncorp/ui';
 
 export default function ProfileRow({
   contactId,

@@ -2,9 +2,9 @@
 import { Circle, ColorTokens, isWeb } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
-import { Icon, IconType } from '../../tmp/components/Icon';
-import Pressable from '../../tmp/components/Pressable';
-import { View } from '../../tmp/components/View';
+import { Icon, IconType } from '@tloncorp/ui';
+import Pressable from '@tloncorp/ui';
+import { View } from '@tloncorp/ui';
 
 export function AvatarNavIcon({
   id,
