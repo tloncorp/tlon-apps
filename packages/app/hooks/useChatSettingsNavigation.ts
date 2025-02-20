@@ -1,7 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMutableRef } from '@tloncorp/shared';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { useIsWindowNarrow } from '../ui';
 import { useCallback } from 'react';
 
 import type { RootStackParamList } from '../navigation/types';

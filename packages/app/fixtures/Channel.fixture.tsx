@@ -16,8 +16,8 @@ import {
   ChannelSwitcherSheet,
   ChatOptionsProvider,
   Sheet,
-} from '@tloncorp/ui';
-import { UnconnectedChannelConfigurationBar as ChannelConfigurationBar } from '@tloncorp/ui/src/components/ManageChannels/CreateChannelSheet';
+} from '../ui';
+import { UnconnectedChannelConfigurationBar as ChannelConfigurationBar } from '../ui/src/components/ManageChannels/CreateChannelSheet';
 import { range } from 'lodash';
 import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

@@ -1,5 +1,5 @@
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
-import { OutsideEmbed } from '@tloncorp/ui';
+import { OutsideEmbed } from '../ui';
 import { PropsWithChildren } from 'react';
 
 import { FixtureWrapper } from './FixtureWrapper';

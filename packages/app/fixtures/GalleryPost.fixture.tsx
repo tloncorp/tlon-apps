@@ -4,7 +4,7 @@ import {
   GalleryPost,
   RequestsProvider,
   View,
-} from '@tloncorp/ui';
+} from '../ui';
 import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 

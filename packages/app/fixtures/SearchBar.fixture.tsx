@@ -1,4 +1,4 @@
-import { SearchBar } from '@tloncorp/ui';
+import { SearchBar } from '../ui';
 
 import { FixtureWrapper } from './FixtureWrapper';
 

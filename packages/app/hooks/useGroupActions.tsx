@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { GroupPreviewAction } from '@tloncorp/ui';
+import { GroupPreviewAction } from '../ui';
 import { useCallback } from 'react';
 
 import { useGroupNavigation } from './useGroupNavigation';

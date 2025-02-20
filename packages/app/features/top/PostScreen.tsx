@@ -8,7 +8,7 @@ import {
   ChatOptionsProvider,
   PostScreenView,
   useCurrentUserId,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';

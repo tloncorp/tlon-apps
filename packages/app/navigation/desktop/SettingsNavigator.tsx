@@ -4,7 +4,7 @@ import {
 } from '@react-navigation/drawer';
 import { View, getVariableValue, useTheme } from '@tamagui/core';
 import * as db from '@tloncorp/shared/db';
-import { SettingsScreenView } from '@tloncorp/ui';
+import { SettingsScreenView } from '../../ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 

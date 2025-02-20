@@ -1,4 +1,4 @@
-import { TextInput, interactionWithTiming } from '@tloncorp/ui';
+import { TextInput, interactionWithTiming } from '../../ui';
 import React, { useCallback, useEffect, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import Animated, {

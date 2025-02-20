@@ -6,7 +6,7 @@ import {
   QueryClientProvider,
   queryClient,
 } from '@tloncorp/shared';
-import { UnconnectedChannelConfigurationBar as ChannelConfigurationBar } from '@tloncorp/ui/src/components/ManageChannels/CreateChannelSheet';
+import { UnconnectedChannelConfigurationBar as ChannelConfigurationBar } from '../ui/src/components/ManageChannels/CreateChannelSheet';
 import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextArea, View } from 'tamagui';

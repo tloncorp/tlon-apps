@@ -8,7 +8,7 @@ import {
   RadioControl,
   ScreenHeader,
   View,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { useContext, useEffect, useState } from 'react';
 import { ScrollView, YStack } from 'tamagui';
 import type { ThemeName } from 'tamagui';

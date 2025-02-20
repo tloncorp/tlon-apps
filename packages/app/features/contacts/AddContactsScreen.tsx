@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/store';
-import { AddContactsView } from '@tloncorp/ui';
+import { AddContactsView } from '../../ui';
 import { useCallback } from 'react';
 
 import type { RootStackParamList } from '../../navigation/types';

@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from '@tloncorp/ui';
+import { Pressable, Text, View } from '../ui';
 import { useValue } from 'react-cosmos/client';
 import { Alert, SafeAreaView, Switch } from 'react-native';
 

@@ -11,7 +11,7 @@ import {
   ScreenHeader,
   getDisplayName,
   isWeb,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 

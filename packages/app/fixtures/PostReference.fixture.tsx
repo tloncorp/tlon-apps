@@ -1,9 +1,9 @@
 import * as db from '@tloncorp/shared/db';
-import { View } from '@tloncorp/ui';
+import { View } from '../ui';
 import {
   GroupReference,
   PostReference,
-} from '@tloncorp/ui/src/components/ContentReference';
+} from '../ui/src/components/ContentReference';
 import { PropsWithChildren } from 'react';
 import { ScrollView } from 'react-native-gesture-handler';
 

@@ -2,7 +2,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { ActivityScreenView, NavBarView, View } from '@tloncorp/ui';
+import { ActivityScreenView, NavBarView, View } from '../../ui';
 import { useCallback, useMemo } from 'react';
 import { useTheme } from 'tamagui';
 

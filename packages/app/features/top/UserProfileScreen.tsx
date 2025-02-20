@@ -11,7 +11,7 @@ import {
   NavigationProvider,
   UserProfileScreenView,
   useIsWindowNarrow,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { useState } from 'react';
 import { useCallback } from 'react';
 

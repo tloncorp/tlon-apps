@@ -1,8 +1,8 @@
-import { ListItem } from '@tloncorp/ui';
+import { ListItem } from '../../ui';
 import {
   ActionGroup,
   ActionSheet,
-} from '@tloncorp/ui/src/components/ActionSheet';
+} from '../../ui/src/components/ActionSheet';
 
 import { FixtureWrapper } from '../FixtureWrapper';
 

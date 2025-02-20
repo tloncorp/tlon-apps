@@ -5,7 +5,7 @@ import {
   InteractableChatListItem,
   SectionListHeader,
   useChatOptions,
-} from '@tloncorp/ui';
+} from '../../ui';
 import React, { useCallback, useMemo, useRef } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { getTokenValue } from 'tamagui';

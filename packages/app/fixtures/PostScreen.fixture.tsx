@@ -1,4 +1,4 @@
-import { AppDataContextProvider, PostScreenView } from '@tloncorp/ui';
+import { AppDataContextProvider, PostScreenView } from '../ui';
 
 import {
   createFakePosts,

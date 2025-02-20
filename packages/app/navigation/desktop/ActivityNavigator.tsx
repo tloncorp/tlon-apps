@@ -6,7 +6,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { View, getVariableValue, useTheme } from '@tamagui/core';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { ActivityScreenView } from '@tloncorp/ui';
+import { ActivityScreenView } from '../../ui';
 import { useCallback, useMemo } from 'react';
 
 import { useGroupActions } from '../../hooks/useGroupActions';

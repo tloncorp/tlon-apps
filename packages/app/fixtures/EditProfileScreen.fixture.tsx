@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import {
   AppDataContextProvider,
   EditProfileScreenView,
-} from '@tloncorp/ui/src';
+} from '../ui/src';
 import { useFixtureInput } from 'react-cosmos/client';
 
 import { FixtureWrapper } from './FixtureWrapper';

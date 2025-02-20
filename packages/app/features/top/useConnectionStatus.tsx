@@ -1,6 +1,6 @@
 import * as api from '@tloncorp/shared/api';
 import { ConnectionStatus } from '@tloncorp/shared/api';
-import { useCurrentUserId } from '@tloncorp/ui';
+import { useCurrentUserId } from '../../ui';
 import { debounce } from 'lodash';
 import { useEffect, useState } from 'react';
 

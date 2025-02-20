@@ -8,7 +8,7 @@ import {
   YStack,
   useChannelTitle,
   useGroupTitle,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 

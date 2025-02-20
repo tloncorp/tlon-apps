@@ -4,7 +4,7 @@ import {
   AttachmentProvider,
   EditProfileScreenView,
   GroupsProvider,
-} from '@tloncorp/ui';
+} from '../../ui';
 
 import { RootStackParamList } from '../../navigation/types';
 

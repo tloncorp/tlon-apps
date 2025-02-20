@@ -1,4 +1,4 @@
-import { VideoEmbed } from '@tloncorp/ui';
+import { VideoEmbed } from '../ui';
 
 import { FixtureWrapper } from './FixtureWrapper';
 

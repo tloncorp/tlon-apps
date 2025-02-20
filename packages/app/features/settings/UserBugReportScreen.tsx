@@ -8,7 +8,7 @@ import {
   ScreenHeader,
   ScrollView,
   View,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert, KeyboardAvoidingView } from 'react-native';

@@ -1,4 +1,4 @@
-import { Tabs } from '@tloncorp/ui';
+import { Tabs } from '../../ui';
 
 import { TabName } from '../../hooks/useFilteredChats';
 

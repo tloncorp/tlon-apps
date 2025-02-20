@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import { FeatureFlagScreenView } from '@tloncorp/ui';
+import { FeatureFlagScreenView } from '../../ui';
 import { useCallback, useMemo } from 'react';
 
 import * as featureFlags from '../../lib/featureFlags';

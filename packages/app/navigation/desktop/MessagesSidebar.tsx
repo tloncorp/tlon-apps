@@ -13,7 +13,7 @@ import {
   View,
   useGlobalSearch,
   useIsWindowNarrow,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';

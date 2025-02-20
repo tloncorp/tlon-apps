@@ -1,4 +1,4 @@
-import { SendPostRetrySheet } from '@tloncorp/ui/src/components/SendPostRetrySheet';
+import { SendPostRetrySheet } from '../../ui/src/components/SendPostRetrySheet';
 
 import { createFakePost } from '../fakeData';
 

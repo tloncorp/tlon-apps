@@ -5,7 +5,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationState } from '@react-navigation/routers';
-import { useGlobalSearch } from '@tloncorp/ui';
+import { useGlobalSearch } from '../../ui';
 import { useEffect } from 'react';
 import { View, getVariableValue, useTheme } from 'tamagui';
 

@@ -9,7 +9,7 @@ import {
   MetaEditorScreenView,
   YStack,
   useGroupTitle,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { useCallback, useState } from 'react';
 
 import {

@@ -17,7 +17,7 @@ import {
   XStack,
   YStack,
   useIsWindowNarrow,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { ComponentProps, useCallback, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 

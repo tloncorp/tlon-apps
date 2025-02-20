@@ -11,7 +11,7 @@ import {
   View,
   XStack,
   YStack,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { preSig } from '@urbit/aura';
 import * as Application from 'expo-application';
 import * as Updates from 'expo-updates';

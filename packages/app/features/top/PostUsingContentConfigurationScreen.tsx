@@ -8,7 +8,7 @@ import {
   DetailPostUsingContentConfiguration,
   PostCollectionContext,
   PostView,
-} from '@tloncorp/ui';
+} from '../../ui';
 
 import type { RootStackParamList } from '../../navigation/types';
 

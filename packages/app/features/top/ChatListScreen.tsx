@@ -23,7 +23,7 @@ import {
   WelcomeSheet,
   useGlobalSearch,
   useIsWindowNarrow,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { ColorTokens, Text, YStack, useTheme } from 'tamagui';

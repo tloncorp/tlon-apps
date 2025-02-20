@@ -1,5 +1,5 @@
-import { AppDataContextProvider, View } from '@tloncorp/ui';
-import { ProfileBlock } from '@tloncorp/ui/src/components/ProfileBlock';
+import { AppDataContextProvider, View } from '../ui';
+import { ProfileBlock } from '../ui/src/components/ProfileBlock';
 
 import { FixtureWrapper } from './FixtureWrapper';
 import { brianContact } from './fakeData';

@@ -1,4 +1,4 @@
-import { Button } from '@tloncorp/ui';
+import { Button } from '../ui';
 
 import { FixtureWrapper } from './FixtureWrapper';
 

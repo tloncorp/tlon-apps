@@ -13,7 +13,7 @@ import {
   TextInput,
   View,
   YStack,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { useCallback, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';

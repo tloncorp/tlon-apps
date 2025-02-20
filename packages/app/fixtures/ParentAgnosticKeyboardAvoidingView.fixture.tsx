@@ -1,4 +1,4 @@
-import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
+import { ParentAgnosticKeyboardAvoidingView } from '../ui';
 import { useFixtureSelect } from 'react-cosmos/client';
 import {
   Button,

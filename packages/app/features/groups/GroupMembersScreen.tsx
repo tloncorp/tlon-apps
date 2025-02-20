@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { GroupMembersScreenView } from '@tloncorp/ui';
+import { GroupMembersScreenView } from '../../ui';
 import { useCallback } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';

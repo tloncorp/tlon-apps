@@ -7,7 +7,7 @@ import {
   View,
   YStack,
   isWeb,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { WebView } from 'react-native-webview';

@@ -1,4 +1,4 @@
-import { ChannelHeader } from '@tloncorp/ui';
+import { ChannelHeader } from '../ui';
 
 import { tlonLocalBulletinBoard } from './fakeData';
 

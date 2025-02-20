@@ -1,4 +1,4 @@
-import { ActionSheet, Icon, Image, View, XStack, YStack } from '@tloncorp/ui';
+import { ActionSheet, Icon, Image, View, XStack, YStack } from '../..';
 
 import { Text } from '../TextV2';
 

@@ -1,5 +1,5 @@
 import { themeSettings } from '@tloncorp/shared/db';
-import { config } from '@tloncorp/ui';
+import { config } from '../ui';
 import { useEffect, useState } from 'react';
 import React from 'react';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';

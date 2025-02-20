@@ -1,4 +1,4 @@
-import { GroupListItem, View } from '@tloncorp/ui';
+import { GroupListItem, View } from '../ui';
 
 import { FixtureWrapper } from './FixtureWrapper';
 import {

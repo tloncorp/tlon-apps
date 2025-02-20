@@ -7,7 +7,7 @@ import {
   ScreenHeader,
   View,
   useChatOptions,
-} from '@tloncorp/ui';
+} from '../../ui';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { RootStackParamList } from '../../navigation/types';

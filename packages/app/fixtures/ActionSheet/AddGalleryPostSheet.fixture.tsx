@@ -1,4 +1,4 @@
-import AddGalleryPost from '@tloncorp/ui/src/components/AddGalleryPost';
+import AddGalleryPost from '../../ui/src/components/AddGalleryPost';
 
 export default (
   <AddGalleryPost

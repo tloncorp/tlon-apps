@@ -1,4 +1,4 @@
-import { StoreProvider, TamaguiProvider, config } from '@tloncorp/ui';
+import { StoreProvider, TamaguiProvider, config } from '../ui';
 import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 

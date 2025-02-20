@@ -9,7 +9,7 @@ import {
   View,
   getDisplayName,
   isWeb,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { useTheme } from 'tamagui';

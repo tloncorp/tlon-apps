@@ -1,4 +1,4 @@
-import { ChannelSwitcherSheet } from '@tloncorp/ui';
+import { ChannelSwitcherSheet } from '../ui';
 
 import { group } from './fakeData';
 

@@ -1,4 +1,4 @@
-import { LoadingSpinner } from '@tloncorp/ui';
+import { LoadingSpinner } from '../ui';
 import { type Ref, useCallback, useEffect, useRef } from 'react';
 import { Alert, BackHandler, View } from 'react-native';
 import type WebView from 'react-native-webview';

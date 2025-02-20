@@ -1,6 +1,6 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import { createDevLogger } from '@tloncorp/shared';
-import { SizableText, View } from '@tloncorp/ui';
+import { SizableText, View } from './ui';
 import { Component, ErrorInfo, ReactNode } from 'react';
 
 interface ErrorBoundaryProps {

@@ -8,7 +8,7 @@ import {
   SimpleActionSheet,
   capitalize,
   useIsWindowNarrow,
-} from '@tloncorp/ui';
+} from '../../ui';
 import {
   forwardRef,
   useCallback,

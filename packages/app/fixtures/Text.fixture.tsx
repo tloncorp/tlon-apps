@@ -1,7 +1,7 @@
 // tamagui-ignore
-import { Pressable, ScrollView, View, XStack, YStack } from '@tloncorp/ui';
-import { FontStyle, Text } from '@tloncorp/ui/src/components/TextV2';
-import { useCopy } from '@tloncorp/ui/src/hooks/useCopy';
+import { Pressable, ScrollView, View, XStack, YStack } from '../ui';
+import { FontStyle, Text } from '../ui/src/components/TextV2';
+import { useCopy } from '../ui/src/hooks/useCopy';
 import { PropsWithChildren, useCallback, useEffect, useState } from 'react';
 import React from 'react';
 import {

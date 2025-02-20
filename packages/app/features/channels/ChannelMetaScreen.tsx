@@ -2,7 +2,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
-import { AttachmentProvider, MetaEditorScreenView } from '@tloncorp/ui';
+import { AttachmentProvider, MetaEditorScreenView } from '../../ui';
 import { useCallback } from 'react';
 
 import { RootStackParamList } from '../../navigation/types';

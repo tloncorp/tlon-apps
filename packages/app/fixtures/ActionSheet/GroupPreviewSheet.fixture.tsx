@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { GroupPreviewSheet } from '@tloncorp/ui';
+import { GroupPreviewSheet } from '../../ui';
 
 import { group } from '../fakeData';
 

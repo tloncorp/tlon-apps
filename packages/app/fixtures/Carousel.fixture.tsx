@@ -1,4 +1,4 @@
-import { Button, Carousel } from '@tloncorp/ui';
+import { Button, Carousel } from '../ui';
 import { useCallback, useRef, useState } from 'react';
 import { useSelect, useValue } from 'react-cosmos/client';
 import { Alert } from 'react-native';

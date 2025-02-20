@@ -1,6 +1,6 @@
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
-import { AppDataContextProvider } from '@tloncorp/ui';
-import { CreateChannelSheet } from '@tloncorp/ui/src/components/ManageChannels/CreateChannelSheet';
+import { AppDataContextProvider } from '../../ui';
+import { CreateChannelSheet } from '../../ui/src/components/ManageChannels/CreateChannelSheet';
 
 import { group } from '../fakeData';
 

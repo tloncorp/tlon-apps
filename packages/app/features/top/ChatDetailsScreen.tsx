@@ -28,7 +28,7 @@ import {
   useCurrentUserId,
   useGroupTitle,
   useIsAdmin,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

@@ -6,7 +6,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useGlobalSearch, useIsWindowNarrow } from '@tloncorp/ui';
+import { useGlobalSearch, useIsWindowNarrow } from '../ui';
 import { useCallback, useMemo } from 'react';
 
 import { useFeatureFlagStore } from '../lib/featureFlags';

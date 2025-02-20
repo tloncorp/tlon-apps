@@ -11,7 +11,7 @@ import {
   YStack,
   useGlobalSearch,
   useWebAppUpdate,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { useCallback, useRef } from 'react';
 import { View, getVariableValue, useTheme } from 'tamagui';
 

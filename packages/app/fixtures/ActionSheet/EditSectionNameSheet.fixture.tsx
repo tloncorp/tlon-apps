@@ -1,4 +1,4 @@
-import { EditSectionNameSheet } from '@tloncorp/ui/src/components/ManageChannels/EditSectionNameSheet';
+import { EditSectionNameSheet } from '../../ui/src/components/ManageChannels/EditSectionNameSheet';
 
 export default (
   <EditSectionNameSheet

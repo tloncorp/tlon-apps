@@ -1,4 +1,4 @@
-import { ScreenHeader } from '@tloncorp/ui';
+import { ScreenHeader } from '../ui';
 
 import { FixtureWrapper } from './FixtureWrapper';
 

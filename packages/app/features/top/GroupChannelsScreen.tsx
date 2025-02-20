@@ -8,7 +8,7 @@ import {
   InviteUsersSheet,
   NavigationProvider,
   useIsWindowNarrow,
-} from '@tloncorp/ui';
+} from '../../ui';
 import { useCallback, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';

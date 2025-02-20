@@ -19,7 +19,7 @@ import {
   INITIAL_POSTS_PER_PAGE,
   InviteUsersSheet,
   useCurrentUserId,
-} from '@tloncorp/ui';
+} from '../../ui';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';

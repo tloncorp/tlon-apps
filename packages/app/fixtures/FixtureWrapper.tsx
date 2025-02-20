@@ -1,13 +1,13 @@
 // tamagui-ignore
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
-import type { ColorProp } from '@tloncorp/ui';
+import type { ColorProp } from '../ui';
 import {
   AppDataContextProvider,
   ChatOptionsProvider,
   Theme,
   View,
-} from '@tloncorp/ui';
+} from '../ui';
 import type { PropsWithChildren } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
