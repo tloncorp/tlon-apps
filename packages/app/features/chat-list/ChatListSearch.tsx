@@ -1,4 +1,3 @@
-import { TextInput, interactionWithTiming } from '../../ui';
 import React, { useCallback, useEffect, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import Animated, {
@@ -7,6 +6,8 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import { View, YStack, useTheme } from 'tamagui';
+
+import { TextInput, interactionWithTiming } from '../../ui';
 
 export const ChatListSearch = React.memo(function ChatListSearchComponent({
   isOpen,

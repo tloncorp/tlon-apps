@@ -1,3 +1,7 @@
+import { useCopy } from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
+import { Icon, IconType } from '@tloncorp/ui';
+import { Sheet } from '@tloncorp/ui';
 import {
   Children,
   ComponentProps,
@@ -25,11 +29,7 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
-import { useCopy } from '@tloncorp/ui';
-import { useIsWindowNarrow } from '@tloncorp/ui';
-import { Icon, IconType } from '@tloncorp/ui';
 import { ListItem } from './ListItem';
-import { Sheet } from '@tloncorp/ui';
 
 type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
 

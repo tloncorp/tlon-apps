@@ -1,9 +1,9 @@
+import { Button } from '@tloncorp/ui';
+import { LoadingSpinner } from '@tloncorp/ui';
 import { ComponentProps, PropsWithChildren } from 'react';
 import { View } from 'tamagui';
 
 import { triggerHaptic } from '../../utils';
-import { Button } from '@tloncorp/ui';
-import { LoadingSpinner } from '@tloncorp/ui';
 
 // TODO: base button component no work well with icons?
 export function PrimaryButton({

@@ -1,5 +1,7 @@
 // import { EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/db';
+import { Icon } from '@tloncorp/ui';
+import { Image } from '@tloncorp/ui';
 import { useMemo, useState } from 'react';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 // TODO: replace input with our own input component
@@ -7,8 +9,6 @@ import { Input, View, YStack, getTokenValue } from 'tamagui';
 
 import { ImageAttachment, useAttachmentContext } from '../contexts/attachment';
 import AttachmentSheet from './AttachmentSheet';
-import { Icon } from '@tloncorp/ui';
-import { Image } from '@tloncorp/ui';
 import { MessageInput } from './MessageInput';
 // import { InputToolbar } from './MessageInput/InputToolbar';
 import { MessageInputProps } from './MessageInput/MessageInputBase';

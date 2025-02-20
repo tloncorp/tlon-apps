@@ -1,4 +1,5 @@
 import { useBridgeState, useKeyboard } from '@10play/tentap-editor';
+import { Icon } from '@tloncorp/ui';
 import React, { memo, useCallback, useMemo } from 'react';
 import {
   FlatList,
@@ -8,7 +9,6 @@ import {
 } from 'react-native';
 import { View } from 'tamagui';
 
-import { Icon } from '@tloncorp/ui';
 import { EditLinkBar } from './EditLinkBar';
 import {
   DEFAULT_TOOLBAR_ITEMS,

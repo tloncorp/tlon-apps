@@ -1,4 +1,3 @@
-import { ParentAgnosticKeyboardAvoidingView } from '../ui';
 import { useFixtureSelect } from 'react-cosmos/client';
 import {
   Button,
@@ -8,6 +7,7 @@ import {
 } from 'react-native';
 import { ScrollView, View as TamaguiView, Text, YStack } from 'tamagui';
 
+import { ParentAgnosticKeyboardAvoidingView } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 
 export default function ParentAgnosticKeyboardAvoidingViewDemo() {

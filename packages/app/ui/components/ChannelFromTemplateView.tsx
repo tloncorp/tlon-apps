@@ -7,6 +7,8 @@ import {
 } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import { useIsWindowNarrow } from '@tloncorp/ui';
+import { Button } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
@@ -15,8 +17,6 @@ import { View, YStack } from 'tamagui';
 
 import { useCurrentUserId, useGroups } from '../contexts';
 import { useAlphabeticallySegmentedGroups } from '../hooks/groupsSorters';
-import { useIsWindowNarrow } from '@tloncorp/ui';
-import { Button } from '@tloncorp/ui';
 import * as Form from './Form';
 import { GroupSelector } from './GroupSelector';
 import { ListItem } from './ListItem';

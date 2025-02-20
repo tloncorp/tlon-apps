@@ -1,3 +1,9 @@
+import { useIsWindowNarrow } from '@tloncorp/ui';
+import { Button } from '@tloncorp/ui';
+import { KeyboardAvoidingView } from '@tloncorp/ui';
+import { Sheet } from '@tloncorp/ui';
+import { SizableEmoji } from '@tloncorp/ui';
+import { searchEmojis, usePreloadedEmojis } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useMemo, useRef, useState } from 'react';
 import React from 'react';
 import {
@@ -11,13 +17,7 @@ import { View } from 'tamagui';
 import { Dialog } from 'tamagui';
 import { VisuallyHidden } from 'tamagui';
 
-import { useIsWindowNarrow } from '@tloncorp/ui';
-import { Button } from '@tloncorp/ui';
-import { KeyboardAvoidingView } from '@tloncorp/ui';
 import { SearchBar } from '../SearchBar';
-import { Sheet } from '@tloncorp/ui';
-import { SizableEmoji } from '@tloncorp/ui';
-import { searchEmojis, usePreloadedEmojis } from '@tloncorp/ui';
 
 const EMOJI_SIZE = 32;
 

@@ -1,5 +1,4 @@
 import { ChannelDivider, ChatMessage } from '../ui';
-
 import { FixtureWrapper } from './FixtureWrapper';
 import { createFakePosts } from './fakeData';
 

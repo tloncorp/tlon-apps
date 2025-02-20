@@ -1,10 +1,9 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { Button } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YStack } from 'tamagui';
-
-import { Button } from '@tloncorp/ui';
 
 export function DmInviteOptions({
   channel,

@@ -1,5 +1,4 @@
 import { ChannelSwitcherSheet } from '../ui';
-
 import { group } from './fakeData';
 
 export default {

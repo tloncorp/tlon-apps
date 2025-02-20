@@ -1,10 +1,10 @@
 // tamagui-ignore
-import { Circle, ColorTokens, isWeb } from 'tamagui';
-
-import { ContactAvatar } from '../Avatar';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { View } from '@tloncorp/ui';
+import { Circle, ColorTokens, isWeb } from 'tamagui';
+
+import { ContactAvatar } from '../Avatar';
 
 export function AvatarNavIcon({
   id,

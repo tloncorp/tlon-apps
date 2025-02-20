@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { KeyboardAvoidingView } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
@@ -15,7 +16,6 @@ import {
   Field,
   FormFrame,
 } from './Form';
-import { KeyboardAvoidingView } from '@tloncorp/ui';
 import { ScreenHeader } from './ScreenHeader';
 import { BioDisplay, PinnedGroupsDisplay } from './UserProfileScreenView';
 

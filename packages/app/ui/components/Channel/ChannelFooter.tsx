@@ -1,3 +1,7 @@
+import { Button } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
+import { IconButton } from '@tloncorp/ui';
+import { ChevronLeft, Search } from '@tloncorp/ui/assets/icons';
 import Animated, {
   Easing,
   interpolate,
@@ -8,11 +12,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SizableText, Spinner, XStack } from 'tamagui';
 
-import { ChevronLeft, Search } from '@tloncorp/ui/assets/icons';
 import { useScrollContext } from '../../contexts/scroll';
-import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
-import { IconButton } from '@tloncorp/ui';
 
 export function ChannelFooter({
   title,

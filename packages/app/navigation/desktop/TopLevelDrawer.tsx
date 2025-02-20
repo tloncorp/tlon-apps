@@ -4,6 +4,11 @@ import {
 } from '@react-navigation/drawer';
 import { DrawerNavigationState } from '@react-navigation/native';
 import * as store from '@tloncorp/shared/store';
+import { useCallback, useRef } from 'react';
+import { View, getVariableValue, useTheme } from 'tamagui';
+
+import { GlobalSearch } from '../../features/chat-list/GlobalSearch';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import {
   AvatarNavIcon,
   GlobalSearchProvider,
@@ -12,11 +17,6 @@ import {
   useGlobalSearch,
   useWebAppUpdate,
 } from '../../ui';
-import { useCallback, useRef } from 'react';
-import { View, getVariableValue, useTheme } from 'tamagui';
-
-import { GlobalSearch } from '../../features/chat-list/GlobalSearch';
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootDrawerParamList } from '../types';
 import { useRootNavigation } from '../utils';
 import { ActivityNavigator } from './ActivityNavigator';

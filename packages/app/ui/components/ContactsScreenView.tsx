@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { SectionListHeader } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 import { SectionList } from 'react-native';
 import { View, XStack, getTokenValue } from 'tamagui';
@@ -8,7 +9,6 @@ import { useSortedContacts } from '../hooks/contactSorters';
 import { SystemIconAvatar } from './Avatar';
 import { Badge } from './Badge';
 import { ContactListItem } from './ListItem';
-import { SectionListHeader } from '@tloncorp/ui';
 
 interface Props {
   contacts: db.Contact[];

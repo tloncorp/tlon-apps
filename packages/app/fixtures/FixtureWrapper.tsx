@@ -1,6 +1,12 @@
 // tamagui-ignore
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
+import type { PropsWithChildren } from 'react';
+import { useFixtureSelect } from 'react-cosmos/client';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { useChatSettingsNavigation } from '../hooks/useChatSettingsNavigation';
 import type { ColorProp } from '../ui';
 import {
   AppDataContextProvider,
@@ -8,12 +14,6 @@ import {
   Theme,
   View,
 } from '../ui';
-import type { PropsWithChildren } from 'react';
-import { useFixtureSelect } from 'react-cosmos/client';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { useChatSettingsNavigation } from '../hooks/useChatSettingsNavigation';
 import { initialContacts } from './fakeData';
 
 type FixtureWrapperProps = PropsWithChildren<{

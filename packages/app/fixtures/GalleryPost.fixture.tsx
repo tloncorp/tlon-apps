@@ -1,13 +1,13 @@
 import * as db from '@tloncorp/shared/db';
+import { FlatList } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import {
   AppDataContextProvider,
   GalleryPost,
   RequestsProvider,
   View,
 } from '../ui';
-import { FlatList } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { FixtureWrapper } from './FixtureWrapper';
 import * as content from './contentHelpers';
 

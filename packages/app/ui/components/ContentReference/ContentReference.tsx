@@ -2,6 +2,8 @@
 import { ContentReference } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { getChannelType } from '@tloncorp/shared/urbit';
+import { IconType } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import React from 'react';
 import { ComponentProps, useCallback } from 'react';
 import { View, XStack, styled } from 'tamagui';
@@ -12,11 +14,9 @@ import { useGroupTitle } from '../../utils';
 import { ContactAvatar, GroupAvatar } from '../Avatar';
 import { useContactName } from '../ContactNameV2';
 import { GalleryContentRenderer } from '../GalleryPost';
-import { IconType } from '@tloncorp/ui';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { PostContentRenderer } from '../PostContent/ContentRenderer';
-import { Text } from '@tloncorp/ui';
 import {
   Reference,
   ReferenceContext,

@@ -1,10 +1,10 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { ChannelFromTemplateView, GroupsProvider } from '../../ui';
 import { useCallback } from 'react';
 
 import { RootStackParamList } from '../../navigation/types';
+import { ChannelFromTemplateView, GroupsProvider } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChannelTemplate'>;
 

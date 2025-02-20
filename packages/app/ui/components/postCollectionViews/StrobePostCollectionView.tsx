@@ -92,8 +92,7 @@ export const StrobePostCollectionView: IPostCollectionView = forwardRef(
       },
     }));
 
-    const { collectionConfiguration } =
-      usePostCollectionContext();
+    const { collectionConfiguration } = usePostCollectionContext();
 
     const strobeDurationMs = useMemo(() => {
       try {

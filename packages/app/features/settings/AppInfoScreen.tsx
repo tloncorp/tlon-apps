@@ -1,17 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import {
-  AppSetting,
-  Button,
-  ScreenHeader,
-  SizableText,
-  Stack,
-  Text,
-  View,
-  XStack,
-  YStack,
-} from '../../ui';
 import { preSig } from '@urbit/aura';
 import * as Application from 'expo-application';
 import * as Updates from 'expo-updates';
@@ -26,6 +15,17 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useTelemetry } from '../../hooks/useTelemetry';
 import { getEasUpdateDisplay } from '../../lib/platformHelpers';
 import { RootStackParamList } from '../../navigation/types';
+import {
+  AppSetting,
+  Button,
+  ScreenHeader,
+  SizableText,
+  Stack,
+  Text,
+  View,
+  XStack,
+  YStack,
+} from '../../ui';
 
 const BUILD_VERSION = `${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${Application.nativeBuildVersion}`;
 

@@ -1,5 +1,7 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { Icon, IconType } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { ComponentProps, ReactElement, useMemo } from 'react';
 import {
   getVariableValue,
@@ -18,8 +20,6 @@ import {
   SystemIconAvatar,
 } from '../Avatar';
 import ContactName from '../ContactName';
-import { Icon, IconType } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
 
 export interface BaseListItemProps<T> {
   model: T;

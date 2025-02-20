@@ -1,5 +1,6 @@
 import { parseGroupId } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import { SectionListHeader } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { SectionList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,7 +11,6 @@ import { ContactList } from './ContactList';
 import { GroupJoinRequestSheet } from './GroupJoinRequestSheet';
 import { ProfileSheet } from './ProfileSheet';
 import { ScreenHeader } from './ScreenHeader';
-import { SectionListHeader } from '@tloncorp/ui';
 
 type GroupPrivacy = db.schema.GroupPrivacy;
 

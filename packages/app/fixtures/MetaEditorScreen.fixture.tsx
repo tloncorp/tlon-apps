@@ -1,5 +1,4 @@
 import { MetaEditorScreenView } from '../ui';
-
 import { FixtureWrapper } from './FixtureWrapper';
 import { group } from './fakeData';
 

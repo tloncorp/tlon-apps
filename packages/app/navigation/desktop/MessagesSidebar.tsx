@@ -2,6 +2,17 @@ import { useIsFocused } from '@react-navigation/native';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import { TLON_EMPLOYEE_GROUP } from '../../constants';
+import { ChatList } from '../../features/chat-list/ChatList';
+import {
+  CreateChatSheet,
+  CreateChatSheetMethods,
+} from '../../features/top/CreateChatSheet';
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useFilteredChats } from '../../hooks/useFilteredChats';
+import { useGroupActions } from '../../hooks/useGroupActions';
 import {
   ChatOptionsProvider,
   GroupPreviewAction,
@@ -14,17 +25,6 @@ import {
   useGlobalSearch,
   useIsWindowNarrow,
 } from '../../ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
-import { TLON_EMPLOYEE_GROUP } from '../../constants';
-import { ChatList } from '../../features/chat-list/ChatList';
-import {
-  CreateChatSheet,
-  CreateChatSheetMethods,
-} from '../../features/top/CreateChatSheet';
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useFilteredChats } from '../../hooks/useFilteredChats';
-import { useGroupActions } from '../../hooks/useGroupActions';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { useRootNavigation } from '../utils';
 

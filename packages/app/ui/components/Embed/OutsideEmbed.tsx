@@ -1,7 +1,7 @@
+import { Icon } from '@tloncorp/ui';
 import { useState } from 'react';
 import { Text } from 'tamagui';
 
-import { Icon } from '@tloncorp/ui';
 import { Embed } from './Embed';
 
 export default function OutsideEmbed({ url }: { url: string }) {

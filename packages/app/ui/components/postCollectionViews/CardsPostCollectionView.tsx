@@ -1,3 +1,4 @@
+import { Button } from '@tloncorp/ui';
 import {
   forwardRef,
   useCallback,
@@ -9,7 +10,6 @@ import { Alert } from 'react-native';
 import { Text, View } from 'tamagui';
 
 import { usePostCollectionContext } from '../../contexts/postCollection';
-import { Button } from '@tloncorp/ui';
 import { IPostCollectionView } from './shared';
 
 function BaseCardsPostCollection({

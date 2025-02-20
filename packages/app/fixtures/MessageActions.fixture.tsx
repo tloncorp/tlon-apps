@@ -1,9 +1,9 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { ChatMessageActions, Modal, ZStack } from '../ui';
 import { createRef, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
+import { ChatMessageActions, Modal, ZStack } from '../ui';
 import { ChannelFixture } from './Channel.fixture';
 import { FixtureWrapper } from './FixtureWrapper';
 import { createFakePosts, group } from './fakeData';

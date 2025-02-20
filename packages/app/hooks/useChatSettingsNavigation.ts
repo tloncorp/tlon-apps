@@ -1,12 +1,12 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMutableRef } from '@tloncorp/shared';
-import { useIsWindowNarrow } from '../ui';
 import { useCallback } from 'react';
 
 import type { RootStackParamList } from '../navigation/types';
 import { GroupSettingsStackParamList } from '../navigation/types';
 import { useRootNavigation } from '../navigation/utils';
+import { useIsWindowNarrow } from '../ui';
 
 export const useChatSettingsNavigation = () => {
   const navigation =

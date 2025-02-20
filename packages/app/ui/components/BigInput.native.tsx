@@ -1,4 +1,6 @@
 import * as db from '@tloncorp/shared/db';
+import { Icon } from '@tloncorp/ui';
+import { Image } from '@tloncorp/ui';
 import { useMemo, useRef, useState } from 'react';
 import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
@@ -8,8 +10,6 @@ import { Input, View, YStack, getTokenValue } from 'tamagui';
 
 import { ImageAttachment, useAttachmentContext } from '../contexts/attachment';
 import AttachmentSheet from './AttachmentSheet';
-import { Icon } from '@tloncorp/ui';
-import { Image } from '@tloncorp/ui';
 import { MessageInput } from './MessageInput';
 import { InputToolbar } from './MessageInput/InputToolbar.native';
 import { MessageInputProps } from './MessageInput/MessageInputBase';

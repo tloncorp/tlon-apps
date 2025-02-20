@@ -1,6 +1,5 @@
-import { YStack, styled, withStaticProperties } from 'tamagui';
-
 import { Text } from '@tloncorp/ui';
+import { YStack, styled, withStaticProperties } from 'tamagui';
 
 const WidgetPaneFrame = styled(YStack, {
   backgroundColor: '$background',

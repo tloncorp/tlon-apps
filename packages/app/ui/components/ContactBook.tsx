@@ -1,4 +1,6 @@
 import * as db from '@tloncorp/shared/db';
+import { useIsWindowNarrow } from '@tloncorp/ui';
+import { BlockSectionList } from '@tloncorp/ui';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Insets,
@@ -17,10 +19,8 @@ import {
   useAlphabeticallySegmentedContacts,
   useSortedContacts,
 } from '../hooks/contactSorters';
-import { useIsWindowNarrow } from '@tloncorp/ui';
 import { ContactRow } from './ContactRow';
 import { SearchBar } from './SearchBar';
-import { BlockSectionList } from '@tloncorp/ui';
 
 export function ContactBook({
   searchable = false,
@@ -116,7 +116,7 @@ export function ContactBook({
           selected={isSelected}
           onPress={handleSelect}
           pressStyle={{ backgroundColor: '$shadow' }}
-          testID='ContactRow'
+          testID="ContactRow"
         />
       );
     },

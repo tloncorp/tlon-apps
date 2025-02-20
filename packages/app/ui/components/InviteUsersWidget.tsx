@@ -1,9 +1,9 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { Button } from '@tloncorp/ui';
 import React, { useCallback, useMemo, useState } from 'react';
 
 import { ActionSheet } from './ActionSheet';
-import { Button } from '@tloncorp/ui';
 import { ContactBook } from './ContactBook';
 import { InviteFriendsToTlonButton } from './InviteFriendsToTlonButton';
 

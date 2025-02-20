@@ -1,4 +1,7 @@
 import * as db from '@tloncorp/shared/db';
+import { Icon } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
+import { Sheet } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,9 +10,6 @@ import { SizableText, Text, XStack } from 'tamagui';
 import { useChatOptions } from '../contexts';
 import { useGroupTitle } from '../utils';
 import ChannelNavSections from './ChannelNavSections';
-import { Icon } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
-import { Sheet } from '@tloncorp/ui';
 
 interface Props {
   open: boolean;

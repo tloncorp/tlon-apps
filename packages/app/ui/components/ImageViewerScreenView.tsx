@@ -1,4 +1,6 @@
 import { ImageZoom, Zoomable } from '@likashefqet/react-native-image-zoom';
+import { Icon } from '@tloncorp/ui';
+import { Image } from '@tloncorp/ui';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import { ElementRef, useRef, useState } from 'react';
@@ -13,8 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
 
 import { triggerHaptic } from '../utils';
-import { Icon } from '@tloncorp/ui';
-import { Image } from '@tloncorp/ui';
 
 export function ImageViewerScreenView(props: {
   uri?: string;

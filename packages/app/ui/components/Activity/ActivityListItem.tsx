@@ -1,15 +1,15 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import { Icon } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import React, { PropsWithChildren, useCallback, useMemo } from 'react';
 import { XStack, YStack, styled } from 'tamagui';
 
 import { useCalm } from '../../contexts';
 import { getGroupTitle, useChannelTitle, useGroupTitle } from '../../utils';
 import { ChannelAvatar, ContactAvatar, GroupAvatar } from '../Avatar';
-import { Icon } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
 import { UnreadDot } from '../UnreadDot';
 import { ActivitySourceContent } from './ActivitySourceContent';
 import { SummaryMessage } from './ActivitySummaryMessage';

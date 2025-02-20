@@ -1,4 +1,5 @@
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
+
 import { useStyle } from '../ui';
 
 type Props = {

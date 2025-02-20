@@ -1,5 +1,13 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { themeSettings } from '@tloncorp/shared/db';
+import { useContext, useEffect, useState } from 'react';
+import { ScrollView, YStack } from 'tamagui';
+import type { ThemeName } from 'tamagui';
+import { useTheme } from 'tamagui';
+
+import { useIsDarkMode } from '../../hooks/useIsDarkMode';
+import { RootStackParamList } from '../../navigation/types';
+import { ThemeContext, clearTheme, setTheme } from '../../provider';
 import {
   ListItem,
   ListItemInputOption,
@@ -9,14 +17,6 @@ import {
   ScreenHeader,
   View,
 } from '../../ui';
-import { useContext, useEffect, useState } from 'react';
-import { ScrollView, YStack } from 'tamagui';
-import type { ThemeName } from 'tamagui';
-import { useTheme } from 'tamagui';
-
-import { useIsDarkMode } from '../../hooks/useIsDarkMode';
-import { RootStackParamList } from '../../navigation/types';
-import { ThemeContext, clearTheme, setTheme } from '../../provider';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
 

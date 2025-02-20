@@ -1,15 +1,15 @@
 import * as db from '@tloncorp/shared/db';
+import { useIsWindowNarrow } from '@tloncorp/ui';
+import { Button } from '@tloncorp/ui';
+import { SizableEmoji } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../contexts';
-import { useIsWindowNarrow } from '@tloncorp/ui';
 import useOnEmojiSelect from '../../../hooks/useOnEmojiSelect';
 import { ReactionDetails, useReactionDetails } from '../../../utils/postUtils';
-import { Button } from '@tloncorp/ui';
 import { EmojiPickerSheet } from '../../Emoji/EmojiPickerSheet';
-import { SizableEmoji } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
 
 export function EmojiToolbar({
   post,

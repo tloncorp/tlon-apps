@@ -1,5 +1,4 @@
 import { GroupListItem, View } from '../ui';
-
 import { FixtureWrapper } from './FixtureWrapper';
 import {
   groupWithColorAndNoImage,

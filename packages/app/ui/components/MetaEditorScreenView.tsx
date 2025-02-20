@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import { KeyboardAvoidingView } from '@tloncorp/ui';
 import {
   PropsWithChildren,
   useCallback,
@@ -18,7 +19,6 @@ import {
   ControlledTextareaField,
   FormFrame,
 } from './Form';
-import { KeyboardAvoidingView } from '@tloncorp/ui';
 import { ScreenHeader } from './ScreenHeader';
 
 export function MetaEditorScreenView({

@@ -1,15 +1,15 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { useCopy } from '@tloncorp/ui';
+import { Button } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 import { Share } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts';
-import { useCopy } from '@tloncorp/ui';
 import { getDisplayName } from '../utils';
-import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
 
 const logger = createDevLogger('PersonalInviteButton', true);
 

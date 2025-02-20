@@ -1,5 +1,4 @@
 import { AppDataContextProvider, PostScreenView } from '../ui';
-
 import {
   createFakePosts,
   group,

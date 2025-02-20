@@ -1,12 +1,13 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import { Icon } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
 import { ScrollView, YStack, styled } from 'tamagui';
 
 import { useContactName } from '../ContactNameV2';
 import { ContentReferenceLoader, PostReference } from '../ContentReference';
 import { GalleryPost } from '../GalleryPost';
-import { Icon } from '@tloncorp/ui';
 import { createContentRenderer } from '../PostContent';
 import {
   BlockData,
@@ -14,7 +15,6 @@ import {
   prependInline,
   usePostContent,
 } from '../PostContent/contentUtils';
-import { Text } from '@tloncorp/ui';
 
 type ActivitySourceContentProps = {
   summary: logic.SourceActivityEvents;

@@ -4,6 +4,10 @@ import {
   makePrettyShortDate,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { Button } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { truncate } from 'lodash';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { PropsWithChildren } from 'react';
@@ -13,9 +17,7 @@ import { useChannelContext } from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ContactAvatar } from '../Avatar';
-import { Button } from '@tloncorp/ui';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
-import { Icon } from '@tloncorp/ui';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
@@ -25,9 +27,7 @@ import {
   PostContent,
   usePostContent,
 } from '../PostContent/contentUtils';
-import { Pressable } from '@tloncorp/ui';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
-import { Text } from '@tloncorp/ui';
 
 const GalleryPostFrame = styled(View, {
   name: 'GalleryPostFrame',

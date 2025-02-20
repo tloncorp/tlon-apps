@@ -1,5 +1,4 @@
 import { AppDataContextProvider, ContactList } from '../ui';
-
 import { FixtureWrapper } from './FixtureWrapper';
 import { initialContacts } from './fakeData';
 

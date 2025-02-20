@@ -9,6 +9,9 @@ import {
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { objectEntries } from '@tloncorp/shared/utils';
+import { Button } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import {
   ComponentProps,
   SetStateAction,
@@ -22,10 +25,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
 import { Action, ActionSheet, SimpleActionSheet } from '../ActionSheet';
-import { Button } from '@tloncorp/ui';
 import * as Form from '../Form';
-import { Icon } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
 
 export function applySetStateAction<T>(prev: T, action: SetStateAction<T>): T {
   if (typeof action === 'function') {

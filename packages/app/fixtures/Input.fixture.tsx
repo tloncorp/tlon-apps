@@ -1,5 +1,4 @@
 import { Icon, Input } from '../ui';
-
 import { FixtureWrapper } from './FixtureWrapper';
 
 export default {

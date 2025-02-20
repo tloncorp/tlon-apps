@@ -1,12 +1,12 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import { Pressable } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { formatDistanceToNow } from 'date-fns';
 import React, { useMemo } from 'react';
 import { ColorTokens, View, XStack, styled } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
-import { Pressable } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
 import { UnreadDot } from '../UnreadDot';
 
 export const ChatMessageReplySummary = React.memo(

@@ -5,7 +5,6 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationState } from '@react-navigation/routers';
-import { useGlobalSearch } from '../../ui';
 import { useEffect } from 'react';
 import { View, getVariableValue, useTheme } from 'tamagui';
 
@@ -19,6 +18,7 @@ import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
 import ImageViewerScreen from '../../features/top/ImageViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
+import { useGlobalSearch } from '../../ui';
 import { GroupSettingsStack } from '../GroupSettingsStack';
 import { HomeDrawerParamList } from '../types';
 import { MessagesSidebar } from './MessagesSidebar';

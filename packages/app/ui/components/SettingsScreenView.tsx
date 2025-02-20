@@ -1,10 +1,10 @@
+import { IconType } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { ReactElement } from 'react';
 import { Alert } from 'react-native';
 import { ScrollView, View, YStack } from 'tamagui';
 
-import { IconType } from '@tloncorp/ui';
 import { ListItem } from './ListItem';
-import { Pressable } from '@tloncorp/ui';
 import { ScreenHeader } from './ScreenHeader';
 import { TlonLogo } from './TlonLogo';
 

@@ -1,9 +1,9 @@
 import { configurationFromChannel } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import { useMemberRoles } from '@tloncorp/shared/store';
+import type { IconType } from '@tloncorp/ui';
 import { useMemo } from 'react';
 
-import type { IconType } from '@tloncorp/ui';
 import { useCalm } from '../contexts/appDataContext';
 import { formatUserId } from './user';
 

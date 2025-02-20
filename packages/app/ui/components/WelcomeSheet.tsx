@@ -1,10 +1,9 @@
+import { Icon } from '@tloncorp/ui';
+import { Sheet } from '@tloncorp/ui';
 import React, { useCallback } from 'react';
 import { Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, XStack, YStack, isWeb } from 'tamagui';
-
-import { Icon } from '@tloncorp/ui';
-import { Sheet } from '@tloncorp/ui';
 
 function WelcomeSheetComponent({
   open,

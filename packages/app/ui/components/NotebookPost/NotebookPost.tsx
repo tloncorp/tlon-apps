@@ -1,7 +1,11 @@
 import { ChannelAction, makePrettyShortDate } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { Image } from '@tloncorp/ui';
+import { Button } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
-import { useChannelContext } from '../../contexts';
 import {
   View,
   ViewStyle,
@@ -11,20 +15,16 @@ import {
   styled,
 } from 'tamagui';
 
+import { useChannelContext } from '../../contexts';
 import { DetailViewAuthorRow } from '../AuthorRow';
-import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
-import { Image } from '@tloncorp/ui';
-import { Button } from '@tloncorp/ui';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
-import { Icon } from '@tloncorp/ui';
+import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
-import { Pressable } from '@tloncorp/ui';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
-import { Text } from '@tloncorp/ui';
 
 const IMAGE_HEIGHT = 268;
 

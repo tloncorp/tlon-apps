@@ -1,5 +1,4 @@
 import { AppDataContextProvider, ProfileSheet } from '../../ui';
-
 import { brianContact } from '../fakeData';
 
 const ProfileSheetFixture = ({

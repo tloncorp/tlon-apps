@@ -1,8 +1,9 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { HostedNodeStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useStore } from '../ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { useStore } from '../ui';
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

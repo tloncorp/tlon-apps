@@ -1,6 +1,5 @@
 import { AppDataContextProvider } from '../../ui';
 import { GroupJoinRequestSheet } from '../../ui/components/GroupJoinRequestSheet';
-
 import { brianContact } from '../fakeData';
 
 export default {

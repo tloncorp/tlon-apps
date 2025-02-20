@@ -7,6 +7,11 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { isSameDay } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import { useIsWindowNarrow } from '@tloncorp/ui';
+import { FloatingActionButton } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
+import { LoadingSpinner } from '@tloncorp/ui';
+import { Modal } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import React, {
   ComponentPropsWithoutRef,
@@ -37,15 +42,10 @@ import { View, styled, useStyle, useTheme } from 'tamagui';
 import { RenderItemType } from '../../contexts/componentsKits';
 import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
-import { useIsWindowNarrow } from '@tloncorp/ui';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { EmojiPickerSheet } from '../Emoji';
-import { FloatingActionButton } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
-import { LoadingSpinner } from '@tloncorp/ui';
-import { Modal } from '@tloncorp/ui';
 import { ChannelDivider } from './ChannelDivider';
 import { useAnchorScrollLock } from './useAnchorScrollLock';
 

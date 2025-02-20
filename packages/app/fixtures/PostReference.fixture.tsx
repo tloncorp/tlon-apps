@@ -1,12 +1,12 @@
 import * as db from '@tloncorp/shared/db';
+import { PropsWithChildren } from 'react';
+import { ScrollView } from 'react-native-gesture-handler';
+
 import { View } from '../ui';
 import {
   GroupReference,
   PostReference,
 } from '../ui/components/ContentReference';
-import { PropsWithChildren } from 'react';
-import { ScrollView } from 'react-native-gesture-handler';
-
 import { FixtureWrapper } from './FixtureWrapper';
 import { createFakePost, group } from './fakeData';
 

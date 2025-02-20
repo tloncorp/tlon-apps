@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { Pressable } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { SizableText, XStack } from 'tamagui';
 
@@ -6,7 +7,6 @@ import { useGroups } from '../contexts';
 import { useAlphabeticallySegmentedGroups } from '../hooks/groupsSorters';
 import { GroupSelectorSheet } from './GroupSelectorSheet';
 import { GroupListItem, ListItem } from './ListItem';
-import { Pressable } from '@tloncorp/ui';
 import { WidgetPane } from './WidgetPane';
 
 export function FavoriteGroupsDisplay(props: {
@@ -75,7 +75,7 @@ export function FavoriteGroupsDisplay(props: {
               <Pressable onPress={() => handleFavoriteGroupsChange(group)}>
                 <ListItem.SystemIcon
                   icon="Close"
-                  testID='ProfilePinnedGroupRemove'
+                  testID="ProfilePinnedGroupRemove"
                   onPress={() => handleFavoriteGroupsChange(group)}
                   backgroundColor={'transparent'}
                   color={'$tertiaryText'}

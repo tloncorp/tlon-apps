@@ -1,6 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChannel, usePostWithRelations } from '@tloncorp/shared';
 import { ChannelContentConfiguration } from '@tloncorp/shared';
+
+import type { RootStackParamList } from '../../navigation/types';
 import {
   ChannelProvider,
   ChatOptionsProvider,
@@ -9,8 +11,6 @@ import {
   PostCollectionContext,
   PostView,
 } from '../../ui';
-
-import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<
   RootStackParamList,

@@ -1,9 +1,5 @@
 import { ListItem } from '../../ui';
-import {
-  ActionGroup,
-  ActionSheet,
-} from '../../ui/components/ActionSheet';
-
+import { ActionGroup, ActionSheet } from '../../ui/components/ActionSheet';
 import { FixtureWrapper } from '../FixtureWrapper';
 
 const ActionSheetFixture = () => {

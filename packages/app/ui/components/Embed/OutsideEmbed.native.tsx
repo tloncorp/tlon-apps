@@ -1,11 +1,11 @@
 import { useEmbed, validOembedCheck } from '@tloncorp/shared';
+import { Image } from '@tloncorp/ui';
 import { useEffect, useState } from 'react';
 import { Linking } from 'react-native';
 import WebView from 'react-native-webview';
 import { MediaDetails, Tweet, getTweet } from 'react-tweet/api';
 import { Text, YStack } from 'tamagui';
 
-import { Image } from '@tloncorp/ui';
 import { Embed } from './Embed';
 
 // this is a basic twitter embed, we could use the react-tweet api

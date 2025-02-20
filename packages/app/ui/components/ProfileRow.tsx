@@ -1,8 +1,8 @@
 import * as db from '@tloncorp/shared/db';
+import { Text } from '@tloncorp/ui';
 import { XStack, YStack } from 'tamagui';
 
 import { ContactAvatar } from './Avatar';
-import { Text } from '@tloncorp/ui';
 
 export default function ProfileRow({
   contactId,

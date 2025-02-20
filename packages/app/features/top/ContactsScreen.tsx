@@ -1,6 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { useCallback } from 'react';
+import { Alert } from 'react-native';
+import { useTheme } from 'tamagui';
+
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import type { RootStackParamList } from '../../navigation/types';
 import {
   AppDataContextProvider,
   ContactsScreenView,
@@ -10,12 +16,6 @@ import {
   getDisplayName,
   isWeb,
 } from '../../ui';
-import { useCallback } from 'react';
-import { Alert } from 'react-native';
-import { useTheme } from 'tamagui';
-
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Contacts'>;
 
@@ -72,7 +72,7 @@ export default function ContactsScreen(props: Props) {
             leftControls={
               <ScreenHeader.IconButton
                 type="Add"
-                testID='ContactsAddButton'
+                testID="ContactsAddButton"
                 onPress={() => navigate('AddContacts')}
               />
             }

@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { Text } from '@tloncorp/ui';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
@@ -13,7 +14,6 @@ import { ActionSheet } from '../ActionSheet';
 import { getNativeEmoji } from '../Emoji';
 import { ToggleGroupInput } from '../Form';
 import { ContactListItem } from '../ListItem';
-import { Text } from '@tloncorp/ui';
 
 export function ViewReactionsPane({
   post,

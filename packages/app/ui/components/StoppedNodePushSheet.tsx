@@ -1,9 +1,9 @@
 import * as domain from '@tloncorp/shared/domain';
+import { Button } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 
 import { ActionSheet } from './ActionSheet';
 import { SigilAvatar } from './Avatar';
-import { Button } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
 
 interface Props {
   open: boolean;

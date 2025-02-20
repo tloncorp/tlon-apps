@@ -1,6 +1,9 @@
 import type { EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/db';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
+import { Button } from '@tloncorp/ui';
+import { FloatingActionButton } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { memo } from 'react';
 import { PropsWithChildren } from 'react';
@@ -15,9 +18,6 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
-import { Button } from '@tloncorp/ui';
-import { FloatingActionButton } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
 import { GalleryDraftType } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
@@ -32,7 +32,10 @@ export interface MessageInputProps {
   ) => Promise<void>;
   channelId: string;
   groupMembers: db.ChatMember[];
-  storeDraft: (draft: JSONContent, draftType?: GalleryDraftType) => Promise<void>;
+  storeDraft: (
+    draft: JSONContent,
+    draftType?: GalleryDraftType
+  ) => Promise<void>;
   clearDraft: (draftType?: GalleryDraftType) => Promise<void>;
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   editingPost?: db.Post;

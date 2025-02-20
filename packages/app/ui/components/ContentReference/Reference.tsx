@@ -1,3 +1,5 @@
+import { Icon, IconType } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { ComponentProps, useContext } from 'react';
 import {
   View,
@@ -8,9 +10,6 @@ import {
   styled,
   withStaticProperties,
 } from 'tamagui';
-
-import { Icon, IconType } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
 
 export type ReferenceProps = ComponentProps<typeof ReferenceComponent> & {
   actionIcon?: IconType | null;

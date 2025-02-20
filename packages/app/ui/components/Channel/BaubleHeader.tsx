@@ -1,5 +1,8 @@
 import { LinearGradient } from '@tamagui/linear-gradient';
 import * as db from '@tloncorp/shared/db';
+import { Icon } from '@tloncorp/ui';
+import { Image } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { BlurView } from 'expo-blur';
 import { useCallback } from 'react';
 import { OpaqueColorValue } from 'react-native';
@@ -22,9 +25,6 @@ import { useChatOptions } from '../../contexts/chatOptions';
 import { useScrollContext } from '../../contexts/scroll';
 import { useGroupTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
-import { Icon } from '@tloncorp/ui';
-import { Image } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
 
 export function BaubleHeader({
   showSpinner,

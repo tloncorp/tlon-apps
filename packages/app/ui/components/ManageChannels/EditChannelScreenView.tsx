@@ -1,6 +1,10 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { ChannelPrivacyType } from '@tloncorp/shared/urbit/groups';
+import { Button } from '@tloncorp/ui';
+import { FormInput } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import _ from 'lodash';
 import { useCallback, useEffect, useState } from 'react';
 import { FormProvider, useForm, useFormContext } from 'react-hook-form';
@@ -8,13 +12,9 @@ import { Alert } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
-import { Button } from '@tloncorp/ui';
 import { DeleteSheet } from '../DeleteSheet';
 import { RadioInput } from '../Form';
-import { FormInput } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
 import { ScreenHeader } from '../ScreenHeader';
-import { Text } from '@tloncorp/ui';
 
 interface ChannelPrivacySetting {
   title: string;

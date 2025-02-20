@@ -1,6 +1,15 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import type * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  LayoutChangeEvent,
+  NativeSyntheticEvent,
+  TextInputKeyPressEventData,
+} from 'react-native';
+import { getTokenValue } from 'tamagui';
+
+import { TabName, useFilteredChats } from '../../../hooks/useFilteredChats';
 import {
   ChatListItem,
   LoadingSpinner,
@@ -13,15 +22,6 @@ import {
   YStack,
   useGlobalSearch,
 } from '../../../ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  LayoutChangeEvent,
-  NativeSyntheticEvent,
-  TextInputKeyPressEventData,
-} from 'react-native';
-import { getTokenValue } from 'tamagui';
-
-import { TabName, useFilteredChats } from '../../../hooks/useFilteredChats';
 import {
   ChatListItemData,
   getChatKey,

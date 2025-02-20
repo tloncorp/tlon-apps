@@ -1,8 +1,8 @@
 import { makePrettyShortDate } from '@tloncorp/shared/logic';
+import { LoadingSpinner } from '@tloncorp/ui';
 import { ColorTokens } from 'tamagui';
 import { SizableText, View, XStack, YStack } from 'tamagui';
 
-import { LoadingSpinner } from '@tloncorp/ui';
 import { SearchState } from './types';
 
 export function SearchStatus({

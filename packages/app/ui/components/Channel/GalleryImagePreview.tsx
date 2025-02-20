@@ -1,13 +1,13 @@
+import { Button } from '@tloncorp/ui';
+import { Close } from '@tloncorp/ui/assets/icons';
 import { useCallback } from 'react';
 import { ImageBackground } from 'react-native';
 import { Spinner, View, XStack } from 'tamagui';
 
-import { Close } from '@tloncorp/ui/assets/icons';
 import {
   ImageAttachment,
   useAttachmentContext,
 } from '../../contexts/attachment';
-import { Button } from '@tloncorp/ui';
 
 export default function GalleryImagePreview({
   onReset,

@@ -1,10 +1,10 @@
+import { RawText } from '@tloncorp/ui';
 import { View } from 'tamagui';
 
 import { RenderItemType } from '../contexts/componentsKits';
 import { ChatAuthorRow } from './AuthorRow';
 import { createContentRenderer } from './PostContent';
 import { usePostContent } from './PostContent/contentUtils';
-import { RawText } from '@tloncorp/ui';
 
 export const YellPost: RenderItemType = (props) => {
   const content = usePostContent(props.post);

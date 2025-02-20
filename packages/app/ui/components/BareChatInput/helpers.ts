@@ -84,7 +84,7 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
     const quotedContent = processLine(line.slice(2), mentions);
     return {
       type: 'blockquote',
-      content: [quotedContent]
+      content: [quotedContent],
     };
   }
 
@@ -398,7 +398,7 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
       text.push('> ');
       node.content.forEach((child, index) => {
         if (child.type === 'paragraph' && child.content) {
-          child.content.forEach(content => {
+          child.content.forEach((content) => {
             if (content.type === 'text' && content.text) {
               text.push(content.text);
             }

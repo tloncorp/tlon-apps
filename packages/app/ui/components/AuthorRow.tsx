@@ -1,5 +1,6 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { Text } from '@tloncorp/ui';
 import { ComponentProps, useMemo } from 'react';
 import { ColorTokens, View, XStack } from 'tamagui';
 
@@ -8,7 +9,6 @@ import { ContactAvatar } from './Avatar';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import { ContactName } from './ContactNameV2';
 import { useBoundHandler } from './ListItem/listItemUtils';
-import { Text } from '@tloncorp/ui';
 
 const RoleBadge = View.styleable<{ role: string }>(
   ({ role, ...props }, ref) => {

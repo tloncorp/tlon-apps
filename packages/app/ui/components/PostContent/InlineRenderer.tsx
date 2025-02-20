@@ -1,10 +1,10 @@
+import { RawText, Text } from '@tloncorp/ui';
 import React, { PropsWithChildren, useCallback, useContext } from 'react';
 import { Linking } from 'react-native';
 import { ColorTokens, styled } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
 import { useContactName } from '../ContactNameV2';
-import { RawText, Text } from '@tloncorp/ui';
 import {
   InlineData,
   InlineFromType,

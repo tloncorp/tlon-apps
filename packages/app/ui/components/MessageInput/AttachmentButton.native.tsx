@@ -1,9 +1,9 @@
+import { IconButton } from '@tloncorp/ui';
+import { Add } from '@tloncorp/ui/assets/icons';
 import { useEffect, useState } from 'react';
 
-import { Add } from '@tloncorp/ui/assets/icons';
 import { useAttachmentContext } from '../../contexts/attachment';
 import AttachmentSheet from '../AttachmentSheet';
-import { IconButton } from '@tloncorp/ui';
 
 export default function AttachmentButton({
   setShouldBlur,

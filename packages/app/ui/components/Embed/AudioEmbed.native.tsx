@@ -1,4 +1,6 @@
 import { makePrettyTimeFromMs } from '@tloncorp/shared/logic';
+import { Icon } from '@tloncorp/ui';
+import { LoadingSpinner } from '@tloncorp/ui';
 import {
   AVPlaybackStatus,
   Audio as ExpoAudio,
@@ -17,8 +19,6 @@ import {
 import { Text, View } from 'tamagui';
 
 import { triggerHaptic } from '../../utils';
-import { Icon } from '@tloncorp/ui';
-import { LoadingSpinner } from '@tloncorp/ui';
 import * as shared from './AudioEmbedShared';
 import { Embed } from './Embed';
 

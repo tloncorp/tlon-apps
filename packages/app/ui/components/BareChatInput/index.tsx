@@ -17,6 +17,8 @@ import {
   constructStory,
   pathToCite,
 } from '@tloncorp/shared/urbit';
+import { useGlobalSearch } from '@tloncorp/ui';
+import { RawText, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,14 +39,12 @@ import {
   UploadedImageAttachment,
   useAttachmentContext,
 } from '../../contexts';
-import { useGlobalSearch } from '@tloncorp/ui';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
 import {
   MessageInputContainer,
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
-import { RawText, Text } from '@tloncorp/ui';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import { useMentions } from './useMentions';
 

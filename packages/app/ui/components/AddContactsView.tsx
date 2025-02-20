@@ -1,9 +1,9 @@
 import * as store from '@tloncorp/shared/store';
+import { Button } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
-import { Button } from '@tloncorp/ui';
 import { ContactBook } from './ContactBook';
 import { ScreenHeader } from './ScreenHeader';
 

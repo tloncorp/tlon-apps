@@ -1,10 +1,10 @@
 import { getSize } from '@tamagui/get-token';
 import * as db from '@tloncorp/shared/db';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Dimensions } from 'react-native';
 import { ScrollView, View } from 'tamagui';
 
 import { ChatMessage } from '..';
-import { useIsWindowNarrow } from '@tloncorp/ui';
 import AuthorRow from '../../AuthorRow';
 import { NotebookPost } from '../../NotebookPost';
 
@@ -26,7 +26,12 @@ export function MessageContainer({ post }: { post: db.Post }) {
         padding="$l"
         borderRadius="$l"
       >
-        <NotebookPost showAuthor={false} size="$xs" post={post} hideOverflowMenu />
+        <NotebookPost
+          showAuthor={false}
+          size="$xs"
+          post={post}
+          hideOverflowMenu
+        />
       </ScrollView>
     );
   }

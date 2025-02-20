@@ -1,11 +1,11 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import { Text } from '@tloncorp/ui';
 import React, { Fragment, useMemo } from 'react';
 import { styled } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts';
 import { ContactName } from '../ContactNameV2';
-import { Text } from '@tloncorp/ui';
 
 function SummaryMessageRaw({
   summary,

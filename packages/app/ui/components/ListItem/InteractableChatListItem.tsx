@@ -1,6 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import { Icon, IconType } from '@tloncorp/ui';
 import React, {
   ComponentProps,
   useCallback,
@@ -20,7 +21,6 @@ import Animated, {
 import { ColorTokens, Stack, View, getTokenValue, isWeb } from 'tamagui';
 
 import * as utils from '../../utils';
-import { Icon, IconType } from '@tloncorp/ui';
 import { ChatListItem } from './ChatListItem';
 import { ListItemProps } from './ListItem';
 import { useBoundHandler } from './listItemUtils';

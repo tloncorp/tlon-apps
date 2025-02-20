@@ -5,17 +5,17 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { useCopy } from '@tloncorp/ui';
+import { Button } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
+import { LoadingSpinner } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useEffect } from 'react';
 import { Share } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useCurrentUserId, useInviteService } from '../contexts';
-import { useCopy } from '@tloncorp/ui';
 import { useGroupTitle, useIsAdmin } from '../utils';
-import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
-import { LoadingSpinner } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
 
 const logger = createDevLogger('InviteButton', true);
 

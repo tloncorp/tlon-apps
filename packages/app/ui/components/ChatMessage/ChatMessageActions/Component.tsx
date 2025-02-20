@@ -1,3 +1,4 @@
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, LayoutChangeEvent } from 'react-native';
 import Animated, {
@@ -9,7 +10,6 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Popover, View, XStack, YStack } from 'tamagui';
 
-import { useIsWindowNarrow } from '@tloncorp/ui';
 import { triggerHaptic } from '../../../utils';
 import { EmojiToolbar } from './EmojiToolbar';
 import MessageActions from './MessageActions';

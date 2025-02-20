@@ -1,3 +1,10 @@
+import { VariantsFromValues } from '@tloncorp/ui';
+import { Button } from '@tloncorp/ui';
+import { Icon, IconType } from '@tloncorp/ui';
+import { Image } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
+import { typeStyles } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import {
   ComponentProps,
@@ -25,16 +32,9 @@ import {
   useAttachmentContext,
   useMappedImageAttachments,
 } from '../../contexts';
-import { VariantsFromValues } from '@tloncorp/ui';
 import AttachmentSheet from '../AttachmentSheet';
-import { Button } from '@tloncorp/ui';
-import { Icon, IconType } from '@tloncorp/ui';
-import { Image } from '@tloncorp/ui';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
-import { Pressable } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
-import { typeStyles } from '@tloncorp/ui';
 import { FieldContext } from './Field';
 import {
   Accent,

@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
-import { BlockSectionList, ContactRow } from '../ui';
 import { SectionListRenderItemInfo } from 'react-native';
 
+import { BlockSectionList, ContactRow } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import { initialContacts } from './fakeData';
 

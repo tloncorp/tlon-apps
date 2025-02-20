@@ -1,3 +1,4 @@
+import * as icons from '@tloncorp/ui/assets/icons';
 import React, { useMemo } from 'react';
 import {
   ColorTokens,
@@ -6,8 +7,6 @@ import {
   styled,
   withStaticProperties,
 } from 'tamagui';
-
-import * as icons from '@tloncorp/ui/assets/icons';
 
 export type IconType = keyof typeof icons;
 

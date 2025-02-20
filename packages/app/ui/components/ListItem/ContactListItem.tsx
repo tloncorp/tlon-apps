@@ -1,9 +1,9 @@
+import { Pressable } from '@tloncorp/ui';
 import { ComponentProps } from 'react';
 import { isWeb } from 'tamagui';
 
 import { AvatarProps } from '../Avatar';
 import ContactName from '../ContactName';
-import { Pressable } from '@tloncorp/ui';
 import { ListItem } from './ListItem';
 import { useBoundHandler } from './listItemUtils';
 

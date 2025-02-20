@@ -43,7 +43,10 @@ export type TextAttachment = {
 };
 
 export type Attachment = ReferenceAttachment | ImageAttachment | TextAttachment;
-export type FinalizedAttachment = ReferenceAttachment | UploadedImageAttachment | TextAttachment;
+export type FinalizedAttachment =
+  | ReferenceAttachment
+  | UploadedImageAttachment
+  | TextAttachment;
 
 export type AttachmentState = {
   attachments: Attachment[];

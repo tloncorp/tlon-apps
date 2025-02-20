@@ -1,12 +1,12 @@
 import * as db from '@tloncorp/shared/db';
+import { Icon } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import React, { useCallback, useMemo } from 'react';
 import { ListItemProps } from 'tamagui';
 import { Stack, View, XStack } from 'tamagui';
 
 import { getDisplayName, triggerHaptic } from '../utils';
-import { Icon } from '@tloncorp/ui';
 import { ListItem } from './ListItem';
-import { Pressable } from '@tloncorp/ui';
 
 function ContactRowItemRaw({
   contact,

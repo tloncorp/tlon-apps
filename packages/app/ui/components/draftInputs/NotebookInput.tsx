@@ -1,3 +1,6 @@
+import { FloatingActionButton } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
+import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import { useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import {
   SafeAreaView,
@@ -6,9 +9,6 @@ import {
 import { View } from 'tamagui';
 
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
-import { FloatingActionButton } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
-import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import { ScreenHeader } from '../ScreenHeader';
 import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
 import { DraftInputContext } from './shared';

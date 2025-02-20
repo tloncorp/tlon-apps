@@ -1,17 +1,17 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import { useIsWindowNarrow } from '@tloncorp/ui';
+import { Button } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { useMemo, useState } from 'react';
 import { View, isWeb } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
-import { useIsWindowNarrow } from '@tloncorp/ui';
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
-import { Button } from '@tloncorp/ui';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
-import { Icon } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
 import { ListItem, type ListItemProps } from './ListItem';
 
 export function ChannelListItem({

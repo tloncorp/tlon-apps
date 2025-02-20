@@ -2,7 +2,6 @@ import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { ActivityScreenView, NavBarView, View } from '../../ui';
 import { useCallback, useMemo } from 'react';
 import { useTheme } from 'tamagui';
 
@@ -11,6 +10,7 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
+import { ActivityScreenView, NavBarView, View } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
 

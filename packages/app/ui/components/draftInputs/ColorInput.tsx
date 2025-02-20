@@ -1,4 +1,5 @@
 import { Story } from '@tloncorp/shared/urbit';
+import { Icon } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -6,7 +7,6 @@ import { runOnJS, useSharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, View, XStack } from 'tamagui';
 
-import { Icon } from '@tloncorp/ui';
 import { DraftInputContext } from './shared';
 
 export function ColorInput({

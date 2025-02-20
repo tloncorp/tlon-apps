@@ -1,5 +1,4 @@
 import * as store from '@tloncorp/shared/store';
-import { AppDataContextProvider } from '../ui';
 import { PropsWithChildren } from 'react';
 
 import {
@@ -9,6 +8,7 @@ import {
   INVITE_SERVICE_IS_DEV,
 } from '../constants';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
+import { AppDataContextProvider } from '../ui';
 
 export function AppDataProvider({
   webAppNeedsUpdate,

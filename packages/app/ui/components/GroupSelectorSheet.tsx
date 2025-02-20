@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { Sheet } from '@tloncorp/ui';
 import React, { useEffect, useState } from 'react';
 import { Modal } from 'react-native';
 import { YStack } from 'tamagui';
@@ -6,7 +7,6 @@ import { YStack } from 'tamagui';
 import { AlphaSegmentedGroups } from '../hooks/groupsSorters';
 import { triggerHaptic } from '../utils';
 import { GroupSelector } from './GroupSelector';
-import { Sheet } from '@tloncorp/ui';
 
 interface SheetProps {
   open: boolean;

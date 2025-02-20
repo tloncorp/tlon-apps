@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as urbit from '@tloncorp/shared/urbit';
+import { Text } from '@tloncorp/ui';
 import { useEffect, useMemo } from 'react';
 import { FlatList } from 'react-native';
 import { View, YStack } from 'tamagui';
@@ -8,7 +9,6 @@ import Scroller from './Channel/Scroller';
 import { ChatMessage } from './ChatMessage';
 import { GalleryPostDetailView } from './GalleryPost/GalleryPost';
 import { NotebookPostDetailView } from './NotebookPost/NotebookPost';
-import { Text } from '@tloncorp/ui';
 
 export interface DetailViewProps {
   post: db.Post;

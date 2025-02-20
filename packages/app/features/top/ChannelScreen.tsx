@@ -11,6 +11,13 @@ import {
   usePostWithRelations,
 } from '@tloncorp/shared/store';
 import { Story } from '@tloncorp/shared/urbit';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+
+import { useChannelNavigation } from '../../hooks/useChannelNavigation';
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useGroupActions } from '../../hooks/useGroupActions';
+import { useFeatureFlag } from '../../lib/featureFlags';
+import type { RootStackParamList } from '../../navigation/types';
 import {
   AttachmentProvider,
   Channel,
@@ -20,13 +27,6 @@ import {
   InviteUsersSheet,
   useCurrentUserId,
 } from '../../ui';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-
-import { useChannelNavigation } from '../../hooks/useChannelNavigation';
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useGroupActions } from '../../hooks/useGroupActions';
-import { useFeatureFlag } from '../../lib/featureFlags';
-import type { RootStackParamList } from '../../navigation/types';
 
 const logger = createDevLogger('ChannelScreen', false);
 

@@ -1,5 +1,7 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import { Icon } from '@tloncorp/ui';
+import { LoadingSpinner } from '@tloncorp/ui';
 import { ImageBackground } from 'expo-image';
 import { ImagePickerAsset } from 'expo-image-picker';
 import {
@@ -24,8 +26,6 @@ import {
   ContactAvatar,
   GroupAvatar,
 } from './Avatar';
-import { Icon } from '@tloncorp/ui';
-import { LoadingSpinner } from '@tloncorp/ui';
 
 interface Props {
   contact?: db.Contact | null;

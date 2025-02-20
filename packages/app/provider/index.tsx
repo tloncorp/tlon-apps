@@ -1,11 +1,11 @@
 import { themeSettings } from '@tloncorp/shared/db';
-import { config } from '../ui';
 import { useEffect, useState } from 'react';
 import React from 'react';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 import type { ThemeName } from 'tamagui';
 
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
+import { config } from '../ui';
 
 export const ThemeContext = React.createContext<{
   setActiveTheme: (theme: ThemeName) => void;

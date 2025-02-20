@@ -1,15 +1,15 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { Button } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { omit } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, Text, View, XStack, YStack } from 'tamagui';
 
 import { capitalize } from '../../utils';
-import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
 import { ListItem } from '../ListItem';
-import { Pressable } from '@tloncorp/ui';
 import { ScreenHeader } from '../ScreenHeader';
 import { CreateChannelSheet } from './CreateChannelSheet';
 import { EditSectionNameSheet } from './EditSectionNameSheet';

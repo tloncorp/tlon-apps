@@ -1,9 +1,9 @@
+import { Input } from '@tloncorp/ui';
 import { debounce } from 'lodash';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { YStack } from 'tamagui';
 
 import { TextInput } from './Form';
-import { Input } from '@tloncorp/ui';
 
 export function SearchBar({
   placeholder,

@@ -1,5 +1,4 @@
 // tamagui-ignore
-import { Pressable, ScrollView, View, XStack, YStack } from '../ui';
 import { FontStyle, Text } from '@tloncorp/ui';
 import { useCopy } from '@tloncorp/ui';
 import { PropsWithChildren, useCallback, useEffect, useState } from 'react';
@@ -13,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styled } from 'tamagui';
 
+import { Pressable, ScrollView, View, XStack, YStack } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 
 const textStyles: FontStyle[] = [

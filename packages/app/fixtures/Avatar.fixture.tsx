@@ -9,7 +9,6 @@ import {
   XStack,
   YStack,
 } from '../ui';
-
 import { FixtureWrapper } from './FixtureWrapper';
 import { brianContact } from './fakeData';
 

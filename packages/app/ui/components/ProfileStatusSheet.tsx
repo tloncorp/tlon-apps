@@ -1,3 +1,5 @@
+import { Button } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
 import { useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
@@ -5,9 +7,7 @@ import { XStack, YStack } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts';
 import { ActionSheet } from './ActionSheet';
-import { Button } from '@tloncorp/ui';
 import { ControlledTextField } from './Form';
-import { Icon } from '@tloncorp/ui';
 
 export default function ProfileStatusSheet({
   open,

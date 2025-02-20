@@ -3,9 +3,8 @@ import {
   EditorActionType,
   EditorBridge,
 } from '@10play/tentap-editor';
-import { Platform } from 'react-native';
-
 import { IconType } from '@tloncorp/ui';
+import { Platform } from 'react-native';
 
 export enum ToolbarContext {
   Main,

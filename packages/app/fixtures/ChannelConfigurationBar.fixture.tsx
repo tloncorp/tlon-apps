@@ -6,11 +6,11 @@ import {
   QueryClientProvider,
   queryClient,
 } from '@tloncorp/shared';
-import { UnconnectedChannelConfigurationBar as ChannelConfigurationBar } from '../ui/components/ManageChannels/CreateChannelSheet';
 import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextArea, View } from 'tamagui';
 
+import { UnconnectedChannelConfigurationBar as ChannelConfigurationBar } from '../ui/components/ManageChannels/CreateChannelSheet';
 import { tlonLocalIntros } from './fakeData';
 
 const baseChannel = {

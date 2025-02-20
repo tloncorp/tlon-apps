@@ -6,18 +6,18 @@ import { NavigationState } from '@react-navigation/routers';
 import { View, getVariableValue, useTheme } from '@tamagui/core';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import {
-  ContactsScreenView,
-  ScreenHeader,
-  getDisplayName,
-  isWeb,
-} from '../../ui';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 
 import { AddContactsScreen } from '../../features/contacts/AddContactsScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
+import {
+  ContactsScreenView,
+  ScreenHeader,
+  getDisplayName,
+  isWeb,
+} from '../../ui';
 import { ProfileDrawerParamList } from '../types';
 
 const ProfileDrawer = createDrawerNavigator();

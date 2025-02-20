@@ -1,6 +1,6 @@
-import { ActionSheet, Icon, Image, View, XStack, YStack } from '../..';
-
 import { Text } from '@tloncorp/ui';
+
+import { ActionSheet, Icon, Image, View, XStack, YStack } from '../..';
 
 export function OnboardingBenefitsSheet({
   open,

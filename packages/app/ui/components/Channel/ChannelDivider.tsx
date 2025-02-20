@@ -1,9 +1,8 @@
 import * as db from '@tloncorp/shared/db';
 import { isToday, makePrettyDay } from '@tloncorp/shared/logic';
+import { Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
 import { View, XStack } from 'tamagui';
-
-import { Text } from '@tloncorp/ui';
 
 export function ChannelDivider({
   post,

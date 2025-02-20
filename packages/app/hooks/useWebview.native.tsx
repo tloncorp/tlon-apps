@@ -1,13 +1,13 @@
-import { LoadingSpinner } from '../ui';
 import { type Ref, useCallback, useEffect, useRef } from 'react';
 import { Alert, BackHandler, View } from 'react-native';
 import type WebView from 'react-native-webview';
 import type { WebViewProps } from 'react-native-webview';
 
 import { IS_ANDROID } from '../constants';
+import { LoadingSpinner } from '../ui';
 
 export const useWebView = ():
-   (WebViewProps & {
+  | (WebViewProps & {
       ref: Ref<WebView>;
     })
   | null => {

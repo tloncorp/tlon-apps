@@ -1,3 +1,6 @@
+import { FloatingActionButton } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
+import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import {
   useCallback,
@@ -12,10 +15,7 @@ import { View, YStack } from 'tamagui';
 import AddGalleryPost from '../AddGalleryPost';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import GalleryImagePreview from '../Channel/GalleryImagePreview';
-import { FloatingActionButton } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
 import { MessageInput } from '../MessageInput';
-import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import { ScreenHeader } from '../ScreenHeader';
 import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
 import { DraftInputContext } from './shared';

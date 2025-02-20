@@ -1,4 +1,7 @@
 import * as db from '@tloncorp/shared/db';
+import { Icon, IconType } from '@tloncorp/ui';
+import { Image } from '@tloncorp/ui';
+import { UrbitSigil } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import React from 'react';
 import {
@@ -15,9 +18,6 @@ import { useCalm, useContact } from '../contexts';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
 import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
-import { Icon, IconType } from '@tloncorp/ui';
-import { Image } from '@tloncorp/ui';
-import { UrbitSigil } from '@tloncorp/ui';
 
 const AvatarFrame = styled(View, {
   width: '$4xl',
@@ -331,7 +331,7 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
       return getTokenValue(size);
     } else {
       if (isWeb && (props.width || props.height)) {
-        // Sigil size must be a number (because we need to multiply by it). 
+        // Sigil size must be a number (because we need to multiply by it).
         // On web, `useStyle` will return a string.
         // We'll use the height or width prop if it's not a string, otherwise
         // default to 20.

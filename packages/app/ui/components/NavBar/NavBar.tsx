@@ -1,10 +1,9 @@
+import { View } from '@tloncorp/ui';
 import React from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getTokenValue } from 'tamagui';
 import { XStack } from 'tamagui';
-
-import { View } from '@tloncorp/ui';
 
 const NavBar = React.memo(function NavBar(props: {
   children: React.ReactNode | React.ReactNode[] | null | undefined;

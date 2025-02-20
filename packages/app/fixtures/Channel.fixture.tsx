@@ -10,6 +10,11 @@ import {
   Upload,
 } from '@tloncorp/shared/api';
 import type * as db from '@tloncorp/shared/db';
+import { range } from 'lodash';
+import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Button, SafeAreaView, View } from 'react-native';
+
 import {
   AppDataContextProvider,
   Channel,
@@ -18,11 +23,6 @@ import {
   Sheet,
 } from '../ui';
 import { UnconnectedChannelConfigurationBar as ChannelConfigurationBar } from '../ui/components/ManageChannels/CreateChannelSheet';
-import { range } from 'lodash';
-import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, SafeAreaView, View } from 'react-native';
-
 import { FixtureWrapper } from './FixtureWrapper';
 import {
   createFakePost,

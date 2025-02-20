@@ -1,11 +1,11 @@
 import { useEmbed, utils, validOembedCheck } from '@tloncorp/shared';
+import { Icon } from '@tloncorp/ui';
+import { ImageWithFallback } from '@tloncorp/ui';
 import { Linking, TouchableOpacity } from 'react-native';
 import { SizableText, View } from 'tamagui';
 
 import { useCalm } from '../../contexts';
 import { AudioEmbed, OutsideEmbed } from '../Embed';
-import { Icon } from '@tloncorp/ui';
-import { ImageWithFallback } from '@tloncorp/ui';
 
 const trustedProviders = [
   {

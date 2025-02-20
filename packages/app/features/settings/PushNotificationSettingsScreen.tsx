@@ -3,6 +3,11 @@ import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
+import { ComponentProps, useCallback, useMemo } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { RootStackParamList } from '../../navigation/types';
 import {
   ChannelListItem,
   ChatOptionsProvider,
@@ -18,11 +23,6 @@ import {
   YStack,
   useIsWindowNarrow,
 } from '../../ui';
-import { ComponentProps, useCallback, useMemo } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AppSettings'>;
 

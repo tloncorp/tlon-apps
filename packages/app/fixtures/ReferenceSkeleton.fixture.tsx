@@ -1,5 +1,4 @@
 import { ReferenceSkeleton } from '../ui/components/ContentReference/Reference';
-
 import { FixtureWrapper } from './FixtureWrapper';
 
 const ReferenceSkeletonFixture = () => {

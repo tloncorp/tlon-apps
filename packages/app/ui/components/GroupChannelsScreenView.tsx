@@ -1,19 +1,19 @@
 import * as db from '@tloncorp/shared/db';
+import { useIsWindowNarrow } from '@tloncorp/ui';
+import { LoadingSpinner } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack, getVariableValue, useTheme } from 'tamagui';
 
 import { useChatOptions, useCurrentUserId } from '../contexts';
-import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
 import { Badge } from './Badge';
 import ChannelNavSections from './ChannelNavSections';
 import { ChatOptionsSheet } from './ChatOptionsSheet';
 import { ChannelListItem } from './ListItem/ChannelListItem';
-import { LoadingSpinner } from '@tloncorp/ui';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
-import { Text } from '@tloncorp/ui';
 
 type GroupChannelsScreenViewProps = {
   group: db.Group | null;

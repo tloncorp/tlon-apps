@@ -1,6 +1,11 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChannel, useChannelSearch, useGroup } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
+import { useCallback, useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import type { RootStackParamList } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import {
   SearchBar,
   SearchResults,
@@ -9,11 +14,6 @@ import {
   useChannelTitle,
   useGroupTitle,
 } from '../../ui';
-import { useCallback, useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import type { RootStackParamList } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChannelSearch'>;
 

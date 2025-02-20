@@ -2,6 +2,7 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import { LoadingSpinner } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { triggerHaptic, useGroupTitle } from '../utils';
@@ -13,7 +14,6 @@ import {
   createActionGroups,
 } from './ActionSheet';
 import { ListItem } from './ListItem';
-import { LoadingSpinner } from '@tloncorp/ui';
 
 const logger = createDevLogger('GroupPreviewSheet', true);
 

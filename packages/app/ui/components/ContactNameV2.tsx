@@ -1,9 +1,9 @@
+import { RawText } from '@tloncorp/ui';
 import React, { useMemo } from 'react';
 
 import { useCalm } from '../contexts';
 import { useContact } from '../contexts/appDataContext';
 import { formatUserId } from '../utils/user';
-import { RawText } from '@tloncorp/ui';
 
 // This file is temporary -- it uses the new text, and I want to make sure it works across all callsites before swapping it in
 

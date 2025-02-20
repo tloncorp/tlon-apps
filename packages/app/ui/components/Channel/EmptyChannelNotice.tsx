@@ -1,13 +1,13 @@
 import * as db from '@tloncorp/shared/db';
+import { Button } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { YStack, styled } from 'tamagui';
 
 import { useChatOptions, useGroup } from '../../contexts';
 import { useIsAdmin } from '../../utils';
 import { ArvosDiscussing } from '../ArvosDiscussing';
-import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
-import { Text } from '@tloncorp/ui';
 
 export function EmptyChannelNotice({
   channel,

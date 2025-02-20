@@ -1,7 +1,7 @@
 import * as store from '@tloncorp/shared/store';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
-import { useIsWindowNarrow } from '@tloncorp/ui';
 import { triggerHaptic } from '../utils';
 import { AvatarNavIcon, NavBar, NavIcon } from './NavBar';
 import ProfileStatusSheet from './ProfileStatusSheet';

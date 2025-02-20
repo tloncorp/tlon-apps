@@ -2,6 +2,9 @@ import { featureFlags } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
+import { useIsWindowNarrow } from '@tloncorp/ui';
+import { IconButton } from '@tloncorp/ui';
+import { ChevronLeft } from '@tloncorp/ui/assets/icons';
 import React, {
   ReactElement,
   useCallback,
@@ -12,10 +15,8 @@ import React, {
 } from 'react';
 import { Popover, isWeb } from 'tamagui';
 
-import { ChevronLeft } from '@tloncorp/ui/assets/icons';
 import { useCurrentUserId } from '../contexts';
 import { useChatOptions } from '../contexts/chatOptions';
-import { useIsWindowNarrow } from '@tloncorp/ui';
 import * as utils from '../utils';
 import {
   Action,
@@ -23,7 +24,6 @@ import {
   ActionSheet,
   createActionGroups,
 } from './ActionSheet';
-import { IconButton } from '@tloncorp/ui';
 import { ListItem } from './ListItem';
 
 type ChatOptionsSheetProps = {

@@ -1,14 +1,14 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { SizableEmoji } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Tooltip, XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { triggerHaptic } from '../../utils';
 import { useReactionDetails } from '../../utils/postUtils';
-import { SizableEmoji } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
 
 export function ReactionsDisplay({
   post,

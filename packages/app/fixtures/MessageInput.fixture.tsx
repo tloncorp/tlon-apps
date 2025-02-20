@@ -1,7 +1,7 @@
-import { BigInput, MessageInput, View } from '../ui';
 import { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BigInput, MessageInput, View } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import { group } from './fakeData';
 

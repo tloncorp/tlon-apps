@@ -1,5 +1,4 @@
 import { VideoEmbed } from '../ui';
-
 import { FixtureWrapper } from './FixtureWrapper';
 
 const VideoEmbedFixture = () => {

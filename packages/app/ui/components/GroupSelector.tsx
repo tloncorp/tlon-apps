@@ -1,4 +1,6 @@
 import * as db from '@tloncorp/shared/db';
+import { Icon } from '@tloncorp/ui';
+import { BlockSectionList } from '@tloncorp/ui';
 import React, { useCallback, useRef } from 'react';
 import {
   NativeScrollEvent,
@@ -8,9 +10,7 @@ import {
 import { Stack, View } from 'tamagui';
 
 import { AlphaSegmentedGroups } from '../hooks/groupsSorters';
-import { Icon } from '@tloncorp/ui';
 import { GroupListItem, ListItem } from './ListItem';
-import { BlockSectionList } from '@tloncorp/ui';
 
 interface Props {
   onSelect?: (group: db.Group) => void;

@@ -1,13 +1,12 @@
 import * as db from '@tloncorp/shared/db';
-import { XStack } from 'tamagui';
-
 import { Icon } from '@tloncorp/ui';
+import { XStack } from 'tamagui';
 
 export const ChatMessageDeliveryStatus = XStack.styleable<{
   status: db.PostDeliveryStatus;
 }>(({ status, ...props }, ref) => {
   return (
-    <XStack 
+    <XStack
       position="relative"
       width={24}
       height={24}
@@ -15,7 +14,7 @@ export const ChatMessageDeliveryStatus = XStack.styleable<{
       padding={'$l'}
       backgroundColor={'$transparentBackground'}
       borderRadius={'$xs'}
-      {...props} 
+      {...props}
     >
       <Icon
         position="absolute"
@@ -25,14 +24,14 @@ export const ChatMessageDeliveryStatus = XStack.styleable<{
         color={status === 'pending' ? '$tertiaryText' : '$primaryText'}
         customSize={[16, 16]}
       />
-      <Icon 
+      <Icon
         position="absolute"
         left={8}
         top={4}
-        type="ChevronRight" 
-        customSize={[16, 16]} 
+        type="ChevronRight"
+        customSize={[16, 16]}
       />
     </XStack>
   );
 });
-3
+3;

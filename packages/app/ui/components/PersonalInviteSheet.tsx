@@ -1,10 +1,10 @@
 import * as db from '@tloncorp/shared/db';
+import { Text } from '@tloncorp/ui';
 import QRCode from 'react-qr-code';
 import { View, useTheme } from 'tamagui';
 
 import { ActionSheet } from './ActionSheet';
 import { PersonalInviteButton } from './PersonalInviteButton';
-import { Text } from '@tloncorp/ui';
 
 export function PersonalInviteSheet({
   open,

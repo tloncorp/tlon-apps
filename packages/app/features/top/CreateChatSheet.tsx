@@ -1,15 +1,5 @@
 import * as store from '@tloncorp/shared';
 import {
-  Action,
-  ActionSheet,
-  Button,
-  ContactBook,
-  LoadingSpinner,
-  SimpleActionSheet,
-  capitalize,
-  useIsWindowNarrow,
-} from '../../ui';
-import {
   forwardRef,
   useCallback,
   useEffect,
@@ -22,6 +12,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Popover, View, YStack } from 'tamagui';
 
 import { useRootNavigation } from '../../navigation/utils';
+import {
+  Action,
+  ActionSheet,
+  Button,
+  ContactBook,
+  LoadingSpinner,
+  SimpleActionSheet,
+  capitalize,
+  useIsWindowNarrow,
+} from '../../ui';
 import { trackError } from '../../utils/posthog';
 
 type ChatType = 'dm' | 'group';

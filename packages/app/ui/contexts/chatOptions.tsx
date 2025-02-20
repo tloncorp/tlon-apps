@@ -1,6 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   ReactNode,
   createContext,
@@ -14,7 +15,6 @@ import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { ChatOptionsSheet } from '../components/ChatOptionsSheet';
-import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useChannelTitle } from '../utils';
 
 export type ChatOptionsContextValue = {

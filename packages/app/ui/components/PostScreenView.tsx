@@ -2,6 +2,7 @@ import { isChatChannel as getIsChatChannel } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import * as urbit from '@tloncorp/shared/urbit';
 import { Story } from '@tloncorp/shared/urbit';
+import { KeyboardAvoidingView } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,7 +22,6 @@ import { ChannelHeader } from './Channel/ChannelHeader';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
-import { KeyboardAvoidingView } from '@tloncorp/ui';
 import { TlonEditorBridge } from './MessageInput/toolbarActions.native';
 
 export function PostScreenView({

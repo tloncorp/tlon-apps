@@ -1,9 +1,8 @@
+import { Text } from '@tloncorp/ui';
 import { ReactNode, useMemo } from 'react';
 import { StyleSheet, TextStyle } from 'react-native';
 import hoon from 'refractor/lang/hoon';
 import { refractor } from 'refractor/lib/common.js';
-
-import { Text } from '@tloncorp/ui';
 
 refractor.register(hoon);
 

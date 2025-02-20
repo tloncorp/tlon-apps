@@ -1,10 +1,10 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import { FeatureFlagScreenView } from '../../ui';
 import { useCallback, useMemo } from 'react';
 
 import * as featureFlags from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
+import { FeatureFlagScreenView } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FeatureFlags'>;
 
