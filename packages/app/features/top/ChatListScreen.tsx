@@ -17,24 +17,29 @@ import {
   NavBarView,
   NavigationProvider,
   PersonalInviteSheet,
+  Pressable,
   RequestsProvider,
   ScreenHeader,
   View,
   WelcomeSheet,
+  useFilteredChats,
   useGlobalSearch,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard } from 'react-native';
-import { ColorTokens, useTheme } from 'tamagui';
+import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import { identifyTlonEmployee } from '../../utils/posthog';
+import { ChatListSearch } from '../chat-list/ChatListSearch';
+import { ChatListTabs } from '../chat-list/ChatListTabs';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
 
 const logger = createDevLogger('ChatListScreen', false);
@@ -73,9 +78,7 @@ export function ChatListScreenView({
     ]
   );
 
-  const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
-    'all'
-  );
+  const [activeTab, setActiveTab] = useState<TabName>('home');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
     previewGroupId ?? null
   );
@@ -196,7 +199,7 @@ export function ChatListScreenView({
 
   const handleSectionChange = useCallback(
     (title: string) => {
-      if (activeTab === 'all') {
+      if (activeTab === 'home') {
         setScreenTitle(title);
       }
     },
@@ -204,7 +207,7 @@ export function ChatListScreenView({
   );
 
   useEffect(() => {
-    if (activeTab === 'all') {
+    if (activeTab === 'home') {
       setScreenTitle('Home');
     } else if (activeTab === 'groups') {
       setScreenTitle('Groups');
@@ -261,6 +264,24 @@ export function ChatListScreenView({
     setPersonalInviteOpen(true);
   }, []);
 
+  const handlePressTryAll = useCallback(() => {
+    setActiveTab('home');
+  }, [setActiveTab]);
+
+  const handlePressClear = useCallback(() => {
+    setSearchQuery('');
+  }, [setSearchQuery]);
+
+  const handlePressClose = useCallback(() => {
+    handleSearchInputToggled();
+  }, [handleSearchInputToggled]);
+
+  const displayData = useFilteredChats({
+    ...resolvedChats,
+    searchQuery,
+    activeTab,
+  });
+
   return (
     <RequestsProvider
       usePostReference={store.usePostReference}
@@ -309,19 +330,25 @@ export function ChatListScreenView({
               }
             />
             {chats && chats.unpinned.length ? (
-              <ChatList
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                pinned={resolvedChats.pinned}
-                unpinned={resolvedChats.unpinned}
-                pending={resolvedChats.pending}
-                onPressItem={onPressChat}
-                onSectionChange={handleSectionChange}
-                showSearchInput={showSearchInput}
-                onSearchToggle={handleSearchInputToggled}
-                searchQuery={searchQuery}
-                onSearchQueryChange={setSearchQuery}
-              />
+              <>
+                <ChatListTabs onPressTab={setActiveTab} activeTab={activeTab} />
+                <ChatListSearch
+                  query={searchQuery}
+                  onQueryChange={setSearchQuery}
+                  isOpen={showSearchInput}
+                  onPressClear={handlePressClear}
+                  onPressClose={handlePressClose}
+                />
+                {searchQuery !== '' && !displayData[0]?.data.length ? (
+                  <SearchResultsEmpty
+                    activeTab={activeTab}
+                    onPressClear={handlePressClear}
+                    onPressTryAll={handlePressTryAll}
+                  />
+                ) : (
+                  <ChatList data={displayData} onPressItem={onPressChat} />
+                )}
+              </>
             ) : null}
 
             <WelcomeSheet
@@ -363,5 +390,35 @@ export function ChatListScreenView({
         onOpenChange={() => setPersonalInviteOpen(false)}
       />
     </RequestsProvider>
+  );
+}
+
+function SearchResultsEmpty({
+  activeTab,
+  onPressClear,
+  onPressTryAll,
+}: {
+  activeTab: TabName;
+  onPressTryAll: () => void;
+  onPressClear: () => void;
+}) {
+  return (
+    <YStack
+      gap="$l"
+      alignItems="center"
+      justifyContent="center"
+      paddingHorizontal="$l"
+      paddingVertical="$m"
+    >
+      <Text>No results found.</Text>
+      {activeTab !== 'home' && (
+        <Pressable onPress={onPressTryAll}>
+          <Text textDecorationLine="underline">Try in All?</Text>
+        </Pressable>
+      )}
+      <Pressable onPress={onPressClear}>
+        <Text color="$positiveActionText">Clear search</Text>
+      </Pressable>
+    </YStack>
   );
 }

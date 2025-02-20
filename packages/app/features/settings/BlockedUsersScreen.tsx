@@ -41,7 +41,13 @@ export function BlockedUsersScreen(props: Props) {
         backAction={() => props.navigation.goBack()}
         title="Blocked users"
       />
-      <View flex={1} paddingHorizontal="$xl">
+      <View
+        flex={1}
+        width="100%"
+        maxWidth={600}
+        marginHorizontal="auto"
+        paddingHorizontal="$xl"
+      >
         <BlockedContactsWidget
           blockedContacts={blockedContacts ?? []}
           onBlockedContactPress={onBlockedContactPress}

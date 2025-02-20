@@ -13,6 +13,7 @@ import { SectionListHeader } from './SectionList';
 interface Props {
   contacts: db.Contact[];
   suggestions: db.Contact[];
+  focusedContactId?: string;
   onContactPress: (contact: db.Contact) => void;
   onContactLongPress: (contact: db.Contact) => void;
 }
@@ -57,6 +58,9 @@ export function ContactsScreenView(props: Props) {
   const renderItem = useCallback(
     ({ item }: { item: db.Contact }) => {
       const isSelf = item.id === currentUserId;
+      const isFocused =
+        props.focusedContactId === item.id ||
+        (!props.focusedContactId && isSelf);
       return (
         <ContactListItem
           size="$4xl"
@@ -82,8 +86,9 @@ export function ContactsScreenView(props: Props) {
           subtitle={item.status ? item.status : undefined}
           onPress={() => props.onContactPress(item)}
           onLongPress={() => props.onContactLongPress(item)}
-          backgroundColor={isSelf ? '$secondaryBackground' : 'unset'}
+          backgroundColor={isFocused ? '$secondaryBackground' : 'unset'}
           borderColor="$border"
+          hoverStyle={{ backgroundColor: '$border' }}
         />
       );
     },

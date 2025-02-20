@@ -179,7 +179,10 @@ export function GlobalSearch({
           }
           if (nextIndex < listItems.length) {
             setSelectedIndex(nextIndex);
-            listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+            listRef.current?.scrollToIndex({
+              index: nextIndex,
+              animated: true,
+            });
           }
           break;
         case 'ArrowUp':
@@ -189,7 +192,10 @@ export function GlobalSearch({
           }
           if (nextIndex >= 0) {
             setSelectedIndex(nextIndex);
-            listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+            listRef.current?.scrollToIndex({
+              index: nextIndex,
+              animated: true,
+            });
           }
           break;
         case 'Escape':
@@ -302,7 +308,7 @@ export function GlobalSearch({
       >
         <TextInput
           ref={inputRef}
-          placeholder={`Navigate to groups or DMs (${
+          placeholder={`Navigate to groups, DMs, or channels (${
             navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'
           })`}
           icon="Search"

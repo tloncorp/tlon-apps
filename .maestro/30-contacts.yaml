@@ -1,54 +1,49 @@
 appId: io.tlon.groups
 ---
-- clearState:
-    appId: io.tlon.groups
-- launchApp:
-    appId: io.tlon.groups
+- runFlow: subflows/launch.yaml
 - runFlow: subflows/tlon-login.yaml
 - assertVisible: 'Home'
 - tapOn:
-    id: "AvatarNavIcon"
-- assertVisible: "Contacts"
+    id: 'AvatarNavIcon'
+- assertVisible: 'Contacts'
 - tapOn:
-    id: "ContactsAddButton"
-- tapOn: "Filter by nickname, @p"
-- inputText: "zod"
-- "hideKeyboard"
+    id: 'ContactsAddButton'
+- tapOn: 'Filter by nickname, @p'
+- inputText: 'zod'
+- 'hideKeyboard'
 - tapOn:
-    id: "ContactRow"
+    id: 'ContactRow'
 - runFlow:
     when:
       visible: 'Add 1 contact'
     commands:
       - tapOn: 'Add 1 contact'
-- assertVisible: "Contacts"
-- tapOn: "~zod"
-- assertVisible: "Remove Contact"
-- tapOn: "Edit"
-- assertVisible: "Edit Profile"
-- tapOn: "~zod"
-- inputText: "Testing pet name"
-- "hideKeyboard"
+- assertVisible: 'Contacts'
+- tapOn: '~zod'
+- assertVisible: 'Remove Contact'
+- tapOn: 'Edit'
+- assertVisible: 'Edit Profile'
+- tapOn: '~zod'
+- inputText: 'Testing pet name'
+- 'hideKeyboard'
 - runFlow:
     when:
       platform: ios
     commands:
-    - tapOn: "Change avatar image"
-    - tapOn: "Photo Library"
-    - tapOn:
-        id: "PXGGridLayout-Info"
-        index: 0
-- tapOn: "Done"
-- assertVisible: "Profile"
-- assertVisible: "Testing pet name"
+      - tapOn: 'Change avatar image'
+      - tapOn: 'Photo Library'
+      - tapOn: 'Photo, March 30, 2018, 3:14 PM'
+- tapOn: 'Done'
+- assertVisible: 'Profile'
+- assertVisible: 'Testing pet name'
 - tapOn:
-    id: "HeaderBackButton"
-- assertVisible: "Contacts"
-- assertVisible: "Testing pet name"
-- tapOn: "Testing pet name"
-- tapOn: "Remove Contact"
-- assertVisible: "zod"
-- tapOn: "Message"
-- assertVisible: "Message"
+    id: 'HeaderBackButton'
+- assertVisible: 'Contacts'
+- assertVisible: 'Testing pet name'
+- tapOn: 'Testing pet name'
+- tapOn: 'Remove Contact'
+- assertVisible: 'zod'
+- tapOn: 'Message'
+- assertVisible: 'Message'
 - tapOn:
-    id: "HeaderBackButton"
+    id: 'HeaderBackButton'

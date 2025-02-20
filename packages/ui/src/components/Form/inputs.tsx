@@ -276,6 +276,7 @@ const ImageInputButtonText = styled(Text, {
 const ImageInputPreviewFrame = styled(View, {
   borderRadius: '$l',
   aspectRatio: 1,
+  height: '100%',
   overflow: 'hidden',
   backgroundColor: '$border',
   alignItems: 'center',
@@ -289,6 +290,7 @@ const ImageInputPreviewImage = styled(Image, {
   left: 0,
   width: '100%',
   height: '100%',
+  objectFit: 'cover',
 });
 
 const ImageInputPreviewLoadingFrame = styled(View, {

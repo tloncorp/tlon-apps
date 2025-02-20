@@ -1,17 +1,22 @@
-import { JSONValue, makePrettyShortDate } from '@tloncorp/shared';
+import {
+  ChannelAction,
+  JSONValue,
+  makePrettyShortDate,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { truncate } from 'lodash';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { PropsWithChildren } from 'react';
-import { StyleSheet } from 'react-native';
 import { View, XStack, styled } from 'tamagui';
 
+import { useChannelContext } from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ContactAvatar } from '../Avatar';
+import { Button } from '../Button';
+import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { Icon } from '../Icon';
 import { useBoundHandler } from '../ListItem/listItemUtils';
-import { OverflowMenuButton } from '../OverflowMenuButton';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   BlockData,
@@ -45,7 +50,15 @@ export function GalleryPost({
   Omit<ComponentProps<typeof GalleryPostFrame>, 'onPress' | 'onLongPress'> & {
     hideOverflowMenu?: boolean;
   }) {
+  const channel = useChannelContext();
+  const postActionIds = useMemo(
+    () => ChannelAction.channelActionIdsFor({ channel }),
+    [channel]
+  );
   const [showRetrySheet, setShowRetrySheet] = useState(false);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [overFlowIsHovered, setOverFlowIsHovered] = useState(false);
   const embedded = useMemo(
     () => JSONValue.asBoolean(contentRendererConfiguration?.embedded, false),
     [contentRendererConfiguration]
@@ -55,7 +68,6 @@ export function GalleryPost({
     () => JSONValue.asString(contentRendererConfiguration?.contentSize, '$s'),
     [contentRendererConfiguration]
   ) as '$s' | '$l';
-  const [disableHandlePress, setDisableHandlePress] = useState(false);
 
   const handleRetryPressed = useCallback(() => {
     onPressRetry?.(post);
@@ -82,16 +94,20 @@ export function GalleryPost({
 
   const handleLongPress = useBoundHandler(post, onLongPress);
 
-  const onPressOverflow = useCallback(() => {
-    handleLongPress();
-  }, [handleLongPress]);
-
-  const onHoverIntoOverflow = useCallback(() => {
-    setDisableHandlePress(true);
+  const onHoverIn = useCallback(() => {
+    setIsHovered(true);
   }, []);
 
-  const onHoverOutOfOverflow = useCallback(() => {
-    setDisableHandlePress(false);
+  const onHoverOut = useCallback(() => {
+    setIsHovered(false);
+  }, []);
+
+  const onOverflowHoverIn = useCallback(() => {
+    setOverFlowIsHovered(true);
+  }, []);
+
+  const onOverflowHoverOut = useCallback(() => {
+    setOverFlowIsHovered(false);
   }, []);
 
   if (post.isDeleted) {
@@ -100,8 +116,10 @@ export function GalleryPost({
 
   return (
     <Pressable
-      onPress={disableHandlePress ? undefined : handlePress}
+      onPress={overFlowIsHovered ? undefined : handlePress}
       onLongPress={handleLongPress}
+      onHoverIn={onHoverIn}
+      onHoverOut={onHoverOut}
       flex={1}
     >
       <GalleryPostFrame {...props}>
@@ -148,13 +166,27 @@ export function GalleryPost({
           onPressDelete={handleDeletePressed}
           onPressRetry={handleRetryPressed}
         />
-        {!hideOverflowMenu && (
-          <OverflowMenuButton
-            backgroundColor="unset"
-            onPress={onPressOverflow}
-            onHoverIn={onHoverIntoOverflow}
-            onHoverOut={onHoverOutOfOverflow}
-          />
+        {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
+          <View position="absolute" top={0} right={12}>
+            <ChatMessageActions
+              post={post}
+              postActionIds={postActionIds}
+              onDismiss={() => setIsPopoverOpen(false)}
+              onOpenChange={setIsPopoverOpen}
+              onReply={handlePress}
+              trigger={
+                <Button
+                  backgroundColor="transparent"
+                  borderWidth="unset"
+                  size="$l"
+                  onHoverIn={onOverflowHoverIn}
+                  onHoverOut={onOverflowHoverOut}
+                >
+                  <Icon type="Overflow" />
+                </Button>
+              }
+            />
+          </View>
         )}
       </GalleryPostFrame>
     </Pressable>

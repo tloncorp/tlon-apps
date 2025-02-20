@@ -32,6 +32,7 @@ import {
 } from '../api';
 import { parseGroupId } from '../api/apiUtils';
 import { createDevLogger } from '../debug';
+import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
 import {
   SourceActivityEvents,
@@ -74,6 +75,7 @@ import {
   threadUnreads as $threadUnreads,
   verifications as $verifications,
   volumeSettings as $volumeSettings,
+  channels,
 } from './schema';
 import {
   ActivityBucket,
@@ -308,6 +310,51 @@ export const getUnjoinedGroupChannels = createReadQuery(
   ['channels', 'groups']
 );
 
+export const getAnalyticsDigest = createReadQuery(
+  'getAnalyticsDigest',
+  async (ctx: QueryCtx): Promise<domain.AnalyticsDigest> => {
+    const numContacts = await ctx.db
+      .select({ count: count() })
+      .from($contacts)
+      .where(eq($contacts.isContact, true));
+
+    const groups = await ctx.db.query.groups.findMany({
+      where: eq($groups.currentUserIsMember, true),
+      with: {
+        channels: true,
+      },
+    });
+    const numGroups = groups.length;
+    const numGroupchats = groups.filter((g) => g.channels.length === 1).length;
+    const numGroupsHosted = groups.filter((g) => g.currentUserIsHost).length;
+
+    const channels = await ctx.db.query.channels.findMany({
+      where: eq($channels.currentUserIsMember, true),
+    });
+
+    const numChannels = channels.length;
+    const numDms = channels.filter((c) => c.type === 'dm').length;
+    const numLegacyGroupDms = channels.filter(
+      (c) => c.type === 'groupDm'
+    ).length;
+    const numGalleries = channels.filter((c) => c.type === 'gallery').length;
+    const numNotebooks = channels.filter((c) => c.type === 'notebook').length;
+
+    return {
+      numContacts: numContacts[0]?.count ?? 0,
+      numGroups,
+      numGroupchats,
+      numGroupsHosted,
+      numChannels,
+      numDms,
+      numLegacyGroupDms,
+      numGalleries,
+      numNotebooks,
+    };
+  },
+  []
+);
+
 export const insertVerifications = createWriteQuery(
   'insertVerifications',
   async (
@@ -442,8 +489,8 @@ export const getChats = createReadQuery(
     });
 
     const channels = await ctx.db.query.channels.findMany({
-      where: isNull($channels.groupId),
       with: {
+        group: true,
         volumeSettings: true,
         unread: true,
         members: {
