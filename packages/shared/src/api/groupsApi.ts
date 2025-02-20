@@ -1487,7 +1487,7 @@ export function toClientGroup(
     roles,
     privacy: extractGroupPrivacy(group),
     ...toClientGroupMeta(group.meta),
-    haveInvite: false,
+    haveInvite: isJoined ? false : undefined,
     haveRequestedInvite: isJoined ? false : undefined,
     currentUserIsMember: isJoined,
     currentUserIsHost: hostUserId === currentUserId,
