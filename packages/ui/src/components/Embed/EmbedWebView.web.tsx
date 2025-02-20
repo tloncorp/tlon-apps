@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { useTheme } from 'tamagui';
+import { View, useTheme } from 'tamagui';
 
 import { useIsDarkTheme } from '../../utils';
-import { SkeletonLoader } from './SkeletonLoader';
+import { LoadingSpinner } from '../LoadingSpinner';
 import { EmbedProviderConfig } from './providers';
 
 declare global {
@@ -113,7 +113,7 @@ export const EmbedWebView: React.FC<EmbedWebViewProps> = ({
         .then(renderTweet)
         .catch((e) => onError?.(e));
     }
-  }, [provider.name, embedHtml, onError, onHeightChange]);
+  }, [provider.name, embedHtml, onError, onHeightChange, isDark]);
 
   if (!embedHtml && !url) {
     return null;
@@ -131,10 +131,16 @@ export const EmbedWebView: React.FC<EmbedWebViewProps> = ({
         }}
       >
         {isLoading && (
-          <SkeletonLoader
-            height={provider.defaultHeight}
+          <View
             width={provider.defaultWidth}
-          />
+            height={provider.defaultHeight}
+            backgroundColor="$secondaryBackground"
+            justifyContent="center"
+            alignItems="center"
+            borderRadius="$s"
+          >
+            <LoadingSpinner />
+          </View>
         )}
         <div
           ref={tweetContainerRef}
@@ -159,19 +165,24 @@ export const EmbedWebView: React.FC<EmbedWebViewProps> = ({
   }
 
   return (
-    <div
-      style={{
-        height: webViewHeight,
-        width: provider.defaultWidth,
-        backgroundColor: primaryBackground,
-        overflow: 'hidden',
-      }}
+    <View
+      height={webViewHeight}
+      width={provider.defaultWidth}
+      backgroundColor={primaryBackground}
+      borderRadius="$s"
+      overflow="hidden"
     >
       {isLoading && (
-        <SkeletonLoader
-          height={provider.defaultHeight}
+        <View
           width={provider.defaultWidth}
-        />
+          height={provider.defaultHeight}
+          backgroundColor="$secondaryBackground"
+          justifyContent="center"
+          alignItems="center"
+          borderRadius="$s"
+        >
+          <LoadingSpinner />
+        </View>
       )}
       <iframe
         ref={iframeRef}
@@ -196,6 +207,6 @@ export const EmbedWebView: React.FC<EmbedWebViewProps> = ({
         allowFullScreen
         sandbox="allow-scripts allow-same-origin allow-popups allow-presentation"
       />
-    </div>
+    </View>
   );
 };

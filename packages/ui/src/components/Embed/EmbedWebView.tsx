@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
-import { Linking, Platform, View } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import WebView from 'react-native-webview';
-import { useTheme } from 'tamagui';
+import { View, getTokenValue, useTheme } from 'tamagui';
 
 import { useIsDarkTheme } from '../../utils';
-import { SkeletonLoader } from './SkeletonLoader';
+import { LoadingSpinner } from '../LoadingSpinner';
 import { EmbedProviderConfig } from './providers';
 
 interface EmbedWebViewProps {
@@ -27,6 +27,8 @@ export const EmbedWebView: React.FC<EmbedWebViewProps> = ({
   const webViewRef = useRef<WebView>(null);
   const lastHeightRef = useRef(provider.defaultHeight);
   const isDark = useIsDarkTheme();
+  const borderRadiusVal = getTokenValue('$s');
+
   if (!embedHtml || !url) {
     return null;
   }
@@ -43,21 +45,24 @@ export const EmbedWebView: React.FC<EmbedWebViewProps> = ({
   return (
     <>
       {isLoading && (
-        <SkeletonLoader
-          height={provider.defaultHeight}
+        <View
           width={provider.defaultWidth}
-        />
+          height={provider.defaultHeight}
+          backgroundColor="$secondaryBackground"
+          justifyContent="center"
+          alignItems="center"
+          borderRadius="$s"
+        >
+          <LoadingSpinner />
+        </View>
       )}
       <View
+        width={provider.defaultWidth}
+        height={webViewHeight}
+        backgroundColor={primaryBackground}
+        borderRadius="$s"
         style={[
-          {
-            width: provider.defaultWidth,
-            height: webViewHeight,
-            backgroundColor: primaryBackground,
-          },
-          Platform.OS === 'android' && {
-            minHeight: provider.defaultHeight,
-          },
+          Platform.OS === 'android' && { minHeight: provider.defaultHeight },
         ]}
         onLayout={
           Platform.OS === 'android'
@@ -79,6 +84,7 @@ export const EmbedWebView: React.FC<EmbedWebViewProps> = ({
             height: '100%',
             opacity: isLoading ? 0 : 1,
             backgroundColor: primaryBackground,
+            borderRadius: borderRadiusVal,
           }}
           source={{ html }}
           androidLayerType={Platform.OS === 'android' ? 'hardware' : undefined}
@@ -90,14 +96,22 @@ export const EmbedWebView: React.FC<EmbedWebViewProps> = ({
                 const heightDiff = Math.abs(
                   data.height - lastHeightRef.current
                 );
-                // Only update twitter height if height difference is more than 5 pixels
-                // This is to prevent infinite loop of height changes that can apparently happen
-                // with Twitter embeds
-                if (provider.name === 'Twitter' && heightDiff > 5) {
-                  lastHeightRef.current = data.height;
-                  setWebViewHeight(data.height);
-                  setIsLoading(false);
-                } else if (provider.name !== 'Twitter') {
+                if (provider.name === 'Twitter') {
+                  // Always process the loaded flag regardless of height
+                  if (data.loaded) {
+                    // Only mark as loaded if we have a valid height
+                    if (data.height > 0) {
+                      lastHeightRef.current = data.height;
+                      setWebViewHeight(data.height);
+                      setIsLoading(false);
+                    }
+                  }
+                  // Update height only if it's a significant change and non-zero
+                  else if (heightDiff > 5 && data.height > 0) {
+                    lastHeightRef.current = data.height;
+                    setWebViewHeight(data.height);
+                  }
+                } else {
                   setWebViewHeight(data.height);
                   setIsLoading(false);
                 }

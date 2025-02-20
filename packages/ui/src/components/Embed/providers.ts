@@ -134,24 +134,44 @@ const twitterConfig: EmbedProviderConfig = {
             function checkForTwitterWidget() {
               const tweetFrame = document.querySelector('iframe[id^="twitter-widget"]');
               if (tweetFrame) {
+                let hasReportedLoaded = false;
+                
                 const resizeObserver = new ResizeObserver((entries) => {
                   for (const entry of entries) {
                     const height = entry.contentRect.height;
+                    // Always report height changes
                     window.ReactNativeWebView.postMessage(JSON.stringify({ height }));
+                    
+                    // Only report loaded once we have a valid height
+                    if (!hasReportedLoaded && height > 0) {
+                      window.ReactNativeWebView.postMessage(JSON.stringify({ 
+                        height,
+                        loaded: true
+                      }));
+                      hasReportedLoaded = true;
+                    }
                   }
                 });
                 
                 resizeObserver.observe(tweetFrame);
                 
-                window.ReactNativeWebView.postMessage(JSON.stringify({ 
-                  height: tweetFrame.offsetHeight 
-                }));
+                // Check initial height
+                const initialHeight = tweetFrame.offsetHeight;
+                if (initialHeight > 0) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({ 
+                    height: initialHeight,
+                    loaded: true
+                  }));
+                  hasReportedLoaded = true;
+                }
               } else {
                 setTimeout(checkForTwitterWidget, 100);
               }
             }
             
-            window.addEventListener('load', checkForTwitterWidget);
+            window.addEventListener('load', () => {
+              checkForTwitterWidget();
+            });
           </script>
         </head>
         <body>

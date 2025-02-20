@@ -64,7 +64,7 @@ export const isDarkBg = (hexValue: string): boolean => {
   const r = parseInt(hexValue.slice(1, 3), 16);
   const g = parseInt(hexValue.slice(3, 5), 16);
   const b = parseInt(hexValue.slice(5, 7), 16);
-  // Calculate relative luminance using the same coefficients
+
   return r * 0.299 + g * 0.587 + b * 0.114 < 186;
 };
 
