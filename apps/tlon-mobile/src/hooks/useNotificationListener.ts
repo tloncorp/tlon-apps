@@ -23,7 +23,7 @@ import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as ub from '@tloncorp/shared/urbit';
 import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/urbit';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/app/ui';
 import {
   Notification,
   addNotificationResponseReceivedListener,

@@ -19,7 +19,7 @@ import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { LoadingSpinner, StoreProvider, View } from '@tloncorp/ui';
+import { LoadingSpinner, StoreProvider, View } from '@tloncorp/app/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { PropsWithChildren, useEffect, useState } from 'react';
