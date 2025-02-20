@@ -19,7 +19,7 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix --quiet",
     "lint:format": "prettier src/ --write",
-    "test": "vitest",
+    "test": "vitest --passWithNoTests",
     "tsc": "tsc --noEmit"
   },
   "lint-staged": {
