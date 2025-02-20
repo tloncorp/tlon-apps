@@ -19,7 +19,7 @@ import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { LoadingSpinner, StoreProvider, View } from '@tloncorp/ui';
+import { LoadingSpinner, StoreProvider, Text, View } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { PropsWithChildren, useEffect, useState } from 'react';
@@ -197,8 +197,23 @@ const App = React.memo(function AppComponent() {
                   width="100%"
                   justifyContent="center"
                   alignItems="center"
+                  backgroundColor="$secondaryBackground"
                 >
-                  <LoadingSpinner />
+                  <View
+                    backgroundColor="$background"
+                    padding="$xl"
+                    borderRadius="$l"
+                    aspectRatio={1}
+                    alignItems="center"
+                    justifyContent="center"
+                    borderWidth={1}
+                    borderColor="$border"
+                  >
+                    <LoadingSpinner color="$primaryText" />
+                    <Text color="$primaryText" marginTop="$xl" fontSize="$s">
+                      Starting up&hellip;
+                    </Text>
+                  </View>
                 </View>
               )}
             </StoreProvider>
