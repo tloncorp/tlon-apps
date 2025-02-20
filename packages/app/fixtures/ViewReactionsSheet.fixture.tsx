@@ -1,5 +1,5 @@
-import { AppDataContextProvider } from '../ui/src';
-import { ViewReactionsSheet } from '../ui/src/components/ChatMessage/ViewReactionsSheet';
+import { AppDataContextProvider } from '../ui';
+import { ViewReactionsSheet } from '../ui/components/ChatMessage/ViewReactionsSheet';
 
 import {
   createFakePosts,

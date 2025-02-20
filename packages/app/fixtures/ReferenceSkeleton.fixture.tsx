@@ -1,4 +1,4 @@
-import { ReferenceSkeleton } from '../ui/src/components/ContentReference/Reference';
+import { ReferenceSkeleton } from '../ui/components/ContentReference/Reference';
 
 import { FixtureWrapper } from './FixtureWrapper';
 

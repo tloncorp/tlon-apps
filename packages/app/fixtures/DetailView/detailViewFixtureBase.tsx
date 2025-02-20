@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { AppDataContextProvider, RequestsProvider } from '../../ui';
-import { PostScreenView } from '../../ui/src';
+import { PostScreenView } from '../../ui';
 
 import { FixtureWrapper } from '../FixtureWrapper';
 import * as content from '../contentHelpers';

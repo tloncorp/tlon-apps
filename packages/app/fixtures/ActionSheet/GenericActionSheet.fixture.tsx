@@ -2,7 +2,7 @@ import { ListItem } from '../../ui';
 import {
   ActionGroup,
   ActionSheet,
-} from '../../ui/src/components/ActionSheet';
+} from '../../ui/components/ActionSheet';
 
 import { FixtureWrapper } from '../FixtureWrapper';
 

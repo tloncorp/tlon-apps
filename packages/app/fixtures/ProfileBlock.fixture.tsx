@@ -1,5 +1,5 @@
 import { AppDataContextProvider, View } from '../ui';
-import { ProfileBlock } from '../ui/src/components/ProfileBlock';
+import { ProfileBlock } from '../ui/components/ProfileBlock';
 
 import { FixtureWrapper } from './FixtureWrapper';
 import { brianContact } from './fakeData';

@@ -22,7 +22,7 @@ export function ConnectedPostView({
 }: { post: db.Post } & Partial<ComponentPropsWithoutRef<typeof PostView>>) {
   const ctx = usePostCollectionContext();
 
-  // this code is duplicated in packages/ui/src/components/Channel/PostView.tsx
+  // this code is duplicated in packages/ui/components/Channel/PostView.tsx
   const standardConfig = useMemo(() => {
     const cfg = ctx.collectionConfiguration;
     if (cfg == null) {

@@ -1,5 +1,5 @@
 import { Button, IconType, ScrollView, View } from '../ui';
-import * as Form from '../ui/src/components/Form';
+import * as Form from '../ui/components/Form';
 import React, { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

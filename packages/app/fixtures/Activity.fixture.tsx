@@ -2,7 +2,7 @@ import * as logic from '@tloncorp/shared/logic';
 import {
   ActivityScreenContent,
   AppDataContextProvider,
-} from '../ui/src';
+} from '../ui';
 import { PropsWithChildren } from 'react';
 import { Alert } from 'react-native';
 

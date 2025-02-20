@@ -1,6 +1,6 @@
 import { Attachment, AttachmentProvider } from '../ui';
-import { AppDataContextProvider, RequestsProvider } from '../ui/src';
-import { AttachmentPreviewList } from '../ui/src/components/MessageInput/AttachmentPreviewList';
+import { AppDataContextProvider, RequestsProvider } from '../ui';
+import { AttachmentPreviewList } from '../ui/components/MessageInput/AttachmentPreviewList';
 
 import { FixtureWrapper } from './FixtureWrapper';
 import {

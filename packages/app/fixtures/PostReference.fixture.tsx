@@ -3,7 +3,7 @@ import { View } from '../ui';
 import {
   GroupReference,
   PostReference,
-} from '../ui/src/components/ContentReference';
+} from '../ui/components/ContentReference';
 import { PropsWithChildren } from 'react';
 import { ScrollView } from 'react-native-gesture-handler';
 

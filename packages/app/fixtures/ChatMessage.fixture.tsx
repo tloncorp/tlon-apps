@@ -7,9 +7,9 @@ import {
   RequestsProvider,
   ScrollView,
   View,
-} from '../ui/src';
-import { PostBlockSeparator } from '../ui/src/components/Channel/Scroller';
-import { Text } from '../ui/src/components/TextV2';
+} from '../ui';
+import { PostBlockSeparator } from '../ui/components/Channel/Scroller';
+import { Text } from '../ui/components/TextV2';
 import React, { PropsWithChildren } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 

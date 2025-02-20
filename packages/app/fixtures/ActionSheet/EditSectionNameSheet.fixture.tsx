@@ -1,4 +1,4 @@
-import { EditSectionNameSheet } from '../../ui/src/components/ManageChannels/EditSectionNameSheet';
+import { EditSectionNameSheet } from '../../ui/components/ManageChannels/EditSectionNameSheet';
 
 export default (
   <EditSectionNameSheet

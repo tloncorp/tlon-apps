@@ -17,7 +17,7 @@ import {
   ChatOptionsProvider,
   Sheet,
 } from '../ui';
-import { UnconnectedChannelConfigurationBar as ChannelConfigurationBar } from '../ui/src/components/ManageChannels/CreateChannelSheet';
+import { UnconnectedChannelConfigurationBar as ChannelConfigurationBar } from '../ui/components/ManageChannels/CreateChannelSheet';
 import { range } from 'lodash';
 import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
