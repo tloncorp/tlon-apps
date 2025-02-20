@@ -11,6 +11,8 @@
     "tsc": "tsc --noEmit"
   },
   "dependencies": {
+    "@emoji-mart/data": "^1.1.2",
+    "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
     "react-native-email-link": "^1.16.1",
