@@ -32,9 +32,7 @@ appId: io.tlon.groups
     commands:
       - tapOn: 'Change avatar image'
       - tapOn: 'Photo Library'
-      - tapOn:
-          id: 'PXGGridLayout-Info'
-          index: 0
+      - tapOn: 'Photo, March 30, 2018, 3:14 PM'
 - tapOn: 'Done'
 - assertVisible: 'Profile'
 - assertVisible: 'Testing pet name'
