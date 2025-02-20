@@ -32,7 +32,10 @@ export interface MessageInputProps {
   ) => Promise<void>;
   channelId: string;
   groupMembers: db.ChatMember[];
-  storeDraft: (draft: JSONContent, draftType?: GalleryDraftType) => Promise<void>;
+  storeDraft: (
+    draft: JSONContent,
+    draftType?: GalleryDraftType
+  ) => Promise<void>;
   clearDraft: (draftType?: GalleryDraftType) => Promise<void>;
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   editingPost?: db.Post;
@@ -186,6 +189,7 @@ export const MessageInputContainer = memo(
                 backgroundColor="unset"
                 borderColor="transparent"
                 opacity={disableSend ? 0.5 : 1}
+                testID="MessageInputSendButton"
               >
                 {isEditing ? (
                   <Icon size="$m" type="Checkmark" />

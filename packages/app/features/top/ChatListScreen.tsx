@@ -319,6 +319,7 @@ export function ChatListScreenView({
                     <ScreenHeader.IconButton
                       type="Add"
                       onPress={handlePressAddChat}
+                      testID="CreateGroupButton"
                     />
                   ) : (
                     <CreateChatSheet

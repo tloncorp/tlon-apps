@@ -153,6 +153,7 @@ export function ChannelHeader({
                 <ScreenHeader.IconButton
                   type="Overflow"
                   onPress={handlePressOverflowMenu}
+                  testID="ChannelHeaderOverflowMenuButton"
                 />
               ) : (
                 <ChatOptionsSheet
