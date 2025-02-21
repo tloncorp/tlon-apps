@@ -1,5 +1,4 @@
 import * as db from '@tloncorp/shared/db';
-import * as urbit from '@tloncorp/shared/urbit';
 import { Text } from '@tloncorp/ui';
 import { useEffect, useMemo } from 'react';
 import { FlatList } from 'react-native';
@@ -127,7 +126,10 @@ export const DetailView = ({
           return (
             <View width="100%" marginHorizontal="auto" maxWidth={600}>
               {channelType === 'gallery' ? (
-                <GalleryPostDetailView post={post} />
+                <GalleryPostDetailView
+                  post={post}
+                  onPressImage={onPressImage}
+                />
               ) : channelType == 'notebook' ? (
                 <NotebookPostDetailView post={post} />
               ) : null}

@@ -4,17 +4,28 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import React from 'react';
+import {
+  Dimensions,
+  FlatList,
+  ListRenderItemInfo,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+} from 'react-native';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
+import { useNavigation } from '../../navigation/utils';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   AttachmentProvider,
+  ChannelHeader,
   ChatOptionsProvider,
   PostScreenView,
+  View,
   useCurrentUserId,
 } from '../../ui';
 
@@ -22,6 +33,163 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
 
 export default function PostScreen(props: Props) {
   const { postId, channelId, authorId } = props.route.params;
+  const chatOptionsNavProps = useChatSettingsNavigation();
+  const canUpload = store.useCanUpload();
+  const mode: 'single' | 'carousel' = 'carousel';
+
+  return (
+    <ChatOptionsProvider
+      initialChat={{ type: 'channel', id: channelId }}
+      {...chatOptionsNavProps}
+    >
+      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
+        {mode === 'carousel' ? (
+          <CarouselPostScreenContent
+            channelId={channelId}
+            postId={postId}
+            authorId={authorId}
+          />
+        ) : (
+          <PostScreenContent
+            postId={postId}
+            channelId={channelId}
+            authorId={authorId}
+          />
+        )}
+      </AttachmentProvider>
+    </ChatOptionsProvider>
+  );
+}
+
+function CarouselPostScreenContent({
+  channelId,
+  authorId,
+  postId,
+}: {
+  channelId: string;
+  authorId: string;
+  postId: string;
+}) {
+  const navigation = useNavigation();
+
+  const { posts, query } = store.useChannelPosts({
+    enabled: true,
+    channelId: channelId,
+    count: 10,
+    mode: 'around',
+    cursor: postId,
+    firstPageCount: 50,
+  });
+
+  const initialPostIndex = useMemo(() => {
+    return posts?.findIndex((p) => p.id === postId) ?? -1;
+  }, [posts, postId]);
+
+  const { fetchNextPage, fetchPreviousPage } = query;
+
+  const [visibleIndex, setVisibleIndex] = useState(initialPostIndex);
+  const windowWidth = Dimensions.get('window').width;
+
+  const handleScroll = React.useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const index = Math.round(event.nativeEvent.contentOffset.x / windowWidth);
+      setVisibleIndex(index);
+    },
+    [windowWidth]
+  );
+
+  const handleEndReached = useCallback(() => {
+    fetchNextPage();
+  }, [fetchNextPage]);
+
+  const handleStartReached = useCallback(() => {
+    fetchPreviousPage();
+  }, [fetchPreviousPage]);
+
+  const { data: channel } = store.useChannel({ id: channelId });
+
+  const activePost = posts?.[visibleIndex];
+
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<db.Post>) => {
+      return (
+        <View width={windowWidth}>
+          <PostScreenContent
+            postId={item.id}
+            authorId={authorId}
+            channelId={channelId}
+            headerHidden={true}
+          />
+        </View>
+      );
+    },
+    [authorId, channelId, windowWidth]
+  );
+
+  const getItemLayout = useCallback(
+    (data: db.Post[], index: number) => ({
+      length: windowWidth,
+      offset: windowWidth * index,
+      index,
+    }),
+    [windowWidth]
+  );
+
+  const contentContainerStyle = useMemo(() => {
+    return { alignItems: 'stretch' } as const;
+  }, []);
+
+  return channel && posts?.length && initialPostIndex !== -1 ? (
+    <View flex={1} width={windowWidth}>
+      <ChannelHeader
+        channel={channel}
+        group={channel?.group}
+        title={
+          activePost?.title && activePost?.title !== ''
+            ? activePost.title
+            : 'Untitled Post'
+        }
+        goBack={() => navigation.goBack()}
+        showSearchButton={false}
+        post={activePost ?? undefined}
+      />
+      <FlatList
+        keyExtractor={(item) => item.id}
+        data={posts}
+        decelerationRate="fast"
+        initialScrollIndex={initialPostIndex}
+        horizontal={true}
+        scrollEventThrottle={33}
+        onScroll={handleScroll}
+        onEndReached={handleEndReached}
+        onStartReached={handleStartReached}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        disableIntervalMomentum={true}
+        snapToInterval={windowWidth}
+        initialNumToRender={3}
+        maxToRenderPerBatch={3}
+        contentContainerStyle={contentContainerStyle}
+        windowSize={3}
+        renderItem={renderItem}
+        getItemLayout={getItemLayout}
+      />
+    </View>
+  ) : null;
+}
+
+function PostScreenContent({
+  postId,
+  authorId,
+  channelId,
+  headerHidden,
+}: {
+  postId: string;
+  authorId: string;
+  channelId: string;
+  headerHidden?: boolean;
+}) {
+  const navigation = useNavigation();
   const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
   const {
     group,
@@ -61,6 +229,7 @@ export default function PostScreen(props: Props) {
   const { data: post } = store.usePostWithThreadUnreads({
     id: postId,
   });
+
   const { data: threadPosts, isLoading: isLoadingPosts } = store.useThreadPosts(
     {
       postId: postId,
@@ -120,13 +289,12 @@ export default function PostScreen(props: Props) {
     },
     [channel]
   );
-  const canUpload = store.useCanUpload();
 
   const handleGoToUserProfile = useCallback(
     (userId: string) => {
-      props.navigation.push('UserProfile', { userId });
+      navigation.navigate('UserProfile', { userId });
     },
-    [props.navigation]
+    [navigation]
   );
 
   const { performGroupAction } = useGroupActions();
@@ -136,57 +304,49 @@ export default function PostScreen(props: Props) {
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
-      props.navigation.push('DM', { channelId: dmChannel.id });
+      navigation.navigate('DM', { channelId: dmChannel.id });
     },
-    [props.navigation]
+    [navigation]
   );
 
   const { navigateBackFromPost } = useRootNavigation();
   const handleGoBack = useCallback(() => {
     if (!channel) {
-      props.navigation.goBack();
+      navigation.goBack();
       return;
     }
     // This allows us to navigate to the channel and highlight the message in the scroller
     // OR navigate back to Activity if we came from there
     navigateBackFromPost(channel!, postId);
-  }, [channel, postId, props.navigation, navigateBackFromPost]);
-
-  const chatOptionsNavProps = useChatSettingsNavigation();
+  }, [channel, postId, navigation, navigateBackFromPost]);
 
   return currentUserId && channel && post ? (
-    <ChatOptionsProvider
-      initialChat={{ type: 'channel', id: channelId }}
-      {...chatOptionsNavProps}
-    >
-      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
-        <PostScreenView
-          handleGoToUserProfile={handleGoToUserProfile}
-          parentPost={post}
-          posts={posts}
-          isLoadingPosts={isLoadingPosts}
-          channel={channel}
-          initialThreadUnread={initialThreadUnread}
-          goBack={handleGoBack}
-          sendReply={sendReply}
-          groupMembers={group?.members ?? []}
-          handleGoToImage={navigateToImage}
-          getDraft={getDraft}
-          storeDraft={storeDraft}
-          clearDraft={clearDraft}
-          markRead={markRead}
-          editingPost={editingPost}
-          onPressDelete={handleDeletePost}
-          onPressRetry={handleRetrySend}
-          onPressRef={navigateToRef}
-          onGroupAction={performGroupAction}
-          goToDm={handleGoToDm}
-          setEditingPost={setEditingPost}
-          editPost={editPost}
-          negotiationMatch={negotiationStatus.matchedOrPending}
-          headerMode={headerMode}
-        />
-      </AttachmentProvider>
-    </ChatOptionsProvider>
+    <PostScreenView
+      handleGoToUserProfile={handleGoToUserProfile}
+      parentPost={post}
+      posts={posts}
+      isLoadingPosts={isLoadingPosts}
+      channel={channel}
+      initialThreadUnread={initialThreadUnread}
+      goBack={handleGoBack}
+      sendReply={sendReply}
+      groupMembers={group?.members ?? []}
+      handleGoToImage={navigateToImage}
+      getDraft={getDraft}
+      storeDraft={storeDraft}
+      clearDraft={clearDraft}
+      markRead={markRead}
+      editingPost={editingPost}
+      onPressDelete={handleDeletePost}
+      onPressRetry={handleRetrySend}
+      onPressRef={navigateToRef}
+      onGroupAction={performGroupAction}
+      goToDm={handleGoToDm}
+      setEditingPost={setEditingPost}
+      editPost={editPost}
+      negotiationMatch={negotiationStatus.matchedOrPending}
+      headerMode={headerMode}
+      headerHidden={headerHidden}
+    />
   ) : null;
 }
