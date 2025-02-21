@@ -49,6 +49,7 @@ export function PostScreenView({
   goToDm,
   negotiationMatch,
   headerMode,
+  headerHidden,
 }: {
   channel: db.Channel;
   initialThreadUnread?: db.ThreadUnreadState | null;
@@ -79,6 +80,7 @@ export function PostScreenView({
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
   negotiationMatch: boolean;
+  headerHidden?: boolean;
   headerMode: 'default' | 'next';
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
@@ -239,18 +241,20 @@ export function PostScreenView({
           onAssetsDropped={attachAssets}
         >
           <YStack flex={1} backgroundColor={'$background'}>
-            <ChannelHeader
-              channel={channel}
-              group={channel.group}
-              title={headerTitle}
-              goBack={handleGoBack}
-              showSearchButton={false}
-              showSpinner={isLoadingPosts}
-              post={parentPost ?? undefined}
-              mode={headerMode}
-              showEditButton={showEdit}
-              goToEdit={handleEditPress}
-            />
+            {headerHidden ? null : (
+              <ChannelHeader
+                channel={channel}
+                group={channel.group}
+                title={headerTitle}
+                goBack={handleGoBack}
+                showSearchButton={false}
+                showSpinner={isLoadingPosts}
+                post={parentPost ?? undefined}
+                mode={headerMode}
+                showEditButton={showEdit}
+                goToEdit={handleEditPress}
+              />
+            )}
             <KeyboardAvoidingView enabled={!activeMessage}>
               {parentPost ? (
                 <DetailView
