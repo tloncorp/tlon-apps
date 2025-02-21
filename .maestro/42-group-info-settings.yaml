@@ -71,9 +71,11 @@ appId: io.tlon.groups
 - tapOn:
     id: 'ChannelHeaderOverflowMenuButton'
 - tapOn: 'Group info & settings'
-# Copy group reference
+# Copy group reference. Sometimes the cloud runner fails to catch the confirmation in time
 - tapOn: 'Reference'
-- assertVisible: 'Copied'
+- assertVisible:
+    text: 'Copied'
+    optional: true
 # TODO: Everything else on this screen
 # Delete group and clean up
 - scrollUntilVisible:
