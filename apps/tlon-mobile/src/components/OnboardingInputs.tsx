@@ -1,5 +1,5 @@
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { Field, TextInput, XStack, useTheme } from '@tloncorp/ui';
+import { Field, TextInput, XStack, useTheme } from '@tloncorp/app/ui';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import {
   createRef,

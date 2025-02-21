@@ -2,19 +2,19 @@ import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import {
-  ChatOptionsProvider,
-  GroupChannelsScreenView,
-  InviteUsersSheet,
-  NavigationProvider,
-  useIsWindowNarrow,
-} from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
+import {
+  ChatOptionsProvider,
+  GroupChannelsScreenView,
+  InviteUsersSheet,
+  NavigationProvider,
+  useIsWindowNarrow,
+} from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GroupChannels'>;
 
@@ -30,9 +30,7 @@ export function GroupChannelsScreenContent({
   focusedChannelId?: string;
 }) {
   const isFocused = useIsFocused();
-  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(
-    null
-  );
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
   const { group } = useGroupContext({ groupId: id, isFocused });
   const { data: unjoinedChannels } = store.useUnjoinedGroupChannels(
     group?.id ?? ''

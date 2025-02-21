@@ -10,7 +10,7 @@ import {
   ScreenHeader,
   View,
   YStack,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { useEffect, useMemo } from 'react';
 
 import { useSignupContext } from '../../lib/signupContext';

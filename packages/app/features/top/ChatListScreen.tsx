@@ -8,8 +8,19 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Keyboard } from 'react-native';
+import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
+
+import { TLON_EMPLOYEE_GROUP } from '../../constants';
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useFilteredChats } from '../../hooks/useFilteredChats';
+import { TabName } from '../../hooks/useFilteredChats';
+import { useGroupActions } from '../../hooks/useGroupActions';
+import type { RootStackParamList } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import {
-  ChatList,
   ChatOptionsProvider,
   GroupPreviewAction,
   GroupPreviewSheet,
@@ -22,22 +33,11 @@ import {
   ScreenHeader,
   View,
   WelcomeSheet,
-  useFilteredChats,
   useGlobalSearch,
   useIsWindowNarrow,
-} from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard } from 'react-native';
-import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
-
-import { TLON_EMPLOYEE_GROUP } from '../../constants';
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { TabName } from '../../hooks/useFilteredChats';
-import { useGroupActions } from '../../hooks/useGroupActions';
-import type { RootStackParamList } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+} from '../../ui';
 import { identifyTlonEmployee } from '../../utils/posthog';
+import { ChatList } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
 import { ChatListTabs } from '../chat-list/ChatListTabs';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';

@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
   YStack,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 

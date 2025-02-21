@@ -1,11 +1,8 @@
 import { faker } from '@faker-js/faker';
 import * as db from '@tloncorp/shared/db';
-import {
-  AppDataContextProvider,
-  EditProfileScreenView,
-} from '@tloncorp/ui/src';
 import { useFixtureInput } from 'react-cosmos/client';
 
+import { AppDataContextProvider, EditProfileScreenView } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import { group } from './fakeData';
 

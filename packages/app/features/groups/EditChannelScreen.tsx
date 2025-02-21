@@ -1,10 +1,10 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/store';
-import { EditChannelScreenView } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import { EditChannelScreenView } from '../../ui';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'EditChannel'>;
 

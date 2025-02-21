@@ -1,9 +1,9 @@
-import { Button, IconType, ScrollView, View } from '@tloncorp/ui';
-import * as Form from '@tloncorp/ui/src/components/Form';
 import React, { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Button, IconType, ScrollView, View } from '../ui';
+import * as Form from '../ui/components/Form';
 import { FixtureWrapper } from './FixtureWrapper';
 
 const FormFixture = () => {

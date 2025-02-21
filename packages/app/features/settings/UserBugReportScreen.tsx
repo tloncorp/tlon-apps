@@ -1,5 +1,10 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared';
+import { useCallback } from 'react';
+import { useForm } from 'react-hook-form';
+import { Alert, KeyboardAvoidingView } from 'react-native';
+
+import { RootStackParamList } from '../../navigation/types';
 import {
   Button,
   ControlledTextareaField,
@@ -8,12 +13,7 @@ import {
   ScreenHeader,
   ScrollView,
   View,
-} from '@tloncorp/ui';
-import { useCallback } from 'react';
-import { useForm } from 'react-hook-form';
-import { Alert, KeyboardAvoidingView } from 'react-native';
-
-import { RootStackParamList } from '../../navigation/types';
+} from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WompWomp'>;
 

@@ -7,7 +7,7 @@ import {
   View,
   XStack,
   YStack,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useState } from 'react';
 import { Switch } from 'react-native';

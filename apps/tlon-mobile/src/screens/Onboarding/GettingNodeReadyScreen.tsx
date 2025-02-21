@@ -28,7 +28,7 @@ import {
   View,
   XStack,
   YStack,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 

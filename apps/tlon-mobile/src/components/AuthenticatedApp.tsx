@@ -12,7 +12,7 @@ import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { PortalProvider, ZStack } from '@tloncorp/ui';
+import { PortalProvider, ZStack } from '@tloncorp/app/ui';
 import { useCallback, useEffect, useState } from 'react';
 
 import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';

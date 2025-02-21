@@ -5,6 +5,10 @@
   "types": "./src",
   "main": "src/index.tsx",
   "module:jsx": "src",
+  "exports": {
+    ".": "./src/index.ts",
+    "./assets/icons": "./src/assets/icons/index.ts"
+  },
   "files": [
     "types",
     "dist"
@@ -15,7 +19,7 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix --quiet",
     "lint:format": "prettier src/ --write",
-    "test": "vitest",
+    "test": "vitest --passWithNoTests",
     "tsc": "tsc --noEmit"
   },
   "lint-staged": {
