@@ -34,7 +34,7 @@ appId: io.tlon.groups
 - assertVisible: 'Secret group with 1 member'
 - tapOn: 'Group info & settings'
 - assertVisible: 'Group info'
-# Pin and unpin the group
+# Pin and unpin the group, checking on the Home screen for position
 - tapOn: 'Pin'
 - assertVisible: 'Unpin'
 - tapOn:
