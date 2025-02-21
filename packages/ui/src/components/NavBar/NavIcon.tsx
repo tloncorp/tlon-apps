@@ -1,4 +1,5 @@
 // tamagui-ignore
+import { ComponentProps } from 'react';
 import { Circle, ColorTokens, isWeb } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
@@ -17,6 +18,19 @@ export function AvatarNavIcon({
   onPress?: () => void;
   onLongPress?: () => void;
 }) {
+  const props: Omit<ComponentProps<typeof Pressable>, 'children'> = isWeb
+    ? {
+        width: '$3xl',
+        height: '$3xl',
+        justifyContent: 'center',
+        pressStyle: { backgroundColor: '$activeBorder' },
+        hoverStyle: { backgroundColor: '$secondaryBackground' },
+      }
+    : {
+        pressStyle: { backgroundColor: 'unset' },
+        paddingTop: '$s',
+      };
+
   return (
     <Pressable
       testID="AvatarNavIcon"
@@ -24,12 +38,8 @@ export function AvatarNavIcon({
       onPress={onPress}
       onLongPress={onLongPress}
       alignItems="center"
-      justifyContent="center"
-      width={isWeb ? '$3xl' : undefined}
-      height={isWeb ? '$3xl' : undefined}
-      pressStyle={{ backgroundColor: '$activeBorder' }}
-      hoverStyle={{ backgroundColor: '$secondaryBackground' }}
       borderRadius="$s"
+      {...props}
     >
       <ContactAvatar
         {...(isWeb
@@ -60,6 +70,14 @@ export default function NavIcon({
   shouldShowUnreads?: boolean;
 }) {
   const resolvedType = isActive && activeType ? activeType : type;
+  const props: Omit<ComponentProps<typeof Pressable>, 'children'> = isWeb
+    ? {
+        pressStyle: { backgroundColor: '$activeBorder' },
+        hoverStyle: { backgroundColor: '$secondaryBackground' },
+      }
+    : {
+        pressStyle: { backgroundColor: 'unset' },
+      };
   return (
     <Pressable
       alignItems="center"
@@ -67,8 +85,7 @@ export default function NavIcon({
       onPress={onPress}
       borderRadius="$s"
       backgroundColor={backgroundColor}
-      pressStyle={{ backgroundColor: '$activeBorder' }}
-      hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+      {...props}
     >
       <Icon
         type={resolvedType}
