@@ -4,7 +4,6 @@ import {
 } from '@react-navigation/drawer';
 import { View, getVariableValue, useTheme } from '@tamagui/core';
 import * as db from '@tloncorp/shared/db';
-import { SettingsScreenView } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
@@ -19,6 +18,7 @@ import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
+import { SettingsScreenView } from '../../ui';
 
 const SettingsDrawer = createDrawerNavigator();
 
@@ -29,6 +29,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const currentUserId = useCurrentUserId();
   const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
+  const focusedRoute = props.state.routes[props.state.index];
 
   const onAppInfoPressed = useCallback(() => {
     navigate('AppInfo');
@@ -71,6 +72,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
       onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
       onThemePressed={onThemePressed}
       dmLink={dmLink}
+      focusedRouteName={focusedRoute.name}
     />
   );
 }

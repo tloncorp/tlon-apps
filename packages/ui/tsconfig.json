@@ -1,11 +1,6 @@
 {
   "extends": "../../tsconfig",
-  "include": [
-    "./src",
-    "../app/features/chat-list/ChatListSearch.tsx",
-    "../app/features/chat-list/ChatList.tsx",
-    "../app/hooks/useFilteredChats.ts"
-  ],
+  "include": ["./src"],
   "compilerOptions": {
     "composite": true
   }

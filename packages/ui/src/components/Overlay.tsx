@@ -44,7 +44,7 @@ function OverlayDisplayIos(props: ComponentProps<typeof View>) {
       <BlurView
         style={{ flex: 1 }}
         intensity={30}
-        tint={theme.overlayBlurTint.val as BlurTint}
+        tint={theme.overlayBlurTint?.val as BlurTint}
       />
     </View>
   );

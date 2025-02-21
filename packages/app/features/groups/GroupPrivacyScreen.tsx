@@ -1,11 +1,11 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { schema } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Form, ScreenHeader, View, triggerHaptic } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import { Form, ScreenHeader, View, triggerHaptic } from '../../ui';
 
 type GroupPrivacy = schema.GroupPrivacy;
 

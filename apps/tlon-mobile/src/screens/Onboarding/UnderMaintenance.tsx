@@ -12,8 +12,8 @@ import {
   ScreenHeader,
   View,
   useStore,
-} from '@tloncorp/ui';
-import { TlonText } from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
+import { TlonText } from '@tloncorp/app/ui';
 import { useCallback, useState } from 'react';
 
 import { OnboardingStackParamList } from '../../types';

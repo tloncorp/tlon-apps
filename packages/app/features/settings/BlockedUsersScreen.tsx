@@ -1,12 +1,12 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { BlockedContactsWidget, ScreenHeader, View } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootStackParamList } from '../../navigation/types';
+import { BlockedContactsWidget, ScreenHeader, View } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BlockedUsers'>;
 

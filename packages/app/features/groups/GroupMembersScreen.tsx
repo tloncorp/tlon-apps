@@ -1,11 +1,11 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { GroupMembersScreenView } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
+import { GroupMembersScreenView } from '../../ui';
 
 type Props = NativeStackScreenProps<
   GroupSettingsStackParamList,

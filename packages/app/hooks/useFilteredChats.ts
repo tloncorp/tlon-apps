@@ -1,12 +1,12 @@
 import { configurationFromChannel, useMessagesFilter } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { TalkSidebarFilter } from '@tloncorp/shared/urbit';
-import { useCalm } from '@tloncorp/ui/src/contexts';
-import { getChannelTitle, getGroupTitle } from '@tloncorp/ui/src/utils';
 import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 
+import { useCalm } from '../ui';
+import { getChannelTitle, getGroupTitle } from '../ui';
 import { useCurrentUserId } from './useCurrentUser';
 
 export type TabName = 'all' | 'home' | 'groups' | 'messages' | 'talk';

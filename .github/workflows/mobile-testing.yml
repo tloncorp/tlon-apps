@@ -1,7 +1,8 @@
-name: Build Tlon Mobile
+name: Test Tlon Mobile E2E
 on:
   push:
     branches: [develop]
+  workflow_dispatch:
 jobs:
   test-ios:
     runs-on: ubuntu-latest

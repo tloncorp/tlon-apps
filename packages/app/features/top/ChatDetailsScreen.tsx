@@ -2,6 +2,14 @@ import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getGroupReferencePath } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { capitalize } from 'lodash';
+import { useCallback, useMemo, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useGroupContext } from '../../hooks/useGroupContext';
+import { RootStackParamList, RootStackRouteProp } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import {
   ActionSheet,
   ChatOptionsProvider,
@@ -28,15 +36,7 @@ import {
   useCurrentUserId,
   useGroupTitle,
   useIsAdmin,
-} from '@tloncorp/ui';
-import { capitalize } from 'lodash';
-import { useCallback, useMemo, useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useGroupContext } from '../../hooks/useGroupContext';
-import { RootStackParamList, RootStackRouteProp } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+} from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatDetails'>;
 
