@@ -852,6 +852,18 @@ export const handleStorageUpdate = async (update: api.StorageUpdate) => {
   }
 };
 
+export const handleSettingsUpdate = async (update: api.SettingsUpdate) => {
+  const userId = api.getCurrentUserId();
+  switch (update.type) {
+    case 'updateSetting':
+      await db.insertSettings({
+        userId,
+        ...update.setting,
+      });
+      break;
+  }
+};
+
 export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   logger.log('event: channels update', update);
   switch (update.type) {
@@ -1296,6 +1308,7 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
       api.subscribeGroups(handleGroupUpdate),
       api.subscribeToContactUpdates(handleContactUpdate),
       api.subscribeToStorageUpdates(handleStorageUpdate),
+      api.subscribeToSettings(handleSettingsUpdate),
     ]);
   });
 };

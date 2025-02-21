@@ -38,6 +38,7 @@ export type Action = {
   description?: string;
   action?: () => void;
   disabled?: boolean;
+  selected?: boolean;
   render?: (props: ActionRenderProps) => ReactElement;
   endIcon?: IconType | ReactElement;
   startIcon?: IconType | ReactElement;
@@ -448,6 +449,12 @@ const ActionSheetActionFrame = styled(ListItem, {
       },
       neutral: {},
       disabled: {},
+      selected: {
+        backgroundColor: '$positiveBackground',
+        pressStyle: {
+          backgroundColor: '$positiveBackground',
+        },
+      },
     },
   } as const,
 });
@@ -503,7 +510,13 @@ function ActionSheetAction({ action }: { action: Action }) {
     action.render({ action })
   ) : (
     <ActionSheetActionFrame
-      type={action.disabled ? 'disabled' : action.accent ?? accent}
+      type={
+        action.selected
+          ? 'selected'
+          : action.disabled
+            ? 'disabled'
+            : action.accent ?? accent
+      }
       onPress={accent !== 'disabled' ? action.action : undefined}
       height={isWindowNarrow ? undefined : '$4xl'}
     >

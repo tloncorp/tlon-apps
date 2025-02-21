@@ -85,11 +85,11 @@ export const useCalmSettings = (options: { userId: string }) => {
 };
 
 export const useMessagesFilter = (options: { userId: string }) => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
-    queryKey: ['messagesFilter'],
+    queryKey: ['messagesFilter', deps],
     queryFn: async () => {
       const settings = await db.getSettings(options.userId);
-      console.log('settings from db', settings, options.userId);
       return getMessagesFilter(settings?.messagesFilter);
     },
   });

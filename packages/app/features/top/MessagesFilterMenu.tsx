@@ -9,10 +9,11 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 export function MessagesFilterMenu({ children }: PropsWithChildren) {
   const [isOpen, setIsOpen] = useState(false);
   const currentUserId = useCurrentUserId();
+  const { data } = store.useMessagesFilter({ userId: currentUserId });
+  const talkFilter = data ?? 'Direct Messages';
 
   const handleAction = useCallback((value: TalkSidebarFilter) => {
     return () => {
-      console.log(value);
       store.changeMessageFilter(value, currentUserId);
       setIsOpen(false);
     };
@@ -31,17 +32,20 @@ export function MessagesFilterMenu({ children }: PropsWithChildren) {
       {
         title: 'Direct Messages',
         action: handleAction('Direct Messages'),
+        selected: talkFilter === 'Direct Messages',
       },
       {
         title: 'Chat Channels',
         action: handleAction('Group Channels'),
+        selected: talkFilter === 'Group Channels',
       },
       {
         title: 'All Messages',
         action: handleAction('All Messages'),
+        selected: talkFilter === 'All Messages',
       },
     ]);
-  }, [handleAction]);
+  }, [handleAction, talkFilter]);
 
   return (
     <Popover

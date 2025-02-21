@@ -38,7 +38,6 @@ export function useFilteredChats({
   );
 
   const { data } = useMessagesFilter({ userId });
-  console.log('messages filter', data);
   const talkFilter = data ?? 'Direct Messages';
 
   return useMemo(() => {
@@ -63,7 +62,15 @@ export function useFilteredChats({
         },
       ];
     }
-  }, [activeTab, pending, searchQuery, searchResults, unpinned, pinned]);
+  }, [
+    activeTab,
+    pending,
+    searchQuery,
+    searchResults,
+    unpinned,
+    pinned,
+    talkFilter,
+  ]);
 }
 
 function useChatSearch({
