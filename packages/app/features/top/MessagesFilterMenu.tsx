@@ -1,10 +1,9 @@
-import { Popover } from '@tamagui/popover';
 import * as store from '@tloncorp/shared/store';
 import { TalkSidebarFilter } from '@tloncorp/shared/urbit';
-import { ActionSheet, createActionGroups } from '@tloncorp/ui';
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { ActionSheet, createActionGroups } from '../../ui';
 
 export function MessagesFilterMenu({ children }: PropsWithChildren) {
   const [isOpen, setIsOpen] = useState(false);
