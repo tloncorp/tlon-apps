@@ -711,12 +711,18 @@
   ::
       %handle-http-request
     ::TODO  rate-limiting
-    :_  this  ::  never change state
     =+  !<(order:hu vase)
     ?.  ?=(%'GET' method.request)
-      (spout:hu id [405 ~] `(as-octs:mimes:html 'read-only'))
+      [(spout:hu id [405 ~] `(as-octs:mimes:html 'read-only')) this]
     =/  qer=query:hu  (purse:hu url.request)
-    =*  fof  (spout:hu id [404 ~] `(as-octs:mimes:html 'not found'))
+    =*  fof
+      %.  :_  this
+          (spout:hu id [404 ~] `(as-octs:mimes:html 'not found'))
+      %+  tell:l  %info
+      :~  'serving 404'
+          (cat 3 'on ' (spat site.qer))
+          (cat 3 'to ' (scot ?-(-.address %ipv4 %if, %ipv6 %is) +.address))
+      ==
     ?.  ?=([%verifier *] site.qer)
       fof
     ?+  t.site.qer  fof
@@ -726,9 +732,9 @@
       ?~  rec=(~(get by records) u.aid)   fof
       ?.  ?=(%done -.status.u.rec)        fof
       ?:  =(sig.half.status.u.rec u.sig)
-        (spout:hu id [200 ~] `(display | +.status.u.rec))
+        [(spout:hu id [200 ~] `(display | +.status.u.rec)) this]
       ?:  =(sig.full.status.u.rec u.sig)
-        (spout:hu id [200 ~] `(display & +.status.u.rec))
+        [(spout:hu id [200 ~] `(display & +.status.u.rec)) this]
       ::  if we make it into this branch our bookkeeping is bad
       ::
       ~&  [dap.bowl %no-such-sig sig=`@uw`u.sig in=u.aid]
@@ -740,7 +746,7 @@
       ?~  aid=(~(get by lookups) u.num)  fof
       ?~  rec=(~(get by records) u.aid)  fof
       ?.  ?=(%done -.status.u.rec)       fof
-      (spout:hu id [200 ~] `(display & +.status.u.rec))
+      [(spout:hu id [200 ~] `(display & +.status.u.rec)) this]
     ==
   ==
 ::
