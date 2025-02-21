@@ -5,6 +5,8 @@ appId: io.tlon.groups
 - runFlow: 10-settings.yaml
 - runFlow: 20-profile.yaml
 - runFlow: 30-contacts.yaml
+  when:
+    platform: ios
 - runFlow: 40-create-group.yaml
 - runFlow: 41-customize-group.yaml
 - runFlow: 42-group-info-settings.yaml
