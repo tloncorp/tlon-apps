@@ -1,0 +1,96 @@
+appId: io.tlon.groups
+---
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/tlon-login.yaml
+- assertVisible: 'Home'
+# Tap on the "+" button
+- tapOn:
+    id: 'CreateGroupButton'
+# Assert that the sheet pops
+- assertVisible: 'Create customizable group chat'
+- tapOn: 'New group'
+# Assert that the contacts sheet pops
+- assertVisible: 'Select contacts to invite'
+# Create the group
+- tapOn: 'Create group'
+- runFlow:
+    when:
+      visible: 'General'
+    commands:
+      - assertVisible: 'Welcome to your group!'
+# Navigate back to Home and assert that the group is created
+- tapOn:
+    id: 'HeaderBackButton'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible: 'Untitled group'
+      - tapOn: 'Untitled group'
+      - assertVisible: 'General'
+# Open the overflow menu from the channel header
+- tapOn:
+    id: 'ChannelHeaderOverflowMenuButton'
+- assertVisible: 'Secret group with 1 member'
+- tapOn: 'Group info & settings'
+- assertVisible: 'Group info'
+# Pin and unpin the group, checking on the Home screen for position
+- tapOn: 'Pin'
+- assertVisible: 'Unpin'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible: 'General'
+- tapOn:
+    id: 'HeaderBackButton'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible:
+          text: 'Untitled group'
+          below: '.*Pinned.*'
+- tapOn: 'Untitled group'
+- tapOn:
+    id: 'ChannelHeaderOverflowMenuButton'
+- assertVisible: 'Secret group with 1 member'
+- tapOn: 'Group info & settings'
+- tapOn: 'Unpin'
+- assertVisible: 'Pin'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible: 'General'
+- tapOn:
+    id: 'HeaderBackButton'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertNotVisible:
+          text: '.*Pinned.*'
+- tapOn: 'Untitled group'
+- tapOn:
+    id: 'ChannelHeaderOverflowMenuButton'
+- tapOn: 'Group info & settings'
+# Copy group reference. Sometimes the cloud runner fails to catch the confirmation in time
+- tapOn: 'Reference'
+- assertVisible:
+    text: 'Copied'
+    optional: true
+# TODO: Everything else on this screen
+# Delete group and clean up
+- scrollUntilVisible:
+    direction: DOWN
+    element:
+      text: 'Delete group'
+- tapOn: 'Delete group'
+- runFlow:
+    when:
+      visible: 'This action cannot be undone.'
+    commands:
+      - tapOn: 'Delete group'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible: 'Home'
+      - assertNotVisible: 'Untitled group'

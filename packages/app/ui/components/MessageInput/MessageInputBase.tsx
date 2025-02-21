@@ -189,6 +189,7 @@ export const MessageInputContainer = memo(
                 backgroundColor="unset"
                 borderColor="transparent"
                 opacity={disableSend ? 0.5 : 1}
+                testID="MessageInputSendButton"
               >
                 {isEditing ? (
                   <Icon size="$m" type="Checkmark" />

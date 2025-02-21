@@ -16,13 +16,12 @@ appId: io.tlon.groups
 - 'eraseText'
 - inputText: 'Testing nickname'
 - 'hideKeyboard'
-- runFlow:
-    when:
-      platform: ios
-    commands:
-      - tapOn: 'Change avatar image'
-      - tapOn: 'Photo Library'
-      - tapOn: 'Photo, March 30, 2018, 3:14 PM'
+- tapOn: 'Change avatar image'
+- assertVisible: 'Photo Library'
+- swipe:
+    direction: 'DOWN'
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn: 'Hanging out...'
 - 'eraseText'
 - inputText: 'Testing status'
@@ -66,16 +65,6 @@ appId: io.tlon.groups
 - tapOn: 'Testing bio'
 - 'eraseText'
 - 'hideKeyboard'
-- runFlow:
-    when:
-      platform: ios
-    commands:
-      - tapOn: 'Change avatar image'
-      - tapOn: 'Clear'
-      - swipe:
-          direction: 'DOWN'
-      - waitForAnimationToEnd:
-          timeout: 5000
 - tapOn:
     id: 'ProfilePinnedGroupRemove'
 - tapOn: 'Done'
