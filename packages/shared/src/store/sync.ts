@@ -185,6 +185,7 @@ export const syncSettings = async (ctx?: SyncCtx) => {
   const settings = await syncQueue.add('settings', ctx, () =>
     api.getSettings()
   );
+  console.log('got settings from api', settings);
   return db.insertSettings(settings);
 };
 

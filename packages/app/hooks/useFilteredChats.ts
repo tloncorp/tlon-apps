@@ -1,10 +1,13 @@
-import { configurationFromChannel } from '@tloncorp/shared';
+import { configurationFromChannel, useMessagesFilter } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { TalkSidebarFilter } from '@tloncorp/shared/urbit';
 import { useCalm } from '@tloncorp/ui/src/contexts';
 import { getChannelTitle, getGroupTitle } from '@tloncorp/ui/src/utils';
 import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+
+import { useCurrentUserId } from './useCurrentUser';
 
 export type TabName = 'all' | 'home' | 'groups' | 'messages' | 'talk';
 
@@ -26,6 +29,7 @@ export function useFilteredChats({
   searchQuery: string;
   activeTab: TabName;
 }): SectionedChatData {
+  const userId = useCurrentUserId();
   const performSearch = useChatSearch({ pinned, unpinned, pending });
   const debouncedQuery = useDebouncedValue(searchQuery, 200);
   const searchResults = useMemo(
@@ -33,16 +37,20 @@ export function useFilteredChats({
     [debouncedQuery, performSearch]
   );
 
+  const { data } = useMessagesFilter({ userId });
+  console.log('messages filter', data);
+  const talkFilter = data ?? 'Direct Messages';
+
   return useMemo(() => {
     const isSearching = searchQuery && searchQuery.trim() !== '';
     if (!isSearching) {
       const pinnedSection = {
         title: 'Pinned',
-        data: filterChats(pinned, activeTab),
+        data: filterChats(pinned, activeTab, talkFilter),
       };
       const allSection = {
         title: 'All',
-        data: filterChats([...pending, ...unpinned], activeTab),
+        data: filterChats([...pending, ...unpinned], activeTab, talkFilter),
       };
       return pinnedSection.data.length
         ? [pinnedSection, allSection]
@@ -51,7 +59,7 @@ export function useFilteredChats({
       return [
         {
           title: 'Search results',
-          data: filterChats(searchResults, activeTab),
+          data: filterChats(searchResults, activeTab, talkFilter),
         },
       ];
     }
@@ -103,7 +111,11 @@ function useChatSearch({
   return performSearch;
 }
 
-function filterChats(chats: db.Chat[], activeTab: TabName) {
+function filterChats(
+  chats: db.Chat[],
+  activeTab: TabName,
+  filter: TalkSidebarFilter
+) {
   return chats.filter((chat) => {
     if (activeTab === 'groups') {
       return chat.type === 'group';
@@ -114,8 +126,16 @@ function filterChats(chats: db.Chat[], activeTab: TabName) {
         return false;
       }
 
+      if (filter === 'Direct Messages') {
+        return chat.channel.type === 'dm' || chat.channel.type === 'groupDm';
+      }
+
+      if (filter === 'Group Channels') {
+        return chat.channel.type === 'chat';
+      }
+
       return (
-        (activeTab === 'talk' && chat.channel.type === 'chat') ||
+        chat.channel.type === 'chat' ||
         chat.channel.type === 'dm' ||
         chat.channel.type === 'groupDm'
       );

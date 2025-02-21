@@ -146,7 +146,7 @@ export const getSettings = createReadQuery(
   async (userId: string, ctx: QueryCtx) => {
     return ctx.db.query.settings.findFirst({
       where(fields) {
-        return eq(fields.userId, desig(userId));
+        return eq(fields.userId, userId);
       },
     });
   },

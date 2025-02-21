@@ -23,7 +23,7 @@ interface GroupSideBarSort {
     | typeof DEFAULT_SORT;
 }
 
-type Stringified<T> = string & {
+export type Stringified<T> = string & {
   [P in keyof T]: { '_ value': T[P] };
 };
 

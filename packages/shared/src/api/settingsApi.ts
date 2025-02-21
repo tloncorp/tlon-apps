@@ -1,6 +1,48 @@
 import * as db from '../db';
 import * as ub from '../urbit';
-import { getCurrentUserId, scry } from './urbit';
+import { getCurrentUserId, poke, scry } from './urbit';
+
+export function getMessagesFilter(
+  value: string | null | undefined
+): ub.TalkSidebarFilter {
+  console.log('value of messages filter', value);
+  if (!value) {
+    return 'Direct Messages';
+  }
+
+  switch (value) {
+    case 'Direct Messages':
+    case 'All Messages':
+    case 'Group Channels':
+      return value;
+    default:
+      throw new Error(`Invalid messages filter: ${value}`);
+  }
+}
+
+function getBucket(key: string): string {
+  switch (key) {
+    case 'messagesFilter':
+      return 'talk';
+    default:
+      throw new Error(`Invalid setting key: ${key}`);
+  }
+}
+
+export const setSetting = async (key: string, val: any) => {
+  return poke({
+    app: 'settings',
+    mark: 'settings-event',
+    json: {
+      'put-entry': {
+        desk: 'groups',
+        'bucket-key': getBucket(key),
+        'entry-key': key,
+        value: val,
+      },
+    },
+  });
+};
 
 export const getSettings = async () => {
   const results = await scry<ub.GroupsDeskSettings>({
