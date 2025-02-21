@@ -32,8 +32,6 @@ appId: io.tlon.groups
     commands:
       - tapOn: 'Change avatar image'
       - tapOn: 'Photo Library'
-      - waitForAnimationToEnd:
-          timeout: 5000
       - tapOn:
           point: '16%,28%'
           retryTapIfNoChange: true
