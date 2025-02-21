@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { Sheet } from '@tloncorp/ui';
+import { Sheet, SheetHeader, Text } from '@tloncorp/ui';
 import React, { useEffect, useState } from 'react';
 import { Modal } from 'react-native';
 import { YStack } from 'tamagui';
@@ -14,6 +14,7 @@ interface SheetProps {
   initialSelected?: string[];
   selected?: string[];
   onSelect?: (group: db.Group) => void;
+  onClose: () => void;
   alphaSegmentedGroups: AlphaSegmentedGroups;
   TopContent?: React.ReactNode;
 }
@@ -44,15 +45,24 @@ export function GroupSelectorSheet(props: SheetProps) {
         <Sheet.Overlay />
         <Sheet.LazyFrame paddingTop="$s" paddingHorizontal="$2xl">
           <Sheet.Handle marginBottom="$l" />
-          <YStack flex={1} gap="$2xl">
-            {props.TopContent}
-            <GroupSelector
-              selected={props.selected}
-              onSelect={props.onSelect}
-              onScrollChange={setContentScrolling}
-              alphaSegmentedGroups={props.alphaSegmentedGroups}
-            />
-          </YStack>
+          <SheetHeader marginBottom="$2xl">
+            <SheetHeader.Title>{props.TopContent}</SheetHeader.Title>
+            <SheetHeader.RightControls>
+              <SheetHeader.ButtonText
+                onPress={props.onClose}
+                testID="CloseFavoriteGroupSelectorSheet"
+              >
+                Close
+              </SheetHeader.ButtonText>
+            </SheetHeader.RightControls>
+          </SheetHeader>
+
+          <GroupSelector
+            selected={props.selected}
+            onSelect={props.onSelect}
+            onScrollChange={setContentScrolling}
+            alphaSegmentedGroups={props.alphaSegmentedGroups}
+          />
         </Sheet.LazyFrame>
       </Sheet>
     </Modal>

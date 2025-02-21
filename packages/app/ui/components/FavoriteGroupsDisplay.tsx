@@ -105,6 +105,7 @@ export function FavoriteGroupsDisplay(props: {
         alphaSegmentedGroups={alphaSegmentedGroups}
         selected={props.groups.map((g) => g.id)}
         onSelect={handleFavoriteGroupsChange}
+        onClose={() => setSelectorOpen(false)}
         TopContent={SheetTopContent}
       />
     </WidgetPane>

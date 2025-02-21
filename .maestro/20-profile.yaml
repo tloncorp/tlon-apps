@@ -34,11 +34,10 @@ appId: io.tlon.groups
 - tapOn: 'Add a group'
 - scrollUntilVisible:
     element: 'Tlon Studio'
+    timeout: 1000000
 - tapOn: 'Tlon Studio'
-- swipe:
-    direction: 'DOWN'
-- waitForAnimationToEnd:
-    timeout: 5000
+- tapOn:
+    id: 'CloseFavoriteGroupSelectorSheet'
 - tapOn: 'Done'
 # Assert profile details are visible on self-view
 - assertVisible: 'Profile'
