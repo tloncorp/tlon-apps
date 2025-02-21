@@ -40,3 +40,22 @@ jobs:
           SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}
           URBIT_REPO_TAG: ${{ vars.URBIT_REPO_TAG_KERNEL }}
+  deploy-new:
+    runs-on: ubuntu-latest
+    name: "Release new frontend to ~doznec-dozzod-marnus (internal)"
+    steps:
+      - uses: actions/checkout@v3
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SERVICE_KEY }}'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
+      - id: deploy
+        name: Deploy
+        run:
+          ./.github/helpers/deploy.sh tloncorp/tlon-apps tm-alpha doznec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ github.event.inputs.tag }}
+        env:
+          SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
+          SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}
+          URBIT_REPO_TAG: ${{ vars.URBIT_REPO_TAG }}

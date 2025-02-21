@@ -21,6 +21,7 @@ interface Props {
   onExperimentalFeaturesPressed?: () => void;
   dmLink?: string;
   onBackPressed?: () => void;
+  focusedRouteName?: string;
 }
 
 export function SettingsScreenView(props: Props) {
@@ -49,12 +50,14 @@ export function SettingsScreenView(props: Props) {
             leftIcon="Notifications"
             rightIcon={'ChevronRight'}
             onPress={props.onNotificationSettingsPressed}
+            isFocused={props.focusedRouteName === 'PushNotificationSettings'}
           />
           <SettingsAction
             title="Blocked users"
             leftIcon="Placeholder"
             rightIcon={'ChevronRight'}
             onPress={props.onBlockedUsersPressed}
+            isFocused={props.focusedRouteName === 'BlockedUsers'}
           />
           {props.hasHostedAuth && (
             <SettingsAction
@@ -74,6 +77,7 @@ export function SettingsScreenView(props: Props) {
                 </View>
               }
               onPress={props.onManageAccountPressed}
+              isFocused={props.focusedRouteName === 'ManageAccount'}
             />
           )}
           <SettingsAction
@@ -81,24 +85,28 @@ export function SettingsScreenView(props: Props) {
             leftIcon="ChannelGalleries"
             rightIcon={'ChevronRight'}
             onPress={props.onThemePressed}
+            isFocused={props.focusedRouteName === 'Theme'}
           />
           <SettingsAction
             title="App info"
             leftIcon="Info"
             rightIcon={'ChevronRight'}
             onPress={props.onAppInfoPressed}
+            isFocused={props.focusedRouteName === 'AppInfo'}
           />
           <SettingsAction
             title="Report a bug"
             leftIcon="Send"
             rightIcon={'ChevronRight'}
             onPress={props.onSendBugReportPressed}
+            isFocused={props.focusedRouteName === 'WompWomp'}
           />
           <SettingsAction
             title="Experimental features"
             leftIcon="Bang"
             rightIcon={'ChevronRight'}
             onPress={props.onExperimentalFeaturesPressed}
+            isFocused={props.focusedRouteName === 'FeatureFlags'}
           />
           <SettingsAction
             title="Log out"
@@ -117,15 +125,21 @@ function SettingsAction({
   title,
   subtitle,
   onPress,
+  isFocused,
 }: {
   leftIcon: IconType | ReactElement;
   rightIcon?: IconType | ReactElement;
   title: string;
   onPress?: () => void;
   subtitle?: string;
+  isFocused?: boolean;
 }) {
   return (
-    <Pressable borderRadius="$xl" onPress={onPress}>
+    <Pressable
+      borderRadius="$xl"
+      onPress={onPress}
+      backgroundColor={isFocused ? '$secondaryBackground' : 'transparent'}
+    >
       <ListItem>
         {typeof leftIcon === 'string' ? (
           <ListItem.SystemIcon icon={leftIcon} rounded />

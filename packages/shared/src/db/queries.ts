@@ -593,7 +593,8 @@ export const insertGroups = createWriteQuery(
                 $groups.privacy,
                 $groups.joinStatus,
                 $groups.currentUserIsMember,
-                $groups.haveInvite
+                $groups.haveInvite,
+                $groups.haveRequestedInvite
               ),
             });
         } else {

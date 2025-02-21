@@ -1,4 +1,4 @@
-// Copyright 2024, Tlon Corporation
+// Copyright 2025, Tlon Corporation
 import {
   DarkTheme,
   DefaultTheme,
@@ -16,10 +16,10 @@ import {
 } from '@tloncorp/app/navigation/linking';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
+import { LoadingSpinner, StoreProvider, Text, View } from '@tloncorp/app/ui';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { LoadingSpinner, StoreProvider, View } from '@tloncorp/app/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { PropsWithChildren, useEffect, useState } from 'react';
@@ -71,6 +71,14 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
   const currentUserId = useCurrentUserId();
   const calmSettingsQuery = store.useCalmSettings({ userId: currentUserId });
   const { needsUpdate, triggerUpdate } = useAppUpdates();
+  const [currentRoute, setCurrentRoute] = useState<any>(null);
+
+  const { data: channelData } = store.useChannel({
+    id: currentRoute?.params?.channelId,
+  });
+  const { data: groupData } = store.useGroup({
+    id: currentRoute?.params?.groupId,
+  });
 
   useEffect(() => {
     const { data, refetch, isRefetching, isFetching } = contactsQuery;
@@ -95,6 +103,25 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
     return null;
   }
 
+  const getFriendlyName = (routeName: string) => {
+    const friendlyNames: Record<string, string> = {
+      ChatList: 'Home',
+      GroupSettings: 'Group Settings',
+      ChannelSearch: 'Search',
+      ChatDetails: 'Chat Details',
+      UserProfile: 'Profile',
+      AppSettings: 'Settings',
+      ManageAccount: 'Account',
+      BlockedUsers: 'Blocked Users',
+      FeatureFlags: 'Features',
+      PushNotificationSettings: 'Notifications',
+    };
+
+    return (
+      friendlyNames[routeName] || routeName.replace(/([A-Z])/g, ' $1').trim()
+    );
+  };
+
   return (
     <AppDataProvider
       webAppNeedsUpdate={needsUpdate}
@@ -104,6 +131,61 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
         <NavigationContainer
           linking={getMobileLinkingConfig(import.meta.env.MODE)}
           theme={isDarkMode ? DarkTheme : DefaultTheme}
+          onStateChange={(state) => {
+            if (state) {
+              const route = state.routes[state.index];
+              const nestedRoute = route.state?.routes[route.state?.index || 0];
+              if (nestedRoute) {
+                setCurrentRoute(nestedRoute);
+              }
+            }
+          }}
+          documentTitle={{
+            enabled: true,
+            formatter: (options, route) => {
+              if (!route?.name) return 'Tlon';
+
+              if (route.name === 'GroupChannels') {
+                if (groupData) {
+                  return `${groupData.title} | Tlon`;
+                }
+                return 'Group Channels | Tlon';
+              }
+
+              // For channel routes
+              if (route.name === 'Channel' || route.name === 'ChannelRoot') {
+                if (channelData && groupData) {
+                  return `${channelData.title} - ${groupData.title} | Tlon`;
+                }
+              }
+
+              // For DM routes
+              if (route.name === 'DM') {
+                if (channelData) {
+                  const title =
+                    channelData.title ||
+                    channelData.contact?.peerNickname ||
+                    channelData.contact?.customNickname ||
+                    channelData.contactId ||
+                    'Chat';
+                  return `${title} | Tlon`;
+                }
+                return 'Chat | Tlon';
+              }
+
+              // For Group DM routes
+              if (route.name === 'GroupDM') {
+                if (channelData) {
+                  return `${channelData.title !== '' ? channelData.title : 'Group DM'} | Tlon`;
+                }
+                return 'Group DM | Tlon';
+              }
+
+              // For other routes
+              const screenName = getFriendlyName(route.name);
+              return `${screenName} | Tlon`;
+            },
+          }}
         >
           <BasePathNavigator isMobile={isMobile} />
         </NavigationContainer>
@@ -111,6 +193,53 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
         <NavigationContainer
           linking={getDesktopLinkingConfig(import.meta.env.MODE)}
           theme={isDarkMode ? DarkTheme : DefaultTheme}
+          onStateChange={(state) => {
+            if (state) {
+              const route = state.routes[state.index];
+              const nestedRoute = route.state?.routes[route.state?.index || 0];
+              if (
+                nestedRoute &&
+                (nestedRoute.name === 'Home' || nestedRoute.name === 'Messages')
+              ) {
+                const nestedHomeRoute =
+                  nestedRoute.state?.routes[nestedRoute.state?.index || 0];
+                if (nestedHomeRoute) {
+                  setCurrentRoute(nestedHomeRoute);
+                }
+              }
+            }
+          }}
+          documentTitle={{
+            enabled: true,
+            formatter: (options, route) => {
+              if (!route?.name) return 'Tlon';
+
+              // For channel routes
+              if (route.name === 'Channel' || route.name === 'ChannelRoot') {
+                if (channelData && groupData) {
+                  if (groupData?.title) {
+                    return `${channelData.title} - ${groupData.title} | Tlon`;
+                  } else {
+                    return `${channelData.title} | Tlon`;
+                  }
+                }
+                if (channelData) {
+                  const title =
+                    channelData.title ||
+                    channelData.contact?.peerNickname ||
+                    channelData.contact?.customNickname ||
+                    channelData.contactId ||
+                    'Chat';
+                  return `${title} | Tlon`;
+                }
+                return 'Chat | Tlon';
+              }
+
+              // For other routes
+              const screenName = getFriendlyName(route.name);
+              return `${screenName} | Tlon`;
+            },
+          }}
         >
           <BasePathNavigator isMobile={isMobile} />
         </NavigationContainer>
@@ -197,8 +326,23 @@ const App = React.memo(function AppComponent() {
                   width="100%"
                   justifyContent="center"
                   alignItems="center"
+                  backgroundColor="$secondaryBackground"
                 >
-                  <LoadingSpinner />
+                  <View
+                    backgroundColor="$background"
+                    padding="$xl"
+                    borderRadius="$l"
+                    aspectRatio={1}
+                    alignItems="center"
+                    justifyContent="center"
+                    borderWidth={1}
+                    borderColor="$border"
+                  >
+                    <LoadingSpinner color="$primaryText" />
+                    <Text color="$primaryText" marginTop="$xl" fontSize="$s">
+                      Starting up&hellip;
+                    </Text>
+                  </View>
                 </View>
               )}
             </StoreProvider>

@@ -29,6 +29,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const currentUserId = useCurrentUserId();
   const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
+  const focusedRoute = props.state.routes[props.state.index];
 
   const onAppInfoPressed = useCallback(() => {
     navigate('AppInfo');
@@ -71,6 +72,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
       onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
       onThemePressed={onThemePressed}
       dmLink={dmLink}
+      focusedRouteName={focusedRoute.name}
     />
   );
 }

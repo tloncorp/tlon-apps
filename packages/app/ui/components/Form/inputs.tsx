@@ -1,4 +1,4 @@
-import { VariantsFromValues } from '@tloncorp/ui';
+import { VariantsFromValues, useIsWindowNarrow } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
@@ -187,6 +187,7 @@ export const ImageInput = XStack.styleable<{
     value ?? undefined
   );
   const { attachAssets, canUpload } = useAttachmentContext();
+  const isWindowNarrow = useIsWindowNarrow();
 
   useEffect(() => {
     if (assetUri !== value) {
@@ -231,7 +232,10 @@ export const ImageInput = XStack.styleable<{
         <ImageInputButtonFrame group onPress={handleSheetToggled}>
           <ImageInputButtonText>{buttonLabel}</ImageInputButtonText>
         </ImageInputButtonFrame>
-        <ImageInputPreviewFrame onPress={handleSheetToggled}>
+        <ImageInputPreviewFrame
+          height={isWindowNarrow ? undefined : '100%'}
+          onPress={handleSheetToggled}
+        >
           <Icon type="Camera" color="$tertiaryText" />
           {placeholderUri ? (
             <ImageInputPreviewImage source={{ uri: placeholderUri }} />
@@ -276,7 +280,6 @@ const ImageInputButtonText = styled(Text, {
 const ImageInputPreviewFrame = styled(View, {
   borderRadius: '$l',
   aspectRatio: 1,
-  height: '100%',
   overflow: 'hidden',
   backgroundColor: '$border',
   alignItems: 'center',
