@@ -48,27 +48,15 @@ export function MessagesFilterMenu({ children }: PropsWithChildren) {
   }, [handleAction, talkFilter]);
 
   return (
-    <Popover
+    <ActionSheet
       open={isOpen}
       onOpenChange={handleOpenChange}
-      placement="top-start"
-      allowFlip
-      offset={-12}
+      mode="popover"
+      trigger={children}
     >
-      <Popover.Trigger asChild>{children}</Popover.Trigger>
-      <Popover.Content
-        elevate
-        animation="quick"
-        zIndex={1000000}
-        position="relative"
-        borderColor="$border"
-        borderWidth={1}
-        padding="$m"
-      >
-        <ActionSheet.ScrollableContent width={240}>
-          <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
-        </ActionSheet.ScrollableContent>
-      </Popover.Content>
-    </Popover>
+      <ActionSheet.ScrollableContent width={240}>
+        <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
+      </ActionSheet.ScrollableContent>
+    </ActionSheet>
   );
 }
