@@ -63,7 +63,9 @@ function payloadFromNotification(
   // `trigger`.
   // Detect and use whatever payload is available.
   const payload =
-    notification.request.trigger.type === 'push'
+    // `NotificationRequest.trigger` is marked as non-null in
+    // expo-notifications' types, but is null on Android - so we need the `?`
+    notification.request.trigger?.type === 'push'
       ? notification.request.trigger.payload
       : notification.request.content.data;
 
@@ -87,6 +89,17 @@ function payloadFromNotification(
       if (post != null) {
         return db.postFromPostActivityEvent(post);
       }
+
+      // Android can't seem to send a dictionary in notification data, so we send a string.
+      const dmPostJson = payload.dmPostJsonString as string | undefined;
+      if (dmPostJson != null) {
+        return db.postFromDmPostActivityEvent(JSON.parse(dmPostJson));
+      }
+      const postJson = payload.postJsonString as string | undefined;
+      if (postJson != null) {
+        return db.postFromDmPostActivityEvent(JSON.parse(postJson));
+      }
+
       return undefined;
     })();
     return {
