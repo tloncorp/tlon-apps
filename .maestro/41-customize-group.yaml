@@ -44,20 +44,15 @@ appId: io.tlon.groups
     commands:
       - assertVisible: 'My Group'
       - tapOn: 'My Group'
-# Change the group icon/picture (iOS only)
-- runFlow:
-    when:
-      platform: ios
-    commands:
-      - tapOn: 'Customize'
-      - tapOn: 'Change icon image'
-      - tapOn: 'Photo Library'
-      - waitForAnimationToEnd:
-          timeout: 5000
-      - tapOn:
-          point: '16%,28%'
-          retryTapIfNoChange: true
-      - tapOn: 'Save'
+# Change the group icon/picture
+- tapOn: 'Customize'
+- tapOn: 'Change icon image'
+- assertVisible: 'Photo Library'
+- swipe:
+    direction: 'DOWN'
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn: 'Save'
 # Change the group description
 - tapOn: 'Customize'
 - tapOn: 'About this group'

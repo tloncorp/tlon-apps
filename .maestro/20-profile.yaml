@@ -16,17 +16,10 @@ appId: io.tlon.groups
 - 'eraseText'
 - inputText: 'Testing nickname'
 - 'hideKeyboard'
-- runFlow:
-    when:
-      platform: ios
-    commands:
-      - tapOn: 'Change avatar image'
-      - tapOn: 'Photo Library'
-      - waitForAnimationToEnd:
-          timeout: 5000
-      - tapOn:
-          point: '16%,28%'
-          retryTapIfNoChange: true
+- tapOn: 'Change avatar image'
+- assertVisible: 'Photo Library'
+- swipe:
+    direction: 'DOWN'
 - waitForAnimationToEnd:
     timeout: 5000
 - tapOn: 'Hanging out...'
