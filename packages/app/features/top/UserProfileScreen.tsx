@@ -3,6 +3,13 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import { useState } from 'react';
+import { useCallback } from 'react';
+
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useGroupActions } from '../../hooks/useGroupActions';
+import { RootStackParamList } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import {
   AppDataContextProvider,
   AttachmentProvider,
@@ -11,14 +18,7 @@ import {
   NavigationProvider,
   UserProfileScreenView,
   useIsWindowNarrow,
-} from '@tloncorp/ui';
-import { useState } from 'react';
-import { useCallback } from 'react';
-
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useGroupActions } from '../../hooks/useGroupActions';
-import { RootStackParamList } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+} from '../../ui';
 import { useConnectionStatus } from './useConnectionStatus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;

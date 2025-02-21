@@ -1,12 +1,12 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/store';
+
+import { RootStackParamList } from '../../navigation/types';
 import {
   AttachmentProvider,
   EditProfileScreenView,
   GroupsProvider,
-} from '@tloncorp/ui';
-
-import { RootStackParamList } from '../../navigation/types';
+} from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 

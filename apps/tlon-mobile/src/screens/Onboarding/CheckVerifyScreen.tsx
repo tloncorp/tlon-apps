@@ -9,7 +9,7 @@ import {
   XStack,
   YStack,
   useStore,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { createRef, useCallback, useMemo, useState } from 'react';
 import type { TextInputKeyPressEventData } from 'react-native';
 import { TextInput as RNTextInput } from 'react-native';

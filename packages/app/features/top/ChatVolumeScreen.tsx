@@ -1,17 +1,17 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
+
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { RootStackParamList } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import {
   ChatOptionsProvider,
   Form,
   ScreenHeader,
   View,
   useChatOptions,
-} from '@tloncorp/ui';
-
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { RootStackParamList } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+} from '../../ui';
 
 export function ChatVolumeScreen(
   props: NativeStackScreenProps<RootStackParamList, 'ChatVolume'>

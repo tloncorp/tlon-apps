@@ -1,5 +1,9 @@
 // tamagui-ignore
 import * as db from '@tloncorp/shared/db';
+import { Text } from '@tloncorp/ui';
+import React, { PropsWithChildren } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import {
   AppDataContextProvider,
   ChannelDivider,
@@ -7,12 +11,8 @@ import {
   RequestsProvider,
   ScrollView,
   View,
-} from '@tloncorp/ui/src';
-import { PostBlockSeparator } from '@tloncorp/ui/src/components/Channel/Scroller';
-import { Text } from '@tloncorp/ui/src/components/TextV2';
-import React, { PropsWithChildren } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
+} from '../ui';
+import { PostBlockSeparator } from '../ui/components/Channel/Scroller';
 import { FixtureWrapper } from './FixtureWrapper';
 import * as content from './contentHelpers';
 import {

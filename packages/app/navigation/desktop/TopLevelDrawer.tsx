@@ -4,19 +4,19 @@ import {
 } from '@react-navigation/drawer';
 import { DrawerNavigationState } from '@react-navigation/native';
 import * as store from '@tloncorp/shared/store';
+import { useCallback, useRef } from 'react';
+import { View, getVariableValue, useTheme } from 'tamagui';
+
+import { GlobalSearch } from '../../features/chat-list/GlobalSearch';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import {
   AvatarNavIcon,
-  GlobalSearch,
   GlobalSearchProvider,
   NavIcon,
   YStack,
   useGlobalSearch,
   useWebAppUpdate,
-} from '@tloncorp/ui';
-import { useCallback, useRef } from 'react';
-import { View, getVariableValue, useTheme } from 'tamagui';
-
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
+} from '../../ui';
 import { RootDrawerParamList } from '../types';
 import { useRootNavigation } from '../utils';
 import { ActivityNavigator } from './ActivityNavigator';

@@ -5,7 +5,6 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationState } from '@react-navigation/routers';
-import { useGlobalSearch } from '@tloncorp/ui';
 import { useEffect } from 'react';
 import { View, getVariableValue, useTheme } from 'tamagui';
 
@@ -21,6 +20,7 @@ import ImageViewerScreen from '../../features/top/ImageViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
+import { useGlobalSearch } from '../../ui';
 import { HomeDrawerParamList } from '../types';
 import { HomeSidebar } from './HomeSidebar';
 

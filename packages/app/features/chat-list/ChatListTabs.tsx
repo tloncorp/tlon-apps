@@ -1,6 +1,5 @@
-import { Tabs } from '@tloncorp/ui';
-
 import { TabName } from '../../hooks/useFilteredChats';
+import { Tabs } from '../../ui';
 
 export function ChatListTabs({
   activeTab,
