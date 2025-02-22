@@ -39,17 +39,17 @@
   =/  channel=(unit [=nest:c v-channel:c])
     ?~  origin  ~
     `[origin (~(gut by v-channels) origin *v-channel:c)]
-  ;<  group=(unit group-ui:g)  bind:m
-    =/  n  (strand (unit group-ui:g))
+  ;<  group=(unit group-ui:v2:g)  bind:m
+    =/  n  (strand (unit group-ui:v2:g))
     ?~  channel  (pure:n ~)
     =*  flag  group.perm.perm.u.channel
     ;<  live=?  bind:n  (scry:s ? /gu/groups/$)
-    ?.  live  (pure:n `*group-ui:g)
+    ?.  live  (pure:n `*group-ui:v2:g)
     ;<  exists=?  bind:n
       (scry:s ? /gx/groups/exists/(scot %p p.flag)/[q.flag]/noun)
-    ?.  exists  (pure:n `*group-ui:g)
-    ;<  =group-ui:g  bind:n
-      (scry:s group-ui:g /gx/groups/groups/(scot %p p.flag)/[q.flag]/v1/noun)
+    ?.  exists  (pure:n `*group-ui:v2:g)
+    ;<  =group-ui:v2:g  bind:n
+      (scry:s group-ui:v2:g /gx/groups/groups/(scot %p p.flag)/[q.flag]/v1/noun)
     (pure:n (some group-ui))
   =/  cfg=config:h
     ?~  config  ~

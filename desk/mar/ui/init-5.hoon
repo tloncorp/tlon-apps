@@ -1,6 +1,6 @@
 /-  u=ui
 /+  gj=groups-json, cj=chat-json, dj=channel-json, aj=activity-json
-|_  init=init-4:u
+|_  init=init-5:u
 ++  grad  %noun
 ++  grow
   |%
@@ -9,8 +9,8 @@
     =,  enjs:format
     ^-  ^json
     %-  pairs
-    :~  groups/(groups-ui:v2:enjs:gj groups.init)
-        gangs/(gangs:v2:enjs:gj gangs.init)
+    :~  groups/(groups-ui:v5:enjs:gj groups.init)
+        gangs/(gangs:v5:enjs:gj gangs.init)
         activity/(activity:enjs:aj activity.init |)
         pins/a/(turn pins.init whom:enjs:gj)
         profile/b/profile.init
@@ -34,6 +34,6 @@
   --
 ++  grab
   |%
-  ++  noun  init-4:u
+  ++  noun  init-5:u
   --
 --

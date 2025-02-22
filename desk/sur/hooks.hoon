@@ -87,7 +87,7 @@
 ::
 +$  bowl
   $:  channel=(unit [=nest v-channel])
-      group=(unit group-ui:g)
+      group=(unit group-ui:v2:g)
       channels=v-channels
       =hook
       =config

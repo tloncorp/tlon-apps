@@ -1,5 +1,7 @@
 /-  meta, e=epic
 |%
+::  +okay: protocol version, defunct
+::
 ++  okay  `epic:e`3
 ::  $flag: ID for a group
 ::
@@ -87,6 +89,7 @@
   ::    added: when the channel was created
   ::    zone: what zone or section to bucket in
   ::    join: should the channel be joined by new members
+  ::    active: channel subscription status
   ::    readers: what sects can see the channel, empty means anyone
   ::
   +$  channel
@@ -133,14 +136,14 @@
       zone-ord=(list zone)
       =bloc
       =channels:channel
+      active=(set nest)
       imported=(set nest)
       =cordon
       secret=?
       meta=data:meta
       =flagged-content
   ==
-::
-+$  group-ui  [group saga=(unit saga:e)]
++$  group-ui  [group init=? count=@ud]
 ::  $cabal: metadata representing a $sect or role
 ::
 ::TODO rename cabal -> role-meta?
@@ -314,7 +317,7 @@
 +$  net
   $~  [%pub ~]
   $%  [%pub p=log]
-      [%sub p=time load=_| =saga:e]
+      [%sub p=time load=_|]
   ==
 ::
 +$  post-key  [post=time reply=(unit time)]
@@ -355,6 +358,7 @@
       =cordon
       =time
       secret=?
+      count=@ud
   ==
 ::
 +$  previews  (map flag preview)
@@ -364,7 +368,6 @@
 +$  invite  (pair flag ship)
 ::
 ::  $gang: view of foreign group
-::TODO rename gang -> foreign
 +$  gang
   $:  cam=(unit claim)
       pev=(unit preview)
@@ -373,6 +376,9 @@
 ::
 +$  gangs  (map flag gang)
 ::
+++  v5  v5:ver
+++  v2  v2:ver
+::
 ++  ver
   |%
   ::
@@ -380,6 +386,49 @@
   ::
   ++  v2
     |%
+    +$  preview
+      $:  =flag
+          meta=data:meta
+          =cordon
+          =time
+          secret=?
+      ==
+    ::
+    +$  previews  (map flag preview)
+    ::
+    ++  channel
+      |^  channel
+      ::
+      +$  preview
+        $:  =nest
+            meta=data:meta
+            group=^preview
+        ==
+      ::
+      +$  channels  (map nest channel)
+      ::
+      +$  channel
+        $:  meta=data:meta
+            added=time
+            =zone
+            join=?
+            readers=(set sect)
+        ==
+      ::
+      +$  diff
+        $%  [%add =channel]
+            [%edit =channel]
+            [%del ~]
+          ::
+            [%add-sects sects=(set sect)]
+            [%del-sects sects=(set sect)]
+          ::
+            [%zone =zone]
+          ::
+            [%join join=_|]
+        ==
+      --
+    ::
     +$  group
       $:  =fleet
           cabals=(map sect cabal)
@@ -410,6 +459,12 @@
           [%flag-content =nest =post-key src=ship]
       ==
     ::
+    +$  net
+      $~  [%pub ~]
+      $%  [%pub p=log]
+          [%sub p=time load=_| =saga:e]
+      ==
+    ::
     +$  action
       (pair flag update)
     ::
@@ -418,10 +473,28 @@
     ::
     +$  init  [=time =group]
     ::
+    +$  groups-ui
+      (map flag group-ui)
+    ::
     +$  groups
       (map flag group)
+    ::
     +$  net-groups
       (map flag [net group])
+    ::
+    +$  log
+      ((mop time diff) lte)
+    ::
+    ++  log-on
+      ((on time diff) lte)
+    ::
+    +$  gang
+      $:  cam=(unit claim)
+          pev=(unit preview)
+          vit=(unit invite)
+      ==
+    ::
+    +$  gangs  (map flag gang)
     --
   --
 --
