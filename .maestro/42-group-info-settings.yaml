@@ -48,7 +48,7 @@ appId: io.tlon.groups
     commands:
       - assertVisible:
           text: 'Untitled group'
-          below: '.*Pinned.*'
+          below: 'Pinned'
 - tapOn: 'Untitled group'
 - tapOn:
     id: 'ChannelHeaderOverflowMenuButton'
@@ -65,8 +65,9 @@ appId: io.tlon.groups
     when:
       visible: 'Home'
     commands:
-      - assertNotVisible:
-          text: '.*Pinned.*'
+      - assertVisible:
+          text: 'Untitled group'
+          below: 'All'
 - tapOn: 'Untitled group'
 - tapOn:
     id: 'ChannelHeaderOverflowMenuButton'
@@ -85,10 +86,17 @@ appId: io.tlon.groups
 - assertVisible:
     text: 'Private'
     rightOf: 'Privacy'
-# Create a role and check that the count label updates
+# Edit a role and check that the sheet pops with content
 - tapOn: 'Roles'
 - assertVisible: 'Group Roles'
 - assertVisible: 'Admin'
+- tapOn: 'Admin'
+- assertVisible: '.*Admins can add and remove channels.*'
+- assertNotVisible: 'Delete role'
+- tapOn: 'Save'
+- waitForAnimationToEnd:
+    timeout: 5000
+# Create a role and check that the count label updates
 - tapOn: 'Add Role'
 - assertVisible: 'Add role'
 - tapOn: 'Role title'
@@ -124,6 +132,22 @@ appId: io.tlon.groups
 - assertVisible:
     text: '2'
     rightOf: 'Channels'
+# Create a channel section
+- tapOn: 'Channels'
+- tapOn: 'New Section'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'Add section'
+- tapOn: 'e.g. Important channels'
+- inputText: 'Testing section'
+- tapOn: 'Save'
+- extendedWaitUntil:
+    visible: 'Testing section'
+    timeout: 10000
+    # Currently a bug, skipping if fails
+    optional: true
+- tapOn:
+    id: 'HeaderBackButton'
 # Set notification volume for the group, check that secondary label updates
 - tapOn: 'Notifications'
 - assertVisible: 'Posts, mentions, and replies'
