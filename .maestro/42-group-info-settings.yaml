@@ -76,7 +76,63 @@ appId: io.tlon.groups
 - assertVisible:
     text: 'Copied'
     optional: true
-# TODO: Everything else on this screen
+# Set the group privacy and check that the secondary label updates
+- tapOn: 'Privacy'
+- tapOn: 'Private'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible: 'Private group with 1 member'
+- assertVisible:
+    text: 'Private'
+    rightOf: 'Privacy'
+# Create a role and check that the count label updates
+- tapOn: 'Roles'
+- assertVisible: 'Group Roles'
+- assertVisible: 'Admin'
+- tapOn: 'Add Role'
+- assertVisible: 'Add role'
+- tapOn: 'Role title'
+- inputText: 'Testing role'
+- tapOn: 'Role description'
+- tapOn: 'Role description'
+- inputText: 'Description for test role'
+- tapOn: 'Save'
+- assertVisible: 'Testing role'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible:
+    text: '2'
+    rightOf: 'Roles'
+# Create a channel and check that the count label updates
+- tapOn: 'Channels'
+- assertVisible: 'Manage channels'
+- assertVisible:
+    text: 'General'
+    below: 'Sectionless'
+- tapOn: 'New Channel'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'Create a new channel'
+- tapOn: 'Channel title'
+- inputText: 'Second chat channel'
+- tapOn: 'Title*'
+- tapOn: 'Create channel'
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible:
+    text: '2'
+    rightOf: 'Channels'
+# Set notification volume for the group, check that secondary label updates
+- tapOn: 'Notifications'
+- assertVisible: 'Posts, mentions, and replies'
+- tapOn: 'All activity'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible:
+    text: 'All activity'
+    rightOf: 'Notifications'
 # Delete group and clean up
 - scrollUntilVisible:
     direction: DOWN
