@@ -1,7 +1,7 @@
 appId: io.tlon.groups
 ---
-# - runFlow: subflows/launch.yaml
-# - runFlow: subflows/tlon-login.yaml
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/tlon-login.yaml
 - assertVisible: 'Home'
 # Tap on the "+" button
 - tapOn:
@@ -198,7 +198,23 @@ appId: io.tlon.groups
 - tapOn:
     id: 'ChannelHeaderOverflowMenuButton'
 - tapOn: 'Group info & settings'
-# Delete group and clean up
+# Delete a channel and check that the count label updates
+- tapOn: 'Channels'
+- tapOn:
+    id: 'EditChannelButton'
+    index: 1
+- assertVisible: 'Edit channel'
+- tapOn: 'Delete channel for everyone'
+- assertVisible: 'This action cannot be undone.'
+- tapOn: 'Delete channel'
+- assertVisible: 'Manage channels'
+- assertNotVisible: 'Testing channel renaming'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible:
+    text: '1'
+    rightOf: 'Channels'
+# # Delete group and clean up
 - scrollUntilVisible:
     direction: DOWN
     element:
