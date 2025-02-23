@@ -135,7 +135,11 @@ function ChannelItem({
       </XStack>
 
       <XStack gap="$2xs">
-        <Pressable onPress={handleMoveUp} disabled={isFirst && isFirstSection}>
+        <Pressable
+          onPress={handleMoveUp}
+          disabled={isFirst && isFirstSection}
+          testID="MoveChannelUpButton"
+        >
           <Icon
             color={
               isFirst && isFirstSection ? '$secondaryText' : '$primaryText'
@@ -143,13 +147,17 @@ function ChannelItem({
             type="ChevronUp"
           />
         </Pressable>
-        <Pressable onPress={handleMoveDown} disabled={isLast && isLastSection}>
+        <Pressable
+          onPress={handleMoveDown}
+          disabled={isLast && isLastSection}
+          testID="MoveChannelDownButton"
+        >
           <Icon
             color={isLast && isLastSection ? '$secondaryText' : '$primaryText'}
             type="ChevronDown"
           />
         </Pressable>
-        <Pressable onPress={onEdit}>
+        <Pressable onPress={onEdit} testID="EditChannelButton">
           <View paddingVertical="$xs">
             <Icon color="$secondaryText" type="Overflow" size="$m" />
           </View>

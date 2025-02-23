@@ -1,7 +1,7 @@
 appId: io.tlon.groups
 ---
-- runFlow: subflows/launch.yaml
-- runFlow: subflows/tlon-login.yaml
+# - runFlow: subflows/launch.yaml
+# - runFlow: subflows/tlon-login.yaml
 - assertVisible: 'Home'
 # Tap on the "+" button
 - tapOn:
@@ -132,8 +132,34 @@ appId: io.tlon.groups
 - assertVisible:
     text: '2'
     rightOf: 'Channels'
-# Create a channel section
+# Move channel up and down
 - tapOn: 'Channels'
+- tapOn:
+    id: 'MoveChannelDownButton'
+    index: 0
+- assertVisible:
+    text: 'Second chat channel'
+    above: 'General'
+- tapOn:
+    id: 'MoveChannelUpButton'
+    index: 1
+- assertVisible:
+    text: 'General'
+    above: 'Second chat channel'
+# Edit a channel
+- tapOn:
+    id: 'EditChannelButton'
+    index: 1
+- assertVisible:
+    text: 'Edit channel'
+- tapOn: 'Second chat channel'
+- eraseText
+- inputText: 'Testing channel renaming'
+- tapOn: 'Channel description'
+- inputText: 'Testing channel description'
+- tapOn: 'Save'
+- assertVisible: 'Testing channel renaming'
+# Create a channel section
 - tapOn: 'New Section'
 - waitForAnimationToEnd:
     timeout: 5000
@@ -157,6 +183,21 @@ appId: io.tlon.groups
 - assertVisible:
     text: 'All activity'
     rightOf: 'Notifications'
+# Navigate back out to the Home screen and verify that, in a multi-channel group, the user is navigated into a list of channels
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible: 'General'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible: 'Home'
+- tapOn: 'Untitled group'
+- assertVisible: 'Untitled group'
+- assertVisible: 'General'
+- assertVisible: 'Testing channel renaming'
+- tapOn: 'General'
+- tapOn:
+    id: 'ChannelHeaderOverflowMenuButton'
+- tapOn: 'Group info & settings'
 # Delete group and clean up
 - scrollUntilVisible:
     direction: DOWN
