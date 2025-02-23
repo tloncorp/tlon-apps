@@ -117,13 +117,12 @@ export function ChannelListItem({
         </ListItem>
       </Pressable>
       {isWeb && !disableOptions && (
-        <View position="absolute" right="$-2xs" top="$2xl" zIndex={1}>
+        <View position="absolute" right={10} top="$2xl" zIndex={1}>
           {isWindowNarrow ? (
             <Button
               onPress={handleLongPress}
               borderWidth="unset"
               paddingHorizontal={0}
-              marginHorizontal="$-m"
               minimal
             >
               <Icon type="Overflow" />
