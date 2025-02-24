@@ -85,6 +85,7 @@ function SelectableGroupItemComponent(props: {
       model={props.group}
       backgroundColor="unset"
       onPress={handlePress}
+      disableOptions
       EndContent={
         props.selectable ? (
           <ListItem.EndContent>
