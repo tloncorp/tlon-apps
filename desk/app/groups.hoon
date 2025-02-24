@@ -23,6 +23,7 @@
     ==
 %-  agent:dbug
 %+  verb  |
+::
 ^-  agent:gall
 =>
   |%
@@ -709,7 +710,7 @@
     =/  group  (~(get by groups) [ship name.pole])
     ?~  group  [~ ~]
     ?~  rest.pole
-      ``group+!>(+.u.group)
+      ``group+!>((to-group-2 +.u.group))
     ?+    rest.pole
         (go-peek:(go-abed:group-core ship name.pole) rest.pole)
       ::
