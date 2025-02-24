@@ -50,7 +50,7 @@ export const HomeNavigator = () => {
           drawerType: 'permanent',
           headerShown: false,
           drawerStyle: {
-            width: isImageViewer ? 0 : 400,
+            width: isImageViewer ? 0 : 450,
             backgroundColor,
             borderRightColor: borderColor,
           },
