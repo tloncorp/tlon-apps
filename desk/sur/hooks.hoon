@@ -164,7 +164,7 @@
   ==
 ::
 ::  $effect: an effect that a hook can have, limited to agents in
-::           the %groups desk. $delay is a special effect that will wake
+::           the %groups desk. %wait is a special effect that will wake
 ::           up the same hook at a later time.
 +$  effect
   $%  [%channels =a-channels]
