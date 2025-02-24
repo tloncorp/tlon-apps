@@ -25,6 +25,7 @@ export const GroupListItem = ({
 }: { customSubtitle?: string } & ListItemProps<db.Group>) => {
   const [open, setOpen] = useState(false);
   const unreadCount = model.unread?.count ?? 0;
+  const notified = model.unread?.notify ?? false;
   const title = useGroupTitle(model);
   const { isPending, label: statusLabel, isErrored } = getGroupStatus(model);
   const isWindowNarrow = useIsWindowNarrow();
@@ -92,6 +93,7 @@ export const GroupListItem = ({
                 <>
                   <ListItem.Time time={model.lastPostAt} />
                   <ListItem.Count
+                    notified={notified}
                     count={unreadCount}
                     muted={logic.isMuted(model.volumeSettings?.level, 'group')}
                     marginRight={isWeb ? '$xl' : 'unset'}
