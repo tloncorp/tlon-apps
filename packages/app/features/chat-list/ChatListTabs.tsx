@@ -10,7 +10,7 @@ export function ChatListTabs({
 }) {
   return (
     <Tabs>
-      <Tabs.Tab name="all" activeTab={activeTab} onTabPress={onPressTab}>
+      <Tabs.Tab name="home" activeTab={activeTab} onTabPress={onPressTab}>
         <Tabs.Title cursor="pointer" active={activeTab === 'home'}>
           All
         </Tabs.Title>
