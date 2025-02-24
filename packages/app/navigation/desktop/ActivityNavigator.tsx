@@ -92,7 +92,7 @@ export const ActivityNavigator = () => {
         headerShown: false,
         drawerType: 'permanent',
         drawerStyle: {
-          width: 500,
+          width: 450,
           backgroundColor: getVariableValue(useTheme().background),
           borderRightColor: getVariableValue(useTheme().border),
         },
