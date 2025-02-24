@@ -335,12 +335,14 @@ export function ChannelPermissionsSelector({
             label="Readers"
             roles={readerRoles}
             setRoles={setReaders}
+            testID="ReaderRoleSelector"
           />
           <ChannelRoleSelector
             options={options}
             label="Writers"
             roles={writerRoles}
             setRoles={setWriters}
+            testID="WriterRoleSelector"
           />
         </YStack>
       )}
@@ -358,11 +360,13 @@ export function ChannelRoleSelector({
   label,
   roles,
   setRoles,
+  testID,
 }: {
   options: RoleOption[];
   label: string;
   roles: RoleOption[];
   setRoles: (roles: RoleOption[]) => void;
+  testID?: string;
 }) {
   const [open, setOpen] = useState(false);
   const trigger = (
@@ -385,7 +389,7 @@ export function ChannelRoleSelector({
   return (
     <YStack gap="$m">
       <Text>{label}</Text>
-      <Pressable onPress={() => setOpen(true)}>
+      <Pressable onPress={() => setOpen(true)} testID={testID}>
         <XStack
           gap="$s"
           backgroundColor="$secondaryBackground"

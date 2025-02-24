@@ -153,6 +153,7 @@ export function GroupMembersScreenView({
         showNickname
         size="$4xl"
         onPress={setSelectedContact}
+        testID="MemberRow"
       />
     ),
     []
