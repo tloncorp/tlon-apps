@@ -109,7 +109,8 @@ export function ChannelListItem({
                 <ListItem.Count
                   count={unreadCount}
                   muted={logic.isMuted(model.volumeSettings?.level, 'channel')}
-                  marginRight={isWeb ? '$s' : 'unset'}
+                  marginRight={isWeb ? '$xl' : 'unset'}
+                  marginTop={isWeb ? 3 : 'unset'}
                 />
               )}
             </ListItem.EndContent>
