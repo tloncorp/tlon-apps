@@ -174,12 +174,20 @@ const ListItemTime = ListItemTimeText.styleable<{
 );
 
 const ListItemCount = ({
+  notified,
   muted,
   count,
   ...rest
-}: { muted?: boolean; count: number } & ComponentProps<typeof Stack>) => {
-  const foregroundColor = getVariableValue(useTheme().secondaryText);
-  const backgroundColor = getVariableValue(useTheme().secondaryBackground);
+}: { notified: boolean; muted?: boolean; count: number } & ComponentProps<
+  typeof Stack
+>) => {
+  const theme = useTheme();
+  const foregroundColor = getVariableValue(
+    notified ? theme.positiveActionText : theme.secondaryText
+  );
+  const backgroundColor = getVariableValue(
+    notified ? theme.positiveBackground : theme.secondaryBackground
+  );
   return (
     <Stack
       paddingHorizontal={'$m'}

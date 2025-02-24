@@ -31,6 +31,7 @@ export function ChannelListItem({
 } & ListItemProps<db.Channel>) {
   const [open, setOpen] = useState(false);
   const unreadCount = model.unread?.count ?? 0;
+  const notified = model.unread?.notify ?? false;
   const title = utils.useChannelTitle(model);
   const firstMemberId = model.members?.[0]?.contactId ?? '';
   const memberCount = model.members?.length ?? 0;
@@ -107,6 +108,7 @@ export function ChannelListItem({
                 <Badge text="Invite" />
               ) : (
                 <ListItem.Count
+                  notified={notified}
                   count={unreadCount}
                   muted={logic.isMuted(model.volumeSettings?.level, 'channel')}
                   marginRight={isWeb ? '$s' : 'unset'}
