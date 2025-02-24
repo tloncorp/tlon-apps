@@ -10,6 +10,7 @@ import {
   CreateChatSheet,
   CreateChatSheetMethods,
 } from '../../features/top/CreateChatSheet';
+import { MessagesFilterMenu } from '../../features/top/MessagesFilterMenu';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
@@ -192,21 +193,20 @@ export function MessagesSidebar({ previewGroupId, focusedChannelId }: Props) {
             <ScreenHeader
               title={notReadyMessage ?? screenTitle}
               leftControls={
-                <ScreenHeader.IconButton type="Search" onPress={handleSearch} />
+                <MessagesFilterMenu>
+                  <ScreenHeader.IconButton type="Filter" />
+                </MessagesFilterMenu>
               }
               rightControls={
                 <>
-                  {isWindowNarrow ? (
-                    <ScreenHeader.IconButton
-                      type="Add"
-                      onPress={handlePressAddChat}
-                    />
-                  ) : (
-                    <CreateChatSheet
-                      ref={createChatSheetRef}
-                      trigger={<ScreenHeader.IconButton type="Add" />}
-                    />
-                  )}
+                  <ScreenHeader.IconButton
+                    type="Search"
+                    onPress={handleSearch}
+                  />
+                  <CreateChatSheet
+                    ref={createChatSheetRef}
+                    trigger={<ScreenHeader.IconButton type="Add" />}
+                  />
                 </>
               }
             />
