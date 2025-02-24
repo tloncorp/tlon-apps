@@ -26,7 +26,7 @@ import {
   Text,
   View,
   usePreloadedEmojis,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { PostHogProvider } from 'posthog-react-native';
 import type { PropsWithChildren } from 'react';
 import { useEffect, useMemo, useState } from 'react';

@@ -1,0 +1,6 @@
+appId: io.tlon.groups
+---
+- runFlow: 01-self-hosted-login.yaml
+- runFlow: 02-tlon-login.yaml
+- runFlow: 10-settings.yaml
+- runFlow: 20-profile.yaml

@@ -200,7 +200,7 @@
     =+  .^(=group:groups %gx :(weld prefix /groups gnat))
     ?+  -.cordon.group  ~
         %open
-      :-  %^  lure-log  %info  group-event
+      :-  %^  lure-log  %info  'Group Invite Sent'
           ~[leaf+"{<joiner.bite>} invited to public group {<p.flag>}/{(trip q.flag)}"]
       ~[[%pass /invite %agent [our.bowl %groups] %poke %group-invite !>(invite)]]
     ::

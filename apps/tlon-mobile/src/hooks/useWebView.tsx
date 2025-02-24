@@ -1,5 +1,5 @@
 import { IS_ANDROID } from '@tloncorp/app/constants';
-import { LoadingSpinner } from '@tloncorp/ui';
+import { LoadingSpinner } from '@tloncorp/app/ui';
 import { type Ref, useCallback, useEffect, useRef } from 'react';
 import { Alert, BackHandler, View } from 'react-native';
 import type WebView from 'react-native-webview';

@@ -1,12 +1,12 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { BlockedContactsWidget, ScreenHeader, View } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootStackParamList } from '../../navigation/types';
+import { BlockedContactsWidget, ScreenHeader, View } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BlockedUsers'>;
 
@@ -41,7 +41,13 @@ export function BlockedUsersScreen(props: Props) {
         backAction={() => props.navigation.goBack()}
         title="Blocked users"
       />
-      <View flex={1} paddingHorizontal="$xl">
+      <View
+        flex={1}
+        width="100%"
+        maxWidth={600}
+        marginHorizontal="auto"
+        paddingHorizontal="$xl"
+      >
         <BlockedContactsWidget
           blockedContacts={blockedContacts ?? []}
           onBlockedContactPress={onBlockedContactPress}

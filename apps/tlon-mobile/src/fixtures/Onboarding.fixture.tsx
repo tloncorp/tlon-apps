@@ -3,7 +3,7 @@ import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
 import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
 import { group } from '@tloncorp/app/fixtures/fakeData';
 import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
-import { Theme } from '@tloncorp/ui';
+import { Theme } from '@tloncorp/app/ui';
 import { PropsWithChildren, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
 

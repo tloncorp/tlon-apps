@@ -34,6 +34,7 @@ import {
   udToDate,
   with404Handler,
 } from './apiUtils';
+import { channelAction } from './channelsApi';
 import { poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
@@ -41,23 +42,6 @@ const logger = createDevLogger('postsApi', false);
 export type Cursor = string | Date;
 export type PostContent = (ub.Verse | ContentReference)[] | null;
 export type PostContentAndFlags = [PostContent, db.PostFlags | null];
-
-export function channelAction(
-  nest: ub.Nest,
-  action: ub.Action
-): Poke<ub.ChannelsAction> {
-  checkNest(nest);
-  return {
-    app: 'channels',
-    mark: 'channel-action',
-    json: {
-      channel: {
-        nest,
-        action,
-      },
-    },
-  };
-}
 
 export function chatAction(
   whom: string,

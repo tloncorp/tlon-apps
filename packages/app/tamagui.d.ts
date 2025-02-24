@@ -1,4 +1,4 @@
-import { config } from '../ui/src/tamagui.config';
+import { config } from '../ui/tamagui.config';
 
 export type Conf = typeof config;
 

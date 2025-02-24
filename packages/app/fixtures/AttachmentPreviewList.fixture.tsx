@@ -1,7 +1,6 @@
-import { Attachment, AttachmentProvider } from '@tloncorp/ui';
-import { AppDataContextProvider, RequestsProvider } from '@tloncorp/ui/src';
-import { AttachmentPreviewList } from '@tloncorp/ui/src/components/MessageInput/AttachmentPreviewList';
-
+import { Attachment, AttachmentProvider } from '../ui';
+import { AppDataContextProvider, RequestsProvider } from '../ui';
+import { AttachmentPreviewList } from '../ui/components/MessageInput/AttachmentPreviewList';
 import { FixtureWrapper } from './FixtureWrapper';
 import {
   exampleContacts,

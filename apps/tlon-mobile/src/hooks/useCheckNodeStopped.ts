@@ -5,7 +5,7 @@ import {
   createDevLogger,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useStore } from '@tloncorp/ui';
+import { useStore } from '@tloncorp/app/ui';
 import { useCallback } from 'react';
 
 const logger = createDevLogger('stopped node checker', true);

@@ -3,12 +3,6 @@ import { useChannelContext } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
-import {
-  AttachmentProvider,
-  ChatOptionsProvider,
-  PostScreenView,
-  useCurrentUserId,
-} from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
@@ -17,6 +11,12 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
+import {
+  AttachmentProvider,
+  ChatOptionsProvider,
+  PostScreenView,
+  useCurrentUserId,
+} from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
 

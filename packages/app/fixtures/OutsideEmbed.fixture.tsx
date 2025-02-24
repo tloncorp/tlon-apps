@@ -1,7 +1,7 @@
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
-import { OutsideEmbed } from '@tloncorp/ui';
 import { PropsWithChildren } from 'react';
 
+import { OutsideEmbed } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 
 const OutsideEmbedFixtureWrapper = ({ children }: PropsWithChildren) => {

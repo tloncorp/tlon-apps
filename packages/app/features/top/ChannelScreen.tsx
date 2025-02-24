@@ -11,6 +11,13 @@ import {
   usePostWithRelations,
 } from '@tloncorp/shared/store';
 import { Story } from '@tloncorp/shared/urbit';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+
+import { useChannelNavigation } from '../../hooks/useChannelNavigation';
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useGroupActions } from '../../hooks/useGroupActions';
+import { useFeatureFlag } from '../../lib/featureFlags';
+import type { RootStackParamList } from '../../navigation/types';
 import {
   AttachmentProvider,
   Channel,
@@ -19,21 +26,18 @@ import {
   INITIAL_POSTS_PER_PAGE,
   InviteUsersSheet,
   useCurrentUserId,
-} from '@tloncorp/ui';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-
-import { useChannelNavigation } from '../../hooks/useChannelNavigation';
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useGroupActions } from '../../hooks/useGroupActions';
-import { useFeatureFlag } from '../../lib/featureFlags';
-import type { RootStackParamList } from '../../navigation/types';
+} from '../../ui';
 
 const logger = createDevLogger('ChannelScreen', false);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: Props) {
-  const { channelId, selectedPostId, startDraft } = props.route.params;
+  const { channelId, selectedPostId, startDraft } = props.route.params ?? {
+    channelId: '',
+    selectedPostId: '',
+    startDraft: false,
+  };
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {

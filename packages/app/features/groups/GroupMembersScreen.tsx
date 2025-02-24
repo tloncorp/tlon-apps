@@ -1,11 +1,11 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { GroupMembersScreenView } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
+import { GroupMembersScreenView } from '../../ui';
 
 type Props = NativeStackScreenProps<
   GroupSettingsStackParamList,
@@ -25,6 +25,8 @@ export function GroupMembersScreen({ route, navigation }: Props) {
     rejectUserJoin,
     joinRequests,
     groupPrivacyType,
+    addUserToRole,
+    removeUserFromRole,
   } = useGroupContext({
     groupId,
   });
@@ -52,6 +54,8 @@ export function GroupMembersScreen({ route, navigation }: Props) {
       onPressUnban={unbanUser}
       onPressAcceptJoinRequest={acceptUserJoin}
       onPressRejectJoinRequest={rejectUserJoin}
+      onPressAssignRole={addUserToRole}
+      onPressRemoveRole={removeUserFromRole}
       onPressKick={kickUser}
       bannedUsers={bannedUsers}
       joinRequests={joinRequests}

@@ -10,19 +10,19 @@ import {
   Upload,
 } from '@tloncorp/shared/api';
 import type * as db from '@tloncorp/shared/db';
+import { range } from 'lodash';
+import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Button, SafeAreaView, View } from 'react-native';
+
 import {
   AppDataContextProvider,
   Channel,
   ChannelSwitcherSheet,
   ChatOptionsProvider,
   Sheet,
-} from '@tloncorp/ui';
-import { UnconnectedChannelConfigurationBar as ChannelConfigurationBar } from '@tloncorp/ui/src/components/ManageChannels/CreateChannelSheet';
-import { range } from 'lodash';
-import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, SafeAreaView, View } from 'react-native';
-
+} from '../ui';
+import { UnconnectedChannelConfigurationBar as ChannelConfigurationBar } from '../ui/components/ManageChannels/CreateChannelSheet';
 import { FixtureWrapper } from './FixtureWrapper';
 import {
   createFakePost,
@@ -118,8 +118,8 @@ const baseProps: ComponentProps<typeof Channel> = {
   useGroup: useGroupPreview,
   onGroupAction: () => {},
   getDraft: async () => ({}),
-  storeDraft: () => {},
-  clearDraft: () => {},
+  storeDraft: async () => {},
+  clearDraft: async () => {},
   onPressRetry: async () => {},
   onPressDelete: () => {},
 } as const;
