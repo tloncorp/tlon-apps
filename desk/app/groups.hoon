@@ -22,8 +22,8 @@
         %contacts^[~.contacts^%1 ~ ~]
     ==
 %-  agent:dbug
-^-  agent:gall
 %+  verb  |
+^-  agent:gall
 =>
   |%
   +$  card  card:agent:gall
@@ -43,7 +43,6 @@
 =|  current-state
 =*  state  -
 =<
-  %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
