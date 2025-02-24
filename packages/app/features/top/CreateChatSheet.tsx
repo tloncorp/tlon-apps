@@ -322,6 +322,7 @@ export function CreateChatInviteSheet({
 
   const handlePressCreateGroup = useCallback(async () => {
     onSubmit({ type: 'group', contactIds: selectedContactIds });
+    setSelectedContactIds([]);
   }, [onSubmit, selectedContactIds]);
 
   return (
