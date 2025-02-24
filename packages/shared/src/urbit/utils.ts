@@ -1,5 +1,4 @@
 import { formatUd, formatUv, isValidPatp, unixToDa } from '@urbit/aura';
-import bigInt from 'big-integer';
 import { useMemo } from 'react';
 
 import { ContentReference, PostContent } from '../api';
