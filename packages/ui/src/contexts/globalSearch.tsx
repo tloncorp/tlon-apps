@@ -3,8 +3,8 @@ import React, { createContext, useContext, useState } from 'react';
 interface GlobalSearchContextType {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
-  lastOpenTab: string;
-  setLastOpenTab: (tab: string) => void;
+  lastOpenTab: 'Home' | 'Messages';
+  setLastOpenTab: (tab: 'Home' | 'Messages') => void;
 }
 
 const GlobalSearchContext = createContext<GlobalSearchContextType>({
@@ -20,7 +20,7 @@ export function GlobalSearchProvider({
   children: React.ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [lastOpenTab, setLastOpenTab] = useState('Home');
+  const [lastOpenTab, setLastOpenTab] = useState<'Home' | 'Messages'>('Home');
 
   return (
     <GlobalSearchContext.Provider
