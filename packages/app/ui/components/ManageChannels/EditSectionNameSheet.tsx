@@ -18,7 +18,7 @@ export function EditSectionNameSheet({
   onOpenChange: (open: boolean) => void;
   onSave?: (name: string) => void;
 }) {
-  const { control, handleSubmit } = useForm({
+  const { control, handleSubmit, reset } = useForm({
     defaultValues: {
       name: name ?? '',
     },
@@ -27,9 +27,10 @@ export function EditSectionNameSheet({
   const handlePressSave = useCallback(
     async (data: { name: string }) => {
       onSave?.(data.name);
+      reset();
       onOpenChange(false);
     },
-    [onSave, onOpenChange]
+    [onSave, onOpenChange, reset]
   );
 
   return (

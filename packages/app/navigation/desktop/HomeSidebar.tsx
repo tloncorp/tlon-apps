@@ -189,14 +189,17 @@ export function HomeSidebar({ previewGroupId, focusedChannelId }: Props) {
           <View userSelect="none" flex={1}>
             <ScreenHeader
               title={notReadyMessage ?? screenTitle}
-              leftControls={
-                <ScreenHeader.IconButton type="Search" onPress={handleSearch} />
-              }
               rightControls={
-                <CreateChatSheet
-                  ref={createChatSheetRef}
-                  trigger={<ScreenHeader.IconButton type="Add" />}
-                />
+                <>
+                  <ScreenHeader.IconButton
+                    type="Search"
+                    onPress={handleSearch}
+                  />
+                  <CreateChatSheet
+                    ref={createChatSheetRef}
+                    trigger={<ScreenHeader.IconButton type="Add" />}
+                  />
+                </>
               }
             />
             {chats && chats.unpinned.length ? (

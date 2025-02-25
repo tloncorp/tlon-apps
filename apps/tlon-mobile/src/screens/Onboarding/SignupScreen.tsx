@@ -230,9 +230,9 @@ export const SignupScreen = ({ navigation }: Props) => {
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
-                      returnKeyType="next"
-                      enablesReturnKeyAutomatically
-                      onSubmitEditing={onSubmit}
+                      returnKeyType={emailForm.formState.isValid ? "next" : "default"}
+                      enablesReturnKeyAutomatically={emailForm.formState.isValid}
+                      onSubmitEditing={emailForm.formState.isValid ? onSubmit : undefined}
                       autoFocus
                     />
                   </Field>

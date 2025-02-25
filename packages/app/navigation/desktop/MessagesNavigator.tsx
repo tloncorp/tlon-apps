@@ -39,7 +39,7 @@ export const MessagesNavigator = () => {
         drawerType: 'permanent',
         headerShown: false,
         drawerStyle: {
-          width: 400,
+          width: 450,
           backgroundColor: getVariableValue(useTheme().background),
           borderRightColor: getVariableValue(useTheme().border),
         },

@@ -184,8 +184,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@urbit/aura':
-        specifier: ^1.0.0
-        version: 1.0.0(big-integer@1.6.52)
+        specifier: ^2.0.1
+        version: 2.0.1
       '@urbit/http-api':
         specifier: 3.2.0-dev
         version: 3.2.0-dev
@@ -1101,8 +1101,8 @@ importers:
         specifier: 2.2.0
         version: 2.2.0
       '@urbit/aura':
-        specifier: ^1.0.0
-        version: 1.0.0(big-integer@1.6.52)
+        specifier: ^2.0.1
+        version: 2.0.1
       '@urbit/http-api':
         specifier: 3.2.0-dev
         version: 3.2.0-dev

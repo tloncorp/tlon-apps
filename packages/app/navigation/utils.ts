@@ -3,6 +3,7 @@ import {
   NavigationProp,
   useNavigation as useReactNavigation,
 } from '@react-navigation/native';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -11,6 +12,8 @@ import { useCallback, useMemo } from 'react';
 import { useFeatureFlagStore } from '../lib/featureFlags';
 import { useGlobalSearch, useIsWindowNarrow } from '../ui';
 import { CombinedParamList, RootStackParamList } from './types';
+
+const logger = createDevLogger('nav-utils', false);
 
 export const useNavigation = () => {
   return useReactNavigation<NavigationProp<CombinedParamList>>();
@@ -74,6 +77,7 @@ function useResetToChannel() {
       ]);
     } else {
       const tab = getTab(navigation);
+      logger.log('resetToChannel', { tab, channelId, options });
       const channelRoute = getDesktopChannelRoute(
         tab,
         channelId,
@@ -232,13 +236,22 @@ function getTab(
     | NavigationProp<CombinedParamList>
 ): 'Home' | 'Messages' {
   const parent = navigation.getParent()?.getState();
-  const state = parent?.type === 'Drawer' ? parent : navigation.getState();
+  const state =
+    parent?.type.toLocaleLowerCase() === 'drawer'
+      ? parent
+      : navigation.getState();
+
+  logger.log(parent, navigation.getState());
   if (state.type !== 'drawer') {
-    console.log(parent, navigation.getState());
     throw new Error('Top-level navigator is not a drawer navigator');
   }
 
   const last = state.routes[state.index];
+  logger.log('last route name', last.name);
+  if (last.name !== 'Home' && last.name !== 'Messages') {
+    logger.log('not home or messages, getting tab from parent');
+    return getTab(navigation.getParent());
+  }
   return last.name === 'Messages' ? 'Messages' : 'Home';
 }
 
@@ -355,6 +368,7 @@ export function getDesktopChannelRoute(
   selectedPostId?: string
 ) {
   const screenName = screenNameFromChannelId(channelId);
+  logger.log('getDesktopChannelRoute', screenName);
   return {
     name: tab,
     params: {
