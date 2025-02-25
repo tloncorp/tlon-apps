@@ -264,9 +264,9 @@ const App = React.memo(function AppComponent() {
   const isDarkMode = useIsDark();
   const currentUserId = useCurrentUserId();
   const [dbIsLoaded, setDbIsLoaded] = useState(false);
-  const [startedSync, setStartedSync] = useState(false);
   const configureClient = useConfigureUrbitClient();
   useFindSuggestedContacts();
+  const hasSyncedRef = React.useRef(false);
 
   useEffect(() => {
     handleError(() => {
@@ -280,11 +280,14 @@ const App = React.memo(function AppComponent() {
       shipUrl: '',
     });
     const syncStart = async () => {
-      // Web doesn't persist database, so headsSyncedAt is misleading
-      await db.headsSyncedAt.resetValue();
+      // Only call sync.syncStart once during the app's lifecycle
+      if (!hasSyncedRef.current) {
+        // Web doesn't persist database, so headsSyncedAt is misleading
+        await db.headsSyncedAt.resetValue();
 
-      await sync.syncStart(startedSync);
-      setStartedSync(true);
+        await sync.syncStart(false);
+        hasSyncedRef.current = true;
+      }
 
       // we need to check the size of the database here to see if it's not zero
       // if it's not zero, set the dbIsLoaded to true
@@ -310,7 +313,7 @@ const App = React.memo(function AppComponent() {
     };
 
     syncStart();
-  }, [dbIsLoaded, currentUserId, startedSync]);
+  }, [dbIsLoaded, currentUserId]);
 
   return (
     <div className="flex h-full w-full flex-col">
