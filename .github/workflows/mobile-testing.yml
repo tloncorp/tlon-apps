@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Build apps
+    name: Build iOS and Android
     strategy:
       matrix:
         platform: [ios, android]
@@ -41,37 +41,13 @@ jobs:
         uses: dcarbone/install-jq-action@v3
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Get commit hash
-        id: git_hash
-        run: echo "hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Build for ${{ matrix.platform }}
         id: build
         working-directory: ./apps/tlon-mobile
         run: |
-          # Include git hash in the build message for traceability
-          BUILD_ID=$(eas build --profile local-testing --platform ${{ matrix.platform }} --non-interactive --message "CI build for ${{ github.sha }}" --json | jq -r '.id')
-          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
-
-          # Wait for build to complete and then get the URL
-          echo "Waiting for build $BUILD_ID to complete..."
-
-          # Poll until build is complete
-          while true; do
-            BUILD_STATUS=$(eas build:view $BUILD_ID --json | jq -r '.status')
-            if [[ "$BUILD_STATUS" == "finished" ]]; then
-              echo "Build completed successfully!"
-              break
-            elif [[ "$BUILD_STATUS" == "errored" ]]; then
-              echo "Build failed with status: $BUILD_STATUS"
-              exit 1
-            else
-              echo "Current build status: $BUILD_STATUS. Waiting..."
-              sleep 30
-            fi
-          done
-
-          # Get the build URL using the specific build ID
-          URL=$(eas build:view $BUILD_ID --json | jq -r '.artifacts.buildUrl')
+          eas build --profile local-testing --platform ${{ matrix.platform }} --non-interactive
+          URL=$(eas build:list --json --limit=1 --platform=${{ matrix.platform }} --non-interactive | jq '.[0].artifacts.buildUrl')
+          echo "url=$URL"
           echo "url=$URL" >> $GITHUB_OUTPUT
         env:
           EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
