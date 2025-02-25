@@ -325,6 +325,7 @@ function EditRoleSheet({
                   }}
                   value={value}
                   editable={role.title !== 'Admin'}
+                  testID="RoleTitleInput"
                 />
               </Field>
             )}
@@ -429,6 +430,7 @@ function AddRoleSheet({
                     Keyboard.dismiss();
                   }}
                   value={value}
+                  testID="RoleTitleInput"
                 />
               </Field>
             )}
