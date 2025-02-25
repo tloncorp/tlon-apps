@@ -231,3 +231,10 @@ appId: io.tlon.groups
     commands:
       - assertVisible: 'Home'
       - assertNotVisible: 'Untitled group'
+# Log out
+- tapOn:
+    id: 'AvatarNavIcon'
+- tapOn:
+    id: 'ContactsSettingsButton'
+- tapOn: 'Log out'
+- tapOn: 'Log out now'

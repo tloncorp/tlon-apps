@@ -67,3 +67,10 @@ appId: io.tlon.groups
 - tapOn:
     id: 'ProfilePinnedGroupRemove'
 - tapOn: 'Done'
+- tapOn:
+    id: 'HeaderBackButton'
+# Log out
+- tapOn:
+    id: 'ContactsSettingsButton'
+- tapOn: 'Log out'
+- tapOn: 'Log out now'

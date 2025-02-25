@@ -46,3 +46,10 @@ appId: io.tlon.groups
 - assertVisible: 'Message'
 - tapOn:
     id: 'HeaderBackButton'
+# Log out
+- tapOn:
+    id: 'AvatarNavIcon'
+- tapOn:
+    id: 'ContactsSettingsButton'
+- tapOn: 'Log out'
+- tapOn: 'Log out now'
