@@ -136,7 +136,7 @@
       zone-ord=(list zone)
       =bloc
       =channels:channel
-      active=(set nest)
+      active-channels=(set nest)
       imported=(set nest)
       =cordon
       secret=?

@@ -226,13 +226,15 @@
   ::
   ++  group
     |=  gr=group:g
+    =/  active-channels
+      (turn ~(tap in active-channels.gr) (cork nest (lead %s)))
     %-  pairs
     :~  fleet/(fleet fleet.gr)
         cabals/(cabals cabals.gr)
         zones/(zones zones.gr)
         zone-ord/a/(turn zone-ord.gr (lead %s))
         channels/(channels channels.gr)
-        active-channels/a/(turn ~(tap in active.gr) (cork nest (lead %s)))
+        active-channels/a/active-channels
         bloc/a/(turn ~(tap in bloc.gr) (lead %s))
         cordon/(cordon cordon.gr)
         meta/(meta meta.gr)
@@ -242,13 +244,15 @@
   ::
   ++  group-ui
     |=  gr=group-ui:g
+    =/  active-channels
+      (turn ~(tap in active-channels.gr) (cork nest (lead %s)))
     %-  pairs
     :~  fleet/(fleet fleet.gr)
         cabals/(cabals cabals.gr)
         zones/(zones zones.gr)
         zone-ord/a/(turn zone-ord.gr (lead %s))
         channels/(channels channels.gr)
-        active-channels/a/(turn ~(tap in active.gr) (cork nest (lead %s)))
+        active-channels/a/active-channels
         bloc/a/(turn ~(tap in bloc.gr) (lead %s))
         cordon/(cordon cordon.gr)
         meta/(meta meta.gr)

@@ -15,7 +15,7 @@
 /*  desk-bill  %bill  /desk/bill
 =/  verbose  |
 %-  %-  agent:neg
-    :+  notify=&
+    :+  notify=|
       [~.groups^%0 ~ ~]
     %-  my
     :~  %channels^[~.channels^%1 ~ ~]
@@ -387,6 +387,8 @@
     ::  force leave
     (emit [%pass wire %agent dock %leave ~])
   ::
+  =.  cor
+    (emit [%pass /load %arvo %b %wait now.bowl])
   inflate-io
   ::
   ::
@@ -492,18 +494,7 @@
   ::
   ++  net-group-2-to-5
     |=  [old-net=net:v2:g old-group=group:v2:g]
-    :-  (net-2-to-5 old-net)
-    =/  =group:v5:g  (group-2-to-5 old-group)
-    ::  fill in active channels
-    ::
-    =/  nests
-      ~(tap in ~(key by channels.group))
-    %_  group  active
-      %-  silt
-      %+  skim  nests
-      |=  =nest:g
-      .^(? %gu (channel-scry nest))
-    ==
+    [(net-2-to-5 old-net) (group-2-to-5 old-group)]
   ::
   ++  net-2-to-5
     |=  =net:v2:g
@@ -538,7 +529,6 @@
   ++  preview-2-to-5
     |=  preview:v2:g
     ^-  preview:v5:g
-    ::XX should we retrieve such previews again in `+on-load`?
     [flag meta cordon time secret 0]
   ::
   ++  gang-2-to-5
@@ -588,9 +578,6 @@
 ::
 ++  inflate-io
   ^+  cor
-  ::XX initiate:neg is not needed here, since subscribing
-  ::   starts version negotiation. same argument applies
-  ::   to group subscriptions below
   ::
   =.  cor  (watch-contact |)
   =.  cor  (watch-channels |)
@@ -700,14 +687,15 @@
     ``groups-1+!>((~(run by groups) tail))
   ::
       [%x %groups %v0 ~]
-    ``groups-ui-v0+!>(`groups-ui:zero`(~(run by groups) to-group-ui-v0))
+    ``groups-ui-v0+!>(`groups-ui:zero`(~(urn by groups) to-group-ui-v0))
   ::
       [%x %groups %v1 ~]
-    ``groups-ui+!>(`groups-ui:v2:g`(~(run by groups) to-group-ui-2))
+    ``groups-ui+!>(`groups-ui:v2:g`(~(urn by groups) to-group-ui-2))
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
-    =/  group  (~(get by groups) [ship name.pole])
+    =*  flag  [ship name.pole]
+    =/  group  (~(get by groups) flag)
     ?~  group  [~ ~]
     ?~  rest.pole
       ``group+!>((to-group-2 +.u.group))
@@ -716,10 +704,10 @@
       ::
     ::
         [%v0 ~]
-      ``group-ui-v0+!>(`group-ui:zero`(to-group-ui-v0 u.group))
+      ``group-ui-v0+!>(`group-ui:zero`(to-group-ui-v0 flag u.group))
     ::
         [%v1 ~]
-      ``group-ui+!>((to-group-ui-2 u.group))
+      ``group-ui+!>((to-group-ui-2 flag u.group))
     ::
         [%v2 ~]
       ``group-ui-1+!>((to-group-ui-5 u.group))
@@ -804,9 +792,9 @@
 ::
 ++  groups-light-ui-2
   ^-  groups-ui:v2:g
-  %-  ~(run by groups)
-  |=  [=net:g =group:g]
-  (to-group-ui-2 net (drop-fleet group))
+  %-  ~(urn by groups)
+  |=  [=flag:g [=net:g =group:g]]
+  (to-group-ui-2 flag net (drop-fleet group))
 ::
 ++  groups-light-ui-5
   ^-  groups-ui:v5:g
@@ -831,9 +819,9 @@
 ::
 ++  groups-light-ui-v0
   ^-  groups-ui:zero
-  %-  ~(run by groups)
-  |=  [=net:g =group:g]
-  (to-group-ui-v0 net (drop-fleet group))
+  %-  ~(urn by groups)
+  |=  [=flag:g [=net:g =group:g]]
+  (to-group-ui-v0 flag net (drop-fleet group))
 ::
 ++  to-group-ui-5
   |=  [=net:g =group:g]
@@ -846,23 +834,26 @@
   ==
 ::
 ++  to-group-ui-2
-  |=  [=net:g =group:g]
+  |=  [=flag:g =net:g =group:g]
   ^-  group-ui:v2:g
   :-  (to-group-2 group)
-  ?+  -.net  ~
-      ::XX make sure this plays well with
-      ::   the frontend
-      %sub  ~
+  ?.  ?=(%sub -.net)  ~
+  =/  =status:neg
+    (read-status:neg bowl [p.flag %groups])
+  ?+  status  ~
+    %match  `[%chi ~]
+    %clash  `[%lev ~]
   ==
 ++  to-group-ui-v0
-  |=  [=net:g =group:g]
+  |=  [=flag:g =net:g =group:g]
   ^-  group-ui:zero
-  :_
-    ?+  -.net  ~
-        ::XX make sure this plays well with
-        ::   the frontend
-        %sub  ~
-    ==
+  :_  ?.  ?=(%sub -.net)  ~
+      =/  =status:neg
+        (read-status:neg bowl [p.flag %groups])
+      ?+  status  ~
+        %match  `[%chi ~]
+        %clash  `[%lev ~]
+      ==
   :*  fleet.group
       cabals.group
       zones.group
@@ -949,6 +940,23 @@
     =^  caz=(list card)  subs
       (~(handle-wakeup s [subs bowl]) pole)
     (emil caz)
+  ::
+      [%load ~]
+    ::  fill in active-channels
+    ::
+    =.  groups
+      %-  ~(run by groups)
+      |=  [=net:g =group:g]
+      =/  nests
+        ~(tap in ~(key by channels.group))
+      :-  net
+      %_  group  active-channels
+        %-  silt
+        %+  skim  nests
+        |=  =nest:g
+        .^(? %gu (channel-scry nest))
+      ==
+    cor
   ==
 ::
 ++  subscribe
@@ -1021,7 +1029,9 @@
       %_  cor  groups
         %+  ~(put by groups)
           group.perm.rc
-        group(active (~(put in active.group) nest.r-channels))
+        %_  group  active-channels
+          (~(put in active-channels.group) nest.r-channels)
+        ==
       ==
     ::
         %join
@@ -1030,7 +1040,9 @@
       %_  cor  groups
         %+  ~(put by groups)
           group.rc
-        group(active (~(put in active.group) nest.r-channels))
+        %_  group  active-channels
+          (~(put in active-channels.group) nest.r-channels)
+        ==
       ==
     ::
     ::XX  this is inefficient, but %leave, unlike %join and %create,
@@ -1047,8 +1059,8 @@
         ?.  (~(has by channels.group) nest.r-channels)
           [net group]
         :-  net
-        %_  group  active
-          (~(del in active.group) nest.r-channels)
+        %_  group  active-channels
+          (~(del in active-channels.group) nest.r-channels)
         ==
       ==
     ==
@@ -1318,14 +1330,12 @@
   ::
   ++  go-leave
     |=  send-remove=?
-    ::XX these are not joined channels, but rather all
-    ::   available channels in a group. only some of them
-    ::   could be joined, as is now tracked in .active.group, but perhaps
-    ::   it is safer to leave this as is.
+    ::NOTE  we leave *all* channels, not just those that
+    ::      are joined.
     ::
-    =/  joined-channels  ~(tap in ~(key by channels.group))
+    =/  channels  ~(tap in ~(key by channels.group))
     =.  cor
-      (emil (leave-channels:go-pass joined-channels))
+      (emil (leave-channels:go-pass channels))
     =.  cor
       (submit-activity [%del %group flag])
     =?  cor  send-remove
@@ -1601,7 +1611,6 @@
       |=  [ch=nest:g =channel:g]
       ?.  (go-can-read our.bowl channel)  ~
       [~ ch]
-    ::XX This endpoint should be versioned
     =.  cor
       (give %fact ~[/groups /groups/ui] group-action-3+!>(`action:v2:g`[flag now.bowl (to-diff-2 create)]))
     =.  cor
