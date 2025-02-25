@@ -147,15 +147,15 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
 
               if (route.name === 'GroupChannels') {
                 if (groupData) {
-                  return `${groupData.title} | Tlon`;
+                  return `${groupData.title}`;
                 }
-                return 'Group Channels | Tlon';
+                return 'Group Channels';
               }
 
               // For channel routes
               if (route.name === 'Channel' || route.name === 'ChannelRoot') {
                 if (channelData && groupData) {
-                  return `${channelData.title} - ${groupData.title} | Tlon`;
+                  return `${channelData.title} - ${groupData.title}`;
                 }
               }
 
@@ -168,22 +168,22 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
                     channelData.contact?.customNickname ||
                     channelData.contactId ||
                     'Chat';
-                  return `${title} | Tlon`;
+                  return `${title}`;
                 }
-                return 'Chat | Tlon';
+                return 'Chat';
               }
 
               // For Group DM routes
               if (route.name === 'GroupDM') {
                 if (channelData) {
-                  return `${channelData.title !== '' ? channelData.title : 'Group DM'} | Tlon`;
+                  return `${channelData.title !== '' ? channelData.title : 'Group DM'}`;
                 }
-                return 'Group DM | Tlon';
+                return 'Group DM';
               }
 
               // For other routes
               const screenName = getFriendlyName(route.name);
-              return `${screenName} | Tlon`;
+              return `${screenName}`;
             },
           }}
         >
@@ -218,9 +218,9 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
               if (route.name === 'Channel' || route.name === 'ChannelRoot') {
                 if (channelData && groupData) {
                   if (groupData?.title) {
-                    return `${channelData.title} - ${groupData.title} | Tlon`;
+                    return `${channelData.title} - ${groupData.title}`;
                   } else {
-                    return `${channelData.title} | Tlon`;
+                    return `${channelData.title}`;  
                   }
                 }
                 if (channelData) {
@@ -230,14 +230,14 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
                     channelData.contact?.customNickname ||
                     channelData.contactId ||
                     'Chat';
-                  return `${title} | Tlon`;
+                  return `${title}`;
                 }
-                return 'Chat | Tlon';
+                return 'Chat';
               }
 
               // For other routes
               const screenName = getFriendlyName(route.name);
-              return `${screenName} | Tlon`;
+              return `${screenName}`;
             },
           }}
         >
