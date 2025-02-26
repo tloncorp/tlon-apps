@@ -373,8 +373,8 @@
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   ::
-  ?>  ?=(%5 -.old)
-  =.  state  old
+  ::  v4 -> v5
+  ::
   ::  leave all /epic subscriptions
   ::
   =.  cor
@@ -388,7 +388,10 @@
     (emit [%pass wire %agent dock %leave ~])
   ::
   =.  cor
-    (emit [%pass /load %arvo %b %wait now.bowl])
+    (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
+  ::
+  ?>  ?=(%5 -.old)
+  =.  state  old
   inflate-io
   ::
   ::
@@ -941,8 +944,7 @@
       (~(handle-wakeup s [subs bowl]) pole)
     (emil caz)
   ::
-      [%load ~]
-    ::  fill in active-channels
+      [%load %active-channels ~]
     ::
     =.  groups
       %-  ~(run by groups)
