@@ -371,13 +371,12 @@
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
-  =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   ::
   ::  v4 -> v5
   ::
   ::  leave all /epic subscriptions
   ::
-  =.  cor
+  =?  cor  ?=(%4 -.old)
     %+  roll  ~(tap by wex.bowl)
     |=  [[[=wire =dock] *] =_cor]
     ?.  ?=([%epic ~] wire)  cor
@@ -386,9 +385,9 @@
     =.  cor  (emil caz)
     ::  force leave
     (emit [%pass wire %agent dock %leave ~])
-  ::
-  =.  cor
+  =?  cor  ?=(%4 -.old)
     (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
+  =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   ::
   ?>  ?=(%5 -.old)
   =.  state  old
@@ -667,17 +666,17 @@
   =*  xeno-2  (~(run by xeno) to-gang-2)
   ?+    pole  [~ ~]
   ::
-      [%x %gangs ~]  ``gangs+!>(xeno-2)
-      [%x %v1 %gangs ~]  ``gangs-1+!>(xeno)
+    [%x %gangs ~]  ``gangs+!>(xeno-2)
+    [%x %v1 %gangs ~]  ``gangs-1+!>(xeno)
   ::
-      [%x %init ~]  ``noun+!>([groups-light-2 xeno-2])
-      [%x %init %v0 ~]  ``noun+!>([groups-light-ui-v0 xeno-2])
-      [%x %init %v1 ~]  ``noun+!>([groups-light-ui-2 xeno-2])
-      [%x %v2 %init ~]    ``noun+!>([groups-light-ui-5 xeno])
+    [%x %init ~]  ``noun+!>([groups-light-2 xeno-2])
+    [%x %init %v0 ~]  ``noun+!>([groups-light-ui-v0 xeno-2])
+    [%x %init %v1 ~]  ``noun+!>([groups-light-ui-2 xeno-2])
+    [%x %v2 %init ~]    ``noun+!>([groups-light-ui-5 xeno])
   ::
-      [%x %groups %light ~]  ``groups+!>(groups-light-2)
-      [%x %groups %light %v0 ~]  ``groups-ui-v0+!>(groups-light-ui-v0)
-      [%x %groups %light %v1 ~]  ``groups-ui+!>(groups-light-ui-2)
+    [%x %groups %light ~]  ``groups+!>(groups-light-2)
+    [%x %groups %light %v0 ~]  ``groups-ui-v0+!>(groups-light-ui-v0)
+    [%x %groups %light %v1 ~]  ``groups-ui+!>(groups-light-ui-2)
   ::
       [%x %groups ~]
     =/  groups-2=groups:v2:g
@@ -2373,10 +2372,14 @@
     =.  cam.gang  `[| %knocking]
     =.  cor  (emit knock:ga-pass)
     ga-core
+  ::
   ++  ga-rescind
     ^+  ga-core
+    =.  cam.gang  ~
+    =.  cor  ga-give-update
     =.  cor  (emit rescind:ga-pass)
     ga-core
+  ::
   ++  ga-watch
     |=  =(pole knot)
     ^+  ga-core
@@ -2397,13 +2400,15 @@
         ga-core
       ::
           [%preview inv=?(~ [%invite ~])]
-        ?+  -.sign  ~|(weird-take/[pole -.sign] !!)
+        ?+    -.sign  ~|(weird-take/[pole -.sign] !!)
+        ::
           %kick  ga-core  ::  kick for single response sub, just take it
-          %watch-ack
+        ::
+            %watch-ack
           ?~  p.sign  ga-core :: TODO: report retreival failure
           %-  (slog u.p.sign)
           ga-core
-          ::
+        ::
             %fact
           ?.  =(%group-preview p.cage.sign)  ga-core
           =+  !<(=preview:g q.cage.sign)
@@ -2459,8 +2464,6 @@
           =.  progress.u.cam.gang  %error
           %-  (slog leaf/"Rescind failed" u.p.sign)
           ga-core
-        =.  cam.gang  ~
-        =.  cor  ga-give-update
         ga-core
     ==
   ::
