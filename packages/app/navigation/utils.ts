@@ -11,6 +11,10 @@ import { useCallback, useMemo } from 'react';
 
 import { useFeatureFlagStore } from '../lib/featureFlags';
 import { useGlobalSearch, useIsWindowNarrow } from '../ui';
+import {
+  DesktopBasePathStackParamList,
+  MobileBasePathStackParamList,
+} from './BasePathNavigator';
 import { CombinedParamList, RootStackParamList } from './types';
 
 const logger = createDevLogger('nav-utils', false);
@@ -236,6 +240,9 @@ export function useNavigateBackFromPost() {
 
 function getTab(
   navigation:
+    | NavigationProp<
+        MobileBasePathStackParamList & DesktopBasePathStackParamList
+      >
     | NavigationProp<RootStackParamList>
     | NavigationProp<CombinedParamList>,
   lastOpenTab: 'Home' | 'Messages'
@@ -247,8 +254,11 @@ function getTab(
       : navigation.getState();
 
   logger.log(parent, navigation.getState());
-  if (state.type !== 'drawer') {
-    throw new Error('Top-level navigator is not a drawer navigator');
+  if (state.type !== 'drawer' || state.routes[state.index]?.name === 'Root') {
+    console.warn(
+      'Top-level navigator is not a drawer navigator, using lastOpenTab'
+    );
+    return lastOpenTab;
   }
 
   const last = state.routes[state.index];
