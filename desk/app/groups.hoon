@@ -225,7 +225,6 @@
       %group-knock
     ?>  from-self
     =+  !<(=flag:g vase)
-    ~&  group-knock+flag
     ga-abet:ga-knock:(ga-abed:gang-core flag)
   ::
       %group-rescind
