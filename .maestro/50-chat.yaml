@@ -102,6 +102,48 @@ appId: io.tlon.groups
       visible: '.*Quote reply.*'
     commands:
       - assertVisible: '.*Quote reply.*'
+# Send a message and hide it
+- tapOn: 'Message'
+- inputText: 'Hide this message'
+- 'hideKeyboard'
+- tapOn:
+    id: 'MessageInputSendButton'
+- runFlow:
+    when:
+      visible: 'Hide this message '
+    commands:
+      - longPressOn:
+          text: 'Hide this message '
+      - tapOn: 'Hide message'
+- assertNotVisible: 'Hide this message '
+# Send a message and report it
+- tapOn: 'Message'
+- inputText: 'Report this message'
+- 'hideKeyboard'
+- tapOn:
+    id: 'MessageInputSendButton'
+- runFlow:
+    when:
+      visible: 'Report this message '
+    commands:
+      - longPressOn:
+          text: 'Report this message '
+      - tapOn: 'Report message'
+- assertNotVisible: 'Report this message '
+# Send a message and delete it
+- tapOn: 'Message'
+- inputText: 'Delete this message'
+- 'hideKeyboard'
+- tapOn:
+    id: 'MessageInputSendButton'
+- runFlow:
+    when:
+      visible: 'Delete this message '
+    commands:
+      - longPressOn:
+          text: 'Delete this message '
+      - tapOn: 'Delete message'
+- assertNotVisible: 'Delete this message '
 # Open the overflow menu from the channel header and delete the group
 - tapOn:
     id: 'ChannelHeaderOverflowMenuButton'
