@@ -1,0 +1,134 @@
+appId: io.tlon.groups
+---
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/tlon-login.yaml
+- assertVisible: 'Home'
+# Tap on the "+" button
+- tapOn:
+    id: 'CreateGroupButton'
+# Assert that the sheet pops
+- assertVisible: 'Create customizable group chat'
+- tapOn: 'New group'
+# Assert that the contacts sheet pops
+- assertVisible: 'Select contacts to invite'
+# Create the group
+- tapOn: 'Create group'
+- runFlow:
+    when:
+      visible: 'General'
+    commands:
+      - assertVisible: 'Welcome to your group!'
+# Navigate back to Home and assert that the group is created
+- tapOn:
+    id: 'HeaderBackButton'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible: 'Untitled group'
+      - tapOn: 'Untitled group'
+      - assertVisible: 'General'
+# Insert some text into the General channel and send it
+- tapOn: 'Message'
+- inputText: 'Hello, world!'
+- 'hideKeyboard'
+- tapOn:
+    id: 'MessageInputSendButton'
+- runFlow:
+    when:
+      visible: '.*Hello, world!.*'
+    commands:
+      - assertVisible: '.*Hello, world!.*'
+# Navigate back to the Home screen and assert that the message preview is visible
+- tapOn:
+    id: 'HeaderBackButton'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible: '.*Hello, world!.*'
+# Navigate back into the group
+- tapOn: 'Untitled group'
+# Long-press the message and select "Start thread"
+- longPressOn: 'Hello, world! '
+- tapOn: 'Start thread'
+- runFlow:
+    when:
+      visible: 'Thread: General'
+    commands:
+      - assertVisible: '.*Hello, world!.*'
+# Insert some text into the thread and send it
+- tapOn: 'Reply'
+- inputText: 'Thread reply'
+- 'hideKeyboard'
+- tapOn:
+    id: 'MessageInputSendButton'
+- runFlow:
+    when:
+      visible: '.*Thread reply.*'
+    commands:
+      - assertVisible: '.*Thread reply.*'
+# Navigate back into the channel and assert that the reply row is visible
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible: '1 reply'
+# Long-press the message and react with a thumb emoji
+- longPressOn: 'Hello, world! '
+- tapOn:
+    id: 'EmojiToolbarButton-thumb'
+- runFlow:
+    when:
+      visible: '.*👍.*'
+    commands:
+      - assertVisible: '.*👍.*'
+# Un-react to the message
+- tapOn:
+    id: 'ReactionDisplay'
+- assertNotVisible: '.*👍.*'
+# Quote-reply to the message
+- longPressOn: 'Hello, world! '
+- tapOn: 'Reply'
+- assertVisible: 'Chat Post'
+- assertVisible:
+    text: '.*Hello, world!.*'
+    index: 1
+- tapOn: 'Message'
+- inputText: 'Quote reply'
+- 'hideKeyboard'
+- tapOn:
+    id: 'MessageInputSendButton'
+- runFlow:
+    when:
+      visible: '.*Quote reply.*'
+    commands:
+      - assertVisible: '.*Quote reply.*'
+# Open the overflow menu from the channel header and delete the group
+- tapOn:
+    id: 'ChannelHeaderOverflowMenuButton'
+- assertVisible: 'Secret group with 1 member'
+- tapOn: 'Group info & settings'
+- assertVisible: 'Group info'
+- scrollUntilVisible:
+    direction: DOWN
+    element:
+      text: 'Delete group'
+- tapOn: 'Delete group'
+- runFlow:
+    when:
+      visible: 'This action cannot be undone.'
+    commands:
+      - assertVisible: 'This action cannot be undone.'
+      - tapOn: 'Delete group'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible: 'Home'
+      - assertNotVisible: 'Untitled group'
+# Log out
+- tapOn:
+    id: 'AvatarNavIcon'
+- tapOn:
+    id: 'ContactsSettingsButton'
+- tapOn: 'Log out'
+- tapOn: 'Log out now'
