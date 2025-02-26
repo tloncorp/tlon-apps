@@ -2083,6 +2083,8 @@
     ga-core
   ++  ga-rescind
     ^+  ga-core
+    =.  cam.gang  ~
+    =.  cor  ga-give-update
     =.  cor  (emit rescind:ga-pass)
     ga-core
   ++  ga-watch
@@ -2163,8 +2165,6 @@
           =.  progress.u.cam.gang  %error
           %-  (slog leaf/"Rescind failed" u.p.sign)
           ga-core
-        =.  cam.gang  ~
-        =.  cor  ga-give-update
         ga-core
     ==
   ::
