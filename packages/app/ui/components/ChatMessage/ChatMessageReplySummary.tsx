@@ -1,5 +1,4 @@
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { formatDistanceToNow } from 'date-fns';
@@ -25,7 +24,7 @@ export const ChatMessageReplySummary = React.memo(
   }) {
     const { replyCount, replyTime, replyContactIds, threadUnread } = post;
     const hasUnreads = !!threadUnread?.count;
-    const isMuted = post.volumeSettings || !threadUnread?.notify;
+    const isNotify = threadUnread?.notify ?? false;
     const time = useMemo(() => {
       return formatDistanceToNow(replyTime!);
     }, [replyTime]);
@@ -39,9 +38,9 @@ export const ChatMessageReplySummary = React.memo(
             color={
               textColor ??
               (hasUnreads
-                ? isMuted
-                  ? '$tertiaryText'
-                  : '$positiveActionText'
+                ? isNotify
+                  ? '$positiveActionText'
+                  : '$tertiaryText'
                 : '$primaryText')
             }
           >
@@ -49,8 +48,7 @@ export const ChatMessageReplySummary = React.memo(
           </Text>
           <ThreadUnreadDot
             unreadCount={threadUnread?.count ?? 0}
-            isMuted={logic.isMuted(post.volumeSettings?.level, 'thread')}
-            isNotify={post.threadUnread?.notify ?? false}
+            isNotify={isNotify}
           />
           {showTime && <ReplyTimeText>{time} ago</ReplyTimeText>}
         </XStack>
@@ -95,15 +93,13 @@ const ReplyTimeText = styled(Text, {
 
 function ThreadUnreadDot({
   unreadCount,
-  isMuted,
   isNotify,
 }: {
   unreadCount: number;
-  isMuted: boolean;
   isNotify: boolean;
 }) {
   if (unreadCount) {
-    return <UnreadDot color={isMuted || !isNotify ? 'neutral' : 'primary'} />;
+    return <UnreadDot color={isNotify ? 'primary' : 'neutral'} />;
   }
 
   return null;
