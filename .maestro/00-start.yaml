@@ -14,3 +14,4 @@ appId: io.tlon.groups
 - runFlow: 42-group-info-settings.yaml
 - runFlow: 43-roles.yaml
 - runFlow: 50-chat.yaml
+- runFlow: 51-threads.yaml
